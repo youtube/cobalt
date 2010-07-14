@@ -20,6 +20,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
+#include "net/socket/client_socket_handle.h"
 
 // Welcome to Mac SSL. We've been waiting for you.
 //
@@ -497,7 +498,7 @@ EnabledCipherSuites::EnabledCipherSuites() {
 
 //-----------------------------------------------------------------------------
 
-SSLClientSocketMac::SSLClientSocketMac(ClientSocket* transport_socket,
+SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
                                        const std::string& hostname,
                                        const SSLConfig& ssl_config)
     : handshake_io_callback_(this, &SSLClientSocketMac::OnHandshakeIOComplete),
@@ -519,7 +520,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocket* transport_socket,
       client_cert_requested_(false),
       ssl_context_(NULL),
       pending_send_error_(OK),
-      net_log_(transport_socket->NetLog()) {
+      net_log_(transport_socket->socket()->NetLog()) {
 }
 
 SSLClientSocketMac::~SSLClientSocketMac() {
@@ -561,7 +562,7 @@ void SSLClientSocketMac::Disconnect() {
 
   // Shut down anything that may call us back.
   verifier_.reset();
-  transport_->Disconnect();
+  transport_->socket()->Disconnect();
 }
 
 bool SSLClientSocketMac::IsConnected() const {
@@ -571,7 +572,7 @@ bool SSLClientSocketMac::IsConnected() const {
   // layer (HttpNetworkTransaction) needs to handle a persistent connection
   // closed by the server when we send a request anyway, a false positive in
   // exchange for simpler code is a good trade-off.
-  return completed_handshake_ && transport_->IsConnected();
+  return completed_handshake_ && transport_->socket()->IsConnected();
 }
 
 bool SSLClientSocketMac::IsConnectedAndIdle() const {
@@ -580,13 +581,14 @@ bool SSLClientSocketMac::IsConnectedAndIdle() const {
   // Strictly speaking, we should check if we have received the close_notify
   // alert message from the server, and return false in that case.  Although
   // the close_notify alert message means EOF in the SSL layer, it is just
-  // bytes to the transport layer below, so transport_->IsConnectedAndIdle()
-  // returns the desired false when we receive close_notify.
-  return completed_handshake_ && transport_->IsConnectedAndIdle();
+  // bytes to the transport layer below, so
+  // transport_->socket()->IsConnectedAndIdle() returns the desired false
+  // when we receive close_notify.
+  return completed_handshake_ && transport_->socket()->IsConnectedAndIdle();
 }
 
 int SSLClientSocketMac::GetPeerAddress(AddressList* address) const {
-  return transport_->GetPeerAddress(address);
+  return transport_->socket()->GetPeerAddress(address);
 }
 
 int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
@@ -628,11 +630,11 @@ int SSLClientSocketMac::Write(IOBuffer* buf, int buf_len,
 }
 
 bool SSLClientSocketMac::SetReceiveBufferSize(int32 size) {
-  return transport_->SetReceiveBufferSize(size);
+  return transport_->socket()->SetReceiveBufferSize(size);
 }
 
 bool SSLClientSocketMac::SetSendBufferSize(int32 size) {
-  return transport_->SetSendBufferSize(size);
+  return transport_->socket()->SetSendBufferSize(size);
 }
 
 void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
@@ -809,7 +811,7 @@ int SSLClientSocketMac::InitializeSSLContext() {
     // different peers, which puts us through certificate validation again
     // and catches hostname/certificate name mismatches.
     AddressList address;
-    int rv = transport_->GetPeerAddress(&address);
+    int rv = transport_->socket()->GetPeerAddress(&address);
     if (rv != OK)
       return rv;
     const struct addrinfo* ai = address.head();
@@ -1221,9 +1223,9 @@ OSStatus SSLClientSocketMac::SSLReadCallback(SSLConnectionRef connection,
   int rv = 1;  // any old value to spin the loop below
   while (rv > 0 && total_read < *data_length) {
     us->read_io_buf_ = new IOBuffer(*data_length - total_read);
-    rv = us->transport_->Read(us->read_io_buf_,
-                              *data_length - total_read,
-                              &us->transport_read_callback_);
+    rv = us->transport_->socket()->Read(us->read_io_buf_,
+                                        *data_length - total_read,
+                                        &us->transport_read_callback_);
 
     if (rv >= 0) {
       us->recv_buffer_.insert(us->recv_buffer_.end(),
@@ -1283,9 +1285,9 @@ OSStatus SSLClientSocketMac::SSLWriteCallback(SSLConnectionRef connection,
     us->write_io_buf_ = new IOBuffer(us->send_buffer_.size());
     memcpy(us->write_io_buf_->data(), &us->send_buffer_[0],
            us->send_buffer_.size());
-    rv = us->transport_->Write(us->write_io_buf_,
-                               us->send_buffer_.size(),
-                               &us->transport_write_callback_);
+    rv = us->transport_->socket()->Write(us->write_io_buf_,
+                                         us->send_buffer_.size(),
+                                         &us->transport_write_callback_);
     if (rv > 0) {
       us->send_buffer_.erase(us->send_buffer_.begin(),
                              us->send_buffer_.begin() + rv);

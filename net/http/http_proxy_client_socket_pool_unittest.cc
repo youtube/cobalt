@@ -6,16 +6,9 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/time.h"
-#include "net/base/auth.h"
-#include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
-#include "net/http/http_auth_controller.h"
-#include "net/http/http_network_session.h"
-#include "net/http/http_request_headers.h"
-#include "net/http/http_response_headers.h"
-#include "net/socket/client_socket_factory.h"
+#include "net/http/http_proxy_client_socket.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
@@ -27,60 +20,6 @@ namespace {
 
 const int kMaxSockets = 32;
 const int kMaxSocketsPerGroup = 6;
-
-struct MockHttpAuthControllerData {
-  MockHttpAuthControllerData(std::string header) : auth_header(header) {}
-
-  std::string auth_header;
-};
-
-class MockHttpAuthController : public HttpAuthController {
- public:
-  MockHttpAuthController()
-      : HttpAuthController(HttpAuth::AUTH_PROXY, GURL(),
-                           scoped_refptr<HttpNetworkSession>(NULL)),
-        data_(NULL),
-        data_index_(0),
-        data_count_(0) {
-  }
-
-  void SetMockAuthControllerData(struct MockHttpAuthControllerData* data,
-                                 size_t data_length) {
-    data_ = data;
-    data_count_ = data_length;
-  }
-
-  // HttpAuthController methods.
-  virtual int MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                                     CompletionCallback* callback,
-                                     const BoundNetLog& net_log) {
-    return OK;
-  }
-  virtual void AddAuthorizationHeader(
-      HttpRequestHeaders* authorization_headers) {
-    authorization_headers->AddHeadersFromString(CurrentData().auth_header);
-  }
-  virtual int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
-                                  bool do_not_send_server_auth,
-                                  bool establishing_tunnel,
-                                  const BoundNetLog& net_log) {
-    return OK;
-  }
-  virtual bool HaveAuthHandler() const { return HaveAuth(); }
-  virtual bool HaveAuth() const {
-    return CurrentData().auth_header.size() != 0; }
-
- private:
-  virtual ~MockHttpAuthController() {}
-  const struct MockHttpAuthControllerData& CurrentData() const {
-    DCHECK(data_index_ < data_count_);
-    return data_[data_index_];
-  }
-
-  MockHttpAuthControllerData* data_;
-  size_t data_index_;
-  size_t data_count_;
-};
 
 class HttpProxyClientSocketPoolTest : public ClientSocketPoolTest {
  protected:
@@ -131,6 +70,9 @@ TEST_F(HttpProxyClientSocketPoolTest, NoTunnel) {
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
+  HttpProxyClientSocket* tunnel_socket =
+          static_cast<HttpProxyClientSocket*>(handle.socket());
+  EXPECT_FALSE(tunnel_socket->NeedsRestartWithAuth());
 }
 
 TEST_F(HttpProxyClientSocketPoolTest, NeedAuth) {
@@ -166,6 +108,9 @@ TEST_F(HttpProxyClientSocketPoolTest, NeedAuth) {
   EXPECT_EQ(ERR_PROXY_AUTH_REQUESTED, callback.WaitForResult());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
+  HttpProxyClientSocket* tunnel_socket =
+          static_cast<HttpProxyClientSocket*>(handle.socket());
+  EXPECT_TRUE(tunnel_socket->NeedsRestartWithAuth());
 }
 
 TEST_F(HttpProxyClientSocketPoolTest, HaveAuth) {
@@ -196,6 +141,9 @@ TEST_F(HttpProxyClientSocketPoolTest, HaveAuth) {
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
+  HttpProxyClientSocket* tunnel_socket =
+          static_cast<HttpProxyClientSocket*>(handle.socket());
+  EXPECT_FALSE(tunnel_socket->NeedsRestartWithAuth());
 }
 
 TEST_F(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
@@ -228,6 +176,9 @@ TEST_F(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
+  HttpProxyClientSocket* tunnel_socket =
+          static_cast<HttpProxyClientSocket*>(handle.socket());
+  EXPECT_FALSE(tunnel_socket->NeedsRestartWithAuth());
 }
 
 TEST_F(HttpProxyClientSocketPoolTest, TCPError) {
@@ -277,7 +228,7 @@ TEST_F(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, callback.WaitForResult());
+  EXPECT_EQ(ERR_CONNECTION_CLOSED, callback.WaitForResult());
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 }

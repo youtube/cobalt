@@ -21,6 +21,7 @@
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socks_client_socket_pool.h"
+#include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_settings_storage.h"
 
@@ -71,11 +72,18 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     return tcp_socket_pool_;
   }
 
+  const scoped_refptr<SSLClientSocketPool>& ssl_socket_pool() {
+    return ssl_socket_pool_;
+  }
+
   const scoped_refptr<SOCKSClientSocketPool>& GetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy);
 
   const scoped_refptr<HttpProxyClientSocketPool>& GetSocketPoolForHTTPProxy(
       const HostPortPair& http_proxy);
+
+  const scoped_refptr<SSLClientSocketPool>& GetSocketPoolForSSLWithProxy(
+      const HostPortPair& proxy_server);
 
   // SSL sockets come from the socket_factory().
   ClientSocketFactory* socket_factory() { return socket_factory_; }
@@ -100,11 +108,40 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   static uint16 fixed_https_port();
   static void set_fixed_https_port(uint16 port);
 
+#ifdef UNIT_TEST
+  void FlushSocketPools() {
+    if (ssl_socket_pool_.get())
+      ssl_socket_pool_->Flush();
+    if (tcp_socket_pool_.get())
+      tcp_socket_pool_->Flush();
+
+    for (SSLSocketPoolMap::const_iterator it =
+        ssl_socket_pools_for_proxies_.begin();
+        it != ssl_socket_pools_for_proxies_.end();
+        it++)
+      it->second->Flush();
+
+    for (SOCKSSocketPoolMap::const_iterator it =
+        socks_socket_pools_.begin();
+        it != socks_socket_pools_.end();
+        it++)
+      it->second->Flush();
+
+    for (HTTPProxySocketPoolMap::const_iterator it =
+        http_proxy_socket_pools_.begin();
+        it != http_proxy_socket_pools_.end();
+        it++)
+      it->second->Flush();
+  }
+#endif
+
  private:
   typedef std::map<HostPortPair, scoped_refptr<HttpProxyClientSocketPool> >
       HTTPProxySocketPoolMap;
   typedef std::map<HostPortPair, scoped_refptr<SOCKSClientSocketPool> >
       SOCKSSocketPoolMap;
+  typedef std::map<HostPortPair, scoped_refptr<SSLClientSocketPool> >
+      SSLSocketPoolMap;
 
   friend class base::RefCounted<HttpNetworkSession>;
   friend class HttpNetworkSessionPeer;
@@ -119,9 +156,12 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   scoped_refptr<ClientSocketPoolHistograms> http_proxy_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_for_socks_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> socks_pool_histograms_;
+  scoped_refptr<ClientSocketPoolHistograms> ssl_pool_histograms_;
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
-  HTTPProxySocketPoolMap http_proxy_socket_pool_;
-  SOCKSSocketPoolMap socks_socket_pool_;
+  scoped_refptr<SSLClientSocketPool> ssl_socket_pool_;
+  HTTPProxySocketPoolMap http_proxy_socket_pools_;
+  SOCKSSocketPoolMap socks_socket_pools_;
+  SSLSocketPoolMap ssl_socket_pools_for_proxies_;
   ClientSocketFactory* socket_factory_;
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;

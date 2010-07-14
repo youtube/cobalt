@@ -90,6 +90,11 @@ class ConnectJob {
 
   virtual LoadState GetLoadState() const = 0;
 
+  // If Connect returns an error (or OnConnectJobComplete reports an error
+  // result) this method will be called, allowing the pool to add
+  // additional error state to the ClientSocketHandle (post late-binding).
+  virtual void GetAdditionalErrorState(ClientSocketHandle* handle) {}
+
  protected:
   void set_socket(ClientSocket* socket);
   ClientSocket* socket() { return socket_.get(); }

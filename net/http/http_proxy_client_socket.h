@@ -45,6 +45,10 @@ class HttpProxyClientSocket : public ClientSocket {
   // RestartWithAuth.
   int RestartWithAuth(CompletionCallback* callback);
 
+  // Indicates if RestartWithAuth needs to be called. i.e. if Connect
+  // returned PROXY_AUTH_REQUESTED.  Only valid after Connect has been called.
+  bool NeedsRestartWithAuth() const;
+
   const HttpResponseInfo* GetResponseInfo() const {
       return response_.headers ? &response_ : NULL;
   }

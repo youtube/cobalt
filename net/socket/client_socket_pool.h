@@ -42,8 +42,9 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // code is returned, but the |handle| is initialized with the new socket.
   // The caller must recover from the error before using the connection, or
   // Disconnect the socket before releasing or resetting the |handle|.
-  // The current recoverable errors are: PROXY_AUTH_REQUESTED and the errors
-  // accepted by IsCertificateError(err).
+  // The current recoverable errors are: the errors accepted by
+  // IsCertificateError(err) and PROXY_AUTH_REQUESTED when reported by
+  // HttpProxyClientSocketPool.
   //
   // If this function returns OK, then |handle| is initialized upon return.
   // The |handle|'s is_initialized method will return true in this case.  If a

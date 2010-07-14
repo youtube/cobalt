@@ -21,8 +21,11 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/test_completion_callback.h"
+#include "net/http/http_auth_controller.h"
+#include "net/http/http_proxy_client_socket_pool.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/tcp_client_socket_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,6 +42,8 @@ enum {
 };
 
 class ClientSocket;
+class HttpRequestHeaders;
+class HttpResponseHeaders;
 class MockClientSocket;
 class SSLClientSocket;
 
@@ -393,7 +398,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
   virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses,
                                               NetLog* net_log);
   virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocket* transport_socket,
+      ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config);
 
@@ -496,7 +501,7 @@ class MockTCPClientSocket : public MockClientSocket {
 class MockSSLClientSocket : public MockClientSocket {
  public:
   MockSSLClientSocket(
-      net::ClientSocket* transport_socket,
+      net::ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const net::SSLConfig& ssl_config,
       net::SSLSocketDataProvider* socket);
@@ -516,6 +521,7 @@ class MockSSLClientSocket : public MockClientSocket {
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
   virtual NextProtoStatus GetNextProto(std::string* proto);
   virtual bool wasNpnNegotiated() const;
+  virtual bool setWasNpnNegotiated(bool negotiated);
 
   // This MockSocket does not implement the manual async IO feature.
   virtual void OnReadComplete(const MockRead& data) { NOTIMPLEMENTED(); }
@@ -523,8 +529,10 @@ class MockSSLClientSocket : public MockClientSocket {
  private:
   class ConnectCallback;
 
-  scoped_ptr<ClientSocket> transport_;
+  scoped_ptr<ClientSocketHandle> transport_;
   net::SSLSocketDataProvider* data_;
+  bool is_npn_state_set_;
+  bool new_npn_value_;
 };
 
 class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
@@ -653,6 +661,75 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
   ScopedVector<MockConnectJob> job_list_;
 
   DISALLOW_COPY_AND_ASSIGN(MockTCPClientSocketPool);
+};
+
+class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
+ public:
+  MockSOCKSClientSocketPool(
+      int max_sockets,
+      int max_sockets_per_group,
+      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+      const scoped_refptr<TCPClientSocketPool>& tcp_pool);
+
+  // SOCKSClientSocketPool methods.
+  virtual int RequestSocket(const std::string& group_name,
+                            const void* socket_params,
+                            RequestPriority priority,
+                            ClientSocketHandle* handle,
+                            CompletionCallback* callback,
+                            const BoundNetLog& net_log);
+
+  virtual void CancelRequest(const std::string& group_name,
+                             const ClientSocketHandle* handle);
+  virtual void ReleaseSocket(const std::string& group_name,
+                             ClientSocket* socket, int id);
+
+ protected:
+  virtual ~MockSOCKSClientSocketPool();
+
+ private:
+  const scoped_refptr<TCPClientSocketPool> tcp_pool_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockSOCKSClientSocketPool);
+};
+
+struct MockHttpAuthControllerData {
+  MockHttpAuthControllerData(std::string header) : auth_header(header) {}
+
+  std::string auth_header;
+};
+
+class MockHttpAuthController : public HttpAuthController {
+ public:
+  MockHttpAuthController();
+  void SetMockAuthControllerData(struct MockHttpAuthControllerData* data,
+                                 size_t data_length);
+
+  // HttpAuthController methods.
+  virtual int MaybeGenerateAuthToken(const HttpRequestInfo* request,
+                                     CompletionCallback* callback,
+                                     const BoundNetLog& net_log);
+  virtual void AddAuthorizationHeader(
+      HttpRequestHeaders* authorization_headers);
+  virtual int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
+                                  bool do_not_send_server_auth,
+                                  bool establishing_tunnel,
+                                  const BoundNetLog& net_log);
+  virtual void ResetAuth(const std::wstring& username,
+                         const std::wstring& password);
+  virtual bool HaveAuthHandler() const;
+  virtual bool HaveAuth() const;
+
+ private:
+  virtual ~MockHttpAuthController() {}
+  const struct MockHttpAuthControllerData& CurrentData() const {
+    DCHECK(data_index_ < data_count_);
+    return data_[data_index_];
+  }
+
+  MockHttpAuthControllerData* data_;
+  size_t data_index_;
+  size_t data_count_;
 };
 
 // Constants for a successful SOCKS v5 handshake.

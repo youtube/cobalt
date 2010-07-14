@@ -257,6 +257,7 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     group.jobs.insert(job);
   } else {
     LogBoundConnectJobToRequest(connect_job->net_log().source(), request);
+    connect_job->GetAdditionalErrorState(handle);
     ClientSocket* error_socket = connect_job->ReleaseSocket();
     if (error_socket) {
       HandOutSocket(error_socket, false /* not reused */, handle,
@@ -592,10 +593,10 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
   scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
 
   BoundNetLog job_log = job->net_log();
-  RemoveConnectJob(job, &group);
 
   if (result == OK) {
     DCHECK(socket.get());
+    RemoveConnectJob(job, &group);
     if (!group.pending_requests.empty()) {
       scoped_ptr<const Request> r(RemoveRequestFromQueue(
           group.pending_requests.begin(), &group.pending_requests));
@@ -617,6 +618,8 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
       scoped_ptr<const Request> r(RemoveRequestFromQueue(
           group.pending_requests.begin(), &group.pending_requests));
       LogBoundConnectJobToRequest(job_log.source(), r.get());
+      job->GetAdditionalErrorState(r->handle());
+      RemoveConnectJob(job, &group);
       if (socket.get()) {
         handed_out_socket = true;
         HandOutSocket(socket.release(), false /* unused socket */, r->handle(),
@@ -624,7 +627,15 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
       }
       r->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL,
                             new NetLogIntegerParameter("net_error", result));
+      if (socket.get()) {
+        handed_out_socket = true;
+        HandOutSocket(
+            socket.release(), false /* unused socket */, r->handle(),
+            base::TimeDelta(), &group, r->net_log());
+      }
       r->callback()->Run(result);
+    } else {
+      RemoveConnectJob(job, &group);
     }
     if (!handed_out_socket)
       OnAvailableSocketSlot(group_name, MayHaveStalledGroups());

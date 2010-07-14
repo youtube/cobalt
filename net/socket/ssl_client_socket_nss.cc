@@ -75,6 +75,7 @@
 #include "net/base/ssl_info.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/ocsp/nss_ocsp.h"
+#include "net/socket/client_socket_handle.h"
 
 static const int kRecvBufferSize = 4096;
 
@@ -279,7 +280,7 @@ bool IsProblematicComodoEVCACert(const CERTCertificate& cert) {
 HCERTSTORE SSLClientSocketNSS::cert_store_ = NULL;
 #endif
 
-SSLClientSocketNSS::SSLClientSocketNSS(ClientSocket* transport_socket,
+SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                                        const std::string& hostname,
                                        const SSLConfig& ssl_config)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
@@ -305,7 +306,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocket* transport_socket,
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
       nss_bufs_(NULL),
-      net_log_(transport_socket->NetLog()) {
+      net_log_(transport_socket->socket()->NetLog()) {
   EnterFunction("");
 }
 
@@ -379,7 +380,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 
   // Tell NSS who we're connected to
   AddressList peer_address;
-  int err = transport_->GetPeerAddress(&peer_address);
+  int err = transport_->socket()->GetPeerAddress(&peer_address);
   if (err != OK)
     return err;
 
@@ -550,7 +551,7 @@ void SSLClientSocketNSS::Disconnect() {
   // Shut down anything that may call us back (through buffer_send_callback_,
   // buffer_recv_callback, or handshake_io_callback_).
   verifier_.reset();
-  transport_->Disconnect();
+  transport_->socket()->Disconnect();
 
   // Reset object state
   transport_send_busy_   = false;
@@ -584,7 +585,7 @@ bool SSLClientSocketNSS::IsConnected() const {
   // closed by the server when we send a request anyway, a false positive in
   // exchange for simpler code is a good trade-off.
   EnterFunction("");
-  bool ret = completed_handshake_ && transport_->IsConnected();
+  bool ret = completed_handshake_ && transport_->socket()->IsConnected();
   LeaveFunction("");
   return ret;
 }
@@ -595,16 +596,17 @@ bool SSLClientSocketNSS::IsConnectedAndIdle() const {
   // Strictly speaking, we should check if we have received the close_notify
   // alert message from the server, and return false in that case.  Although
   // the close_notify alert message means EOF in the SSL layer, it is just
-  // bytes to the transport layer below, so transport_->IsConnectedAndIdle()
-  // returns the desired false when we receive close_notify.
+  // bytes to the transport layer below, so
+  // transport_->socket()->IsConnectedAndIdle() returns the desired false
+  // when we receive close_notify.
   EnterFunction("");
-  bool ret = completed_handshake_ && transport_->IsConnectedAndIdle();
+  bool ret = completed_handshake_ && transport_->socket()->IsConnectedAndIdle();
   LeaveFunction("");
   return ret;
 }
 
 int SSLClientSocketNSS::GetPeerAddress(AddressList* address) const {
-  return transport_->GetPeerAddress(address);
+  return transport_->socket()->GetPeerAddress(address);
 }
 
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
@@ -658,11 +660,11 @@ int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
 }
 
 bool SSLClientSocketNSS::SetReceiveBufferSize(int32 size) {
-  return transport_->SetReceiveBufferSize(size);
+  return transport_->socket()->SetReceiveBufferSize(size);
 }
 
 bool SSLClientSocketNSS::SetSendBufferSize(int32 size) {
-  return transport_->SetSendBufferSize(size);
+  return transport_->socket()->SetSendBufferSize(size);
 }
 
 #if defined(OS_WIN)
@@ -1032,7 +1034,8 @@ int SSLClientSocketNSS::BufferSend(void) {
 
     scoped_refptr<IOBuffer> send_buffer = new IOBuffer(nb);
     memcpy(send_buffer->data(), buf, nb);
-    int rv = transport_->Write(send_buffer, nb, &buffer_send_callback_);
+    int rv = transport_->socket()->Write(send_buffer, nb,
+                                         &buffer_send_callback_);
     if (rv == ERR_IO_PENDING) {
       transport_send_busy_ = true;
       break;
@@ -1072,7 +1075,7 @@ int SSLClientSocketNSS::BufferRecv(void) {
     rv = ERR_IO_PENDING;
   } else {
     recv_buffer_ = new IOBuffer(nb);
-    rv = transport_->Read(recv_buffer_, nb, &buffer_recv_callback_);
+    rv = transport_->socket()->Read(recv_buffer_, nb, &buffer_recv_callback_);
     if (rv == ERR_IO_PENDING) {
       transport_recv_busy_ = true;
     } else {
