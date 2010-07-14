@@ -1,6 +1,6 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "net/ftp/ftp_network_transaction.h"
 
@@ -150,7 +150,7 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
 
   DetectTypecode();
 
-  next_state_ = STATE_CTRL_INIT;
+  next_state_ = STATE_CTRL_RESOLVE_HOST;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
@@ -174,7 +174,7 @@ int FtpNetworkTransaction::RestartWithAuth(const std::wstring& username,
   username_ = username;
   password_ = password;
 
-  next_state_ = STATE_CTRL_INIT;
+  next_state_ = STATE_CTRL_RESOLVE_HOST;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
@@ -300,9 +300,6 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
       break;
     case COMMAND_PASS:
       rv = ProcessResponsePASS(response);
-      break;
-    case COMMAND_ACCT:
-      rv = ProcessResponseACCT(response);
       break;
     case COMMAND_SYST:
       rv = ProcessResponseSYST(response);
@@ -462,13 +459,6 @@ int FtpNetworkTransaction::DoLoop(int result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
-      case STATE_CTRL_INIT:
-        DCHECK(rv == OK);
-        rv = DoCtrlInit();
-        break;
-      case STATE_CTRL_INIT_COMPLETE:
-        rv = DoCtrlInitComplete(rv);
-        break;
       case STATE_CTRL_RESOLVE_HOST:
         DCHECK(rv == OK);
         rv = DoCtrlResolveHost();
@@ -508,10 +498,6 @@ int FtpNetworkTransaction::DoLoop(int result) {
       case STATE_CTRL_WRITE_SYST:
         DCHECK(rv == OK);
         rv = DoCtrlWriteSYST();
-        break;
-      case STATE_CTRL_WRITE_ACCT:
-        DCHECK(rv == OK);
-        rv = DoCtrlWriteACCT();
         break;
       case STATE_CTRL_WRITE_PWD:
         DCHECK(rv == OK);
@@ -574,17 +560,6 @@ int FtpNetworkTransaction::DoLoop(int result) {
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
   return rv;
-}
-
-// TODO(ibrar): Yet to see if we need any intialization
-int FtpNetworkTransaction::DoCtrlInit() {
-  next_state_ = STATE_CTRL_INIT_COMPLETE;
-  return OK;
-}
-
-int FtpNetworkTransaction::DoCtrlInitComplete(int result) {
-  next_state_ = STATE_CTRL_RESOLVE_HOST;
-  return OK;
 }
 
 int FtpNetworkTransaction::DoCtrlResolveHost() {
@@ -728,8 +703,7 @@ int FtpNetworkTransaction::ProcessResponsePASS(
       next_state_ = STATE_CTRL_WRITE_SYST;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      next_state_ = STATE_CTRL_WRITE_ACCT;
-      break;
+      return Stop(ERR_FAILED);
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
@@ -862,34 +836,6 @@ int FtpNetworkTransaction::ProcessResponseTYPE(
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
       next_state_ = use_epsv_ ? STATE_CTRL_WRITE_EPSV : STATE_CTRL_WRITE_PASV;
-      break;
-    case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_INVALID_RESPONSE);
-    case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
-    case ERROR_CLASS_PERMANENT_ERROR:
-      return Stop(ERR_FAILED);
-    default:
-      NOTREACHED();
-      return Stop(ERR_UNEXPECTED);
-  }
-  return OK;
-}
-
-// ACCT command.
-int FtpNetworkTransaction::DoCtrlWriteACCT() {
-  std::string command = "ACCT noaccount";
-  next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_ACCT);
-}
-
-int FtpNetworkTransaction::ProcessResponseACCT(
-    const FtpCtrlResponse& response) {
-  switch (GetErrorClass(response.status_code)) {
-    case ERROR_CLASS_INITIATED:
-      return Stop(ERR_INVALID_RESPONSE);
-    case ERROR_CLASS_OK:
-      next_state_ = STATE_CTRL_WRITE_SYST;
       break;
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
@@ -1039,13 +985,9 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       next_state_ = STATE_CTRL_WRITE_QUIT;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      next_state_ = use_epsv_ ? STATE_CTRL_WRITE_EPSV : STATE_CTRL_WRITE_PASV;
-      break;
+      return Stop(ERR_FAILED);
     case ERROR_CLASS_TRANSIENT_ERROR:
-      if (response.status_code == 421 || response.status_code == 425 ||
-          response.status_code == 426)
-        return Stop(ERR_FAILED);
-      return ERR_FAILED;  // TODO(ibrar): Retry here.
+      return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
       // Code 550 means "Failed to open file". Other codes are unrelated,
       // like "Not logged in" etc.
