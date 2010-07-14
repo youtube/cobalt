@@ -15,6 +15,7 @@
 
 #include "base/basictypes.h"
 #include "base/command_line.h"
+#include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/process_util.h"
@@ -88,8 +89,7 @@ class Image {
 
   // Creates the image from the given filename on disk, and returns true on
   // success.
-  bool CreateFromFilename(const char* filename) {
-    FilePath path = FilePath::FromWStringHack(ASCIIToWide(filename));
+  bool CreateFromFilename(const FilePath& path) {
     FILE* f = file_util::OpenFile(path, "rb");
     if (!f)
       return false;
@@ -191,16 +191,18 @@ void PrintHelp() {
   */
 }
 
-int CompareImages(const char* file1, const char* file2) {
+int CompareImages(const FilePath& file1, const FilePath& file2) {
   Image actual_image;
   Image baseline_image;
 
   if (!actual_image.CreateFromFilename(file1)) {
-    fprintf(stderr, "image_diff: Unable to open file \"%s\"\n", file1);
+    fprintf(stderr, "image_diff: Unable to open file \"%" PRFilePath "\"\n",
+            file1.value().c_str());
     return kStatusError;
   }
   if (!baseline_image.CreateFromFilename(file2)) {
-    fprintf(stderr, "image_diff: Unable to open file \"%s\"\n", file2);
+    fprintf(stderr, "image_diff: Unable to open file \"%" PRFilePath "\"\n",
+            file2.value().c_str());
     return kStatusError;
   }
 
@@ -290,16 +292,19 @@ bool CreateImageDiff(const Image& image1, const Image& image2, Image* out) {
   return same;
 }
 
-int DiffImages(const char* file1, const char* file2, const char* out_file) {
+int DiffImages(const FilePath& file1, const FilePath& file2,
+               const FilePath& out_file) {
   Image actual_image;
   Image baseline_image;
 
   if (!actual_image.CreateFromFilename(file1)) {
-    fprintf(stderr, "image_diff: Unable to open file \"%s\"\n", file1);
+    fprintf(stderr, "image_diff: Unable to open file \"%" PRFilePath "\"\n",
+            file1.value().c_str());
     return kStatusError;
   }
   if (!baseline_image.CreateFromFilename(file2)) {
-    fprintf(stderr, "image_diff: Unable to open file \"%s\"\n", file2);
+    fprintf(stderr, "image_diff: Unable to open file \"%" PRFilePath "\"\n",
+            file2.value().c_str());
     return kStatusError;
   }
 
@@ -312,12 +317,22 @@ int DiffImages(const char* file1, const char* file2, const char* out_file) {
   gfx::PNGCodec::Encode(diff_image.data(), gfx::PNGCodec::FORMAT_RGBA,
                         diff_image.w(), diff_image.h(), diff_image.w() * 4,
                         false, &png_encoding);
-  FilePath out_path = FilePath::FromWStringHack(ASCIIToWide(out_file));
-  if (file_util::WriteFile(out_path,
+  if (file_util::WriteFile(out_file,
       reinterpret_cast<char*>(&png_encoding.front()), png_encoding.size()) < 0)
     return kStatusError;
 
   return kStatusDifferent;
+}
+
+// It isn't strictly correct to only support ASCII paths, but this
+// program reads paths on stdin and the program that spawns it outputs
+// paths as non-wide strings anyway.
+FilePath FilePathFromASCII(const std::string& str) {
+#if defined(OS_WIN)
+  return FilePath(ASCIIToWide(str));
+#else
+  return FilePath(str);
+#endif
 }
 
 int main(int argc, const char* argv[]) {
@@ -327,38 +342,40 @@ int main(int argc, const char* argv[]) {
   if (parsed_command_line.HasSwitch(kOptionPollStdin)) {
     // Watch stdin for filenames.
     std::string stdin_buffer;
-    std::string filename1_buffer;
-    bool have_filename1 = false;
+    FilePath filename1;
     while (std::getline(std::cin, stdin_buffer)) {
       if (stdin_buffer.empty())
         continue;
 
-      if (have_filename1) {
+      if (!filename1.empty()) {
         // CompareImages writes results to stdout unless an error occurred.
-        if (CompareImages(filename1_buffer.c_str(), stdin_buffer.c_str()) ==
-            kStatusError)
+        FilePath filename2 = FilePathFromASCII(stdin_buffer);
+        if (CompareImages(filename1, filename2) == kStatusError)
           printf("error\n");
         fflush(stdout);
-        have_filename1 = false;
+        filename1 = FilePath();
       } else {
         // Save the first filename in another buffer and wait for the second
         // filename to arrive via stdin.
-        filename1_buffer = stdin_buffer;
-        have_filename1 = true;
+        filename1 = FilePathFromASCII(stdin_buffer);
       }
     }
     return 0;
   }
 
+  // TODO: CommandLine::GetLooseValues() should eventually return
+  // CommandLine::StringType (which is the same as
+  // FilePath::StringType and can convert to FilePaths directly).
   std::vector<std::wstring> values = parsed_command_line.GetLooseValues();
   if (parsed_command_line.HasSwitch(kOptionGenerateDiff)) {
     if (values.size() == 3) {
-      return DiffImages(WideToUTF8(values[0]).c_str(),
-                        WideToUTF8(values[1]).c_str(),
-                        WideToUTF8(values[2]).c_str());
+      return DiffImages(FilePath::FromWStringHack(values[0]),
+                        FilePath::FromWStringHack(values[1]),
+                        FilePath::FromWStringHack(values[2]));
     }
   } else if (values.size() == 2) {
-    return CompareImages(argv[1], argv[2]);
+    return CompareImages(FilePath::FromWStringHack(values[0]),
+                         FilePath::FromWStringHack(values[1]));
   }
 
   PrintHelp();
