@@ -2,19 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/proxy/proxy_resolver_js_bindings.h"
+
 #include "base/scoped_ptr.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
-#include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_request_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
+
 namespace {
 
 // This is a HostResolver that synchronously resolves all hosts to the
@@ -112,7 +115,7 @@ TEST(ProxyResolverJSBindingsTest, DnsResolve) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver));
+      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
 
   std::string ip_address;
 
@@ -137,7 +140,7 @@ TEST(ProxyResolverJSBindingsTest, DnsResolve) {
 TEST(ProxyResolverJSBindingsTest, MyIpAddress) {
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(new MockHostResolver));
+      ProxyResolverJSBindings::CreateDefault(new MockHostResolver, NULL));
 
   // Our IP address is always going to be 127.0.0.1, since we are using a
   // mock host resolver.
@@ -164,7 +167,7 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver));
+      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
 
   // Make it so requests resolve to particular address patterns based on family:
   //  IPV4_ONLY --> 192.168.1.*
@@ -221,7 +224,7 @@ TEST(ProxyResolverJSBindingsTest, ExFunctionsReturnList) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver));
+      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
 
   std::string ip_addresses;
 
@@ -238,7 +241,7 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver));
+      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
 
   std::string ip_address;
 
@@ -281,5 +284,86 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
   bindings->set_current_request_context(NULL);
 }
 
+// Test that when a binding is called, it logs to the per-request NetLog.
+TEST(ProxyResolverJSBindingsTest, NetLog) {
+  scoped_refptr<MockFailingHostResolver> host_resolver(
+      new MockFailingHostResolver);
+
+  CapturingNetLog global_log(CapturingNetLog::kUnbounded);
+
+  // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
+  scoped_ptr<ProxyResolverJSBindings> bindings(
+      ProxyResolverJSBindings::CreateDefault(host_resolver, &global_log));
+
+  // Attach a capturing NetLog as the current request's log stream.
+  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  BoundNetLog bound_log(NetLog::Source(NetLog::SOURCE_NONE, 0), &log);
+  ProxyResolverRequestContext context(&bound_log, NULL);
+  bindings->set_current_request_context(&context);
+
+  std::string ip_address;
+
+  ASSERT_EQ(0u, log.entries().size());
+
+  // Call all the bindings. Each call should be logging something to
+  // our NetLog.
+
+  bindings->MyIpAddress(&ip_address);
+  EXPECT_EQ(2u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 1, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS));
+
+  bindings->MyIpAddressEx(&ip_address);
+  EXPECT_EQ(4u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 2, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 3, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX));
+
+  bindings->DnsResolve("foo", &ip_address);
+  EXPECT_EQ(6u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 4, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 5, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE));
+
+  bindings->DnsResolveEx("foo", &ip_address);
+  EXPECT_EQ(8u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 6, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 7, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX));
+
+  // Nothing has been emitted globally yet.
+  EXPECT_EQ(0u, global_log.entries().size());
+
+  bindings->OnError(30, string16());
+  EXPECT_EQ(9u, log.entries().size());
+  EXPECT_TRUE(LogContainsEvent(
+      log.entries(), 8, NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
+      NetLog::PHASE_NONE));
+
+  // We also emit errors to the top-level log stream.
+  EXPECT_EQ(1u, global_log.entries().size());
+  EXPECT_TRUE(LogContainsEvent(
+      global_log.entries(), 0, NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
+      NetLog::PHASE_NONE));
+
+  bindings->Alert(string16());
+  EXPECT_EQ(10u, log.entries().size());
+  EXPECT_TRUE(LogContainsEvent(
+      log.entries(), 9, NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
+      NetLog::PHASE_NONE));
+
+  // We also emit javascript alerts to the top-level log stream.
+  EXPECT_EQ(2u, global_log.entries().size());
+  EXPECT_TRUE(LogContainsEvent(
+      global_log.entries(), 1, NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
+      NetLog::PHASE_NONE));
+}
+
 }  // namespace
+
 }  // namespace net

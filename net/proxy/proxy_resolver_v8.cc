@@ -455,19 +455,9 @@ class ProxyResolverV8::Context {
     {
       v8::Unlocker unlocker;
 
-      LogEventToCurrentRequest(context,
-                               NetLog::PHASE_BEGIN,
-                               NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS,
-                               NULL);
-
       // We shouldn't be called with any arguments, but will not complain if
       // we are.
       success = context->js_bindings_->MyIpAddress(&result);
-
-      LogEventToCurrentRequest(context,
-                               NetLog::PHASE_END,
-                               NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS,
-                               NULL);
     }
 
     if (!success)
@@ -487,19 +477,9 @@ class ProxyResolverV8::Context {
     {
       v8::Unlocker unlocker;
 
-      LogEventToCurrentRequest(context,
-                               NetLog::PHASE_BEGIN,
-                               NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX,
-                               NULL);
-
       // We shouldn't be called with any arguments, but will not complain if
       // we are.
       success = context->js_bindings_->MyIpAddressEx(&ip_address_list);
-
-      LogEventToCurrentRequest(context,
-                               NetLog::PHASE_END,
-                               NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX,
-                               NULL);
     }
 
     if (!success)
@@ -522,18 +502,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
-
-      LogEventToCurrentRequest(context,
-                               NetLog::PHASE_BEGIN,
-                               NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE,
-                               NULL);
-
       success = context->js_bindings_->DnsResolve(hostname, &ip_address);
-
-      LogEventToCurrentRequest(context,
-                               NetLog::PHASE_END,
-                               NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE,
-                               NULL);
     }
 
     return success ? ASCIIStringToV8String(ip_address) : v8::Null();
@@ -554,35 +523,14 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
-
-      LogEventToCurrentRequest(context,
-                               NetLog::PHASE_BEGIN,
-                               NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX,
-                               NULL);
-
       success = context->js_bindings_->DnsResolveEx(hostname,
                                                     &ip_address_list);
-
-      LogEventToCurrentRequest(context,
-                               NetLog::PHASE_END,
-                               NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX,
-                               NULL);
     }
 
     if (!success)
       ip_address_list = std::string();
 
     return ASCIIStringToV8String(ip_address_list);
-  }
-
-  static void LogEventToCurrentRequest(Context* context,
-                                       NetLog::EventPhase phase,
-                                       NetLog::EventType type,
-                                       NetLog::EventParameters* params) {
-    if (context->js_bindings_->current_request_context()) {
-      context->js_bindings_->current_request_context()->net_log->AddEntry(
-          type, phase, params);
-    }
   }
 
   ProxyResolverJSBindings* js_bindings_;

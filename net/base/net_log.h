@@ -101,6 +101,7 @@ class NetLog {
   //  |params| - Optional (may be NULL) parameters for this event.
   //             The specific subclass of EventParameters is defined
   //             by the contract for events of this |type|.
+  //             TODO(eroman): Take a scoped_refptr<> instead.
   virtual void AddEntry(EventType type,
                         const base::TimeTicks& time,
                         const Source& source,
