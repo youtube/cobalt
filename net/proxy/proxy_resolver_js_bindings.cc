@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
@@ -16,40 +17,162 @@
 #include "net/proxy/proxy_resolver_request_context.h"
 
 namespace net {
+
 namespace {
+
+// Event parameters for a PAC error message (line number + message).
+class ErrorNetlogParams : public NetLog::EventParameters {
+ public:
+  ErrorNetlogParams(int line_number,
+                    const string16& message)
+      : line_number_(line_number),
+        message_(message) {
+  }
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetInteger(L"line_number", line_number_);
+    dict->SetStringFromUTF16(L"message", message_);
+    return dict;
+  }
+
+ private:
+  const int line_number_;
+  const string16 message_;
+
+  DISALLOW_COPY_AND_ASSIGN(ErrorNetlogParams);
+};
+
+// Event parameters for a PAC alert().
+class AlertNetlogParams : public NetLog::EventParameters {
+ public:
+  explicit AlertNetlogParams(const string16& message) : message_(message) {
+  }
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetStringFromUTF16(L"message", message_);
+    return dict;
+  }
+
+ private:
+  const string16 message_;
+
+  DISALLOW_COPY_AND_ASSIGN(AlertNetlogParams);
+};
 
 // ProxyResolverJSBindings implementation.
 class DefaultJSBindings : public ProxyResolverJSBindings {
  public:
-  explicit DefaultJSBindings(HostResolver* host_resolver)
-      : host_resolver_(host_resolver) {}
+  DefaultJSBindings(HostResolver* host_resolver, NetLog* net_log)
+      : host_resolver_(host_resolver),
+        net_log_(net_log) {
+  }
 
   // Handler for "alert(message)".
   virtual void Alert(const string16& message) {
     LOG(INFO) << "PAC-alert: " << message;
+
+    // Send to the NetLog.
+    LogEventToCurrentRequestAndGlobally(NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
+                                        new AlertNetlogParams(message));
   }
 
   // Handler for "myIpAddress()".
   // TODO(eroman): Perhaps enumerate the interfaces directly, using
   // getifaddrs().
   virtual bool MyIpAddress(std::string* first_ip_address) {
-    std::string my_hostname = GetHostName();
-    if (my_hostname.empty())
-      return false;
-    return DnsResolve(my_hostname, first_ip_address);
+    LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
+                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS,
+                             NULL);
+
+    bool ok = MyIpAddressImpl(first_ip_address);
+
+    LogEventToCurrentRequest(NetLog::PHASE_END,
+                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS,
+                             NULL);
+    return ok;
   }
 
   // Handler for "myIpAddressEx()".
   virtual bool MyIpAddressEx(std::string* ip_address_list) {
-    std::string my_hostname = GetHostName();
-    if (my_hostname.empty())
-      return false;
-    return DnsResolveEx(my_hostname, ip_address_list);
+    LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
+                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX,
+                             NULL);
+
+    bool ok = MyIpAddressExImpl(ip_address_list);
+
+    LogEventToCurrentRequest(NetLog::PHASE_END,
+                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX,
+                             NULL);
+    return ok;
   }
 
   // Handler for "dnsResolve(host)".
   virtual bool DnsResolve(const std::string& host,
                           std::string* first_ip_address) {
+    LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
+                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE,
+                             NULL);
+
+    bool ok = DnsResolveImpl(host, first_ip_address);
+
+    LogEventToCurrentRequest(NetLog::PHASE_END,
+                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE,
+                             NULL);
+    return ok;
+  }
+
+  // Handler for "dnsResolveEx(host)".
+  virtual bool DnsResolveEx(const std::string& host,
+                            std::string* ip_address_list) {
+    LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
+                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX,
+                             NULL);
+
+    bool ok = DnsResolveExImpl(host, ip_address_list);
+
+    LogEventToCurrentRequest(NetLog::PHASE_END,
+                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX,
+                             NULL);
+    return ok;
+  }
+
+  // Handler for when an error is encountered. |line_number| may be -1.
+  virtual void OnError(int line_number, const string16& message) {
+    // Send to the chrome log.
+    if (line_number == -1)
+      LOG(INFO) << "PAC-error: " << message;
+    else
+      LOG(INFO) << "PAC-error: " << "line: " << line_number << ": " << message;
+
+    // Send the error to the NetLog.
+    LogEventToCurrentRequestAndGlobally(
+        NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
+        new ErrorNetlogParams(line_number, message));
+  }
+
+  virtual void Shutdown() {
+    host_resolver_->Shutdown();
+  }
+
+ private:
+  bool MyIpAddressImpl(std::string* first_ip_address) {
+    std::string my_hostname = GetHostName();
+    if (my_hostname.empty())
+      return false;
+    return DnsResolveImpl(my_hostname, first_ip_address);
+  }
+
+  bool MyIpAddressExImpl(std::string* ip_address_list) {
+    std::string my_hostname = GetHostName();
+    if (my_hostname.empty())
+      return false;
+    return DnsResolveExImpl(my_hostname, ip_address_list);
+  }
+
+  bool DnsResolveImpl(const std::string& host,
+                      std::string* first_ip_address) {
     // Do a sync resolve of the hostname.
     // Disable IPv6 results. We do this because the PAC specification isn't
     // really IPv6 friendly, and Internet Explorer also restricts to IPv4.
@@ -73,9 +196,8 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     return true;
   }
 
-  // Handler for "dnsResolveEx(host)".
-  virtual bool DnsResolveEx(const std::string& host,
-                            std::string* ip_address_list) {
+  bool DnsResolveExImpl(const std::string& host,
+                        std::string* ip_address_list) {
     // Do a sync resolve of the hostname.
     HostResolver::RequestInfo info(host, 80);  // Port doesn't matter.
     AddressList address_list;
@@ -102,19 +224,6 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     return true;
   }
 
-  // Handler for when an error is encountered. |line_number| may be -1.
-  virtual void OnError(int line_number, const string16& message) {
-    if (line_number == -1)
-      LOG(INFO) << "PAC-error: " << message;
-    else
-      LOG(INFO) << "PAC-error: " << "line: " << line_number << ": " << message;
-  }
-
-  virtual void Shutdown() {
-    host_resolver_->Shutdown();
-  }
-
- private:
   // Helper to execute a synchronous DNS resolve, using the per-request
   // DNS cache if there is one.
   int DnsResolveHelper(const HostResolver::RequestInfo& info,
@@ -152,15 +261,40 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     return result;
   }
 
+  void LogEventToCurrentRequest(
+      NetLog::EventPhase phase,
+      NetLog::EventType type,
+      scoped_refptr<NetLog::EventParameters> params) {
+    if (current_request_context() && current_request_context()->net_log)
+      current_request_context()->net_log->AddEntry(type, phase, params);
+  }
+
+  void LogEventToCurrentRequestAndGlobally(
+      NetLog::EventType type,
+      scoped_refptr<NetLog::EventParameters> params) {
+    LogEventToCurrentRequest(NetLog::PHASE_NONE, type, params);
+
+    // Emit to the global NetLog event stream.
+    if (net_log_) {
+      net_log_->AddEntry(
+          type,
+          base::TimeTicks::Now(),
+          NetLog::Source(),
+          NetLog::PHASE_NONE,
+          params);
+    }
+  }
+
   scoped_refptr<HostResolver> host_resolver_;
+  NetLog* net_log_;
 };
 
 }  // namespace
 
 // static
 ProxyResolverJSBindings* ProxyResolverJSBindings::CreateDefault(
-    HostResolver* host_resolver) {
-  return new DefaultJSBindings(host_resolver);
+    HostResolver* host_resolver, NetLog* net_log) {
+  return new DefaultJSBindings(host_resolver, net_log);
 }
 
 }  // namespace net

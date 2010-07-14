@@ -7,8 +7,8 @@
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log_unittest.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_v8.h"
@@ -456,41 +456,6 @@ TEST(ProxyResolverV8Test, BindingCalledDuringInitialization) {
   ASSERT_EQ(0U, bindings->dns_resolves.size());
   EXPECT_EQ(0, bindings->my_ip_address_ex_count);
   ASSERT_EQ(0U, bindings->dns_resolves_ex.size());
-}
-
-// Test that calls to the myIpAddress() and dnsResolve() bindings get
-// logged to the NetLog parameter.
-TEST(ProxyResolverV8Test, NetLog) {
-  ProxyResolverV8WithMockBindings resolver;
-  int result = resolver.SetPacScriptFromDisk("simple.js");
-  EXPECT_EQ(OK, result);
-
-  ProxyInfo proxy_info;
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
-                                   log.bound());
-
-  EXPECT_EQ(OK, result);
-  EXPECT_FALSE(proxy_info.is_direct());
-  EXPECT_EQ("c:100", proxy_info.proxy_server().ToURI());
-
-  // Note that dnsResolve() was never called directly, but it appears
-  // in the NetLog. This is because it gets called indirectly by
-  // isInNet() and isResolvable().
-
-  EXPECT_EQ(6u, log.entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS));
-  EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 1, NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 2, NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE));
-  EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 3, NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 4, NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE));
-  EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 5, NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE));
 }
 
 // Try loading a PAC script that ends with a comment and has no terminal
