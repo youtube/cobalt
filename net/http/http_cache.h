@@ -28,7 +28,6 @@
 #include "base/weak_ptr.h"
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
-#include "net/base/load_states.h"
 #include "net/http/http_transaction_factory.h"
 
 class GURL;
@@ -310,9 +309,6 @@ class HttpCache : public HttpTransactionFactory,
   // Convers the active writter transaction to a reader so that other
   // transactions can start reading from this entry.
   void ConvertWriterToReader(ActiveEntry* entry);
-
-  // Returns the LoadState of the provided pending transaction.
-  LoadState GetLoadStateForPendingTransaction(const Transaction* trans);
 
   // Removes the transaction |trans|, from the pending list of an entry
   // (PendingOp, active or doomed entry).
