@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -192,9 +192,11 @@ TEST(ProxyResolverPerfTest, ProxyResolverMac) {
 
 TEST(ProxyResolverPerfTest, ProxyResolverV8) {
   net::ProxyResolverJSBindings* js_bindings =
-      net::ProxyResolverJSBindings::CreateDefault(new net::MockHostResolver);
+      net::ProxyResolverJSBindings::CreateDefault(
+          new net::MockHostResolver, NULL);
 
   net::ProxyResolverV8 resolver(js_bindings);
   PacPerfSuiteRunner runner(&resolver, "ProxyResolverV8");
   runner.RunAllTests();
 }
+
