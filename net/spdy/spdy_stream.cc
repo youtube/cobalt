@@ -87,7 +87,6 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
 
   DCHECK(response_->empty());
   *response_ = response;  // TODO(ukai): avoid copy.
-  DCHECK(!response_->empty());
 
   recv_first_byte_time_ = base::TimeTicks::Now();
   response_time_ = base::Time::Now();

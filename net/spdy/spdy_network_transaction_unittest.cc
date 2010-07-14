@@ -847,6 +847,8 @@ TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
         NULL
       },
     },
+    // SYN_REPLY with no headers
+    { 0, { NULL }, },
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
