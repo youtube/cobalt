@@ -1,6 +1,6 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef NET_FTP_FTP_NETWORK_TRANSACTION_H_
 #define NET_FTP_FTP_NETWORK_TRANSACTION_H_
@@ -50,7 +50,6 @@ class FtpNetworkTransaction : public FtpTransaction {
     COMMAND_NONE,
     COMMAND_USER,
     COMMAND_PASS,
-    COMMAND_ACCT,
     COMMAND_SYST,
     COMMAND_TYPE,
     COMMAND_EPSV,
@@ -142,8 +141,6 @@ class FtpNetworkTransaction : public FtpTransaction {
   // argument receive the result from the previous state.  If a method returns
   // ERR_IO_PENDING, then the result from OnIOComplete will be passed to the
   // next state method as the result arg.
-  int DoCtrlInit();
-  int DoCtrlInitComplete(int result);
   int DoCtrlResolveHost();
   int DoCtrlResolveHostComplete(int result);
   int DoCtrlConnect();
@@ -156,8 +153,6 @@ class FtpNetworkTransaction : public FtpTransaction {
   int ProcessResponseUSER(const FtpCtrlResponse& response);
   int DoCtrlWritePASS();
   int ProcessResponsePASS(const FtpCtrlResponse& response);
-  int DoCtrlWriteACCT();
-  int ProcessResponseACCT(const FtpCtrlResponse& response);
   int DoCtrlWriteSYST();
   int ProcessResponseSYST(const FtpCtrlResponse& response);
   int DoCtrlWritePWD();
@@ -250,8 +245,6 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   enum State {
     // Control connection states:
-    STATE_CTRL_INIT,
-    STATE_CTRL_INIT_COMPLETE,
     STATE_CTRL_RESOLVE_HOST,
     STATE_CTRL_RESOLVE_HOST_COMPLETE,
     STATE_CTRL_CONNECT,
@@ -262,7 +255,6 @@ class FtpNetworkTransaction : public FtpTransaction {
     STATE_CTRL_WRITE_COMPLETE,
     STATE_CTRL_WRITE_USER,
     STATE_CTRL_WRITE_PASS,
-    STATE_CTRL_WRITE_ACCT,
     STATE_CTRL_WRITE_SYST,
     STATE_CTRL_WRITE_TYPE,
     STATE_CTRL_WRITE_EPSV,
