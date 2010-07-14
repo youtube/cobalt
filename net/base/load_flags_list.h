@@ -36,6 +36,9 @@ LOAD_FLAG(DISABLE_INTERCEPT, 1 << 5)
 // If present, upload progress messages should be provided to initiator.
 LOAD_FLAG(ENABLE_UPLOAD_PROGRESS, 1 << 6)
 
+// If present, collect load timing for the request.
+LOAD_FLAG(ENABLE_LOAD_TIMING, 1 << 7)
+
 // If present, ignores certificate mismatches with the domain name.
 // (The default behavior is to trigger an OnSSLCertificateError callback.)
 LOAD_FLAG(IGNORE_CERT_COMMON_NAME_INVALID, 1 << 8)
