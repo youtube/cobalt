@@ -71,10 +71,17 @@ class MockAudioManagerLinux : public AudioManagerLinux {
  public:
   MOCK_METHOD0(Init, void());
   MOCK_METHOD0(HasAudioOutputDevices, bool());
+  MOCK_METHOD0(HasAudioInputDevices, bool());
   MOCK_METHOD4(MakeAudioOutputStream, AudioOutputStream*(Format format,
                                                          int channels,
                                                          int sample_rate,
                                                          char bits_per_sample));
+  MOCK_METHOD5(MakeAudioInputStream, AudioInputStream*(
+      Format format,
+      int channels,
+      int sample_rate,
+      char bits_per_sample,
+      uint32 samples_per_packet));
   MOCK_METHOD0(MuteAll, void());
   MOCK_METHOD0(UnMuteAll, void());
 

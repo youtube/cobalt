@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/win/audio_manager_win.h"
+#include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
 
 namespace {
@@ -31,12 +32,25 @@ const int kMaxChannels = 6;
 const int kMaxSampleRate = 192000;
 const int kMaxBitsPerSample = 64;
 
+const int kMaxInputChannels = 2;
+const int kMaxSamplesPerPacket = kMaxSampleRate;
+// We use 3 buffers for recording audio so that if a recording callback takes
+// some time to return we won't lose audio. More buffers while recording are
+// ok because they don't introduce any delay in recording, unlike in playback
+// where you first need to fill in that number of buffers before starting to
+// play.
+const int kNumInputBuffers = 3;
+
 AudioManagerWin* g_audio_manager = NULL;
 
 }  // namespace.
 
 bool AudioManagerWin::HasAudioOutputDevices() {
   return (::waveOutGetNumDevs() != 0);
+}
+
+bool AudioManagerWin::HasAudioInputDevices() {
+  return (::waveInGetNumDevs() != 0);
 }
 
 // Factory for the implementations of AudioOutputStream. Two implementations
@@ -66,7 +80,35 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
   return NULL;
 }
 
+// Factory for the implementations of AudioInputStream.
+AudioInputStream* AudioManagerWin::MakeAudioInputStream(
+    Format format,
+    int channels,
+    int sample_rate,
+    char bits_per_sample,
+    uint32 samples_per_packet) {
+  if ((channels > kMaxInputChannels) || (channels <= 0) ||
+      (sample_rate > kMaxSampleRate) || (sample_rate <= 0) ||
+      (bits_per_sample > kMaxBitsPerSample) || (bits_per_sample <= 0) ||
+      (samples_per_packet > kMaxSamplesPerPacket) || (samples_per_packet < 0))
+    return NULL;
+
+  if (format == AUDIO_MOCK) {
+    // TODO(satish): Add mock audio input stream.
+  } else if (format == AUDIO_PCM_LINEAR) {
+    return new PCMWaveInAudioInputStream(this, channels, sample_rate,
+                                         kNumInputBuffers, bits_per_sample,
+                                         samples_per_packet, WAVE_MAPPER);
+  }
+  return NULL;
+}
+
 void AudioManagerWin::ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream) {
+  if (stream)
+    delete stream;
+}
+
+void AudioManagerWin::ReleaseInputStream(PCMWaveInAudioInputStream* stream) {
   if (stream)
     delete stream;
 }
