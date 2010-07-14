@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include "base/time.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/http/http_auth.h"
