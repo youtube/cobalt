@@ -1401,15 +1401,8 @@ TEST(HttpCache, SimpleGET_ManyReaders) {
 
     c->result = cache.http_cache()->CreateTransaction(&c->trans);
     EXPECT_EQ(net::OK, c->result);
-    EXPECT_EQ(net::LOAD_STATE_IDLE, c->trans->GetLoadState());
 
     c->result = c->trans->Start(&request, &c->callback, net::BoundNetLog());
-  }
-
-  // All requests are waiting for the active entry.
-  for (int i = 0; i < kNumTransactions; ++i) {
-    Context* c = context_list[i];
-    EXPECT_EQ(net::LOAD_STATE_WAITING_FOR_CACHE, c->trans->GetLoadState());
   }
 
   // Allow all requests to move from the Create queue to the active entry.
@@ -1421,13 +1414,6 @@ TEST(HttpCache, SimpleGET_ManyReaders) {
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
-
-  // All requests depend on the writer, and the writer is between Start and
-  // Read, i.e. idle.
-  for (int i = 0; i < kNumTransactions; ++i) {
-    Context* c = context_list[i];
-    EXPECT_EQ(net::LOAD_STATE_IDLE, c->trans->GetLoadState());
-  }
 
   for (int i = 0; i < kNumTransactions; ++i) {
     Context* c = context_list[i];
