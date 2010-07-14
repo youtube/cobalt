@@ -5,9 +5,8 @@
 #ifndef BASE_OBSERVER_LIST_THREADSAFE_H_
 #define BASE_OBSERVER_LIST_THREADSAFE_H_
 
-#include <algorithm>
-#include <map>
 #include <vector>
+#include <algorithm>
 
 #include "base/basictypes.h"
 #include "base/callback.h"

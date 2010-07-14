@@ -6,7 +6,6 @@
 #define NET_SERVER_HTTP_SERVER_REQUEST_INFO_H_
 
 #include <string>
-#include <map>
 
 #include "net/http/http_request_info.h"
 
