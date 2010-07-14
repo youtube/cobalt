@@ -80,6 +80,12 @@ int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
 // The Negotiate challenge header looks like:
 //   WWW-Authenticate: NEGOTIATE auth-data
 bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
+#if defined(OS_POSIX)
+  if (!auth_system_.Init()) {
+    LOG(INFO) << "can't initialize GSSAPI library";
+    return false;
+  }
+#endif
   scheme_ = "negotiate";
   score_ = 4;
   properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
