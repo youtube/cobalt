@@ -291,7 +291,8 @@ class MockNetworkTransaction : public net::HttpTransaction {
   }
 
   virtual net::LoadState GetLoadState() const {
-    NOTREACHED() << "define some mock state transitions";
+    if (data_cursor_)
+      return net::LOAD_STATE_READING_RESPONSE;
     return net::LOAD_STATE_IDLE;
   }
 
