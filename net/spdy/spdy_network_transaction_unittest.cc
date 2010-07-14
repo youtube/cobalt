@@ -21,6 +21,7 @@
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_test_util.h"
 #include "testing/platform_test.h"
 
@@ -331,6 +332,126 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
                                                   data.get(),
                                                   BoundNetLog());
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
+}
+
+// Test that WINDOW_UPDATE frames change window_size correctly.
+TEST_F(SpdyNetworkTransactionTest, WindowUpdate) {
+  SessionDependencies session_deps;
+  HttpNetworkSession* session = CreateSession(&session_deps);
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  // Setup the request
+  static const char upload[] = { "hello!" };
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/");
+  request.upload_data = new UploadData();
+  request.upload_data->AppendBytes(upload, strlen(upload));
+
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+    CreateMockWrite(*body),
+    MockWrite(true, 0, 0)
+  };
+
+  // Response frames, send WINDOW_UPDATE first
+  static const int kDeltaWindowSize = 0xff;
+  scoped_ptr<spdy::SpdyFrame> window_update(
+      ConstructSpdyWindowUpdate(1, kDeltaWindowSize));
+  scoped_ptr<spdy::SpdyFrame> reply(ConstructSpdyPostSynReply(NULL, 0));
+  MockRead reads[] = {
+    CreateMockRead(*window_update),
+    CreateMockRead(*reply),
+    CreateMockRead(*body),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(2, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  session_deps.socket_factory.AddSocketDataProvider(data.get());
+
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(session));
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+
+  ASSERT_TRUE(trans->stream_ != NULL);
+  ASSERT_TRUE(trans->stream_->stream() != NULL);
+  EXPECT_EQ(kInitialWindowSize, trans->stream_->stream()->window_size());
+
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  ASSERT_TRUE(trans->stream_ != NULL);
+  ASSERT_TRUE(trans->stream_->stream() != NULL);
+  EXPECT_EQ(kInitialWindowSize + kDeltaWindowSize,
+            trans->stream_->stream()->window_size());
+}
+
+// Test that WINDOW_UPDATE frame causing overflow is handled correctly.
+TEST_F(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
+  SessionDependencies session_deps;
+  HttpNetworkSession* session = CreateSession(&session_deps);
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  // Setup the request
+  static const char upload[] = { "hello!" };
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/");
+  request.upload_data = new UploadData();
+  request.upload_data->AppendBytes(upload, strlen(upload));
+
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
+  scoped_ptr<spdy::SpdyFrame> rst(
+      ConstructSpdyRstStream(1, spdy::FLOW_CONTROL_ERROR));
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+    CreateMockWrite(*body),
+    CreateMockWrite(*rst),
+  };
+
+  // Response frames, send WINDOW_UPDATE first
+  static const int kDeltaWindowSize = 0x7fffffff; // cause an overflow
+  scoped_ptr<spdy::SpdyFrame> window_update(
+      ConstructSpdyWindowUpdate(1, kDeltaWindowSize));
+  scoped_ptr<spdy::SpdyFrame> reply(ConstructSpdyPostSynReply(NULL, 0));
+  MockRead reads[] = {
+    CreateMockRead(*window_update),
+    CreateMockRead(*reply),
+    CreateMockRead(*body),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(2, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  session_deps.socket_factory.AddSocketDataProvider(data.get());
+
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(session));
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+
+  ASSERT_TRUE(trans->stream_ != NULL);
+  ASSERT_TRUE(trans->stream_->stream() != NULL);
+  EXPECT_EQ(kInitialWindowSize, trans->stream_->stream()->window_size());
+
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, rv);
 }
 
 // Test that the transaction doesn't crash when we get two replies on the same

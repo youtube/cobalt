@@ -100,6 +100,14 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   int priority() const { return priority_; }
   void set_priority(int priority) { priority_ = priority; }
 
+  int window_size() const { return window_size_; }
+  void set_window_size(int window_size) { window_size_ = window_size; }
+
+  // Updates |window_size_| with delta extracted from a WINDOW_UPDATE
+  // frame; sends a RST_STREAM if delta overflows |window_size_| and
+  // removes the stream from the session.
+  void UpdateWindowSize(int delta_window_size);
+
   const BoundNetLog& net_log() const { return net_log_; }
   void set_net_log(const BoundNetLog& log) { net_log_ = log; }
 
@@ -197,6 +205,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   spdy::SpdyStreamId stream_id_;
   std::string path_;
   int priority_;
+  int window_size_;
   const bool pushed_;
   ScopedBandwidthMetrics metrics_;
   bool syn_reply_received_;
