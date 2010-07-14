@@ -304,17 +304,18 @@ void SpdyFramer::ProcessControlFrameHeader() {
           SpdySettingsControlFrame::size() - SpdyControlFrame::size())
         set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
-    case WINDOW_UPDATE:
-      if (current_control_frame.length() !=
-          SpdyWindowUpdateControlFrame::size() - SpdyFrame::size())
-        set_error(SPDY_INVALID_CONTROL_FRAME);
-      break;
     default:
       LOG(WARNING) << "Valid spdy control frame with unknown type: "
                    << current_control_frame.type();
       DCHECK(false);
       set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
+  }
+
+  // We only support version 1 of this protocol.
+  if (current_control_frame.version() != kSpdyProtocolVersion) {
+    set_error(SPDY_UNSUPPORTED_VERSION);
+    return;
   }
 
   remaining_control_payload_ = current_control_frame.length();
@@ -591,7 +592,7 @@ SpdyWindowUpdateControlFrame* SpdyFramer::CreateWindowUpdate(
   DCHECK_GT(stream_id, 0u);
   DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
   DCHECK_GT(delta_window_size, 0u);
-  DCHECK_LT(delta_window_size, 0x80000000u);  // 2^31
+  DCHECK_LE(delta_window_size, 0x80000000u);  // 2^31
 
   SpdyFrameBuilder frame;
   frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
