@@ -71,23 +71,6 @@ void SpdyStream::set_spdy_headers(
   request_ = headers;
 }
 
-void SpdyStream::UpdateWindowSize(int delta_window_size) {
-  DCHECK_GE(delta_window_size, 1);
-  int new_window_size = window_size_ + delta_window_size;
-
-  // it's valid for window_size_ to become negative (via an incoming
-  // SETTINGS frame which is handled in SpdySession::OnSettings), in which
-  // case incoming WINDOW_UPDATEs will eventually make it positive;
-  // however, if window_size_ is positive and incoming WINDOW_UPDATE makes
-  // it negative, we have an overflow.
-  if (window_size_ > 0 && new_window_size < 0) {
-    LOG(WARNING) << "Received WINDOW_UPDATE overflows the window size";
-    session_->ResetStream(stream_id_, spdy::FLOW_CONTROL_ERROR);
-    return;
-  }
-  window_size_ = new_window_size;
-}
-
 base::Time SpdyStream::GetRequestTime() const {
   return request_time_;
 }
