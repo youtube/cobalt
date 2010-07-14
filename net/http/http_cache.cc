@@ -775,6 +775,19 @@ void HttpCache::ConvertWriterToReader(ActiveEntry* entry) {
   ProcessPendingQueue(entry);
 }
 
+LoadState HttpCache::GetLoadStateForPendingTransaction(
+      const Transaction* trans) {
+  ActiveEntriesMap::const_iterator i = active_entries_.find(trans->key());
+  if (i == active_entries_.end()) {
+    // If this is really a pending transaction, and it is not part of
+    // active_entries_, we should be creating the backend or the entry.
+    return LOAD_STATE_WAITING_FOR_CACHE;
+  }
+
+  Transaction* writer = i->second->writer;
+  return writer->GetWriterLoadState();
+}
+
 void HttpCache::RemovePendingTransaction(Transaction* trans) {
   ActiveEntriesMap::const_iterator i = active_entries_.find(trans->key());
   bool found = false;
