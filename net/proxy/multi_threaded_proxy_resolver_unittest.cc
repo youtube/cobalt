@@ -46,7 +46,7 @@ class MockProxyResolver : public ProxyResolver {
     EXPECT_TRUE(request == NULL);
 
     // Write something into |net_log| (doesn't really have any meaning.)
-    net_log.BeginEvent(NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
+    net_log.BeginEvent(NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE, NULL);
 
     results->UseNamedProxy(query_url.host());
 

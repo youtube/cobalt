@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@ class MessageLoop;
 namespace net {
 
 class HostResolver;
+class NetLog;
 struct ProxyResolverRequestContext;
 
 // Interface for the javascript bindings.
@@ -58,12 +59,13 @@ class ProxyResolverJSBindings {
   virtual void Shutdown() = 0;
 
   // Creates a default javascript bindings implementation that will:
-  //   - Send script error messages to LOG(INFO)
-  //   - Send script alert()s to LOG(INFO)
+  //   - Send script error messages to both LOG(INFO), and the NetLog.
+  //   - Send script alert()s to both LOG(INFO), and the NetLog.
   //   - Use the provided host resolver to service dnsResolve().
   //
   // Note that |host_resolver| will be used in sync mode mode.
-  static ProxyResolverJSBindings* CreateDefault(HostResolver* host_resolver);
+  static ProxyResolverJSBindings* CreateDefault(HostResolver* host_resolver,
+                                                NetLog* net_log);
 
   // Sets details about the currently executing FindProxyForURL() request.
   void set_current_request_context(

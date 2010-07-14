@@ -99,16 +99,32 @@ EVENT_TYPE(PROXY_SERVICE_RESOLVED_PROXY_LIST)
 // ------------------------------------------------------------------------
 
 // Measures the time taken to execute the "myIpAddress()" javascript binding.
-EVENT_TYPE(PROXY_RESOLVER_V8_MY_IP_ADDRESS)
+EVENT_TYPE(PAC_JAVASCRIPT_MY_IP_ADDRESS)
 
 // Measures the time taken to execute the "myIpAddressEx()" javascript binding.
-EVENT_TYPE(PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX)
+EVENT_TYPE(PAC_JAVASCRIPT_MY_IP_ADDRESS_EX)
 
 // Measures the time taken to execute the "dnsResolve()" javascript binding.
-EVENT_TYPE(PROXY_RESOLVER_V8_DNS_RESOLVE)
+EVENT_TYPE(PAC_JAVASCRIPT_DNS_RESOLVE)
 
 // Measures the time taken to execute the "dnsResolveEx()" javascript binding.
-EVENT_TYPE(PROXY_RESOLVER_V8_DNS_RESOLVE_EX)
+EVENT_TYPE(PAC_JAVASCRIPT_DNS_RESOLVE_EX)
+
+// This event is emitted when a javascript error has been triggered by a
+// PAC script. It contains the following event parameters:
+//   {
+//      "line_number": <The line number in the PAC script
+//                      (or -1 if not applicable)>,
+//      "message": <The error message>
+//   }
+EVENT_TYPE(PAC_JAVASCRIPT_ERROR)
+
+// This event is emitted when a PAC script called alert(). It contains the
+// following event parameters:
+//   {
+//      "message": <The string of the alert>
+//   }
+EVENT_TYPE(PAC_JAVASCRIPT_ALERT)
 
 // Measures the time that a proxy resolve request was stalled waiting for a
 // proxy resolver thread to free-up.
