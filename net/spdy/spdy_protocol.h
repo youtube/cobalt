@@ -184,8 +184,7 @@ enum SpdyStatusCodes {
   UNSUPPORTED_VERSION = 4,
   CANCEL = 5,
   INTERNAL_ERROR = 6,
-  FLOW_CONTROL_ERROR = 7,
-  NUM_STATUS_CODES = 8
+  NUM_STATUS_CODES = 7
 };
 
 // A SPDY stream id is a 31 bit entity.
@@ -404,8 +403,9 @@ class SpdyControlFrame : public SpdyFrame {
   }
 
   void set_version(uint16 version) {
-    DCHECK_EQ(0u, version & kControlFlagMask);
-    mutable_block()->control_.version_ = htons(kControlFlagMask | version);
+    const uint16 kControlBit = 0x80;
+    DCHECK_EQ(0, version & kControlBit);
+    mutable_block()->control_.version_ = kControlBit | htons(version);
   }
 
   SpdyControlType type() const {
