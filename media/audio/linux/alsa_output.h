@@ -146,7 +146,6 @@ class AlsaPcmOutputStream :
                         uint32 latency);
   bool CloseDevice(snd_pcm_t* handle);
   snd_pcm_sframes_t GetAvailableFrames();
-  snd_pcm_sframes_t GetCurrentDelay();
 
   // Attempts to find the best matching linux audio device for the given number
   // of channels.  This function will set |device_name_| and |should_downmix_|.

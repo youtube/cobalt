@@ -486,7 +486,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
     // Before making a request to source for data. We need to determine the
     // delay (in bytes) for the requested data to be played.
     snd_pcm_sframes_t delay = buffer_->forward_bytes() * bytes_per_frame_ /
-        bytes_per_output_frame_ + GetCurrentDelay() * bytes_per_output_frame_;
+        bytes_per_output_frame_;
 
     scoped_refptr<media::DataBuffer> packet =
         new media::DataBuffer(packet_size_);
@@ -496,7 +496,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
     CHECK(packet_size <= packet->GetBufferSize()) <<
         "Data source overran buffer.";
 
-    // This should not happen, but incase it does, drop any trailing bytes
+    // This should not happen, but in case it does, drop any trailing bytes
     // that aren't large enough to make a frame.  Without this, packet writing
     // may stall because the last few bytes in the packet may never get used by
     // WritePacket.
@@ -799,29 +799,6 @@ snd_pcm_sframes_t AlsaPcmOutputStream::GetAvailableFrames() {
   }
 
   return available_frames;
-}
-
-snd_pcm_sframes_t AlsaPcmOutputStream::GetCurrentDelay() {
-  snd_pcm_sframes_t delay = 0;
-
-  // Don't query ALSA's delay if we have underrun since it'll be jammed at
-  // some non-zero value and potentially even negative!
-  if (wrapper_->PcmState(playback_handle_) != SND_PCM_STATE_XRUN) {
-    int error = wrapper_->PcmDelay(playback_handle_, &delay);
-    if (error < 0) {
-      // Assume a delay of zero and attempt to recover the device.
-      delay = 0;
-      error = wrapper_->PcmRecover(playback_handle_,
-                                   error,
-                                   kPcmRecoverIsSilent);
-      if (error < 0) {
-        LOG(ERROR) << "Failed querying delay: " << wrapper_->StrError(error);
-      }
-    }
-    if (delay < 0)
-      delay = 0;
-  }
-  return delay;
 }
 
 snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
