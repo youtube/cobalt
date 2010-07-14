@@ -10,7 +10,7 @@
   'targets': [
     {
       'target_name': 'googleurl',
-      'type': '<(library)',
+      'type': '<(component)',
       'msvs_guid': 'EF5E94AB-B646-4E5B-A058-52EF07B8351C',
       'dependencies': [
         '../../base/base.gyp:base',
@@ -52,10 +52,17 @@
           '../..',
         ],
       },
+      'conditions': [
+        ['OS=="win" and component=="shared_library"', {
+          'defines': [
+            'GURL_DLL',
+            'GURL_IMPLEMENTATION',
+          ],
+        }],
+      ],
     },
     {
       'target_name': 'googleurl_unittests',
-      'type': 'executable',
       'dependencies': [
         'googleurl',
         '../../testing/gtest.gyp:gtest',
@@ -78,6 +85,15 @@
               ],
             }],
           ],
+        }],
+        # TODO(victorw): The unittest code uses inline functions that access
+        # global variables, it also uses internal functions that we may not want
+        # to export, so skip building unittests for windows multi dll build.
+        # The googleurl functions are tested by the static library build.
+        ['OS=="win" and component=="shared_library"', {
+          'type': 'none',
+        }, {
+          'type': 'executable',
         }],
       ],
     },
