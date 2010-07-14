@@ -36,6 +36,9 @@ class HttpNetworkSession;
 class BoundNetLog;
 class SSLInfo;
 
+// default initial window size per SPDY protocol draft 2
+static const int kInitialWindowSize = 64 * 1024;
+
 class SpdySession : public base::RefCounted<SpdySession>,
                     public spdy::SpdyFramerVisitorInterface {
  public:
@@ -94,6 +97,11 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Close a stream.
   void CloseStream(spdy::SpdyStreamId stream_id, int status);
 
+  // Reset a stream by sending a RST_STREAM frame with given status code.
+  // Also closes the stream.  Was not piggybacked to CloseStream since not
+  // all of the calls to CloseStream necessitate sending a RST_STREAM.
+  void ResetStream(spdy::SpdyStreamId stream_id, spdy::SpdyStatusCodes status);
+
   // Check if a stream is active.
   bool IsStreamActive(spdy::SpdyStreamId stream_id) const;
 
@@ -151,6 +159,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   void OnFin(const spdy::SpdyRstStreamControlFrame& frame);
   void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
   void OnSettings(const spdy::SpdySettingsControlFrame& frame);
+  void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame);
 
   // IO Callbacks
   void OnTCPConnect(int result);
@@ -279,6 +288,11 @@ class SpdySession : public base::RefCounted<SpdySession>,
                             // frame.
 
   bool in_session_pool_;  // True if the session is currently in the pool.
+
+  int initial_window_size_; // Initial window size for the session; can be
+                            // changed by an arriving SETTINGS frame; newly
+                            // created streams use this value for the initial
+                            // window size.
 
   BoundNetLog net_log_;
 
