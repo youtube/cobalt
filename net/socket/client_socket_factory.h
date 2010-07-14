@@ -11,13 +11,14 @@ namespace net {
 
 class AddressList;
 class ClientSocket;
+class ClientSocketHandle;
 class NetLog;
 class SSLClientSocket;
 struct SSLConfig;
 
 // Callback function to create new SSLClientSocket objects.
 typedef SSLClientSocket* (*SSLClientSocketFactory)(
-    ClientSocket* transport_socket,
+    ClientSocketHandle* transport_socket,
     const std::string& hostname,
     const SSLConfig& ssl_config);
 
@@ -31,9 +32,15 @@ class ClientSocketFactory {
       const AddressList& addresses, NetLog* net_log) = 0;
 
   virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocket* transport_socket,
+      ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config) = 0;
+
+
+  // Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
+  virtual SSLClientSocket* CreateSSLClientSocket(ClientSocket* transport_socket,
+                                                 const std::string& hostname,
+                                                 const SSLConfig& ssl_config);
 
   // Returns the default ClientSocketFactory.
   static ClientSocketFactory* GetDefaultFactory();

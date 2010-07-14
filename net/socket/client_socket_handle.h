@@ -16,6 +16,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
+#include "net/http/http_response_info.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
 
@@ -60,6 +61,9 @@ class ClientSocketHandle {
   // that the error is not recoverable, the Disconnect method should be used
   // on the socket, so that it does not get reused.
   //
+  // A non-recoverable error may set additional state in the ClientSocketHandle
+  // to allow the caller to determine what went wrong.
+  //
   // Init may be called multiple times.
   //
   // Profiling information for the request is saved to |net_log| if non-NULL.
@@ -100,11 +104,26 @@ class ClientSocketHandle {
   void set_socket(ClientSocket* s) { socket_.reset(s); }
   void set_idle_time(base::TimeDelta idle_time) { idle_time_ = idle_time; }
   void set_pool_id(int id) { pool_id_ = id; }
+  void set_tunnel_auth_response_info(
+      const scoped_refptr<HttpResponseHeaders>& headers,
+      const scoped_refptr<AuthChallengeInfo>& auth_challenge) {
+    tunnel_auth_response_info_.headers = headers;
+    tunnel_auth_response_info_.auth_challenge = auth_challenge;
+  }
+  void set_is_ssl_error(bool is_ssl_error) { is_ssl_error_ = is_ssl_error; }
 
   // These may only be used if is_initialized() is true.
   const std::string& group_name() const { return group_name_; }
   ClientSocket* socket() { return socket_.get(); }
   ClientSocket* release_socket() { return socket_.release(); }
+  const HttpResponseInfo& tunnel_auth_response_info() const {
+    return tunnel_auth_response_info_;
+  }
+  // Only valid if there is no |socket_|.
+  bool is_ssl_error() const {
+    DCHECK(socket_.get() == NULL);
+    return is_ssl_error_;
+  }
   bool is_reused() const { return is_reused_; }
   base::TimeDelta idle_time() const { return idle_time_; }
   SocketReuseType reuse_type() const {
@@ -139,8 +158,12 @@ class ClientSocketHandle {
   void HandleInitCompletion(int result);
 
   // Resets the state of the ClientSocketHandle.  |cancel| indicates whether or
-  // not to try to cancel the request with the ClientSocketPool.
+  // not to try to cancel the request with the ClientSocketPool.  Does not
+  // reset the supplemental error state.
   void ResetInternal(bool cancel);
+
+  // Resets the supplemental error state.
+  void ResetErrorState();
 
   scoped_refptr<ClientSocketPool> pool_;
   scoped_ptr<ClientSocket> socket_;
@@ -150,6 +173,8 @@ class ClientSocketHandle {
   CompletionCallback* user_callback_;
   base::TimeDelta idle_time_;
   int pool_id_;  // See ClientSocketPool::ReleaseSocket() for an explanation.
+  bool is_ssl_error_;
+  HttpResponseInfo tunnel_auth_response_info_;
   base::TimeTicks init_time_;
   base::TimeDelta setup_time_;
 
@@ -174,6 +199,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
   // (defined in client_socket_pool.h).
   CheckIsValidSocketParamsForPool<PoolType, SocketParams>();
   ResetInternal(true);
+  ResetErrorState();
   pool_ = pool;
   group_name_ = group_name;
   init_time_ = base::TimeTicks::Now();
