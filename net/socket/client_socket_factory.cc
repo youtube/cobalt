@@ -6,6 +6,7 @@
 
 #include "base/singleton.h"
 #include "build/build_config.h"
+#include "net/socket/client_socket_handle.h"
 #if defined(OS_WIN)
 #include "net/socket/ssl_client_socket_win.h"
 #elif defined(USE_NSS)
@@ -21,7 +22,7 @@ namespace net {
 namespace {
 
 SSLClientSocket* DefaultSSLClientSocketFactory(
-    ClientSocket* transport_socket,
+    ClientSocketHandle* transport_socket,
     const std::string& hostname,
     const SSLConfig& ssl_config) {
 #if defined(OS_WIN)
@@ -52,7 +53,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory {
   }
 
   virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocket* transport_socket,
+      ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config) {
     return g_ssl_factory(transport_socket, hostname, ssl_config);
@@ -70,6 +71,16 @@ ClientSocketFactory* ClientSocketFactory::GetDefaultFactory() {
 void ClientSocketFactory::SetSSLClientSocketFactory(
     SSLClientSocketFactory factory) {
   g_ssl_factory = factory;
+}
+
+// Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
+SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
+    ClientSocket* transport_socket,
+    const std::string& hostname,
+    const SSLConfig& ssl_config) {
+  ClientSocketHandle* socket_handle = new ClientSocketHandle();
+  socket_handle->set_socket(transport_socket);
+  return CreateSSLClientSocket(socket_handle, hostname, ssl_config);
 }
 
 }  // namespace net

@@ -94,7 +94,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
   }
 
   virtual SSLClientSocket* CreateSSLClientSocket(
-      ClientSocket* transport_socket,
+      ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config) {
     NOTIMPLEMENTED();
@@ -122,6 +122,8 @@ class TestConnectJob : public ConnectJob {
     kMockAdvancingLoadStateJob,
     kMockRecoverableJob,
     kMockPendingRecoverableJob,
+    kMockAdditionalErrorStateJob,
+    kMockPendingAdditionalErrorStateJob,
   };
 
   // The kMockPendingJob uses a slight delay before allowing the connect
@@ -140,13 +142,23 @@ class TestConnectJob : public ConnectJob {
         job_type_(job_type),
         client_socket_factory_(client_socket_factory),
         method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
-        load_state_(LOAD_STATE_IDLE) {}
+        load_state_(LOAD_STATE_IDLE),
+        store_additional_error_state_(false) {}
 
   void Signal() {
     DoConnect(waiting_success_, true /* async */, false /* recoverable */);
   }
 
   virtual LoadState GetLoadState() const { return load_state_; }
+
+  virtual void GetAdditionalErrorState(ClientSocketHandle* handle) {
+    if (store_additional_error_state_) {
+      // Set all of the additional error state fields in some way.
+      handle->set_is_ssl_error(true);
+      scoped_refptr<HttpResponseHeaders> headers(new HttpResponseHeaders(""));
+      handle->set_tunnel_auth_response_info(headers, NULL);
+    }
+  }
 
  private:
   // ConnectJob methods:
@@ -220,6 +232,22 @@ class TestConnectJob : public ConnectJob {
                 true  /* recoverable */),
             2);
         return ERR_IO_PENDING;
+      case kMockAdditionalErrorStateJob:
+        store_additional_error_state_ = true;
+        return DoConnect(false /* error */, false /* sync */,
+                         false /* recoverable */);
+      case kMockPendingAdditionalErrorStateJob:
+        set_load_state(LOAD_STATE_CONNECTING);
+        store_additional_error_state_ = true;
+        MessageLoop::current()->PostDelayedTask(
+            FROM_HERE,
+            method_factory_.NewRunnableMethod(
+                &TestConnectJob::DoConnect,
+                false /* error */,
+                true  /* async */,
+                false /* recoverable */),
+            2);
+        return ERR_IO_PENDING;
       default:
         NOTREACHED();
         set_socket(NULL);
@@ -267,6 +295,7 @@ class TestConnectJob : public ConnectJob {
   MockClientSocketFactory* const client_socket_factory_;
   ScopedRunnableMethodFactory<TestConnectJob> method_factory_;
   LoadState load_state_;
+  bool store_additional_error_state_;
 
   DISALLOW_COPY_AND_ASSIGN(TestConnectJob);
 };
@@ -593,10 +622,16 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
 
   TestSocketRequest req(&request_order_, &completion_count_);
+  // Set the additional error state members to ensure that they get cleared.
+  req.handle()->set_is_ssl_error(true);
+  scoped_refptr<HttpResponseHeaders> headers(new HttpResponseHeaders(""));
+  req.handle()->set_tunnel_auth_response_info(headers, NULL);
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.handle()->Init("a", params_,
                                                       kDefaultPriority, &req,
                                                       pool_, log.bound()));
   EXPECT_FALSE(req.handle()->socket());
+  EXPECT_FALSE(req.handle()->is_ssl_error());
+  EXPECT_TRUE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
 
   EXPECT_EQ(3u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
@@ -1352,10 +1387,16 @@ TEST_F(ClientSocketPoolBaseTest,
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
   TestSocketRequest req(&request_order_, &completion_count_);
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  // Set the additional error state members to ensure that they get cleared.
+  req.handle()->set_is_ssl_error(true);
+  scoped_refptr<HttpResponseHeaders> headers(new HttpResponseHeaders(""));
+  req.handle()->set_tunnel_auth_response_info(headers, NULL);
   EXPECT_EQ(ERR_IO_PENDING, req.handle()->Init("a", params_, kDefaultPriority,
                                                &req, pool_, log.bound()));
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
+  EXPECT_FALSE(req.handle()->is_ssl_error());
+  EXPECT_TRUE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
 
   EXPECT_EQ(3u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
@@ -1548,6 +1589,39 @@ TEST_F(ClientSocketPoolBaseTest, AsyncRecoverable) {
   req.handle()->Reset();
 }
 
+TEST_F(ClientSocketPoolBaseTest, AdditionalErrorStateSynchronous) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(
+      TestConnectJob::kMockAdditionalErrorStateJob);
+
+  TestSocketRequest req(&request_order_, &completion_count_);
+  EXPECT_EQ(ERR_CONNECTION_FAILED, req.handle()->Init("a", params_,
+                                                      kDefaultPriority, &req,
+                                                      pool_, BoundNetLog()));
+  EXPECT_FALSE(req.handle()->is_initialized());
+  EXPECT_FALSE(req.handle()->socket());
+  EXPECT_TRUE(req.handle()->is_ssl_error());
+  EXPECT_FALSE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
+  req.handle()->Reset();
+}
+
+TEST_F(ClientSocketPoolBaseTest, AdditionalErrorStateAsynchronous) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+
+  connect_job_factory_->set_job_type(
+      TestConnectJob::kMockPendingAdditionalErrorStateJob);
+  TestSocketRequest req(&request_order_, &completion_count_);
+  EXPECT_EQ(ERR_IO_PENDING, req.handle()->Init("a", params_, kDefaultPriority,
+                                               &req, pool_, BoundNetLog()));
+  EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
+  EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
+  EXPECT_FALSE(req.handle()->is_initialized());
+  EXPECT_FALSE(req.handle()->socket());
+  EXPECT_TRUE(req.handle()->is_ssl_error());
+  EXPECT_FALSE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
+  req.handle()->Reset();
+}
+
 TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   CreatePoolWithIdleTimeouts(
       kDefaultMaxSockets, kDefaultMaxSocketsPerGroup,
@@ -1735,8 +1809,11 @@ TEST_F(ClientSocketPoolBaseTest,
 
 class TestReleasingSocketRequest : public CallbackRunner< Tuple1<int> > {
  public:
-  explicit TestReleasingSocketRequest(TestClientSocketPool* pool)
-      : pool_(pool) {}
+  TestReleasingSocketRequest(TestClientSocketPool* pool, int expected_result,
+                             bool reset_releasing_handle)
+      : pool_(pool),
+        expected_result_(expected_result),
+        reset_releasing_handle_(reset_releasing_handle) {}
 
   ClientSocketHandle* handle() { return &handle_; }
 
@@ -1746,19 +1823,49 @@ class TestReleasingSocketRequest : public CallbackRunner< Tuple1<int> > {
 
   virtual void RunWithParams(const Tuple1<int>& params) {
     callback_.RunWithParams(params);
-    handle_.Reset();
+    if (reset_releasing_handle_)
+                      handle_.Reset();
     scoped_refptr<TestSocketParams> con_params = new TestSocketParams();
-    EXPECT_EQ(ERR_IO_PENDING, handle2_.Init("a", con_params, kDefaultPriority,
-                                            &callback2_, pool_, BoundNetLog()));
+    EXPECT_EQ(expected_result_, handle2_.Init("a", con_params, kDefaultPriority,
+                                              &callback2_, pool_,
+                                              BoundNetLog()));
   }
 
  private:
   scoped_refptr<TestClientSocketPool> pool_;
+  int expected_result_;
+  bool reset_releasing_handle_;
   ClientSocketHandle handle_;
   ClientSocketHandle handle2_;
   TestCompletionCallback callback_;
   TestCompletionCallback callback2_;
 };
+
+
+TEST_F(ClientSocketPoolBaseTest, AdditionalErrorSocketsDontUseSlot) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+
+  EXPECT_EQ(OK, StartRequest("b", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("b", kDefaultPriority));
+
+  EXPECT_EQ(static_cast<int>(requests_.size()),
+            client_socket_factory_.allocation_count());
+
+  connect_job_factory_->set_job_type(
+      TestConnectJob::kMockPendingAdditionalErrorStateJob);
+  TestReleasingSocketRequest req(pool_.get(), OK, false);
+  EXPECT_EQ(ERR_IO_PENDING, req.handle()->Init("a", params_, kDefaultPriority,
+                                               &req, pool_, BoundNetLog()));
+  // The next job should complete synchronously
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
+
+  EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
+  EXPECT_FALSE(req.handle()->is_initialized());
+  EXPECT_FALSE(req.handle()->socket());
+  EXPECT_TRUE(req.handle()->is_ssl_error());
+  EXPECT_FALSE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
+}
 
 // http://crbug.com/44724 regression test.
 // We start releasing the pool when we flush on network change.  When that

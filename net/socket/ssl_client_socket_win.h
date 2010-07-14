@@ -23,6 +23,7 @@
 namespace net {
 
 class CertVerifier;
+class ClientSocketHandle;
 class BoundNetLog;
 
 // An SSL client socket implemented with the Windows Schannel.
@@ -32,7 +33,7 @@ class SSLClientSocketWin : public SSLClientSocket {
   // The given hostname will be compared with the name(s) in the server's
   // certificate during the SSL handshake.  ssl_config specifies the SSL
   // settings.
-  SSLClientSocketWin(ClientSocket* transport_socket,
+  SSLClientSocketWin(ClientSocketHandle* transport_socket,
                      const std::string& hostname,
                      const SSLConfig& ssl_config);
   ~SSLClientSocketWin();
@@ -96,7 +97,7 @@ class SSLClientSocketWin : public SSLClientSocket {
   CompletionCallbackImpl<SSLClientSocketWin> read_callback_;
   CompletionCallbackImpl<SSLClientSocketWin> write_callback_;
 
-  scoped_ptr<ClientSocket> transport_;
+  scoped_ptr<ClientSocketHandle> transport_;
   std::string hostname_;
   SSLConfig ssl_config_;
 

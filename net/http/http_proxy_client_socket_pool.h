@@ -13,6 +13,7 @@
 #include "base/time.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/host_resolver.h"
+#include "net/http/http_auth.h"
 #include "net/proxy/proxy_server.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/client_socket_pool_histograms.h"
@@ -37,7 +38,7 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   }
   const GURL& request_url() const { return request_url_; }
   const HostPortPair& endpoint() const { return endpoint_; }
-  const scoped_refptr<HttpAuthController>& auth_controller() const {
+  const scoped_refptr<HttpAuthController>& auth_controller() {
     return auth_controller_;
   }
   bool tunnel() const { return tunnel_; }
@@ -51,6 +52,8 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   const HostPortPair endpoint_;
   const scoped_refptr<HttpAuthController> auth_controller_;
   const bool tunnel_;
+
+  DISALLOW_COPY_AND_ASSIGN(HttpProxySocketParams);
 };
 
 // HttpProxyConnectJob optionally establishes a tunnel through the proxy

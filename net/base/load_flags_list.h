@@ -77,3 +77,5 @@ LOAD_FLAG(DO_NOT_SEND_COOKIES, 1 << 17)
 // to the server (as opposed to the proxy).
 LOAD_FLAG(DO_NOT_SEND_AUTH_DATA, 1 << 18)
 
+// This should only be used for testing (set by HttpNetworkTransaction).
+LOAD_FLAG(IGNORE_ALL_CERT_ERRORS, 1 << 19)

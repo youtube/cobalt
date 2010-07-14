@@ -26,6 +26,8 @@ namespace net {
 
 class BoundNetLog;
 class CertVerifier;
+class ClientSocketHandle;
+class X509Certificate;
 
 // An SSL client socket implemented with Mozilla NSS.
 class SSLClientSocketNSS : public SSLClientSocket {
@@ -34,7 +36,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // The given hostname will be compared with the name(s) in the server's
   // certificate during the SSL handshake.  ssl_config specifies the SSL
   // settings.
-  SSLClientSocketNSS(ClientSocket* transport_socket,
+  SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                      const std::string& hostname,
                      const SSLConfig& ssl_config);
   ~SSLClientSocketNSS();
@@ -116,7 +118,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   scoped_refptr<IOBuffer> recv_buffer_;
 
   CompletionCallbackImpl<SSLClientSocketNSS> handshake_io_callback_;
-  scoped_ptr<ClientSocket> transport_;
+  scoped_ptr<ClientSocketHandle> transport_;
   std::string hostname_;
   SSLConfig ssl_config_;
 
