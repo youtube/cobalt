@@ -4,7 +4,6 @@
 
 #include "base/message_loop.h"
 #include "base/message_loop_proxy_impl.h"
-#include "base/scoped_ptr.h"
 #include "base/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"

@@ -10,10 +10,12 @@
 #include <vector>
 
 #include "base/leak_tracker.h"
+#include "base/linked_list.h"
 #include "base/linked_ptr.h"
 #include "base/logging.h"
 #include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
+#include "base/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/load_states.h"
 #include "net/base/net_log.h"
