@@ -7,13 +7,18 @@
 #include <algorithm>
 #include <vector>
 
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/time.h"
 #include "net/base/address_family.h"
+#include "net/base/auth.h"
 #include "net/base/host_resolver_proc.h"
 #include "net/base/ssl_info.h"
+#include "net/http/http_network_session.h"
+#include "net/http/http_request_headers.h"
+#include "net/http/http_response_headers.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -334,13 +339,14 @@ class MockSSLClientSocket::ConnectCallback :
 };
 
 MockSSLClientSocket::MockSSLClientSocket(
-    net::ClientSocket* transport_socket,
+    net::ClientSocketHandle* transport_socket,
     const std::string& hostname,
     const net::SSLConfig& ssl_config,
     net::SSLSocketDataProvider* data)
-    : MockClientSocket(transport_socket->NetLog().net_log()),
+    : MockClientSocket(transport_socket->socket()->NetLog().net_log()),
       transport_(transport_socket),
-      data_(data) {
+      data_(data),
+      is_npn_state_set_(false) {
   DCHECK(data_);
 }
 
@@ -351,7 +357,7 @@ MockSSLClientSocket::~MockSSLClientSocket() {
 int MockSSLClientSocket::Connect(net::CompletionCallback* callback) {
   ConnectCallback* connect_callback = new ConnectCallback(
       this, callback, data_->connect.result);
-  int rv = transport_->Connect(connect_callback);
+  int rv = transport_->socket()->Connect(connect_callback);
   if (rv == net::OK) {
     delete connect_callback;
     if (data_->connect.async) {
@@ -367,18 +373,18 @@ int MockSSLClientSocket::Connect(net::CompletionCallback* callback) {
 
 void MockSSLClientSocket::Disconnect() {
   MockClientSocket::Disconnect();
-  if (transport_ != NULL)
-    transport_->Disconnect();
+  if (transport_->socket() != NULL)
+    transport_->socket()->Disconnect();
 }
 
 int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* callback) {
-  return transport_->Read(buf, buf_len, callback);
+  return transport_->socket()->Read(buf, buf_len, callback);
 }
 
 int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
                                net::CompletionCallback* callback) {
-  return transport_->Write(buf, buf_len, callback);
+  return transport_->socket()->Write(buf, buf_len, callback);
 }
 
 void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
@@ -392,7 +398,14 @@ SSLClientSocket::NextProtoStatus MockSSLClientSocket::GetNextProto(
 }
 
 bool MockSSLClientSocket::wasNpnNegotiated() const {
+  if (is_npn_state_set_)
+    return new_npn_value_;
   return data_->was_npn_negotiated;
+}
+
+bool MockSSLClientSocket::setWasNpnNegotiated(bool negotiated) {
+  is_npn_state_set_ = true;
+  return new_npn_value_ = negotiated;
 }
 
 MockRead StaticSocketDataProvider::GetNextRead() {
@@ -668,7 +681,7 @@ ClientSocket* MockClientSocketFactory::CreateTCPClientSocket(
 }
 
 SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
-    ClientSocket* transport_socket,
+    ClientSocketHandle* transport_socket,
     const std::string& hostname,
     const SSLConfig& ssl_config) {
   MockSSLClientSocket* socket =
@@ -838,6 +851,86 @@ void MockTCPClientSocketPool::ReleaseSocket(const std::string& group_name,
 }
 
 MockTCPClientSocketPool::~MockTCPClientSocketPool() {}
+
+MockSOCKSClientSocketPool::MockSOCKSClientSocketPool(
+    int max_sockets,
+    int max_sockets_per_group,
+    const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+    const scoped_refptr<TCPClientSocketPool>& tcp_pool)
+    : SOCKSClientSocketPool(max_sockets, max_sockets_per_group, histograms,
+                            NULL, tcp_pool, NULL),
+      tcp_pool_(tcp_pool) {
+}
+
+int MockSOCKSClientSocketPool::RequestSocket(const std::string& group_name,
+                                             const void* socket_params,
+                                             RequestPriority priority,
+                                             ClientSocketHandle* handle,
+                                             CompletionCallback* callback,
+                                             const BoundNetLog& net_log) {
+  return tcp_pool_->RequestSocket(group_name, socket_params, priority, handle,
+                                  callback, net_log);
+}
+
+void MockSOCKSClientSocketPool::CancelRequest(
+    const std::string& group_name,
+    const ClientSocketHandle* handle) {
+  return tcp_pool_->CancelRequest(group_name, handle);
+}
+
+void MockSOCKSClientSocketPool::ReleaseSocket(const std::string& group_name,
+                                              ClientSocket* socket, int id) {
+  return tcp_pool_->ReleaseSocket(group_name, socket, id);
+}
+
+MockSOCKSClientSocketPool::~MockSOCKSClientSocketPool() {}
+
+MockHttpAuthController::MockHttpAuthController()
+    : HttpAuthController(HttpAuth::AUTH_PROXY, GURL(),
+                         scoped_refptr<HttpNetworkSession>(NULL)),
+      data_(NULL),
+      data_index_(0),
+      data_count_(0) {
+}
+
+void MockHttpAuthController::SetMockAuthControllerData(
+    struct MockHttpAuthControllerData* data, size_t count) {
+  data_ = data;
+  data_count_ = count;
+}
+
+int MockHttpAuthController::MaybeGenerateAuthToken(
+    const HttpRequestInfo* request,
+    CompletionCallback* callback,
+    const BoundNetLog& net_log) {
+  return OK;
+}
+
+void MockHttpAuthController::AddAuthorizationHeader(
+    HttpRequestHeaders* authorization_headers) {
+  authorization_headers->AddHeadersFromString(CurrentData().auth_header);
+}
+
+int MockHttpAuthController::HandleAuthChallenge(
+    scoped_refptr<HttpResponseHeaders> headers,
+    bool do_not_send_server_auth,
+    bool establishing_tunnel,
+    const BoundNetLog& net_log) {
+  return OK;
+}
+
+void MockHttpAuthController::ResetAuth(const std::wstring& username,
+                                       const std::wstring& password) {
+  data_index_++;
+}
+
+bool MockHttpAuthController::HaveAuth() const {
+  return CurrentData().auth_header.size() != 0;
+}
+
+bool MockHttpAuthController::HaveAuthHandler() const {
+  return HaveAuth();
+}
 
 const char kSOCKS5GreetRequest[] = { 0x05, 0x01, 0x00 };
 const int kSOCKS5GreetRequestLength = arraysize(kSOCKS5GreetRequest);

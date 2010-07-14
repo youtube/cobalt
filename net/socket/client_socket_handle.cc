@@ -17,7 +17,8 @@ ClientSocketHandle::ClientSocketHandle()
     : socket_(NULL),
       is_reused_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &ClientSocketHandle::OnIOComplete)) {}
+          callback_(this, &ClientSocketHandle::OnIOComplete)),
+      is_ssl_error_(false) {}
 
 ClientSocketHandle::~ClientSocketHandle() {
   Reset();
@@ -25,6 +26,7 @@ ClientSocketHandle::~ClientSocketHandle() {
 
 void ClientSocketHandle::Reset() {
   ResetInternal(true);
+  ResetErrorState();
 }
 
 void ClientSocketHandle::ResetInternal(bool cancel) {
@@ -51,6 +53,11 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   init_time_ = base::TimeTicks();
   setup_time_ = base::TimeDelta();
   pool_id_ = -1;
+}
+
+void ClientSocketHandle::ResetErrorState() {
+  is_ssl_error_ = false;
+  tunnel_auth_response_info_ = HttpResponseInfo();
 }
 
 LoadState ClientSocketHandle::GetLoadState() const {

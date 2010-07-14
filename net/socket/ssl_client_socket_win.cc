@@ -19,6 +19,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
+#include "net/socket/client_socket_handle.h"
 
 #pragma comment(lib, "secur32.lib")
 
@@ -293,7 +294,7 @@ class ClientCertStore {
 //   64: >= SSL record trailer (16 or 20 have been observed)
 static const int kRecvBufferSize = (5 + 16*1024 + 64);
 
-SSLClientSocketWin::SSLClientSocketWin(ClientSocket* transport_socket,
+SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
                                        const std::string& hostname,
                                        const SSLConfig& ssl_config)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -324,7 +325,7 @@ SSLClientSocketWin::SSLClientSocketWin(ClientSocket* transport_socket,
       ignore_ok_result_(false),
       renegotiating_(false),
       need_more_data_(false),
-      net_log_(transport_socket->NetLog()) {
+      net_log_(transport_socket->socket()->NetLog()) {
   memset(&stream_sizes_, 0, sizeof(stream_sizes_));
   memset(in_buffers_, 0, sizeof(in_buffers_));
   memset(&send_buffer_, 0, sizeof(send_buffer_));
@@ -529,7 +530,7 @@ void SSLClientSocketWin::Disconnect() {
 
   // Shut down anything that may call us back.
   verifier_.reset();
-  transport_->Disconnect();
+  transport_->socket()->Disconnect();
 
   if (send_buffer_.pvBuffer)
     FreeSendBuffer();
@@ -555,7 +556,7 @@ bool SSLClientSocketWin::IsConnected() const {
   // layer (HttpNetworkTransaction) needs to handle a persistent connection
   // closed by the server when we send a request anyway, a false positive in
   // exchange for simpler code is a good trade-off.
-  return completed_handshake() && transport_->IsConnected();
+  return completed_handshake() && transport_->socket()->IsConnected();
 }
 
 bool SSLClientSocketWin::IsConnectedAndIdle() const {
@@ -564,13 +565,14 @@ bool SSLClientSocketWin::IsConnectedAndIdle() const {
   // Strictly speaking, we should check if we have received the close_notify
   // alert message from the server, and return false in that case.  Although
   // the close_notify alert message means EOF in the SSL layer, it is just
-  // bytes to the transport layer below, so transport_->IsConnectedAndIdle()
-  // returns the desired false when we receive close_notify.
-  return completed_handshake() && transport_->IsConnectedAndIdle();
+  // bytes to the transport layer below, so
+  // transport_->socket()->IsConnectedAndIdle() returns the desired false
+  // when we receive close_notify.
+  return completed_handshake() && transport_->socket()->IsConnectedAndIdle();
 }
 
 int SSLClientSocketWin::GetPeerAddress(AddressList* address) const {
-  return transport_->GetPeerAddress(address);
+  return transport_->socket()->GetPeerAddress(address);
 }
 
 int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
@@ -637,11 +639,11 @@ int SSLClientSocketWin::Write(IOBuffer* buf, int buf_len,
 }
 
 bool SSLClientSocketWin::SetReceiveBufferSize(int32 size) {
-  return transport_->SetReceiveBufferSize(size);
+  return transport_->socket()->SetReceiveBufferSize(size);
 }
 
 bool SSLClientSocketWin::SetSendBufferSize(int32 size) {
-  return transport_->SetSendBufferSize(size);
+  return transport_->socket()->SetSendBufferSize(size);
 }
 
 void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
@@ -756,8 +758,8 @@ int SSLClientSocketWin::DoHandshakeRead() {
   DCHECK(!transport_read_buf_);
   transport_read_buf_ = new IOBuffer(buf_len);
 
-  return transport_->Read(transport_read_buf_, buf_len,
-                          &handshake_io_callback_);
+  return transport_->socket()->Read(transport_read_buf_, buf_len,
+                                    &handshake_io_callback_);
 }
 
 int SSLClientSocketWin::DoHandshakeReadComplete(int result) {
@@ -923,8 +925,8 @@ int SSLClientSocketWin::DoHandshakeWrite() {
   transport_write_buf_ = new IOBuffer(buf_len);
   memcpy(transport_write_buf_->data(), buf, buf_len);
 
-  return transport_->Write(transport_write_buf_, buf_len,
-                           &handshake_io_callback_);
+  return transport_->socket()->Write(transport_write_buf_, buf_len,
+                                     &handshake_io_callback_);
 }
 
 int SSLClientSocketWin::DoHandshakeWriteComplete(int result) {
@@ -1018,7 +1020,8 @@ int SSLClientSocketWin::DoPayloadRead() {
     DCHECK(!transport_read_buf_);
     transport_read_buf_ = new IOBuffer(buf_len);
 
-    rv = transport_->Read(transport_read_buf_, buf_len, &read_callback_);
+    rv = transport_->socket()->Read(transport_read_buf_, buf_len,
+                                    &read_callback_);
     if (rv != ERR_IO_PENDING)
       rv = DoPayloadReadComplete(rv);
     if (rv <= 0)
@@ -1253,7 +1256,8 @@ int SSLClientSocketWin::DoPayloadWrite() {
   transport_write_buf_ = new IOBuffer(buf_len);
   memcpy(transport_write_buf_->data(), buf, buf_len);
 
-  int rv = transport_->Write(transport_write_buf_, buf_len, &write_callback_);
+  int rv = transport_->socket()->Write(transport_write_buf_, buf_len,
+                                       &write_callback_);
   if (rv != ERR_IO_PENDING)
     rv = DoPayloadWriteComplete(rv);
   return rv;

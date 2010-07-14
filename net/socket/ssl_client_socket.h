@@ -7,6 +7,8 @@
 
 #include <string>
 
+#include "net/base/load_flags.h"
+#include "net/base/net_errors.h"
 #include "net/socket/client_socket.h"
 
 namespace net {
@@ -69,6 +71,23 @@ class SSLClientSocket : public ClientSocket {
     } else {
       return kProtoUnknown;
     }
+  }
+
+  static bool IgnoreCertError(int error, int load_flags) {
+    if (error == OK || load_flags & LOAD_IGNORE_ALL_CERT_ERRORS)
+      return true;
+
+    if (error == ERR_CERT_COMMON_NAME_INVALID &&
+        (load_flags & LOAD_IGNORE_CERT_COMMON_NAME_INVALID))
+      return true;
+    if(error == ERR_CERT_DATE_INVALID &&
+            (load_flags & LOAD_IGNORE_CERT_DATE_INVALID))
+      return true;
+    if(error == ERR_CERT_AUTHORITY_INVALID &&
+            (load_flags & LOAD_IGNORE_CERT_AUTHORITY_INVALID))
+      return true;
+
+    return false;
   }
 
   virtual bool wasNpnNegotiated() const {

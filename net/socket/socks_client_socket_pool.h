@@ -46,6 +46,8 @@ class SOCKSSocketParams : public base::RefCounted<SOCKSSocketParams> {
   // This is the HTTP destination.
   HostResolver::RequestInfo destination_;
   const bool socks_v5_;
+
+  DISALLOW_COPY_AND_ASSIGN(SOCKSSocketParams);
 };
 
 // SOCKSConnectJob handles the handshake to a socks server after setting up

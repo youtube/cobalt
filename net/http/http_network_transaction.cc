@@ -41,6 +41,7 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
@@ -260,7 +261,7 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
 
 int HttpNetworkTransaction::RestartIgnoringLastError(
     CompletionCallback* callback) {
-  if (connection_->socket()->IsConnectedAndIdle()) {
+  if (connection_->socket() && connection_->socket()->IsConnectedAndIdle()) {
     // TODO(wtc): Should we update any of the connection histograms that we
     // update in DoSSLConnectComplete if |result| is OK?
     if (using_spdy_) {
@@ -270,7 +271,8 @@ int HttpNetworkTransaction::RestartIgnoringLastError(
       next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
     }
   } else {
-    connection_->socket()->Disconnect();
+    if (connection_->socket())
+      connection_->socket()->Disconnect();
     connection_->Reset();
     next_state_ = STATE_INIT_CONNECTION;
   }
@@ -314,8 +316,8 @@ int HttpNetworkTransaction::RestartWithAuth(
 
   if (target == HttpAuth::AUTH_PROXY && using_ssl_ && proxy_info_.is_http()) {
     DCHECK(establishing_tunnel_);
+    next_state_ = STATE_INIT_CONNECTION;
     ResetStateForRestart();
-    next_state_ = STATE_TUNNEL_RESTART_WITH_AUTH;
   } else {
     PrepareForAuthRestart(target);
   }
@@ -377,22 +379,8 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
 
   State next_state = STATE_NONE;
 
-  // Are we using SPDY or HTTP?
-  if (using_spdy_) {
-    DCHECK(!http_stream_.get());
-    DCHECK(spdy_http_stream_->GetResponseInfo()->headers);
-    next_state = STATE_SPDY_READ_BODY;
-  } else {
-    DCHECK(!spdy_http_stream_.get());
-    next_state = STATE_READ_BODY;
-
-    if (!connection_->is_initialized())
-      return 0;  // connection_->has been reset.  Treat like EOF.
-  }
-
   scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
-  DCHECK(headers.get());
-  if (establishing_tunnel_) {
+  if (headers_valid_ && headers.get() && establishing_tunnel_) {
     // We're trying to read the body of the response but we're still trying
     // to establish an SSL tunnel through the proxy.  We can't read these
     // bytes when establishing a tunnel because they might be controlled by
@@ -406,6 +394,19 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
                  << headers->response_code() << " to CONNECT request for "
                  << GetHostAndPort(request_->url) << ".";
     return ERR_TUNNEL_CONNECTION_FAILED;
+  }
+
+  // Are we using SPDY or HTTP?
+  if (using_spdy_) {
+    DCHECK(!http_stream_.get());
+    DCHECK(spdy_http_stream_->GetResponseInfo()->headers);
+    next_state = STATE_SPDY_READ_BODY;
+  } else {
+    DCHECK(!spdy_http_stream_.get());
+    next_state = STATE_READ_BODY;
+
+    if (!connection_->is_initialized())
+      return 0;  // |*connection_| has been reset.  Treat like EOF.
   }
 
   read_buf_ = buf;
@@ -516,17 +517,6 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_INIT_CONNECTION_COMPLETE:
         rv = DoInitConnectionComplete(rv);
-        break;
-      case STATE_TUNNEL_RESTART_WITH_AUTH:
-        DCHECK_EQ(OK, rv);
-        rv = DoTunnelRestartWithAuth();
-        break;
-      case STATE_SSL_CONNECT:
-        DCHECK_EQ(OK, rv);
-        rv = DoSSLConnect();
-        break;
-      case STATE_SSL_CONNECT_COMPLETE:
-        rv = DoSSLConnectComplete(rv);
         break;
       case STATE_GENERATE_PROXY_AUTH_TOKEN:
         DCHECK_EQ(OK, rv);
@@ -702,6 +692,7 @@ int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
 int HttpNetworkTransaction::DoInitConnection() {
   DCHECK(!connection_->is_initialized());
   DCHECK(proxy_info_.proxy_server().is_valid());
+  next_state_ = STATE_INIT_CONNECTION_COMPLETE;
 
   // Now that the proxy server has been resolved, create the auth_controllers_.
   for (int i = 0; i < HttpAuth::AUTH_NUM_TARGETS; i++) {
@@ -712,17 +703,11 @@ int HttpNetworkTransaction::DoInitConnection() {
                                                          session_);
   }
 
-  next_state_ = STATE_INIT_CONNECTION_COMPLETE;
-
-  using_ssl_ = request_->url.SchemeIs("https") ||
-      (alternate_protocol_mode_ == kUsingAlternateProtocol &&
-       alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_1);
-
+  bool want_spdy = alternate_protocol_mode_ == kUsingAlternateProtocol
+      && alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_1;
+  using_ssl_ = request_->url.SchemeIs("https") || want_spdy;
   using_spdy_ = false;
-
-  // Build the string used to uniquely identify connections of this type.
-  // Determine the host and port to connect to.
-  std::string connection_group;
+  response_.was_fetched_via_proxy = !proxy_info_.is_direct();
 
   // Use the fixed testing ports if they've been provided.
   if (using_ssl_) {
@@ -732,17 +717,18 @@ int HttpNetworkTransaction::DoInitConnection() {
     endpoint_.port = session_->fixed_http_port();
   }
 
-  response_.was_fetched_via_proxy = !proxy_info_.is_direct();
-
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
   if (session_->spdy_session_pool()->HasSession(endpoint_)) {
     using_spdy_ = true;
     reused_socket_ = true;
+    next_state_ = STATE_SPDY_SEND_REQUEST;
     return OK;
   }
 
-  connection_group = endpoint_.ToString();
+  // Build the string used to uniquely identify connections of this type.
+  // Determine the host and port to connect to.
+  std::string connection_group = endpoint_.ToString();
   DCHECK(!connection_group.empty());
 
   if (using_ssl_)
@@ -753,206 +739,175 @@ int HttpNetworkTransaction::DoInitConnection() {
                                 request_->load_flags & LOAD_VALIDATE_CACHE ||
                                 request_->load_flags & LOAD_DISABLE_CACHE;
 
-  int rv;
-  if (!proxy_info_.is_direct()) {
-    ProxyServer proxy_server = proxy_info_.proxy_server();
-    HostPortPair proxy_host_port_pair(proxy_server.HostNoBrackets(),
-                                      proxy_server.port());
+  // Build up the connection parameters.
+  scoped_refptr<TCPSocketParams> tcp_params;
+  scoped_refptr<HttpProxySocketParams> http_proxy_params;
+  scoped_refptr<SOCKSSocketParams> socks_params;
+  scoped_ptr<HostPortPair> proxy_host_port;
 
-    scoped_refptr<TCPSocketParams> tcp_params =
-        new TCPSocketParams(proxy_host_port_pair, request_->priority,
+  if (proxy_info_.is_direct()) {
+    tcp_params = new TCPSocketParams(endpoint_, request_->priority,
+                                     request_->referrer,
+                                     disable_resolver_cache);
+  } else {
+    ProxyServer proxy_server = proxy_info_.proxy_server();
+    proxy_host_port.reset(new HostPortPair(proxy_server.HostNoBrackets(),
+                                           proxy_server.port()));
+    scoped_refptr<TCPSocketParams> proxy_tcp_params =
+        new TCPSocketParams(*proxy_host_port, request_->priority,
                             request_->referrer, disable_resolver_cache);
 
-    if (proxy_info_.is_socks()) {
-      const char* socks_version;
-      bool socks_v5;
-      if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5) {
-        socks_version = "5";
-        socks_v5 = true;
-      } else {
-        socks_version = "4";
-        socks_v5 = false;
-      }
-
-      connection_group =
-          StringPrintf("socks%s/%s", socks_version, connection_group.c_str());
-
-      scoped_refptr<SOCKSSocketParams> socks_params =
-          new SOCKSSocketParams(tcp_params, socks_v5, endpoint_,
-                                request_->priority, request_->referrer);
-
-      rv = connection_->Init(
-          connection_group, socks_params, request_->priority,
-          &io_callback_,
-          session_->GetSocketPoolForSOCKSProxy(proxy_host_port_pair), net_log_);
-    } else {
-      DCHECK(proxy_info_.is_http());
+    if (proxy_info_.is_http()) {
       scoped_refptr<HttpAuthController> http_proxy_auth;
       if (using_ssl_) {
         http_proxy_auth = auth_controllers_[HttpAuth::AUTH_PROXY];
         establishing_tunnel_ = true;
       }
+      http_proxy_params = new HttpProxySocketParams(proxy_tcp_params,
+                                                    request_->url, endpoint_,
+                                                    http_proxy_auth,
+                                                    using_ssl_);
+    } else {
+      DCHECK(proxy_info_.is_socks());
+      char socks_version;
+      if (proxy_server.scheme() == ProxyServer::SCHEME_SOCKS5)
+        socks_version = '5';
+      else
+        socks_version = '4';
+      connection_group =
+          StringPrintf("socks%c/%s", socks_version, connection_group.c_str());
 
-      scoped_refptr<HttpProxySocketParams> http_proxy_params =
-          new HttpProxySocketParams(tcp_params, request_->url, endpoint_,
-                                    http_proxy_auth, using_ssl_);
-
-      rv = connection_->Init(connection_group, http_proxy_params,
-                             request_->priority, &io_callback_,
-                             session_->GetSocketPoolForHTTPProxy(
-                                 proxy_host_port_pair),
-                             net_log_);
+      socks_params = new SOCKSSocketParams(proxy_tcp_params,
+                                           socks_version == '5',
+                                           endpoint_,
+                                           request_->priority,
+                                           request_->referrer);
     }
-  } else {
-    scoped_refptr<TCPSocketParams> tcp_params =
-        new TCPSocketParams(endpoint_, request_->priority, request_->referrer,
-                            disable_resolver_cache);
-    rv = connection_->Init(connection_group, tcp_params, request_->priority,
-                           &io_callback_, session_->tcp_socket_pool(),
-                           net_log_);
   }
 
-  return rv;
+  // Deal with SSL - which layers on top of any given proxy.
+  if (using_ssl_) {
+    if (ContainsKey(*g_tls_intolerant_servers, GetHostAndPort(request_->url))) {
+      LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
+                   << GetHostAndPort(request_->url);
+      ssl_config_.ssl3_fallback = true;
+      ssl_config_.tls1_enabled = false;
+    }
+
+    UMA_HISTOGRAM_ENUMERATION("Net.ConnectionUsedSSLv3Fallback",
+                              (int) ssl_config_.ssl3_fallback, 2);
+
+    int load_flags = request_->load_flags;
+    if (g_ignore_certificate_errors)
+      load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
+    if (request_->load_flags & LOAD_VERIFY_EV_CERT)
+      ssl_config_.verify_ev_cert = true;
+
+    scoped_refptr<SSLSocketParams> ssl_params =
+        new SSLSocketParams(tcp_params, http_proxy_params, socks_params,
+                            proxy_info_.proxy_server().scheme(),
+                            request_->url.HostNoBrackets(), ssl_config_,
+                            load_flags, want_spdy);
+
+    scoped_refptr<SSLClientSocketPool> ssl_pool;
+    if (proxy_info_.is_direct())
+      ssl_pool = session_->ssl_socket_pool();
+    else
+      ssl_pool = session_->GetSocketPoolForSSLWithProxy(*proxy_host_port);
+
+    return connection_->Init(connection_group, ssl_params, request_->priority,
+                             &io_callback_, ssl_pool, net_log_);
+  }
+
+  // Finally, get the connection started.
+  if (proxy_info_.is_http()) {
+    return connection_->Init(
+        connection_group, http_proxy_params, request_->priority, &io_callback_,
+        session_->GetSocketPoolForHTTPProxy(*proxy_host_port), net_log_);
+  }
+
+  if (proxy_info_.is_socks()) {
+    return connection_->Init(
+        connection_group, socks_params, request_->priority, &io_callback_,
+        session_->GetSocketPoolForSOCKSProxy(*proxy_host_port), net_log_);
+  }
+
+  DCHECK(proxy_info_.is_direct());
+  return connection_->Init(connection_group, tcp_params, request_->priority,
+                           &io_callback_, session_->tcp_socket_pool(),
+                           net_log_);
 }
 
 int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
-  if (result < 0) {
-    if (result == ERR_RETRY_CONNECTION) {
-      DCHECK(establishing_tunnel_);
-      next_state_ = STATE_INIT_CONNECTION;
-      connection_->socket()->Disconnect();
-      connection_->Reset();
-      return OK;
+  // |result| may be the result of any of the stacked pools. The following
+  // logic is used when determining how to interpret an error.
+  // If |result| < 0:
+  //   and connection_->socket() != NULL, then the SSL handshake ran and it
+  //     is a potentially recoverable error.
+  //   and connection_->socket == NULL and connection_->is_ssl_error() is true,
+  //     then the SSL handshake ran with an unrecoverable error.
+  //   otherwise, the error came from one of the other pools.
+  bool ssl_started = using_ssl_ && (result == OK || connection_->socket() ||
+                                    connection_->is_ssl_error());
+
+  if (ssl_started && (result == OK || IsCertificateError(result))) {
+    SSLClientSocket* ssl_socket =
+      static_cast<SSLClientSocket*>(connection_->socket());
+    if (ssl_socket->wasNpnNegotiated()) {
+      response_.was_npn_negotiated = true;
+      std::string proto;
+      ssl_socket->GetNextProto(&proto);
+      if (SSLClientSocket::NextProtoFromString(proto) ==
+          SSLClientSocket::kProtoSPDY1)
+        using_spdy_ = true;
     }
-
-    if (result == ERR_PROXY_AUTH_REQUESTED) {
-      DCHECK(establishing_tunnel_);
-      HttpProxyClientSocket* tunnel_socket =
-          static_cast<HttpProxyClientSocket*>(connection_->socket());
-      DCHECK(tunnel_socket);
-      DCHECK(!tunnel_socket->IsConnected());
-      const HttpResponseInfo* auth_response = tunnel_socket->GetResponseInfo();
-
-      response_.headers = auth_response->headers;
-      headers_valid_ = true;
-      response_.auth_challenge = auth_response->auth_challenge;
-      pending_auth_target_ = HttpAuth::AUTH_PROXY;
-      return OK;
-    }
-
-    if (alternate_protocol_mode_ == kUsingAlternateProtocol) {
-      // Mark the alternate protocol as broken and fallback.
-      MarkBrokenAlternateProtocolAndFallback();
-      return OK;
-    }
-
-    return ReconsiderProxyAfterError(result);
   }
 
-  DCHECK_EQ(OK, result);
-  if (establishing_tunnel_) {
-    DCHECK(connection_->socket()->IsConnected());
-    establishing_tunnel_ = false;
-  }
+  if (result == ERR_PROXY_AUTH_REQUESTED) {
+    DCHECK(!ssl_started);
+    const HttpResponseInfo& tunnel_auth_response =
+        connection_->tunnel_auth_response_info();
 
-  if (using_spdy_) {
-    DCHECK(!connection_->is_initialized());
-    // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
-    next_state_ = STATE_SPDY_SEND_REQUEST;
+    response_.headers = tunnel_auth_response.headers;
+    response_.auth_challenge = tunnel_auth_response.auth_challenge;
+    headers_valid_ = true;
+    pending_auth_target_ = HttpAuth::AUTH_PROXY;
     return OK;
   }
 
-  LogHttpConnectedMetrics(*connection_);
-
-  // Set the reused_socket_ flag to indicate that we are using a keep-alive
-  // connection.  This flag is used to handle errors that occur while we are
-  // trying to reuse a keep-alive connection.
-  reused_socket_ = connection_->is_reused();
-  if (reused_socket_) {
-    if (using_ssl_) {
-      SSLClientSocket* ssl_socket =
-          reinterpret_cast<SSLClientSocket*>(connection_->socket());
-      response_.was_npn_negotiated = ssl_socket->wasNpnNegotiated();
-    }
-    next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
-  } else {
-    // Now we have a TCP connected socket.  Perform other connection setup as
-    // needed.
-    UpdateConnectionTypeHistograms(CONNECTION_HTTP);
-    if (using_ssl_)
-      next_state_ = STATE_SSL_CONNECT;
-    else
-      next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
-  }
-
-  return OK;
-}
-
-int HttpNetworkTransaction::DoTunnelRestartWithAuth() {
-  next_state_ = STATE_INIT_CONNECTION_COMPLETE;
-  HttpProxyClientSocket* tunnel_socket =
-    reinterpret_cast<HttpProxyClientSocket*>(connection_->socket());
-
-  return tunnel_socket->RestartWithAuth(&io_callback_);
-}
-
-int HttpNetworkTransaction::DoSSLConnect() {
-  next_state_ = STATE_SSL_CONNECT_COMPLETE;
-
-  if (ContainsKey(*g_tls_intolerant_servers, GetHostAndPort(request_->url))) {
-    LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
-                 << GetHostAndPort(request_->url);
-    ssl_config_.ssl3_fallback = true;
-    ssl_config_.tls1_enabled = false;
-  }
-
-  UMA_HISTOGRAM_ENUMERATION("Net.ConnectionUsedSSLv3Fallback",
-                            (int) ssl_config_.ssl3_fallback, 2);
-
-  if (request_->load_flags & LOAD_VERIFY_EV_CERT)
-    ssl_config_.verify_ev_cert = true;
-
-  ssl_connect_start_time_ = base::TimeTicks::Now();
-
-  // Add a SSL socket on top of our existing transport socket.
-  ClientSocket* s = connection_->release_socket();
-  s = session_->socket_factory()->CreateSSLClientSocket(
-      s, request_->url.HostNoBrackets(), ssl_config_);
-  connection_->set_socket(s);
-  return connection_->socket()->Connect(&io_callback_);
-}
-
-int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
-  SSLClientSocket* ssl_socket =
-      reinterpret_cast<SSLClientSocket*>(connection_->socket());
-
-  SSLClientSocket::NextProtoStatus status =
-      SSLClientSocket::kNextProtoUnsupported;
-  std::string proto;
-  // GetNextProto will fail and and trigger a NOTREACHED if we pass in a socket
-  // that hasn't had SSL_ImportFD called on it. If we get a certificate error
-  // here, then we know that we called SSL_ImportFD.
-  if (result == OK || IsCertificateError(result))
-    status = ssl_socket->GetNextProto(&proto);
-
-  if (status == SSLClientSocket::kNextProtoNegotiated) {
-    ssl_socket->setWasNpnNegotiated(true);
-    response_.was_npn_negotiated = true;
-    if (SSLClientSocket::NextProtoFromString(proto) ==
-        SSLClientSocket::kProtoSPDY1) {
-          using_spdy_ = true;
-    }
-  }
-
-  if (alternate_protocol_mode_ == kUsingAlternateProtocol &&
-      alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_1 &&
-      !using_spdy_) {
-    // We tried using the NPN_SPDY_1 alternate protocol, but failed, so we
-    // fallback.
+  if ((!ssl_started && result < 0 &&
+       alternate_protocol_mode_ == kUsingAlternateProtocol) ||
+      result == ERR_NPN_NEGOTIATION_FAILED) {
+    // Mark the alternate protocol as broken and fallback.
     MarkBrokenAlternateProtocolAndFallback();
     return OK;
   }
 
+  if (result < 0 && !ssl_started)
+    return ReconsiderProxyAfterError(result);
+  establishing_tunnel_ = false;
+
+  if (connection_->socket()) {
+    LogHttpConnectedMetrics(*connection_);
+
+    // Set the reused_socket_ flag to indicate that we are using a keep-alive
+    // connection.  This flag is used to handle errors that occur while we are
+    // trying to reuse a keep-alive connection.
+    reused_socket_ = connection_->is_reused();
+    // TODO(vandebo) should we exclude SPDY in the following if?
+    if (!reused_socket_)
+      UpdateConnectionTypeHistograms(CONNECTION_HTTP);
+
+    if (!using_ssl_) {
+      DCHECK_EQ(OK, result);
+      next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
+      return result;
+    }
+  }
+
+  // Handle SSL errors below.
+  DCHECK(using_ssl_);
+  DCHECK(ssl_started);
   if (IsCertificateError(result)) {
     if (using_spdy_ && request_->url.SchemeIs("http")) {
       // We ignore certificate errors for http over spdy.
@@ -969,36 +924,19 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
     }
   }
 
-  if (result == OK) {
-    DCHECK(ssl_connect_start_time_ != base::TimeTicks());
-    base::TimeDelta connect_duration =
-        base::TimeTicks::Now() - ssl_connect_start_time_;
+  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
+    return HandleCertificateRequest(result);
+  if (result < 0)
+    return HandleSSLHandshakeError(result);
 
-    if (using_spdy_) {
-      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SpdyConnectionLatency",
-                                 connect_duration,
-                                 base::TimeDelta::FromMilliseconds(1),
-                                 base::TimeDelta::FromMinutes(10),
-                                 100);
-
-      UpdateConnectionTypeHistograms(CONNECTION_SPDY);
-      // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
-      next_state_ = STATE_SPDY_SEND_REQUEST;
-    } else {
-      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
-                                 connect_duration,
-                                 base::TimeDelta::FromMilliseconds(1),
-                                 base::TimeDelta::FromMinutes(10),
-                                 100);
-
-      next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
-    }
-  } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
-    result = HandleCertificateRequest(result);
+  if (using_spdy_) {
+    UpdateConnectionTypeHistograms(CONNECTION_SPDY);
+    // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
+    next_state_ = STATE_SPDY_SEND_REQUEST;
   } else {
-    result = HandleSSLHandshakeError(result);
+    next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
   }
-  return result;
+  return OK;
 }
 
 int HttpNetworkTransaction::DoGenerateProxyAuthToken() {
@@ -1196,7 +1134,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
 
   if (using_ssl_) {
     SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(connection_->socket());
+        static_cast<SSLClientSocket*>(connection_->socket());
     ssl_socket->GetSSLInfo(&response_.ssl_info);
   }
 
@@ -1539,7 +1477,7 @@ int HttpNetworkTransaction::HandleCertificateError(int error) {
   DCHECK(IsCertificateError(error));
 
   SSLClientSocket* ssl_socket =
-      reinterpret_cast<SSLClientSocket*>(connection_->socket());
+      static_cast<SSLClientSocket*>(connection_->socket());
   ssl_socket->GetSSLInfo(&response_.ssl_info);
 
   // Add the bad certificate to the set of allowed certificates in the
@@ -1551,29 +1489,11 @@ int HttpNetworkTransaction::HandleCertificateError(int error) {
   bad_cert.cert_status = response_.ssl_info.cert_status;
   ssl_config_.allowed_bad_certs.push_back(bad_cert);
 
+  int load_flags = request_->load_flags;
   if (g_ignore_certificate_errors)
+    load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
+  if (ssl_socket->IgnoreCertError(error, load_flags))
     return OK;
-
-  const int kCertFlags = LOAD_IGNORE_CERT_COMMON_NAME_INVALID |
-                         LOAD_IGNORE_CERT_DATE_INVALID |
-                         LOAD_IGNORE_CERT_AUTHORITY_INVALID |
-                         LOAD_IGNORE_CERT_WRONG_USAGE;
-  if (request_->load_flags & kCertFlags) {
-    switch (error) {
-      case ERR_CERT_COMMON_NAME_INVALID:
-        if (request_->load_flags & LOAD_IGNORE_CERT_COMMON_NAME_INVALID)
-          error = OK;
-        break;
-      case ERR_CERT_DATE_INVALID:
-        if (request_->load_flags & LOAD_IGNORE_CERT_DATE_INVALID)
-          error = OK;
-        break;
-      case ERR_CERT_AUTHORITY_INVALID:
-        if (request_->load_flags & LOAD_IGNORE_CERT_AUTHORITY_INVALID)
-          error = OK;
-        break;
-    }
-  }
   return error;
 }
 
@@ -1590,7 +1510,7 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
 
   response_.cert_request_info = new SSLCertRequestInfo;
   SSLClientSocket* ssl_socket =
-      reinterpret_cast<SSLClientSocket*>(connection_->socket());
+      static_cast<SSLClientSocket*>(connection_->socket());
   ssl_socket->GetSSLCertRequestInfo(response_.cert_request_info);
 
   // Close the connection while the user is selecting a certificate to send
@@ -1695,11 +1615,13 @@ bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
 }
 
 void HttpNetworkTransaction::ResetConnectionAndRequestForResend() {
-  connection_->socket()->Disconnect();
+  if (connection_->socket())
+    connection_->socket()->Disconnect();
   connection_->Reset();
   // We need to clear request_headers_ because it contains the real request
   // headers, but we may need to resend the CONNECT request first to recreate
   // the SSL tunnel.
+
   request_headers_.clear();
   next_state_ = STATE_INIT_CONNECTION;  // Resend the request.
 }

@@ -159,12 +159,15 @@ void HttpProxyClientSocket::Disconnect() {
 }
 
 bool HttpProxyClientSocket::IsConnected() const {
-  return next_state_ == STATE_DONE && transport_->socket()->IsConnected();
+  return transport_->socket()->IsConnected();
 }
 
 bool HttpProxyClientSocket::IsConnectedAndIdle() const {
-  return next_state_ == STATE_DONE
-      && transport_->socket()->IsConnectedAndIdle();
+  return transport_->socket()->IsConnectedAndIdle();
+}
+
+bool HttpProxyClientSocket::NeedsRestartWithAuth() const {
+  return next_state_ != STATE_DONE;
 }
 
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
@@ -336,11 +339,8 @@ int HttpProxyClientSocket::DoReadHeaders() {
 }
 
 int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
-  if (result < 0) {
-    if (result == ERR_CONNECTION_CLOSED)
-      result = ERR_TUNNEL_CONNECTION_FAILED;
+  if (result < 0)
     return result;
-  }
 
   // Require the "HTTP/1.x" status line for SSL CONNECT.
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0))
