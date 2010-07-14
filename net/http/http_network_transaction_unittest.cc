@@ -59,13 +59,23 @@ class HttpNetworkSessionPeer {
   void SetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy,
       const scoped_refptr<SOCKSClientSocketPool>& pool) {
-    session_->socks_socket_pool_[socks_proxy] = pool;
+    session_->socks_socket_pools_[socks_proxy] = pool;
   }
 
   void SetSocketPoolForHTTPProxy(
       const HostPortPair& http_proxy,
       const scoped_refptr<HttpProxyClientSocketPool>& pool) {
-    session_->http_proxy_socket_pool_[http_proxy] = pool;
+    session_->http_proxy_socket_pools_[http_proxy] = pool;
+  }
+
+  void SetSSLSocketPool(const scoped_refptr<SSLClientSocketPool>& pool) {
+    session_->ssl_socket_pool_ = pool;
+  }
+
+  void SetSocketPoolForSSLWithProxy(
+      const HostPortPair& proxy_host,
+      const scoped_refptr<SSLClientSocketPool>& pool) {
+    session_->ssl_socket_pools_for_proxies_[proxy_host] = pool;
   }
 
  private:
@@ -238,13 +248,11 @@ std::string MockGetHostName() {
   return "WTC-WIN7";
 }
 
-template<typename EmulatedClientSocketPool>
-class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
+template<typename ParentPool>
+class CaptureGroupNameSocketPool : public ParentPool {
  public:
-  explicit CaptureGroupNameSocketPool(HttpNetworkSession* session)
-      : EmulatedClientSocketPool(0, 0, NULL, session->host_resolver(), NULL,
-                                 NULL) {
-  }
+  explicit CaptureGroupNameSocketPool(HttpNetworkSession* session);
+
   const std::string last_group_name_received() const {
     return last_group_name_;
   }
@@ -290,6 +298,19 @@ typedef CaptureGroupNameSocketPool<HttpProxyClientSocketPool>
 CaptureGroupNameHttpProxySocketPool;
 typedef CaptureGroupNameSocketPool<SOCKSClientSocketPool>
 CaptureGroupNameSOCKSSocketPool;
+typedef CaptureGroupNameSocketPool<SSLClientSocketPool>
+CaptureGroupNameSSLSocketPool;
+
+template<typename ParentPool>
+CaptureGroupNameSocketPool<ParentPool>::CaptureGroupNameSocketPool(
+    HttpNetworkSession* session)
+    : ParentPool(0, 0, NULL, session->host_resolver(), NULL, NULL) {}
+
+template<>
+CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
+    HttpNetworkSession* session)
+    : SSLClientSocketPool(0, 0, NULL, session->host_resolver(), NULL, NULL,
+                          NULL, NULL, NULL) {}
 
 //-----------------------------------------------------------------------------
 
@@ -1404,12 +1425,9 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
   EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
   EXPECT_EQ(L"basic", response->auth_challenge->scheme);
 
-  // Cleanup the transaction so that the sockets are destroyed before the
-  // net log goes out of scope.
-  trans.reset();
-
-  // We also need to run the message queue for the socket releases to complete.
-  MessageLoop::current()->RunAllPending();
+  // Flush the idle socket before the NetLog and HttpNetworkTransaction go
+  // out of scope.
+  session->FlushSocketPools();
 }
 
 // Test that we don't read the response body when we fail to establish a tunnel,
@@ -1465,6 +1483,9 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyCancelTunnel) {
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
   EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
+
+  // Flush the idle socket before the HttpNetworkTransaction goes out of scope.
+  session->FlushSocketPools();
 }
 
 // Test when a server (non-proxy) returns a 407 (proxy-authenticate).
@@ -3977,6 +3998,7 @@ struct GroupNameTest {
   std::string proxy_server;
   std::string url;
   std::string expected_group_name;
+  bool ssl;
 };
 
 scoped_refptr<HttpNetworkSession> SetupSessionForGroupNameTests(
@@ -4015,11 +4037,13 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
       "",  // unused
       "http://www.google.com/direct",
       "www.google.com:80",
+      false,
     },
     {
       "",  // unused
       "http://[2001:1418:13:1::25]/direct",
       "[2001:1418:13:1::25]:80",
+      false,
     },
 
     // SSL Tests
@@ -4027,16 +4051,19 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
       "",  // unused
       "https://www.google.com/direct_ssl",
       "ssl/www.google.com:443",
+      true,
     },
     {
       "",  // unused
       "https://[2001:1418:13:1::25]/direct",
       "ssl/[2001:1418:13:1::25]:443",
+      true,
     },
     {
       "",  // unused
       "http://host.with.alternate/direct",
       "ssl/host.with.alternate:443",
+      true,
     },
   };
 
@@ -4050,11 +4077,18 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
     scoped_refptr<CaptureGroupNameTCPSocketPool> tcp_conn_pool(
         new CaptureGroupNameTCPSocketPool(session.get()));
     peer.SetTCPSocketPool(tcp_conn_pool);
+    scoped_refptr<CaptureGroupNameSSLSocketPool> ssl_conn_pool(
+        new CaptureGroupNameSSLSocketPool(session.get()));
+    peer.SetSSLSocketPool(ssl_conn_pool);
 
     EXPECT_EQ(ERR_IO_PENDING,
               GroupNameTransactionHelper(tests[i].url, session));
-    EXPECT_EQ(tests[i].expected_group_name,
-              tcp_conn_pool->last_group_name_received());
+    if (tests[i].ssl)
+      EXPECT_EQ(tests[i].expected_group_name,
+                ssl_conn_pool->last_group_name_received());
+    else
+      EXPECT_EQ(tests[i].expected_group_name,
+                tcp_conn_pool->last_group_name_received());
   }
 
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
@@ -4066,6 +4100,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
       "http_proxy",
       "http://www.google.com/http_proxy_normal",
       "www.google.com:80",
+      false,
     },
 
     // SSL Tests
@@ -4073,12 +4108,14 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
       "http_proxy",
       "https://www.google.com/http_connect_ssl",
       "ssl/www.google.com:443",
+      true,
     },
 
     {
       "http_proxy",
       "http://host.with.alternate/direct",
       "ssl/host.with.alternate:443",
+      true,
     },
   };
 
@@ -4090,15 +4127,22 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
 
     HttpNetworkSessionPeer peer(session);
 
+    HostPortPair proxy_host("http_proxy", 80);
     scoped_refptr<CaptureGroupNameHttpProxySocketPool> http_proxy_pool(
         new CaptureGroupNameHttpProxySocketPool(session.get()));
-    peer.SetSocketPoolForHTTPProxy(
-        HostPortPair("http_proxy", 80), http_proxy_pool);
+    peer.SetSocketPoolForHTTPProxy(proxy_host, http_proxy_pool);
+    scoped_refptr<CaptureGroupNameSSLSocketPool> ssl_conn_pool(
+        new CaptureGroupNameSSLSocketPool(session.get()));
+    peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
 
     EXPECT_EQ(ERR_IO_PENDING,
               GroupNameTransactionHelper(tests[i].url, session));
-    EXPECT_EQ(tests[i].expected_group_name,
-              http_proxy_pool->last_group_name_received());
+    if (tests[i].ssl)
+      EXPECT_EQ(tests[i].expected_group_name,
+                ssl_conn_pool->last_group_name_received());
+    else
+      EXPECT_EQ(tests[i].expected_group_name,
+                http_proxy_pool->last_group_name_received());
   }
 
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
@@ -4110,11 +4154,13 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
       "socks4://socks_proxy:1080",
       "http://www.google.com/socks4_direct",
       "socks4/www.google.com:80",
+      false,
     },
     {
       "socks5://socks_proxy:1080",
       "http://www.google.com/socks5_direct",
       "socks5/www.google.com:80",
+      false,
     },
 
     // SSL Tests
@@ -4122,17 +4168,20 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
       "socks4://socks_proxy:1080",
       "https://www.google.com/socks4_ssl",
       "socks4/ssl/www.google.com:443",
+      true,
     },
     {
       "socks5://socks_proxy:1080",
       "https://www.google.com/socks5_ssl",
       "socks5/ssl/www.google.com:443",
+      true,
     },
 
     {
       "socks4://socks_proxy:1080",
       "http://host.with.alternate/direct",
       "socks4/ssl/host.with.alternate:443",
+      true,
     },
   };
 
@@ -4143,17 +4192,24 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
         SetupSessionForGroupNameTests(tests[i].proxy_server));
     HttpNetworkSessionPeer peer(session);
 
+    HostPortPair proxy_host("socks_proxy", 1080);
     scoped_refptr<CaptureGroupNameSOCKSSocketPool> socks_conn_pool(
         new CaptureGroupNameSOCKSSocketPool(session.get()));
-    peer.SetSocketPoolForSOCKSProxy(
-        HostPortPair("socks_proxy", 1080), socks_conn_pool);
+    peer.SetSocketPoolForSOCKSProxy(proxy_host, socks_conn_pool);
+    scoped_refptr<CaptureGroupNameSSLSocketPool> ssl_conn_pool(
+        new CaptureGroupNameSSLSocketPool(session.get()));
+    peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
 
     scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     EXPECT_EQ(ERR_IO_PENDING,
               GroupNameTransactionHelper(tests[i].url, session));
-    EXPECT_EQ(tests[i].expected_group_name,
-              socks_conn_pool->last_group_name_received());
+    if (tests[i].ssl)
+      EXPECT_EQ(tests[i].expected_group_name,
+                ssl_conn_pool->last_group_name_received());
+    else
+      EXPECT_EQ(tests[i].expected_group_name,
+                socks_conn_pool->last_group_name_received());
   }
 
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
@@ -5869,6 +5925,9 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       }
     }
   }
+
+  // Flush the idle socket before the HttpNetworkTransaction goes out of scope.
+  session->FlushSocketPools();
 }
 
 class TLSDecompressionFailureSocketDataProvider : public SocketDataProvider {
@@ -5918,6 +5977,11 @@ TEST_F(HttpNetworkTransactionTest, RestartAfterTLSDecompressionFailure) {
       &ssl_socket_data_provider1);
   session_deps.socket_factory.AddSSLSocketDataProvider(
       &ssl_socket_data_provider2);
+
+  // Work around http://crbug.com/37454
+  StaticSocketDataProvider bug37454_connection;
+  bug37454_connection.set_connect_data(MockConnect(true, ERR_UNEXPECTED));
+  session_deps.socket_factory.AddSocketDataProvider(&bug37454_connection);
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));

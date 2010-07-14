@@ -139,7 +139,8 @@ NET_ERROR(SOCKS_CONNECTION_FAILED, -120)
 // because that host is unreachable.
 NET_ERROR(SOCKS_CONNECTION_HOST_UNREACHABLE, -121)
 
-// Error number -122 is available for use.
+// The request to negotiate an alternate protocol failed.
+NET_ERROR(NPN_NEGOTIATION_FAILED, -122)
 
 // The peer sent an SSL no_renegotiation alert message.
 NET_ERROR(SSL_NO_RENEGOTIATION, -123)
@@ -163,7 +164,9 @@ NET_ERROR(PROXY_AUTH_REQUESTED, -127)
 // A known TLS strict server didn't offer the renegotiation extension.
 NET_ERROR(SSL_UNSAFE_NEGOTIATION, -128)
 
-// The socket needs a fresh connection in order to proceed.
+// The socket is reporting that we tried to provide new credentials after a
+// a failed attempt on a connection without keep alive.  We need to
+// reestablish the transport socket in order to retry the authentication.
 NET_ERROR(RETRY_CONNECTION, -129)
 
 // Certificate error codes

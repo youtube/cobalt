@@ -20,6 +20,7 @@
 namespace net {
 
 class CertVerifier;
+class ClientSocketHandle;
 
 // An SSL client socket implemented with Secure Transport.
 class SSLClientSocketMac : public SSLClientSocket {
@@ -28,7 +29,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   // The given hostname will be compared with the name(s) in the server's
   // certificate during the SSL handshake. ssl_config specifies the SSL
   // settings.
-  SSLClientSocketMac(ClientSocket* transport_socket,
+  SSLClientSocketMac(ClientSocketHandle* transport_socket,
                      const std::string& hostname,
                      const SSLConfig& ssl_config);
   ~SSLClientSocketMac();
@@ -88,7 +89,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   CompletionCallbackImpl<SSLClientSocketMac> transport_read_callback_;
   CompletionCallbackImpl<SSLClientSocketMac> transport_write_callback_;
 
-  scoped_ptr<ClientSocket> transport_;
+  scoped_ptr<ClientSocketHandle> transport_;
   std::string hostname_;
   SSLConfig ssl_config_;
 
