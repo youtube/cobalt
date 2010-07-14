@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,9 +19,14 @@ class AudioManagerMac : public AudioManager {
 
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices();
+  virtual bool HasAudioInputDevices();
   virtual AudioOutputStream* MakeAudioOutputStream(Format format, int channels,
                                                    int sample_rate,
                                                    char bits_per_sample);
+  virtual AudioInputStream* MakeAudioInputStream(Format format, int channels,
+                                                 int sample_rate,
+                                                 char bits_per_sample,
+                                                 uint32 samples_per_packet);
   virtual void MuteAll();
   virtual void UnMuteAll();
 

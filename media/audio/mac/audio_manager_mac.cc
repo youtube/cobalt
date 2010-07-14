@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,6 +25,21 @@ bool AudioManagerMac::HasAudioOutputDevices() {
                                             &output_device_id);
   return err == kAudioHardwareNoError &&
          output_device_id != kAudioObjectUnknown;
+}
+
+bool AudioManagerMac::HasAudioInputDevices() {
+  // TODO(satish): implement.
+  return false;
+}
+
+AudioInputStream* AudioManagerMac::MakeAudioInputStream(
+    Format format,
+    int channels,
+    int sample_rate,
+    char bits_per_sample,
+    uint32 samples_per_packet) {
+  // TODO(satish): implement.
+  return NULL;
 }
 
 AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(

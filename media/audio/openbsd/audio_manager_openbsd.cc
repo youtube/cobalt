@@ -17,6 +17,21 @@ bool AudioManagerOpenBSD::HasAudioOutputDevices() {
   return false;
 }
 
+bool AudioManagerOpenBSD::HasAudioInputDevices() {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+AudioInputStream* AudioManagerOpenBSD::MakeAudioInputStream(
+    Format format,
+    int channels,
+    int sample_rate,
+    char bits_per_sample,
+    uint32 samples_per_packet) {
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
 AudioOutputStream* AudioManagerOpenBSD::MakeAudioOutputStream(
     Format format,
     int channels,
