@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include "base/basictypes.h"
 #include "media/audio/audio_io.h"
 
+class PCMWaveInAudioInputStream;
 class PCMWaveOutAudioOutputStream;
 
 // Windows implementation of the AudioManager singleton. This class is internal
@@ -20,15 +21,23 @@ class AudioManagerWin : public AudioManager {
   AudioManagerWin() {}
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices();
+  virtual bool HasAudioInputDevices();
   virtual AudioOutputStream* MakeAudioOutputStream(Format format, int channels,
                                                    int sample_rate,
                                                    char bits_per_sample);
+  virtual AudioInputStream* MakeAudioInputStream(Format format, int channels,
+                                                 int sample_rate,
+                                                 char bits_per_sample,
+                                                 uint32 samples_per_packet);
   virtual void MuteAll();
   virtual void UnMuteAll();
 
   // Windows-only methods to free a stream created in MakeAudioStream. These
   // are called internally by the audio stream when it has been closed.
   void ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream);
+
+  // Called internally by the audio stream when it has been closed.
+  void ReleaseInputStream(PCMWaveInAudioInputStream* stream);
 
  private:
   friend void DestroyAudioManagerWin(void *);

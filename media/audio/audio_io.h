@@ -107,6 +107,52 @@ class AudioOutputStream {
   virtual ~AudioOutputStream() {}
 };
 
+// Models an audio sink receiving recorded audio from the audio driver.
+class AudioInputStream {
+ public:
+  class AudioInputCallback {
+   public:
+    virtual ~AudioInputCallback() {}
+
+    // Called by the audio recorder when a full packet of audio data is
+    // available. This is called from a special audio thread and the
+    // implementation should return as soon as possible.
+    virtual void OnData(AudioInputStream* stream, const uint8* src,
+                        uint32 size) = 0;
+
+    // The stream is done with this callback, the last call received by this
+    // audio sink.
+    virtual void OnClose(AudioInputStream* stream) = 0;
+
+    // There was an error while recording audio. The audio sink cannot be
+    // destroyed yet. No direct action needed by the AudioInputStream, but it
+    // is a good place to stop accumulating sound data since is is likely that
+    // recording will not continue. |code| is an error code that is platform
+    // specific.
+    virtual void OnError(AudioInputStream* stream, int code) = 0;
+  };
+
+  // Open the stream and prepares it for recording. Call Start() to actually
+  // begin recording.
+  virtual bool Open() = 0;
+
+  // Starts recording audio and generating AudioInputCallback::OnData().
+  // The input stream does not take ownership of this callback.
+  virtual void Start(AudioInputCallback* callback) = 0;
+
+  // Stops recording audio. Effect might not be instantaneous as there could be
+  // pending audio callbacks in the queue which will be issued first before
+  // recording stops.
+  virtual void Stop() = 0;
+
+  // Close the stream. This also generates AudioInputCallback::OnClose(). This
+  // should be the last call made on this object.
+  virtual void Close() = 0;
+
+ protected:
+  virtual ~AudioInputStream() {}
+};
+
 // Manages all audio resources. In particular it owns the AudioOutputStream
 // objects. Provides some convenience functions that avoid the need to provide
 // iterators over the existing streams.
@@ -130,6 +176,11 @@ class AudioManager {
   // guarantee that the existing devices support all formats and sample rates.
   virtual bool HasAudioOutputDevices() = 0;
 
+  // Returns true if the OS reports existence of audio recording devices. This
+  // does not guarantee that the existing devices support all formats and
+  // sample rates.
+  virtual bool HasAudioInputDevices() = 0;
+
   // Factory for all the supported stream formats. The |channels| can be 1 to 5.
   // The |sample_rate| is in hertz and can be any value supported by the
   // platform. For some future formats the |sample_rate| and |bits_per_sample|
@@ -146,6 +197,23 @@ class AudioManager {
   virtual AudioOutputStream* MakeAudioOutputStream(Format format, int channels,
                                                    int sample_rate,
                                                    char bits_per_sample) = 0;
+
+  // Factory to create audio recording streams.
+  // |channels| can be 1 or 2.
+  // |sample_rate| is in hertz and can be any value supported by the platform.
+  // |bits_per_sample| can be any value supported by the platform.
+  // |samples_per_packet| is in hertz as well and can be 0 to |sample_rate|,
+  // with 0 suggesting that the implementation use a default value for that
+  // platform.
+  // Returns NULL if the combination of the parameters is not supported, or if
+  // we have reached some other platform specific limit.
+  //
+  // Do not free the returned AudioInputStream. It is owned by AudioManager.
+  // When you are done with it, call |Stop()| and |Close()| to release it.
+  virtual AudioInputStream* MakeAudioInputStream(Format format, int channels,
+                                                 int sample_rate,
+                                                 char bits_per_sample,
+                                                 uint32 samples_per_packet) = 0;
 
   // Muting continues playback but effectively the volume is set to zero.
   // Un-muting returns the volume to the previous level.

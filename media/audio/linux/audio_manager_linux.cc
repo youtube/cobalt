@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,21 @@ AudioManagerLinux* g_audio_manager = NULL;
 bool AudioManagerLinux::HasAudioOutputDevices() {
   // TODO(ajwong): Make this actually query audio devices.
   return true;
+}
+
+bool AudioManagerLinux::HasAudioInputDevices() {
+  // TODO(satish): implement.
+  return false;
+}
+
+AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
+    Format format,
+    int channels,
+    int sample_rate,
+    char bits_per_sample,
+    uint32 samples_per_packet) {
+  // TODO(satish): implement.
+  return NULL;
 }
 
 AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
