@@ -45,6 +45,7 @@ VideoRendererBase::VideoRendererBase()
       state_(kUninitialized),
       thread_(kNullThreadHandle),
       pending_reads_(0),
+      pending_paint_(false),
       playback_rate_(0) {
 }
 
@@ -101,12 +102,15 @@ void VideoRendererBase::Pause(FilterCallback* callback) {
   pause_callback_.reset(callback);
   state_ = kPaused;
 
-  // We'll only pause when we've finished all pending reads.
-  if (pending_reads_ == 0) {
+  // TODO(jiesun): currently we use Pause() to fulfill Flush().
+  // Filter is considered paused when we've finished all pending reads, which
+  // implies all buffers are returned to owner in Decoder/Renderer. Renderer
+  // is considered paused with one more contingency that |pending_paint_| is
+  // false, such that no client of us is holding any reference to VideoFrame.
+  if (pending_reads_ == 0 && pending_paint_ == false) {
     pause_callback_->Run();
     pause_callback_.reset();
-  } else {
-    state_ = kPaused;
+    FlushBuffers();
   }
 }
 
@@ -114,6 +118,10 @@ void VideoRendererBase::Stop(FilterCallback* callback) {
   {
     AutoLock auto_lock(lock_);
     state_ = kStopped;
+
+    // TODO(jiesun): move this to flush.
+    // TODO(jiesun): we should wait until pending_paint_ is false;
+    FlushBuffers();
 
     // Clean up our thread if present.
     if (thread_) {
@@ -145,10 +153,20 @@ void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
   seek_callback_.reset(callback);
 
   // Throw away everything and schedule our reads.
-  frames_.clear();
+  // TODO(jiesun): this should be guaranteed by pause/flush before seek happen.
+  frames_queue_ready_.clear();
+  frames_queue_done_.clear();
   for (size_t i = 0; i < kMaxFrames; ++i) {
-    ScheduleRead_Locked();
+    // TODO(jiesun): this is dummy read for ffmpeg path until we truely recycle
+    // in that path.
+    scoped_refptr<VideoFrame> null_frame;
+    frames_queue_done_.push_back(null_frame);
   }
+
+  // TODO(jiesun): if EGL image path make sure those video frames are already in
+  // frames_queue_done_, we could remove FillThisBuffer call from derived class.
+  // But currently that is trigger by first paint(), which is bad.
+  ScheduleRead_Locked();
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
@@ -182,10 +200,6 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
     return;
   }
 
-  // Create a black frame so clients have something to render before we finish
-  // prerolling.
-  VideoFrame::CreateBlackFrame(width_, height_, &current_frame_);
-
   // We're all good!  Consider ourselves paused (ThreadMain() should never
   // see us in the kUninitialized state).
   state_ = kPaused;
@@ -216,131 +230,149 @@ bool VideoRendererBase::HasEnded() {
 // PlatformThread::Delegate implementation.
 void VideoRendererBase::ThreadMain() {
   PlatformThread::SetName("CrVideoRenderer");
+  base::TimeDelta remaining_time;
+
   for (;;) {
-    // State and playback rate to assume for this iteration of the loop.
-    State state;
-    float playback_rate;
-    base::TimeDelta remaining_time;
-    {
-      AutoLock auto_lock(lock_);
-      state = state_;
-      playback_rate = playback_rate_;
+    AutoLock auto_lock(lock_);
 
-      if (current_frame_->GetTimestamp() > host()->GetDuration()) {
-        // This is a special case when the stream is badly formatted that
-        // we get video frame with timestamp greater than the duration.
-        // In this case we should proceed anyway and try to obtain the
-        // end-of-stream packet.
-        remaining_time = base::TimeDelta();
-      } else {
-        // Calculate how long until we should advance the frame, which is
-        // typically negative but for playback rates < 1.0f may be long enough
-        // that it makes more sense to idle and check again.
-        remaining_time = current_frame_->GetTimestamp() - host()->GetTime();
-      }
-    }
-    if (state == kStopped) {
+    const base::TimeDelta kIdleTimeDelta =
+        base::TimeDelta::FromMilliseconds(kIdleMilliseconds);
+
+    if (state_ == kStopped)
       return;
+
+    if (state_ == kPaused || state_ == kSeeking || state_ == kEnded ||
+        playback_rate_ == 0) {
+      remaining_time = kIdleTimeDelta;
+    } else if (frames_queue_ready_.empty() ||
+               frames_queue_ready_.front()->IsEndOfStream()) {
+      if (current_frame_.get())
+        remaining_time = CalculateSleepDuration(NULL, playback_rate_);
+      else
+        remaining_time = kIdleTimeDelta;
+    } else {
+      // Calculate how long until we should advance the frame, which is
+      // typically negative but for playback rates < 1.0f may be long enough
+      // that it makes more sense to idle and check again.
+      scoped_refptr<VideoFrame> next_frame = frames_queue_ready_.front();
+      remaining_time = CalculateSleepDuration(next_frame, playback_rate_);
     }
 
-    // Idle if we shouldn't be playing or advancing the frame yet.
-    if (state == kPaused || state == kSeeking || state == kEnded ||
-        remaining_time.InMilliseconds() > kIdleMilliseconds ||
-        playback_rate == 0) {
-      PlatformThread::Sleep(kIdleMilliseconds);
+    if (remaining_time > kIdleTimeDelta)
+      remaining_time = kIdleTimeDelta;
+    if (remaining_time.InMicroseconds() > 0)
+      frame_available_.TimedWait(remaining_time);
+
+    if (state_ != kPlaying || playback_rate_ == 0)
+      continue;
+
+    // Otherwise we're playing, so advance the frame and keep reading from the
+    // decoder when following condition is satisfied:
+    // 1. We had at least one backup frame.
+    // 2. We had not reached end of stream.
+    // 3. Current frame is out-dated.
+    if (frames_queue_ready_.empty())
+      continue;
+
+    scoped_refptr<VideoFrame> next_frame = frames_queue_ready_.front();
+    if (next_frame->IsEndOfStream()) {
+      state_ = kEnded;
+      DLOG(INFO) << "Video render gets EOS";
+      host()->NotifyEnded();
       continue;
     }
 
-    // Advance |current_frame_| and try to determine |next_frame|.  Note that
-    // this loop executes our "playing" logic.
-    DCHECK_EQ(kPlaying, state);
-    scoped_refptr<VideoFrame> next_frame;
-    {
-      AutoLock auto_lock(lock_);
-      // Check the actual state to see if we're trying to stop playing.
-      if (state_ != kPlaying) {
-        continue;
-      }
-
-      // Otherwise we're playing, so advance the frame and keep reading from the
-      // decoder if we haven't reach end of stream.
-      if (!frames_.empty() && !frames_.front()->IsEndOfStream()) {
-        DCHECK_EQ(current_frame_, frames_.front());
-        frames_.pop_front();
-        // TODO(wjia): Make sure |current_frame_| is not used by renderer any
-        // more. Could use fence or delay recycle by one frame. But both have
-        // problems.
-        if (uses_egl_image() &&
-            media::VideoFrame::TYPE_EGL_IMAGE == current_frame_->type()) {
-          decoder_->FillThisBuffer(current_frame_);
+    if (next_frame->GetTimestamp() <= host()->GetTime() + kIdleTimeDelta ||
+        current_frame_.get() == NULL ||
+        current_frame_->GetTimestamp() > host()->GetDuration()) {
+      // 1. either next frame's time-stamp is already current.
+      // 2. or we do not have any current frame yet anyway.
+      // 3. or a special case when the stream is badly formatted that
+      // we get video frame with time-stamp greater than the duration.
+      // In this case we should proceed anyway and try to obtain the
+      // end-of-stream packet.
+      scoped_refptr<VideoFrame> timeout_frame;
+      bool new_frame_available = false;
+      if (!pending_paint_) {
+        // In this case, current frame could be recycled.
+        timeout_frame = current_frame_;
+        current_frame_ = frames_queue_ready_.front();
+        frames_queue_ready_.pop_front();
+        new_frame_available = true;
+      } else if (pending_paint_ && frames_queue_ready_.size() >= 2 &&
+                 !frames_queue_ready_[1]->IsEndOfStream()) {
+        // Painter could be really slow, therefore we had to skip frames if
+        // 1. We had not reached end of stream.
+        // 2. The next frame of current frame is also out-dated.
+        base::TimeDelta next_remaining_time =
+            frames_queue_ready_[1]->GetTimestamp() - host()->GetTime();
+        if (next_remaining_time.InMicroseconds() <= 0) {
+          // Since the current frame is still hold by painter/compositor, and
+          // the next frame is already timed-out, we should skip the next frame
+          // which is the first frame in the queue.
+          timeout_frame = frames_queue_ready_.front();
+          frames_queue_ready_.pop_front();
         }
-        ScheduleRead_Locked();
       }
-
-      // While playing, we'll wait until a new frame arrives before updating
-      // |current_frame_|.
-      while (frames_.empty() && state_ == kPlaying) {
-        frame_available_.Wait();
+      if (timeout_frame.get()) {
+        // TODO(jiesun): we should really merge the following branch. That way
+        // we will remove the last EGLImage hack in this class. but the
+        // |pending_reads_| prevents use to do so (until we had implemented
+        // flush logic and get rid of pending reads.)
+        if (uses_egl_image() &&
+            media::VideoFrame::TYPE_EGL_IMAGE == timeout_frame->type()) {
+          decoder_->FillThisBuffer(timeout_frame);
+        } else {
+          // TODO(jiesun): could this be merged with EGLimage path?
+          frames_queue_done_.push_back(timeout_frame);
+          ScheduleRead_Locked();
+        }
       }
-
-      // If we ended up transitioning out of playing while waiting for a new
-      // frame, restart the iteration.
-      if (state_ != kPlaying) {
-        continue;
-      }
-
-      // If the new front frame is end of stream, we've officially ended.
-      if (frames_.front()->IsEndOfStream()) {
-        state_ = kEnded;
-        LOG(INFO) << "Video render gets EOS";
-        host()->NotifyEnded();
-        continue;
-      }
-
-      // Update our current frame and attempt to grab the next frame.
-      current_frame_ = frames_.front();
-      if (frames_.size() >= 2 && !frames_[1]->IsEndOfStream()) {
-        next_frame = frames_[1];
+      if (new_frame_available) {
+        AutoUnlock auto_unlock(lock_);
+        // Notify subclass that |current_frame_| has been updated.
+        OnFrameAvailable();
       }
     }
-
-    // Calculate our sleep duration.
-    base::TimeDelta sleep = CalculateSleepDuration(next_frame, playback_rate);
-    int sleep_ms = static_cast<int>(sleep.InMilliseconds());
-
-    // If we're too far behind to catch up, simply drop the frame.
-    //
-    // This has the effect of potentially dropping a few frames when playback
-    // resumes after being paused.  The alternative (sleeping for 0 milliseconds
-    // and trying to catch up) looks worse.
-    if (sleep_ms < 0)
-      continue;
-
-    // To be safe, limit our sleep duration.
-    // TODO(scherkus): handle seeking gracefully.. right now we tend to hit
-    // kMaxSleepMilliseconds a lot when we seek backwards.
-    if (sleep_ms > kMaxSleepMilliseconds)
-      sleep_ms = kMaxSleepMilliseconds;
-
-    // Notify subclass that |current_frame_| has been updated.
-    OnFrameAvailable();
-
-    PlatformThread::Sleep(sleep_ms);
   }
 }
 
 void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
   AutoLock auto_lock(lock_);
+  DCHECK(!pending_paint_);
 
-  if (state_ == kStopped) {
-    VideoFrame::CreateBlackFrame(width_, height_, frame_out);
+  if (state_ == kStopped || !current_frame_.get() ||
+      current_frame_->IsEndOfStream()) {
+    *frame_out = NULL;
     return;
   }
+
   // We should have initialized and have the current frame.
   DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying ||
          state_ == kEnded);
-  DCHECK(current_frame_);
   *frame_out = current_frame_;
+  pending_paint_ = true;
+}
+
+void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
+  AutoLock auto_lock(lock_);
+
+  // Note that we do not claim |pending_paint_| when we return NULL frame, in
+  // that case, |current_frame_| could be changed before PutCurrentFrame.
+  DCHECK(pending_paint_ || frame.get() == NULL);
+  DCHECK(current_frame_.get() == frame.get() || frame.get() == NULL);
+
+  pending_paint_ = false;
+  // We had cleared the |pending_paint_| flag, there are chances that current
+  // frame is timed-out. We will wake up our main thread to advance the current
+  // frame when this is true.
+  frame_available_.Signal();
+  if (state_ == kPaused && pending_reads_ == 0 && pause_callback_.get()) {
+    // No more pending reads!  We're now officially "paused".
+    FlushBuffers();
+    pause_callback_->Run();
+    pause_callback_.reset();
+  }
 }
 
 void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
@@ -349,6 +381,7 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
   // TODO(ajwong): Work around cause we don't synchronize on stop. Correct
   // fix is to resolve http://crbug.com/16059.
   if (state_ == kStopped) {
+    // TODO(jiesun): Remove this when flush before stop landed!
     return;
   }
 
@@ -358,33 +391,29 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
   --pending_reads_;
 
   // Enqueue the frame.
-  frames_.push_back(frame);
-  DCHECK_LE(frames_.size(), kMaxFrames);
+  frames_queue_ready_.push_back(frame);
+  DCHECK_LE(frames_queue_ready_.size(), kMaxFrames);
   frame_available_.Signal();
 
   // Check for our preroll complete condition.
   if (state_ == kSeeking) {
     DCHECK(seek_callback_.get());
-    if (frames_.size() == kMaxFrames) {
+    if (frames_queue_ready_.size() == kMaxFrames) {
       // We're paused, so make sure we update |current_frame_| to represent
       // our new location.
       state_ = kPaused;
-      if (frames_.front()->IsEndOfStream()) {
-        VideoFrame::CreateBlackFrame(width_, height_, &current_frame_);
-      } else {
-        current_frame_ = frames_.front();
-      }
 
       // Because we might remain paused (i.e., we were not playing before we
       // received a seek), we can't rely on ThreadMain() to notify the subclass
       // the frame has been updated.
-      DCHECK(current_frame_);
+      current_frame_ = frames_queue_ready_.front();
+      frames_queue_ready_.pop_front();
       OnFrameAvailable();
 
       seek_callback_->Run();
       seek_callback_.reset();
     }
-  } else if (state_ == kPaused && pending_reads_ == 0) {
+  } else if (state_ == kPaused && pending_reads_ == 0 && !pending_paint_) {
     // No more pending reads!  We're now officially "paused".
     if (pause_callback_.get()) {
       pause_callback_->Run();
@@ -396,13 +425,33 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
 void VideoRendererBase::ScheduleRead_Locked() {
   lock_.AssertAcquired();
   DCHECK_NE(kEnded, state_);
-  DCHECK_LT(pending_reads_, kMaxFrames);
-  ++pending_reads_;
   // TODO(jiesun): We use dummy buffer to feed decoder to let decoder to
   // provide buffer pools. In the future, we may want to implement real
   // buffer pool to recycle buffers.
-  scoped_refptr<VideoFrame> video_frame;
-  decoder_->FillThisBuffer(video_frame);
+  while (!frames_queue_done_.empty()) {
+    scoped_refptr<VideoFrame> video_frame = frames_queue_done_.front();
+    frames_queue_done_.pop_front();
+    decoder_->FillThisBuffer(video_frame);
+    DCHECK_LT(pending_reads_, kMaxFrames);
+    ++pending_reads_;
+  }
+}
+
+void VideoRendererBase::FlushBuffers() {
+  DCHECK(!pending_paint_);
+
+  // We should never put EOF frame into "done queue".
+  while (!frames_queue_ready_.empty()) {
+    scoped_refptr<VideoFrame> video_frame = frames_queue_ready_.front();
+    if (video_frame->IsEndOfStream()) {
+      frames_queue_done_.push_back(video_frame);
+    }
+    frames_queue_ready_.pop_front();
+  }
+  if (current_frame_.get() && !current_frame_->IsEndOfStream()) {
+    frames_queue_done_.push_back(current_frame_);
+  }
+  current_frame_ = NULL;
 }
 
 base::TimeDelta VideoRendererBase::CalculateSleepDuration(

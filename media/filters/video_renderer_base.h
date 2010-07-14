@@ -56,9 +56,14 @@ class VideoRendererBase : public VideoRenderer,
   // PlatformThread::Delegate implementation.
   virtual void ThreadMain();
 
-  // Assigns the current frame, which will never be NULL as long as this filter
-  // is initialized.
+  // Clients of this class (painter/compositor) should use GetCurrentFrame()
+  // obtain ownership of VideoFrame, it should always relinquish the ownership
+  // by use PutCurrentFrame(). Current frame is not guaranteed to be non-NULL.
+  // It expects clients to use color-fill the background if current frame
+  // is NULL. This could happen when before pipeline is pre-rolled or during
+  // pause/flush/seek.
   void GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out);
+  void PutCurrentFrame(scoped_refptr<VideoFrame> frame);
 
  protected:
   // Subclass interface.  Called before any other initialization in the base
@@ -111,6 +116,10 @@ class VideoRendererBase : public VideoRenderer,
   // Safe to call from any thread.
   void ScheduleRead_Locked();
 
+  // Helper method that flushes all video frame in "ready queue" including
+  // current frame into "done queue".
+  void FlushBuffers();
+
   // Calculates the duration to sleep for based on |current_frame_|'s timestamp,
   // the next frame timestamp (may be NULL), and the provided playback rate.
   //
@@ -131,7 +140,8 @@ class VideoRendererBase : public VideoRenderer,
   // Queue of incoming frames as well as the current frame since the last time
   // OnFrameAvailable() was called.
   typedef std::deque< scoped_refptr<VideoFrame> > VideoFrameQueue;
-  VideoFrameQueue frames_;
+  VideoFrameQueue frames_queue_ready_;
+  VideoFrameQueue frames_queue_done_;
   scoped_refptr<VideoFrame> current_frame_;
 
   // Used to signal |thread_| as frames are added to |frames_|.  Rule of thumb:
@@ -162,6 +172,7 @@ class VideoRendererBase : public VideoRenderer,
   //
   // We use size_t since we compare against std::deque::size().
   size_t pending_reads_;
+  bool pending_paint_;
 
   float playback_rate_;
 
