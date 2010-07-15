@@ -5,6 +5,7 @@
 #include "media/base/video_frame.h"
 
 #include "base/format_macros.h"
+#include "base/scoped_ptr.h"
 #include "base/string_util.h"
 #include "media/base/buffers.h"
 #include "media/base/mock_filters.h"

@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/compiler_specific.h"
+#include "base/histogram.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/message_pump_default.h"
@@ -27,22 +28,53 @@
 using base::Time;
 using base::TimeDelta;
 
+namespace {
+
 // A lazily created thread local storage for quick access to a thread's message
 // loop, if one exists.  This should be safe and free of static constructors.
-static base::LazyInstance<base::ThreadLocalPointer<MessageLoop> > lazy_tls_ptr(
+base::LazyInstance<base::ThreadLocalPointer<MessageLoop> > lazy_tls_ptr(
     base::LINKER_INITIALIZED);
-
-//------------------------------------------------------------------------------
 
 // Logical events for Histogram profiling. Run with -message-loop-histogrammer
 // to get an accounting of messages and actions taken on each thread.
-static const int kTaskRunEvent = 0x1;
-static const int kTimerEvent = 0x2;
+const int kTaskRunEvent = 0x1;
+const int kTimerEvent = 0x2;
 
 // Provide range of message IDs for use in histogramming and debug display.
-static const int kLeastNonZeroMessageId = 1;
-static const int kMaxMessageId = 1099;
-static const int kNumberOfDistinctMessagesDisplayed = 1100;
+const int kLeastNonZeroMessageId = 1;
+const int kMaxMessageId = 1099;
+const int kNumberOfDistinctMessagesDisplayed = 1100;
+
+// Provide a macro that takes an expression (such as a constant, or macro
+// constant) and creates a pair to initalize an array of pairs.  In this case,
+// our pair consists of the expressions value, and the "stringized" version
+// of the expression (i.e., the exrpression put in quotes).  For example, if
+// we have:
+//    #define FOO 2
+//    #define BAR 5
+// then the following:
+//    VALUE_TO_NUMBER_AND_NAME(FOO + BAR)
+// will expand to:
+//   {7, "FOO + BAR"}
+// We use the resulting array as an argument to our histogram, which reads the
+// number as a bucket identifier, and proceeds to use the corresponding name
+// in the pair (i.e., the quoted string) when printing out a histogram.
+#define VALUE_TO_NUMBER_AND_NAME(name) {name, #name},
+
+const LinearHistogram::DescriptionPair event_descriptions_[] = {
+  // Provide some pretty print capability in our histogram for our internal
+  // messages.
+
+  // A few events we handle (kindred to messages), and used to profile actions.
+  VALUE_TO_NUMBER_AND_NAME(kTaskRunEvent)
+  VALUE_TO_NUMBER_AND_NAME(kTimerEvent)
+
+  {-1, NULL}  // The list must be null terminated, per API to histogram.
+};
+
+bool enable_histogrammer_ = false;
+
+}  // namespace
 
 //------------------------------------------------------------------------------
 
@@ -567,9 +599,6 @@ bool MessageLoop::PendingTask::operator<(const PendingTask& other) const {
 // on each thread.
 
 // static
-bool MessageLoop::enable_histogrammer_ = false;
-
-// static
 void MessageLoop::EnableHistogrammer(bool enable) {
   enable_histogrammer_ = enable;
 }
@@ -590,34 +619,6 @@ void MessageLoop::HistogramEvent(int event) {
   if (message_histogram_.get())
     message_histogram_->Add(event);
 }
-
-// Provide a macro that takes an expression (such as a constant, or macro
-// constant) and creates a pair to initalize an array of pairs.  In this case,
-// our pair consists of the expressions value, and the "stringized" version
-// of the expression (i.e., the exrpression put in quotes).  For example, if
-// we have:
-//    #define FOO 2
-//    #define BAR 5
-// then the following:
-//    VALUE_TO_NUMBER_AND_NAME(FOO + BAR)
-// will expand to:
-//   {7, "FOO + BAR"}
-// We use the resulting array as an argument to our histogram, which reads the
-// number as a bucket identifier, and proceeds to use the corresponding name
-// in the pair (i.e., the quoted string) when printing out a histogram.
-#define VALUE_TO_NUMBER_AND_NAME(name) {name, #name},
-
-// static
-const LinearHistogram::DescriptionPair MessageLoop::event_descriptions_[] = {
-  // Provide some pretty print capability in our histogram for our internal
-  // messages.
-
-  // A few events we handle (kindred to messages), and used to profile actions.
-  VALUE_TO_NUMBER_AND_NAME(kTaskRunEvent)
-  VALUE_TO_NUMBER_AND_NAME(kTimerEvent)
-
-  {-1, NULL}  // The list must be null terminated, per API to histogram.
-};
 
 //------------------------------------------------------------------------------
 // MessageLoopForUI
