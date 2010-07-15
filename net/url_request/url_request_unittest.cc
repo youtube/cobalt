@@ -275,42 +275,8 @@ TEST_F(URLRequestTest, QuitTest) {
 class HTTPSRequestTest : public testing::Test {
 };
 
-#if defined(OS_MACOSX)
-// Status 6/19/09:
-//
-// If these tests are enabled on OSX, the first one (HTTPSGetTest)
-// will fail.  I didn't track it down explicitly, but did observe that
-// the testserver.py kills itself (e.g. "process_util_posix.cc(84)]
-// Unable to terminate process.").  tlslite and testserver.py are hard
-// to debug (redirection of stdout/stderr to a file so you can't see
-// errors; lots of naked "except:" statements, etc), but I did track
-// down an SSL auth failure as one cause of it deciding to die
-// silently.
-//
-// The next test, HTTPSMismatchedTest, will look like it hangs by
-// looping over calls to SSLHandshake() (Security framework call) as
-// called from SSLClientSocketMac::DoHandshake().  Return values are a
-// repeating pattern of -9803 (come back later) and -9812 (cert valid
-// but root not trusted).  If you don't have the cert in your keychain
-// as documented on http://dev.chromium.org/developers/testing, the
-// -9812 becomes a -9813 (no root cert).  Interestingly, the handshake
-// also appears to be a failure point for other disabled tests, such
-// as (SSLClientSocketTest,Connect) in
-// net/base/ssl_client_socket_unittest.cc.
-//
-// Old comment (not sure if obsolete):
-// ssl_client_socket_mac.cc crashes currently in GetSSLInfo
-// when called on a connection with an unrecognized certificate
-#define MAYBE_HTTPSGetTest        DISABLED_HTTPSGetTest
-#define MAYBE_HTTPSMismatchedTest DISABLED_HTTPSMismatchedTest
-#define MAYBE_HTTPSExpiredTest    DISABLED_HTTPSExpiredTest
-#else
-#define MAYBE_HTTPSGetTest        HTTPSGetTest
-#define MAYBE_HTTPSMismatchedTest HTTPSMismatchedTest
-#define MAYBE_HTTPSExpiredTest    HTTPSExpiredTest
-#endif
 
-TEST_F(HTTPSRequestTest, MAYBE_HTTPSGetTest) {
+TEST_F(HTTPSRequestTest, HTTPSGetTest) {
   // Note: tools/testserver/testserver.py does not need
   // a working document root to server the pages / and /hello.html,
   // so this test doesn't really need to specify a document root.
@@ -334,7 +300,7 @@ TEST_F(HTTPSRequestTest, MAYBE_HTTPSGetTest) {
   }
 }
 
-TEST_F(HTTPSRequestTest, MAYBE_HTTPSMismatchedTest) {
+TEST_F(HTTPSRequestTest, HTTPSMismatchedTest) {
   scoped_refptr<HTTPSTestServer> server =
       HTTPSTestServer::CreateMismatchedServer(L"net/data/ssl");
   ASSERT_TRUE(NULL != server.get());
@@ -362,7 +328,7 @@ TEST_F(HTTPSRequestTest, MAYBE_HTTPSMismatchedTest) {
   }
 }
 
-TEST_F(HTTPSRequestTest, MAYBE_HTTPSExpiredTest) {
+TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
   scoped_refptr<HTTPSTestServer> server =
       HTTPSTestServer::CreateExpiredServer(L"net/data/ssl");
   ASSERT_TRUE(NULL != server.get());
