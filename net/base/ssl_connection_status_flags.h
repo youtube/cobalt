@@ -19,7 +19,11 @@ enum {
 
   // We fell back to SSLv3 for this connection.
   SSL_CONNECTION_SSL3_FALLBACK = 1 << 18,
-  // The server doesn't support the renegotiation_info extension.
+
+  // The server doesn't support the renegotiation_info extension. If this bit
+  // is not set then either the extension isn't supported, or we don't have any
+  // knowledge either way. (The latter case will occur when we use an SSL
+  // library that doesn't report it, like SChannel.)
   SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION = 1 << 19,
 
   // 1 << 31 (the sign bit) is reserved so that the SSL connection status will
