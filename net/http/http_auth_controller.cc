@@ -195,6 +195,8 @@ int HttpAuthController::HandleAuthChallenge(
     // We have exhausted all identity possibilities, all we can do now is
     // pass the challenge information back to the client.
     PopulateAuthChallenge();
+  } else {
+    auth_info_ = NULL;
   }
 
   return OK;
