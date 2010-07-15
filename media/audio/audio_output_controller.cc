@@ -212,9 +212,7 @@ void AudioOutputController::DoPlay() {
   }
 
   // We start the AudioOutputStream lazily.
-  if (old_state == kCreated) {
-    stream_->Start(this);
-  }
+  stream_->Start(this);
 
   // Tell the event handler that we are now playing.
   handler_->OnPlaying(this);
@@ -228,11 +226,15 @@ void AudioOutputController::DoPause() {
     return;
 
   // Sets the |state_| to kPaused so we don't draw more audio data.
-  // TODO(hclam): Actually pause the audio device.
   {
     AutoLock auto_lock(lock_);
     state_ = kPaused;
   }
+
+  // Then we stop the audio device. This is not the perfect solution because
+  // it discards all the internal buffer in the audio device.
+  // TODO(hclam): Actually pause the audio device.
+  stream_->Stop();
 
   handler_->OnPaused(this);
 }
