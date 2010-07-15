@@ -9,6 +9,7 @@
 
 #include "base/at_exit.h"
 #include "base/basictypes.h"
+#include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/wavein_input_win.h"
@@ -94,7 +95,9 @@ AudioInputStream* AudioManagerWin::MakeAudioInputStream(
     return NULL;
 
   if (format == AUDIO_MOCK) {
-    // TODO(satish): Add mock audio input stream.
+    return FakeAudioInputStream::MakeFakeStream(channels, bits_per_sample,
+                                                sample_rate,
+                                                samples_per_packet);
   } else if (format == AUDIO_PCM_LINEAR) {
     return new PCMWaveInAudioInputStream(this, channels, sample_rate,
                                          kNumInputBuffers, bits_per_sample,

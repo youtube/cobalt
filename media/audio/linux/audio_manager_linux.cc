@@ -7,6 +7,7 @@
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
@@ -35,6 +36,11 @@ AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
     int sample_rate,
     char bits_per_sample,
     uint32 samples_per_packet) {
+  if (format == AUDIO_MOCK) {
+    return FakeAudioInputStream::MakeFakeStream(channels, bits_per_sample,
+                                                sample_rate,
+                                                samples_per_packet);
+  }
   // TODO(satish): implement.
   return NULL;
 }
