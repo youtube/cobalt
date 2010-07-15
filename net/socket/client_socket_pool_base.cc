@@ -627,12 +627,6 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
       }
       r->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL,
                             new NetLogIntegerParameter("net_error", result));
-      if (socket.get()) {
-        handed_out_socket = true;
-        HandOutSocket(
-            socket.release(), false /* unused socket */, r->handle(),
-            base::TimeDelta(), &group, r->net_log());
-      }
       r->callback()->Run(result);
     } else {
       RemoveConnectJob(job, &group);
