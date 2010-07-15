@@ -17,6 +17,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/debug_util.h"
+#include "base/histogram.h"
 #include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/stl_util-inl.h"
