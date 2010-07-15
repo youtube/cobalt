@@ -82,7 +82,7 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
                       "227 Entering Extended Passive Mode (|||31744|)\r\n");
       case PRE_NOPASV:
         return Verify("PASV\r\n", data, PRE_QUIT,
-                      "500 not going to happen\r\n");
+                      "599 fail\r\n");
       case PRE_QUIT:
         return Verify("QUIT\r\n", data, QUIT, "221 Goodbye.\r\n");
       default:
@@ -474,8 +474,8 @@ class FtpSocketDataProviderFileDownloadInvalidResponse
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /file\r\n", data, PRE_QUIT,
-                      "500 Evil Response\r\n"
-                      "500 More Evil\r\n");
+                      "599 Evil Response\r\n"
+                      "599 More Evil\r\n");
       default:
         return FtpSocketDataProviderFileDownload::OnWrite(data);
     }
@@ -1031,7 +1031,7 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartUser) {
 
   ASSERT_EQ(ERR_IO_PENDING,
             transaction_.Start(&request_info, &callback_, BoundNetLog()));
-  ASSERT_EQ(ERR_FAILED, callback_.WaitForResult());
+  ASSERT_EQ(ERR_FTP_FAILED, callback_.WaitForResult());
 
   MockRead ctrl_reads[] = {
     MockRead("220 host TestFTPd\r\n"),
@@ -1061,7 +1061,7 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
 
   ASSERT_EQ(ERR_IO_PENDING,
             transaction_.Start(&request_info, &callback_, BoundNetLog()));
-  ASSERT_EQ(ERR_FAILED, callback_.WaitForResult());
+  ASSERT_EQ(ERR_FTP_FAILED, callback_.WaitForResult());
 
   MockRead ctrl_reads[] = {
     MockRead("220 host TestFTPd\r\n"),
@@ -1120,8 +1120,8 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailUser) {
                         "ftp://host",
                         FtpSocketDataProvider::PRE_USER,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 no such user\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPass) {
@@ -1131,7 +1131,7 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPass) {
                         FtpSocketDataProvider::PRE_PASSWD,
                         FtpSocketDataProvider::PRE_QUIT,
                         "530 Login authentication failed\r\n",
-                        ERR_FAILED);
+                        ERR_FTP_FAILED);
 }
 
 // Regression test for http://crbug.com/38707.
@@ -1142,7 +1142,7 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPass503) {
                         FtpSocketDataProvider::PRE_PASSWD,
                         FtpSocketDataProvider::PRE_QUIT,
                         "503 Bad sequence of commands\r\n",
-                        ERR_FAILED);
+                        ERR_FTP_BAD_COMMAND_SEQUENCE);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailSyst) {
@@ -1151,7 +1151,7 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailSyst) {
                         "ftp://host",
                         FtpSocketDataProvider::PRE_SYST,
                         FtpSocketDataProvider::PRE_PWD,
-                        "500 failed syst\r\n",
+                        "599 fail\r\n",
                         OK);
 }
 
@@ -1161,8 +1161,8 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPwd) {
                         "ftp://host",
                         FtpSocketDataProvider::PRE_PWD,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 failed pwd\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailType) {
@@ -1171,8 +1171,8 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailType) {
                         "ftp://host",
                         FtpSocketDataProvider::PRE_TYPE,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 failed type\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailEpsv) {
@@ -1181,8 +1181,8 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailEpsv) {
                         "ftp://host",
                         FtpSocketDataProvider::PRE_EPSV,
                         FtpSocketDataProvider::PRE_NOPASV,
-                        "500 failed epsv\r\n",
-                        ERR_FTP_PASV_COMMAND_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailCwd) {
@@ -1191,8 +1191,8 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailCwd) {
                         "ftp://host",
                         FtpSocketDataProvider::PRE_CWD,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 failed cwd\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFileNotFound) {
@@ -1221,8 +1221,8 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailList) {
                         "ftp://host/dir",
                         FtpSocketDataProvider::PRE_LIST,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 failed list\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailUser) {
@@ -1231,8 +1231,8 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailUser) {
                         "ftp://host/file",
                         FtpSocketDataProvider::PRE_USER,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 no such user\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailPass) {
@@ -1242,7 +1242,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailPass) {
                         FtpSocketDataProvider::PRE_PASSWD,
                         FtpSocketDataProvider::PRE_QUIT,
                         "530 Login authentication failed\r\n",
-                        ERR_FAILED);
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailSyst) {
@@ -1251,7 +1251,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailSyst) {
                         "ftp://host/file",
                         FtpSocketDataProvider::PRE_SYST,
                         FtpSocketDataProvider::PRE_PWD,
-                        "500 failed syst\r\n",
+                        "599 fail\r\n",
                         OK);
 }
 
@@ -1261,8 +1261,8 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailPwd) {
                         "ftp://host/file",
                         FtpSocketDataProvider::PRE_PWD,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 failed pwd\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailType) {
@@ -1271,8 +1271,8 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailType) {
                         "ftp://host/file",
                         FtpSocketDataProvider::PRE_TYPE,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 failed type\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailEpsv) {
@@ -1281,8 +1281,8 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailEpsv) {
                         "ftp://host/file",
                         FtpSocketDataProvider::PRE_EPSV,
                         FtpSocketDataProvider::PRE_NOPASV,
-                        "500 failed pasv\r\n",
-                        ERR_FTP_PASV_COMMAND_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailRetr) {
@@ -1291,8 +1291,8 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailRetr) {
                         "ftp://host/file",
                         FtpSocketDataProvider::PRE_RETR,
                         FtpSocketDataProvider::PRE_QUIT,
-                        "500 failed retr\r\n",
-                        ERR_FAILED);
+                        "599 fail\r\n",
+                        ERR_FTP_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFileNotFound) {
@@ -1302,7 +1302,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFileNotFound) {
                         FtpSocketDataProvider::PRE_SIZE,
                         FtpSocketDataProvider::PRE_QUIT,
                         "550 File Not Found\r\n",
-                        ERR_FAILED);
+                        ERR_FTP_FAILED);
 }
 
 // Test for http://crbug.com/38845.
