@@ -375,6 +375,9 @@
       'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk',
       'vi', 'zh-CN', 'zh-TW',
     ],
+    
+    # Disable touch support by default.
+    'touchui%': 0,
   },
   'target_defaults': {
     'variables': {
@@ -428,6 +431,9 @@
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
+      }],
+      ['touchui==1', {
+        'defines': ['TOUCH_UI=1'],
       }],
       ['remoting==1', {
         'defines': ['ENABLE_REMOTING=1'],
