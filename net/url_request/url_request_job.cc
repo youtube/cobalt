@@ -54,6 +54,13 @@ URLRequestJob::~URLRequestJob() {
   g_url_request_job_tracker.RemoveJob(this);
 }
 
+void URLRequestJob::SetUpload(net::UploadData* upload) {
+}
+
+void URLRequestJob::SetExtraRequestHeaders(
+    const net::HttpRequestHeaders& headers) {
+}
+
 void URLRequestJob::Kill() {
   // Make sure the request is notified that we are done.  We assume that the
   // request took care of setting its error status before calling Kill.
@@ -63,10 +70,6 @@ void URLRequestJob::Kill() {
 
 void URLRequestJob::DetachRequest() {
   request_ = NULL;
-}
-
-bool URLRequestJob::IsDownload() const {
-  return (load_flags_ & net::LOAD_IS_DOWNLOAD) != 0;
 }
 
 void URLRequestJob::SetupFilter() {
@@ -90,6 +93,14 @@ bool URLRequestJob::IsRedirectResponse(GURL* location,
   *location = request_->url().Resolve(value);
   *http_status_code = headers->response_code();
   return true;
+}
+
+bool URLRequestJob::IsSafeRedirect(const GURL& location) {
+  return true;
+}
+
+bool URLRequestJob::NeedsAuth() {
+  return false;
 }
 
 void URLRequestJob::GetAuthChallengeInfo(
@@ -148,6 +159,10 @@ int64 URLRequestJob::GetByteReadCount() const {
   return filter_input_byte_count_;
 }
 
+bool URLRequestJob::GetMimeType(std::string* mime_type) const {
+  return false;
+}
+
 bool URLRequestJob::GetURL(GURL* gurl) const {
   if (!request_)
     return false;
@@ -160,6 +175,18 @@ base::Time URLRequestJob::GetRequestTime() const {
     return base::Time();
   return request_->request_time();
 };
+
+bool URLRequestJob::IsCachedContent() const {
+  return false;
+}
+
+int URLRequestJob::GetResponseCode() const {
+  return -1;
+}
+
+int URLRequestJob::GetInputStreamBufferSize() const {
+  return kFilterBufSize;
+}
 
 // This function calls ReadData to get stream data. If a filter exists, passes
 // the data to the attached filter. Then returns the output from filter back to
@@ -197,6 +224,38 @@ bool URLRequestJob::Read(net::IOBuffer* buf, int buf_size, int *bytes_read) {
 
 void URLRequestJob::StopCaching() {
   // Nothing to do here.
+}
+
+net::LoadState URLRequestJob::GetLoadState() const {
+  return net::LOAD_STATE_IDLE;
+}
+
+uint64 URLRequestJob::GetUploadProgress() const {
+  return 0;
+}
+
+bool URLRequestJob::GetCharset(std::string* charset) {
+  return false;
+}
+
+void URLRequestJob::GetResponseInfo(net::HttpResponseInfo* info) {
+}
+
+bool URLRequestJob::GetResponseCookies(std::vector<std::string>* cookies) {
+  return false;
+}
+
+bool URLRequestJob::GetContentEncodings(
+    std::vector<Filter::FilterType>* encoding_types) {
+  return false;
+}
+
+bool URLRequestJob::IsDownload() const {
+  return (load_flags_ & net::LOAD_IS_DOWNLOAD) != 0;
+}
+
+bool URLRequestJob::IsSdchResponse() const {
+  return false;
 }
 
 bool URLRequestJob::ReadRawDataForFilter(int* bytes_read) {

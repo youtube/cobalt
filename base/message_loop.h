@@ -66,7 +66,7 @@ class MessageLoop : public base::MessagePump::Delegate {
   // NOTE: A TaskObserver implementation should be extremely fast!
   class TaskObserver {
    public:
-    TaskObserver() {}
+    TaskObserver();
 
     // This method is called before processing a task.
     virtual void WillProcessTask(base::TimeTicks birth_time) = 0;
@@ -75,7 +75,7 @@ class MessageLoop : public base::MessagePump::Delegate {
     virtual void DidProcessTask() = 0;
 
    protected:
-    virtual ~TaskObserver() {}
+    virtual ~TaskObserver();
   };
 
   static void EnableHistogrammer(bool enable_histogrammer);
@@ -90,7 +90,7 @@ class MessageLoop : public base::MessagePump::Delegate {
   //
   class DestructionObserver {
    public:
-    virtual ~DestructionObserver() {}
+    virtual ~DestructionObserver();
     virtual void WillDestroyCurrentMessageLoop() = 0;
   };
 
