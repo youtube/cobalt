@@ -35,6 +35,7 @@ class CommandLine {
   // A constructor for CommandLines that are used only to carry arguments.
   enum ArgumentsOnly { ARGUMENTS_ONLY };
   explicit CommandLine(ArgumentsOnly args_only);
+  ~CommandLine();
 
 #if defined(OS_WIN)
   // The type of native command line arguments.
@@ -203,7 +204,7 @@ class CommandLine {
  private:
   friend class InProcessBrowserTest;
 
-  CommandLine() {}
+  CommandLine();
 
   // Used by InProcessBrowserTest.
   static CommandLine* ForCurrentProcessMutable() {

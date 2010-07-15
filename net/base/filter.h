@@ -62,7 +62,7 @@ class FilterContext {
     SDCH_EXPERIMENT_HOLDBACK,
   };
 
-  virtual ~FilterContext() {}
+  virtual ~FilterContext();
 
   // What mime type was specified in the header for this data?
   // Only makes senses for some types of contexts, and returns false
