@@ -8,6 +8,7 @@
 #include "base/file_util.h"
 #include "base/message_loop_proxy.h"
 #include "base/path_service.h"
+#include "net/base/net_errors.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/file.h"
@@ -99,7 +100,7 @@ bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
   if (new_eviction)
     cache->SetNewEviction();
   cache->SetFlags(disk_cache::kNoRandom);
-  if (!cache->Init())
+  if (cache->SyncInit() != net::OK)
     return false;
   return cache->SelfCheck() >= 0;
 }

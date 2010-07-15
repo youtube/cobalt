@@ -135,9 +135,6 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
 
   ~EntryImpl();
 
-  // Old Entry interface.
-  int GetAvailableRange(int64 offset, int len, int64* start);
-
   // Initializes the storage for an internal or external data block.
   bool CreateDataBlock(int index, int size);
 
