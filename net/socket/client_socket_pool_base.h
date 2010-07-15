@@ -188,7 +188,7 @@ class ClientSocketPoolBaseHelper
 
   // See ClientSocketPool::CancelRequest for documentation on this function.
   void CancelRequest(const std::string& group_name,
-                     const ClientSocketHandle* handle);
+                     ClientSocketHandle* handle);
 
   // See ClientSocketPool::ReleaseSocket for documentation on this function.
   void ReleaseSocket(const std::string& group_name,
@@ -243,8 +243,6 @@ class ClientSocketPoolBaseHelper
  private:
   friend class base::RefCounted<ClientSocketPoolBaseHelper>;
 
-  ~ClientSocketPoolBaseHelper();
-
   // Entry for a persistent socket which became idle at time |start_time|.
   struct IdleSocket {
     IdleSocket() : socket(NULL), used(false) {}
@@ -290,6 +288,11 @@ class ClientSocketPoolBaseHelper
           max_sockets_per_group;
     }
 
+    bool IsStalled(int max_sockets_per_group) const {
+      return HasAvailableSocketSlot(max_sockets_per_group) &&
+          pending_requests.size() > jobs.size();
+    }
+
     RequestPriority TopPendingPriority() const {
       return pending_requests.front()->priority();
     }
@@ -318,6 +321,20 @@ class ClientSocketPoolBaseHelper
 
   typedef std::set<const ConnectJob*> ConnectJobSet;
 
+  struct CallbackResultPair {
+    CallbackResultPair() : callback(NULL), result(OK) {}
+    CallbackResultPair(CompletionCallback* callback_in, int result_in)
+        : callback(callback_in), result(result_in) {}
+
+    CompletionCallback* callback;
+    int result;
+  };
+
+  typedef std::map<const ClientSocketHandle*, CallbackResultPair>
+      PendingCallbackMap;
+
+  ~ClientSocketPoolBaseHelper();
+
   static void InsertRequestIntoQueue(const Request* r,
                                      RequestQueue* pending_requests);
   static const Request* RemoveRequestFromQueue(RequestQueue::iterator it,
@@ -328,10 +345,10 @@ class ClientSocketPoolBaseHelper
   void DecrementIdleCount();
 
   // Scans the group map for groups which have an available socket slot and
-  // at least one pending request. Returns number of groups found, and if found
-  // at least one, fills |group| and |group_name| with data of the stalled group
+  // at least one pending request. Returns true if any groups are stalled, and
+  // if so, fills |group| and |group_name| with data of the stalled group
   // having highest priority.
-  int FindTopStalledGroup(Group** group, std::string* group_name);
+  bool FindTopStalledGroup(Group** group, std::string* group_name);
 
   // Called when timer_ fires.  This method scans the idle sockets removing
   // sockets that timed out or can't be reused.
@@ -342,17 +359,11 @@ class ClientSocketPoolBaseHelper
   // Removes |job| from |connect_job_set_|.  Also updates |group| if non-NULL.
   void RemoveConnectJob(const ConnectJob* job, Group* group);
 
-  // Might delete the Group from |group_map_|.
-  // If |was_at_socket_limit|, will also check for idle sockets to assign
-  // to any stalled groups.
-  void OnAvailableSocketSlot(const std::string& group_name,
-                             bool was_at_socket_limit);
+  // Tries to see if we can handle any more requests for |group|.
+  void OnAvailableSocketSlot(const std::string& group_name, Group* group);
 
   // Process a pending socket request for a group.
-  // If |was_at_socket_limit|, will also check for idle sockets to assign
-  // to any stalled groups.
-  void ProcessPendingRequest(const std::string& group_name,
-                             bool was_at_socket_limit);
+  void ProcessPendingRequest(const std::string& group_name, Group* group);
 
   // Assigns |socket| to |handle| and updates |group|'s counters appropriately.
   void HandOutSocket(ClientSocket* socket,
@@ -404,10 +415,24 @@ class ClientSocketPoolBaseHelper
   // for possible wakeup.
   void CheckForStalledSocketGroups();
 
-  // Returns true if we might have a stalled group.
-  bool MayHaveStalledGroups();
+  // Posts a task to call InvokeUserCallback() on the next iteration through the
+  // current message loop.  Inserts |callback| into |pending_callback_map_|,
+  // keyed by |handle|.
+  void InvokeUserCallbackLater(
+      ClientSocketHandle* handle, CompletionCallback* callback, int rv);
+
+  // Invokes the user callback for |handle|.  By the time this task has run,
+  // it's possible that the request has been cancelled, so |handle| may not
+  // exist in |pending_callback_map_|.  We look up the callback and result code
+  // in |pending_callback_map_|.
+  void InvokeUserCallback(ClientSocketHandle* handle);
 
   GroupMap group_map_;
+
+  // Map of the ClientSocketHandles for which we have a pending Task to invoke a
+  // callback.  This is necessary since, before we invoke said callback, it's
+  // possible that the request is cancelled.
+  PendingCallbackMap pending_callback_map_;
 
   // Timer used to periodically prune idle sockets that timed out or can't be
   // reused.
@@ -444,9 +469,6 @@ class ClientSocketPoolBaseHelper
   // pool.  This is so that when sockets get released back to the pool, we can
   // make sure that they are discarded rather than reused.
   int pool_generation_number_;
-
-  // The count of stalled groups the last time we checked.
-  int last_stalled_group_count_;
 };
 
 }  // namespace internal
@@ -527,7 +549,7 @@ class ClientSocketPoolBase {
   }
 
   void CancelRequest(const std::string& group_name,
-                     const ClientSocketHandle* handle) {
+                     ClientSocketHandle* handle) {
     return helper_->CancelRequest(group_name, handle);
   }
 

@@ -121,7 +121,7 @@ class SOCKSClientSocketPool : public ClientSocketPool {
                             const BoundNetLog& net_log);
 
   virtual void CancelRequest(const std::string& group_name,
-                             const ClientSocketHandle* handle);
+                             ClientSocketHandle* handle);
 
   virtual void ReleaseSocket(const std::string& group_name,
                              ClientSocket* socket,
