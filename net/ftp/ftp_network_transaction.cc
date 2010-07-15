@@ -43,6 +43,74 @@ bool IsValidFTPCommandString(const std::string& input) {
   return true;
 }
 
+enum ErrorClass {
+  // The requested action was initiated. The client should expect another
+  // reply before issuing the next command.
+  ERROR_CLASS_INITIATED,
+
+  // The requested action has been successfully completed.
+  ERROR_CLASS_OK,
+
+  // The command has been accepted, but to complete the operation, more
+  // information must be sent by the client.
+  ERROR_CLASS_INFO_NEEDED,
+
+  // The command was not accepted and the requested action did not take place.
+  // This condition is temporary, and the client is encouraged to restart the
+  // command sequence.
+  ERROR_CLASS_TRANSIENT_ERROR,
+
+  // The command was not accepted and the requested action did not take place.
+  // This condition is rather permanent, and the client is discouraged from
+  // repeating the exact request.
+  ERROR_CLASS_PERMANENT_ERROR,
+};
+
+// Returns the error class for given response code. Caller should ensure
+// that |response_code| is in range 100-599.
+ErrorClass GetErrorClass(int response_code) {
+  if (response_code >= 100 && response_code <= 199)
+    return ERROR_CLASS_INITIATED;
+
+  if (response_code >= 200 && response_code <= 299)
+    return ERROR_CLASS_OK;
+
+  if (response_code >= 300 && response_code <= 399)
+    return ERROR_CLASS_INFO_NEEDED;
+
+  if (response_code >= 400 && response_code <= 499)
+    return ERROR_CLASS_TRANSIENT_ERROR;
+
+  if (response_code >= 500 && response_code <= 599)
+    return ERROR_CLASS_PERMANENT_ERROR;
+
+  // We should not be called on invalid error codes.
+  NOTREACHED() << response_code;
+  return ERROR_CLASS_PERMANENT_ERROR;
+}
+
+// Returns network error code for received FTP |response_code|.
+int GetNetErrorCodeForFtpResponseCode(int response_code) {
+  switch (response_code) {
+    case 421:
+      return net::ERR_FTP_SERVICE_UNAVAILABLE;
+    case 426:
+      return net::ERR_FTP_TRANSFER_ABORTED;
+    case 450:
+      return net::ERR_FTP_FILE_BUSY;
+    case 500:
+    case 501:
+      return net::ERR_FTP_SYNTAX_ERROR;
+    case 502:
+    case 504:
+      return net::ERR_FTP_COMMAND_NOT_SUPPORTED;
+    case 503:
+      return net::ERR_FTP_BAD_COMMAND_SEQUENCE;
+    default:
+      return net::ERR_FTP_FAILED;
+  }
+}
+
 // From RFC 2428 Section 3:
 //   The text returned in response to the EPSV command MUST be:
 //     <some text> (<d><d><d><tcp-port><d>)
@@ -183,7 +251,7 @@ int FtpNetworkTransaction::RestartWithAuth(const std::wstring& username,
 
 int FtpNetworkTransaction::RestartIgnoringLastError(
     CompletionCallback* callback) {
-  return ERR_FAILED;
+  return ERR_NOT_IMPLEMENTED;
 }
 
 int FtpNetworkTransaction::Read(IOBuffer* buf,
@@ -261,29 +329,6 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
 
   next_state_ = STATE_CTRL_WRITE;
   return OK;
-}
-
-// static
-FtpNetworkTransaction::ErrorClass FtpNetworkTransaction::GetErrorClass(
-    int response_code) {
-  if (response_code >= 100 && response_code <= 199)
-    return ERROR_CLASS_INITIATED;
-
-  if (response_code >= 200 && response_code <= 299)
-    return ERROR_CLASS_OK;
-
-  if (response_code >= 300 && response_code <= 399)
-    return ERROR_CLASS_INFO_NEEDED;
-
-  if (response_code >= 400 && response_code <= 499)
-    return ERROR_CLASS_TRANSIENT_ERROR;
-
-  if (response_code >= 500 && response_code <= 599)
-    return ERROR_CLASS_PERMANENT_ERROR;
-
-  // We should not be called on invalid error codes.
-  NOTREACHED();
-  return ERROR_CLASS_PERMANENT_ERROR;
 }
 
 int FtpNetworkTransaction::ProcessCtrlResponse() {
@@ -674,10 +719,10 @@ int FtpNetworkTransaction::ProcessResponseUSER(
       next_state_ = STATE_CTRL_WRITE_PASS;
       break;
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
       response_.needs_auth = true;
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
@@ -703,12 +748,12 @@ int FtpNetworkTransaction::ProcessResponsePASS(
       next_state_ = STATE_CTRL_WRITE_SYST;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
       response_.needs_auth = true;
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
@@ -757,7 +802,7 @@ int FtpNetworkTransaction::ProcessResponseSYST(
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
       // Server does not recognize the SYST command so proceed.
       next_state_ = STATE_CTRL_WRITE_PWD;
@@ -804,9 +849,9 @@ int FtpNetworkTransaction::ProcessResponsePWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
@@ -840,9 +885,9 @@ int FtpNetworkTransaction::ProcessResponseTYPE(
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
@@ -907,9 +952,9 @@ int FtpNetworkTransaction::ProcessResponsePASV(
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FTP_PASV_COMMAND_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
-      return Stop(ERR_FTP_PASV_COMMAND_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
@@ -949,7 +994,7 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
           resource_type_ == RESOURCE_TYPE_UNKNOWN) {
         resource_type_ = RESOURCE_TYPE_DIRECTORY;
       } else if (resource_type_ != RESOURCE_TYPE_DIRECTORY) {
-        return Stop(ERR_FAILED);
+        return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
       }
       break;
     default:
@@ -985,14 +1030,14 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       next_state_ = STATE_CTRL_WRITE_QUIT;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
       // Code 550 means "Failed to open file". Other codes are unrelated,
       // like "Not logged in" etc.
       if (response.status_code != 550)
-        return Stop(ERR_FAILED);
+        return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
 
       // It's possible that RETR failed because the path is a directory.
       resource_type_ = RESOURCE_TYPE_DIRECTORY;
@@ -1026,7 +1071,7 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
       if (resource_type_ == RESOURCE_TYPE_DIRECTORY &&
           response.status_code == 550) {
@@ -1035,7 +1080,7 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
         // exist (with FTP we can't be sure).
         return Stop(ERR_FILE_NOT_FOUND);
       }
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
@@ -1102,9 +1147,9 @@ int FtpNetworkTransaction::ProcessResponseLIST(
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);

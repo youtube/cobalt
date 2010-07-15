@@ -387,5 +387,35 @@ NET_ERROR(NO_PRIVATE_KEY_FOR_CERT, -502)
 // An error adding to the OS certificate database (e.g. OS X Keychain).
 NET_ERROR(ADD_USER_CERT_FAILED, -503)
 
-// The FTP PASV command failed.
-NET_ERROR(FTP_PASV_COMMAND_FAILED, -600)
+// *** Code -600 is reserved (was FTP_PASV_COMMAND_FAILED). ***
+
+// A generic error for failed FTP control connection command.
+// If possible, please use or add a more specific error code.
+NET_ERROR(FTP_FAILED, -601)
+
+// The server cannot fulfill the request at this point. This is a temporary
+// error.
+// FTP response code 421.
+NET_ERROR(FTP_SERVICE_UNAVAILABLE, -602)
+
+// The server has aborted the transfer.
+// FTP response code 426.
+NET_ERROR(FTP_TRANSFER_ABORTED, -603)
+
+// The file is busy, or some other temporary error condition on opening
+// the file.
+// FTP response code 450.
+NET_ERROR(FTP_FILE_BUSY, -604)
+
+// Server rejected our command because of syntax errors.
+// FTP response codes 500, 501.
+NET_ERROR(FTP_SYNTAX_ERROR, -605)
+
+// Server does not support the command we issued.
+// FTP response codes 502, 504.
+NET_ERROR(FTP_COMMAND_NOT_SUPPORTED, -606)
+
+// Server rejected our command because we didn't issue the commands in right
+// order.
+// FTP response code 503.
+NET_ERROR(FTP_BAD_COMMAND_SEQUENCE, -607)
