@@ -78,8 +78,11 @@ install_gold() {
   fi
 }
 
-if ! egrep -q 'Ubuntu (8\.04|8\.10|9\.04|9\.10|10\.04|karmic|lucid)' /etc/issue; then
-  echo "Only Ubuntu 8.04 (hardy) through 10.04 (lucid) are currently supported" >&2
+if ! egrep -q \
+    'Ubuntu (8\.04|8\.10|9\.04|9\.10|10\.04|10\.10|karmic|lucid|maverick)' \
+    /etc/issue; then
+  echo "Only Ubuntu 8.04 (hardy) through 10.10 (maverick) are currently" \
+      "supported" >&2
   exit 1
 fi
 
