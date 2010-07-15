@@ -88,10 +88,6 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
 
   // Close the controller immediately.
   controller->Close();
-
-  // TODO(hclam): Make sure releasing the reference to this
-  // object actually destruct it.
-  controller = NULL;
 }
 
 TEST(AudioOutputControllerTest, PlayAndClose) {
@@ -133,10 +129,6 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
   // Now stop the controller. This should shutdown the internal
   // thread and we hold the only reference to it.
   controller->Close();
-
-  // TODO(hclam): Make sure releasing the reference to this
-  // object actually destruct it.
-  controller = NULL;
 }
 
 TEST(AudioOutputControllerTest, PlayPauseClose) {
@@ -189,10 +181,70 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
   // Now stop the controller. This should shutdown the internal
   // thread and we hold the only reference to it.
   controller->Close();
+}
 
-  // TODO(hclam): Make sure releasing the reference to this
-  // object actually destruct it.
-  controller = NULL;
+TEST(AudioOutputControllerTest, PlayPausePlay) {
+  if (!HasAudioOutputDevices() || IsRunningHeadless())
+    return;
+
+  MockAudioOutputControllerEventHandler event_handler;
+  base::WaitableEvent event(false, false);
+  int count = 0;
+
+  // If OnCreated is called then signal the event.
+  EXPECT_CALL(event_handler, OnCreated(NotNull()))
+      .Times(Exactly(1))
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
+
+  // OnPlaying() will be called only once.
+  EXPECT_CALL(event_handler, OnPlaying(NotNull()))
+      .Times(Exactly(1))
+      .RetiresOnSaturation();
+
+  // If OnMoreData() is called enough then signal the event.
+  EXPECT_CALL(event_handler, OnMoreData(NotNull(), _, 0))
+      .Times(AtLeast(10))
+      .WillRepeatedly(SignalEvent(&event, &count, 10));
+
+  // And then OnPaused() will be called.
+  EXPECT_CALL(event_handler, OnPaused(NotNull()))
+      .Times(Exactly(1))
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
+
+  // OnPlaying() will be called only once.
+  EXPECT_CALL(event_handler, OnPlaying(NotNull()))
+    .Times(Exactly(1))
+    .RetiresOnSaturation();
+
+  scoped_refptr<AudioOutputController> controller =
+      AudioOutputController::Create(&event_handler,
+                                    AudioManager::AUDIO_PCM_LINEAR, kChannels,
+                                    kSampleRate, kBitsPerSample,
+                                    kHardwareBufferSize, kBufferCapacity);
+  ASSERT_TRUE(controller.get());
+
+  // Wait for OnCreated() to be called.
+  event.Wait();
+  event.Reset();
+
+  // Play and then wait for the event to be signaled.
+  controller->Play();
+  event.Wait();
+  event.Reset();
+
+  // And then wait for pause to complete.
+  controller->Pause();
+  event.Wait();
+  event.Reset();
+
+  // Then we play again.
+  // Play and then wait for the event to be signaled.
+  controller->Play();
+  event.Wait();
+
+  // Now stop the controller. This should shutdown the internal
+  // thread and we hold the only reference to it.
+  controller->Close();
 }
 
 TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
@@ -228,10 +280,6 @@ TEST(AudioOutputControllerTest, CloseTwice) {
   // Close the controller immediately.
   controller->Close();
   controller->Close();
-
-  // TODO(hclam): Make sure releasing the reference to this
-  // object actually destruct it.
-  controller = NULL;
 }
 
 }  // namespace media
