@@ -171,7 +171,9 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       HttpNetworkTransaction::SetNextProtos(kNpnProtosFull);
       force_spdy_ = false;
     } else if (option == kEnableNpnHttpOnly) {
-      HttpNetworkTransaction::SetUseAlternateProtocols(use_alt_protocols);
+      // Avoid alternate protocol in this case. Otherwise, browser will try SSL
+      // and then fallback to http. This introduces extra load.
+      HttpNetworkTransaction::SetUseAlternateProtocols(false);
       HttpNetworkTransaction::SetNextProtos(kNpnProtosHttpOnly);
       force_spdy_ = false;
     } else if (option == kDisableAltProtocols) {
