@@ -104,7 +104,7 @@ class Value {
  protected:
   // This isn't safe for end-users (they should use the Create*Value()
   // static methods above), but it's useful for subclasses.
-  explicit Value(ValueType type) : type_(type) {}
+  explicit Value(ValueType type);
 
  private:
   Value();
@@ -117,12 +117,9 @@ class Value {
 // FundamentalValue represents the simple fundamental types of values.
 class FundamentalValue : public Value {
  public:
-  explicit FundamentalValue(bool in_value)
-    : Value(TYPE_BOOLEAN), boolean_value_(in_value) {}
-  explicit FundamentalValue(int in_value)
-    : Value(TYPE_INTEGER), integer_value_(in_value) {}
-  explicit FundamentalValue(double in_value)
-    : Value(TYPE_REAL), real_value_(in_value) {}
+  explicit FundamentalValue(bool in_value);
+  explicit FundamentalValue(int in_value);
+  explicit FundamentalValue(double in_value);
   ~FundamentalValue();
 
   // Subclassed methods
@@ -206,7 +203,7 @@ class BinaryValue: public Value {
 
 class DictionaryValue : public Value {
  public:
-  DictionaryValue() : Value(TYPE_DICTIONARY) {}
+  DictionaryValue();
   ~DictionaryValue();
 
   // Subclassed methods
@@ -352,7 +349,7 @@ class DictionaryValue : public Value {
 // This type of Value represents a list of other Value values.
 class ListValue : public Value {
  public:
-  ListValue() : Value(TYPE_LIST) {}
+  ListValue();
   ~ListValue();
 
   // Subclassed methods
@@ -435,7 +432,7 @@ class ListValue : public Value {
 // deserialize Value objects.
 class ValueSerializer {
  public:
-  virtual ~ValueSerializer() {}
+  virtual ~ValueSerializer();
 
   virtual bool Serialize(const Value& root) = 0;
 
