@@ -21,6 +21,9 @@ bool CreateCacheTestFile(const FilePath& name);
 // Deletes all file son the cache.
 bool DeleteCache(const FilePath& path);
 
+// Copies a set of cache files from the data folder to the test folder.
+bool CopyTestCache(const std::string& name);
+
 // Gets the path to the cache test folder.
 FilePath GetCacheFilePath();
 
