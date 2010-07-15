@@ -35,7 +35,7 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
                                              uint32 capacity,
                                              SyncReader* sync_reader)
     : handler_(handler),
-      volume_(0),
+      volume_(1.0),
       state_(kEmpty),
       hardware_pending_bytes_(0),
       buffer_capacity_(capacity),
