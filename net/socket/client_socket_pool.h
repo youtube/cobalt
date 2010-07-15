@@ -71,7 +71,7 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // not run.  However, for performance, we will let one ConnectJob complete
   // and go idle.
   virtual void CancelRequest(const std::string& group_name,
-                             const ClientSocketHandle* handle) = 0;
+                             ClientSocketHandle* handle) = 0;
 
   // Called to release a socket once the socket is no longer needed.  If the
   // socket still has an established connection, then it will be added to the

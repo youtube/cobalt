@@ -394,7 +394,7 @@ int SSLClientSocketPool::RequestSocket(const std::string& group_name,
 }
 
 void SSLClientSocketPool::CancelRequest(const std::string& group_name,
-                                        const ClientSocketHandle* handle) {
+                                        ClientSocketHandle* handle) {
   base_.CancelRequest(group_name, handle);
 }
 

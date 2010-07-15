@@ -91,7 +91,7 @@ class ClientSocketHandle {
   LoadState GetLoadState() const;
 
   // Returns true when Init() has completed successfully.
-  bool is_initialized() const { return socket_ != NULL; }
+  bool is_initialized() const { return is_initialized_; }
 
   // Returns the time tick when Init() was called.
   base::TimeTicks init_time() const { return init_time_; }
@@ -114,6 +114,7 @@ class ClientSocketHandle {
 
   // These may only be used if is_initialized() is true.
   const std::string& group_name() const { return group_name_; }
+  int id() const { return pool_id_; }
   ClientSocket* socket() { return socket_.get(); }
   ClientSocket* release_socket() { return socket_.release(); }
   const HttpResponseInfo& tunnel_auth_response_info() const {
@@ -165,6 +166,7 @@ class ClientSocketHandle {
   // Resets the supplemental error state.
   void ResetErrorState();
 
+  bool is_initialized_;
   scoped_refptr<ClientSocketPool> pool_;
   scoped_ptr<ClientSocket> socket_;
   std::string group_name_;
