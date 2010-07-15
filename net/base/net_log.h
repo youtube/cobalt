@@ -10,10 +10,12 @@
 
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
-#include "base/scoped_ptr.h"
-#include "base/time.h"
 
 class Value;
+
+namespace base {
+class TimeTicks;
+}
 
 namespace net {
 
