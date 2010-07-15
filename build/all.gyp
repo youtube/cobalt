@@ -37,6 +37,7 @@
         '../third_party/libxml/libxml.gyp:*',
         '../third_party/libxslt/libxslt.gyp:*',
         '../third_party/lzma_sdk/lzma_sdk.gyp:*',
+        '../third_party/mesa/mesa.gyp:*',
         '../third_party/modp_b64/modp_b64.gyp:*',
         '../third_party/npapi/npapi.gyp:*',
         '../third_party/ppapi/ppapi.gyp:*',
@@ -263,10 +264,7 @@
             '../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
             '../chrome_frame/chrome_frame.gyp:npchrome_frame',
-            # Only build OSMesa on buildbots. It builds a software GL renderer
-            # that can be used where native GL is not available.
             '../third_party/angle/src/build_angle.gyp:*',
-            '../third_party/mesa/mesa.gyp:osmesa',
           ],
         },
         {
