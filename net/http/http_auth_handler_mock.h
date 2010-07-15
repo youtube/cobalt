@@ -5,6 +5,8 @@
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_MOCK_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_MOCK_H_
 
+#include <string>
+
 #include "base/task.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -33,7 +35,14 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
                                    CompletionCallback* callback);
 
+  virtual bool NeedsIdentity() { return first_round_; }
+  virtual bool IsFinalRound() { return false; }
+
   void SetGenerateExpectation(bool async, int rv);
+
+  void set_connection_based(bool connection_based) {
+    connection_based_ = connection_based;
+  }
 
   // The Factory class simply returns the same handler each time
   // CreateAuthHandler is called.
@@ -76,6 +85,8 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   bool generate_async_;
   int generate_rv_;
   std::string* auth_token_;
+  bool first_round_;
+  bool connection_based_;
 };
 
 }  // namespace net
