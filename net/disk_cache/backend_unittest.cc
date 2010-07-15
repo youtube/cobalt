@@ -1557,7 +1557,7 @@ TEST_F(DiskCacheTest, Backend_UsageStats) {
                   path, base::MessageLoopProxy::CreateForCurrentThread()));
   ASSERT_TRUE(NULL != cache.get());
   cache->SetUnitTestMode();
-  ASSERT_TRUE(cache->Init());
+  ASSERT_EQ(net::OK, cache->SyncInit());
 
   // Wait for a callback that never comes... about 2 secs :). The message loop
   // has to run to allow invocation of the usage timer.
