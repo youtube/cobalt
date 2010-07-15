@@ -5930,6 +5930,110 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
   session->FlushSocketPools();
 }
 
+TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
+  // Do multi-round authentication and make sure it works correctly.
+  SessionDependencies session_deps;
+  HttpAuthHandlerMock::Factory* auth_factory(
+      new HttpAuthHandlerMock::Factory());
+  session_deps.http_auth_handler_factory.reset(auth_factory);
+  session_deps.proxy_service = ProxyService::CreateNull();
+  session_deps.host_resolver->rules()->AddRule("www.example.com", "10.0.0.1");
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
+  auth_handler->set_connection_based(true);
+  std::string auth_challenge = "Mock realm=server";
+  GURL origin("http://www.example.com");
+  HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
+                                         auth_challenge.end());
+  auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_SERVER,
+                                  origin, BoundNetLog());
+  auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
+
+  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = OK;
+  const HttpResponseInfo* response = NULL;
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = origin;
+  request.load_flags = 0;
+  TestCompletionCallback callback;
+
+  const MockWrite kGet(
+      "GET / HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Connection: keep-alive\r\n\r\n");
+  const MockWrite kGetAuth(
+      "GET / HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Connection: keep-alive\r\n"
+      "Authorization: auth_token\r\n\r\n");
+
+  const MockRead kServerChallenge(
+      "HTTP/1.1 401 Unauthorized\r\n"
+      "WWW-Authenticate: Mock realm=server\r\n"
+      "Content-Type: text/html; charset=iso-8859-1\r\n"
+      "Content-Length: 14\r\n\r\n"
+      "Unauthorized\r\n");
+  const MockRead kSuccess(
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: text/html; charset=iso-8859-1\r\n"
+      "Content-Length: 3\r\n\r\n"
+      "Yes");
+
+  MockWrite writes[] = {
+    // First round
+    kGet,
+    // Second round
+    kGetAuth,
+    // Third round
+    kGetAuth,
+  };
+  MockRead reads[] = {
+    // First round
+    kServerChallenge,
+    // Second round
+    kServerChallenge,
+    // Third round
+    kSuccess,
+  };
+  StaticSocketDataProvider data_provider(reads, arraysize(reads),
+                                         writes, arraysize(writes));
+  session_deps.socket_factory.AddSocketDataProvider(&data_provider);
+
+  // First round
+  auth_handler->SetGenerateExpectation(false, OK);
+  rv = trans->Start(&request, &callback, BoundNetLog());
+  if (rv == ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  EXPECT_FALSE(response->auth_challenge.get() == NULL);
+
+  // Second round
+  auth_handler->SetGenerateExpectation(false, OK);
+  rv = trans->RestartWithAuth(L"foo", L"bar", &callback);
+  if (rv == ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+
+  // Third round
+  auth_handler->SetGenerateExpectation(false, OK);
+  rv = trans->RestartWithAuth(L"", L"", &callback);
+  if (rv == ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+}
+
 class TLSDecompressionFailureSocketDataProvider : public SocketDataProvider {
  public:
   explicit TLSDecompressionFailureSocketDataProvider(bool fail_all)
