@@ -14,7 +14,9 @@ HttpAuthHandlerMock::HttpAuthHandlerMock()
   : resolve_(RESOLVE_INIT), user_callback_(NULL),
     ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
     generate_async_(false), generate_rv_(OK),
-    auth_token_(NULL) {
+    auth_token_(NULL),
+    first_round_(true),
+    connection_based_(false) {
 }
 
 HttpAuthHandlerMock::~HttpAuthHandlerMock() {
@@ -70,7 +72,7 @@ void HttpAuthHandlerMock::SetGenerateExpectation(bool async, int rv) {
 bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
   scheme_ = "mock";
   score_ = 1;
-  properties_ = 0;
+  properties_ = connection_based_ ? IS_CONNECTION_BASED : 0;
   return true;
 }
 
@@ -79,6 +81,7 @@ int HttpAuthHandlerMock::GenerateAuthTokenImpl(const std::wstring* username,
                                                const HttpRequestInfo* request,
                                                CompletionCallback* callback,
                                                std::string* auth_token) {
+  first_round_ = false;
   if (generate_async_) {
     EXPECT_TRUE(user_callback_ == NULL);
     EXPECT_TRUE(auth_token_ == NULL);
