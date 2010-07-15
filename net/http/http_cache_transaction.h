@@ -97,6 +97,12 @@ class HttpCache::Transaction : public HttpTransaction {
   // success.
   bool AddTruncatedFlag();
 
+  // Returns the LoadState of the writer transaction of a given ActiveEntry. In
+  // other words, returns the LoadState of this transaction without asking the
+  // http cache, because this transaction should be the one currently writing
+  // to the cache entry.
+  LoadState GetWriterLoadState() const;
+
   CompletionCallback* io_callback() { return &io_callback_; }
 
  private:
