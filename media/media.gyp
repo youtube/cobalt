@@ -25,6 +25,8 @@
         'audio/audio_output_controller.h',
         'audio/audio_util.cc',
         'audio/audio_util.h',
+        'audio/fake_audio_input_stream.cc',
+        'audio/fake_audio_input_stream.h',
         'audio/fake_audio_output_stream.cc',
         'audio/fake_audio_output_stream.h',
         'audio/linux/audio_manager_linux.cc',
@@ -190,6 +192,7 @@
       'sources': [
         'audio/audio_output_controller_unittest.cc',
         'audio/audio_util_unittest.cc',
+        'audio/fake_audio_input_stream_unittest.cc',
         'audio/linux/alsa_output_unittest.cc',
         'audio/mac/audio_output_mac_unittest.cc',
         'audio/simple_sources_unittest.cc',
