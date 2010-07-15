@@ -36,6 +36,9 @@ const char kTextHtml[]             = "text/html";
 
 }  // namespace
 
+FilterContext::~FilterContext() {
+}
+
 Filter* Filter::Factory(const std::vector<FilterType>& filter_types,
                         const FilterContext& filter_context) {
   DCHECK_GT(filter_context.GetInputStreamBufferSize(), 0);
