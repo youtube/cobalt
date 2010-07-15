@@ -45,8 +45,10 @@ class SSLInfo {
   // -1 means the security strength is unknown.
   int security_bits;
 
-  // Bitmask of information about the SSL connection itself. See
-  // ssl_connection_status_flags.h for values.
+  // Information about the SSL connection itself. See
+  // ssl_connection_status_flags.h for values. The ciphersuite and compression
+  // in use are encoded within.
+  // TODO(agl): also encode the protocol version used.
   int connection_status;
 };
 
