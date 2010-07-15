@@ -63,29 +63,6 @@ class FtpNetworkTransaction : public FtpTransaction {
     COMMAND_QUIT,
   };
 
-  enum ErrorClass {
-    // The requested action was initiated. The client should expect another
-    // reply before issuing the next command.
-    ERROR_CLASS_INITIATED,
-
-    // The requested action has been successfully completed.
-    ERROR_CLASS_OK,
-
-    // The command has been accepted, but to complete the operation, more
-    // information must be sent by the client.
-    ERROR_CLASS_INFO_NEEDED,
-
-    // The command was not accepted and the requested action did not take place.
-    // This condition is temporary, and the client is encouraged to restart the
-    // command sequence.
-    ERROR_CLASS_TRANSIENT_ERROR,
-
-    // The command was not accepted and the requested action did not take place.
-    // This condition is rather permanent, and the client is discouraged from
-    // repeating the exact request.
-    ERROR_CLASS_PERMANENT_ERROR,
-  };
-
   // Major categories of remote system types, as returned by SYST command.
   enum SystemType {
     SYSTEM_TYPE_UNKNOWN,
@@ -122,10 +99,6 @@ class FtpNetworkTransaction : public FtpTransaction {
   int ProcessCtrlResponse();
 
   int SendFtpCommand(const std::string& command, Command cmd);
-
-  // Return the error class for given response code. You should validate the
-  // code to be in range 100-599.
-  static ErrorClass GetErrorClass(int response_code);
 
   // Returns request path suitable to be included in an FTP command. If the path
   // will be used as a directory, |is_directory| should be true.
