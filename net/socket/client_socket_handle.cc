@@ -14,7 +14,7 @@
 namespace net {
 
 ClientSocketHandle::ClientSocketHandle()
-    : socket_(NULL),
+    : is_initialized_(false),
       is_reused_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(this, &ClientSocketHandle::OnIOComplete)),
@@ -32,7 +32,7 @@ void ClientSocketHandle::Reset() {
 void ClientSocketHandle::ResetInternal(bool cancel) {
   if (group_name_.empty())  // Was Init called?
     return;
-  if (socket_.get()) {
+  if (is_initialized()) {
     // Because of http://crbug.com/37810 we may not have a pool, but have
     // just a raw socket.
     socket_->NetLog().EndEvent(NetLog::TYPE_SOCKET_IN_USE, NULL);
@@ -41,10 +41,11 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
       // it can be deleted or reused.
       pool_->ReleaseSocket(group_name_, release_socket(), pool_id_);
   } else if (cancel) {
-    // If we did not get initialized yet, so we've got a socket request pending.
+    // If we did not get initialized yet, we've got a socket request pending.
     // Cancel it.
     pool_->CancelRequest(group_name_, this);
   }
+  is_initialized_ = false;
   group_name_.clear();
   is_reused_ = false;
   user_callback_ = NULL;
@@ -82,8 +83,11 @@ void ClientSocketHandle::HandleInitCompletion(int result) {
   if (result != OK) {
     if (!socket_.get())
       ResetInternal(false);  // Nothing to cancel since the request failed.
+    else
+      is_initialized_ = true;
     return;
   }
+  is_initialized_ = true;
   CHECK_NE(-1, pool_id_) << "Pool should have set |pool_id_| to a valid value.";
   setup_time_ = base::TimeTicks::Now() - init_time_;
 

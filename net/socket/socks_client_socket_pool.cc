@@ -205,7 +205,7 @@ int SOCKSClientSocketPool::RequestSocket(const std::string& group_name,
 }
 
 void SOCKSClientSocketPool::CancelRequest(const std::string& group_name,
-                                          const ClientSocketHandle* handle) {
+                                          ClientSocketHandle* handle) {
   base_.CancelRequest(group_name, handle);
 }
 

@@ -792,10 +792,11 @@ bool MockTCPClientSocketPool::MockConnectJob::CancelHandle(
 void MockTCPClientSocketPool::MockConnectJob::OnConnect(int rv) {
   if (!socket_.get())
     return;
-  if (rv == OK)
+  if (rv == OK) {
     handle_->set_socket(socket_.release());
-  else
+  } else {
     socket_.reset();
+  }
 
   handle_ = NULL;
 
@@ -833,7 +834,7 @@ int MockTCPClientSocketPool::RequestSocket(const std::string& group_name,
 }
 
 void MockTCPClientSocketPool::CancelRequest(const std::string& group_name,
-                                            const ClientSocketHandle* handle) {
+                                            ClientSocketHandle* handle) {
   std::vector<MockConnectJob*>::iterator i;
   for (i = job_list_.begin(); i != job_list_.end(); ++i) {
     if ((*i)->CancelHandle(handle)) {
@@ -874,7 +875,7 @@ int MockSOCKSClientSocketPool::RequestSocket(const std::string& group_name,
 
 void MockSOCKSClientSocketPool::CancelRequest(
     const std::string& group_name,
-    const ClientSocketHandle* handle) {
+    ClientSocketHandle* handle) {
   return tcp_pool_->CancelRequest(group_name, handle);
 }
 
