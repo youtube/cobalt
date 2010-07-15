@@ -1719,12 +1719,12 @@ void BackendImpl::LogStats() {
 
 void BackendImpl::ReportStats() {
   CACHE_UMA(COUNTS, "Entries", 0, data_->header.num_entries);
-  CACHE_UMA(COUNTS, "Size", 0, data_->header.num_bytes / (1024 * 1024));
-  CACHE_UMA(COUNTS, "MaxSize", 0, max_size_ / (1024 * 1024));
+  CACHE_UMA(COUNTS_10000, "Size2", 0, data_->header.num_bytes / (1024 * 1024));
+  CACHE_UMA(COUNTS_10000, "MaxSize2", 0, max_size_ / (1024 * 1024));
 
-  CACHE_UMA(COUNTS, "AverageOpenEntries", 0,
+  CACHE_UMA(COUNTS_10000, "AverageOpenEntries2", 0,
             static_cast<int>(stats_.GetCounter(Stats::OPEN_ENTRIES)));
-  CACHE_UMA(COUNTS, "MaxOpenEntries", 0,
+  CACHE_UMA(COUNTS_10000, "MaxOpenEntries2", 0,
             static_cast<int>(stats_.GetCounter(Stats::MAX_ENTRIES)));
   stats_.SetCounter(Stats::MAX_ENTRIES, 0);
 
@@ -1756,6 +1756,7 @@ void BackendImpl::ReportStats() {
 
   int avg_size = data_->header.num_bytes / GetEntryCount();
   CACHE_UMA(COUNTS, "EntrySize", 0, avg_size);
+  CACHE_UMA(COUNTS, "EntriesFull", 0, data_->header.num_entries);
 
   CACHE_UMA(PERCENTAGE, "IndexLoad", 0,
             data_->header.num_entries * 100 / (mask_ + 1));
@@ -1778,6 +1779,9 @@ void BackendImpl::ReportStats() {
 
   stats_.ResetRatios();
   stats_.SetCounter(Stats::TRIM_ENTRY, 0);
+
+  if (cache_type_ == net::DISK_CACHE)
+    block_files_.ReportStats();
 }
 
 void BackendImpl::UpgradeTo2_1() {
@@ -1844,7 +1848,9 @@ bool BackendImpl::CheckIndex() {
   if (!mask_)
     mask_ = data_->header.table_len - 1;
 
-  return true;
+  // Load the table into memory with a single read.
+  scoped_array<char> buf(new char[current_size]);
+  return index_->Read(buf.get(), current_size, 0);
 }
 
 int BackendImpl::CheckAllEntries() {
