@@ -62,12 +62,7 @@ class BackendImpl : public Backend {
                            Backend** backend, CompletionCallback* callback);
 
   // Performs general initialization for this current instance of the cache.
-  bool Init();  // Deprecated.
   int Init(CompletionCallback* callback);
-  int SyncInit();
-
-  // Performs final cleanup on destruction.
-  void CleanupCache();
 
   // Backend interface.
   virtual int32 GetEntryCount() const;
@@ -87,6 +82,14 @@ class BackendImpl : public Backend {
   virtual void EndEnumeration(void** iter);
   virtual void GetStats(StatsItems* stats);
 
+  // Performs the actual initialization and final cleanup on destruction.
+  int SyncInit();
+  void CleanupCache();
+
+  // Same bahavior as OpenNextEntry but walks the list from back to front.
+  int OpenPrevEntry(void** iter, Entry** prev_entry,
+                    CompletionCallback* callback);
+
   // Synchronous implementation of the asynchronous interface.
   int SyncOpenEntry(const std::string& key, Entry** entry);
   int SyncCreateEntry(const std::string& key, Entry** entry);
@@ -96,7 +99,14 @@ class BackendImpl : public Backend {
                              const base::Time end_time);
   int SyncDoomEntriesSince(const base::Time initial_time);
   int SyncOpenNextEntry(void** iter, Entry** next_entry);
+  int SyncOpenPrevEntry(void** iter, Entry** prev_entry);
   void SyncEndEnumeration(void* iter);
+
+  // Open or create an entry for the given |key| or |iter|.
+  EntryImpl* OpenEntryImpl(const std::string& key);
+  EntryImpl* CreateEntryImpl(const std::string& key);
+  EntryImpl* OpenNextEntryImpl(void** iter);
+  EntryImpl* OpenPrevEntryImpl(void** iter);
 
   // Sets the maximum size for the total amount of data stored by this instance.
   bool SetMaxSize(int max_bytes);
@@ -226,26 +236,6 @@ class BackendImpl : public Backend {
   // Peforms a simple self-check, and returns the number of dirty items
   // or an error code (negative value).
   int SelfCheck();
-
-  // Same bahavior as OpenNextEntry but walks the list from back to front.
-  int OpenPrevEntry(void** iter, Entry** prev_entry,
-                    CompletionCallback* callback);
-  int SyncOpenPrevEntry(void** iter, Entry** prev_entry);
-
-  // Old Backend interface.
-  bool OpenEntry(const std::string& key, Entry** entry);
-  bool CreateEntry(const std::string& key, Entry** entry);
-  bool DoomEntry(const std::string& key);
-  bool DoomAllEntries();
-  bool DoomEntriesBetween(const base::Time initial_time,
-                          const base::Time end_time);
-  bool DoomEntriesSince(const base::Time initial_time);
-
-  // Open or create an entry for the given |key| or |iter|.
-  EntryImpl* OpenEntryImpl(const std::string& key);
-  EntryImpl* CreateEntryImpl(const std::string& key);
-  EntryImpl* OpenNextEntryImpl(void** iter);
-  EntryImpl* OpenPrevEntryImpl(void** iter);
 
  private:
   typedef base::hash_map<CacheAddr, EntryImpl*> EntriesMap;
