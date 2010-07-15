@@ -370,7 +370,7 @@ class TestClientSocketPool : public ClientSocketPool {
 
   virtual void CancelRequest(
       const std::string& group_name,
-      const ClientSocketHandle* handle) {
+      ClientSocketHandle* handle) {
     base_.CancelRequest(group_name, handle);
   }
 
@@ -521,8 +521,10 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
     // to delete |requests_| because the pool is reference counted and requests
     // keep reference to it.
     // TODO(willchan): Remove this part when late binding becomes the default.
+    TestClientSocketPool* pool = pool_.get();
     pool_ = NULL;
     requests_.reset();
+    pool = NULL;
 
     ClientSocketPoolTest::TearDown();
   }
@@ -933,11 +935,6 @@ TEST_F(ClientSocketPoolBaseTest, CancelPendingSocketAtSocketLimit) {
 
     // Cancel the stalled request.
     handles[0].Reset();
-
-    // Wait for the pending job to be guaranteed to complete.
-    PlatformThread::Sleep(TestConnectJob::kPendingConnectDelay * 2);
-
-    MessageLoop::current()->RunAllPending();
 
     // Now we should have a connect job.
     EXPECT_EQ(1, pool_->NumConnectJobsInGroup("foo"));

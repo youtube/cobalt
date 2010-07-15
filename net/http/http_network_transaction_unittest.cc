@@ -267,7 +267,7 @@ class CaptureGroupNameSocketPool : public ParentPool {
     return ERR_IO_PENDING;
   }
   virtual void CancelRequest(const std::string& group_name,
-                             const ClientSocketHandle* handle) { }
+                             ClientSocketHandle* handle) {}
   virtual void ReleaseSocket(const std::string& group_name,
                              ClientSocket* socket) {}
   virtual void CloseIdleSockets() {}
