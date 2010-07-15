@@ -100,6 +100,17 @@ static LPTOP_LEVEL_EXCEPTION_FILTER GetTopSEHFilter() {
 
 //------------------------------------------------------------------------------
 
+MessageLoop::TaskObserver::TaskObserver() {
+}
+
+MessageLoop::TaskObserver::~TaskObserver() {
+}
+
+MessageLoop::DestructionObserver::~DestructionObserver() {
+}
+
+//------------------------------------------------------------------------------
+
 // static
 MessageLoop* MessageLoop::current() {
   // TODO(darin): sadly, we cannot enable this yet since people call us even

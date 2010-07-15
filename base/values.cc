@@ -142,7 +142,22 @@ bool Value::Equals(const Value* other) const {
   return other->IsType(TYPE_NULL);
 }
 
+Value::Value(ValueType type) : type_(type) {
+}
+
 ///////////////////// FundamentalValue ////////////////////
+
+FundamentalValue::FundamentalValue(bool in_value)
+    : Value(TYPE_BOOLEAN), boolean_value_(in_value) {
+}
+
+FundamentalValue::FundamentalValue(int in_value)
+    : Value(TYPE_INTEGER), integer_value_(in_value) {
+}
+
+FundamentalValue::FundamentalValue(double in_value)
+    : Value(TYPE_REAL), real_value_(in_value) {
+}
 
 FundamentalValue::~FundamentalValue() {
 }
@@ -306,6 +321,10 @@ bool BinaryValue::Equals(const Value* other) const {
 }
 
 ///////////////////// DictionaryValue ////////////////////
+
+DictionaryValue::DictionaryValue()
+  : Value(TYPE_DICTIONARY) {
+}
 
 DictionaryValue::~DictionaryValue() {
   Clear();
@@ -696,6 +715,9 @@ void DictionaryValue::MergeDictionary(const DictionaryValue* dictionary) {
 
 ///////////////////// ListValue ////////////////////
 
+ListValue::ListValue() : Value(TYPE_LIST) {
+}
+
 ListValue::~ListValue() {
   Clear();
 }
@@ -897,4 +919,7 @@ bool ListValue::Equals(const Value* other) const {
     return false;
 
   return true;
+}
+
+ValueSerializer::~ValueSerializer() {
 }

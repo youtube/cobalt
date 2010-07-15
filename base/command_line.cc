@@ -55,6 +55,9 @@ static void Lowercase(std::string* parameter) {
 }
 #endif
 
+CommandLine::~CommandLine() {
+}
+
 #if defined(OS_WIN)
 CommandLine::CommandLine(ArgumentsOnly args_only) {
 }
@@ -437,3 +440,7 @@ void CommandLine::PrependWrapper(const std::wstring& wrapper_wide) {
 }
 
 #endif
+
+// private
+CommandLine::CommandLine() {
+}
