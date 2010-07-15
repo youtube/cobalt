@@ -112,16 +112,9 @@ class ConcurrencyTestTask : public Task {
   std::string* result_;
 };
 
-// See crbug.com/48006
-#if defined(OS_MACOSX)
-#define MAYBE_ConcurrencyTest FLAKY_ConcurrencyTest
-#else
-#define MAYBE_ConcurrencyTest ConcurrencyTest
-#endif
-
 // We asynchronously generate the keys so as not to hang up the IO thread. This
 // test tries to catch concurrency problems in the keygen implementation.
-TEST_F(KeygenHandlerTest, MAYBE_ConcurrencyTest) {
+TEST_F(KeygenHandlerTest, ConcurrencyTest) {
   const int NUM_HANDLERS = 5;
   base::WaitableEvent* events[NUM_HANDLERS] = { NULL };
   std::string results[NUM_HANDLERS];
