@@ -635,8 +635,8 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
       const scoped_refptr<ClientSocketPoolHistograms>& histograms,
       ClientSocketFactory* socket_factory);
 
-  int release_count() { return release_count_; };
-  int cancel_count() { return cancel_count_; };
+  int release_count() const { return release_count_; };
+  int cancel_count() const { return cancel_count_; };
 
   // TCPClientSocketPool methods.
   virtual int RequestSocket(const std::string& group_name,
@@ -647,7 +647,7 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
                             const BoundNetLog& net_log);
 
   virtual void CancelRequest(const std::string& group_name,
-                             const ClientSocketHandle* handle);
+                             ClientSocketHandle* handle);
   virtual void ReleaseSocket(const std::string& group_name,
                              ClientSocket* socket, int id);
 
@@ -680,7 +680,7 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
                             const BoundNetLog& net_log);
 
   virtual void CancelRequest(const std::string& group_name,
-                             const ClientSocketHandle* handle);
+                             ClientSocketHandle* handle);
   virtual void ReleaseSocket(const std::string& group_name,
                              ClientSocket* socket, int id);
 
