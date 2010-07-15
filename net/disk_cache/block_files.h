@@ -46,6 +46,9 @@ class BlockFiles {
   // cache is being purged.
   void CloseFiles();
 
+  // Sends UMA stats.
+  void ReportStats();
+
  private:
   // Set force to true to overwrite the file if it exists.
   bool CreateBlockFile(int index, FileType file_type, bool force);
@@ -69,6 +72,9 @@ class BlockFiles {
   // Restores the header of a potentially inconsistent file.
   bool FixBlockFileHeader(MappedFile* file);
 
+  // Retrieves stats for the given file index.
+  void GetFileStats(int index, int* used_count, int* load);
+
   // Returns the filename for a given file index.
   FilePath Name(int index);
 
@@ -79,6 +85,7 @@ class BlockFiles {
 
   FRIEND_TEST(DiskCacheTest, BlockFiles_ZeroSizeFile);
   FRIEND_TEST(DiskCacheTest, BlockFiles_InvalidFile);
+  FRIEND_TEST(DiskCacheTest, BlockFiles_Stats);
 
   DISALLOW_COPY_AND_ASSIGN(BlockFiles);
 };
