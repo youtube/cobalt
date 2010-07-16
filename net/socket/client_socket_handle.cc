@@ -58,7 +58,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
 
 void ClientSocketHandle::ResetErrorState() {
   is_ssl_error_ = false;
-  tunnel_auth_response_info_ = HttpResponseInfo();
+  ssl_error_response_info_ = HttpResponseInfo();
 }
 
 LoadState ClientSocketHandle::GetLoadState() const {
