@@ -150,14 +150,11 @@ class FilePath {
   // The character used to identify a file extension.
   static const CharType kExtensionSeparator;
 
-  FilePath() {}
-  FilePath(const FilePath& that) : path_(that.path_) {}
-  explicit FilePath(const StringType& path) : path_(path) {}
-
-  FilePath& operator=(const FilePath& that) {
-    path_ = that.path_;
-    return *this;
-  }
+  FilePath();
+  FilePath(const FilePath& that);
+  explicit FilePath(const StringType& path);
+  ~FilePath();
+  FilePath& operator=(const FilePath& that);
 
   bool operator==(const FilePath& that) const;
 
