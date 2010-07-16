@@ -24,6 +24,10 @@ class URLRequestStartEventParameters : public net::NetLog::EventParameters {
     return url_;
   }
 
+  int load_flags() const {
+    return load_flags_;
+  }
+
   virtual Value* ToValue() const;
 
  private:
