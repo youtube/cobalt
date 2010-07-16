@@ -733,6 +733,8 @@
         'http/http_transaction_unittest.h',
         'http/http_util_unittest.cc',
         'http/http_vary_data_unittest.cc',
+        'http/mock_gssapi_library_posix.cc',
+        'http/mock_gssapi_library_posix.h',
         'http/mock_sspi_library_win.h',
         'http/mock_sspi_library_win.cc',
         'http/url_security_manager_unittest.cc',

@@ -9,6 +9,7 @@
 
 #include "base/base64.h"
 #include "base/file_path.h"
+#include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
@@ -24,31 +25,31 @@ namespace {
 
 static gss_OID_desc GSS_C_NT_USER_NAME_VAL = {
   10,
-  const_cast<char *>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x01")
+  const_cast<char*>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x01")
 };
 static gss_OID_desc GSS_C_NT_MACHINE_UID_NAME_VAL = {
   10,
-  const_cast<char *>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x02")
+  const_cast<char*>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x02")
 };
 static gss_OID_desc GSS_C_NT_STRING_UID_NAME_VAL = {
   10,
-  const_cast<char *>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x03")
+  const_cast<char*>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x03")
 };
 static gss_OID_desc GSS_C_NT_HOSTBASED_SERVICE_X_VAL = {
   6,
-  const_cast<char *>("\x2b\x06\x01\x05\x06\x02")
+  const_cast<char*>("\x2b\x06\x01\x05\x06\x02")
 };
 static gss_OID_desc GSS_C_NT_HOSTBASED_SERVICE_VAL = {
   10,
-  const_cast<char *>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04")
+  const_cast<char*>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04")
 };
 static gss_OID_desc GSS_C_NT_ANONYMOUS_VAL = {
   6,
-  const_cast<char *>("\x2b\x06\01\x05\x06\x03")
+  const_cast<char*>("\x2b\x06\01\x05\x06\x03")
 };
 static gss_OID_desc GSS_C_NT_EXPORT_NAME_VAL = {
   6,
-  const_cast<char *>("\x2b\x06\x01\x05\x06\x04")
+  const_cast<char*>("\x2b\x06\x01\x05\x06\x04")
 };
 
 }  // namespace
@@ -68,17 +69,17 @@ namespace net {
 // This one is used by Firefox's nsAuthGSSAPI class.
 gss_OID_desc CHROME_GSS_KRB5_MECH_OID_DESC_VAL = {
   9,
-  const_cast<char *>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x02")
+  const_cast<char*>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x02")
 };
 
 gss_OID_desc CHROME_GSS_C_NT_HOSTBASED_SERVICE_X_VAL = {
   6,
-  const_cast<char *>("\x2b\x06\x01\x05\x06\x02")
+  const_cast<char*>("\x2b\x06\x01\x05\x06\x02")
 };
 
 gss_OID_desc CHROME_GSS_C_NT_HOSTBASED_SERVICE_VAL = {
   10,
-  const_cast<char *>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04")
+  const_cast<char*>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04")
 };
 
 gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X =
@@ -125,7 +126,7 @@ std::string DisplayCode(GSSAPILibrary* gssapi_lib,
           static_cast<int>(msg.length);
       if (msg_len > 0 && msg.value != NULL) {
         rv += StringPrintf(" %.*s", msg_len,
-                           static_cast<char *>(msg.value));
+                           static_cast<char*>(msg.value));
       }
     }
     gssapi_lib->release_buffer(&min_stat, &msg);
@@ -205,23 +206,132 @@ class ScopedBuffer {
   DISALLOW_COPY_AND_ASSIGN(ScopedBuffer);
 };
 
+namespace {
+
+std::string AppendIfPredefinedValue(gss_OID oid,
+                                    gss_OID predefined_oid,
+                                    const char* predefined_oid_name) {
+  DCHECK(oid);
+  DCHECK(predefined_oid);
+  DCHECK(predefined_oid_name);
+  std::string output;
+  if (oid->length != predefined_oid->length)
+    return output;
+  if (0 != memcmp(oid->elements,
+                  predefined_oid->elements,
+                  predefined_oid->length))
+    return output;
+
+  output += " (";
+  output += predefined_oid_name;
+  output += ")";
+  return output;
+}
+
+}  // namespace
 
 std::string DescribeOid(GSSAPILibrary* gssapi_lib, const gss_OID oid) {
   if (!oid)
     return "<NULL>";
   std::string output;
-  size_t i;
-  output = StringPrintf("(%d) \"", oid->length);
+  const size_t kMaxCharsToPrint = 1024;
+  OM_uint32 byte_length = oid->length;
+  size_t char_length = byte_length / sizeof(char);
+  if (char_length > kMaxCharsToPrint) {
+    // This might be a plain ASCII string.
+    // Check if the first |kMaxCharsToPrint| characters
+    // contain only printable characters and are NULL terminated.
+    const char* str = reinterpret_cast<const char*>(oid);
+    bool is_printable = true;
+    size_t str_length = 0;
+    for ( ; str_length < kMaxCharsToPrint; ++str_length) {
+      if (!str[str_length])
+        break;
+      if (!isprint(str[str_length])) {
+        is_printable = false;
+        break;
+      }
+    }
+    if (!str[str_length]) {
+      output += StringPrintf("\"%s\"", str);
+      return output;
+    }
+  }
+  output = StringPrintf("(%u) \"", byte_length);
   if (!oid->elements) {
     output += "<NULL>";
     return output;
   }
   const unsigned char* elements =
-      reinterpret_cast<const unsigned char *>(oid->elements);
-  for (i = 0; i < oid->length; ++i) {
+      reinterpret_cast<const unsigned char*>(oid->elements);
+  // Don't print more than |kMaxCharsToPrint| characters.
+  size_t i = 0;
+  for ( ; (i < byte_length) && (i < kMaxCharsToPrint); ++i) {
     output += StringPrintf("\\x%02X", elements[i]);
   }
+  if (i >= kMaxCharsToPrint)
+    output += "...";
   output += "\"";
+
+  // Check if the OID is one of the predefined values.
+  output += AppendIfPredefinedValue(oid,
+                                    GSS_C_NT_USER_NAME,
+                                    "GSS_C_NT_USER_NAME");
+  output += AppendIfPredefinedValue(oid,
+                                    GSS_C_NT_MACHINE_UID_NAME,
+                                    "GSS_C_NT_MACHINE_UID_NAME");
+  output += AppendIfPredefinedValue(oid,
+                                    GSS_C_NT_STRING_UID_NAME,
+                                    "GSS_C_NT_STRING_UID_NAME");
+  output += AppendIfPredefinedValue(oid,
+                                    GSS_C_NT_HOSTBASED_SERVICE_X,
+                                    "GSS_C_NT_HOSTBASED_SERVICE_X");
+  output += AppendIfPredefinedValue(oid,
+                                    GSS_C_NT_HOSTBASED_SERVICE,
+                                    "GSS_C_NT_HOSTBASED_SERVICE");
+  output += AppendIfPredefinedValue(oid,
+                                    GSS_C_NT_ANONYMOUS,
+                                    "GSS_C_NT_ANONYMOUS");
+  output += AppendIfPredefinedValue(oid,
+                                    GSS_C_NT_EXPORT_NAME,
+                                    "GSS_C_NT_EXPORT_NAME");
+
+  return output;
+}
+
+std::string DescribeBuffer(const gss_buffer_t buffer) {
+  if (!buffer)
+    return "<NULL>";
+  size_t length = buffer->length;
+  std::string output(StringPrintf("(%" PRIuS ") ", length));
+  if (!buffer->value) {
+    output += "<NULL>";
+    return output;
+  }
+  const char* value =
+      reinterpret_cast<const char*>(buffer->value);
+  bool is_printable = true;
+  for (size_t i = 0; i < length; ++i) {
+    if (!isprint(value[i])) {
+      // Allow the last character to be a '0'.
+      if ((i < (length - 1)) && !value[i])
+        continue;
+      is_printable = false;
+      break;
+    }
+  }
+  if (is_printable) {
+    output += "\"";
+    output += value;
+    output += "\"";
+  } else {
+    output += "[";
+    for (size_t i = 0; i < buffer->length; ++i) {
+      output += StringPrintf("\\x%02X", value[i] & 0x0FF);
+    }
+    output += "]";
+  }
+
   return output;
 }
 
@@ -249,7 +359,7 @@ std::string DescribeName(GSSAPILibrary* gssapi_lib, const gss_name_t name) {
   std::string description =
       StringPrintf("%*s (Type %s)",
                    len,
-                   reinterpret_cast<const char *>(output_name_buffer.value),
+                   reinterpret_cast<const char*>(output_name_buffer.value),
                    DescribeOid(gssapi_lib, output_name_type).c_str());
   return description;
 }
@@ -258,8 +368,8 @@ std::string DescribeContext(GSSAPILibrary* gssapi_lib,
                             const gss_ctx_id_t context_handle) {
   OM_uint32 major_status = 0;
   OM_uint32 minor_status = 0;
-  gss_name_t src_name;
-  gss_name_t targ_name;
+  gss_name_t src_name = GSS_C_NO_NAME;
+  gss_name_t targ_name = GSS_C_NO_NAME;
   OM_uint32 lifetime_rec = 0;
   gss_OID mech_type = GSS_C_NO_OID;
   OM_uint32 ctx_flags = 0;
@@ -627,7 +737,7 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
   input_token.length = decoded_server_auth_token_.length();
   input_token.value =
       (input_token.length > 0) ?
-          const_cast<char *>(decoded_server_auth_token_.data()) :
+          const_cast<char*>(decoded_server_auth_token_.data()) :
           NULL;
   gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
   ScopedBuffer scoped_output_token(&output_token, library_);
@@ -666,7 +776,7 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
   // TODO(cbentzel): Just do this on the first pass?
   std::string spn_principal = WideToASCII(spn);
   gss_buffer_desc spn_buffer = GSS_C_EMPTY_BUFFER;
-  spn_buffer.value = const_cast<char *>(spn_principal.c_str());
+  spn_buffer.value = const_cast<char*>(spn_principal.c_str());
   spn_buffer.length = spn_principal.size() + 1;
   OM_uint32 minor_status = 0;
   gss_name_t principal_name = GSS_C_NO_NAME;
@@ -676,7 +786,9 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
       CHROME_GSS_C_NT_HOSTBASED_SERVICE,
       &principal_name);
   if (major_status != GSS_S_COMPLETE) {
-    LOG(ERROR) << "Problem importing name. "
+    LOG(ERROR) << "Problem importing name from "
+               << "spn \"" << spn_principal << "\""
+               << std::endl
                << DisplayExtendedStatus(library_,
                                         major_status,
                                         minor_status);
