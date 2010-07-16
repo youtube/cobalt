@@ -29,6 +29,12 @@ bool FileDescriptorGetInode(ino_t* inode_out, int fd);
 // multiple processes hold the socket, this function returns false.
 bool FindProcessHoldingSocket(pid_t* pid_out, ino_t socket_inode);
 
+// For a given process |pid|, look through all its threads and find the first
+// thread with /proc/[pid]/task/[thread_id]/syscall whose first N bytes matches
+// |expected_data|, where N is the length of |expected_data|.
+// Returns the thread id or -1 on error.
+pid_t FindThreadIDWithSyscall(pid_t pid, const std::string& expected_data);
+
 }  // namespace base
 
 #endif  // BASE_LINUX_UTIL_H_
