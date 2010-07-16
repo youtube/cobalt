@@ -28,57 +28,6 @@
 
 namespace net {
 
-namespace {
-
-// Helper to manage the lifetimes of the dependencies for a
-// HttpNetworkTransaction.
-class SessionDependencies {
- public:
-  // Default set of dependencies -- "null" proxy service.
-  SessionDependencies()
-      : host_resolver(new MockHostResolver),
-        proxy_service(ProxyService::CreateNull()),
-        ssl_config_service(new SSLConfigServiceDefaults),
-        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool()) {
-    // Note: The CancelledTransaction test does cleanup by running all tasks
-    // in the message loop (RunAllPending).  Unfortunately, that doesn't clean
-    // up tasks on the host resolver thread; and TCPConnectJob is currently
-    // not cancellable.  Using synchronous lookups allows the test to shutdown
-    // cleanly.  Until we have cancellable TCPConnectJobs, use synchronous
-    // lookups.
-    host_resolver->set_synchronous_mode(true);
-  }
-
-  // Custom proxy service dependency.
-  explicit SessionDependencies(ProxyService* proxy_service)
-      : host_resolver(new MockHostResolver),
-        proxy_service(proxy_service),
-        ssl_config_service(new SSLConfigServiceDefaults),
-        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool()) {}
-
-  scoped_refptr<MockHostResolverBase> host_resolver;
-  scoped_refptr<ProxyService> proxy_service;
-  scoped_refptr<SSLConfigService> ssl_config_service;
-  MockClientSocketFactory socket_factory;
-  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
-  scoped_refptr<SpdySessionPool> spdy_session_pool;
-};
-
-HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
-  return new HttpNetworkSession(session_deps->host_resolver,
-                                session_deps->proxy_service,
-                                &session_deps->socket_factory,
-                                session_deps->ssl_config_service,
-                                session_deps->spdy_session_pool,
-                                session_deps->http_auth_handler_factory.get(),
-                                NULL,
-                                NULL);
-}
-
-}  // namespace
-
 class SpdyNetworkTransactionTest : public PlatformTest {
  protected:
   virtual void SetUp() {
@@ -111,6 +60,53 @@ class SpdyNetworkTransactionTest : public PlatformTest {
 
   class StartTransactionCallback;
   class DeleteSessionCallback;
+
+  // Helper to manage the lifetimes of the dependencies for a
+  // HttpNetworkTransaction.
+  class SessionDependencies {
+   public:
+    // Default set of dependencies -- "null" proxy service.
+    SessionDependencies()
+        : host_resolver(new MockHostResolver),
+          proxy_service(ProxyService::CreateNull()),
+          ssl_config_service(new SSLConfigServiceDefaults),
+          http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
+          spdy_session_pool(new SpdySessionPool()) {
+          // Note: The CancelledTransaction test does cleanup by running all
+          // tasks in the message loop (RunAllPending).  Unfortunately, that
+          // doesn't clean up tasks on the host resolver thread; and
+          // TCPConnectJob is currently not cancellable.  Using synchronous
+          // lookups allows the test to shutdown cleanly.  Until we have
+          // cancellable TCPConnectJobs, use synchronous lookups.
+          host_resolver->set_synchronous_mode(true);
+        }
+
+    // Custom proxy service dependency.
+    explicit SessionDependencies(ProxyService* proxy_service)
+        : host_resolver(new MockHostResolver),
+          proxy_service(proxy_service),
+          ssl_config_service(new SSLConfigServiceDefaults),
+          http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
+          spdy_session_pool(new SpdySessionPool()) {}
+
+    scoped_refptr<MockHostResolverBase> host_resolver;
+    scoped_refptr<ProxyService> proxy_service;
+    scoped_refptr<SSLConfigService> ssl_config_service;
+    MockClientSocketFactory socket_factory;
+    scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
+    scoped_refptr<SpdySessionPool> spdy_session_pool;
+  };
+
+  static HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
+    return new HttpNetworkSession(session_deps->host_resolver,
+                                  session_deps->proxy_service,
+                                  &session_deps->socket_factory,
+                                  session_deps->ssl_config_service,
+                                  session_deps->spdy_session_pool,
+                                  session_deps->http_auth_handler_factory.get(),
+                                  NULL,
+                                  NULL);
+  }
 
   // A helper class that handles all the initial npn/ssl setup.
   class NormalSpdyTransactionHelper {
