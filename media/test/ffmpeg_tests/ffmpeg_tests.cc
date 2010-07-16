@@ -70,6 +70,9 @@ int main(int argc, const char** argv) {
   CommandLine::Init(argc, argv);
   const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
 
+  // TODO(evanm): GetLooseValues() should return a
+  // CommandLine::StringType, which can be converted to FilePaths
+  // directly.
   std::vector<std::wstring> filenames(cmd_line->GetLooseValues());
 
   if (filenames.empty()) {
@@ -86,10 +89,11 @@ int main(int argc, const char** argv) {
   }
 
   // Retrieve command line options.
-  std::string in_path(WideToUTF8(filenames[0]));
-  std::string out_path;
+  std::string in_path(WideToASCII(filenames[0]));
+  FilePath out_path;
   if (filenames.size() > 1) {
-    out_path = WideToUTF8(filenames[1]);
+    // See TODO above the declaration of filenames.
+    out_path = FilePath::FromWStringHack(filenames[1]);
   }
 
   // Default flags that match Chrome defaults.
@@ -137,10 +141,10 @@ int main(int argc, const char** argv) {
   // Open output file.
   FILE *output = NULL;
   if (!out_path.empty()) {
-    output = file_util::OpenFile(out_path.c_str(), "wb");
+    output = file_util::OpenFile(out_path, "wb");
     if (!output) {
       std::cerr << "Error: Could not open output "
-                << out_path << std::endl;
+                << out_path.value() << std::endl;
       return 1;
     }
   }
