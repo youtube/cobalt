@@ -229,15 +229,11 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
     return OK;
   }
 
-  if (result == ERR_PROXY_AUTH_REQUESTED) {
-    // Extract the information needed to prompt for the proxy authentication.
-    // so that when ClientSocketPoolBaseHelper calls |GetAdditionalErrorState|,
-    // we can easily set the state.
-    const HttpResponseInfo* tunnel_response = tunnel_socket->GetResponseInfo();
-
-    http_auth_response_headers_ = tunnel_response->headers;
-    http_auth_auth_challenge_ = tunnel_response->auth_challenge;
-  }
+  // Extract the information needed to prompt for the proxy authentication.
+  // so that when ClientSocketPoolBaseHelper calls |GetAdditionalErrorState|,
+  // we can easily set the state.
+  if (result == ERR_PROXY_AUTH_REQUESTED)
+    error_response_info_ = *tunnel_socket->GetResponseInfo();
 
   if (result < 0)
     return result;
@@ -255,9 +251,7 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
 }
 
 void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
-  if (http_auth_response_headers_.get() != NULL)
-    handle->set_tunnel_auth_response_info(http_auth_response_headers_,
-                                          http_auth_auth_challenge_);
+  handle->set_ssl_error_response_info(error_response_info_);
   if (!ssl_connect_start_time_.is_null())
     handle->set_is_ssl_error(true);
 }
@@ -313,8 +307,13 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                  base::TimeDelta::FromMinutes(10),
                                  100);
   }
-  if (result == OK || IsCertificateError(result))
+
+  if (result == OK || IsCertificateError(result)) {
     set_socket(ssl_socket_.release());
+  } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
+    error_response_info_.cert_request_info = new SSLCertRequestInfo;
+    ssl_socket_->GetSSLCertRequestInfo(error_response_info_.cert_request_info);
+  }
 
   return result;
 }
