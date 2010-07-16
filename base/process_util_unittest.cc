@@ -436,19 +436,85 @@ TEST_F(ProcessUtilTest, AlterEnvironment) {
   delete[] e;
 }
 
-TEST_F(ProcessUtilTest, GetAppOutput) {
+TEST_F(ProcessUtilTest, GetAppOutput_Success) {
   std::string output;
-  EXPECT_TRUE(base::GetAppOutput(CommandLine(FilePath("true")), &output));
+  EXPECT_TRUE(base::GetAppOutput(CommandLine(FilePath(
+      FILE_PATH_LITERAL("true"))), &output));
   EXPECT_STREQ("", output.c_str());
 
-  EXPECT_FALSE(base::GetAppOutput(CommandLine(FilePath("false")), &output));
+  CommandLine command_line(FilePath(FILE_PATH_LITERAL("echo")));
+  command_line.AppendLooseValue(L"foobar42");
+  EXPECT_TRUE(base::GetAppOutput(command_line, &output));
+  EXPECT_STREQ("foobar42\n", output.c_str());
+}
 
+TEST_F(ProcessUtilTest, GetAppOutput_Failure) {
+  std::string output;
+  EXPECT_FALSE(base::GetAppOutput(CommandLine(FilePath(
+      FILE_PATH_LITERAL("false"))), &output));
+  EXPECT_STREQ("", output.c_str());
+
+  // Make sure we capture output in case of failure.
   std::vector<std::string> argv;
-  argv.push_back("/bin/echo");
-  argv.push_back("-n");
-  argv.push_back("foobar42");
-  EXPECT_TRUE(base::GetAppOutput(CommandLine(argv), &output));
-  EXPECT_STREQ("foobar42", output.c_str());
+  argv.push_back("/bin/sh");
+  argv.push_back("-c");
+  argv.push_back("echo hello && false");
+  EXPECT_FALSE(base::GetAppOutput(CommandLine(argv), &output));
+  EXPECT_STREQ("hello\n", output.c_str());
+}
+
+TEST_F(ProcessUtilTest, GetAppOutputWithTimeout_SuccessWithinTimeout) {
+  CommandLine command_line(FilePath(FILE_PATH_LITERAL("echo")));
+  command_line.AppendLooseValue(L"hello");
+  std::string output;
+  bool timed_out;
+
+  EXPECT_TRUE(base::GetAppOutputWithTimeout(
+      command_line, &output, &timed_out,
+      std::numeric_limits<int>::max()));
+  EXPECT_EQ("hello\n", output);
+  EXPECT_FALSE(timed_out);
+}
+
+TEST_F(ProcessUtilTest, GetAppOutputWithTimeout_FailureWithinTimeout) {
+  std::vector<std::string> argv;
+  argv.push_back("/bin/sh");
+  argv.push_back("-c");
+  argv.push_back("echo hello && false");
+  std::string output;
+  bool timed_out;
+
+  EXPECT_FALSE(base::GetAppOutputWithTimeout(
+      CommandLine(argv), &output, &timed_out,
+      std::numeric_limits<int>::max()));
+  EXPECT_EQ("hello\n", output);
+  EXPECT_FALSE(timed_out);
+}
+
+TEST_F(ProcessUtilTest, WaitForExitCodeWithTimeout) {
+  CommandLine command_line(FilePath(FILE_PATH_LITERAL("sleep")));
+  command_line.AppendLooseValue(L"10000");
+
+  base::ProcessHandle process_handle;
+  EXPECT_TRUE(base::LaunchApp(command_line, false, false,
+                              &process_handle));
+  int exit_code = 42;
+  EXPECT_FALSE(base::WaitForExitCodeWithTimeout(process_handle, &exit_code, 1));
+  EXPECT_EQ(42, exit_code);  // exit_code is unchanged if timeout triggers.
+}
+
+TEST_F(ProcessUtilTest, GetAppOutputWithTimeout_TimedOutWhileOutputing) {
+  std::vector<std::string> argv;
+  argv.push_back("/bin/sh");
+  argv.push_back("-c");
+  argv.push_back("echo asleep && sleep 10 && echo awake");
+  std::string output;
+  bool timed_out;
+
+  EXPECT_FALSE(base::GetAppOutputWithTimeout(CommandLine(argv), &output,
+                                             &timed_out, 1000));
+  EXPECT_EQ("asleep\n", output);  // Timed out before printing "awake".
+  EXPECT_TRUE(timed_out);
 }
 
 TEST_F(ProcessUtilTest, GetAppOutputRestricted) {
