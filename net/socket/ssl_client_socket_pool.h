@@ -141,8 +141,7 @@ class SSLConnectJob : public ConnectJob {
   // The time the DoSSLConnect() method was called.
   base::TimeTicks ssl_connect_start_time_;
 
-  scoped_refptr<HttpResponseHeaders> http_auth_response_headers_;
-  scoped_refptr<AuthChallengeInfo> http_auth_auth_challenge_;
+  HttpResponseInfo error_response_info_;
 
   DISALLOW_COPY_AND_ASSIGN(SSLConnectJob);
 };
