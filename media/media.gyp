@@ -21,6 +21,8 @@
       'msvs_guid': '6AE76406-B03B-11DD-94B1-80B556D89593',
       'sources': [
         'audio/audio_io.h',
+        'audio/audio_input_controller.cc',
+        'audio/audio_input_controller.h',
         'audio/audio_output_controller.cc',
         'audio/audio_output_controller.h',
         'audio/audio_util.cc',
@@ -190,6 +192,7 @@
         '../third_party/openmax/omx_stub.cc',
       ],
       'sources': [
+        'audio/audio_input_controller_unittest.cc',
         'audio/audio_output_controller_unittest.cc',
         'audio/audio_util_unittest.cc',
         'audio/fake_audio_input_stream_unittest.cc',
