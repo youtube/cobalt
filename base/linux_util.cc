@@ -6,19 +6,24 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <glib.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/env_var.h"
+#include "base/file_util.h"
 #include "base/lock.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/singleton.h"
+#include "base/scoped_ptr.h"
 #include "base/string_util.h"
 
 namespace {
@@ -239,6 +244,48 @@ bool FindProcessHoldingSocket(pid_t* pid_out, ino_t socket_inode) {
   }
 
   return already_found;
+}
+
+pid_t FindThreadIDWithSyscall(pid_t pid, const std::string& expected_data) {
+  char buf[256];
+  snprintf(buf, sizeof(buf), "/proc/%d/task", pid);
+  DIR* task = opendir(buf);
+  if (!task) {
+    LOG(WARNING) << "Cannot open " << buf;
+    return -1;
+  }
+
+  std::vector<pid_t> tids;
+  struct dirent* dent;
+  while ((dent = readdir(task))) {
+    char *endptr;
+    const unsigned long int tid_ul = strtoul(dent->d_name, &endptr, 10);
+    if (tid_ul == ULONG_MAX || *endptr)
+      continue;
+    tids.push_back(tid_ul);
+  }
+  closedir(task);
+
+  scoped_array<char> syscall_data(new char[expected_data.length()]);
+  for (std::vector<pid_t>::const_iterator
+       i = tids.begin(); i != tids.end(); ++i) {
+    const pid_t current_tid = *i;
+    snprintf(buf, sizeof(buf), "/proc/%d/task/%d/syscall", pid, current_tid);
+    int fd = open(buf, O_RDONLY);
+    if (fd < 0)
+      continue;
+    bool read_ret =
+        file_util::ReadFromFD(fd, syscall_data.get(), expected_data.length());
+    close(fd);
+    if (!read_ret)
+      continue;
+
+    if (0 == strncmp(expected_data.c_str(), syscall_data.get(),
+                     expected_data.length())) {
+      return current_tid;
+    }
+  }
+  return -1;
 }
 
 }  // namespace base
