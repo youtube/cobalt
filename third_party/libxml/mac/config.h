@@ -1,21 +1,21 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 #define PACKAGE "libxml2"
-#define VERSION "2.6.32"
+#define VERSION "2.7.7"
 #define HAVE_LIBZ 1
 /* #undef HAVE_LIBM */
-#define HAVE_ISINF 
-#define HAVE_ISNAN 
+#define HAVE_ISINF /**/
+#define HAVE_ISNAN /**/
 /* #undef HAVE_LIBHISTORY */
 /* #undef HAVE_LIBREADLINE */
-#define HAVE_LIBPTHREAD 
-#define HAVE_PTHREAD_H 
+#define HAVE_LIBPTHREAD /**/
+#define HAVE_PTHREAD_H /**/
 
 /* Define if IPV6 support is there */
-#define SUPPORT_IP6 
+#define SUPPORT_IP6 /**/
 
 /* Define if getaddrinfo is there */
-#define HAVE_GETADDRINFO 
+#define HAVE_GETADDRINFO /**/
 
 /* Define to 1 if you have the <ansidecl.h> header file. */
 /* #undef HAVE_ANSIDECL_H */
@@ -42,7 +42,7 @@
 #define HAVE_DLFCN_H 1
 
 /* Have dlopen based dso */
-#define HAVE_DLOPEN 
+#define HAVE_DLOPEN /**/
 
 /* Define to 1 if you have the <dl.h> header file. */
 /* #undef HAVE_DL_H */
@@ -75,7 +75,7 @@
 #define HAVE_FTIME 1
 
 /* Define if getaddrinfo is there */
-#define HAVE_GETADDRINFO 
+#define HAVE_GETADDRINFO /**/
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
@@ -86,11 +86,14 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
+/* Define to 1 if you have the <inttypes.h.h> header file. */
+/* #undef HAVE_INTTYPES_H_H */
+
 /* Define if isinf is there */
-#define HAVE_ISINF 
+#define HAVE_ISINF /**/
 
 /* Define if isnan is there */
-#define HAVE_ISNAN 
+#define HAVE_ISNAN /**/
 
 /* Define to 1 if you have the `isnand' function. */
 /* #undef HAVE_ISNAND */
@@ -99,7 +102,7 @@
 /* #undef HAVE_LIBHISTORY */
 
 /* Define if pthread library is there (-lpthread) */
-#define HAVE_LIBPTHREAD 
+#define HAVE_LIBPTHREAD /**/
 
 /* Define if readline library is there (-lreadline) */
 /* #undef HAVE_LIBREADLINE */
@@ -134,11 +137,14 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #define HAVE_NETINET_IN_H 1
 
+/* Define to 1 if you have the <poll.h> header file. */
+#define HAVE_POLL_H 1
+
 /* Define to 1 if you have the `printf' function. */
 #define HAVE_PRINTF 1
 
 /* Define if <pthread.h> is there */
-#define HAVE_PTHREAD_H 
+#define HAVE_PTHREAD_H /**/
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #define HAVE_RESOLV_H 1
@@ -250,6 +256,10 @@
 /* Define as const if the declaration of iconv() needs const. */
 /* #undef ICONV_CONST */
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#define LT_OBJDIR ".libs/"
+
 /* Name of package */
 #define PACKAGE "libxml2"
 
@@ -265,6 +275,9 @@
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME ""
 
+/* Define to the home page for this package. */
+#define PACKAGE_URL ""
+
 /* Define to the version of this package. */
 #define PACKAGE_VERSION ""
 
@@ -275,10 +288,10 @@
 #define STDC_HEADERS 1
 
 /* Support for IPv6 */
-#define SUPPORT_IP6 
+#define SUPPORT_IP6 /**/
 
 /* Version number of package */
-#define VERSION "2.6.32"
+#define VERSION "2.7.7"
 
 /* Determine what socket length (socklen_t) data type is */
 #define XML_SOCKLEN_T socklen_t
