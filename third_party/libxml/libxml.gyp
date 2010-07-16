@@ -148,9 +148,6 @@
             'xpath.c',
             'xpointer.c',
           ],
-          'defines': [
-            'LIBXML_STATIC',
-          ],
           'include_dirs': [
             '<(os_include)',
             '<(os_include)/include',
@@ -164,9 +161,6 @@
             '../icu/icu.gyp:icuuc',
           ],
           'direct_dependent_settings': {
-            'defines': [
-              'LIBXML_STATIC',
-            ],
             'include_dirs': [
               '<(os_include)/include',
               'include',
@@ -184,6 +178,11 @@
             ['OS=="mac"', {'defines': ['_REENTRANT']}],
             ['OS=="win"', {
               'product_name': 'libxml2',
+              'defines': [
+                # This symbol prevents libxml from marking its functions with
+                # __declspec(dllexport).
+                'LIBXML_STATIC',
+              ],
             }, {  # else: OS!="win"
               'product_name': 'xml2',
             }],
