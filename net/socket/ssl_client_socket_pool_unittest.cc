@@ -585,7 +585,7 @@ TEST_F(SSLClientSocketPoolTest, NeedProxyAuth) {
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
   EXPECT_FALSE(handle.is_ssl_error());
-  const HttpResponseInfo& tunnel_info = handle.tunnel_auth_response_info();
+  const HttpResponseInfo& tunnel_info = handle.ssl_error_response_info();
   EXPECT_EQ(tunnel_info.headers->response_code(), 407);
 }
 
@@ -633,7 +633,7 @@ TEST_F(SSLClientSocketPoolTest, DoProxyAuth) {
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
   EXPECT_FALSE(handle.is_ssl_error());
-  const HttpResponseInfo& tunnel_info = handle.tunnel_auth_response_info();
+  const HttpResponseInfo& tunnel_info = handle.ssl_error_response_info();
   EXPECT_EQ(tunnel_info.headers->response_code(), 407);
 
   params->http_proxy_params()->auth_controller()->ResetAuth(std::wstring(),
@@ -698,7 +698,7 @@ TEST_F(SSLClientSocketPoolTest, DoProxyAuthNoKeepAlive) {
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
   EXPECT_FALSE(handle.is_ssl_error());
-  const HttpResponseInfo& tunnel_info = handle.tunnel_auth_response_info();
+  const HttpResponseInfo& tunnel_info = handle.ssl_error_response_info();
   EXPECT_EQ(tunnel_info.headers->response_code(), 407);
 
   params->http_proxy_params()->auth_controller()->ResetAuth(std::wstring(),

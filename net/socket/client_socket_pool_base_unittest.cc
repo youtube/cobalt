@@ -155,8 +155,9 @@ class TestConnectJob : public ConnectJob {
     if (store_additional_error_state_) {
       // Set all of the additional error state fields in some way.
       handle->set_is_ssl_error(true);
-      scoped_refptr<HttpResponseHeaders> headers(new HttpResponseHeaders(""));
-      handle->set_tunnel_auth_response_info(headers, NULL);
+      HttpResponseInfo info;
+      info.headers = new HttpResponseHeaders("");
+      handle->set_ssl_error_response_info(info);
     }
   }
 
@@ -626,14 +627,15 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
   TestSocketRequest req(&request_order_, &completion_count_);
   // Set the additional error state members to ensure that they get cleared.
   req.handle()->set_is_ssl_error(true);
-  scoped_refptr<HttpResponseHeaders> headers(new HttpResponseHeaders(""));
-  req.handle()->set_tunnel_auth_response_info(headers, NULL);
+  HttpResponseInfo info;
+  info.headers = new HttpResponseHeaders("");
+  req.handle()->set_ssl_error_response_info(info);
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.handle()->Init("a", params_,
                                                       kDefaultPriority, &req,
                                                       pool_, log.bound()));
   EXPECT_FALSE(req.handle()->socket());
   EXPECT_FALSE(req.handle()->is_ssl_error());
-  EXPECT_TRUE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
+  EXPECT_TRUE(req.handle()->ssl_error_response_info().headers.get() == NULL);
 
   EXPECT_EQ(3u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
@@ -1386,14 +1388,15 @@ TEST_F(ClientSocketPoolBaseTest,
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   // Set the additional error state members to ensure that they get cleared.
   req.handle()->set_is_ssl_error(true);
-  scoped_refptr<HttpResponseHeaders> headers(new HttpResponseHeaders(""));
-  req.handle()->set_tunnel_auth_response_info(headers, NULL);
+  HttpResponseInfo info;
+  info.headers = new HttpResponseHeaders("");
+  req.handle()->set_ssl_error_response_info(info);
   EXPECT_EQ(ERR_IO_PENDING, req.handle()->Init("a", params_, kDefaultPriority,
                                                &req, pool_, log.bound()));
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
   EXPECT_FALSE(req.handle()->is_ssl_error());
-  EXPECT_TRUE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
+  EXPECT_TRUE(req.handle()->ssl_error_response_info().headers.get() == NULL);
 
   EXPECT_EQ(3u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
@@ -1598,7 +1601,7 @@ TEST_F(ClientSocketPoolBaseTest, AdditionalErrorStateSynchronous) {
   EXPECT_FALSE(req.handle()->is_initialized());
   EXPECT_FALSE(req.handle()->socket());
   EXPECT_TRUE(req.handle()->is_ssl_error());
-  EXPECT_FALSE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
+  EXPECT_FALSE(req.handle()->ssl_error_response_info().headers.get() == NULL);
   req.handle()->Reset();
 }
 
@@ -1615,7 +1618,7 @@ TEST_F(ClientSocketPoolBaseTest, AdditionalErrorStateAsynchronous) {
   EXPECT_FALSE(req.handle()->is_initialized());
   EXPECT_FALSE(req.handle()->socket());
   EXPECT_TRUE(req.handle()->is_ssl_error());
-  EXPECT_FALSE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
+  EXPECT_FALSE(req.handle()->ssl_error_response_info().headers.get() == NULL);
   req.handle()->Reset();
 }
 
@@ -1861,7 +1864,7 @@ TEST_F(ClientSocketPoolBaseTest, AdditionalErrorSocketsDontUseSlot) {
   EXPECT_FALSE(req.handle()->is_initialized());
   EXPECT_FALSE(req.handle()->socket());
   EXPECT_TRUE(req.handle()->is_ssl_error());
-  EXPECT_FALSE(req.handle()->tunnel_auth_response_info().headers.get() == NULL);
+  EXPECT_FALSE(req.handle()->ssl_error_response_info().headers.get() == NULL);
 }
 
 // http://crbug.com/44724 regression test.

@@ -104,27 +104,28 @@ class ClientSocketHandle {
   void set_socket(ClientSocket* s) { socket_.reset(s); }
   void set_idle_time(base::TimeDelta idle_time) { idle_time_ = idle_time; }
   void set_pool_id(int id) { pool_id_ = id; }
-  void set_tunnel_auth_response_info(
-      const scoped_refptr<HttpResponseHeaders>& headers,
-      const scoped_refptr<AuthChallengeInfo>& auth_challenge) {
-    tunnel_auth_response_info_.headers = headers;
-    tunnel_auth_response_info_.auth_challenge = auth_challenge;
-  }
   void set_is_ssl_error(bool is_ssl_error) { is_ssl_error_ = is_ssl_error; }
+  void set_ssl_error_response_info(const HttpResponseInfo& ssl_error_state) {
+    ssl_error_response_info_ = ssl_error_state;
+  }
+
+  // Only valid if there is no |socket_|.
+  bool is_ssl_error() const {
+    DCHECK(socket_.get() == NULL);
+    return is_ssl_error_;
+  }
+  // On an ERR_PROXY_AUTH_REQUESTED error, the |headers| and |auth_challenge|
+  // fields are filled in. On an ERR_SSL_CLIENT_AUTH_CERT_NEEDED error,
+  // the |cert_request_info| field is set.
+  const HttpResponseInfo& ssl_error_response_info() const {
+    return ssl_error_response_info_;
+  }
 
   // These may only be used if is_initialized() is true.
   const std::string& group_name() const { return group_name_; }
   int id() const { return pool_id_; }
   ClientSocket* socket() { return socket_.get(); }
   ClientSocket* release_socket() { return socket_.release(); }
-  const HttpResponseInfo& tunnel_auth_response_info() const {
-    return tunnel_auth_response_info_;
-  }
-  // Only valid if there is no |socket_|.
-  bool is_ssl_error() const {
-    DCHECK(socket_.get() == NULL);
-    return is_ssl_error_;
-  }
   bool is_reused() const { return is_reused_; }
   base::TimeDelta idle_time() const { return idle_time_; }
   SocketReuseType reuse_type() const {
@@ -176,7 +177,7 @@ class ClientSocketHandle {
   base::TimeDelta idle_time_;
   int pool_id_;  // See ClientSocketPool::ReleaseSocket() for an explanation.
   bool is_ssl_error_;
-  HttpResponseInfo tunnel_auth_response_info_;
+  HttpResponseInfo ssl_error_response_info_;
   base::TimeTicks init_time_;
   base::TimeDelta setup_time_;
 

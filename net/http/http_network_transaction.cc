@@ -866,7 +866,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   if (result == ERR_PROXY_AUTH_REQUESTED) {
     DCHECK(!ssl_started);
     const HttpResponseInfo& tunnel_auth_response =
-        connection_->tunnel_auth_response_info();
+        connection_->ssl_error_response_info();
 
     response_.headers = tunnel_auth_response.headers;
     response_.auth_challenge = tunnel_auth_response.auth_challenge;
@@ -924,8 +924,11 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     }
   }
 
-  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
+  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
+    response_.cert_request_info =
+        connection_->ssl_error_response_info().cert_request_info;
     return HandleCertificateRequest(result);
+  }
   if (result < 0)
     return HandleSSLHandshakeError(result);
 
@@ -1055,6 +1058,10 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
                  << " during SSL renegotiation";
       result = ERR_CERT_ERROR_IN_SSL_RENEGOTIATION;
     } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
+      response_.cert_request_info = new SSLCertRequestInfo;
+      SSLClientSocket* ssl_socket =
+          static_cast<SSLClientSocket*>(connection_->socket());
+      ssl_socket->GetSSLCertRequestInfo(response_.cert_request_info);
       result = HandleCertificateRequest(result);
       if (result == OK)
         return result;
@@ -1498,24 +1505,10 @@ int HttpNetworkTransaction::HandleCertificateError(int error) {
 }
 
 int HttpNetworkTransaction::HandleCertificateRequest(int error) {
-  // Assert that the socket did not send a client certificate.
-  // Note: If we got a reused socket, it was created with some other
-  // transaction's ssl_config_, so we need to disable this assertion.  We can
-  // get a certificate request on a reused socket when the server requested
-  // renegotiation (rehandshake).
-  // TODO(wtc): add a GetSSLParams method to SSLClientSocket so we can query
-  // the SSL parameters it was created with and get rid of the reused_socket_
-  // test.
-  DCHECK(reused_socket_ || !ssl_config_.send_client_cert);
-
-  response_.cert_request_info = new SSLCertRequestInfo;
-  SSLClientSocket* ssl_socket =
-      static_cast<SSLClientSocket*>(connection_->socket());
-  ssl_socket->GetSSLCertRequestInfo(response_.cert_request_info);
-
   // Close the connection while the user is selecting a certificate to send
   // to the server.
-  connection_->socket()->Disconnect();
+  if (connection_->socket())
+    connection_->socket()->Disconnect();
   connection_->Reset();
 
   // If the user selected one of the certificate in client_certs for this
