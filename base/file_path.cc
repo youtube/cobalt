@@ -109,6 +109,23 @@ bool AreAllSeparators(const FilePath::StringType& input) {
 
 }  // namespace
 
+FilePath::FilePath() {
+}
+
+FilePath::FilePath(const FilePath& that) : path_(that.path_) {
+}
+
+FilePath::FilePath(const StringType& path) : path_(path) {
+}
+
+FilePath::~FilePath() {
+}
+
+FilePath& FilePath::operator=(const FilePath& that) {
+  path_ = that.path_;
+  return *this;
+}
+
 bool FilePath::IsSeparator(CharType character) {
   for (size_t i = 0; i < arraysize(kSeparators) - 1; ++i) {
     if (character == kSeparators[i]) {
