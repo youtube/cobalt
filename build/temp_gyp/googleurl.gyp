@@ -56,8 +56,13 @@
         ['OS=="win" and component=="shared_library"', {
           'defines': [
             'GURL_DLL',
-            'GURL_IMPLEMENTATION',
+            'GURL_IMPLEMENTATION=1',
           ],
+          'direct_dependent_settings': {
+            'defines': [
+              'GURL_DLL',
+            ],
+          },
         }],
       ],
     },
