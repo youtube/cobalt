@@ -51,8 +51,10 @@ HttpCache::ActiveEntry::ActiveEntry(disk_cache::Entry* e)
 }
 
 HttpCache::ActiveEntry::~ActiveEntry() {
-  if (disk_entry)
+  if (disk_entry) {
     disk_entry->Close();
+    disk_entry = NULL;
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -94,6 +96,8 @@ class HttpCache::WorkItem {
 
   // Calls back the transaction with the result of the operation.
   void NotifyTransaction(int result, ActiveEntry* entry) {
+    // TODO(rvargas): convert to DCHECK after fixing bug 47895.
+    CHECK(!entry || entry->disk_entry);
     if (entry_)
       *entry_ = entry;
     if (trans_)
@@ -544,19 +548,21 @@ HttpCache::ActiveEntry* HttpCache::ActivateEntry(
 }
 
 void HttpCache::DeactivateEntry(ActiveEntry* entry) {
-  DCHECK(!entry->will_process_pending_queue);
-  DCHECK(!entry->doomed);
-  DCHECK(!entry->writer);
-  DCHECK(entry->readers.empty());
-  DCHECK(entry->pending_queue.empty());
+  // TODO(rvargas): convert to DCHECKs after fixing bug 47895.
+  CHECK(!entry->will_process_pending_queue);
+  CHECK(!entry->doomed);
+  CHECK(!entry->writer);
+  CHECK(entry->disk_entry);
+  CHECK(entry->readers.empty());
+  CHECK(entry->pending_queue.empty());
 
   std::string key = entry->disk_entry->GetKey();
   if (key.empty())
     return SlowDeactivateEntry(entry);
 
   ActiveEntriesMap::iterator it = active_entries_.find(key);
-  DCHECK(it != active_entries_.end());
-  DCHECK(it->second == entry);
+  CHECK(it != active_entries_.end());
+  CHECK(it->second == entry);
 
   active_entries_.erase(it);
   delete entry;
@@ -675,7 +681,9 @@ void HttpCache::DestroyEntry(ActiveEntry* entry) {
 }
 
 int HttpCache::AddTransactionToEntry(ActiveEntry* entry, Transaction* trans) {
-  DCHECK(entry);
+  // TODO(rvargas): convert to DCHECKs after fixing bug 47895.
+  CHECK(entry);
+  CHECK(entry->disk_entry);
 
   // We implement a basic reader/writer lock for the disk cache entry.  If
   // there is already a writer, then everyone has to wait for the writer to
@@ -882,7 +890,8 @@ void HttpCache::ProcessPendingQueue(ActiveEntry* entry) {
 
 void HttpCache::OnProcessPendingQueue(ActiveEntry* entry) {
   entry->will_process_pending_queue = false;
-  DCHECK(!entry->writer);
+  // TODO(rvargas): convert to DCHECK after fixing bug 47895.
+  CHECK(!entry->writer);
 
   // If no one is interested in this entry, then we can de-activate it.
   if (entry->pending_queue.empty()) {
