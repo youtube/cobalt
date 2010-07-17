@@ -7,13 +7,10 @@
 
 #include <string.h>
 
-#include <map>
-#include <set>
 #include <string>
 #include <vector>
 
 #include "base/ref_counted.h"
-#include "base/singleton.h"
 #include "base/time.h"
 #include "net/base/x509_cert_types.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
@@ -53,13 +50,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 #endif
 
   typedef std::vector<OSCertHandle> OSCertHandles;
-
-  // Legacy names for types now defined in x509_cert_types.h.
-  // TODO(snej): Clean up existing code using these names to use the new names.
-  typedef CertPrincipal Principal;
-  typedef CertPolicy Policy;
-  typedef SHA1Fingerprint Fingerprint;
-  typedef SHA1FingerprintLessThan FingerprintLessThan;
 
   // Predicate functor used in maps when X509Certificate is used as the key.
   class LessThan
@@ -120,10 +110,10 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // The subject of the certificate.  For HTTPS server certificates, this
   // represents the web server.  The common name of the subject should match
   // the host name of the web server.
-  const Principal& subject() const { return subject_; }
+  const CertPrincipal& subject() const { return subject_; }
 
   // The issuer of the certificate.
-  const Principal& issuer() const { return issuer_; }
+  const CertPrincipal& issuer() const { return issuer_; }
 
   // Time period during which the certificate is valid.  More precisely, this
   // certificate is invalid before the |valid_start| date and invalid after
@@ -134,7 +124,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   const base::Time& valid_expiry() const { return valid_expiry_; }
 
   // The fingerprint of this certificate.
-  const Fingerprint& fingerprint() const { return fingerprint_; }
+  const SHA1Fingerprint& fingerprint() const { return fingerprint_; }
 
   // Gets the DNS names in the certificate.  Pursuant to RFC 2818, Section 3.1
   // Server Identity, if the certificate has a subjectAltName extension of
@@ -224,31 +214,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   FRIEND_TEST(X509CertificateTest, Cache);
   FRIEND_TEST(X509CertificateTest, IntermediateCertificates);
 
-  // A cache of X509Certificate objects.
-  class Cache {
-   public:
-    static Cache* GetInstance();
-    void Insert(X509Certificate* cert);
-    void Remove(X509Certificate* cert);
-    X509Certificate* Find(const Fingerprint& fingerprint);
-
-   private:
-    typedef std::map<Fingerprint, X509Certificate*, FingerprintLessThan>
-        CertMap;
-
-    // Obtain an instance of X509Certificate::Cache via GetInstance().
-    Cache() { }
-    friend struct DefaultSingletonTraits<Cache>;
-
-    // You must acquire this lock before using any private data of this object.
-    // You must not block while holding this lock.
-    Lock lock_;
-
-    // The certificate cache.  You must acquire |lock_| before using |cache_|.
-    CertMap cache_;
-
-    DISALLOW_COPY_AND_ASSIGN(Cache);
-  };
+  class Cache;
 
   // Construct an X509Certificate from a handle to the certificate object
   // in the underlying crypto library.
@@ -264,13 +230,13 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
   // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
   // (all zero) fingerprint on failure.
-  static Fingerprint CalculateFingerprint(OSCertHandle cert_handle);
+  static SHA1Fingerprint CalculateFingerprint(OSCertHandle cert_handle);
 
   // The subject of the certificate.
-  Principal subject_;
+  CertPrincipal subject_;
 
   // The issuer of the certificate.
-  Principal issuer_;
+  CertPrincipal issuer_;
 
   // This certificate is not valid before |valid_start_|
   base::Time valid_start_;
@@ -279,7 +245,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   base::Time valid_expiry_;
 
   // The fingerprint of this certificate.
-  Fingerprint fingerprint_;
+  SHA1Fingerprint fingerprint_;
 
   // A handle to the certificate object in the underlying crypto library.
   OSCertHandle cert_handle_;
