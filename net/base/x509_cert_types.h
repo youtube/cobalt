@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_BASE_X509_TYPES_H_
-#define NET_BASE_X509_TYPES_H_
+#ifndef NET_BASE_X509_CERT_TYPES_H_
+#define NET_BASE_X509_CERT_TYPES_H_
 
 #include <string.h>
 
+#include <functional>
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -43,7 +45,10 @@ struct SHA1Fingerprint {
 class SHA1FingerprintLessThan
     : public std::binary_function<SHA1Fingerprint, SHA1Fingerprint, bool> {
  public:
-  bool operator() (const SHA1Fingerprint& lhs, const SHA1Fingerprint& rhs) const;
+  bool operator() (const SHA1Fingerprint& lhs,
+                   const SHA1Fingerprint& rhs) const {
+    return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
+  }
 };
 
 // CertPrincipal represents the issuer or subject field of an X.509 certificate.
@@ -129,4 +134,4 @@ inline bool CSSMOIDEqual(const CSSM_OID* oid1, const CSSM_OID* oid2) {
 
 }  // namespace net
 
-#endif  // NET_BASE_X509_TYPES_H_
+#endif  // NET_BASE_X509_CERT_TYPES_H_

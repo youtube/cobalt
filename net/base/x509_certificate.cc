@@ -10,8 +10,11 @@
 #include <cert.h>
 #endif
 
+#include <map>
+
 #include "base/histogram.h"
 #include "base/logging.h"
+#include "base/singleton.h"
 #include "base/time.h"
 
 namespace net {
@@ -20,7 +23,7 @@ namespace {
 
 // Returns true if this cert fingerprint is the null (all zero) fingerprint.
 // We use this as a bogus fingerprint value.
-bool IsNullFingerprint(const X509Certificate::Fingerprint& fingerprint) {
+bool IsNullFingerprint(const SHA1Fingerprint& fingerprint) {
   for (size_t i = 0; i < arraysize(fingerprint.data); ++i) {
     if (fingerprint.data[i] != 0)
       return false;
@@ -57,24 +60,12 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
 #endif
 }
 
-bool X509Certificate::FingerprintLessThan::operator()(
-    const SHA1Fingerprint& lhs,
-    const SHA1Fingerprint& rhs) const {
-  for (size_t i = 0; i < sizeof(lhs.data); ++i) {
-    if (lhs.data[i] < rhs.data[i])
-      return true;
-    if (lhs.data[i] > rhs.data[i])
-      return false;
-  }
-  return false;
-}
-
 bool X509Certificate::LessThan::operator()(X509Certificate* lhs,
                                            X509Certificate* rhs) const {
   if (lhs == rhs)
     return false;
 
-  X509Certificate::FingerprintLessThan fingerprint_functor;
+  SHA1FingerprintLessThan fingerprint_functor;
   return fingerprint_functor(lhs->fingerprint_, rhs->fingerprint_);
 }
 
@@ -83,6 +74,32 @@ bool X509Certificate::LessThan::operator()(X509Certificate* lhs,
 // The cache does not hold a reference to the certificate objects.  The objects
 // must |Remove| themselves from the cache upon destruction (or else the cache
 // will be holding dead pointers to the objects).
+// TODO(rsleevi): There exists a chance of a use-after-free, due to a race
+// between Find() and Remove(). See http://crbug.com/49377
+class X509Certificate::Cache {
+ public:
+  static Cache* GetInstance();
+  void Insert(X509Certificate* cert);
+  void Remove(X509Certificate* cert);
+  X509Certificate* Find(const SHA1Fingerprint& fingerprint);
+
+ private:
+  typedef std::map<SHA1Fingerprint, X509Certificate*, SHA1FingerprintLessThan>
+      CertMap;
+
+  // Obtain an instance of X509Certificate::Cache via GetInstance().
+  Cache() {}
+  friend struct DefaultSingletonTraits<Cache>;
+
+  // You must acquire this lock before using any private data of this object.
+  // You must not block while holding this lock.
+  Lock lock_;
+
+  // The certificate cache.  You must acquire |lock_| before using |cache_|.
+  CertMap cache_;
+
+  DISALLOW_COPY_AND_ASSIGN(Cache);
+};
 
 // Get the singleton object for the cache.
 // static
@@ -113,7 +130,8 @@ void X509Certificate::Cache::Remove(X509Certificate* cert) {
 
 // Find a certificate in the cache with the given fingerprint.  If one does
 // not exist, this method returns NULL.
-X509Certificate* X509Certificate::Cache::Find(const Fingerprint& fingerprint) {
+X509Certificate* X509Certificate::Cache::Find(
+    const SHA1Fingerprint& fingerprint) {
   AutoLock lock(lock_);
 
   CertMap::iterator pos(cache_.find(fingerprint));
