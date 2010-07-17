@@ -377,7 +377,7 @@ bool ContainsPolicy(const CERT_POLICIES_INFO* policies_info,
 // Helper function to parse a principal from a WinInet description of that
 // principal.
 void ParsePrincipal(const std::string& description,
-                    X509Certificate::Principal* principal) {
+                    CertPrincipal* principal) {
   // The description of the principal is a string with each LDAP value on
   // a separate line.
   const std::string kDelimiters("\r\n");
@@ -722,7 +722,7 @@ bool X509Certificate::VerifyEV() const {
 
   // Look up the EV policy OID of the root CA.
   PCCERT_CONTEXT root_cert = element[num_elements - 1]->pCertContext;
-  Fingerprint fingerprint = CalculateFingerprint(root_cert);
+  SHA1Fingerprint fingerprint = CalculateFingerprint(root_cert);
   const char* ev_policy_oid = NULL;
   if (!metadata->GetPolicyOID(fingerprint, &ev_policy_oid))
     return false;
@@ -766,13 +766,13 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 }
 
 // static
-X509Certificate::Fingerprint X509Certificate::CalculateFingerprint(
+SHA1Fingerprint X509Certificate::CalculateFingerprint(
     OSCertHandle cert) {
   DCHECK(NULL != cert->pbCertEncoded);
   DCHECK(0 != cert->cbCertEncoded);
 
   BOOL rv;
-  Fingerprint sha1;
+  SHA1Fingerprint sha1;
   DWORD sha1_size = sizeof(sha1.data);
   rv = CryptHashCertificate(NULL, CALG_SHA1, 0, cert->pbCertEncoded,
                             cert->cbCertEncoded, sha1.data, &sha1_size);

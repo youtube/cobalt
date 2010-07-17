@@ -691,9 +691,9 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 }
 
 // static
-X509Certificate::Fingerprint X509Certificate::CalculateFingerprint(
+SHA1Fingerprint X509Certificate::CalculateFingerprint(
     OSCertHandle cert) {
-  Fingerprint sha1;
+  SHA1Fingerprint sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   CSSM_DATA cert_data;
@@ -791,7 +791,7 @@ OSStatus X509Certificate::CreateSSLClientPolicy(SecPolicyRef* out_policy) {
 // static
 bool X509Certificate::GetSSLClientCertificates (
     const std::string& server_domain,
-    const std::vector<Principal>& valid_issuers,
+    const std::vector<CertPrincipal>& valid_issuers,
     std::vector<scoped_refptr<X509Certificate> >* certs) {
   scoped_cftyperef<SecIdentityRef> preferred_identity;
   if (!server_domain.empty()) {
@@ -826,12 +826,11 @@ bool X509Certificate::GetSSLClientCertificates (
     scoped_refptr<X509Certificate> cert(
         CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT,
                          OSCertHandles()));
-    // cert_handle is adoped by cert, so I don't need to release it myself.
     if (cert->HasExpired() || !cert->SupportsSSLClientAuth())
       continue;
 
     // Skip duplicates (a cert may be in multiple keychains).
-    X509Certificate::Fingerprint fingerprint = cert->fingerprint();
+    const SHA1Fingerprint& fingerprint = cert->fingerprint();
     unsigned i;
     for (i = 0; i < certs->size(); ++i) {
       if ((*certs)[i]->fingerprint().Equals(fingerprint))
