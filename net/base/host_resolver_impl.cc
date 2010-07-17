@@ -52,13 +52,17 @@ HostCache* CreateDefaultCache() {
 
 }  // anonymous namespace
 
-HostResolver* CreateSystemHostResolver() {
+HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves) {
   // Maximum of 50 concurrent threads.
   // TODO(eroman): Adjust this, do some A/B experiments.
-  static const size_t kMaxJobs = 50u;
+  static const size_t kDefaultMaxJobs = 50u;
+
+  if (max_concurrent_resolves == HostResolver::kDefaultParallelism)
+    max_concurrent_resolves = kDefaultMaxJobs;
 
   HostResolverImpl* resolver =
-      new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs);
+      new HostResolverImpl(NULL, CreateDefaultCache(),
+                           max_concurrent_resolves);
 
   return resolver;
 }
