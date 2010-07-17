@@ -28,15 +28,20 @@ class UploadDataStream;
 class SpdyHttpStream : public SpdyStream::Delegate {
  public:
   // SpdyHttpStream constructor
-  explicit SpdyHttpStream(const scoped_refptr<SpdyStream>& stream);
+  SpdyHttpStream();
   virtual ~SpdyHttpStream();
 
   SpdyStream* stream() { return stream_.get(); }
 
+  // Initialize stream.  Must be called before calling InitializeRequest().
+  int InitializeStream(SpdySession* spdy_session,
+                       const HttpRequestInfo& request_info,
+                       const BoundNetLog& stream_net_log,
+                       CompletionCallback* callback);
+
   // Initialize request.  Must be called before calling SendRequest().
   // SpdyHttpStream takes ownership of |upload_data|. |upload_data| may be NULL.
-  void InitializeRequest(const HttpRequestInfo& request_info,
-                         base::Time request_time,
+  void InitializeRequest(base::Time request_time,
                          UploadDataStream* upload_data);
 
   const HttpResponseInfo* GetResponseInfo() const;
@@ -104,7 +109,8 @@ class SpdyHttpStream : public SpdyStream::Delegate {
   bool ShouldWaitForMoreBufferedData() const;
 
   ScopedRunnableMethodFactory<SpdyHttpStream> read_callback_factory_;
-  const scoped_refptr<SpdyStream> stream_;
+  scoped_refptr<SpdyStream> stream_;
+  scoped_refptr<SpdySession> spdy_session_;
 
   // The request to send.
   HttpRequestInfo request_info_;
