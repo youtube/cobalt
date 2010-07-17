@@ -241,14 +241,6 @@ int EntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   return net::ERR_IO_PENDING;
 }
 
-int EntryImpl::GetAvailableRangeImpl(int64 offset, int len, int64* start) {
-  int result = InitSparseData();
-  if (net::OK != result)
-    return result;
-
-  return sparse_->GetAvailableRange(offset, len, start);
-}
-
 int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
                                  CompletionCallback* callback) {
   backend_->background_queue()->GetAvailableRange(this, offset, len, start,
@@ -477,6 +469,14 @@ int EntryImpl::WriteSparseDataImpl(int64 offset, net::IOBuffer* buf,
                             buf_len, callback);
   ReportIOTime(kSparseWrite, start);
   return result;
+}
+
+int EntryImpl::GetAvailableRangeImpl(int64 offset, int len, int64* start) {
+  int result = InitSparseData();
+  if (net::OK != result)
+    return result;
+
+  return sparse_->GetAvailableRange(offset, len, start);
 }
 
 void EntryImpl::CancelSparseIOImpl() {
