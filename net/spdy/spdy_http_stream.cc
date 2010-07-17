@@ -4,7 +4,9 @@
 
 #include "net/spdy/spdy_http_stream.h"
 
+#include <algorithm>
 #include <list>
+#include <string>
 
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -126,28 +128,49 @@ void CreateSpdyHeadersFromHttpRequest(
 
 namespace net {
 
-SpdyHttpStream::SpdyHttpStream(const scoped_refptr<SpdyStream>& stream)
+SpdyHttpStream::SpdyHttpStream()
     : ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_factory_(this)),
-      stream_(stream),
+      stream_(NULL),
+      spdy_session_(NULL),
       response_info_(NULL),
       download_finished_(false),
       user_callback_(NULL),
       user_buffer_len_(0),
       buffered_read_callback_pending_(false),
-      more_read_data_pending_(false) {
-  CHECK(stream_.get());
-  stream_->SetDelegate(this);
-}
+      more_read_data_pending_(false) { }
 
 SpdyHttpStream::~SpdyHttpStream() {
-  stream_->DetachDelegate();
+  if (stream_)
+    stream_->DetachDelegate();
+}
+
+int SpdyHttpStream::InitializeStream(
+    SpdySession* spdy_session,
+    const HttpRequestInfo& request_info,
+    const BoundNetLog& stream_net_log,
+    CompletionCallback* callback) {
+  spdy_session_ = spdy_session;
+  request_info_ = request_info;
+  if (request_info_.method == "GET") {
+    int error = spdy_session_->GetPushStream(request_info.url, &stream_,
+                                             stream_net_log);
+    if (error != OK)
+      return error;
+  }
+
+  if (stream_.get())
+    return OK;
+  else
+    return spdy_session_->CreateStream(request_info_.url,
+                                       request_info_.priority, &stream_,
+                                       stream_net_log, callback, this);
 }
 
 void SpdyHttpStream::InitializeRequest(
-    const HttpRequestInfo& request_info,
     base::Time request_time,
     UploadDataStream* upload_data) {
-  request_info_ = request_info;
+  CHECK(stream_.get());
+  stream_->SetDelegate(this);
   linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
   CreateSpdyHeadersFromHttpRequest(request_info_, headers.get());
   stream_->set_spdy_headers(headers);
@@ -278,8 +301,11 @@ int SpdyHttpStream::SendRequest(HttpResponseInfo* response,
 }
 
 void SpdyHttpStream::Cancel() {
+  if (spdy_session_)
+    spdy_session_->CancelPendingCreateStreams(this);
   user_callback_ = NULL;
-  stream_->Cancel();
+  if (stream_)
+    stream_->Cancel();
 }
 
 bool SpdyHttpStream::OnSendHeadersComplete(int status) {

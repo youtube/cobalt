@@ -1112,4 +1112,3 @@ void SpdyFramer::set_enable_compression_default(bool value) {
 }
 
 }  // namespace spdy
-
