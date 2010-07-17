@@ -339,6 +339,7 @@ class HttpCache::Transaction : public HttpTransaction {
   int io_buf_len_;
   int read_offset_;
   int effective_load_flags_;
+  int write_len_;
   scoped_ptr<PartialData> partial_;  // We are dealing with range requests.
   uint64 final_upload_progress_;
   CompletionCallbackImpl<Transaction> io_callback_;

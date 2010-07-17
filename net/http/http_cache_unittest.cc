@@ -137,8 +137,10 @@ class MockDiskEntry : public disk_cache::Entry,
     DCHECK(callback);
     DCHECK(truncate);
 
-    if (fail_requests_)
-      return net::ERR_CACHE_READ_FAILURE;
+    if (fail_requests_) {
+      CallbackLater(callback, net::ERR_CACHE_READ_FAILURE);
+      return net::ERR_IO_PENDING;
+    }
 
     if (offset < 0 || offset > static_cast<int>(data_[index].size()))
       return net::ERR_FAILED;
