@@ -81,12 +81,15 @@ SSLConnectJob::~SSLConnectJob() {}
 
 LoadState SSLConnectJob::GetLoadState() const {
   switch (next_state_) {
+    case STATE_TUNNEL_CONNECT_COMPLETE:
+      if (transport_socket_handle_->socket())
+        return LOAD_STATE_ESTABLISHING_PROXY_TUNNEL;
+      // else, fall through.
     case STATE_TCP_CONNECT:
     case STATE_TCP_CONNECT_COMPLETE:
     case STATE_SOCKS_CONNECT:
     case STATE_SOCKS_CONNECT_COMPLETE:
     case STATE_TUNNEL_CONNECT:
-    case STATE_TUNNEL_CONNECT_COMPLETE:
       return transport_socket_handle_->GetLoadState();
     case STATE_SSL_CONNECT:
     case STATE_SSL_CONNECT_COMPLETE:
