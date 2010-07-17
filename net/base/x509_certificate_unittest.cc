@@ -76,6 +76,93 @@ unsigned char unosoft_hu_fingerprint[] = {
   0x25, 0x66, 0xf2, 0xec, 0x8b, 0x0f, 0xbf, 0xd8
 };
 
+// The fingerprint of the Google certificate used in the parsing tests,
+// which is newer than the one included in the x509_certificate_data.h
+unsigned char google_parse_fingerprint[] = {
+  0x40, 0x50, 0x62, 0xe5, 0xbe, 0xfd, 0xe4, 0xaf, 0x97, 0xe9, 0x38, 0x2a,
+  0xf1, 0x6c, 0xc8, 0x7c, 0x8f, 0xb7, 0xc4, 0xe2
+};
+
+// The fingerprint for the Thawte SGC certificate
+unsigned char thawte_parse_fingerprint[] = {
+  0xec, 0x07, 0x10, 0x03, 0xd8, 0xf5, 0xa3, 0x7f, 0x42, 0xc4, 0x55, 0x7f,
+  0x65, 0x6a, 0xae, 0x86, 0x65, 0xfa, 0x4b, 0x02
+};
+
+// Dec 18 00:00:00 2009 GMT
+const double kGoogleParseValidFrom = 1261094400;
+// Dec 18 23:59:59 2011 GMT
+const double kGoogleParseValidTo = 1324252799;
+
+struct CertificateFormatTestData {
+  const char* file_name;
+  X509Certificate::Format format;
+  unsigned char* chain_fingerprints[3];
+};
+
+const CertificateFormatTestData FormatTestData[] = {
+  // DER Parsing - single certificate, DER encoded
+  { "google.single.der", X509Certificate::FORMAT_DER,
+    { google_parse_fingerprint,
+      NULL, } },
+  // DER parsing - single certificate, PEM encoded
+  { "google.single.pem", X509Certificate::FORMAT_DER,
+    { google_parse_fingerprint,
+      NULL, } },
+  // PEM parsing - single certificate, PEM encoded with a PEB of
+  // "CERTIFICATE"
+  { "google.single.pem", X509Certificate::FORMAT_PEM,
+    { google_parse_fingerprint,
+      NULL, } },
+  // PEM parsing - sequence of certificates, PEM encoded with a PEB of
+  // "CERTIFICATE"
+  { "google.chain.pem", X509Certificate::FORMAT_PEM,
+    { google_parse_fingerprint,
+      thawte_parse_fingerprint,
+      NULL, } },
+  // PKCS#7 parsing - "degenerate" SignedData collection of certificates, DER
+  // encoding
+  { "google.binary.p7b", X509Certificate::FORMAT_PKCS7,
+    { google_parse_fingerprint,
+      thawte_parse_fingerprint,
+      NULL, } },
+  // PKCS#7 parsing - "degenerate" SignedData collection of certificates, PEM
+  // encoded with a PEM PEB of "CERTIFICATE"
+  { "google.pem_cert.p7b", X509Certificate::FORMAT_PKCS7,
+    { google_parse_fingerprint,
+      thawte_parse_fingerprint,
+      NULL, } },
+  // PKCS#7 parsing - "degenerate" SignedData collection of certificates, PEM
+  // encoded with a PEM PEB of "PKCS7"
+  { "google.pem_pkcs7.p7b", X509Certificate::FORMAT_PKCS7,
+    { google_parse_fingerprint,
+      thawte_parse_fingerprint,
+      NULL, } },
+  // All of the above, this time using auto-detection
+  { "google.single.der", X509Certificate::FORMAT_AUTO,
+    { google_parse_fingerprint,
+      NULL, } },
+  { "google.single.pem", X509Certificate::FORMAT_AUTO,
+    { google_parse_fingerprint,
+      NULL, } },
+  { "google.chain.pem", X509Certificate::FORMAT_AUTO,
+    { google_parse_fingerprint,
+      thawte_parse_fingerprint,
+      NULL, } },
+  { "google.binary.p7b", X509Certificate::FORMAT_AUTO,
+    { google_parse_fingerprint,
+      thawte_parse_fingerprint,
+      NULL, } },
+  { "google.pem_cert.p7b", X509Certificate::FORMAT_AUTO,
+    { google_parse_fingerprint,
+      thawte_parse_fingerprint,
+      NULL, } },
+  { "google.pem_pkcs7.p7b", X509Certificate::FORMAT_AUTO,
+    { google_parse_fingerprint,
+      thawte_parse_fingerprint,
+      NULL, } },
+};
+
 // Returns a FilePath object representing the src/net/data/ssl/certificates
 // directory in the source tree.
 FilePath GetTestCertsDirectory() {
@@ -100,12 +187,22 @@ X509Certificate* ImportCertFromFile(const FilePath& certs_dir,
   return X509Certificate::CreateFromBytes(cert_data.data(), cert_data.size());
 }
 
-}  // namespace
+CertificateList CreateCertificateListFromFile(
+    const FilePath& certs_dir,
+    const std::string& cert_file,
+    int format) {
+  FilePath cert_path = certs_dir.AppendASCII(cert_file);
+  std::string cert_data;
+  if (!file_util::ReadFileToString(cert_path, &cert_data))
+    return CertificateList();
+  return X509Certificate::CreateCertificateListFromBytes(cert_data.data(),
+                                                         cert_data.size(),
+                                                         format);
+}
 
-TEST(X509CertificateTest, GoogleCertParsing) {
-  scoped_refptr<X509Certificate> google_cert = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
-
+void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
+                     unsigned char* expected_fingerprint,
+                     double valid_from, double valid_to) {
   ASSERT_NE(static_cast<X509Certificate*>(NULL), google_cert);
 
   const CertPrincipal& subject = google_cert->subject();
@@ -132,14 +229,14 @@ TEST(X509CertificateTest, GoogleCertParsing) {
 
   // Use DoubleT because its epoch is the same on all platforms
   const Time& valid_start = google_cert->valid_start();
-  EXPECT_EQ(1238192407, valid_start.ToDoubleT());  // Mar 27 22:20:07 2009 GMT
+  EXPECT_EQ(valid_from, valid_start.ToDoubleT());
 
   const Time& valid_expiry = google_cert->valid_expiry();
-  EXPECT_EQ(1269728407, valid_expiry.ToDoubleT());  // Mar 27 22:20:07 2010 GMT
+  EXPECT_EQ(valid_to, valid_expiry.ToDoubleT());
 
   const SHA1Fingerprint& fingerprint = google_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
-    EXPECT_EQ(google_fingerprint[i], fingerprint.data[i]);
+    EXPECT_EQ(expected_fingerprint[i], fingerprint.data[i]);
 
   std::vector<std::string> dns_names;
   google_cert->GetDNSNames(&dns_names);
@@ -154,6 +251,18 @@ TEST(X509CertificateTest, GoogleCertParsing) {
   EXPECT_EQ(OK, google_cert->Verify("www.google.com", flags, &verify_result));
   EXPECT_EQ(0, verify_result.cert_status & CERT_STATUS_IS_EV);
 #endif
+}
+
+}  // namespace
+
+TEST(X509CertificateTest, GoogleCertParsing) {
+  scoped_refptr<X509Certificate> google_cert =
+      X509Certificate::CreateFromBytes(
+          reinterpret_cast<const char*>(google_der), sizeof(google_der));
+
+  CheckGoogleCert(google_cert, google_fingerprint,
+                  1238192407,   // Mar 27 22:20:07 2009 GMT
+                  1269728407);  // Mar 27 22:20:07 2010 GMT
 }
 
 TEST(X509CertificateTest, WebkitCertParsing) {
@@ -527,5 +636,42 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   X509Certificate::FreeOSCertHandle(google_handle);
 }
 #endif
+
+class X509CertificateParseTest
+    : public testing::TestWithParam<CertificateFormatTestData> {
+ public:
+  virtual ~X509CertificateParseTest() {}
+  virtual void SetUp() {
+    test_data_ = GetParam();
+  }
+  virtual void TearDown() {}
+
+ protected:
+  CertificateFormatTestData test_data_;
+};
+
+TEST_P(X509CertificateParseTest, CanParseFormat) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  CertificateList certs = CreateCertificateListFromFile(
+      certs_dir, test_data_.file_name, test_data_.format);
+  ASSERT_FALSE(certs.empty());
+  ASSERT_LE(certs.size(), arraysize(test_data_.chain_fingerprints));
+  CheckGoogleCert(certs.front(), google_parse_fingerprint,
+                  kGoogleParseValidFrom, kGoogleParseValidTo);
+
+  size_t i;
+  for (i = 0; i < arraysize(test_data_.chain_fingerprints) &&
+       i < certs.size() && test_data_.chain_fingerprints[i] != NULL; ++i) {
+    const X509Certificate* cert = certs[i];
+    const SHA1Fingerprint& actual_fingerprint = cert->fingerprint();
+    unsigned char* expected_fingerprint = test_data_.chain_fingerprints[i];
+
+    for (size_t j = 0; j < 20; ++j)
+      EXPECT_EQ(expected_fingerprint[j], actual_fingerprint.data[j]);
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(, X509CertificateParseTest,
+                        testing::ValuesIn(FormatTestData));
 
 }  // namespace net
