@@ -643,6 +643,9 @@ TEST_F(SSLClientSocketPoolTest, DoProxyAuth) {
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
+  // Test that http://crbug.com/49325 doesn't regress.
+  EXPECT_EQ(handle.GetLoadState(), LOAD_STATE_ESTABLISHING_PROXY_TUNNEL);
+
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
