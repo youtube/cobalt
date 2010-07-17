@@ -26,8 +26,6 @@ typedef net::test::MockGSSAPILibrary MockSecureServicesLibrary;
 
 namespace net {
 
-// TODO(cbentzel): Remove the OS_WIN condition once Negotiate is supported
-// on all platforms.
 namespace {
 
 void SetupTransactions(MockSecureServicesLibrary* mock_library) {
@@ -163,6 +161,7 @@ TEST(HttpAuthHandlerNegotiateTest, DisableCname) {
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(true, false, true, "http://alias:500",
                 &mock_library, &auth_handler);
+  ASSERT_TRUE(auth_handler.get() != NULL);
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
@@ -180,6 +179,7 @@ TEST(HttpAuthHandlerNegotiateTest, DisableCnameStandardPort) {
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(true, true, true,
                 "http://alias:80", &mock_library, &auth_handler);
+  ASSERT_TRUE(auth_handler.get() != NULL);
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
@@ -197,6 +197,7 @@ TEST(HttpAuthHandlerNegotiateTest, DisableCnameNonstandardPort) {
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(true, true, true,
                 "http://alias:500", &mock_library, &auth_handler);
+  ASSERT_TRUE(auth_handler.get() != NULL);
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
@@ -214,6 +215,7 @@ TEST(HttpAuthHandlerNegotiateTest, CnameSync) {
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(false, false, true,
                 "http://alias:500", &mock_library, &auth_handler);
+  ASSERT_TRUE(auth_handler.get() != NULL);
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
@@ -231,6 +233,7 @@ TEST(HttpAuthHandlerNegotiateTest, CnameAsync) {
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(false, false, false,
                 "http://alias:500", &mock_library, &auth_handler);
+  ASSERT_TRUE(auth_handler.get() != NULL);
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
