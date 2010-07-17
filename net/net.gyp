@@ -125,8 +125,6 @@
         'base/network_change_notifier_win.h',
         'base/nss_memio.c',
         'base/nss_memio.h',
-        'base/pem_tokenizer.cc',
-        'base/pem_tokenizer.h',
         'base/platform_mime_util.h',
         # TODO(tc): gnome-vfs? xdgmime? /etc/mime.types?
         'base/platform_mime_util_linux.cc',
@@ -676,7 +674,6 @@
         'base/net_test_constants.h',
         'base/net_test_suite.h',
         'base/net_util_unittest.cc',
-        'base/pem_tokenizer_unittest.cc',
         'base/registry_controlled_domain_unittest.cc',
         'base/run_all_unittests.cc',
         'base/sdch_filter_unittest.cc',

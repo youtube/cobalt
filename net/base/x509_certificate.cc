@@ -15,9 +15,7 @@
 #include "base/histogram.h"
 #include "base/logging.h"
 #include "base/singleton.h"
-#include "base/string_piece.h"
 #include "base/time.h"
-#include "net/base/pem_tokenizer.h"
 
 namespace net {
 
@@ -32,18 +30,6 @@ bool IsNullFingerprint(const SHA1Fingerprint& fingerprint) {
   }
   return true;
 }
-
-// Indicates the order to use when trying to decode binary data, which is
-// based on (speculation) as to what will be most common -> least common
-const X509Certificate::Format kFormatDecodePriority[] = {
-  X509Certificate::FORMAT_DER,
-  X509Certificate::FORMAT_PKCS7
-};
-
-// The PEM block header used for DER certificates
-const char kCertificateHeader[] = "CERTIFICATE";
-// The PEM block header used for PKCS#7 data
-const char kPKCS7Header[] = "PKCS7";
 
 }  // namespace
 
@@ -198,81 +184,6 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
                                            OSCertHandles());
   FreeOSCertHandle(cert_handle);
   return cert;
-}
-
-CertificateList X509Certificate::CreateCertificateListFromBytes(
-    const char* data, int length, int format) {
-  OSCertHandles certificates;
-
-  // Try each of the formats, in order of parse preference, to see if |data|
-  // contains the binary representation of a Format.
-  for (size_t i = 0; certificates.empty() &&
-       i < arraysize(kFormatDecodePriority); ++i) {
-    if (format & kFormatDecodePriority[i])
-      certificates = CreateOSCertHandlesFromBytes(data, length,
-                                                  kFormatDecodePriority[i]);
-  }
-
-  // No certs were read. Check to see if it is in a PEM-encoded form.
-  if (certificates.empty()) {
-    base::StringPiece data_string(data, length);
-    std::vector<std::string> pem_headers;
-
-    // To maintain compatibility with NSS/Firefox, CERTIFICATE is a universally
-    // valid PEM block header for any format.
-    pem_headers.push_back(kCertificateHeader);
-    if (format & FORMAT_PKCS7)
-      pem_headers.push_back(kPKCS7Header);
-
-    PEMTokenizer pem_tok(data_string, pem_headers);
-    while (pem_tok.GetNext()) {
-      std::string decoded(pem_tok.data());
-
-      OSCertHandle handle = NULL;
-      if (format & FORMAT_PEM)
-        handle = CreateOSCertHandleFromBytes(decoded.c_str(), decoded.size());
-      if (handle != NULL) {
-        // Parsed a DER encoded certificate. All PEM blocks that follow must
-        // also be DER encoded certificates wrapped inside of PEM blocks.
-        format = FORMAT_PEM;
-        certificates.push_back(handle);
-        continue;
-      }
-
-      // If the first block failed to parse as a DER certificate, and
-      // formats other than PEM are acceptable, check to see if the decoded
-      // data is one of the accepted formats.
-      if (format & ~FORMAT_PEM) {
-        for (size_t i = 0; certificates.empty() &&
-             i < arraysize(kFormatDecodePriority); ++i) {
-          if (format & kFormatDecodePriority[i]) {
-            certificates = CreateOSCertHandlesFromBytes(decoded.c_str(),
-                decoded.size(), kFormatDecodePriority[i]);
-          }
-        }
-      }
-
-      // Stop parsing after the first block for any format but a sequence of
-      // PEM-encoded DER certificates. The case of FORMAT_PEM is handled
-      // above, and continues processing until a certificate fails to parse.
-      break;
-    }
-  }
-
-  CertificateList results;
-  // No certificates parsed.
-  if (certificates.empty())
-    return results;
-
-  for (OSCertHandles::iterator it = certificates.begin();
-       it != certificates.end(); ++it) {
-    X509Certificate* result = CreateFromHandle(*it, SOURCE_LONE_CERT_IMPORT,
-                                               OSCertHandles());
-    results.push_back(scoped_refptr<X509Certificate>(result));
-    FreeOSCertHandle(*it);
-  }
-
-  return results;
 }
 
 X509Certificate::X509Certificate(OSCertHandle cert_handle,
