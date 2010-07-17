@@ -115,14 +115,11 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   request.url = GURL("http://www.google.com/");
   TestCompletionCallback callback;
   HttpResponseInfo response;
-
-  scoped_refptr<SpdyStream> stream;
+  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream());
   ASSERT_EQ(
       OK,
-      session->CreateStream(request.url, HIGHEST, &stream, BoundNetLog()));
-
-  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream(stream.get()));
-  http_stream->InitializeRequest(request, base::Time::Now(), NULL);
+      http_stream->InitializeStream(session, request, BoundNetLog(), NULL));
+  http_stream->InitializeRequest(base::Time::Now(), NULL);
   EXPECT_EQ(ERR_IO_PENDING,
             http_stream->SendRequest(&response, &callback));
 
