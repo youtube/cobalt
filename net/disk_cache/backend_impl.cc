@@ -334,6 +334,122 @@ int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
   return creator->Run();
 }
 
+int BackendImpl::Init(CompletionCallback* callback) {
+  background_queue_.Init(callback);
+  return net::ERR_IO_PENDING;
+}
+
+BackendImpl::~BackendImpl() {
+  background_queue_.WaitForPendingIO();
+
+  if (background_queue_.BackgroundIsCurrentThread()) {
+    // Unit tests may use the same thread for everything.
+    CleanupCache();
+  } else {
+    background_queue_.background_thread()->PostTask(FROM_HERE,
+                                                    new FinalCleanup(this));
+    done_.Wait();
+  }
+}
+
+// ------------------------------------------------------------------------
+
+int32 BackendImpl::GetEntryCount() const {
+  if (!index_)
+    return 0;
+  // num_entries includes entries already evicted.
+  int32 not_deleted = data_->header.num_entries -
+                      data_->header.lru.sizes[Rankings::DELETED];
+
+  if (not_deleted < 0) {
+    NOTREACHED();
+    not_deleted = 0;
+  }
+
+  return not_deleted;
+}
+
+int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
+                           CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.OpenEntry(key, entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
+                             CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.CreateEntry(key, entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomEntry(const std::string& key,
+                           CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomEntry(key, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomAllEntries(CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomAllEntries(callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
+                                    const base::Time end_time,
+                                    CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomEntriesBetween(initial_time, end_time, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomEntriesSince(const base::Time initial_time,
+                                  CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomEntriesSince(initial_time, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
+                               CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.OpenNextEntry(iter, next_entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+void BackendImpl::EndEnumeration(void** iter) {
+  background_queue_.EndEnumeration(*iter);
+  *iter = NULL;
+}
+
+void BackendImpl::GetStats(StatsItems* stats) {
+  if (disabled_)
+    return;
+
+  std::pair<std::string, std::string> item;
+
+  item.first = "Entries";
+  item.second = StringPrintf("%d", data_->header.num_entries);
+  stats->push_back(item);
+
+  item.first = "Pending IO";
+  item.second = StringPrintf("%d", num_pending_io_);
+  stats->push_back(item);
+
+  item.first = "Max size";
+  item.second = StringPrintf("%d", max_size_);
+  stats->push_back(item);
+
+  item.first = "Current size";
+  item.second = StringPrintf("%d", data_->header.num_bytes);
+  stats->push_back(item);
+
+  stats_.GetItems(stats);
+}
+
+// ------------------------------------------------------------------------
+
 int BackendImpl::SyncInit() {
   DCHECK(!init_);
   if (init_)
@@ -409,53 +525,39 @@ int BackendImpl::SyncInit() {
   return disabled_ ? net::ERR_FAILED : net::OK;
 }
 
-int BackendImpl::Init(CompletionCallback* callback) {
-  background_queue_.Init(callback);
-  return net::ERR_IO_PENDING;
-}
+void BackendImpl::CleanupCache() {
+  Trace("Backend Cleanup");
+  if (init_) {
+    if (data_)
+      data_->header.crash = 0;
 
-BackendImpl::~BackendImpl() {
-  background_queue_.WaitForPendingIO();
-
-  if (background_queue_.BackgroundIsCurrentThread()) {
-    // Unit tests may use the same thread for everything.
-    CleanupCache();
-  } else {
-    background_queue_.background_thread()->PostTask(FROM_HERE,
-                                                    new FinalCleanup(this));
-    done_.Wait();
+    timer_.Stop();
+    File::WaitForPendingIO(&num_pending_io_);
+    DCHECK(!num_refs_);
   }
+  factory_.RevokeAll();
+  done_.Signal();
 }
 
 // ------------------------------------------------------------------------
 
-int32 BackendImpl::GetEntryCount() const {
-  if (!index_)
-    return 0;
-  // num_entries includes entries already evicted.
-  int32 not_deleted = data_->header.num_entries -
-                      data_->header.lru.sizes[Rankings::DELETED];
-
-  if (not_deleted < 0) {
-    NOTREACHED();
-    not_deleted = 0;
-  }
-
-  return not_deleted;
-}
-
-int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
-                           CompletionCallback* callback) {
+int BackendImpl::OpenPrevEntry(void** iter, Entry** prev_entry,
+                               CompletionCallback* callback) {
   DCHECK(callback);
-  background_queue_.OpenEntry(key, entry, callback);
+  background_queue_.OpenPrevEntry(iter, prev_entry, callback);
   return net::ERR_IO_PENDING;
 }
 
-int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
-                             CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.CreateEntry(key, entry, callback);
-  return net::ERR_IO_PENDING;
+int BackendImpl::SyncOpenEntry(const std::string& key, Entry** entry) {
+  DCHECK(entry);
+  *entry = OpenEntryImpl(key);
+  return (*entry) ? net::OK : net::ERR_FAILED;
+}
+
+int BackendImpl::SyncCreateEntry(const std::string& key, Entry** entry) {
+  DCHECK(entry);
+  *entry = CreateEntryImpl(key);
+  return (*entry) ? net::OK : net::ERR_FAILED;
 }
 
 int BackendImpl::SyncDoomEntry(const std::string& key) {
@@ -471,13 +573,6 @@ int BackendImpl::SyncDoomEntry(const std::string& key) {
   return net::OK;
 }
 
-int BackendImpl::DoomEntry(const std::string& key,
-                           CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.DoomEntry(key, callback);
-  return net::ERR_IO_PENDING;
-}
-
 int BackendImpl::SyncDoomAllEntries() {
   if (!num_refs_) {
     PrepareForRestart();
@@ -491,12 +586,6 @@ int BackendImpl::SyncDoomAllEntries() {
     stats_.OnEvent(Stats::DOOM_CACHE);
     return net::OK;
   }
-}
-
-int BackendImpl::DoomAllEntries(CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.DoomAllEntries(callback);
-  return net::ERR_IO_PENDING;
 }
 
 int BackendImpl::SyncDoomEntriesBetween(const base::Time initial_time,
@@ -535,14 +624,6 @@ int BackendImpl::SyncDoomEntriesBetween(const base::Time initial_time,
   return net::OK;
 }
 
-int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
-                                    const base::Time end_time,
-                                    CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.DoomEntriesBetween(initial_time, end_time, callback);
-  return net::ERR_IO_PENDING;
-}
-
 // We use OpenNextEntryImpl to retrieve elements from the cache, until we get
 // entries that are too old.
 int BackendImpl::SyncDoomEntriesSince(const base::Time initial_time) {
@@ -565,87 +646,6 @@ int BackendImpl::SyncDoomEntriesSince(const base::Time initial_time) {
     entry->Release();
     SyncEndEnumeration(iter);  // Dooming the entry invalidates the iterator.
   }
-}
-
-int BackendImpl::DoomEntriesSince(const base::Time initial_time,
-                                  CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.DoomEntriesSince(initial_time, callback);
-  return net::ERR_IO_PENDING;
-}
-
-int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
-                               CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.OpenNextEntry(iter, next_entry, callback);
-  return net::ERR_IO_PENDING;
-}
-
-void BackendImpl::EndEnumeration(void** iter) {
-  background_queue_.EndEnumeration(*iter);
-  *iter = NULL;
-}
-
-void BackendImpl::GetStats(StatsItems* stats) {
-  if (disabled_)
-    return;
-
-  std::pair<std::string, std::string> item;
-
-  item.first = "Entries";
-  item.second = StringPrintf("%d", data_->header.num_entries);
-  stats->push_back(item);
-
-  item.first = "Pending IO";
-  item.second = StringPrintf("%d", num_pending_io_);
-  stats->push_back(item);
-
-  item.first = "Max size";
-  item.second = StringPrintf("%d", max_size_);
-  stats->push_back(item);
-
-  item.first = "Current size";
-  item.second = StringPrintf("%d", data_->header.num_bytes);
-  stats->push_back(item);
-
-  stats_.GetItems(stats);
-}
-
-// ------------------------------------------------------------------------
-
-void BackendImpl::CleanupCache() {
-  Trace("Backend Cleanup");
-  if (init_) {
-    if (data_)
-      data_->header.crash = 0;
-
-    timer_.Stop();
-    File::WaitForPendingIO(&num_pending_io_);
-    DCHECK(!num_refs_);
-  }
-  factory_.RevokeAll();
-  done_.Signal();
-}
-
-// ------------------------------------------------------------------------
-
-int BackendImpl::OpenPrevEntry(void** iter, Entry** prev_entry,
-                               CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.OpenPrevEntry(iter, prev_entry, callback);
-  return net::ERR_IO_PENDING;
-}
-
-int BackendImpl::SyncOpenEntry(const std::string& key, Entry** entry) {
-  DCHECK(entry);
-  *entry = OpenEntryImpl(key);
-  return (*entry) ? net::OK : net::ERR_FAILED;
-}
-
-int BackendImpl::SyncCreateEntry(const std::string& key, Entry** entry) {
-  DCHECK(entry);
-  *entry = CreateEntryImpl(key);
-  return (*entry) ? net::OK : net::ERR_FAILED;
 }
 
 int BackendImpl::SyncOpenNextEntry(void** iter, Entry** next_entry) {
