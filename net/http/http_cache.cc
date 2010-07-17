@@ -134,8 +134,13 @@ class HttpCache::BackendCallback : public CallbackRunner<Tuple1<int> > {
   ~BackendCallback() {}
 
   virtual void RunWithParams(const Tuple1<int>& params) {
-    cache_->OnIOComplete(params.a, pending_op_);
+    if (cache_)
+      cache_->OnIOComplete(params.a, pending_op_);
     delete this;
+  }
+
+  void Cancel() {
+    cache_ = NULL;
   }
 
  private:
@@ -283,7 +288,15 @@ HttpCache::~HttpCache() {
     // though they are waiting for a callback that will never fire.
     PendingOp* pending_op = pending_it->second;
     delete pending_op->writer;
-    delete pending_op->callback;
+    if (building_backend_) {
+      // If we don't have a backend, when its construction finishes it will
+      // deliver the callbacks.
+      BackendCallback* callback =
+          static_cast<BackendCallback*>(pending_op->callback);
+      callback->Cancel();
+    } else {
+      delete pending_op->callback;
+    }
 
     STLDeleteElements(&pending_op->pending_queue);
     delete pending_op;
