@@ -95,6 +95,8 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_READ_BODY_COMPLETE,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE,
+    STATE_SPDY_GET_STREAM,
+    STATE_SPDY_GET_STREAM_COMPLETE,
     STATE_SPDY_SEND_REQUEST,
     STATE_SPDY_SEND_REQUEST_COMPLETE,
     STATE_SPDY_READ_HEADERS,
@@ -136,6 +138,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoReadBodyComplete(int result);
   int DoDrainBodyForAuthRestart();
   int DoDrainBodyForAuthRestartComplete(int result);
+  int DoSpdyGetStream();
+  int DoSpdyGetStreamComplete(int result);
   int DoSpdySendRequest();
   int DoSpdySendRequestComplete(int result);
   int DoSpdyReadHeaders();

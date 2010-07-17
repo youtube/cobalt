@@ -156,6 +156,7 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       certificate_error_code_(OK),
       error_(OK),
       state_(IDLE),
+      max_concurrent_streams_(kDefaultMaxConcurrentStreams),
       streams_initiated_count_(0),
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
@@ -289,6 +290,65 @@ int SpdySession::GetPushStream(
 }
 
 int SpdySession::CreateStream(
+    const GURL& url,
+    RequestPriority priority,
+    scoped_refptr<SpdyStream>* spdy_stream,
+    const BoundNetLog& stream_net_log,
+    CompletionCallback* callback,
+    const SpdyHttpStream* spdy_http_stream) {
+  if (!max_concurrent_streams_ ||
+      active_streams_.size() < max_concurrent_streams_) {
+    return CreateStreamImpl(url, priority, spdy_stream, stream_net_log);
+  }
+
+  create_stream_queues_[priority].push(
+      PendingCreateStream(url, priority, spdy_stream,
+                          stream_net_log, callback, spdy_http_stream));
+  return ERR_IO_PENDING;
+}
+
+void SpdySession::ProcessPendingCreateStreams() {
+  while (!max_concurrent_streams_ ||
+         active_streams_.size() < max_concurrent_streams_) {
+    bool no_pending_create_streams = true;
+    for (int i = 0;i < NUM_PRIORITIES;++i) {
+      if (!create_stream_queues_[i].empty()) {
+        PendingCreateStream& pending_create = create_stream_queues_[i].front();
+        no_pending_create_streams = false;
+        int error = CreateStreamImpl(*pending_create.url,
+                                     pending_create.priority,
+                                     pending_create.spdy_stream,
+                                     *pending_create.stream_net_log);
+        pending_create.callback->Run(error);
+        create_stream_queues_[i].pop();
+        break;
+      }
+    }
+    if (no_pending_create_streams)
+      return;  // there were no streams in any queue
+  }
+}
+
+void SpdySession::CancelPendingCreateStreams(
+    const SpdyHttpStream *const spdy_http_stream) {
+  for (int i = 0;i < NUM_PRIORITIES;++i) {
+    PendingCreateStreamQueue tmp;
+    // Make a copy removing this trans
+    while (!create_stream_queues_[i].empty()) {
+      PendingCreateStream& pending_create = create_stream_queues_[i].front();
+      if (pending_create.spdy_http_stream != spdy_http_stream)
+        tmp.push(pending_create);
+      create_stream_queues_[i].pop();
+    }
+    // Now copy it back
+    while (!tmp.empty()) {
+      create_stream_queues_[i].push(tmp.front());
+      tmp.pop();
+    }
+  }
+}
+
+int SpdySession::CreateStreamImpl(
     const GURL& url,
     RequestPriority priority,
     scoped_refptr<SpdyStream>* spdy_stream,
@@ -707,6 +767,14 @@ void SpdySession::CloseAllStreams(net::Error status) {
     abandoned_push_streams.Add(pushed_streams_.size());
   }
 
+  for (int i = 0;i < NUM_PRIORITIES;++i) {
+    while (!create_stream_queues_[i].empty()) {
+      PendingCreateStream& pending_create = create_stream_queues_[i].front();
+      pending_create.callback->Run(ERR_ABORTED);
+      create_stream_queues_[i].pop();
+    }
+  }
+
   while (!active_streams_.empty()) {
     ActiveStreamMap::iterator it = active_streams_.begin();
     const scoped_refptr<SpdyStream>& stream = it->second;
@@ -719,8 +787,7 @@ void SpdySession::CloseAllStreams(net::Error status) {
   // TODO(erikchen): ideally stream->OnClose() is only ever called by
   // DeleteStream, but pending streams fall into their own category for now.
   PendingStreamMap::iterator it;
-  for (it = pending_streams_.begin(); it != pending_streams_.end(); ++it)
-  {
+  for (it = pending_streams_.begin(); it != pending_streams_.end(); ++it) {
     const scoped_refptr<SpdyStream>& stream = it->second;
     if (stream)
       stream->OnClose(ERR_ABORTED);
@@ -799,6 +866,7 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
   active_streams_.erase(it2);
   if (stream)
     stream->OnClose(status);
+  ProcessPendingCreateStreams();
 }
 
 void SpdySession::RemoveFromPool() {
@@ -1118,6 +1186,7 @@ void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
 void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
   spdy::SpdySettings settings;
   if (spdy_framer_.ParseSettings(&frame, &settings)) {
+    HandleSettings(settings);
     SpdySettingsStorage* settings_storage = session_->mutable_spdy_settings();
     settings_storage->Set(host_port_pair_, settings);
   }
@@ -1134,6 +1203,7 @@ void SpdySession::SendSettings() {
   const spdy::SpdySettings& settings = settings_storage.Get(host_port_pair_);
   if (settings.empty())
     return;
+  HandleSettings(settings);
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_SETTINGS,
@@ -1144,6 +1214,20 @@ void SpdySession::SendSettings() {
       spdy_framer_.CreateSettings(settings));
   sent_settings_ = true;
   QueueFrame(settings_frame.get(), 0, NULL);
+}
+
+void SpdySession::HandleSettings(const spdy::SpdySettings& settings) {
+  for (spdy::SpdySettings::const_iterator i = settings.begin(),
+           end = settings.end(); i != end; ++i) {
+    const uint32 id = i->first.id();
+    const uint32 val = i->second;
+    switch (id) {
+      case spdy::SETTINGS_MAX_CONCURRENT_STREAMS:
+        max_concurrent_streams_ = val;
+        ProcessPendingCreateStreams();
+        break;
+    }
+  }
 }
 
 void SpdySession::RecordHistograms() {
@@ -1168,10 +1252,6 @@ void SpdySession::RecordHistograms() {
     // Enumerate the saved settings, and set histograms for it.
     const SpdySettingsStorage& settings_storage = session_->spdy_settings();
     const spdy::SpdySettings& settings = settings_storage.Get(host_port_pair_);
-    if (settings.empty()) {
-      NOTREACHED();  // If we lost our settings already, something is wrong!
-      return;
-    }
 
     spdy::SpdySettings::const_iterator it;
     for (it = settings.begin(); it != settings.end(); ++it) {

@@ -266,7 +266,7 @@ int HttpNetworkTransaction::RestartIgnoringLastError(
     // update in DoSSLConnectComplete if |result| is OK?
     if (using_spdy_) {
       // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
-      next_state_ = STATE_SPDY_SEND_REQUEST;
+      next_state_ = STATE_SPDY_GET_STREAM;
     } else {
       next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
     }
@@ -435,6 +435,7 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
     case STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE:
     case STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE:
     case STATE_SEND_REQUEST_COMPLETE:
+    case STATE_SPDY_GET_STREAM:
     case STATE_SPDY_SEND_REQUEST_COMPLETE:
       return LOAD_STATE_SENDING_REQUEST;
     case STATE_READ_HEADERS_COMPLETE:
@@ -567,6 +568,13 @@ int HttpNetworkTransaction::DoLoop(int result) {
         rv = DoDrainBodyForAuthRestartComplete(rv);
         net_log_.EndEvent(
             NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART, NULL);
+        break;
+      case STATE_SPDY_GET_STREAM:
+        DCHECK_EQ(OK, rv);
+        rv = DoSpdyGetStream();
+        break;
+      case STATE_SPDY_GET_STREAM_COMPLETE:
+        rv = DoSpdyGetStreamComplete(rv);
         break;
       case STATE_SPDY_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
@@ -720,7 +728,7 @@ int HttpNetworkTransaction::DoInitConnection() {
   if (session_->spdy_session_pool()->HasSession(endpoint_)) {
     using_spdy_ = true;
     reused_socket_ = true;
-    next_state_ = STATE_SPDY_SEND_REQUEST;
+    next_state_ = STATE_SPDY_GET_STREAM;
     return OK;
   }
 
@@ -933,7 +941,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   if (using_spdy_) {
     UpdateConnectionTypeHistograms(CONNECTION_SPDY);
     // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
-    next_state_ = STATE_SPDY_SEND_REQUEST;
+    next_state_ = STATE_SPDY_GET_STREAM;
   } else {
     next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
   }
@@ -1219,8 +1227,8 @@ int HttpNetworkTransaction::DoDrainBodyForAuthRestartComplete(int result) {
   return OK;
 }
 
-int HttpNetworkTransaction::DoSpdySendRequest() {
-  next_state_ = STATE_SPDY_SEND_REQUEST_COMPLETE;
+int HttpNetworkTransaction::DoSpdyGetStream() {
+  next_state_ = STATE_SPDY_GET_STREAM_COMPLETE;
   CHECK(!spdy_http_stream_.get());
 
   // First we get a SPDY session.  Theoretically, we've just negotiated one, but
@@ -1249,39 +1257,34 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
   if(spdy_session->IsClosed())
     return ERR_CONNECTION_CLOSED;
 
-  UploadDataStream* upload_data = NULL;
+  headers_valid_ = false;
+
+  spdy_http_stream_.reset(new SpdyHttpStream());
+  return spdy_http_stream_->InitializeStream(spdy_session, *request_,
+                                             net_log_, &io_callback_);
+}
+
+int HttpNetworkTransaction::DoSpdyGetStreamComplete(int result) {
+  if (result < 0)
+    return result;
+
+  next_state_ = STATE_SPDY_SEND_REQUEST;
+  return OK;
+}
+
+int HttpNetworkTransaction::DoSpdySendRequest() {
+  next_state_ = STATE_SPDY_SEND_REQUEST_COMPLETE;
+
+  UploadDataStream* upload_data_stream = NULL;
   if (request_->upload_data) {
     int error_code = OK;
-    upload_data = UploadDataStream::Create(request_->upload_data, &error_code);
-    if (!upload_data)
+    upload_data_stream = UploadDataStream::Create(request_->upload_data,
+                                                  &error_code);
+    if (!upload_data_stream)
       return error_code;
   }
-  headers_valid_ = false;
-  scoped_refptr<SpdyStream> spdy_stream;
-  if (request_->method == "GET") {
-    int error =
-        spdy_session->GetPushStream(request_->url, &spdy_stream, net_log_);
-    if (error != OK)
-      return error;
-  }
-  if (spdy_stream.get()) {
-    DCHECK(spdy_stream->pushed());
-    CHECK(spdy_stream->GetDelegate() == NULL);
-    spdy_http_stream_.reset(new SpdyHttpStream(spdy_stream));
-    spdy_http_stream_->InitializeRequest(*request_, base::Time::Now(), NULL);
-  } else {
-    int error = spdy_session->CreateStream(request_->url,
-                                           request_->priority,
-                                           &spdy_stream,
-                                           net_log_);
-    if (error != OK)
-      return error;
-    DCHECK(!spdy_stream->pushed());
-    CHECK(spdy_stream->GetDelegate() == NULL);
-    spdy_http_stream_.reset(new SpdyHttpStream(spdy_stream));
-    spdy_http_stream_->InitializeRequest(
-        *request_, base::Time::Now(), upload_data);
-  }
+  spdy_http_stream_->InitializeRequest(base::Time::Now(), upload_data_stream);
+
   return spdy_http_stream_->SendRequest(&response_, &io_callback_);
 }
 
@@ -1771,6 +1774,8 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
     STATE_CASE(STATE_READ_BODY_COMPLETE);
     STATE_CASE(STATE_DRAIN_BODY_FOR_AUTH_RESTART);
     STATE_CASE(STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE);
+    STATE_CASE(STATE_SPDY_GET_STREAM);
+    STATE_CASE(STATE_SPDY_GET_STREAM_COMPLETE);
     STATE_CASE(STATE_SPDY_SEND_REQUEST);
     STATE_CASE(STATE_SPDY_SEND_REQUEST_COMPLETE);
     STATE_CASE(STATE_SPDY_READ_HEADERS);

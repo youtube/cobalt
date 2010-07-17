@@ -31,6 +31,7 @@
 
 namespace net {
 
+class SpdyHttpStream;
 class SpdyStream;
 class HttpNetworkSession;
 class BoundNetLog;
@@ -67,12 +68,17 @@ class SpdySession : public base::RefCounted<SpdySession>,
       const BoundNetLog& stream_net_log);
 
   // Create a new stream for a given |url|.  Writes it out to |spdy_stream|.
-  // Returns a net error code.
+  // Returns a net error code, possibly ERR_IO_PENDING.
   int CreateStream(
       const GURL& url,
       RequestPriority priority,
       scoped_refptr<SpdyStream>* spdy_stream,
-      const BoundNetLog& stream_net_log);
+      const BoundNetLog& stream_net_log,
+      CompletionCallback* callback,
+      const SpdyHttpStream* spdy_http_stream);
+
+  // Remove PendingCreateStream objects on transaction deletion
+  void CancelPendingCreateStreams(const SpdyHttpStream* trans);
 
   // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
   // Returns OK on success, or an error on failure.
@@ -128,6 +134,28 @@ class SpdySession : public base::RefCounted<SpdySession>,
     CLOSED
   };
 
+  enum { kDefaultMaxConcurrentStreams = 100 };  // TODO(mbelshe) remove this
+
+  struct PendingCreateStream {
+    const GURL* url;
+    RequestPriority priority;
+    scoped_refptr<SpdyStream>* spdy_stream;
+    const BoundNetLog* stream_net_log;
+    CompletionCallback* callback;
+
+    const SpdyHttpStream* spdy_http_stream;
+
+    PendingCreateStream(const GURL& url, RequestPriority priority,
+                        scoped_refptr<SpdyStream>* spdy_stream,
+                        const BoundNetLog& stream_net_log,
+                        CompletionCallback* callback,
+                        const SpdyHttpStream* spdy_http_stream)
+        : url(&url), priority(priority), spdy_stream(spdy_stream),
+          stream_net_log(&stream_net_log), callback(callback),
+          spdy_http_stream(spdy_http_stream) { }
+  };
+  typedef std::queue<PendingCreateStream, std::list< PendingCreateStream> >
+      PendingCreateStreamQueue;
   typedef std::map<int, scoped_refptr<SpdyStream> > ActiveStreamMap;
   // Only HTTP push a stream.
   typedef std::list<scoped_refptr<SpdyStream> > ActivePushedStreamList;
@@ -135,6 +163,13 @@ class SpdySession : public base::RefCounted<SpdySession>,
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   virtual ~SpdySession();
+
+  void ProcessPendingCreateStreams();
+  int CreateStreamImpl(
+      const GURL& url,
+      RequestPriority priority,
+      scoped_refptr<SpdyStream>* spdy_stream,
+      const BoundNetLog& stream_net_log);
 
   // SpdyFramerVisitorInterface
   virtual void OnError(spdy::SpdyFramer*);
@@ -160,6 +195,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   // Send relevant SETTINGS.  This is generally called on connection setup.
   void SendSettings();
+
+  // Handle SETTINGS.  Either when we send settings, or when we receive a
+  // SETTINGS ontrol frame, update our SpdySession accordingly.
+  void HandleSettings(const spdy::SpdySettings& settings);
 
   // Start reading from the socket.
   // Returns OK on success, or an error on failure.
@@ -223,6 +262,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   int stream_hi_water_mark_;  // The next stream id to use.
 
+  // Queue, for each priority, of pending Create Streams that have not
+  // yet been satisfied
+  PendingCreateStreamQueue create_stream_queues_[NUM_PRIORITIES];
+
   // TODO(mbelshe): We need to track these stream lists better.
   //                I suspect it is possible to remove a stream from
   //                one list, but not the other.
@@ -268,6 +311,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // be OK.
   net::Error error_;
   State state_;
+
+  // Limits
+  size_t max_concurrent_streams_;  // 0 if no limit
 
   // Some statistics counters for the session.
   int streams_initiated_count_;
