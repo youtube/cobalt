@@ -131,6 +131,11 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;
 
+  // This value can be passed into CreateSystemHostResolver as the
+  // |max_concurrent_resolves| parameter. It will select a default level of
+  // concurrency.
+  static const size_t kDefaultParallelism = 0;
+
   // Resolves the given hostname (or IP address literal), filling out the
   // |addresses| object upon success.  The |info.port| parameter will be set as
   // the sin(6)_port field of the sockaddr_in{6} struct.  Returns OK if
@@ -238,7 +243,10 @@ class SingleRequestHostResolver {
 // Creates a HostResolver implementation that queries the underlying system.
 // (Except if a unit-test has changed the global HostResolverProc using
 // ScopedHostResolverProc to intercept requests to the system).
-HostResolver* CreateSystemHostResolver();
+// |max_concurrent_resolves| is how many resolve requests will be allowed to
+// run in parallel. Pass HostResolver::kDefaultParallelism to choose a
+// default value.
+HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves);
 
 }  // namespace net
 
