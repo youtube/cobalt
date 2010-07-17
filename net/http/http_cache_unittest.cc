@@ -667,6 +667,8 @@ class MockBlockingBackendFactory : public net::HttpCache::BackendFactory {
 
   void set_fail(bool fail) { fail_ = fail; }
 
+  net::CompletionCallback* callback() { return callback_; }
+
  private:
   int Result() { return fail_ ? net::ERR_FAILED : net::OK; }
 
@@ -1977,6 +1979,35 @@ TEST(HttpCache, SimpleGET_WaitForBackend_CancelCreate) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   delete context_list[2];
+}
+
+// Tests that we can delete the cache while creating the backend.
+TEST(HttpCache, DeleteCacheWaitingForBackend) {
+  MockBlockingBackendFactory* factory = new MockBlockingBackendFactory();
+  scoped_ptr<MockHttpCache> cache(new MockHttpCache(factory));
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  scoped_ptr<Context> c(new Context());
+  c->result = cache->http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, c->result);
+
+  c->trans->Start(&request, &c->callback, net::BoundNetLog());
+
+  // Just to make sure that everything is still pending.
+  MessageLoop::current()->RunAllPending();
+
+  // The request should be creating the disk cache.
+  EXPECT_FALSE(c->callback.have_result());
+
+  // We cannot call FinishCreation because the factory itself will go away with
+  // the cache, so grab the callback and attempt to use it.
+  net::CompletionCallback* callback = factory->callback();
+
+  cache.reset();
+  MessageLoop::current()->RunAllPending();
+
+  callback->Run(net::ERR_ABORTED);
 }
 
 TEST(HttpCache, TypicalGET_ConditionalRequest) {
