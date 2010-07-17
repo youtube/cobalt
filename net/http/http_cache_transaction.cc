@@ -109,6 +109,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
       cache_pending_(false),
       read_offset_(0),
       effective_load_flags_(0),
+      write_len_(0),
       final_upload_progress_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &Transaction::OnIOComplete)),
@@ -1174,6 +1175,7 @@ int HttpCache::Transaction::DoCacheReadDataComplete(int result) {
 
 int HttpCache::Transaction::DoCacheWriteData(int num_bytes) {
   next_state_ = STATE_CACHE_WRITE_DATA_COMPLETE;
+  write_len_ = num_bytes;
   cache_callback_->AddRef();  // Balanced in DoCacheWriteDataComplete.
 
   return AppendResponseDataToEntry(read_buf_, num_bytes, cache_callback_);
@@ -1185,8 +1187,14 @@ int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
   if (!cache_)
     return ERR_UNEXPECTED;
 
-  if (result < 0)
-    return result;
+  if (result != write_len_) {
+    DLOG(ERROR) << "failed to write response data to cache";
+    DoneWritingToEntry(false);
+
+    // We want to ignore errors writing to disk and just keep reading from
+    // the network.
+    result = write_len_;
+  }
 
   if (partial_.get()) {
     // This may be the last request.
@@ -1724,15 +1732,6 @@ int HttpCache::Transaction::WriteToEntry(int index, int offset,
                                        true);
   } else {
     rv = partial_->CacheWrite(entry_->disk_entry, data, data_len, callback);
-  }
-
-  if (rv != ERR_IO_PENDING && rv != data_len) {
-    DLOG(ERROR) << "failed to write response data to cache";
-    DoneWritingToEntry(false);
-
-    // We want to ignore errors writing to disk and just keep reading from
-    // the network.
-    rv = data_len;
   }
   return rv;
 }
