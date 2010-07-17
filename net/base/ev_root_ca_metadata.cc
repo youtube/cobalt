@@ -20,7 +20,7 @@ namespace net {
 struct EVMetadata {
   // The SHA-1 fingerprint of the root CA certificate, used as a unique
   // identifier for a root CA certificate.
-  X509Certificate::Fingerprint fingerprint;
+  SHA1Fingerprint fingerprint;
 
   // The EV policy OID of the root CA.
   // Note: a root CA may have multiple EV policies.  When that actually
@@ -233,7 +233,7 @@ EVRootCAMetadata* EVRootCAMetadata::GetInstance() {
 }
 
 bool EVRootCAMetadata::GetPolicyOID(
-    const X509Certificate::Fingerprint& fingerprint,
+    const SHA1Fingerprint& fingerprint,
     PolicyOID* policy_oid) const {
   PolicyOidMap::const_iterator iter = ev_policy_.find(fingerprint);
   if (iter == ev_policy_.end())

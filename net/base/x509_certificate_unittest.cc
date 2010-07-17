@@ -108,7 +108,7 @@ TEST(X509CertificateTest, GoogleCertParsing) {
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), google_cert);
 
-  const X509Certificate::Principal& subject = google_cert->subject();
+  const CertPrincipal& subject = google_cert->subject();
   EXPECT_EQ("www.google.com", subject.common_name);
   EXPECT_EQ("Mountain View", subject.locality_name);
   EXPECT_EQ("California", subject.state_or_province_name);
@@ -119,7 +119,7 @@ TEST(X509CertificateTest, GoogleCertParsing) {
   EXPECT_EQ(0U, subject.organization_unit_names.size());
   EXPECT_EQ(0U, subject.domain_components.size());
 
-  const X509Certificate::Principal& issuer = google_cert->issuer();
+  const CertPrincipal& issuer = google_cert->issuer();
   EXPECT_EQ("Thawte SGC CA", issuer.common_name);
   EXPECT_EQ("", issuer.locality_name);
   EXPECT_EQ("", issuer.state_or_province_name);
@@ -137,7 +137,7 @@ TEST(X509CertificateTest, GoogleCertParsing) {
   const Time& valid_expiry = google_cert->valid_expiry();
   EXPECT_EQ(1269728407, valid_expiry.ToDoubleT());  // Mar 27 22:20:07 2010 GMT
 
-  const X509Certificate::Fingerprint& fingerprint = google_cert->fingerprint();
+  const SHA1Fingerprint& fingerprint = google_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(google_fingerprint[i], fingerprint.data[i]);
 
@@ -162,7 +162,7 @@ TEST(X509CertificateTest, WebkitCertParsing) {
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), webkit_cert);
 
-  const X509Certificate::Principal& subject = webkit_cert->subject();
+  const CertPrincipal& subject = webkit_cert->subject();
   EXPECT_EQ("Cupertino", subject.locality_name);
   EXPECT_EQ("California", subject.state_or_province_name);
   EXPECT_EQ("US", subject.country_name);
@@ -173,7 +173,7 @@ TEST(X509CertificateTest, WebkitCertParsing) {
   EXPECT_EQ("Mac OS Forge", subject.organization_unit_names[0]);
   EXPECT_EQ(0U, subject.domain_components.size());
 
-  const X509Certificate::Principal& issuer = webkit_cert->issuer();
+  const CertPrincipal& issuer = webkit_cert->issuer();
   EXPECT_EQ("Go Daddy Secure Certification Authority", issuer.common_name);
   EXPECT_EQ("Scottsdale", issuer.locality_name);
   EXPECT_EQ("Arizona", issuer.state_or_province_name);
@@ -193,7 +193,7 @@ TEST(X509CertificateTest, WebkitCertParsing) {
   const Time& valid_expiry = webkit_cert->valid_expiry();
   EXPECT_EQ(1300491319, valid_expiry.ToDoubleT());  // Mar 18 23:35:19 2011 GMT
 
-  const X509Certificate::Fingerprint& fingerprint = webkit_cert->fingerprint();
+  const SHA1Fingerprint& fingerprint = webkit_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(webkit_fingerprint[i], fingerprint.data[i]);
 
@@ -218,7 +218,7 @@ TEST(X509CertificateTest, ThawteCertParsing) {
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), thawte_cert);
 
-  const X509Certificate::Principal& subject = thawte_cert->subject();
+  const CertPrincipal& subject = thawte_cert->subject();
   EXPECT_EQ("www.thawte.com", subject.common_name);
   EXPECT_EQ("Mountain View", subject.locality_name);
   EXPECT_EQ("California", subject.state_or_province_name);
@@ -229,7 +229,7 @@ TEST(X509CertificateTest, ThawteCertParsing) {
   EXPECT_EQ(0U, subject.organization_unit_names.size());
   EXPECT_EQ(0U, subject.domain_components.size());
 
-  const X509Certificate::Principal& issuer = thawte_cert->issuer();
+  const CertPrincipal& issuer = thawte_cert->issuer();
   EXPECT_EQ("thawte Extended Validation SSL CA", issuer.common_name);
   EXPECT_EQ("", issuer.locality_name);
   EXPECT_EQ("", issuer.state_or_province_name);
@@ -249,7 +249,7 @@ TEST(X509CertificateTest, ThawteCertParsing) {
   const Time& valid_expiry = thawte_cert->valid_expiry();
   EXPECT_EQ(1263772799, valid_expiry.ToDoubleT());  // Jan 17 23:59:59 2010 GMT
 
-  const X509Certificate::Fingerprint& fingerprint = thawte_cert->fingerprint();
+  const SHA1Fingerprint& fingerprint = thawte_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(thawte_fingerprint[i], fingerprint.data[i]);
 
@@ -281,7 +281,7 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), paypal_null_cert);
 
-  const X509Certificate::Fingerprint& fingerprint =
+  const SHA1Fingerprint& fingerprint =
       paypal_null_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(paypal_null_fingerprint[i], fingerprint.data[i]);
@@ -309,7 +309,7 @@ TEST(X509CertificateTest, UnoSoftCertParsing) {
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), unosoft_hu_cert);
 
-  const X509Certificate::Fingerprint& fingerprint =
+  const SHA1Fingerprint& fingerprint =
       unosoft_hu_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(unosoft_hu_fingerprint[i], fingerprint.data[i]);
@@ -438,31 +438,31 @@ TEST(X509CertificateTest, Policy) {
   scoped_refptr<X509Certificate> webkit_cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
 
-  X509Certificate::Policy policy;
+  CertPolicy policy;
 
-  EXPECT_EQ(policy.Check(google_cert.get()), X509Certificate::Policy::UNKNOWN);
-  EXPECT_EQ(policy.Check(webkit_cert.get()), X509Certificate::Policy::UNKNOWN);
+  EXPECT_EQ(policy.Check(google_cert.get()), CertPolicy::UNKNOWN);
+  EXPECT_EQ(policy.Check(webkit_cert.get()), CertPolicy::UNKNOWN);
   EXPECT_FALSE(policy.HasAllowedCert());
   EXPECT_FALSE(policy.HasDeniedCert());
 
   policy.Allow(google_cert.get());
 
-  EXPECT_EQ(policy.Check(google_cert.get()), X509Certificate::Policy::ALLOWED);
-  EXPECT_EQ(policy.Check(webkit_cert.get()), X509Certificate::Policy::UNKNOWN);
+  EXPECT_EQ(policy.Check(google_cert.get()), CertPolicy::ALLOWED);
+  EXPECT_EQ(policy.Check(webkit_cert.get()), CertPolicy::UNKNOWN);
   EXPECT_TRUE(policy.HasAllowedCert());
   EXPECT_FALSE(policy.HasDeniedCert());
 
   policy.Deny(google_cert.get());
 
-  EXPECT_EQ(policy.Check(google_cert.get()), X509Certificate::Policy::DENIED);
-  EXPECT_EQ(policy.Check(webkit_cert.get()), X509Certificate::Policy::UNKNOWN);
+  EXPECT_EQ(policy.Check(google_cert.get()), CertPolicy::DENIED);
+  EXPECT_EQ(policy.Check(webkit_cert.get()), CertPolicy::UNKNOWN);
   EXPECT_FALSE(policy.HasAllowedCert());
   EXPECT_TRUE(policy.HasDeniedCert());
 
   policy.Allow(webkit_cert.get());
 
-  EXPECT_EQ(policy.Check(google_cert.get()), X509Certificate::Policy::DENIED);
-  EXPECT_EQ(policy.Check(webkit_cert.get()), X509Certificate::Policy::ALLOWED);
+  EXPECT_EQ(policy.Check(google_cert.get()), CertPolicy::DENIED);
+  EXPECT_EQ(policy.Check(webkit_cert.get()), CertPolicy::ALLOWED);
   EXPECT_TRUE(policy.HasAllowedCert());
   EXPECT_TRUE(policy.HasDeniedCert());
 }

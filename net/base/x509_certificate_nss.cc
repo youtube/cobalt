@@ -219,7 +219,7 @@ void GetCertChainInfo(CERTCertList* cert_list,
 typedef char* (*CERTGetNameFunc)(CERTName* name);
 
 void ParsePrincipal(CERTName* name,
-                    X509Certificate::Principal* principal) {
+                    CertPrincipal* principal) {
   // TODO(jcampan): add business_category and serial_number.
   // TODO(wtc): NSS has the CERT_GetOrgName, CERT_GetOrgUnitName, and
   // CERT_GetDomainComponentName functions, but they return only the most
@@ -706,7 +706,7 @@ bool X509Certificate::VerifyEV() const {
       cvout[cvout_trust_anchor_index].value.pointer.cert;
   if (root_ca == NULL)
     return false;
-  X509Certificate::Fingerprint fingerprint =
+  SHA1Fingerprint fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
   SECOidTag ev_policy_tag = SEC_OID_UNKNOWN;
   if (!metadata->GetPolicyOID(fingerprint, &ev_policy_tag))
@@ -750,9 +750,9 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 }
 
 // static
-X509Certificate::Fingerprint X509Certificate::CalculateFingerprint(
+SHA1Fingerprint X509Certificate::CalculateFingerprint(
     OSCertHandle cert) {
-  Fingerprint sha1;
+  SHA1Fingerprint sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   DCHECK(NULL != cert->derCert.data);
