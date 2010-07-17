@@ -32,8 +32,6 @@ namespace net {
 
 class CertVerifyResult;
 
-typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
-
 // X509Certificate represents an X.509 certificate used by SSL.
 class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
  public:
@@ -74,27 +72,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
     VERIFY_EV_CERT = 1 << 1,
   };
 
-  enum Format {
-    // The data contains a single DER-encoded certificate, or a PEM-encoded
-    // DER certificate with the PEM encoding block name of "CERTIFICATE".
-    // Any subsequent blocks will be ignored.
-    FORMAT_DER = 1 << 0,
-
-    // The data contains a sequence of one or more PEM-encoded, DER
-    // certificates, with the PEM encoding block name of "CERTIFICATE".
-    // All PEM blocks will be parsed, until the first error is encountered.
-    FORMAT_PEM = 1 << 1,
-
-    // The data contains a PKCS#7 SignedData structure, whose certificates
-    // member is to be used to initialize the certificate and intermediates.
-    // The data my further be encoding using PEM, specifying block names of
-    // either "PKCS7" or "CERTIFICATE".
-    FORMAT_PKCS7 = 1 << 2,
-
-    // Automatically detect the format.
-    FORMAT_AUTO = FORMAT_DER | FORMAT_PEM | FORMAT_PKCS7,
-  };
-
   // Create an X509Certificate from a handle to the certificate object in the
   // underlying crypto library. |source| specifies where |cert_handle| comes
   // from.  Given two certificate handles for the same certificate, our
@@ -107,7 +84,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
       Source source,
       const OSCertHandles& intermediates);
 
-  // Create an X509Certificate from the DER-encoded representation.
+  // Create an X509Certificate from the BER-encoded representation.
   // Returns NULL on failure.
   //
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
@@ -121,14 +98,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromPickle(const Pickle& pickle,
                                            void** pickle_iter);
-
-  // Parses all of the certificates possible from |data|. |format| is a
-  // bit-wise OR of Format, indicating the possible formats the
-  // certificates may have been serialized as. If an error occurs, an empty
-  // collection will be returned.
-  static CertificateList CreateCertificateListFromBytes(const char* data,
-                                                        int length,
-                                                        int format);
 
   // Creates a X509Certificate from the ground up.  Used by tests that simulate
   // SSL connections.
@@ -233,11 +202,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // Returns NULL on failure.
   static OSCertHandle CreateOSCertHandleFromBytes(const char* data,
                                                   int length);
-
-  // Creates all possible OS certificate handles from |data| encoded in a
-  // specific |format|. Returns an empty collection on failure.
-  static OSCertHandles CreateOSCertHandlesFromBytes(
-      const char* data, int length, Format format);
 
   // Duplicates (or adds a reference to) an OS certificate handle.
   static OSCertHandle DupOSCertHandle(OSCertHandle cert_handle);
