@@ -30,6 +30,16 @@ enum {
   // never be negative.
 };
 
+inline int SSLConnectionStatusToCipherSuite(int connection_status) {
+  return (connection_status >> SSL_CONNECTION_CIPHERSUITE_SHIFT) &
+         SSL_CONNECTION_CIPHERSUITE_MASK;
+}
+
+inline int SSLConnectionStatusToCompression(int connection_status) {
+  return (connection_status >> SSL_CONNECTION_COMPRESSION_SHIFT) &
+         SSL_CONNECTION_COMPRESSION_MASK;
+}
+
 }  // namespace net
 
 #endif  // NET_BASE_SSL_CONNECTION_STATUS_FLAGS_H_
