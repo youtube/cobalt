@@ -787,6 +787,15 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
       LOG(DFATAL) << "SSL_GetCipherSuiteInfo returned " << PR_GetError()
                   << " for cipherSuite " << channel_info.cipherSuite;
     }
+    ssl_info->connection_status |=
+        (((int)channel_info.cipherSuite) & SSL_CONNECTION_CIPHERSUITE_MASK) <<
+        SSL_CONNECTION_CIPHERSUITE_SHIFT;
+
+    ssl_info->connection_status |=
+        (((int)channel_info.compressionMethod) &
+         SSL_CONNECTION_COMPRESSION_MASK) <<
+        SSL_CONNECTION_COMPRESSION_SHIFT;
+
     UpdateServerCert();
   }
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
