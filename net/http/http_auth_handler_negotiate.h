@@ -16,9 +16,7 @@
 
 #if defined(OS_WIN)
 #include "net/http/http_auth_sspi_win.h"
-#endif
-
-#if defined(OS_POSIX)
+#elif defined(OS_POSIX)
 #include "net/http/http_auth_gssapi_posix.h"
 #endif
 
@@ -35,6 +33,14 @@ class URLSecurityManager;
 
 class HttpAuthHandlerNegotiate : public HttpAuthHandler {
  public:
+#if defined(OS_WIN)
+  typedef SSPILibrary AuthLibrary;
+  typedef HttpAuthSSPI AuthSystem;
+#elif defined(OS_POSIX)
+  typedef GSSAPILibrary AuthLibrary;
+  typedef HttpAuthGSSAPI AuthSystem;
+#endif
+
   class Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
@@ -66,17 +72,16 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                   const BoundNetLog& net_log,
                                   scoped_ptr<HttpAuthHandler>* handler);
 
-#if defined(OS_WIN)
-    // Set the SSPILibrary to use. Typically the only callers which need to
+    // Set the system library to use. Typically the only callers which need to
     // use this are unit tests which pass in a mocked-out version of the
-    // SSPI library.
-    // The caller is responsible for managing the lifetime of |*sspi_library|,
+    // system library.
+    // The caller is responsible for managing the lifetime of |*auth_library|,
     // and the lifetime must exceed that of this Factory object and all
     // HttpAuthHandler's that this Factory object creates.
-    void set_sspi_library(SSPILibrary* sspi_library) {
-      sspi_library_ = sspi_library;
+    void set_library(AuthLibrary* auth_library) {
+      auth_library_ = auth_library;
     }
-#endif  // defined(OS_WIN)
+
    private:
     bool disable_cname_lookup_;
     bool use_port_;
@@ -85,27 +90,18 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
     ULONG max_token_length_;
     bool first_creation_;
     bool is_unsupported_;
-    SSPILibrary* sspi_library_;
-#endif  // defined(OS_WIN)
-
-#if defined(OS_POSIX)
-    GSSAPILibrary* gssapi_library_;
 #endif
+    AuthLibrary* auth_library_;
   };
 
+  HttpAuthHandlerNegotiate(AuthLibrary* sspi_library,
 #if defined(OS_WIN)
-  HttpAuthHandlerNegotiate(SSPILibrary* sspi_library, ULONG max_token_length,
+                           ULONG max_token_length,
+#endif
                            URLSecurityManager* url_security_manager,
                            HostResolver* host_resolver,
-                           bool disable_cname_lookup, bool use_port);
-#endif
-
-#if defined(OS_POSIX)
-  HttpAuthHandlerNegotiate(GSSAPILibrary* gssapi_library,
-                           URLSecurityManager* url_security_manager,
-                           HostResolver* host_resolver,
-                           bool disable_cname_lookup, bool use_port);
-#endif
+                           bool disable_cname_lookup,
+                           bool use_port);
 
   virtual ~HttpAuthHandlerNegotiate();
 
@@ -146,15 +142,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   int DoGenerateAuthToken();
   int DoGenerateAuthTokenComplete(int rv);
 
-#if defined(OS_WIN)
-  // Members which are constant for lifetime of the handler.
-  HttpAuthSSPI auth_system_;
-#endif
-
-#if defined(OS_POSIX)
-  HttpAuthGSSAPI auth_system_;
-#endif
-
+  AuthSystem auth_system_;
   bool disable_cname_lookup_;
   bool use_port_;
   CompletionCallbackImpl<HttpAuthHandlerNegotiate> io_callback_;

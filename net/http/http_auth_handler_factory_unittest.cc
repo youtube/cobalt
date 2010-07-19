@@ -6,9 +6,12 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/url_security_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
+
+namespace {
 
 class MockHttpAuthHandlerFactory : public HttpAuthHandlerFactory {
  public:
@@ -30,6 +33,8 @@ class MockHttpAuthHandlerFactory : public HttpAuthHandlerFactory {
  private:
   int return_code_;
 };
+
+}  // namespace
 
 TEST(HttpAuthHandlerFactoryTest, RegistryFactory) {
   HttpAuthHandlerRegistryFactory registry_factory;
@@ -90,9 +95,11 @@ TEST(HttpAuthHandlerFactoryTest, RegistryFactory) {
 }
 
 TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
-  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
+  URLSecurityManagerAllow url_security_manager;
+  scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
       HttpAuthHandlerFactory::CreateDefault());
-
+  http_auth_handler_factory->SetURLSecurityManager(
+      "negotiate", &url_security_manager);
   GURL server_origin("http://www.example.com");
   GURL proxy_origin("http://cache.example.com:3128");
   {
