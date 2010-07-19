@@ -15,7 +15,7 @@
  "mac-release-10.5/intl2/times/t": {"delta": 400, "var": 120},
  "mac-release-10.5/morejs/times/t": {"delta": -35, "var": 80},
  "mac-release-10.5/moz/times/t": {"delta": 80, "var": 80},
- "mac-release-10.5/startup/warm/t": {"delta": 0, "var": 20},
+ "mac-release-10.5/startup/warm/t": {"delta": 30, "var": 20},
  "mac-release-10.6/dhtml/times/t": {"delta": -12, "var": 14},
  "mac-release-10.6/intl1/times/t": {"delta": 480, "var": 110},
  "mac-release-10.6/intl2/times/t": {"delta": 300, "var": 60},
