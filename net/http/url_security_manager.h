@@ -47,6 +47,22 @@ class URLSecurityManagerWhitelist : public URLSecurityManager {
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerWhitelist);
 };
 
+#if defined(UNIT_TEST)
+// An URLSecurityManager which always allows default credentials.
+class URLSecurityManagerAllow : public URLSecurityManager {
+ public:
+  URLSecurityManagerAllow() {}
+  virtual ~URLSecurityManagerAllow() {}
+
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) {
+    return true;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerAllow);
+};
+#endif  // defined(UNIT_TEST)
+
 }  // namespace net
 
 #endif  // NET_HTTP_URL_SECURITY_MANAGER_H_

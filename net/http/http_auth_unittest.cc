@@ -70,8 +70,11 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
     }
   };
   GURL origin("http://www.example.com");
-  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
+  URLSecurityManagerAllow url_security_manager;
+  scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
       HttpAuthHandlerFactory::CreateDefault());
+  http_auth_handler_factory->SetURLSecurityManager(
+      "negotiate", &url_security_manager);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     // Make a HttpResponseHeaders object.
@@ -186,8 +189,11 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNegotiate) {
     }
   };
   GURL origin("http://www.example.com");
-  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
+  URLSecurityManagerAllow url_security_manager;
+  scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
       HttpAuthHandlerFactory::CreateDefault());
+  http_auth_handler_factory->SetURLSecurityManager(
+      "negotiate", &url_security_manager);
 
   scoped_ptr<HttpAuthHandler> handler;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
