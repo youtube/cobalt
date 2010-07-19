@@ -37,7 +37,7 @@ void InFlightIO::WaitForPendingIO() {
 // Runs on a background thread.
 void InFlightIO::OnIOComplete(BackgroundIO* operation) {
 #ifndef NDEBUG
-  if (callback_thread_ == MessageLoop::current()) {
+  if (callback_thread_->BelongsToCurrentThread()) {
     DCHECK(single_thread_ || !running_);
     single_thread_ = true;
   }
@@ -66,7 +66,7 @@ void InFlightIO::InvokeCallback(BackgroundIO* operation, bool cancel_task) {
 
 // Runs on the primary thread.
 void InFlightIO::OnOperationPosted(BackgroundIO* operation) {
-  DCHECK(callback_thread_ == MessageLoop::current());
+  DCHECK(callback_thread_->BelongsToCurrentThread());
   io_list_.insert(operation);
 }
 
