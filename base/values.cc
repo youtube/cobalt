@@ -876,7 +876,7 @@ void ListValue::Append(Value* in_value) {
 
 bool ListValue::AppendIfNotPresent(Value* in_value) {
   DCHECK(in_value);
-  for (ValueVector::iterator i(list_.begin()); i != list_.end(); ++i) {
+  for (ValueVector::const_iterator i(list_.begin()); i != list_.end(); ++i) {
     if ((*i)->Equals(in_value))
       return false;
   }
