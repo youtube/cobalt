@@ -7,7 +7,7 @@
 
 #include <set>
 
-#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/waitable_event.h"
 
 namespace disk_cache {
@@ -89,8 +89,8 @@ class BackgroundIO : public base::RefCountedThreadSafe<BackgroundIO> {
 class InFlightIO {
  public:
   InFlightIO()
-      : callback_thread_(MessageLoop::current()), running_(false),
-        single_thread_(false) {}
+      : callback_thread_(base::MessageLoopProxy::CreateForCurrentThread()),
+        running_(false), single_thread_(false) {}
   virtual ~InFlightIO() {}
 
   // Blocks the current thread until all IO operations tracked by this object
@@ -121,7 +121,7 @@ class InFlightIO {
   typedef std::set<scoped_refptr<BackgroundIO> > IOList;
 
   IOList io_list_;  // List of pending, in-flight io operations.
-  MessageLoop* callback_thread_;
+  scoped_refptr<base::MessageLoopProxy> callback_thread_;
 
   bool running_;  // True after the first posted operation completes.
   bool single_thread_;  // True if we only have one thread.
