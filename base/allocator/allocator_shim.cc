@@ -88,7 +88,7 @@ inline bool call_new_handler(bool nothrow) {
   } catch (const std::bad_alloc&) {
     if (!nothrow)
       throw;
-    return p;
+    return true;
   }
 #endif  // (defined(__GNUC__) && !defined(__EXCEPTIONS)) || (defined(_HAS_EXCEPTIONS) && !_HAS_EXCEPTIONS)
 }
