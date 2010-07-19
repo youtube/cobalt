@@ -14,22 +14,18 @@
 namespace net {
 
 HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
+    AuthLibrary* auth_library,
 #if defined(OS_WIN)
-    SSPILibrary* library,
     ULONG max_token_length,
-#endif
-#if defined(OS_POSIX)
-    GSSAPILibrary* library,
 #endif
     URLSecurityManager* url_security_manager,
     HostResolver* resolver,
     bool disable_cname_lookup,
     bool use_port)
 #if defined(OS_WIN)
-    : auth_system_(library, "Negotiate", NEGOSSP_NAME, max_token_length),
-#endif
-#if defined(OS_POSIX)
-    : auth_system_(library, "Negotiate", CHROME_GSS_KRB5_MECH_OID_DESC),
+    : auth_system_(auth_library, "Negotiate", NEGOSSP_NAME, max_token_length),
+#elif defined(OS_POSIX)
+    : auth_system_(auth_library, "Negotiate", CHROME_GSS_KRB5_MECH_OID_DESC),
 #endif
       disable_cname_lookup_(disable_cname_lookup),
       use_port_(use_port),
@@ -85,6 +81,12 @@ bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
     LOG(INFO) << "can't initialize GSSAPI library";
     return false;
   }
+  // GSSAPI does not provide a way to enter username/password to
+  // obtain a TGT. If the default credentials are not allowed for
+  // a particular site (based on whitelist), fall back to a
+  // different scheme.
+  if (!AllowsDefaultCredentials())
+    return false;
 #endif
   scheme_ = "negotiate";
   score_ = 4;
@@ -247,10 +249,9 @@ HttpAuthHandlerNegotiate::Factory::Factory()
       max_token_length_(0),
       first_creation_(true),
       is_unsupported_(false),
-      sspi_library_(SSPILibrary::GetDefault()) {
-#endif
-#if defined(OS_POSIX)
-      gssapi_library_(GSSAPILibrary::GetDefault()) {
+      auth_library_(SSPILibrary::GetDefault()) {
+#elif defined(OS_POSIX)
+      auth_library_(GSSAPILibrary::GetDefault()) {
 #endif
 }
 
@@ -274,7 +275,7 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
   if (is_unsupported_ || reason == CREATE_PREEMPTIVE)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
   if (max_token_length_ == 0) {
-    int rv = DetermineMaxTokenLength(sspi_library_, NEGOSSP_NAME,
+    int rv = DetermineMaxTokenLength(auth_library_, NEGOSSP_NAME,
                                      &max_token_length_);
     if (rv == ERR_UNSUPPORTED_AUTH_SCHEME)
       is_unsupported_ = true;
@@ -284,19 +285,18 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   scoped_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNegotiate(sspi_library_, max_token_length_,
+      new HttpAuthHandlerNegotiate(auth_library_, max_token_length_,
                                    url_security_manager(), resolver_,
                                    disable_cname_lookup_, use_port_));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);
   return OK;
-#endif
-#if defined(OS_POSIX)
+#elif defined(OS_POSIX)
   // TODO(ahendrickson): Move towards model of parsing in the factory
   //                     method and only constructing when valid.
   scoped_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNegotiate(gssapi_library_, url_security_manager(),
+      new HttpAuthHandlerNegotiate(auth_library_, url_security_manager(),
                                    resolver_, disable_cname_lookup_,
                                    use_port_));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
