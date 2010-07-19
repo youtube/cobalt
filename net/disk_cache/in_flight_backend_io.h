@@ -5,6 +5,7 @@
 #ifndef NET_DISK_CACHE_IN_FLIGHT_BACKEND_IO_H_
 #define NET_DISK_CACHE_IN_FLIGHT_BACKEND_IO_H_
 
+#include <list>
 #include <string>
 
 #include "base/message_loop_proxy.h"
