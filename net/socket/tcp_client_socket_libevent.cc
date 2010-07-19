@@ -16,6 +16,7 @@
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/stats_counters.h"
 #include "base/string_util.h"
 #include "net/base/address_list_net_log_param.h"
 #include "net/base/io_buffer.h"
@@ -124,6 +125,9 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
   // If already connected, then just return OK.
   if (socket_ != kInvalidSocket)
     return OK;
+
+  static StatsCounter connects("tcp.connect");
+  connects.Increment();
 
   DCHECK(!waiting_connect());
 
@@ -309,6 +313,9 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
 
   int nread = HANDLE_EINTR(read(socket_, buf->data(), buf_len));
   if (nread >= 0) {
+    static StatsCounter read_bytes("tcp.read_bytes");
+    read_bytes.Add(nread);
+
     net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
                       new NetLogIntegerParameter("num_bytes", nread));
     return nread;
@@ -344,6 +351,8 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
 
   int nwrite = HANDLE_EINTR(write(socket_, buf->data(), buf_len));
   if (nwrite >= 0) {
+    static StatsCounter write_bytes("tcp.write_bytes");
+    write_bytes.Add(nwrite);
     net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_SENT,
                       new NetLogIntegerParameter("num_bytes", nwrite));
     return nwrite;
