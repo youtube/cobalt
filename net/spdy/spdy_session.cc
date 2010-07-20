@@ -164,6 +164,7 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       sent_settings_(false),
       received_settings_(false),
       in_session_pool_(true),
+      initial_window_size_(spdy::kInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
@@ -372,6 +373,7 @@ int SpdySession::CreateStreamImpl(
   stream->set_priority(priority);
   stream->set_path(path);
   stream->set_net_log(stream_net_log);
+  stream->set_window_size(initial_window_size_);
   ActivateStream(stream);
 
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyPriorityCount",
@@ -456,6 +458,22 @@ void SpdySession::CloseStream(spdy::SpdyStreamId stream_id, int status) {
   //                so that the server can cancel a large send.
 
   DeleteStream(stream_id, status);
+}
+
+void SpdySession::ResetStream(
+    spdy::SpdyStreamId stream_id, spdy::SpdyStatusCodes status) {
+  DCHECK(IsStreamActive(stream_id));
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
+  CHECK_EQ(stream->stream_id(), stream_id);
+
+  LOG(INFO) << "Sending a RST_STREAM frame for stream " << stream_id
+            << " with status " << status;
+
+  scoped_ptr<spdy::SpdyRstStreamControlFrame> rst_frame(
+      spdy_framer_.CreateRstStream(stream_id, status));
+  QueueFrame(rst_frame.get(), stream->priority(), stream);
+
+  DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
 }
 
 bool SpdySession::IsStreamActive(spdy::SpdyStreamId stream_id) const {
@@ -1125,6 +1143,10 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
           *reinterpret_cast<const spdy::SpdySynReplyControlFrame*>(frame),
           headers);
       break;
+    case spdy::WINDOW_UPDATE:
+      OnWindowUpdate(
+          *reinterpret_cast<const spdy::SpdyWindowUpdateControlFrame*>(frame));
+      break;
     default:
       DCHECK(false);  // Error!
   }
@@ -1187,11 +1209,38 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
     settings_storage->Set(host_port_pair_, settings);
   }
 
+  // TODO(agayev): Implement initial and per stream window size update.
+
   received_settings_ = true;
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_RECV_SETTINGS,
       new NetLogSpdySettingsParameter(settings));
+}
+
+void SpdySession::OnWindowUpdate(
+    const spdy::SpdyWindowUpdateControlFrame& frame) {
+  spdy::SpdyStreamId stream_id = frame.stream_id();
+  LOG(INFO) << "Spdy WINDOW_UPDATE for stream " << stream_id;
+
+  if (!IsStreamActive(stream_id)) {
+    LOG(WARNING) << "Received WINDOW_UPDATE for invalid stream " << stream_id;
+    return;
+  }
+
+  int delta_window_size = static_cast<int>(frame.delta_window_size());
+  if (delta_window_size < 1) {
+    LOG(WARNING) << "Received WINDOW_UPDATE with an invalid delta_window_size "
+                 << delta_window_size;
+    ResetStream(stream_id, spdy::FLOW_CONTROL_ERROR);
+    return;
+  }
+
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
+  CHECK_EQ(stream->stream_id(), stream_id);
+  CHECK(!stream->cancelled());
+
+  stream->UpdateWindowSize(delta_window_size);
 }
 
 void SpdySession::SendSettings() {
