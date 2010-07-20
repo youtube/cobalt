@@ -4,6 +4,8 @@
 
 #include "net/base/x509_cert_types.h"
 
+#include <ostream>
+
 #include "net/base/x509_certificate.h"
 #include "base/logging.h"
 
