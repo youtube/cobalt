@@ -178,11 +178,6 @@
             ['OS=="mac"', {'defines': ['_REENTRANT']}],
             ['OS=="win"', {
               'product_name': 'libxml2',
-              'defines': [
-                # This symbol prevents libxml from marking its functions with
-                # __declspec(dllexport).
-                'LIBXML_STATIC',
-              ],
             }, {  # else: OS!="win"
               'product_name': 'xml2',
             }],
