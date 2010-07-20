@@ -70,6 +70,19 @@ void Eviction::Init(BackendImpl* backend) {
   trimming_ = false;
   delay_trim_ = false;
   trim_delays_ = 0;
+  init_ = true;
+}
+
+void Eviction::Stop() {
+  // It is possible for the backend initialization to fail, in which case this
+  // object was never initialized... and there is nothing to do.
+  if (!init_)
+    return;
+
+  // We want to stop further evictions, so let's pretend that we are busy from
+  // this point on.
+  DCHECK(!trimming_);
+  trimming_ = true;
 }
 
 void Eviction::TrimCache(bool empty) {
