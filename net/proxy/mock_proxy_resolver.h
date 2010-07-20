@@ -59,19 +59,17 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
 
   class SetPacScriptRequest {
    public:
-    SetPacScriptRequest(MockAsyncProxyResolverBase* resolver,
-                        const GURL& pac_url,
-                        const string16& pac_script,
-                        CompletionCallback* callback)
+    SetPacScriptRequest(
+        MockAsyncProxyResolverBase* resolver,
+        const scoped_refptr<ProxyResolverScriptData>& script_data,
+        CompletionCallback* callback)
         : resolver_(resolver),
-          pac_url_(pac_url),
-          pac_script_(pac_script),
+          script_data_(script_data),
           callback_(callback),
           origin_loop_(MessageLoop::current()) {
     }
 
-    const GURL& pac_url() const { return pac_url_; }
-    const string16& pac_script() const { return pac_script_; }
+    const ProxyResolverScriptData* script_data() const { return script_data_; }
 
     void CompleteNow(int rv) {
        CompletionCallback* callback = callback_;
@@ -84,8 +82,7 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
 
    private:
     MockAsyncProxyResolverBase* resolver_;
-    const GURL pac_url_;
-    const string16 pac_script_;
+    const scoped_refptr<ProxyResolverScriptData> script_data_;
     CompletionCallback* callback_;
     MessageLoop* origin_loop_;
   };
@@ -114,12 +111,12 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     RemovePendingRequest(request);
   }
 
-  virtual int SetPacScript(const GURL& pac_url,
-                           const string16& pac_script,
-                           CompletionCallback* callback) {
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      CompletionCallback* callback) {
     DCHECK(!pending_set_pac_script_request_.get());
     pending_set_pac_script_request_.reset(
-        new SetPacScriptRequest(this, pac_url, pac_script, callback));
+        new SetPacScriptRequest(this, script_data, callback));
     // Finished when user calls SetPacScriptRequest::CompleteNow().
     return ERR_IO_PENDING;
   }

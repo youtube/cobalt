@@ -98,7 +98,8 @@ class PacPerfSuiteRunner {
       InitHttpServer();
       GURL pac_url =
           server_->TestServerPage(std::string("files/") + script_name);
-      int rv = resolver_->SetPacScriptByUrl(pac_url, NULL);
+      int rv = resolver_->SetPacScript(
+          net::ProxyResolverScriptData::FromURL(pac_url), NULL);
       EXPECT_EQ(net::OK, rv);
     } else {
       LoadPacScriptIntoResolver(script_name);
@@ -167,7 +168,8 @@ class PacPerfSuiteRunner {
     ASSERT_TRUE(ok);
 
     // Load the PAC script into the ProxyResolver.
-    int rv = resolver_->SetPacScriptByData(ASCIIToUTF16(file_contents), NULL);
+    int rv = resolver_->SetPacScript(
+        net::ProxyResolverScriptData::FromUTF8(file_contents), NULL);
     EXPECT_EQ(net::OK, rv);
   }
 

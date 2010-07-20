@@ -97,6 +97,9 @@ class MultiThreadedProxyResolver : public ProxyResolver, public NonThreadSafe {
   virtual void CancelRequest(RequestHandle request);
   virtual void CancelSetPacScript();
   virtual void PurgeMemory();
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      CompletionCallback* callback);
 
  private:
   class Executor;
@@ -107,11 +110,6 @@ class MultiThreadedProxyResolver : public ProxyResolver, public NonThreadSafe {
   // TODO(eroman): Make this priority queue.
   typedef std::deque<scoped_refptr<Job> > PendingJobsQueue;
   typedef std::vector<scoped_refptr<Executor> > ExecutorList;
-
-  // ProxyResolver implementation:
-  virtual int SetPacScript(const GURL& pac_url,
-                           const string16& pac_script,
-                           CompletionCallback* callback);
 
   // Asserts that there are no outstanding user-initiated jobs on any of the
   // worker threads.
@@ -134,9 +132,7 @@ class MultiThreadedProxyResolver : public ProxyResolver, public NonThreadSafe {
   const size_t max_num_threads_;
   PendingJobsQueue pending_jobs_;
   ExecutorList executors_;
-  bool was_set_pac_script_called_;
-  GURL current_pac_url_;
-  string16 current_pac_script_;
+  scoped_refptr<ProxyResolverScriptData> current_script_data_;
 };
 
 }  // namespace net
