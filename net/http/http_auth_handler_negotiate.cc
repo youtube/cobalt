@@ -113,7 +113,8 @@ bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
 
 std::wstring HttpAuthHandlerNegotiate::CreateSPN(
     const AddressList& address_list, const GURL& origin) {
-  // Kerberos SPNs are in the form HTTP/<host>:<port>
+  // Kerberos Web Server SPNs are in the form HTTP/<host>:<port> through SSPI,
+  // and in the form HTTP@<host>:<port> through GSSAPI
   //   http://msdn.microsoft.com/en-us/library/ms677601%28VS.85%29.aspx
   //
   // However, reality differs from the specification. A good description of
@@ -145,10 +146,16 @@ std::wstring HttpAuthHandlerNegotiate::CreateSPN(
   std::string server;
   if (!address_list.GetCanonicalName(&server))
     server = origin.host();
+#if defined(OS_WIN)
+  static const char kSpnSeparator = '/';
+#elif defined(OS_POSIX)
+  static const char kSpnSeparator = '@';
+#endif
   if (port != 80 && port != 443 && use_port_) {
-    return ASCIIToWide(StringPrintf("HTTP/%s:%d", server.c_str(), port));
+    return ASCIIToWide(StringPrintf("HTTP%c%s:%d", kSpnSeparator,
+                                    server.c_str(), port));
   } else {
-    return ASCIIToWide(StringPrintf("HTTP/%s", server.c_str()));
+    return ASCIIToWide(StringPrintf("HTTP%c%s", kSpnSeparator, server.c_str()));
   }
 }
 
