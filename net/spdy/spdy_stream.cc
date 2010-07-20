@@ -82,6 +82,7 @@ void SpdyStream::SetRequestTime(base::Time t) {
 int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   int rv = OK;
   LOG(INFO) << "OnResponseReceived";
+  DCHECK_NE(io_state_, STATE_OPEN);
 
   metrics_.StartStream();
 
@@ -204,34 +205,45 @@ int SpdyStream::DoSendRequest(bool has_upload_data) {
 
   send_time_ = base::TimeTicks::Now();
 
-  DCHECK_EQ(io_state_, STATE_NONE);
-  if (!pushed_)
+  int result = OK;
+  if (!pushed_) {
+    DCHECK_EQ(io_state_, STATE_NONE);
     io_state_ = STATE_SEND_HEADERS;
-  else {
+  } else {
+    DCHECK(!has_upload_data);
     if (!response_->empty()) {
-      io_state_ = STATE_READ_BODY;
+      // We already have response headers, so we don't need to read the header.
+      // Pushed stream should not have upload data.
+      // We don't need to call DoLoop() in this state.
+      DCHECK_EQ(io_state_, STATE_OPEN);
+      return OK;
     } else {
       io_state_ = STATE_READ_HEADERS;
     }
   }
-  return DoLoop(OK);
+  return DoLoop(result);
 }
 
 int SpdyStream::DoReadResponseHeaders() {
-  CHECK_EQ(STATE_NONE, io_state_);
   CHECK(!cancelled_);
 
   // The SYN_REPLY has already been received.
-  if (!response_->empty())
+  if (!response_->empty()) {
+    CHECK_EQ(STATE_OPEN, io_state_);
     return OK;
+  } else {
+    CHECK_EQ(STATE_NONE, io_state_);
+  }
+
 
   io_state_ = STATE_READ_HEADERS;
   // Q: do we need to run DoLoop here?
   return ERR_IO_PENDING;
 }
 
-int SpdyStream::WriteStreamData(IOBuffer* data, int length) {
-  return session_->WriteStreamData(stream_id_, data, length);
+int SpdyStream::WriteStreamData(IOBuffer* data, int length,
+                                spdy::SpdyDataFlags flags) {
+  return session_->WriteStreamData(stream_id_, data, length, flags);
 }
 
 bool SpdyStream::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
@@ -272,26 +284,33 @@ int SpdyStream::DoLoop(int result) {
         result = DoReadHeadersComplete(result);
         break;
 
-      // State machine 2: Read body.
-      // NOTE(willchan): Currently unused.  Currently we handle this stuff in
-      // the OnDataReceived()/OnClose()/ReadResponseHeaders()/etc.  Only reason
-      // to do this is for consistency with the Http code.
-      case STATE_READ_BODY:
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_READ_BODY, NULL);
-        result = DoReadBody();
+      // State machine 2: connection is established.
+      // In STATE_OPEN, OnResponseReceived has already been called.
+      // OnDataReceived, OnClose and OnWriteCompelte can be called.
+      // Only OnWriteCompletee calls DoLoop(().
+      //
+      // For HTTP streams, no data is sent from the client while in the OPEN
+      // state, so OnWriteComplete is never called here.  The HTTP body is
+      // handled in the OnDataReceived callback, which does not call into
+      // DoLoop.
+      //
+      // For WebSocket streams, which are bi-directional, we'll send and
+      // receive data once the connection is established.  Received data is
+      // handled in OnDataReceived.  Sent data is handled in OnWriteComplete,
+      // which calls DoOpen().
+      case STATE_OPEN:
+        result = DoOpen(result);
         break;
-      case STATE_READ_BODY_COMPLETE:
-        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_READ_BODY, NULL);
-        result = DoReadBodyComplete(result);
-        break;
+
       case STATE_DONE:
         DCHECK(result != ERR_IO_PENDING);
         break;
       default:
-        NOTREACHED();
+        NOTREACHED() << io_state_;
         break;
     }
-  } while (result != ERR_IO_PENDING && io_state_ != STATE_NONE);
+  } while (result != ERR_IO_PENDING && io_state_ != STATE_NONE &&
+           io_state_ != STATE_OPEN);
 
   return result;
 }
@@ -363,23 +382,15 @@ int SpdyStream::DoReadHeaders() {
 }
 
 int SpdyStream::DoReadHeadersComplete(int result) {
+  io_state_ = STATE_OPEN;
   return result;
 }
 
-int SpdyStream::DoReadBody() {
-  // TODO(mbelshe): merge SpdyStreamParser with SpdyStream and then this
-  // makes sense.
-  if (response_complete_) {
-    io_state_ = STATE_READ_BODY_COMPLETE;
-    return OK;
-  }
-  return ERR_IO_PENDING;
-}
-
-int SpdyStream::DoReadBodyComplete(int result) {
-  // TODO(mbelshe): merge SpdyStreamParser with SpdyStream and then this
-  // makes sense.
-  return OK;
+int SpdyStream::DoOpen(int result) {
+  if (delegate_)
+    delegate_->OnDataSent(result);
+  io_state_ = STATE_OPEN;
+  return result;
 }
 
 void SpdyStream::UpdateHistograms() {
