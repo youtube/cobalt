@@ -28,6 +28,7 @@ class HttpNetworkLayer;
 class HttpNetworkTransactionTest;
 class SpdyNetworkTransactionTest;
 class SpdySessionTest;
+class SpdyStreamTest;
 }
 
 namespace spdy {
@@ -248,6 +249,7 @@ class SpdyFramer {
   friend class net::HttpNetworkTransactionTest;
   friend class net::HttpNetworkLayer;  // This is temporary for the server.
   friend class net::SpdySessionTest;
+  friend class net::SpdyStreamTest;
   friend class test::TestSpdyVisitor;
   friend void test::FramerSetEnableCompressionHelper(SpdyFramer* framer,
                                                      bool compress);

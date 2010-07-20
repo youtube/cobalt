@@ -771,6 +771,7 @@
         'spdy/spdy_network_transaction_unittest.cc',
         'spdy/spdy_protocol_test.cc',
         'spdy/spdy_session_unittest.cc',
+        'spdy/spdy_stream_unittest.cc',
         'spdy/spdy_test_util.cc',
         'spdy/spdy_test_util.h',
         'tools/dump_cache/url_to_filename_encoder.cc',
