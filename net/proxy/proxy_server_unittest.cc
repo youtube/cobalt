@@ -145,6 +145,35 @@ TEST(ProxyServerTest, FromURI) {
        "foopy:10",
        "SOCKS foopy:10"
     },
+
+    // HTTPS proxy URIs:
+    {
+       "https://foopy",     // No port
+       "https://foopy:443",
+       net::ProxyServer::SCHEME_HTTPS,
+       "foopy",
+       443,
+       "foopy:443",
+       "HTTPS foopy:443"
+    },
+    {
+       "https://foopy:10",  // Non-standard port
+       "https://foopy:10",
+       net::ProxyServer::SCHEME_HTTPS,
+       "foopy",
+       10,
+       "foopy:10",
+       "HTTPS foopy:10"
+    },
+    {
+       "https://1.2.3.4:10",  // IP Address
+       "https://1.2.3.4:10",
+       net::ProxyServer::SCHEME_HTTPS,
+       "1.2.3.4",
+       10,
+       "1.2.3.4:10",
+       "HTTPS 1.2.3.4:10"
+    },
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
@@ -189,7 +218,6 @@ TEST(ProxyServerTest, Invalid) {
     "direct://xyz",  // direct is not allowed a host/port.
     "http:/",  // ambiguous, but will fail because of bad port.
     "http:",  // ambiguous, but will fail because of bad port.
-    "https://blah",  // "https" is not a valid proxy scheme.
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
@@ -259,6 +287,14 @@ TEST(ProxyServerTest, FromPACString) {
        " direct  ",
        "direct://",
     },
+    {
+       "https foopy",
+       "https://foopy:443",
+    },
+    {
+       "https foopy:10",
+       "https://foopy:10",
+    },
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
@@ -272,6 +308,7 @@ TEST(ProxyServerTest, FromPACString) {
 TEST(ProxyServerTest, FromPACStringInvalid) {
   const char* tests[] = {
     "PROXY",  // missing host/port.
+    "HTTPS",  // missing host/port.
     "SOCKS",  // missing host/port.
     "DIRECT foopy:10",  // direct cannot have host/port.
   };
