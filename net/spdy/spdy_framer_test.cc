@@ -1173,9 +1173,9 @@ TEST_F(SpdyFramerTest, CreateWindowUpdate) {
       0x80, 0x01, 0x00, 0x09,
       0x00, 0x00, 0x00, 0x08,
       0x00, 0x00, 0x00, 0x01,
-      0x80, 0x00, 0x00, 0x00,
+      0x7f, 0xff, 0xff, 0xff,
     };
-    scoped_ptr<SpdyFrame> frame(framer.CreateWindowUpdate(1, 0x80000000));
+    scoped_ptr<SpdyFrame> frame(framer.CreateWindowUpdate(1, 0x7FFFFFFF));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
   }
 }

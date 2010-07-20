@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This file intentionally does not have header guards, it's included
+// inside a macro to generate enum.
+
 // This file contains the list of network errors.
 
 //
