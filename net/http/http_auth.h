@@ -5,6 +5,8 @@
 #ifndef NET_HTTP_HTTP_AUTH_H_
 #define NET_HTTP_HTTP_AUTH_H_
 
+#include <set>
+
 #include "base/scoped_ptr.h"
 #include "net/http/http_util.h"
 
@@ -89,6 +91,8 @@ class HttpAuth {
   // |*handler| is unchanged. If no supported challenge was found, |*handler|
   // is set to NULL.
   //
+  // |disabled_schemes| is the set of schemes that we should not use.
+  //
   // |origin| is used by the NTLM authentication scheme to construct the
   // service principal name.  It is ignored by other schemes.
   //
@@ -100,6 +104,7 @@ class HttpAuth {
       const HttpResponseHeaders* headers,
       Target target,
       const GURL& origin,
+      const std::set<std::string>& disabled_schemes,
       const BoundNetLog& net_log,
       scoped_ptr<HttpAuthHandler>* handler);
 
