@@ -83,7 +83,10 @@ class BackendImpl : public Backend {
   virtual void GetStats(StatsItems* stats);
 
   // Performs the actual initialization and final cleanup on destruction.
+  // Cleanup is a two step process (with a trip to the message loop in between).
+  // Note that these methods are not intended for external consumption.
   int SyncInit();
+  void StartCleanup();
   void CleanupCache();
 
   // Same bahavior as OpenNextEntry but walks the list from back to front.

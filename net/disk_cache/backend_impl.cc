@@ -259,7 +259,7 @@ class FinalCleanup : public Task {
 };
 
 void FinalCleanup::Run() {
-  backend_->CleanupCache();
+  backend_->StartCleanup();
 }
 
 }  // namespace
@@ -523,6 +523,15 @@ int BackendImpl::SyncInit() {
     SetFieldTrialInfo(GetSizeGroup());
 
   return disabled_ ? net::ERR_FAILED : net::OK;
+}
+
+void BackendImpl::StartCleanup() {
+  Trace("Backend StartCleanup");
+  eviction_.Stop();
+
+  // Give a chance for any posted evictions to be discarded.
+  MessageLoop::current()->PostTask(FROM_HERE,
+        factory_.NewRunnableMethod(&BackendImpl::CleanupCache));
 }
 
 void BackendImpl::CleanupCache() {
