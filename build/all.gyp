@@ -26,6 +26,7 @@
         '../skia/skia.gyp:*',
         '../testing/gmock.gyp:*',
         '../testing/gtest.gyp:*',
+        '../third_party/angle/src/build_angle.gyp:*',
         '../third_party/bzip2/bzip2.gyp:*',
         '../third_party/cacheinvalidation/cacheinvalidation.gyp:*',
         '../third_party/cld/cld.gyp:*',
@@ -264,7 +265,6 @@
             '../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
             '../chrome_frame/chrome_frame.gyp:npchrome_frame',
-            '../third_party/angle/src/build_angle.gyp:*',
           ],
         },
         {
