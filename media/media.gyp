@@ -362,6 +362,27 @@
             },
           },
         },
+        {
+          'target_name': 'mfdecoder',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+          ],
+          'include_dirs': [
+            '..',
+          ],
+          'sources': [
+            'tools/mfdecoder/main.cc',
+            'tools/mfdecoder/mfdecoder.h',    
+            'tools/mfdecoder/mfdecoder.cc',
+          ],
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
+            },
+          },
+        },
       ],
     }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
