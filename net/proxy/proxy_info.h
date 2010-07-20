@@ -50,7 +50,14 @@ class ProxyInfo {
     return proxy_list_.Get().is_direct();
   }
 
-  // Returns true if the first valid proxy server is a http proxy.
+  // Returns true if the first valid proxy server is an https proxy.
+  bool is_https() const {
+    if (is_empty())
+      return false;
+    return proxy_server().is_https();
+  }
+
+  // Returns true if the first valid proxy server is an http proxy.
   bool is_http() const {
     if (is_empty())
       return false;
