@@ -905,9 +905,11 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
   }
 
   auth_identity_.invalid = true;
+  std::set<std::string> disabled_schemes;
   HttpAuth::ChooseBestChallenge(http_auth_handler_factory_, headers,
                                 HttpAuth::AUTH_PROXY,
-                                auth_origin, net_log_, &auth_handler_);
+                                auth_origin, disabled_schemes,
+                                net_log_, &auth_handler_);
   if (!auth_handler_.get()) {
     LOG(ERROR) << "Can't perform auth to the proxy " << auth_origin;
     return ERR_TUNNEL_CONNECTION_FAILED;

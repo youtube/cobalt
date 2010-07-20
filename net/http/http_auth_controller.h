@@ -5,6 +5,7 @@
 #ifndef NET_HTTP_HTTP_AUTH_CONTROLLER_H_
 #define NET_HTTP_HTTP_AUTH_CONTROLLER_H_
 
+#include <set>
 #include <string>
 
 #include "base/basictypes.h"
@@ -68,6 +69,9 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
     return auth_info_;
   }
 
+  virtual bool IsAuthSchemeDisabled(const std::string& scheme) const;
+  virtual void DisableAuthScheme(const std::string& scheme);
+
  protected:  // So that we can mock this object.
   friend class base::RefCounted<HttpAuthController>;
   virtual ~HttpAuthController();
@@ -90,6 +94,8 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
   // Populates auth_info_ with the challenge information, so that
   // URLRequestHttpJob can prompt for a username/password.
   void PopulateAuthChallenge();
+
+  void OnIOComplete(int result);
 
   // Indicates if this handler is for Proxy auth or Server auth.
   HttpAuth::Target target_;
@@ -131,6 +137,11 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
   bool default_credentials_used_;
 
   scoped_refptr<HttpNetworkSession> session_;
+
+  std::set<std::string> disabled_schemes_;
+
+  CompletionCallbackImpl<HttpAuthController> io_callback_;
+  CompletionCallback* user_callback_;
 };
 
 }  // namespace net

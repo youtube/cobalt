@@ -57,10 +57,15 @@ HttpAuthController::HttpAuthController(
       auth_path_(HttpAuth::AUTH_PROXY ? std::string() : auth_url.path()),
       embedded_identity_used_(false),
       default_credentials_used_(false),
-      session_(session) {
+      session_(session),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          io_callback_(this, &HttpAuthController::OnIOComplete)),
+      user_callback_(NULL) {
 }
 
-HttpAuthController::~HttpAuthController() {}
+HttpAuthController::~HttpAuthController() {
+  user_callback_ = NULL;
+}
 
 int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
                                                CompletionCallback* callback,
@@ -75,8 +80,20 @@ int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
     password = &identity_.password;
   }
   DCHECK(auth_token_.empty());
-  return handler_->GenerateAuthToken(username, password, request, callback,
-                                     &auth_token_);
+  DCHECK(NULL == user_callback_);
+  int rv = handler_->GenerateAuthToken(username,
+                                       password,
+                                       request,
+                                       &io_callback_,
+                                       &auth_token_);
+  if (rv == ERR_IO_PENDING)
+    user_callback_ = callback;
+  if (rv != ERR_IO_PENDING)
+    OnIOComplete(rv);
+  // This error occurs with GSSAPI, if the user has not already logged in.
+  if (rv == ERR_MISSING_AUTH_CREDENTIALS)
+    rv = OK;
+  return rv;
 }
 
 bool HttpAuthController::SelectPreemptiveAuth(const BoundNetLog& net_log) {
@@ -119,7 +136,6 @@ bool HttpAuthController::SelectPreemptiveAuth(const BoundNetLog& net_log) {
 void HttpAuthController::AddAuthorizationHeader(
     HttpRequestHeaders* authorization_headers) {
   DCHECK(HaveAuth());
-  DCHECK(!auth_token_.empty());
   authorization_headers->SetHeader(
       HttpAuth::GetAuthorizationHeaderName(target_), auth_token_);
   auth_token_.clear();
@@ -155,7 +171,8 @@ int HttpAuthController::HandleAuthChallenge(
   if (target_ != HttpAuth::AUTH_SERVER || !do_not_send_server_auth) {
     // Find the best authentication challenge that we support.
     HttpAuth::ChooseBestChallenge(session_->http_auth_handler_factory(),
-                                  headers, target_, auth_origin_, net_log,
+                                  headers, target_, auth_origin_,
+                                  disabled_schemes_, net_log,
                                   &handler_);
   }
 
@@ -318,6 +335,29 @@ void HttpAuthController::PopulateAuthChallenge() {
   auth_info_->scheme = ASCIIToWide(handler_->scheme());
   // TODO(eroman): decode realm according to RFC 2047.
   auth_info_->realm = ASCIIToWide(handler_->realm());
+}
+
+void HttpAuthController::OnIOComplete(int result) {
+  // This error occurs with GSSAPI, if the user has not already logged in.
+  // In that case, disable the current scheme as it cannot succeed.
+  if (result == ERR_MISSING_AUTH_CREDENTIALS) {
+    DisableAuthScheme(handler_->scheme());
+    auth_token_.erase();
+    result = OK;
+  }
+  if (user_callback_) {
+    CompletionCallback* c = user_callback_;
+    user_callback_ = NULL;
+    c->Run(result);
+  }
+}
+
+bool HttpAuthController::IsAuthSchemeDisabled(const std::string& scheme) const {
+  return disabled_schemes_.find(scheme) != disabled_schemes_.end();
+}
+
+void HttpAuthController::DisableAuthScheme(const std::string& scheme) {
+  disabled_schemes_.insert(scheme);
 }
 
 }  // namespace net
