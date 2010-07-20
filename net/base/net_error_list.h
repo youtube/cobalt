@@ -354,6 +354,9 @@ NET_ERROR(UNSUPPORTED_AUTH_SCHEME, -339)
 // Detecting the encoding of the response failed.
 NET_ERROR(ENCODING_DETECTION_FAILED, -340)
 
+// (GSSAPI) No Kerberos credentials were available during HTTP Authentication.
+NET_ERROR(MISSING_AUTH_CREDENTIALS, -341)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
