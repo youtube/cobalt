@@ -69,7 +69,9 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
   if (!query_url_ref.get())
     return ERR_FAILED;
   scoped_cftyperef<CFStringRef> pac_ref(
-      base::SysUTF8ToCFStringRef(pac_url_.spec()));
+      base::SysUTF8ToCFStringRef(
+          script_data_->type() == ProxyResolverScriptData::TYPE_AUTO_DETECT ?
+              std::string() : script_data_->url().spec()));
   scoped_cftyperef<CFURLRef> pac_url_ref(
       CFURLCreateWithString(kCFAllocatorDefault,
                             pac_ref.get(),

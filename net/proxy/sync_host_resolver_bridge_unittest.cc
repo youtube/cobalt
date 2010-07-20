@@ -109,13 +109,13 @@ class SyncProxyResolver : public ProxyResolver {
     host_resolver_->Shutdown();
   }
 
- private:
-  virtual int SetPacScript(const GURL& pac_url,
-                           const string16& pac_script,
-                           CompletionCallback* callback) {
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      CompletionCallback* callback) {
     return OK;
   }
 
+ private:
   scoped_refptr<SyncHostResolverBridge> host_resolver_;
 };
 
@@ -165,7 +165,8 @@ class IOThread : public base::Thread {
 
     // Initialize the resolver.
     TestCompletionCallback callback;
-    proxy_resolver_->SetPacScriptByUrl(GURL(), &callback);
+    proxy_resolver_->SetPacScript(ProxyResolverScriptData::FromURL(GURL()),
+                                  &callback);
     EXPECT_EQ(OK, callback.WaitForResult());
 
     // Start an asynchronous request to the proxy resolver

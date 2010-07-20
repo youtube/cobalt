@@ -70,10 +70,9 @@ class ProxyResolverNull : public ProxyResolver {
     NOTREACHED();
   }
 
- private:
-  virtual int SetPacScript(const GURL& /*pac_url*/,
-                           const string16& /*pac_script*/,
-                           CompletionCallback* /*callback*/) {
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& /*script_data*/,
+      CompletionCallback* /*callback*/) {
     return ERR_NOT_IMPLEMENTED;
   }
 };
