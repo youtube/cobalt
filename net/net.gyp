@@ -434,6 +434,8 @@
         'proxy/proxy_resolver_mac.h',
         'proxy/proxy_resolver_request_context.h',
         'proxy/proxy_resolver_script.h',
+        'proxy/proxy_resolver_script_data.cc',
+        'proxy/proxy_resolver_script_data.h',
         'proxy/proxy_resolver_v8.cc',
         'proxy/proxy_resolver_v8.h',
         'proxy/proxy_resolver_winhttp.cc',

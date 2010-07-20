@@ -30,15 +30,15 @@ class ProxyResolverMac : public ProxyResolver {
     NOTREACHED();
   }
 
- private:
-  virtual int SetPacScript(const GURL& pac_url,
-                           const string16& /*pac_script*/,
-                           CompletionCallback* /*callback*/) {
-    pac_url_ = pac_url;
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      CompletionCallback* /*callback*/) {
+    script_data_ = script_data_;
     return OK;
   }
 
-  GURL pac_url_;
+ private:
+  scoped_refptr<ProxyResolverScriptData> script_data_;
 };
 
 }  // namespace net

@@ -73,22 +73,26 @@ const char kPacResourceName[] = "proxy-pac-script.js";
 // Pseudo-name for the PAC utility script.
 const char kPacUtilityResourceName[] = "proxy-pac-utility-script.js";
 
-// External string wrapper so V8 can access a string16.
-class V8ExternalString16 : public v8::String::ExternalStringResource {
+// External string wrapper so V8 can access the UTF16 string wrapped by
+// ProxyResolverScriptData.
+class V8ExternalStringFromScriptData
+    : public v8::String::ExternalStringResource {
  public:
-  explicit V8ExternalString16(const string16& string) : string_(string) {}
+  explicit V8ExternalStringFromScriptData(
+      const scoped_refptr<ProxyResolverScriptData>& script_data)
+      : script_data_(script_data) {}
 
   virtual const uint16_t* data() const {
-    return reinterpret_cast<const uint16*>(string_.data());
+    return reinterpret_cast<const uint16*>(script_data_->utf16().data());
   }
 
   virtual size_t length() const {
-    return string_.size();
+    return script_data_->utf16().size();
   }
 
  private:
-  const string16 string_;
-  DISALLOW_COPY_AND_ASSIGN(V8ExternalString16);
+  const scoped_refptr<ProxyResolverScriptData> script_data_;
+  DISALLOW_COPY_AND_ASSIGN(V8ExternalStringFromScriptData);
 };
 
 // External string wrapper so V8 can access a string literal.
@@ -115,27 +119,6 @@ class V8ExternalASCIILiteral : public v8::String::ExternalAsciiStringResource {
   DISALLOW_COPY_AND_ASSIGN(V8ExternalASCIILiteral);
 };
 
-// External string wrapper so V8 can access a std::string.
-class V8ExternalASCIIString : public v8::String::ExternalAsciiStringResource {
- public:
-  explicit V8ExternalASCIIString(const std::string& ascii)
-      : ascii_(ascii) {
-    DCHECK(IsStringASCII(ascii));
-  }
-
-  virtual const char* data() const {
-    return ascii_.data();
-  }
-
-  virtual size_t length() const {
-    return ascii_.size();
-  }
-
- private:
-  const std::string ascii_;
-  DISALLOW_COPY_AND_ASSIGN(V8ExternalASCIIString);
-};
-
 // When creating a v8::String from a C++ string we have two choices: create
 // a copy, or create a wrapper that shares the same underlying storage.
 // For small strings it is better to just make a copy, whereas for large
@@ -156,18 +139,19 @@ string16 V8StringToUTF16(v8::Handle<v8::String> s) {
 // Converts an ASCII std::string to a V8 string.
 v8::Local<v8::String> ASCIIStringToV8String(const std::string& s) {
   DCHECK(IsStringASCII(s));
-  if (s.size() <= kMaxStringBytesForCopy)
-    return v8::String::New(s.data(), s.size());
-  return v8::String::NewExternal(new V8ExternalASCIIString(s));
+  return v8::String::New(s.data(), s.size());
 }
 
-// Converts a UTF16 string16 to a V8 string.
-v8::Local<v8::String> UTF16StringToV8String(const string16& s) {
-  if (s.size() * 2 <= kMaxStringBytesForCopy) {
+// Converts a UTF16 string16 (warpped by a ProxyResolverScriptData) to a
+// V8 string.
+v8::Local<v8::String> ScriptDataToV8String(
+    const scoped_refptr<ProxyResolverScriptData>& s) {
+  if (s->utf16().size() * 2 <= kMaxStringBytesForCopy) {
     return v8::String::New(
-        reinterpret_cast<const uint16_t*>(s.data()), s.size());
+        reinterpret_cast<const uint16_t*>(s->utf16().data()),
+        s->utf16().size());
   }
-  return v8::String::NewExternal(new V8ExternalString16(s));
+  return v8::String::NewExternal(new V8ExternalStringFromScriptData(s));
 }
 
 // Converts an ASCII string literal to a V8 string.
@@ -304,7 +288,7 @@ class ProxyResolverV8::Context {
     return OK;
   }
 
-  int InitV8(const string16& pac_script) {
+  int InitV8(const scoped_refptr<ProxyResolverScriptData>& pac_script) {
     v8::Locker locked;
     v8::HandleScope scope;
 
@@ -356,7 +340,7 @@ class ProxyResolverV8::Context {
     }
 
     // Add the user's PAC code to the environment.
-    rv = RunScript(UTF16StringToV8String(pac_script), kPacResourceName);
+    rv = RunScript(ScriptDataToV8String(pac_script), kPacResourceName);
     if (rv != OK)
       return rv;
 
@@ -592,16 +576,17 @@ void ProxyResolverV8::Shutdown() {
   js_bindings_->Shutdown();
 }
 
-int ProxyResolverV8::SetPacScript(const GURL& /*url*/,
-                                  const string16& pac_script,
-                                  CompletionCallback* /*callback*/) {
+int ProxyResolverV8::SetPacScript(
+    const scoped_refptr<ProxyResolverScriptData>& script_data,
+    CompletionCallback* /*callback*/) {
+  DCHECK(script_data.get());
   context_.reset();
-  if (pac_script.empty())
+  if (script_data->utf16().empty())
     return ERR_PAC_SCRIPT_FAILED;
 
   // Try parsing the PAC script.
   scoped_ptr<Context> context(new Context(js_bindings_.get()));
-  int rv = context->InitV8(pac_script);
+  int rv = context->InitV8(script_data);
   if (rv == OK)
     context_.reset(context.release());
   return rv;

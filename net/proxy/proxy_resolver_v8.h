@@ -51,6 +51,9 @@ class ProxyResolverV8 : public ProxyResolver {
   virtual void CancelRequest(RequestHandle request);
   virtual void PurgeMemory();
   virtual void Shutdown();
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      CompletionCallback* /*callback*/);
 
   ProxyResolverJSBindings* js_bindings() const { return js_bindings_.get(); }
 
@@ -59,11 +62,6 @@ class ProxyResolverV8 : public ProxyResolver {
   // script. It corresponds with the data from the last call to
   // SetPacScript().
   class Context;
-
-  // ProxyResolver implementation:
-  virtual int SetPacScript(const GURL& /*pac_url*/,
-                           const string16& pac_script,
-                           CompletionCallback* /*callback*/);
   scoped_ptr<Context> context_;
 
   scoped_ptr<ProxyResolverJSBindings> js_bindings_;
