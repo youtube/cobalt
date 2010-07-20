@@ -237,10 +237,19 @@ class SpdyNetworkTransactionTest : public PlatformTest {
       RunDefaultTest();
       VerifyDataConsumed();
     }
-    // Only call AddData before calling RunPreTestSetup!!
+
+    // Only call AddData before calling RunPreTestSetup!! When RunPreTestSetup
+    // is run, it will add this Data Provider, and a corresponding SSL data
+    // provider.
     void AddData(StaticSocketDataProvider* data) {
       EXPECT_TRUE(add_data_allowed_);
       data_vector_.push_back(data);
+    }
+
+    // This can only be called after RunPreTestSetup. It adds a Data Provider,
+    // but not a corresponding SSL data provider
+    void AddDataNoSSL(StaticSocketDataProvider* data) {
+      session_deps_.socket_factory.AddSocketDataProvider(data);
     }
 
     void SetSession(scoped_refptr<HttpNetworkSession>& session) {
@@ -1891,6 +1900,74 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("goodbye world", out.response_data);
+}
+
+TEST_F(SpdyNetworkTransactionTest, ConnectFailureFallbackToHttp) {
+  MockConnect connects[]  = {
+    MockConnect(true, ERR_NAME_NOT_RESOLVED),
+    MockConnect(false, ERR_NAME_NOT_RESOLVED),
+    MockConnect(true, ERR_INTERNET_DISCONNECTED),
+    MockConnect(false, ERR_INTERNET_DISCONNECTED)
+  };
+
+  for (size_t index = 0; index < arraysize(connects); ++index) {
+    scoped_ptr<spdy::SpdyFrame> req(
+        ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+    MockWrite writes[] = {
+      CreateMockWrite(*req),
+      MockWrite(true, 0, 0)  // EOF
+    };
+
+    scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+    scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+    MockRead reads[] = {
+      CreateMockRead(*resp),
+      CreateMockRead(*body),
+      MockRead(true, 0, 0)  // EOF
+    };
+
+    scoped_refptr<DelayedSocketData> data(
+        new DelayedSocketData(connects[index], 1, reads, arraysize(reads),
+                              writes, arraysize(writes)));
+    NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                       BoundNetLog());
+    helper.AddData(data.get());
+    helper.RunPreTestSetup();
+
+    // Set up http fallback data.
+    MockRead http_fallback_data[] = {
+      MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+      MockRead("hello world!!!"),
+      MockRead(true, OK),
+    };
+
+    scoped_ptr<StaticSocketDataProvider> http_fallback(
+          new StaticSocketDataProvider(http_fallback_data,
+                                       arraysize(http_fallback_data),
+                                       NULL, 0));
+    helper.AddDataNoSSL(http_fallback.get());
+    HttpNetworkTransaction* trans = helper.trans();
+    TestCompletionCallback callback;
+
+    int rv = trans->Start(&helper.request(), &callback, BoundNetLog());
+    EXPECT_EQ(rv, ERR_IO_PENDING);
+    rv = callback.WaitForResult();
+    const HttpResponseInfo* response = trans->GetResponseInfo();
+    ASSERT_TRUE(response != NULL);
+    ASSERT_TRUE(response->headers != NULL);
+    EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+    std::string response_data;
+    rv = ReadTransaction(trans, &response_data);
+    EXPECT_EQ(OK, rv);
+
+    EXPECT_TRUE(!response->was_fetched_via_spdy);
+    EXPECT_TRUE(!response->was_npn_negotiated);
+    EXPECT_TRUE(response->was_alternate_protocol_available);
+    EXPECT_TRUE(http_fallback->at_read_eof());
+    EXPECT_EQ(0u, data->read_index());
+    EXPECT_EQ(0u, data->write_index());
+    EXPECT_EQ("hello world!!!", response_data);
+  }
 }
 
 // Verify that basic buffering works; when multiple data frames arrive
