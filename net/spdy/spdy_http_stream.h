@@ -90,6 +90,10 @@ class SpdyHttpStream : public SpdyStream::Delegate {
   // SpdyHttpSession schedule to call back |callback| set by ReadResponseBody.
   virtual void OnDataReceived(const char* buffer, int bytes);
 
+  // For HTTP streams, no data is sent from the client while in the OPEN state,
+  // so OnDataSent is never called.
+  virtual void OnDataSent(int length);
+
   // Called by the SpdySession when the request is finished.  This callback
   // will always be called at the end of the request and signals to the
   // stream that the stream has no more network events.  No further callbacks

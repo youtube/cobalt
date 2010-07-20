@@ -317,7 +317,8 @@ int SpdyHttpStream::OnSendBody() {
   int buf_len = static_cast<int>(request_body_stream_->buf_len());
   if (!buf_len)
     return OK;
-  return stream_->WriteStreamData(request_body_stream_->buf(), buf_len);
+  return stream_->WriteStreamData(request_body_stream_->buf(), buf_len,
+                                  spdy::DATA_FLAG_FIN);
 }
 
 bool SpdyHttpStream::OnSendBodyComplete(int status) {
@@ -368,6 +369,12 @@ void SpdyHttpStream::OnDataReceived(const char* data, int length) {
       ScheduleBufferedReadCallback();
     }
   }
+}
+
+void SpdyHttpStream::OnDataSent(int length) {
+  // For HTTP streams, no data is sent from the client while in the OPEN state,
+  // so it is never called.
+  NOTREACHED();
 }
 
 void SpdyHttpStream::OnClose(int status) {
