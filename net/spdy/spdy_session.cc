@@ -420,7 +420,8 @@ int SpdySession::WriteSynStream(
 }
 
 int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
-                                 net::IOBuffer* data, int len) {
+                                 net::IOBuffer* data, int len,
+                                 spdy::SpdyDataFlags flags) {
   LOG(INFO) << "Writing Stream Data for stream " << stream_id << " (" << len
             << " bytes)";
   const int kMss = 1430;  // This is somewhat arbitrary and not really fixed,
@@ -437,11 +438,6 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   if (!stream)
     return ERR_INVALID_SPDY_STREAM;
 
-  // TODO(mbelshe):  Setting of the FIN is assuming that the caller will pass
-  //                 all data to write in a single chunk.  Is this always true?
-
-  // Set the flags on the upload.
-  spdy::SpdyDataFlags flags = spdy::DATA_FLAG_FIN;
   if (len > kMaxSpdyFrameChunkSize) {
     len = kMaxSpdyFrameChunkSize;
     flags = spdy::DATA_FLAG_NONE;

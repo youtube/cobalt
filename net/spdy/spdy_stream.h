@@ -57,8 +57,10 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
                                    int status) = 0;
 
     // Called when data is received.
-    // Returns true if data is successfully processed.
     virtual void OnDataReceived(const char* data, int length) = 0;
+
+    // Called when data is sent.
+    virtual void OnDataSent(int length) = 0;
 
     // Called when SpdyStream is closed.
     virtual void OnClose(int status) = 0;
@@ -152,11 +154,14 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   int DoReadResponseHeaders();
 
   // Sends DATA frame.
-  int WriteStreamData(IOBuffer* data, int length);
+  int WriteStreamData(IOBuffer* data, int length,
+                      spdy::SpdyDataFlags flags);
 
   bool GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated);
 
-  bool is_idle() const { return io_state_ == STATE_NONE; }
+  bool is_idle() const {
+    return io_state_ == STATE_NONE || io_state_ == STATE_OPEN;
+  }
   bool response_complete() const { return response_complete_; }
   int response_status() const { return response_status_; }
 
@@ -169,8 +174,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
     STATE_SEND_BODY_COMPLETE,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
-    STATE_READ_BODY,
-    STATE_READ_BODY_COMPLETE,
+    STATE_OPEN,
     STATE_DONE
   };
 
@@ -187,8 +191,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   int DoSendBodyComplete(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
-  int DoReadBody();
-  int DoReadBodyComplete(int result);
+  int DoOpen(int result);
 
   // Update the histograms.  Can safely be called repeatedly, but should only
   // be called after the stream has completed.

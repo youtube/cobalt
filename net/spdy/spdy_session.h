@@ -95,7 +95,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
   int WriteStreamData(spdy::SpdyStreamId stream_id, net::IOBuffer* data,
-                      int len);
+                      int len,
+                      spdy::SpdyDataFlags flags);
 
   // Close a stream.
   void CloseStream(spdy::SpdyStreamId stream_id, int status);
