@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include <functional>
-#include <iostream>
+#include <iosfwd>
 #include <map>
 #include <set>
 #include <string>
