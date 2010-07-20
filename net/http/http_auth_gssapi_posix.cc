@@ -725,6 +725,7 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
                                       const std::wstring* password,
                                       const std::wstring& spn,
                                       std::string* auth_token) {
+  DCHECK(auth_token);
   DCHECK((username == NULL) == (password == NULL));
 
   if (!IsFinalRound()) {
@@ -821,7 +822,7 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
                                         minor_status)
                << std::endl
                << DescribeContext(library_, scoped_sec_context_.get());
-    return ERR_UNEXPECTED;
+    return ERR_MISSING_AUTH_CREDENTIALS;
   }
 
   return OK;

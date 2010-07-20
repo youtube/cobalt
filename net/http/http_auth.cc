@@ -24,6 +24,7 @@ void HttpAuth::ChooseBestChallenge(
     const HttpResponseHeaders* headers,
     Target target,
     const GURL& origin,
+    const std::set<std::string>& disabled_schemes,
     const BoundNetLog& net_log,
     scoped_ptr<HttpAuthHandler>* handler) {
   DCHECK(http_auth_handler_factory);
@@ -56,8 +57,10 @@ void HttpAuth::ChooseBestChallenge(
                    << ErrorToString(rv) << " Challenge: " << cur_challenge;
       continue;
     }
-    if (cur.get() && (!best.get() || best->score() < cur->score()))
-      best.swap(cur);
+    if (cur.get() && (!best.get() || best->score() < cur->score())) {
+      if (disabled_schemes.find(cur->scheme()) == disabled_schemes.end())
+        best.swap(cur);
+    }
   }
   handler->swap(best);
 }
