@@ -350,7 +350,7 @@ class SocketDataProviderArray {
   }
 
   T* GetNext() {
-    DCHECK(next_index_ < data_providers_.size());
+    DCHECK_LT(next_index_, data_providers_.size());
     return data_providers_[next_index_++];
   }
 
