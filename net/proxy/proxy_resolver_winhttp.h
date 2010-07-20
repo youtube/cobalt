@@ -28,12 +28,11 @@ class ProxyResolverWinHttp : public ProxyResolver {
                              RequestHandle* /*request*/,
                              const BoundNetLog& /*net_log*/);
   virtual void CancelRequest(RequestHandle request);
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      CompletionCallback* /*callback*/);
 
  private:
-  // ProxyResolver implementation:
-  virtual int SetPacScript(const GURL& pac_url,
-                           const string16& /*pac_script*/,
-                           CompletionCallback* /*callback*/);
   bool OpenWinHttpSession();
   void CloseWinHttpSession();
 

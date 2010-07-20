@@ -111,7 +111,8 @@ class ProxyResolverV8WithMockBindings : public ProxyResolverV8 {
     }
 
     // Load the PAC script into the ProxyResolver.
-    return SetPacScriptByData(UTF8ToUTF16(file_contents), NULL);
+    return SetPacScript(ProxyResolverScriptData::FromUTF8(file_contents),
+                        NULL);
   }
 };
 
@@ -368,7 +369,8 @@ TEST(ProxyResolverV8Test, NoSetPacScript) {
   EXPECT_EQ(OK, result);
 
   // Clear it, by initializing with an empty string.
-  resolver.SetPacScriptByData(string16(), NULL);
+  resolver.SetPacScript(
+      ProxyResolverScriptData::FromUTF16(string16()), NULL);
 
   // Resolve should fail again now.
   result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,

@@ -131,7 +131,7 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -176,7 +176,7 @@ TEST(ProxyServiceTest, PAC_NoIdentityOrHash) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -204,7 +204,7 @@ TEST(ProxyServiceTest, PAC_FailoverWithoutDirect) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -262,7 +262,7 @@ TEST(ProxyServiceTest, PAC_FailoverAfterDirect) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -328,7 +328,7 @@ TEST(ProxyServiceTest, ProxyResolverFails) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -382,7 +382,7 @@ TEST(ProxyServiceTest, ProxyFallback) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -472,7 +472,7 @@ TEST(ProxyServiceTest, ProxyFallbackToDirect) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -535,7 +535,7 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -561,7 +561,7 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy-new/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -593,7 +593,7 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy-new2/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -627,7 +627,7 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
   ASSERT_EQ(1u, resolver->pending_requests().size());
   EXPECT_EQ(url, resolver->pending_requests()[0]->url());
@@ -859,7 +859,7 @@ TEST(ProxyServiceTest, CancelInProgressRequest) {
 
   // Successfully initialize the PAC script.
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -958,7 +958,7 @@ TEST(ProxyServiceTest, InitialPACScriptDownload) {
   // Now that the PAC script is downloaded, it will have been sent to the proxy
   // resolver.
   EXPECT_EQ(ASCIIToUTF16("pac-v1"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(3u, resolver->pending_requests().size());
@@ -1039,7 +1039,7 @@ TEST(ProxyServiceTest, ChangeScriptFetcherWhilePACDownloadInProgress) {
   // Now that the PAC script is downloaded, it will have been sent to the proxy
   // resolver.
   EXPECT_EQ(ASCIIToUTF16("pac-v1"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(2u, resolver->pending_requests().size());
@@ -1102,7 +1102,7 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   // Now that the PAC script is downloaded, it will have been sent to the
   // proxy resolver.
   EXPECT_EQ(ASCIIToUTF16("pac-v1"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -1180,7 +1180,7 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac) {
   fetcher->NotifyFetchCompletion(OK, "custom-pac-script");
 
   EXPECT_EQ(ASCIIToUTF16("custom-pac-script"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   // Now finally, the pending requests should have been sent to the resolver
@@ -1246,7 +1246,7 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac2) {
 
   // Simulate a parse error.
   EXPECT_EQ(ASCIIToUTF16("invalid-script-contents"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(
       ERR_PAC_SCRIPT_FAILED);
 
@@ -1256,7 +1256,7 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac2) {
   fetcher->NotifyFetchCompletion(OK, "custom-pac-script");
 
   EXPECT_EQ(ASCIIToUTF16("custom-pac-script"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   // Now finally, the pending requests should have been sent to the resolver
@@ -1372,7 +1372,7 @@ TEST(ProxyServiceTest, BypassDoesntApplyToPac) {
   fetcher->NotifyFetchCompletion(OK, "auto-detect");
 
   EXPECT_EQ(ASCIIToUTF16("auto-detect"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -1464,7 +1464,7 @@ TEST(ProxyServiceTest, DeleteWhileInitProxyResolverHasOutstandingSet) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
-            resolver->pending_set_pac_script_request()->pac_url());
+            resolver->pending_set_pac_script_request()->script_data()->url());
 
   // Delete the ProxyService.
   service = NULL;
@@ -1522,7 +1522,8 @@ TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect) {
   ASSERT_EQ(0u, resolver->pending_requests().size());
 
   // Fail the setting of autodetect script.
-  EXPECT_EQ(GURL(), resolver->pending_set_pac_script_request()->pac_url());
+  EXPECT_EQ(ProxyResolverScriptData::TYPE_AUTO_DETECT,
+            resolver->pending_set_pac_script_request()->script_data()->type());
   resolver->pending_set_pac_script_request()->CompleteNow(ERR_FAILED);
 
   // Verify that request ran as expected -- should have fallen back to direct.
@@ -1568,7 +1569,8 @@ TEST(ProxyServiceTest, UpdateConfigFromPACToDirect) {
   ASSERT_EQ(0u, resolver->pending_requests().size());
 
   // Successfully set the autodetect script.
-  EXPECT_EQ(GURL(), resolver->pending_set_pac_script_request()->pac_url());
+  EXPECT_EQ(ProxyResolverScriptData::TYPE_AUTO_DETECT,
+            resolver->pending_set_pac_script_request()->script_data()->type());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   // Complete the pending request.
@@ -1635,7 +1637,7 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // Now that the PAC script is downloaded, the request will have been sent to
   // the proxy resolver.
   EXPECT_EQ(ASCIIToUTF16("pac-v1"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -1677,7 +1679,7 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // Now that the PAC script is downloaded, the second request will have been
   // sent to the proxy resolver.
   EXPECT_EQ(ASCIIToUTF16("pac-v2"),
-            resolver->pending_set_pac_script_request()->pac_script());
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());

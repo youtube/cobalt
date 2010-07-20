@@ -5297,15 +5297,14 @@ class CapturingProxyResolver : public ProxyResolver {
     NOTREACHED();
   }
 
-  const std::vector<GURL>& resolved() const { return resolved_; }
-
- private:
-  virtual int SetPacScript(const GURL& /*pac_url*/,
-                           const string16& /*pac_script*/,
+  virtual int SetPacScript(const scoped_refptr<ProxyResolverScriptData>&,
                            CompletionCallback* /*callback*/) {
     return OK;
   }
 
+  const std::vector<GURL>& resolved() const { return resolved_; }
+
+ private:
   std::vector<GURL> resolved_;
 
   DISALLOW_COPY_AND_ASSIGN(CapturingProxyResolver);
