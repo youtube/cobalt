@@ -238,6 +238,8 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   scoped_refptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
+  MockConnect connect_data(false, OK);
+  data->set_connect_data(connect_data);
 
   session_deps.socket_factory.AddSocketDataProvider(data.get());
   SpdySession::SetSSLMode(false);
