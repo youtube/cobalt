@@ -29,6 +29,7 @@ class ProxyServer {
     SCHEME_HTTP    = 1 << 2,
     SCHEME_SOCKS4  = 1 << 3,
     SCHEME_SOCKS5  = 1 << 4,
+    SCHEME_HTTPS   = 1 << 5,
   };
 
   // Default copy-constructor and assignment operator are OK!
@@ -51,6 +52,9 @@ class ProxyServer {
 
   // Returns true if this ProxyServer is an HTTP proxy.
   bool is_http() const { return scheme_ == SCHEME_HTTP; }
+
+  // Returns true if this ProxyServer is an HTTPS proxy.
+  bool is_https() const { return scheme_ == SCHEME_HTTPS; }
 
   // Returns true if this ProxyServer is a SOCKS proxy.
   bool is_socks() const {
@@ -87,6 +91,7 @@ class ProxyServer {
   //   "socks4://foopy"   {scheme=SOCKS4, host="foopy", port=1080}
   //   "socks5://foopy"   {scheme=SOCKS5, host="foopy", port=1080}
   //   "http://foopy:17"  {scheme=HTTP, host="foopy", port=17}
+  //   "https://foopy:17" {scheme=HTTPS, host="foopy", port=17}
   //   "direct://"        {scheme=DIRECT}
   //   "foopy:X"          INVALID -- bad port.
   static ProxyServer FromURI(const std::string& uri, Scheme default_scheme);
@@ -108,6 +113,7 @@ class ProxyServer {
   //   "PROXY foopy:19"   {scheme=HTTP, host="foopy", port=19}
   //   "DIRECT"           {scheme=DIRECT}
   //   "SOCKS5 foopy"     {scheme=SOCKS5, host="foopy", port=1080}
+  //   "HTTPS foopy:123"  {scheme=HTTPS, host="foopy", port=123}
   //   "BLAH xxx:xx"      INVALID
   static ProxyServer FromPacString(const std::string& pac_string);
   static ProxyServer FromPacString(std::string::const_iterator pac_string_begin,
