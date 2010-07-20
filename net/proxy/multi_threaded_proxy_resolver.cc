@@ -178,21 +178,17 @@ class MultiThreadedProxyResolver::Job
 class MultiThreadedProxyResolver::SetPacScriptJob
     : public MultiThreadedProxyResolver::Job {
  public:
-  SetPacScriptJob(const GURL& pac_url,
-                  const string16& pac_script,
+  SetPacScriptJob(const scoped_refptr<ProxyResolverScriptData>& script_data,
                   CompletionCallback* callback)
     : Job(callback ? TYPE_SET_PAC_SCRIPT : TYPE_SET_PAC_SCRIPT_INTERNAL,
           callback),
-      pac_url_(pac_url),
-      pac_script_(pac_script) {
+      script_data_(script_data) {
   }
 
   // Runs on the worker thread.
   virtual void Run(MessageLoop* origin_loop) {
     ProxyResolver* resolver = executor()->resolver();
-    int rv = resolver->expects_pac_bytes() ?
-        resolver->SetPacScriptByData(pac_script_, NULL) :
-        resolver->SetPacScriptByUrl(pac_url_, NULL);
+    int rv = resolver->SetPacScript(script_data_, NULL);
 
     DCHECK_NE(rv, ERR_IO_PENDING);
     origin_loop->PostTask(
@@ -210,8 +206,7 @@ class MultiThreadedProxyResolver::SetPacScriptJob
     OnJobCompleted();
   }
 
-  const GURL pac_url_;
-  const string16 pac_script_;
+  const scoped_refptr<ProxyResolverScriptData> script_data_;
 };
 
 // MultiThreadedProxyResolver::GetProxyForURLJob ------------------------------
@@ -394,8 +389,7 @@ MultiThreadedProxyResolver::MultiThreadedProxyResolver(
     size_t max_num_threads)
     : ProxyResolver(resolver_factory->resolvers_expect_pac_bytes()),
       resolver_factory_(resolver_factory),
-      max_num_threads_(max_num_threads),
-      was_set_pac_script_called_(false) {
+      max_num_threads_(max_num_threads) {
   DCHECK_GE(max_num_threads, 1u);
 }
 
@@ -412,7 +406,7 @@ int MultiThreadedProxyResolver::GetProxyForURL(const GURL& url,
                                                const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
   DCHECK(callback);
-  DCHECK(was_set_pac_script_called_)
+  DCHECK(current_script_data_.get())
       << "Resolver is un-initialized. Must call SetPacScript() first!";
 
   scoped_refptr<GetProxyForURLJob> job =
@@ -441,7 +435,7 @@ int MultiThreadedProxyResolver::GetProxyForURL(const GURL& url,
   if (executors_.size() < max_num_threads_) {
     executor = AddNewExecutor();
     executor->StartJob(
-        new SetPacScriptJob(current_pac_url_, current_pac_script_, NULL));
+        new SetPacScriptJob(current_script_data_, NULL));
   }
 
   return ERR_IO_PENDING;
@@ -476,9 +470,7 @@ void MultiThreadedProxyResolver::CancelSetPacScript() {
 
   // Defensively clear some data which shouldn't be getting used
   // anymore.
-  was_set_pac_script_called_ = false;
-  current_pac_url_ = GURL();
-  current_pac_script_ = string16();
+  current_script_data_ = NULL;
 
   ReleaseAllExecutors();
 }
@@ -493,18 +485,13 @@ void MultiThreadedProxyResolver::PurgeMemory() {
 }
 
 int MultiThreadedProxyResolver::SetPacScript(
-    const GURL& pac_url,
-    const string16& pac_script,
+    const scoped_refptr<ProxyResolverScriptData>& script_data,
     CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(callback);
 
   // Save the script details, so we can provision new executors later.
-  // (We rely on internal reference counting of strings to avoid this memory
-  // being duplicated by each of the resolver threads).
-  was_set_pac_script_called_ = true;
-  current_pac_url_ = pac_url;
-  current_pac_script_ = pac_script;
+  current_script_data_ = script_data;
 
   // The user should not have any outstanding requests when they call
   // SetPacScript().
@@ -516,7 +503,7 @@ int MultiThreadedProxyResolver::SetPacScript(
   // Provision a new executor, and run the SetPacScript request. On completion
   // notification will be sent through |callback|.
   Executor* executor = AddNewExecutor();
-  executor->StartJob(new SetPacScriptJob(pac_url, pac_script, callback));
+  executor->StartJob(new SetPacScriptJob(script_data, callback));
   return ERR_IO_PENDING;
 }
 

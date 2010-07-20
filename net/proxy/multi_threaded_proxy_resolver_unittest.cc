@@ -58,11 +58,11 @@ class MockProxyResolver : public ProxyResolver {
     NOTREACHED();
   }
 
-  virtual int SetPacScript(const GURL& pac_url,
-                           const string16& text,
-                           CompletionCallback* callback) {
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      CompletionCallback* callback) {
     CheckIsOnWorkerThread();
-    last_pac_script_ = text;
+    last_script_data_ = script_data;
     return OK;
   }
 
@@ -74,7 +74,9 @@ class MockProxyResolver : public ProxyResolver {
   int purge_count() const { return purge_count_; }
   int request_count() const { return request_count_; }
 
-  const string16& last_pac_script() const { return last_pac_script_; }
+  const ProxyResolverScriptData* last_script_data() const {
+    return last_script_data_;
+  }
 
   void SetResolveLatency(int latency_ms) {
     resolve_latency_ms_ = latency_ms;
@@ -92,7 +94,7 @@ class MockProxyResolver : public ProxyResolver {
   MessageLoop* wrong_loop_;
   int request_count_;
   int purge_count_;
-  string16 last_pac_script_;
+  scoped_refptr<ProxyResolverScriptData> last_script_data_;
   int resolve_latency_ms_;
 };
 
@@ -165,13 +167,10 @@ class ForwardingProxyResolver : public ProxyResolver {
     impl_->CancelRequest(request);
   }
 
-  virtual int SetPacScript(const GURL& pac_url,
-                           const string16& script,
-                           CompletionCallback* callback) {
-    if (impl_->expects_pac_bytes())
-      return impl_->SetPacScriptByData(script, callback);
-    else
-      return impl_->SetPacScriptByUrl(pac_url, callback);
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      CompletionCallback* callback) {
+    return impl_->SetPacScript(script_data, callback);
   }
 
   virtual void PurgeMemory() {
@@ -234,11 +233,13 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
   // Call SetPacScriptByData() -- verify that it reaches the synchronous
   // resolver.
   TestCompletionCallback set_script_callback;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("pac script bytes"),
-                                   &set_script_callback);
+  rv = resolver.SetPacScript(
+      ProxyResolverScriptData::FromUTF8("pac script bytes"),
+      &set_script_callback);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, set_script_callback.WaitForResult());
-  EXPECT_EQ(ASCIIToUTF16("pac script bytes"), mock->last_pac_script());
+  EXPECT_EQ(ASCIIToUTF16("pac script bytes"),
+            mock->last_script_data()->utf16());
 
   // Start request 0.
   TestCompletionCallback callback0;
@@ -304,7 +305,8 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
   // we queue up a dummy request after the PurgeMemory() call and wait until it
   // finishes to ensure PurgeMemory() has had a chance to run.
   TestCompletionCallback dummy_callback;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("dummy"), &dummy_callback);
+  rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("dummy"),
+                             &dummy_callback);
   EXPECT_EQ(OK, dummy_callback.WaitForResult());
   EXPECT_EQ(1, mock->purge_count());
 }
@@ -322,7 +324,8 @@ TEST(MultiThreadedProxyResolverTest,
 
   // Initialize the resolver.
   TestCompletionCallback init_callback;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("foo"), &init_callback);
+  rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("foo"),
+                             &init_callback);
   EXPECT_EQ(OK, init_callback.WaitForResult());
 
   // Block the proxy resolver, so no request can complete.
@@ -403,7 +406,8 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequest) {
 
   // Initialize the resolver.
   TestCompletionCallback init_callback;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("foo"), &init_callback);
+  rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("foo"),
+                             &init_callback);
   EXPECT_EQ(OK, init_callback.WaitForResult());
 
   // Block the proxy resolver, so no request can complete.
@@ -479,7 +483,8 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequestByDeleting) {
 
   // Initialize the resolver.
   TestCompletionCallback init_callback;
-  rv = resolver->SetPacScriptByData(ASCIIToUTF16("foo"), &init_callback);
+  rv = resolver->SetPacScript(ProxyResolverScriptData::FromUTF8("foo"),
+                              &init_callback);
   EXPECT_EQ(OK, init_callback.WaitForResult());
 
   // Block the proxy resolver, so no request can complete.
@@ -539,8 +544,8 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelSetPacScript) {
   int rv;
 
   TestCompletionCallback set_pac_script_callback;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("data"),
-                                   &set_pac_script_callback);
+  rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("data"),
+                             &set_pac_script_callback);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // Cancel the SetPacScriptByData request.
@@ -548,15 +553,15 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelSetPacScript) {
 
   // Start another SetPacScript request
   TestCompletionCallback set_pac_script_callback2;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("data2"),
-                                   &set_pac_script_callback2);
+  rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("data2"),
+                             &set_pac_script_callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // Wait for the initialization to complete.
 
   rv = set_pac_script_callback2.WaitForResult();
   EXPECT_EQ(0, rv);
-  EXPECT_EQ(ASCIIToUTF16("data2"), mock->last_pac_script());
+  EXPECT_EQ(ASCIIToUTF16("data2"), mock->last_script_data()->utf16());
 
   // The first SetPacScript callback should never have been completed.
   EXPECT_FALSE(set_pac_script_callback.have_result());
@@ -576,14 +581,15 @@ TEST(MultiThreadedProxyResolverTest, ThreeThreads_Basic) {
   // Call SetPacScriptByData() -- verify that it reaches the synchronous
   // resolver.
   TestCompletionCallback set_script_callback;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("pac script bytes"),
-                                   &set_script_callback);
+  rv = resolver.SetPacScript(
+      ProxyResolverScriptData::FromUTF8("pac script bytes"),
+      &set_script_callback);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, set_script_callback.WaitForResult());
   // One thread has been provisioned (i.e. one ProxyResolver was created).
   ASSERT_EQ(1u, factory->resolvers().size());
   EXPECT_EQ(ASCIIToUTF16("pac script bytes"),
-            factory->resolvers()[0]->last_pac_script());
+            factory->resolvers()[0]->last_script_data()->utf16());
 
   const int kNumRequests = 9;
   TestCompletionCallback callback[kNumRequests];
@@ -644,18 +650,20 @@ TEST(MultiThreadedProxyResolverTest, ThreeThreads_Basic) {
   // (That way we can test to see the values observed by the synchronous
   // resolvers in a non-racy manner).
   TestCompletionCallback set_script_callback2;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("xyz"), &set_script_callback2);
+  rv = resolver.SetPacScript(ProxyResolverScriptData::FromUTF8("xyz"),
+                             &set_script_callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, set_script_callback2.WaitForResult());
   ASSERT_EQ(4u, factory->resolvers().size());
 
   for (int i = 0; i < 3; ++i) {
-    EXPECT_EQ(ASCIIToUTF16("pac script bytes"),
-              factory->resolvers()[i]->last_pac_script()) << "i=" << i;
+    EXPECT_EQ(
+        ASCIIToUTF16("pac script bytes"),
+        factory->resolvers()[i]->last_script_data()->utf16()) << "i=" << i;
   }
 
   EXPECT_EQ(ASCIIToUTF16("xyz"),
-            factory->resolvers()[3]->last_pac_script());
+            factory->resolvers()[3]->last_script_data()->utf16());
 
   // We don't know the exact ordering that requests ran on threads with,
   // but we do know the total count that should have reached the threads.
@@ -685,14 +693,15 @@ TEST(MultiThreadedProxyResolverTest, OneThreadBlocked) {
 
   // Initialize the resolver.
   TestCompletionCallback set_script_callback;
-  rv = resolver.SetPacScriptByData(ASCIIToUTF16("pac script bytes"),
-                                   &set_script_callback);
+  rv = resolver.SetPacScript(
+      ProxyResolverScriptData::FromUTF8("pac script bytes"),
+      &set_script_callback);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, set_script_callback.WaitForResult());
   // One thread has been provisioned (i.e. one ProxyResolver was created).
   ASSERT_EQ(1u, factory->resolvers().size());
   EXPECT_EQ(ASCIIToUTF16("pac script bytes"),
-            factory->resolvers()[0]->last_pac_script());
+            factory->resolvers()[0]->last_script_data()->utf16());
 
   const int kNumRequests = 4;
   TestCompletionCallback callback[kNumRequests];
