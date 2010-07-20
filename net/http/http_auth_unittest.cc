@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <set>
 #include <string>
 
 #include "base/ref_counted.h"
@@ -70,6 +71,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
     }
   };
   GURL origin("http://www.example.com");
+  std::set<std::string> disabled_schemes;
   URLSecurityManagerAllow url_security_manager;
   scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
       HttpAuthHandlerFactory::CreateDefault());
@@ -91,6 +93,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
                                   headers.get(),
                                   HttpAuth::AUTH_SERVER,
                                   origin,
+                                  disabled_schemes,
                                   BoundNetLog(),
                                   &handler);
 
@@ -129,6 +132,7 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNTLM) {
     }
   };
   GURL origin("http://www.example.com");
+  std::set<std::string> disabled_schemes;
 
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
       HttpAuthHandlerFactory::CreateDefault());
@@ -152,6 +156,7 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNTLM) {
                                   headers.get(),
                                   HttpAuth::AUTH_SERVER,
                                   origin,
+                                  disabled_schemes,
                                   BoundNetLog(),
                                   &handler);
     EXPECT_TRUE(handler != NULL);
@@ -189,6 +194,7 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNegotiate) {
     }
   };
   GURL origin("http://www.example.com");
+  std::set<std::string> disabled_schemes;
   URLSecurityManagerAllow url_security_manager;
   scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
       HttpAuthHandlerFactory::CreateDefault());
@@ -211,6 +217,7 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNegotiate) {
                                   headers.get(),
                                   HttpAuth::AUTH_SERVER,
                                   origin,
+                                  disabled_schemes,
                                   BoundNetLog(),
                                   &handler);
 
