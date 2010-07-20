@@ -206,15 +206,15 @@ void BlockFiles::ReportStats() {
   for (int i = 0; i < kFirstAdditionalBlockFile; i++) {
     GetFileStats(i, &used_blocks[i], &load[i]);
   }
-  UMA_HISTOGRAM_COUNTS("Blocks_0", used_blocks[0]);
-  UMA_HISTOGRAM_COUNTS("Blocks_1", used_blocks[1]);
-  UMA_HISTOGRAM_COUNTS("Blocks_2", used_blocks[2]);
-  UMA_HISTOGRAM_COUNTS("Blocks_3", used_blocks[3]);
+  UMA_HISTOGRAM_COUNTS("DiskCache.Blocks_0", used_blocks[0]);
+  UMA_HISTOGRAM_COUNTS("DiskCache.Blocks_1", used_blocks[1]);
+  UMA_HISTOGRAM_COUNTS("DiskCache.Blocks_2", used_blocks[2]);
+  UMA_HISTOGRAM_COUNTS("DiskCache.Blocks_3", used_blocks[3]);
 
-  UMA_HISTOGRAM_ENUMERATION("BlockLoad_0", load[0], 101);
-  UMA_HISTOGRAM_ENUMERATION("BlockLoad_1", load[1], 101);
-  UMA_HISTOGRAM_ENUMERATION("BlockLoad_2", load[2], 101);
-  UMA_HISTOGRAM_ENUMERATION("BlockLoad_3", load[3], 101);
+  UMA_HISTOGRAM_ENUMERATION("DiskCache.BlockLoad_0", load[0], 101);
+  UMA_HISTOGRAM_ENUMERATION("DiskCache.BlockLoad_1", load[1], 101);
+  UMA_HISTOGRAM_ENUMERATION("DiskCache.BlockLoad_2", load[2], 101);
+  UMA_HISTOGRAM_ENUMERATION("DiskCache.BlockLoad_3", load[3], 101);
 }
 
 bool BlockFiles::CreateBlockFile(int index, FileType file_type, bool force) {
