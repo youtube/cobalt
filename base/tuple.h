@@ -307,6 +307,65 @@ struct Tuple7 {
   G g;
 };
 
+template <class A, class B, class C, class D, class E, class F, class G,
+          class H>
+struct Tuple8 {
+ public:
+  typedef A TypeA;
+  typedef B TypeB;
+  typedef C TypeC;
+  typedef D TypeD;
+  typedef E TypeE;
+  typedef F TypeF;
+  typedef G TypeG;
+  typedef H TypeH;
+  typedef Tuple8<typename TupleTraits<A>::ValueType,
+    typename TupleTraits<B>::ValueType,
+    typename TupleTraits<C>::ValueType,
+    typename TupleTraits<D>::ValueType,
+    typename TupleTraits<E>::ValueType,
+    typename TupleTraits<F>::ValueType,
+    typename TupleTraits<G>::ValueType,
+    typename TupleTraits<H>::ValueType> ValueTuple;
+  typedef Tuple8<typename TupleTraits<A>::RefType,
+    typename TupleTraits<B>::RefType,
+    typename TupleTraits<C>::RefType,
+    typename TupleTraits<D>::RefType,
+    typename TupleTraits<E>::RefType,
+    typename TupleTraits<F>::RefType,
+    typename TupleTraits<G>::RefType,
+    typename TupleTraits<H>::RefType> RefTuple;
+  typedef Tuple8<typename TupleTraits<A>::ParamType,
+    typename TupleTraits<B>::ParamType,
+    typename TupleTraits<C>::ParamType,
+    typename TupleTraits<D>::ParamType,
+    typename TupleTraits<E>::ParamType,
+    typename TupleTraits<F>::ParamType,
+    typename TupleTraits<G>::ParamType,
+    typename TupleTraits<H>::ParamType> ParamTuple;
+
+  Tuple8() {}
+  Tuple8(typename TupleTraits<A>::ParamType a,
+    typename TupleTraits<B>::ParamType b,
+    typename TupleTraits<C>::ParamType c,
+    typename TupleTraits<D>::ParamType d,
+    typename TupleTraits<E>::ParamType e,
+    typename TupleTraits<F>::ParamType f,
+    typename TupleTraits<G>::ParamType g,
+    typename TupleTraits<H>::ParamType h)
+    : a(a), b(b), c(c), d(d), e(e), f(f), g(g), h(h) {
+  }
+
+  A a;
+  B b;
+  C c;
+  D d;
+  E e;
+  F f;
+  G g;
+  H h;
+};
+
 // Tuple creators -------------------------------------------------------------
 //
 // Helper functions for constructing tuples while inferring the template
@@ -356,6 +415,15 @@ inline Tuple7<A, B, C, D, E, F, G> MakeTuple(const A& a, const B& b, const C& c,
   return Tuple7<A, B, C, D, E, F, G>(a, b, c, d, e, f, g);
 }
 
+template <class A, class B, class C, class D, class E, class F, class G,
+          class H>
+inline Tuple8<A, B, C, D, E, F, G, H> MakeTuple(const A& a, const B& b,
+                                                const C& c, const D& d,
+                                                const E& e, const F& f,
+                                                const G& g, const H& h) {
+  return Tuple8<A, B, C, D, E, F, G, H>(a, b, c, d, e, f, g, h);
+}
+
 // The following set of helpers make what Boost refers to as "Tiers" - a tuple
 // of references.
 
@@ -394,6 +462,14 @@ template <class A, class B, class C, class D, class E, class F, class G>
 inline Tuple7<A&, B&, C&, D&, E&, F&, G&> MakeRefTuple(A& a, B& b, C& c, D& d,
                                                        E& e, F& f, G& g) {
   return Tuple7<A&, B&, C&, D&, E&, F&, G&>(a, b, c, d, e, f, g);
+}
+
+template <class A, class B, class C, class D, class E, class F, class G,
+          class H>
+inline Tuple8<A&, B&, C&, D&, E&, F&, G&, H&> MakeRefTuple(A& a, B& b, C& c,
+                                                           D& d, E& e, F& f,
+                                                           G& g, H& h) {
+  return Tuple8<A&, B&, C&, D&, E&, F&, G&, H&>(a, b, c, d, e, f, g, h);
 }
 
 // Dispatchers ----------------------------------------------------------------
@@ -504,6 +580,20 @@ template<class Function, class A, class B, class C, class D, class E, class F>
 inline void DispatchToFunction(Function function,
                                const Tuple6<A, B, C, D, E, F>& arg) {
   (*function)(arg.a, arg.b, arg.c, arg.d, arg.e, arg.f);
+}
+
+template<class Function, class A, class B, class C, class D, class E, class F,
+         class G>
+inline void DispatchToFunction(Function function,
+                               const Tuple7<A, B, C, D, E, F, G>& arg) {
+  (*function)(arg.a, arg.b, arg.c, arg.d, arg.e, arg.f, arg.g);
+}
+
+template<class Function, class A, class B, class C, class D, class E, class F,
+         class G, class H>
+inline void DispatchToFunction(Function function,
+                               const Tuple8<A, B, C, D, E, F, G, H>& arg) {
+  (*function)(arg.a, arg.b, arg.c, arg.d, arg.e, arg.f, arg.g, arg.h);
 }
 
 // Dispatchers with 0 out param (as a Tuple0).
