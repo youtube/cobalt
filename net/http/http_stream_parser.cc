@@ -36,6 +36,8 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
   DCHECK_EQ(0, read_buffer->offset());
 }
 
+HttpStreamParser::~HttpStreamParser() {}
+
 int HttpStreamParser::SendRequest(const HttpRequestInfo* request,
                                   const std::string& headers,
                                   UploadDataStream* request_body,
