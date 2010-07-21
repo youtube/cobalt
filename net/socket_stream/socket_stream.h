@@ -170,7 +170,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   class ResponseHeaders : public IOBuffer {
    public:
-    ResponseHeaders() : IOBuffer() {}
+    ResponseHeaders();
 
     void SetDataOffset(size_t offset) { data_ = headers_.get() + offset; }
     char* headers() const { return headers_.get(); }
@@ -178,7 +178,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     void Realloc(size_t new_size);
 
    private:
-     ~ResponseHeaders() { data_ = NULL; }
+     ~ResponseHeaders();
 
     scoped_ptr_malloc<char> headers_;
   };

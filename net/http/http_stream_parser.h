@@ -30,7 +30,7 @@ class HttpStreamParser {
   HttpStreamParser(ClientSocketHandle* connection,
                    GrowableIOBuffer* read_buffer,
                    const BoundNetLog& net_log);
-  ~HttpStreamParser() {}
+  ~HttpStreamParser();
 
   // These functions implement the interface described in HttpStream with
   // some additional functionality
