@@ -163,7 +163,7 @@ int SpdyHttpStream::InitializeStream(
   else
     return spdy_session_->CreateStream(request_info_.url,
                                        request_info_.priority, &stream_,
-                                       stream_net_log, callback, this);
+                                       stream_net_log, callback);
 }
 
 void SpdyHttpStream::InitializeRequest(
@@ -302,7 +302,7 @@ int SpdyHttpStream::SendRequest(HttpResponseInfo* response,
 
 void SpdyHttpStream::Cancel() {
   if (spdy_session_)
-    spdy_session_->CancelPendingCreateStreams(this);
+    spdy_session_->CancelPendingCreateStreams(&stream_);
   user_callback_ = NULL;
   if (stream_)
     stream_->Cancel();
