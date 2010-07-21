@@ -921,8 +921,8 @@
         'proxy/proxy_config_service_common_unittest.h',
         'socket/socket_test_util.cc',
         'socket/socket_test_util.h',
-        'socket/ssl_test_util.cc',
-        'socket/ssl_test_util.h',
+        'test/test_server.cc',
+        'test/test_server.h',
       ],
       'conditions': [
         ['inside_chromium_build==1', {
