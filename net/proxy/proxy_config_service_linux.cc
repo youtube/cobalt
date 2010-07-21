@@ -15,6 +15,7 @@
 
 #include <map>
 
+#include "base/env_var.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
@@ -432,7 +433,7 @@ class GConfSettingGetterImplKDE
     } else {
       // $KDEHOME is unset. Try to figure out what to use. This seems to be
       // the common case on most distributions.
-      if (!env_var_getter->GetEnv("HOME", &home))
+      if (!env_var_getter->GetEnv(base::env_vars::kHome, &home))
         // User has no $HOME? Give up. Later we'll report the failure.
         return;
       if (base::GetDesktopEnvironment(env_var_getter) ==
