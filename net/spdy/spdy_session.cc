@@ -295,8 +295,7 @@ int SpdySession::CreateStream(
     RequestPriority priority,
     scoped_refptr<SpdyStream>* spdy_stream,
     const BoundNetLog& stream_net_log,
-    CompletionCallback* callback,
-    const SpdyHttpStream* spdy_http_stream) {
+    CompletionCallback* callback) {
   if (!max_concurrent_streams_ ||
       active_streams_.size() < max_concurrent_streams_) {
     return CreateStreamImpl(url, priority, spdy_stream, stream_net_log);
@@ -304,7 +303,7 @@ int SpdySession::CreateStream(
 
   create_stream_queues_[priority].push(
       PendingCreateStream(url, priority, spdy_stream,
-                          stream_net_log, callback, spdy_http_stream));
+                          stream_net_log, callback));
   return ERR_IO_PENDING;
 }
 
@@ -331,13 +330,13 @@ void SpdySession::ProcessPendingCreateStreams() {
 }
 
 void SpdySession::CancelPendingCreateStreams(
-    const SpdyHttpStream *const spdy_http_stream) {
+    const scoped_refptr<SpdyStream>* spdy_stream) {
   for (int i = 0;i < NUM_PRIORITIES;++i) {
     PendingCreateStreamQueue tmp;
     // Make a copy removing this trans
     while (!create_stream_queues_[i].empty()) {
       PendingCreateStream& pending_create = create_stream_queues_[i].front();
-      if (pending_create.spdy_http_stream != spdy_http_stream)
+      if (pending_create.spdy_stream != spdy_stream)
         tmp.push(pending_create);
       create_stream_queues_[i].pop();
     }
