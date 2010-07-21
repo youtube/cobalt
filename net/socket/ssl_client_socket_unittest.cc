@@ -14,8 +14,8 @@
 #include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socket_test_util.h"
-#include "net/socket/ssl_test_util.h"
 #include "net/socket/tcp_client_socket.h"
+#include "net/test/test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
