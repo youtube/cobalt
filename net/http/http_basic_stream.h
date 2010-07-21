@@ -27,7 +27,7 @@ class UploadDataStream;
 class HttpBasicStream : public HttpStream {
  public:
   HttpBasicStream(ClientSocketHandle* handle, const BoundNetLog& net_log);
-  virtual ~HttpBasicStream() {}
+  virtual ~HttpBasicStream();
 
   // HttpStream methods:
   virtual int SendRequest(const HttpRequestInfo* request,

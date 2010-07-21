@@ -21,6 +21,8 @@ int HttpBasicStream::SendRequest(const HttpRequestInfo* request,
       request, headers, request_body, response, callback);
 }
 
+HttpBasicStream::~HttpBasicStream() {}
+
 uint64 HttpBasicStream::GetUploadProgress() const {
   return parser_->GetUploadProgress();
 }

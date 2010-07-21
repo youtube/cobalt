@@ -35,6 +35,9 @@ static const int kReadBufferSize = 4096;
 
 namespace net {
 
+SocketStream::ResponseHeaders::ResponseHeaders() : IOBuffer() {}
+SocketStream::ResponseHeaders::~ResponseHeaders() { data_ = NULL; }
+
 void SocketStream::ResponseHeaders::Realloc(size_t new_size) {
   headers_.reset(static_cast<char*>(realloc(headers_.release(), new_size)));
 }
@@ -987,3 +990,4 @@ ProxyService* SocketStream::proxy_service() const {
 }
 
 }  // namespace net
+
