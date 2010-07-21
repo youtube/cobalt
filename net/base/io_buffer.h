@@ -17,7 +17,7 @@ namespace net {
 // easier asynchronous IO handling.
 class IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
  public:
-  IOBuffer() : data_(NULL) {}
+  IOBuffer();
   explicit IOBuffer(int buffer_size);
 
   char* data() { return data_; }
@@ -27,11 +27,9 @@ class IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
 
   // Only allow derived classes to specify data_.
   // In all other cases, we own data_, and must delete it at destruction time.
-  explicit IOBuffer(char* data) : data_(data) {}
+  explicit IOBuffer(char* data);
 
-  virtual ~IOBuffer() {
-    delete[] data_;
-  }
+  virtual ~IOBuffer();
 
   char* data_;
 };
@@ -42,7 +40,7 @@ class IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
 // argument to IO functions. Please keep using IOBuffer* for API declarations.
 class IOBufferWithSize : public IOBuffer {
  public:
-  explicit IOBufferWithSize(int size) : IOBuffer(size), size_(size) {}
+  explicit IOBufferWithSize(int size);
 
   int size() const { return size_; }
 
@@ -56,20 +54,12 @@ class IOBufferWithSize : public IOBuffer {
 // the IOBuffer interface does not provide a proper way to modify it.
 class StringIOBuffer : public IOBuffer {
  public:
-  explicit StringIOBuffer(const std::string& s)
-      : IOBuffer(static_cast<char*>(NULL)),
-        string_data_(s) {
-    data_ = const_cast<char*>(string_data_.data());
-  }
+  explicit StringIOBuffer(const std::string& s);
 
   int size() const { return string_data_.size(); }
 
  private:
-  ~StringIOBuffer() {
-    // We haven't allocated the buffer, so remove it before the base class
-    // destructor tries to delete[] it.
-    data_ = NULL;
-  }
+  ~StringIOBuffer();
 
   std::string string_data_;
 };
@@ -78,18 +68,17 @@ class StringIOBuffer : public IOBuffer {
 // to progressively read all the data.
 class DrainableIOBuffer : public IOBuffer {
  public:
-  DrainableIOBuffer(IOBuffer* base, int size)
-      : IOBuffer(base->data()), base_(base), size_(size), used_(0) {}
+  DrainableIOBuffer(IOBuffer* base, int size);
 
   // DidConsume() changes the |data_| pointer so that |data_| always points
   // to the first unconsumed byte.
-  void DidConsume(int bytes) { SetOffset(used_ + bytes); }
+  void DidConsume(int bytes);
 
   // Returns the number of unconsumed bytes.
-  int BytesRemaining() const { return size_ - used_; }
+  int BytesRemaining() const;
 
   // Returns the number of consumed bytes.
-  int BytesConsumed() const { return used_; }
+  int BytesConsumed() const;
 
   // Seeks to an arbitrary point in the buffer. The notion of bytes consumed
   // and remaining are updated appropriately.
@@ -98,10 +87,7 @@ class DrainableIOBuffer : public IOBuffer {
   int size() const { return size_; }
 
  private:
-  ~DrainableIOBuffer() {
-    // The buffer is owned by the |base_| instance.
-    data_ = NULL;
-  }
+  ~DrainableIOBuffer();
 
   scoped_refptr<IOBuffer> base_;
   int size_;
@@ -111,7 +97,7 @@ class DrainableIOBuffer : public IOBuffer {
 // This version provides a resizable buffer and a changeable offset.
 class GrowableIOBuffer : public IOBuffer {
  public:
-  GrowableIOBuffer() : IOBuffer(), capacity_(0), offset_(0) {}
+  GrowableIOBuffer();
 
   // realloc memory to the specified capacity.
   void SetCapacity(int capacity);
@@ -121,11 +107,11 @@ class GrowableIOBuffer : public IOBuffer {
   void set_offset(int offset);
   int offset() { return offset_; }
 
-  int RemainingCapacity() { return capacity_ - offset_; }
-  char* StartOfBuffer() { return real_data_.get(); }
+  int RemainingCapacity();
+  char* StartOfBuffer();
 
  private:
-  ~GrowableIOBuffer() { data_ = NULL; }
+  ~GrowableIOBuffer();
 
   scoped_ptr_malloc<char> real_data_;
   int capacity_;
@@ -136,18 +122,16 @@ class GrowableIOBuffer : public IOBuffer {
 // operation, avoiding an extra data copy.
 class PickledIOBuffer : public IOBuffer {
  public:
-  PickledIOBuffer() : IOBuffer() {}
+  PickledIOBuffer();
 
   Pickle* pickle() { return &pickle_; }
 
   // Signals that we are done writing to the picke and we can use it for a
   // write-style IO operation.
-  void Done() {
-    data_ = const_cast<char*>(static_cast<const char*>(pickle_.data()));
-  }
+  void Done();
 
  private:
-  ~PickledIOBuffer() { data_ = NULL; }
+  ~PickledIOBuffer();
 
   Pickle pickle_;
 };
@@ -159,13 +143,10 @@ class PickledIOBuffer : public IOBuffer {
 // of the buffer can be completely managed by its intended owner.
 class WrappedIOBuffer : public IOBuffer {
  public:
-  explicit WrappedIOBuffer(const char* data)
-      : IOBuffer(const_cast<char*>(data)) {}
+  explicit WrappedIOBuffer(const char* data);
 
  protected:
-  ~WrappedIOBuffer() {
-    data_ = NULL;
-  }
+  ~WrappedIOBuffer();
 };
 
 }  // namespace net
