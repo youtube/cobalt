@@ -1637,7 +1637,7 @@ TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
   net::CookieMonster::CookieList cookies =
       context->cookie_store()->GetCookieMonster()->GetAllCookies();
   EXPECT_EQ(1U, cookies.size());
-  EXPECT_FALSE(cookies[0].second.IsPersistent());
+  EXPECT_FALSE(cookies[0].IsPersistent());
 
   context->set_cookie_policy(NULL);
 }
