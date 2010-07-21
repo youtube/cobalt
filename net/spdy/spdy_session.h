@@ -31,7 +31,6 @@
 
 namespace net {
 
-class SpdyHttpStream;
 class SpdyStream;
 class HttpNetworkSession;
 class BoundNetLog;
@@ -74,11 +73,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
       RequestPriority priority,
       scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log,
-      CompletionCallback* callback,
-      const SpdyHttpStream* spdy_http_stream);
+      CompletionCallback* callback);
 
   // Remove PendingCreateStream objects on transaction deletion
-  void CancelPendingCreateStreams(const SpdyHttpStream* trans);
+  void CancelPendingCreateStreams(const scoped_refptr<SpdyStream>* spdy_stream);
 
   // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
   // Returns OK on success, or an error on failure.
@@ -149,16 +147,12 @@ class SpdySession : public base::RefCounted<SpdySession>,
     const BoundNetLog* stream_net_log;
     CompletionCallback* callback;
 
-    const SpdyHttpStream* spdy_http_stream;
-
     PendingCreateStream(const GURL& url, RequestPriority priority,
                         scoped_refptr<SpdyStream>* spdy_stream,
                         const BoundNetLog& stream_net_log,
-                        CompletionCallback* callback,
-                        const SpdyHttpStream* spdy_http_stream)
+                        CompletionCallback* callback)
         : url(&url), priority(priority), spdy_stream(spdy_stream),
-          stream_net_log(&stream_net_log), callback(callback),
-          spdy_http_stream(spdy_http_stream) { }
+          stream_net_log(&stream_net_log), callback(callback) { }
   };
   typedef std::queue<PendingCreateStream, std::list< PendingCreateStream> >
       PendingCreateStreamQueue;

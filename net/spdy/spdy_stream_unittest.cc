@@ -256,7 +256,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   scoped_refptr<SpdyStream> stream;
   ASSERT_EQ(
       OK,
-      session->CreateStream(url, LOWEST, &stream, BoundNetLog(), NULL, NULL));
+      session->CreateStream(url, LOWEST, &stream, BoundNetLog(), NULL));
   scoped_refptr<IOBufferWithSize> buf(new IOBufferWithSize(8));
   memcpy(buf->data(), "\0hello!\xff", 8);
   TestCompletionCallback callback;
