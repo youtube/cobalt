@@ -278,7 +278,6 @@
             '../base/base.gyp:base_unittests',
             '../chrome/app/locales/locales.gyp:*',
             '../chrome/chrome.gyp:sync_unit_tests',
-            '../chrome/chrome.gyp:unit_tests',
             '../ipc/ipc.gyp:ipc_tests',
             '../jingle/jingle.gyp:notifier_unit_tests',
             '../media/media.gyp:media_unittests',
