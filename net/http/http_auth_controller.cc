@@ -88,7 +88,7 @@ int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
                                        &auth_token_);
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
-  if (rv != ERR_IO_PENDING)
+  else
     OnIOComplete(rv);
   // This error occurs with GSSAPI, if the user has not already logged in.
   if (rv == ERR_MISSING_AUTH_CREDENTIALS)
@@ -342,7 +342,7 @@ void HttpAuthController::OnIOComplete(int result) {
   // In that case, disable the current scheme as it cannot succeed.
   if (result == ERR_MISSING_AUTH_CREDENTIALS) {
     DisableAuthScheme(handler_->scheme());
-    auth_token_.erase();
+    auth_token_.clear();
     result = OK;
   }
   if (user_callback_) {
