@@ -82,7 +82,7 @@ void CommandLine::ParseFromString(const std::wstring& command_line) {
     TrimWhitespace(args[i], TRIM_ALL, &arg);
 
     if (!parse_switches) {
-      loose_values_.push_back(arg);
+      args_.push_back(arg);
       continue;
     }
 
@@ -96,7 +96,7 @@ void CommandLine::ParseFromString(const std::wstring& command_line) {
     if (IsSwitch(arg, &switch_string, &switch_value)) {
       switches_[switch_string] = switch_value;
     } else {
-      loose_values_.push_back(arg);
+      args_.push_back(arg);
     }
   }
 
@@ -130,7 +130,7 @@ void CommandLine::InitFromArgv(const std::vector<std::string>& argv) {
     const std::string& arg = argv_[i];
 
     if (!parse_switches) {
-      loose_values_.push_back(arg);
+      args_.push_back(arg);
       continue;
     }
 
@@ -144,7 +144,7 @@ void CommandLine::InitFromArgv(const std::vector<std::string>& argv) {
     if (IsSwitch(arg, &switch_string, &switch_value)) {
       switches_[switch_string] = switch_value;
     } else {
-      loose_values_.push_back(arg);
+      args_.push_back(arg);
     }
   }
 }
@@ -287,19 +287,10 @@ std::wstring CommandLine::GetSwitchValue(
 }
 
 #if defined(OS_WIN)
-std::vector<std::wstring> CommandLine::GetLooseValues() const {
-  return loose_values_;
-}
 std::wstring CommandLine::program() const {
   return program_;
 }
 #else
-std::vector<std::wstring> CommandLine::GetLooseValues() const {
-  std::vector<std::wstring> values;
-  for (size_t i = 0; i < loose_values_.size(); ++i)
-    values.push_back(base::SysNativeMBToWide(loose_values_[i]));
-  return values;
-}
 std::wstring CommandLine::program() const {
   DCHECK_GT(argv_.size(), 0U);
   return base::SysNativeMBToWide(argv_[0]);
@@ -375,7 +366,7 @@ void CommandLine::AppendLooseValue(const std::wstring& value) {
   // TODO(evan): quoting?
   command_line_string_.append(L" ");
   command_line_string_.append(value);
-  loose_values_.push_back(value);
+  args_.push_back(value);
 }
 
 void CommandLine::AppendArguments(const CommandLine& other,

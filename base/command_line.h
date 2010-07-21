@@ -5,10 +5,9 @@
 // This class works with command lines: building and parsing.
 // Switches can optionally have a value attached using an equals sign,
 // as in "-switch=value".  Arguments that aren't prefixed with a
-// switch prefix are considered "loose parameters".  Switch names are
-// case-insensitive.  An argument of "--" will terminate switch
-// parsing, causing everything after to be considered as loose
-// parameters.
+// switch prefix are saved as extra arguments.  An argument of "--"
+// will terminate switch parsing, causing everything after to be
+// considered as extra arguments.
 
 // There is a singleton read-only CommandLine that represents the command
 // line that the current process was started with.  It must be initialized
@@ -139,8 +138,7 @@ class CommandLine {
   }
 
   // Get the remaining arguments to the command.
-  // WARNING: this is incorrect on POSIX; we must do string conversions.
-  std::vector<std::wstring> GetLooseValues() const;
+  const std::vector<StringType>& args() const { return args_; }
 
 #if defined(OS_WIN)
   // Returns the original command line string.
@@ -239,7 +237,7 @@ class CommandLine {
   SwitchMap switches_;
 
   // Non-switch command-line arguments.
-  std::vector<StringType> loose_values_;
+  std::vector<StringType> args_;
 
   // We allow copy constructors, because a common pattern is to grab a
   // copy of the current process's command line and then add some

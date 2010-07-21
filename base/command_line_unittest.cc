@@ -59,21 +59,21 @@ TEST(CommandLineTest, CommandLineConstructor) {
       "other-switches"));
   EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
 
-  std::vector<std::wstring> loose_values = cl.GetLooseValues();
-  ASSERT_EQ(5U, loose_values.size());
+  const std::vector<CommandLine::StringType>& args = cl.args();
+  ASSERT_EQ(5U, args.size());
 
-  std::vector<std::wstring>::const_iterator iter = loose_values.begin();
-  EXPECT_EQ(L"flim", *iter);
+  std::vector<CommandLine::StringType>::const_iterator iter = args.begin();
+  EXPECT_EQ(FILE_PATH_LITERAL("flim"), *iter);
   ++iter;
-  EXPECT_EQ(L"flan", *iter);
+  EXPECT_EQ(FILE_PATH_LITERAL("flan"), *iter);
   ++iter;
-  EXPECT_EQ(L"--", *iter);
+  EXPECT_EQ(FILE_PATH_LITERAL("--"), *iter);
   ++iter;
-  EXPECT_EQ(L"--not-a-switch", *iter);
+  EXPECT_EQ(FILE_PATH_LITERAL("--not-a-switch"), *iter);
   ++iter;
-  EXPECT_EQ(L"in the time of submarines...", *iter);
+  EXPECT_EQ(FILE_PATH_LITERAL("in the time of submarines..."), *iter);
   ++iter;
-  EXPECT_TRUE(iter == loose_values.end());
+  EXPECT_TRUE(iter == args.end());
 #if defined(OS_POSIX)
   const std::vector<std::string>& argvec = cl.argv();
 
@@ -93,7 +93,7 @@ TEST(CommandLineTest, EmptyString) {
   CommandLine cl(0, NULL);
   EXPECT_TRUE(cl.argv().size() == 0);
 #endif
-  EXPECT_EQ(0U, cl.GetLooseValues().size());
+  EXPECT_EQ(0U, cl.args().size());
 }
 
 // Test methods for appending switches to a command line.
