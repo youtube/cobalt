@@ -2,26 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/spdy/spdy_network_transaction.h"
-
-#include "base/basictypes.h"
-#include "base/ref_counted.h"
-#include "base/string_util.h"
-#include "net/base/completion_callback.h"
-#include "net/base/mock_host_resolver.h"
 #include "net/base/net_log_unittest.h"
-#include "net/base/request_priority.h"
-#include "net/base/ssl_config_service_defaults.h"
-#include "net/base/test_completion_callback.h"
-#include "net/base/upload_data.h"
-#include "net/http/http_auth_handler_factory.h"
-#include "net/http/http_network_session.h"
 #include "net/http/http_transaction_unittest.h"
-#include "net/proxy/proxy_config_service_fixed.h"
-#include "net/socket/socket_test_util.h"
-#include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_http_stream.h"
-#include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_network_transaction.h"
 #include "net/spdy/spdy_test_util.h"
 #include "testing/platform_test.h"
 
@@ -62,59 +46,13 @@ class SpdyNetworkTransactionTest : public PlatformTest {
   class StartTransactionCallback;
   class DeleteSessionCallback;
 
-  // Helper to manage the lifetimes of the dependencies for a
-  // HttpNetworkTransaction.
-  class SessionDependencies {
-   public:
-    // Default set of dependencies -- "null" proxy service.
-    SessionDependencies()
-        : host_resolver(new MockHostResolver),
-          proxy_service(ProxyService::CreateNull()),
-          ssl_config_service(new SSLConfigServiceDefaults),
-          http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-          spdy_session_pool(new SpdySessionPool()) {
-          // Note: The CancelledTransaction test does cleanup by running all
-          // tasks in the message loop (RunAllPending).  Unfortunately, that
-          // doesn't clean up tasks on the host resolver thread; and
-          // TCPConnectJob is currently not cancellable.  Using synchronous
-          // lookups allows the test to shutdown cleanly.  Until we have
-          // cancellable TCPConnectJobs, use synchronous lookups.
-          host_resolver->set_synchronous_mode(true);
-        }
-
-    // Custom proxy service dependency.
-    explicit SessionDependencies(ProxyService* proxy_service)
-        : host_resolver(new MockHostResolver),
-          proxy_service(proxy_service),
-          ssl_config_service(new SSLConfigServiceDefaults),
-          http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-          spdy_session_pool(new SpdySessionPool()) {}
-
-    scoped_refptr<MockHostResolverBase> host_resolver;
-    scoped_refptr<ProxyService> proxy_service;
-    scoped_refptr<SSLConfigService> ssl_config_service;
-    MockClientSocketFactory socket_factory;
-    scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
-    scoped_refptr<SpdySessionPool> spdy_session_pool;
-  };
-
-  static HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
-    return new HttpNetworkSession(session_deps->host_resolver,
-                                  session_deps->proxy_service,
-                                  &session_deps->socket_factory,
-                                  session_deps->ssl_config_service,
-                                  session_deps->spdy_session_pool,
-                                  session_deps->http_auth_handler_factory.get(),
-                                  NULL,
-                                  NULL);
-  }
-
   // A helper class that handles all the initial npn/ssl setup.
   class NormalSpdyTransactionHelper {
    public:
     NormalSpdyTransactionHelper(const HttpRequestInfo& request,
                                 const BoundNetLog& log)
-        : request_(request), session_(CreateSession(&session_deps_)),
+        : request_(request),
+          session_(SpdySessionDependencies::SpdyCreateSession(&session_deps_)),
           log_(log), add_data_allowed_(true) {}
 
     void RunPreTestSetup() {
@@ -265,7 +203,7 @@ class SpdyNetworkTransactionTest : public PlatformTest {
     typedef std::vector<StaticSocketDataProvider*> DataVector;
     typedef std::vector<linked_ptr<SSLSocketDataProvider> > SSLVector;
     HttpRequestInfo request_;
-    SessionDependencies session_deps_;
+    SpdySessionDependencies session_deps_;
     scoped_refptr<HttpNetworkSession> session_;
     TransactionHelperResult output_;
     scoped_ptr<StaticSocketDataProvider> first_transaction_;
@@ -302,9 +240,9 @@ class SpdyNetworkTransactionTest : public PlatformTest {
 
 // Verify HttpNetworkTransaction constructor.
 TEST_F(SpdyNetworkTransactionTest, Constructor) {
-  SessionDependencies session_deps;
+  SpdySessionDependencies session_deps;
   scoped_refptr<HttpNetworkSession> session =
-      CreateSession(&session_deps);
+      SpdySessionDependencies::SpdyCreateSession(&session_deps);
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 }
 
@@ -385,8 +323,9 @@ TEST_F(SpdyNetworkTransactionTest, ThreeGets) {
   BoundNetLog log;
   TransactionHelperResult out;
   {
-    SessionDependencies session_deps;
-    HttpNetworkSession* session = CreateSession(&session_deps);
+    SpdySessionDependencies session_deps;
+    HttpNetworkSession* session =
+        SpdySessionDependencies::SpdyCreateSession(&session_deps);
     SpdySession::SetSSLMode(false);
     scoped_ptr<SpdyNetworkTransaction> trans1(
         new SpdyNetworkTransaction(session));
@@ -494,8 +433,9 @@ TEST_F(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
   BoundNetLog log;
   TransactionHelperResult out;
   {
-    SessionDependencies session_deps;
-    HttpNetworkSession* session = CreateSession(&session_deps);
+    SpdySessionDependencies session_deps;
+    HttpNetworkSession* session =
+        SpdySessionDependencies::SpdyCreateSession(&session_deps);
     SpdySession::SetSSLMode(false);
     scoped_ptr<SpdyNetworkTransaction> trans1(
         new SpdyNetworkTransaction(session));
@@ -628,8 +568,9 @@ TEST_F(SpdyNetworkTransactionTest, FourGetsWithMaxConcurrentPriority) {
   BoundNetLog log;
   TransactionHelperResult out;
   {
-    SessionDependencies session_deps;
-    HttpNetworkSession* session = CreateSession(&session_deps);
+    SpdySessionDependencies session_deps;
+    HttpNetworkSession* session =
+        SpdySessionDependencies::SpdyCreateSession(&session_deps);
     SpdySession::SetSSLMode(false);
     scoped_ptr<SpdyNetworkTransaction> trans1(
         new SpdyNetworkTransaction(session));
@@ -768,8 +709,9 @@ TEST_F(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
   BoundNetLog log;
   TransactionHelperResult out;
   {
-    SessionDependencies session_deps;
-    HttpNetworkSession* session = CreateSession(&session_deps);
+    SpdySessionDependencies session_deps;
+    HttpNetworkSession* session =
+        SpdySessionDependencies::SpdyCreateSession(&session_deps);
     SpdySession::SetSSLMode(false);
     scoped_ptr<SpdyNetworkTransaction> trans1(
         new SpdyNetworkTransaction(session));
@@ -1000,8 +942,9 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
 
 // Test that WINDOW_UPDATE frames change window_size correctly.
 TEST_F(SpdyNetworkTransactionTest, WindowUpdate) {
-  SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  SpdySessionDependencies session_deps;
+  scoped_refptr<HttpNetworkSession> session =
+      SpdySessionDependencies::SpdyCreateSession(&session_deps);
 
   // We disable SSL for this test.
   SpdySession::SetSSLMode(false);
@@ -1062,8 +1005,9 @@ TEST_F(SpdyNetworkTransactionTest, WindowUpdate) {
 
 // Test that WINDOW_UPDATE frame causing overflow is handled correctly.
 TEST_F(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
-  SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  SpdySessionDependencies session_deps;
+  scoped_refptr<HttpNetworkSession> session =
+      SpdySessionDependencies::SpdyCreateSession(&session_deps);
 
   // We disable SSL for this test.
   SpdySession::SetSSLMode(false);
@@ -1156,7 +1100,7 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   helper.ResetTrans();  // Cancel the transaction.
 
-  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
   MessageLoop::current()->RunAllPending();
   helper.VerifyDataNotConsumed();
@@ -1890,7 +1834,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
 
   out.response_data.swap(content);
 
-  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
   MessageLoop::current()->RunAllPending();
 
@@ -2054,7 +1998,7 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
 
   out.response_data.swap(content);
 
-  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
   MessageLoop::current()->RunAllPending();
 
@@ -2145,7 +2089,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
 
   out.response_data.swap(content);
 
-  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
   MessageLoop::current()->RunAllPending();
 
@@ -2239,7 +2183,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
 
   out.response_data.swap(content);
 
-  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
   MessageLoop::current()->RunAllPending();
 
