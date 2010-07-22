@@ -71,23 +71,43 @@ void SpdyStream::set_spdy_headers(
   request_ = headers;
 }
 
-void SpdyStream::UpdateWindowSize(int delta_window_size) {
+void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
-  int new_window_size = window_size_ + delta_window_size;
+  int new_window_size = send_window_size_ + delta_window_size;
 
-  // it's valid for window_size_ to become negative (via an incoming
-  // SETTINGS frame which is handled in SpdySession::OnSettings), in which
-  // case incoming WINDOW_UPDATEs will eventually make it positive;
-  // however, if window_size_ is positive and incoming WINDOW_UPDATE makes
-  // it negative, we have an overflow.
-  if (window_size_ > 0 && new_window_size < 0) {
+  // it's valid for send_window_size_ to become negative (via an incoming
+  // SETTINGS), in which case incoming WINDOW_UPDATEs will eventually make
+  // it positive; however, if send_window_size_ is positive and incoming
+  // WINDOW_UPDATE makes it negative, we have an overflow.
+  if (send_window_size_ > 0 && new_window_size < 0) {
     LOG(WARNING) << "Received WINDOW_UPDATE [delta:" << delta_window_size
                  << "] for stream " << stream_id_
-                 << " overflows window size [current:" << window_size_ << "]";
+                 << " overflows send_window_size_ [current:"
+                 << send_window_size_ << "]";
     session_->ResetStream(stream_id_, spdy::FLOW_CONTROL_ERROR);
     return;
   }
-  window_size_ = new_window_size;
+
+  LOG(INFO) << "Increasing stream " << stream_id_
+            << " send_window_size_ [current:" << send_window_size_ << "]"
+            << " by " << delta_window_size << " bytes";
+  send_window_size_ = new_window_size;
+}
+
+void SpdyStream::DecreaseSendWindowSize(int delta_window_size) {
+  // we only call this method when sending a frame, therefore
+  // |delta_window_size| should be within the valid frame size range.
+  DCHECK_GE(delta_window_size, 1);
+  DCHECK_LE(delta_window_size, kMaxSpdyFrameChunkSize);
+
+  // |send_window_size_| should have been at least |delta_window_size| for
+  // this call to happen.
+  DCHECK_GE(send_window_size_, delta_window_size);
+
+  LOG(INFO) << "Decreasing stream " << stream_id_
+            << " send_window_size_ [current:" << send_window_size_ << "]"
+            << " by " << delta_window_size  << " bytes";
+  send_window_size_ -= delta_window_size;
 }
 
 base::Time SpdyStream::GetRequestTime() const {
