@@ -469,6 +469,9 @@ class ClientSocketPoolBaseHelper
   // pool.  This is so that when sockets get released back to the pool, we can
   // make sure that they are discarded rather than reused.
   int pool_generation_number_;
+
+  // Some parts of this class need to know if the destructor is running.
+  bool in_destructor_;
 };
 
 }  // namespace internal
