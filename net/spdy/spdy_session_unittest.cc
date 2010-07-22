@@ -79,9 +79,7 @@ TEST_F(SpdySessionTest, GoAway) {
 
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
-  HostPortPair test_host_port_pair;
-  test_host_port_pair.host = kTestHost;
-  test_host_port_pair.port = kTestPort;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
 
   scoped_refptr<SpdySessionPool> spdy_session_pool(
       http_session->spdy_session_pool());
@@ -145,9 +143,7 @@ TEST_F(SpdySessionTest, GetActivePushStream) {
 
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
-  HostPortPair test_host_port_pair;
-  test_host_port_pair.host = kTestHost;
-  test_host_port_pair.port = kTestPort;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
 
   scoped_refptr<SpdySessionPool> spdy_session_pool(
       http_session->spdy_session_pool());
