@@ -7,6 +7,7 @@
 
 #include "net/socket_stream/socket_stream.h"
 
+#include <set>
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -487,9 +488,9 @@ int SocketStream::DoResolveHost() {
   std::string host;
   int port;
   if (proxy_mode_ != kDirectConnection) {
-    ProxyServer proxy_server = proxy_info_.proxy_server();
-    host = proxy_server.HostNoBrackets();
-    port = proxy_server.port();
+    HostPortPair host_port_pair = proxy_info_.proxy_server().host_port_pair();
+    host = host_port_pair.host();
+    port = host_port_pair.port();
   } else {
     host = url_.HostNoBrackets();
     port = url_.EffectiveIntPort();
@@ -715,7 +716,7 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
         auth_info_ = new AuthChallengeInfo;
         auth_info_->is_proxy = true;
         auth_info_->host_and_port =
-            ASCIIToWide(proxy_info_.proxy_server().host_and_port());
+            ASCIIToWide(proxy_info_.proxy_server().host_port_pair().ToString());
         auth_info_->scheme = ASCIIToWide(auth_handler_->scheme());
         auth_info_->realm = ASCIIToWide(auth_handler_->realm());
         // Wait until RestartWithAuth or Close is called.
@@ -885,7 +886,8 @@ int SocketStream::DoReadWrite(int result) {
 
 GURL SocketStream::ProxyAuthOrigin() const {
   DCHECK(!proxy_info_.is_empty());
-  return GURL("http://" + proxy_info_.proxy_server().host_and_port());
+  return GURL("http://" +
+              proxy_info_.proxy_server().host_port_pair().ToString());
 }
 
 int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
@@ -990,4 +992,3 @@ ProxyService* SocketStream::proxy_service() const {
 }
 
 }  // namespace net
-

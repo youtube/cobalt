@@ -19,7 +19,7 @@ bool HostMappingRules::RewriteHost(HostPortPair* host_port) const {
   for (ExclusionRuleList::const_iterator it = exclusion_rules_.begin();
        it != exclusion_rules_.end(); ++it) {
     const ExclusionRule& rule = *it;
-    if (MatchPatternASCII(host_port->host, rule.hostname_pattern))
+    if (MatchPatternASCII(host_port->host(), rule.hostname_pattern))
       return false;
   }
 
@@ -28,12 +28,12 @@ bool HostMappingRules::RewriteHost(HostPortPair* host_port) const {
        it != map_rules_.end(); ++it) {
     const MapRule& rule = *it;
 
-    if (!MatchPatternASCII(host_port->host, rule.hostname_pattern))
+    if (!MatchPatternASCII(host_port->host(), rule.hostname_pattern))
       continue;  // This rule doesn't apply.
 
-    host_port->host = rule.replacement_hostname;
+    host_port->set_host(rule.replacement_hostname);
     if (rule.replacement_port != -1)
-      host_port->port = rule.replacement_port;
+      host_port->set_port(rule.replacement_port);
     return true;
   }
 
