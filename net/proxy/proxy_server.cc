@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,39 +60,25 @@ ProxyServer::Scheme GetSchemeFromURI(std::string::const_iterator begin,
   return ProxyServer::SCHEME_INVALID;
 }
 
+std::string HostNoBrackets(const std::string& host) {
+  // Remove brackets from an RFC 2732-style IPv6 literal address.
+  const std::string::size_type len = host.size();
+  if (len >= 2 && host[0] == '[' && host[len - 1] == ']')
+    return host.substr(1, len - 2);
+  return host;
+}
+
 }  // namespace
 
-std::string ProxyServer::HostNoBrackets() const {
+ProxyServer::ProxyServer(Scheme scheme, const std::string& host, int port)
+      : scheme_(scheme), host_port_pair_(HostNoBrackets(host), port) {
+}
+
+const HostPortPair& ProxyServer::host_port_pair() const {
   // Doesn't make sense to call this if the URI scheme doesn't
   // have concept of a host.
   DCHECK(is_valid() && !is_direct());
-
-  // Remove brackets from an RFC 2732-style IPv6 literal address.
-  const std::string::size_type len = host_.size();
-  if (len != 0 && host_[0] == '[' && host_[len - 1] == ']')
-    return host_.substr(1, len - 2);
-  return host_;
-}
-
-int ProxyServer::port() const {
-  // Doesn't make sense to call this if the URI scheme doesn't
-  // have concept of a port.
-  DCHECK(is_valid() && !is_direct());
-  return port_;
-}
-
-std::string ProxyServer::host_and_port() const {
-  // Doesn't make sense to call this if the URI scheme doesn't
-  // have concept of a host.
-  DCHECK(is_valid() && !is_direct());
-  return host_ + ":" + IntToString(port_);
-}
-
-HostPortPair ProxyServer::host_port_pair() const {
-  // Doesn't make sense to call this if the URI scheme doesn't
-  // have concept of a host.
-  DCHECK(is_valid() && !is_direct());
-  return HostPortPair(host_, port_);
+  return host_port_pair_;
 }
 
 // static
@@ -131,13 +117,13 @@ std::string ProxyServer::ToURI() const {
       return "direct://";
     case SCHEME_HTTP:
       // Leave off "http://" since it is our default scheme.
-      return host_and_port();
+      return host_port_pair().ToString();
     case SCHEME_SOCKS4:
-      return std::string("socks4://") + host_and_port();
+      return std::string("socks4://") + host_port_pair().ToString();
     case SCHEME_SOCKS5:
-      return std::string("socks5://") + host_and_port();
+      return std::string("socks5://") + host_port_pair().ToString();
     case SCHEME_HTTPS:
-      return std::string("https://") + host_and_port();
+      return std::string("https://") + host_port_pair().ToString();
     default:
       // Got called with an invalid scheme.
       NOTREACHED();
@@ -180,14 +166,14 @@ std::string ProxyServer::ToPacString() const {
     case SCHEME_DIRECT:
       return "DIRECT";
     case SCHEME_HTTP:
-      return std::string("PROXY ") + host_and_port();
+      return std::string("PROXY ") + host_port_pair().ToString();
     case SCHEME_SOCKS4:
       // For compatibility send SOCKS instead of SOCKS4.
-      return std::string("SOCKS ") + host_and_port();
+      return std::string("SOCKS ") + host_port_pair().ToString();
     case SCHEME_SOCKS5:
-      return std::string("SOCKS5 ") + host_and_port();
+      return std::string("SOCKS5 ") + host_port_pair().ToString();
     case SCHEME_HTTPS:
-      return std::string("HTTPS ") + host_and_port();
+      return std::string("HTTPS ") + host_port_pair().ToString();
     default:
       // Got called with an invalid scheme.
       NOTREACHED();

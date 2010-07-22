@@ -11,7 +11,7 @@ namespace net {
 
 class SpdyHttpStreamTest : public testing::Test {
  protected:
-  SpdyHttpStreamTest(){}
+  SpdyHttpStreamTest() {}
 
   void EnableCompression(bool enabled) {
     spdy::SpdyFramer::set_enable_compression_default(enabled);
@@ -48,9 +48,9 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
       spdy_session_pool->Get(
           host_port_pair, http_session.get(), BoundNetLog());
   scoped_refptr<TCPSocketParams> tcp_params =
-      new TCPSocketParams(host_port_pair.host, host_port_pair.port,
+      new TCPSocketParams(host_port_pair.host(), host_port_pair.port(),
                           MEDIUM, GURL(), false);
-  int rv = session->Connect(host_port_pair.host, tcp_params, MEDIUM);
+  int rv = session->Connect(host_port_pair.host(), tcp_params, MEDIUM);
   ASSERT_EQ(OK, rv);
 
   HttpRequestInfo request;

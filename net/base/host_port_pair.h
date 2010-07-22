@@ -10,33 +10,50 @@
 
 namespace net {
 
-struct HostPortPair {
+class HostPortPair {
+ public:
   HostPortPair();
   // If |in_host| represents an IPv6 address, it should not bracket the address.
   HostPortPair(const std::string& in_host, uint16 in_port);
 
   // TODO(willchan): Define a functor instead.
   // Comparator function so this can be placed in a std::map.
-  // TODO(jar): Violation of style guide, and should be removed.
   bool operator<(const HostPortPair& other) const {
-    if (port != other.port)
-      return port < other.port;
-    return host < other.host;
+    if (port_ != other.port_)
+      return port_ < other.port_;
+    return host_ < other.host_;
   }
 
   // Equality test of contents. (Probably another violation of style guide).
   bool Equals(const HostPortPair& other) const {
-    return host == other.host && port == other.port;
+    return host_ == other.host_ && port_ == other.port_;
   }
 
-  // ToString() will convert the HostPortPair to "host:port".  If |host| is an
-  // IPv6 literal, it will add brackets around |host|.
+  const std::string& host() const {
+    return host_;
+  }
+
+  uint16 port() const {
+    return port_;
+  }
+
+  void set_host(const std::string& in_host) {
+    host_ = in_host;
+  }
+
+  void set_port(uint16 in_port) {
+    port_ = in_port;
+  }
+
+  // ToString() will convert the HostPortPair to "host:port".  If |host_| is an
+  // IPv6 literal, it will add brackets around |host_|.
   std::string ToString() const;
 
-  // If |host| represents an IPv6 address, this string will not contain brackets
-  // around the address.
-  std::string host;
-  uint16 port;
+ private:
+  // If |host_| represents an IPv6 address, this string will not contain
+  // brackets around the address.
+  std::string host_;
+  uint16 port_;
 };
 
 }  // namespace net
