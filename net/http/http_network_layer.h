@@ -66,9 +66,11 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
 
   // Enable the spdy protocol.
   // Without calling this function, SPDY is disabled.  The mode can be:
-  //   ""            : (default) SSL and compression are enabled.
+  //   ""            : (default) SSL and compression are enabled, flow
+  //                   control disabled.
   //   "no-ssl"      : disables SSL.
   //   "no-compress" : disables compression.
+  //   "flow-control": enables flow control.
   //   "none"        : disables both SSL and compression.
   static void EnableSpdy(const std::string& mode);
 
