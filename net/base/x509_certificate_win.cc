@@ -434,6 +434,54 @@ void ParsePrincipal(const std::string& description,
   }
 }
 
+void AddCertsFromStore(HCERTSTORE store,
+                       X509Certificate::OSCertHandles* results) {
+  PCCERT_CONTEXT cert = NULL;
+
+  while ((cert = CertEnumCertificatesInStore(store, cert)) != NULL) {
+    PCCERT_CONTEXT to_add = NULL;
+    if (CertAddCertificateContextToStore(
+        NULL,  // The cert won't be persisted in any cert store. This breaks
+               // any association the context currently has to |store|, which
+               // allows us, the caller, to safely close |store| without
+               // releasing the cert handles.
+        cert,
+        CERT_STORE_ADD_USE_EXISTING,
+        &to_add) && to_add != NULL) {
+      // When processing stores generated from PKCS#7/PKCS#12 files, it
+      // appears that the order returned is the inverse of the order that it
+      // appeared in the file.
+      // TODO(rsleevi): Ensure this order is consistent across all Win
+      // versions
+      results->insert(results->begin(), to_add);
+    }
+  }
+}
+
+X509Certificate::OSCertHandles ParsePKCS7(const char* data, size_t length) {
+  X509Certificate::OSCertHandles results;
+  CERT_BLOB data_blob;
+  data_blob.cbData = length;
+  data_blob.pbData = reinterpret_cast<BYTE*>(const_cast<char*>(data));
+
+  HCERTSTORE out_store = NULL;
+
+  DWORD expected_types = CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED |
+                         CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED |
+                         CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED;
+
+  if (!CryptQueryObject(CERT_QUERY_OBJECT_BLOB, &data_blob, expected_types,
+                        CERT_QUERY_FORMAT_FLAG_BINARY, 0, NULL, NULL, NULL,
+                        &out_store, NULL, NULL) || out_store == NULL) {
+    return results;
+  }
+
+  AddCertsFromStore(out_store, &results);
+  CertCloseStore(out_store, CERT_CLOSE_STORE_CHECK_FLAG);
+
+  return results;
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
@@ -751,6 +799,27 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     return NULL;
 
   return cert_handle;
+}
+
+X509Certificate::OSCertHandles X509Certificate::CreateOSCertHandlesFromBytes(
+    const char* data, int length, Format format) {
+  OSCertHandles results;
+  switch (format) {
+    case FORMAT_SINGLE_CERTIFICATE: {
+      OSCertHandle handle = CreateOSCertHandleFromBytes(data, length);
+      if (handle != NULL)
+        results.push_back(handle);
+      break;
+    }
+    case FORMAT_PKCS7:
+      results = ParsePKCS7(data, length);
+      break;
+    default:
+      NOTREACHED() << "Certificate format " << format << " unimplemented";
+      break;
+  }
+
+  return results;
 }
 
 
