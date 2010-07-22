@@ -441,7 +441,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
   // Expected values.
   const int64 kExpectedTimestamp = 1234;
-  const int64 kExpectedFlags = 0;
+  const int64 kExpectedFlags = AVSEEK_FLAG_BACKWARD;
 
   // Ignore all AVFreePacket() calls.  We check this via valgrind.
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).Times(AnyNumber());

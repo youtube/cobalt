@@ -105,15 +105,16 @@ bool FFmpegDemuxerStream::HasPendingReads() {
   return !read_queue_.empty();
 }
 
-base::TimeDelta FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
+void FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
   base::TimeDelta timestamp =
       ConvertStreamTimestamp(stream_->time_base, packet->pts);
   base::TimeDelta duration =
       ConvertStreamTimestamp(stream_->time_base, packet->duration);
+
   if (stopped_) {
     NOTREACHED() << "Attempted to enqueue packet on a stopped stream";
-    return timestamp;
+    return;
   }
 
   // Convert if the packet if there is bitstream filter.
@@ -127,11 +128,11 @@ base::TimeDelta FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
       new AVPacketBuffer(packet, timestamp, duration);
   if (!buffer) {
     NOTREACHED() << "Unable to allocate AVPacketBuffer";
-    return timestamp;
+    return;
   }
   buffer_queue_.push_back(buffer);
   FulfillPendingRead();
-  return timestamp;
+  return;
 }
 
 void FFmpegDemuxerStream::FlushBuffers() {
@@ -494,11 +495,8 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
     return;
   }
 
-  // Seek backwards if requested timestamp is behind FFmpeg's current time.
-  int flags = 0;
-  if (time <= current_timestamp_) {
-    flags |= AVSEEK_FLAG_BACKWARD;
-  }
+  // Always seek to a timestamp less than or equal to the desired timestamp.
+  int flags = AVSEEK_FLAG_BACKWARD;
 
   // Explicitly set the behavior of Ogg to be able to seek to any frame.
   if (!strcmp("ogg", format_context_->iformat->name))
@@ -554,7 +552,7 @@ void FFmpegDemuxer::DemuxTask() {
       // other codecs.  It is safe to call this function even if the packet does
       // not refer to inner memory from FFmpeg.
       av_dup_packet(packet.get());
-      current_timestamp_ = demuxer_stream->EnqueuePacket(packet.release());
+      demuxer_stream->EnqueuePacket(packet.release());
     }
   }
 
