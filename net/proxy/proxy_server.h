@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,12 +35,12 @@ class ProxyServer {
   // Default copy-constructor and assignment operator are OK!
 
   // Constructs an invalid ProxyServer.
-  ProxyServer() : scheme_(SCHEME_INVALID), port_(-1) {}
+  ProxyServer() : scheme_(SCHEME_INVALID) {}
 
+  // TODO(thestig) Replace |host| and |port| with HostPortPair.
   // If |host| is an IPv6 literal address, it must include the square
   // brackets.
-  ProxyServer(Scheme scheme, const std::string& host, int port)
-      : scheme_(scheme), host_(host), port_(port) {}
+  ProxyServer(Scheme scheme, const std::string& host, int port);
 
   bool is_valid() const { return scheme_ != SCHEME_INVALID; }
 
@@ -61,21 +61,7 @@ class ProxyServer {
     return scheme_ == SCHEME_SOCKS4 || scheme_ == SCHEME_SOCKS5;
   }
 
-  // Gets the host portion of the proxy server. If the host portion is an
-  // IPv6 literal address, the return value does not include the square
-  // brackets ([]) used to separate it from the port portion.
-  std::string HostNoBrackets() const;
-
-  // Gets the port portion of the proxy server.
-  int port() const;
-
-  // Returns the <host>":"<port> string for the proxy server.
-  // TODO(willchan): Remove in favor of host_port_pair().
-  std::string host_and_port() const;
-
-  // TODO(willchan): Change to const HostPortPair& after refactoring |host_| and
-  // |port_| here.
-  HostPortPair host_port_pair() const;
+  const HostPortPair& host_port_pair() const;
 
   // Parses from an input with format:
   //   [<scheme>"://"]<server>[":"<port>]
@@ -145,8 +131,7 @@ class ProxyServer {
 
   bool operator==(const ProxyServer& other) const {
     return scheme_ == other.scheme_ &&
-           host_ == other.host_ &&
-           port_ == other.port_;
+           host_port_pair_.Equals(other.host_port_pair_);
   }
 
  private:
@@ -158,8 +143,7 @@ class ProxyServer {
       std::string::const_iterator host_and_port_end);
 
   Scheme scheme_;
-  std::string host_;
-  int port_;
+  HostPortPair host_port_pair_;
 };
 
 }  // namespace net

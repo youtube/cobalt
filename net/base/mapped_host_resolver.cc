@@ -24,8 +24,8 @@ int MappedHostResolver::Resolve(const RequestInfo& info,
   RequestInfo modified_info = info;
   HostPortPair host_port(info.hostname(), info.port());
   if (rules_.RewriteHost(&host_port)) {
-    modified_info.set_hostname(host_port.host);
-    modified_info.set_port(host_port.port);
+    modified_info.set_hostname(host_port.host());
+    modified_info.set_port(host_port.port());
   }
   return impl_->Resolve(modified_info, addresses, callback, out_req, net_log);
 }

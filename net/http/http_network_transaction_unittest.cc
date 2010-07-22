@@ -4983,9 +4983,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
   int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
-  HostPortPair http_host_port_pair;
-  http_host_port_pair.host = "www.google.com";
-  http_host_port_pair.port = 80;
+  HostPortPair http_host_port_pair("www.google.com", 80);
   const HttpAlternateProtocols& alternate_protocols =
       session->alternate_protocols();
   EXPECT_FALSE(
@@ -5049,9 +5047,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  HostPortPair http_host_port_pair;
-  http_host_port_pair.host = "www.google.com";
-  http_host_port_pair.port = 80;
+  HostPortPair http_host_port_pair("www.google.com", 80);
   HttpAlternateProtocols* alternate_protocols =
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(
@@ -5164,9 +5160,7 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  HostPortPair http_host_port_pair;
-  http_host_port_pair.host = "www.google.com";
-  http_host_port_pair.port = 80;
+  HostPortPair http_host_port_pair("www.google.com", 80);
   HttpAlternateProtocols* alternate_protocols =
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(

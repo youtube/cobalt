@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,6 @@ TEST(ProxyServerTest, FromURI) {
     net::ProxyServer::Scheme expected_scheme;
     const char* expected_host;
     int expected_port;
-    const char* expected_host_and_port;
     const char* expected_pac_string;
   } tests[] = {
     // HTTP proxy URIs:
@@ -26,7 +25,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTP,
        "foopy",
        10,
-       "foopy:10",
        "PROXY foopy:10"
     },
     {
@@ -35,7 +33,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTP,
        "foopy",
        80,
-       "foopy:80",
        "PROXY foopy:80"
     },
     {
@@ -44,7 +41,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTP,
        "foopy",
        10,
-       "foopy:10",
        "PROXY foopy:10"
     },
 
@@ -55,7 +51,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTP,
        "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210",
        10,
-       "[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:10",
        "PROXY [FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:10"
     },
     {
@@ -64,7 +59,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTP,
        "3ffe:2a00:100:7031::1",
        80,
-       "[3ffe:2a00:100:7031::1]:80",
        "PROXY [3ffe:2a00:100:7031::1]:80"
     },
     {
@@ -73,7 +67,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTP,
        "::192.9.5.5",
        80,
-       "[::192.9.5.5]:80",
        "PROXY [::192.9.5.5]:80"
     },
     {
@@ -82,7 +75,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTP,
        "::FFFF:129.144.52.38",
        80,
-       "[::FFFF:129.144.52.38]:80",
        "PROXY [::FFFF:129.144.52.38]:80"
     },
 
@@ -93,7 +85,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_SOCKS4,
        "foopy",
        1080,
-       "foopy:1080",
        "SOCKS foopy:1080"
     },
     {
@@ -102,7 +93,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_SOCKS4,
        "foopy",
        10,
-       "foopy:10",
        "SOCKS foopy:10"
     },
 
@@ -113,7 +103,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_SOCKS5,
        "foopy",
        1080,
-       "foopy:1080",
        "SOCKS5 foopy:1080"
     },
     {
@@ -122,7 +111,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_SOCKS5,
        "foopy",
        10,
-       "foopy:10",
        "SOCKS5 foopy:10"
     },
 
@@ -133,7 +121,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_SOCKS4,
        "foopy",
        1080,
-       "foopy:1080",
        "SOCKS foopy:1080"
     },
     {
@@ -142,7 +129,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_SOCKS4,
        "foopy",
        10,
-       "foopy:10",
        "SOCKS foopy:10"
     },
 
@@ -153,7 +139,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTPS,
        "foopy",
        443,
-       "foopy:443",
        "HTTPS foopy:443"
     },
     {
@@ -162,7 +147,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTPS,
        "foopy",
        10,
-       "foopy:10",
        "HTTPS foopy:10"
     },
     {
@@ -171,7 +155,6 @@ TEST(ProxyServerTest, FromURI) {
        net::ProxyServer::SCHEME_HTTPS,
        "1.2.3.4",
        10,
-       "1.2.3.4:10",
        "HTTPS 1.2.3.4:10"
     },
   };
@@ -184,9 +167,8 @@ TEST(ProxyServerTest, FromURI) {
     EXPECT_FALSE(uri.is_direct());
     EXPECT_EQ(tests[i].expected_uri, uri.ToURI());
     EXPECT_EQ(tests[i].expected_scheme, uri.scheme());
-    EXPECT_EQ(tests[i].expected_host, uri.HostNoBrackets());
-    EXPECT_EQ(tests[i].expected_port, uri.port());
-    EXPECT_EQ(tests[i].expected_host_and_port, uri.host_and_port());
+    EXPECT_EQ(tests[i].expected_host, uri.host_port_pair().host());
+    EXPECT_EQ(tests[i].expected_port, uri.host_port_pair().port());
     EXPECT_EQ(tests[i].expected_pac_string, uri.ToPacString());
   }
 }
