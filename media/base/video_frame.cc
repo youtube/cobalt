@@ -50,26 +50,21 @@ void VideoFrame::CreateFrame(VideoFrame::Format format,
   *frame_out = alloc_worked ? frame : NULL;
 }
 
-void VideoFrame::CreateFrameExternal(SurfaceType type,
-                                     Format format,
+void VideoFrame::CreateFrameExternal(VideoFrame::Format format,
                                      size_t width,
                                      size_t height,
-                                     size_t planes,
                                      uint8* const data[kMaxPlanes],
                                      const int32 strides[kMaxPlanes],
                                      base::TimeDelta timestamp,
                                      base::TimeDelta duration,
-                                     void* private_buffer,
                                      scoped_refptr<VideoFrame>* frame_out) {
   DCHECK(frame_out);
   scoped_refptr<VideoFrame> frame =
-      new VideoFrame(type, format, width, height);
+      new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY, format, width, height);
   if (frame) {
     frame->SetTimestamp(timestamp);
     frame->SetDuration(duration);
     frame->external_memory_ = true;
-    frame->planes_ = planes;
-    frame->private_buffer_ = private_buffer;
     for (size_t i = 0; i < kMaxPlanes; ++i) {
       frame->data_[i] = data[i];
       frame->strides_[i] = strides[i];
@@ -119,6 +114,26 @@ void VideoFrame::CreateBlackFrame(int width, int height,
   }
 
   // Success!
+  *frame_out = frame;
+}
+
+// static
+void VideoFrame::CreatePrivateFrame(VideoFrame::SurfaceType type,
+                                    VideoFrame::Format format,
+                                    size_t width,
+                                    size_t height,
+                                    base::TimeDelta timestamp,
+                                    base::TimeDelta duration,
+                                    void* private_buffer,
+                                    scoped_refptr<VideoFrame>* frame_out) {
+  DCHECK(frame_out);
+  scoped_refptr<VideoFrame> frame =
+      new VideoFrame(type, format, width, height);
+  if (frame) {
+    frame->SetTimestamp(timestamp);
+    frame->SetDuration(duration);
+    frame->private_buffer_ = private_buffer;
+  }
   *frame_out = frame;
 }
 
