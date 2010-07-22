@@ -8,9 +8,9 @@
 #include <Security/Security.h>
 #include <time.h>
 
-#include "base/scoped_cftyperef.h"
 #include "base/logging.h"
 #include "base/pickle.h"
+#include "base/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
@@ -372,6 +372,44 @@ bool ExtendedKeyUsageAllows(const CE_ExtendedKeyUsage* usage,
   return false;
 }
 
+// Parses |data| of length |length|, attempting to decode it as the specified
+// |format|. If |data| is in the specified format, any certificates contained
+// within are stored into |output|.
+void AddCertificatesFromBytes(const char* data, size_t length,
+                              SecExternalFormat format,
+                              X509Certificate::OSCertHandles* output) {
+  SecExternalFormat input_format = format;
+  scoped_cftyperef<CFDataRef> local_data(CFDataCreateWithBytesNoCopy(
+      kCFAllocatorDefault, reinterpret_cast<const UInt8*>(data),
+      length, kCFAllocatorNull));
+
+  CFArrayRef items = NULL;
+  OSStatus status = SecKeychainItemImport(local_data, NULL, &input_format,
+                                          NULL, 0, NULL, NULL, &items);
+  if (status) {
+    DLOG(WARNING) << status << " Unable to import items from data of length "
+                  << length;
+    return;
+  }
+
+  scoped_cftyperef<CFArrayRef> scoped_items(items);
+  CFTypeID cert_type_id = SecCertificateGetTypeID();
+
+  for (CFIndex i = 0; i < CFArrayGetCount(items); ++i) {
+    SecKeychainItemRef item = reinterpret_cast<SecKeychainItemRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(items, i)));
+
+    // While inputFormat implies only certificates will be imported, if/when
+    // other formats (eg: PKCS#12) are supported, this may also include
+    // private keys or other items types, so filter appropriately.
+    if (CFGetTypeID(item) == cert_type_id) {
+      SecCertificateRef cert = reinterpret_cast<SecCertificateRef>(item);
+      CFRetain(cert);
+      output->push_back(cert);
+    }
+  }
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
@@ -669,12 +707,50 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
   OSCertHandle cert_handle = NULL;
   OSStatus status = SecCertificateCreateFromData(&cert_data,
                                                  CSSM_CERT_X_509v3,
-                                                 CSSM_CERT_ENCODING_BER,
+                                                 CSSM_CERT_ENCODING_DER,
                                                  &cert_handle);
   if (status)
     return NULL;
 
+  // SecCertificateCreateFromData() unfortunately will not return any
+  // errors, as long as simply all pointers are present. The actual decoding
+  // of the certificate does not happen until an API that requires a CDSA
+  // handle is called. While SecCertificateGetCLHandle is the most likely
+  // candidate, as it initializes the parsing, it does not check whether the
+  // parsing was successful. Instead, SecCertificateGetSubject is used
+  // (supported since 10.3), as a means to double-check that the parsed
+  // certificate is valid.
+  const CSSM_X509_NAME* sanity_check = NULL;
+  status = SecCertificateGetSubject(cert_handle, &sanity_check);
+  if (status || !sanity_check) {
+    CFRelease(cert_handle);
+    return NULL;
+  }
+
   return cert_handle;
+}
+
+// static
+X509Certificate::OSCertHandles X509Certificate::CreateOSCertHandlesFromBytes(
+    const char* data, int length, Format format) {
+  OSCertHandles results;
+
+  switch (format) {
+    case FORMAT_SINGLE_CERTIFICATE: {
+      OSCertHandle handle = CreateOSCertHandleFromBytes(data, length);
+      if (handle)
+        results.push_back(handle);
+      break;
+    }
+    case FORMAT_PKCS7:
+      AddCertificatesFromBytes(data, length, kSecFormatPKCS7, &results);
+      break;
+    default:
+      NOTREACHED() << "Certificate format " << format << " unimplemented";
+      break;
+  }
+
+  return results;
 }
 
 // static
