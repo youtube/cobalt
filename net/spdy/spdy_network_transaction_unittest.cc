@@ -940,22 +940,24 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
   helper.VerifyDataConsumed();
 }
 
-// Test that WINDOW_UPDATE frames change window_size correctly.
+// Test that sent data frames and received WINDOW_UPDATE frames change
+// the send_window_size_ correctly.
 TEST_F(SpdyNetworkTransactionTest, WindowUpdate) {
   SpdySessionDependencies session_deps;
   scoped_refptr<HttpNetworkSession> session =
       SpdySessionDependencies::SpdyCreateSession(&session_deps);
 
-  // We disable SSL for this test.
   SpdySession::SetSSLMode(false);
+  SpdySession::SetFlowControl(true);
 
   // Setup the request
-  static const char upload[] = { "hello!" };
+  static const char kUploadData[] = "hello!";
+  static const int kUploadDataSize = arraysize(kUploadData)-1;
   HttpRequestInfo request;
   request.method = "POST";
   request.url = GURL("http://www.google.com/");
   request.upload_data = new UploadData();
-  request.upload_data->AppendBytes(upload, strlen(upload));
+  request.upload_data->AppendBytes(kUploadData, kUploadDataSize);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
@@ -989,7 +991,8 @@ TEST_F(SpdyNetworkTransactionTest, WindowUpdate) {
 
   ASSERT_TRUE(trans->stream_ != NULL);
   ASSERT_TRUE(trans->stream_->stream() != NULL);
-  EXPECT_EQ(spdy::kInitialWindowSize, trans->stream_->stream()->window_size());
+  EXPECT_EQ(spdy::kInitialWindowSize,
+            trans->stream_->stream()->send_window_size());
 
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
@@ -997,10 +1000,12 @@ TEST_F(SpdyNetworkTransactionTest, WindowUpdate) {
 
   ASSERT_TRUE(trans->stream_ != NULL);
   ASSERT_TRUE(trans->stream_->stream() != NULL);
-  EXPECT_EQ(spdy::kInitialWindowSize + kDeltaWindowSize,
-            trans->stream_->stream()->window_size());
+  EXPECT_EQ(spdy::kInitialWindowSize + kDeltaWindowSize - kUploadDataSize,
+            trans->stream_->stream()->send_window_size());
   EXPECT_TRUE(data->at_read_eof());
   EXPECT_TRUE(data->at_write_eof());
+
+  SpdySession::SetFlowControl(false);
 }
 
 // Test that WINDOW_UPDATE frame causing overflow is handled correctly.
@@ -1009,16 +1014,16 @@ TEST_F(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   scoped_refptr<HttpNetworkSession> session =
       SpdySessionDependencies::SpdyCreateSession(&session_deps);
 
-  // We disable SSL for this test.
   SpdySession::SetSSLMode(false);
+  SpdySession::SetFlowControl(true);
 
   // Setup the request
-  static const char upload[] = { "hello!" };
+  static const char kUploadData[] = "hello!";
   HttpRequestInfo request;
   request.method = "POST";
   request.url = GURL("http://www.google.com/");
   request.upload_data = new UploadData();
-  request.upload_data->AppendBytes(upload, strlen(upload));
+  request.upload_data->AppendBytes(kUploadData, arraysize(kUploadData)-1);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
@@ -1055,7 +1060,8 @@ TEST_F(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
 
   ASSERT_TRUE(trans->stream_ != NULL);
   ASSERT_TRUE(trans->stream_->stream() != NULL);
-  EXPECT_EQ(spdy::kInitialWindowSize, trans->stream_->stream()->window_size());
+  EXPECT_EQ(spdy::kInitialWindowSize,
+            trans->stream_->stream()->send_window_size());
 
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
@@ -1067,6 +1073,8 @@ TEST_F(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
 
   EXPECT_FALSE(data->at_read_eof());
   EXPECT_TRUE(data->at_write_eof());
+
+  SpdySession::SetFlowControl(false);
 }
 
 TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {

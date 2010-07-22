@@ -133,6 +133,9 @@ class NetLogSpdySettingsParameter : public NetLog::EventParameters {
 // static
 bool SpdySession::use_ssl_ = true;
 
+// static
+bool SpdySession::use_flow_control_ = true;
+
 SpdySession::SpdySession(const HostPortPair& host_port_pair,
                          HttpNetworkSession* session,
                          NetLog* net_log)
@@ -164,7 +167,7 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       sent_settings_(false),
       received_settings_(false),
       in_session_pool_(true),
-      initial_window_size_(spdy::kInitialWindowSize),
+      initial_send_window_size_(spdy::kInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
@@ -372,7 +375,7 @@ int SpdySession::CreateStreamImpl(
   stream->set_priority(priority);
   stream->set_path(path);
   stream->set_net_log(stream_net_log);
-  stream->set_window_size(initial_window_size_);
+  stream->set_send_window_size(initial_send_window_size_);
   ActivateStream(stream);
 
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyPriorityCount",
@@ -425,12 +428,6 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
                                  spdy::SpdyDataFlags flags) {
   LOG(INFO) << "Writing Stream Data for stream " << stream_id << " (" << len
             << " bytes)";
-  const int kMss = 1430;  // This is somewhat arbitrary and not really fixed,
-                          // but it will always work reasonably with ethernet.
-  // Chop the world into 2-packet chunks.  This is somewhat arbitrary, but
-  // is reasonably small and ensures that we elicit ACKs quickly from TCP
-  // (because TCP tries to only ACK every other packet).
-  const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::size();
 
   // Find our stream
   DCHECK(IsStreamActive(stream_id));
@@ -442,6 +439,14 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   if (len > kMaxSpdyFrameChunkSize) {
     len = kMaxSpdyFrameChunkSize;
     flags = spdy::DATA_FLAG_NONE;
+  }
+
+  // Obey send window size of the stream if flow control is enabled.
+  if (use_flow_control_) {
+    if (stream->send_window_size() <= 0)
+      return ERR_IO_PENDING;
+    len = std::min(len, stream->send_window_size());
+    stream->DecreaseSendWindowSize(len);
   }
 
   // TODO(mbelshe): reduce memory copies here.
@@ -1208,8 +1213,6 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
     settings_storage->Set(host_port_pair_, settings);
   }
 
-  // TODO(agayev): Implement initial and per stream window size update.
-
   received_settings_ = true;
 
   net_log_.AddEvent(
@@ -1239,7 +1242,8 @@ void SpdySession::OnWindowUpdate(
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
 
-  stream->UpdateWindowSize(delta_window_size);
+  if (use_flow_control_)
+    stream->IncreaseSendWindowSize(delta_window_size);
 }
 
 void SpdySession::SendSettings() {

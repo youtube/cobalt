@@ -130,6 +130,12 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kDisableCompression[] = "no-compress";
   static const char kDisableAltProtocols[] = "no-alt-protocols";
 
+  // If flow-control is enabled, received WINDOW_UPDATE and SETTINGS
+  // messages are processed and outstanding window size is actually obeyed
+  // when sending data frames, and WINDOW_UPDATE messages are generated
+  // when data is consumed.
+  static const char kEnableFlowControl[] = "flow-control";
+
   // We want an A/B experiment between SPDY enabled and SPDY disabled,
   // but only for pages where SPDY *could have been* negotiated.  To do
   // this, we use NPN, but prevent it from negotiating SPDY.  If the
@@ -179,6 +185,8 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;
       HttpNetworkTransaction::SetUseAlternateProtocols(false);
+    } else if (option == kEnableFlowControl) {
+      SpdySession::SetFlowControl(true);
     } else if (option.empty() && it == spdy_options.begin()) {
       continue;
     } else {
