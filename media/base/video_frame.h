@@ -39,7 +39,7 @@ class VideoFrame : public StreamSample {
 
   enum SurfaceType {
     TYPE_SYSTEM_MEMORY,
-    TYPE_OMX_BUFFER_HEAD,
+    TYPE_OMXBUFFERHEAD,
     TYPE_EGL_IMAGE,
   };
 
@@ -56,13 +56,16 @@ class VideoFrame : public StreamSample {
   // Creates a new frame with given parameters. Buffers for the frame are
   // provided externally. Reference to the buffers and strides are copied
   // from |data| and |strides| respectively.
-  static void CreateFrameExternal(Format format,
+  static void CreateFrameExternal(SurfaceType type,
+                                  Format format,
                                   size_t width,
                                   size_t height,
+                                  size_t planes,
                                   uint8* const data[kMaxPlanes],
                                   const int32 strides[kMaxPlanes],
                                   base::TimeDelta timestamp,
                                   base::TimeDelta duration,
+                                  void* private_buffer,
                                   scoped_refptr<VideoFrame>* frame_out);
 
   // Creates a frame with format equals to VideoFrame::EMPTY, width, height
@@ -73,16 +76,6 @@ class VideoFrame : public StreamSample {
   // the YUV equivalent of RGB(0,0,0).
   static void CreateBlackFrame(int width, int height,
                                scoped_refptr<VideoFrame>* frame_out);
-
-  // Creates a new frame of |type| with given parameters.
-  static void CreatePrivateFrame(VideoFrame::SurfaceType type,
-                                 VideoFrame::Format format,
-                                 size_t width,
-                                 size_t height,
-                                 base::TimeDelta timestamp,
-                                 base::TimeDelta duration,
-                                 void* private_buffer,
-                                 scoped_refptr<VideoFrame>* frame_out);
 
   virtual SurfaceType type() const { return type_; }
 
