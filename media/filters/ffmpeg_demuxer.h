@@ -60,9 +60,8 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   // Safe to call on any thread.
   virtual bool HasPendingReads();
 
-  // Enqueues and takes ownership over the given AVPacket, returns the timestamp
-  // of the enqueued packet.
-  virtual base::TimeDelta EnqueuePacket(AVPacket* packet);
+  // Enqueues and takes ownership over the given AVPacket.
+  virtual void EnqueuePacket(AVPacket* packet);
 
   // Signals to empty the buffer queue and mark next packet as discontinuous.
   virtual void FlushBuffers();
@@ -196,9 +195,6 @@ class FFmpegDemuxer : public Demuxer,
 
   // FFmpeg context handle.
   AVFormatContext* format_context_;
-
-  // Latest timestamp read on the demuxer thread.
-  base::TimeDelta current_timestamp_;
 
   // Two vector of streams:
   //   - |streams_| is indexed for the Demuxer interface GetStream(), which only
