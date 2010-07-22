@@ -18,7 +18,7 @@
       'targets': [
         {
           'target_name': 'libpng',
-          'type': '<(library)',
+          'type': '<(component)',
           'dependencies': [
             '../zlib/zlib.gyp:zlib',
           ],
@@ -63,6 +63,17 @@
           ],
           'conditions': [
             ['OS!="win"', {'product_name': 'png'}],
+            ['OS=="win" and component=="shared_library"', {
+              'defines': [
+                'PNG_BUILD_DLL',
+                'PNG_NO_MODULEDEF',
+              ],
+              'direct_dependent_settings': {
+                'defines': [
+                  'PNG_USE_DLL',
+                ],
+              },          
+            }],
           ],
         },
       ]
