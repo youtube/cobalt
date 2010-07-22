@@ -209,7 +209,7 @@ void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
   EXPECT_EQ("California", subject.state_or_province_name);
   EXPECT_EQ("US", subject.country_name);
   EXPECT_EQ(0U, subject.street_addresses.size());
-  EXPECT_EQ(1U, subject.organization_names.size());
+  ASSERT_EQ(1U, subject.organization_names.size());
   EXPECT_EQ("Google Inc", subject.organization_names[0]);
   EXPECT_EQ(0U, subject.organization_unit_names.size());
   EXPECT_EQ(0U, subject.domain_components.size());
@@ -220,7 +220,7 @@ void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
   EXPECT_EQ("", issuer.state_or_province_name);
   EXPECT_EQ("ZA", issuer.country_name);
   EXPECT_EQ(0U, issuer.street_addresses.size());
-  EXPECT_EQ(1U, issuer.organization_names.size());
+  ASSERT_EQ(1U, issuer.organization_names.size());
   EXPECT_EQ("Thawte Consulting (Pty) Ltd.", issuer.organization_names[0]);
   EXPECT_EQ(0U, issuer.organization_unit_names.size());
   EXPECT_EQ(0U, issuer.domain_components.size());
@@ -238,7 +238,7 @@ void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
 
   std::vector<std::string> dns_names;
   google_cert->GetDNSNames(&dns_names);
-  EXPECT_EQ(1U, dns_names.size());
+  ASSERT_EQ(1U, dns_names.size());
   EXPECT_EQ("www.google.com", dns_names[0]);
 
 #if TEST_EV
@@ -646,7 +646,18 @@ class X509CertificateParseTest
   CertificateFormatTestData test_data_;
 };
 
-TEST_P(X509CertificateParseTest, CanParseFormat) {
+// OS X 10.5 builds are having trouble with PKCS#7 from PEM
+// http://crbug.com/49887 . The wrapping syntax is to match the preprocessor
+// resolution that happens for TEST() that does not happen for TEST_P()
+#define WRAPPED_TEST_P(test_case_name, test_name) \
+  TEST_P(test_case_name, test_name)
+#if defined(OS_MACOSX)
+#define MAYBE_CanParseFormat FLAKY_CanParseFormat
+#else
+#define MAYBE_CanParseFormat CanParseFormat
+#endif
+
+WRAPPED_TEST_P(X509CertificateParseTest, MAYBE_CanParseFormat) {
   FilePath certs_dir = GetTestCertsDirectory();
   CertificateList certs = CreateCertificateListFromFile(
       certs_dir, test_data_.file_name, test_data_.format);
