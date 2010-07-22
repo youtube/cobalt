@@ -15,6 +15,11 @@
 
     'internal_pdf%': 0,
 
+    # This allows to use libcros from the current system, ie. /usr/lib/
+    # The cros_api will be pulled in as a static library, and all headers
+    # from the system include dirs.
+    'system_libcros%': '0',
+
     # Variables expected to be overriden on the GYP command line (-D) or by
     # ~/.gyp/include.gypi.
 
