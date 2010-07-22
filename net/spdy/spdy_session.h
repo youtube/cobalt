@@ -31,6 +31,13 @@
 
 namespace net {
 
+// This is somewhat arbitrary and not really fixed, but it will always work
+// reasonably with ethernet. Chop the world into 2-packet chunks.  This is
+// somewhat arbitrary, but is reasonably small and ensures that we elicit
+// ACKs quickly from TCP (because TCP tries to only ACK every other packet).
+const int kMss = 1430;
+const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::size();
+
 class SpdyStream;
 class HttpNetworkSession;
 class BoundNetLog;
@@ -117,6 +124,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
+
+  // Enable or disable flow control.
+  static void SetFlowControl(bool enable) { use_flow_control_ = enable; }
 
   // If session is closed, no new streams/transactions should be created.
   bool IsClosed() const { return state_ == CLOSED; }
@@ -327,14 +337,15 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   bool in_session_pool_;  // True if the session is currently in the pool.
 
-  int initial_window_size_; // Initial window size for the session; can be
-                            // changed by an arriving SETTINGS frame; newly
-                            // created streams use this value for the initial
-                            // window size.
+  // Initial send window size for the session; can be changed by an
+  // arriving SETTINGS frame; newly created streams use this value for the
+  // initial send window size.
+  int initial_send_window_size_;
 
   BoundNetLog net_log_;
 
   static bool use_ssl_;
+  static bool use_flow_control_;
 };
 
 }  // namespace net
