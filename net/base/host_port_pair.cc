@@ -7,15 +7,17 @@
 
 namespace net {
 
-HostPortPair::HostPortPair() : port(0) {}
+HostPortPair::HostPortPair() : port_(0) {}
 HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
-    : host(in_host), port(in_port) {}
+    : host_(in_host), port_(in_port) {}
 
 std::string HostPortPair::ToString() const {
   // Check to see if the host is an IPv6 address.  If so, added brackets.
-  if (host.find(':') != std::string::npos)
-    return StringPrintf("[%s]:%u", host.c_str(), port);
-  return StringPrintf("%s:%u", host.c_str(), port);
+  if (host_.find(':') != std::string::npos) {
+    DCHECK_NE(host_[0], '[');
+    return StringPrintf("[%s]:%u", host_.c_str(), port_);
+  }
+  return StringPrintf("%s:%u", host_.c_str(), port_);
 }
 
 }  // namespace net

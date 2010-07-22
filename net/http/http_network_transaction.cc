@@ -4,6 +4,9 @@
 
 #include "net/http/http_network_transaction.h"
 
+#include <set>
+#include <vector>
+
 #include "base/compiler_specific.h"
 #include "base/field_trial.h"
 #include "base/format_macros.h"
@@ -133,7 +136,6 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
 void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
                               const HostPortPair& http_host_port_pair,
                               HttpAlternateProtocols* alternate_protocols) {
-
   std::string alternate_protocol_str;
   if (!headers.EnumerateHeader(NULL, HttpAlternateProtocols::kHeader,
                                &alternate_protocol_str)) {
@@ -630,11 +632,11 @@ int HttpNetworkTransaction::DoResolveProxy() {
 
   if (g_host_mapping_rules && g_host_mapping_rules->RewriteHost(&endpoint_)) {
     url_canon::Replacements<char> replacements;
-    const std::string port_str = IntToString(endpoint_.port);
+    const std::string port_str = IntToString(endpoint_.port());
     replacements.SetPort(port_str.c_str(),
                          url_parse::Component(0, port_str.size()));
-    replacements.SetHost(endpoint_.host.c_str(),
-                         url_parse::Component(0, endpoint_.host.size()));
+    replacements.SetHost(endpoint_.host().c_str(),
+                         url_parse::Component(0, endpoint_.host().size()));
     alternate_endpoint_url = curr_endpoint_url->ReplaceComponents(replacements);
     curr_endpoint_url = &alternate_endpoint_url;
   }
@@ -648,14 +650,14 @@ int HttpNetworkTransaction::DoResolveProxy() {
           alternate_protocols.GetAlternateProtocolFor(endpoint_);
       if (alternate.protocol != HttpAlternateProtocols::BROKEN) {
         DCHECK_EQ(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
-        endpoint_.port = alternate.port;
+        endpoint_.set_port(alternate.port);
         alternate_protocol_ = HttpAlternateProtocols::NPN_SPDY_1;
         alternate_protocol_mode_ = kUsingAlternateProtocol;
 
         url_canon::Replacements<char> replacements;
         replacements.SetScheme("https",
                                url_parse::Component(0, strlen("https")));
-        const std::string port_str = IntToString(endpoint_.port);
+        const std::string port_str = IntToString(endpoint_.port());
         replacements.SetPort(port_str.c_str(),
                              url_parse::Component(0, port_str.size()));
         alternate_endpoint_url =
@@ -718,9 +720,9 @@ int HttpNetworkTransaction::DoInitConnection() {
   // Use the fixed testing ports if they've been provided.
   if (using_ssl_) {
     if (session_->fixed_https_port() != 0)
-      endpoint_.port = session_->fixed_https_port();
+      endpoint_.set_port(session_->fixed_https_port());
   } else if (session_->fixed_http_port() != 0) {
-    endpoint_.port = session_->fixed_http_port();
+    endpoint_.set_port(session_->fixed_http_port());
   }
 
   // Check first if we have a spdy session for this group.  If so, then go
@@ -757,8 +759,7 @@ int HttpNetworkTransaction::DoInitConnection() {
                                      disable_resolver_cache);
   } else {
     ProxyServer proxy_server = proxy_info_.proxy_server();
-    proxy_host_port.reset(new HostPortPair(proxy_server.HostNoBrackets(),
-                                           proxy_server.port()));
+    proxy_host_port.reset(new HostPortPair(proxy_server.host_port_pair()));
     scoped_refptr<TCPSocketParams> proxy_tcp_params =
         new TCPSocketParams(*proxy_host_port, request_->priority,
                             request_->referrer, disable_resolver_cache);
@@ -1254,7 +1255,7 @@ int HttpNetworkTransaction::DoSpdyGetStream() {
   }
 
   CHECK(spdy_session.get());
-  if(spdy_session->IsClosed())
+  if (spdy_session->IsClosed())
     return ERR_CONNECTION_CLOSED;
 
   headers_valid_ = false;
@@ -1722,7 +1723,8 @@ GURL HttpNetworkTransaction::AuthURL(HttpAuth::Target target) const {
           proxy_info_.proxy_server().is_direct()) {
         return GURL();  // There is no proxy server.
       }
-      return GURL("http://" + proxy_info_.proxy_server().host_and_port());
+      return GURL("http://" +
+                  proxy_info_.proxy_server().host_port_pair().ToString());
     case HttpAuth::AUTH_SERVER:
       return request_->url;
     default:
