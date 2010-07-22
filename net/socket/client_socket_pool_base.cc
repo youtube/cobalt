@@ -139,7 +139,8 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
       connect_job_factory_(connect_job_factory),
       backup_jobs_enabled_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-      pool_generation_number_(0) {
+      pool_generation_number_(0),
+      in_destructor_(false) {
   DCHECK_LE(0, max_sockets_per_group);
   DCHECK_LE(max_sockets_per_group, max_sockets);
 
@@ -147,6 +148,7 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
 }
 
 ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
+  in_destructor_ = true;
   CancelAllConnectJobs();
 
   // Clean up any idle sockets.  Assert that we have no remaining active
@@ -454,6 +456,14 @@ bool ClientSocketPoolBaseHelper::IdleSocket::ShouldCleanup(
 void ClientSocketPoolBaseHelper::CleanupIdleSockets(bool force) {
   if (idle_socket_count_ == 0)
     return;
+
+  // Deleting an SSL socket may remove the last reference to an
+  // HttpNetworkSession (in an incognito session), triggering the destruction
+  // of pools, potentially causing a recursive call to this function.  Hold a
+  // reference to |this| to prevent that.
+  scoped_refptr<ClientSocketPoolBaseHelper> protect_this;
+  if (!in_destructor_)
+    protect_this = this;
 
   // Current time value. Retrieving it once at the function start rather than
   // inside the inner loop, since it shouldn't change by any meaningful amount.
