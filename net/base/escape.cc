@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,17 +9,11 @@
 #include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/string_piece.h"
+#include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "base/utf_offset_string_conversions.h"
 
 namespace {
-
-template <class char_type>
-inline bool IsHex(char_type ch) {
-  return (ch >= '0' && ch <= '9') ||
-         (ch >= 'A' && ch <= 'F') ||
-         (ch >= 'a' && ch <= 'f');
-}
 
 template <class char_type>
 inline char_type HexToInt(char_type ch) {
@@ -141,7 +135,7 @@ STR UnescapeURLImpl(const STR& escaped_text,
           static_cast<typename STR::value_type>(escaped_text[i + 1]));
       const typename STR::value_type least_sig_digit(
           static_cast<typename STR::value_type>(escaped_text[i + 2]));
-      if (IsHex(most_sig_digit) && IsHex(least_sig_digit)) {
+      if (IsHexDigit(most_sig_digit) && IsHexDigit(least_sig_digit)) {
         unsigned char value = HexToInt(most_sig_digit) * 16 +
             HexToInt(least_sig_digit);
         if (value >= 0x80 ||  // Unescape all high-bit characters.
