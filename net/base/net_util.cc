@@ -1776,6 +1776,40 @@ bool IPv6Supported() {
 #endif  // defined(various platforms)
 }
 
+bool HaveOnlyLoopbackAddresses() {
+#if defined(OS_POSIX)
+  struct ifaddrs* interface_addr = NULL;
+  int rv = getifaddrs(&interface_addr);
+  if (rv != 0) {
+    DLOG(INFO) << "getifaddrs() failed with errno = " << errno;
+    return false;
+  }
+
+  bool result = true;
+  for (struct ifaddrs* interface = interface_addr;
+       interface != NULL;
+       interface = interface->ifa_next) {
+    if (!(IFF_UP & interface->ifa_flags))
+      continue;
+    if (IFF_LOOPBACK & interface->ifa_flags)
+      continue;
+    const struct sockaddr* addr = interface->ifa_addr;
+    if (!addr)
+      continue;
+    if (addr->sa_family != AF_INET6 && addr->sa_family != AF_INET)
+      continue;
+
+    result = false;
+    break;
+  }
+  freeifaddrs(interface_addr);
+  return result;
+#else
+  NOTIMPLEMENTED();
+  return false;
+#endif  // defined(various platforms)
+}
+
 bool ParseIPLiteralToNumber(const std::string& ip_literal,
                             IPAddressNumber* ip_number) {
   // |ip_literal| could be either a IPv4 or an IPv6 literal. If it contains
