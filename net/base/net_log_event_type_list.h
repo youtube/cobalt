@@ -79,9 +79,6 @@ EVENT_TYPE(PROXY_SERVICE)
 // are found from ProxyService::init_proxy_resolver_log().
 EVENT_TYPE(PROXY_SERVICE_WAITING_FOR_INIT_PAC)
 
-// The time taken to fetch the system proxy configuration.
-EVENT_TYPE(PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES)
-
 // This event is emitted to show what the PAC script returned. It can contain
 // extra parameters that are either:
 //   {

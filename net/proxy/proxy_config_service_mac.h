@@ -5,14 +5,15 @@
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_MAC_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_MAC_H_
 
-#include "net/proxy/proxy_config_service.h"
+#include "net/proxy/polling_proxy_config_service.h"
 
 namespace net {
 
-class ProxyConfigServiceMac : public ProxyConfigService {
+// TODO(eroman): Use notification-based system APIs instead of polling for
+//               changes.
+class ProxyConfigServiceMac : public PollingProxyConfigService {
  public:
-  // ProxyConfigService methods:
-  virtual int GetProxyConfig(ProxyConfig* config);
+  ProxyConfigServiceMac();
 };
 
 }  // namespace net

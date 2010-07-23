@@ -17,7 +17,11 @@
 
 namespace net {
 
-static void FreeIEConfig(WINHTTP_CURRENT_USER_IE_PROXY_CONFIG* ie_config) {
+namespace {
+
+const int kPollIntervalSec = 5;
+
+void FreeIEConfig(WINHTTP_CURRENT_USER_IE_PROXY_CONFIG* ie_config) {
   if (ie_config->lpszAutoConfigUrl)
     GlobalFree(ie_config->lpszAutoConfigUrl);
   if (ie_config->lpszProxy)
@@ -26,16 +30,25 @@ static void FreeIEConfig(WINHTTP_CURRENT_USER_IE_PROXY_CONFIG* ie_config) {
     GlobalFree(ie_config->lpszProxyBypass);
 }
 
-int ProxyConfigServiceWin::GetProxyConfig(ProxyConfig* config) {
+}  // namespace
+
+ProxyConfigServiceWin::ProxyConfigServiceWin()
+    : PollingProxyConfigService(
+          base::TimeDelta::FromSeconds(kPollIntervalSec),
+          &ProxyConfigServiceWin::GetCurrentProxyConfig) {
+}
+
+// static
+void ProxyConfigServiceWin::GetCurrentProxyConfig(ProxyConfig* config) {
   WINHTTP_CURRENT_USER_IE_PROXY_CONFIG ie_config = {0};
   if (!WinHttpGetIEProxyConfigForCurrentUser(&ie_config)) {
     LOG(ERROR) << "WinHttpGetIEProxyConfigForCurrentUser failed: " <<
         GetLastError();
-    return ERR_FAILED;  // TODO(darin): Bug 1189288: translate error code.
+    *config = ProxyConfig::CreateDirect();
+    return;
   }
   SetFromIEConfig(config, ie_config);
   FreeIEConfig(&ie_config);
-  return OK;
 }
 
 // static
