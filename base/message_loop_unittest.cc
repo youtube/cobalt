@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <vector>
+
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -839,8 +841,8 @@ class Recursive2Tasks : public Task {
         for (;;) {
           HWND button = FindWindowEx(window, NULL, L"Button", NULL);
           if (button != NULL) {
-            EXPECT_TRUE(0 == SendMessage(button, WM_LBUTTONDOWN, 0, 0));
-            EXPECT_TRUE(0 == SendMessage(button, WM_LBUTTONUP, 0, 0));
+            EXPECT_EQ(0, SendMessage(button, WM_LBUTTONDOWN, 0, 0));
+            EXPECT_EQ(0, SendMessage(button, WM_LBUTTONUP, 0, 0));
             break;
           }
         }
@@ -1459,7 +1461,7 @@ TEST(MessageLoopTest, NonNestableDelayedInNestedLoop) {
 
 class DummyTask : public Task {
  public:
-  DummyTask(int num_tasks) : num_tasks_(num_tasks) {}
+  explicit DummyTask(int num_tasks) : num_tasks_(num_tasks) {}
 
   virtual void Run() {
     if (num_tasks_ > 1) {
@@ -1477,7 +1479,7 @@ class DummyTask : public Task {
 
 class DummyTaskObserver : public MessageLoop::TaskObserver {
  public:
-  DummyTaskObserver(int num_tasks)
+  explicit DummyTaskObserver(int num_tasks)
       : num_tasks_started_(0),
         num_tasks_processed_(0),
         num_tasks_(num_tasks) {}
@@ -1593,7 +1595,7 @@ TEST(MessageLoopTest, FileDescriptorWatcherOutlivesMessageLoop) {
   // pipe() is just the easiest way to do it.
   int pipefds[2];
   int err = pipe(pipefds);
-  ASSERT_TRUE(err == 0);
+  ASSERT_EQ(0, err);
   int fd = pipefds[1];
   {
     // Arrange for controller to live longer than message loop.
@@ -1618,7 +1620,7 @@ TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
   // (Errors only showed up in valgrind.)
   int pipefds[2];
   int err = pipe(pipefds);
-  ASSERT_TRUE(err == 0);
+  ASSERT_EQ(0, err);
   int fd = pipefds[1];
   {
     // Arrange for message loop to live longer than controller.
