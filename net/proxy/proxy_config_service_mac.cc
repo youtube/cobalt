@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,11 @@
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_server.h"
 
+namespace net {
+
 namespace {
+
+const int kPollIntervalSec = 5;
 
 // Utility function to pull out a boolean value from a dictionary and return it,
 // returning a default value if the key is not present.
@@ -35,11 +39,7 @@ bool GetBoolFromDictionary(CFDictionaryRef dict,
     return default_value;
 }
 
-}  // namespace
-
-namespace net {
-
-int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
+void GetCurrentProxyConfig(ProxyConfig* config) {
   scoped_cftyperef<CFDictionaryRef> config_dict(
       SCDynamicStoreCopyProxies(NULL));
   DCHECK(config_dict);
@@ -157,8 +157,13 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
                             false)) {
     config->proxy_rules().bypass_rules.AddRuleToBypassLocal();
   }
+}
 
-  return OK;
+}  // namespace
+
+ProxyConfigServiceMac::ProxyConfigServiceMac()
+    : PollingProxyConfigService(base::TimeDelta::FromSeconds(kPollIntervalSec),
+                                &GetCurrentProxyConfig) {
 }
 
 }  // namespace net

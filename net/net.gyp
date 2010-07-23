@@ -413,6 +413,8 @@
         'proxy/init_proxy_resolver.h',
         'proxy/multi_threaded_proxy_resolver.cc',
         'proxy/multi_threaded_proxy_resolver.h',
+        'proxy/polling_proxy_config_service.cc',
+        'proxy/polling_proxy_config_service.h',
         'proxy/proxy_bypass_rules.cc',
         'proxy/proxy_bypass_rules.h',
         'proxy/proxy_config.cc',
