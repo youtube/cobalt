@@ -83,6 +83,7 @@ void Eviction::Stop() {
   // this point on.
   DCHECK(!trimming_);
   trimming_ = true;
+  factory_.RevokeAll();
 }
 
 void Eviction::TrimCache(bool empty) {
