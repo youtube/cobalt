@@ -15,10 +15,12 @@ enum AddressFamily {
   ADDRESS_FAMILY_IPV6,          // AF_INET6
 };
 
-// HostResolverFlags is a bitflag enum wrapper around the addrinfo.ai_flags
-// supported by host resolver procedures.
+// HostResolverFlags is a bitflag enum used by host resolver procedures to
+// determine the value of addrinfo.ai_flags.
 enum {
-  HOST_RESOLVER_CANONNAME = 1 << 0,  // 0x1, AI_CANONNAME
+  HOST_RESOLVER_CANONNAME = 1 << 0,  // AI_CANONNAME
+  // Hint to the resolver proc that only loopback addresses are configured.
+  HOST_RESOLVER_LOOPBACK_ONLY = 1 << 1,
 };
 typedef int HostResolverFlags;
 
