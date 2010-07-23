@@ -11,18 +11,14 @@ using std::string;
 
 namespace {
 
-inline bool IsHexDigit(unsigned char c) {
-  return (('0' <= c && c <= '9') || ('A' <= c && c <= 'F') ||
-          ('a' <= c && c <= 'f'));
-}
-
 // Returns 1 if buf is prefixed by "num_digits" of hex digits
 // Teturns 0 otherwise.
 // The function checks for '\0' for string termination.
 int HexDigitsPrefix(const char* buf, int num_digits) {
-  for (int i = 0; i < num_digits; i++)
+  for (int i = 0; i < num_digits; i++) {
     if (!IsHexDigit(buf[i]))
       return 0;  // This also detects end of string as '\0' is not xdigit.
+  }
   return 1;
 }
 
