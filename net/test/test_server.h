@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/process_util.h"
 
@@ -32,8 +33,6 @@ namespace net {
 class TestServerLauncher {
  public:
   TestServerLauncher();
-  TestServerLauncher(int connection_attempts, int connection_timeout);
-
   virtual ~TestServerLauncher();
 
   enum Protocol {
@@ -41,11 +40,7 @@ class TestServerLauncher {
   };
 
   // Load the test root cert, if it hasn't been loaded yet.
-  bool LoadTestRootCert();
-
-  // Tells the server to enable/disable servicing each request
-  // in a separate process. Takes effect only if called before Start.
-  void set_forking(bool forking) { forking_ = forking; }
+  bool LoadTestRootCert() WARN_UNUSED_RESULT;
 
   // Start src/net/tools/testserver/testserver.py and
   // ask it to serve the given protocol.
@@ -58,7 +53,7 @@ class TestServerLauncher {
              const std::string& host_name, int port,
              const FilePath& document_root,
              const FilePath& cert_path,
-             const std::wstring& file_root_url);
+             const std::wstring& file_root_url) WARN_UNUSED_RESULT;
 
   // Stop the server started by Start().
   bool Stop();
@@ -67,7 +62,7 @@ class TestServerLauncher {
   // without a call to Stop().
   // WaitToFinish is handy in that case.
   // It returns true if the server exited cleanly.
-  bool WaitToFinish(int milliseconds);
+  bool WaitToFinish(int milliseconds) WARN_UNUSED_RESULT;
 
   // Paths to a good, an expired, and an invalid server certificate
   // (use as arguments to Start()).
@@ -94,7 +89,7 @@ class TestServerLauncher {
  private:
   // Wait a while for the server to start, return whether
   // we were able to make a connection to it.
-  bool WaitToStart(const std::string& host_name, int port);
+  bool WaitToStart(const std::string& host_name, int port) WARN_UNUSED_RESULT;
 
   // Append to PYTHONPATH so Python can find pyftpdlib and tlslite.
   void SetPythonPath();
@@ -103,7 +98,7 @@ class TestServerLauncher {
   FilePath GetRootCertPath();
 
   // Returns false if our test root certificate is not trusted.
-  bool CheckCATrusted();
+  bool CheckCATrusted() WARN_UNUSED_RESULT;
 
   // Initilize the certificate path.
   void InitCertPath();
@@ -112,21 +107,12 @@ class TestServerLauncher {
 
   FilePath cert_dir_;
 
-  FilePath python_runtime_;
-
   base::ProcessHandle process_handle_;
 
 #if defined(OS_WIN)
   // JobObject used to clean up orphaned child processes.
   ScopedHandle job_handle_;
 #endif
-
-  // True if the server should handle each request in a separate process.
-  bool forking_;
-
-  // Number of tries and timeout for each try used for WaitToStart.
-  int connection_attempts_;
-  int connection_timeout_;
 
 #if defined(USE_NSS)
   scoped_refptr<X509Certificate> cert_;

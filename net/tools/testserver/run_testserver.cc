@@ -55,7 +55,7 @@ int main(int argc, const char* argv[]) {
   } else if (protocol == "ftp") {
     test_server = FTPTestServer::CreateServer(doc_root);
   } else if (protocol == "http") {
-    test_server = HTTPTestServer::CreateServer(doc_root, NULL);
+    test_server = HTTPTestServer::CreateServer(doc_root);
   } else {
     NOTREACHED();
   }
