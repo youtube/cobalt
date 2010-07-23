@@ -1085,7 +1085,7 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
     LOG(INFO) << "Monitoring of proxy setting changes is disabled";
 
   // Fetch and cache the current proxy config. The config is left in
-  // cached_config_, where GetProxyConfig() running on the IO thread
+  // cached_config_, where GetLatestProxyConfig() running on the IO thread
   // will expect to find it. This is safe to do because we return
   // before this ProxyConfigServiceLinux is passed on to
   // the ProxyService.
@@ -1133,14 +1133,30 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
   }
 }
 
-int ProxyConfigServiceLinux::Delegate::GetProxyConfig(ProxyConfig* config) {
+void ProxyConfigServiceLinux::Delegate::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void ProxyConfigServiceLinux::Delegate::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
+bool ProxyConfigServiceLinux::Delegate::GetLatestProxyConfig(
+    ProxyConfig* config) {
   // This is called from the IO thread.
   DCHECK(!io_loop_ || MessageLoop::current() == io_loop_);
 
   // Simply return the last proxy configuration that glib_default_loop
   // notified us of.
-  *config = cached_config_;
-  return cached_config_.is_valid() ? OK : ERR_FAILED;
+  *config = cached_config_.is_valid() ?
+      cached_config_ : ProxyConfig::CreateDirect();
+
+  // We return true to indicate that *config was filled in. It is always
+  // going to be available since we initialized eagerly on the UI thread.
+  // TODO(eroman): do lazy initialization instead, so we no longer need
+  //               to construct ProxyConfigServiceLinux on the UI thread.
+  //               In which case, we may return false here.
+  return true;
 }
 
 // Depending on the GConfSettingGetter in use, this method will be called
@@ -1153,7 +1169,7 @@ void ProxyConfigServiceLinux::Delegate::OnCheckProxyConfigSettings() {
   if (valid)
     new_config.set_id(1);  // mark it as valid
 
-  // See if it is different than what we had before.
+  // See if it is different from what we had before.
   if (new_config.is_valid() != reference_config_.is_valid() ||
       !new_config.Equals(reference_config_)) {
     // Post a task to |io_loop| with the new configuration, so it can
@@ -1174,6 +1190,7 @@ void ProxyConfigServiceLinux::Delegate::SetNewProxyConfig(
   DCHECK(MessageLoop::current() == io_loop_);
   LOG(INFO) << "Proxy configuration changed";
   cached_config_ = new_config;
+  FOR_EACH_OBSERVER(Observer, observers_, OnProxyConfigChanged(new_config));
 }
 
 void ProxyConfigServiceLinux::Delegate::PostDestroyTask() {
