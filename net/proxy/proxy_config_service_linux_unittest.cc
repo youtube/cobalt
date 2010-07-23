@@ -239,7 +239,7 @@ class MockGConfSettingGetter
 }  // namespace
 }  // namespace net
 
-// This helper class runs ProxyConfigServiceLinux::GetProxyConfig() on
+// This helper class runs ProxyConfigServiceLinux::GetLatestProxyConfig() on
 // the IO thread and synchronously waits for the result.
 // Some code duplicated from proxy_script_fetcher_unittest.cc.
 class SynchConfigGetter {
@@ -282,12 +282,12 @@ class SynchConfigGetter {
         static_cast<MessageLoopForIO*>(file_loop));
   }
   // Synchronously gets the proxy config.
-  int SyncGetProxyConfig(net::ProxyConfig* config) {
+  bool SyncGetLatestProxyConfig(net::ProxyConfig* config) {
     io_thread_.message_loop()->PostTask(FROM_HERE, NewRunnableMethod(
-        this, &SynchConfigGetter::GetConfigOnIOThread));
+        this, &SynchConfigGetter::GetLatestConfigOnIOThread));
     Wait();
     *config = proxy_config_;
-    return get_config_result_;
+    return get_latest_config_result_;
   }
 
  private:
@@ -296,10 +296,11 @@ class SynchConfigGetter {
     event_.Signal();
   }
 
-  // Calls GetProxyConfig, running on |io_thread_|] Signals |event_|
+  // Calls GetLatestProxyConfig, running on |io_thread_| Signals |event_|
   // on completion.
-  void GetConfigOnIOThread() {
-    get_config_result_ = config_service_->GetProxyConfig(&proxy_config_);
+  void GetLatestConfigOnIOThread() {
+    get_latest_config_result_ =
+        config_service_->GetLatestProxyConfig(&proxy_config_);
     event_.Signal();
   }
 
@@ -322,7 +323,7 @@ class SynchConfigGetter {
   // The config obtained by |io_thread_| and read back by the main
   // thread.
   net::ProxyConfig proxy_config_;
-  int get_config_result_;  // Return value from GetProxyConfig().
+  bool get_latest_config_result_;  // Return value from GetLatestProxyConfig().
 };
 
 DISABLE_RUNNABLE_METHOD_REFCOUNT(SynchConfigGetter);
@@ -606,7 +607,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     ProxyConfig config;
     gconf_getter->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetProxyConfig(&config);
+    sync_config_getter.SyncGetLatestProxyConfig(&config);
 
     EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
     EXPECT_EQ(tests[i].pac_url, config.pac_url());
@@ -896,7 +897,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     ProxyConfig config;
     env_getter->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetProxyConfig(&config);
+    sync_config_getter.SyncGetLatestProxyConfig(&config);
 
     EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
     EXPECT_EQ(tests[i].pac_url, config.pac_url());
@@ -915,14 +916,14 @@ TEST_F(ProxyConfigServiceLinuxTest, GconfNotification) {
   // Start with no proxy.
   gconf_getter->values.mode = "none";
   sync_config_getter.SetupAndInitialFetch();
-  sync_config_getter.SyncGetProxyConfig(&config);
+  sync_config_getter.SyncGetLatestProxyConfig(&config);
   EXPECT_FALSE(config.auto_detect());
 
   // Now set to auto-detect.
   gconf_getter->values.mode = "auto";
   // Simulate gconf notification callback.
   service->OnCheckProxyConfigSettings();
-  sync_config_getter.SyncGetProxyConfig(&config);
+  sync_config_getter.SyncGetLatestProxyConfig(&config);
   EXPECT_TRUE(config.auto_detect());
 }
 
@@ -1298,7 +1299,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     file_util::WriteFile(kioslaverc_, tests[i].kioslaverc.c_str(),
                          tests[i].kioslaverc.length());
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetProxyConfig(&config);
+    sync_config_getter.SyncGetLatestProxyConfig(&config);
 
     EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
     EXPECT_EQ(tests[i].pac_url, config.pac_url());
@@ -1329,7 +1330,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetProxyConfig(&config);
+    sync_config_getter.SyncGetLatestProxyConfig(&config);
     EXPECT_TRUE(config.auto_detect());
     EXPECT_EQ(GURL(), config.pac_url());
   }
@@ -1348,7 +1349,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetProxyConfig(&config);
+    sync_config_getter.SyncGetLatestProxyConfig(&config);
     EXPECT_FALSE(config.auto_detect());
     EXPECT_EQ(slaverc4_pac_url, config.pac_url());
   }
@@ -1361,7 +1362,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetProxyConfig(&config);
+    sync_config_getter.SyncGetLatestProxyConfig(&config);
     EXPECT_TRUE(config.auto_detect());
     EXPECT_EQ(GURL(), config.pac_url());
   }
@@ -1375,7 +1376,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetProxyConfig(&config);
+    sync_config_getter.SyncGetLatestProxyConfig(&config);
     EXPECT_TRUE(config.auto_detect());
     EXPECT_EQ(GURL(), config.pac_url());
   }
@@ -1392,7 +1393,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetProxyConfig(&config);
+    sync_config_getter.SyncGetLatestProxyConfig(&config);
     EXPECT_TRUE(config.auto_detect());
     EXPECT_EQ(GURL(), config.pac_url());
   }
