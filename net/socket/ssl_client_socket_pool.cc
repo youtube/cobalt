@@ -18,7 +18,8 @@ SSLSocketParams::SSLSocketParams(
     const std::string& hostname,
     const SSLConfig& ssl_config,
     int load_flags,
-    bool want_spdy)
+    bool force_spdy_over_ssl,
+    bool want_spdy_over_npn)
     : tcp_params_(tcp_params),
       http_proxy_params_(http_proxy_params),
       socks_params_(socks_params),
@@ -26,7 +27,8 @@ SSLSocketParams::SSLSocketParams(
       hostname_(hostname),
       ssl_config_(ssl_config),
       load_flags_(load_flags),
-      want_spdy_(want_spdy) {
+      force_spdy_over_ssl_(force_spdy_over_ssl),
+      want_spdy_over_npn_(want_spdy_over_npn) {
   switch (proxy_) {
     case ProxyServer::SCHEME_DIRECT:
       DCHECK(tcp_params_.get() != NULL);
@@ -281,16 +283,21 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
   if (result == OK || IsCertificateError(result))
     status = ssl_socket_->GetNextProto(&proto);
 
-  bool using_spdy = false;
+  // If we want spdy over npn, make sure it succeeded.
+  bool spdy_over_npn_succeeded = false;
   if (status == SSLClientSocket::kNextProtoNegotiated) {
     ssl_socket_->setWasNpnNegotiated(true);
     if (SSLClientSocket::NextProtoFromString(proto) ==
         SSLClientSocket::kProtoSPDY1) {
-          using_spdy = true;
+          spdy_over_npn_succeeded = true;
     }
   }
-  if (params_->want_spdy() && !using_spdy)
+  if (params_->want_spdy_over_npn() && !spdy_over_npn_succeeded)
     return ERR_NPN_NEGOTIATION_FAILED;
+
+  // Spdy might be turned on by default, or it might be over npn.
+  bool using_spdy = params_->force_spdy_over_ssl() ||
+      params_->want_spdy_over_npn();
 
   if (result == OK ||
       ssl_socket_->IgnoreCertError(result, params_->load_flags())) {

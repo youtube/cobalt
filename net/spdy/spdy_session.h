@@ -85,10 +85,13 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Remove PendingCreateStream objects on transaction deletion
   void CancelPendingCreateStreams(const scoped_refptr<SpdyStream>* spdy_stream);
 
-  // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
+  // Used by SpdySessionPool to initialize with a pre-existing SSL socket. For
+  // testing, setting is_secure to false allows initialization with a
+  // pre-existing TCP socket.
   // Returns OK on success, or an error on failure.
-  net::Error InitializeWithSSLSocket(ClientSocketHandle* connection,
-                                     int certificate_error_code);
+  net::Error InitializeWithSocket(ClientSocketHandle* connection,
+                                  bool is_secure,
+                                  int certificate_error_code);
 
   // Send the SYN frame for |stream_id|.
   int WriteSynStream(

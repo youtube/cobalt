@@ -76,7 +76,7 @@ class SSLClientSocketPoolTest : public ClientSocketPoolTest {
 
   scoped_refptr<SSLSocketParams> SSLParams(
       ProxyServer::Scheme proxy, struct MockHttpAuthControllerData* auth_data,
-      size_t auth_data_len, bool want_spdy) {
+      size_t auth_data_len, bool want_spdy_over_ssl, bool want_spdy_over_npn) {
 
     scoped_refptr<HttpProxySocketParams> http_proxy_params;
     if (proxy == ProxyServer::SCHEME_HTTP) {
@@ -97,7 +97,8 @@ class SSLClientSocketPoolTest : public ClientSocketPoolTest {
         "host",
         ssl_config_,
         0,
-        want_spdy));
+        want_spdy_over_ssl,
+        want_spdy_over_npn));
   }
 
   MockClientSocketFactory socket_factory_;
@@ -123,7 +124,7 @@ TEST_F(SSLClientSocketPoolTest, TCPFail) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   int rv = handle.Init("a", params, MEDIUM, NULL, pool_, BoundNetLog());
@@ -140,7 +141,7 @@ TEST_F(SSLClientSocketPoolTest, TCPFailAsync) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -164,7 +165,7 @@ TEST_F(SSLClientSocketPoolTest, BasicDirect) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -182,7 +183,7 @@ TEST_F(SSLClientSocketPoolTest, BasicDirectAsync) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -204,7 +205,7 @@ TEST_F(SSLClientSocketPoolTest, DirectCertError) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -226,7 +227,7 @@ TEST_F(SSLClientSocketPoolTest, DirectSSLError) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -251,7 +252,7 @@ TEST_F(SSLClientSocketPoolTest, DirectWithNPN) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -277,7 +278,7 @@ TEST_F(SSLClientSocketPoolTest, DirectNoSPDY) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, true);
+                                                    NULL, 0, false, true);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -302,7 +303,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, true);
+                                                    NULL, 0, false, true);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -333,7 +334,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, true);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -361,7 +362,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSFail) {
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_SOCKS5,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -379,7 +380,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSFailAsync) {
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_SOCKS5,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -403,7 +404,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSBasic) {
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_SOCKS5,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -421,7 +422,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSBasicAsync) {
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_SOCKS5,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -442,7 +443,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyFail) {
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_HTTP,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -460,7 +461,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyFailAsync) {
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_HTTP,
-                                                    NULL, 0, false);
+                                                    NULL, 0, false, false);
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -500,6 +501,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyBasic) {
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_HTTP,
                                                     auth_data,
                                                     arraysize(auth_data),
+                                                    false,
                                                     false);
 
   ClientSocketHandle handle;
@@ -533,6 +535,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyBasicAsync) {
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_HTTP,
                                                     auth_data,
                                                     arraysize(auth_data),
+                                                    false,
                                                     false);
 
   ClientSocketHandle handle;
@@ -572,6 +575,7 @@ TEST_F(SSLClientSocketPoolTest, NeedProxyAuth) {
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_HTTP,
                                                     auth_data,
                                                     arraysize(auth_data),
+                                                    false,
                                                     false);
 
   ClientSocketHandle handle;
@@ -620,6 +624,7 @@ TEST_F(SSLClientSocketPoolTest, DoProxyAuth) {
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_HTTP,
                                                     auth_data,
                                                     arraysize(auth_data),
+                                                    false,
                                                     false);
 
   ClientSocketHandle handle;
@@ -688,6 +693,7 @@ TEST_F(SSLClientSocketPoolTest, DoProxyAuthNoKeepAlive) {
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_HTTP,
                                                     auth_data,
                                                     arraysize(auth_data),
+                                                    false,
                                                     false);
 
   ClientSocketHandle handle;
