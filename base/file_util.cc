@@ -394,14 +394,6 @@ FILE* OpenFile(const std::wstring& filename, const char* mode) {
 int ReadFile(const std::wstring& filename, char* data, int size) {
   return ReadFile(FilePath::FromWStringHack(filename), data, size);
 }
-void UpOneDirectory(std::wstring* dir) {
-  FilePath path = FilePath::FromWStringHack(*dir);
-  FilePath directory = path.DirName();
-  // If there is no separator, we will get back kCurrentDirectory.
-  // In this case don't change |dir|.
-  if (directory.value() != FilePath::kCurrentDirectory)
-    *dir = directory.ToWStringHack();
-}
 int WriteFile(const std::wstring& filename, const char* data, int size) {
   return WriteFile(FilePath::FromWStringHack(filename), data, size);
 }
