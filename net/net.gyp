@@ -679,7 +679,6 @@
         'base/mime_sniffer_unittest.cc',
         'base/mime_util_unittest.cc',
         'base/net_log_unittest.h',
-        'base/net_test_constants.h',
         'base/net_test_suite.h',
         'base/net_util_unittest.cc',
         'base/pem_tokenizer_unittest.cc',
