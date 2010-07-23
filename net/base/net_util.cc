@@ -184,13 +184,6 @@ STR GetSpecificHeaderT(const STR& headers, const STR& name) {
   return ret;
 }
 
-// TODO(jungshik): We have almost identical hex-decoding code else where.
-// Consider refactoring and moving it somewhere(base?). Bug 1224311
-inline bool IsHexDigit(unsigned char c) {
-  return (('0' <= c && c <= '9') || ('A' <= c && c <= 'F') ||
-          ('a' <= c && c <= 'f'));
-}
-
 inline unsigned char HexToInt(unsigned char c) {
   DCHECK(IsHexDigit(c));
   static unsigned char kOffset[4] = {0, 0x30u, 0x37u, 0x57u};
