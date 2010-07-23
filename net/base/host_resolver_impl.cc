@@ -715,7 +715,8 @@ HostResolverImpl::HostResolverImpl(
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       shutdown_(false),
-      ipv6_probe_monitoring_(false) {
+      ipv6_probe_monitoring_(false),
+      additional_resolver_flags_(0) {
   DCHECK_GT(max_jobs, 0u);
 
   // It is cumbersome to expose all of the constraints in the constructor,
@@ -724,6 +725,10 @@ HostResolverImpl::HostResolverImpl(
 
 #if defined(OS_WIN)
   EnsureWinsockInit();
+#endif
+#if defined(OS_LINUX)
+  if (HaveOnlyLoopbackAddresses())
+    additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
 #endif
   NetworkChangeNotifier::AddObserver(this);
 }
@@ -1054,6 +1059,13 @@ void HostResolverImpl::OnIPAddressChanged() {
     ipv6_probe_job_ = new IPv6ProbeJob(this);
     ipv6_probe_job_->Start();
   }
+#if defined(OS_LINUX)
+  if (HaveOnlyLoopbackAddresses()) {
+    additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
+  } else {
+    additional_resolver_flags_ &= ~HOST_RESOLVER_LOOPBACK_ONLY;
+  }
+#endif
 }
 
 void HostResolverImpl::DiscardIPv6ProbeJob() {
@@ -1124,7 +1136,7 @@ HostResolverImpl::Key HostResolverImpl::GetEffectiveKeyForRequest(
   if (effective_address_family == ADDRESS_FAMILY_UNSPECIFIED)
     effective_address_family = default_address_family_;
   return Key(info.hostname(), effective_address_family,
-             info.host_resolver_flags());
+             info.host_resolver_flags() | additional_resolver_flags_);
 }
 
 HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {

@@ -327,6 +327,10 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports);
 // TODO(jar): Make test more in-depth as needed.
 bool IPv6Supported();
 
+// Returns true if it can determine that only loopback addresses are configured.
+// i.e. if only 127.0.0.1 and ::1 are routable.
+bool HaveOnlyLoopbackAddresses();
+
 // IPAddressNumber is used to represent an IP address's numeric value as an
 // array of bytes, from most significant to least significant. This is the
 // network byte ordering.
