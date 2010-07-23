@@ -363,6 +363,13 @@ inline bool IsAsciiDigit(Char c) {
   return c >= '0' && c <= '9';
 }
 
+template <typename Char>
+inline bool IsHexDigit(Char c) {
+  return (c >= '0' && c <= '9') ||
+         (c >= 'A' && c <= 'F') ||
+         (c >= 'a' && c <= 'f');
+}
+
 // Returns true if it's a whitespace character.
 inline bool IsWhitespace(wchar_t c) {
   return wcschr(kWhitespaceWide, c) != NULL;
