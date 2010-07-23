@@ -47,6 +47,12 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Controls whether or not we use the Alternate-Protocol header.
   static void SetUseAlternateProtocols(bool value);
 
+  // Controls whether or not we use ssl when in spdy mode.
+  static void SetUseSSLOverSpdyWithoutNPN(bool value);
+
+  // Controls whether or not we use spdy without npn.
+  static void SetUseSpdyWithoutNPN(bool value);
+
   // Sets the next protocol negotiation value used during the SSL handshake.
   static void SetNextProtos(const std::string& next_protos);
 
@@ -274,10 +280,18 @@ class HttpNetworkTransaction : public HttpTransaction {
   // responses.
   bool logged_response_time_;
 
-  bool using_ssl_;     // True if handling a HTTPS request
+  // True if handling a HTTPS request, or using SPDY with SSL
+  bool using_ssl_;
 
   // True if this network transaction is using SPDY instead of HTTP.
   bool using_spdy_;
+
+  // True if this network transaction wants to use SPDY (not over npn)
+  bool want_spdy_without_npn_;
+
+  // True if this network transaction wants to use SSL with SPDY (not over npn)
+  bool want_ssl_over_spdy_without_npn_;
+
 
   // The certificate error while using SPDY over SSL for insecure URLs.
   int spdy_certificate_error_;
