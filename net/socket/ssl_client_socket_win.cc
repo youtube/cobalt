@@ -353,6 +353,23 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
     // normalized.
     ssl_info->security_bits = connection_info.dwCipherStrength;
   }
+  // SecPkgContext_CipherInfo comes from CNG and is available on Vista or
+  // later only.  On XP, the next QueryContextAttributes call fails with
+  // SEC_E_UNSUPPORTED_FUNCTION (0x80090302), so ssl_info->connection_status
+  // won't contain the cipher suite.  If this is a problem, we can build the
+  // cipher suite from the aiCipher, aiHash, and aiExch fields of
+  // SecPkgContext_ConnectionInfo based on Appendix C of RFC 5246.
+  SecPkgContext_CipherInfo cipher_info = { SECPKGCONTEXT_CIPHERINFO_V1 };
+  status = QueryContextAttributes(
+      &ctxt_, SECPKG_ATTR_CIPHER_INFO, &cipher_info);
+  if (status == SEC_E_OK) {
+    // TODO(wtc): find out what the cipher_info.dwBaseCipherSuite field is.
+    ssl_info->connection_status |=
+        (cipher_info.dwCipherSuite & SSL_CONNECTION_CIPHERSUITE_MASK) <<
+        SSL_CONNECTION_CIPHERSUITE_SHIFT;
+    // SChannel doesn't support TLS compression, so cipher_info doesn't have
+    // any field related to the compression method.
+  }
 
   if (ssl_config_.ssl3_fallback)
     ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
