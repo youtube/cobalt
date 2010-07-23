@@ -96,8 +96,7 @@ class URLRequestTest : public PlatformTest {
 class URLRequestTestHTTP : public URLRequestTest {
  protected:
   static void SetUpTestCase() {
-    server_ = HTTPTestServer::CreateForkingServer(
-        L"net/data/url_request_unittest/");
+    server_ = HTTPTestServer::CreateServer(L"net/data/url_request_unittest/");
   }
 
   static void TearDownTestCase() {
@@ -262,13 +261,81 @@ TEST_F(URLRequestTestHTTP, HTTPSToHTTPRedirectNoRefererTest) {
   EXPECT_EQ(std::string(), req.referrer());
 }
 
+namespace {
+
+// Used by MakeGETRequest to implement sync load behavior.
+class SyncTestDelegate : public TestDelegate {
+ public:
+  SyncTestDelegate() : event_(false, false), success_(false) {
+  }
+  virtual void OnResponseCompleted(URLRequest* request) {
+    MessageLoop::current()->DeleteSoon(FROM_HERE, request);
+    success_ = request->status().is_success();
+    event_.Signal();
+  }
+  bool Wait(int64 secs) {
+    return event_.TimedWait(TimeDelta::FromSeconds(secs));
+  }
+  bool did_succeed() const { return success_; }
+ private:
+  base::WaitableEvent event_;
+  bool success_;
+  DISALLOW_COPY_AND_ASSIGN(SyncTestDelegate);
+};
+
+void StartGETRequest(const GURL& url, URLRequest::Delegate* delegate) {
+  URLRequest* request = new URLRequest(url, delegate);
+  request->set_context(new TestURLRequestContext());
+  request->set_method("GET");
+  request->Start();
+  EXPECT_TRUE(request->is_pending());
+}
+
+bool MakeGETRequest(const GURL& url) {
+  // Spin up a background thread for this request so that we have access to
+  // an IO message loop, and in cases where this thread already has an IO
+  // message loop, we also want to avoid spinning a nested message loop.
+  SyncTestDelegate d;
+  {
+    base::Thread io_thread("MakeGETRequest");
+    base::Thread::Options options;
+    options.message_loop_type = MessageLoop::TYPE_IO;
+    io_thread.StartWithOptions(options);
+    io_thread.message_loop()->PostTask(FROM_HERE, NewRunnableFunction(
+        &StartGETRequest, url, &d));
+
+    const int kWaitSeconds = 30;
+    if (!d.Wait(kWaitSeconds))
+      return false;
+  }
+  return d.did_succeed();
+}
+
+}  // namespace
+
+// Some tests use browser javascript to fetch a 'kill' url that causes
+// the server to exit by itself (rather than letting TestServerLauncher's
+// destructor kill it). We now unit test this mechanism.
 TEST_F(URLRequestTest, QuitTest) {
-  // Don't use shared server here because we order it to quit.
-  // It would impact other tests.
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
-  server->SendQuit();
+  // Append the time to avoid problems where the kill page
+  // is being cached rather than being executed on the server
+  std::string page_name = StringPrintf("kill?%u",
+      static_cast<int>(base::Time::Now().ToInternalValue()));
+  int retry_count = 5;
+  while (retry_count > 0) {
+    bool r = MakeGETRequest(server->TestServerPage(page_name));
+    // BUG #1048625 causes the kill GET to fail.  For now we just retry.
+    // Once the bug is fixed, we should remove the while loop and put back
+    // the following DCHECK.
+    // DCHECK(r);
+    if (r)
+      break;
+    retry_count--;
+  }
+  // Make sure we were successful in stopping the testserver.
+  EXPECT_LT(0, retry_count);
   EXPECT_TRUE(server->WaitToFinish(20000));
 }
 
@@ -1189,8 +1256,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
 
@@ -1238,8 +1304,7 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
 
@@ -1294,8 +1359,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
@@ -1348,8 +1412,7 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
@@ -1405,8 +1468,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
@@ -1460,8 +1522,7 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
@@ -1517,8 +1578,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
 }
 
 TEST_F(URLRequestTest, CancelTest_During_CookiePolicy) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
@@ -1548,8 +1608,7 @@ TEST_F(URLRequestTest, CancelTest_During_CookiePolicy) {
 }
 
 TEST_F(URLRequestTest, CancelTest_During_OnGetCookies) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
@@ -1577,8 +1636,7 @@ TEST_F(URLRequestTest, CancelTest_During_OnGetCookies) {
 }
 
 TEST_F(URLRequestTest, CancelTest_During_OnSetCookie) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
@@ -1611,8 +1669,7 @@ TEST_F(URLRequestTest, CancelTest_During_OnSetCookie) {
 }
 
 TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
+  scoped_refptr<HTTPTestServer> server(HTTPTestServer::CreateServer(L""));
   ASSERT_TRUE(NULL != server.get());
   scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 

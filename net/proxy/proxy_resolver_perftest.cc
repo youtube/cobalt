@@ -145,7 +145,7 @@ class PacPerfSuiteRunner {
     DCHECK(!resolver_->expects_pac_bytes());
     if (!server_) {
       server_ = HTTPTestServer::CreateServer(
-          L"net/data/proxy_resolver_perftest", NULL);
+          L"net/data/proxy_resolver_perftest");
     }
     ASSERT_TRUE(server_.get() != NULL);
   }
