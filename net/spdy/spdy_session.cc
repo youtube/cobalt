@@ -198,8 +198,9 @@ SpdySession::~SpdySession() {
   net_log_.EndEvent(NetLog::TYPE_SPDY_SESSION, NULL);
 }
 
-net::Error SpdySession::InitializeWithSSLSocket(
+net::Error SpdySession::InitializeWithSocket(
     ClientSocketHandle* connection,
+    bool is_secure,
     int certificate_error_code) {
   static StatsCounter spdy_sessions("spdy.sessions");
   spdy_sessions.Increment();
@@ -208,7 +209,7 @@ net::Error SpdySession::InitializeWithSSLSocket(
 
   state_ = CONNECTED;
   connection_.reset(connection);
-  is_secure_ = true;  // |connection| contains an SSLClientSocket.
+  is_secure_ = is_secure;
   certificate_error_code_ = certificate_error_code;
 
   // This is a newly initialized session that no client should have a handle to

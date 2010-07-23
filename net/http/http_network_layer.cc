@@ -45,8 +45,6 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
 }
 
 //-----------------------------------------------------------------------------
-bool HttpNetworkLayer::force_spdy_ = false;
-
 HttpNetworkLayer::HttpNetworkLayer(
     ClientSocketFactory* socket_factory,
     HostResolver* host_resolver,
@@ -88,10 +86,7 @@ int HttpNetworkLayer::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   if (suspended_)
     return ERR_NETWORK_IO_SUSPENDED;
 
-  if (force_spdy_)
-    trans->reset(new SpdyNetworkTransaction(GetSession()));
-  else
-    trans->reset(new HttpNetworkTransaction(GetSession()));
+  trans->reset(new HttpNetworkTransaction(GetSession()));
   return OK;
 }
 
@@ -126,6 +121,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 
 // static
 void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
+  static const char kSSL[] = "ssl";
   static const char kDisableSSL[] = "no-ssl";
   static const char kDisableCompression[] = "no-compress";
   static const char kDisableAltProtocols[] = "no-alt-protocols";
@@ -160,9 +156,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   std::vector<std::string> spdy_options;
   SplitString(mode, ',', &spdy_options);
 
-  // Force spdy mode (use SpdyNetworkTransaction for all http requests).
-  force_spdy_ = true;
-
   bool use_alt_protocols = true;
 
   for (std::vector<std::string>::iterator it = spdy_options.begin();
@@ -170,18 +163,21 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     const std::string& option = *it;
     if (option == kDisableSSL) {
       SpdySession::SetSSLMode(false);  // Disable SSL
+      HttpNetworkTransaction::SetUseSSLOverSpdyWithoutNPN(false);
+      HttpNetworkTransaction::SetUseSpdyWithoutNPN(true);
+    } else if (option == kSSL) {
+      HttpNetworkTransaction::SetUseSSLOverSpdyWithoutNPN(true);
+      HttpNetworkTransaction::SetUseSpdyWithoutNPN(true);
     } else if (option == kDisableCompression) {
       spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
       HttpNetworkTransaction::SetUseAlternateProtocols(use_alt_protocols);
       HttpNetworkTransaction::SetNextProtos(kNpnProtosFull);
-      force_spdy_ = false;
     } else if (option == kEnableNpnHttpOnly) {
       // Avoid alternate protocol in this case. Otherwise, browser will try SSL
       // and then fallback to http. This introduces extra load.
       HttpNetworkTransaction::SetUseAlternateProtocols(false);
       HttpNetworkTransaction::SetNextProtos(kNpnProtosHttpOnly);
-      force_spdy_ = false;
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;
       HttpNetworkTransaction::SetUseAlternateProtocols(false);
