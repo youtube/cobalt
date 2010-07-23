@@ -216,6 +216,12 @@ int SystemHostResolverProc(const std::string& host,
   hints.ai_flags = AI_ADDRCONFIG;
 #endif
 
+  // On Linux AI_ADDRCONFIG doesn't consider loopback addreses, even if only
+  // loopback addresses are configured. So don't use it when there are only
+  // loopback addresses.
+  if (host_resolver_flags & HOST_RESOLVER_LOOPBACK_ONLY)
+    hints.ai_flags &= ~AI_ADDRCONFIG;
+
   if (host_resolver_flags & HOST_RESOLVER_CANONNAME)
     hints.ai_flags |= AI_CANONNAME;
 

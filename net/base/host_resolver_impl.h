@@ -252,6 +252,9 @@ class HostResolverImpl : public HostResolver,
   // The last un-cancelled IPv6ProbeJob (if any).
   scoped_refptr<IPv6ProbeJob> ipv6_probe_job_;
 
+  // Any resolver flags that should be added to a request by default.
+  HostResolverFlags additional_resolver_flags_;
+
   DISALLOW_COPY_AND_ASSIGN(HostResolverImpl);
 };
 

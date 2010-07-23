@@ -314,9 +314,12 @@ TEST(HostCacheTest, HostResolverFlagsArePartOfKey) {
   HostCache::Key key1("foobar.com", ADDRESS_FAMILY_IPV4, 0);
   HostCache::Key key2("foobar.com", ADDRESS_FAMILY_IPV4,
                       HOST_RESOLVER_CANONNAME);
+  HostCache::Key key3("foobar.com", ADDRESS_FAMILY_IPV4,
+                      HOST_RESOLVER_LOOPBACK_ONLY);
 
   const HostCache::Entry* entry1 = NULL;  // Entry for key1
   const HostCache::Entry* entry2 = NULL;  // Entry for key2
+  const HostCache::Entry* entry3 = NULL;  // Entry for key3
 
   EXPECT_EQ(0U, cache.size());
 
@@ -334,9 +337,18 @@ TEST(HostCacheTest, HostResolverFlagsArePartOfKey) {
   EXPECT_FALSE(entry2 == NULL);
   EXPECT_EQ(2U, cache.size());
 
+  // Add an entry for ("foobar.com", IPV4, LOOPBACK_ONLY) at t=0.
+  EXPECT_TRUE(cache.Lookup(key3, base::TimeTicks()) == NULL);
+  cache.Set(key3, OK, AddressList(), now);
+  entry3 = cache.Lookup(key3, base::TimeTicks());
+  EXPECT_FALSE(entry3 == NULL);
+  EXPECT_EQ(3U, cache.size());
+
   // Even though the hostnames were the same, we should have two unique
   // entries (because the HostResolverFlags differ).
   EXPECT_NE(entry1, entry2);
+  EXPECT_NE(entry1, entry3);
+  EXPECT_NE(entry2, entry3);
 }
 
 TEST(HostCacheTest, NoCache) {
