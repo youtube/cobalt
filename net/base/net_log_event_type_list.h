@@ -596,6 +596,20 @@ EVENT_TYPE(AUTH_PROXY)
 EVENT_TYPE(AUTH_SERVER)
 
 // ------------------------------------------------------------------------
+// HTML5 Application Cache
+// ------------------------------------------------------------------------
+
+// This event is emitted whenever a request is satistifed directly from
+// the appache.
+EVENT_TYPE(APPCACHE_DELIVERING_CACHED_RESPONSE)
+
+// This event is emitted whenever the appcache uses a fallback response.
+EVENT_TYPE(APPCACHE_DELIVERING_FALLBACK_RESPONSE)
+
+// This event is emitted whenever the appcache generates an error response.
+EVENT_TYPE(APPCACHE_DELIVERING_ERROR_RESPONSE)
+
+// ------------------------------------------------------------------------
 // Global events
 // ------------------------------------------------------------------------
 // These are events which are not grouped by source id, as they have no
