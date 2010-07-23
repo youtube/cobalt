@@ -646,18 +646,7 @@ class X509CertificateParseTest
   CertificateFormatTestData test_data_;
 };
 
-// OS X 10.5 builds are having trouble with PKCS#7 from PEM
-// http://crbug.com/49887 . The wrapping syntax is to match the preprocessor
-// resolution that happens for TEST() that does not happen for TEST_P()
-#define WRAPPED_TEST_P(test_case_name, test_name) \
-  TEST_P(test_case_name, test_name)
-#if defined(OS_MACOSX)
-#define MAYBE_CanParseFormat FLAKY_CanParseFormat
-#else
-#define MAYBE_CanParseFormat CanParseFormat
-#endif
-
-WRAPPED_TEST_P(X509CertificateParseTest, MAYBE_CanParseFormat) {
+TEST_P(X509CertificateParseTest, CanParseFormat) {
   FilePath certs_dir = GetTestCertsDirectory();
   CertificateList certs = CreateCertificateListFromFile(
       certs_dir, test_data_.file_name, test_data_.format);

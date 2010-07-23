@@ -372,6 +372,23 @@ bool ExtendedKeyUsageAllows(const CE_ExtendedKeyUsage* usage,
   return false;
 }
 
+// Test that a given |cert_handle| is actually a valid X.509 certificate, and
+// return true if it is.
+//
+// On OS X, SecCertificateCreateFromData() does not return any errors if
+// called with invalid data, as long as data is present. The actual decoding
+// of the certificate does not happen until an API that requires a CSSM
+// handle is called. While SecCertificateGetCLHandle is the most likely
+// candidate, as it performs the parsing, it does not check whether the
+// parsing was actually successful. Instead, SecCertificateGetSubject is
+// used (supported since 10.3), as a means to check that the certificate
+// parsed as a valid X.509 certificate.
+bool IsValidOSCertHandle(SecCertificateRef cert_handle) {
+  const CSSM_X509_NAME* sanity_check = NULL;
+  OSStatus status = SecCertificateGetSubject(cert_handle, &sanity_check);
+  return status == noErr && sanity_check != NULL;
+}
+
 // Parses |data| of length |length|, attempting to decode it as the specified
 // |format|. If |data| is in the specified format, any certificates contained
 // within are stored into |output|.
@@ -404,8 +421,21 @@ void AddCertificatesFromBytes(const char* data, size_t length,
     // private keys or other items types, so filter appropriately.
     if (CFGetTypeID(item) == cert_type_id) {
       SecCertificateRef cert = reinterpret_cast<SecCertificateRef>(item);
-      CFRetain(cert);
-      output->push_back(cert);
+      // OS X ignores |input_format| if it detects that |local_data| is PEM
+      // encoded, attempting to decode data based on internal rules for PEM
+      // block headers. If a PKCS#7 blob is encoded with a PEM block of
+      // CERTIFICATE, OS X 10.5 will return a single, invalid certificate
+      // based on the decoded data. If this happens, the certificate should
+      // not be included in |output|. Because |output| is empty,
+      // CreateCertificateListfromBytes will use PEMTokenizer to decode the
+      // data. When called again with the decoded data, OS X will honor
+      // |input_format|, causing decode to succeed. On OS X 10.6, the data
+      // is properly decoded as a PKCS#7, whether PEM or not, which avoids
+      // the need to fallback to internal decoding.
+      if (IsValidOSCertHandle(cert)) {
+        CFRetain(cert);
+        output->push_back(cert);
+      }
     }
   }
 }
@@ -709,25 +739,12 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
                                                  CSSM_CERT_X_509v3,
                                                  CSSM_CERT_ENCODING_DER,
                                                  &cert_handle);
-  if (status)
-    return NULL;
-
-  // SecCertificateCreateFromData() unfortunately will not return any
-  // errors, as long as simply all pointers are present. The actual decoding
-  // of the certificate does not happen until an API that requires a CDSA
-  // handle is called. While SecCertificateGetCLHandle is the most likely
-  // candidate, as it initializes the parsing, it does not check whether the
-  // parsing was successful. Instead, SecCertificateGetSubject is used
-  // (supported since 10.3), as a means to double-check that the parsed
-  // certificate is valid.
-  const CSSM_X509_NAME* sanity_check = NULL;
-  status = SecCertificateGetSubject(cert_handle, &sanity_check);
-  if (status || !sanity_check) {
+  if (status == noErr && IsValidOSCertHandle(cert_handle)) {
+    return cert_handle;
+  } else if (status == noErr) {
     CFRelease(cert_handle);
-    return NULL;
   }
-
-  return cert_handle;
+  return NULL;
 }
 
 // static
