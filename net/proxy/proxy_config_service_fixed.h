@@ -17,9 +17,11 @@ class ProxyConfigServiceFixed : public ProxyConfigService {
   explicit ProxyConfigServiceFixed(const ProxyConfig& pc) : pc_(pc) {}
 
   // ProxyConfigService methods:
-  virtual int GetProxyConfig(ProxyConfig* config) {
+  virtual void AddObserver(Observer* observer) {}
+  virtual void RemoveObserver(Observer* observer) {}
+  virtual bool GetLatestProxyConfig(ProxyConfig* config) {
     *config = pc_;
-    return OK;
+    return true;
   }
 
  private:

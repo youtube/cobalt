@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,20 +8,21 @@
 #include <windows.h>
 #include <winhttp.h>
 
-#include "net/proxy/proxy_config_service.h"
+#include "net/proxy/polling_proxy_config_service.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
 // Implementation of ProxyConfigService that retrieves the system proxy
 // settings.
-class ProxyConfigServiceWin : public ProxyConfigService {
+class ProxyConfigServiceWin : public PollingProxyConfigService {
  public:
-  // ProxyConfigService methods:
-  virtual int GetProxyConfig(ProxyConfig* config);
+  ProxyConfigServiceWin();
 
  private:
   FRIEND_TEST(ProxyConfigServiceWinTest, SetFromIEConfig);
+
+  static void GetCurrentProxyConfig(ProxyConfig* config);
 
   // Set |config| using the proxy configuration values of |ie_config|.
   static void SetFromIEConfig(
