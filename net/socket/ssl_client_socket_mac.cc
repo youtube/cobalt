@@ -653,8 +653,12 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   // security info
   SSLCipherSuite suite;
   OSStatus status = SSLGetNegotiatedCipher(ssl_context_, &suite);
-  if (!status)
+  if (!status) {
     ssl_info->security_bits = KeySizeOfCipherSuite(suite);
+    ssl_info->connection_status |=
+        (suite & SSL_CONNECTION_CIPHERSUITE_MASK) <<
+        SSL_CONNECTION_CIPHERSUITE_SHIFT;
+  }
 
   if (ssl_config_.ssl3_fallback)
     ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
