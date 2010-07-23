@@ -94,7 +94,6 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   NetLog* net_log_;
 
   bool suspended_;
-  static bool force_spdy_;
 };
 
 }  // namespace net

@@ -50,15 +50,18 @@ class SpdySessionPool
   // transferred from the caller to the SpdySession.
   // |certificate_error_code| is used to indicate the certificate error
   // encountered when connecting the SSL socket.  OK means there was no error.
+  // For testing, setting is_secure to false allows Spdy to connect with a
+  // pre-existing TCP socket.
   // Returns OK on success, and the |spdy_session| will be provided.
   // Returns an error on failure, and |spdy_session| will be NULL.
-  net::Error GetSpdySessionFromSSLSocket(
+  net::Error GetSpdySessionFromSocket(
       const HostPortPair& host_port_pair,
       HttpNetworkSession* session,
       ClientSocketHandle* connection,
       const BoundNetLog& net_log,
       int certificate_error_code,
-      scoped_refptr<SpdySession>* spdy_session);
+      scoped_refptr<SpdySession>* spdy_session,
+      bool is_secure);
 
   // TODO(willchan): Consider renaming to HasReusableSession, since perhaps we
   // should be creating a new session.

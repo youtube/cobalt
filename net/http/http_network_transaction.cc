@@ -59,6 +59,8 @@ namespace {
 const HostMappingRules* g_host_mapping_rules = NULL;
 const std::string* g_next_protos = NULL;
 bool g_use_alternate_protocols = false;
+bool g_want_ssl_over_spdy_without_npn = true;
+bool g_want_spdy_without_npn = false;
 
 // A set of host:port strings. These are servers which we have needed to back
 // off to SSLv3 for.
@@ -207,6 +209,8 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       logged_response_time_(false),
       using_ssl_(false),
       using_spdy_(false),
+      want_spdy_without_npn_(g_want_spdy_without_npn),
+      want_ssl_over_spdy_without_npn_(g_want_ssl_over_spdy_without_npn),
       spdy_certificate_error_(OK),
       alternate_protocol_mode_(
           g_use_alternate_protocols ? kUnspecified :
@@ -232,6 +236,16 @@ void HttpNetworkTransaction::SetHostMappingRules(const std::string& rules) {
 // static
 void HttpNetworkTransaction::SetUseAlternateProtocols(bool value) {
   g_use_alternate_protocols = value;
+}
+
+// static
+void HttpNetworkTransaction::SetUseSSLOverSpdyWithoutNPN(bool value) {
+  g_want_ssl_over_spdy_without_npn = value;
+}
+
+// static
+void HttpNetworkTransaction::SetUseSpdyWithoutNPN(bool value) {
+  g_want_spdy_without_npn = value;
 }
 
 // static
@@ -711,9 +725,11 @@ int HttpNetworkTransaction::DoInitConnection() {
                                                          session_);
   }
 
-  bool want_spdy = alternate_protocol_mode_ == kUsingAlternateProtocol
+  bool want_spdy_over_npn = alternate_protocol_mode_ == kUsingAlternateProtocol
       && alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_1;
-  using_ssl_ = request_->url.SchemeIs("https") || want_spdy;
+  using_ssl_ = request_->url.SchemeIs("https") ||
+      (want_spdy_without_npn_ && want_ssl_over_spdy_without_npn_) ||
+      want_spdy_over_npn;
   using_spdy_ = false;
   response_.was_fetched_via_proxy = !proxy_info_.is_direct();
 
@@ -814,7 +830,10 @@ int HttpNetworkTransaction::DoInitConnection() {
         new SSLSocketParams(tcp_params, http_proxy_params, socks_params,
                             proxy_info_.proxy_server().scheme(),
                             request_->url.HostNoBrackets(), ssl_config_,
-                            load_flags, want_spdy);
+                            load_flags,
+                            want_spdy_without_npn_ &&
+                                want_ssl_over_spdy_without_npn_,
+                            want_spdy_over_npn);
 
     scoped_refptr<SSLClientSocketPool> ssl_pool;
     if (proxy_info_.is_direct())
@@ -868,7 +887,13 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
           SSLClientSocket::kProtoSPDY1)
         using_spdy_ = true;
     }
+    if(want_ssl_over_spdy_without_npn_ && want_spdy_without_npn_)
+      using_spdy_ = true;
   }
+
+  // We may be using spdy without SSL
+  if(!want_ssl_over_spdy_without_npn_ && want_spdy_without_npn_)
+    using_spdy_ = true;
 
   if (result == ERR_PROXY_AUTH_REQUESTED) {
     DCHECK(!ssl_started);
@@ -902,12 +927,19 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     // trying to reuse a keep-alive connection.
     reused_socket_ = connection_->is_reused();
     // TODO(vandebo) should we exclude SPDY in the following if?
-    if (!reused_socket_)
-      UpdateConnectionTypeHistograms(CONNECTION_HTTP);
+    if (!reused_socket_) {
+      if (using_spdy_)
+        UpdateConnectionTypeHistograms(CONNECTION_SPDY);
+      else
+        UpdateConnectionTypeHistograms(CONNECTION_HTTP);
+    }
 
     if (!using_ssl_) {
       DCHECK_EQ(OK, result);
-      next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
+      if (using_spdy_)
+        next_state_ = STATE_SPDY_GET_STREAM;
+      else
+        next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
       return result;
     }
   }
@@ -1243,15 +1275,25 @@ int HttpNetworkTransaction::DoSpdyGetStream() {
   if (spdy_pool->HasSession(endpoint_)) {
     spdy_session = spdy_pool->Get(endpoint_, session_, net_log_);
   } else {
-    // SPDY is negotiated using the TLS next protocol negotiation (NPN)
-    // extension, so |connection_| must contain an SSLClientSocket.
-    DCHECK(using_ssl_);
-    CHECK(connection_->socket());
-    int error = spdy_pool->GetSpdySessionFromSSLSocket(
-        endpoint_, session_, connection_.release(), net_log_,
-        spdy_certificate_error_, &spdy_session);
-    if (error != OK)
-      return error;
+    if(using_ssl_) {
+      // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
+      // extension, or just directly using SSL. Either way, |connection_| must
+      // contain an SSLClientSocket.
+      CHECK(connection_->socket());
+      int error = spdy_pool->GetSpdySessionFromSocket(
+          endpoint_, session_, connection_.release(), net_log_,
+          spdy_certificate_error_, &spdy_session, true);
+      if (error != OK)
+        return error;
+    }
+    else {
+      // We may want SPDY without SSL
+      int error = spdy_pool->GetSpdySessionFromSocket(
+          endpoint_, session_, connection_.release(), net_log_,
+          spdy_certificate_error_, &spdy_session, false);
+      if (error != OK)
+        return error;
+    }
   }
 
   CHECK(spdy_session.get());
