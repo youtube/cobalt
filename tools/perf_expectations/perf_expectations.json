@@ -39,7 +39,7 @@
  "xp-release-dual-core/dromaeo_jslib/score/score": {"delta": 6, "var": 8},
  "xp-release-dual-core/intl1/times/t": {"delta": 75, "var": 50},
  "xp-release-dual-core/intl2/times/t": {"delta": 0, "var": 30},
- "xp-release-dual-core/morejs/times/t": {"delta": -40, "var": 20},
+ "xp-release-dual-core/morejs/times/t": {"delta": -120, "var": 16},
  "xp-release-dual-core/moz/times/t": {"delta": 20, "var": 20},
  "xp-release-dual-core/moz/total_byte_b/IO_b": {"delta": 540, "var": 100},
  "xp-release-dual-core/moz/total_byte_r/IO_r": {"delta": 260, "var": 55},
