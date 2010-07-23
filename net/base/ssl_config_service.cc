@@ -32,12 +32,14 @@ bool SSLConfigService::IsKnownStrictTLSServer(const std::string& hostname) {
   //
   // If this list starts growing, it'll need to be something more efficient
   // than a linear list.
-  static const char kStrictServers[][20] = {
+  static const char kStrictServers[][22] = {
       "www.google.com",
       "mail.google.com",
       "www.gmail.com",
       "docs.google.com",
       "clients1.google.com",
+      "sunshinepress.org",
+      "www.sunshinepress.org",
 
       // Removed until we update the XMPP servers with the renegotiation
       // extension.
@@ -45,6 +47,7 @@ bool SSLConfigService::IsKnownStrictTLSServer(const std::string& hostname) {
   };
 
   for (size_t i = 0; i < arraysize(kStrictServers); i++) {
+    // Note that the hostname is normalised to lower-case by this point.
     if (strcmp(hostname.c_str(), kStrictServers[i]) == 0)
       return true;
   }
