@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -160,6 +160,7 @@ class StringTokenizerT {
     end_ = string_end;
     delims_ = delims;
     options_ = 0;
+    token_is_delim_ = false;
   }
 
   // Implementation of GetNext() for when we have no quote characters. We have
@@ -174,7 +175,7 @@ class StringTokenizerT {
       ++token_end_;
       if (delims_.find(*token_begin_) == str::npos)
         break;
-      // else skip over delim
+      // else skip over delimiter.
     }
     while (token_end_ != end_ && delims_.find(*token_end_) == str::npos)
       ++token_end_;
@@ -196,7 +197,7 @@ class StringTokenizerT {
         token_is_delim_ = true;
         return true;
       }
-      // else skip over delim
+      // else skip over delimiter.
     }
     while (token_end_ != end_ && AdvanceOne(&state, *token_end_))
       ++token_end_;
