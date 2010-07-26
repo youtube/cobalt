@@ -4,6 +4,7 @@
 
 #ifndef BASE_VERSION_H_
 #define BASE_VERSION_H_
+#pragma once
 
 #include <string>
 #include <vector>

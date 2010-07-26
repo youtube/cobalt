@@ -4,6 +4,7 @@
 
 #ifndef NET_FTP_FTP_DIRECTORY_LISTING_PARSER_NETWARE_H_
 #define NET_FTP_FTP_DIRECTORY_LISTING_PARSER_NETWARE_H_
+#pragma once
 
 #include <queue>
 

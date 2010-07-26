@@ -40,6 +40,7 @@
 
 #ifndef NET_HTTP_HTTP_CHUNKED_DECODER_H_
 #define NET_HTTP_HTTP_CHUNKED_DECODER_H_
+#pragma once
 
 #include <string>
 

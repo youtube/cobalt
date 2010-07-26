@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_ESCAPE_H_
 #define NET_BASE_ESCAPE_H_
+#pragma once
 
 #include <string>
 

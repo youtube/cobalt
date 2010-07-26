@@ -4,6 +4,7 @@
 
 #ifndef BASE_UTF_OFFSET_STRING_CONVERSIONS_H_
 #define BASE_UTF_OFFSET_STRING_CONVERSIONS_H_
+#pragma once
 
 #include <string>
 

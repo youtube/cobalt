@@ -4,6 +4,7 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_
+#pragma once
 
 #include <string>
 

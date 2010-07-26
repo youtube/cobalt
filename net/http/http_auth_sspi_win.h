@@ -7,6 +7,7 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_SSPI_WIN_H_
 #define NET_HTTP_HTTP_AUTH_SSPI_WIN_H_
+#pragma once
 
 // security.h needs to be included for CredHandle. Unfortunately CredHandle
 // is a typedef and can't be forward declared.

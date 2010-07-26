@@ -17,6 +17,7 @@
 
 #ifndef BASE_STRING_PIECE_H_
 #define BASE_STRING_PIECE_H_
+#pragma once
 
 #include <algorithm>
 #include <iosfwd>

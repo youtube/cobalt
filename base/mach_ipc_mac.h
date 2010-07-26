@@ -4,6 +4,7 @@
 
 #ifndef BASE_MACH_IPC_MAC_H_
 #define BASE_MACH_IPC_MAC_H_
+#pragma once
 
 #include <mach/mach.h>
 #include <mach/message.h>

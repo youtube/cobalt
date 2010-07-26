@@ -4,6 +4,7 @@
 
 #ifndef NET_OCSP_NSS_OCSP_H_
 #define NET_OCSP_NSS_OCSP_H_
+#pragma once
 
 class URLRequestContext;
 

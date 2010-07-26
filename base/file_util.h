@@ -7,6 +7,7 @@
 
 #ifndef BASE_FILE_UTIL_H_
 #define BASE_FILE_UTIL_H_
+#pragma once
 
 #include "build/build_config.h"
 

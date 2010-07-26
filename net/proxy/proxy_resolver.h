@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_PROXY_RESOLVER_H_
 #define NET_PROXY_PROXY_RESOLVER_H_
+#pragma once
 
 #include "base/logging.h"
 #include "base/ref_counted.h"

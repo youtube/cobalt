@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_NETWORK_CHANGE_NOTIFIER_MAC_H_
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_MAC_H_
+#pragma once
 
 #include <SystemConfiguration/SCDynamicStore.h>
 

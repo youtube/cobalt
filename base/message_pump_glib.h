@@ -4,6 +4,7 @@
 
 #ifndef BASE_MESSAGE_PUMP_GLIB_H_
 #define BASE_MESSAGE_PUMP_GLIB_H_
+#pragma once
 
 #include "base/message_pump.h"
 #include "base/observer_list.h"

@@ -4,6 +4,7 @@
 
 #ifndef BASE_SCOPED_NATIVE_LIBRARY_H_
 #define BASE_SCOPED_NATIVE_LIBRARY_H_
+#pragma once
 
 #include "base/file_path.h"
 #include "base/native_library.h"

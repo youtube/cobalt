@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_TRANSPORT_SECURITY_STATE_H_
 #define NET_BASE_TRANSPORT_SECURITY_STATE_H_
+#pragma once
 
 #include <map>
 #include <string>

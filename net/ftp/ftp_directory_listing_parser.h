@@ -4,6 +4,7 @@
 
 #ifndef NET_FTP_FTP_DIRECTORY_LISTING_PARSER_H_
 #define NET_FTP_FTP_DIRECTORY_LISTING_PARSER_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "base/string16.h"

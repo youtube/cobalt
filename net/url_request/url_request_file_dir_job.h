@@ -4,6 +4,7 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_FILE_DIR_JOB_H__
 #define NET_URL_REQUEST_URL_REQUEST_FILE_DIR_JOB_H__
+#pragma once
 
 #include <string>
 

@@ -6,6 +6,7 @@
 
 #ifndef NET_SPDY_SPDY_PROTOCOL_H_
 #define NET_SPDY_SPDY_PROTOCOL_H_
+#pragma once
 
 #ifdef WIN32
 #include <winsock2.h>

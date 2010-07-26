@@ -21,6 +21,7 @@
 
 #ifndef BASE_TIME_H_
 #define BASE_TIME_H_
+#pragma once
 
 #include <time.h>
 

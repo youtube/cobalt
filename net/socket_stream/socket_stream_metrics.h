@@ -7,6 +7,7 @@
 
 #ifndef NET_SOCKET_STREAM_SOCKET_STREAM_METRICS_H_
 #define NET_SOCKET_STREAM_SOCKET_STREAM_METRICS_H_
+#pragma once
 
 #include <string>
 
