@@ -4,6 +4,7 @@
 
 #ifndef BASE_LOGGING_WIN_H_
 #define BASE_LOGGING_WIN_H_
+#pragma once
 
 #include <string>
 #include "base/basictypes.h"

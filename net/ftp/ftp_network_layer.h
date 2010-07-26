@@ -4,6 +4,7 @@
 
 #ifndef NET_FTP_FTP_NETWORK_LAYER_H_
 #define NET_FTP_FTP_NETWORK_LAYER_H_
+#pragma once
 
 #include "base/ref_counted.h"
 #include "net/ftp/ftp_transaction_factory.h"

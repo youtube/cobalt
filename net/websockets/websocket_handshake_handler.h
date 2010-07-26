@@ -12,6 +12,7 @@
 
 #ifndef NET_WEBSOCKETS_WEBSOCKET_HANDSHAKE_HANDLER_H_
 #define NET_WEBSOCKETS_WEBSOCKET_HANDSHAKE_HANDLER_H_
+#pragma once
 
 #include <string>
 #include <vector>

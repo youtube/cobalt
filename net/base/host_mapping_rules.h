@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_HOST_MAPPING_RULES_H_
 #define NET_BASE_HOST_MAPPING_RULES_H_
+#pragma once
 
 #include <string>
 #include <vector>

@@ -9,6 +9,7 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
 #define NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
+#pragma once
 
 #include "base/non_thread_safe.h"
 #include "base/ref_counted.h"

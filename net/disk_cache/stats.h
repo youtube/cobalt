@@ -4,6 +4,7 @@
 
 #ifndef NET_DISK_CACHE_STATS_H_
 #define NET_DISK_CACHE_STATS_H_
+#pragma once
 
 #include <string>
 #include <vector>

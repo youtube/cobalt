@@ -4,6 +4,7 @@
 
 #ifndef NET_DISK_CACHE_DISK_CACHE_TEST_UTIL_H_
 #define NET_DISK_CACHE_DISK_CACHE_TEST_UTIL_H_
+#pragma once
 
 #include <string>
 

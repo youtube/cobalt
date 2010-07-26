@@ -4,6 +4,7 @@
 
 #ifndef NET_SOCKET_SSL_CLIENT_SOCKET_POOL_H_
 #define NET_SOCKET_SSL_CLIENT_SOCKET_POOL_H_
+#pragma once
 
 #include <string>
 

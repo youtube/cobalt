@@ -4,6 +4,7 @@
 
 #ifndef BASE_JSON_JSON_WRITER_H_
 #define BASE_JSON_JSON_WRITER_H_
+#pragma once
 
 #include <string>
 

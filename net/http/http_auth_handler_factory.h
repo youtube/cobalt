@@ -4,6 +4,7 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H_
+#pragma once
 
 #include <map>
 #include <string>

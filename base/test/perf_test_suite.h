@@ -4,6 +4,7 @@
 
 #ifndef BASE_TEST_PERF_TEST_SUITE_H_
 #define BASE_TEST_PERF_TEST_SUITE_H_
+#pragma once
 
 #include "base/command_line.h"
 #include "base/debug_util.h"

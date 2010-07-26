@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_COMMON_UNITTEST_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_COMMON_UNITTEST_H_
+#pragma once
 
 #include <string>
 #include <vector>

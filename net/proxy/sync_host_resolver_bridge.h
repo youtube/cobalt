@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_SYNC_HOST_RESOLVER_BRIDGE_H_
 #define NET_PROXY_SYNC_HOST_RESOLVER_BRIDGE_H_
+#pragma once
 
 #include "base/scoped_ptr.h"
 #include "net/base/host_resolver.h"

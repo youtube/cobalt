@@ -4,6 +4,7 @@
 
 #ifndef BASE_MESSAGE_PUMP_LIBEVENT_H_
 #define BASE_MESSAGE_PUMP_LIBEVENT_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "base/message_pump.h"

@@ -4,6 +4,7 @@
 
 #ifndef BASE_I18N_NUMBER_FORMATTING_H_
 #define BASE_I18N_NUMBER_FORMATTING_H_
+#pragma once
 
 #include <string>
 

@@ -4,6 +4,7 @@
 
 #ifndef NET_HTTP_HTTP_BYTE_RANGE_H_
 #define NET_HTTP_HTTP_BYTE_RANGE_H_
+#pragma once
 
 #include "base/basictypes.h"
 

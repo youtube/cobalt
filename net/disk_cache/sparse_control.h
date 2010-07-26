@@ -4,6 +4,7 @@
 
 #ifndef NET_DISK_CACHE_SPARSE_CONTROL_H_
 #define NET_DISK_CACHE_SPARSE_CONTROL_H_
+#pragma once
 
 #include <string>
 #include <vector>

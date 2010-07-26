@@ -4,6 +4,7 @@
 
 #ifndef BASE_TEMPLATE_UTIL_H_
 #define BASE_TEMPLATE_UTIL_H_
+#pragma once
 
 namespace base {
 

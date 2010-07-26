@@ -4,6 +4,7 @@
 
 #ifndef NET_DISK_CACHE_STORAGE_BLOCK_INL_H_
 #define NET_DISK_CACHE_STORAGE_BLOCK_INL_H_
+#pragma once
 
 #include "net/disk_cache/storage_block.h"
 

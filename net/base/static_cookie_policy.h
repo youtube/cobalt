@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_STATIC_COOKIE_POLICY_H_
 #define NET_BASE_STATIC_COOKIE_POLICY_H_
+#pragma once
 
 #include <string>
 

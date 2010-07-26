@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_NETWORK_CHANGE_NOTIFIER_H_
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "base/observer_list_threadsafe.h"

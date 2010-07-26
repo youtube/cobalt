@@ -4,6 +4,7 @@
 
 #ifndef BASE_NULLABLE_STRING16_H_
 #define BASE_NULLABLE_STRING16_H_
+#pragma once
 
 #include "base/string16.h"
 

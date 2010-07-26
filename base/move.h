@@ -4,6 +4,7 @@
 
 #ifndef BASE_MOVE_H_
 #define BASE_MOVE_H_
+#pragma once
 
 #include <algorithm>
 

@@ -4,6 +4,7 @@
 
 #ifndef BASE_COMPILER_SPECIFIC_H_
 #define BASE_COMPILER_SPECIFIC_H_
+#pragma once
 
 #include "build/build_config.h"
 
