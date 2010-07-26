@@ -395,6 +395,7 @@ bool TransportSecurityState::isPreloadedSTS(
     {16, false, "\003www\006paypal\003com"},
     {16, false, "\003www\006elanex\003biz"},
     {12, true,  "\006jottit\003com"},
+    {19, true,  "\015sunshinepress\003org"},
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
