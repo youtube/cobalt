@@ -4,6 +4,7 @@
 
 #ifndef NET_FTP_FTP_AUTH_CACHE_H_
 #define NET_FTP_FTP_AUTH_CACHE_H_
+#pragma once
 
 #include <list>
 #include <string>

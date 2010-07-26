@@ -34,6 +34,7 @@
 
 #ifndef BASE_LAZY_INSTANCE_H_
 #define BASE_LAZY_INSTANCE_H_
+#pragma once
 
 #include "base/atomicops.h"
 #include "base/basictypes.h"

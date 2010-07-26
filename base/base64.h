@@ -4,6 +4,7 @@
 
 #ifndef BASE_BASE64_H__
 #define BASE_BASE64_H__
+#pragma once
 
 #include <string>
 

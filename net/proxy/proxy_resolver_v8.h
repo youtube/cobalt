@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_PROXY_RESOLVER_V8_H_
 #define NET_PROXY_PROXY_RESOLVER_V8_H_
+#pragma once
 
 #include "base/scoped_ptr.h"
 #include "net/proxy/proxy_resolver.h"

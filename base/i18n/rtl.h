@@ -4,6 +4,7 @@
 
 #ifndef BASE_I18N_RTL_H_
 #define BASE_I18N_RTL_H_
+#pragma once
 
 #include "base/string16.h"
 #include "build/build_config.h"

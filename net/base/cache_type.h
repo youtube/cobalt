@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_CACHE_TYPE_H_
 #define NET_BASE_CACHE_TYPE_H_
+#pragma once
 
 namespace net {
 

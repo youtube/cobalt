@@ -4,6 +4,7 @@
 
 #ifndef NET_DISK_CACHE_MEM_ENTRY_IMPL_H_
 #define NET_DISK_CACHE_MEM_ENTRY_IMPL_H_
+#pragma once
 
 #include "base/hash_tables.h"
 #include "base/scoped_ptr.h"

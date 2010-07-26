@@ -4,6 +4,7 @@
 
 #ifndef NET_SPDY_SPDY_FRAMER_H_
 #define NET_SPDY_SPDY_FRAMER_H_
+#pragma once
 
 #ifdef _WIN32
 #include <winsock2.h>

@@ -4,6 +4,7 @@
 
 #ifndef BASE_GTEST_PROD_UTIL_H_
 #define BASE_GTEST_PROD_UTIL_H_
+#pragma once
 
 #include "testing/gtest/include/gtest/gtest_prod.h"
 

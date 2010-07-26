@@ -4,6 +4,7 @@
 
 #ifndef BASE_CALLBACK_H_
 #define BASE_CALLBACK_H_
+#pragma once
 
 #include "base/tuple.h"
 #include "base/raw_scoped_refptr_mismatch_checker.h"

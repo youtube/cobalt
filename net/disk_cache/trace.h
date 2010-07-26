@@ -8,6 +8,7 @@
 
 #ifndef NET_DISK_CACHE_TRACE_H__
 #define NET_DISK_CACHE_TRACE_H__
+#pragma once
 
 #include <string>
 #include <vector>

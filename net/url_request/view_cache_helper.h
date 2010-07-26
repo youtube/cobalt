@@ -4,6 +4,7 @@
 
 #ifndef NET_URL_REQUEST_VIEW_CACHE_HELPER_H_
 #define NET_URL_REQUEST_VIEW_CACHE_HELPER_H_
+#pragma once
 
 #include <string>
 

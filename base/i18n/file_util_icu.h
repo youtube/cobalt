@@ -4,6 +4,7 @@
 
 #ifndef BASE_I18N_FILE_UTIL_ICU_H_
 #define BASE_I18N_FILE_UTIL_ICU_H_
+#pragma once
 
 // File utilities that use the ICU library go in this file.
 

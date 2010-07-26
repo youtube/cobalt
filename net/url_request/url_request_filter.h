@@ -18,6 +18,7 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_FILTER_H_
 #define NET_URL_REQUEST_URL_REQUEST_FILTER_H_
+#pragma once
 
 #include <map>
 #include <string>

@@ -4,6 +4,7 @@
 
 #ifndef NET_DISK_CACHE_IN_FLIGHT_BACKEND_IO_H_
 #define NET_DISK_CACHE_IN_FLIGHT_BACKEND_IO_H_
+#pragma once
 
 #include <list>
 #include <string>

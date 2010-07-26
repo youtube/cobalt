@@ -4,6 +4,7 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H__
 #define NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H__
+#pragma once
 
 #include <map>
 #include <vector>

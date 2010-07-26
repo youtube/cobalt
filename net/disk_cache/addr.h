@@ -7,6 +7,7 @@
 
 #ifndef NET_DISK_CACHE_ADDR_H_
 #define NET_DISK_CACHE_ADDR_H_
+#pragma once
 
 #include "net/disk_cache/disk_format.h"
 

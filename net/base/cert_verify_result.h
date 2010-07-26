@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_CERT_VERIFY_RESULT_H_
 #define NET_BASE_CERT_VERIFY_RESULT_H_
+#pragma once
 
 namespace net {
 

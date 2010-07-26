@@ -6,6 +6,7 @@
 
 #ifndef BASE_STRING_UTIL_H_
 #define BASE_STRING_UTIL_H_
+#pragma once
 
 #include <stdarg.h>   // va_list
 

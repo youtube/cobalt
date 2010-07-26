@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_NET_MODULE_H__
 #define NET_BASE_NET_MODULE_H__
+#pragma once
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"

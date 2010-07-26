@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_PROXY_RESOLVER_MAC_H_
 #define NET_PROXY_PROXY_RESOLVER_MAC_H_
+#pragma once
 
 #include <string>
 

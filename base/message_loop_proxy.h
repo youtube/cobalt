@@ -4,6 +4,7 @@
 
 #ifndef BASE_MESSAGE_LOOP_PROXY_H_
 #define BASE_MESSAGE_LOOP_PROXY_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
