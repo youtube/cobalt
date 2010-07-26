@@ -338,6 +338,10 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
             TransportSecurityState::DomainState::MODE_STRICT);
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.sunshinepress.org"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "a.b.sunshinepress.org"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.noisebridge.net"));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "noisebridge.net"));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "foo.noisebridge.net"));
 }
 
 }  // namespace net
