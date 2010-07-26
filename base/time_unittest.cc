@@ -117,7 +117,7 @@ TEST(TimeTicks, Deltas) {
   }
 }
 
-TEST(TimeTicks, HighResNow) {
+TEST(TimeTicks, FLAKY_HighResNow) {
 #if defined(OS_WIN)
   Time::ActivateHighResolutionTimer(true);
 #endif
