@@ -1456,20 +1456,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   GotoState(STATE_VERIFY_CERT_COMPLETE);
   int flags = 0;
 
-  /* Disable revocation checking for SPDY. This is a hack, but we ignore
-   * certificate errors for SPDY anyway so it's no loss in security. This lets
-   * us benchmark as if we had OCSP stapling.
-   *
-   * http://crbug.com/32020
-   */
-  unsigned char buf[255];
-  int state;
-  unsigned int len;
-  SECStatus rv = SSL_GetNextProto(nss_fd_, &state, buf, &len, sizeof(buf));
-  bool spdy = (rv == SECSuccess && state == SSL_NEXT_PROTO_NEGOTIATED &&
-              len == 4 && memcmp(buf, "spdy", 4) == 0);
-
-  if (ssl_config_.rev_checking_enabled && !spdy)
+  if (ssl_config_.rev_checking_enabled)
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
