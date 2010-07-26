@@ -114,8 +114,6 @@
         'filters/ffmpeg_glue.h',
         'filters/ffmpeg_interfaces.cc',
         'filters/ffmpeg_interfaces.h',
-        'filters/ffmpeg_video_allocator.cc',
-        'filters/ffmpeg_video_allocator.h',
         'filters/ffmpeg_video_decode_engine.cc',
         'filters/ffmpeg_video_decode_engine.h',
         'filters/ffmpeg_video_decoder.cc',
