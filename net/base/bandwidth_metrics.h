@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_BANDWIDTH_METRICS_H_
 #define NET_BASE_BANDWIDTH_METRICS_H_
+#pragma once
 
 #include <list>
 

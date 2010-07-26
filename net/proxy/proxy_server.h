@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_PROXY_SERVER_H_
 #define NET_PROXY_PROXY_SERVER_H_
+#pragma once
 
 #include "build/build_config.h"
 

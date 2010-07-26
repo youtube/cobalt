@@ -4,6 +4,7 @@
 
 #ifndef NET_HTTP_HTTP_RESPONSE_INFO_H_
 #define NET_HTTP_HTTP_RESPONSE_INFO_H_
+#pragma once
 
 #include "base/time.h"
 #include "net/base/auth.h"

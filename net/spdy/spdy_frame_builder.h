@@ -4,6 +4,7 @@
 
 #ifndef NET_SPDY_FRAME_BUILDER_H_
 #define NET_SPDY_FRAME_BUILDER_H_
+#pragma once
 
 #ifdef WIN32
 #include <winsock2.h>  // for htonl() functions

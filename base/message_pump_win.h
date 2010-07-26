@@ -4,6 +4,7 @@
 
 #ifndef BASE_MESSAGE_PUMP_WIN_H_
 #define BASE_MESSAGE_PUMP_WIN_H_
+#pragma once
 
 #include <windows.h>
 

@@ -6,6 +6,7 @@
 
 #ifndef NET_DISK_CACHE_FILE_H_
 #define NET_DISK_CACHE_FILE_H_
+#pragma once
 
 #include <string>
 

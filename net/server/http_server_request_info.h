@@ -4,6 +4,7 @@
 
 #ifndef NET_SERVER_HTTP_SERVER_REQUEST_INFO_H_
 #define NET_SERVER_HTTP_SERVER_REQUEST_INFO_H_
+#pragma once
 
 #include <string>
 #include <map>

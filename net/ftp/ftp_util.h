@@ -4,6 +4,7 @@
 
 #ifndef NET_FTP_FTP_UTIL_H_
 #define NET_FTP_FTP_UTIL_H_
+#pragma once
 
 #include <string>
 

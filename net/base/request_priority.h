@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_REQUEST_PRIORITY_H__
 #define NET_BASE_REQUEST_PRIORITY_H__
+#pragma once
 
 namespace net {
 

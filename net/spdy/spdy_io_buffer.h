@@ -4,6 +4,7 @@
 
 #ifndef NET_SPDY_SPDY_IO_BUFFER_H_
 #define NET_SPDY_SPDY_IO_BUFFER_H_
+#pragma once
 
 #include "base/ref_counted.h"
 #include "net/base/io_buffer.h"

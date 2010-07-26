@@ -4,6 +4,7 @@
 
 #ifndef BASE_SHARED_MEMORY_H_
 #define BASE_SHARED_MEMORY_H_
+#pragma once
 
 #include "build/build_config.h"
 

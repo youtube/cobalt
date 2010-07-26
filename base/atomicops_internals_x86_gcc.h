@@ -6,6 +6,7 @@
 
 #ifndef BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
 #define BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
+#pragma once
 
 // This struct is not part of the public API of this module; clients may not
 // use it.

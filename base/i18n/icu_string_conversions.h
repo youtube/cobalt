@@ -4,6 +4,7 @@
 
 #ifndef BASE_I18N_ICU_STRING_CONVERSIONS_H_
 #define BASE_I18N_ICU_STRING_CONVERSIONS_H_
+#pragma once
 
 #include <string>
 

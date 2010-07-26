@@ -4,6 +4,7 @@
 
 #ifndef BASE_MESSAGE_LOOP_H_
 #define BASE_MESSAGE_LOOP_H_
+#pragma once
 
 #include <queue>
 #include <string>

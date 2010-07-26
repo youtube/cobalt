@@ -4,6 +4,7 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_CONTROLLER_H_
 #define NET_HTTP_HTTP_AUTH_CONTROLLER_H_
+#pragma once
 
 #include <set>
 #include <string>

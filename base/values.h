@@ -20,6 +20,7 @@
 
 #ifndef BASE_VALUES_H_
 #define BASE_VALUES_H_
+#pragma once
 
 #include <iterator>
 #include <map>

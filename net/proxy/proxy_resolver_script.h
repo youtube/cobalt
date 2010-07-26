@@ -39,6 +39,7 @@
 
 #ifndef NET_PROXY_PROXY_RESOLVER_SCRIPT_H_
 #define NET_PROXY_PROXY_RESOLVER_SCRIPT_H_
+#pragma once
 
 // The following code was formatted from:
 //   'mozilla/netwerk/base/src/nsProxyAutoConfig.js' (1.55)

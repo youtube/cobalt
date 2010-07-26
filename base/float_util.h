@@ -4,6 +4,7 @@
 
 #ifndef BASE_FLOAT_UTIL_H_
 #define BASE_FLOAT_UTIL_H_
+#pragma once
 
 #include "build/build_config.h"
 

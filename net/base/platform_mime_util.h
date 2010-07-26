@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_PLATFORM_MIME_UTIL_H_
 #define NET_BASE_PLATFORM_MIME_UTIL_H_
+#pragma once
 
 #include <string>
 

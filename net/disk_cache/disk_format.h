@@ -54,6 +54,7 @@
 
 #ifndef NET_DISK_CACHE_DISK_FORMAT_H_
 #define NET_DISK_CACHE_DISK_FORMAT_H_
+#pragma once
 
 #include "base/basictypes.h"
 

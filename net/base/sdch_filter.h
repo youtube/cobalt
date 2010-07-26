@@ -13,6 +13,7 @@
 
 #ifndef NET_BASE_SDCH_FILTER_H_
 #define NET_BASE_SDCH_FILTER_H_
+#pragma once
 
 #include <string>
 

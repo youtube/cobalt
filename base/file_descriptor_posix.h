@@ -4,6 +4,7 @@
 
 #ifndef BASE_FILE_DESCRIPTOR_POSIX_H_
 #define BASE_FILE_DESCRIPTOR_POSIX_H_
+#pragma once
 
 namespace base {
 

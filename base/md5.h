@@ -4,6 +4,7 @@
 
 #ifndef BASE_MD5_H_
 #define BASE_MD5_H_
+#pragma once
 
 #include <string>
 

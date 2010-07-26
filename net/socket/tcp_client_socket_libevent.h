@@ -4,6 +4,7 @@
 
 #ifndef NET_SOCKET_TCP_CLIENT_SOCKET_LIBEVENT_H_
 #define NET_SOCKET_TCP_CLIENT_SOCKET_LIBEVENT_H_
+#pragma once
 
 #include "base/message_loop.h"
 #include "base/non_thread_safe.h"

@@ -4,6 +4,7 @@
 
 #ifndef BASE_RAND_UTIL_H_
 #define BASE_RAND_UTIL_H_
+#pragma once
 
 #include "base/basictypes.h"
 

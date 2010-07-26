@@ -27,6 +27,7 @@
 
 #ifndef BASE_ATOMICOPS_H_
 #define BASE_ATOMICOPS_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "base/port.h"

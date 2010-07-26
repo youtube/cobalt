@@ -4,6 +4,7 @@
 
 #ifndef BASE_STRING16_H_
 #define BASE_STRING16_H_
+#pragma once
 
 // WHAT:
 // A version of std::basic_string that provides 2-byte characters even when

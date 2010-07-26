@@ -4,6 +4,7 @@
 
 #ifndef BASE_MESSAGE_PUMP_H_
 #define BASE_MESSAGE_PUMP_H_
+#pragma once
 
 #include "base/ref_counted.h"
 

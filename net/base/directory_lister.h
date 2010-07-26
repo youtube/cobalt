@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_DIRECTORY_LISTER_H_
 #define NET_BASE_DIRECTORY_LISTER_H_
+#pragma once
 
 #include <string>
 

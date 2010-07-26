@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_FIXED_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_FIXED_H_
+#pragma once
 
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_config.h"
