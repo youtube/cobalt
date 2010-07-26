@@ -10,8 +10,6 @@
 namespace net {
 
 class SpdyHttpStreamTest : public testing::Test {
- public:
-  OrderedSocketData* data() { return data_; }
  protected:
   SpdyHttpStreamTest() {}
 
@@ -74,9 +72,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
             http_stream->SendRequest(&response, &callback));
   MessageLoop::current()->RunAllPending();
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(host_port_pair));
-  http_session_->spdy_session_pool()->CloseAllSessions();
-  EXPECT_TRUE(!data()->at_read_eof());
-  EXPECT_TRUE(data()->at_write_eof());
+  http_session_->spdy_session_pool()->Remove(session_);
 }
 
 // Test case for bug: http://code.google.com/p/chromium/issues/detail?id=50058
@@ -84,12 +80,16 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   EnableCompression(false);
   SpdySession::SetSSLMode(false);
 
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  MockWrite writes[] = {
+    CreateMockWrite(*req.get(), 1),
+  };
   MockRead reads[] = {
     MockRead(false, 0, 2),  // EOF
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
-  EXPECT_EQ(OK, InitSession(reads, arraysize(reads), NULL, 0,
+  EXPECT_EQ(OK, InitSession(reads, arraysize(reads), writes, arraysize(writes),
       host_port_pair));
 
   HttpRequestInfo request;
@@ -113,8 +113,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
 
   MessageLoop::current()->RunAllPending();
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(host_port_pair));
-  http_session_->spdy_session_pool()->CloseAllSessions();
-  EXPECT_TRUE(!data()->at_read_eof());
+  http_session_->spdy_session_pool()->Remove(session_);
 }
 
 // TODO(willchan): Write a longer test for SpdyStream that exercises all
