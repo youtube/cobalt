@@ -332,6 +332,12 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
             TransportSecurityState::DomainState::MODE_STRICT);
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "foo.elanex.biz"));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "a.foo.elanex.biz"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "sunshinepress.org"));
+  EXPECT_EQ(domain_state.mode,
+            TransportSecurityState::DomainState::MODE_STRICT);
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.sunshinepress.org"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "a.b.sunshinepress.org"));
 }
 
 }  // namespace net
