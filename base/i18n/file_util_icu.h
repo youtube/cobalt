@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef BASE_I18N_FILE_UTIL_ICU_H_
+#define BASE_I18N_FILE_UTIL_ICU_H_
+
 // File utilities that use the ICU library go in this file.
 
 #include <string>
@@ -33,3 +36,5 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
 bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b);
 
 }  // namespace file_util
+
+#endif  // BASE_I18N_FILE_UTIL_ICU_H_
