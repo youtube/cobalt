@@ -14,6 +14,7 @@
 #include "net/base/load_flags.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
+#include "net/http/http_util.h"
 #include "net/spdy/spdy_session.h"
 
 namespace {
@@ -110,7 +111,7 @@ void CreateSpdyHeadersFromHttpRequest(
   // TODO(mbelshe): Add authentication headers here.
 
   (*headers)["method"] = info.method;
-  (*headers)["url"] = info.url.spec();
+  (*headers)["url"] = net::HttpUtil::SpecForRequest(info.url);
   (*headers)["version"] = kHttpProtocolVersion;
   if (!info.referrer.is_empty())
     (*headers)["referer"] = info.referrer.spec();
