@@ -386,7 +386,7 @@ bool ExtendedKeyUsageAllows(const CE_ExtendedKeyUsage* usage,
 bool IsValidOSCertHandle(SecCertificateRef cert_handle) {
   const CSSM_X509_NAME* sanity_check = NULL;
   OSStatus status = SecCertificateGetSubject(cert_handle, &sanity_check);
-  return status == noErr && sanity_check != NULL;
+  return status == noErr && sanity_check;
 }
 
 // Parses |data| of length |length|, attempting to decode it as the specified
@@ -739,12 +739,13 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
                                                  CSSM_CERT_X_509v3,
                                                  CSSM_CERT_ENCODING_DER,
                                                  &cert_handle);
-  if (status == noErr && IsValidOSCertHandle(cert_handle)) {
-    return cert_handle;
-  } else if (status == noErr) {
+  if (status != noErr)
+    return NULL;
+  if (!IsValidOSCertHandle(cert_handle)) {
     CFRelease(cert_handle);
+    return NULL;
   }
-  return NULL;
+  return cert_handle;
 }
 
 // static
