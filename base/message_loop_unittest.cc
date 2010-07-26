@@ -1381,6 +1381,7 @@ TEST(MessageLoopTest, PostDelayedTask_SharedTimer_SubPump) {
 
 // TODO(darin): MessageLoop does not support deleting all tasks in the
 // destructor.
+// Fails, http://crbug.com/50272.
 TEST(MessageLoopTest, FAILS_EnsureTaskDeletion) {
   RunTest_EnsureTaskDeletion(MessageLoop::TYPE_DEFAULT);
   RunTest_EnsureTaskDeletion(MessageLoop::TYPE_UI);
@@ -1389,6 +1390,7 @@ TEST(MessageLoopTest, FAILS_EnsureTaskDeletion) {
 
 // TODO(darin): MessageLoop does not support deleting all tasks in the
 // destructor.
+// Fails, http://crbug.com/50272.
 TEST(MessageLoopTest, FAILS_EnsureTaskDeletion_Chain) {
   RunTest_EnsureTaskDeletion_Chain(MessageLoop::TYPE_DEFAULT);
   RunTest_EnsureTaskDeletion_Chain(MessageLoop::TYPE_UI);
