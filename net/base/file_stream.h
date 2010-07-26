@@ -9,6 +9,7 @@
 
 #ifndef NET_BASE_FILE_STREAM_H_
 #define NET_BASE_FILE_STREAM_H_
+#pragma once
 
 #include "base/platform_file.h"
 #include "base/scoped_ptr.h"

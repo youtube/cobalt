@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_KEYGEN_HANDLER_H_
 #define NET_BASE_KEYGEN_HANDLER_H_
+#pragma once
 
 #include <string>
 

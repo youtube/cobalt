@@ -4,6 +4,7 @@
 
 #ifndef BASE_SYS_STRING_CONVERSIONS_H_
 #define BASE_SYS_STRING_CONVERSIONS_H_
+#pragma once
 
 // Provides system-dependent string type conversions for cases where it's
 // necessary to not use ICU. Generally, you should not need this in Chrome,

@@ -6,6 +6,7 @@
 
 #ifndef NET_DISK_CACHE_FILE_BLOCK_H__
 #define NET_DISK_CACHE_FILE_BLOCK_H__
+#pragma once
 
 namespace disk_cache {
 

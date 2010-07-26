@@ -4,6 +4,7 @@
 
 #ifndef BASE_I18N_ICU_UTIL_H_
 #define BASE_I18N_ICU_UTIL_H_
+#pragma once
 
 namespace icu_util {
 

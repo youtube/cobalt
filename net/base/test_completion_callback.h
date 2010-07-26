@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_TEST_COMPLETION_CALLBACK_H_
 #define NET_BASE_TEST_COMPLETION_CALLBACK_H_
+#pragma once
 
 #include "base/callback.h"
 #include "base/message_loop.h"

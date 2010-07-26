@@ -14,6 +14,7 @@
 
 #ifndef NET_BASE_GZIP_FILTER_H__
 #define NET_BASE_GZIP_FILTER_H__
+#pragma once
 
 #include "base/scoped_ptr.h"
 #include "net/base/filter.h"

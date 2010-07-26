@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_MOCK_PROXY_RESOLVER_H_
 #define NET_PROXY_MOCK_PROXY_RESOLVER_H_
+#pragma once
 
 #include <vector>
 

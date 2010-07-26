@@ -74,6 +74,7 @@
 
 #ifndef NET_TOOLS_DUMP_CACHE_URL_TO_FILE_ENCODER_H_
 #define NET_TOOLS_DUMP_CACHE_URL_TO_FILE_ENCODER_H_
+#pragma once
 
 #include <string>
 

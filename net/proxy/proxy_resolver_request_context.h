@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_PROXY_RESOLVER_REQUEST_CONTEXT_H_
 #define NET_PROXY_PROXY_RESOLVER_REQUEST_CONTEXT_H_
+#pragma once
 
 namespace net {
 

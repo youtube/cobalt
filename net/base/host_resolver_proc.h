@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_HOST_RESOLVER_PROC_H_
 #define NET_BASE_HOST_RESOLVER_PROC_H_
+#pragma once
 
 #include <string>
 

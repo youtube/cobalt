@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_PROXY_CONFIG_H_
 #define NET_PROXY_PROXY_CONFIG_H_
+#pragma once
 
 #include <ostream>
 #include <string>

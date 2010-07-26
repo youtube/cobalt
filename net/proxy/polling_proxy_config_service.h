@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_POLLING_PROXY_CONFIG_SERVICE_H_
 #define NET_PROXY_POLLING_PROXY_CONFIG_SERVICE_H_
+#pragma once
 
 #include "base/time.h"
 #include "base/ref_counted.h"

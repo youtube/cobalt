@@ -4,6 +4,7 @@
 
 #ifndef BASE_UTF_STRING_CONVERSION_UTILS_H_
 #define BASE_UTF_STRING_CONVERSION_UTILS_H_
+#pragma once
 
 // This should only be used by the various UTF string conversion files.
 

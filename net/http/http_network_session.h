@@ -4,6 +4,7 @@
 
 #ifndef NET_HTTP_HTTP_NETWORK_SESSION_H_
 #define NET_HTTP_HTTP_NETWORK_SESSION_H_
+#pragma once
 
 #include <map>
 #include "base/non_thread_safe.h"

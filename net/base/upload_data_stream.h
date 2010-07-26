@@ -4,6 +4,7 @@
 
 #ifndef NET_BASE_UPLOAD_DATA_STREAM_H_
 #define NET_BASE_UPLOAD_DATA_STREAM_H_
+#pragma once
 
 #include "net/base/file_stream.h"
 #include "net/base/upload_data.h"

@@ -4,6 +4,7 @@
 
 #ifndef NET_FTP_FTP_CTRL_RESPONSE_BUFFER_H_
 #define NET_FTP_FTP_CTRL_RESPONSE_BUFFER_H_
+#pragma once
 
 #include <queue>
 #include <string>

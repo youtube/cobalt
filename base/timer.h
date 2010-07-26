@@ -40,6 +40,7 @@
 
 #ifndef BASE_TIMER_H_
 #define BASE_TIMER_H_
+#pragma once
 
 // IMPORTANT: If you change timer code, make sure that all tests (including
 // disabled ones) from timer_unittests.cc pass locally. Some are disabled

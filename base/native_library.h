@@ -4,6 +4,7 @@
 
 #ifndef BASE_NATIVE_LIBRARY_H_
 #define BASE_NATIVE_LIBRARY_H_
+#pragma once
 
 // This file defines a cross-platform "NativeLibrary" type which represents
 // a loadable module.

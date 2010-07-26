@@ -4,6 +4,7 @@
 
 #ifndef BASE_PROCESS_H_
 #define BASE_PROCESS_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "build/build_config.h"

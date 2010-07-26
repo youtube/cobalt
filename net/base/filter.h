@@ -28,6 +28,7 @@
 
 #ifndef NET_BASE_FILTER_H__
 #define NET_BASE_FILTER_H__
+#pragma once
 
 #include <string>
 #include <vector>

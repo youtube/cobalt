@@ -6,6 +6,7 @@
 
 #ifndef NET_DISK_CACHE_FILE_LOCK_H__
 #define NET_DISK_CACHE_FILE_LOCK_H__
+#pragma once
 
 #include "net/disk_cache/disk_format.h"
 

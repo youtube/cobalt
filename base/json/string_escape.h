@@ -6,6 +6,7 @@
 
 #ifndef BASE_JSON_STRING_ESCAPE_H_
 #define BASE_JSON_STRING_ESCAPE_H_
+#pragma once
 
 #include <string>
 

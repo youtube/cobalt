@@ -20,6 +20,7 @@
 
 #ifndef BASE_HASH_TABLES_H_
 #define BASE_HASH_TABLES_H_
+#pragma once
 
 #include "build/build_config.h"
 

@@ -6,6 +6,7 @@
 
 #ifndef NET_DISK_CACHE_MEM_RANKINGS_H__
 #define NET_DISK_CACHE_MEM_RANKINGS_H__
+#pragma once
 
 #include "base/basictypes.h"
 

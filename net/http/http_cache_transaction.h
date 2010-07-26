@@ -7,6 +7,7 @@
 
 #ifndef NET_HTTP_HTTP_CACHE_TRANSACTION_H_
 #define NET_HTTP_HTTP_CACHE_TRANSACTION_H_
+#pragma once
 
 #include "net/base/net_log.h"
 #include "base/time.h"

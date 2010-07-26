@@ -4,6 +4,7 @@
 
 #ifndef NET_PROXY_MULTI_THREADED_PROXY_RESOLVER_H_
 #define NET_PROXY_MULTI_THREADED_PROXY_RESOLVER_H_
+#pragma once
 
 #include <deque>
 #include <string>
