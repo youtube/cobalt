@@ -498,10 +498,6 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
   // Always seek to a timestamp less than or equal to the desired timestamp.
   int flags = AVSEEK_FLAG_BACKWARD;
 
-  // Explicitly set the behavior of Ogg to be able to seek to any frame.
-  if (!strcmp("ogg", format_context_->iformat->name))
-    flags |= AVSEEK_FLAG_ANY;
-
   // Passing -1 as our stream index lets FFmpeg pick a default stream.  FFmpeg
   // will attempt to use the lowest-index video stream, if present, followed by
   // the lowest-index audio stream.
