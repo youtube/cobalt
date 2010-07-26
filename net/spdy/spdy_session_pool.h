@@ -70,8 +70,7 @@ class SpdySessionPool
   // Close all Spdy Sessions; used for debugging.
   void CloseAllSessions();
 
-  // Removes a SpdySession from the SpdySessionPool. This should only be called
-  // by SpdySession, because otherwise session->state_ is not set to CLOSED.
+  // Removes a SpdySession from the SpdySessionPool.
   void Remove(const scoped_refptr<SpdySession>& session);
 
   // NetworkChangeNotifier::Observer methods:
