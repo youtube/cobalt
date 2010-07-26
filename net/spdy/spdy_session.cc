@@ -1122,8 +1122,16 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
   uint32 type = frame->type();
   if (type == spdy::SYN_STREAM || type == spdy::SYN_REPLY) {
     if (!spdy_framer_.ParseHeaderBlock(frame, headers.get())) {
-      LOG(WARNING) << "Could not parse Spdy Control Frame Header";
-      // TODO(mbelshe):  Error the session?
+      LOG(WARNING) << "Could not parse Spdy Control Frame Header.";
+      int stream_id = 0;
+      if (type == spdy::SYN_STREAM)
+        stream_id = (reinterpret_cast<const spdy::SpdySynStreamControlFrame*>
+                     (frame))->stream_id();
+      if (type == spdy::SYN_REPLY)
+        stream_id = (reinterpret_cast<const spdy::SpdySynReplyControlFrame*>
+                     (frame))->stream_id();
+      if(IsStreamActive(stream_id))
+        ResetStream(stream_id, spdy::PROTOCOL_ERROR);
       return;
     }
   }
