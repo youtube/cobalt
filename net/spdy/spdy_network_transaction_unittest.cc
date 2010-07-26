@@ -1128,6 +1128,46 @@ TEST_P(SpdyNetworkTransactionTest, CancelledTransaction) {
   helper.VerifyDataNotConsumed();
 }
 
+// Verify that the client sends a Rst Frame upon cancelling the stream.
+TEST_P(SpdyNetworkTransactionTest, CancelledTransactionSendRst) {
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> rst(
+      ConstructSpdyRstStream(1, spdy::CANCEL));
+  MockWrite writes[] = {
+    CreateMockWrite(*req, 1),
+    CreateMockWrite(*rst, 3),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 2),
+    MockRead(true, 0, 0, 4)  // EOF
+  };
+
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(),
+                                     GetParam());
+  helper.AddData(data.get());
+  helper.RunPreTestSetup();
+  HttpNetworkTransaction* trans = helper.trans();
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  helper.ResetTrans();  // Cancel the transaction.
+
+  // Finish running rest of tasks.
+  MessageLoop::current()->RunAllPending();
+  data->CompleteRead();
+  helper.VerifyDataConsumed();
+}
+
 class SpdyNetworkTransactionTest::StartTransactionCallback
     : public CallbackRunner< Tuple1<int> > {
  public:
@@ -1696,8 +1736,11 @@ TEST_P(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
 
   scoped_ptr<spdy::SpdyFrame> compressed(
       ConstructSpdyGet(NULL, 0, true, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> rst(
+      ConstructSpdyRstStream(1, spdy::PROTOCOL_ERROR));
   MockWrite writes[] = {
     CreateMockWrite(*compressed),
+    CreateMockWrite(*rst),
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
@@ -1705,7 +1748,6 @@ TEST_P(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
   };
 
   scoped_refptr<DelayedSocketData> data(
@@ -1715,7 +1757,7 @@ TEST_P(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
                                      BoundNetLog(), GetParam());
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
-  EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
   data->Reset();
 
   EnableCompression(false);
