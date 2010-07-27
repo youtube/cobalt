@@ -31,7 +31,8 @@ void HttpAuth::ChooseBestChallenge(
 
   // A connection-based authentication scheme must continue to use the
   // existing handler object in |*handler|.
-  if (handler->get() && (*handler)->is_connection_based()) {
+  if (handler->get() && (*handler)->is_connection_based() &&
+      (disabled_schemes.find((*handler)->scheme()) == disabled_schemes.end())) {
     const std::string header_name = GetChallengeHeaderName(target);
     std::string challenge;
     void* iter = NULL;
@@ -57,10 +58,9 @@ void HttpAuth::ChooseBestChallenge(
                    << ErrorToString(rv) << " Challenge: " << cur_challenge;
       continue;
     }
-    if (cur.get() && (!best.get() || best->score() < cur->score())) {
-      if (disabled_schemes.find(cur->scheme()) == disabled_schemes.end())
-        best.swap(cur);
-    }
+    if (cur.get() && (!best.get() || best->score() < cur->score()) &&
+        (disabled_schemes.find(cur->scheme()) == disabled_schemes.end()))
+      best.swap(cur);
   }
   handler->swap(best);
 }
