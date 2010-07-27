@@ -28,8 +28,6 @@ import pyftpdlib.ftpserver
 import tlslite
 import tlslite.api
 
-import chromiumsync
-
 try:
   import hashlib
   _new_md5 = hashlib.md5
@@ -145,8 +143,6 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, request,
                                                    client_address,
                                                    socket_server)
-  # Class variable; shared across requests.
-  _sync_handler = chromiumsync.TestServer()
 
   def _ShouldHandleRequest(self, handler_name):
     """Determines if the path can be handled by the handler.
@@ -1021,7 +1017,11 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     length = int(self.headers.getheader('content-length'))
     raw_request = self.rfile.read(length)
 
-    http_response, raw_reply = self._sync_handler.HandleCommand(raw_request)
+    if not self.server._sync_handler:
+      import chromiumsync
+      self.server._sync_handler = chromiumsync.TestServer()
+    http_response, raw_reply = self.server._sync_handler.HandleCommand(
+        raw_request)
     self.send_response(http_response)
     self.end_headers()
     self.wfile.write(raw_reply)
@@ -1198,6 +1198,8 @@ def main(options, args):
 
     server.data_dir = MakeDataDir()
     server.file_root_url = options.file_root_url
+    server._sync_handler = None
+
     MakeDumpDir(server.data_dir)
 
   # means FTP Server
