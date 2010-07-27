@@ -7,9 +7,9 @@
 
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/lock.h"
 #include "media/base/filters.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace media {
 
@@ -38,9 +38,9 @@ class FileDataSource : public DataSource {
   //
   // TODO(scherkus): I'm getting tired of these factories getting in the way
   // of my tests!!!
-  FRIEND_TEST(FileDataSourceTest, OpenFile);
-  FRIEND_TEST(FileDataSourceTest, ReadData);
-  FRIEND_TEST(FileDataSourceTest, Seek);
+  FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, OpenFile);
+  FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, ReadData);
+  FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, Seek);
   friend class FilterFactoryImpl0<FileDataSource>;
   FileDataSource();
   virtual ~FileDataSource();

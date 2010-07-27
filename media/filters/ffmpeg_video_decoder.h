@@ -5,11 +5,11 @@
 #ifndef MEDIA_FILTERS_FFMPEG_VIDEO_DECODER_H_
 #define MEDIA_FILTERS_FFMPEG_VIDEO_DECODER_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/time.h"
 #include "media/base/pts_heap.h"
 #include "media/base/video_frame.h"
 #include "media/filters/decoder_base.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 // FFmpeg types.
 struct AVRational;
@@ -41,11 +41,14 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   friend class FilterFactoryImpl1<FFmpegVideoDecoder, VideoDecodeEngine*>;
   friend class DecoderPrivateMock;
   friend class FFmpegVideoDecoderTest;
-  FRIEND_TEST(FFmpegVideoDecoderTest, FindPtsAndDuration);
-  FRIEND_TEST(FFmpegVideoDecoderTest, DoDecode_EnqueueVideoFrameError);
-  FRIEND_TEST(FFmpegVideoDecoderTest, DoDecode_FinishEnqueuesEmptyFrames);
-  FRIEND_TEST(FFmpegVideoDecoderTest, DoDecode_TestStateTransition);
-  FRIEND_TEST(FFmpegVideoDecoderTest, DoSeek);
+  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest, FindPtsAndDuration);
+  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest,
+                           DoDecode_EnqueueVideoFrameError);
+  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest,
+                           DoDecode_FinishEnqueuesEmptyFrames);
+  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest,
+                           DoDecode_TestStateTransition);
+  FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest, DoSeek);
 
   // The TimeTuple struct is used to hold the needed timestamp data needed for
   // enqueuing a video frame.

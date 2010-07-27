@@ -32,12 +32,12 @@
 
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/thread.h"
 #include "media/audio/audio_io.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace media {
 class SeekableBuffer;
@@ -91,26 +91,29 @@ class AlsaPcmOutputStream :
  private:
   friend class base::RefCountedThreadSafe<AlsaPcmOutputStream>;
   friend class AlsaPcmOutputStreamTest;
-  FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_FallbackDevices);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_HintFail);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_Negative);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_StopStream);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_Underrun);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_FullBuffer);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, ConstructedState);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, LatencyFloor);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, OpenClose);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, PcmOpenFailed);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, PcmSetParamsFailed);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, ScheduleNextWrite);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, ScheduleNextWrite_StopStream);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, StartStop);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_FinishedPacket);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_NormalPacket);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_StopStream);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_WriteFails);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest,
+                           AutoSelectDevice_DeviceSelect);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest,
+                           AutoSelectDevice_FallbackDevices);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, AutoSelectDevice_HintFail);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, BufferPacket);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, BufferPacket_Negative);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, BufferPacket_StopStream);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, BufferPacket_Underrun);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, BufferPacket_FullBuffer);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, ConstructedState);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, LatencyFloor);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, OpenClose);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, PcmOpenFailed);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, PcmSetParamsFailed);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, ScheduleNextWrite);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest,
+                           ScheduleNextWrite_StopStream);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, StartStop);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, WritePacket_FinishedPacket);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, WritePacket_NormalPacket);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, WritePacket_StopStream);
+  FRIEND_TEST_ALL_PREFIXES(AlsaPcmOutputStreamTest, WritePacket_WriteFails);
 
   virtual ~AlsaPcmOutputStream();
 
