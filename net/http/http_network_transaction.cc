@@ -907,8 +907,11 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     return OK;
   }
 
-  if (result < 0 && !ssl_started)
+  if (result < 0 && !ssl_started) {
+    // A temporary CHECK for tracking down http://crbug.com/49862.
+    CHECK(!IsCertificateError(result));
     return ReconsiderProxyAfterError(result);
+  }
   establishing_tunnel_ = false;
 
   if (connection_->socket()) {
