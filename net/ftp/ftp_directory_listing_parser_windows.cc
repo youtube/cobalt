@@ -48,11 +48,18 @@ bool WindowsDateListingToTime(const std::vector<string16>& columns,
     return false;
   if (!StringToInt(time_parts[1], &time_exploded.minute))
     return false;
-  string16 am_or_pm(columns[1].substr(5, 2));
-  if (EqualsASCII(am_or_pm, "PM"))
-    time_exploded.hour += 12;
-  else if (!EqualsASCII(am_or_pm, "AM"))
+  if (!time_exploded.HasValidValues())
     return false;
+  string16 am_or_pm(columns[1].substr(5, 2));
+  if (EqualsASCII(am_or_pm, "PM")) {
+    if (time_exploded.hour < 12)
+      time_exploded.hour += 12;
+  } else if (EqualsASCII(am_or_pm, "AM")) {
+    if (time_exploded.hour == 12)
+      time_exploded.hour = 0;
+  } else {
+    return false;
+  }
 
   // We don't know the time zone of the server, so just use local time.
   *time = base::Time::FromLocalExploded(time_exploded);
