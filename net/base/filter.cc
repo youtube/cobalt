@@ -108,17 +108,17 @@ void Filter::FixupEncodingTypes(
       // When viewing a .svgz file, we need to uncompress it, but we don't
       // want to do that when downloading.
       // See Firefox's nonDecodableExtensions in nsExternalHelperAppService.cpp
-      if (FILE_PATH_LITERAL(".gz" == extension) ||
-          FILE_PATH_LITERAL(".tgz" == extension) ||
-          FILE_PATH_LITERAL(".svgz") == extension)
+      if (EndsWith(extension, FILE_PATH_LITERAL(".gz"), false) ||
+          LowerCaseEqualsASCII(extension, ".tgz") ||
+          LowerCaseEqualsASCII(extension, ".svgz"))
         encoding_types->clear();
     } else {
       // When the user does not explicitly ask to download a file, if we get a
       // supported mime type, then we attempt to decompress in order to view it.
       // However, if it's not a supported mime type, then we will attempt to
       // download it, and in that case, don't decompress .gz/.tgz files.
-      if ((FILE_PATH_LITERAL(".gz" == extension) ||
-           FILE_PATH_LITERAL(".tgz") == extension) &&
+      if ((EndsWith(extension, FILE_PATH_LITERAL(".gz"), false) ||
+           LowerCaseEqualsASCII(extension, ".tgz")) &&
           !net::IsSupportedMimeType(mime_type))
         encoding_types->clear();
     }
