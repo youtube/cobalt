@@ -907,13 +907,14 @@ void HostResolverImpl::ProbeIPv6Support() {
 
 void HostResolverImpl::Shutdown() {
   DCHECK(CalledOnValidThread());
-  shutdown_ = true;
 
   // Cancel the outstanding jobs.
   for (JobMap::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
     it->second->Cancel();
   jobs_.clear();
   DiscardIPv6ProbeJob();
+
+  shutdown_ = true;
 }
 
 void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
