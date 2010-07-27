@@ -128,11 +128,23 @@ const IDNTestCase idn_cases[] = {
     false, false, false, false, false,
     false, false, false, true, false,
     }},
+  {"xn--3ck7a7g.jp", L"\u30ce\u30f3\u30bd.jp",
+   {true, false, false, true,  false,
+    false, false, false, false, false,
+    false, false, false, false, false,
+    false, false, false, true, false,
+    }},
   // Katakana + Latin (Japanese)
   // TODO(jungshik): Change 'false' in the first element to 'true'
   // after upgrading to ICU 4.2.1 to use new uspoof_* APIs instead
   // of our IsIDNComponentInSingleScript().
   {"xn--e-efusa1mzf.jp", L"e\x30b3\x30de\x30fc\x30b9.jp",
+   {false, false, false, true,  false,
+    false, false, false, false, false,
+    false, false, false, false, false,
+    false, false, false, true, false,
+    }},
+  {"xn--3bkxe.jp", L"\x30c8\x309a.jp",
    {false, false, false, true,  false,
     false, false, false, false, false,
     false, false, false, false, false,
@@ -322,7 +334,19 @@ const IDNTestCase idn_cases[] = {
      false, false, false, false, false,
      false, false, false, false, false,
      false, false, false, false, false,
-     }},
+  }},
+  {"google.xn--com-oh4ba.evil.jp", L"google.com\x309a\x309a.evil.jp",
+    {false, false, false, false, false,
+     false, false, false, false, false,
+     false, false, false, false, false,
+     false, false, false, false, false,
+  }},
+  {"google.xn--comevil-v04f.jp", L"google.com\x30ce" L"evil.jp",
+    {false, false, false, false, false,
+     false, false, false, false, false,
+     false, false, false, false, false,
+     false, false, false, false, false,
+  }},
 #if 0
   // These two cases are special. We need a separate test.
   // U+3000 and U+3002 are normalized to ASCII space and dot.
