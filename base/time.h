@@ -214,6 +214,11 @@ class Time {
     int second;        // Second within the current minute (0-59 plus leap
                        //   seconds which may take it up to 60).
     int millisecond;   // Milliseconds within the current second (0-999)
+
+    // A cursory test for whether the data members are within their
+    // respective ranges. A 'true' return value does not guarantee the
+    // Exploded value can be successfully converted to a Time value.
+    bool HasValidValues() const;
   };
 
   // Contains the NULL time. Use Time::Now() to get the current time.
