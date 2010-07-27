@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "base/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/waitable_event.h"
 #include "media/base/buffers.h"
 #include "media/base/factory.h"
@@ -33,7 +34,6 @@
 #include "media/base/media_format.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_interfaces.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 // FFmpeg forward declarations.
 struct AVFormatContext;
@@ -150,7 +150,7 @@ class FFmpegDemuxer : public Demuxer,
   // Only allow a factory to create this class.
   friend class FilterFactoryImpl0<FFmpegDemuxer>;
   friend class MockFFmpegDemuxer;
-  FRIEND_TEST(FFmpegDemuxerTest, ProtocolRead);
+  FRIEND_TEST_ALL_PREFIXES(FFmpegDemuxerTest, ProtocolRead);
 
   FFmpegDemuxer();
   virtual ~FFmpegDemuxer();

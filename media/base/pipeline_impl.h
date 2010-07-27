@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/gtest_prod_util.h"
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
@@ -19,7 +20,6 @@
 #include "media/base/clock_impl.h"
 #include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace media {
 
@@ -414,7 +414,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   typedef std::vector<base::Thread*> FilterThreadVector;
   FilterThreadVector filter_threads_;
 
-  FRIEND_TEST(PipelineImplTest, GetBufferedTime);
+  FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, GetBufferedTime);
+
   DISALLOW_COPY_AND_ASSIGN(PipelineImpl);
 };
 
