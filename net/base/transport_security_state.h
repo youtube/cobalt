@@ -110,7 +110,7 @@ class TransportSecurityState :
   Delegate* delegate_;
 
   static std::string CanonicaliseHost(const std::string& host);
-  static bool isPreloadedSTS(const std::string& canonicalised_host,
+  static bool IsPreloadedSTS(const std::string& canonicalised_host,
                              bool* out_include_subdomains);
 
   DISALLOW_COPY_AND_ASSIGN(TransportSecurityState);
