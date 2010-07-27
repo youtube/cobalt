@@ -148,6 +148,13 @@
             'xpath.c',
             'xpointer.c',
           ],
+          'defines': [
+            # Define LIBXML_STATIC as nothing to match how libxml.h
+            # (an internal header) defines LIBXML_STATIC, otherwise
+            # we get the macro redefined warning from GCC.  (-DFOO
+            # defines the macro FOO as 1.)
+            'LIBXML_STATIC=',
+          ],
           'include_dirs': [
             '<(os_include)',
             '<(os_include)/include',
@@ -161,6 +168,9 @@
             '../icu/icu.gyp:icuuc',
           ],
           'direct_dependent_settings': {
+            'defines': [
+              'LIBXML_STATIC',
+            ],
             'include_dirs': [
               '<(os_include)/include',
               'include',
@@ -178,11 +188,6 @@
             ['OS=="mac"', {'defines': ['_REENTRANT']}],
             ['OS=="win"', {
               'product_name': 'libxml2',
-              'defines': [
-                # This symbol prevents libxml from marking its functions with
-                # __declspec(dllexport).
-                'LIBXML_STATIC',
-              ],
             }, {  # else: OS!="win"
               'product_name': 'xml2',
             }],
