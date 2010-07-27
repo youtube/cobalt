@@ -32,11 +32,6 @@ SpdyStream::SpdyStream(
 
 SpdyStream::~SpdyStream() {
   DLOG(INFO) << "Deleting SpdyStream for stream " << stream_id_;
-
-  // When the stream_id_ is 0, we expect that it is because
-  // we've cancelled or closed the stream and set the stream_id to 0.
-  if (!stream_id_)
-    DCHECK(response_complete_);
 }
 
 void SpdyStream::SetDelegate(Delegate* delegate) {
@@ -58,7 +53,7 @@ void SpdyStream::SetDelegate(Delegate* delegate) {
 
 void SpdyStream::DetachDelegate() {
   delegate_ = NULL;
-  if (!cancelled())
+  if (!response_complete_ && !cancelled())
     Cancel();
 }
 
@@ -214,7 +209,6 @@ void SpdyStream::OnWriteComplete(int status) {
 void SpdyStream::OnClose(int status) {
   response_complete_ = true;
   response_status_ = status;
-  stream_id_ = 0;
   Delegate* delegate = delegate_;
   delegate_ = NULL;
   if (delegate)
