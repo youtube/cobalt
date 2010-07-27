@@ -156,6 +156,7 @@
           'dependencies': [
             '../app/app.gyp:app_unittests',
             '../chrome/chrome.gyp:browser_tests',
+            '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:nacl_ui_tests',
             '../chrome/chrome.gyp:nacl_sandbox_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
