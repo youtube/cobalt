@@ -421,6 +421,8 @@
           'json/string_escape.h',
           'keyboard_code_conversion_gtk.cc',
           'keyboard_code_conversion_gtk.h',
+          'keyboard_code_conversion_mac.mm',
+          'keyboard_code_conversion_mac.h',
           'keyboard_codes.h',
           'keyboard_codes_win.h',
           'keyboard_codes_posix.h',
