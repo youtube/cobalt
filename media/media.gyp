@@ -176,6 +176,39 @@
       ],
     },
     {
+      'target_name': 'ffmpeg_unittests',
+      'type': 'executable',
+      'dependencies': [
+        'media',
+        '../base/base.gyp:base',
+        '../base/base.gyp:base_i18n',
+        '../base/base.gyp:test_support_perf',
+        '../testing/gtest.gyp:gtest',
+        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+      ],
+      'sources': [
+        'ffmpeg/ffmpeg_unittest.cc',
+      ],
+      'conditions': [
+        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+          'dependencies': [
+            # Needed for the following #include chain:
+            #   base/run_all_unittests.cc
+            #   ../base/test_suite.h
+            #   gtk/gtk.h
+            '../build/linux/system.gyp:gtk',
+          ],
+          'conditions': [
+            ['linux_use_tcmalloc==1', {
+              'dependencies': [
+                '../base/allocator/allocator.gyp:allocator',
+              ],
+            }],
+          ],
+        }],
+      ],
+    },
+    {
       'target_name': 'media_unittests',
       'type': 'executable',
       'msvs_guid': 'C8C6183C-B03C-11DD-B471-DFD256D89593',
