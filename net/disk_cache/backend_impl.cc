@@ -328,6 +328,7 @@ int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
                                uint32 flags, base::MessageLoopProxy* thread,
                                Backend** backend,
                                CompletionCallback* callback) {
+  DCHECK(callback);
   CacheCreator* creator = new CacheCreator(full_path, force, max_bytes, type,
                                            flags, thread, backend, callback);
   // This object will self-destroy when finished.
@@ -538,6 +539,7 @@ void BackendImpl::CleanupCache() {
     DCHECK(!num_refs_);
   }
   factory_.RevokeAll();
+  ptr_factory_.InvalidateWeakPtrs();
   done_.Signal();
 }
 
