@@ -52,7 +52,7 @@ bool DNSDomainFromDot(const std::string& dotted, std::string* out) {
     return false;
   name[namelen++] = 0;
 
-  *out = name;
+  *out = std::string(name, namelen);
   return true;
 }
 
