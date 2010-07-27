@@ -1287,6 +1287,56 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomSparseEntry) {
   DoomSparseEntry();
 }
 
+// A CompletionCallback that deletes the cache from within the callback. The way
+// a TestCompletionCallback works means that all tasks (even new ones) are
+// executed by the message loop before returning to the caller so the only way
+// to simulate a race is to execute what we want on the callback.
+class SparseTestCompletionCallback : public TestCompletionCallback {
+ public:
+  explicit SparseTestCompletionCallback(disk_cache::Backend* cache)
+      : cache_(cache) {}
+
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    delete cache_;
+    TestCompletionCallback::RunWithParams(params);
+  }
+ private:
+  disk_cache::Backend* cache_;
+  DISALLOW_COPY_AND_ASSIGN(SparseTestCompletionCallback);
+};
+
+// Tests that we don't crash when the backend is deleted while we are working
+// deleting the sub-entries of a sparse entry.
+TEST_F(DiskCacheEntryTest, DoomSparseEntry2) {
+  SetDirectMode();
+  UseCurrentThread();
+  InitCache();
+  std::string key("the key");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+
+  const int kSize = 4 * 1024;
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
+  CacheTestFillBuffer(buf->data(), kSize, false);
+
+  int64 offset = 1024;
+  // Write to a bunch of ranges.
+  for (int i = 0; i < 12; i++) {
+    EXPECT_EQ(kSize, entry->WriteSparseData(offset, buf, kSize, NULL));
+    offset *= 4;
+  }
+  EXPECT_EQ(9, cache_->GetEntryCount());
+
+  entry->Close();
+  SparseTestCompletionCallback cb(cache_);
+  int rv = cache_->DoomEntry(key, &cb);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+  EXPECT_EQ(net::OK, cb.WaitForResult());
+
+  // TearDown will attempt to delete the cache_.
+  cache_ = NULL;
+}
+
 void DiskCacheEntryTest::PartialSparseEntry() {
   std::string key("the first key");
   disk_cache::Entry* entry;
