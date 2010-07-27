@@ -43,7 +43,8 @@ class BackendImpl : public Backend {
         cache_type_(net::DISK_CACHE), uma_report_(0), user_flags_(0),
         init_(false), restarted_(false), unit_test_(false), read_only_(false),
         new_eviction_(false), first_timer_(true), done_(true, false),
-        ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {}
+        ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
+        ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {}
   // mask can be used to limit the usable size of the hash table, for testing.
   BackendImpl(const FilePath& path, uint32 mask,
               base::MessageLoopProxy* cache_thread)
@@ -52,7 +53,8 @@ class BackendImpl : public Backend {
         cache_type_(net::DISK_CACHE), uma_report_(0), user_flags_(kMask),
         init_(false), restarted_(false), unit_test_(false), read_only_(false),
         new_eviction_(false), first_timer_(true), done_(true, false),
-        ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {}
+        ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
+        ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {}
   ~BackendImpl();
 
   // Returns a new backend with the desired flags. See the declaration of
@@ -183,6 +185,11 @@ class BackendImpl : public Backend {
 
   net::CacheType cache_type() const {
     return cache_type_;
+  }
+
+  // Returns a weak pointer to this object.
+  base::WeakPtr<BackendImpl> GetWeakPtr() {
+    return ptr_factory_.GetWeakPtr();
   }
 
   // Returns the group for this client, based on the current cache size.
@@ -338,6 +345,7 @@ class BackendImpl : public Backend {
   base::WaitableEvent done_;  // Signals the end of background work.
   scoped_refptr<TraceObject> trace_object_;  // Inits internal tracing.
   ScopedRunnableMethodFactory<BackendImpl> factory_;
+  base::WeakPtrFactory<BackendImpl> ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(BackendImpl);
 };
