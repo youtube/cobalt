@@ -9,7 +9,7 @@
       'type': '<(library)',
       'msvs_guid': 'EF3AD1A1-5FA6-4B70-9CCC-F5AE4C6D0892',
       'include_dirs': [
-        '<(DEPTH)',
+        '../../../',
       ],
       'sources': [
         'dynamic_annotations.c',
@@ -29,7 +29,7 @@
           # TODO(gregoryd): merge with dynamic_annotations when
           # the win32/64 targets are merged.
           'include_dirs': [
-              '<(DEPTH)',
+              '../../../',
           ],
           'sources': [
             'dynamic_annotations.c',
