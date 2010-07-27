@@ -134,7 +134,7 @@ class NetLogSpdySettingsParameter : public NetLog::EventParameters {
 bool SpdySession::use_ssl_ = true;
 
 // static
-bool SpdySession::use_flow_control_ = true;
+bool SpdySession::use_flow_control_ = false;
 
 SpdySession::SpdySession(const HostPortPair& host_port_pair,
                          HttpNetworkSession* session,
