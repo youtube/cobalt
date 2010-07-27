@@ -305,13 +305,13 @@ TEST_F(TransportSecurityStateTest, IsPreloaded) {
       TransportSecurityState::CanonicaliseHost("aypal.com");
 
   bool b;
-  EXPECT_FALSE(TransportSecurityState::isPreloadedSTS(paypal, &b));
-  EXPECT_TRUE(TransportSecurityState::isPreloadedSTS(www_paypal, &b));
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(paypal, &b));
+  EXPECT_TRUE(TransportSecurityState::IsPreloadedSTS(www_paypal, &b));
   EXPECT_FALSE(b);
-  EXPECT_FALSE(TransportSecurityState::isPreloadedSTS(a_www_paypal, &b));
-  EXPECT_FALSE(TransportSecurityState::isPreloadedSTS(abc_paypal, &b));
-  EXPECT_FALSE(TransportSecurityState::isPreloadedSTS(example, &b));
-  EXPECT_FALSE(TransportSecurityState::isPreloadedSTS(aypal, &b));
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(a_www_paypal, &b));
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(abc_paypal, &b));
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(example, &b));
+  EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(aypal, &b));
 }
 
 TEST_F(TransportSecurityStateTest, Preloaded) {
