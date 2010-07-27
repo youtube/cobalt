@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <map>
+#include <unicode/regex.h>
 #include <unicode/ucnv.h>
 #include <unicode/uidna.h>
 #include <unicode/ulocdata.h>
@@ -614,6 +615,13 @@ bool IsIDNComponentSafe(const char16* str,
       L"\u3015\u3033\u3164\u321d\u321e\u33ae\u33af\u33c6\u33df\ufe14"
       L"\ufe15\ufe3f\ufe5d\ufe5e\ufeff\uff0e\uff06\uff61\uffa0\ufff9]"
       L"[\ufffa-\ufffd]]"), status);
+  DCHECK(U_SUCCESS(status));
+  icu::RegexMatcher dangerous_patterns(icu::UnicodeString(
+      // Lone katakana no, so, or n
+      L"[^\\p{Katakana}][\u30ce\u30f3\u30bd][^\\p{Katakana}]"
+      // Repeating Japanese accent characters
+      L"|[\u3099\u309a\u309b\u309c][\u3099\u309a\u309b\u309c]"),
+      0, status);
 #else
   icu::UnicodeSet dangerous_characters(icu::UnicodeString(
       "[[\\u0020\\u00bc\\u00bd\\u01c3\\u0337\\u0338"
@@ -624,11 +632,24 @@ bool IsIDNComponentSafe(const char16* str,
       "\\u3015\\u3033\\u3164\\u321d\\u321e\\u33ae\\u33af\\u33c6\\u33df\\ufe14"
       "\\ufe15\\ufe3f\\ufe5d\\ufe5e\\ufeff\\uff0e\\uff06\\uff61\\uffa0\\ufff9]"
       "[\\ufffa-\\ufffd]]", -1, US_INV), status);
+  DCHECK(U_SUCCESS(status));
+  icu::RegexMatcher dangerous_patterns(icu::UnicodeString(
+      // Lone katakana no, so, or n
+      "[^\\p{Katakana}][\\u30ce\\u30f3\u30bd][^\\p{Katakana}]"
+      // Repeating Japanese accent characters
+      "|[\\u3099\\u309a\\u309b\\u309c][\\u3099\\u309a\\u309b\\u309c]"),
+      0, status);
 #endif
   DCHECK(U_SUCCESS(status));
   icu::UnicodeSet component_characters;
-  component_characters.addAll(icu::UnicodeString(str, str_len));
+  icu::UnicodeString component_string(str, str_len);
+  component_characters.addAll(component_string);
   if (dangerous_characters.containsSome(component_characters))
+    return false;
+
+  DCHECK(U_SUCCESS(status));
+  dangerous_patterns.reset(component_string);
+  if (dangerous_patterns.find())
     return false;
 
   // If the language list is empty, the result is completely determined
