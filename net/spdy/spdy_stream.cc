@@ -53,7 +53,7 @@ void SpdyStream::SetDelegate(Delegate* delegate) {
 
 void SpdyStream::DetachDelegate() {
   delegate_ = NULL;
-  if (!response_complete_ && !cancelled())
+  if (!response_complete_)
     Cancel();
 }
 
@@ -216,8 +216,12 @@ void SpdyStream::OnClose(int status) {
 }
 
 void SpdyStream::Cancel() {
+  if (cancelled())
+    return;
+
   cancelled_ = true;
-  session_->CloseStream(stream_id_, ERR_ABORTED);
+  if(session_->IsStreamActive(stream_id_))
+    session_->ResetStream(stream_id_, spdy::CANCEL);
 }
 
 int SpdyStream::DoSendRequest(bool has_upload_data) {
