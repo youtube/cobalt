@@ -733,14 +733,6 @@ int HttpNetworkTransaction::DoInitConnection() {
   using_spdy_ = false;
   response_.was_fetched_via_proxy = !proxy_info_.is_direct();
 
-  // Use the fixed testing ports if they've been provided.
-  if (using_ssl_) {
-    if (session_->fixed_https_port() != 0)
-      endpoint_.set_port(session_->fixed_https_port());
-  } else if (session_->fixed_http_port() != 0) {
-    endpoint_.set_port(session_->fixed_http_port());
-  }
-
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
   if (session_->spdy_session_pool()->HasSession(endpoint_)) {

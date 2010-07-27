@@ -30,9 +30,6 @@ int g_max_sockets_per_group = 6;
 // http://crbug.com/44501 for details about proxy server connection limits.
 int g_max_sockets_per_proxy_server = 32;
 
-uint16 g_fixed_http_port = 0;
-uint16 g_fixed_https_port = 0;
-
 }  // namespace
 
 HttpNetworkSession::HttpNetworkSession(
@@ -146,26 +143,6 @@ void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
   // The following is a sanity check... but we should NEVER be near this value.
   DCHECK_GT(100, socket_count);
   g_max_sockets_per_group = socket_count;
-}
-
-// static
-uint16 HttpNetworkSession::fixed_http_port() {
-  return g_fixed_http_port;
-}
-
-// static
-void HttpNetworkSession::set_fixed_http_port(uint16 port) {
-  g_fixed_http_port = port;
-}
-
-// static
-uint16 HttpNetworkSession::fixed_https_port() {
-  return g_fixed_https_port;
-}
-
-// static
-void HttpNetworkSession::set_fixed_https_port(uint16 port) {
-  g_fixed_https_port = port;
 }
 
 }  //  namespace net
