@@ -103,12 +103,6 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
 
   static void set_max_sockets_per_group(int socket_count);
 
-  static uint16 fixed_http_port();
-  static void set_fixed_http_port(uint16 port);
-
-  static uint16 fixed_https_port();
-  static void set_fixed_https_port(uint16 port);
-
 #ifdef UNIT_TEST
   void FlushSocketPools() {
     if (ssl_socket_pool_.get())
