@@ -51,6 +51,8 @@
         'base/data_url.h',
         'base/directory_lister.cc',
         'base/directory_lister.h',
+        'base/dns_reload_timer.cc',
+        'base/dns_reload_timer.h',
         'base/dns_util.cc',
         'base/dns_util.h',
         'base/escape.cc',
