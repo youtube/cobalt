@@ -9,6 +9,7 @@
 #include <sys/resource.h>
 
 #include "base/process_util.h"
+#include "base/logging.h"
 
 namespace base {
 

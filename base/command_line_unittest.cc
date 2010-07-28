@@ -7,6 +7,7 @@
 
 #include "base/command_line.h"
 #include "base/basictypes.h"
+#include "base/file_path.h"
 #include "base/string_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
