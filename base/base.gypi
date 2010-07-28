@@ -176,6 +176,7 @@
           'raw_scoped_refptr_mismatch_checker.h',
           'ref_counted.cc',
           'ref_counted.h',
+          'ref_counted_memory.cc',
           'ref_counted_memory.h',
           'registry.cc',
           'registry.h',
