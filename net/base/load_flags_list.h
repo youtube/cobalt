@@ -82,3 +82,12 @@ LOAD_FLAG(DO_NOT_SEND_AUTH_DATA, 1 << 18)
 
 // This should only be used for testing (set by HttpNetworkTransaction).
 LOAD_FLAG(IGNORE_ALL_CERT_ERRORS, 1 << 19)
+
+// Indicate that this is a top level frame, so that we don't assume it is a
+// subresource and speculatively pre-connect or pre-resolve when a referring
+// page is loaded.
+LOAD_FLAG(MAIN_FRAME, 1 << 20)
+
+// Indicate that this is a sub frame, and hence it might have subresources that
+// should be speculatively resolved, or even speculatively preconnected.
+LOAD_FLAG(SUB_FRAME, 1 << 21)
