@@ -24,10 +24,9 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/file_path.h"
 #include "base/logging.h"
-#include "base/string_util.h"
 
+class FilePath;
 class InProcessBrowserTest;
 
 class CommandLine {
@@ -44,11 +43,7 @@ class CommandLine {
   // Initialize by parsing the given command-line string.
   // The program name is assumed to be the first item in the string.
   void ParseFromString(const std::wstring& command_line);
-  static CommandLine FromString(const std::wstring& command_line) {
-    CommandLine cmd;
-    cmd.ParseFromString(command_line);
-    return cmd;
-  }
+  static CommandLine FromString(const std::wstring& command_line);
 #elif defined(OS_POSIX)
   // The type of native command line arguments.
   typedef std::string StringType;
@@ -57,12 +52,8 @@ class CommandLine {
   void InitFromArgv(int argc, const char* const* argv);
   void InitFromArgv(const std::vector<std::string>& argv);
 
-  CommandLine(int argc, const char* const* argv) {
-    InitFromArgv(argc, argv);
-  }
-  explicit CommandLine(const std::vector<std::string>& argv) {
-    InitFromArgv(argv);
-  }
+  CommandLine(int argc, const char* const* argv);
+  explicit CommandLine(const std::vector<std::string>& argv);
 #endif
 
   // Construct a new, empty command line.
@@ -105,27 +96,19 @@ class CommandLine {
   bool HasSwitch(const std::string& switch_string) const;
 
   // Deprecated version of the above.
-  bool HasSwitch(const std::wstring& switch_string) const {
-    return HasSwitch(WideToASCII(switch_string));
-  }
+  bool HasSwitch(const std::wstring& switch_string) const;
 
   // Returns the value associated with the given switch.  If the
   // switch has no value or isn't present, this method returns
   // the empty string.
   // TODO(evanm): move these into command_line.cpp once we've fixed the
   // wstringness.
-  std::string GetSwitchValueASCII(const std::string& switch_string) const {
-    return WideToASCII(GetSwitchValue(switch_string));
-  }
-  FilePath GetSwitchValuePath(const std::string& switch_string) const {
-    return FilePath::FromWStringHack(GetSwitchValue(switch_string));
-  }
+  std::string GetSwitchValueASCII(const std::string& switch_string) const;
+  FilePath GetSwitchValuePath(const std::string& switch_string) const;
 
   // Deprecated versions of the above.
   std::wstring GetSwitchValue(const std::string& switch_string) const;
-  std::wstring GetSwitchValue(const std::wstring& switch_string) const {
-    return GetSwitchValue(WideToASCII(switch_string));
-  }
+  std::wstring GetSwitchValue(const std::wstring& switch_string) const;
 
   // Get the number of switches in this process.
   size_t GetSwitchCount() const { return switches_.size(); }
@@ -134,7 +117,7 @@ class CommandLine {
   typedef std::map<std::string, StringType> SwitchMap;
 
   // Get a copy of all switches, along with their values
-  SwitchMap GetSwitches() const {
+  const SwitchMap& GetSwitches() const {
     return switches_;
   }
 
@@ -157,9 +140,7 @@ class CommandLine {
 #endif
 
   // Returns the program part of the command line string (the first item).
-  FilePath GetProgram() const {
-    return FilePath::FromWStringHack(program());
-  }
+  FilePath GetProgram() const;
 
   // Returns the program part of the command line string (the first item).
   // Deprecated version of the above.
@@ -184,9 +165,7 @@ class CommandLine {
   void AppendSwitchWithValue(const std::string& switch_string,
                              const std::wstring& value_string);
   void AppendSwitchWithValue(const std::string& switch_string,
-                             const std::string& value_string) {
-    AppendSwitchWithValue(switch_string, ASCIIToWide(value_string));
-  }
+                             const std::string& value_string);
 
   // Append a loose value to the command line.
   void AppendLooseValue(const std::wstring& value);

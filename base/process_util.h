@@ -33,9 +33,7 @@ typedef struct _malloc_zone_t malloc_zone_t;
 #include <utility>
 #include <vector>
 
-#include "base/command_line.h"
 #include "base/file_descriptor_shuffle.h"
-#include "base/file_path.h"
 #include "base/process.h"
 
 #ifndef NAME_MAX  // Solaris and some BSDs have no NAME_MAX
@@ -45,6 +43,9 @@ typedef struct _malloc_zone_t malloc_zone_t;
 #define NAME_MAX 256
 #endif
 #endif
+
+class CommandLine;
+class FilePath;
 
 namespace base {
 

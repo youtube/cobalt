@@ -16,6 +16,7 @@
 #include <limits>
 #include <set>
 
+#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/debug_util.h"
 #include "base/dir_reader_posix.h"
@@ -25,6 +26,7 @@
 #include "base/process_util.h"
 #include "base/rand_util.h"
 #include "base/scoped_ptr.h"
+#include "base/string_util.h"
 #include "base/time.h"
 #include "base/waitable_event.h"
 

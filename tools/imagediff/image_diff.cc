@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
+#include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "gfx/codec/png_codec.h"
 
