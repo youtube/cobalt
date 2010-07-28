@@ -151,6 +151,7 @@ void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
   DCHECK_EQ(0u, pending_reads_) << "Pending reads should have completed";
   state_ = kSeeking;
   seek_callback_.reset(callback);
+  seek_timestamp_ = time;
 
   // Throw away everything and schedule our reads.
   // TODO(jiesun): this should be guaranteed by pause/flush before seek happen.
@@ -390,10 +391,16 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
   DCHECK_GT(pending_reads_, 0u);
   --pending_reads_;
 
-  // Enqueue the frame.
-  frames_queue_ready_.push_back(frame);
-  DCHECK_LE(frames_queue_ready_.size(), kMaxFrames);
-  frame_available_.Signal();
+  // Discard frames until we reach our desired seek timestamp.
+  if (state_ == kSeeking && !frame->IsEndOfStream() &&
+      (frame->GetTimestamp() + frame->GetDuration()) < seek_timestamp_) {
+    frames_queue_done_.push_back(frame);
+    ScheduleRead_Locked();
+  } else {
+    frames_queue_ready_.push_back(frame);
+    DCHECK_LE(frames_queue_ready_.size(), kMaxFrames);
+    frame_available_.Signal();
+  }
 
   // Check for our preroll complete condition.
   if (state_ == kSeeking) {
