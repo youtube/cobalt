@@ -401,7 +401,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     avcodec_init();
     av_log_set_level(AV_LOG_FATAL);
     av_register_all();
-    av_register_protocol(&kFFmpegFileProtocol);
+    av_register_protocol2(&kFFmpegFileProtocol, sizeof(kFFmpegFileProtocol));
     initialized = true;
   }
 
