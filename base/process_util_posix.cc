@@ -5,7 +5,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/resource.h>
@@ -738,10 +737,8 @@ int64 TimeValToMicroseconds(const struct timeval& tv) {
   return ret;
 }
 
-// Executes the application specified by |cl| and waits for it to exit, but
-// at most |timeout_milliseconds| (use kNoTimeout for no timeout). Stores
-// the output (stdout) in |output|, and whether or not the timeout
-// triggered in |timed_out|.  If |do_search_path| is set, it searches the
+// Executes the application specified by |cl| and wait for it to exit. Stores
+// the output (stdout) in |output|. If |do_search_path| is set, it searches the
 // path for the application; in that case, |envp| must be null, and it will use
 // the current environment. If |do_search_path| is false, |cl| should fully
 // specify the path of the application, and |envp| will be used as the
@@ -749,8 +746,7 @@ int64 TimeValToMicroseconds(const struct timeval& tv) {
 // (application launched and exited cleanly, with exit code indicating success).
 static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
                                  std::string* output, size_t max_output,
-                                 bool do_search_path, bool* timed_out,
-                                 int timeout_milliseconds) {
+                                 bool do_search_path) {
   int pipe_fd[2];
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
@@ -792,7 +788,7 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
         fd_shuffle1.push_back(InjectionArc(pipe_fd[1], STDOUT_FILENO, true));
         fd_shuffle1.push_back(InjectionArc(dev_null, STDERR_FILENO, true));
         fd_shuffle1.push_back(InjectionArc(dev_null, STDIN_FILENO, true));
-        // Adding another element here? Remember to increase the argument to
+        // Adding another element here? Remeber to increase the argument to
         // reserve(), above.
 
         std::copy(fd_shuffle1.begin(), fd_shuffle1.end(),
@@ -825,50 +821,19 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
         ssize_t bytes_read = 1;  // A lie to properly handle |max_output == 0|
                                  // case in the logic below.
 
-        *timed_out = false;
-        const Time timeout_time = Time::Now() +
-            TimeDelta::FromMilliseconds(timeout_milliseconds);
-        int remaining_ms = timeout_milliseconds;
         while (output_buf_left > 0) {
-          struct pollfd poll_struct = { pipe_fd[0], POLLIN, 0 };
-          const int poll_ret_code = poll(&poll_struct, 1, remaining_ms);
-
-          // poll() should only fail due to interrupt.
-          DCHECK(poll_ret_code != -1 || errno == EINTR);
-          if (poll_ret_code == 0) {
-            *timed_out = true;
-            break;
-          }
-
           bytes_read = HANDLE_EINTR(read(pipe_fd[0], buffer,
                                     std::min(output_buf_left, sizeof(buffer))));
           if (bytes_read <= 0)
             break;
           output->append(buffer, bytes_read);
           output_buf_left -= static_cast<size_t>(bytes_read);
-
-          // Update remaining_ms if we're not using an infinite timeout.
-          if (timeout_milliseconds >= 0) {
-            remaining_ms = (timeout_time - Time::Now()).InMilliseconds();
-            if (remaining_ms < 0) {
-              *timed_out = true;
-              break;
-            }
-          }
         }
         close(pipe_fd[0]);
 
-        bool success = false;
-        int exit_code = PROCESS_END_PROCESS_WAS_HUNG;
-        if (*timed_out) {
-          KillProcess(pid, exit_code, true);
-          // This waits up to 60 seconds for process to actually be dead
-          // which means this may overrun the timeout.
-          LOG(ERROR) << "Process "<< pid << " killed by timeout (waited "
-                     << timeout_milliseconds << " ms).";
-        } else {
-          success = WaitForExitCode(pid, &exit_code);
-        }
+        // Always wait for exit code (even if we know we'll declare success).
+        int exit_code = EXIT_FAILURE;
+        bool success = WaitForExitCode(pid, &exit_code);
 
         // If we stopped because we read as much as we wanted, we always declare
         // success (because the child may exit due to |SIGPIPE|).
@@ -884,26 +849,17 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
 
 bool GetAppOutput(const CommandLine& cl, std::string* output) {
   // Run |execve()| with the current environment and store "unlimited" data.
-  bool timed_out;
   return GetAppOutputInternal(cl, NULL, output,
-                              std::numeric_limits<std::size_t>::max(), true,
-                              &timed_out, base::kNoTimeout);
+                              std::numeric_limits<std::size_t>::max(), true);
 }
 
-bool GetAppOutputWithTimeout(const CommandLine& cl, std::string* output,
-                             bool* timed_out, int timeout_milliseconds) {
-  return GetAppOutputInternal(cl, NULL, output,
-                              std::numeric_limits<std::size_t>::max(), true,
-                              timed_out, timeout_milliseconds);
-}
-
+// TODO(viettrungluu): Conceivably, we should have a timeout as well, so we
+// don't hang if what we're calling hangs.
 bool GetAppOutputRestricted(const CommandLine& cl,
                             std::string* output, size_t max_output) {
   // Run |execve()| with the empty environment.
   char* const empty_environ = NULL;
-  bool timed_out;
-  return GetAppOutputInternal(cl, &empty_environ, output, max_output, false,
-                              &timed_out, base::kNoTimeout);
+  return GetAppOutputInternal(cl, &empty_environ, output, max_output, false);
 }
 
 bool WaitForProcessesToExit(const std::wstring& executable_name,
