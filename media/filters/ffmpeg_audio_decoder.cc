@@ -155,6 +155,17 @@ static void ConvertAudioF32ToS32(void* buffer, int buffer_size) {
 }
 
 void FFmpegAudioDecoder::DoDecode(Buffer* input) {
+  // FFmpeg tends to seek Ogg audio streams in the middle of nowhere, giving us
+  // a whole bunch of AV_NOPTS_VALUE packets.  Discard them until we find
+  // something valid.
+  // TODO(hclam): remove this once fixing the issue in FFmpeg.
+  if (input->GetTimestamp() == StreamSample::kInvalidTimestamp &&
+      estimated_next_timestamp_ == StreamSample::kInvalidTimestamp &&
+      !input->IsEndOfStream()) {
+    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
+    return;
+  }
+
   // Due to FFmpeg API changes we no longer have const read-only pointers.
   AVPacket packet;
   av_init_packet(&packet);
