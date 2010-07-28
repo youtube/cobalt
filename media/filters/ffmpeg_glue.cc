@@ -134,7 +134,7 @@ FFmpegGlue::FFmpegGlue() {
 
   // Register our protocol glue code with FFmpeg.
   avcodec_init();
-  av_register_protocol2(&kFFmpegURLProtocol, sizeof(kFFmpegURLProtocol));
+  av_register_protocol(&kFFmpegURLProtocol);
   av_lockmgr_register(&LockManagerOperation);
 
   // Now register the rest of FFmpeg.
