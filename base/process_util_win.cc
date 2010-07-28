@@ -12,6 +12,7 @@
 
 #include <ios>
 
+#include "base/command_line.h"
 #include "base/debug_util.h"
 #include "base/histogram.h"
 #include "base/logging.h"
