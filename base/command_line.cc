@@ -104,6 +104,13 @@ void CommandLine::ParseFromString(const std::wstring& command_line) {
     LocalFree(args);
 }
 
+// static
+CommandLine CommandLine::FromString(const std::wstring& command_line) {
+  CommandLine cmd;
+  cmd.ParseFromString(command_line);
+  return cmd;
+}
+
 CommandLine::CommandLine(const FilePath& program) {
   if (!program.empty()) {
     program_ = program.value();
@@ -115,6 +122,14 @@ CommandLine::CommandLine(const FilePath& program) {
 CommandLine::CommandLine(ArgumentsOnly args_only) {
   // Push an empty argument, because we always assume argv_[0] is a program.
   argv_.push_back("");
+}
+
+CommandLine::CommandLine(int argc, const char* const* argv) {
+  InitFromArgv(argc, argv);
+}
+
+CommandLine::CommandLine(const std::vector<std::string>& argv) {
+  InitFromArgv(argv);
 }
 
 void CommandLine::InitFromArgv(int argc, const char* const* argv) {
@@ -265,6 +280,20 @@ bool CommandLine::HasSwitch(const std::string& switch_string) const {
   return switches_.find(lowercased_switch) != switches_.end();
 }
 
+bool CommandLine::HasSwitch(const std::wstring& switch_string) const {
+  return HasSwitch(WideToASCII(switch_string));
+}
+
+std::string CommandLine::GetSwitchValueASCII(
+    const std::string& switch_string) const {
+  return WideToASCII(GetSwitchValue(switch_string));
+}
+
+FilePath CommandLine::GetSwitchValuePath(
+    const std::string& switch_string) const {
+  return FilePath::FromWStringHack(GetSwitchValue(switch_string));
+}
+
 std::wstring CommandLine::GetSwitchValue(
     const std::string& switch_string) const {
   std::string lowercased_switch(switch_string);
@@ -284,6 +313,15 @@ std::wstring CommandLine::GetSwitchValue(
     return base::SysNativeMBToWide(result->second);
 #endif
   }
+}
+
+std::wstring CommandLine::GetSwitchValue(
+    const std::wstring& switch_string) const {
+  return GetSwitchValue(WideToASCII(switch_string));
+}
+
+FilePath CommandLine::GetProgram() const {
+  return FilePath::FromWStringHack(program());
 }
 
 #if defined(OS_WIN)
@@ -431,6 +469,11 @@ void CommandLine::PrependWrapper(const std::wstring& wrapper_wide) {
 }
 
 #endif
+
+void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
+                                        const std::string& value_string) {
+  AppendSwitchWithValue(switch_string, ASCIIToWide(value_string));
+}
 
 // private
 CommandLine::CommandLine() {
