@@ -294,6 +294,15 @@ PipelineError PipelineImpl::GetError() const {
 
 void PipelineImpl::SetCurrentReadPosition(int64 offset) {
   AutoLock auto_lock(lock_);
+
+  // The current read position should never be ahead of the buffered byte
+  // position but threading issues between BufferedDataSource::DoneRead_Locked()
+  // and BufferedDataSource::NetworkEventCallback() can cause them to be
+  // temporarily out of sync. The easiest fix for this is to cap both
+  // buffered_bytes_ and current_bytes_ to always be legal values in
+  // SetCurrentReadPosition() and in SetBufferedBytes().
+  if (offset > buffered_bytes_)
+    buffered_bytes_ = offset;
   current_bytes_ = offset;
 }
 
@@ -449,6 +458,10 @@ void PipelineImpl::SetTotalBytes(int64 total_bytes) {
 void PipelineImpl::SetBufferedBytes(int64 buffered_bytes) {
   DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
+
+  // See comments in SetCurrentReadPosition() about capping.
+  if (buffered_bytes < current_bytes_)
+    current_bytes_ = buffered_bytes;
   buffered_bytes_ = buffered_bytes;
 }
 
