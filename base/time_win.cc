@@ -338,7 +338,7 @@ class HighResNowSingleton {
       int64 now = UnreliableNow();
 
       // Verify that QPC does not seem to drift.
-      DCHECK(now - ReliableNow() - skew_ < kMaxTimeDrift);
+      DCHECK_LT(now - ReliableNow() - skew_, kMaxTimeDrift);
 
       return TimeDelta::FromMicroseconds(now);
     }
