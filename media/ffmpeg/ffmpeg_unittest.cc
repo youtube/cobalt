@@ -2,6 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// ffmpeg_unittests verify that the parts of the FFmpeg API that Chromium uses
+// function as advertised for each media format that Chromium supports.  This
+// mostly includes stuff like reporting proper timestamps, seeking to
+// keyframes, and supporting certain features like reordered_opaque.
+//
+// Known failures as of r53892:
+//   http://crbug.com/49709
+//     sync1_ogg/FFmpegTest.Seek_Audio/0
+//     sync1_ogv/FFmpegTest.Seek_Audio/0
+//     sync2_ogg/FFmpegTest.Seek_Audio/0
+//     sync2_ogv/FFmpegTest.Seek_Audio/0
+//
+//   http://crbug.com/50457
+//     sync0_webm/FFmpegTest.Decode_Video/0
+//     sync0_webm/FFmpegTest.Duration/0
+//     sync1_webm/FFmpegTest.Decode_Video/0
+//     sync2_webm/FFmpegTest.Decode_Video/0
+
 #include <limits>
 #include <queue>
 
