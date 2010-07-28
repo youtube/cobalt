@@ -14,6 +14,7 @@
 #include "base/base_paths.h"
 #include "base/debug_on_start.h"
 #include "base/debug_util.h"
+#include "base/file_path.h"
 #include "base/i18n/icu_util.h"
 #include "base/multiprocess_test.h"
 #include "base/nss_util.h"
