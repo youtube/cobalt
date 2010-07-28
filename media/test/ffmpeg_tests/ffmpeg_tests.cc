@@ -116,7 +116,7 @@ int main(int argc, const char** argv) {
   avcodec_init();
   av_log_set_level(verbose_level);
   av_register_all();
-  av_register_protocol(&kFFmpegFileProtocol);
+  av_register_protocol2(&kFFmpegFileProtocol, sizeof(kFFmpegFileProtocol));
   AVFormatContext* format_context = NULL;
   // av_open_input_file wants a char*, which can't work with wide paths.
   // So we assume ASCII on Windows.  On other platforms we can pass the
