@@ -86,9 +86,6 @@ struct IoCounters {
 // A minimalistic but hopefully cross-platform set of exit codes.
 // Do not change the enumeration values or you will break third-party
 // installers.
-// Warning: This enum is duplicated and extended in chrome/common/result_codes.h
-// The two must be kept in sync and users of that enum would prefer the
-// numbering didn't change.
 enum {
   PROCESS_END_NORMAL_TERMINATION = 0,
   PROCESS_END_KILLED_BY_USER     = 1,
@@ -243,15 +240,6 @@ bool LaunchApp(const CommandLine& cl,
 bool GetAppOutput(const CommandLine& cl, std::string* output);
 
 #if defined(OS_POSIX)
-// Similar to |GetAppOutput()|. Returns true if process launched and
-// exited cleanly, with exit code indicating success. Waits no more than
-// |timeout_milliseconds| for the launched process to exit. After timeout
-// is triggered, the process is killed and true is stored in |timed_out|.
-// Will wait for process to die so this may overrun |timeout_milliseconds|.
-// TODO(tessamac): implement this for windows.
-bool GetAppOutputWithTimeout(const CommandLine& cl, std::string* output,
-                             bool* timed_out, int timeout_milliseconds);
-
 // A restricted version of |GetAppOutput()| which (a) clears the environment,
 // and (b) stores at most |max_output| bytes; also, it doesn't search the path
 // for the command.
