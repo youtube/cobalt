@@ -181,6 +181,8 @@ class VideoRendererBase : public VideoRenderer,
   scoped_ptr<FilterCallback> pause_callback_;
   scoped_ptr<FilterCallback> seek_callback_;
 
+  base::TimeDelta seek_timestamp_;
+
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };
 
