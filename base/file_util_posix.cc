@@ -420,8 +420,10 @@ static bool CreateTemporaryDirInDirImpl(const FilePath& base_dir,
   // this should be OK since mkdtemp just replaces characters in place
   char* buffer = const_cast<char*>(sub_dir_string.c_str());
   char* dtemp = mkdtemp(buffer);
-  if (!dtemp)
+  if (!dtemp) {
+    DPLOG(ERROR) << "mkdtemp";
     return false;
+  }
   *new_dir = FilePath(dtemp);
   return true;
 }
