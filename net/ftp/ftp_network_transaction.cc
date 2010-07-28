@@ -1187,22 +1187,7 @@ int FtpNetworkTransaction::DoDataConnect() {
 }
 
 int FtpNetworkTransaction::DoDataConnectComplete(int result) {
-  if (result == ERR_CONNECTION_TIMED_OUT && use_epsv_) {
-    // It's possible we hit a broken server, sadly. Fall back to PASV.
-    // TODO(phajdan.jr): remember it for future transactions with this server.
-    // TODO(phajdan.jr): write a test for this code path.
-    use_epsv_ = false;
-    next_state_ = STATE_CTRL_WRITE_PASV;
-    return OK;
-  }
-
-  // Only record the connection error after we've applied all our fallbacks.
-  // We want to capture the final error, one we're not going to recover from.
   RecordDataConnectionError(result);
-
-  if (result != OK)
-    return Stop(result);
-
   next_state_ = STATE_CTRL_WRITE_SIZE;
   return OK;
 }
