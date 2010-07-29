@@ -77,7 +77,6 @@ class SSLClientSocketPoolTest : public ClientSocketPoolTest {
   scoped_refptr<SSLSocketParams> SSLParams(
       ProxyServer::Scheme proxy, struct MockHttpAuthControllerData* auth_data,
       size_t auth_data_len, bool want_spdy_over_ssl, bool want_spdy_over_npn) {
-
     scoped_refptr<HttpProxySocketParams> http_proxy_params;
     if (proxy == ProxyServer::SCHEME_HTTP) {
       scoped_refptr<MockHttpAuthController> auth_controller =
@@ -641,8 +640,8 @@ TEST_F(SSLClientSocketPoolTest, DoProxyAuth) {
   const HttpResponseInfo& tunnel_info = handle.ssl_error_response_info();
   EXPECT_EQ(tunnel_info.headers->response_code(), 407);
 
-  params->http_proxy_params()->auth_controller()->ResetAuth(std::wstring(),
-                                                            std::wstring());
+  params->http_proxy_params()->auth_controller()->ResetAuth(string16(),
+                                                            string16());
   rv = handle.Init("a", params, MEDIUM, &callback, pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
@@ -710,8 +709,8 @@ TEST_F(SSLClientSocketPoolTest, DoProxyAuthNoKeepAlive) {
   const HttpResponseInfo& tunnel_info = handle.ssl_error_response_info();
   EXPECT_EQ(tunnel_info.headers->response_code(), 407);
 
-  params->http_proxy_params()->auth_controller()->ResetAuth(std::wstring(),
-                                                            std::wstring());
+  params->http_proxy_params()->auth_controller()->ResetAuth(string16(),
+                                                            string16());
   rv = handle.Init("a", params, MEDIUM, &callback, pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());

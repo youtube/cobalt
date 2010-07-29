@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,8 +20,8 @@ FtpAuthCache::Entry* FtpAuthCache::Lookup(const GURL& origin) {
   return NULL;
 }
 
-void FtpAuthCache::Add(const GURL& origin, const std::wstring& username,
-                       const std::wstring& password) {
+void FtpAuthCache::Add(const GURL& origin, const string16& username,
+                       const string16& password) {
   DCHECK(origin.SchemeIs("ftp"));
   DCHECK_EQ(origin.GetOrigin(), origin);
 
@@ -38,8 +38,8 @@ void FtpAuthCache::Add(const GURL& origin, const std::wstring& username,
   }
 }
 
-void FtpAuthCache::Remove(const GURL& origin, const std::wstring& username,
-                          const std::wstring& password) {
+void FtpAuthCache::Remove(const GURL& origin, const string16& username,
+                          const string16& password) {
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
     if (it->origin == origin && it->username == username &&
         it->password == password) {

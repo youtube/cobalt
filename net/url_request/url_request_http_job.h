@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/scoped_ptr.h"
+#include "base/string16.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 #include "net/http/http_request_info.h"
@@ -50,8 +51,8 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual bool IsSafeRedirect(const GURL& location);
   virtual bool NeedsAuth();
   virtual void GetAuthChallengeInfo(scoped_refptr<net::AuthChallengeInfo>*);
-  virtual void SetAuth(const std::wstring& username,
-                       const std::wstring& password);
+  virtual void SetAuth(const string16& username,
+                       const string16& password);
   virtual void CancelAuth();
   virtual void ContinueWithCertificate(net::X509Certificate* client_cert);
   virtual void ContinueDespiteLastError();
@@ -80,8 +81,8 @@ class URLRequestHttpJob : public URLRequestJob {
 
   bool ShouldTreatAsCertificateError(int result);
 
-  void RestartTransactionWithAuth(const std::wstring& username,
-                                  const std::wstring& password);
+  void RestartTransactionWithAuth(const string16& username,
+                                  const string16& password);
 
   // Keep a reference to the url request context to be sure it's not deleted
   // before us.
@@ -97,8 +98,8 @@ class URLRequestHttpJob : public URLRequestJob {
   net::AuthState proxy_auth_state_;
   net::AuthState server_auth_state_;
 
-  std::wstring username_;
-  std::wstring password_;
+  string16 username_;
+  string16 password_;
 
   net::CompletionCallbackImpl<URLRequestHttpJob> can_get_cookies_callback_;
   net::CompletionCallbackImpl<URLRequestHttpJob> can_set_cookie_callback_;

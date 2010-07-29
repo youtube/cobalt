@@ -4,6 +4,8 @@
 
 #include "net/http/http_auth_handler_digest.h"
 
+#include <string>
+
 #include "base/logging.h"
 #include "base/md5.h"
 #include "base/rand_util.h"
@@ -86,8 +88,8 @@ std::string HttpAuthHandlerDigest::AlgorithmToString(int algorithm) {
 }
 
 int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
-    const std::wstring* username,
-    const std::wstring* password,
+    const string16* username,
+    const string16* password,
     const HttpRequestInfo* request,
     CompletionCallback* callback,
     std::string* auth_token) {
@@ -101,9 +103,8 @@ int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
   GetRequestMethodAndPath(request, &method, &path);
 
   *auth_token = AssembleCredentials(method, path,
-                                    // TODO(eroman): is this the right encoding?
-                                    WideToUTF8(*username),
-                                    WideToUTF8(*password),
+                                    *username,
+                                    *password,
                                     cnonce, nonce_count_);
   return OK;
 }
@@ -128,12 +129,14 @@ void HttpAuthHandlerDigest::GetRequestMethodAndPath(
 std::string HttpAuthHandlerDigest::AssembleResponseDigest(
     const std::string& method,
     const std::string& path,
-    const std::string& username,
-    const std::string& password,
+    const string16& username,
+    const string16& password,
     const std::string& cnonce,
     const std::string& nc) const {
   // ha1 = MD5(A1)
-  std::string ha1 = MD5String(username + ":" + realm_ + ":" + password);
+  // TODO(eroman): is this the right encoding?
+  std::string ha1 = MD5String(UTF16ToUTF8(username) + ":" + realm_ + ":" +
+                              UTF16ToUTF8(password));
   if (algorithm_ == HttpAuthHandlerDigest::ALGORITHM_MD5_SESS)
     ha1 = MD5String(ha1 + ":" + nonce_ + ":" + cnonce);
 
@@ -152,15 +155,16 @@ std::string HttpAuthHandlerDigest::AssembleResponseDigest(
 std::string HttpAuthHandlerDigest::AssembleCredentials(
     const std::string& method,
     const std::string& path,
-    const std::string& username,
-    const std::string& password,
+    const string16& username,
+    const string16& password,
     const std::string& cnonce,
     int nonce_count) const {
   // the nonce-count is an 8 digit hex string.
   std::string nc = StringPrintf("%08x", nonce_count);
 
+  // TODO(eroman): is this the right encoding?
   std::string authorization = std::string("Digest username=") +
-                              HttpUtil::Quote(username);
+                              HttpUtil::Quote(UTF16ToUTF8(username));
   authorization += ", realm=" + HttpUtil::Quote(realm_);
   authorization += ", nonce=" + HttpUtil::Quote(nonce_);
   authorization += ", uri=" + HttpUtil::Quote(path);
@@ -219,7 +223,7 @@ bool HttpAuthHandlerDigest::ParseChallenge(
 
   if (!challenge->valid() ||
       !LowerCaseEqualsASCII(challenge->scheme(), "digest"))
-    return false; // FAIL -- Couldn't match auth-scheme.
+    return false;  // FAIL -- Couldn't match auth-scheme.
 
   // Loop through all the properties.
   while (challenge->GetNext()) {
@@ -229,16 +233,16 @@ bool HttpAuthHandlerDigest::ParseChallenge(
     }
 
     if (!ParseChallengeProperty(challenge->name(), challenge->unquoted_value()))
-      return false; // FAIL -- couldn't parse a property.
+      return false;  // FAIL -- couldn't parse a property.
   }
 
   // Check if tokenizer failed.
   if (!challenge->valid())
-    return false; // FAIL
+    return false;  // FAIL
 
   // Check that a minimum set of properties were provided.
   if (nonce_.empty())
-    return false; // FAIL
+    return false;  // FAIL
 
   return true;
 }
@@ -264,7 +268,7 @@ bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
       algorithm_ = ALGORITHM_MD5_SESS;
     } else {
       DLOG(INFO) << "Unknown value of algorithm";
-      return false; // FAIL -- unsupported value of algorithm.
+      return false;  // FAIL -- unsupported value of algorithm.
     }
   } else if (LowerCaseEqualsASCII(name, "qop")) {
     // Parse the comma separated list of qops.

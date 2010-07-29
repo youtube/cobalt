@@ -2,28 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "testing/gtest/include/gtest/gtest.h"
+#include <string>
 
 #include "base/basictypes.h"
+#include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_handler_basic.h"
 #include "net/http/http_request_info.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
 TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
   static const struct {
-    const wchar_t* username;
-    const wchar_t* password;
+    const char* username;
+    const char* password;
     const char* expected_credentials;
   } tests[] = {
-    { L"foo", L"bar", "Basic Zm9vOmJhcg==" },
+    { "foo", "bar", "Basic Zm9vOmJhcg==" },
     // Empty username
-    { L"", L"foobar", "Basic OmZvb2Jhcg==" },
+    { "", "foobar", "Basic OmZvb2Jhcg==" },
     // Empty password
-    { L"anon", L"", "Basic YW5vbjo=" },
+    { "anon", "", "Basic YW5vbjo=" },
     // Empty username and empty password.
-    { L"", L"", "Basic Og==" },
+    { "", "", "Basic Og==" },
   };
   GURL origin("http://www.example.com");
   HttpAuthHandlerBasic::Factory factory;
@@ -32,8 +34,8 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
     scoped_ptr<HttpAuthHandler> basic;
     EXPECT_EQ(OK, factory.CreateAuthHandlerFromString(
         challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic));
-    std::wstring username(tests[i].username);
-    std::wstring password(tests[i].password);
+    string16 username(ASCIIToUTF16(tests[i].username));
+    string16 password(ASCIIToUTF16(tests[i].password));
     HttpRequestInfo request_info;
     std::string auth_token;
     int rv = basic->GenerateAuthToken(&username, &password, &request_info,
@@ -77,4 +79,4 @@ TEST(HttpAuthHandlerBasicTest, InitFromChallenge) {
   }
 }
 
-} // namespace net
+}  // namespace net

@@ -7,8 +7,10 @@
 #pragma once
 
 #include <set>
+#include <string>
 
 #include "base/scoped_ptr.h"
+#include "base/string16.h"
 #include "net/http/http_util.h"
 
 template <class T> class scoped_refptr;
@@ -68,9 +70,8 @@ class HttpAuth {
 
     IdentitySource source;
     bool invalid;
-    // TODO(wtc): |username| and |password| should be string16.
-    std::wstring username;
-    std::wstring password;
+    string16 username;
+    string16 password;
   };
 
   // Get the name of the header containing the auth challenge

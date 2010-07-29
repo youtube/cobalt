@@ -920,8 +920,8 @@ int MockHttpAuthController::HandleAuthChallenge(
   return OK;
 }
 
-void MockHttpAuthController::ResetAuth(const std::wstring& username,
-                                       const std::wstring& password) {
+void MockHttpAuthController::ResetAuth(const string16& username,
+                                       const string16& password) {
   data_index_++;
 }
 

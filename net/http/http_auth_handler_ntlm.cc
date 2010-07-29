@@ -14,8 +14,8 @@
 namespace net {
 
 int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
-    const std::wstring* username,
-    const std::wstring* password,
+    const string16* username,
+    const string16* password,
     const HttpRequestInfo* request,
     CompletionCallback* callback,
     std::string* auth_token) {
@@ -36,8 +36,8 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
 
   // |username| may be in the form "DOMAIN\user".  Parse it into the two
   // components.
-  std::wstring domain;
-  std::wstring user;
+  string16 domain;
+  string16 user;
   size_t backslash_idx = username->find(L'\\');
   if (backslash_idx == std::wstring::npos) {
     user = *username;
@@ -45,9 +45,9 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
     domain = username->substr(0, backslash_idx);
     user = username->substr(backslash_idx + 1);
   }
-  domain_ = WideToUTF16(domain);
-  username_ = WideToUTF16(user);
-  password_ = WideToUTF16(*password);
+  domain_ = domain;
+  username_ = user;
+  password_ = *password;
 
   // Initial challenge.
   if (auth_data_.empty()) {

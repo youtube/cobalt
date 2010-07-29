@@ -6,13 +6,14 @@
 #define NET_FTP_FTP_NETWORK_TRANSACTION_H_
 #pragma once
 
-#include <string>
 #include <queue>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/string16.h"
 #include "net/base/address_list.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
@@ -37,8 +38,8 @@ class FtpNetworkTransaction : public FtpTransaction {
                     CompletionCallback* callback,
                     const BoundNetLog& net_log);
   virtual int Stop(int error);
-  virtual int RestartWithAuth(const std::wstring& username,
-                              const std::wstring& password,
+  virtual int RestartWithAuth(const string16& username,
+                              const string16& password,
                               CompletionCallback* callback);
   virtual int RestartIgnoringLastError(CompletionCallback* callback);
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
@@ -201,10 +202,8 @@ class FtpNetworkTransaction : public FtpTransaction {
   // EPSV fail, we fall back to PASV for the duration of connection.
   bool use_epsv_;
 
-  // We get username and password as wstrings in RestartWithAuth, so they are
-  // also kept as wstrings here.
-  std::wstring username_;
-  std::wstring password_;
+  string16 username_;
+  string16 password_;
 
   // Current directory on the remote server, as returned by last PWD command,
   // with any trailing slash removed.

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "build/build_config.h"
 
 #include "base/ref_counted.h"
+#include "base/string_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_util.h"
@@ -81,8 +82,8 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
         return Verify("EPSV\r\n", data, PRE_SIZE,
                       "227 Entering Extended Passive Mode (|||31744|)\r\n");
       case PRE_NOPASV:
-        // Use unallocated 599 FTP error code to make sure it falls into the generic
-        // ERR_FTP_FAILED bucket.
+        // Use unallocated 599 FTP error code to make sure it falls into the
+        // generic ERR_FTP_FAILED bucket.
         return Verify("PASV\r\n", data, PRE_QUIT,
                       "599 fail\r\n");
       case PRE_QUIT:
@@ -1045,9 +1046,10 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartUser) {
   StaticSocketDataProvider ctrl_socket2(ctrl_reads, arraysize(ctrl_reads),
                                         ctrl_writes, arraysize(ctrl_writes));
   mock_socket_factory_.AddSocketDataProvider(&ctrl_socket2);
-  ASSERT_EQ(ERR_IO_PENDING, transaction_.RestartWithAuth(L"foo\nownz0red",
-                                                         L"innocent",
-                                                         &callback_));
+  ASSERT_EQ(ERR_IO_PENDING,
+            transaction_.RestartWithAuth(ASCIIToUTF16("foo\nownz0red"),
+                                         ASCIIToUTF16("innocent"),
+                                         &callback_));
   EXPECT_EQ(ERR_MALFORMED_IDENTITY, callback_.WaitForResult());
 }
 
@@ -1077,9 +1079,10 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
   StaticSocketDataProvider ctrl_socket2(ctrl_reads, arraysize(ctrl_reads),
                                         ctrl_writes, arraysize(ctrl_writes));
   mock_socket_factory_.AddSocketDataProvider(&ctrl_socket2);
-  ASSERT_EQ(ERR_IO_PENDING, transaction_.RestartWithAuth(L"innocent",
-                                                         L"foo\nownz0red",
-                                                         &callback_));
+  ASSERT_EQ(ERR_IO_PENDING,
+            transaction_.RestartWithAuth(ASCIIToUTF16("innocent"),
+                                         ASCIIToUTF16("foo\nownz0red"),
+                                         &callback_));
   EXPECT_EQ(ERR_MALFORMED_IDENTITY, callback_.WaitForResult());
 }
 

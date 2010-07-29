@@ -721,8 +721,8 @@ bool HttpAuthGSSAPI::ParseChallenge(HttpAuth::ChallengeTokenizer* tok) {
   return true;
 }
 
-int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
-                                      const std::wstring* password,
+int HttpAuthGSSAPI::GenerateAuthToken(const string16* username,
+                                      const string16* password,
                                       const std::wstring& spn,
                                       std::string* auth_token) {
   DCHECK(auth_token);
@@ -757,8 +757,8 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
   return OK;
 }
 
-int HttpAuthGSSAPI::OnFirstRound(const std::wstring* username,
-                                 const std::wstring* password) {
+int HttpAuthGSSAPI::OnFirstRound(const string16* username,
+                                 const string16* password) {
   // TODO(cbentzel): Acquire credentials?
   DCHECK((username == NULL) == (password == NULL));
   username_.clear();

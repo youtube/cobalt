@@ -310,8 +310,8 @@ void URLRequestHttpJob::GetAuthChallengeInfo(
   *result = response_info_->auth_challenge;
 }
 
-void URLRequestHttpJob::SetAuth(const std::wstring& username,
-                                const std::wstring& password) {
+void URLRequestHttpJob::SetAuth(const string16& username,
+                                const string16& password) {
   DCHECK(transaction_.get());
 
   // Proxy gets set first, then WWW.
@@ -326,8 +326,8 @@ void URLRequestHttpJob::SetAuth(const std::wstring& username,
 }
 
 void URLRequestHttpJob::RestartTransactionWithAuth(
-    const std::wstring& username,
-    const std::wstring& password) {
+    const string16& username,
+    const string16& password) {
   username_ = username;
   password_ = password;
 
@@ -596,7 +596,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // notified of the headers completion so that we can update the cookie store.
   if (transaction_->IsReadyToRestartForAuth()) {
     DCHECK(!response_info_->auth_challenge.get());
-    RestartTransactionWithAuth(std::wstring(), std::wstring());
+    RestartTransactionWithAuth(string16(), string16());
     return;
   }
 

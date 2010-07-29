@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/string16.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
@@ -47,8 +48,8 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
   virtual bool SendData(const char* data, int len);
   virtual void Close();
   virtual void RestartWithAuth(
-      const std::wstring& username,
-      const std::wstring& password);
+      const string16& username,
+      const string16& password);
   virtual void DetachDelegate();
 
   // SocketStream::Delegate methods.

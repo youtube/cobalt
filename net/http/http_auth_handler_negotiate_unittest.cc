@@ -4,6 +4,7 @@
 
 #include "net/http/http_auth_handler_negotiate.h"
 
+#include "base/string_util.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -225,8 +226,8 @@ TEST_F(HttpAuthHandlerNegotiateTest, DisableCname) {
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
-  std::wstring username = L"foo";
-  std::wstring password = L"bar";
+  string16 username = ASCIIToUTF16("foo");
+  string16 password = ASCIIToUTF16("bar");
   EXPECT_EQ(OK, auth_handler->GenerateAuthToken(&username, &password,
                                                 &request_info,
                                                 &callback, &token));
@@ -246,8 +247,8 @@ TEST_F(HttpAuthHandlerNegotiateTest, DisableCnameStandardPort) {
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
-  std::wstring username = L"foo";
-  std::wstring password = L"bar";
+  string16 username = ASCIIToUTF16("foo");
+  string16 password = ASCIIToUTF16("bar");
   EXPECT_EQ(OK, auth_handler->GenerateAuthToken(&username, &password,
                                                 &request_info,
                                                 &callback, &token));
@@ -267,8 +268,8 @@ TEST_F(HttpAuthHandlerNegotiateTest, DisableCnameNonstandardPort) {
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
-  std::wstring username = L"foo";
-  std::wstring password = L"bar";
+  string16 username = ASCIIToUTF16("foo");
+  string16 password = ASCIIToUTF16("bar");
   EXPECT_EQ(OK, auth_handler->GenerateAuthToken(&username, &password,
                                                 &request_info,
                                                 &callback, &token));
@@ -288,8 +289,8 @@ TEST_F(HttpAuthHandlerNegotiateTest, CnameSync) {
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
-  std::wstring username = L"foo";
-  std::wstring password = L"bar";
+  string16 username = ASCIIToUTF16("foo");
+  string16 password = ASCIIToUTF16("bar");
   EXPECT_EQ(OK, auth_handler->GenerateAuthToken(&username, &password,
                                                 &request_info,
                                                 &callback, &token));
@@ -309,8 +310,8 @@ TEST_F(HttpAuthHandlerNegotiateTest, CnameAsync) {
   TestCompletionCallback callback;
   HttpRequestInfo request_info;
   std::string token;
-  std::wstring username = L"foo";
-  std::wstring password = L"bar";
+  string16 username = ASCIIToUTF16("foo");
+  string16 password = ASCIIToUTF16("bar");
   EXPECT_EQ(ERR_IO_PENDING, auth_handler->GenerateAuthToken(
       &username, &password, &request_info, &callback, &token));
   EXPECT_EQ(OK, callback.WaitForResult());
