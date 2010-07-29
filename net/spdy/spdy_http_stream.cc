@@ -129,10 +129,10 @@ void CreateSpdyHeadersFromHttpRequest(
 
 namespace net {
 
-SpdyHttpStream::SpdyHttpStream()
+SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session)
     : ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_factory_(this)),
       stream_(NULL),
-      spdy_session_(NULL),
+      spdy_session_(spdy_session),
       response_info_(NULL),
       download_finished_(false),
       user_callback_(NULL),
@@ -145,15 +145,12 @@ SpdyHttpStream::~SpdyHttpStream() {
     stream_->DetachDelegate();
 }
 
-int SpdyHttpStream::InitializeStream(
-    SpdySession* spdy_session,
-    const HttpRequestInfo& request_info,
-    const BoundNetLog& stream_net_log,
-    CompletionCallback* callback) {
-  spdy_session_ = spdy_session;
+int SpdyHttpStream::InitializeStream(const HttpRequestInfo* request_info,
+                                     const BoundNetLog& stream_net_log,
+                                     CompletionCallback* callback) {
   request_info_ = request_info;
-  if (request_info_.method == "GET") {
-    int error = spdy_session_->GetPushStream(request_info.url, &stream_,
+  if (request_info_->method == "GET") {
+    int error = spdy_session_->GetPushStream(request_info_->url, &stream_,
                                              stream_net_log);
     if (error != OK)
       return error;
@@ -162,34 +159,9 @@ int SpdyHttpStream::InitializeStream(
   if (stream_.get())
     return OK;
   else
-    return spdy_session_->CreateStream(request_info_.url,
-                                       request_info_.priority, &stream_,
+    return spdy_session_->CreateStream(request_info_->url,
+                                       request_info_->priority, &stream_,
                                        stream_net_log, callback);
-}
-
-void SpdyHttpStream::InitializeRequest(
-    base::Time request_time,
-    UploadDataStream* upload_data) {
-  CHECK(stream_.get());
-  stream_->SetDelegate(this);
-  linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
-  CreateSpdyHeadersFromHttpRequest(request_info_, headers.get());
-  stream_->set_spdy_headers(headers);
-
-  stream_->SetRequestTime(request_time);
-  // This should only get called in the case of a request occuring
-  // during server push that has already begun but hasn't finished,
-  // so we set the response's request time to be the actual one
-  if (response_info_)
-    response_info_->request_time = request_time;
-
-  CHECK(!request_body_stream_.get());
-  if (upload_data) {
-    if (upload_data->size())
-      request_body_stream_.reset(upload_data);
-    else
-      delete upload_data;
-  }
 }
 
 const HttpResponseInfo* SpdyHttpStream::GetResponseInfo() const {
@@ -262,8 +234,33 @@ int SpdyHttpStream::ReadResponseBody(
   return ERR_IO_PENDING;
 }
 
-int SpdyHttpStream::SendRequest(HttpResponseInfo* response,
+int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
+                                UploadDataStream* request_body,
+                                HttpResponseInfo* response,
                                 CompletionCallback* callback) {
+  base::Time request_time = base::Time::Now();
+  CHECK(stream_.get());
+
+  stream_->SetDelegate(this);
+  linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
+  CreateSpdyHeadersFromHttpRequest(*request_info_, headers.get());
+  stream_->set_spdy_headers(headers);
+
+  stream_->SetRequestTime(request_time);
+  // This should only get called in the case of a request occurring
+  // during server push that has already begun but hasn't finished,
+  // so we set the response's request time to be the actual one
+  if (response_info_)
+    response_info_->request_time = request_time;
+
+  CHECK(!request_body_stream_.get());
+  if (request_body) {
+    if (request_body->size())
+      request_body_stream_.reset(request_body);
+    else
+      delete request_body;
+  }
+
   CHECK(callback);
   CHECK(!stream_->cancelled());
   CHECK(response);
@@ -343,7 +340,7 @@ int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
     stream_->GetSSLInfo(&response_info_->ssl_info,
                         &response_info_->was_npn_negotiated);
     response_info_->request_time = stream_->GetRequestTime();
-    response_info_->vary_data.Init(request_info_, *response_info_->headers);
+    response_info_->vary_data.Init(*request_info_, *response_info_->headers);
     // TODO(ahendrickson): This is recorded after the entire SYN_STREAM control
     // frame has been received and processed.  Move to framer?
     response_info_->response_time = response_time;

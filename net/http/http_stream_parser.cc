@@ -14,10 +14,11 @@
 namespace net {
 
 HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
+                                   const HttpRequestInfo* request,
                                    GrowableIOBuffer* read_buffer,
                                    const BoundNetLog& net_log)
     : io_state_(STATE_NONE),
-      request_(NULL),
+      request_(request),
       request_headers_(NULL),
       request_body_(NULL),
       read_buf_(read_buffer),
@@ -38,8 +39,7 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
 
 HttpStreamParser::~HttpStreamParser() {}
 
-int HttpStreamParser::SendRequest(const HttpRequestInfo* request,
-                                  const std::string& headers,
+int HttpStreamParser::SendRequest(const std::string& headers,
                                   UploadDataStream* request_body,
                                   HttpResponseInfo* response,
                                   CompletionCallback* callback) {
@@ -48,7 +48,6 @@ int HttpStreamParser::SendRequest(const HttpRequestInfo* request,
   DCHECK(callback);
   DCHECK(response);
 
-  request_ = request;
   response_ = response;
   scoped_refptr<StringIOBuffer> headers_io_buf = new StringIOBuffer(headers);
   request_headers_ = new DrainableIOBuffer(headers_io_buf,
