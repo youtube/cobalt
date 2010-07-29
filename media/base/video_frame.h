@@ -33,6 +33,7 @@ class VideoFrame : public StreamSample {
     RGBA,        // 32bpp RGBA packed 8:8:8:8
     YV12,        // 12bpp YVU planar 1x1 Y, 2x2 VU samples
     YV16,        // 16bpp YVU planar 1x1 Y, 2x1 VU samples
+    NV12,        // 12bpp YVU planar 1x1 Y, 2x2 UV interleaving samples
     EMPTY,       // An empty frame.
     ASCII,       // A frame with ASCII content. For testing only.
   };
@@ -41,6 +42,8 @@ class VideoFrame : public StreamSample {
     TYPE_SYSTEM_MEMORY,
     TYPE_OMXBUFFERHEAD,
     TYPE_EGL_IMAGE,
+    TYPE_MFBUFFER,
+    TYPE_DIRECT3DSURFACE
   };
 
  public:
