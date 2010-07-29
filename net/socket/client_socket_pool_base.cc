@@ -653,7 +653,6 @@ void ClientSocketPoolBaseHelper::OnIPAddressChanged() {
 
 void ClientSocketPoolBaseHelper::Flush() {
   pool_generation_number_++;
-  CancelAllConnectJobs();
   CloseIdleSockets();
 }
 
