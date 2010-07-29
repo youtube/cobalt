@@ -67,14 +67,14 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   request.url = GURL("http://www.google.com/");
   TestCompletionCallback callback;
   HttpResponseInfo response;
-  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream());
+  BoundNetLog net_log;
+  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream(session_.get()));
   ASSERT_EQ(
       OK,
-      http_stream->InitializeStream(session_, request, BoundNetLog(), NULL));
-  http_stream->InitializeRequest(base::Time::Now(), NULL);
+      http_stream->InitializeStream(&request, net_log, NULL));
 
   EXPECT_EQ(ERR_IO_PENDING,
-            http_stream->SendRequest(&response, &callback));
+            http_stream->SendRequest("", NULL, &response, &callback));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(host_port_pair));
 
   // This triggers the MockWrite and reads 2 & 3
@@ -93,30 +93,39 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   EnableCompression(false);
   SpdySession::SetSSLMode(false);
 
+  const char * const full_url = "http://www.google.com/foo?query=what#anchor";
+  const char * const base_url = "http://www.google.com/foo?query=what";
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(base_url, false, 1, LOWEST));
+  MockWrite writes[] = {
+    CreateMockWrite(*req.get(), 1),
+  };
   MockRead reads[] = {
     MockRead(false, 0, 2),  // EOF
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
-  EXPECT_EQ(OK, InitSession(reads, arraysize(reads), NULL, 0,
+  EXPECT_EQ(OK, InitSession(reads, arraysize(reads), writes, arraysize(writes),
       host_port_pair));
 
   HttpRequestInfo request;
   request.method = "GET";
-  request.url = GURL("http://www.google.com/foo?query=what#anchor");
+  request.url = GURL(full_url);
   TestCompletionCallback callback;
   HttpResponseInfo response;
-  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream());
+  BoundNetLog net_log;
+  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream(session_));
   ASSERT_EQ(
       OK,
-      http_stream->InitializeStream(session_, request, BoundNetLog(), NULL));
-  http_stream->InitializeRequest(base::Time::Now(), NULL);
+      http_stream->InitializeStream(&request, net_log, NULL));
+
+  EXPECT_EQ(ERR_IO_PENDING,
+            http_stream->SendRequest("", NULL, &response, &callback));
 
   spdy::SpdyHeaderBlock* spdy_header =
     http_stream->stream()->spdy_headers().get();
+  EXPECT_TRUE(spdy_header != NULL);
   if (spdy_header->find("url") != spdy_header->end())
-    EXPECT_EQ("http://www.google.com/foo?query=what",
-              spdy_header->find("url")->second);
+    EXPECT_EQ(base_url, spdy_header->find("url")->second);
   else
     FAIL() << "No url is set in spdy_header!";
 

@@ -319,9 +319,9 @@ int HttpProxyClientSocket::DoSendRequest() {
     request_headers_ = request_line + request_headers.ToString();
   }
 
-  http_stream_.reset(new HttpBasicStream(transport_.get(), net_log_));
-
-  return http_stream_->SendRequest(&request_, request_headers_, NULL,
+  http_stream_.reset(new HttpBasicStream(transport_.get()));
+  http_stream_->InitializeStream(&request_, net_log_, NULL);
+  return http_stream_->SendRequest(request_headers_, NULL,
                                    &response_, &io_callback_);
 }
 

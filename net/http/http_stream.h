@@ -22,19 +22,25 @@ struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class UploadDataStream;
+class BoundNetLog;
 
 class HttpStream {
  public:
   HttpStream() {}
   virtual ~HttpStream() {}
 
+  // Initialize stream.  Must be called before calling SendRequest().
+  // Returns a net error code, possibly ERR_IO_PENDING.
+  virtual int InitializeStream(const HttpRequestInfo* request_info,
+                               const BoundNetLog& net_log,
+                               CompletionCallback* callback) = 0;
+
   // Writes the headers and uploads body data to the underlying socket.
   // ERR_IO_PENDING is returned if the operation could not be completed
   // synchronously, in which case the result will be passed to the callback
   // when available. Returns OK on success. The HttpStream takes ownership
   // of the request_body.
-  virtual int SendRequest(const HttpRequestInfo* request,
-                          const std::string& request_headers,
+  virtual int SendRequest(const std::string& request_headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           CompletionCallback* callback) = 0;
@@ -50,7 +56,7 @@ class HttpStream {
   virtual int ReadResponseHeaders(CompletionCallback* callback) = 0;
 
   // Provides access to HttpResponseInfo (owned by HttpStream).
-  virtual HttpResponseInfo* GetResponseInfo() const = 0;
+  virtual const HttpResponseInfo* GetResponseInfo() const = 0;
 
   // Reads response body data, up to |buf_len| bytes. |buf_len| should be a
   // reasonable size (<2MB). The number of bytes read is returned, or an
