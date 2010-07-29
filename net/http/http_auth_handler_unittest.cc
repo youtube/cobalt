@@ -4,6 +4,7 @@
 
 #include "net/http/http_auth_handler.h"
 
+#include "base/string_util.h"
 #include "net/base/capturing_net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log_unittest.h"
@@ -18,8 +19,8 @@ TEST(HttpAuthHandlerTest, NetLog) {
   NetLog::Source source;
   GURL origin("http://www.example.com");
   std::string challenge = "Mock asdf";
-  std::wstring username = L"user";
-  std::wstring password = L"pass";
+  string16 username = ASCIIToUTF16("user");
+  string16 password = ASCIIToUTF16("pass");
   std::string auth_token;
   HttpRequestInfo request;
 

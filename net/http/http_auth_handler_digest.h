@@ -6,6 +6,9 @@
 #define NET_HTTP_HTTP_AUTH_HANDLER_DIGEST_H_
 #pragma once
 
+#include <string>
+
+#include "base/string16.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 
@@ -36,8 +39,8 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     return ParseChallenge(challenge);
   }
 
-  virtual int GenerateAuthTokenImpl(const std::wstring* username,
-                                    const std::wstring* password,
+  virtual int GenerateAuthTokenImpl(const string16* username,
+                                    const string16* password,
                                     const HttpRequestInfo* request,
                                     CompletionCallback* callback,
                                     std::string* auth_token);
@@ -97,16 +100,16 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
   // Build up  the 'response' production.
   std::string AssembleResponseDigest(const std::string& method,
                                      const std::string& path,
-                                     const std::string& username,
-                                     const std::string& password,
+                                     const string16& username,
+                                     const string16& password,
                                      const std::string& cnonce,
                                      const std::string& nc) const;
 
   // Build up  the value for (Authorization/Proxy-Authorization).
   std::string AssembleCredentials(const std::string& method,
                                   const std::string& path,
-                                  const std::string& username,
-                                  const std::string& password,
+                                  const string16& username,
+                                  const string16& password,
                                   const std::string& cnonce,
                                   int nonce_count) const;
 
@@ -121,7 +124,7 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
   std::string opaque_;
   bool stale_;
   DigestAlgorithm algorithm_;
-  int qop_; // Bitfield of QualityOfProtection
+  int qop_;  // Bitfield of QualityOfProtection
 
   int nonce_count_;
 

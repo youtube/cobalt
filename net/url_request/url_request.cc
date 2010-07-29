@@ -1,4 +1,4 @@
-// Copyright (c) 20010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,6 @@
 using base::Time;
 using net::UploadData;
 using std::string;
-using std::wstring;
 
 namespace {
 
@@ -395,7 +394,7 @@ void URLRequest::FollowDeferredRedirect() {
   job_->FollowDeferredRedirect();
 }
 
-void URLRequest::SetAuth(const wstring& username, const wstring& password) {
+void URLRequest::SetAuth(const string16& username, const string16& password) {
   DCHECK(job_);
   DCHECK(job_->NeedsAuth());
 

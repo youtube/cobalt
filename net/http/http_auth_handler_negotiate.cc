@@ -44,8 +44,8 @@ HttpAuthHandlerNegotiate::~HttpAuthHandlerNegotiate() {
 }
 
 int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
-    const std::wstring* username,
-    const std::wstring* password,
+    const string16* username,
+    const string16* password,
     const HttpRequestInfo* request,
     CompletionCallback* callback,
     std::string* auth_token) {
@@ -223,8 +223,8 @@ int HttpAuthHandlerNegotiate::DoResolveCanonicalNameComplete(int rv) {
 
 int HttpAuthHandlerNegotiate::DoGenerateAuthToken() {
   next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
-  std::wstring* username = has_username_and_password_ ? &username_ : NULL;
-  std::wstring* password = has_username_and_password_ ? &password_ : NULL;
+  string16* username = has_username_and_password_ ? &username_ : NULL;
+  string16* password = has_username_and_password_ ? &password_ : NULL;
   // TODO(cbentzel): This should possibly be done async.
   return auth_system_.GenerateAuthToken(username, password, spn_, auth_token_);
 }

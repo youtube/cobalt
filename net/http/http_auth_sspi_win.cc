@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth.h"
 
@@ -43,9 +44,9 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
 
 int AcquireExplicitCredentials(SSPILibrary* library,
                                const SEC_WCHAR* package,
-                               const std::wstring& domain,
-                               const std::wstring& user,
-                               const std::wstring& password,
+                               const string16& domain,
+                               const string16& user,
+                               const string16& password,
                                CredHandle* cred) {
   SEC_WINNT_AUTH_IDENTITY identity;
   identity.Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
@@ -159,8 +160,8 @@ bool HttpAuthSSPI::ParseChallenge(HttpAuth::ChallengeTokenizer* tok) {
   return true;
 }
 
-int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
-                                    const std::wstring* password,
+int HttpAuthSSPI::GenerateAuthToken(const string16* username,
+                                    const string16* password,
                                     const std::wstring& spn,
                                     std::string* auth_token) {
   DCHECK((username == NULL) == (password == NULL));
@@ -199,14 +200,14 @@ int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
   return OK;
 }
 
-int HttpAuthSSPI::OnFirstRound(const std::wstring* username,
-                               const std::wstring* password) {
+int HttpAuthSSPI::OnFirstRound(const string16* username,
+                               const string16* password) {
   DCHECK((username == NULL) == (password == NULL));
   DCHECK(!SecIsValidHandle(&cred_));
   int rv = OK;
   if (username) {
-    std::wstring domain;
-    std::wstring user;
+    string16 domain;
+    string16 user;
     SplitDomainAndUser(*username, &domain, &user);
     rv = AcquireExplicitCredentials(library_, security_package_, domain,
                                     user, *password, &cred_);
@@ -300,14 +301,14 @@ int HttpAuthSSPI::GetNextSecurityToken(
   return OK;
 }
 
-void SplitDomainAndUser(const std::wstring& combined,
-                        std::wstring* domain,
-                        std::wstring* user) {
+void SplitDomainAndUser(const string16& combined,
+                        string16* domain,
+                        string16* user) {
   // |combined| may be in the form "user" or "DOMAIN\user".
-  // Separatethe two parts if they exist.
+  // Separate the two parts if they exist.
   // TODO(cbentzel): I believe user@domain is also a valid form.
   size_t backslash_idx = combined.find(L'\\');
-  if (backslash_idx == std::wstring::npos) {
+  if (backslash_idx == string16::npos) {
     domain->clear();
     *user = combined;
   } else {

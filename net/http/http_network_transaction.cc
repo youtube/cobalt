@@ -318,8 +318,8 @@ int HttpNetworkTransaction::RestartWithCertificate(
 }
 
 int HttpNetworkTransaction::RestartWithAuth(
-    const std::wstring& username,
-    const std::wstring& password,
+    const string16& username,
+    const string16& password,
     CompletionCallback* callback) {
   HttpAuth::Target target = pending_auth_target_;
   if (target == HttpAuth::AUTH_NONE) {

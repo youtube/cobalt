@@ -117,8 +117,8 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
     return ParseChallenge(tok);
   }
 
-  virtual int GenerateAuthTokenImpl(const std::wstring* username,
-                                    const std::wstring* password,
+  virtual int GenerateAuthTokenImpl(const string16* username,
+                                    const string16* password,
                                     const HttpRequestInfo* request,
                                     CompletionCallback* callback,
                                     std::string* auth_token);

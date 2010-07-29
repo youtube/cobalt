@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/string16.h"
 #include "base/time.h"
 #include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
@@ -68,8 +69,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   virtual int RestartIgnoringLastError(CompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      CompletionCallback* callback);
-  virtual int RestartWithAuth(const std::wstring& username,
-                              const std::wstring& password,
+  virtual int RestartWithAuth(const string16& username,
+                              const string16& password,
                               CompletionCallback* callback);
   virtual bool IsReadyToRestartForAuth() {
     return pending_auth_target_ != HttpAuth::AUTH_NONE &&

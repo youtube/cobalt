@@ -14,6 +14,7 @@
 #include "base/linked_ptr.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/string16.h"
 #include "base/task.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
@@ -133,8 +134,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   // Restarts with authentication info.
   // Should be used for response of OnAuthRequired.
   virtual void RestartWithAuth(
-      const std::wstring& username,
-      const std::wstring& password);
+      const string16& username,
+      const string16& password);
 
   // Detach delegate.  Call before delegate is deleted.
   // Once delegate is detached, close the socket stream and never call delegate

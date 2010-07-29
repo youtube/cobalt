@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 #include "base/logging.h"
 #include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
+#include "base/string16.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/load_states.h"
 #include "net/base/net_log.h"
@@ -504,7 +505,7 @@ class URLRequest : public NonThreadSafe {
   // OnAuthRequired() callback (and only then).
   // SetAuth will reissue the request with the given credentials.
   // CancelAuth will give up and display the error page.
-  void SetAuth(const std::wstring& username, const std::wstring& password);
+  void SetAuth(const string16& username, const string16& password);
   void CancelAuth();
 
   // This method can be called after the user selects a client certificate to

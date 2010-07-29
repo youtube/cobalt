@@ -6,6 +6,9 @@
 #define NET_HTTP_HTTP_AUTH_HANDLER_BASIC_H_
 #pragma once
 
+#include <string>
+
+#include "base/string16.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 
@@ -31,8 +34,8 @@ class HttpAuthHandlerBasic : public HttpAuthHandler {
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
-  virtual int GenerateAuthTokenImpl(const std::wstring* username,
-                                    const std::wstring* password,
+  virtual int GenerateAuthTokenImpl(const string16* username,
+                                    const string16* password,
                                     const HttpRequestInfo* request,
                                     CompletionCallback* callback,
                                     std::string* auth_token);
