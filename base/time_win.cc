@@ -332,13 +332,13 @@ class HighResNowSingleton {
 
   TimeDelta Now() {
     // Our maximum tolerance for QPC drifting.
-    const int kMaxTimeDrift = 50 * Time::kMicrosecondsPerMillisecond;
+    const int kMaxTimeDriftMicroseconds = 60150;
 
     if (IsUsingHighResClock()) {
       int64 now = UnreliableNow();
 
       // Verify that QPC does not seem to drift.
-      DCHECK_LT(now - ReliableNow() - skew_, kMaxTimeDrift);
+      DCHECK_LT(abs((now - ReliableNow()) - skew_), kMaxTimeDriftMicroseconds);
 
       return TimeDelta::FromMicroseconds(now);
     }
