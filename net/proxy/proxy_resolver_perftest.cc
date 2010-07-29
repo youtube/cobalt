@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/base_paths.h"
+#include "base/file_util.h"
+#include "base/path_service.h"
 #include "base/perftimer.h"
 #include "base/string_util.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/net_errors.h"
+#include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_v8.h"
-#include "net/url_request/url_request_unittest.h"
+#include "net/test/test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)
@@ -144,7 +149,7 @@ class PacPerfSuiteRunner {
   void InitHttpServer() {
     DCHECK(!resolver_->expects_pac_bytes());
     if (!server_) {
-      server_ = HTTPTestServer::CreateServer(
+      server_ = net::HTTPTestServer::CreateServer(
           L"net/data/proxy_resolver_perftest");
     }
     ASSERT_TRUE(server_.get() != NULL);
@@ -175,7 +180,7 @@ class PacPerfSuiteRunner {
 
   net::ProxyResolver* resolver_;
   std::string resolver_name_;
-  scoped_refptr<HTTPTestServer> server_;
+  scoped_refptr<net::HTTPTestServer> server_;
 };
 
 #if defined(OS_WIN)

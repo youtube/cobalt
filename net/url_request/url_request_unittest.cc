@@ -48,6 +48,10 @@
 #include "testing/platform_test.h"
 
 using base::Time;
+using net::kHTTPDefaultPort;
+using net::FTPTestServer;
+using net::HTTPTestServer;
+using net::HTTPSTestServer;
 
 namespace {
 
