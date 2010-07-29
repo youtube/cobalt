@@ -44,6 +44,23 @@
 
 //-----------------------------------------------------------------------------
 
+namespace {
+
+const string16 kBar(ASCIIToUTF16("bar"));
+const string16 kBar2(ASCIIToUTF16("bar2"));
+const string16 kBar3(ASCIIToUTF16("bar3"));
+const string16 kBaz(ASCIIToUTF16("baz"));
+const string16 kFirst(ASCIIToUTF16("first"));
+const string16 kFoo(ASCIIToUTF16("foo"));
+const string16 kFoo2(ASCIIToUTF16("foo2"));
+const string16 kFoo3(ASCIIToUTF16("foo3"));
+const string16 kFou(ASCIIToUTF16("fou"));
+const string16 kSecond(ASCIIToUTF16("second"));
+const string16 kTestingNTLM(ASCIIToUTF16("testing-ntlm"));
+const string16 kWrongPassword(ASCIIToUTF16("wrongpassword"));
+
+}  // namespace
+
 namespace net {
 
 class HttpNetworkSessionPeer {
@@ -945,7 +962,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
 
   TestCompletionCallback callback2;
 
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -1061,7 +1078,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
 
   TestCompletionCallback callback2;
 
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -1134,7 +1151,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
 
   TestCompletionCallback callback2;
 
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -1215,7 +1232,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
 
   TestCompletionCallback callback2;
 
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -1306,7 +1323,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveImpatientServer) {
 
   TestCompletionCallback callback2;
 
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -1404,7 +1421,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
   TestCompletionCallback callback2;
 
   // Wrong password (should be "bar").
-  rv = trans->RestartWithAuth(L"foo", L"baz", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBaz, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -1842,7 +1859,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
 
   TestCompletionCallback callback2;
 
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -1858,7 +1875,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
 
   TestCompletionCallback callback3;
 
-  rv = trans->RestartWithAuth(L"foo2", L"bar2", &callback3);
+  rv = trans->RestartWithAuth(kFoo2, kBar2, &callback3);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback3.WaitForResult();
@@ -1972,7 +1989,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
 
   EXPECT_TRUE(trans->IsReadyToRestartForAuth());
   TestCompletionCallback callback2;
-  rv = trans->RestartWithAuth(std::wstring(), std::wstring(), &callback2);
+  rv = trans->RestartWithAuth(string16(), string16(), &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback2.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -1991,7 +2008,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
 
   TestCompletionCallback callback3;
 
-  rv = trans->RestartWithAuth(L"testing-ntlm", L"testing-ntlm", &callback3);
+  rv = trans->RestartWithAuth(kTestingNTLM, kTestingNTLM, &callback3);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback3.WaitForResult();
@@ -2150,7 +2167,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
 
   EXPECT_TRUE(trans->IsReadyToRestartForAuth());
   TestCompletionCallback callback2;
-  rv = trans->RestartWithAuth(std::wstring(), std::wstring(), &callback2);
+  rv = trans->RestartWithAuth(string16(), string16(), &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback2.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -2169,7 +2186,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   TestCompletionCallback callback3;
 
   // Enter the wrong password.
-  rv = trans->RestartWithAuth(L"testing-ntlm", L"wrongpassword", &callback3);
+  rv = trans->RestartWithAuth(kTestingNTLM, kWrongPassword, &callback3);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback3.WaitForResult();
@@ -2177,7 +2194,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
 
   EXPECT_TRUE(trans->IsReadyToRestartForAuth());
   TestCompletionCallback callback4;
-  rv = trans->RestartWithAuth(std::wstring(), std::wstring(), &callback4);
+  rv = trans->RestartWithAuth(string16(), string16(), &callback4);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback4.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -2196,7 +2213,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   TestCompletionCallback callback5;
 
   // Now enter the right password.
-  rv = trans->RestartWithAuth(L"testing-ntlm", L"testing-ntlm", &callback5);
+  rv = trans->RestartWithAuth(kTestingNTLM, kTestingNTLM, &callback5);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback5.WaitForResult();
@@ -2569,7 +2586,7 @@ TEST_F(HttpNetworkTransactionTest, AuthIdentityInURL) {
 
   EXPECT_TRUE(trans->IsReadyToRestartForAuth());
   TestCompletionCallback callback2;
-  rv = trans->RestartWithAuth(std::wstring(), std::wstring(), &callback2);
+  rv = trans->RestartWithAuth(string16(), string16(), &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback2.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -2667,7 +2684,7 @@ TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
 
   EXPECT_TRUE(trans->IsReadyToRestartForAuth());
   TestCompletionCallback callback2;
-  rv = trans->RestartWithAuth(std::wstring(), std::wstring(), &callback2);
+  rv = trans->RestartWithAuth(string16(), string16(), &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback2.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -2683,7 +2700,7 @@ TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
   EXPECT_EQ(L"basic", response->auth_challenge->scheme);
 
   TestCompletionCallback callback3;
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback3);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback3);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback3.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -2771,7 +2788,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     TestCompletionCallback callback2;
 
-    rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+    rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback2.WaitForResult();
@@ -2856,7 +2873,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     TestCompletionCallback callback2;
 
-    rv = trans->RestartWithAuth(L"foo2", L"bar2", &callback2);
+    rv = trans->RestartWithAuth(kFoo2, kBar2, &callback2);
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback2.WaitForResult();
@@ -2972,7 +2989,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     EXPECT_TRUE(trans->IsReadyToRestartForAuth());
     TestCompletionCallback callback2;
-    rv = trans->RestartWithAuth(std::wstring(), std::wstring(), &callback2);
+    rv = trans->RestartWithAuth(string16(), string16(), &callback2);
     EXPECT_EQ(ERR_IO_PENDING, rv);
     rv = callback2.WaitForResult();
     EXPECT_EQ(OK, rv);
@@ -3061,7 +3078,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     EXPECT_TRUE(trans->IsReadyToRestartForAuth());
     TestCompletionCallback callback2;
-    rv = trans->RestartWithAuth(std::wstring(), std::wstring(), &callback2);
+    rv = trans->RestartWithAuth(string16(), string16(), &callback2);
     EXPECT_EQ(ERR_IO_PENDING, rv);
     rv = callback2.WaitForResult();
     EXPECT_EQ(OK, rv);
@@ -3080,7 +3097,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     TestCompletionCallback callback3;
 
-    rv = trans->RestartWithAuth(L"foo3", L"bar3", &callback3);
+    rv = trans->RestartWithAuth(kFoo3, kBar3, &callback3);
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback3.WaitForResult();
@@ -3167,7 +3184,7 @@ TEST_F(HttpNetworkTransactionTest, DigestPreAuthNonceCount) {
 
     TestCompletionCallback callback2;
 
-    rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+    rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback2.WaitForResult();
@@ -4528,7 +4545,7 @@ TEST_F(HttpNetworkTransactionTest, DrainResetOK) {
 
   TestCompletionCallback callback2;
 
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -4796,7 +4813,7 @@ TEST_F(HttpNetworkTransactionTest, UnreadableUploadFileAfterAuthRestart) {
 
   TestCompletionCallback callback2;
 
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback2.WaitForResult();
@@ -4915,7 +4932,7 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   // password prompt for second_realm waiting to be filled in after the
   // transaction completes.
   TestCompletionCallback callback2;
-  rv = trans->RestartWithAuth(L"first", L"baz", &callback2);
+  rv = trans->RestartWithAuth(kFirst, kBaz, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback2.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -4931,7 +4948,7 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   // prompt is not present, it indicates that the HttpAuthCacheEntry for
   // first_realm was not correctly removed.
   TestCompletionCallback callback3;
-  rv = trans->RestartWithAuth(L"second", L"fou", &callback3);
+  rv = trans->RestartWithAuth(kSecond, kFou, &callback3);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback3.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -4944,7 +4961,7 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
 
   // Issue the fourth request with the correct password and username.
   TestCompletionCallback callback4;
-  rv = trans->RestartWithAuth(L"first", L"bar", &callback4);
+  rv = trans->RestartWithAuth(kFirst, kBar, &callback4);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback4.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -5896,7 +5913,7 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       if (round == 0) {
         rv = trans->Start(&request, &callback, BoundNetLog());
       } else {
-        rv = trans->RestartWithAuth(L"foo", L"bar", &callback);
+        rv = trans->RestartWithAuth(kFoo, kBar, &callback);
       }
       if (rv == ERR_IO_PENDING)
         rv = callback.WaitForResult();
@@ -6008,7 +6025,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
 
   // Second round
   auth_handler->SetGenerateExpectation(false, OK);
-  rv = trans->RestartWithAuth(L"foo", L"bar", &callback);
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback);
   if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -6018,7 +6035,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
 
   // Third round
   auth_handler->SetGenerateExpectation(false, OK);
-  rv = trans->RestartWithAuth(L"", L"", &callback);
+  rv = trans->RestartWithAuth(string16(), string16(), &callback);
   if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);

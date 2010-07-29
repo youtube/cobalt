@@ -4,12 +4,15 @@
 
 #include "net/http/http_cache_transaction.h"
 
-#include "base/compiler_specific.h"
+#include "build/build_config.h"
 
 #if defined(OS_POSIX)
 #include <unistd.h>
 #endif
 
+#include <string>
+
+#include "base/compiler_specific.h"
 #include "base/histogram.h"
 #include "base/ref_counted.h"
 #include "base/string_util.h"
@@ -223,8 +226,8 @@ int HttpCache::Transaction::RestartWithCertificate(
 }
 
 int HttpCache::Transaction::RestartWithAuth(
-    const std::wstring& username,
-    const std::wstring& password,
+    const string16& username,
+    const string16& password,
     CompletionCallback* callback) {
   DCHECK(auth_response_.headers);
   DCHECK(callback);
@@ -1497,8 +1500,8 @@ int HttpCache::Transaction::RestartNetworkRequestWithCertificate(
 }
 
 int HttpCache::Transaction::RestartNetworkRequestWithAuth(
-    const std::wstring& username,
-    const std::wstring& password) {
+    const string16& username,
+    const string16& password) {
   DCHECK(mode_ & WRITE || mode_ == NONE);
   DCHECK(network_trans_.get());
   DCHECK_EQ(STATE_NONE, next_state_);

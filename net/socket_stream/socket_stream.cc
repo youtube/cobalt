@@ -196,7 +196,7 @@ void SocketStream::Close() {
 }
 
 void SocketStream::RestartWithAuth(
-    const std::wstring& username, const std::wstring& password) {
+    const string16& username, const string16& password) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<

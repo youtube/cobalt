@@ -73,8 +73,8 @@ int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
   bool needs_auth = HaveAuth() || SelectPreemptiveAuth(net_log);
   if (!needs_auth)
     return OK;
-  const std::wstring* username = NULL;
-  const std::wstring* password = NULL;
+  const string16* username = NULL;
+  const string16* password = NULL;
   if (identity_.source != HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS) {
     username = &identity_.username;
     password = &identity_.password;
@@ -219,8 +219,8 @@ int HttpAuthController::HandleAuthChallenge(
   return OK;
 }
 
-void HttpAuthController::ResetAuth(const std::wstring& username,
-                                   const std::wstring& password) {
+void HttpAuthController::ResetAuth(const string16& username,
+                                   const string16& password) {
   DCHECK(identity_.invalid || (username.empty() && password.empty()));
 
   if (identity_.invalid) {
