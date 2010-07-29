@@ -8,7 +8,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "net/url_request/url_request_unittest.h"
+#include "net/test/test_server.h"
 
 static void PrintUsage() {
   printf("run_testserver --doc-root=relpath [--http|--https|--ftp]\n");
@@ -36,10 +36,10 @@ int main(int argc, const char* argv[]) {
     port = net::TestServerLauncher::kOKHTTPSPort;
   } else if (command_line->HasSwitch("ftp")) {
     protocol = "ftp";
-    port = kFTPDefaultPort;
+    port = net::kFTPDefaultPort;
   } else {
     protocol = "http";
-    port = kHTTPDefaultPort;
+    port = net::kHTTPDefaultPort;
   }
   std::wstring doc_root = command_line->GetSwitchValue("doc-root");
   if (doc_root.empty()) {
@@ -49,13 +49,13 @@ int main(int argc, const char* argv[]) {
   }
 
   // Launch testserver
-  scoped_refptr<BaseTestServer> test_server;
+  scoped_refptr<net::BaseTestServer> test_server;
   if (protocol == "https") {
-    test_server = HTTPSTestServer::CreateGoodServer(doc_root);
+    test_server = net::HTTPSTestServer::CreateGoodServer(doc_root);
   } else if (protocol == "ftp") {
-    test_server = FTPTestServer::CreateServer(doc_root);
+    test_server = net::FTPTestServer::CreateServer(doc_root);
   } else if (protocol == "http") {
-    test_server = HTTPTestServer::CreateServer(doc_root);
+    test_server = net::HTTPTestServer::CreateServer(doc_root);
   } else {
     NOTREACHED();
   }
