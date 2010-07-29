@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/ref_counted.h"
+#include "base/string16.h"
 
 namespace net {
 
@@ -51,8 +52,8 @@ class AuthData : public base::RefCountedThreadSafe<AuthData> {
  public:
   AuthState state;  // whether we need, have, or gave up on authentication.
   std::wstring scheme;  // the authentication scheme.
-  std::wstring username;  // the username supplied to us for auth.
-  std::wstring password;  // the password supplied to us for auth.
+  string16 username;  // the username supplied to us for auth.
+  string16 password;  // the password supplied to us for auth.
 
   // We wouldn't instantiate this class if we didn't need authentication.
   AuthData() : state(AUTH_STATE_NEED_AUTH) {}

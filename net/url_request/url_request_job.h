@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/string16.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/filter.h"
@@ -171,8 +172,8 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
       scoped_refptr<net::AuthChallengeInfo>* auth_info);
 
   // Resend the request with authentication credentials.
-  virtual void SetAuth(const std::wstring& username,
-                       const std::wstring& password);
+  virtual void SetAuth(const string16& username,
+                       const string16& password);
 
   // Display the error page without asking for credentials again.
   virtual void CancelAuth();

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -110,8 +110,8 @@ void URLRequestJob::GetAuthChallengeInfo(
   NOTREACHED();
 }
 
-void URLRequestJob::SetAuth(const std::wstring& username,
-                            const std::wstring& password) {
+void URLRequestJob::SetAuth(const string16& username,
+                            const string16& password) {
   // This will only be called if NeedsAuth() returns true, in which
   // case the derived class should implement this!
   NOTREACHED();

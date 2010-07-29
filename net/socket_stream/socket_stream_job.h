@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/ref_counted.h"
+#include "base/string16.h"
 #include "net/socket_stream/socket_stream.h"
 
 class GURL;
@@ -65,8 +66,8 @@ class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
   }
 
   virtual void RestartWithAuth(
-      const std::wstring& username,
-      const std::wstring& password) {
+      const string16& username,
+      const string16& password) {
     socket_->RestartWithAuth(username, password);
   }
 

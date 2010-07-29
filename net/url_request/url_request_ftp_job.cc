@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -90,8 +90,8 @@ void URLRequestFtpJob::GetAuthChallengeInfo(
   result->swap(auth_info);
 }
 
-void URLRequestFtpJob::SetAuth(const std::wstring& username,
-                               const std::wstring& password) {
+void URLRequestFtpJob::SetAuth(const string16& username,
+                               const string16& password) {
   DCHECK(NeedsAuth());
   server_auth_->state = net::AUTH_STATE_HAVE_AUTH;
   server_auth_->username = username;

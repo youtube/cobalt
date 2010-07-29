@@ -76,8 +76,8 @@ bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
   return true;
 }
 
-int HttpAuthHandlerMock::GenerateAuthTokenImpl(const std::wstring* username,
-                                               const std::wstring* password,
+int HttpAuthHandlerMock::GenerateAuthTokenImpl(const string16* username,
+                                               const string16* password,
                                                const HttpRequestInfo* request,
                                                CompletionCallback* callback,
                                                std::string* auth_token) {

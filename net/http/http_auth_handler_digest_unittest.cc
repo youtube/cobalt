@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "testing/gtest/include/gtest/gtest.h"
+#include <string>
 
 #include "base/basictypes.h"
+#include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_handler_digest.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
@@ -276,12 +278,13 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
 
     HttpAuthHandlerDigest* digest =
         static_cast<HttpAuthHandlerDigest*>(handler.get());
-    std::string creds = digest->AssembleCredentials(tests[i].req_method,
-                                                    tests[i].req_path,
-                                                    tests[i].username,
-                                                    tests[i].password,
-                                                    tests[i].cnonce,
-                                                    tests[i].nonce_count);
+    std::string creds =
+        digest->AssembleCredentials(tests[i].req_method,
+                                    tests[i].req_path,
+                                    ASCIIToUTF16(tests[i].username),
+                                    ASCIIToUTF16(tests[i].password),
+                                    tests[i].cnonce,
+                                    tests[i].nonce_count);
 
     EXPECT_STREQ(tests[i].expected_creds, creds.c_str());
   }

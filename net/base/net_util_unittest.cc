@@ -575,54 +575,54 @@ TEST(NetUtilTest, FileURLConversion) {
 TEST(NetUtilTest, GetIdentityFromURL) {
   struct {
     const char* input_url;
-    const wchar_t* expected_username;
-    const wchar_t* expected_password;
+    const char* expected_username;
+    const char* expected_password;
   } tests[] = {
     {
       "http://username:password@google.com",
-      L"username",
-      L"password",
+      "username",
+      "password",
     },
     { // Test for http://crbug.com/19200
       "http://username:p@ssword@google.com",
-      L"username",
-      L"p@ssword",
+      "username",
+      "p@ssword",
     },
     { // Special URL characters should be unescaped.
       "http://username:p%3fa%26s%2fs%23@google.com",
-      L"username",
-      L"p?a&s/s#",
+      "username",
+      "p?a&s/s#",
     },
     { // Username contains %20.
       "http://use rname:password@google.com",
-      L"use rname",
-      L"password",
+      "use rname",
+      "password",
     },
     { // Keep %00 as is.
       "http://use%00rname:password@google.com",
-      L"use%00rname",
-      L"password",
+      "use%00rname",
+      "password",
     },
     { // Use a '+' in the username.
       "http://use+rname:password@google.com",
-      L"use+rname",
-      L"password",
+      "use+rname",
+      "password",
     },
     { // Use a '&' in the password.
       "http://username:p&ssword@google.com",
-      L"username",
-      L"p&ssword",
+      "username",
+      "p&ssword",
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, tests[i].input_url));
     GURL url(tests[i].input_url);
 
-    std::wstring username, password;
+    string16 username, password;
     net::GetIdentityFromURL(url, &username, &password);
 
-    EXPECT_EQ(tests[i].expected_username, username);
-    EXPECT_EQ(tests[i].expected_password, password);
+    EXPECT_EQ(ASCIIToUTF16(tests[i].expected_username), username);
+    EXPECT_EQ(ASCIIToUTF16(tests[i].expected_password), password);
   }
 }
 
@@ -634,12 +634,12 @@ TEST(NetUtilTest, GetIdentityFromURL_UTF8) {
   EXPECT_EQ("%E4%BD%A0%E5%A5%BD", url.password());
 
   // Extract the unescaped identity.
-  std::wstring username, password;
+  string16 username, password;
   net::GetIdentityFromURL(url, &username, &password);
 
   // Verify that it was decoded as UTF8.
-  EXPECT_EQ(L"foo", username);
-  EXPECT_EQ(L"\x4f60\x597d", password);
+  EXPECT_EQ(ASCIIToUTF16("foo"), username);
+  EXPECT_EQ(WideToUTF16(L"\x4f60\x597d"), password);
 }
 
 // Just a bunch of fake headers.

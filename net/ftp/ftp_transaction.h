@@ -1,11 +1,12 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef NET_FTP_FTP_TRANSACTION_H_
 #define NET_FTP_FTP_TRANSACTION_H_
 #pragma once
 
+#include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
@@ -42,8 +43,8 @@ class FtpTransaction {
                     const BoundNetLog& net_log) = 0;
 
   // Restarts the FTP transaction with authentication credentials.
-  virtual int RestartWithAuth(const std::wstring& username,
-                              const std::wstring& password,
+  virtual int RestartWithAuth(const string16& username,
+                              const string16& password,
                               CompletionCallback* callback) = 0;
 
   // Once response info is available for the transaction, response data may be

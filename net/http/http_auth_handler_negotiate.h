@@ -8,8 +8,7 @@
 
 #include <string>
 
-#include "build/build_config.h"
-
+#include "base/string16.h"
 #include "build/build_config.h"
 #include "net/base/address_list.h"
 #include "net/http/http_auth_handler.h"
@@ -119,8 +118,8 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
-  virtual int GenerateAuthTokenImpl(const std::wstring* username,
-                                    const std::wstring* password,
+  virtual int GenerateAuthTokenImpl(const string16* username,
+                                    const string16* password,
                                     const HttpRequestInfo* request,
                                     CompletionCallback* callback,
                                     std::string* auth_token);
@@ -156,8 +155,8 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   // Things which should be consistent after first call to GenerateAuthToken.
   bool already_called_;
   bool has_username_and_password_;
-  std::wstring username_;
-  std::wstring password_;
+  string16 username_;
+  string16 password_;
   std::wstring spn_;
 
   // Things which vary each round.

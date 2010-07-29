@@ -134,8 +134,8 @@ void WebSocketJob::Close() {
 }
 
 void WebSocketJob::RestartWithAuth(
-    const std::wstring& username,
-    const std::wstring& password) {
+    const string16& username,
+    const string16& password) {
   state_ = CONNECTING;
   socket_->RestartWithAuth(username, password);
 }

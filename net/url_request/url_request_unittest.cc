@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,6 +50,10 @@
 using base::Time;
 
 namespace {
+
+const string16 kChrome(ASCIIToUTF16("chrome"));
+const string16 kSecret(ASCIIToUTF16("secret"));
+const string16 kUser(ASCIIToUTF16("user"));
 
 base::StringPiece TestNetResourceProvider(int key) {
   return "header";
@@ -1165,8 +1169,8 @@ TEST_F(URLRequestTestHTTP, BasicAuth) {
   // populate the cache
   {
     TestDelegate d;
-    d.set_username(L"user");
-    d.set_password(L"secret");
+    d.set_username(kUser);
+    d.set_password(kSecret);
 
     URLRequest r(server_->TestServerPage("auth-basic"), &d);
     r.set_context(context);
@@ -1182,8 +1186,8 @@ TEST_F(URLRequestTestHTTP, BasicAuth) {
   // response should be fetched from the cache.
   {
     TestDelegate d;
-    d.set_username(L"user");
-    d.set_password(L"secret");
+    d.set_username(kUser);
+    d.set_password(kSecret);
 
     URLRequest r(server_->TestServerPage("auth-basic"), &d);
     r.set_context(context);
@@ -1212,8 +1216,8 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   {
     scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
     TestDelegate d;
-    d.set_username(L"user");
-    d.set_password(L"secret");
+    d.set_username(kUser);
+    d.set_password(kSecret);
 
     URLRequest r(url_requiring_auth, &d);
     r.set_context(context);
@@ -1771,7 +1775,7 @@ class RestartTestJob : public URLRequestTestJob {
     this->NotifyRestartRequired();
   }
  private:
-   ~RestartTestJob() {}
+  ~RestartTestJob() {}
 };
 
 class CancelTestJob : public URLRequestTestJob {
@@ -2335,8 +2339,8 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPasswordRestart) {
   TestDelegate d;
   // Set correct login credentials. The delegate will be asked for them when
   // the initial login with wrong credentials will fail.
-  d.set_username(L"chrome");
-  d.set_password(L"chrome");
+  d.set_username(kChrome);
+  d.set_password(kChrome);
   {
     TestURLRequest r(server_->TestServerPage("/LICENSE",
                                              "chrome", "wrong_password"), &d);
@@ -2388,8 +2392,8 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongUserRestart) {
   TestDelegate d;
   // Set correct login credentials. The delegate will be asked for them when
   // the initial login with wrong credentials will fail.
-  d.set_username(L"chrome");
-  d.set_password(L"chrome");
+  d.set_username(kChrome);
+  d.set_password(kChrome);
   {
     TestURLRequest r(server_->TestServerPage("/LICENSE",
                                              "wrong_user", "chrome"), &d);
@@ -2464,8 +2468,8 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCacheLoginBoxCredentials) {
   scoped_ptr<TestDelegate> d(new TestDelegate);
   // Set correct login credentials. The delegate will be asked for them when
   // the initial login with wrong credentials will fail.
-  d->set_username(L"chrome");
-  d->set_password(L"chrome");
+  d->set_username(kChrome);
+  d->set_password(kChrome);
   {
     TestURLRequest r(server_->TestServerPage("/LICENSE",
                                              "chrome", "wrong_password"),

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -119,8 +119,8 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
               << " password=" << password_;
     event->socket->RestartWithAuth(username_, password_);
   }
-  void SetAuthInfo(const std::wstring& username,
-                   const std::wstring& password) {
+  void SetAuthInfo(const string16& username,
+                   const string16& password) {
     username_ = username;
     password_ = password;
   }
@@ -138,8 +138,8 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
   Callback1<SocketStreamEvent*>::Type* on_auth_required_;
   net::CompletionCallback* callback_;
 
-  std::wstring username_;
-  std::wstring password_;
+  string16 username_;
+  string16 password_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStreamEventRecorder);
 };
@@ -318,9 +318,7 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
       new SocketStreamEventRecorder(&callback));
   delegate->SetOnConnected(NewCallback(delegate.get(),
                                        &SocketStreamEventRecorder::DoClose));
-  const std::wstring kUsername = L"foo";
-  const std::wstring kPassword = L"bar";
-  delegate->SetAuthInfo(kUsername, kPassword);
+  delegate->SetAuthInfo(ASCIIToUTF16("foo"), ASCIIToUTF16("bar"));
   delegate->SetOnAuthRequired(
       NewCallback(delegate.get(),
                   &SocketStreamEventRecorder::DoRestartWithAuth));
