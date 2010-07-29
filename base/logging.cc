@@ -325,6 +325,9 @@ void DisplayDebugMessageInDialog(const std::string& str) {
   if (str.empty())
     return;
 
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kNoErrorDialogs))
+    return;
+
 #if defined(OS_WIN)
   // For Windows programs, it's possible that the message loop is
   // messed up on a fatal error, and creating a MessageBox will cause
