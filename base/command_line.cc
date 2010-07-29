@@ -291,10 +291,10 @@ std::string CommandLine::GetSwitchValueASCII(
 
 FilePath CommandLine::GetSwitchValuePath(
     const std::string& switch_string) const {
-  return FilePath::FromWStringHack(GetSwitchValue(switch_string));
+  return FilePath(GetSwitchValueNative(switch_string));
 }
 
-std::wstring CommandLine::GetSwitchValue(
+CommandLine::StringType CommandLine::GetSwitchValueNative(
     const std::string& switch_string) const {
   std::string lowercased_switch(switch_string);
 #if defined(OS_WIN)
@@ -305,18 +305,26 @@ std::wstring CommandLine::GetSwitchValue(
       switches_.find(lowercased_switch);
 
   if (result == switches_.end()) {
-    return L"";
+    return CommandLine::StringType();
   } else {
-#if defined(OS_WIN)
     return result->second;
-#else
-    return base::SysNativeMBToWide(result->second);
-#endif
   }
 }
 
 std::wstring CommandLine::GetSwitchValue(
+    const std::string& switch_string) const {
+  // TODO(evanm): deprecate.
+  CommandLine::StringType value = GetSwitchValueNative(switch_string);
+#if defined(OS_WIN)
+  return value;
+#else
+  return base::SysNativeMBToWide(value);
+#endif
+}
+
+std::wstring CommandLine::GetSwitchValue(
     const std::wstring& switch_string) const {
+  // TODO(evanm): deprecate.
   return GetSwitchValue(WideToASCII(switch_string));
 }
 
@@ -377,6 +385,11 @@ void CommandLine::AppendSwitch(const std::string& switch_string) {
 
 void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
                                         const std::wstring& value_string) {
+  AppendSwitchNative(switch_string, value_string);
+}
+
+void CommandLine::AppendSwitchNative(const std::string& switch_string,
+                                     const std::wstring& value_string) {
   std::wstring value_string_edit;
 
   // NOTE(jhughes): If the value contains a quotation mark at one
@@ -433,13 +446,18 @@ void CommandLine::AppendSwitch(const std::string& switch_string) {
   switches_[switch_string] = "";
 }
 
+void CommandLine::AppendSwitchNative(const std::string& switch_string,
+                                     const std::string& value) {
+  argv_.push_back(kSwitchPrefixes[0] + switch_string +
+                  kSwitchValueSeparator + value);
+  switches_[switch_string] = value;
+}
+
 void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
                                         const std::wstring& value_string) {
+  // TODO(evanm): deprecate.
   std::string mb_value = base::SysWideToNativeMB(value_string);
-
-  argv_.push_back(kSwitchPrefixes[0] + switch_string +
-                  kSwitchValueSeparator + mb_value);
-  switches_[switch_string] = mb_value;
+  AppendSwitchNative(switch_string, mb_value);
 }
 
 void CommandLine::AppendLooseValue(const std::wstring& value) {
@@ -470,9 +488,25 @@ void CommandLine::PrependWrapper(const std::wstring& wrapper_wide) {
 
 #endif
 
+void CommandLine::AppendSwitchPath(const std::string& switch_string,
+                                   const FilePath& path) {
+  AppendSwitchNative(switch_string, path.value());
+}
+
 void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
                                         const std::string& value_string) {
   AppendSwitchWithValue(switch_string, ASCIIToWide(value_string));
+}
+
+void CommandLine::CopySwitchesFrom(const CommandLine& source,
+                                   const char* const switches[],
+                                   size_t count) {
+  for (size_t i = 0; i < count; ++i) {
+    if (source.HasSwitch(switches[i])) {
+      StringType value = source.GetSwitchValueNative(switches[i]);
+      AppendSwitchNative(switches[i], value);
+    }
+  }
 }
 
 // private

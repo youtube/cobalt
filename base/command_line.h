@@ -101,10 +101,9 @@ class CommandLine {
   // Returns the value associated with the given switch.  If the
   // switch has no value or isn't present, this method returns
   // the empty string.
-  // TODO(evanm): move these into command_line.cpp once we've fixed the
-  // wstringness.
   std::string GetSwitchValueASCII(const std::string& switch_string) const;
   FilePath GetSwitchValuePath(const std::string& switch_string) const;
+  StringType GetSwitchValueNative(const std::string& switch_string) const;
 
   // Deprecated versions of the above.
   std::wstring GetSwitchValue(const std::string& switch_string) const;
@@ -156,12 +155,17 @@ class CommandLine {
                         const std::string& switch_string,
                         const std::wstring& value_string);
 
-  // Appends the given switch string (preceded by a space and a switch
-  // prefix) to the given string.
+  // Append a switch to the command line.
   void AppendSwitch(const std::string& switch_string);
 
-  // Appends the given switch string (preceded by a space and a switch
-  // prefix) to the given string, with the given value attached.
+  // Append a switch and value to the command line.
+  void AppendSwitchPath(const std::string& switch_string, const FilePath& path);
+  void AppendSwitchNative(const std::string& switch_string,
+                          const StringType& value);
+
+  // Append a switch and value to the command line.
+  // TODO(evanm): remove all AppendSwitchWithValue() instances.
+  // TODO(evanm): add an *ASCII() version.
   void AppendSwitchWithValue(const std::string& switch_string,
                              const std::wstring& value_string);
   void AppendSwitchWithValue(const std::string& switch_string,
@@ -178,6 +182,11 @@ class CommandLine {
   // On POSIX systems it's common to run processes via a wrapper (like
   // "valgrind" or "gdb --args").
   void PrependWrapper(const std::wstring& wrapper);
+
+  // Copy a set of switches (and their values, if any) from another command
+  // line.  Commonly used when launching a subprocess.
+  void CopySwitchesFrom(const CommandLine& source, const char* const switches[],
+                        size_t count);
 
  private:
   friend class InProcessBrowserTest;
