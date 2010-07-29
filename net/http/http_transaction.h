@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,7 @@
 #define NET_HTTP_HTTP_TRANSACTION_H_
 #pragma once
 
-#include <string>
-
+#include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 
@@ -62,8 +61,8 @@ class HttpTransaction {
                                      CompletionCallback* callback) = 0;
 
   // Restarts the HTTP transaction with authentication credentials.
-  virtual int RestartWithAuth(const std::wstring& username,
-                              const std::wstring& password,
+  virtual int RestartWithAuth(const string16& username,
+                              const string16& password,
                               CompletionCallback* callback) = 0;
 
   // Returns true if auth is ready to be continued. Callers should check

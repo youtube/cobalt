@@ -106,8 +106,8 @@ std::string GetHostName();
 // Extracts the unescaped username/password from |url|, saving the results
 // into |*username| and |*password|.
 void GetIdentityFromURL(const GURL& url,
-                        std::wstring* username,
-                        std::wstring* password);
+                        string16* username,
+                        string16* password);
 
 // Returns either the host from |url|, or, if the host is empty, the full spec.
 std::string GetHostOrSpecFromURL(const GURL& url);

@@ -212,8 +212,8 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
   if (request_->url.has_username()) {
     GetIdentityFromURL(request_->url, &username_, &password_);
   } else {
-    username_ = L"anonymous";
-    password_ = L"chrome@example.com";
+    username_ = ASCIIToUTF16("anonymous");
+    password_ = ASCIIToUTF16("chrome@example.com");
   }
 
   DetectTypecode();
@@ -234,8 +234,8 @@ int FtpNetworkTransaction::Stop(int error) {
   return OK;
 }
 
-int FtpNetworkTransaction::RestartWithAuth(const std::wstring& username,
-                                           const std::wstring& password,
+int FtpNetworkTransaction::RestartWithAuth(const string16& username,
+                                           const string16& password,
                                            CompletionCallback* callback) {
   ResetStateForRestart();
 
@@ -653,7 +653,7 @@ int FtpNetworkTransaction::DoCtrlReadComplete(int result) {
     // Some servers (for example Pure-FTPd) apparently close the control
     // connection when anonymous login is not permitted. For more details
     // see http://crbug.com/25023.
-    if (command_sent_ == COMMAND_USER && username_ == L"anonymous")
+    if (command_sent_ == COMMAND_USER && username_ == ASCIIToUTF16("anonymous"))
       response_.needs_auth = true;
     return Stop(ERR_EMPTY_RESPONSE);
   }
@@ -700,7 +700,7 @@ int FtpNetworkTransaction::DoCtrlWriteComplete(int result) {
 
 // USER Command.
 int FtpNetworkTransaction::DoCtrlWriteUSER() {
-  std::string command = "USER " + WideToUTF8(username_);
+  std::string command = "USER " + UTF16ToUTF8(username_);
 
   if (!IsValidFTPCommandString(command))
     return Stop(ERR_MALFORMED_IDENTITY);
@@ -732,7 +732,7 @@ int FtpNetworkTransaction::ProcessResponseUSER(
 
 // PASS command.
 int FtpNetworkTransaction::DoCtrlWritePASS() {
-  std::string command = "PASS " + WideToUTF8(password_);
+  std::string command = "PASS " + UTF16ToUTF8(password_);
 
   if (!IsValidFTPCommandString(command))
     return Stop(ERR_MALFORMED_IDENTITY);

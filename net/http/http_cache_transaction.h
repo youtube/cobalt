@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,11 @@
 #define NET_HTTP_HTTP_CACHE_TRANSACTION_H_
 #pragma once
 
-#include "net/base/net_log.h"
+#include <string>
+
+#include "base/string16.h"
 #include "base/time.h"
+#include "net/base/net_log.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_transaction.h"
@@ -33,8 +36,8 @@ class HttpCache::Transaction : public HttpTransaction {
   virtual int RestartIgnoringLastError(CompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      CompletionCallback* callback);
-  virtual int RestartWithAuth(const std::wstring& username,
-                              const std::wstring& password,
+  virtual int RestartWithAuth(const string16& username,
+                              const string16& password,
                               CompletionCallback* callback);
   virtual bool IsReadyToRestartForAuth();
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
@@ -250,8 +253,8 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // Called to restart a network transaction with authentication credentials.
   // Returns network error code.
-  int RestartNetworkRequestWithAuth(const std::wstring& username,
-                                    const std::wstring& password);
+  int RestartNetworkRequestWithAuth(const string16& username,
+                                    const string16& password);
 
   // Called to determine if we need to validate the cache entry before using it.
   bool RequiresValidation();

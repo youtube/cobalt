@@ -76,8 +76,8 @@ NetLog::EventType EventTypeFromAuthTarget(HttpAuth::Target target) {
 
 }  // namespace
 
-int HttpAuthHandler::GenerateAuthToken(const std::wstring* username,
-                                       const std::wstring* password,
+int HttpAuthHandler::GenerateAuthToken(const string16* username,
+                                       const string16* password,
                                        const HttpRequestInfo* request,
                                        CompletionCallback* callback,
                                        std::string* auth_token) {

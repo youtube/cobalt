@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/string16.h"
 #include "net/http/http_auth.h"
 
 namespace net {
@@ -93,14 +94,14 @@ class HttpAuthSSPI {
   // obtained using |*username| and |*password|. If |username| and |password|
   // are both NULL, the credentials for the currently logged in user are used
   // instead.
-  int GenerateAuthToken(const std::wstring* username,
-                        const std::wstring* password,
+  int GenerateAuthToken(const string16* username,
+                        const string16* password,
                         const std::wstring& spn,
                         std::string* auth_token);
 
  private:
-  int OnFirstRound(const std::wstring* username,
-                   const std::wstring* password);
+  int OnFirstRound(const string16* username,
+                   const string16* password);
 
   int GetNextSecurityToken(
       const std::wstring& spn,
@@ -126,9 +127,9 @@ class HttpAuthSSPI {
 // If |combined| is of form "bar", |domain| will be empty and |user| will
 // contain "bar".
 // |domain| and |user| must be non-NULL.
-void SplitDomainAndUser(const std::wstring& combined,
-                        std::wstring* domain,
-                        std::wstring* user);
+void SplitDomainAndUser(const string16& combined,
+                        string16* domain,
+                        string16* user);
 
 // Determines the maximum token length in bytes for a particular SSPI package.
 //

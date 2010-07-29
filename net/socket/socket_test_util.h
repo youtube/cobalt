@@ -16,6 +16,7 @@
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "base/scoped_vector.h"
+#include "base/string16.h"
 #include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -636,8 +637,8 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
       const scoped_refptr<ClientSocketPoolHistograms>& histograms,
       ClientSocketFactory* socket_factory);
 
-  int release_count() const { return release_count_; };
-  int cancel_count() const { return cancel_count_; };
+  int release_count() const { return release_count_; }
+  int cancel_count() const { return cancel_count_; }
 
   // TCPClientSocketPool methods.
   virtual int RequestSocket(const std::string& group_name,
@@ -695,7 +696,8 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
 };
 
 struct MockHttpAuthControllerData {
-  MockHttpAuthControllerData(std::string header) : auth_header(header) {}
+  explicit MockHttpAuthControllerData(std::string header)
+      : auth_header(header) {}
 
   std::string auth_header;
 };
@@ -716,8 +718,8 @@ class MockHttpAuthController : public HttpAuthController {
                                   bool do_not_send_server_auth,
                                   bool establishing_tunnel,
                                   const BoundNetLog& net_log);
-  virtual void ResetAuth(const std::wstring& username,
-                         const std::wstring& password);
+  virtual void ResetAuth(const string16& username,
+                         const string16& password);
   virtual bool HaveAuthHandler() const;
   virtual bool HaveAuth() const;
 

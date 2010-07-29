@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/string16.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
@@ -55,8 +56,8 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
                                   const BoundNetLog& net_log);
 
   // Store the supplied credentials and prepare to restart the auth.
-  virtual void ResetAuth(const std::wstring& username,
-                         const std::wstring& password);
+  virtual void ResetAuth(const string16& username,
+                         const string16& password);
 
   virtual bool HaveAuthHandler() const {
     return handler_.get() != NULL;
