@@ -1052,10 +1052,10 @@ int HttpNetworkTransaction::DoSendRequest() {
   }
 
   headers_valid_ = false;
-  http_stream_.reset(new HttpBasicStream(connection_.get(), net_log_));
-
-  return http_stream_->SendRequest(request_, request_headers_,
-                                   request_body, &response_, &io_callback_);
+  http_stream_.reset(new HttpBasicStream(connection_.get()));
+  http_stream_->InitializeStream(request_, net_log_, NULL);
+  return http_stream_->SendRequest(request_headers_, request_body, &response_,
+                                   &io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
@@ -1297,9 +1297,8 @@ int HttpNetworkTransaction::DoSpdyGetStream() {
 
   headers_valid_ = false;
 
-  spdy_http_stream_.reset(new SpdyHttpStream());
-  return spdy_http_stream_->InitializeStream(spdy_session, *request_,
-                                             net_log_, &io_callback_);
+  spdy_http_stream_.reset(new SpdyHttpStream(spdy_session));
+  return spdy_http_stream_->InitializeStream(request_, net_log_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoSpdyGetStreamComplete(int result) {
@@ -1321,9 +1320,8 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
     if (!upload_data_stream)
       return error_code;
   }
-  spdy_http_stream_->InitializeRequest(base::Time::Now(), upload_data_stream);
-
-  return spdy_http_stream_->SendRequest(&response_, &io_callback_);
+  return spdy_http_stream_->SendRequest(request_headers_, upload_data_stream,
+                                        &response_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoSpdySendRequestComplete(int result) {
