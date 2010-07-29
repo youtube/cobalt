@@ -416,30 +416,6 @@
             },
           },
         },
-        {
-          'target_name': 'mft_h264_decoder',
-          'type': 'executable',
-          'dependencies': [
-            'media',
-            '../base/base.gyp:base',
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-          ],
-          'include_dirs': [
-            '..',
-          ],
-          'sources': [
-            'mf/main.cc',
-            'mf/h264mft.cc',
-            'mf/h264mft.h',
-            'mf/file_reader_util.cc',
-            'mf/file_reader_util.h',
-          ],
-          'msvs_settings': {
-            'VCLinkerTool': {
-              'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
-            },
-          },
-        },
       ],
     }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
