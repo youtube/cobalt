@@ -5748,7 +5748,7 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
     else
 	ss->ssl3.hs.ws = wait_change_cipher;
 
-    /* Do the handshake callback for sslv3 here. */
+    /* Do the handshake callback for sslv3 here, if we can false start. */
     if (ss->handshakeCallback != NULL && ssl3_CanFalseStart(ss)) {
 	(ss->handshakeCallback)(ss->fd, ss->handshakeCallbackData);
     }
@@ -8570,7 +8570,7 @@ xmit_loser:
     }
     ss->ssl3.hs.ws = idle_handshake;
 
-    /* Do the handshake callback for sslv3 here. */
+    /* Do the handshake callback for sslv3 here, if we cannot false start. */
     if (ss->handshakeCallback != NULL && !ssl3_CanFalseStart(ss)) {
 	(ss->handshakeCallback)(ss->fd, ss->handshakeCallbackData);
     }
