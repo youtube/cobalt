@@ -27,12 +27,15 @@ class UploadDataStream;
 
 class HttpBasicStream : public HttpStream {
  public:
-  HttpBasicStream(ClientSocketHandle* handle, const BoundNetLog& net_log);
+  explicit HttpBasicStream(ClientSocketHandle* connection);
   virtual ~HttpBasicStream();
 
   // HttpStream methods:
-  virtual int SendRequest(const HttpRequestInfo* request,
-                          const std::string& headers,
+  virtual int InitializeStream(const HttpRequestInfo* request_info,
+                               const BoundNetLog& net_log,
+                               CompletionCallback* callback);
+
+  virtual int SendRequest(const std::string& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           CompletionCallback* callback);
@@ -56,6 +59,8 @@ class HttpBasicStream : public HttpStream {
   scoped_refptr<GrowableIOBuffer> read_buf_;
 
   scoped_ptr<HttpStreamParser> parser_;
+
+  ClientSocketHandle* connection_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpBasicStream);
 };

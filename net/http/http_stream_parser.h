@@ -29,15 +29,15 @@ class HttpStreamParser {
   // buffer's offset will be set to the first free byte. |read_buffer| may
   // have its capacity changed.
   HttpStreamParser(ClientSocketHandle* connection,
+                   const HttpRequestInfo* request,
                    GrowableIOBuffer* read_buffer,
                    const BoundNetLog& net_log);
   ~HttpStreamParser();
 
   // These functions implement the interface described in HttpStream with
   // some additional functionality
-  int SendRequest(const HttpRequestInfo* request, const std::string& headers,
-                  UploadDataStream* request_body, HttpResponseInfo* response,
-                  CompletionCallback* callback);
+  int SendRequest(const std::string& headers, UploadDataStream* request_body,
+                  HttpResponseInfo* response, CompletionCallback* callback);
 
   int ReadResponseHeaders(CompletionCallback* callback);
 

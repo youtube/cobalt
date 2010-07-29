@@ -6,19 +6,27 @@
 
 namespace net {
 
-HttpBasicStream::HttpBasicStream(ClientSocketHandle* handle,
-                                 const BoundNetLog& net_log)
+HttpBasicStream::HttpBasicStream(ClientSocketHandle* connection)
     : read_buf_(new GrowableIOBuffer()),
-      parser_(new HttpStreamParser(handle, read_buf_, net_log)) {
+      connection_(connection) {
 }
 
-int HttpBasicStream::SendRequest(const HttpRequestInfo* request,
-                                 const std::string& headers,
+int HttpBasicStream::InitializeStream(const HttpRequestInfo* request_info,
+                                      const BoundNetLog& net_log,
+                                      CompletionCallback* callback) {
+  parser_.reset(new HttpStreamParser(connection_, request_info,
+                                     read_buf_, net_log));
+  connection_ = NULL;
+  return OK;
+}
+
+
+int HttpBasicStream::SendRequest(const std::string& headers,
                                  UploadDataStream* request_body,
                                  HttpResponseInfo* response,
                                  CompletionCallback* callback) {
-  return parser_->SendRequest(
-      request, headers, request_body, response, callback);
+  DCHECK(parser_.get());
+  return parser_->SendRequest(headers, request_body, response, callback);
 }
 
 HttpBasicStream::~HttpBasicStream() {}
