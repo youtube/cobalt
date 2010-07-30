@@ -162,14 +162,17 @@ class CommandLine {
   void AppendSwitchPath(const std::string& switch_string, const FilePath& path);
   void AppendSwitchNative(const std::string& switch_string,
                           const StringType& value);
+  void AppendSwitchASCII(const std::string& switch_string,
+                         const std::string& value);
 
   // Append a switch and value to the command line.
   // TODO(evanm): remove all AppendSwitchWithValue() instances.
-  // TODO(evanm): add an *ASCII() version.
   void AppendSwitchWithValue(const std::string& switch_string,
                              const std::wstring& value_string);
   void AppendSwitchWithValue(const std::string& switch_string,
-                             const std::string& value_string);
+                             const std::string& value_string) {
+    AppendSwitchASCII(switch_string, value_string);
+  }
 
   // Append a loose value to the command line.
   void AppendLooseValue(const std::wstring& value);

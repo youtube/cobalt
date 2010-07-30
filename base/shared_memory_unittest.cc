@@ -326,7 +326,7 @@ TEST_F(SharedMemoryProcessTest, Tasks) {
 
   base::ProcessHandle handles[kNumTasks];
   for (int index = 0; index < kNumTasks; ++index) {
-    handles[index] = SpawnChild(L"SharedMemoryTestMain");
+    handles[index] = SpawnChild("SharedMemoryTestMain");
   }
 
   int exit_code = 0;
