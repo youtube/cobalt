@@ -17,10 +17,10 @@
 #include <utility>
 
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/spdy/spdy_protocol.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
 
@@ -245,8 +245,8 @@ class SpdyFramer {
   static const int kDictionarySize;
 
  protected:
-  FRIEND_TEST(SpdyFramerTest, DataCompression);
-  FRIEND_TEST(SpdyFramerTest, UnclosedStreamDataCompressors);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, DataCompression);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, UnclosedStreamDataCompressors);
   friend class net::SpdyNetworkTransactionTest;
   friend class net::HttpNetworkTransactionTest;
   friend class net::HttpNetworkLayer;  // This is temporary for the server.

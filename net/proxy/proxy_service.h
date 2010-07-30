@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/waitable_event.h"
@@ -18,7 +19,6 @@
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_server.h"
 #include "net/proxy/proxy_info.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 class GURL;
 class MessageLoop;
@@ -188,8 +188,8 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
  private:
   friend class base::RefCountedThreadSafe<ProxyService>;
-  FRIEND_TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
-  FRIEND_TEST(ProxyServiceTest, UpdateConfigFromPACToDirect);
+  FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
+  FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigFromPACToDirect);
   friend class PacRequest;
 
   // TODO(eroman): change this to a std::set. Note that this requires updating
