@@ -11,10 +11,10 @@
 #include <string>
 #include <vector>
 
+#include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/time.h"
 #include "net/base/x509_cert_types.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
@@ -249,8 +249,8 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
-  FRIEND_TEST(X509CertificateTest, Cache);
-  FRIEND_TEST(X509CertificateTest, IntermediateCertificates);
+  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, Cache);
+  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, IntermediateCertificates);
 
   class Cache;
 

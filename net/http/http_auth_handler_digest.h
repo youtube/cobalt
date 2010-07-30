@@ -8,12 +8,10 @@
 
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/string16.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
-
-// This is needed for the FRIEND_TEST() macro.
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
@@ -46,9 +44,9 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
                                     std::string* auth_token);
 
  private:
-  FRIEND_TEST(HttpAuthHandlerDigestTest, ParseChallenge);
-  FRIEND_TEST(HttpAuthHandlerDigestTest, AssembleCredentials);
-  FRIEND_TEST(HttpNetworkTransactionTest, DigestPreAuthNonceCount);
+  FRIEND_TEST_ALL_PREFIXES(HttpAuthHandlerDigestTest, ParseChallenge);
+  FRIEND_TEST_ALL_PREFIXES(HttpAuthHandlerDigestTest, AssembleCredentials);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, DigestPreAuthNonceCount);
 
   // Possible values for the "algorithm" property.
   enum DigestAlgorithm {

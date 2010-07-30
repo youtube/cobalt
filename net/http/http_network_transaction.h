@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/string16.h"
@@ -27,7 +28,6 @@
 #include "net/http/http_transaction.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_pool.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
@@ -84,7 +84,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   virtual uint64 GetUploadProgress() const;
 
  private:
-  FRIEND_TEST(HttpNetworkTransactionTest, ResetStateForRestart);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, ResetStateForRestart);
 
   enum State {
     STATE_RESOLVE_PROXY,

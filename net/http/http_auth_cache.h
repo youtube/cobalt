@@ -9,11 +9,10 @@
 #include <list>
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/string16.h"
 #include "googleurl/src/gurl.h"
-// This is needed for the FRIEND_TEST() macro.
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
@@ -131,8 +130,8 @@ class HttpAuthCache::Entry {
 
  private:
   friend class HttpAuthCache;
-  FRIEND_TEST(HttpAuthCacheTest, AddPath);
-  FRIEND_TEST(HttpAuthCacheTest, AddToExistingEntry);
+  FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddPath);
+  FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddToExistingEntry);
 
   Entry() {}
 

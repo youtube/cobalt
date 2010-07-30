@@ -34,10 +34,10 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 class GURL;
 
@@ -201,7 +201,7 @@ class Filter {
  protected:
   explicit Filter(const FilterContext& filter_context);
 
-  FRIEND_TEST(SdchFilterTest, ContentTypeId);
+  FRIEND_TEST_ALL_PREFIXES(SdchFilterTest, ContentTypeId);
   // Filters the data stored in stream_buffer_ and writes the output into the
   // dest_buffer passed in.
   //

@@ -10,11 +10,11 @@
 
 #include "base/basictypes.h"
 #include "base/file_path.h"
+#include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/ref_counted.h"
 #include "net/base/file_stream.h"
 #include "base/time.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
@@ -102,8 +102,9 @@ class UploadData : public base::RefCounted<UploadData> {
     uint64 content_length_;
     FileStream* file_stream_;
 
-    FRIEND_TEST(UploadDataStreamTest, FileSmallerThanLength);
-    FRIEND_TEST(HttpNetworkTransactionTest, UploadFileSmallerThanLength);
+    FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, FileSmallerThanLength);
+    FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
+                             UploadFileSmallerThanLength);
   };
 
   void AppendBytes(const char* bytes, int bytes_len) {
