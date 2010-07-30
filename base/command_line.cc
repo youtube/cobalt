@@ -388,11 +388,6 @@ void CommandLine::AppendSwitchASCII(const std::string& switch_string,
   AppendSwitchNative(switch_string, ASCIIToWide(value_string));
 }
 
-void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
-                                        const std::wstring& value_string) {
-  AppendSwitchNative(switch_string, value_string);
-}
-
 void CommandLine::AppendSwitchNative(const std::string& switch_string,
                                      const std::wstring& value_string) {
   std::wstring value_string_edit;
@@ -461,13 +456,6 @@ void CommandLine::AppendSwitchNative(const std::string& switch_string,
 void CommandLine::AppendSwitchASCII(const std::string& switch_string,
                                     const std::string& value_string) {
   AppendSwitchNative(switch_string, value_string);
-}
-
-void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
-                                        const std::wstring& value_string) {
-  // TODO(evanm): deprecate.
-  std::string mb_value = base::SysWideToNativeMB(value_string);
-  AppendSwitchNative(switch_string, mb_value);
 }
 
 void CommandLine::AppendLooseValue(const std::wstring& value) {
