@@ -39,7 +39,7 @@ class DictionaryValue;
 class ListValue;
 
 typedef std::vector<Value*> ValueVector;
-typedef std::map<std::wstring, Value*> ValueMap;
+typedef std::map<std::string, Value*> ValueMap;
 
 // The Value class is the base class for Values.  A Value can be
 // instantiated via the Create*Value() factory methods, or by directly
@@ -202,6 +202,7 @@ class BinaryValue: public Value {
   DISALLOW_COPY_AND_ASSIGN(BinaryValue);
 };
 
+// TODO(viettrungluu): Things marked DEPRECATED will be removed. crbug.com/23581
 class DictionaryValue : public Value {
  public:
   DictionaryValue();
@@ -212,10 +213,9 @@ class DictionaryValue : public Value {
   virtual bool Equals(const Value* other) const;
 
   // Returns true if the current dictionary has a value for the given key.
-  bool HasKeyASCII(const std::string& key) const;
-  // Deprecated version of the above.  TODO: add a string16 version for Unicode.
-  // http://code.google.com/p/chromium/issues/detail?id=23581
-  bool HasKey(const std::wstring& key) const;
+  bool HasKey(const std::string& key) const;
+  /*DEPRECATED*/bool HasKeyASCII(const std::string& key) const;
+  /*DEPRECATED*/bool HasKey(const std::wstring& key) const;
 
   // Returns the number of Values in this dictionary.
   size_t size() const { return dictionary_.size(); }
@@ -235,20 +235,31 @@ class DictionaryValue : public Value {
   // to the path in that location.
   // Note that the dictionary takes ownership of the value referenced by
   // |in_value|, and therefore |in_value| must be non-NULL.
-  void Set(const std::wstring& path, Value* in_value);
+  void Set(const std::string& path, Value* in_value);
+  /*DEPRECATED*/void Set(const std::wstring& path, Value* in_value);
 
   // Convenience forms of Set().  These methods will replace any existing
   // value at that path, even if it has a different type.
-  void SetBoolean(const std::wstring& path, bool in_value);
-  void SetInteger(const std::wstring& path, int in_value);
-  void SetReal(const std::wstring& path, double in_value);
-  void SetString(const std::wstring& path, const std::string& in_value);
-  void SetString(const std::wstring& path, const std::wstring& in_value);
-  void SetStringFromUTF16(const std::wstring& path, const string16& in_value);
+  void SetBoolean(const std::string& path, bool in_value);
+  void SetInteger(const std::string& path, int in_value);
+  void SetReal(const std::string& path, double in_value);
+  void SetString(const std::string& path, const std::string& in_value);
+  void SetStringFromUTF16(const std::string& path, const string16& in_value);
+  /*DEPRECATED*/void SetBoolean(const std::wstring& path, bool in_value);
+  /*DEPRECATED*/void SetInteger(const std::wstring& path, int in_value);
+  /*DEPRECATED*/void SetReal(const std::wstring& path, double in_value);
+  /*DEPRECATED*/void SetString(const std::wstring& path,
+                               const std::string& in_value);
+  /*DEPRECATED*/void SetString(const std::wstring& path,
+                               const std::wstring& in_value);
+  /*DEPRECATED*/void SetStringFromUTF16(const std::wstring& path,
+                                        const string16& in_value);
 
   // Like Set(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
-  void SetWithoutPathExpansion(const std::wstring& key, Value* in_value);
+  void SetWithoutPathExpansion(const std::string& key, Value* in_value);
+  /*DEPRECATED*/void SetWithoutPathExpansion(const std::wstring& key,
+                                             Value* in_value);
 
   // Gets the Value associated with the given path starting from this object.
   // A path has the form "<key>" or "<key>.<key>.[...]", where "." indexes
@@ -257,42 +268,70 @@ class DictionaryValue : public Value {
   // through the |out_value| parameter, and the function will return true.
   // Otherwise, it will return false and |out_value| will be untouched.
   // Note that the dictionary always owns the value that's returned.
-  bool Get(const std::wstring& path, Value** out_value) const;
+  bool Get(const std::string& path, Value** out_value) const;
+  /*DEPRECATED*/bool Get(const std::wstring& path, Value** out_value) const;
 
   // These are convenience forms of Get().  The value will be retrieved
   // and the return value will be true if the path is valid and the value at
   // the end of the path can be returned in the form specified.
-  bool GetBoolean(const std::wstring& path, bool* out_value) const;
-  bool GetInteger(const std::wstring& path, int* out_value) const;
-  bool GetReal(const std::wstring& path, double* out_value) const;
-  bool GetString(const std::string& path, string16* out_value) const;
+  bool GetBoolean(const std::string& path, bool* out_value) const;
+  bool GetInteger(const std::string& path, int* out_value) const;
+  bool GetReal(const std::string& path, double* out_value) const;
+  bool GetString(const std::string& path, std::string* out_value) const;
+  bool GetStringAsUTF16(const std::string& path, string16* out_value) const;
   bool GetStringASCII(const std::string& path, std::string* out_value) const;
-  // TODO: deprecate wstring accessors.
-  // http://code.google.com/p/chromium/issues/detail?id=23581
-  bool GetString(const std::wstring& path, std::string* out_value) const;
-  bool GetString(const std::wstring& path, std::wstring* out_value) const;
-  bool GetStringAsUTF16(const std::wstring& path, string16* out_value) const;
-  bool GetBinary(const std::wstring& path, BinaryValue** out_value) const;
-  bool GetDictionary(const std::wstring& path,
+  bool GetBinary(const std::string& path, BinaryValue** out_value) const;
+  bool GetDictionary(const std::string& path,
                      DictionaryValue** out_value) const;
-  bool GetList(const std::wstring& path, ListValue** out_value) const;
+  bool GetList(const std::string& path, ListValue** out_value) const;
+  /*DEPRECATED*/bool GetBoolean(const std::wstring& path,
+                                bool* out_value) const;
+  /*DEPRECATED*/bool GetInteger(const std::wstring& path, int* out_value) const;
+  /*DEPRECATED*/bool GetReal(const std::wstring& path, double* out_value) const;
+  // Use |GetStringAsUTF16()| instead:
+  /*DEPRECATED*/bool GetString(const std::string& path,
+                               string16* out_value) const;
+  /*DEPRECATED*/bool GetString(const std::wstring& path,
+                               std::string* out_value) const;
+  /*DEPRECATED*/bool GetString(const std::wstring& path,
+                               std::wstring* out_value) const;
+  /*DEPRECATED*/bool GetStringAsUTF16(const std::wstring& path,
+                                      string16* out_value) const;
+  /*DEPRECATED*/bool GetBinary(const std::wstring& path,
+                               BinaryValue** out_value) const;
+  /*DEPRECATED*/bool GetDictionary(const std::wstring& path,
+                                   DictionaryValue** out_value) const;
+  /*DEPRECATED*/bool GetList(const std::wstring& path,
+                             ListValue** out_value) const;
 
   // Like Get(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
-  bool GetWithoutPathExpansion(const std::wstring& key,
+  bool GetWithoutPathExpansion(const std::string& key,
                                Value** out_value) const;
-  bool GetIntegerWithoutPathExpansion(const std::wstring& path,
+  bool GetIntegerWithoutPathExpansion(const std::string& key,
                                       int* out_value) const;
-  bool GetStringWithoutPathExpansion(const std::wstring& path,
+  bool GetStringWithoutPathExpansion(const std::string& key,
                                      std::string* out_value) const;
-  bool GetStringWithoutPathExpansion(const std::wstring& path,
-                                     std::wstring* out_value) const;
-  bool GetStringAsUTF16WithoutPathExpansion(const std::wstring& path,
+  bool GetStringAsUTF16WithoutPathExpansion(const std::string& key,
                                             string16* out_value) const;
-  bool GetDictionaryWithoutPathExpansion(const std::wstring& path,
+  bool GetDictionaryWithoutPathExpansion(const std::string& key,
                                          DictionaryValue** out_value) const;
-  bool GetListWithoutPathExpansion(const std::wstring& path,
+  bool GetListWithoutPathExpansion(const std::string& key,
                                    ListValue** out_value) const;
+  /*DEPRECATED*/bool GetWithoutPathExpansion(const std::wstring& key,
+                                             Value** out_value) const;
+  /*DEPRECATED*/bool GetIntegerWithoutPathExpansion(const std::wstring& key,
+                                                    int* out_value) const;
+  /*DEPRECATED*/bool GetStringWithoutPathExpansion(
+                    const std::wstring& key, std::string* out_value) const;
+  /*DEPRECATED*/bool GetStringWithoutPathExpansion(
+                    const std::wstring& key, std::wstring* out_value) const;
+  /*DEPRECATED*/bool GetStringAsUTF16WithoutPathExpansion(
+                    const std::wstring& key, string16* out_value) const;
+  /*DEPRECATED*/bool GetDictionaryWithoutPathExpansion(
+                    const std::wstring& key, DictionaryValue** out_value) const;
+  /*DEPRECATED*/bool GetListWithoutPathExpansion(const std::wstring& key,
+                                                 ListValue** out_value) const;
 
   // Removes the Value with the specified path from this dictionary (or one
   // of its child dictionaries, if the path is more than just a local key).
@@ -300,11 +339,14 @@ class DictionaryValue : public Value {
   // passed out via out_value.  If |out_value| is NULL, the removed value will
   // be deleted.  This method returns true if |path| is a valid path; otherwise
   // it will return false and the DictionaryValue object will be unchanged.
-  bool Remove(const std::wstring& path, Value** out_value);
+  bool Remove(const std::string& path, Value** out_value);
+  /*DEPRECATED*/bool Remove(const std::wstring& path, Value** out_value);
 
   // Like Remove(), but without special treatment of '.'.  This allows e.g. URLs
   // to be used as paths.
-  bool RemoveWithoutPathExpansion(const std::wstring& key, Value** out_value);
+  bool RemoveWithoutPathExpansion(const std::string& key, Value** out_value);
+  /*DEPRECATED*/bool RemoveWithoutPathExpansion(const std::wstring& key,
+                                                Value** out_value);
 
   // Makes a copy of |this| but doesn't include empty dictionaries and lists in
   // the copy.  This never returns NULL, even if |this| itself is empty.
@@ -323,14 +365,14 @@ class DictionaryValue : public Value {
   // THE NORMAL XXX() APIs.  This makes sure things will work correctly if any
   // keys have '.'s in them.
   class key_iterator
-    : private std::iterator<std::input_iterator_tag, const std::wstring> {
+      : private std::iterator<std::input_iterator_tag, const std::string> {
    public:
     explicit key_iterator(ValueMap::const_iterator itr) { itr_ = itr; }
     key_iterator operator++() {
       ++itr_;
       return *this;
     }
-    const std::wstring& operator*() { return itr_->first; }
+    const std::string& operator*() { return itr_->first; }
     bool operator!=(const key_iterator& other) { return itr_ != other.itr_; }
     bool operator==(const key_iterator& other) { return itr_ == other.itr_; }
 
