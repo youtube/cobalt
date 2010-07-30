@@ -12,6 +12,7 @@
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "net/base/load_flags.h"
+#include "net/base/net_util.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_util.h"
@@ -111,7 +112,9 @@ void CreateSpdyHeadersFromHttpRequest(
   // TODO(mbelshe): Add authentication headers here.
 
   (*headers)["method"] = info.method;
-  (*headers)["url"] = net::HttpUtil::SpecForRequest(info.url);
+  (*headers)["url"] = net::HttpUtil::PathForRequest(info.url);
+  (*headers)["host"] = net::GetHostAndOptionalPort(info.url);
+  (*headers)["scheme"] = info.url.scheme();
   (*headers)["version"] = kHttpProtocolVersion;
   if (!info.referrer.is_empty())
     (*headers)["referer"] = info.referrer.spec();
