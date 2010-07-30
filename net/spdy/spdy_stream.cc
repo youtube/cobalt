@@ -15,6 +15,7 @@ SpdyStream::SpdyStream(
     SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed)
     : stream_id_(stream_id),
       priority_(0),
+      send_window_size_(0),
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
       syn_reply_received_(false),
@@ -220,7 +221,7 @@ void SpdyStream::Cancel() {
     return;
 
   cancelled_ = true;
-  if(session_->IsStreamActive(stream_id_))
+  if (session_->IsStreamActive(stream_id_))
     session_->ResetStream(stream_id_, spdy::CANCEL);
 }
 
