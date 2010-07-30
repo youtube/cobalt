@@ -54,6 +54,44 @@ PlatformFile CreatePlatformFile(const std::wstring& name,
 // Closes a file handle
 bool ClosePlatformFile(PlatformFile file);
 
+// Use this class to pass ownership of a PlatformFile to a receiver that may or
+// may not want to accept it.  This class does not own the storage for the
+// PlatformFile.
+//
+// EXAMPLE:
+//
+//  void MaybeProcessFile(PassPlatformFile pass_file) {
+//    if (...) {
+//      PlatformFile file = pass_file.ReleaseValue();
+//      // Now, we are responsible for closing |file|.
+//    }
+//  }
+//
+//  void OpenAndMaybeProcessFile(const FilePath& path) {
+//    PlatformFile file = CreatePlatformFile(path, ...);
+//    MaybeProcessFile(PassPlatformFile(&file));
+//    if (file != kInvalidPlatformFileValue)
+//      ClosePlatformFile(file);
+//  }
+//
+class PassPlatformFile {
+ public:
+  explicit PassPlatformFile(PlatformFile* value) : value_(value) {
+  }
+
+  // Called to retrieve the PlatformFile stored in this object.  The caller
+  // gains ownership of the PlatformFile and is now responsible for closing it.
+  // Any subsequent calls to this method will return an invalid PlatformFile.
+  PlatformFile ReleaseValue() {
+    PlatformFile temp = *value_;
+    *value_ = kInvalidPlatformFileValue;
+    return temp;
+  }
+
+ private:
+  PlatformFile* value_;
+};
+
 }  // namespace base
 
 #endif  // BASE_PLATFORM_FILE_H_
