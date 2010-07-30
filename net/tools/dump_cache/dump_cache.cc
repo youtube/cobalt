@@ -95,7 +95,8 @@ int LaunchSlave(const CommandLine& command_line,
   if (do_upgrade || do_convert_to_text)
     new_command_line.AppendSwitch(kSlave);
 
-  new_command_line.AppendSwitchWithValue(kPipe, pipe_number);
+  // TODO(evanm): remove needless usage of wstring from here and elsewhere.
+  new_command_line.AppendSwitchASCII(kPipe, WideToASCII(pipe_number));
   if (!base::LaunchApp(new_command_line, false, false, NULL)) {
     printf("Unable to launch the needed version of this tool: %ls\n",
            new_program.c_str());
