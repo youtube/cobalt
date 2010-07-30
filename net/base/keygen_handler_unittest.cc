@@ -49,8 +49,8 @@ void AssertValidSignedPublicKeyAndChallenge(const std::string& result,
   // just check that it exists and has a reasonable length.
   // (It's almost always 590 bytes, but the DER encoding of the random key
   // and signature could sometimes be a few bytes different.)
-  ASSERT_GE(spkac.length(), 580U);
-  ASSERT_LE(spkac.length(), 600U);
+  ASSERT_GE(spkac.length(), 200U);
+  ASSERT_LE(spkac.length(), 300U);
 
   // NOTE:
   // The value of |result| can be validated by prefixing 'SPKAC=' to it
@@ -72,8 +72,8 @@ void AssertValidSignedPublicKeyAndChallenge(const std::string& result,
   //    openssl asn1parse -inform DER
 }
 
-TEST_F(KeygenHandlerTest, FLAKY_SmokeTest) {
-  KeygenHandler handler(2048, "some challenge");
+TEST_F(KeygenHandlerTest, SmokeTest) {
+  KeygenHandler handler(768, "some challenge");
   handler.set_stores_key(false);  // Don't leave the key-pair behind
   std::string result = handler.GenKeyAndSignChallenge();
   LOG(INFO) << "KeygenHandler produced: " << result;
@@ -90,7 +90,7 @@ class ConcurrencyTestTask : public Task {
   }
 
   virtual void Run() {
-    KeygenHandler handler(2048, "some challenge");
+    KeygenHandler handler(768, "some challenge");
     handler.set_stores_key(false); // Don't leave the key-pair behind.
     *result_ = handler.GenKeyAndSignChallenge();
     event_->Signal();
