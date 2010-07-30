@@ -125,6 +125,8 @@
         'base/network_change_notifier_netlink_linux.h',
         'base/network_change_notifier_win.cc',
         'base/network_change_notifier_win.h',
+        'base/network_config_watcher_mac.cc',
+        'base/network_config_watcher_mac.h',
         'base/nss_memio.c',
         'base/nss_memio.h',
         'base/pem_tokenizer.cc',
