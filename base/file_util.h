@@ -235,6 +235,8 @@ bool CopyAndDeleteDirectory(const FilePath& from_path,
 bool IsDirectoryEmpty(const FilePath& dir_path);
 
 // Get the temporary directory provided by the system.
+// WARNING: DON'T USE THIS. If you want to create a temporary file, use one of
+// the functions below.
 bool GetTempDir(FilePath* path);
 // Get a temporary directory for shared memory files.
 // Only useful on POSIX; redirects to GetTempDir() on Windows.
