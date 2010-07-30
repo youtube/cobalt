@@ -112,6 +112,22 @@ void CreateSpdyHeadersFromHttpRequest(
   // TODO(mbelshe): Add authentication headers here.
 
   (*headers)["method"] = info.method;
+
+  // Handle content-length. This is the same as BuildRequestHeader in
+  // http_network_transaction.cc.
+  // TODO(lzheng): reduce the code duplication between spdy and http here.
+  if (info.upload_data) {
+    (*headers)["content-length"] =
+        Int64ToString(info.upload_data->GetContentLength());
+  } else if (info.method == "POST" || info.method == "PUT" ||
+             info.method == "HEAD") {
+    // An empty POST/PUT request still needs a content length.  As for HEAD,
+    // IE and Safari also add a content length header.  Presumably it is to
+    // support sending a HEAD request to an URL that only expects to be sent a
+    // POST or some other method that normally would have a message body.
+    (*headers)["content-length"] = "0";
+  }
+
   (*headers)["url"] = net::HttpUtil::PathForRequest(info.url);
   (*headers)["host"] = net::GetHostAndOptionalPort(info.url);
   (*headers)["scheme"] = info.url.scheme();
