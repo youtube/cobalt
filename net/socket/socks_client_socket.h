@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
@@ -18,7 +19,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/socket/client_socket.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
@@ -64,9 +64,9 @@ class SOCKSClientSocket : public ClientSocket {
   virtual int GetPeerAddress(AddressList* address) const;
 
  private:
-  FRIEND_TEST(SOCKSClientSocketTest, CompleteHandshake);
-  FRIEND_TEST(SOCKSClientSocketTest, SOCKS4AFailedDNS);
-  FRIEND_TEST(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6);
+  FRIEND_TEST_ALL_PREFIXES(SOCKSClientSocketTest, CompleteHandshake);
+  FRIEND_TEST_ALL_PREFIXES(SOCKSClientSocketTest, SOCKS4AFailedDNS);
+  FRIEND_TEST_ALL_PREFIXES(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6);
 
   enum State {
     STATE_RESOLVE_HOST,

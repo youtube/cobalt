@@ -9,12 +9,12 @@
 #include <map>
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/time.h"
 #include "net/base/address_family.h"
 #include "net/base/address_list.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
@@ -111,8 +111,8 @@ class HostCache : public NonThreadSafe {
   const EntryMap& entries() const;
 
  private:
-  FRIEND_TEST(HostCacheTest, Compact);
-  FRIEND_TEST(HostCacheTest, NoCache);
+  FRIEND_TEST_ALL_PREFIXES(HostCacheTest, Compact);
+  FRIEND_TEST_ALL_PREFIXES(HostCacheTest, NoCache);
 
   // Returns true if this cache entry's result is valid at time |now|.
   static bool CanUseEntry(const Entry* entry, const base::TimeTicks now);
