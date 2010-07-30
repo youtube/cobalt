@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -210,10 +210,9 @@ static std::wstring HashedDomainToExternalString(const std::string& hashed) {
 
 // This inverts |HashedDomainToExternalString|, above. It turns an external
 // string (from a JSON file) into an internal (binary) string.
-static std::string ExternalStringToHashedDomain(const std::wstring& external) {
-  std::string external_ascii = WideToASCII(external);
+static std::string ExternalStringToHashedDomain(const std::string& external) {
   std::string out;
-  if (!base::Base64Decode(external_ascii, &out) ||
+  if (!base::Base64Decode(external, &out) ||
       out.size() != base::SHA256_LENGTH) {
     return std::string();
   }

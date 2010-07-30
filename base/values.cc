@@ -323,7 +323,7 @@ bool BinaryValue::Equals(const Value* other) const {
 ///////////////////// DictionaryValue ////////////////////
 
 DictionaryValue::DictionaryValue()
-  : Value(TYPE_DICTIONARY) {
+    : Value(TYPE_DICTIONARY) {
 }
 
 DictionaryValue::~DictionaryValue() {
@@ -367,14 +367,20 @@ bool DictionaryValue::Equals(const Value* other) const {
   return true;
 }
 
-bool DictionaryValue::HasKey(const std::wstring& key) const {
+bool DictionaryValue::HasKey(const std::string& key) const {
   ValueMap::const_iterator current_entry = dictionary_.find(key);
   DCHECK((current_entry == dictionary_.end()) || current_entry->second);
   return current_entry != dictionary_.end();
 }
 
+// TODO(viettrungluu): Deprecated and to be removed:
 bool DictionaryValue::HasKeyASCII(const std::string& key) const {
-  return HasKey(ASCIIToWide(key));
+  return HasKey(key);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::HasKey(const std::wstring& key) const {
+  return HasKey(WideToUTF8(key));
 }
 
 void DictionaryValue::Clear() {
@@ -387,16 +393,16 @@ void DictionaryValue::Clear() {
   dictionary_.clear();
 }
 
-void DictionaryValue::Set(const std::wstring& path, Value* in_value) {
+void DictionaryValue::Set(const std::string& path, Value* in_value) {
   DCHECK(in_value);
 
-  std::wstring current_path(path);
+  std::string current_path(path);
   DictionaryValue* current_dictionary = this;
   for (size_t delimiter_position = current_path.find('.');
-       delimiter_position != std::wstring::npos;
+       delimiter_position != std::string::npos;
        delimiter_position = current_path.find('.')) {
     // Assume that we're indexing into a dictionary.
-    std::wstring key(current_path, 0, delimiter_position);
+    std::string key(current_path, 0, delimiter_position);
     DictionaryValue* child_dictionary = NULL;
     if (!current_dictionary->GetDictionary(key, &child_dictionary)) {
       child_dictionary = new DictionaryValue;
@@ -410,34 +416,67 @@ void DictionaryValue::Set(const std::wstring& path, Value* in_value) {
   current_dictionary->SetWithoutPathExpansion(current_path, in_value);
 }
 
+// TODO(viettrungluu): Deprecated and to be removed:
+void DictionaryValue::Set(const std::wstring& path, Value* in_value) {
+  Set(WideToUTF8(path), in_value);
+}
+
+void DictionaryValue::SetBoolean(const std::string& path, bool in_value) {
+  Set(path, CreateBooleanValue(in_value));
+}
+
+void DictionaryValue::SetInteger(const std::string& path, int in_value) {
+  Set(path, CreateIntegerValue(in_value));
+}
+
+void DictionaryValue::SetReal(const std::string& path, double in_value) {
+  Set(path, CreateRealValue(in_value));
+}
+
+void DictionaryValue::SetString(const std::string& path,
+                                const std::string& in_value) {
+  Set(path, CreateStringValue(in_value));
+}
+
+void DictionaryValue::SetStringFromUTF16(const std::string& path,
+                                         const string16& in_value) {
+  Set(path, CreateStringValueFromUTF16(in_value));
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetBoolean(const std::wstring& path, bool in_value) {
   Set(path, CreateBooleanValue(in_value));
 }
 
+// TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetInteger(const std::wstring& path, int in_value) {
   Set(path, CreateIntegerValue(in_value));
 }
 
+// TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetReal(const std::wstring& path, double in_value) {
   Set(path, CreateRealValue(in_value));
 }
 
+// TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetString(const std::wstring& path,
                                 const std::string& in_value) {
   Set(path, CreateStringValue(in_value));
 }
 
+// TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetString(const std::wstring& path,
                                 const std::wstring& in_value) {
   Set(path, CreateStringValue(in_value));
 }
 
+// TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetStringFromUTF16(const std::wstring& path,
                                          const string16& in_value) {
   Set(path, CreateStringValueFromUTF16(in_value));
 }
 
-void DictionaryValue::SetWithoutPathExpansion(const std::wstring& key,
+void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
                                               Value* in_value) {
   // If there's an existing value here, we need to delete it, because
   // we own all our children.
@@ -449,11 +488,17 @@ void DictionaryValue::SetWithoutPathExpansion(const std::wstring& key,
   dictionary_[key] = in_value;
 }
 
-bool DictionaryValue::Get(const std::wstring& path, Value** out_value) const {
-  std::wstring current_path(path);
+// TODO(viettrungluu): Deprecated and to be removed:
+void DictionaryValue::SetWithoutPathExpansion(const std::wstring& key,
+                                              Value* in_value) {
+  SetWithoutPathExpansion(WideToUTF8(key), in_value);
+}
+
+bool DictionaryValue::Get(const std::string& path, Value** out_value) const {
+  std::string current_path(path);
   const DictionaryValue* current_dictionary = this;
   for (size_t delimiter_position = current_path.find('.');
-       delimiter_position != std::wstring::npos;
+       delimiter_position != std::string::npos;
        delimiter_position = current_path.find('.')) {
     DictionaryValue* child_dictionary = NULL;
     if (!current_dictionary->GetDictionary(
@@ -467,7 +512,12 @@ bool DictionaryValue::Get(const std::wstring& path, Value** out_value) const {
   return current_dictionary->GetWithoutPathExpansion(current_path, out_value);
 }
 
-bool DictionaryValue::GetBoolean(const std::wstring& path,
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::Get(const std::wstring& path, Value** out_value) const {
+  return Get(WideToUTF8(path), out_value);
+}
+
+bool DictionaryValue::GetBoolean(const std::string& path,
                                  bool* bool_value) const {
   Value* value;
   if (!Get(path, &value))
@@ -476,7 +526,7 @@ bool DictionaryValue::GetBoolean(const std::wstring& path,
   return value->GetAsBoolean(bool_value);
 }
 
-bool DictionaryValue::GetInteger(const std::wstring& path,
+bool DictionaryValue::GetInteger(const std::string& path,
                                  int* out_value) const {
   Value* value;
   if (!Get(path, &value))
@@ -485,7 +535,7 @@ bool DictionaryValue::GetInteger(const std::wstring& path,
   return value->GetAsInteger(out_value);
 }
 
-bool DictionaryValue::GetReal(const std::wstring& path,
+bool DictionaryValue::GetReal(const std::string& path,
                               double* out_value) const {
   Value* value;
   if (!Get(path, &value))
@@ -495,14 +545,27 @@ bool DictionaryValue::GetReal(const std::wstring& path,
 }
 
 bool DictionaryValue::GetString(const std::string& path,
-                                string16* out_value) const {
-  return GetStringAsUTF16(ASCIIToWide(path), out_value);
+                                std::string* out_value) const {
+  Value* value;
+  if (!Get(path, &value))
+    return false;
+
+  return value->GetAsString(out_value);
+}
+
+bool DictionaryValue::GetStringAsUTF16(const std::string& path,
+                                       string16* out_value) const {
+  Value* value;
+  if (!Get(path, &value))
+    return false;
+
+  return value->GetAsUTF16(out_value);
 }
 
 bool DictionaryValue::GetStringASCII(const std::string& path,
                                      std::string* out_value) const {
   std::string out;
-  if (!GetString(ASCIIToWide(path), &out))
+  if (!GetString(path, &out))
     return false;
 
   if (!IsStringASCII(out)) {
@@ -514,34 +577,7 @@ bool DictionaryValue::GetStringASCII(const std::string& path,
   return true;
 }
 
-bool DictionaryValue::GetString(const std::wstring& path,
-                                std::string* out_value) const {
-  Value* value;
-  if (!Get(path, &value))
-    return false;
-
-  return value->GetAsString(out_value);
-}
-
-bool DictionaryValue::GetString(const std::wstring& path,
-                                std::wstring* out_value) const {
-  Value* value;
-  if (!Get(path, &value))
-    return false;
-
-  return value->GetAsString(out_value);
-}
-
-bool DictionaryValue::GetStringAsUTF16(const std::wstring& path,
-                                       string16* out_value) const {
-  Value* value;
-  if (!Get(path, &value))
-    return false;
-
-  return value->GetAsUTF16(out_value);
-}
-
-bool DictionaryValue::GetBinary(const std::wstring& path,
+bool DictionaryValue::GetBinary(const std::string& path,
                                 BinaryValue** out_value) const {
   Value* value;
   bool result = Get(path, &value);
@@ -554,7 +590,7 @@ bool DictionaryValue::GetBinary(const std::wstring& path,
   return true;
 }
 
-bool DictionaryValue::GetDictionary(const std::wstring& path,
+bool DictionaryValue::GetDictionary(const std::string& path,
                                     DictionaryValue** out_value) const {
   Value* value;
   bool result = Get(path, &value);
@@ -567,7 +603,7 @@ bool DictionaryValue::GetDictionary(const std::wstring& path,
   return true;
 }
 
-bool DictionaryValue::GetList(const std::wstring& path,
+bool DictionaryValue::GetList(const std::string& path,
                               ListValue** out_value) const {
   Value* value;
   bool result = Get(path, &value);
@@ -580,7 +616,71 @@ bool DictionaryValue::GetList(const std::wstring& path,
   return true;
 }
 
-bool DictionaryValue::GetWithoutPathExpansion(const std::wstring& key,
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetBoolean(const std::wstring& path,
+                                 bool* out_value) const {
+  return GetBoolean(WideToUTF8(path), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetInteger(const std::wstring& path,
+                                 int* out_value) const {
+  return GetInteger(WideToUTF8(path), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetReal(const std::wstring& path,
+                              double* out_value) const {
+  return GetReal(WideToUTF8(path), out_value);
+}
+
+// TODO(viettrungluu): or maybe we should get rid of the "AsUTF16" version?
+bool DictionaryValue::GetString(const std::string& path,
+                                string16* out_value) const {
+  return GetStringAsUTF16(path, out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetString(const std::wstring& path,
+                                std::string* out_value) const {
+  return GetString(WideToUTF8(path), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetString(const std::wstring& path,
+                                std::wstring* out_value) const {
+  Value* value;
+  if (!Get(WideToUTF8(path), &value))
+    return false;
+
+  return value->GetAsString(out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetStringAsUTF16(const std::wstring& path,
+                                       string16* out_value) const {
+  return GetStringAsUTF16(WideToUTF8(path), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetBinary(const std::wstring& path,
+                                BinaryValue** out_value) const {
+  return GetBinary(WideToUTF8(path), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetDictionary(const std::wstring& path,
+                                    DictionaryValue** out_value) const {
+  return GetDictionary(WideToUTF8(path), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetList(const std::wstring& path,
+                              ListValue** out_value) const {
+  return GetList(WideToUTF8(path), out_value);
+}
+
+bool DictionaryValue::GetWithoutPathExpansion(const std::string& key,
                                               Value** out_value) const {
   ValueMap::const_iterator entry_iterator = dictionary_.find(key);
   if (entry_iterator == dictionary_.end())
@@ -592,50 +692,40 @@ bool DictionaryValue::GetWithoutPathExpansion(const std::wstring& key,
   return true;
 }
 
-bool DictionaryValue::GetIntegerWithoutPathExpansion(const std::wstring& path,
+bool DictionaryValue::GetIntegerWithoutPathExpansion(const std::string& key,
                                                      int* out_value) const {
   Value* value;
-  if (!GetWithoutPathExpansion(path, &value))
+  if (!GetWithoutPathExpansion(key, &value))
     return false;
 
   return value->GetAsInteger(out_value);
 }
 
 bool DictionaryValue::GetStringWithoutPathExpansion(
-    const std::wstring& path,
+    const std::string& key,
     std::string* out_value) const {
   Value* value;
-  if (!GetWithoutPathExpansion(path, &value))
-    return false;
-
-  return value->GetAsString(out_value);
-}
-
-bool DictionaryValue::GetStringWithoutPathExpansion(
-    const std::wstring& path,
-    std::wstring* out_value) const {
-  Value* value;
-  if (!GetWithoutPathExpansion(path, &value))
+  if (!GetWithoutPathExpansion(key, &value))
     return false;
 
   return value->GetAsString(out_value);
 }
 
 bool DictionaryValue::GetStringAsUTF16WithoutPathExpansion(
-    const std::wstring& path,
+    const std::string& key,
     string16* out_value) const {
   Value* value;
-  if (!GetWithoutPathExpansion(path, &value))
+  if (!GetWithoutPathExpansion(key, &value))
     return false;
 
   return value->GetAsUTF16(out_value);
 }
 
 bool DictionaryValue::GetDictionaryWithoutPathExpansion(
-    const std::wstring& path,
+    const std::string& key,
     DictionaryValue** out_value) const {
   Value* value;
-  bool result = GetWithoutPathExpansion(path, &value);
+  bool result = GetWithoutPathExpansion(key, &value);
   if (!result || !value->IsType(TYPE_DICTIONARY))
     return false;
 
@@ -645,10 +735,10 @@ bool DictionaryValue::GetDictionaryWithoutPathExpansion(
   return true;
 }
 
-bool DictionaryValue::GetListWithoutPathExpansion(const std::wstring& path,
+bool DictionaryValue::GetListWithoutPathExpansion(const std::string& key,
                                                   ListValue** out_value) const {
   Value* value;
-  bool result = GetWithoutPathExpansion(path, &value);
+  bool result = GetWithoutPathExpansion(key, &value);
   if (!result || !value->IsType(TYPE_LIST))
     return false;
 
@@ -658,11 +748,61 @@ bool DictionaryValue::GetListWithoutPathExpansion(const std::wstring& path,
   return true;
 }
 
-bool DictionaryValue::Remove(const std::wstring& path, Value** out_value) {
-  std::wstring current_path(path);
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetWithoutPathExpansion(const std::wstring& key,
+                                              Value** out_value) const {
+  return GetWithoutPathExpansion(WideToUTF8(key), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetIntegerWithoutPathExpansion(const std::wstring& key,
+                                                     int* out_value) const {
+  return GetIntegerWithoutPathExpansion(WideToUTF8(key), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetStringWithoutPathExpansion(
+    const std::wstring& key,
+    std::string* out_value) const {
+  return GetStringWithoutPathExpansion(WideToUTF8(key), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetStringWithoutPathExpansion(
+    const std::wstring& key,
+    std::wstring* out_value) const {
+  Value* value;
+  if (!GetWithoutPathExpansion(WideToUTF8(key), &value))
+    return false;
+
+  return value->GetAsString(out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetStringAsUTF16WithoutPathExpansion(
+    const std::wstring& key,
+    string16* out_value) const {
+  return GetStringAsUTF16WithoutPathExpansion(WideToUTF8(key), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetDictionaryWithoutPathExpansion(
+    const std::wstring& key,
+    DictionaryValue** out_value) const {
+  return GetDictionaryWithoutPathExpansion(WideToUTF8(key), out_value);
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::GetListWithoutPathExpansion(const std::wstring& key,
+                                                  ListValue** out_value) const {
+  return GetListWithoutPathExpansion(WideToUTF8(key), out_value);
+}
+
+bool DictionaryValue::Remove(const std::string& path, Value** out_value) {
+  std::string current_path(path);
   DictionaryValue* current_dictionary = this;
   size_t delimiter_position = current_path.rfind('.');
-  if (delimiter_position != std::wstring::npos) {
+  if (delimiter_position != std::string::npos) {
     if (!GetDictionary(current_path.substr(0, delimiter_position),
                        &current_dictionary))
       return false;
@@ -673,7 +813,12 @@ bool DictionaryValue::Remove(const std::wstring& path, Value** out_value) {
                                                         out_value);
 }
 
-bool DictionaryValue::RemoveWithoutPathExpansion(const std::wstring& key,
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::Remove(const std::wstring& path, Value** out_value) {
+  return Remove(WideToUTF8(path), out_value);
+}
+
+bool DictionaryValue::RemoveWithoutPathExpansion(const std::string& key,
                                                  Value** out_value) {
   ValueMap::iterator entry_iterator = dictionary_.find(key);
   if (entry_iterator == dictionary_.end())
@@ -686,6 +831,12 @@ bool DictionaryValue::RemoveWithoutPathExpansion(const std::wstring& key,
     delete entry;
   dictionary_.erase(entry_iterator);
   return true;
+}
+
+// TODO(viettrungluu): Deprecated and to be removed:
+bool DictionaryValue::RemoveWithoutPathExpansion(const std::wstring& key,
+                                                 Value** out_value) {
+  return RemoveWithoutPathExpansion(WideToUTF8(key), out_value);
 }
 
 DictionaryValue* DictionaryValue::DeepCopyWithoutEmptyChildren() {
