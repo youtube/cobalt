@@ -74,7 +74,7 @@ MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
 }
 
 TEST_F(ProcessUtilTest, SpawnChild) {
-  base::ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
+  base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess");
   ASSERT_NE(base::kNullProcessHandle, handle);
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
   base::CloseProcessHandle(handle);
@@ -87,7 +87,7 @@ MULTIPROCESS_TEST_MAIN(SlowChildProcess) {
 
 TEST_F(ProcessUtilTest, KillSlowChild) {
   remove("SlowChildProcess.die");
-  base::ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
+  base::ProcessHandle handle = this->SpawnChild("SlowChildProcess");
   ASSERT_NE(base::kNullProcessHandle, handle);
   SignalChildren("SlowChildProcess.die");
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
@@ -97,7 +97,7 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
 
 TEST_F(ProcessUtilTest, DidProcessCrash) {
   remove("SlowChildProcess.die");
-  base::ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
+  base::ProcessHandle handle = this->SpawnChild("SlowChildProcess");
   ASSERT_NE(base::kNullProcessHandle, handle);
 
   bool child_exited = true;
@@ -117,7 +117,7 @@ TEST_F(ProcessUtilTest, DidProcessCrash) {
 // Note: a platform may not be willing or able to lower the priority of
 // a process. The calls to SetProcessBackground should be noops then.
 TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
-  base::ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
+  base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess");
   base::Process process(handle);
   int old_priority = process.GetPriority();
   process.SetProcessBackgrounded(true);
@@ -225,7 +225,7 @@ TEST_F(ProcessUtilTest, LaunchAsUser) {
   base::UserTokenHandle token;
   ASSERT_TRUE(OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &token));
   std::wstring cmdline =
-      this->MakeCmdLine(L"SimpleChildProcess", false).command_line_string();
+      this->MakeCmdLine("SimpleChildProcess", false).command_line_string();
   EXPECT_TRUE(base::LaunchAppAsUser(token, cmdline, false, NULL));
 }
 
@@ -290,7 +290,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
   base::file_handle_mapping_vector fd_mapping_vec;
   fd_mapping_vec.push_back(std::pair<int, int>(fds[1], kChildPipe));
   base::ProcessHandle handle = this->SpawnChild(
-      L"ProcessUtilsLeakFDChildProcess", fd_mapping_vec, false);
+      "ProcessUtilsLeakFDChildProcess", fd_mapping_vec, false);
   CHECK(handle);
   int ret = HANDLE_EINTR(close(fds[1]));
   DPCHECK(ret == 0);

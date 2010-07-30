@@ -383,6 +383,11 @@ void CommandLine::AppendSwitch(const std::string& switch_string) {
   switches_[switch_string] = L"";
 }
 
+void CommandLine::AppendSwitchASCII(const std::string& switch_string,
+                                    const std::string& value_string) {
+  AppendSwitchNative(switch_string, ASCIIToWide(value_string));
+}
+
 void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
                                         const std::wstring& value_string) {
   AppendSwitchNative(switch_string, value_string);
@@ -453,6 +458,11 @@ void CommandLine::AppendSwitchNative(const std::string& switch_string,
   switches_[switch_string] = value;
 }
 
+void CommandLine::AppendSwitchASCII(const std::string& switch_string,
+                                    const std::string& value_string) {
+  AppendSwitchNative(switch_string, value_string);
+}
+
 void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
                                         const std::wstring& value_string) {
   // TODO(evanm): deprecate.
@@ -491,11 +501,6 @@ void CommandLine::PrependWrapper(const std::wstring& wrapper_wide) {
 void CommandLine::AppendSwitchPath(const std::string& switch_string,
                                    const FilePath& path) {
   AppendSwitchNative(switch_string, path.value());
-}
-
-void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
-                                        const std::string& value_string) {
-  AppendSwitchWithValue(switch_string, ASCIIToWide(value_string));
 }
 
 void CommandLine::CopySwitchesFrom(const CommandLine& source,
