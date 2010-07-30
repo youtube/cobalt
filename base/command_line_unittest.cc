@@ -101,24 +101,24 @@ TEST(CommandLineTest, EmptyString) {
 TEST(CommandLineTest, AppendSwitches) {
   std::string switch1 = "switch1";
   std::string switch2 = "switch2";
-  std::wstring value = L"value";
+  std::string value = "value";
   std::string switch3 = "switch3";
-  std::wstring value3 = L"a value with spaces";
+  std::string value3 = "a value with spaces";
   std::string switch4 = "switch4";
-  std::wstring value4 = L"\"a value with quotes\"";
+  std::string value4 = "\"a value with quotes\"";
 
   CommandLine cl(FilePath(FILE_PATH_LITERAL("Program")));
 
   cl.AppendSwitch(switch1);
-  cl.AppendSwitchWithValue(switch2, value);
-  cl.AppendSwitchWithValue(switch3, value3);
-  cl.AppendSwitchWithValue(switch4, value4);
+  cl.AppendSwitchASCII(switch2, value);
+  cl.AppendSwitchASCII(switch3, value3);
+  cl.AppendSwitchASCII(switch4, value4);
 
   EXPECT_TRUE(cl.HasSwitch(switch1));
   EXPECT_TRUE(cl.HasSwitch(switch2));
-  EXPECT_EQ(value, cl.GetSwitchValue(switch2));
+  EXPECT_EQ(value, cl.GetSwitchValueASCII(switch2));
   EXPECT_TRUE(cl.HasSwitch(switch3));
-  EXPECT_EQ(value3, cl.GetSwitchValue(switch3));
+  EXPECT_EQ(value3, cl.GetSwitchValueASCII(switch3));
   EXPECT_TRUE(cl.HasSwitch(switch4));
-  EXPECT_EQ(value4, cl.GetSwitchValue(switch4));
+  EXPECT_EQ(value4, cl.GetSwitchValueASCII(switch4));
 }
