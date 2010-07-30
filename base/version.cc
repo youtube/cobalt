@@ -5,13 +5,15 @@
 #include "base/version.h"
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 
 // static
 Version* Version::GetVersionFromString(const std::wstring& version_str) {
   if (!IsStringASCII(version_str))
     return NULL;
-  return GetVersionFromString(WideToASCII(version_str));
+  return GetVersionFromString(WideToUTF8(version_str));
 }
 
 // static
@@ -60,10 +62,10 @@ const std::string Version::GetString() const {
   std::string version_str;
   int count = components_.size();
   for (int i = 0; i < count - 1; ++i) {
-    version_str.append(IntToString(components_[i]));
+    version_str.append(base::IntToString(components_[i]));
     version_str.append(".");
   }
-  version_str.append(IntToString(components_[count - 1]));
+  version_str.append(base::IntToString(components_[count - 1]));
   return version_str;
 }
 
@@ -76,7 +78,7 @@ bool Version::InitFromString(const std::string& version_str) {
   for (std::vector<std::string>::iterator i = numbers.begin();
        i != numbers.end(); ++i) {
     int num;
-    if (!StringToInt(*i, &num))
+    if (!base::StringToInt(*i, &num))
       return false;
     if (num < 0)
       return false;
@@ -84,7 +86,7 @@ bool Version::InitFromString(const std::string& version_str) {
     if (num > max)
       return false;
     // This throws out things like +3, or 032.
-    if (IntToString(num) != *i)
+    if (base::IntToString(num) != *i)
       return false;
     uint16 component = static_cast<uint16>(num);
     components_.push_back(component);

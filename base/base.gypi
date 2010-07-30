@@ -216,6 +216,8 @@
           'stats_table.cc',
           'stats_table.h',
           'stl_util-inl.h',
+          'string_number_conversions.cc',
+          'string_number_conversions.h',
           'string_piece.cc',
           'string_piece.h',
           'string_split.cc',

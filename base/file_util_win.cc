@@ -17,6 +17,7 @@
 #include "base/pe_image.h"
 #include "base/scoped_comptr_win.h"
 #include "base/scoped_handle.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "base/win_util.h"
@@ -562,9 +563,9 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
     // the one exists, keep trying another path name until we reach some limit.
     path_to_create = base_dir;
 
-    std::wstring new_dir_name;
+    string16 new_dir_name;
     new_dir_name.assign(prefix);
-    new_dir_name.append(IntToWString(rand() % kint16max));
+    new_dir_name.append(base::IntToString16(rand() % kint16max));
 
     path_to_create = path_to_create.Append(new_dir_name);
     if (::CreateDirectory(path_to_create.value().c_str(), NULL))
