@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -188,8 +188,10 @@ void JSONWriter::BuildJSONString(const Value* const node,
   }
 }
 
-void JSONWriter::AppendQuotedString(const std::wstring& str) {
-  JsonDoubleQuote(WideToUTF16Hack(str), true, json_string_);
+void JSONWriter::AppendQuotedString(const std::string& str) {
+  // TODO(viettrungluu): |str| is UTF-8, not ASCII, so to properly escape it we
+  // have to convert it to UTF-16. This round-trip is suboptimal.
+  JsonDoubleQuote(UTF8ToUTF16(str), true, json_string_);
 }
 
 void JSONWriter::IndentLine(int depth) {

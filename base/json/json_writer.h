@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,8 +45,8 @@ class JSONWriter {
   // json_string_ will contain the JSON.
   void BuildJSONString(const Value* const node, int depth, bool escape);
 
-  // Appends a quoted, escaped, version of str to json_string_.
-  void AppendQuotedString(const std::wstring& str);
+  // Appends a quoted, escaped, version of (UTF-8) str to json_string_.
+  void AppendQuotedString(const std::string& str);
 
   // Adds space to json_string_ for the indent level.
   void IndentLine(int depth);
