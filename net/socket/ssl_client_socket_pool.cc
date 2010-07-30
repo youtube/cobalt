@@ -103,11 +103,6 @@ LoadState SSLConnectJob::GetLoadState() const {
 }
 
 int SSLConnectJob::ConnectInternal() {
-  DetermineFirstState();
-  return DoLoop(OK);
-}
-
-void SSLConnectJob::DetermineFirstState() {
   switch (params_->proxy()) {
     case ProxyServer::SCHEME_DIRECT:
       next_state_ = STATE_TCP_CONNECT;
@@ -123,6 +118,7 @@ void SSLConnectJob::DetermineFirstState() {
       NOTREACHED() << "unknown proxy type";
       break;
   }
+  return DoLoop(OK);
 }
 
 void SSLConnectJob::OnIOComplete(int result) {
@@ -214,6 +210,7 @@ int SSLConnectJob::DoSOCKSConnectComplete(int result) {
 int SSLConnectJob::DoTunnelConnect() {
   DCHECK(http_proxy_pool_.get());
   next_state_ = STATE_TUNNEL_CONNECT_COMPLETE;
+
   transport_socket_handle_.reset(new ClientSocketHandle());
   scoped_refptr<HttpProxySocketParams> http_proxy_params =
       params_->http_proxy_params();
@@ -228,12 +225,6 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
   HttpProxyClientSocket* tunnel_socket =
       static_cast<HttpProxyClientSocket*>(socket);
 
-  if (result == ERR_RETRY_CONNECTION) {
-    DetermineFirstState();
-    transport_socket_handle_->socket()->Disconnect();
-    return OK;
-  }
-
   // Extract the information needed to prompt for the proxy authentication.
   // so that when ClientSocketPoolBaseHelper calls |GetAdditionalErrorState|,
   // we can easily set the state.
@@ -243,20 +234,17 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
   if (result < 0)
     return result;
 
-  if (tunnel_socket->NeedsRestartWithAuth()) {
-    // We must have gotten an 'idle' tunnel socket that is waiting for auth.
-    // The HttpAuthController should have new credentials, we just need
-    // to retry.
-    next_state_ = STATE_TUNNEL_CONNECT_COMPLETE;
-    return tunnel_socket->RestartWithAuth(&callback_);
-  }
-
+  DCHECK(tunnel_socket->IsConnected());
   next_state_ = STATE_SSL_CONNECT;
   return result;
 }
 
 void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
-  handle->set_ssl_error_response_info(error_response_info_);
+  if (error_response_info_.headers) {
+    handle->set_ssl_error_response_info(error_response_info_);
+    handle->set_pending_http_proxy_connection(
+        transport_socket_handle_.release());
+  }
   if (!ssl_connect_start_time_.is_null())
     handle->set_is_ssl_error(true);
 }
