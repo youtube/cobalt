@@ -11,12 +11,12 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"  // For FRIEND_TEST
 
 namespace net {
 
@@ -86,7 +86,7 @@ class SpdySessionPool
   friend class base::RefCounted<SpdySessionPool>;
   friend class SpdySessionPoolPeer;  // For testing.
   friend class SpdyNetworkTransactionTest;  // For testing.
-  FRIEND_TEST(SpdyNetworkTransactionTest, WindowUpdateOverflow);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateOverflow);
 
   typedef std::list<scoped_refptr<SpdySession> > SpdySessionList;
   typedef std::map<HostPortPair, SpdySessionList*> SpdySessionsMap;

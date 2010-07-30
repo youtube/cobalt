@@ -10,9 +10,9 @@
 #define NET_PROXY_PROXY_SCRIPT_FETCHER_H_
 #pragma once
 
+#include "base/gtest_prod_util.h"
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 class GURL;
 class URLRequestContext;
@@ -56,8 +56,8 @@ class ProxyScriptFetcher {
   // Testing helpers (only available to unit-tests).
   // --------------------------------------------------------------------------
  private:
-  FRIEND_TEST(ProxyScriptFetcherTest, Hang);
-  FRIEND_TEST(ProxyScriptFetcherTest, TooLarge);
+  FRIEND_TEST_ALL_PREFIXES(ProxyScriptFetcherTest, Hang);
+  FRIEND_TEST_ALL_PREFIXES(ProxyScriptFetcherTest, TooLarge);
 
   // Sets the maximum duration for a fetch to |timeout_ms|. Returns the previous
   // bound.

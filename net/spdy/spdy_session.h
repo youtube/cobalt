@@ -12,6 +12,7 @@
 #include <queue>
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/linked_ptr.h"
 #include "base/ref_counted.h"
 #include "net/base/io_buffer.h"
@@ -28,7 +29,6 @@
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"  // For FRIEND_TEST
 
 namespace net {
 
@@ -143,7 +143,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
  private:
   friend class base::RefCounted<SpdySession>;
-  FRIEND_TEST(SpdySessionTest, GetActivePushStream);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, GetActivePushStream);
 
   enum State {
     IDLE,
