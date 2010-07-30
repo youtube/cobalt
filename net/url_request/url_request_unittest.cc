@@ -22,7 +22,7 @@
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/string_piece.h"
-#include "base/string_util.h"
+#include "base/string_number_conversions.h"
 #include "net/base/cookie_monster.h"
 #include "net/base/cookie_policy.h"
 #include "net/base/load_flags.h"
@@ -172,7 +172,7 @@ TEST_F(URLRequestTestHTTP, ProxyTunnelRedirectTest) {
   {
     URLRequest r(GURL("https://www.redirect.com/"), &d);
     std::string proxy("localhost:");
-    proxy.append(IntToString(kHTTPDefaultPort));
+    proxy.append(base::IntToString(kHTTPDefaultPort));
     r.set_context(new TestURLRequestContext(proxy));
 
     r.Start();
@@ -197,7 +197,7 @@ TEST_F(URLRequestTestHTTP, UnexpectedServerAuthTest) {
   {
     URLRequest r(GURL("https://www.server-auth.com/"), &d);
     std::string proxy("localhost:");
-    proxy.append(IntToString(kHTTPDefaultPort));
+    proxy.append(base::IntToString(kHTTPDefaultPort));
     r.set_context(new TestURLRequestContext(proxy));
 
     r.Start();
@@ -1761,7 +1761,7 @@ TEST_F(URLRequestTestHTTP, Post307RedirectPost) {
   req.set_upload(CreateSimpleUploadData(kData).get());
   net::HttpRequestHeaders headers;
   headers.SetHeader(net::HttpRequestHeaders::kContentLength,
-                    UintToString(arraysize(kData) - 1));
+                    base::UintToString(arraysize(kData) - 1));
   req.SetExtraRequestHeaders(headers);
   req.Start();
   MessageLoop::current()->Run();

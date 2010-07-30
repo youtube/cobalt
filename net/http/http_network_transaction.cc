@@ -15,6 +15,7 @@
 #include "base/stats_counters.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/string_number_conversions.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/connection_type_histograms.h"
@@ -650,7 +651,7 @@ int HttpNetworkTransaction::DoResolveProxy() {
 
   if (g_host_mapping_rules && g_host_mapping_rules->RewriteHost(&endpoint_)) {
     url_canon::Replacements<char> replacements;
-    const std::string port_str = IntToString(endpoint_.port());
+    const std::string port_str = base::IntToString(endpoint_.port());
     replacements.SetPort(port_str.c_str(),
                          url_parse::Component(0, port_str.size()));
     replacements.SetHost(endpoint_.host().c_str(),
@@ -677,7 +678,7 @@ int HttpNetworkTransaction::DoResolveProxy() {
         url_canon::Replacements<char> replacements;
         replacements.SetScheme("https",
                                url_parse::Component(0, strlen("https")));
-        const std::string port_str = IntToString(endpoint_.port());
+        const std::string port_str = base::IntToString(endpoint_.port());
         replacements.SetPort(port_str.c_str(),
                              url_parse::Component(0, port_str.size()));
         alternate_endpoint_url =

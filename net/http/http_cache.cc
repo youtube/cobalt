@@ -19,6 +19,7 @@
 #include "base/ref_counted.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/string_number_conversions.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -466,7 +467,7 @@ std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
   (*playback_cache_map_)[url] = generation + 1;
 
   // The key into the cache is GENERATION # + METHOD + URL.
-  std::string result = IntToString(generation);
+  std::string result = base::IntToString(generation);
   result.append(request->method);
   result.append(url);
   return result;
