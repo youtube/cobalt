@@ -48,6 +48,9 @@ TEST_F(DNSUtilTest, DNSDomainFromDot) {
 
   EXPECT_TRUE(DNSDomainFromDot(".google.com", &out));
   EXPECT_EQ(out, IncludeNUL("\006google\003com"));
+
+  EXPECT_TRUE(DNSDomainFromDot("www..google.com", &out));
+  EXPECT_EQ(out, IncludeNUL("\003www\006google\003com"));
 }
 
 TEST_F(DNSUtilTest, STD3ASCII) {
