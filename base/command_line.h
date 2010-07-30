@@ -165,15 +165,6 @@ class CommandLine {
   void AppendSwitchASCII(const std::string& switch_string,
                          const std::string& value);
 
-  // Append a switch and value to the command line.
-  // TODO(evanm): remove all AppendSwitchWithValue() instances.
-  void AppendSwitchWithValue(const std::string& switch_string,
-                             const std::wstring& value_string);
-  void AppendSwitchWithValue(const std::string& switch_string,
-                             const std::string& value_string) {
-    AppendSwitchASCII(switch_string, value_string);
-  }
-
   // Append a loose value to the command line.
   void AppendLooseValue(const std::wstring& value);
 
