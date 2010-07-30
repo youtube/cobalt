@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <vector>
+
 #include "net/base/net_log_unittest.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/spdy/spdy_http_stream.h"
@@ -60,7 +62,7 @@ class SpdyNetworkTransactionTest
           session_(SpdySessionDependencies::SpdyCreateSession(&session_deps_)),
           log_(log),
           test_type_(test_type) {
-            switch(test_type_) {
+            switch (test_type_) {
               case SPDYNOSSL:
               case SPDYSSL:
                 port_ = 80;
@@ -77,7 +79,7 @@ class SpdyNetworkTransactionTest
       HttpNetworkTransaction::SetUseAlternateProtocols(false);
       HttpNetworkTransaction::SetUseSSLOverSpdyWithoutNPN(false);
       HttpNetworkTransaction::SetUseSpdyWithoutNPN(false);
-      switch(test_type_) {
+      switch (test_type_) {
         case SPDYNPN:
           session_->mutable_alternate_protocols()->SetAlternateProtocolFor(
               HostPortPair("www.google.com", 80), 443,
@@ -122,11 +124,10 @@ class SpdyNetworkTransactionTest
       ASSERT_TRUE(response->headers != NULL);
       EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
       EXPECT_TRUE(response->was_fetched_via_spdy);
-      if(test_type_ == SPDYNPN) {
+      if (test_type_ == SPDYNPN) {
         EXPECT_TRUE(response->was_npn_negotiated);
         EXPECT_TRUE(response->was_alternate_protocol_available);
-      }
-      else {
+      } else {
         EXPECT_TRUE(!response->was_npn_negotiated);
         EXPECT_TRUE(!response->was_alternate_protocol_available);
       }
@@ -141,7 +142,7 @@ class SpdyNetworkTransactionTest
     // should end with an empty read, and that read needs to be processed to
     // ensure proper deletion of the spdy_session_pool.
     void VerifyDataConsumed() {
-      for(DataVector::iterator it = data_vector_.begin();
+      for (DataVector::iterator it = data_vector_.begin();
           it != data_vector_.end(); ++it) {
         EXPECT_TRUE((*it)->at_read_eof()) << "Read count: "
                                           << (*it)->read_count()
@@ -158,7 +159,7 @@ class SpdyNetworkTransactionTest
     // processed. In that case we want to explicitly ensure that the reads were
     // not processed.
     void VerifyDataNotConsumed() {
-      for(DataVector::iterator it = data_vector_.begin();
+      for (DataVector::iterator it = data_vector_.begin();
           it != data_vector_.end(); ++it) {
         EXPECT_TRUE(!(*it)->at_read_eof()) << "Read count: "
                                            << (*it)->read_count()
@@ -168,7 +169,6 @@ class SpdyNetworkTransactionTest
                                             << (*it)->write_count()
                                             << " Write index: "
                                             << (*it)->write_index();
-
       }
     }
 
@@ -183,13 +183,13 @@ class SpdyNetworkTransactionTest
       data_vector_.push_back(data);
       linked_ptr<SSLSocketDataProvider> ssl_(
           new SSLSocketDataProvider(true, OK));
-      if(test_type_ == SPDYNPN) {
+      if (test_type_ == SPDYNPN) {
         ssl_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
         ssl_->next_proto = "spdy/2";
         ssl_->was_npn_negotiated = true;
       }
       ssl_vector_.push_back(ssl_);
-      if(test_type_ == SPDYNPN || test_type_ == SPDYSSL)
+      if (test_type_ == SPDYNPN || test_type_ == SPDYSSL)
         session_deps_.socket_factory.AddSSLSocketDataProvider(ssl_.get());
       session_deps_.socket_factory.AddSocketDataProvider(data);
     }
@@ -200,7 +200,7 @@ class SpdyNetworkTransactionTest
       session_deps_.socket_factory.AddSocketDataProvider(data);
     }
 
-    void SetSession(scoped_refptr<HttpNetworkSession>& session) {
+    void SetSession(const scoped_refptr<HttpNetworkSession>& session) {
       session_ = session;
     }
     HttpNetworkTransaction* trans() { return trans_.get(); }
@@ -393,7 +393,6 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGets) {
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!hello!", out.response_data);
 }
-
 
 // Similar to ThreeGets above, however this test adds a SETTINGS
 // frame.  The SETTINGS frame is read during the IO loop waiting on
@@ -798,7 +797,13 @@ TEST_P(SpdyNetworkTransactionTest, Post) {
   request.upload_data = new UploadData();
   request.upload_data->AppendBytes(upload, strlen(upload));
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
+  // Http POST Content-Length is using UploadDataStream::size().
+  // It is the same as request.upload_data->GetContentLength().
+  ASSERT_EQ(request.upload_data->GetContentLength(),
+            UploadDataStream::Create(request.upload_data, NULL)->size());
+
+  scoped_ptr<spdy::SpdyFrame>
+      req(ConstructSpdyPost(request.upload_data->GetContentLength(), NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   MockWrite writes[] = {
     CreateMockWrite(*req),
@@ -824,6 +829,46 @@ TEST_P(SpdyNetworkTransactionTest, Post) {
   EXPECT_EQ("hello!", out.response_data);
 }
 
+// Test that a POST without any post data works.
+TEST_P(SpdyNetworkTransactionTest, NullPost) {
+  // Setup the request
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/");
+  // Create an empty UploadData.
+  request.upload_data = NULL;
+
+  // When request.upload_data is NULL for post, content-length is
+  // expected to be 0.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(0, NULL, 0));
+  // Set the FIN bit since there will be no body.
+  req->set_flags(spdy::CONTROL_FLAG_FIN);
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+
+  NormalSpdyTransactionHelper helper(request,
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!", out.response_data);
+}
+
+
 // Test that a simple POST works.
 TEST_P(SpdyNetworkTransactionTest, EmptyPost) {
   // Setup the request
@@ -833,7 +878,13 @@ TEST_P(SpdyNetworkTransactionTest, EmptyPost) {
   // Create an empty UploadData.
   request.upload_data = new UploadData();
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
+  // Http POST Content-Length is using UploadDataStream::size().
+  // It is the same as request.upload_data->GetContentLength().
+  ASSERT_EQ(request.upload_data->GetContentLength(),
+            UploadDataStream::Create(request.upload_data, NULL)->size());
+
+  scoped_ptr<spdy::SpdyFrame>
+      req(ConstructSpdyPost(request.upload_data->GetContentLength(), NULL, 0));
   // Set the FIN bit since there will be no body.
   req->set_flags(spdy::CONTROL_FLAG_FIN);
   MockWrite writes[] = {
@@ -872,7 +923,13 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
   request.upload_data = new UploadData();
   request.upload_data->AppendBytes(upload, sizeof(upload));
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
+  // Http POST Content-Length is using UploadDataStream::size().
+  // It is the same as request.upload_data->GetContentLength().
+  ASSERT_EQ(request.upload_data->GetContentLength(),
+            UploadDataStream::Create(request.upload_data, NULL)->size());
+
+  scoped_ptr<spdy::SpdyFrame>
+      req(ConstructSpdyPost(request.upload_data->GetContentLength(), NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
     MockWrite writes[] = {
     CreateMockWrite(*req.get(), 2),
@@ -977,7 +1034,13 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdate) {
   request.upload_data = new UploadData();
   request.upload_data->AppendBytes(kUploadData, kUploadDataSize);
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
+  // Http POST Content-Length is using UploadDataStream::size().
+  // It is the same as request.upload_data->GetContentLength().
+  ASSERT_EQ(request.upload_data->GetContentLength(),
+            UploadDataStream::Create(request.upload_data, NULL)->size());
+
+  scoped_ptr<spdy::SpdyFrame>
+      req(ConstructSpdyPost(request.upload_data->GetContentLength(), NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   MockWrite writes[] = {
     CreateMockWrite(*req),
@@ -1043,7 +1106,13 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   request.upload_data = new UploadData();
   request.upload_data->AppendBytes(kUploadData, arraysize(kUploadData)-1);
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
+  // Http POST Content-Length is using UploadDataStream::size().
+  // It is the same as request.upload_data->GetContentLength().
+  ASSERT_EQ(request.upload_data->GetContentLength(),
+            UploadDataStream::Create(request.upload_data, NULL)->size());
+
+  scoped_ptr<spdy::SpdyFrame>
+      req(ConstructSpdyPost(request.upload_data->GetContentLength(), NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   scoped_ptr<spdy::SpdyFrame> rst(
       ConstructSpdyRstStream(1, spdy::FLOW_CONTROL_ERROR));
@@ -1054,7 +1123,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   };
 
   // Response frames, send WINDOW_UPDATE first
-  static const int kDeltaWindowSize = 0x7fffffff; // cause an overflow
+  static const int kDeltaWindowSize = 0x7fffffff;  // cause an overflow
   scoped_ptr<spdy::SpdyFrame> window_update(
       ConstructSpdyWindowUpdate(1, kDeltaWindowSize));
   scoped_ptr<spdy::SpdyFrame> reply(ConstructSpdyPostSynReply(NULL, 0));
