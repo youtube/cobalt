@@ -15,7 +15,7 @@ SpdyStream::SpdyStream(
     SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed)
     : stream_id_(stream_id),
       priority_(0),
-      send_window_size_(0),
+      send_window_size_(spdy::kInitialWindowSize),
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
       syn_reply_received_(false),
