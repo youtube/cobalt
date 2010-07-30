@@ -119,8 +119,8 @@
 
 namespace spdy {
 
-// This implementation of Spdy is version 1.
-const int kSpdyProtocolVersion = 1;
+// The SPDY version of this implementation.
+const int kSpdyProtocolVersion = 2;
 
 // Default initial window size.
 const int kInitialWindowSize = 64 * 1024;

@@ -331,6 +331,14 @@ CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
 
 //-----------------------------------------------------------------------------
 
+// This is the expected list of advertised protocols from the browser's NPN
+// list.
+static const char kExpectedNPNString[] = "\x08http/1.1\x06spdy/2";
+
+// This is the expected return from a current server advertising SPDY.
+static const char kAlternateProtocolHttpHeader[] =
+    "Alternate-Protocol: 443:npn-spdy/2\r\n\r\n";
+
 TEST_F(HttpNetworkTransactionTest, Basic) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
@@ -4027,7 +4035,7 @@ scoped_refptr<HttpNetworkSession> SetupSessionForGroupNameTests(
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(
       HostPortPair("host.with.alternate", 80), 443,
-      HttpAlternateProtocols::NPN_SPDY_1);
+      HttpAlternateProtocols::NPN_SPDY_2);
 
   return session;
 }
@@ -4978,7 +4986,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
-    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead(kAlternateProtocolHttpHeader),
     MockRead("hello world"),
     MockRead(false, OK),
   };
@@ -5025,7 +5033,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
       alternate_protocols.GetAlternateProtocolFor(http_host_port_pair);
   HttpAlternateProtocols::PortProtocolPair expected_alternate;
   expected_alternate.port = 443;
-  expected_alternate.protocol = HttpAlternateProtocols::NPN_SPDY_1;
+  expected_alternate.protocol = HttpAlternateProtocols::NPN_SPDY_2;
   EXPECT_TRUE(expected_alternate.Equals(alternate));
 
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
@@ -5069,7 +5077,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(
       http_host_port_pair, 1234 /* port is ignored by MockConnect anyway */,
-      HttpAlternateProtocols::NPN_SPDY_1);
+      HttpAlternateProtocols::NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
@@ -5149,8 +5157,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 
 TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(
-      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -5182,7 +5189,7 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(
       http_host_port_pair, 1234 /* port is ignored */,
-      HttpAlternateProtocols::NPN_SPDY_1);
+      HttpAlternateProtocols::NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
@@ -5204,8 +5211,7 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(
-      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -5215,7 +5221,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
-    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead(kAlternateProtocolHttpHeader),
     MockRead("hello world"),
     MockRead(true, OK),
   };
@@ -5226,7 +5232,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/1";
+  ssl.next_proto = "spdy/2";
   ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
@@ -5323,8 +5329,7 @@ class CapturingProxyResolver : public ProxyResolver {
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(
-          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
 
   ProxyConfig proxy_config;
   proxy_config.set_auto_detect(true);
@@ -5343,7 +5348,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
-    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead(kAlternateProtocolHttpHeader),
     MockRead("hello world"),
     MockRead(true, OK),
   };
@@ -5354,7 +5359,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/1";
+  ssl.next_proto = "spdy/2";
   ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
@@ -5431,8 +5436,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
 TEST_F(HttpNetworkTransactionTest,
        UseAlternateProtocolForNpnSpdyWithExistingSpdySession) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(
-      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -5442,7 +5446,7 @@ TEST_F(HttpNetworkTransactionTest,
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
-    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead(kAlternateProtocolHttpHeader),
     MockRead("hello world"),
     MockRead(true, OK),
   };
@@ -5453,7 +5457,7 @@ TEST_F(HttpNetworkTransactionTest,
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/1";
+  ssl.next_proto = "spdy/2";
   ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
   // Make sure we use ssl for spdy here.
@@ -6176,7 +6180,7 @@ TEST_F(HttpNetworkTransactionTest, NpnWithHttpOverSSL) {
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
-    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead(kAlternateProtocolHttpHeader),
     MockRead("hello world"),
     MockRead(false, OK),
   };
@@ -6223,8 +6227,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   // followed by an immediate server closing of the socket.
   // Fix crash:  http://crbug.com/46369
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(
-      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -6234,7 +6237,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/1";
+  ssl.next_proto = "spdy/2";
   ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 

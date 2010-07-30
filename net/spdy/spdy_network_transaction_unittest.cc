@@ -12,6 +12,11 @@
 //-----------------------------------------------------------------------------
 
 namespace net {
+
+// This is the expected list of advertised protocols from the browser's NPN
+// list.
+static const char kExpectedNPNString[] = "\x08http/1.1\x06spdy/2";
+
 enum SpdyNetworkTransactionTestTypes {
   SPDYNPN,
   SPDYNOSSL,
@@ -76,10 +81,9 @@ class SpdyNetworkTransactionTest
         case SPDYNPN:
           session_->mutable_alternate_protocols()->SetAlternateProtocolFor(
               HostPortPair("www.google.com", 80), 443,
-              HttpAlternateProtocols::NPN_SPDY_1);
+              HttpAlternateProtocols::NPN_SPDY_2);
           HttpNetworkTransaction::SetUseAlternateProtocols(true);
-          HttpNetworkTransaction::SetNextProtos(
-              "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+          HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
           break;
         case SPDYNOSSL:
           HttpNetworkTransaction::SetUseSSLOverSpdyWithoutNPN(false);
@@ -181,7 +185,7 @@ class SpdyNetworkTransactionTest
           new SSLSocketDataProvider(true, OK));
       if(test_type_ == SPDYNPN) {
         ssl_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-        ssl_->next_proto = "spdy/1";
+        ssl_->next_proto = "spdy/2";
         ssl_->was_npn_negotiated = true;
       }
       ssl_vector_.push_back(ssl_);
