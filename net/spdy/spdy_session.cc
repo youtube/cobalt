@@ -11,6 +11,7 @@
 #include "base/rand_util.h"
 #include "base/stats_counters.h"
 #include "base/stl_util-inl.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "base/values.h"
@@ -613,7 +614,7 @@ void SpdySession::OnWriteComplete(int result) {
 
   LOG(INFO) << "Spdy write complete (result=" << result << ")"
             << (stream ? std::string(" for stream ") +
-                IntToString(stream->stream_id()) : "");
+                base::IntToString(stream->stream_id()) : "");
 
   if (result >= 0) {
     // It should not be possible to have written more bytes than our
