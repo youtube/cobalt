@@ -9,8 +9,8 @@
 #include <windows.h>
 #include <winhttp.h>
 
+#include "base/gtest_prod_util.h"
 #include "net/proxy/polling_proxy_config_service.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
@@ -21,7 +21,7 @@ class ProxyConfigServiceWin : public PollingProxyConfigService {
   ProxyConfigServiceWin();
 
  private:
-  FRIEND_TEST(ProxyConfigServiceWinTest, SetFromIEConfig);
+  FRIEND_TEST_ALL_PREFIXES(ProxyConfigServiceWinTest, SetFromIEConfig);
 
   static void GetCurrentProxyConfig(ProxyConfig* config);
 
