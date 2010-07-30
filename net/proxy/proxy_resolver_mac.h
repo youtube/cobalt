@@ -34,7 +34,7 @@ class ProxyResolverMac : public ProxyResolver {
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
       CompletionCallback* /*callback*/) {
-    script_data_ = script_data_;
+    script_data_ = script_data;
     return OK;
   }
 
