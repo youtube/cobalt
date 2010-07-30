@@ -297,7 +297,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/1";
+  ssl.next_proto = "spdy/2";
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -320,7 +320,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   std::string proto;
   ssl_socket->GetNextProto(&proto);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY1);
+            SSLClientSocket::kProtoSPDY2);
 }
 
 TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
@@ -328,7 +328,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/1";
+  ssl.next_proto = "spdy/2";
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -351,7 +351,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   std::string proto;
   ssl_socket->GetNextProto(&proto);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY1);
+            SSLClientSocket::kProtoSPDY2);
 }
 
 TEST_F(SSLClientSocketPoolTest, SOCKSFail) {
