@@ -125,7 +125,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
     http_stream->stream()->spdy_headers().get();
   EXPECT_TRUE(spdy_header != NULL);
   if (spdy_header->find("url") != spdy_header->end())
-    EXPECT_EQ(base_url, spdy_header->find("url")->second);
+    EXPECT_EQ("/foo?query=what", spdy_header->find("url")->second);
   else
     FAIL() << "No url is set in spdy_header!";
 
