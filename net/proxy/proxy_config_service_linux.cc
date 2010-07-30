@@ -20,6 +20,7 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/task.h"
@@ -903,7 +904,7 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromGConf(
   gconf_getter_->GetInt((key + "port").c_str(), &port);
   if (port != 0) {
     // If a port is set and non-zero:
-    host += ":" + IntToString(port);
+    host += ":" + base::IntToString(port);
   }
   host = FixupProxyHostScheme(
       is_socks ? ProxyServer::SCHEME_SOCKS4 : ProxyServer::SCHEME_HTTP,

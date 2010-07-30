@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/format_macros.h"
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
@@ -25,9 +26,9 @@ void AddRangeHeader(int64 start, int64 end, HttpRequestHeaders* headers) {
   DCHECK(start >= 0 || end >= 0);
   std::string my_start, my_end;
   if (start >= 0)
-    my_start = Int64ToString(start);
+    my_start = base::Int64ToString(start);
   if (end >= 0)
-    my_end = Int64ToString(end);
+    my_end = base::Int64ToString(end);
 
   headers->SetHeader(
       HttpRequestHeaders::kRange,

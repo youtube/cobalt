@@ -7,6 +7,7 @@
 #include "base/float_util.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
@@ -401,11 +402,11 @@ Value* JSONReader::DecodeNumber(const Token& token) {
   const std::wstring num_string(token.begin, token.length);
 
   int num_int;
-  if (StringToInt(WideToUTF16Hack(num_string), &num_int))
+  if (StringToInt(WideToUTF8(num_string), &num_int))
     return Value::CreateIntegerValue(num_int);
 
   double num_double;
-  if (StringToDouble(WideToUTF16Hack(num_string), &num_double) &&
+  if (StringToDouble(WideToUTF8(num_string), &num_double) &&
       base::IsFinite(num_double))
     return Value::CreateRealValue(num_double);
 

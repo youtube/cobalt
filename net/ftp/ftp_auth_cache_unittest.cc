@@ -4,6 +4,7 @@
 
 #include "net/ftp/ftp_auth_cache.h"
 
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -132,12 +133,14 @@ TEST(FtpAuthCacheTest, OnlyRemoveMatching) {
 TEST(FtpAuthCacheTest, EvictOldEntries) {
   FtpAuthCache cache;
 
-  for (size_t i = 0; i < FtpAuthCache::kMaxEntries; i++)
-    cache.Add(GURL("ftp://host" + IntToString(i)), kUsername, kPassword);
+  for (size_t i = 0; i < FtpAuthCache::kMaxEntries; i++) {
+    cache.Add(GURL("ftp://host" + base::IntToString(i)),
+              kUsername, kPassword);
+  }
 
   // No entries should be evicted before reaching the limit.
   for (size_t i = 0; i < FtpAuthCache::kMaxEntries; i++) {
-    EXPECT_TRUE(cache.Lookup(GURL("ftp://host" + IntToString(i))));
+    EXPECT_TRUE(cache.Lookup(GURL("ftp://host" + base::IntToString(i))));
   }
 
   // Adding one entry should cause eviction of the first entry.
@@ -146,7 +149,7 @@ TEST(FtpAuthCacheTest, EvictOldEntries) {
 
   // Remaining entries should not get evicted.
   for (size_t i = 1; i < FtpAuthCache::kMaxEntries; i++) {
-    EXPECT_TRUE(cache.Lookup(GURL("ftp://host" + IntToString(i))));
+    EXPECT_TRUE(cache.Lookup(GURL("ftp://host" + base::IntToString(i))));
   }
   EXPECT_TRUE(cache.Lookup(GURL("ftp://last_host")));
 }
