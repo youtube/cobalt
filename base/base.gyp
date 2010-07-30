@@ -130,6 +130,7 @@
         'singleton_unittest.cc',
         'stack_container_unittest.cc',
         'stats_table_unittest.cc',
+        'string_number_conversions_unittest.cc',
         'string_piece_unittest.cc',
         'string_split_unittest.cc',
         'string_tokenizer_unittest.cc',
