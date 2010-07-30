@@ -251,22 +251,27 @@ FilePath GetHomeDir();
 // be empty and all handles closed after this function returns.
 bool CreateTemporaryFile(FilePath* path);
 
+// Same as CreateTemporaryFile but the file is created in |dir|.
+bool CreateTemporaryFileInDir(const FilePath& dir, FilePath* temp_file);
+
 // Create and open a temporary file.  File is opened for read/write.
 // The full path is placed in |path|.
 // Returns a handle to the opened file or NULL if an error occured.
 FILE* CreateAndOpenTemporaryFile(FilePath* path);
 // Like above but for shmem files.  Only useful for POSIX.
 FILE* CreateAndOpenTemporaryShmemFile(FilePath* path);
-
 // Similar to CreateAndOpenTemporaryFile, but the file is created in |dir|.
 FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path);
 
-// Same as CreateTemporaryFile but the file is created in |dir|.
-bool CreateTemporaryFileInDir(const FilePath& dir,
-                              FilePath* temp_file);
+// Create a new directory. If prefix is provided, the new directory name is in
+// the format of prefixyyyy.
+// NOTE: prefix is ignored in the POSIX implementation.
+// If success, return true and output the full path of the directory created.
+bool CreateNewTempDirectory(const FilePath::StringType& prefix,
+                            FilePath* new_temp_path);
 
 // Create a directory within another directory.
-// Extra characters will be appended to |name_tmpl| to ensure that the
+// Extra characters will be appended to |prefix| to ensure that the
 // new directory does not have the same name as an existing directory.
 // If |loosen_permissions| is true, the new directory will be readable
 // and writable to all users on windows.  It is ignored on other platforms.
@@ -276,14 +281,6 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
                              const FilePath::StringType& prefix,
                              bool loosen_permissions,
                              FilePath* new_dir);
-
-// Create a new directory under TempPath. If prefix is provided, the new
-// directory name is in the format of prefixyyyy.
-// NOTE: prefix is ignored in the POSIX implementation.
-// TODO(erikkay): is this OK?
-// If success, return true and output the full path of the directory created.
-bool CreateNewTempDirectory(const FilePath::StringType& prefix,
-                            FilePath* new_temp_path);
 
 // Creates a directory, as well as creating any parent directories, if they
 // don't exist. Returns 'true' on successful creation, or if the directory
