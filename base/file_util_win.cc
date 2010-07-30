@@ -59,9 +59,10 @@ bool DevicePathToDriveLetterPath(const FilePath& device_path,
     while(*drive_map_ptr++);
   }
 
-  // No drive matched.  The path does not start with a device junction.
-  *drive_letter_path = device_path;
-  return true;
+  // No drive matched.  The path does not start with a device junction
+  // that is mounted as a drive letter.  This means there is no drive
+  // letter path to the volume that holds |device_path|, so fail.
+  return false;
 }
 
 }  // namespace
