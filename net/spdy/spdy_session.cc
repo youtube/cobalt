@@ -86,11 +86,11 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
     DictionaryValue* headers_dict = new DictionaryValue();
     for (spdy::SpdyHeaderBlock::const_iterator it = headers_->begin();
          it != headers_->end(); ++it) {
-      headers_dict->SetString(ASCIIToWide(it->first), it->second);
+      headers_dict->SetString(it->first, it->second);
     }
-    dict->SetInteger(L"flags", flags_);
-    dict->Set(L"headers", headers_dict);
-    dict->SetInteger(L"id", id_);
+    dict->SetInteger("flags", flags_);
+    dict->Set("headers", headers_dict);
+    dict->SetInteger("id", id_);
     return dict;
   }
 
@@ -117,7 +117,7 @@ class NetLogSpdySettingsParameter : public NetLog::EventParameters {
       settings->Append(new StringValue(
           StringPrintf("[%u:%u]", it->first.id(), it->second)));
     }
-    dict->Set(L"settings", settings);
+    dict->Set("settings", settings);
     return dict;
   }
 
