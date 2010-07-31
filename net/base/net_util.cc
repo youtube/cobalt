@@ -186,12 +186,6 @@ STR GetSpecificHeaderT(const STR& headers, const STR& name) {
   return ret;
 }
 
-inline unsigned char HexToInt(unsigned char c) {
-  DCHECK(IsHexDigit(c));
-  static unsigned char kOffset[4] = {0, 0x30u, 0x37u, 0x57u};
-  return c - kOffset[(c >> 5) & 3];
-}
-
 // Similar to Base64Decode. Decodes a Q-encoded string to a sequence
 // of bytes. If input is invalid, return false.
 bool QPDecode(const std::string& input, std::string* output) {
@@ -207,7 +201,8 @@ bool QPDecode(const std::string& input, std::string* output) {
       }
       if (IsHexDigit(static_cast<unsigned char>(*(it + 1))) &&
           IsHexDigit(static_cast<unsigned char>(*(it + 2)))) {
-        unsigned char ch = HexToInt(*(it + 1)) * 16 + HexToInt(*(it + 2));
+        unsigned char ch = HexDigitToInt(*(it + 1)) * 16 +
+                           HexDigitToInt(*(it + 2));
         temp.push_back(static_cast<char>(ch));
         ++it;
         ++it;
