@@ -90,3 +90,4 @@ bool HexStringToBytes(const std::string& input, std::vector<uint8>* output);
 }  // namespace base
 
 #endif  // BASE_STRING_NUMBER_CONVERSIONS_H_
+

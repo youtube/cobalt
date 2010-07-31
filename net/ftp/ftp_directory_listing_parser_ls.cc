@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.  Use of this
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.  Use of this
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/ftp/ftp_util.h"
 
@@ -107,7 +108,7 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
     received_total_line_ = true;
 
     int total_number;
-    if (!StringToInt(columns[1], &total_number))
+    if (!base::StringToInt(columns[1], &total_number))
       return false;
     if (total_number < 0)
       return false;
@@ -137,7 +138,7 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
     entry.type = FtpDirectoryListingEntry::FILE;
   }
 
-  if (!StringToInt64(columns[2 + column_offset], &entry.size))
+  if (!base::StringToInt64(columns[2 + column_offset], &entry.size))
     return false;
   if (entry.size < 0)
     return false;
