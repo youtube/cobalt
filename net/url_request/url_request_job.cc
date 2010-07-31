@@ -32,7 +32,7 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       is_compressed_(false),
       done_(false),
       filter_needs_more_output_space_(false),
-      read_buffer_len_(0),
+      filtered_read_buffer_len_(0),
       has_handled_response_(false),
       expected_content_size_(-1),
       deferred_redirect_status_code_(-1),
@@ -197,19 +197,19 @@ bool URLRequestJob::Read(net::IOBuffer* buf, int buf_size, int *bytes_read) {
   DCHECK_LT(buf_size, 1000000);  // sanity check
   DCHECK(buf);
   DCHECK(bytes_read);
+  DCHECK(filtered_read_buffer_ == NULL);
+  DCHECK_EQ(0, filtered_read_buffer_len_);
 
   *bytes_read = 0;
 
   // Skip Filter if not present
   if (!filter_.get()) {
-    rv = ReadRawData(buf, buf_size, bytes_read);
-    if (rv && *bytes_read > 0)
-      RecordBytesRead(*bytes_read);
+    rv = ReadRawDataHelper(buf, buf_size, bytes_read);
   } else {
     // Save the caller's buffers while we do IO
     // in the filter's buffers.
-    read_buffer_ = buf;
-    read_buffer_len_ = buf_size;
+    filtered_read_buffer_ = buf;
+    filtered_read_buffer_len_ = buf_size;
 
     if (ReadFilteredData(bytes_read)) {
       rv = true;   // we have data to return
@@ -272,9 +272,7 @@ bool URLRequestJob::ReadRawDataForFilter(int* bytes_read) {
   if (!filter_->stream_data_len() && !is_done()) {
     net::IOBuffer* stream_buffer = filter_->stream_buffer();
     int stream_buffer_size = filter_->stream_buffer_size();
-    rv = ReadRawData(stream_buffer, stream_buffer_size, bytes_read);
-    if (rv && *bytes_read > 0)
-      RecordBytesRead(*bytes_read);
+    rv = ReadRawDataHelper(stream_buffer, stream_buffer_size, bytes_read);
   }
   return rv;
 }
@@ -294,9 +292,10 @@ void URLRequestJob::FilteredDataRead(int bytes_read) {
 
 bool URLRequestJob::ReadFilteredData(int* bytes_read) {
   DCHECK(filter_.get());  // don't add data if there is no filter
-  DCHECK(read_buffer_ != NULL);  // we need to have a buffer to fill
-  DCHECK_GT(read_buffer_len_, 0);  // sanity check
-  DCHECK_LT(read_buffer_len_, 1000000);  // sanity check
+  DCHECK(filtered_read_buffer_ != NULL);  // we need to have a buffer to fill
+  DCHECK_GT(filtered_read_buffer_len_, 0);  // sanity check
+  DCHECK_LT(filtered_read_buffer_len_, 1000000);  // sanity check
+  DCHECK(raw_read_buffer_ == NULL);  // there should be no raw read buffer yet
 
   bool rv = false;
   *bytes_read = 0;
@@ -322,10 +321,11 @@ bool URLRequestJob::ReadFilteredData(int* bytes_read) {
   if ((filter_->stream_data_len() || filter_needs_more_output_space_)
       && !is_done()) {
     // Get filtered data.
-    int filtered_data_len = read_buffer_len_;
+    int filtered_data_len = filtered_read_buffer_len_;
     Filter::FilterStatus status;
     int output_buffer_size = filtered_data_len;
-    status = filter_->ReadData(read_buffer_->data(), &filtered_data_len);
+    status = filter_->ReadData(filtered_read_buffer_->data(),
+                               &filtered_data_len);
 
     if (filter_needs_more_output_space_ && 0 == filtered_data_len) {
       // filter_needs_more_output_space_ was mistaken... there are no more bytes
@@ -390,8 +390,28 @@ bool URLRequestJob::ReadFilteredData(int* bytes_read) {
   if (rv) {
     // When we successfully finished a read, we no longer need to
     // save the caller's buffers. Release our reference.
-    read_buffer_ = NULL;
-    read_buffer_len_ = 0;
+    filtered_read_buffer_ = NULL;
+    filtered_read_buffer_len_ = 0;
+  }
+  return rv;
+}
+
+bool URLRequestJob::ReadRawDataHelper(net::IOBuffer* buf, int buf_size,
+                                      int* bytes_read) {
+  DCHECK(!request_->status().is_io_pending());
+  DCHECK(raw_read_buffer_ == NULL);
+
+  // Keep a pointer to the read buffer, so we have access to it in the
+  // OnRawReadComplete() callback in the event that the read completes
+  // asynchronously.
+  raw_read_buffer_ = buf;
+  bool rv = ReadRawData(buf, buf_size, bytes_read);
+
+  if (!request_->status().is_io_pending()) {
+    // If the read completes synchronously, either success or failure,
+    // invoke the OnRawReadComplete callback so we can account for the
+    // completed read.
+    OnRawReadComplete(*bytes_read);
   }
   return rv;
 }
@@ -526,8 +546,7 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
   // The headers should be complete before reads complete
   DCHECK(has_handled_response_);
 
-  if (bytes_read > 0)
-    RecordBytesRead(bytes_read);
+  OnRawReadComplete(bytes_read);
 
   // Don't notify if we had an error.
   if (!request_->status().is_success())
@@ -640,6 +659,14 @@ bool URLRequestJob::FilterHasData() {
     return filter_.get() && filter_->stream_data_len();
 }
 
+void URLRequestJob::OnRawReadComplete(int bytes_read) {
+  DCHECK(raw_read_buffer_);
+  if (bytes_read > 0) {
+    RecordBytesRead(bytes_read);
+  }
+  raw_read_buffer_ = NULL;
+}
+
 void URLRequestJob::RecordBytesRead(int bytes_read) {
   if (is_profiling()) {
     ++(metrics_->number_of_read_IO_);
@@ -647,7 +674,8 @@ void URLRequestJob::RecordBytesRead(int bytes_read) {
   }
   filter_input_byte_count_ += bytes_read;
   UpdatePacketReadTimes();  // Facilitate stats recording if it is active.
-  g_url_request_job_tracker.OnBytesRead(this, bytes_read);
+  g_url_request_job_tracker.OnBytesRead(this, raw_read_buffer_->data(),
+                                        bytes_read);
 }
 
 const URLRequestStatus URLRequestJob::GetStatus() {
