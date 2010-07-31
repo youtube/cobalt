@@ -115,12 +115,7 @@ class MockEnvVarGetter : public base::EnvVarGetter {
   }
 
   virtual bool SetEnv(const char* variable_name, const std::string& new_value) {
-    ADD_FAILURE();
-    return false;
-  }
-
-  virtual bool UnSetEnv(const char* variable_name) {
-    ADD_FAILURE();
+    NOTIMPLEMENTED();
     return false;
   }
 
