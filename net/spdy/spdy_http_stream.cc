@@ -327,6 +327,8 @@ void SpdyHttpStream::Cancel() {
 }
 
 bool SpdyHttpStream::OnSendHeadersComplete(int status) {
+  if (user_callback_)
+    DoCallback(status);
   return request_body_stream_.get() == NULL;
 }
 
@@ -403,6 +405,10 @@ void SpdyHttpStream::OnClose(int status) {
   }
   if (!invoked_callback && user_callback_)
     DoCallback(status);
+}
+
+bool SpdyHttpStream::ShouldResendFailedRequest(int error) const {
+  return spdy_session_->ShouldResendFailedRequest(error);
 }
 
 void SpdyHttpStream::ScheduleBufferedReadCallback() {

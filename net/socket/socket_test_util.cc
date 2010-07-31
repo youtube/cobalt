@@ -522,7 +522,7 @@ DelayedSocketData::DelayedSocketData(
 }
 
 MockRead DelayedSocketData::GetNextRead() {
-  if (write_delay_)
+  if (write_delay_ > 0)
     return MockRead(true, ERR_IO_PENDING);
   return StaticSocketDataProvider::GetNextRead();
 }

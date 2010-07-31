@@ -141,6 +141,15 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // error.
   void CloseSessionOnError(net::Error err);
 
+  // Indicates whether we should retry failed requets on a session.
+  bool ShouldResendFailedRequest(int error) const {
+    // NOTE: we resend a request only if this connection has successfully
+    // been used for some data receiving.  Otherwise, we assume the error
+    // is not transient.
+    // This is primarily for use with recovery from a TCP RESET.
+    return frames_received_ > 0;
+  }
+
  private:
   friend class base::RefCounted<SpdySession>;
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, GetActivePushStream);
@@ -335,6 +344,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   int streams_pushed_count_;
   int streams_pushed_and_claimed_count_;
   int streams_abandoned_count_;
+  int frames_received_;
   bool sent_settings_;      // Did this session send settings when it started.
   bool received_settings_;  // Did this session receive at least one settings
                             // frame.
