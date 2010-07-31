@@ -1,6 +1,6 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef NET_FTP_FTP_DIRECTORY_LISTING_PARSER_UNITTEST_H_
 #define NET_FTP_FTP_DIRECTORY_LISTING_PARSER_UNITTEST_H_
@@ -27,8 +27,7 @@ class FtpDirectoryListingParserTest : public testing::Test {
   };
 
  protected:
-  FtpDirectoryListingParserTest() {
-  }
+  FtpDirectoryListingParserTest() {}
 
   void RunSingleLineTestCase(FtpDirectoryListingParser* parser,
                              const SingleLineTestData& test_case) {
