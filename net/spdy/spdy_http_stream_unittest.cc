@@ -54,8 +54,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
-    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
-    MockRead(false, 0, 4)  // EOF
+    MockRead(false, 0, 3)  // EOF
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
@@ -77,12 +76,14 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
             http_stream->SendRequest("", NULL, &response, &callback));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(host_port_pair));
 
-  // This triggers the MockWrite and reads 2 & 3
+  // This triggers the MockWrite and read 2
   callback.WaitForResult();
 
-  // This triggers read 4. The empty read causes the session to shut down.
+  // This triggers read 3. The empty read causes the session to shut down.
   data()->CompleteRead();
 
+  // Because we abandoned the stream, we don't expect to find a session in the
+  // pool anymore.
   EXPECT_TRUE(!http_session_->spdy_session_pool()->HasSession(host_port_pair));
   EXPECT_TRUE(data()->at_read_eof());
   EXPECT_TRUE(data()->at_write_eof());
