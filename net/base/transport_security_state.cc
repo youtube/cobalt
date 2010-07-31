@@ -202,10 +202,10 @@ void TransportSecurityState::SetDelegate(
 
 // This function converts the binary hashes, which we store in
 // |enabled_hosts_|, to a base64 string which we can include in a JSON file.
-static std::wstring HashedDomainToExternalString(const std::string& hashed) {
+static std::string HashedDomainToExternalString(const std::string& hashed) {
   std::string out;
   CHECK(base::Base64Encode(hashed, &out));
-  return ASCIIToWide(out);
+  return out;
 }
 
 // This inverts |HashedDomainToExternalString|, above. It turns an external
@@ -225,19 +225,19 @@ bool TransportSecurityState::Serialise(std::string* output) {
   for (std::map<std::string, DomainState>::const_iterator
        i = enabled_hosts_.begin(); i != enabled_hosts_.end(); ++i) {
     DictionaryValue* state = new DictionaryValue;
-    state->SetBoolean(L"include_subdomains", i->second.include_subdomains);
-    state->SetReal(L"created", i->second.created.ToDoubleT());
-    state->SetReal(L"expiry", i->second.expiry.ToDoubleT());
+    state->SetBoolean("include_subdomains", i->second.include_subdomains);
+    state->SetReal("created", i->second.created.ToDoubleT());
+    state->SetReal("expiry", i->second.expiry.ToDoubleT());
 
     switch (i->second.mode) {
       case DomainState::MODE_STRICT:
-        state->SetString(L"mode", "strict");
+        state->SetString("mode", "strict");
         break;
       case DomainState::MODE_OPPORTUNISTIC:
-        state->SetString(L"mode", "opportunistic");
+        state->SetString("mode", "opportunistic");
         break;
       case DomainState::MODE_SPDY_ONLY:
-        state->SetString(L"mode", "spdy-only");
+        state->SetString("mode", "spdy-only");
         break;
       default:
         NOTREACHED() << "DomainState with unknown mode";
@@ -276,9 +276,9 @@ bool TransportSecurityState::Deserialise(const std::string& input,
     double created;
     double expiry;
 
-    if (!state->GetBoolean(L"include_subdomains", &include_subdomains) ||
-        !state->GetString(L"mode", &mode_string) ||
-        !state->GetReal(L"expiry", &expiry)) {
+    if (!state->GetBoolean("include_subdomains", &include_subdomains) ||
+        !state->GetString("mode", &mode_string) ||
+        !state->GetReal("expiry", &expiry)) {
       continue;
     }
 
@@ -297,7 +297,7 @@ bool TransportSecurityState::Deserialise(const std::string& input,
 
     base::Time expiry_time = base::Time::FromDoubleT(expiry);
     base::Time created_time;
-    if (state->GetReal(L"created", &created)) {
+    if (state->GetReal("created", &created)) {
       created_time = base::Time::FromDoubleT(created);
     } else {
       // We're migrating an old entry with no creation date. Make sure we
