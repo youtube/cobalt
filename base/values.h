@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file specifies a recursive data storage class called Value
-// intended for storing setting and other persistable data.
-// It includes the ability to specify (recursive) lists and dictionaries, so
-// it's fairly expressive.  However, the API is optimized for the common case,
-// namely storing a hierarchical tree of simple values.  Given a
-// DictionaryValue root, you can easily do things like:
+// This file specifies a recursive data storage class called Value intended for
+// storing setting and other persistable data.  It includes the ability to
+// specify (recursive) lists and dictionaries, so it's fairly expressive.
+// However, the API is optimized for the common case, namely storing a
+// hierarchical tree of simple values.  Given a DictionaryValue root, you can
+// easily do things like:
 //
-// root->SetString(L"global.pages.homepage", L"http://goateleporter.com");
-// std::wstring homepage = L"http://google.com";  // default/fallback value
-// root->GetString(L"global.pages.homepage", &homepage);
+// root->SetString("global.pages.homepage", "http://goateleporter.com");
+// std::string homepage = "http://google.com";  // default/fallback value
+// root->GetString("global.pages.homepage", &homepage);
 //
-// where "global" and "pages" are also DictionaryValues, and "homepage"
-// is a string setting.  If some elements of the path didn't exist yet,
-// the SetString() method would create the missing elements and attach them
-// to root before attaching the homepage value.
+// where "global" and "pages" are also DictionaryValues, and "homepage" is a
+// string setting.  If some elements of the path didn't exist yet, the
+// SetString() method would create the missing elements and attach them to root
+// before attaching the homepage value.
 
 #ifndef BASE_VALUES_H_
 #define BASE_VALUES_H_
@@ -202,6 +202,9 @@ class BinaryValue: public Value {
   DISALLOW_COPY_AND_ASSIGN(BinaryValue);
 };
 
+// DictionaryValue provides a key-value dictionary with (optional) "path"
+// parsing for recursive access; see the comment at the top of the file. Keys
+// are |std::string|s and should be UTF-8 encoded.
 // TODO(viettrungluu): Things marked DEPRECATED will be removed. crbug.com/23581
 class DictionaryValue : public Value {
  public:
