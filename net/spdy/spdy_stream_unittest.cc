@@ -141,7 +141,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
     spdy::SYN_STREAM,
     1,
     0,
-    SPDY_PRIORITY_LOWEST,
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
     spdy::CONTROL_FLAG_NONE,
     false,
     spdy::INVALID,

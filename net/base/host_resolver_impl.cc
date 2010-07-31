@@ -560,7 +560,8 @@ class HostResolverImpl::IPv6ProbeJob
 // and increasing for lower priorities.
 COMPILE_ASSERT(HIGHEST == 0u &&
                LOWEST > HIGHEST &&
-               NUM_PRIORITIES > LOWEST,
+               IDLE > LOWEST &&
+               NUM_PRIORITIES > IDLE,
                priority_indexes_incompatible);
 
 // JobPool contains all the information relating to queued requests, including
