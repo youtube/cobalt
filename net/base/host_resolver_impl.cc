@@ -23,6 +23,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "base/utf_string_conversions.h"
 #include "base/values.h"
 #include "base/worker_pool.h"
 #include "net/base/address_list.h"
@@ -95,13 +96,13 @@ class HostResolveFailedParams : public NetLog::EventParameters {
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
-    dict->SetInteger(L"net_error", net_error_);
-    dict->SetBoolean(L"was_from_cache", was_from_cache_);
+    dict->SetInteger("net_error", net_error_);
+    dict->SetBoolean("was_from_cache", was_from_cache_);
 
     if (os_error_) {
-      dict->SetInteger(L"os_error", os_error_);
+      dict->SetInteger("os_error", os_error_);
 #if defined(OS_POSIX)
-      dict->SetString(L"os_error_string", gai_strerror(os_error_));
+      dict->SetString("os_error_string", gai_strerror(os_error_));
 #elif defined(OS_WIN)
       // Map the error code to a human-readable string.
       LPWSTR error_string = NULL;
@@ -113,7 +114,7 @@ class HostResolveFailedParams : public NetLog::EventParameters {
                                (LPWSTR)&error_string,
                                0,  // Buffer size.
                                0);  // Arguments (unused).
-      dict->SetString(L"os_error_string", error_string);
+      dict->SetString("os_error_string", WideToUTF8(error_string));
       LocalFree(error_string);
 #endif
     }
