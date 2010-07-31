@@ -166,6 +166,7 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
       streams_abandoned_count_(0),
+      frames_received_(0),
       sent_settings_(false),
       received_settings_(false),
       in_session_pool_(true),
@@ -1138,6 +1139,8 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
       return;
     }
   }
+
+  frames_received_++;
 
   switch (type) {
     case spdy::GOAWAY:

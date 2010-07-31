@@ -1363,7 +1363,7 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
 
 int HttpNetworkTransaction::DoSpdySendRequestComplete(int result) {
   if (result < 0)
-    return result;
+    return HandleIOError(result);
 
   next_state_ = STATE_SPDY_READ_HEADERS;
   return OK;
@@ -1376,11 +1376,13 @@ int HttpNetworkTransaction::DoSpdyReadHeaders() {
 
 int HttpNetworkTransaction::DoSpdyReadHeadersComplete(int result) {
   // TODO(willchan): Flesh out the support for HTTP authentication here.
+  if (result < 0)
+    return HandleIOError(result);
+
   if (result == OK)
     headers_valid_ = true;
 
   LogTransactionConnectedMetrics();
-
   return result;
 }
 
@@ -1664,7 +1666,8 @@ int HttpNetworkTransaction::HandleIOError(int error) {
     case ERR_CONNECTION_RESET:
     case ERR_CONNECTION_CLOSED:
     case ERR_CONNECTION_ABORTED:
-      LogIOErrorMetrics(*connection_);
+      if (!using_spdy_)
+        LogIOErrorMetrics(*connection_);
       if (ShouldResendRequest(error)) {
         ResetConnectionAndRequestForResend();
         error = OK;
@@ -1689,6 +1692,9 @@ HttpResponseHeaders* HttpNetworkTransaction::GetResponseHeaders() const {
 }
 
 bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
+  if (using_spdy_ && spdy_http_stream_ != NULL)
+    return spdy_http_stream_->ShouldResendFailedRequest(error);
+
   // NOTE: we resend a request only if we reused a keep-alive connection.
   // This automatically prevents an infinite resend loop because we'll run
   // out of the cached keep-alive connections eventually.
@@ -1700,12 +1706,21 @@ bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
 }
 
 void HttpNetworkTransaction::ResetConnectionAndRequestForResend() {
-  if (connection_->socket())
-    connection_->socket()->Disconnect();
-  connection_->Reset();
+  // Note:  When using SPDY we may not own a connection.
+  if (connection_.get()) {
+    if (connection_->socket())
+      connection_->socket()->Disconnect();
+    connection_->Reset();
+  } else {
+    DCHECK(using_spdy_);
+    connection_.reset(new ClientSocketHandle);
+  }
+
   // We need to clear request_headers_ because it contains the real request
   // headers, but we may need to resend the CONNECT request first to recreate
   // the SSL tunnel.
+
+  spdy_http_stream_.reset(NULL);
 
   request_headers_.clear();
   next_state_ = STATE_INIT_CONNECTION;  // Resend the request.

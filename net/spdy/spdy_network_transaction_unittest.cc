@@ -987,7 +987,7 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
   scoped_ptr<spdy::SpdyFrame>
       req(ConstructSpdyPost(request.upload_data->GetContentLength(), NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
-    MockWrite writes[] = {
+  MockWrite writes[] = {
     CreateMockWrite(*req.get(), 2),
     CreateMockWrite(*body.get(), 3),  // POST upload frame
   };
@@ -1007,7 +1007,6 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
   helper.AddData(data.get());
   helper.RunPreTestSetup();
   helper.RunDefaultTest();
-  helper.VerifyDataNotConsumed();
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
 }
@@ -1216,7 +1215,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   ASSERT_TRUE(session->spdy_session_pool() != NULL);
   session->spdy_session_pool()->ClearSessions();
 
-  EXPECT_FALSE(data->at_read_eof());
+  EXPECT_TRUE(data->at_read_eof());
   EXPECT_TRUE(data->at_write_eof());
 
   SpdySession::SetFlowControl(false);
@@ -1881,6 +1880,7 @@ TEST_P(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
+    MockRead(true, 0, 0)
   };
 
   scoped_refptr<DelayedSocketData> data(
@@ -2685,14 +2685,61 @@ TEST_P(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
   scoped_ptr<spdy::SpdyFrame> go_away(ConstructSpdyGoAway());
   MockRead reads[] = {
     CreateMockRead(*go_away),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(true, 0, 0),  // EOF
+  };
+
+  // Because the server is telling us to GOAWAY without finishing, the browser
+  // will attempt to re-establish.
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead reads2[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(true, 0, 0),  // EOF
   };
 
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
+  scoped_refptr<DelayedSocketData> data2(
+      new DelayedSocketData(1, reads2, arraysize(reads2),
+                            writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(), GetParam());
+  helper.AddData(data);
+  helper.AddData(data2);
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(OK, out.rv);
+}
+
+TEST_P(SpdyNetworkTransactionTest, GoAwayWithActiveStreamFail) {
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  MockWrite writes[] = { CreateMockWrite(*req) };
+
+  scoped_ptr<spdy::SpdyFrame> go_away(ConstructSpdyGoAway());
+  MockRead reads[] = {
+    CreateMockRead(*go_away),
+    MockRead(true, 0, 0),  // EOF
+  };
+
+  // Because the server is telling us to GOAWAY without finishing, the browser
+  // will attempt to re-establish.  On the second connection, just close.  This
+  // should trigger the ERR_CONNECTION_CLOSED status.
+  MockRead reads2[] = {
+    MockRead(true, 0, 0),  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  scoped_refptr<DelayedSocketData> data2(
+      new DelayedSocketData(1, reads2, arraysize(reads2),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.AddData(data);
+  helper.AddData(data2);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_CONNECTION_CLOSED, out.rv);
@@ -2735,4 +2782,88 @@ TEST_P(SpdyNetworkTransactionTest, CloseWithActiveStream) {
   // Verify that we consumed all test data.
   helper.VerifyDataConsumed();
 }
+
+// When we get a TCP-level RST, we need to retry a HttpNetworkTransaction
+// on a new connection, if the connection was previously known to be good.
+// This can happen when a server reboots without saying goodbye, or when
+// we're behind a NAT that masked the RST.
+TEST_P(SpdyNetworkTransactionTest, VerifyRetryOnConnectionReset) {
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(true, ERR_IO_PENDING),
+    MockRead(true, ERR_CONNECTION_RESET),
+  };
+
+  MockRead reads2[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  // This test has a couple of variants.
+  enum {
+    // Induce the RST while waiting for our transaction to send.
+    VARIANT_RST_DURING_SEND_COMPLETION,
+    // Induce the RST while waiting for our transaction to read.
+    // In this case, the send completed - everything copied into the SNDBUF.
+    VARIANT_RST_DURING_READ_COMPLETION
+  };
+
+  for (int variant = VARIANT_RST_DURING_SEND_COMPLETION;
+       variant <= VARIANT_RST_DURING_READ_COMPLETION;
+       ++variant) {
+    scoped_refptr<DelayedSocketData> data1(
+        new DelayedSocketData(1, reads, arraysize(reads),
+                              NULL, 0));
+
+    scoped_refptr<DelayedSocketData> data2(
+        new DelayedSocketData(1, reads2, arraysize(reads2),
+                               NULL, 0));
+
+    NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                       BoundNetLog(), GetParam());
+    helper.AddData(data1.get());
+    helper.AddData(data2.get());
+    helper.RunPreTestSetup();
+
+    for (int i = 0; i < 2; ++i) {
+      scoped_ptr<HttpNetworkTransaction> trans(
+          new HttpNetworkTransaction(helper.session()));
+
+      TestCompletionCallback callback;
+      int rv = trans->Start(&helper.request(), &callback, BoundNetLog());
+      EXPECT_EQ(ERR_IO_PENDING, rv);
+      // On the second transaction, we trigger the RST.
+      if (i == 1) {
+        if (variant == VARIANT_RST_DURING_READ_COMPLETION) {
+          // Writes to the socket complete asynchronously on SPDY by running
+          // through the message loop.  Complete the write here.
+          MessageLoop::current()->RunAllPending();
+        }
+
+        // Now schedule the ERR_CONNECTION_RESET.
+        EXPECT_EQ(3u, data1->read_index());
+        data1->CompleteRead();
+        EXPECT_EQ(4u, data1->read_index());
+      }
+      rv = callback.WaitForResult();
+      EXPECT_EQ(OK, rv);
+
+      const HttpResponseInfo* response = trans->GetResponseInfo();
+      EXPECT_TRUE(response->headers != NULL);
+      EXPECT_TRUE(response->was_fetched_via_spdy);
+      std::string response_data;
+      rv = ReadTransaction(trans.get(), &response_data);
+      EXPECT_EQ(OK, rv);
+      EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+      EXPECT_EQ("hello!", response_data);
+    }
+
+    helper.VerifyDataConsumed();
+  }
+}
+
 }  // namespace net
