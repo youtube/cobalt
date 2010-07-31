@@ -784,6 +784,7 @@
         'tools/dump_cache/url_to_filename_encoder.cc',
         'tools/dump_cache/url_to_filename_encoder.h',
         'tools/dump_cache/url_to_filename_encoder_unittest.cc',
+        'url_request/url_request_job_tracker_unittest.cc',
         'url_request/url_request_unittest.cc',
         'url_request/url_request_unittest.h',
         'url_request/view_cache_helper_unittest.cc',
