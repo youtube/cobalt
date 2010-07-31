@@ -396,7 +396,7 @@ FilePath FilePath::InsertBeforeExtensionASCII(const base::StringPiece& suffix)
     const {
   DCHECK(IsStringASCII(suffix));
 #if defined(OS_WIN)
-  return InsertBeforeExtension(ASCIIToUTF16(suffix));
+  return InsertBeforeExtension(ASCIIToUTF16(suffix.as_string()));
 #elif defined(OS_POSIX)
   return InsertBeforeExtension(suffix.as_string());
 #endif
@@ -480,7 +480,7 @@ FilePath FilePath::Append(const FilePath& component) const {
 FilePath FilePath::AppendASCII(const base::StringPiece& component) const {
   DCHECK(IsStringASCII(component));
 #if defined(OS_WIN)
-  return Append(ASCIIToUTF16(component));
+  return Append(ASCIIToUTF16(component.as_string()));
 #elif defined(OS_POSIX)
   return Append(component.as_string());
 #endif
