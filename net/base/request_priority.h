@@ -15,10 +15,10 @@ enum RequestPriority {
   MEDIUM,
   LOW,
   LOWEST,
+  IDLE,
   NUM_PRIORITIES,
 };
 
 }  // namespace net
 
 #endif  // NET_BASE_REQUEST_PRIORITY_H__
-

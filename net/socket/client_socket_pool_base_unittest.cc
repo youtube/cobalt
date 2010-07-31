@@ -749,7 +749,7 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitRespectsPriority) {
   EXPECT_EQ(5, GetOrderOfRequest(7));
 
   // Make sure we test order of all requests made.
-  EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(8));
+  EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(9));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TotalLimitRespectsGroupLimit) {
@@ -1026,6 +1026,7 @@ TEST_F(ClientSocketPoolBaseTest, PendingRequests) {
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", IDLE));
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
@@ -1040,14 +1041,15 @@ TEST_F(ClientSocketPoolBaseTest, PendingRequests) {
 
   EXPECT_EQ(1, GetOrderOfRequest(1));
   EXPECT_EQ(2, GetOrderOfRequest(2));
-  EXPECT_EQ(6, GetOrderOfRequest(3));
-  EXPECT_EQ(4, GetOrderOfRequest(4));
-  EXPECT_EQ(3, GetOrderOfRequest(5));
-  EXPECT_EQ(5, GetOrderOfRequest(6));
-  EXPECT_EQ(7, GetOrderOfRequest(7));
+  EXPECT_EQ(8, GetOrderOfRequest(3));
+  EXPECT_EQ(6, GetOrderOfRequest(4));
+  EXPECT_EQ(4, GetOrderOfRequest(5));
+  EXPECT_EQ(3, GetOrderOfRequest(6));
+  EXPECT_EQ(5, GetOrderOfRequest(7));
+  EXPECT_EQ(7, GetOrderOfRequest(8));
 
   // Make sure we test order of all requests made.
-  EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(8));
+  EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(9));
 }
 
 TEST_F(ClientSocketPoolBaseTest, PendingRequests_NoKeepAlive) {
