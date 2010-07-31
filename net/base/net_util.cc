@@ -45,6 +45,7 @@
 #include "base/path_service.h"
 #include "base/singleton.h"
 #include "base/stl_util-inl.h"
+#include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
@@ -1660,9 +1661,12 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
       return;
     if (i == size || allowed_ports[i] == kComma) {
       size_t length = i - last;
-      if (length > 0)
-        ports.insert(StringToInt(WideToASCII(
-            allowed_ports.substr(last, length))));
+      if (length > 0) {
+        int port;
+        base::StringToInt(WideToUTF8(allowed_ports.substr(last, length)),
+                          &port);
+        ports.insert(port);
+      }
       last = i + 1;
     }
   }
@@ -1887,7 +1891,7 @@ bool ParseCIDRBlock(const std::string& cidr_literal,
 
   // Parse the prefix length.
   int number_of_bits = -1;
-  if (!StringToInt(parts[1], &number_of_bits))
+  if (!base::StringToInt(parts[1], &number_of_bits))
     return false;
 
   // Make sure the prefix length is in a valid range.

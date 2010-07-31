@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/base/sdch_manager.h"
+
 #include "base/base64.h"
 #include "base/field_trial.h"
 #include "base/histogram.h"
 #include "base/logging.h"
 #include "base/sha2.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/base/registry_controlled_domain.h"
-#include "net/base/sdch_manager.h"
 #include "net/url_request/url_request_http_job.h"
 
 using base::Time;
@@ -240,9 +242,12 @@ bool SdchManager::AddSdchDictionary(const std::string& dictionary_text,
         if (value != "1.0")
           return false;
       } else if (name == "max-age") {
-        expiration = Time::Now() + TimeDelta::FromSeconds(StringToInt64(value));
+        int64 seconds;
+        base::StringToInt64(value, &seconds);
+        expiration = Time::Now() + TimeDelta::FromSeconds(seconds);
       } else if (name == "port") {
-        int port = StringToInt(value);
+        int port;
+        base::StringToInt(value, &port);
         if (port >= 0)
           ports.insert(port);
       }

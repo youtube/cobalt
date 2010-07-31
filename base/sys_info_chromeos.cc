@@ -7,8 +7,8 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
-#include "base/string_util.h"
 
 namespace base {
 
@@ -54,12 +54,12 @@ void SysInfo::ParseLsbRelease(const std::string& lsb_release,
   StringTokenizer tokenizer(version, ".");
   for (int i = 0; i < 3 && tokenizer.GetNext(); i++) {
     if (0 == i) {
-      *major_version = StringToInt(tokenizer.token());
+      StringToInt(tokenizer.token(), major_version);
       *minor_version = *bugfix_version = 0;
     } else if (1 == i) {
-      *minor_version = StringToInt(tokenizer.token());
+      StringToInt(tokenizer.token(), minor_version);
     } else {  // 2 == i
-      *bugfix_version = StringToInt(tokenizer.token());
+      StringToInt(tokenizer.token(), bugfix_version);
     }
   }
 }

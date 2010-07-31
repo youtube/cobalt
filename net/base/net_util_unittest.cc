@@ -6,6 +6,7 @@
 
 #include "base/file_path.h"
 #include "base/format_macros.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/utf_string_conversions.h"
@@ -460,7 +461,7 @@ std::string DumpIPNumber(const net::IPAddressNumber& v) {
   for (size_t i = 0; i < v.size(); ++i) {
     if (i != 0)
       out.append(",");
-    out.append(IntToString(static_cast<int>(v[i])));
+    out.append(base::IntToString(static_cast<int>(v[i])));
   }
   return out;
 }

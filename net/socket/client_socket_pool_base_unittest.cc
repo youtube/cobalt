@@ -10,6 +10,7 @@
 #include "base/platform_thread.h"
 #include "base/ref_counted.h"
 #include "base/scoped_vector.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
@@ -887,7 +888,8 @@ TEST_F(ClientSocketPoolBaseTest, CancelStalledSocketAtSocketLimit) {
     ClientSocketHandle handles[kDefaultMaxSockets];
     TestCompletionCallback callbacks[kDefaultMaxSockets];
     for (int i = 0; i < kDefaultMaxSockets; ++i) {
-      EXPECT_EQ(OK, handles[i].Init(IntToString(i), params_, kDefaultPriority,
+      EXPECT_EQ(OK, handles[i].Init(base::IntToString(i), params_,
+                                    kDefaultPriority,
                                     &callbacks[i], pool_, BoundNetLog()));
     }
 
@@ -919,7 +921,7 @@ TEST_F(ClientSocketPoolBaseTest, CancelPendingSocketAtSocketLimit) {
     ClientSocketHandle handles[kDefaultMaxSockets];
     for (int i = 0; i < kDefaultMaxSockets; ++i) {
       TestCompletionCallback callback;
-      EXPECT_EQ(ERR_IO_PENDING, handles[i].Init(IntToString(i), params_,
+      EXPECT_EQ(ERR_IO_PENDING, handles[i].Init(base::IntToString(i), params_,
                                                 kDefaultPriority, &callback,
                                                 pool_, BoundNetLog()));
     }
@@ -998,7 +1000,7 @@ TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketAtSocketLimitDeleteGroup) {
   for (int i = 0; i < kDefaultMaxSockets; ++i) {
     ClientSocketHandle handle;
     TestCompletionCallback callback;
-    EXPECT_EQ(OK, handle.Init(IntToString(i), params_, kDefaultPriority,
+    EXPECT_EQ(OK, handle.Init(base::IntToString(i), params_, kDefaultPriority,
                               &callback, pool_, BoundNetLog()));
   }
 

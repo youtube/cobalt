@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/ftp/ftp_util.h"
 
@@ -68,7 +69,7 @@ bool FtpDirectoryListingParserNetware::ConsumeLine(const string16& line) {
   if (!LooksLikeNetwarePermissionsListing(columns[1]))
     return false;
 
-  if (!StringToInt64(columns[3], &entry.size))
+  if (!base::StringToInt64(columns[3], &entry.size))
     return false;
   if (entry.size < 0)
     return false;

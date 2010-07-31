@@ -100,7 +100,7 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
   if (upload_data_stream) {
     request_headers->SetHeader(
         HttpRequestHeaders::kContentLength,
-        Uint64ToString(upload_data_stream->size()));
+        base::Uint64ToString(upload_data_stream->size()));
   } else if (request_info->method == "POST" || request_info->method == "PUT" ||
              request_info->method == "HEAD") {
     // An empty POST/PUT request still needs a content length.  As for HEAD,
@@ -156,7 +156,7 @@ void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
   }
 
   int port;
-  if (!StringToInt(port_protocol_vector[0], &port) ||
+  if (!base::StringToInt(port_protocol_vector[0], &port) ||
       port <= 0 || port >= 1 << 16) {
     DLOG(WARNING) << HttpAlternateProtocols::kHeader
                   << " header has unrecognizable port: "

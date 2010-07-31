@@ -16,8 +16,10 @@
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/thread.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
@@ -43,7 +45,7 @@ int RunSlave(RankCrashes action) {
   PathService::Get(base::FILE_EXE, &exe);
 
   CommandLine cmdline(exe);
-  cmdline.AppendLooseValue(ASCIIToWide(IntToString(action)));
+  cmdline.AppendLooseValue(UTF8ToWide(base::IntToString(action)));
 
   base::ProcessHandle handle;
   if (!base::LaunchApp(cmdline, false, false, &handle)) {

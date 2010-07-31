@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,8 +22,10 @@
 #include "base/path_service.h"
 #include "base/platform_thread.h"
 #include "base/process_util.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/thread.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/io_buffer.h"
@@ -42,7 +44,7 @@ int RunSlave(int iteration) {
   PathService::Get(base::FILE_EXE, &exe);
 
   CommandLine cmdline(exe);
-  cmdline.AppendLooseValue(ASCIIToWide(IntToString(iteration)));
+  cmdline.AppendLooseValue(UTF8ToWide(base::IntToString(iteration)));
 
   base::ProcessHandle handle;
   if (!base::LaunchApp(cmdline, false, false, &handle)) {

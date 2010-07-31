@@ -6,8 +6,9 @@
 
 #include <vector>
 
-#include "base/string_util.h"
+#include "base/string_number_conversions.h"
 #include "base/utf_string_conversions.h"
+#include "base/string_util.h"
 #include "net/ftp/ftp_util.h"
 
 namespace {
@@ -23,7 +24,7 @@ bool ParseVmsFilename(const string16& raw_filename, string16* parsed_filename,
   if (listing_parts.size() != 2)
     return false;
   int version_number;
-  if (!StringToInt(listing_parts[1], &version_number))
+  if (!base::StringToInt(listing_parts[1], &version_number))
     return false;
   if (version_number < 0)
     return false;
@@ -52,7 +53,7 @@ bool ParseVmsFilesize(const string16& input, int64* size) {
   // best information we have.
   const int kBlockSize = 512;
 
-  if (StringToInt64(input, size)) {
+  if (base::StringToInt64(input, size)) {
     *size *= kBlockSize;
     return true;
   }
@@ -63,9 +64,9 @@ bool ParseVmsFilesize(const string16& input, int64* size) {
     return false;
 
   int64 blocks_used, blocks_allocated;
-  if (!StringToInt64(parts[0], &blocks_used))
+  if (!base::StringToInt64(parts[0], &blocks_used))
     return false;
-  if (!StringToInt64(parts[1], &blocks_allocated))
+  if (!base::StringToInt64(parts[1], &blocks_allocated))
     return false;
   if (blocks_used > blocks_allocated)
     return false;
@@ -126,12 +127,12 @@ bool VmsDateListingToTime(const std::vector<string16>& columns,
   SplitString(columns[1], '-', &date_parts);
   if (date_parts.size() != 3)
     return false;
-  if (!StringToInt(date_parts[0], &time_exploded.day_of_month))
+  if (!base::StringToInt(date_parts[0], &time_exploded.day_of_month))
     return false;
   if (!net::FtpUtil::ThreeLetterMonthToNumber(date_parts[1],
                                               &time_exploded.month))
     return false;
-  if (!StringToInt(date_parts[2], &time_exploded.year))
+  if (!base::StringToInt(date_parts[2], &time_exploded.year))
     return false;
 
   // Time can be in format HH:MM, HH:MM:SS, or HH:MM:SS.mm. Try to recognize the
@@ -147,9 +148,9 @@ bool VmsDateListingToTime(const std::vector<string16>& columns,
   SplitString(time_column, ':', &time_parts);
   if (time_parts.size() != 2)
     return false;
-  if (!StringToInt(time_parts[0], &time_exploded.hour))
+  if (!base::StringToInt(time_parts[0], &time_exploded.hour))
     return false;
-  if (!StringToInt(time_parts[1], &time_exploded.minute))
+  if (!base::StringToInt(time_parts[1], &time_exploded.minute))
     return false;
 
   // We don't know the time zone of the server, so just use local time.
