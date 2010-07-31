@@ -380,6 +380,18 @@ inline bool IsHexDigit(Char c) {
          (c >= 'a' && c <= 'f');
 }
 
+template <typename Char>
+inline Char HexDigitToInt(Char c) {
+  DCHECK(IsHexDigit(c));
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
+  return 0;
+}
+
 // Returns true if it's a whitespace character.
 inline bool IsWhitespace(wchar_t c) {
   return wcschr(kWhitespaceWide, c) != NULL;

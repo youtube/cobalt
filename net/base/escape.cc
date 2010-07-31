@@ -15,18 +15,6 @@
 
 namespace {
 
-template <class char_type>
-inline char_type HexToInt(char_type ch) {
-  if (ch >= '0' && ch <= '9')
-    return ch - '0';
-  if (ch >= 'A' && ch <= 'F')
-    return ch - 'A' + 10;
-  if (ch >= 'a' && ch <= 'f')
-    return ch - 'a' + 10;
-  NOTREACHED();
-  return 0;
-}
-
 static const char* const kHexString = "0123456789ABCDEF";
 inline char IntToHex(int i) {
   DCHECK(i >= 0 && i <= 15) << i << " not a hex value";
@@ -136,8 +124,8 @@ STR UnescapeURLImpl(const STR& escaped_text,
       const typename STR::value_type least_sig_digit(
           static_cast<typename STR::value_type>(escaped_text[i + 2]));
       if (IsHexDigit(most_sig_digit) && IsHexDigit(least_sig_digit)) {
-        unsigned char value = HexToInt(most_sig_digit) * 16 +
-            HexToInt(least_sig_digit);
+        unsigned char value = HexDigitToInt(most_sig_digit) * 16 +
+            HexDigitToInt(least_sig_digit);
         if (value >= 0x80 ||  // Unescape all high-bit characters.
             // For 7-bit characters, the lookup table tells us all valid chars.
             (kUrlUnescape[value] ||
