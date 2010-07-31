@@ -1,6 +1,7 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 
 #ifndef NET_FTP_FTP_CTRL_RESPONSE_BUFFER_H_
 #define NET_FTP_FTP_CTRL_RESPONSE_BUFFER_H_
@@ -25,8 +26,7 @@ struct FtpCtrlResponse {
 
 class FtpCtrlResponseBuffer {
  public:
-  FtpCtrlResponseBuffer() : multiline_(false) {
-  }
+  FtpCtrlResponseBuffer() : multiline_(false) {}
 
   // Called when data is received from the control socket. Returns error code.
   int ConsumeData(const char* data, int data_length);
