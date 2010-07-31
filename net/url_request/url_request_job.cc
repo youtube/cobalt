@@ -6,6 +6,7 @@
 
 #include "base/histogram.h"
 #include "base/message_loop.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
@@ -495,7 +496,7 @@ void URLRequestJob::NotifyHeadersComplete() {
     std::string content_length;
     request_->GetResponseHeaderByName("content-length", &content_length);
     if (!content_length.empty())
-      expected_content_size_ = StringToInt64(content_length);
+      base::StringToInt64(content_length, &expected_content_size_);
   } else {
     // Chrome today only sends "Accept-Encoding" for compression schemes.
     // So, if there is a filter on the response, we know that the content

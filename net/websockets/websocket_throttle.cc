@@ -10,7 +10,7 @@
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
 #include "base/singleton.h"
-#include "base/string_util.h"
+#include "base/string_number_conversions.h"
 #include "net/base/io_buffer.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/socket_stream/socket_stream.h"
@@ -25,21 +25,21 @@ static std::string AddrinfoToHashkey(const struct addrinfo* addrinfo) {
           reinterpret_cast<const sockaddr_in*>(addrinfo->ai_addr);
       return StringPrintf("%d:%s",
                           addrinfo->ai_family,
-                          HexEncode(&addr->sin_addr, 4).c_str());
+                          base::HexEncode(&addr->sin_addr, 4).c_str());
       }
     case AF_INET6: {
       const struct sockaddr_in6* const addr6 =
           reinterpret_cast<const sockaddr_in6*>(addrinfo->ai_addr);
       return StringPrintf("%d:%s",
                           addrinfo->ai_family,
-                          HexEncode(&addr6->sin6_addr,
-                                    sizeof(addr6->sin6_addr)).c_str());
+                          base::HexEncode(&addr6->sin6_addr,
+                                          sizeof(addr6->sin6_addr)).c_str());
       }
     default:
       return StringPrintf("%d:%s",
                           addrinfo->ai_family,
-                          HexEncode(addrinfo->ai_addr,
-                                    addrinfo->ai_addrlen).c_str());
+                          base::HexEncode(addrinfo->ai_addr,
+                                          addrinfo->ai_addrlen).c_str());
   }
 }
 

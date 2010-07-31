@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/ftp/ftp_util.h"
 
@@ -22,11 +23,11 @@ bool WindowsDateListingToTime(const std::vector<string16>& columns,
   SplitString(columns[0], '-', &date_parts);
   if (date_parts.size() != 3)
     return false;
-  if (!StringToInt(date_parts[0], &time_exploded.month))
+  if (!base::StringToInt(date_parts[0], &time_exploded.month))
     return false;
-  if (!StringToInt(date_parts[1], &time_exploded.day_of_month))
+  if (!base::StringToInt(date_parts[1], &time_exploded.day_of_month))
     return false;
-  if (!StringToInt(date_parts[2], &time_exploded.year))
+  if (!base::StringToInt(date_parts[2], &time_exploded.year))
     return false;
   if (time_exploded.year < 0)
     return false;
@@ -44,9 +45,9 @@ bool WindowsDateListingToTime(const std::vector<string16>& columns,
   SplitString(columns[1].substr(0, 5), ':', &time_parts);
   if (time_parts.size() != 2)
     return false;
-  if (!StringToInt(time_parts[0], &time_exploded.hour))
+  if (!base::StringToInt(time_parts[0], &time_exploded.hour))
     return false;
-  if (!StringToInt(time_parts[1], &time_exploded.minute))
+  if (!base::StringToInt(time_parts[1], &time_exploded.minute))
     return false;
   if (!time_exploded.HasValidValues())
     return false;
@@ -91,7 +92,7 @@ bool FtpDirectoryListingParserWindows::ConsumeLine(const string16& line) {
     entry.size = -1;
   } else {
     entry.type = FtpDirectoryListingEntry::FILE;
-    if (!StringToInt64(columns[2], &entry.size))
+    if (!base::StringToInt64(columns[2], &entry.size))
       return false;
     if (entry.size < 0)
       return false;

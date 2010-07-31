@@ -633,7 +633,9 @@ class GConfSettingGetterImplKDE
       const char* mode = "none";
       indirect_manual_ = false;
       auto_no_pac_ = false;
-      switch (StringToInt(value)) {
+      int int_value;
+      base::StringToInt(value, &int_value);
+      switch (int_value) {
         case 0:  // No proxy, or maybe kioslaverc syntax error.
           break;
         case 1:  // Manual configuration.
@@ -664,12 +666,15 @@ class GConfSettingGetterImplKDE
       // We count "true" or any nonzero number as true, otherwise false.
       // Note that if the value is not actually numeric StringToInt()
       // will return 0, which we count as false.
-      reversed_bypass_list_ = (value == "true" || StringToInt(value));
+      int int_value;
+      base::StringToInt(value, &int_value);
+      reversed_bypass_list_ = (value == "true" || int_value);
     } else if (key == "NoProxyFor") {
       AddHostList("/system/http_proxy/ignore_hosts", value);
     } else if (key == "AuthMode") {
       // Check for authentication, just so we can warn.
-      int mode = StringToInt(value);
+      int mode;
+      base::StringToInt(value, &mode);
       if (mode) {
         // ProxyConfig does not support authentication parameters, but
         // Chrome will prompt for the password later. So we ignore this.

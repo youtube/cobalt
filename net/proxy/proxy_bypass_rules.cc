@@ -5,6 +5,7 @@
 #include "net/proxy/proxy_bypass_rules.h"
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "net/base/net_util.h"
@@ -253,7 +254,7 @@ bool ProxyBypassRules::AddRuleFromStringInternal(
   host = raw;
   port = -1;
   if (pos_colon != std::string::npos) {
-    if (!StringToInt(raw.substr(pos_colon + 1), &port) ||
+    if (!base::StringToInt(raw.substr(pos_colon + 1), &port) ||
         (port < 0 || port > 0xFFFF)) {
       return false;  // Port was invalid.
     }
