@@ -6,6 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/histogram.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/connection_type_histograms.h"
@@ -978,7 +979,7 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
       if (response.lines.size() != 1)
         return Stop(ERR_INVALID_RESPONSE);
       int64 size;
-      if (!StringToInt64(response.lines[0], &size))
+      if (!base::StringToInt64(response.lines[0], &size))
         return Stop(ERR_INVALID_RESPONSE);
       if (size < 0)
         return Stop(ERR_INVALID_RESPONSE);

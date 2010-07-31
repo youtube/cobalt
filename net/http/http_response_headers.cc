@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 
 #include "base/logging.h"
 #include "base/pickle.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "net/base/escape.h"
@@ -591,7 +592,7 @@ void HttpResponseHeaders::ParseStatusLine(
   raw_headers_.push_back(' ');
   raw_headers_.append(code, p);
   raw_headers_.push_back(' ');
-  response_code_ = static_cast<int>(StringToInt64(std::string(code, p)));
+  base::StringToInt(std::string(code, p), &response_code_);
 
   // Skip whitespace.
   while (*p == ' ')
@@ -965,8 +966,9 @@ bool HttpResponseHeaders::GetMaxAgeValue(TimeDelta* result) const {
       if (LowerCaseEqualsASCII(value.begin(),
                                value.begin() + kMaxAgePrefixLen,
                                kMaxAgePrefix)) {
-        *result = TimeDelta::FromSeconds(
-            StringToInt64(value.substr(kMaxAgePrefixLen)));
+        int64 seconds;
+        base::StringToInt64(value.substr(kMaxAgePrefixLen), &seconds);
+        *result = TimeDelta::FromSeconds(seconds);
         return true;
       }
     }
@@ -980,7 +982,9 @@ bool HttpResponseHeaders::GetAgeValue(TimeDelta* result) const {
   if (!EnumerateHeader(NULL, "Age", &value))
     return false;
 
-  *result = TimeDelta::FromSeconds(StringToInt64(value));
+  int64 seconds;
+  base::StringToInt64(value, &seconds);
+  *result = TimeDelta::FromSeconds(seconds);
   return true;
 }
 
@@ -1071,7 +1075,7 @@ int64 HttpResponseHeaders::GetContentLength() const {
     return -1;
 
   int64 result;
-  bool ok = StringToInt64(content_length_val, &result);
+  bool ok = base::StringToInt64(content_length_val, &result);
   if (!ok || result < 0)
     return -1;
 
@@ -1138,7 +1142,7 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
           byte_range_resp_spec.begin() + minus_position;
       HttpUtil::TrimLWS(&first_byte_pos_begin, &first_byte_pos_end);
 
-      bool ok = StringToInt64(
+      bool ok = base::StringToInt64(
           std::string(first_byte_pos_begin, first_byte_pos_end),
           first_byte_position);
 
@@ -1149,7 +1153,7 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
           byte_range_resp_spec.end();
       HttpUtil::TrimLWS(&last_byte_pos_begin, &last_byte_pos_end);
 
-      ok &= StringToInt64(
+      ok &= base::StringToInt64(
           std::string(last_byte_pos_begin, last_byte_pos_end),
           last_byte_position);
       if (!ok) {
@@ -1174,7 +1178,7 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
 
   if (LowerCaseEqualsASCII(instance_length_begin, instance_length_end, "*")) {
     return false;
-  } else if (!StringToInt64(
+  } else if (!base::StringToInt64(
       std::string(instance_length_begin, instance_length_end),
       instance_length)) {
     *instance_length = -1;

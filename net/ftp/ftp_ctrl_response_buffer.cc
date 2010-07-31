@@ -5,7 +5,8 @@
 #include "net/ftp/ftp_ctrl_response_buffer.h"
 
 #include "base/logging.h"
-#include "base/string_util.h"
+#include "base/string_number_conversions.h"
+//#include "base/string_util.h"
 #include "net/base/net_errors.h"
 
 namespace net {
@@ -69,7 +70,7 @@ FtpCtrlResponseBuffer::ParsedLine FtpCtrlResponseBuffer::ParseLine(
   ParsedLine result;
 
   if (line.length() >= 3) {
-    if (StringToInt(line.substr(0, 3), &result.status_code))
+    if (base::StringToInt(line.substr(0, 3), &result.status_code))
       result.has_status_code = (100 <= result.status_code &&
                                 result.status_code <= 599);
     if (result.has_status_code && line.length() >= 4 && line[3] == ' ') {
