@@ -5,6 +5,8 @@
 #include "net/http/http_auth_handler_negotiate.h"
 
 #include "base/logging.h"
+#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/address_family.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
