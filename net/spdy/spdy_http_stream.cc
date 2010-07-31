@@ -10,6 +10,7 @@
 
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_util.h"
@@ -118,7 +119,7 @@ void CreateSpdyHeadersFromHttpRequest(
   // TODO(lzheng): reduce the code duplication between spdy and http here.
   if (info.upload_data) {
     (*headers)["content-length"] =
-        Int64ToString(info.upload_data->GetContentLength());
+        base::Int64ToString(info.upload_data->GetContentLength());
   } else if (info.method == "POST" || info.method == "PUT" ||
              info.method == "HEAD") {
     // An empty POST/PUT request still needs a content length.  As for HEAD,

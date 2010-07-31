@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "base/sha2.h"
+#include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/values.h"
@@ -140,7 +141,7 @@ bool TransportSecurityState::ParseHeader(const std::string& value,
       case AFTER_MAX_AGE_EQUALS:
         if (IsAsciiWhitespace(*tokenizer.token_begin()))
           continue;
-        if (!StringToInt(tokenizer.token(), &max_age_candidate))
+        if (!base::StringToInt(tokenizer.token(), &max_age_candidate))
           return false;
         if (max_age_candidate < 0)
           return false;

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "net/base/net_util.h"
@@ -244,7 +245,7 @@ bool HttpUtil::ParseRangeHeader(const std::string& ranges_specifier,
     // Try to obtain first-byte-pos.
     if (!first_byte_pos.empty()) {
       int64 first_byte_position = -1;
-      if (!StringToInt64(first_byte_pos, &first_byte_position))
+      if (!base::StringToInt64(first_byte_pos, &first_byte_position))
         return false;
       range.set_first_byte_position(first_byte_position);
     }
@@ -259,7 +260,7 @@ bool HttpUtil::ParseRangeHeader(const std::string& ranges_specifier,
     // We have last-byte-pos or suffix-byte-range-spec in this case.
     if (!last_byte_pos.empty()) {
       int64 last_byte_position;
-      if (!StringToInt64(last_byte_pos, &last_byte_position))
+      if (!base::StringToInt64(last_byte_pos, &last_byte_position))
         return false;
       if (range.HasFirstBytePosition())
         range.set_last_byte_position(last_byte_position);

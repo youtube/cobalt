@@ -14,7 +14,8 @@
 #include "base/file_path.h"
 #include "base/process_util.h"
 #include "base/ref_counted.h"
-#include "base/string_util.h"
+#include "base/string_number_conversions.h"
+//#include "base/string_util.h"
 #include "googleurl/src/gurl.h"
 
 #if defined(OS_WIN)
@@ -197,7 +198,7 @@ class BaseTestServer : public base::RefCounted<BaseTestServer> {
       scheme_.push_back('s');
 
     host_name_ = host_name;
-    port_str_ = IntToString(port);
+    port_str_ = base::IntToString(port);
     return true;
   }
 
