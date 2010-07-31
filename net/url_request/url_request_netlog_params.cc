@@ -19,9 +19,9 @@ URLRequestStartEventParameters::URLRequestStartEventParameters(
 
 Value* URLRequestStartEventParameters::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
-  dict->SetString(L"url", url_.possibly_invalid_spec());
-  dict->SetString(L"method", method_);
-  dict->SetInteger(L"load_flags", load_flags_);
-  dict->SetInteger(L"priority", static_cast<int>(priority_));
+  dict->SetString("url", url_.possibly_invalid_spec());
+  dict->SetString("method", method_);
+  dict->SetInteger("load_flags", load_flags_);
+  dict->SetInteger("priority", static_cast<int>(priority_));
   return dict;
 }

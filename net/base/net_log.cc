@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "net/base/net_log.h"
-#include "base/string_util.h"
 #include "base/time.h"
 #include "base/values.h"
 
@@ -88,13 +87,13 @@ NetLogStringParameter::NetLogStringParameter(const char* name,
 
 Value* NetLogIntegerParameter::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
-  dict->SetInteger(ASCIIToWide(name_), value_);
+  dict->SetInteger(name_, value_);
   return dict;
 }
 
 Value* NetLogStringParameter::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
-  dict->SetString(ASCIIToWide(name_), value_);
+  dict->SetString(name_, value_);
   return dict;
 }
 
@@ -102,10 +101,10 @@ Value* NetLogSourceParameter::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
 
   DictionaryValue* source_dict = new DictionaryValue();
-  source_dict->SetInteger(L"type", static_cast<int>(value_.type));
-  source_dict->SetInteger(L"id", static_cast<int>(value_.id));
+  source_dict->SetInteger("type", static_cast<int>(value_.type));
+  source_dict->SetInteger("id", static_cast<int>(value_.id));
 
-  dict->Set(ASCIIToWide(name_), source_dict);
+  dict->Set(name_, source_dict);
   return dict;
 }
 
