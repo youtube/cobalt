@@ -16,6 +16,7 @@
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
+#include "base/utf_string_conversions.h"
 
 #if defined(OS_MACOSX)
 #include "base/scoped_cftyperef.h"
@@ -395,7 +396,7 @@ FilePath FilePath::InsertBeforeExtensionASCII(const base::StringPiece& suffix)
     const {
   DCHECK(IsStringASCII(suffix));
 #if defined(OS_WIN)
-  return InsertBeforeExtension(ASCIIToWide(suffix));
+  return InsertBeforeExtension(ASCIIToUTF16(suffix));
 #elif defined(OS_POSIX)
   return InsertBeforeExtension(suffix.as_string());
 #endif
@@ -479,7 +480,7 @@ FilePath FilePath::Append(const FilePath& component) const {
 FilePath FilePath::AppendASCII(const base::StringPiece& component) const {
   DCHECK(IsStringASCII(component));
 #if defined(OS_WIN)
-  return Append(ASCIIToWide(component));
+  return Append(ASCIIToUTF16(component));
 #elif defined(OS_POSIX)
   return Append(component.as_string());
 #endif
