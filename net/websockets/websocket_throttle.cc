@@ -11,6 +11,7 @@
 #include "base/ref_counted.h"
 #include "base/singleton.h"
 #include "base/string_number_conversions.h"
+#include "base/string_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/socket_stream/socket_stream.h"
