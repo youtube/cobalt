@@ -226,7 +226,7 @@ net::Error SpdySession::Connect(
     const std::string& group_name,
     const scoped_refptr<TCPSocketParams>& destination,
     RequestPriority priority) {
-  DCHECK(priority >= SPDY_PRIORITY_HIGHEST && priority <= SPDY_PRIORITY_LOWEST);
+  DCHECK(priority >= net::HIGHEST && priority < net::NUM_PRIORITIES);
 
   // If the connect process is started, let the caller continue.
   if (state_ > IDLE)
@@ -385,8 +385,7 @@ int SpdySession::CreateStreamImpl(
 
   LOG(INFO) << "SpdyStream: Creating stream " << stream_id << " for " << url;
   // TODO(mbelshe): Optimize memory allocations
-  DCHECK(priority >= SPDY_PRIORITY_HIGHEST &&
-         priority <= SPDY_PRIORITY_LOWEST);
+  DCHECK(priority >= net::HIGHEST && priority < net::NUM_PRIORITIES);
 
   DCHECK_EQ(active_streams_[stream_id].get(), stream.get());
   return OK;
@@ -404,8 +403,10 @@ int SpdySession::WriteSynStream(
   CHECK_EQ(stream->stream_id(), stream_id);
 
   scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
-      spdy_framer_.CreateSynStream(stream_id, 0, priority, flags, false,
-                                   headers.get()));
+      spdy_framer_.CreateSynStream(
+          stream_id, 0,
+          ConvertRequestPriorityToSpdyPriority(priority),
+          flags, false, headers.get()));
   QueueFrame(syn_frame.get(), priority, stream);
 
   static StatsCounter spdy_requests("spdy.requests");

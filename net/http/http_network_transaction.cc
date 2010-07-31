@@ -1882,6 +1882,22 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
   return description;
 }
 
+// TODO(gavinp): re-adjust this once SPDY v3 has three priority bits,
+// eliminating the need for this folding.
+int ConvertRequestPriorityToSpdyPriority(const RequestPriority priority) {
+  DCHECK(HIGHEST <= priority && priority < NUM_PRIORITIES);
+  switch (priority) {
+    case LOWEST:
+      return SPDY_PRIORITY_LOWEST-1;
+    case IDLE:
+      return SPDY_PRIORITY_LOWEST;
+    default:
+      return priority;
+  }
+}
+
+
+
 #undef STATE_CASE
 
 }  // namespace net
