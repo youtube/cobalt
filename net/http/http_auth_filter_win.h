@@ -11,7 +11,7 @@
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
-#include "base/string_util.h"
+#include "base/string16.h"
 
 namespace net {
 
