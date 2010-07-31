@@ -25,6 +25,7 @@
 #include "base/singleton.h"
 #include "base/third_party/dmg_fp/dmg_fp.h"
 #include "base/utf_string_conversion_utils.h"
+#include "base/utf_string_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
 
 namespace {
@@ -653,19 +654,9 @@ std::string WideToASCII(const std::wstring& wide) {
   return std::string(wide.begin(), wide.end());
 }
 
-std::wstring ASCIIToWide(const base::StringPiece& ascii) {
-  DCHECK(IsStringASCII(ascii)) << ascii;
-  return std::wstring(ascii.begin(), ascii.end());
-}
-
 std::string UTF16ToASCII(const string16& utf16) {
   DCHECK(IsStringASCII(utf16)) << utf16;
   return std::string(utf16.begin(), utf16.end());
-}
-
-string16 ASCIIToUTF16(const base::StringPiece& ascii) {
-  DCHECK(IsStringASCII(ascii)) << ascii;
-  return string16(ascii.begin(), ascii.end());
 }
 
 // Latin1 is just the low range of Unicode, so we can copy directly to convert.

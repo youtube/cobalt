@@ -10,7 +10,6 @@
 #include <set>
 #include <string>
 
-#include "base/string_util.h"
 #include "net/http/http_auth.h"
 #include "net/proxy/proxy_bypass_rules.h"
 
