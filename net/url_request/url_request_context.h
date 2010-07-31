@@ -13,7 +13,6 @@
 
 #include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
-#include "base/string_util.h"
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
@@ -104,9 +103,7 @@ class URLRequestContext
   // Gets the UA string to use for the given URL.  Pass an invalid URL (such as
   // GURL()) to get the default UA string.  Subclasses should override this
   // method to provide a UA string.
-  virtual const std::string& GetUserAgent(const GURL& url) const {
-    return EmptyString();
-  }
+  virtual const std::string& GetUserAgent(const GURL& url) const;
 
   // In general, referrer_charset is not known when URLRequestContext is
   // constructed. So, we need a setter.

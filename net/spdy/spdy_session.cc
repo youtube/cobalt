@@ -13,6 +13,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "base/time.h"
 #include "base/values.h"
 #include "net/base/connection_type_histograms.h"

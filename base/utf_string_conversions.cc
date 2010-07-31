@@ -1,10 +1,11 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/utf_string_conversions.h"
 
 #include "base/string_piece.h"
+#include "base/string_util.h"
 #include "base/utf_string_conversion_utils.h"
 
 using base::PrepareForUTF8Output;
@@ -173,3 +174,23 @@ std::string UTF16ToUTF8(const string16& utf16) {
 }
 
 #endif
+
+std::wstring ASCIIToWide(const char* ascii) {
+  DCHECK(IsStringASCII(ascii)) << ascii;
+  return std::wstring(ascii, &ascii[strlen(ascii)]);
+}
+
+std::wstring ASCIIToWide(const std::string& ascii) {
+  DCHECK(IsStringASCII(ascii)) << ascii;
+  return std::wstring(ascii.begin(), ascii.end());
+}
+
+string16 ASCIIToUTF16(const char* ascii) {
+  DCHECK(IsStringASCII(ascii)) << ascii;
+  return string16(ascii, &ascii[strlen(ascii)]);
+}
+
+string16 ASCIIToUTF16(const std::string& ascii) {
+  DCHECK(IsStringASCII(ascii)) << ascii;
+  return string16(ascii.begin(), ascii.end());
+}

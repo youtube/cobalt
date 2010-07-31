@@ -227,11 +227,20 @@ bool ContainsOnlyChars(const std::wstring& input,
 bool ContainsOnlyChars(const string16& input, const string16& characters);
 bool ContainsOnlyChars(const std::string& input, const std::string& characters);
 
-// These convert between ASCII (7-bit) and Wide/UTF16 strings.
+// Converts to 7-bit ASCII by truncating. The result must be known to be ASCII
+// beforehand.
 std::string WideToASCII(const std::wstring& wide);
-std::wstring ASCIIToWide(const base::StringPiece& ascii);
 std::string UTF16ToASCII(const string16& utf16);
-string16 ASCIIToUTF16(const base::StringPiece& ascii);
+
+// Forward-declares for functions in utf_string_conversions.h. They used to
+// be here and they were moved. We keep these here so the entire project
+// doesn't need to be switched at once.
+// TODO(brettw) delete these when everybody includes utf_string_conversions.h
+// instead.
+std::wstring ASCIIToWide(const char* ascii);
+std::wstring ASCIIToWide(const std::string& ascii);
+string16 ASCIIToUTF16(const char* ascii);
+string16 ASCIIToUTF16(const std::string& ascii);
 
 // Converts the given wide string to the corresponding Latin1. This will fail
 // (return false) if any characters are more than 255.
