@@ -6,6 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
