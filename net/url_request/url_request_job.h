@@ -313,23 +313,13 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   // an error occurred (or we are waiting for IO to complete).
   bool ReadRawDataForFilter(int *bytes_read);
 
-  // Invokes ReadRawData and records bytes read if the read completes
-  // synchronously.
-  bool ReadRawDataHelper(net::IOBuffer* buf, int buf_size, int* bytes_read);
-
   // Called in response to a redirect that was not canceled to follow the
   // redirect. The current job will be replaced with a new job loading the
   // given redirect destination.
   void FollowRedirect(const GURL& location, int http_status_code);
 
-  // Called after every raw read. If |bytes_read| is > 0, this indicates
-  // a successful read of |bytes_read| unfiltered bytes. If |bytes_read|
-  // is 0, this indicates that there is no additional data to read. If
-  // |bytes_read| is < 0, an error occurred and no bytes were read.
-  void OnRawReadComplete(int bytes_read);
-
-  // Updates the profiling info and notifies observers that an additional
-  // |bytes_read| unfiltered bytes have been read for this job.
+  // Updates the profiling info and notifies observers that bytes_read bytes
+  // have been read.
   void RecordBytesRead(int bytes_read);
 
   // Called to query whether there is data available in the filter to be read
@@ -360,12 +350,8 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   // processing the filtered data, we return the data in the caller's buffer.
   // While the async IO is in progress, we save the user buffer here, and
   // when the IO completes, we fill this in.
-  scoped_refptr<net::IOBuffer> filtered_read_buffer_;
-  int filtered_read_buffer_len_;
-
-  // We keep a pointer to the read buffer while asynchronous reads are
-  // in progress, so we are able to pass those bytes to job observers.
-  scoped_refptr<net::IOBuffer> raw_read_buffer_;
+  scoped_refptr<net::IOBuffer> read_buffer_;
+  int read_buffer_len_;
 
   // Used by HandleResponseIfNecessary to track whether we've sent the
   // OnResponseStarted callback and potentially redirect callbacks as well.
@@ -392,7 +378,7 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   // as gathered here is post-SSL, and post-cache-fetch, and does not reflect
   // true packet arrival times in such cases.
 
-  // Total number of bytes read from network (or cache) and typically handed
+  // Total number of bytes read from network (or cache) and and typically handed
   // to filter to process.  Used to histogram compression ratios, and error
   // recovery scenarios in filters.
   int64 filter_input_byte_count_;
