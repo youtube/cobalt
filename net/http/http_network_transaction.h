@@ -340,6 +340,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   DISALLOW_COPY_AND_ASSIGN(HttpNetworkTransaction);
 };
 
+int ConvertRequestPriorityToSpdyPriority(RequestPriority priority);
+
 }  // namespace net
 
 #endif  // NET_HTTP_HTTP_NETWORK_TRANSACTION_H_

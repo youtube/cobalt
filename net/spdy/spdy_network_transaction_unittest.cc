@@ -289,6 +289,59 @@ TEST_P(SpdyNetworkTransactionTest, Get) {
   EXPECT_EQ("hello!", out.response_data);
 }
 
+TEST_P(SpdyNetworkTransactionTest, GetAtEachPriority) {
+  for (RequestPriority p = HIGHEST; p < NUM_PRIORITIES;
+       p = RequestPriority(p+1)) {
+    // Construct the request.
+    scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, p));
+    MockWrite writes[] = { CreateMockWrite(*req) };
+
+    const int spdy_prio = reinterpret_cast<spdy::SpdySynStreamControlFrame*>(
+        req.get())->priority();
+    // this repeats the RequestPriority-->SpdyPriority mapping from
+    // SpdyFramer::ConvertRequestPriorityToSpdyPriority to make
+    // sure it's being done right.
+    switch(p) {
+      case HIGHEST:
+        EXPECT_EQ(0, spdy_prio);
+        break;
+      case MEDIUM:
+        EXPECT_EQ(1, spdy_prio);
+        break;
+      case LOW:
+      case LOWEST:
+        EXPECT_EQ(2, spdy_prio);
+        break;
+      case IDLE:
+        EXPECT_EQ(3, spdy_prio);
+        break;
+      default:
+        FAIL();
+    }
+
+    scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+    scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+    MockRead reads[] = {
+      CreateMockRead(*resp),
+      CreateMockRead(*body),
+      MockRead(true, 0, 0)  // EOF
+    };
+
+    scoped_refptr<DelayedSocketData> data(
+        new DelayedSocketData(1, reads, arraysize(reads),
+                              writes, arraysize(writes)));
+    HttpRequestInfo http_req = CreateGetRequest();
+    http_req.priority = p;
+
+    NormalSpdyTransactionHelper helper(http_req, BoundNetLog(), GetParam());
+    helper.RunToCompletion(data.get());
+    TransactionHelperResult out = helper.output();
+    EXPECT_EQ(OK, out.rv);
+    EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+    EXPECT_EQ("hello!", out.response_data);
+  }
+}
+
 // Start three gets simultaniously; making sure that multiplexed
 // streams work properly.
 
@@ -1482,7 +1535,8 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
     spdy::SYN_REPLY,                              // Syn Reply
     1,                                            // Stream ID
     0,                                            // Associated Stream ID
-    SPDY_PRIORITY_LOWEST,                         // Priority
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
+                                                  // Priority
     spdy::CONTROL_FLAG_NONE,                      // Control Flags
     false,                                        // Compressed
     spdy::INVALID,                                // Status
@@ -1650,7 +1704,8 @@ TEST_P(SpdyNetworkTransactionTest, InvalidSynReply) {
     spdy::SYN_REPLY,              // Kind = SynReply
     1,                            // Stream ID
     0,                            // Associated stream ID
-    SPDY_PRIORITY_LOWEST,         // Priority
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
+                                  // Priority
     spdy::CONTROL_FLAG_NONE,      // Control Flags
     false,                        // Compressed
     spdy::INVALID,                // Status
@@ -2411,7 +2466,8 @@ TEST_P(SpdyNetworkTransactionTest, SettingsSaved) {
     spdy::SYN_REPLY,                              // Syn Reply
     1,                                            // Stream ID
     0,                                            // Associated Stream ID
-    SPDY_PRIORITY_LOWEST,                         // Priority
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
+                                                  // Priority
     spdy::CONTROL_FLAG_NONE,                      // Control Flags
     false,                                        // Compressed
     spdy::INVALID,                                // Status
@@ -2515,7 +2571,8 @@ TEST_P(SpdyNetworkTransactionTest, SettingsPlayback) {
     spdy::SYN_REPLY,                              // Syn Reply
     1,                                            // Stream ID
     0,                                            // Associated Stream ID
-    SPDY_PRIORITY_LOWEST,                         // Priority
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
+                                                  // Priority
     spdy::CONTROL_FLAG_NONE,                      // Control Flags
     false,                                        // Compressed
     spdy::INVALID,                                // Status
