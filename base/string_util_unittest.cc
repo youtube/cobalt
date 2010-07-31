@@ -633,6 +633,33 @@ TEST(StringUtilTest, ReplaceFirstSubstringAfterOffset) {
   }
 }
 
+TEST(StringUtilTest, HexDigitToInt) {
+  EXPECT_EQ(0, HexDigitToInt('0'));
+  EXPECT_EQ(1, HexDigitToInt('1'));
+  EXPECT_EQ(2, HexDigitToInt('2'));
+  EXPECT_EQ(3, HexDigitToInt('3'));
+  EXPECT_EQ(4, HexDigitToInt('4'));
+  EXPECT_EQ(5, HexDigitToInt('5'));
+  EXPECT_EQ(6, HexDigitToInt('6'));
+  EXPECT_EQ(7, HexDigitToInt('7'));
+  EXPECT_EQ(8, HexDigitToInt('8'));
+  EXPECT_EQ(9, HexDigitToInt('9'));
+  EXPECT_EQ(10, HexDigitToInt('A'));
+  EXPECT_EQ(11, HexDigitToInt('B'));
+  EXPECT_EQ(12, HexDigitToInt('C'));
+  EXPECT_EQ(13, HexDigitToInt('D'));
+  EXPECT_EQ(14, HexDigitToInt('E'));
+  EXPECT_EQ(15, HexDigitToInt('F'));
+
+  // Verify the lower case as well.
+  EXPECT_EQ(10, HexDigitToInt('a'));
+  EXPECT_EQ(11, HexDigitToInt('b'));
+  EXPECT_EQ(12, HexDigitToInt('c'));
+  EXPECT_EQ(13, HexDigitToInt('d'));
+  EXPECT_EQ(14, HexDigitToInt('e'));
+  EXPECT_EQ(15, HexDigitToInt('f'));
+}
+
 // This checks where we can use the assignment operator for a va_list. We need
 // a way to do this since Visual C doesn't support va_copy, but assignment on
 // va_list is not guaranteed to be a copy. See StringAppendVT which uses this
