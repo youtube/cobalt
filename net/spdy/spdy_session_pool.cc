@@ -25,22 +25,24 @@ SpdySessionPool::~SpdySessionPool() {
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::Get(
-    const HostPortPair& host_port_pair, HttpNetworkSession* session,
+    const HostPortProxyPair& host_port_proxy_pair, HttpNetworkSession* session,
     const BoundNetLog& net_log) {
   scoped_refptr<SpdySession> spdy_session;
-  SpdySessionList* list = GetSessionList(host_port_pair);
+  SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (list) {
     if (list->size() >= static_cast<unsigned int>(g_max_sessions_per_domain)) {
       spdy_session = list->front();
       list->pop_front();
     }
   } else {
-    list = AddSessionList(host_port_pair);
+    list = AddSessionList(host_port_proxy_pair);
   }
 
   DCHECK(list);
   if (!spdy_session)
-    spdy_session = new SpdySession(host_port_pair, session, net_log.net_log());
+    spdy_session = new SpdySession(host_port_proxy_pair,
+                                   session,
+                                   net_log.net_log());
 
   DCHECK(spdy_session);
   list->push_back(spdy_session);
@@ -49,7 +51,7 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
 }
 
 net::Error SpdySessionPool::GetSpdySessionFromSocket(
-    const HostPortPair& host_port_pair,
+    const HostPortProxyPair& host_port_proxy_pair,
     HttpNetworkSession* session,
     ClientSocketHandle* connection,
     const BoundNetLog& net_log,
@@ -57,10 +59,11 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
     scoped_refptr<SpdySession>* spdy_session,
     bool is_secure) {
   // Create the SPDY session and add it to the pool.
-  *spdy_session = new SpdySession(host_port_pair, session, net_log.net_log());
-  SpdySessionList* list = GetSessionList(host_port_pair);
+  *spdy_session = new SpdySession(host_port_proxy_pair,
+                                  session, net_log.net_log());
+  SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (!list)
-    list = AddSessionList(host_port_pair);
+    list = AddSessionList(host_port_proxy_pair);
   DCHECK(list->empty());
   list->push_back(*spdy_session);
 
@@ -69,20 +72,21 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
                                                   certificate_error_code);
 }
 
-bool SpdySessionPool::HasSession(const HostPortPair& host_port_pair) const {
-  if (GetSessionList(host_port_pair))
+bool SpdySessionPool::HasSession(
+    const HostPortProxyPair& host_port_proxy_pair) const {
+  if (GetSessionList(host_port_proxy_pair))
     return true;
   return false;
 }
 
 void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
-  SpdySessionList* list = GetSessionList(session->host_port_pair());
+  SpdySessionList* list = GetSessionList(session->host_port_proxy_pair());
   DCHECK(list);  // We really shouldn't remove if we've already been removed.
   if (!list)
     return;
   list->remove(session);
   if (list->empty())
-    RemoveSessionList(session->host_port_pair());
+    RemoveSessionList(session->host_port_proxy_pair());
 }
 
 void SpdySessionPool::OnIPAddressChanged() {
@@ -90,34 +94,38 @@ void SpdySessionPool::OnIPAddressChanged() {
 }
 
 SpdySessionPool::SpdySessionList*
-    SpdySessionPool::AddSessionList(const HostPortPair& host_port_pair) {
-  DCHECK(sessions_.find(host_port_pair) == sessions_.end());
+    SpdySessionPool::AddSessionList(
+        const HostPortProxyPair& host_port_proxy_pair) {
+  DCHECK(sessions_.find(host_port_proxy_pair) == sessions_.end());
   SpdySessionPool::SpdySessionList* list = new SpdySessionList();
-  sessions_[host_port_pair] = list;
+  sessions_[host_port_proxy_pair] = list;
   return list;
 }
 
 SpdySessionPool::SpdySessionList*
-    SpdySessionPool::GetSessionList(const HostPortPair& host_port_pair) {
-  SpdySessionsMap::iterator it = sessions_.find(host_port_pair);
+    SpdySessionPool::GetSessionList(
+        const HostPortProxyPair& host_port_proxy_pair) {
+  SpdySessionsMap::iterator it = sessions_.find(host_port_proxy_pair);
   if (it == sessions_.end())
     return NULL;
   return it->second;
 }
 
 const SpdySessionPool::SpdySessionList*
-    SpdySessionPool::GetSessionList(const HostPortPair& host_port_pair) const {
-  SpdySessionsMap::const_iterator it = sessions_.find(host_port_pair);
+    SpdySessionPool::GetSessionList(
+        const HostPortProxyPair& host_port_proxy_pair) const {
+  SpdySessionsMap::const_iterator it = sessions_.find(host_port_proxy_pair);
   if (it == sessions_.end())
     return NULL;
   return it->second;
 }
 
-void SpdySessionPool::RemoveSessionList(const HostPortPair& host_port_pair) {
-  SpdySessionList* list = GetSessionList(host_port_pair);
+void SpdySessionPool::RemoveSessionList(
+    const HostPortProxyPair& host_port_proxy_pair) {
+  SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (list) {
     delete list;
-    sessions_.erase(host_port_pair);
+    sessions_.erase(host_port_proxy_pair);
   } else {
     DCHECK(false) << "removing orphaned session list";
   }

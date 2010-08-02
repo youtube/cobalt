@@ -17,8 +17,12 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
+#include "net/proxy/proxy_config.h"
 
 namespace net {
+// Sessions are uniquely identified by their HostPortPair and the PAC-style list
+// of valid proxy servers.
+typedef std::pair<HostPortPair, std::string> HostPortProxyPair;
 
 class BoundNetLog;
 class ClientSocketHandle;
@@ -36,7 +40,8 @@ class SpdySessionPool
   // Either returns an existing SpdySession or creates a new SpdySession for
   // use.
   scoped_refptr<SpdySession> Get(
-      const HostPortPair& host_port_pair, HttpNetworkSession* session,
+      const HostPortProxyPair& host_port_proxy_pair,
+      HttpNetworkSession* session,
       const BoundNetLog& net_log);
 
   // Set the maximum concurrent sessions per domain.
@@ -56,7 +61,7 @@ class SpdySessionPool
   // Returns OK on success, and the |spdy_session| will be provided.
   // Returns an error on failure, and |spdy_session| will be NULL.
   net::Error GetSpdySessionFromSocket(
-      const HostPortPair& host_port_pair,
+      const HostPortProxyPair& host_port_proxy_pair,
       HttpNetworkSession* session,
       ClientSocketHandle* connection,
       const BoundNetLog& net_log,
@@ -66,7 +71,7 @@ class SpdySessionPool
 
   // TODO(willchan): Consider renaming to HasReusableSession, since perhaps we
   // should be creating a new session.
-  bool HasSession(const HostPortPair& host_port_pair)const;
+  bool HasSession(const HostPortProxyPair& host_port_proxy_pair) const;
 
   // Close all Spdy Sessions; used for debugging.
   void CloseAllSessions();
@@ -89,16 +94,18 @@ class SpdySessionPool
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateOverflow);
 
   typedef std::list<scoped_refptr<SpdySession> > SpdySessionList;
-  typedef std::map<HostPortPair, SpdySessionList*> SpdySessionsMap;
+  typedef std::map<HostPortProxyPair, SpdySessionList*> SpdySessionsMap;
 
   virtual ~SpdySessionPool();
 
   // Helper functions for manipulating the lists.
-  SpdySessionList* AddSessionList(const HostPortPair& host_port_pair);
-  SpdySessionList* GetSessionList(const HostPortPair& host_port_pair);
+  SpdySessionList* AddSessionList(
+      const HostPortProxyPair& host_port_proxy_pair);
+  SpdySessionList* GetSessionList(
+      const HostPortProxyPair& host_port_proxy_pair);
   const SpdySessionList* GetSessionList(
-      const HostPortPair& host_port_pair) const;
-  void RemoveSessionList(const HostPortPair& host_port_pair);
+      const HostPortProxyPair& host_port_proxy_pair) const;
+  void RemoveSessionList(const HostPortProxyPair& host_port_proxy_pair);
   // Releases the SpdySessionPool reference to all sessions.  Will result in all
   // idle sessions being deleted, and the active sessions from being reused, so
   // they will be deleted once all active streams belonging to that session go
