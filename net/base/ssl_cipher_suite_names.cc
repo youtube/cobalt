@@ -314,7 +314,7 @@ void SSLCipherSuiteToStrings(const char** key_exchange_str,
                              const char** mac_str, uint16 cipher_suite) {
   *key_exchange_str = *cipher_str = *mac_str = "???";
 
-  struct CipherSuite desired;
+  struct CipherSuite desired = {0};
   desired.cipher_suite = cipher_suite;
 
   void* r = bsearch(&desired, kCipherSuites,
