@@ -744,7 +744,8 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
-  if (session_->spdy_session_pool()->HasSession(endpoint_)) {
+  HostPortProxyPair pair(endpoint_, proxy_info_.ToPacString());
+  if (session_->spdy_session_pool()->HasSession(pair)) {
     using_spdy_ = true;
     reused_socket_ = true;
     next_state_ = STATE_SPDY_GET_STREAM;
@@ -1323,8 +1324,9 @@ int HttpNetworkTransaction::DoSpdyGetStream() {
       session_->spdy_session_pool();
   scoped_refptr<SpdySession> spdy_session;
 
-  if (spdy_pool->HasSession(endpoint_)) {
-    spdy_session = spdy_pool->Get(endpoint_, session_, net_log_);
+  HostPortProxyPair pair(endpoint_, proxy_info_.ToPacString());
+  if (spdy_pool->HasSession(pair)) {
+    spdy_session = spdy_pool->Get(pair, session_, net_log_);
   } else {
     if(using_ssl_) {
       // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
@@ -1332,7 +1334,7 @@ int HttpNetworkTransaction::DoSpdyGetStream() {
       // contain an SSLClientSocket.
       CHECK(connection_->socket());
       int error = spdy_pool->GetSpdySessionFromSocket(
-          endpoint_, session_, connection_.release(), net_log_,
+          pair, session_, connection_.release(), net_log_,
           spdy_certificate_error_, &spdy_session, true);
       if (error != OK)
         return error;
@@ -1340,7 +1342,7 @@ int HttpNetworkTransaction::DoSpdyGetStream() {
     else {
       // We may want SPDY without SSL
       int error = spdy_pool->GetSpdySessionFromSocket(
-          endpoint_, session_, connection_.release(), net_log_,
+          pair, session_, connection_.release(), net_log_,
           spdy_certificate_error_, &spdy_session, false);
       if (error != OK)
         return error;
