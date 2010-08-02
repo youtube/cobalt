@@ -187,6 +187,7 @@ int MockTCPClientSocket::Connect(net::CompletionCallback* callback) {
   if (connected_)
     return net::OK;
   connected_ = true;
+  peer_closed_connection_ = false;
   if (data_->connect_data().async) {
     RunCallbackAsync(callback, data_->connect_data().result);
     return net::ERR_IO_PENDING;
