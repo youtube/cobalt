@@ -47,7 +47,6 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   EnableCompression(false);
   SpdySession::SetSSLMode(false);
 
-  SpdySessionDependencies session_deps;
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = {
     CreateMockWrite(*req.get(), 1),
@@ -102,8 +101,10 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   MockWrite writes[] = {
     CreateMockWrite(*req.get(), 1),
   };
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
-    MockRead(false, 0, 2),  // EOF
+    CreateMockRead(*resp, 2),
+    MockRead(false, 0, 3)  // EOF
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
@@ -133,10 +134,17 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   else
     FAIL() << "No url is set in spdy_header!";
 
-  MessageLoop::current()->RunAllPending();
-  EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
-  http_session_->spdy_session_pool()->CloseAllSessions();
-  EXPECT_TRUE(!data()->at_read_eof());
+  // This triggers the MockWrite and read 2
+  callback.WaitForResult();
+
+  // This triggers read 3. The empty read causes the session to shut down.
+  data()->CompleteRead();
+
+  // Because we abandoned the stream, we don't expect to find a session in the
+  // pool anymore.
+  EXPECT_TRUE(!http_session_->spdy_session_pool()->HasSession(pair));
+  EXPECT_TRUE(data()->at_read_eof());
+  EXPECT_TRUE(data()->at_write_eof());
 }
 
 // TODO(willchan): Write a longer test for SpdyStream that exercises all
