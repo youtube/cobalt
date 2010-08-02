@@ -167,6 +167,11 @@ NET_ERROR(PROXY_AUTH_REQUESTED, -127)
 // A known TLS strict server didn't offer the renegotiation extension.
 NET_ERROR(SSL_UNSAFE_NEGOTIATION, -128)
 
+// The socket is reporting that we tried to provide new credentials after a
+// a failed attempt on a connection without keep alive.  We need to
+// reestablish the transport socket in order to retry the authentication.
+NET_ERROR(RETRY_CONNECTION, -129)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

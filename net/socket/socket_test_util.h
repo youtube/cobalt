@@ -695,6 +695,46 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
   DISALLOW_COPY_AND_ASSIGN(MockSOCKSClientSocketPool);
 };
 
+struct MockHttpAuthControllerData {
+  explicit MockHttpAuthControllerData(std::string header)
+      : auth_header(header) {}
+
+  std::string auth_header;
+};
+
+class MockHttpAuthController : public HttpAuthController {
+ public:
+  MockHttpAuthController();
+  void SetMockAuthControllerData(struct MockHttpAuthControllerData* data,
+                                 size_t data_length);
+
+  // HttpAuthController methods.
+  virtual int MaybeGenerateAuthToken(const HttpRequestInfo* request,
+                                     CompletionCallback* callback,
+                                     const BoundNetLog& net_log);
+  virtual void AddAuthorizationHeader(
+      HttpRequestHeaders* authorization_headers);
+  virtual int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
+                                  bool do_not_send_server_auth,
+                                  bool establishing_tunnel,
+                                  const BoundNetLog& net_log);
+  virtual void ResetAuth(const string16& username,
+                         const string16& password);
+  virtual bool HaveAuthHandler() const;
+  virtual bool HaveAuth() const;
+
+ private:
+  virtual ~MockHttpAuthController() {}
+  const struct MockHttpAuthControllerData& CurrentData() const {
+    DCHECK(data_index_ < data_count_);
+    return data_[data_index_];
+  }
+
+  MockHttpAuthControllerData* data_;
+  size_t data_index_;
+  size_t data_count_;
+};
+
 // Constants for a successful SOCKS v5 handshake.
 extern const char kSOCKS5GreetRequest[];
 extern const int kSOCKS5GreetRequestLength;
