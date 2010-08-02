@@ -35,8 +35,7 @@ class HttpProxyClientSocket : public ClientSocket {
   // this socket will establish an Http tunnel.
   HttpProxyClientSocket(ClientSocketHandle* transport_socket,
                         const GURL& request_url, const HostPortPair& endpoint,
-                        const HostPortPair& proxy_server,
-                        const scoped_refptr<HttpNetworkSession>& session,
+                        const scoped_refptr<HttpAuthController>& auth,
                         bool tunnel);
 
   // On destruction Disconnect() is called.
@@ -47,12 +46,12 @@ class HttpProxyClientSocket : public ClientSocket {
   // RestartWithAuth.
   int RestartWithAuth(CompletionCallback* callback);
 
-  const HttpResponseInfo* GetResponseInfo() const {
-    return response_.headers ? &response_ : NULL;
-  }
+  // Indicates if RestartWithAuth needs to be called. i.e. if Connect
+  // returned PROXY_AUTH_REQUESTED.  Only valid after Connect has been called.
+  bool NeedsRestartWithAuth() const;
 
-  const scoped_refptr<HttpAuthController>& auth_controller() {
-    return auth_;
+  const HttpResponseInfo* GetResponseInfo() const {
+      return response_.headers ? &response_ : NULL;
   }
 
   // ClientSocket methods:
@@ -86,8 +85,6 @@ class HttpProxyClientSocket : public ClientSocket {
     STATE_RESOLVE_CANONICAL_NAME_COMPLETE,
     STATE_DRAIN_BODY,
     STATE_DRAIN_BODY_COMPLETE,
-    STATE_TCP_RESTART,
-    STATE_TCP_RESTART_COMPLETE,
     STATE_DONE,
   };
 
@@ -115,8 +112,6 @@ class HttpProxyClientSocket : public ClientSocket {
   int DoReadHeadersComplete(int result);
   int DoDrainBody();
   int DoDrainBodyComplete(int result);
-  int DoTCPRestart();
-  int DoTCPRestartComplete(int result);
 
   CompletionCallbackImpl<HttpProxyClientSocket> io_callback_;
   State next_state_;

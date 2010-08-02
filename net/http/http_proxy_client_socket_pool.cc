@@ -7,7 +7,6 @@
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
-#include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
@@ -19,12 +18,12 @@ HttpProxySocketParams::HttpProxySocketParams(
     const scoped_refptr<TCPSocketParams>& proxy_server,
     const GURL& request_url,
     HostPortPair endpoint,
-    scoped_refptr<HttpNetworkSession> session,
+    scoped_refptr<HttpAuthController> auth_controller,
     bool tunnel)
     : tcp_params_(proxy_server),
       request_url_(request_url),
       endpoint_(endpoint),
-      session_(session),
+      auth_controller_(auth_controller),
       tunnel_(tunnel) {
 }
 
@@ -134,22 +133,19 @@ int HttpProxyConnectJob::DoTCPConnectComplete(int result) {
 
 int HttpProxyConnectJob::DoHttpProxyConnect() {
   next_state_ = kStateHttpProxyConnectComplete;
-  const HostResolver::RequestInfo& tcp_destination =
-      params_->tcp_params()->destination();
-  HostPortPair proxy_server(tcp_destination.hostname(),
-                            tcp_destination.port());
 
   // Add a HttpProxy connection on top of the tcp socket.
   socket_.reset(new HttpProxyClientSocket(tcp_socket_handle_.release(),
                                           params_->request_url(),
                                           params_->endpoint(),
-                                          proxy_server,
-                                          params_->session(),
+                                          params_->auth_controller(),
                                           params_->tunnel()));
   return socket_->Connect(&callback_);
 }
 
 int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
+  DCHECK_NE(result, ERR_RETRY_CONNECTION);
+
   if (result == OK || result == ERR_PROXY_AUTH_REQUESTED)
       set_socket(socket_.release());
 
