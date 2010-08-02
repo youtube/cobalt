@@ -26,13 +26,12 @@ namespace net {
 class ClientSocketFactory;
 class ConnectJobFactory;
 class HttpAuthController;
-class HttpNetworkSession;
 
 class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
  public:
   HttpProxySocketParams(const scoped_refptr<TCPSocketParams>& proxy_server,
                         const GURL& request_url, HostPortPair endpoint,
-                        scoped_refptr<HttpNetworkSession> session,
+                        scoped_refptr<HttpAuthController> auth_controller,
                         bool tunnel);
 
   const scoped_refptr<TCPSocketParams>& tcp_params() const {
@@ -40,8 +39,8 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   }
   const GURL& request_url() const { return request_url_; }
   const HostPortPair& endpoint() const { return endpoint_; }
-  const scoped_refptr<HttpNetworkSession>& session() {
-    return session_;
+  const scoped_refptr<HttpAuthController>& auth_controller() {
+    return auth_controller_;
   }
   bool tunnel() const { return tunnel_; }
 
@@ -52,7 +51,7 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   const scoped_refptr<TCPSocketParams> tcp_params_;
   const GURL request_url_;
   const HostPortPair endpoint_;
-  const scoped_refptr<HttpNetworkSession> session_;
+  const scoped_refptr<HttpAuthController> auth_controller_;
   const bool tunnel_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxySocketParams);

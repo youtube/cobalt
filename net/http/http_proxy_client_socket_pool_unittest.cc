@@ -6,19 +6,12 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/string_util.h"
-#include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
-#include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
-#include "net/http/http_auth_handler_factory.h"
-#include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
-#include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
-#include "net/spdy/spdy_session_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -36,32 +29,17 @@ class HttpProxyClientSocketPoolTest : public ClientSocketPoolTest {
         tcp_histograms_(new ClientSocketPoolHistograms("MockTCP")),
         tcp_socket_pool_(new MockTCPClientSocketPool(kMaxSockets,
             kMaxSocketsPerGroup, tcp_histograms_, &tcp_client_socket_factory_)),
-        http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault()),
-        session_(new HttpNetworkSession(new MockHostResolver,
-                                        ProxyService::CreateNull(),
-                                        &socket_factory_,
-                                        new SSLConfigServiceDefaults,
-                                        new SpdySessionPool(),
-                                        http_auth_handler_factory_.get(),
-                                        NULL,
-                                        NULL)),
         notunnel_socket_params_(new HttpProxySocketParams(
               ignored_tcp_socket_params_, GURL("http://host"),
               HostPortPair("host", 80), NULL, false)),
+        auth_controller_(new MockHttpAuthController),
         tunnel_socket_params_(new HttpProxySocketParams(
               ignored_tcp_socket_params_, GURL("http://host"),
-              HostPortPair("host", 80), session_, true)),
+              HostPortPair("host", 80), auth_controller_, true)),
         http_proxy_histograms_(
             new ClientSocketPoolHistograms("HttpProxyUnitTest")),
         pool_(new HttpProxyClientSocketPool(kMaxSockets, kMaxSocketsPerGroup,
             http_proxy_histograms_, NULL, tcp_socket_pool_, NULL)) {
-  }
-
-  void AddAuthToCache() {
-    const string16 kFoo(ASCIIToUTF16("foo"));
-    const string16 kBar(ASCIIToUTF16("bar"));
-    session_->auth_cache()->Add(GURL("http://proxy/"), "MyRealm1", "Basic",
-                                "Basic realm=MyRealm1", kFoo, kBar, "/");
   }
 
   int StartRequest(const std::string& group_name, RequestPriority priority) {
@@ -74,10 +52,8 @@ class HttpProxyClientSocketPoolTest : public ClientSocketPoolTest {
   MockClientSocketFactory tcp_client_socket_factory_;
   scoped_refptr<MockTCPClientSocketPool> tcp_socket_pool_;
 
-  MockClientSocketFactory socket_factory_;
-  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
-  scoped_refptr<HttpNetworkSession> session_;
   scoped_refptr<HttpProxySocketParams> notunnel_socket_params_;
+  scoped_refptr<MockHttpAuthController> auth_controller_;
   scoped_refptr<HttpProxySocketParams> tunnel_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> http_proxy_histograms_;
   scoped_refptr<HttpProxyClientSocketPool> pool_;
@@ -96,7 +72,7 @@ TEST_F(HttpProxyClientSocketPoolTest, NoTunnel) {
   EXPECT_TRUE(handle.socket());
   HttpProxyClientSocket* tunnel_socket =
           static_cast<HttpProxyClientSocket*>(handle.socket());
-  EXPECT_TRUE(tunnel_socket->IsConnected());
+  EXPECT_FALSE(tunnel_socket->NeedsRestartWithAuth());
 }
 
 TEST_F(HttpProxyClientSocketPoolTest, NeedAuth) {
@@ -116,6 +92,10 @@ TEST_F(HttpProxyClientSocketPoolTest, NeedAuth) {
                                 arraysize(writes));
 
   tcp_client_socket_factory_.AddSocketDataProvider(&data);
+  MockHttpAuthControllerData auth_data[] = {
+    MockHttpAuthControllerData(""),
+  };
+  auth_controller_->SetMockAuthControllerData(auth_data, arraysize(auth_data));
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -130,7 +110,7 @@ TEST_F(HttpProxyClientSocketPoolTest, NeedAuth) {
   EXPECT_TRUE(handle.socket());
   HttpProxyClientSocket* tunnel_socket =
           static_cast<HttpProxyClientSocket*>(handle.socket());
-  EXPECT_FALSE(tunnel_socket->IsConnected());
+  EXPECT_TRUE(tunnel_socket->NeedsRestartWithAuth());
 }
 
 TEST_F(HttpProxyClientSocketPoolTest, HaveAuth) {
@@ -139,7 +119,7 @@ TEST_F(HttpProxyClientSocketPoolTest, HaveAuth) {
                 "CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
                 "Proxy-Connection: keep-alive\r\n"
-                "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+                "Proxy-Authorization: Basic Zm9vOmJheg==\r\n\r\n"),
   };
   MockRead reads[] = {
       MockRead(false, "HTTP/1.1 200 Connection Established\r\n\r\n"),
@@ -149,7 +129,10 @@ TEST_F(HttpProxyClientSocketPoolTest, HaveAuth) {
   data.set_connect_data(MockConnect(false, 0));
 
   tcp_client_socket_factory_.AddSocketDataProvider(&data);
-  AddAuthToCache();
+  MockHttpAuthControllerData auth_data[] = {
+    MockHttpAuthControllerData("Proxy-Authorization: Basic Zm9vOmJheg=="),
+  };
+  auth_controller_->SetMockAuthControllerData(auth_data, arraysize(auth_data));
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -160,7 +143,7 @@ TEST_F(HttpProxyClientSocketPoolTest, HaveAuth) {
   EXPECT_TRUE(handle.socket());
   HttpProxyClientSocket* tunnel_socket =
           static_cast<HttpProxyClientSocket*>(handle.socket());
-  EXPECT_TRUE(tunnel_socket->IsConnected());
+  EXPECT_FALSE(tunnel_socket->NeedsRestartWithAuth());
 }
 
 TEST_F(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
@@ -168,7 +151,7 @@ TEST_F(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
       MockWrite("CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
                 "Proxy-Connection: keep-alive\r\n"
-                "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+                "Proxy-Authorization: Basic Zm9vOmJheg==\r\n\r\n"),
   };
   MockRead reads[] = {
       MockRead("HTTP/1.1 200 Connection Established\r\n\r\n"),
@@ -177,7 +160,10 @@ TEST_F(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
                                 arraysize(writes));
 
   tcp_client_socket_factory_.AddSocketDataProvider(&data);
-  AddAuthToCache();
+  MockHttpAuthControllerData auth_data[] = {
+    MockHttpAuthControllerData("Proxy-Authorization: Basic Zm9vOmJheg=="),
+  };
+  auth_controller_->SetMockAuthControllerData(auth_data, arraysize(auth_data));
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -192,7 +178,7 @@ TEST_F(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
   EXPECT_TRUE(handle.socket());
   HttpProxyClientSocket* tunnel_socket =
           static_cast<HttpProxyClientSocket*>(handle.socket());
-  EXPECT_TRUE(tunnel_socket->IsConnected());
+  EXPECT_FALSE(tunnel_socket->NeedsRestartWithAuth());
 }
 
 TEST_F(HttpProxyClientSocketPoolTest, TCPError) {
@@ -219,7 +205,7 @@ TEST_F(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
       MockWrite("CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
                 "Proxy-Connection: keep-alive\r\n"
-                "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+                "Proxy-Authorization: Basic Zm9vOmJheg==\r\n\r\n"),
   };
   MockRead reads[] = {
       MockRead("HTTP/1.1 200 Conn"),
@@ -229,7 +215,10 @@ TEST_F(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
                                 arraysize(writes));
 
   tcp_client_socket_factory_.AddSocketDataProvider(&data);
-  AddAuthToCache();
+  MockHttpAuthControllerData auth_data[] = {
+    MockHttpAuthControllerData("Proxy-Authorization: Basic Zm9vOmJheg=="),
+  };
+  auth_controller_->SetMockAuthControllerData(auth_data, arraysize(auth_data));
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -249,7 +238,7 @@ TEST_F(HttpProxyClientSocketPoolTest, TunnelSetupError) {
       MockWrite("CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
                 "Proxy-Connection: keep-alive\r\n"
-                "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+                "Proxy-Authorization: Basic Zm9vOmJheg==\r\n\r\n"),
   };
   MockRead reads[] = {
       MockRead("HTTP/1.1 304 Not Modified\r\n\r\n"),
@@ -258,7 +247,10 @@ TEST_F(HttpProxyClientSocketPoolTest, TunnelSetupError) {
                                 arraysize(writes));
 
   tcp_client_socket_factory_.AddSocketDataProvider(&data);
-  AddAuthToCache();
+  MockHttpAuthControllerData auth_data[] = {
+    MockHttpAuthControllerData("Proxy-Authorization: Basic Zm9vOmJheg=="),
+  };
+  auth_controller_->SetMockAuthControllerData(auth_data, arraysize(auth_data));
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;

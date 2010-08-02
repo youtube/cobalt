@@ -44,7 +44,7 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
                   bool want_spdy_over_npn);
 
   const scoped_refptr<TCPSocketParams>& tcp_params() { return tcp_params_; }
-  const scoped_refptr<HttpProxySocketParams>& http_proxy_params() {
+  const scoped_refptr<HttpProxySocketParams>& http_proxy_params () {
     return http_proxy_params_;
   }
   const scoped_refptr<SOCKSSocketParams>& socks_params() {
@@ -113,6 +113,8 @@ class SSLConnectJob : public ConnectJob {
   // ERR_IO_PENDING if it cannot immediately service the request.
   // Otherwise, it returns a net error code.
   virtual int ConnectInternal();
+
+  void DetermineFirstState();
 
   void OnIOComplete(int result);
 
