@@ -38,10 +38,7 @@ class ProxyServer {
   // Constructs an invalid ProxyServer.
   ProxyServer() : scheme_(SCHEME_INVALID) {}
 
-  // TODO(thestig) Replace |host| and |port| with HostPortPair.
-  // If |host| is an IPv6 literal address, it must include the square
-  // brackets.
-  ProxyServer(Scheme scheme, const std::string& host, int port);
+  ProxyServer(Scheme scheme, const HostPortPair& host_port_pair);
 
   bool is_valid() const { return scheme_ != SCHEME_INVALID; }
 
@@ -108,7 +105,7 @@ class ProxyServer {
 
   // Returns a ProxyServer representing DIRECT connections.
   static ProxyServer Direct() {
-    return ProxyServer(SCHEME_DIRECT, std::string(), -1);
+    return ProxyServer(SCHEME_DIRECT, HostPortPair());
   }
 
 #if defined(OS_MACOSX)
