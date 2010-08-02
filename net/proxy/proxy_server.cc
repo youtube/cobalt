@@ -70,8 +70,8 @@ std::string HostNoBrackets(const std::string& host) {
 
 }  // namespace
 
-ProxyServer::ProxyServer(Scheme scheme, const std::string& host, int port)
-      : scheme_(scheme), host_port_pair_(HostNoBrackets(host), port) {
+ProxyServer::ProxyServer(Scheme scheme, const HostPortPair& host_port_pair)
+      : scheme_(scheme), host_port_pair_(host_port_pair) {
 }
 
 const HostPortPair& ProxyServer::host_port_pair() const {
@@ -222,7 +222,7 @@ ProxyServer ProxyServer::FromSchemeHostAndPort(
   if (port == -1)
     port = GetDefaultPortForScheme(scheme);
 
-  return ProxyServer(scheme, host, port);
+  return ProxyServer(scheme, HostPortPair(HostNoBrackets(host), port));
 }
 
 }  // namespace net
