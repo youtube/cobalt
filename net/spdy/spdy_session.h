@@ -48,13 +48,20 @@ class SpdySession : public base::RefCounted<SpdySession>,
                     public spdy::SpdyFramerVisitorInterface {
  public:
   // Create a new SpdySession.
-  // |host_port_pair| is the host/port that this session connects to.
+  // |host_port_proxy_pair| is the host/port that this session connects to, and
+  // the proxy configuration settings that it's using.
   // |session| is the HttpNetworkSession.  |net_log| is the NetLog that we log
   // network events to.
-  SpdySession(const HostPortPair& host_port_pair, HttpNetworkSession* session,
+  SpdySession(const HostPortProxyPair& host_port_proxy_pair,
+              HttpNetworkSession* session,
               NetLog* net_log);
 
-  const HostPortPair& host_port_pair() const { return host_port_pair_; }
+  const HostPortPair& host_port_pair() const {
+    return host_port_proxy_pair_.first;
+  }
+  const HostPortProxyPair& host_port_proxy_pair() const {
+    return host_port_proxy_pair_;
+  }
 
   // Connect the Spdy Socket.
   // Returns net::Error::OK on success.
@@ -271,7 +278,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   CompletionCallbackImpl<SpdySession> write_callback_;
 
   // The domain this session is connected to.
-  const HostPortPair host_port_pair_;
+  const HostPortProxyPair host_port_proxy_pair_;
 
   SSLConfig ssl_config_;
 

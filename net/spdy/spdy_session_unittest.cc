@@ -80,14 +80,14 @@ TEST_F(SpdySessionTest, GoAway) {
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, "");
 
   scoped_refptr<SpdySessionPool> spdy_session_pool(
       http_session->spdy_session_pool());
-  EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(
-          test_host_port_pair, http_session.get(), BoundNetLog());
-  EXPECT_TRUE(spdy_session_pool->HasSession(test_host_port_pair));
+      spdy_session_pool->Get(pair, http_session.get(), BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params =
       new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false);
@@ -97,11 +97,10 @@ TEST_F(SpdySessionTest, GoAway) {
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();
 
-  EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<SpdySession> session2 =
-      spdy_session_pool->Get(
-          test_host_port_pair, http_session.get(), BoundNetLog());
+      spdy_session_pool->Get(pair, http_session.get(), BoundNetLog());
 
   // Delete the first session.
   session = NULL;
@@ -144,14 +143,14 @@ TEST_F(SpdySessionTest, GetActivePushStream) {
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, "");
 
   scoped_refptr<SpdySessionPool> spdy_session_pool(
       http_session->spdy_session_pool());
-  EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(
-          test_host_port_pair, http_session.get(), BoundNetLog());
-  EXPECT_TRUE(spdy_session_pool->HasSession(test_host_port_pair));
+      spdy_session_pool->Get(pair, http_session.get(), BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   // No push streams should exist in the beginning.
   std::string test_push_path = "/foo.js";
