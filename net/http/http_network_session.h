@@ -102,6 +102,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   }
 
   static void set_max_sockets_per_group(int socket_count);
+  static void set_max_sockets_per_proxy_server(int socket_count);
 
 #ifdef UNIT_TEST
   void FlushSocketPools() {
