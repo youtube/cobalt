@@ -227,10 +227,6 @@ class FFmpegDemuxer : public Demuxer,
   size_t last_read_bytes_;
   int64 read_position_;
 
-  // If true, then it's our first seek and we won't call av_read_frame().  It's
-  // a hack to get around some issue with FFmpeg.
-  bool first_seek_hack_;
-
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };
 
