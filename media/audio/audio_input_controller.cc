@@ -17,6 +17,7 @@ namespace media {
 
 AudioInputController::AudioInputController(EventHandler* handler)
     : handler_(handler),
+      stream_(NULL),
       state_(kEmpty),
       thread_("AudioInputControllerThread") {
 }
