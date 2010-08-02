@@ -59,7 +59,9 @@ class SpdyNetworkTransactionTest
                                 const BoundNetLog& log,
                                 SpdyNetworkTransactionTestTypes test_type)
         : request_(request),
-          session_(SpdySessionDependencies::SpdyCreateSession(&session_deps_)),
+          session_deps_(new SpdySessionDependencies()),
+          session_(SpdySessionDependencies::SpdyCreateSession(
+              session_deps_.get())),
           log_(log),
           test_type_(test_type) {
             switch (test_type_) {
@@ -76,6 +78,12 @@ class SpdyNetworkTransactionTest
           }
 
     void RunPreTestSetup() {
+      if (!session_deps_.get())
+        session_deps_.reset(new SpdySessionDependencies());
+      if (!session_.get())
+        session_ = SpdySessionDependencies::SpdyCreateSession(
+            session_deps_.get());
+
       HttpNetworkTransaction::SetUseAlternateProtocols(false);
       HttpNetworkTransaction::SetUseSSLOverSpdyWithoutNPN(false);
       HttpNetworkTransaction::SetUseSpdyWithoutNPN(false);
@@ -189,15 +197,15 @@ class SpdyNetworkTransactionTest
         ssl_->was_npn_negotiated = true;
       }
       ssl_vector_.push_back(ssl_);
-      if (test_type_ == SPDYNPN || test_type_ == SPDYSSL)
-        session_deps_.socket_factory.AddSSLSocketDataProvider(ssl_.get());
-      session_deps_.socket_factory.AddSocketDataProvider(data);
+      if(test_type_ == SPDYNPN || test_type_ == SPDYSSL)
+        session_deps_->socket_factory.AddSSLSocketDataProvider(ssl_.get());
+      session_deps_->socket_factory.AddSocketDataProvider(data);
     }
 
     // This can only be called after RunPreTestSetup. It adds a Data Provider,
     // but not a corresponding SSL data provider
     void AddDataNoSSL(StaticSocketDataProvider* data) {
-      session_deps_.socket_factory.AddSocketDataProvider(data);
+      session_deps_->socket_factory.AddSocketDataProvider(data);
     }
 
     void SetSession(const scoped_refptr<HttpNetworkSession>& session) {
@@ -208,13 +216,16 @@ class SpdyNetworkTransactionTest
     TransactionHelperResult& output() { return output_; }
     HttpRequestInfo& request() { return request_; }
     scoped_refptr<HttpNetworkSession>& session() { return session_; }
+    scoped_ptr<SpdySessionDependencies>& session_deps() {
+      return session_deps_;
+    }
     int port() { return port_; }
 
    private:
     typedef std::vector<StaticSocketDataProvider*> DataVector;
     typedef std::vector<linked_ptr<SSLSocketDataProvider> > SSLVector;
     HttpRequestInfo request_;
-    SpdySessionDependencies session_deps_;
+    scoped_ptr<SpdySessionDependencies> session_deps_;
     scoped_refptr<HttpNetworkSession> session_;
     TransactionHelperResult output_;
     scoped_ptr<StaticSocketDataProvider> first_transaction_;
@@ -2783,6 +2794,262 @@ TEST_P(SpdyNetworkTransactionTest, CloseWithActiveStream) {
   helper.VerifyDataConsumed();
 }
 
+// Test to make sure we can correctly connect through a proxy.
+TEST_P(SpdyNetworkTransactionTest, ProxyConnect) {
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.session_deps().reset(new SpdySessionDependencies(
+      net::SpdyCreateFixedProxyService("myproxy:70")));
+  helper.session() = SpdySessionDependencies::SpdyCreateSession(
+      helper.session_deps().get());
+  helper.RunPreTestSetup();
+  HttpNetworkTransaction* trans = helper.trans();
+
+  const char kConnect443[] = {"CONNECT www.google.com:443 HTTP/1.1\r\n"
+                           "Host: www.google.com\r\n"
+                           "Proxy-Connection: keep-alive\r\n\r\n"};
+  const char kConnect80[] = {"CONNECT www.google.com:80 HTTP/1.1\r\n"
+                           "Host: www.google.com\r\n"
+                           "Proxy-Connection: keep-alive\r\n\r\n"};
+  const char kHTTP200[] = {"HTTP/1.1 200 OK\r\n\r\n"};
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+
+  MockWrite writes_SPDYNPN[] = {
+    MockWrite(false, kConnect443, arraysize(kConnect443) - 1, 0),
+    CreateMockWrite(*req, 2),
+  };
+  MockRead reads_SPDYNPN[] = {
+    MockRead(false, kHTTP200, arraysize(kHTTP200) - 1, 1),
+    CreateMockRead(*resp, 3),
+    CreateMockRead(*body.get(), 4),
+    MockRead(true, 0, 0, 5),
+  };
+
+  MockWrite writes_SPDYSSL[] = {
+    MockWrite(false, kConnect80, arraysize(kConnect80) - 1, 0),
+    CreateMockWrite(*req, 2),
+  };
+  MockRead reads_SPDYSSL[] = {
+    MockRead(false, kHTTP200, arraysize(kHTTP200) - 1, 1),
+    CreateMockRead(*resp, 3),
+    CreateMockRead(*body.get(), 4),
+    MockRead(true, 0, 0, 5),
+  };
+
+  MockWrite writes_SPDYNOSSL[] = {
+    CreateMockWrite(*req, 0),
+  };
+
+  MockRead reads_SPDYNOSSL[] = {
+    CreateMockRead(*resp, 1),
+    CreateMockRead(*body.get(), 2),
+    MockRead(true, 0, 0, 3),
+  };
+
+  scoped_refptr<OrderedSocketData> data;
+  switch(GetParam()) {
+    case SPDYNOSSL:
+      data = new OrderedSocketData(reads_SPDYNOSSL,
+                                   arraysize(reads_SPDYNOSSL),
+                                   writes_SPDYNOSSL,
+                                   arraysize(writes_SPDYNOSSL));
+      break;
+    case SPDYSSL:
+      data = new OrderedSocketData(reads_SPDYSSL, arraysize(reads_SPDYSSL),
+                                   writes_SPDYSSL, arraysize(writes_SPDYSSL));
+      break;
+    case SPDYNPN:
+      data = new OrderedSocketData(reads_SPDYNPN, arraysize(reads_SPDYNPN),
+                                   writes_SPDYNPN, arraysize(writes_SPDYNPN));
+      break;
+    default:
+      NOTREACHED();
+  }
+
+  helper.AddData(data.get());
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(0, rv);
+
+  // Verify the SYN_REPLY.
+  HttpResponseInfo response = *trans->GetResponseInfo();
+  EXPECT_TRUE(response.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans, &response_data));
+  EXPECT_EQ("hello!", response_data);
+  helper.VerifyDataConsumed();
+}
+
+// Test to make sure we can correctly connect through a proxy to www.google.com,
+// if there already exists a direct spdy connection to www.google.com. See
+// http://crbug.com/49874
+TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
+  // When setting up the first transaction, we store the SpdySessionPool so that
+  // we can use the same pool in the second transaction.
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  scoped_refptr<SpdySessionPool> spdy_session_pool =
+      helper.session_deps()->spdy_session_pool;
+  helper.RunPreTestSetup();
+
+  // Construct and send a simple GET request.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  MockWrite writes[] = {
+    CreateMockWrite(*req, 1),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 2),
+    CreateMockRead(*body, 3),
+    MockRead(true, ERR_IO_PENDING, 4),  // Force a pause
+    MockRead(true, 0, 5)  // EOF
+  };
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  helper.AddData(data.get());
+  HttpNetworkTransaction* trans = helper.trans();
+
+  TestCompletionCallback callback;
+  TransactionHelperResult out;
+  out.rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
+
+  EXPECT_EQ(out.rv, ERR_IO_PENDING);
+  out.rv = callback.WaitForResult();
+  EXPECT_EQ(out.rv, OK);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  out.rv = ReadTransaction(trans, &out.response_data);
+  EXPECT_EQ(OK, out.rv);
+  out.status_line = response->headers->GetStatusLine();
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!", out.response_data);
+
+  // Check that the SpdySession is still in the SpdySessionPool.
+  HostPortPair host_port_pair("www.google.com", helper.port());
+  HostPortProxyPair pair(host_port_pair, "DIRECT");
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+  HostPortProxyPair nonexistent_pair(host_port_pair, "PROXY www.foo.com");
+  EXPECT_FALSE(spdy_session_pool->HasSession(nonexistent_pair));
+
+  // Set up data for the proxy connection.
+  const char kConnect443[] = {"CONNECT www.google.com:443 HTTP/1.1\r\n"
+                           "Host: www.google.com\r\n"
+                           "Proxy-Connection: keep-alive\r\n\r\n"};
+  const char kConnect80[] = {"CONNECT www.google.com:80 HTTP/1.1\r\n"
+                           "Host: www.google.com\r\n"
+                           "Proxy-Connection: keep-alive\r\n\r\n"};
+  const char kHTTP200[] = {"HTTP/1.1 200 OK\r\n\r\n"};
+  scoped_ptr<spdy::SpdyFrame> req2(ConstructSpdyGet(
+      "http://www.google.com/foo.dat", false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> body2(ConstructSpdyBodyFrame(1, true));
+
+  MockWrite writes_SPDYNPN[] = {
+    MockWrite(false, kConnect443, arraysize(kConnect443) - 1, 0),
+    CreateMockWrite(*req2, 2),
+  };
+  MockRead reads_SPDYNPN[] = {
+    MockRead(false, kHTTP200, arraysize(kHTTP200) - 1, 1),
+    CreateMockRead(*resp2, 3),
+    CreateMockRead(*body2, 4),
+    MockRead(true, 0, 5)  // EOF
+  };
+
+  MockWrite writes_SPDYNOSSL[] = {
+    CreateMockWrite(*req2, 0),
+  };
+  MockRead reads_SPDYNOSSL[] = {
+    CreateMockRead(*resp2, 1),
+    CreateMockRead(*body2, 2),
+    MockRead(true, 0, 3)  // EOF
+  };
+
+  MockWrite writes_SPDYSSL[] = {
+    MockWrite(false, kConnect80, arraysize(kConnect80) - 1, 0),
+    CreateMockWrite(*req2, 2),
+  };
+  MockRead reads_SPDYSSL[] = {
+    MockRead(false, kHTTP200, arraysize(kHTTP200) - 1, 1),
+    CreateMockRead(*resp2, 3),
+    CreateMockRead(*body2, 4),
+    MockRead(true, 0, 0, 5),
+  };
+
+  scoped_refptr<OrderedSocketData> data_proxy;
+  switch(GetParam()) {
+    case SPDYNPN:
+      data_proxy = new OrderedSocketData(reads_SPDYNPN,
+                                         arraysize(reads_SPDYNPN),
+                                         writes_SPDYNPN,
+                                         arraysize(writes_SPDYNPN));
+      break;
+    case SPDYNOSSL:
+      data_proxy = new OrderedSocketData(reads_SPDYNOSSL,
+                                         arraysize(reads_SPDYNOSSL),
+                                         writes_SPDYNOSSL,
+                                         arraysize(writes_SPDYNOSSL));
+      break;
+    case SPDYSSL:
+      data_proxy = new OrderedSocketData(reads_SPDYSSL,
+                                         arraysize(reads_SPDYSSL),
+                                         writes_SPDYSSL,
+                                         arraysize(writes_SPDYSSL));
+      break;
+    default:
+      NOTREACHED();
+  }
+
+  // Create another request to www.google.com, but this time through a proxy.
+  HttpRequestInfo request_proxy;
+  request_proxy.method = "GET";
+  request_proxy.url = GURL("http://www.google.com/foo.dat");
+  request_proxy.load_flags = 0;
+  scoped_ptr<SpdySessionDependencies> ssd_proxy(
+      new SpdySessionDependencies(net::SpdyCreateFixedProxyService(
+          "myproxy:70")));
+  // Ensure that this transaction uses the same SpdySessionPool.
+  ssd_proxy->spdy_session_pool = spdy_session_pool;
+  scoped_refptr<HttpNetworkSession> session_proxy =
+      SpdySessionDependencies::SpdyCreateSession(ssd_proxy.get());
+  NormalSpdyTransactionHelper helper_proxy(request_proxy,
+                                           BoundNetLog(), GetParam());
+  helper_proxy.session_deps().swap(ssd_proxy);
+  helper_proxy.session() = session_proxy;
+  helper_proxy.RunPreTestSetup();
+  helper_proxy.AddData(data_proxy.get());
+
+  HttpNetworkTransaction* trans_proxy = helper_proxy.trans();
+  TestCompletionCallback callback_proxy;
+  int rv = trans_proxy->Start(&request_proxy, &callback_proxy, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback_proxy.WaitForResult();
+  EXPECT_EQ(0, rv);
+
+  HttpResponseInfo response_proxy = *trans_proxy->GetResponseInfo();
+  EXPECT_TRUE(response_proxy.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response_proxy.headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans_proxy, &response_data));
+  EXPECT_EQ("hello!", response_data);
+
+  data->CompleteRead();
+  helper_proxy.VerifyDataConsumed();
+}
+
 // When we get a TCP-level RST, we need to retry a HttpNetworkTransaction
 // on a new connection, if the connection was previously known to be good.
 // This can happen when a server reboots without saying goodbye, or when
@@ -2865,5 +3132,4 @@ TEST_P(SpdyNetworkTransactionTest, VerifyRetryOnConnectionReset) {
     helper.VerifyDataConsumed();
   }
 }
-
 }  // namespace net

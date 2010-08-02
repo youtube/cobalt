@@ -25,11 +25,12 @@ class SpdyHttpStreamTest : public testing::Test {
   int InitSession(MockRead* reads, size_t reads_count,
                   MockWrite* writes, size_t writes_count,
                   HostPortPair& host_port_pair) {
+    HostPortProxyPair pair(host_port_pair, "");
     data_ = new OrderedSocketData(reads, reads_count, writes, writes_count);
     session_deps_.socket_factory.AddSocketDataProvider(data_.get());
     http_session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps_);
     session_ = http_session_->spdy_session_pool()->
-      Get(host_port_pair, http_session_.get(), BoundNetLog());
+      Get(pair, http_session_.get(), BoundNetLog());
     tcp_params_ = new TCPSocketParams(host_port_pair.host(),
                                       host_port_pair.port(),
                                       MEDIUM, GURL(), false);
@@ -58,6 +59,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
+  HostPortProxyPair pair(host_port_pair, "");
   EXPECT_EQ(OK, InitSession(reads, arraysize(reads), writes, arraysize(writes),
       host_port_pair));
 
@@ -74,7 +76,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
 
   EXPECT_EQ(ERR_IO_PENDING,
             http_stream->SendRequest("", NULL, &response, &callback));
-  EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(host_port_pair));
+  EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // This triggers the MockWrite and read 2
   callback.WaitForResult();
@@ -84,7 +86,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
 
   // Because we abandoned the stream, we don't expect to find a session in the
   // pool anymore.
-  EXPECT_TRUE(!http_session_->spdy_session_pool()->HasSession(host_port_pair));
+  EXPECT_TRUE(!http_session_->spdy_session_pool()->HasSession(pair));
   EXPECT_TRUE(data()->at_read_eof());
   EXPECT_TRUE(data()->at_write_eof());
 }
@@ -105,6 +107,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
+  HostPortProxyPair pair(host_port_pair, "");
   EXPECT_EQ(OK, InitSession(reads, arraysize(reads), writes, arraysize(writes),
       host_port_pair));
 
@@ -131,7 +134,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
     FAIL() << "No url is set in spdy_header!";
 
   MessageLoop::current()->RunAllPending();
-  EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(host_port_pair));
+  EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
   http_session_->spdy_session_pool()->CloseAllSessions();
   EXPECT_TRUE(!data()->at_read_eof());
 }
