@@ -49,6 +49,17 @@ bool CertPrincipal::Matches(const CertPrincipal& against) const {
       match(domain_components, against.domain_components);
 }
 
+std::string CertPrincipal::GetDisplayName() const {
+  if (!common_name.empty())
+    return common_name;
+  if (!organization_names.empty())
+    return organization_names[0];
+  if (!organization_unit_names.empty())
+    return organization_unit_names[0];
+
+  return std::string();
+}
+
 std::ostream& operator<<(std::ostream& s, const CertPrincipal& p) {
   s << "CertPrincipal[";
   if (!p.common_name.empty())
