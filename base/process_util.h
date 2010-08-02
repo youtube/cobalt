@@ -254,6 +254,9 @@ class ProcessFilter {
   // Returns true to indicate set-inclusion and false otherwise.  This method
   // should not have side-effects and should be idempotent.
   virtual bool Includes(const ProcessEntry& entry) const = 0;
+
+ protected:
+  virtual ~ProcessFilter() {}
 };
 
 // Returns the number of processes on the machine that are running from the
