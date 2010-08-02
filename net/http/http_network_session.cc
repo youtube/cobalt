@@ -145,4 +145,12 @@ void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
   g_max_sockets_per_group = socket_count;
 }
 
+// static
+void HttpNetworkSession::set_max_sockets_per_proxy_server(int socket_count) {
+  DCHECK_LT(0, socket_count);
+  DCHECK_GT(100, socket_count);  // Sanity check.
+
+  g_max_sockets_per_proxy_server = socket_count;
+}
+
 }  //  namespace net
