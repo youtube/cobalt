@@ -69,6 +69,10 @@ struct CertPrincipal {
   // where "match" is defined in RFC 5280 sec. 7.1.
   bool Matches(const CertPrincipal& against) const;
 
+  // Returns a name that can be used to represent the issuer.  It tries in this
+  // order: CN, O and OU and returns the first non-empty one found.
+  std::string GetDisplayName() const;
+
   // The different attributes for a principal.  They may be "".
   // Note that some of them can have several values.
 
