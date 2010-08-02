@@ -466,37 +466,18 @@ bool MessageLoop::DeletePendingTasks() {
       // tasks.
       AddToDelayedWorkQueue(pending_task);
     } else {
-      // TODO(darin): Delete all tasks once it is safe to do so.
-      // Until it is totally safe, just do it when running Purify or
-      // Valgrind.
-#if defined(PURIFY)
       delete pending_task.task;
-#elif defined(OS_POSIX)
-      if (RUNNING_ON_VALGRIND)
-        delete pending_task.task;
-#endif  // defined(OS_POSIX)
     }
   }
   did_work |= !deferred_non_nestable_work_queue_.empty();
   while (!deferred_non_nestable_work_queue_.empty()) {
-    // TODO(darin): Delete all tasks once it is safe to do so.
-    // Until it is totaly safe, only delete them under Purify and Valgrind.
-    Task* task = NULL;
-#if defined(PURIFY)
-    task = deferred_non_nestable_work_queue_.front().task;
-#elif defined(OS_POSIX)
-    if (RUNNING_ON_VALGRIND)
-      task = deferred_non_nestable_work_queue_.front().task;
-#endif
+    delete deferred_non_nestable_work_queue_.front().task;
     deferred_non_nestable_work_queue_.pop();
-    if (task)
-      delete task;
   }
   did_work |= !delayed_work_queue_.empty();
   while (!delayed_work_queue_.empty()) {
-    Task* task = delayed_work_queue_.top().task;
+    delete delayed_work_queue_.top().task;
     delayed_work_queue_.pop();
-    delete task;
   }
   return did_work;
 }
