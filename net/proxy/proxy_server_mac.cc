@@ -21,7 +21,7 @@ ProxyServer ProxyServer::FromDictionary(Scheme scheme,
                                         CFStringRef port_key) {
   if (scheme == SCHEME_INVALID || scheme == SCHEME_DIRECT) {
     // No hostname port to extract; we are done.
-    return ProxyServer(scheme, std::string(), -1);
+    return ProxyServer(scheme, HostPortPair());
   }
 
   CFStringRef host_ref =
@@ -45,7 +45,7 @@ ProxyServer ProxyServer::FromDictionary(Scheme scheme,
     port = GetDefaultPortForScheme(scheme);
   }
 
-  return ProxyServer(scheme, host, port);
+  return ProxyServer(scheme, HostPortPair(host, port));
 }
 
 }  // namespace net

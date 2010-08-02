@@ -5408,8 +5408,8 @@ class CapturingProxyResolver : public ProxyResolver {
                              CompletionCallback* callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) {
-    ProxyServer proxy_server(
-        ProxyServer::SCHEME_HTTP, "myproxy", 80);
+    ProxyServer proxy_server(ProxyServer::SCHEME_HTTP,
+                             HostPortPair("myproxy", 80));
     results->UseProxyServer(proxy_server);
     resolved_.push_back(url);
     return OK;
