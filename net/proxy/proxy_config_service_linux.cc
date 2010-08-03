@@ -15,7 +15,7 @@
 
 #include <map>
 
-#include "base/env_var.h"
+#include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
@@ -422,7 +422,7 @@ class GConfSettingGetterImplKDE
     : public ProxyConfigServiceLinux::GConfSettingGetter,
       public base::MessagePumpLibevent::Watcher {
  public:
-  explicit GConfSettingGetterImplKDE(base::EnvVarGetter* env_var_getter)
+  explicit GConfSettingGetterImplKDE(base::Environment* env_var_getter)
       : inotify_fd_(-1), notify_delegate_(NULL), indirect_manual_(false),
         auto_no_pac_(false), reversed_bypass_list_(false),
         env_var_getter_(env_var_getter), file_loop_(NULL) {
@@ -879,7 +879,7 @@ class GConfSettingGetterImplKDE
   // We don't own |env_var_getter_|.  It's safe to hold a pointer to it, since
   // both it and us are owned by ProxyConfigServiceLinux::Delegate, and have the
   // same lifetime.
-  base::EnvVarGetter* env_var_getter_;
+  base::Environment* env_var_getter_;
 
   // We cache these settings whenever we re-read the kioslaverc file.
   string_map_type string_table_;
@@ -1051,7 +1051,7 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   return true;
 }
 
-ProxyConfigServiceLinux::Delegate::Delegate(base::EnvVarGetter* env_var_getter)
+ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter)
     : env_var_getter_(env_var_getter),
       glib_default_loop_(NULL), io_loop_(NULL) {
   // Figure out which GConfSettingGetterImpl to use, if any.
@@ -1069,7 +1069,7 @@ ProxyConfigServiceLinux::Delegate::Delegate(base::EnvVarGetter* env_var_getter)
   }
 }
 
-ProxyConfigServiceLinux::Delegate::Delegate(base::EnvVarGetter* env_var_getter,
+ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter,
     GConfSettingGetter* gconf_getter)
     : env_var_getter_(env_var_getter), gconf_getter_(gconf_getter),
       glib_default_loop_(NULL), io_loop_(NULL) {
@@ -1224,16 +1224,16 @@ void ProxyConfigServiceLinux::Delegate::OnDestroy() {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux()
-    : delegate_(new Delegate(base::EnvVarGetter::Create())) {
+    : delegate_(new Delegate(base::Environment::Create())) {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
-    base::EnvVarGetter* env_var_getter)
+    base::Environment* env_var_getter)
     : delegate_(new Delegate(env_var_getter)) {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
-    base::EnvVarGetter* env_var_getter,
+    base::Environment* env_var_getter,
     GConfSettingGetter* gconf_getter)
     : delegate_(new Delegate(env_var_getter, gconf_getter)) {
 }
