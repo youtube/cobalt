@@ -239,6 +239,8 @@ class SpdyFramer {
   // For debugging.
   static const char* StateToString(int state);
   static const char* ErrorCodeToString(int error_code);
+  static void set_protocol_version(int version) { spdy_version_= version; }
+  static int protocol_version() { return spdy_version_; }
 
   // Export the compression dictionary
   static const char kDictionary[];
@@ -328,6 +330,7 @@ class SpdyFramer {
   SpdyFramerVisitorInterface* visitor_;
 
   static bool compression_default_;
+  static int spdy_version_;
 };
 
 }  // namespace spdy
