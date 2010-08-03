@@ -6268,4 +6268,137 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
 
+TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
+  // This test ensures that the URL passed into the proxy is upgraded
+  // to https when doing an Alternate Protocol upgrade.
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpNetworkTransaction::SetNextProtos(
+      "\x08http/1.1\x07http1.1\x06spdy/2\x04spdy");
+
+  SessionDependencies session_deps(CreateFixedProxyService("myproxy:70"));
+  HttpAuthHandlerMock::Factory* auth_factory =
+      new HttpAuthHandlerMock::Factory();
+  HttpAuthHandlerMock* auth_handler = new HttpAuthHandlerMock();
+  auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_PROXY);
+  auth_factory->set_do_init_from_challenge(true);
+  session_deps.http_auth_handler_factory.reset(auth_factory);
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com");
+  request.load_flags = 0;
+
+  // First round goes unauthenticated through the proxy.
+  MockWrite data_writes_1[] = {
+    MockWrite("GET http://www.google.com/ HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "\r\n"),
+  };
+  MockRead data_reads_1[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"
+             "Alternate-Protocol: 443:npn-spdy/2\r\n"
+             "Proxy-Connection: close\r\n"
+             "\r\n"),
+  };
+  StaticSocketDataProvider data_1(data_reads_1, arraysize(data_reads_1),
+                                  data_writes_1, arraysize(data_writes_1));
+
+  // Second round tries to tunnel to www.google.com due to the
+  // Alternate-Protocol announcement in the first round. It fails due
+  // to a proxy authentication challenge.
+  MockWrite data_writes_2[] = {
+    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "\r\n"),
+  };
+  MockRead data_reads_2[] = {
+    MockRead("HTTP/1.0 407 Unauthorized\r\n"
+             "Proxy-Authenticate: Mock\r\n"
+             "Proxy-Connection: close\r\n"
+             "\r\n"),
+  };
+  StaticSocketDataProvider data_2(data_reads_2, arraysize(data_reads_2),
+                                  data_writes_2, arraysize(data_writes_2));
+
+  // Third round establishes a tunnel to www.google.com due to the
+  // Alternate-Protocol announcement in the first round, and does a SPDY
+  // request round.
+  // TODO(cbentzel): Originally, this just returned another 407 so the unit test
+  // could skip the SSL connection establishment and SPDY framing issues. Alas,
+  // the retry-http-when-alternate-protocol fails logic kicks in, which was more
+  // complicated to set up expectations for than the SPDY session.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame(1, true));
+
+  MockWrite data_writes_3[] = {
+    // TUNNEL connection established
+    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "Proxy-Authorization: auth_token\r\n"
+              "\r\n"),
+    // SPDY request
+    CreateMockWrite(*req), // 3
+  };
+
+  const char kCONNECTResponse[] = "HTTP/1.1 200 Connected\r\n\r\n";
+  MockRead data_reads_3[] = {
+    // Proxy response
+    MockRead(true, kCONNECTResponse, arraysize(kCONNECTResponse) - 1, 1),
+    // SPDY response.
+    CreateMockRead(*resp.get(), 4),
+    CreateMockRead(*data.get(), 4),
+    MockRead(true, 0, 0, 4),
+  };
+  scoped_refptr<OrderedSocketData> data_3(
+      new OrderedSocketData(data_reads_3, arraysize(data_reads_3),
+                            data_writes_3, arraysize(data_writes_3)));
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+
+  session_deps.socket_factory.AddSocketDataProvider(&data_1);
+  session_deps.socket_factory.AddSocketDataProvider(&data_2);
+  session_deps.socket_factory.AddSocketDataProvider(data_3.get());
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  // First round should work and provide the Alternate-Protocol state.
+  TestCompletionCallback callback_1;
+  scoped_ptr<HttpTransaction> trans_1(new HttpNetworkTransaction(session));
+  int rv = trans_1->Start(&request, &callback_1, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback_1.WaitForResult());
+
+  // Second round should attempt a tunnel connect and get an auth challenge.
+  TestCompletionCallback callback_2;
+  scoped_ptr<HttpTransaction> trans_2(new HttpNetworkTransaction(session));
+  rv = trans_2->Start(&request, &callback_2, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback_2.WaitForResult());
+  const HttpResponseInfo* response = trans_2->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  ASSERT_FALSE(response->auth_challenge.get() == NULL);
+
+  // Restart with auth. Tunnel should work and response received.
+  TestCompletionCallback callback_3;
+  rv = trans_2->RestartWithAuth(kFoo, kBar, &callback_3);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback_3.WaitForResult());
+
+  // After all that work, these two lines (or actually, just the scheme) are
+  // what this test is all about. Make sure it happens correctly.
+  const GURL& request_url = auth_handler->request_url();
+  EXPECT_EQ("https", request_url.scheme());
+  EXPECT_EQ("www.google.com", request_url.host());
+
+  HttpNetworkTransaction::SetNextProtos("");
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+}
+
 }  // namespace net
