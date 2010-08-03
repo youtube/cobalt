@@ -30,7 +30,7 @@ class BoundNetLog;
 // An SSL client socket implemented with the Windows Schannel.
 class SSLClientSocketWin : public SSLClientSocket {
  public:
-  // Takes ownership of the transport_socket, which may already be connected.
+  // Takes ownership of the |transport_socket|, which must already be connected.
   // The given hostname will be compared with the name(s) in the server's
   // certificate during the SSL handshake.  ssl_config specifies the SSL
   // settings.
