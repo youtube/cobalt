@@ -188,12 +188,23 @@ void SocketStream::Close() {
   // of AddRef() and Release() in Connect() and Finish(), respectively.
   if (next_state_ == STATE_NONE)
     return;
-  closing_ = true;
-  // Close asynchronously, so that delegate won't be called
-  // back before returning Close().
   MessageLoop::current()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoLoop, OK));
+    FROM_HERE,
+    NewRunnableMethod(this, &SocketStream::DoClose));
+}
+
+void SocketStream::DoClose() {
+  closing_ = true;
+  if (socket_.get())
+    socket_->Disconnect();
+  // If next_state_ is STATE_READ_WRITE, we'll run DoLoop and close
+  // the SocketStream.
+  // If next_state_ is STATE_TCP_CONNECT, it's waiting other socket establishing
+  // connection, so, we'll close the SocketStream now.
+  // In other next_state_, we'll wait for callback of other APIs, such as
+  // ResolveProxy().
+  if (next_state_ == STATE_READ_WRITE || next_state_ == STATE_TCP_CONNECT)
+    DoLoop(ERR_ABORTED);
 }
 
 void SocketStream::RestartWithAuth(
@@ -469,6 +480,13 @@ int SocketStream::DoResolveProxyComplete(int result) {
     // of the proxies in the returned list.
     return ERR_NO_SUPPORTED_PROXIES;
   }
+  if (closing_) {
+    // We enter STATE_CLOSE here if Close has already been called on this
+    // SocketStream.  We put this if-clause here (not the top of the
+    // DoResolveProxyComplete method) to process proxy resolving error.
+    next_state_ = STATE_CLOSE;
+    return ERR_ABORTED;
+  }
 
   next_state_ = STATE_RESOLVE_HOST;
   return OK;
@@ -506,7 +524,7 @@ int SocketStream::DoResolveHost() {
 }
 
 int SocketStream::DoResolveHostComplete(int result) {
-  if (result == OK) {
+  if (result == OK && !closing_) {
     next_state_ = STATE_TCP_CONNECT;
     result = delegate_->OnStartOpenConnection(this, &io_callback_);
     if (result == net::ERR_IO_PENDING)
@@ -519,6 +537,10 @@ int SocketStream::DoResolveHostComplete(int result) {
 }
 
 int SocketStream::DoTcpConnect() {
+  if (closing_) {
+    next_state_ = STATE_CLOSE;
+    return ERR_ABORTED;
+  }
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
   DCHECK(factory_);
   socket_.reset(factory_->CreateTCPClientSocket(addresses_,
@@ -528,6 +550,10 @@ int SocketStream::DoTcpConnect() {
 }
 
 int SocketStream::DoTcpConnectComplete(int result) {
+  if (closing_) {
+    next_state_ = STATE_CLOSE;
+    return ERR_ABORTED;
+  }
   // TODO(ukai): if error occured, reconsider proxy after error.
   if (result != OK) {
     next_state_ = STATE_CLOSE;
