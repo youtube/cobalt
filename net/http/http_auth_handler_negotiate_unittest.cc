@@ -5,6 +5,7 @@
 #include "net/http/http_auth_handler_negotiate.h"
 
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"

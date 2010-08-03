@@ -9,6 +9,7 @@
 
 #include "base/scoped_comptr_win.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
 
 // The Windows implementation of URLSecurityManager uses WinINet/IE's
