@@ -90,43 +90,49 @@ Value* Value::CreateStringValue(const std::string& in_value) {
 }
 
 // static
-Value* Value::CreateStringValue(const std::wstring& in_value) {
+Value* Value::CreateStringValue(const string16& in_value) {
   return new StringValue(in_value);
 }
 
+#if !defined(WCHAR_T_IS_UTF16)
+// TODO(viettrungluu): Deprecated and to be removed:
 // static
-Value* Value::CreateStringValueFromUTF16(const string16& in_value) {
+Value* Value::CreateStringValue(const std::wstring& in_value) {
   return new StringValue(in_value);
 }
+#endif
 
 // static
 BinaryValue* Value::CreateBinaryValue(char* buffer, size_t size) {
   return BinaryValue::Create(buffer, size);
 }
 
-bool Value::GetAsBoolean(bool* in_value) const {
+bool Value::GetAsBoolean(bool* out_value) const {
   return false;
 }
 
-bool Value::GetAsInteger(int* in_value) const {
+bool Value::GetAsInteger(int* out_value) const {
   return false;
 }
 
-bool Value::GetAsReal(double* in_value) const {
+bool Value::GetAsReal(double* out_value) const {
   return false;
 }
 
-bool Value::GetAsString(std::string* in_value) const {
+bool Value::GetAsString(std::string* out_value) const {
   return false;
 }
 
-bool Value::GetAsString(std::wstring* in_value) const {
+bool Value::GetAsString(string16* out_value) const {
   return false;
 }
 
-bool Value::GetAsUTF16(string16* out_value) const {
+#if !defined(WCHAR_T_IS_UTF16)
+// TODO(viettrungluu): Deprecated and to be removed:
+bool Value::GetAsString(std::wstring* out_value) const {
   return false;
 }
+#endif
 
 Value* Value::DeepCopy() const {
   // This method should only be getting called for null Values--all subclasses
@@ -228,15 +234,16 @@ StringValue::StringValue(const std::string& in_value)
   DCHECK(IsStringUTF8(in_value));
 }
 
-StringValue::StringValue(const std::wstring& in_value)
-    : Value(TYPE_STRING),
-      value_(WideToUTF8(in_value)) {
-}
-
-#if !defined(WCHAR_T_IS_UTF16)
 StringValue::StringValue(const string16& in_value)
     : Value(TYPE_STRING),
       value_(UTF16ToUTF8(in_value)) {
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+// TODO(viettrungluu): Deprecated and to be removed:
+StringValue::StringValue(const std::wstring& in_value)
+    : Value(TYPE_STRING),
+      value_(WideToUTF8(in_value)) {
 }
 #endif
 
@@ -249,17 +256,20 @@ bool StringValue::GetAsString(std::string* out_value) const {
   return true;
 }
 
+bool StringValue::GetAsString(string16* out_value) const {
+  if (out_value)
+    *out_value = UTF8ToUTF16(value_);
+  return true;
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+// TODO(viettrungluu): Deprecated and to be removed:
 bool StringValue::GetAsString(std::wstring* out_value) const {
   if (out_value)
     *out_value = UTF8ToWide(value_);
   return true;
 }
-
-bool StringValue::GetAsUTF16(string16* out_value) const {
-  if (out_value)
-    *out_value = UTF8ToUTF16(value_);
-  return true;
-}
+#endif
 
 Value* StringValue::DeepCopy() const {
   return CreateStringValue(value_);
@@ -440,7 +450,7 @@ void DictionaryValue::SetString(const std::string& path,
 
 void DictionaryValue::SetStringFromUTF16(const std::string& path,
                                          const string16& in_value) {
-  Set(path, CreateStringValueFromUTF16(in_value));
+  Set(path, CreateStringValue(in_value));
 }
 
 // TODO(viettrungluu): Deprecated and to be removed:
@@ -473,7 +483,7 @@ void DictionaryValue::SetString(const std::wstring& path,
 // TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetStringFromUTF16(const std::wstring& path,
                                          const string16& in_value) {
-  Set(path, CreateStringValueFromUTF16(in_value));
+  Set(path, CreateStringValue(in_value));
 }
 
 void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
@@ -559,7 +569,7 @@ bool DictionaryValue::GetStringAsUTF16(const std::string& path,
   if (!Get(path, &value))
     return false;
 
-  return value->GetAsUTF16(out_value);
+  return value->GetAsString(out_value);
 }
 
 bool DictionaryValue::GetStringASCII(const std::string& path,
@@ -718,7 +728,7 @@ bool DictionaryValue::GetStringAsUTF16WithoutPathExpansion(
   if (!GetWithoutPathExpansion(key, &value))
     return false;
 
-  return value->GetAsUTF16(out_value);
+  return value->GetAsString(out_value);
 }
 
 bool DictionaryValue::GetDictionaryWithoutPathExpansion(
@@ -951,7 +961,7 @@ bool ListValue::GetStringAsUTF16(size_t index, string16* out_value) const {
   if (!Get(index, &value))
     return false;
 
-  return value->GetAsUTF16(out_value);
+  return value->GetAsString(out_value);
 }
 
 bool ListValue::GetBinary(size_t index, BinaryValue** out_value) const {

@@ -56,8 +56,10 @@ class Value {
   static Value* CreateIntegerValue(int in_value);
   static Value* CreateRealValue(double in_value);
   static Value* CreateStringValue(const std::string& in_value);
-  static Value* CreateStringValue(const std::wstring& in_value);
-  static Value* CreateStringValueFromUTF16(const string16& in_value);
+  static Value* CreateStringValue(const string16& in_value);
+#if !defined(WCHAR_T_IS_UTF16)
+  /*DEPRECATED*/static Value* CreateStringValue(const std::wstring& in_value);
+#endif
 
   // This one can return NULL if the input isn't valid.  If the return value
   // is non-null, the new object has taken ownership of the buffer pointer.
@@ -92,8 +94,10 @@ class Value {
   virtual bool GetAsInteger(int* out_value) const;
   virtual bool GetAsReal(double* out_value) const;
   virtual bool GetAsString(std::string* out_value) const;
-  virtual bool GetAsString(std::wstring* out_value) const;
-  virtual bool GetAsUTF16(string16* out_value) const;
+  virtual bool GetAsString(string16* out_value) const;
+#if !defined(WCHAR_T_IS_UTF16)
+  /*DEPRECATED*/virtual bool GetAsString(std::wstring* out_value) const;
+#endif
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
@@ -145,20 +149,22 @@ class StringValue : public Value {
   // Initializes a StringValue with a UTF-8 narrow character string.
   explicit StringValue(const std::string& in_value);
 
-  // Initializes a StringValue with a wide character string.
-  explicit StringValue(const std::wstring& in_value);
-
-#if !defined(WCHAR_T_IS_UTF16)
   // Initializes a StringValue with a string16.
   explicit StringValue(const string16& in_value);
+
+#if !defined(WCHAR_T_IS_UTF16)
+  // Initializes a StringValue with a wide character string.
+  /*DEPRECATED*/explicit StringValue(const std::wstring& in_value);
 #endif
 
   ~StringValue();
 
   // Subclassed methods
   bool GetAsString(std::string* out_value) const;
-  bool GetAsString(std::wstring* out_value) const;
-  bool GetAsUTF16(string16* out_value) const;
+  bool GetAsString(string16* out_value) const;
+#if !defined(WCHAR_T_IS_UTF16)
+  /*DEPRECATED*/bool GetAsString(std::wstring* out_value) const;
+#endif
   Value* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
