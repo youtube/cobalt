@@ -109,6 +109,9 @@ class ClientSocketHandle {
   void set_ssl_error_response_info(const HttpResponseInfo& ssl_error_state) {
     ssl_error_response_info_ = ssl_error_state;
   }
+  void set_pending_http_proxy_connection(ClientSocketHandle* connection) {
+    pending_http_proxy_connection_.reset(connection);
+  }
 
   // Only valid if there is no |socket_|.
   bool is_ssl_error() const {
@@ -120,6 +123,9 @@ class ClientSocketHandle {
   // the |cert_request_info| field is set.
   const HttpResponseInfo& ssl_error_response_info() const {
     return ssl_error_response_info_;
+  }
+  ClientSocketHandle* release_pending_http_proxy_connection() {
+    return pending_http_proxy_connection_.release();
   }
 
   // These may only be used if is_initialized() is true.
@@ -179,6 +185,7 @@ class ClientSocketHandle {
   int pool_id_;  // See ClientSocketPool::ReleaseSocket() for an explanation.
   bool is_ssl_error_;
   HttpResponseInfo ssl_error_response_info_;
+  scoped_ptr<ClientSocketHandle> pending_http_proxy_connection_;
   base::TimeTicks init_time_;
   base::TimeDelta setup_time_;
 
