@@ -125,6 +125,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kDisableSSL[] = "no-ssl";
   static const char kDisableCompression[] = "no-compress";
   static const char kDisableAltProtocols[] = "no-alt-protocols";
+  static const char kEnableVersionOne[] = "v1";
 
   // If flow-control is enabled, received WINDOW_UPDATE and SETTINGS
   // messages are processed and outstanding window size is actually obeyed
@@ -148,8 +149,9 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   // will choose the first overlapping protocol in the server's list, since
   // it presumedly has a better understanding of which protocol we should
   // use, therefore the rest of the ordering here is not important.
-  static const char kNpnProtosFull[] =
-      "\x08http/1.1\x06spdy/2";
+  static const char kNpnProtosFull[] = "\x08http/1.1\x06spdy/2";
+  // This is a temporary hack to pretend we support version 1.
+  static const char kNpnProtosFullV1[] = "\x08http/1.1\x06spdy/1\x06spdy/2";
   // No spdy specified.
   static const char kNpnProtosHttpOnly[] = "\x08http/1.1\x07http1.1";
 
@@ -178,6 +180,9 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       // and then fallback to http. This introduces extra load.
       HttpNetworkTransaction::SetUseAlternateProtocols(false);
       HttpNetworkTransaction::SetNextProtos(kNpnProtosHttpOnly);
+    } else if (option == kEnableVersionOne) {
+      spdy::SpdyFramer::set_protocol_version(1);
+      HttpNetworkTransaction::SetNextProtos(kNpnProtosFullV1);
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;
       HttpNetworkTransaction::SetUseAlternateProtocols(false);
@@ -190,5 +195,4 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     }
   }
 }
-
 }  // namespace net
