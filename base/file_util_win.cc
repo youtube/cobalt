@@ -976,7 +976,7 @@ bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
                    OPEN_EXISTING,
                    FILE_ATTRIBUTE_NORMAL,
                    NULL));
-  if (path_handle == INVALID_HANDLE_VALUE)
+  if (!path_handle.IsValid())
     return false;
 
   // In Vista, GetFinalPathNameByHandle() would give us the real path
@@ -1002,7 +1002,7 @@ bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
                           1, // Just one byte.  No need to look at the data.
                           NULL));
 
-  if (file_map_handle == INVALID_HANDLE_VALUE)
+  if (!file_map_handle.IsValid())
     return false;
 
   // Use a view of the file to get the path to the file.
