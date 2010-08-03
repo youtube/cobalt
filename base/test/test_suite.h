@@ -140,15 +140,12 @@ class TestSuite {
     base::ScopedNSAutoreleasePool scoped_pool;
 
     Initialize();
-    std::wstring client_func =
-        CommandLine::ForCurrentProcess()->GetSwitchValue(kRunClientProcess);
+    std::string client_func =
+        CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            kRunClientProcess);
     // Check to see if we are being run as a client process.
-    if (!client_func.empty()) {
-      // Convert our function name to a usable string for GetProcAddress.
-      std::string func_name(client_func.begin(), client_func.end());
-
-      return multi_process_function_list::InvokeChildProcessTest(func_name);
-    }
+    if (!client_func.empty())
+      return multi_process_function_list::InvokeChildProcessTest(client_func);
     int result = RUN_ALL_TESTS();
 
     // If there are failed tests, see if we should ignore the failures.
