@@ -24,7 +24,7 @@ HttpProxySocketParams::HttpProxySocketParams(
     : tcp_params_(proxy_server),
       request_url_(request_url),
       endpoint_(endpoint),
-      session_(session),
+      session_(tunnel ? session : NULL),
       tunnel_(tunnel) {
 }
 
@@ -146,7 +146,14 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
                                           proxy_server,
                                           params_->session(),
                                           params_->tunnel()));
-  return socket_->Connect(&callback_);
+  int result = socket_->Connect(&callback_);
+
+  // Clear the circular reference to HttpNetworkSession (|params_| reference
+  // HttpNetworkSession, which reference HttpProxyClientSocketPool, which
+  // references |this|) here because it is safe to do so now but not at other
+  // points.  This may cancel this ConnectJob.
+  params_ = NULL;
+  return result;
 }
 
 int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
