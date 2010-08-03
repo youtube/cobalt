@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/env_var.h"
+#include "base/environment.h"
 #include "base/message_loop.h"
 #include "base/observer_list.h"
 #include "base/ref_counted.h"
@@ -117,10 +117,10 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
    public:
     // Constructor receives env var getter implementation to use, and
     // takes ownership of it. This is the normal constructor.
-    explicit Delegate(base::EnvVarGetter* env_var_getter);
+    explicit Delegate(base::Environment* env_var_getter);
     // Constructor receives gconf and env var getter implementations
     // to use, and takes ownership of them. Used for testing.
-    Delegate(base::EnvVarGetter* env_var_getter,
+    Delegate(base::Environment* env_var_getter,
              GConfSettingGetter* gconf_getter);
     // Synchronously obtains the proxy configuration. If gconf is
     // used, also enables gconf notification for setting
@@ -182,7 +182,7 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     // carry the new config information.
     void SetNewProxyConfig(const ProxyConfig& new_config);
 
-    scoped_ptr<base::EnvVarGetter> env_var_getter_;
+    scoped_ptr<base::Environment> env_var_getter_;
     scoped_ptr<GConfSettingGetter> gconf_getter_;
 
     // Cached proxy configuration, to be returned by
@@ -219,8 +219,8 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
   // Usual constructor
   ProxyConfigServiceLinux();
   // For testing: take alternate gconf and env var getter implementations.
-  explicit ProxyConfigServiceLinux(base::EnvVarGetter* env_var_getter);
-  ProxyConfigServiceLinux(base::EnvVarGetter* env_var_getter,
+  explicit ProxyConfigServiceLinux(base::Environment* env_var_getter);
+  ProxyConfigServiceLinux(base::Environment* env_var_getter,
                           GConfSettingGetter* gconf_getter);
 
   virtual ~ProxyConfigServiceLinux() {

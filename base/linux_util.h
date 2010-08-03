@@ -15,8 +15,6 @@ class FilePath;
 
 namespace base {
 
-class EnvVarGetter;
-
 static const char kFindInodeSwitch[] = "--find-inode";
 
 // Get the Linux Distro if we can, or return "Unknown", similar to

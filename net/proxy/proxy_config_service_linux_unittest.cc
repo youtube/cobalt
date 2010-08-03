@@ -78,9 +78,9 @@ struct SettingsTable {
   map_type settings;
 };
 
-class MockEnvVarGetter : public base::EnvVarGetter {
+class MockEnvironment : public base::Environment {
  public:
-  MockEnvVarGetter() {
+  MockEnvironment() {
 #define ENTRY(x) table.settings[#x] = &values.x
     ENTRY(DESKTOP_SESSION);
     ENTRY(HOME);
@@ -605,10 +605,10 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
                               tests[i].description.c_str()));
-    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
+    MockEnvironment* env = new MockEnvironment;
     MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env_getter, gconf_getter));
+        new ProxyConfigServiceLinux(env, gconf_getter));
     ProxyConfig config;
     gconf_getter->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
@@ -895,12 +895,12 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
                               tests[i].description.c_str()));
-    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
+    MockEnvironment* env = new MockEnvironment;
     MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env_getter, gconf_getter));
+        new ProxyConfigServiceLinux(env, gconf_getter));
     ProxyConfig config;
-    env_getter->values = tests[i].values;
+    env->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetLatestProxyConfig(&config);
 
@@ -911,10 +911,10 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
 }
 
 TEST_F(ProxyConfigServiceLinuxTest, GconfNotification) {
-  MockEnvVarGetter* env_getter = new MockEnvVarGetter;
+  MockEnvironment* env = new MockEnvironment;
   MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
   ProxyConfigServiceLinux* service =
-      new ProxyConfigServiceLinux(env_getter, gconf_getter);
+      new ProxyConfigServiceLinux(env, gconf_getter);
   SynchConfigGetter sync_config_getter(service);
   ProxyConfig config;
 
@@ -1292,13 +1292,13 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
                               tests[i].description.c_str()));
-    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
-    env_getter->values = tests[i].env_values;
+    MockEnvironment* env = new MockEnvironment;
+    env->values = tests[i].env_values;
     // Force the KDE getter to be used and tell it where the test is.
-    env_getter->values.DESKTOP_SESSION = "kde4";
-    env_getter->values.KDEHOME = kde_home_.value().c_str();
+    env->values.DESKTOP_SESSION = "kde4";
+    env->values.KDEHOME = kde_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env_getter));
+        new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     // Overwrite the kioslaverc file.
     file_util::WriteFile(kioslaverc_, tests[i].kioslaverc.c_str(),
@@ -1328,11 +1328,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
   CHECK(!file_util::DirectoryExists(kde4_home_));
 
   { SCOPED_TRACE("KDE4, no .kde4 directory, verify fallback");
-    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
-    env_getter->values.DESKTOP_SESSION = "kde4";
-    env_getter->values.HOME = user_home_.value().c_str();
+    MockEnvironment* env = new MockEnvironment;
+    env->values.DESKTOP_SESSION = "kde4";
+    env->values.HOME = user_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env_getter));
+        new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetLatestProxyConfig(&config);
@@ -1347,11 +1347,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
   CHECK(file_util::PathExists(kioslaverc4_));
 
   { SCOPED_TRACE("KDE4, .kde4 directory present, use it");
-    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
-    env_getter->values.DESKTOP_SESSION = "kde4";
-    env_getter->values.HOME = user_home_.value().c_str();
+    MockEnvironment* env = new MockEnvironment;
+    env->values.DESKTOP_SESSION = "kde4";
+    env->values.HOME = user_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env_getter));
+        new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetLatestProxyConfig(&config);
@@ -1360,11 +1360,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
   }
 
   { SCOPED_TRACE("KDE3, .kde4 directory present, ignore it");
-    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
-    env_getter->values.DESKTOP_SESSION = "kde";
-    env_getter->values.HOME = user_home_.value().c_str();
+    MockEnvironment* env = new MockEnvironment;
+    env->values.DESKTOP_SESSION = "kde";
+    env->values.HOME = user_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env_getter));
+        new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetLatestProxyConfig(&config);
@@ -1373,12 +1373,12 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
   }
 
   { SCOPED_TRACE("KDE4, .kde4 directory present, KDEHOME set to .kde");
-    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
-    env_getter->values.DESKTOP_SESSION = "kde4";
-    env_getter->values.HOME = user_home_.value().c_str();
-    env_getter->values.KDEHOME = kde_home_.value().c_str();
+    MockEnvironment* env = new MockEnvironment;
+    env->values.DESKTOP_SESSION = "kde4";
+    env->values.HOME = user_home_.value().c_str();
+    env->values.KDEHOME = kde_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env_getter));
+        new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetLatestProxyConfig(&config);
@@ -1391,11 +1391,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
   file_util::SetLastModifiedTime(kde4_config_, base::Time());
 
   { SCOPED_TRACE("KDE4, very old .kde4 directory present, use .kde");
-    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
-    env_getter->values.DESKTOP_SESSION = "kde4";
-    env_getter->values.HOME = user_home_.value().c_str();
+    MockEnvironment* env = new MockEnvironment;
+    env->values.DESKTOP_SESSION = "kde4";
+    env->values.HOME = user_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
-        new ProxyConfigServiceLinux(env_getter));
+        new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetLatestProxyConfig(&config);
