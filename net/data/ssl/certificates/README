@@ -1,0 +1,30 @@
+This directory contains various certificates for use with SSL-related
+unit tests.
+
+- google.binary.p7b
+- google.chain.pem
+- google.pem_cert.p7b
+- google.pem_pkcs7.p7b
+- google.pkcs7.p7b
+- google.single.der
+- google.single.pem
+- thawte.single.pem : Certificates for testing parsing of different formats.
+
+- mit.davidben.der : An expired MIT client certificate.
+
+- foaf.me.chromium-test-cert.der : A client certificate for a FOAF.ME identity
+     created for testing.
+
+- www_us_army_mil_cert.der
+- dod_ca_17_cert.der
+- dod_root_ca_2_cert.der : A certificate chain for regression tests of
+     http://crbug.com/31497.
+
+- expired_cert.pem : An expired certificate, used by test_server.cc.
+
+- ok_cert.pem : A valid certificate, used by test_server.cc
+
+- root_ca_cert.crt : The testing root CA used to sign the test_server.cc's
+     certificates.
+
+- unosoft_hu_cert : Certificate used by X509CertificateTest.UnoSoftCertParsing.
