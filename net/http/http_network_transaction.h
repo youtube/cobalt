@@ -91,6 +91,8 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_RESOLVE_PROXY_COMPLETE,
     STATE_INIT_CONNECTION,
     STATE_INIT_CONNECTION_COMPLETE,
+    STATE_RESTART_TUNNEL_AUTH,
+    STATE_RESTART_TUNNEL_AUTH_COMPLETE,
     STATE_GENERATE_PROXY_AUTH_TOKEN,
     STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE,
     STATE_GENERATE_SERVER_AUTH_TOKEN,
@@ -134,6 +136,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoResolveProxyComplete(int result);
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
+  int DoRestartTunnelAuth();
+  int DoRestartTunnelAuthComplete(int result);
   int DoGenerateProxyAuthToken();
   int DoGenerateProxyAuthTokenComplete(int result);
   int DoGenerateServerAuthToken();
@@ -169,6 +173,9 @@ class HttpNetworkTransaction : public HttpTransaction {
   void LogBlockedTunnelResponse(int response_code) const;
 
   static void LogIOErrorMetrics(const ClientSocketHandle& handle);
+
+  // Called to handle an HTTP proxy tunnel request for auth.
+  int HandleTunnelAuthFailure(int error);
 
   // Called to handle a certificate error.  Returns OK if the error should be
   // ignored.  Otherwise, stores the certificate in response_.ssl_info and

@@ -50,18 +50,20 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
 
 HttpProxyClientSocket::HttpProxyClientSocket(
     ClientSocketHandle* transport_socket, const GURL& request_url,
-    const HostPortPair& endpoint, const scoped_refptr<HttpAuthController>& auth,
-    bool tunnel)
+    const HostPortPair& endpoint, const HostPortPair& proxy_server,
+    const scoped_refptr<HttpNetworkSession>& session, bool tunnel)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
       next_state_(STATE_NONE),
       user_callback_(NULL),
       transport_(transport_socket),
       endpoint_(endpoint),
-      auth_(auth),
+      auth_(tunnel ?
+          new HttpAuthController(HttpAuth::AUTH_PROXY,
+                                 GURL("http://" + proxy_server.ToString()),
+                                 session) : NULL),
       tunnel_(tunnel),
       net_log_(transport_socket->socket()->NetLog()) {
-  DCHECK_EQ(tunnel, auth != NULL);
   // Synthesize the bits of a request that we actually use.
   request_.url = request_url;
   request_.method = "GET";
@@ -126,13 +128,14 @@ int HttpProxyClientSocket::PrepareForAuthRestart() {
 }
 
 int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
-  int rc = OK;
   if (keep_alive && transport_->socket()->IsConnectedAndIdle()) {
     next_state_ = STATE_GENERATE_AUTH_TOKEN;
     transport_->set_is_reused(true);
   } else {
+    // This assumes that the underlying transport socket is a TCP socket,
+    // since only TCP sockets are restartable.
+    next_state_ = STATE_TCP_RESTART;
     transport_->socket()->Disconnect();
-    rc = ERR_RETRY_CONNECTION;
   }
 
   // Reset the other member variables.
@@ -140,7 +143,7 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
   http_stream_.reset();
   request_headers_.clear();
   response_ = HttpResponseInfo();
-  return rc;
+  return OK;
 }
 
 void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
@@ -159,19 +162,16 @@ void HttpProxyClientSocket::Disconnect() {
 }
 
 bool HttpProxyClientSocket::IsConnected() const {
-  return transport_->socket()->IsConnected();
+  return next_state_ == STATE_DONE && transport_->socket()->IsConnected();
 }
 
 bool HttpProxyClientSocket::IsConnectedAndIdle() const {
-  return transport_->socket()->IsConnectedAndIdle();
-}
-
-bool HttpProxyClientSocket::NeedsRestartWithAuth() const {
-  return next_state_ != STATE_DONE;
+  return next_state_ == STATE_DONE &&
+    transport_->socket()->IsConnectedAndIdle();
 }
 
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
-                            CompletionCallback* callback) {
+                                CompletionCallback* callback) {
   DCHECK(!user_callback_);
   if (next_state_ != STATE_DONE) {
     // We're trying to read the body of the response but we're still trying
@@ -273,6 +273,13 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
       case STATE_DRAIN_BODY_COMPLETE:
         rv = DoDrainBodyComplete(rv);
         break;
+      case STATE_TCP_RESTART:
+        DCHECK_EQ(OK, rv);
+        rv = DoTCPRestart();
+        break;
+      case STATE_TCP_RESTART_COMPLETE:
+        rv = DoTCPRestartComplete(rv);
+        break;
       case STATE_DONE:
         break;
       default:
@@ -280,8 +287,8 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
         rv = ERR_UNEXPECTED;
         break;
     }
-  } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE
-           && next_state_ != STATE_DONE);
+  } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE &&
+           next_state_ != STATE_DONE);
   return rv;
 }
 
@@ -404,6 +411,19 @@ int HttpProxyClientSocket::DoDrainBodyComplete(int result) {
   // Keep draining.
   next_state_ = STATE_DRAIN_BODY;
   return OK;
+}
+
+int HttpProxyClientSocket::DoTCPRestart() {
+  next_state_ = STATE_TCP_RESTART_COMPLETE;
+  return transport_->socket()->Connect(&io_callback_);
+}
+
+int HttpProxyClientSocket::DoTCPRestartComplete(int result) {
+  if (result != OK)
+    return result;
+
+  next_state_ = STATE_GENERATE_AUTH_TOKEN;
+  return result;
 }
 
 int HttpProxyClientSocket::HandleAuthChallenge() {
