@@ -610,7 +610,6 @@ void SpdySession::OnReadComplete(int bytes_read) {
 void SpdySession::OnWriteComplete(int result) {
   DCHECK(write_pending_);
   DCHECK(in_flight_write_.size());
-  DCHECK_NE(result, 0);  // This shouldn't happen for write.
 
   write_pending_ = false;
 
