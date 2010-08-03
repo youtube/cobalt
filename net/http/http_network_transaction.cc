@@ -194,6 +194,17 @@ void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
   alternate_protocols->SetAlternateProtocolFor(host_port, port, protocol);
 }
 
+GURL UpgradeUrlToHttps(const GURL& original_url) {
+  GURL::Replacements replacements;
+  // new_sheme and new_port need to be in scope here because GURL::Replacements
+  // references the memory contained by them directly.
+  const std::string new_scheme = "https";
+  const std::string new_port = IntToString(443);
+  replacements.SetSchemeStr(new_scheme);
+  replacements.SetPortStr(new_port);
+  return original_url.ReplaceComponents(replacements);
+}
+
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -674,15 +685,7 @@ int HttpNetworkTransaction::DoResolveProxy() {
         endpoint_.set_port(alternate.port);
         alternate_protocol_ = alternate.protocol;
         alternate_protocol_mode_ = kUsingAlternateProtocol;
-
-        url_canon::Replacements<char> replacements;
-        replacements.SetScheme("https",
-                               url_parse::Component(0, strlen("https")));
-        const std::string port_str = base::IntToString(endpoint_.port());
-        replacements.SetPort(port_str.c_str(),
-                             url_parse::Component(0, port_str.size()));
-        alternate_endpoint_url =
-            curr_endpoint_url->ReplaceComponents(replacements);
+        alternate_endpoint_url = UpgradeUrlToHttps(*curr_endpoint_url);
         curr_endpoint_url = &alternate_endpoint_url;
       }
     }
@@ -782,12 +785,26 @@ int HttpNetworkTransaction::DoInitConnection() {
 
     if (proxy_info_.is_http()) {
       scoped_refptr<HttpAuthController> http_proxy_auth;
+      GURL authentication_url = request_->url;
       if (using_ssl_) {
+        if (!authentication_url.SchemeIs("https")) {
+          // If a proxy tunnel connection needs to be established due to
+          // an Alternate-Protocol, the URL needs to be changed to indicate
+          // https or digest authentication attempts will fail.
+          // For example, suppose the initial request was for
+          // "http://www.example.com/index.html". If this is an SSL
+          // upgrade due to alternate protocol, the digest authorization
+          // should have a uri="www.example.com:443" field rather than a
+          // "/index.html" entry, even though the original request URL has not
+          // changed.
+          authentication_url = UpgradeUrlToHttps(authentication_url);
+        }
         http_proxy_auth = auth_controllers_[HttpAuth::AUTH_PROXY];
         establishing_tunnel_ = true;
       }
       http_proxy_params = new HttpProxySocketParams(proxy_tcp_params,
-                                                    request_->url, endpoint_,
+                                                    authentication_url,
+                                                    endpoint_,
                                                     http_proxy_auth,
                                                     using_ssl_);
     } else {
