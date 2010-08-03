@@ -199,7 +199,7 @@ GURL UpgradeUrlToHttps(const GURL& original_url) {
   // new_sheme and new_port need to be in scope here because GURL::Replacements
   // references the memory contained by them directly.
   const std::string new_scheme = "https";
-  const std::string new_port = IntToString(443);
+  const std::string new_port = base::IntToString(443);
   replacements.SetSchemeStr(new_scheme);
   replacements.SetPortStr(new_port);
   return original_url.ReplaceComponents(replacements);
