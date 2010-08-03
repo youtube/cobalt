@@ -7,7 +7,7 @@
 #include <windows.h>
 
 #include "base/file_util.h"
-#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 
 namespace base {
 

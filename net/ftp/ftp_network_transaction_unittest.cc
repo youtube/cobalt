@@ -8,6 +8,7 @@
 
 #include "base/ref_counted.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/io_buffer.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_util.h"
