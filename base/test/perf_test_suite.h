@@ -23,16 +23,13 @@ class PerfTestSuite : public TestSuite {
     TestSuite::Initialize();
 
     // Initialize the perf timer log
-    FilePath log_path;
-    std::wstring log_file =
-        CommandLine::ForCurrentProcess()->GetSwitchValue("log-file");
-    if (log_file.empty()) {
+    FilePath log_path =
+        CommandLine::ForCurrentProcess()->GetSwitchValuePath("log-file");
+    if (log_path.empty()) {
       FilePath exe;
       PathService::Get(base::FILE_EXE, &exe);
       log_path = exe.ReplaceExtension(FILE_PATH_LITERAL("log"));
       log_path = log_path.InsertBeforeExtension(FILE_PATH_LITERAL("_perf"));
-    } else {
-      log_path = FilePath::FromWStringHack(log_file);
     }
     ASSERT_TRUE(InitPerfLog(log_path));
 
