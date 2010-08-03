@@ -456,6 +456,7 @@
         'proxy/proxy_service.h',
         'proxy/sync_host_resolver_bridge.cc',
         'proxy/sync_host_resolver_bridge.h',
+        'socket/client_socket.cc',
         'socket/client_socket.h',
         'socket/client_socket_factory.cc',
         'socket/client_socket_factory.h',
