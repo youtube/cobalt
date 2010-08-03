@@ -894,9 +894,15 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
       response_.was_npn_negotiated = true;
       std::string proto;
       ssl_socket->GetNextProto(&proto);
-      if (SSLClientSocket::NextProtoFromString(proto) ==
-          SSLClientSocket::kProtoSPDY2)
+      SSLClientSocket::NextProto next_protocol =
+          SSLClientSocket::NextProtoFromString(proto);
+      // If we negotiated either version of SPDY, we must have
+      // advertised it, so allow it.
+      // TODO(mbelshe): verify it was a protocol we advertised?
+      if (next_protocol == SSLClientSocket::kProtoSPDY1 ||
+          next_protocol == SSLClientSocket::kProtoSPDY2) {
         using_spdy_ = true;
+      }
     }
     if(want_ssl_over_spdy_without_npn_ && want_spdy_without_npn_)
       using_spdy_ = true;
