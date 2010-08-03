@@ -633,6 +633,53 @@ TEST(X509CertificateTest, IntermediateCertificates) {
 }
 #endif
 
+#if defined(OS_MACOSX)
+TEST(X509CertificateTest, IsIssuedBy) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  // Test a client certificate from MIT.
+  scoped_refptr<X509Certificate> mit_davidben_cert =
+      ImportCertFromFile(certs_dir, "mit.davidben.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), mit_davidben_cert);
+
+  CertPrincipal mit_issuer;
+  mit_issuer.country_name = "US";
+  mit_issuer.state_or_province_name = "Massachusetts";
+  mit_issuer.organization_names.push_back(
+      "Massachusetts Institute of Technology");
+  mit_issuer.organization_unit_names.push_back("Client CA v1");
+
+  // IsIssuedBy should return true even if it cannot build a chain
+  // with that principal.
+  std::vector<CertPrincipal> mit_issuers(1, mit_issuer);
+  EXPECT_TRUE(mit_davidben_cert->IsIssuedBy(mit_issuers));
+
+  // Test a client certificate from FOAF.ME.
+  scoped_refptr<X509Certificate> foaf_me_chromium_test_cert =
+      ImportCertFromFile(certs_dir, "foaf.me.chromium-test-cert.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), foaf_me_chromium_test_cert);
+
+  CertPrincipal foaf_issuer;
+  foaf_issuer.common_name = "FOAF.ME";
+  foaf_issuer.locality_name = "Wimbledon";
+  foaf_issuer.state_or_province_name = "LONDON";
+  foaf_issuer.country_name = "GB";
+  foaf_issuer.organization_names.push_back("FOAF.ME");
+
+  std::vector<CertPrincipal> foaf_issuers(1, foaf_issuer);
+  EXPECT_TRUE(foaf_me_chromium_test_cert->IsIssuedBy(foaf_issuers));
+
+  // And test some combinations and mismatches.
+  std::vector<CertPrincipal> both_issuers;
+  both_issuers.push_back(mit_issuer);
+  both_issuers.push_back(foaf_issuer);
+  EXPECT_TRUE(foaf_me_chromium_test_cert->IsIssuedBy(both_issuers));
+  EXPECT_TRUE(mit_davidben_cert->IsIssuedBy(both_issuers));
+  EXPECT_FALSE(foaf_me_chromium_test_cert->IsIssuedBy(mit_issuers));
+  EXPECT_FALSE(mit_davidben_cert->IsIssuedBy(foaf_issuers));
+}
+#endif  // defined(OS_MACOSX)
+
 class X509CertificateParseTest
     : public testing::TestWithParam<CertificateFormatTestData> {
  public:
