@@ -575,7 +575,7 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
                    OPEN_EXISTING,
                    FILE_FLAG_BACKUP_SEMANTICS,  // Needed to open a directory.
                    NULL));
-  ASSERT_NE(INVALID_HANDLE_VALUE, reparse_to_sub_a.Get());
+  ASSERT_TRUE(reparse_to_sub_a.IsValid());
   ASSERT_TRUE(SetReparsePoint(reparse_to_sub_a, sub_a));
 
   FilePath to_base_b = base_b.Append(FPL("to_base_b"));
@@ -588,7 +588,7 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
                    OPEN_EXISTING,
                    FILE_FLAG_BACKUP_SEMANTICS,  // Needed to open a directory.
                    NULL));
-  ASSERT_NE(INVALID_HANDLE_VALUE, reparse_to_base_b.Get());
+  ASSERT_TRUE(reparse_to_base_b.IsValid());
   ASSERT_TRUE(SetReparsePoint(reparse_to_base_b, base_b));
 
   FilePath to_sub_long = base_b.Append(FPL("to_sub_long"));
@@ -601,7 +601,7 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
                    OPEN_EXISTING,
                    FILE_FLAG_BACKUP_SEMANTICS,  // Needed to open a directory.
                    NULL));
-  ASSERT_NE(INVALID_HANDLE_VALUE, reparse_to_sub_long.Get());
+  ASSERT_TRUE(reparse_to_sub_long.IsValid());
   ASSERT_TRUE(SetReparsePoint(reparse_to_sub_long, sub_long));
 
   // Normalize a junction free path: base_a\sub_a\file.txt .
