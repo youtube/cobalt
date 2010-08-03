@@ -861,7 +861,7 @@ bool X509Certificate::IsIssuedBy(
         X509Certificate::SOURCE_LONE_CERT_IMPORT,
         X509Certificate::OSCertHandles());
     for (unsigned j = 0; j < valid_issuers.size(); j++) {
-      if (cert->subject().Matches(valid_issuers[j]))
+      if (cert->issuer().Matches(valid_issuers[j]))
         return true;
     }
   }
