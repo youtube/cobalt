@@ -187,6 +187,7 @@ int MockTCPClientSocket::Connect(net::CompletionCallback* callback) {
   if (connected_)
     return net::OK;
   connected_ = true;
+  peer_closed_connection_ = false;
   if (data_->connect_data().async) {
     RunCallbackAsync(callback, data_->connect_data().result);
     return net::ERR_IO_PENDING;
@@ -885,53 +886,6 @@ void MockSOCKSClientSocketPool::ReleaseSocket(const std::string& group_name,
 }
 
 MockSOCKSClientSocketPool::~MockSOCKSClientSocketPool() {}
-
-MockHttpAuthController::MockHttpAuthController()
-    : HttpAuthController(HttpAuth::AUTH_PROXY, GURL(),
-                         scoped_refptr<HttpNetworkSession>(NULL)),
-      data_(NULL),
-      data_index_(0),
-      data_count_(0) {
-}
-
-void MockHttpAuthController::SetMockAuthControllerData(
-    struct MockHttpAuthControllerData* data, size_t count) {
-  data_ = data;
-  data_count_ = count;
-}
-
-int MockHttpAuthController::MaybeGenerateAuthToken(
-    const HttpRequestInfo* request,
-    CompletionCallback* callback,
-    const BoundNetLog& net_log) {
-  return OK;
-}
-
-void MockHttpAuthController::AddAuthorizationHeader(
-    HttpRequestHeaders* authorization_headers) {
-  authorization_headers->AddHeadersFromString(CurrentData().auth_header);
-}
-
-int MockHttpAuthController::HandleAuthChallenge(
-    scoped_refptr<HttpResponseHeaders> headers,
-    bool do_not_send_server_auth,
-    bool establishing_tunnel,
-    const BoundNetLog& net_log) {
-  return OK;
-}
-
-void MockHttpAuthController::ResetAuth(const string16& username,
-                                       const string16& password) {
-  data_index_++;
-}
-
-bool MockHttpAuthController::HaveAuth() const {
-  return CurrentData().auth_header.size() != 0;
-}
-
-bool MockHttpAuthController::HaveAuthHandler() const {
-  return HaveAuth();
-}
 
 const char kSOCKS5GreetRequest[] = { 0x05, 0x01, 0x00 };
 const int kSOCKS5GreetRequestLength = arraysize(kSOCKS5GreetRequest);

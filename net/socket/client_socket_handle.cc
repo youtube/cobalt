@@ -59,6 +59,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
 void ClientSocketHandle::ResetErrorState() {
   is_ssl_error_ = false;
   ssl_error_response_info_ = HttpResponseInfo();
+  pending_http_proxy_connection_.reset();
 }
 
 LoadState ClientSocketHandle::GetLoadState() const {
