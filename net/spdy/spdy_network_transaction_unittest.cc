@@ -933,7 +933,6 @@ TEST_P(SpdyNetworkTransactionTest, NullPost) {
   EXPECT_EQ("hello!", out.response_data);
 }
 
-
 // Test that a simple POST works.
 TEST_P(SpdyNetworkTransactionTest, EmptyPost) {
   // Setup the request
@@ -1020,6 +1019,44 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
   helper.RunDefaultTest();
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
+}
+
+// The client upon cancellation tries to send a RST_STREAM frame. The mock
+// socket causes the TCP write to return zero. This test checks that the client
+// tries to queue up the RST_STREAM frame again.
+TEST_P(SpdyNetworkTransactionTest, SocketWriteReturnsZero) {
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> rst(
+      ConstructSpdyRstStream(1, spdy::CANCEL));
+  MockWrite writes[] = {
+    CreateMockWrite(*req.get(), 1),
+    MockWrite(true, 0, 0, 3),
+    CreateMockWrite(*rst.get(), 4),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  MockRead reads[] = {
+    CreateMockRead(*resp.get(), 2),
+    MockRead(true, 0, 0, 5)  // EOF
+  };
+
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.AddData(data.get());
+  helper.RunPreTestSetup();
+  HttpNetworkTransaction* trans = helper.trans();
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  helper.ResetTrans();
+  MessageLoop::current()->RunAllPending();
+  data->CompleteRead();
+  helper.VerifyDataConsumed();
 }
 
 // Test that the transaction doesn't crash when we don't have a reply.
