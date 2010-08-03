@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/env_var.h"
+#include "base/environment.h"
 #include "base/basictypes.h"
 #include "base/waitable_event.h"
 #include "media/audio/audio_output_controller.h"
@@ -62,7 +62,7 @@ static bool HasAudioOutputDevices() {
 }
 
 static bool IsRunningHeadless() {
-  scoped_ptr<base::EnvVarGetter> env(base::EnvVarGetter::Create());
+  scoped_ptr<base::Environment> env(base::Environment::Create());
   if (env->HasEnv("CHROME_HEADLESS"))
     return true;
   return false;

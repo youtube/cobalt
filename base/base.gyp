@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2010 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -76,7 +76,7 @@
         'data_pack_unittest.cc',
         'debug_util_unittest.cc',
         'dir_reader_posix_unittest.cc',
-        'env_var_unittest.cc',
+        'environment_unittest.cc',
         'event_trace_consumer_win_unittest.cc',
         'event_trace_controller_win_unittest.cc',
         'event_trace_provider_win_unittest.cc',
