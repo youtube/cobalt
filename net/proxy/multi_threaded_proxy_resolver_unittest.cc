@@ -6,6 +6,7 @@
 
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "base/waitable_event.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_log.h"
