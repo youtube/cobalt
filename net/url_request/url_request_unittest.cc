@@ -23,6 +23,7 @@
 #include "base/process_util.h"
 #include "base/string_piece.h"
 #include "base/string_number_conversions.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/cookie_monster.h"
 #include "net/base/cookie_policy.h"
 #include "net/base/load_flags.h"

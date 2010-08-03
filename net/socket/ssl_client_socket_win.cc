@@ -11,6 +11,7 @@
 #include "base/singleton.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
