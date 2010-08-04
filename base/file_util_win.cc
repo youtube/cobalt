@@ -1035,25 +1035,66 @@ bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
 
 bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
                   size_t step_size) {
-  HMODULE dll_module = LoadLibraryExW(
-      file_path,
-      NULL,
-      LOAD_WITH_ALTERED_SEARCH_PATH | DONT_RESOLVE_DLL_REFERENCES);
+  if (win_util::GetWinVersion() > win_util::WINVERSION_XP) {
+    // Vista+ branch. On these OSes, the forced reads through the DLL actually
+    // slows warm starts. The solution is to sequentially read file contents
+    // with an optional cap on total amount to read.
+    ScopedHandle file(
+        CreateFile(file_path,
+                   GENERIC_READ,
+                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                   NULL,
+                   OPEN_EXISTING,
+                   FILE_FLAG_SEQUENTIAL_SCAN,
+                   NULL));
 
-  if (!dll_module)
-    return false;
+    if (!file.IsValid())
+      return false;
 
-  PEImage pe_image(dll_module);
-  PIMAGE_NT_HEADERS nt_headers = pe_image.GetNTHeaders();
-  size_t actual_size_to_read = size_to_read ? size_to_read :
-                               nt_headers->OptionalHeader.SizeOfImage;
-  volatile uint8* touch = reinterpret_cast<uint8*>(dll_module);
-  size_t offset = 0;
-  while (offset < actual_size_to_read) {
-    uint8 unused = *(touch + offset);
-    offset += step_size;
+    // Default to 1MB sequential reads.
+    const DWORD actual_step_size = std::max(static_cast<DWORD>(step_size),
+                                            static_cast<DWORD>(1024*1024));
+    LPVOID buffer = ::VirtualAlloc(NULL,
+                                   actual_step_size,
+                                   MEM_COMMIT,
+                                   PAGE_READWRITE);
+
+    if (buffer == NULL)
+      return false;
+
+    DWORD len;
+    size_t total_read = 0;
+    while (::ReadFile(file, buffer, actual_step_size, &len, NULL) &&
+           len > 0 &&
+           (size_to_read ? total_read < size_to_read : true)) {
+      total_read += static_cast<size_t>(len);
+    }
+    ::VirtualFree(buffer, 0, MEM_RELEASE);
+  } else {
+    // WinXP branch. Here, reading the DLL from disk doesn't do
+    // what we want so instead we pull the pages into memory by loading
+    // the DLL and touching pages at a stride.
+    HMODULE dll_module = ::LoadLibraryExW(
+        file_path,
+        NULL,
+        LOAD_WITH_ALTERED_SEARCH_PATH | DONT_RESOLVE_DLL_REFERENCES);
+
+    if (!dll_module)
+      return false;
+
+    PEImage pe_image(dll_module);
+    PIMAGE_NT_HEADERS nt_headers = pe_image.GetNTHeaders();
+    size_t actual_size_to_read = size_to_read ? size_to_read :
+                                 nt_headers->OptionalHeader.SizeOfImage;
+    volatile uint8* touch = reinterpret_cast<uint8*>(dll_module);
+    size_t offset = 0;
+    while (offset < actual_size_to_read) {
+      uint8 unused = *(touch + offset);
+      offset += step_size;
+    }
+    FreeLibrary(dll_module);
   }
-  FreeLibrary(dll_module);
+
   return true;
 }
 
