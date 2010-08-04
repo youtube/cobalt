@@ -119,7 +119,7 @@ Environment* Environment::Create() {
   return new EnvironmentImpl();
 }
 
-bool Environment::HasEnv(const char* variable_name) {
+bool Environment::HasVar(const char* variable_name) {
   return GetEnv(variable_name, NULL);
 }
 

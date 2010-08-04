@@ -33,7 +33,7 @@ class Environment {
   virtual bool GetEnv(const char* variable_name, std::string* result) = 0;
 
   // Syntactic sugar for GetEnv(variable_name, NULL);
-  virtual bool HasEnv(const char* variable_name);
+  virtual bool HasVar(const char* variable_name);
 
   // Returns true on success, otherwise returns false.
   virtual bool SetEnv(const char* variable_name,

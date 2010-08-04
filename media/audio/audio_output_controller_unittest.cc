@@ -63,7 +63,7 @@ static bool HasAudioOutputDevices() {
 
 static bool IsRunningHeadless() {
   scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasEnv("CHROME_HEADLESS"))
+  if (env->HasVar("CHROME_HEADLESS"))
     return true;
   return false;
 }
