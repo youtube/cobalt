@@ -20,9 +20,11 @@ struct Limits {
   static const size_t kMaxSampleRate = 192000;
   static const size_t kMaxChannels = 32;
   static const size_t kMaxBPS = 64;
+
+  // Maximum possible time.
+  static const int64 kMaxTimeInMicroseconds = kint64max;
 };
 
 }  // namespace media
 
 #endif  // MEDIA_BASE_LIMITS_H_
-
