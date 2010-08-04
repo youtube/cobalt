@@ -448,8 +448,8 @@ void DictionaryValue::SetString(const std::string& path,
   Set(path, CreateStringValue(in_value));
 }
 
-void DictionaryValue::SetStringFromUTF16(const std::string& path,
-                                         const string16& in_value) {
+void DictionaryValue::SetString(const std::string& path,
+                                const string16& in_value) {
   Set(path, CreateStringValue(in_value));
 }
 
@@ -476,15 +476,17 @@ void DictionaryValue::SetString(const std::wstring& path,
 
 // TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetString(const std::wstring& path,
-                                const std::wstring& in_value) {
+                                const string16& in_value) {
   Set(path, CreateStringValue(in_value));
 }
 
+#if !defined(WCHAR_T_IS_UTF16)
 // TODO(viettrungluu): Deprecated and to be removed:
-void DictionaryValue::SetStringFromUTF16(const std::wstring& path,
-                                         const string16& in_value) {
+void DictionaryValue::SetString(const std::wstring& path,
+                                const std::wstring& in_value) {
   Set(path, CreateStringValue(in_value));
 }
+#endif
 
 void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
                                               Value* in_value) {

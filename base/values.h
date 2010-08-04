@@ -253,16 +253,18 @@ class DictionaryValue : public Value {
   void SetInteger(const std::string& path, int in_value);
   void SetReal(const std::string& path, double in_value);
   void SetString(const std::string& path, const std::string& in_value);
-  void SetStringFromUTF16(const std::string& path, const string16& in_value);
+  void SetString(const std::string& path, const string16& in_value);
   /*DEPRECATED*/void SetBoolean(const std::wstring& path, bool in_value);
   /*DEPRECATED*/void SetInteger(const std::wstring& path, int in_value);
   /*DEPRECATED*/void SetReal(const std::wstring& path, double in_value);
   /*DEPRECATED*/void SetString(const std::wstring& path,
                                const std::string& in_value);
   /*DEPRECATED*/void SetString(const std::wstring& path,
+                               const string16& in_value);
+#if !defined(WCHAR_T_IS_UTF16)
+  /*DEPRECATED*/void SetString(const std::wstring& path,
                                const std::wstring& in_value);
-  /*DEPRECATED*/void SetStringFromUTF16(const std::wstring& path,
-                                        const string16& in_value);
+#endif
 
   // Like Set(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
