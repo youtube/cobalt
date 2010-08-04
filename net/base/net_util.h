@@ -321,7 +321,7 @@ bool CanStripTrailingSlash(const GURL& url);
 //   - reference section
 GURL SimplifyUrlForRequest(const GURL& url);
 
-void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports);
+void SetExplicitlyAllowedPorts(const std::string& allowed_ports);
 
 // Perform a simplistic test to see if IPv6 is supported by trying to create an
 // IPv6 socket.
