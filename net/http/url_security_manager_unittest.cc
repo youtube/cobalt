@@ -43,29 +43,6 @@ const TestData kTestDataList[] = {
 
 }  // namespace
 
-// For Windows, This relies on the contents of the registry, so in theory it
-// might fail.
-TEST(URLSecurityManager, FLAKY_CreateNoWhitelist) {
-  scoped_ptr<URLSecurityManager> url_security_manager(
-      URLSecurityManager::Create(NULL));
-  ASSERT_TRUE(url_security_manager.get());
-
-  for (size_t i = 0; i < arraysize(kTestDataList); ++i) {
-    GURL gurl(kTestDataList[i].url);
-    bool can_use_default =
-        url_security_manager->CanUseDefaultCredentials(gurl);
-
-#if defined(OS_WIN)
-    EXPECT_EQ(kTestDataList[i].succeds_in_windows_default, can_use_default)
-        << " Run: " << i << " URL: '" << gurl << "'";
-#else
-    // No whitelist means nothing can use the default.
-    EXPECT_FALSE(can_use_default)
-        << " Run: " << i << " URL: '" << gurl << "'";
-#endif // OS_WIN
-  }
-}
-
 TEST(URLSecurityManager, CreateWhitelist) {
   HttpAuthFilterWhitelist* auth_filter = new HttpAuthFilterWhitelist();
   ASSERT_TRUE(auth_filter);
