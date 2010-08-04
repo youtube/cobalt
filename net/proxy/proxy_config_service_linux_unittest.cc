@@ -104,6 +104,7 @@ class MockEnvironment : public base::Environment {
     values = zero_values;
   }
 
+  // Begin base::Environment implementation.
   virtual bool GetEnv(const char* variable_name, std::string* result) {
     const char* env_value = table.Get(variable_name);
     if (env_value) {
@@ -119,10 +120,11 @@ class MockEnvironment : public base::Environment {
     return false;
   }
 
-  virtual bool UnSetEnv(const char* variable_name) {
+  virtual bool UnSetVar(const char* variable_name) {
     ADD_FAILURE();
     return false;
   }
+  // End base::Environment implementation.
 
   // Intentionally public, for convenience when setting up a test.
   EnvVarValues values;

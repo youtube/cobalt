@@ -38,7 +38,7 @@ TEST_F(EnvironmentTest, SetEnvVar) {
   EXPECT_EQ(var_value, kFooLower);
 }
 
-TEST_F(EnvironmentTest, UnSetEnvVar) {
+TEST_F(EnvironmentTest, UnSetVar) {
   scoped_ptr<base::Environment> env(base::Environment::Create());
 
   const char kFooUpper[] = "FOO";
@@ -50,7 +50,7 @@ TEST_F(EnvironmentTest, UnSetEnvVar) {
   EXPECT_TRUE(env->HasEnv(kFooUpper));
 
   // Finally verify that the environment variable was erased.
-  EXPECT_TRUE(env->UnSetEnv(kFooUpper));
+  EXPECT_TRUE(env->UnSetVar(kFooUpper));
 
   // And check that the variable has been unset.
   EXPECT_FALSE(env->HasEnv(kFooUpper));
