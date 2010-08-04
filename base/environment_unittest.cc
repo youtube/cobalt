@@ -17,10 +17,10 @@ TEST_F(EnvironmentTest, GetEnvVar) {
   EXPECT_NE(env_value, "");
 }
 
-TEST_F(EnvironmentTest, HasEnvVar) {
+TEST_F(EnvironmentTest, HasVar) {
   // Every setup should have PATH...
   scoped_ptr<base::Environment> env(base::Environment::Create());
-  EXPECT_TRUE(env->HasEnv("PATH"));
+  EXPECT_TRUE(env->HasVar("PATH"));
 }
 
 TEST_F(EnvironmentTest, SetEnvVar) {
@@ -31,7 +31,7 @@ TEST_F(EnvironmentTest, SetEnvVar) {
   EXPECT_TRUE(env->SetEnv(kFooUpper, kFooLower));
 
   // Now verify that the environment has the new variable.
-  EXPECT_TRUE(env->HasEnv(kFooUpper));
+  EXPECT_TRUE(env->HasVar(kFooUpper));
 
   std::string var_value;
   EXPECT_TRUE(env->GetEnv(kFooUpper, &var_value));
@@ -47,11 +47,11 @@ TEST_F(EnvironmentTest, UnSetVar) {
   EXPECT_TRUE(env->SetEnv(kFooUpper, kFooLower));
 
   // Now verify that the environment has the new variable.
-  EXPECT_TRUE(env->HasEnv(kFooUpper));
+  EXPECT_TRUE(env->HasVar(kFooUpper));
 
   // Finally verify that the environment variable was erased.
   EXPECT_TRUE(env->UnSetVar(kFooUpper));
 
   // And check that the variable has been unset.
-  EXPECT_FALSE(env->HasEnv(kFooUpper));
+  EXPECT_FALSE(env->HasVar(kFooUpper));
 }
