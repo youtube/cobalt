@@ -36,7 +36,7 @@ class ClientSocketHandle;
 class HttpNetworkSession;
 class HttpRequestHeaders;
 class HttpStream;
-class SpdyHttpStream;
+class SpdySession;
 
 class HttpNetworkTransaction : public HttpTransaction {
  public:
@@ -91,6 +91,8 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_RESOLVE_PROXY_COMPLETE,
     STATE_INIT_CONNECTION,
     STATE_INIT_CONNECTION_COMPLETE,
+    STATE_INIT_STREAM,
+    STATE_INIT_STREAM_COMPLETE,
     STATE_RESTART_TUNNEL_AUTH,
     STATE_RESTART_TUNNEL_AUTH_COMPLETE,
     STATE_GENERATE_PROXY_AUTH_TOKEN,
@@ -105,14 +107,6 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_READ_BODY_COMPLETE,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE,
-    STATE_SPDY_GET_STREAM,
-    STATE_SPDY_GET_STREAM_COMPLETE,
-    STATE_SPDY_SEND_REQUEST,
-    STATE_SPDY_SEND_REQUEST_COMPLETE,
-    STATE_SPDY_READ_HEADERS,
-    STATE_SPDY_READ_HEADERS_COMPLETE,
-    STATE_SPDY_READ_BODY,
-    STATE_SPDY_READ_BODY_COMPLETE,
     STATE_NONE
   };
 
@@ -136,6 +130,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoResolveProxyComplete(int result);
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
+  int DoInitStream();
+  int DoInitStreamComplete(int result);
   int DoRestartTunnelAuth();
   int DoRestartTunnelAuthComplete(int result);
   int DoGenerateProxyAuthToken();
@@ -150,14 +146,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoReadBodyComplete(int result);
   int DoDrainBodyForAuthRestart();
   int DoDrainBodyForAuthRestartComplete(int result);
-  int DoSpdyGetStream();
-  int DoSpdyGetStreamComplete(int result);
-  int DoSpdySendRequest();
-  int DoSpdySendRequestComplete(int result);
-  int DoSpdyReadHeaders();
-  int DoSpdyReadHeadersComplete(int result);
-  int DoSpdyReadBody();
-  int DoSpdyReadBodyComplete(int result);
 
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
@@ -277,8 +265,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   ProxyInfo proxy_info_;
 
   scoped_ptr<ClientSocketHandle> connection_;
-  scoped_ptr<HttpStream> http_stream_;
-  scoped_ptr<SpdyHttpStream> spdy_http_stream_;
+  scoped_ptr<HttpStream> stream_;
+  scoped_refptr<SpdySession> spdy_session_;
   bool reused_socket_;
 
   // True if we've validated the headers that the stream parser has returned.
