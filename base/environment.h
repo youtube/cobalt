@@ -40,7 +40,7 @@ class Environment {
                       const std::string& new_value) = 0;
 
   // Returns true on success, otherwise returns false.
-  virtual bool UnSetEnv(const char* variable_name) = 0;
+  virtual bool UnSetVar(const char* variable_name) = 0;
 };
 
 }  // namespace base
