@@ -8,6 +8,8 @@
 
 #include <string>
 
+#include "base/basictypes.h"
+
 namespace net {
 
 // DNSDomainFromDot - convert a domain string to DNS format. From DJB's
@@ -23,6 +25,14 @@ bool IsSTD3ASCIIValidCharacter(char c);
 
 // Returns the hostname by trimming the ending dot, if one exists.
 std::string TrimEndingDot(const std::string& host);
+
+// DNS resource record types. See
+// http://www.iana.org/assignments/dns-parameters
+
+static const uint16 kDNS_TXT = 16;
+static const uint16 kDNS_RRSIG = 46;
+static const uint16 kDNS_CERT = 37;
+static const uint16 kDNS_ANY = 0xff;
 
 }  // namespace net
 
