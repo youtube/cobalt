@@ -432,6 +432,8 @@ void CommandLine::AppendArguments(const CommandLine& other,
 }
 
 void CommandLine::PrependWrapper(const std::wstring& wrapper) {
+  if (wrapper.empty())
+    return;
   // The wrapper may have embedded arguments (like "gdb --args"). In this case,
   // we don't pretend to do anything fancy, we just split on spaces.
   std::vector<std::wstring> wrapper_and_args;
@@ -475,10 +477,9 @@ void CommandLine::AppendArguments(const CommandLine& other,
     switches_[i->first] = i->second;
 }
 
-void CommandLine::PrependWrapper(const std::wstring& wrapper_wide) {
+void CommandLine::PrependWrapper(const std::string& wrapper) {
   // The wrapper may have embedded arguments (like "gdb --args"). In this case,
   // we don't pretend to do anything fancy, we just split on spaces.
-  const std::string wrapper = base::SysWideToNativeMB(wrapper_wide);
   std::vector<std::string> wrapper_and_args;
   SplitString(wrapper, ' ', &wrapper_and_args);
   argv_.insert(argv_.begin(), wrapper_and_args.begin(), wrapper_and_args.end());
