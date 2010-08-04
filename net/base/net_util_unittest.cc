@@ -1846,8 +1846,8 @@ TEST(NetUtilTest, SimplifyUrlForRequest) {
 }
 
 TEST(NetUtilTest, SetExplicitlyAllowedPortsTest) {
-  std::wstring invalid[] = { L"1,2,a", L"'1','2'", L"1, 2, 3", L"1 0,11,12" };
-  std::wstring valid[] = { L"", L"1", L"1,2", L"1,2,3", L"10,11,12,13" };
+  std::string invalid[] = { "1,2,a", "'1','2'", "1, 2, 3", "1 0,11,12" };
+  std::string valid[] = { "", "1", "1,2", "1,2,3", "10,11,12,13" };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(invalid); ++i) {
     net::SetExplicitlyAllowedPorts(invalid[i]);

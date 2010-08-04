@@ -1638,7 +1638,7 @@ GURL SimplifyUrlForRequest(const GURL& url) {
 
 // Specifies a comma separated list of port numbers that should be accepted
 // despite bans. If the string is invalid no allowed ports are stored.
-void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
+void SetExplicitlyAllowedPorts(const std::string& allowed_ports) {
   if (allowed_ports.empty())
     return;
 
@@ -1646,7 +1646,7 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
   size_t last = 0;
   size_t size = allowed_ports.size();
   // The comma delimiter.
-  const std::wstring::value_type kComma = L',';
+  const std::string::value_type kComma = ',';
 
   // Overflow is still possible for evil user inputs.
   for (size_t i = 0; i <= size; ++i) {
@@ -1658,8 +1658,7 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
       size_t length = i - last;
       if (length > 0) {
         int port;
-        base::StringToInt(WideToUTF8(allowed_ports.substr(last, length)),
-                          &port);
+        base::StringToInt(allowed_ports.substr(last, length), &port);
         ports.insert(port);
       }
       last = i + 1;
