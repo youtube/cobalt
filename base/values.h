@@ -289,7 +289,7 @@ class DictionaryValue : public Value {
   bool GetInteger(const std::string& path, int* out_value) const;
   bool GetReal(const std::string& path, double* out_value) const;
   bool GetString(const std::string& path, std::string* out_value) const;
-  bool GetStringAsUTF16(const std::string& path, string16* out_value) const;
+  bool GetString(const std::string& path, string16* out_value) const;
   bool GetStringASCII(const std::string& path, std::string* out_value) const;
   bool GetBinary(const std::string& path, BinaryValue** out_value) const;
   bool GetDictionary(const std::string& path,
@@ -299,15 +299,10 @@ class DictionaryValue : public Value {
                                 bool* out_value) const;
   /*DEPRECATED*/bool GetInteger(const std::wstring& path, int* out_value) const;
   /*DEPRECATED*/bool GetReal(const std::wstring& path, double* out_value) const;
-  // Use |GetStringAsUTF16()| instead:
-  /*DEPRECATED*/bool GetString(const std::string& path,
-                               string16* out_value) const;
   /*DEPRECATED*/bool GetString(const std::wstring& path,
                                std::string* out_value) const;
   /*DEPRECATED*/bool GetString(const std::wstring& path,
                                std::wstring* out_value) const;
-  /*DEPRECATED*/bool GetStringAsUTF16(const std::wstring& path,
-                                      string16* out_value) const;
   /*DEPRECATED*/bool GetBinary(const std::wstring& path,
                                BinaryValue** out_value) const;
   /*DEPRECATED*/bool GetDictionary(const std::wstring& path,
@@ -323,8 +318,8 @@ class DictionaryValue : public Value {
                                       int* out_value) const;
   bool GetStringWithoutPathExpansion(const std::string& key,
                                      std::string* out_value) const;
-  bool GetStringAsUTF16WithoutPathExpansion(const std::string& key,
-                                            string16* out_value) const;
+  bool GetStringWithoutPathExpansion(const std::string& key,
+                                     string16* out_value) const;
   bool GetDictionaryWithoutPathExpansion(const std::string& key,
                                          DictionaryValue** out_value) const;
   bool GetListWithoutPathExpansion(const std::string& key,
@@ -337,8 +332,6 @@ class DictionaryValue : public Value {
                     const std::wstring& key, std::string* out_value) const;
   /*DEPRECATED*/bool GetStringWithoutPathExpansion(
                     const std::wstring& key, std::wstring* out_value) const;
-  /*DEPRECATED*/bool GetStringAsUTF16WithoutPathExpansion(
-                    const std::wstring& key, string16* out_value) const;
   /*DEPRECATED*/bool GetDictionaryWithoutPathExpansion(
                     const std::wstring& key, DictionaryValue** out_value) const;
   /*DEPRECATED*/bool GetListWithoutPathExpansion(const std::wstring& key,
@@ -459,8 +452,10 @@ class ListValue : public Value {
   bool GetInteger(size_t index, int* out_value) const;
   bool GetReal(size_t index, double* out_value) const;
   bool GetString(size_t index, std::string* out_value) const;
-  bool GetString(size_t index, std::wstring* out_value) const;
-  bool GetStringAsUTF16(size_t index, string16* out_value) const;
+  bool GetString(size_t index, string16* out_value) const;
+#if !defined(WCHAR_T_IS_UTF16)
+  /*DEPRECATED*/bool GetString(size_t index, std::wstring* out_value) const;
+#endif
   bool GetBinary(size_t index, BinaryValue** out_value) const;
   bool GetDictionary(size_t index, DictionaryValue** out_value) const;
   bool GetList(size_t index, ListValue** out_value) const;

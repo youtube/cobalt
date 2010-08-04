@@ -565,8 +565,8 @@ bool DictionaryValue::GetString(const std::string& path,
   return value->GetAsString(out_value);
 }
 
-bool DictionaryValue::GetStringAsUTF16(const std::string& path,
-                                       string16* out_value) const {
+bool DictionaryValue::GetString(const std::string& path,
+                                string16* out_value) const {
   Value* value;
   if (!Get(path, &value))
     return false;
@@ -646,12 +646,6 @@ bool DictionaryValue::GetReal(const std::wstring& path,
   return GetReal(WideToUTF8(path), out_value);
 }
 
-// TODO(viettrungluu): or maybe we should get rid of the "AsUTF16" version?
-bool DictionaryValue::GetString(const std::string& path,
-                                string16* out_value) const {
-  return GetStringAsUTF16(path, out_value);
-}
-
 // TODO(viettrungluu): Deprecated and to be removed:
 bool DictionaryValue::GetString(const std::wstring& path,
                                 std::string* out_value) const {
@@ -666,12 +660,6 @@ bool DictionaryValue::GetString(const std::wstring& path,
     return false;
 
   return value->GetAsString(out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetStringAsUTF16(const std::wstring& path,
-                                       string16* out_value) const {
-  return GetStringAsUTF16(WideToUTF8(path), out_value);
 }
 
 // TODO(viettrungluu): Deprecated and to be removed:
@@ -723,7 +711,7 @@ bool DictionaryValue::GetStringWithoutPathExpansion(
   return value->GetAsString(out_value);
 }
 
-bool DictionaryValue::GetStringAsUTF16WithoutPathExpansion(
+bool DictionaryValue::GetStringWithoutPathExpansion(
     const std::string& key,
     string16* out_value) const {
   Value* value;
@@ -788,13 +776,6 @@ bool DictionaryValue::GetStringWithoutPathExpansion(
     return false;
 
   return value->GetAsString(out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetStringAsUTF16WithoutPathExpansion(
-    const std::wstring& key,
-    string16* out_value) const {
-  return GetStringAsUTF16WithoutPathExpansion(WideToUTF8(key), out_value);
 }
 
 // TODO(viettrungluu): Deprecated and to be removed:
@@ -1058,6 +1039,16 @@ bool ListValue::GetString(size_t index, std::string* out_value) const {
   return value->GetAsString(out_value);
 }
 
+bool ListValue::GetString(size_t index, string16* out_value) const {
+  Value* value;
+  if (!Get(index, &value))
+    return false;
+
+  return value->GetAsString(out_value);
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+// TODO(viettrungluu): Deprecated and to be removed:
 bool ListValue::GetString(size_t index, std::wstring* out_value) const {
   Value* value;
   if (!Get(index, &value))
@@ -1065,14 +1056,7 @@ bool ListValue::GetString(size_t index, std::wstring* out_value) const {
 
   return value->GetAsString(out_value);
 }
-
-bool ListValue::GetStringAsUTF16(size_t index, string16* out_value) const {
-  Value* value;
-  if (!Get(index, &value))
-    return false;
-
-  return value->GetAsString(out_value);
-}
+#endif
 
 bool ListValue::GetBinary(size_t index, BinaryValue** out_value) const {
   Value* value;
