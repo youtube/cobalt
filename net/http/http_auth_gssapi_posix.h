@@ -20,7 +20,7 @@ class GURL;
 
 namespace net {
 
-class HttpRequestInfo;
+struct HttpRequestInfo;
 
 extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
 extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
@@ -205,7 +205,7 @@ class ScopedSecurityContext {
   explicit ScopedSecurityContext(GSSAPILibrary* gssapi_lib);
   ~ScopedSecurityContext();
 
-  const gss_ctx_id_t get() const { return security_context_; }
+  gss_ctx_id_t get() const { return security_context_; }
   gss_ctx_id_t* receive() { return &security_context_; }
 
  private:
