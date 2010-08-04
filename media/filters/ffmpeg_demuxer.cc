@@ -9,6 +9,7 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "media/base/filter_host.h"
+#include "media/base/limits.h"
 #include "media/base/media_switches.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/ffmpeg/ffmpeg_util.h"
@@ -468,7 +469,13 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
     max_duration =
         std::max(max_duration,
                  ConvertTimestamp(av_time_base, format_context_->duration));
+  } else {
+    // If the duration is not a valid value. Assume that this is a live stream
+    // and we set duration to the maximum int64 number to represent infinity.
+    max_duration = base::TimeDelta::FromMicroseconds(
+        Limits::kMaxTimeInMicroseconds);
   }
+
   // Good to go: set the duration and notify we're done initializing.
   host()->SetDuration(max_duration);
   callback->Run();
