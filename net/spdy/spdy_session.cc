@@ -84,13 +84,15 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
 
   Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
-    DictionaryValue* headers_dict = new DictionaryValue();
+    ListValue* headers_list = new ListValue();
     for (spdy::SpdyHeaderBlock::const_iterator it = headers_->begin();
          it != headers_->end(); ++it) {
-      headers_dict->SetString(it->first, it->second);
+      headers_list->Append(new StringValue(StringPrintf("%s: %s",
+                                                        it->first.c_str(),
+                                                        it->second.c_str())));
     }
     dict->SetInteger("flags", flags_);
-    dict->Set("headers", headers_dict);
+    dict->Set("headers", headers_list);
     dict->SetInteger("id", id_);
     return dict;
   }
