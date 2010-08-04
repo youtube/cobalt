@@ -12,6 +12,26 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 class ValuesTest: public testing::Test {
+ protected:
+  void CompareDictionariesAndCheckResult(
+      const DictionaryValue* dict1,
+      const DictionaryValue* dict2,
+      const char* expected_paths[],
+      size_t expected_paths_count) {
+    std::vector<std::string> differing_paths;
+    std::vector<std::string> expected_paths_vector(expected_paths,
+        expected_paths+expected_paths_count);
+    // All comparisons should be commutative, check dict1 against dict2
+    // and vice-versa.
+    dict1->GetDifferingPaths(dict2, &differing_paths);
+    ASSERT_EQ(expected_paths_count, differing_paths.size());
+    EXPECT_TRUE(equal(differing_paths.begin(), differing_paths.end(),
+                      expected_paths_vector.begin()));
+    dict2->GetDifferingPaths(dict1, &differing_paths);
+    ASSERT_EQ(expected_paths_count, differing_paths.size());
+    EXPECT_TRUE(equal(differing_paths.begin(), differing_paths.end(),
+                      expected_paths_vector.begin()));
+  }
 };
 
 // TODO(viettrungluu): I changed the keys for DictionaryValue from std::wstring
@@ -21,7 +41,7 @@ class ValuesTest: public testing::Test {
 // methods are removed. There are also parts of tests marked DEPRECATED which
 // are to be deleted.
 
-TEST(ValuesTest, Basic) {
+TEST_F(ValuesTest, Basic) {
   // Test basic dictionary getting/setting
   DictionaryValue settings;
   std::string homepage = "http://google.com";
@@ -65,7 +85,7 @@ TEST(ValuesTest, Basic) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, BasicDeprecated) {
+TEST_F(ValuesTest, BasicDeprecated) {
   // Test basic dictionary getting/setting
   DictionaryValue settings;
   std::wstring homepage = L"http://google.com";
@@ -110,7 +130,7 @@ TEST(ValuesTest, BasicDeprecated) {
   ASSERT_EQ(std::wstring(L"http://froogle.com"), bookmark_url);
 }
 
-TEST(ValuesTest, List) {
+TEST_F(ValuesTest, List) {
   scoped_ptr<ListValue> mixed_list(new ListValue());
   mixed_list->Set(0, Value::CreateBooleanValue(true));
   mixed_list->Set(1, Value::CreateIntegerValue(42));
@@ -145,7 +165,7 @@ TEST(ValuesTest, List) {
   ASSERT_EQ("foo", string_value);
 }
 
-TEST(ValuesTest, BinaryValue) {
+TEST_F(ValuesTest, BinaryValue) {
   char* buffer = NULL;
   // Passing a null buffer pointer doesn't yield a BinaryValue
   scoped_ptr<BinaryValue> binary(BinaryValue::Create(buffer, 0));
@@ -178,7 +198,7 @@ TEST(ValuesTest, BinaryValue) {
   ASSERT_EQ(0, memcmp(stack_buffer, binary->GetBuffer(), binary->GetSize()));
 }
 
-TEST(ValuesTest, StringValue) {
+TEST_F(ValuesTest, StringValue) {
   // Test overloaded CreateStringValue.
   scoped_ptr<Value> narrow_value(Value::CreateStringValue("narrow"));
   ASSERT_TRUE(narrow_value.get());
@@ -203,7 +223,7 @@ TEST(ValuesTest, StringValue) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, StringValueDeprecated) {
+TEST_F(ValuesTest, StringValueDeprecated) {
   // Test overloaded CreateStringValue.
   scoped_ptr<Value> narrow_value(Value::CreateStringValue("narrow"));
   ASSERT_TRUE(narrow_value.get());
@@ -264,7 +284,7 @@ class DeletionTestValue : public Value {
   bool* deletion_flag_;
 };
 
-TEST(ValuesTest, ListDeletion) {
+TEST_F(ValuesTest, ListDeletion) {
   bool deletion_flag = true;
 
   {
@@ -291,7 +311,7 @@ TEST(ValuesTest, ListDeletion) {
   }
 }
 
-TEST(ValuesTest, ListRemoval) {
+TEST_F(ValuesTest, ListRemoval) {
   bool deletion_flag = true;
   Value* removed_item = NULL;
 
@@ -332,7 +352,7 @@ TEST(ValuesTest, ListRemoval) {
   }
 }
 
-TEST(ValuesTest, DictionaryDeletion) {
+TEST_F(ValuesTest, DictionaryDeletion) {
   std::string key = "test";
   bool deletion_flag = true;
 
@@ -361,7 +381,7 @@ TEST(ValuesTest, DictionaryDeletion) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, DictionaryDeletionDeprecated) {
+TEST_F(ValuesTest, DictionaryDeletionDeprecated) {
   std::wstring key = L"test";
   bool deletion_flag = true;
 
@@ -389,7 +409,7 @@ TEST(ValuesTest, DictionaryDeletionDeprecated) {
   }
 }
 
-TEST(ValuesTest, DictionaryRemoval) {
+TEST_F(ValuesTest, DictionaryRemoval) {
   std::string key = "test";
   bool deletion_flag = true;
   Value* removed_item = NULL;
@@ -421,7 +441,7 @@ TEST(ValuesTest, DictionaryRemoval) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, DictionaryRemovalDeprecated) {
+TEST_F(ValuesTest, DictionaryRemovalDeprecated) {
   std::wstring key = L"test";
   bool deletion_flag = true;
   Value* removed_item = NULL;
@@ -452,7 +472,7 @@ TEST(ValuesTest, DictionaryRemovalDeprecated) {
   }
 }
 
-TEST(ValuesTest, DictionaryWithoutPathExpansion) {
+TEST_F(ValuesTest, DictionaryWithoutPathExpansion) {
   DictionaryValue dict;
   dict.Set("this.is.expanded", Value::CreateNullValue());
   dict.SetWithoutPathExpansion("this.isnt.expanded", Value::CreateNullValue());
@@ -475,7 +495,7 @@ TEST(ValuesTest, DictionaryWithoutPathExpansion) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, DictionaryWithoutPathExpansionDeprecated) {
+TEST_F(ValuesTest, DictionaryWithoutPathExpansionDeprecated) {
   DictionaryValue dict;
   dict.Set(L"this.is.expanded", Value::CreateNullValue());
   dict.SetWithoutPathExpansion(L"this.isnt.expanded", Value::CreateNullValue());
@@ -497,7 +517,7 @@ TEST(ValuesTest, DictionaryWithoutPathExpansionDeprecated) {
   EXPECT_EQ(Value::TYPE_NULL, value4->GetType());
 }
 
-TEST(ValuesTest, DeepCopy) {
+TEST_F(ValuesTest, DeepCopy) {
   DictionaryValue original_dict;
   Value* original_null = Value::CreateNullValue();
   original_dict.Set("null", original_null);
@@ -623,7 +643,7 @@ TEST(ValuesTest, DeepCopy) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, DeepCopyDeprecated) {
+TEST_F(ValuesTest, DeepCopyDeprecated) {
   DictionaryValue original_dict;
   Value* original_null = Value::CreateNullValue();
   original_dict.Set(L"null", original_null);
@@ -767,7 +787,7 @@ TEST(ValuesTest, DeepCopyDeprecated) {
   ASSERT_EQ(1, copy_list_element_1_value);
 }
 
-TEST(ValuesTest, Equals) {
+TEST_F(ValuesTest, Equals) {
   Value* null1 = Value::CreateNullValue();
   Value* null2 = Value::CreateNullValue();
   EXPECT_NE(null1, null2);
@@ -805,7 +825,7 @@ TEST(ValuesTest, Equals) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, EqualsDeprecated) {
+TEST_F(ValuesTest, EqualsDeprecated) {
   Value* null1 = Value::CreateNullValue();
   Value* null2 = Value::CreateNullValue();
   EXPECT_NE(null1, null2);
@@ -842,7 +862,7 @@ TEST(ValuesTest, EqualsDeprecated) {
   delete copy;
 }
 
-TEST(ValuesTest, RemoveEmptyChildren) {
+TEST_F(ValuesTest, RemoveEmptyChildren) {
   scoped_ptr<DictionaryValue> root(new DictionaryValue);
   // Remove empty lists and dictionaries.
   root->Set("empty_dict", new DictionaryValue);
@@ -918,7 +938,7 @@ TEST(ValuesTest, RemoveEmptyChildren) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, RemoveEmptyChildrenDeprecated) {
+TEST_F(ValuesTest, RemoveEmptyChildrenDeprecated) {
   scoped_ptr<DictionaryValue> root(new DictionaryValue);
   // Remove empty lists and dictionaries.
   root->Set(L"empty_dict", new DictionaryValue);
@@ -993,7 +1013,7 @@ TEST(ValuesTest, RemoveEmptyChildrenDeprecated) {
   }
 }
 
-TEST(ValuesTest, MergeDictionary) {
+TEST_F(ValuesTest, MergeDictionary) {
   scoped_ptr<DictionaryValue> base(new DictionaryValue);
   base->SetString("base_key", "base_key_value_base");
   base->SetString("collide_key", "collide_key_value_base");
@@ -1039,7 +1059,7 @@ TEST(ValuesTest, MergeDictionary) {
 }
 
 // TODO(viettrungluu): deprecate:
-TEST(ValuesTest, MergeDictionaryDeprecated) {
+TEST_F(ValuesTest, MergeDictionaryDeprecated) {
   scoped_ptr<DictionaryValue> base(new DictionaryValue);
   base->SetString(L"base_key", "base_key_value_base");
   base->SetString(L"collide_key", "collide_key_value_base");
@@ -1082,4 +1102,115 @@ TEST(ValuesTest, MergeDictionaryDeprecated) {
   std::string sub_merge_key_value;
   EXPECT_TRUE(res_sub_dict->GetString(L"sub_merge_key", &sub_merge_key_value));
   EXPECT_EQ("sub_merge_key_value_merge", sub_merge_key_value); // Merged in.
+}
+
+TEST_F(ValuesTest, GetDifferingPaths) {
+  scoped_ptr<DictionaryValue> dict1(new DictionaryValue());
+  scoped_ptr<DictionaryValue> dict2(new DictionaryValue());
+  std::vector<std::string> differing_paths;
+
+  // Test comparing empty dictionaries.
+  dict1->GetDifferingPaths(dict2.get(), &differing_paths);
+  EXPECT_EQ(differing_paths.size(), 0UL);
+
+  // Compare an empty dictionary with various non-empty dictionaries.
+  static const char* expected_paths1[] = {
+      "segment1"
+  };
+  dict1->SetString("segment1", "value1");
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths1,
+                                    arraysize(expected_paths1));
+
+  static const char* expected_paths2[] = {
+    "segment1",
+    "segment2",
+    "segment2.segment3"
+  };
+  dict1->SetString("segment2.segment3", "value2");
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths2,
+                                    arraysize(expected_paths2));
+
+  static const char* expected_paths3[] = {
+    "segment1",
+    "segment2",
+    "segment2.segment3",
+    "segment4",
+    "segment4.segment5"
+  };
+  dict1->SetString("segment4.segment5", "value3");
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths3,
+                                    arraysize(expected_paths3));
+
+  // Now various tests with two populated dictionaries.
+  static const char* expected_paths4[] = {
+    "segment1",
+    "segment2",
+    "segment2.segment3",
+    "segment4",
+    "segment4.segment5"
+  };
+  dict2->Set("segment2", new DictionaryValue());
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths4,
+                                    arraysize(expected_paths4));
+
+  static const char* expected_paths5[] = {
+    "segment1",
+    "segment4",
+    "segment4.segment5"
+  };
+  dict2->SetString("segment2.segment3", "value2");
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths5,
+                                    arraysize(expected_paths5));
+
+  dict2->SetBoolean("segment2.segment3", true);
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths4,
+                                    arraysize(expected_paths4));
+
+  // Test two identical dictionaries.
+  dict2.reset(static_cast<DictionaryValue*>(dict1->DeepCopy()));
+  dict2->GetDifferingPaths(dict1.get(), &differing_paths);
+  EXPECT_EQ(differing_paths.size(), 0UL);
+
+  // Test a deep dictionary structure.
+  static const char* expected_paths6[] = {
+    "s1",
+    "s1.s2",
+    "s1.s2.s3",
+    "s1.s2.s3.s4",
+    "s1.s2.s3.s4.s5"
+  };
+  dict1.reset(new DictionaryValue());
+  dict2.reset(new DictionaryValue());
+  dict1->Set("s1.s2.s3.s4.s5", new DictionaryValue());
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths6,
+                                    arraysize(expected_paths6));
+
+  // Make sure disjoint dictionaries generate the right differing path list.
+  static const char* expected_paths7[] = {
+    "a",
+    "b",
+    "c",
+    "d"
+  };
+  dict1.reset(new DictionaryValue());
+  dict1->SetBoolean("a", true);
+  dict1->SetBoolean("c", true);
+  dict2.reset(new DictionaryValue());
+  dict1->SetBoolean("b", true);
+  dict1->SetBoolean("d", true);
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths7,
+                                    arraysize(expected_paths7));
+
+  // For code coverage completeness. Make sure that all branches
+  // that were not covered are executed.
+  static const char* expected_paths8[] = {
+    "s1",
+    "s1.s2"
+  };
+  dict1.reset(new DictionaryValue());
+  dict1->Set("s1.s2", new DictionaryValue());
+  dict2.reset(new DictionaryValue());
+  dict2->SetInteger("s1", 1);
+  CompareDictionariesAndCheckResult(dict1.get(), dict2.get(), expected_paths8,
+                                    arraysize(expected_paths8));
 }

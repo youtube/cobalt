@@ -367,6 +367,16 @@ class DictionaryValue : public Value {
   // replaced.
   void MergeDictionary(const DictionaryValue* dictionary);
 
+  // Builds a vector containing all of the paths that are different between
+  // the dictionary and a second specified dictionary. These are paths of
+  // values that are either in one dictionary or the other but not both, OR
+  // paths that are present in both dictionaries but differ in value.
+  // Path strings are in ascending lexicographical order in the generated
+  // vector. |different_paths| is cleared before added any paths.
+  void GetDifferingPaths(
+      const DictionaryValue* other,
+      std::vector<std::string>* different_paths) const;
+
   // This class provides an iterator for the keys in the dictionary.
   // It can't be used to modify the dictionary.
   //
@@ -393,6 +403,17 @@ class DictionaryValue : public Value {
   key_iterator end_keys() const { return key_iterator(dictionary_.end()); }
 
  private:
+  // Does the actual heavy lifting for GetDifferingPaths.
+  // Returns true if a path is added to different_paths, otherwise false.
+  // The difference compuation is calculated recursively. The keys for
+  // dictionaries that are handled by recursive calls more shallow than
+  // the current one are concatenated and passed through to deeper calls in
+  // |path_prefix|.
+  bool GetDifferingPathsHelper(
+      const std::string& path_prefix,
+      const DictionaryValue* other,
+      std::vector<std::string>* different_paths) const;
+
   ValueMap dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(DictionaryValue);
