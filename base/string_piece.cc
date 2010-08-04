@@ -54,7 +54,7 @@ size_type StringPiece::find(char c, size_type pos) const {
     return npos;
 
   const char* result = std::find(ptr_ + pos, ptr_ + length_, c);
-  return result != ptr_ + length_ ? result - ptr_ : npos;
+  return result != ptr_ + length_ ? static_cast<size_t>(result - ptr_) : npos;
 }
 
 size_type StringPiece::rfind(const StringPiece& s, size_type pos) const {
@@ -66,7 +66,7 @@ size_type StringPiece::rfind(const StringPiece& s, size_type pos) const {
 
   const char* last = ptr_ + std::min(length_ - s.length_, pos) + s.length_;
   const char* result = std::find_end(ptr_, last, s.ptr_, s.ptr_ + s.length_);
-  return result != last ? result - ptr_ : npos;
+  return result != last ? static_cast<size_t>(result - ptr_) : npos;
 }
 
 size_type StringPiece::rfind(char c, size_type pos) const {
