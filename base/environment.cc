@@ -44,8 +44,8 @@ class EnvironmentImpl : public base::Environment {
     return SetEnvImpl(variable_name, new_value);
   }
 
-  virtual bool UnSetEnv(const char* variable_name) {
-    return UnSetEnvImpl(variable_name);
+  virtual bool UnSetVar(const char* variable_name) {
+    return UnSetVarImpl(variable_name);
   }
 
  private:
@@ -86,7 +86,7 @@ class EnvironmentImpl : public base::Environment {
 #endif
   }
 
-  bool UnSetEnvImpl(const char* variable_name) {
+  bool UnSetVarImpl(const char* variable_name) {
 #if defined(OS_POSIX)
     // On success, zero is returned.
     return unsetenv(variable_name) == 0;
