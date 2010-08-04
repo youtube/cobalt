@@ -32,7 +32,7 @@ class ErrorNetlogParams : public NetLog::EventParameters {
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetInteger("line_number", line_number_);
-    dict->SetStringFromUTF16("message", message_);
+    dict->SetString("message", message_);
     return dict;
   }
 
@@ -51,7 +51,7 @@ class AlertNetlogParams : public NetLog::EventParameters {
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
-    dict->SetStringFromUTF16("message", message_);
+    dict->SetString("message", message_);
     return dict;
   }
 

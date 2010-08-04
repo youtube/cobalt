@@ -804,7 +804,7 @@ TEST_F(ValuesTest, Equals) {
   dv.SetInteger("b", 2);
   dv.SetReal("c", 2.5);
   dv.SetString("d1", "string");
-  dv.SetStringFromUTF16("d2", ASCIIToUTF16("http://google.com"));
+  dv.SetString("d2", ASCIIToUTF16("http://google.com"));
   dv.Set("e", Value::CreateNullValue());
 
   DictionaryValue* copy = static_cast<DictionaryValue*>(dv.DeepCopy());
