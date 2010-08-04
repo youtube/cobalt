@@ -27,6 +27,9 @@ namespace file_util {
 
 namespace {
 
+const DWORD kFileShareAll =
+    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+
 // Helper for NormalizeFilePath(), defined below.
 bool DevicePathToDriveLetterPath(const FilePath& device_path,
                                  FilePath* drive_letter_path) {
@@ -288,8 +291,7 @@ bool PathExists(const FilePath& path) {
 
 bool PathIsWritable(const FilePath& path) {
   HANDLE dir =
-      CreateFile(path.value().c_str(), FILE_ADD_FILE,
-                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+      CreateFile(path.value().c_str(), FILE_ADD_FILE, kFileShareAll,
                  NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 
   if (dir == INVALID_HANDLE_VALUE)
@@ -325,8 +327,7 @@ bool GetFileCreationLocalTimeFromHandle(HANDLE file_handle,
 bool GetFileCreationLocalTime(const std::wstring& filename,
                               LPSYSTEMTIME creation_time) {
   ScopedHandle file_handle(
-      CreateFile(filename.c_str(), GENERIC_READ,
-                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+      CreateFile(filename.c_str(), GENERIC_READ, kFileShareAll, NULL,
                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
   return GetFileCreationLocalTimeFromHandle(file_handle.Get(), creation_time);
 }
@@ -697,8 +698,7 @@ bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified) {
   FILETIME timestamp(last_modified.ToFileTime());
   ScopedHandle file_handle(
       CreateFile(file_path.value().c_str(), FILE_WRITE_ATTRIBUTES,
-                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
-                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+                 kFileShareAll, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
   BOOL ret = SetFileTime(file_handle.Get(), NULL, &timestamp, &timestamp);
   return ret != 0;
 }
@@ -720,7 +720,7 @@ int ReadFile(const FilePath& filename, char* data, int size) {
                                OPEN_EXISTING,
                                FILE_FLAG_SEQUENTIAL_SCAN,
                                NULL));
-  if (file == INVALID_HANDLE_VALUE)
+  if (!file)
     return -1;
 
   DWORD read;
@@ -738,7 +738,7 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
                                CREATE_ALWAYS,
                                0,
                                NULL));
-  if (file == INVALID_HANDLE_VALUE) {
+  if (!file) {
     LOG(WARNING) << "CreateFile failed for path " << filename.value() <<
         " error code=" << GetLastError() <<
         " error text=" << win_util::FormatLastWin32Error();
@@ -969,50 +969,51 @@ bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
 }
 
 bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
-  ScopedHandle path_handle(
-      ::CreateFile(path.value().c_str(),
-                   GENERIC_READ,
-                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                   NULL,
-                   OPEN_EXISTING,
-                   FILE_ATTRIBUTE_NORMAL,
-                   NULL));
-  if (!path_handle.IsValid())
+  FilePath mapped_file;
+  if (!NormalizeToNativeFilePath(path, &mapped_file))
     return false;
+  // NormalizeToNativeFilePath() will return a path that starts with
+  // "\Device\Harddisk...".  Helper DevicePathToDriveLetterPath()
+  // will find a drive letter which maps to the path's device, so
+  // that we return a path starting with a drive letter.
+  return DevicePathToDriveLetterPath(mapped_file, real_path);
+}
 
+bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
   // In Vista, GetFinalPathNameByHandle() would give us the real path
   // from a file handle.  If we ever deprecate XP, consider changing the
   // code below to a call to GetFinalPathNameByHandle().  The method this
   // function uses is explained in the following msdn article:
   // http://msdn.microsoft.com/en-us/library/aa366789(VS.85).aspx
-  DWORD file_size_high = 0;
-  DWORD file_size_low = ::GetFileSize(path_handle.Get(), &file_size_high);
-  if (file_size_low == 0 && file_size_high == 0) {
-    // It is not possible to map an empty file.
-    LOG(ERROR) << "NormalizeFilePath failed: Empty file.";
+  ScopedHandle file_handle(
+      ::CreateFile(path.value().c_str(),
+                   GENERIC_READ,
+                   kFileShareAll,
+                   NULL,
+                   OPEN_EXISTING,
+                   FILE_ATTRIBUTE_NORMAL,
+                   NULL));
+  if (!file_handle)
     return false;
-  }
 
   // Create a file mapping object.  Can't easily use MemoryMappedFile, because
-  // we only map the first byte, and need direct access to the handle.
+  // we only map the first byte, and need direct access to the handle. You can
+  // not map an empty file, this call fails in that case.
   ScopedHandle file_map_handle(
-      ::CreateFileMapping(path_handle.Get(),
+      ::CreateFileMapping(file_handle.Get(),
                           NULL,
                           PAGE_READONLY,
                           0,
                           1, // Just one byte.  No need to look at the data.
                           NULL));
-
-  if (!file_map_handle.IsValid())
+  if (!file_map_handle)
     return false;
 
   // Use a view of the file to get the path to the file.
-  void* file_view = MapViewOfFile(
-      file_map_handle.Get(), FILE_MAP_READ, 0, 0, 1);
+  void* file_view = MapViewOfFile(file_map_handle.Get(),
+                                  FILE_MAP_READ, 0, 0, 1);
   if (!file_view)
     return false;
-
-  bool success = false;
 
   // The expansion of |path| into a full path may make it longer.
   // GetMappedFileName() will fail if the result is longer than MAX_PATH.
@@ -1022,18 +1023,13 @@ bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
   // path fit in |mapped_file_path|.
   const int kMaxPathLength = MAX_PATH + 10;
   wchar_t mapped_file_path[kMaxPathLength];
-  if (::GetMappedFileName(GetCurrentProcess(),
-                          file_view,
-                          mapped_file_path,
-                          kMaxPathLength)) {
-    // GetMappedFileName() will return a path that starts with
-    // "\Device\Harddisk...".  Helper DevicePathToDriveLetterPath()
-    // will find a drive letter which maps to the path's device, so
-    // that we return a path starting with a drive letter.
-    FilePath mapped_file(mapped_file_path);
-    success = DevicePathToDriveLetterPath(mapped_file, real_path);
+  bool success = false;
+  HANDLE cp = GetCurrentProcess();
+  if (::GetMappedFileNameW(cp, file_view, mapped_file_path, kMaxPathLength)) {
+    *nt_path = FilePath(mapped_file_path);
+    success = true;
   }
-  UnmapViewOfFile(file_view);
+  ::UnmapViewOfFile(file_view);
   return success;
 }
 
