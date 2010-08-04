@@ -132,15 +132,7 @@ class ClientSocketHandle {
   const std::string& group_name() const { return group_name_; }
   int id() const { return pool_id_; }
   ClientSocket* socket() { return socket_.get(); }
-  ClientSocket* release_socket() {
-    // Update the base class to record things like whether we've ever
-    // transmitted data, and whether the connection was able to be established.
-    // We use this data to construct histograms indicating whether a
-    // speculative connection was ever used, etc., when the ClientSocket is
-    // eventually discarded.
-    socket_->UpdateConnectivityState(is_reused());
-    return socket_.release();
-  }
+  ClientSocket* release_socket() { return socket_.release(); }
   bool is_reused() const { return is_reused_; }
   base::TimeDelta idle_time() const { return idle_time_; }
   SocketReuseType reuse_type() const {
