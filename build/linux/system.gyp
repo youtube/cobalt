@@ -308,6 +308,15 @@
         ],
       },
     },
+    {
+      'target_name': 'libresolv',
+      'type': 'settings',
+      'link_settings': {
+        'libraries': [
+          '-lresolv',
+        ],
+      },
+    },
   ],
 }
 
