@@ -307,6 +307,14 @@ bool IsDotDot(const FilePath& path);
 // or if |real_path| would be longer than MAX_PATH characters.
 bool NormalizeFilePath(const FilePath& path, FilePath* real_path);
 
+#if defined(OS_WIN)
+// Given an existing file in |path|, it returns in |real_path| the path
+// in the native NT format, of the form "\Device\HarddiskVolumeXX\..".
+// Returns false it it fails. Empty files cannot be resolved with this
+// function.
+bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path);
+#endif
+
 // Used to hold information about a given file path.  See GetFileInfo below.
 struct FileInfo {
   // The size of the file in bytes.  Undefined when is_directory is true.
