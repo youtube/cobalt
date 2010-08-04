@@ -173,9 +173,9 @@ class CommandLine {
   void AppendArguments(const CommandLine& other,
                        bool include_program);
 
-  // On POSIX systems it's common to run processes via a wrapper (like
-  // "valgrind" or "gdb --args").
-  void PrependWrapper(const std::wstring& wrapper);
+  // Insert a command before the current command.  Common for debuggers,
+  // like "valgrind" or "gdb --args".
+  void PrependWrapper(const StringType& wrapper);
 
   // Copy a set of switches (and their values, if any) from another command
   // line.  Commonly used when launching a subprocess.
