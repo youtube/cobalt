@@ -6,6 +6,7 @@
 #include <mmsystem.h>
 #include <process.h>
 
+#include "base/platform_thread.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -202,4 +203,31 @@ TEST(TimeTicks, TimerPerformance) {
       (stop - start).InMillisecondsF() * 1000 / kLoops);
     test_case++;
   }
+}
+
+TEST(TimeTicks, Drift) {
+  const int kIterations = 100;
+  int64 total_drift = 0;
+
+  for (int i = 0; i < kIterations; ++i) {
+    int64 drift_microseconds = TimeTicks::GetQPCDriftMicroseconds();
+
+    // Make sure the drift never exceeds our limit.
+    EXPECT_LT(drift_microseconds, 50000);
+
+    // Sleep for a few milliseconds (note that it means 1000 microseconds).
+    // If we check the drift too frequently, it's going to increase
+    // monotonically, making our measurement less realistic.
+    PlatformThread::Sleep((i % 2 == 0) ? 1 : 2);
+
+    total_drift += drift_microseconds;
+  }
+
+  // Sanity check. We expect some time drift to occur, especially across
+  // the number of iterations we do. However, if the QPC is disabled, this
+  // is not measuring anything (drift is zero in that case).
+  EXPECT_LT(0, total_drift);
+
+  printf("average time drift in microseconds: %lld\n",
+         total_drift / kIterations);
 }

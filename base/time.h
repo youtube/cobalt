@@ -459,6 +459,11 @@ class TimeTicks {
   // SHOULD ONLY BE USED WHEN IT IS REALLY NEEDED.
   static TimeTicks HighResNow();
 
+#if defined(OS_WIN)
+  // Get the absolute value of QPC time drift. For testing.
+  static int64 GetQPCDriftMicroseconds();
+#endif
+
   // Returns true if this object has not been initialized.
   bool is_null() const {
     return ticks_ == 0;
