@@ -211,6 +211,15 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // be called after the stream has completed.
   void UpdateHistograms();
 
+  // When a server pushed stream is first created, this function is posted on
+  // the MessageLoop to replay all the data that the server has already sent.
+  void PushedStreamReplayData();
+
+  // There is a small period of time between when a server pushed stream is
+  // first created, and the pushed data is replayed. Any data received during
+  // this time should continue to be buffered.
+  bool continue_buffering_data_;
+
   spdy::SpdyStreamId stream_id_;
   std::string path_;
   int priority_;

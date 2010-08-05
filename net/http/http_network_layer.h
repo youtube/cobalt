@@ -39,6 +39,16 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
                    NetLog* net_log);
   // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
   // contains a valid ProxyService.
+  HttpNetworkLayer(
+      ClientSocketFactory* socket_factory,
+      HostResolver* host_resolver,
+      ProxyService* proxy_service,
+      SSLConfigService* ssl_config_service,
+      SpdySessionPool* spdy_session_pool,
+      HttpAuthHandlerFactory* http_auth_handler_factory,
+      HttpNetworkDelegate* network_delegate,
+      NetLog* net_log);
+
   explicit HttpNetworkLayer(HttpNetworkSession* session);
   ~HttpNetworkLayer();
 

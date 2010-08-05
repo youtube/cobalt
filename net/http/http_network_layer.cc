@@ -67,6 +67,29 @@ HttpNetworkLayer::HttpNetworkLayer(
   DCHECK(ssl_config_service_.get());
 }
 
+HttpNetworkLayer::HttpNetworkLayer(
+    ClientSocketFactory* socket_factory,
+    HostResolver* host_resolver,
+    ProxyService* proxy_service,
+    SSLConfigService* ssl_config_service,
+    SpdySessionPool* spdy_session_pool,
+    HttpAuthHandlerFactory* http_auth_handler_factory,
+    HttpNetworkDelegate* network_delegate,
+    NetLog* net_log)
+    : socket_factory_(socket_factory),
+      host_resolver_(host_resolver),
+      proxy_service_(proxy_service),
+      ssl_config_service_(ssl_config_service),
+      session_(NULL),
+      spdy_session_pool_(spdy_session_pool),
+      http_auth_handler_factory_(http_auth_handler_factory),
+      network_delegate_(network_delegate),
+      net_log_(net_log),
+      suspended_(false) {
+  DCHECK(proxy_service_);
+  DCHECK(ssl_config_service_.get());
+}
+
 HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
     : socket_factory_(ClientSocketFactory::GetDefaultFactory()),
       ssl_config_service_(NULL),
