@@ -2311,7 +2311,8 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPGetTest) {
   }
 }
 
-TEST_F(URLRequestTestFTP, FTPCheckWrongPassword) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPassword) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
@@ -2364,7 +2365,8 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPasswordRestart) {
   }
 }
 
-TEST_F(URLRequestTestFTP, FTPCheckWrongUser) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongUser) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
