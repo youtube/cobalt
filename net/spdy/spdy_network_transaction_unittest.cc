@@ -1977,22 +1977,22 @@ TEST_P(SpdyNetworkTransactionTest, NetLog) {
   EXPECT_LT(0u, log.entries().size());
   int pos = 0;
   pos = net::ExpectLogContainsSomewhere(log.entries(), 0,
-      net::NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST,
+      net::NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST,
       net::NetLog::PHASE_BEGIN);
   pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
-      net::NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST,
+      net::NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST,
       net::NetLog::PHASE_END);
   pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
-      net::NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS,
+      net::NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS,
       net::NetLog::PHASE_BEGIN);
   pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
-      net::NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS,
+      net::NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS,
       net::NetLog::PHASE_END);
   pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
-      net::NetLog::TYPE_SPDY_TRANSACTION_READ_BODY,
+      net::NetLog::TYPE_HTTP_TRANSACTION_READ_BODY,
       net::NetLog::PHASE_BEGIN);
   pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
-      net::NetLog::TYPE_SPDY_TRANSACTION_READ_BODY,
+      net::NetLog::TYPE_HTTP_TRANSACTION_READ_BODY,
       net::NetLog::PHASE_END);
 }
 
@@ -3157,6 +3157,7 @@ TEST_P(SpdyNetworkTransactionTest, VerifyRetryOnConnectionReset) {
       EXPECT_EQ(OK, rv);
 
       const HttpResponseInfo* response = trans->GetResponseInfo();
+      ASSERT_TRUE(response != NULL);
       EXPECT_TRUE(response->headers != NULL);
       EXPECT_TRUE(response->was_fetched_via_spdy);
       std::string response_data;
