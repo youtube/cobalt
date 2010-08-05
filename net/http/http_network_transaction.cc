@@ -298,7 +298,7 @@ int HttpNetworkTransaction::RestartIgnoringLastError(
     // update in DoSSLConnectComplete if |result| is OK?
     if (using_spdy_) {
       // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
-      next_state_ = STATE_SPDY_GET_STREAM;
+      next_state_ = STATE_INIT_STREAM;
     } else {
       next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
     }
@@ -370,10 +370,10 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
   // Even if the server says the connection is keep-alive, we have to be
   // able to find the end of each response in order to reuse the connection.
   if (GetResponseHeaders()->IsKeepAlive() &&
-      http_stream_->CanFindEndOfResponse()) {
+      stream_->CanFindEndOfResponse()) {
     // If the response body hasn't been completely read, we need to drain
     // it first.
-    if (!http_stream_->IsResponseBodyComplete()) {
+    if (!stream_->IsResponseBodyComplete()) {
       next_state_ = STATE_DRAIN_BODY_FOR_AUTH_RESTART;
       read_buf_ = new IOBuffer(kDrainBodyBufferSize);  // A bit bucket.
       read_buf_len_ = kDrainBodyBufferSize;
@@ -430,16 +430,10 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
   }
 
   // Are we using SPDY or HTTP?
-  if (using_spdy_) {
-    DCHECK(!http_stream_.get());
-    DCHECK(spdy_http_stream_->GetResponseInfo()->headers);
-    next_state = STATE_SPDY_READ_BODY;
-  } else {
-    DCHECK(!spdy_http_stream_.get());
-    next_state = STATE_READ_BODY;
-
-    if (!connection_->is_initialized())
-      return 0;  // |*connection_| has been reset.  Treat like EOF.
+  next_state = STATE_READ_BODY;
+  DCHECK(stream_->GetResponseInfo()->headers);
+  if (!using_spdy_ && !connection_->is_initialized()) {
+    return 0;  // |*connection_| has been reset.  Treat like EOF.
   }
 
   read_buf_ = buf;
@@ -468,14 +462,11 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
     case STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE:
     case STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE:
     case STATE_SEND_REQUEST_COMPLETE:
-    case STATE_SPDY_GET_STREAM:
-    case STATE_SPDY_SEND_REQUEST_COMPLETE:
+    case STATE_INIT_STREAM_COMPLETE:
       return LOAD_STATE_SENDING_REQUEST;
     case STATE_READ_HEADERS_COMPLETE:
-    case STATE_SPDY_READ_HEADERS_COMPLETE:
       return LOAD_STATE_WAITING_FOR_RESPONSE;
     case STATE_READ_BODY_COMPLETE:
-    case STATE_SPDY_READ_BODY_COMPLETE:
       return LOAD_STATE_READING_RESPONSE;
     default:
       return LOAD_STATE_IDLE;
@@ -483,10 +474,10 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
 }
 
 uint64 HttpNetworkTransaction::GetUploadProgress() const {
-  if (!http_stream_.get())
+  if (!stream_.get())
     return 0;
 
-  return http_stream_->GetUploadProgress();
+  return stream_->GetUploadProgress();
 }
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
@@ -497,9 +488,10 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
     // The STATE_NONE check guarantees there are no pending socket IOs that
     // could try to call this object back after it is deleted.
     bool keep_alive = next_state_ == STATE_NONE &&
-                      http_stream_.get() &&
-                      http_stream_->IsResponseBodyComplete() &&
-                      http_stream_->CanFindEndOfResponse() &&
+                      !using_spdy_ &&
+                      stream_.get() &&
+                      stream_->IsResponseBodyComplete() &&
+                      stream_->CanFindEndOfResponse() &&
                       GetResponseHeaders()->IsKeepAlive();
     if (!keep_alive)
       connection_->socket()->Disconnect();
@@ -508,8 +500,8 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
   if (pac_request_)
     session_->proxy_service()->CancelPacRequest(pac_request_);
 
-  if (spdy_http_stream_.get())
-    spdy_http_stream_->Cancel();
+  if (using_spdy_ && stream_.get())
+    static_cast<SpdyHttpStream*>(stream_.get())->Cancel();
 }
 
 void HttpNetworkTransaction::DoCallback(int rv) {
@@ -549,6 +541,13 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_INIT_CONNECTION_COMPLETE:
         rv = DoInitConnectionComplete(rv);
+        break;
+      case STATE_INIT_STREAM:
+        DCHECK_EQ(OK, rv);
+        rv = DoInitStream();
+        break;
+      case STATE_INIT_STREAM_COMPLETE:
+        rv = DoInitStreamComplete(rv);
         break;
       case STATE_RESTART_TUNNEL_AUTH:
         DCHECK_EQ(OK, rv);
@@ -608,40 +607,6 @@ int HttpNetworkTransaction::DoLoop(int result) {
         rv = DoDrainBodyForAuthRestartComplete(rv);
         net_log_.EndEvent(
             NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART, NULL);
-        break;
-      case STATE_SPDY_GET_STREAM:
-        DCHECK_EQ(OK, rv);
-        rv = DoSpdyGetStream();
-        break;
-      case STATE_SPDY_GET_STREAM_COMPLETE:
-        rv = DoSpdyGetStreamComplete(rv);
-        break;
-      case STATE_SPDY_SEND_REQUEST:
-        DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST, NULL);
-        rv = DoSpdySendRequest();
-        break;
-      case STATE_SPDY_SEND_REQUEST_COMPLETE:
-        rv = DoSpdySendRequestComplete(rv);
-        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST, NULL);
-        break;
-      case STATE_SPDY_READ_HEADERS:
-        DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS, NULL);
-        rv = DoSpdyReadHeaders();
-        break;
-      case STATE_SPDY_READ_HEADERS_COMPLETE:
-        rv = DoSpdyReadHeadersComplete(rv);
-        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS, NULL);
-        break;
-      case STATE_SPDY_READ_BODY:
-        DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_BODY, NULL);
-        rv = DoSpdyReadBody();
-        break;
-      case STATE_SPDY_READ_BODY_COMPLETE:
-        rv = DoSpdyReadBodyComplete(rv);
-        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_BODY, NULL);
         break;
       default:
         NOTREACHED() << "bad state";
@@ -748,7 +713,7 @@ int HttpNetworkTransaction::DoInitConnection() {
   if (session_->spdy_session_pool()->HasSession(pair)) {
     using_spdy_ = true;
     reused_socket_ = true;
-    next_state_ = STATE_SPDY_GET_STREAM;
+    next_state_ = STATE_INIT_STREAM;
     return OK;
   }
 
@@ -956,7 +921,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     if (!using_ssl_) {
       DCHECK_EQ(OK, result);
       if (using_spdy_)
-        next_state_ = STATE_SPDY_GET_STREAM;
+        next_state_ = STATE_INIT_STREAM;
       else
         next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
       return result;
@@ -993,10 +958,57 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   if (using_spdy_) {
     UpdateConnectionTypeHistograms(CONNECTION_SPDY);
     // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
-    next_state_ = STATE_SPDY_GET_STREAM;
+    next_state_ = STATE_INIT_STREAM;
   } else {
     next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
   }
+  return OK;
+}
+
+int HttpNetworkTransaction::DoInitStream() {
+  next_state_ = STATE_INIT_STREAM_COMPLETE;
+
+  if (!using_spdy_) {
+    stream_.reset(new HttpBasicStream(connection_.get()));
+    return stream_->InitializeStream(request_, net_log_, &io_callback_);
+  }
+
+  CHECK(!stream_.get());
+
+  const scoped_refptr<SpdySessionPool> spdy_pool =
+      session_->spdy_session_pool();
+  scoped_refptr<SpdySession> spdy_session;
+
+  HostPortProxyPair pair(endpoint_, proxy_info_.ToPacString());
+  if (session_->spdy_session_pool()->HasSession(pair)) {
+    spdy_session =
+        session_->spdy_session_pool()->Get(pair, session_, net_log_);
+  } else {
+    // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
+    // extension, or just directly using SSL. Either way, |connection_| must
+    // contain an SSLClientSocket.
+    CHECK(connection_->socket());
+    int error = spdy_pool->GetSpdySessionFromSocket(
+        pair, session_, connection_.release(), net_log_,
+        spdy_certificate_error_, &spdy_session, using_ssl_);
+    if (error != OK)
+      return error;
+  }
+
+  if (spdy_session->IsClosed())
+    return ERR_CONNECTION_CLOSED;
+
+  headers_valid_ = false;
+
+  stream_.reset(new SpdyHttpStream(spdy_session));
+  return stream_->InitializeStream(request_, net_log_, &io_callback_);
+}
+
+int HttpNetworkTransaction::DoInitStreamComplete(int result) {
+  if (result < 0)
+    return result;
+
+  next_state_ = STATE_SEND_REQUEST;
   return OK;
 }
 
@@ -1063,7 +1075,7 @@ int HttpNetworkTransaction::DoGenerateServerAuthToken() {
 int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
   if (rv == OK)
-    next_state_ = STATE_SEND_REQUEST;
+    next_state_ = STATE_INIT_STREAM;
   return rv;
 }
 
@@ -1080,7 +1092,7 @@ int HttpNetworkTransaction::DoSendRequest() {
 
   // This is constructed lazily (instead of within our Start method), so that
   // we have proxy info available.
-  if (request_headers_.empty()) {
+  if (request_headers_.empty() && !using_spdy_) {
     // Figure out if we can/should add Proxy-Authentication & Authentication
     // headers.
     HttpRequestHeaders authorization_headers;
@@ -1113,10 +1125,8 @@ int HttpNetworkTransaction::DoSendRequest() {
   }
 
   headers_valid_ = false;
-  http_stream_.reset(new HttpBasicStream(connection_.get()));
-  http_stream_->InitializeStream(request_, net_log_, NULL);
-  return http_stream_->SendRequest(request_headers_, request_body, &response_,
-                                   &io_callback_);
+  return stream_->SendRequest(request_headers_, request_body, &response_,
+                              &io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
@@ -1128,7 +1138,7 @@ int HttpNetworkTransaction::DoSendRequestComplete(int result) {
 
 int HttpNetworkTransaction::DoReadHeaders() {
   next_state_ = STATE_READ_HEADERS_COMPLETE;
-  return http_stream_->ReadResponseHeaders(&io_callback_);
+  return stream_->ReadResponseHeaders(&io_callback_);
 }
 
 int HttpNetworkTransaction::HandleConnectionClosedBeforeEndOfHeaders() {
@@ -1142,6 +1152,18 @@ int HttpNetworkTransaction::HandleConnectionClosedBeforeEndOfHeaders() {
 }
 
 int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
+  if (using_spdy_) {
+    // TODO(willchan): Flesh out the support for HTTP authentication here.
+    if (result < 0)
+      return HandleIOError(result);
+
+    if (result == OK)
+      headers_valid_ = true;
+
+    LogTransactionConnectedMetrics();
+    return result;
+  }
+
   // We can get a certificate error or ERR_SSL_CLIENT_AUTH_CERT_NEEDED here
   // due to SSL renegotiation.
   if (using_ssl_) {
@@ -1247,11 +1269,11 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
 int HttpNetworkTransaction::DoReadBody() {
   DCHECK(read_buf_);
   DCHECK_GT(read_buf_len_, 0);
-  DCHECK(connection_->is_initialized());
+  if (!using_spdy_)
+    DCHECK(connection_->is_initialized());
 
   next_state_ = STATE_READ_BODY_COMPLETE;
-  return http_stream_->ReadResponseBody(read_buf_, read_buf_len_,
-                                        &io_callback_);
+  return stream_->ReadResponseBody(read_buf_, read_buf_len_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoReadBodyComplete(int result) {
@@ -1260,19 +1282,21 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
   if (result <= 0)
     done = true;
 
-  if (http_stream_->IsResponseBodyComplete()) {
+  if (stream_->IsResponseBodyComplete()) {
     done = true;
-    if (http_stream_->CanFindEndOfResponse())
+    if (stream_->CanFindEndOfResponse())
       keep_alive = GetResponseHeaders()->IsKeepAlive();
   }
 
   // Clean up connection_->if we are done.
   if (done) {
     LogTransactionMetrics();
-    if (!keep_alive)
-      connection_->socket()->Disconnect();
-    connection_->Reset();
-    // The next Read call will return 0 (EOF).
+    if (!using_spdy_) {
+      if (!keep_alive)
+        connection_->socket()->Disconnect();
+      connection_->Reset();
+      // The next Read call will return 0 (EOF).
+    }
   }
 
   // Clear these to avoid leaving around old state.
@@ -1302,7 +1326,7 @@ int HttpNetworkTransaction::DoDrainBodyForAuthRestartComplete(int result) {
     // Error or closed connection while reading the socket.
     done = true;
     keep_alive = false;
-  } else if (http_stream_->IsResponseBodyComplete()) {
+  } else if (stream_->IsResponseBodyComplete()) {
     done = true;
   }
 
@@ -1314,118 +1338,6 @@ int HttpNetworkTransaction::DoDrainBodyForAuthRestartComplete(int result) {
   }
 
   return OK;
-}
-
-int HttpNetworkTransaction::DoSpdyGetStream() {
-  next_state_ = STATE_SPDY_GET_STREAM_COMPLETE;
-  CHECK(!spdy_http_stream_.get());
-
-  // First we get a SPDY session.  Theoretically, we've just negotiated one, but
-  // if one already exists, then screw it, use the existing one!  Otherwise,
-  // use the existing TCP socket.
-
-  const scoped_refptr<SpdySessionPool> spdy_pool =
-      session_->spdy_session_pool();
-  scoped_refptr<SpdySession> spdy_session;
-
-  HostPortProxyPair pair(endpoint_, proxy_info_.ToPacString());
-  if (spdy_pool->HasSession(pair)) {
-    spdy_session = spdy_pool->Get(pair, session_, net_log_);
-  } else {
-    if(using_ssl_) {
-      // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
-      // extension, or just directly using SSL. Either way, |connection_| must
-      // contain an SSLClientSocket.
-      CHECK(connection_->socket());
-      int error = spdy_pool->GetSpdySessionFromSocket(
-          pair, session_, connection_.release(), net_log_,
-          spdy_certificate_error_, &spdy_session, true);
-      if (error != OK)
-        return error;
-    }
-    else {
-      // We may want SPDY without SSL
-      int error = spdy_pool->GetSpdySessionFromSocket(
-          pair, session_, connection_.release(), net_log_,
-          spdy_certificate_error_, &spdy_session, false);
-      if (error != OK)
-        return error;
-    }
-  }
-
-  CHECK(spdy_session.get());
-  if (spdy_session->IsClosed())
-    return ERR_CONNECTION_CLOSED;
-
-  headers_valid_ = false;
-
-  spdy_http_stream_.reset(new SpdyHttpStream(spdy_session));
-  return spdy_http_stream_->InitializeStream(request_, net_log_, &io_callback_);
-}
-
-int HttpNetworkTransaction::DoSpdyGetStreamComplete(int result) {
-  if (result < 0)
-    return result;
-
-  next_state_ = STATE_SPDY_SEND_REQUEST;
-  return OK;
-}
-
-int HttpNetworkTransaction::DoSpdySendRequest() {
-  next_state_ = STATE_SPDY_SEND_REQUEST_COMPLETE;
-
-  UploadDataStream* upload_data_stream = NULL;
-  if (request_->upload_data) {
-    int error_code = OK;
-    upload_data_stream = UploadDataStream::Create(request_->upload_data,
-                                                  &error_code);
-    if (!upload_data_stream)
-      return error_code;
-  }
-  return spdy_http_stream_->SendRequest(request_headers_, upload_data_stream,
-                                        &response_, &io_callback_);
-}
-
-int HttpNetworkTransaction::DoSpdySendRequestComplete(int result) {
-  if (result < 0)
-    return HandleIOError(result);
-
-  next_state_ = STATE_SPDY_READ_HEADERS;
-  return OK;
-}
-
-int HttpNetworkTransaction::DoSpdyReadHeaders() {
-  next_state_ = STATE_SPDY_READ_HEADERS_COMPLETE;
-  return spdy_http_stream_->ReadResponseHeaders(&io_callback_);
-}
-
-int HttpNetworkTransaction::DoSpdyReadHeadersComplete(int result) {
-  // TODO(willchan): Flesh out the support for HTTP authentication here.
-  if (result < 0)
-    return HandleIOError(result);
-
-  if (result == OK)
-    headers_valid_ = true;
-
-  LogTransactionConnectedMetrics();
-  return result;
-}
-
-int HttpNetworkTransaction::DoSpdyReadBody() {
-  next_state_ = STATE_SPDY_READ_BODY_COMPLETE;
-
-  return spdy_http_stream_->ReadResponseBody(
-      read_buf_, read_buf_len_, &io_callback_);
-}
-
-int HttpNetworkTransaction::DoSpdyReadBodyComplete(int result) {
-  read_buf_ = NULL;
-  read_buf_len_ = 0;
-
-  if (result <= 0)
-    spdy_http_stream_.reset();
-
-  return result;
 }
 
 void HttpNetworkTransaction::LogHttpConnectedMetrics(
@@ -1706,7 +1618,7 @@ void HttpNetworkTransaction::ResetStateForRestart() {
   pending_auth_target_ = HttpAuth::AUTH_NONE;
   read_buf_ = NULL;
   read_buf_len_ = 0;
-  http_stream_.reset();
+  stream_.reset();
   headers_valid_ = false;
   request_headers_.clear();
   response_ = HttpResponseInfo();
@@ -1717,8 +1629,9 @@ HttpResponseHeaders* HttpNetworkTransaction::GetResponseHeaders() const {
 }
 
 bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
-  if (using_spdy_ && spdy_http_stream_ != NULL)
-    return spdy_http_stream_->ShouldResendFailedRequest(error);
+  if (using_spdy_ && stream_ != NULL)
+    return static_cast<SpdyHttpStream *>(stream_.get())->
+        ShouldResendFailedRequest(error);
 
   // NOTE: we resend a request only if we reused a keep-alive connection.
   // This automatically prevents an infinite resend loop because we'll run
@@ -1745,7 +1658,7 @@ void HttpNetworkTransaction::ResetConnectionAndRequestForResend() {
   // headers, but we may need to resend the CONNECT request first to recreate
   // the SSL tunnel.
 
-  spdy_http_stream_.reset(NULL);
+  stream_.reset(NULL);
 
   request_headers_.clear();
   next_state_ = STATE_INIT_CONNECTION;  // Resend the request.
@@ -1894,6 +1807,8 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
     STATE_CASE(STATE_RESOLVE_PROXY_COMPLETE);
     STATE_CASE(STATE_INIT_CONNECTION);
     STATE_CASE(STATE_INIT_CONNECTION_COMPLETE);
+    STATE_CASE(STATE_INIT_STREAM);
+    STATE_CASE(STATE_INIT_STREAM_COMPLETE);
     STATE_CASE(STATE_GENERATE_PROXY_AUTH_TOKEN);
     STATE_CASE(STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE);
     STATE_CASE(STATE_GENERATE_SERVER_AUTH_TOKEN);
@@ -1906,14 +1821,6 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
     STATE_CASE(STATE_READ_BODY_COMPLETE);
     STATE_CASE(STATE_DRAIN_BODY_FOR_AUTH_RESTART);
     STATE_CASE(STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE);
-    STATE_CASE(STATE_SPDY_GET_STREAM);
-    STATE_CASE(STATE_SPDY_GET_STREAM_COMPLETE);
-    STATE_CASE(STATE_SPDY_SEND_REQUEST);
-    STATE_CASE(STATE_SPDY_SEND_REQUEST_COMPLETE);
-    STATE_CASE(STATE_SPDY_READ_HEADERS);
-    STATE_CASE(STATE_SPDY_READ_HEADERS_COMPLETE);
-    STATE_CASE(STATE_SPDY_READ_BODY);
-    STATE_CASE(STATE_SPDY_READ_BODY_COMPLETE);
     STATE_CASE(STATE_NONE);
     default:
       description = StringPrintf("Unknown state 0x%08X (%u)", state, state);
