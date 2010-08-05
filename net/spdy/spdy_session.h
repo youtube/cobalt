@@ -188,8 +188,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
       PendingCreateStreamQueue;
   typedef std::map<int, scoped_refptr<SpdyStream> > ActiveStreamMap;
   // Only HTTP push a stream.
-  typedef std::list<scoped_refptr<SpdyStream> > ActivePushedStreamList;
-  typedef std::map<std::string, scoped_refptr<SpdyStream> > PendingStreamMap;
+  typedef std::map<std::string, scoped_refptr<SpdyStream> > PushedStreamMap;
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   virtual ~SpdySession();
@@ -213,7 +212,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
              const linked_ptr<spdy::SpdyHeaderBlock>& headers);
   void OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
                   const linked_ptr<spdy::SpdyHeaderBlock>& headers);
-  void OnFin(const spdy::SpdyRstStreamControlFrame& frame);
+  void OnRst(const spdy::SpdyRstStreamControlFrame& frame);
   void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
   void OnSettings(const spdy::SpdySettingsControlFrame& frame);
   void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame);
@@ -310,13 +309,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // them into a separate ActiveStreamMap, and not deliver network events to
   // them?
   ActiveStreamMap active_streams_;
-  // List of all the streams that have already started to be pushed by the
+  // Map of all the streams that have already started to be pushed by the
   // server, but do not have consumers yet.
-  ActivePushedStreamList pushed_streams_;
-  // List of streams declared in X-Associated-Content headers, but do not have
-  // consumers yet.
-  // The key is a string representing the path of the URI being pushed.
-  PendingStreamMap pending_streams_;
+  PushedStreamMap unclaimed_pushed_streams_;
 
   // As we gather data to be sent, we put it into the output queue.
   OutputQueue queue_;
