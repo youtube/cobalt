@@ -9,7 +9,6 @@
 #include "base/file_util.h"
 #include "base/histogram.h"
 #include "base/message_loop.h"
-#include "base/rand_util.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
 #include "base/timer.h"

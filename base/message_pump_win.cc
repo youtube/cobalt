@@ -7,7 +7,6 @@
 #include <math.h>
 
 #include "base/histogram.h"
-#include "base/win_util.h"
 
 using base::Time;
 
