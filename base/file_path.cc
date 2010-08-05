@@ -4,7 +4,9 @@
 
 #include "base/file_path.h"
 
-#if defined(OS_MACOSX)
+#if defined(OS_WIN)
+#include <windows.h>
+#elif defined(OS_MACOSX)
 #include <CoreServices/CoreServices.h>
 #endif
 
@@ -21,9 +23,6 @@
 #if defined(OS_MACOSX)
 #include "base/scoped_cftyperef.h"
 #include "base/third_party/icu/icu_utf.h"
-#endif
-#if defined(OS_WIN)
-#include "base/win_util.h"
 #endif
 
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
