@@ -13,7 +13,8 @@ namespace net {
 
 SpdyStream::SpdyStream(
     SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed)
-    : stream_id_(stream_id),
+    : continue_buffering_data_(true),
+      stream_id_(stream_id),
       priority_(0),
       send_window_size_(spdy::kInitialWindowSize),
       pushed_(pushed),
@@ -39,16 +40,32 @@ void SpdyStream::SetDelegate(Delegate* delegate) {
   CHECK(delegate);
   delegate_ = delegate;
 
-  if (!response_->empty()) {
-    // The stream already got response.
-    delegate_->OnResponseReceived(*response_, response_time_, OK);
+  if (pushed_) {
+    CHECK(!response_->empty());
+    MessageLoop::current()->PostTask(
+        FROM_HERE, NewRunnableMethod(this,
+                                     &SpdyStream::PushedStreamReplayData));
+  } else {
+    continue_buffering_data_ = false;
   }
+}
 
+void SpdyStream::PushedStreamReplayData() {
+  if (cancelled_ || delegate_ == NULL)
+    return;
+
+  delegate_->OnResponseReceived(*response_, response_time_, OK);
+
+  continue_buffering_data_ = false;
   std::vector<scoped_refptr<IOBufferWithSize> > buffers;
   buffers.swap(pending_buffers_);
   for (size_t i = 0; i < buffers.size(); ++i) {
-    if (delegate_)
-      delegate_->OnDataReceived(buffers[i]->data(), buffers[i]->size());
+    if (delegate_){
+      if (buffers[i])
+        delegate_->OnDataReceived(buffers[i]->data(), buffers[i]->size());
+      else
+        delegate_->OnDataReceived(NULL, 0);
+    }
   }
 }
 
@@ -131,13 +148,7 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
     CHECK(pushed_);
     io_state_ = STATE_READ_HEADERS;
   } else if (io_state_ == STATE_READ_HEADERS_COMPLETE) {
-    // This SpdyStream could be in this state in both true and false pushed_
-    // conditions.
-    // The false pushed_ condition (client request) will always go through
-    // this state.
-    // The true pushed_condition (server push) can be in this state when the
-    // client requests an X-Associated-Content piece of content prior
-    // to when the server push happens.
+    CHECK(!pushed_);
   } else {
     // We're not expecting a response while in this state.  Error!
     rv = ERR_SPDY_PROTOCOL_ERROR;
@@ -146,8 +157,8 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   rv = DoLoop(rv);
   if (delegate_)
     rv = delegate_->OnResponseReceived(*response_, response_time_, rv);
-  // if delegate_ is not yet attached, we'll return response when delegate
-  // gets attached to the stream.
+  // If delegate_ is not yet attached, we'll call OnResponseReceived after the
+  // delegate gets attached to the stream.
 
   return rv;
 }
@@ -157,7 +168,20 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
   LOG(INFO) << "SpdyStream: Data (" << length << " bytes) received for "
             << stream_id_;
 
-  CHECK(!response_complete_);
+  if (!delegate_ || continue_buffering_data_) {
+    // It should be valid for this to happen in the server push case.
+    // We'll return received data when delegate gets attached to the stream.
+    if (length > 0) {
+      IOBufferWithSize* buf = new IOBufferWithSize(length);
+      memcpy(buf->data(), data, length);
+      pending_buffers_.push_back(buf);
+    }
+    else
+      pending_buffers_.push_back(NULL);
+    return;
+  }
+
+ CHECK(!response_complete_);
 
   // If we don't have a response, then the SYN_REPLY did not come through.
   // We cannot pass data up to the caller unless the reply headers have been
@@ -248,16 +272,11 @@ int SpdyStream::DoSendRequest(bool has_upload_data) {
     DCHECK_EQ(io_state_, STATE_NONE);
     io_state_ = STATE_SEND_HEADERS;
   } else {
+    // Pushed stream should not have upload data.
     DCHECK(!has_upload_data);
-    if (!response_->empty()) {
-      // We already have response headers, so we don't need to read the header.
-      // Pushed stream should not have upload data.
-      // We don't need to call DoLoop() in this state.
-      DCHECK_EQ(io_state_, STATE_OPEN);
-      return OK;
-    } else {
-      io_state_ = STATE_READ_HEADERS;
-    }
+    DCHECK(!response_->empty());
+    DCHECK_EQ(io_state_, STATE_OPEN);
+    return ERR_IO_PENDING;
   }
   return DoLoop(result);
 }

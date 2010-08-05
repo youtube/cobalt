@@ -189,7 +189,8 @@ enum SpdyStatusCodes {
   CANCEL = 5,
   INTERNAL_ERROR = 6,
   FLOW_CONTROL_ERROR = 7,
-  NUM_STATUS_CODES = 8
+  INVALID_ASSOCIATED_STREAM = 8,
+  NUM_STATUS_CODES = 9
 };
 
 // A SPDY stream id is a 31 bit entity.
