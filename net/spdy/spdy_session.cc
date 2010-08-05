@@ -8,7 +8,6 @@
 #include "base/linked_ptr.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/rand_util.h"
 #include "base/stats_counters.h"
 #include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"

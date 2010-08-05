@@ -5,7 +5,6 @@
 #include "base/shared_memory.h"
 
 #include "base/logging.h"
-#include "base/win_util.h"
 
 namespace base {
 
