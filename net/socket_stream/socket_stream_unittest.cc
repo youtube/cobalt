@@ -308,6 +308,10 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
     MockRead("HTTP/1.1 200 Connection Established\r\n"),
     MockRead("Proxy-agent: Apache/2.2.8\r\n"),
     MockRead("\r\n"),
+    // SocketStream::DoClose is run asynchronously.  Socket can be read after
+    // "\r\n".  We have to give ERR_IO_PENDING to SocketStream then to indicate
+    // server doesn't close the connection.
+    MockRead(true, ERR_IO_PENDING)
   };
   StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
                                  data_writes2, arraysize(data_writes2));
