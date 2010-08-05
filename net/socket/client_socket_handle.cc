@@ -22,6 +22,9 @@ ClientSocketHandle::ClientSocketHandle()
 
 ClientSocketHandle::~ClientSocketHandle() {
   Reset();
+  // Manually release socket, so that we also cause state to be recorded into
+  // associated socket_ as needed.
+  release_socket();
 }
 
 void ClientSocketHandle::Reset() {
