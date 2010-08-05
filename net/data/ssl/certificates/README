@@ -28,3 +28,6 @@ unit tests.
      certificates.
 
 - unosoft_hu_cert : Certificate used by X509CertificateTest.UnoSoftCertParsing.
+
+- client.p12 : A PKCS #12 file containing a client certificate and a private
+     key created for testing.  The password is "12345".
