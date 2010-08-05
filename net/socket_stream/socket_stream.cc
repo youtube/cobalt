@@ -66,6 +66,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       write_buf_offset_(0),
       write_buf_size_(0),
       closing_(false),
+      server_closed_(false),
       metrics_(new SocketStreamMetrics(url)) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
@@ -188,12 +189,29 @@ void SocketStream::Close() {
   // of AddRef() and Release() in Connect() and Finish(), respectively.
   if (next_state_ == STATE_NONE)
     return;
-  closing_ = true;
-  // Close asynchronously, so that delegate won't be called
-  // back before returning Close().
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoLoop, OK));
+      NewRunnableMethod(this, &SocketStream::DoClose));
+}
+
+void SocketStream::DoClose() {
+  closing_ = true;
+  // If next_state_ is STATE_TCP_CONNECT, it's waiting other socket establishing
+  // connection.  If next_state_ is STATE_AUTH_REQUIRED, it's waiting for
+  // restarting.  In these states, we'll close the SocketStream now.
+  if (next_state_ == STATE_TCP_CONNECT || next_state_ == STATE_AUTH_REQUIRED) {
+    DoLoop(ERR_ABORTED);
+    return;
+  }
+  // If next_state_ is STATE_READ_WRITE, we'll run DoLoop and close
+  // the SocketStream.
+  // If it's writing now, we should defer the closing after the current
+  // writing is completed.
+  if (next_state_ == STATE_READ_WRITE && !current_write_buf_)
+    DoLoop(ERR_ABORTED);
+
+  // In other next_state_, we'll wait for callback of other APIs, such as
+  // ResolveProxy().
 }
 
 void SocketStream::RestartWithAuth(
@@ -330,7 +348,8 @@ void SocketStream::OnIOCompleted(int result) {
 void SocketStream::OnReadCompleted(int result) {
   if (result == 0) {
     // 0 indicates end-of-file, so socket was closed.
-    next_state_ = STATE_CLOSE;
+    // Don't close the socket if it's still writing.
+    server_closed_ = true;
   } else if (result > 0 && read_buf_) {
     result = DidReceiveData(result);
   }
@@ -408,12 +427,16 @@ void SocketStream::DoLoop(int result) {
       case STATE_READ_WRITE:
         result = DoReadWrite(result);
         break;
+      case STATE_AUTH_REQUIRED:
+        NOTREACHED() << "Should not run DoLoop in STATE_AUTH_REQUIRED state.";
+        Finish(result);
+        return;
       case STATE_CLOSE:
         DCHECK_LE(result, OK);
         Finish(result);
         return;
       default:
-        NOTREACHED() << "bad state";
+        NOTREACHED() << "bad state " << state;
         Finish(result);
         return;
     }
@@ -841,26 +864,32 @@ int SocketStream::DoReadWrite(int result) {
 
   next_state_ = STATE_READ_WRITE;
 
-  if (!read_buf_) {
-    // No read pending.
-    read_buf_ = new IOBuffer(kReadBufferSize);
-    result = socket_->Read(read_buf_, kReadBufferSize, &read_callback_);
-    if (result > 0) {
-      return DidReceiveData(result);
-    } else if (result == 0) {
-      // 0 indicates end-of-file, so socket was closed.
-      next_state_ = STATE_CLOSE;
-      return ERR_CONNECTION_CLOSED;
+  // If server already closed the socket, we don't try to read.
+  if (!server_closed_) {
+    if (!read_buf_) {
+      // No read pending and server didn't close the socket.
+      read_buf_ = new IOBuffer(kReadBufferSize);
+      result = socket_->Read(read_buf_, kReadBufferSize, &read_callback_);
+      if (result > 0) {
+        return DidReceiveData(result);
+      } else if (result == 0) {
+        // 0 indicates end-of-file, so socket was closed.
+        next_state_ = STATE_CLOSE;
+        server_closed_ = true;
+        return ERR_CONNECTION_CLOSED;
+      }
+      // If read is pending, try write as well.
+      // Otherwise, return the result and do next loop (to close the
+      // connection).
+      if (result != ERR_IO_PENDING) {
+        next_state_ = STATE_CLOSE;
+        server_closed_ = true;
+        return result;
+      }
     }
-    // If read is pending, try write as well.
-    // Otherwise, return the result and do next loop (to close the connection).
-    if (result != ERR_IO_PENDING) {
-      next_state_ = STATE_CLOSE;
-      return result;
-    }
+    // Read is pending.
+    DCHECK(read_buf_);
   }
-  // Read is pending.
-  DCHECK(read_buf_);
 
   if (write_buf_ && !current_write_buf_) {
     // No write pending.
