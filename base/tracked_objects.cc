@@ -336,6 +336,73 @@ void ThreadData::Reset() {
 }
 
 #ifdef OS_WIN
+// A class used to count down which is accessed by several threads.  This is
+// used to make sure RunOnAllThreads() actually runs a task on the expected
+// count of threads.
+class ThreadData::ThreadSafeDownCounter {
+ public:
+  // Constructor sets the count, once and for all.
+  explicit ThreadSafeDownCounter(size_t count);
+
+  // Decrement the count, and return true if we hit zero.  Also delete this
+  // instance automatically when we hit zero.
+  bool LastCaller();
+
+ private:
+  size_t remaining_count_;
+  Lock lock_;  // protect access to remaining_count_.
+};
+
+ThreadData::ThreadSafeDownCounter::ThreadSafeDownCounter(size_t count)
+    : remaining_count_(count) {
+  DCHECK_GT(remaining_count_, 0u);
+}
+
+bool ThreadData::ThreadSafeDownCounter::LastCaller() {
+  {
+    AutoLock lock(lock_);
+    if (--remaining_count_)
+      return false;
+  }  // Release lock, so we can delete everything in this instance.
+  delete this;
+  return true;
+}
+
+// A Task class that runs a static method supplied, and checks to see if this
+// is the last tasks instance (on last thread) that will run the method.
+// IF this is the last run, then the supplied event is signalled.
+class ThreadData::RunTheStatic : public Task {
+ public:
+  typedef void (*FunctionPointer)();
+  RunTheStatic(FunctionPointer function,
+               HANDLE completion_handle,
+               ThreadSafeDownCounter* counter);
+  // Run the supplied static method, and optionally set the event.
+  void Run();
+
+ private:
+  FunctionPointer function_;
+  HANDLE completion_handle_;
+  // Make sure enough tasks are called before completion is signaled.
+  ThreadSafeDownCounter* counter_;
+
+  DISALLOW_COPY_AND_ASSIGN(RunTheStatic);
+};
+
+ThreadData::RunTheStatic::RunTheStatic(FunctionPointer function,
+                                       HANDLE completion_handle,
+                                       ThreadSafeDownCounter* counter)
+    : function_(function),
+      completion_handle_(completion_handle),
+      counter_(counter) {
+}
+
+void ThreadData::RunTheStatic::Run() {
+  function_();
+  if (counter_->LastCaller())
+    SetEvent(completion_handle_);
+}
+
 // TODO(jar): This should use condition variables, and be cross platform.
 void ThreadData::RunOnAllThreads(void (*function)()) {
   ThreadData* list = first();  // Get existing list.
@@ -444,41 +511,6 @@ void ThreadData::ShutdownDisablingFurtherTracking() {
   if (!StartTracking(false))
     return;
 }
-
-
-//------------------------------------------------------------------------------
-
-ThreadData::ThreadSafeDownCounter::ThreadSafeDownCounter(size_t count)
-    : remaining_count_(count) {
-  DCHECK_GT(remaining_count_, 0u);
-}
-
-bool ThreadData::ThreadSafeDownCounter::LastCaller() {
-  {
-    AutoLock lock(lock_);
-    if (--remaining_count_)
-      return false;
-  }  // Release lock, so we can delete everything in this instance.
-  delete this;
-  return true;
-}
-
-//------------------------------------------------------------------------------
-#ifdef OS_WIN
-ThreadData::RunTheStatic::RunTheStatic(FunctionPointer function,
-                                       HANDLE completion_handle,
-                                       ThreadSafeDownCounter* counter)
-    : function_(function),
-      completion_handle_(completion_handle),
-      counter_(counter) {
-}
-
-void ThreadData::RunTheStatic::Run() {
-  function_();
-  if (counter_->LastCaller())
-    SetEvent(completion_handle_);
-}
-#endif
 
 //------------------------------------------------------------------------------
 // Individual 3-tuple of birth (place and thread) along with death thread, and
