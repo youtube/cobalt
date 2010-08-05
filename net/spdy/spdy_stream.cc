@@ -16,6 +16,7 @@ SpdyStream::SpdyStream(
     : continue_buffering_data_(true),
       stream_id_(stream_id),
       priority_(0),
+      window_update_write_pending_(false),
       send_window_size_(spdy::kInitialWindowSize),
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
@@ -88,6 +89,12 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
   int new_window_size = send_window_size_ + delta_window_size;
 
+  // We shouldn't be receving WINDOW_UPDATE before or after that state,
+  // since before means we've not written SYN_STREAM yet, and after means
+  // we've written a DATA frame with FIN bit.
+  if (io_state_ != STATE_SEND_BODY_COMPLETE)
+    return;
+
   // it's valid for send_window_size_ to become negative (via an incoming
   // SETTINGS), in which case incoming WINDOW_UPDATEs will eventually make
   // it positive; however, if send_window_size_ is positive and incoming
@@ -105,6 +112,20 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
             << " send_window_size_ [current:" << send_window_size_ << "]"
             << " by " << delta_window_size << " bytes";
   send_window_size_ = new_window_size;
+
+  // If the stream was stalled due to consumed window size, restart the
+  // I/O loop.
+  if (!response_complete_ && !delegate_->IsFinishedSendingBody()) {
+    // Don't start the I/O loop for every WINDOW_UPDATE frame received,
+    // since we may receive many of them before the "write" due to first
+    // received WINDOW_UPDATE is completed.
+    if (window_update_write_pending_)
+      return;
+
+    window_update_write_pending_ = true;
+    io_state_ = STATE_SEND_BODY;
+    DoLoop(OK);
+  }
 }
 
 void SpdyStream::DecreaseSendWindowSize(int delta_window_size) {
@@ -220,6 +241,10 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
 void SpdyStream::OnWriteComplete(int status) {
   // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
   // should discontinue the DoLoop.
+
+  // Clear it just in case this write lead to a 0 size send window, so that
+  // incoming window updates will cause a write to be scheduled again.
+  window_update_write_pending_ = false;
 
   // It is possible that this stream was closed while we had a write pending.
   if (response_complete_)
@@ -425,7 +450,8 @@ int SpdyStream::DoSendBodyComplete(int result) {
   if (!delegate_)
     return ERR_UNEXPECTED;
 
-  if (!delegate_->OnSendBodyComplete(result))
+  delegate_->OnSendBodyComplete(result);
+  if (!delegate_->IsFinishedSendingBody())
     io_state_ = STATE_SEND_BODY;
   else
     io_state_ = STATE_READ_HEADERS;
