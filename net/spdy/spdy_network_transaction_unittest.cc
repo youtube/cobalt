@@ -1121,7 +1121,7 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
 // The client upon cancellation tries to send a RST_STREAM frame. The mock
 // socket causes the TCP write to return zero. This test checks that the client
 // tries to queue up the RST_STREAM frame again.
-TEST_P(SpdyNetworkTransactionTest, SocketWriteReturnsZero) {
+TEST_P(SpdyNetworkTransactionTest, DISABLED_SocketWriteReturnsZero) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   scoped_ptr<spdy::SpdyFrame> rst(
       ConstructSpdyRstStream(1, spdy::CANCEL));
@@ -1404,7 +1404,7 @@ TEST_P(SpdyNetworkTransactionTest, CancelledTransaction) {
 }
 
 // Verify that the client sends a Rst Frame upon cancelling the stream.
-TEST_P(SpdyNetworkTransactionTest, CancelledTransactionSendRst) {
+TEST_P(SpdyNetworkTransactionTest, DISABLED_CancelledTransactionSendRst) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   scoped_ptr<spdy::SpdyFrame> rst(
       ConstructSpdyRstStream(1, spdy::CANCEL));
