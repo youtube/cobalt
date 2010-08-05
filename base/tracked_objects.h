@@ -558,44 +558,9 @@ class ThreadData {
     SHUTDOWN,
   };
 
-  // A class used to count down which is accessed by several threads.  This is
-  // used to make sure RunOnAllThreads() actually runs a task on the expected
-  // count of threads.
-  class ThreadSafeDownCounter {
-   public:
-    // Constructor sets the count, once and for all.
-    explicit ThreadSafeDownCounter(size_t count);
-
-    // Decrement the count, and return true if we hit zero.  Also delete this
-    // instance automatically when we hit zero.
-    bool LastCaller();
-
-   private:
-    size_t remaining_count_;
-    Lock lock_;  // protect access to remaining_count_.
-  };
-
-#ifdef OS_WIN
-  // A Task class that runs a static method supplied, and checks to see if this
-  // is the last tasks instance (on last thread) that will run the method.
-  // IF this is the last run, then the supplied event is signalled.
-  class RunTheStatic : public Task {
-   public:
-    typedef void (*FunctionPointer)();
-    RunTheStatic(FunctionPointer function,
-                 HANDLE completion_handle,
-                 ThreadSafeDownCounter* counter);
-    // Run the supplied static method, and optionally set the event.
-    void Run();
-
-   private:
-    FunctionPointer function_;
-    HANDLE completion_handle_;
-    // Make sure enough tasks are called before completion is signaled.
-    ThreadSafeDownCounter* counter_;
-
-    DISALLOW_COPY_AND_ASSIGN(RunTheStatic);
-  };
+#if defined(OS_WIN)
+  class ThreadSafeDownCounter;
+  class RunTheStatic;
 #endif
 
   // Each registered thread is called to set status_ to SHUTDOWN.
