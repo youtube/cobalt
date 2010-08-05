@@ -25,6 +25,7 @@ typedef HANDLE MutexHandle;
 
 #if defined(OS_POSIX)
 #include <errno.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
