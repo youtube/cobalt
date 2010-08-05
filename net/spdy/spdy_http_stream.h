@@ -85,7 +85,8 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
 
   virtual bool OnSendHeadersComplete(int status);
   virtual int OnSendBody();
-  virtual bool OnSendBodyComplete(int status);
+  virtual void OnSendBodyComplete(int status);
+  virtual bool IsFinishedSendingBody();
 
   // Called by the SpdySession when a response (e.g. a SYN_REPLY) has been
   // received for this stream.

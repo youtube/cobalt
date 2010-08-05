@@ -428,14 +428,18 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
 
   if (len > kMaxSpdyFrameChunkSize) {
     len = kMaxSpdyFrameChunkSize;
-    flags = spdy::DATA_FLAG_NONE;
+    flags = static_cast<spdy::SpdyDataFlags>(flags & ~spdy::DATA_FLAG_FIN);
   }
 
   // Obey send window size of the stream if flow control is enabled.
   if (use_flow_control_) {
     if (stream->send_window_size() <= 0)
       return ERR_IO_PENDING;
-    len = std::min(len, stream->send_window_size());
+    int new_len = std::min(len, stream->send_window_size());
+    if (new_len < len) {
+      len = new_len;
+      flags = static_cast<spdy::SpdyDataFlags>(flags & ~spdy::DATA_FLAG_FIN);
+    }
     stream->DecreaseSendWindowSize(len);
   }
 
