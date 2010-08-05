@@ -240,11 +240,13 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
 }
 
 void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
+  // Headers in |error_response_info_| indicate a proxy tunnel setup
+  // problem. See DoTunnelConnectComplete.
   if (error_response_info_.headers) {
-    handle->set_ssl_error_response_info(error_response_info_);
     handle->set_pending_http_proxy_connection(
         transport_socket_handle_.release());
   }
+  handle->set_ssl_error_response_info(error_response_info_);
   if (!ssl_connect_start_time_.is_null())
     handle->set_is_ssl_error(true);
 }
