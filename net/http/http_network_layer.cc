@@ -151,7 +151,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   // use, therefore the rest of the ordering here is not important.
   static const char kNpnProtosFull[] = "\x08http/1.1\x06spdy/2";
   // This is a temporary hack to pretend we support version 1.
-  static const char kNpnProtosFullV1[] = "\x08http/1.1\x06spdy/1\x06spdy/2";
+  static const char kNpnProtosFullV1[] = "\x08http/1.1\x06spdy/1";
   // No spdy specified.
   static const char kNpnProtosHttpOnly[] = "\x08http/1.1\x07http1.1";
 
