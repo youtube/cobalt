@@ -340,9 +340,12 @@ int SpdyHttpStream::OnSendBody() {
                                   spdy::DATA_FLAG_FIN);
 }
 
-bool SpdyHttpStream::OnSendBodyComplete(int status) {
+void SpdyHttpStream::OnSendBodyComplete(int status) {
   CHECK(request_body_stream_.get());
   request_body_stream_->DidConsume(status);
+}
+
+bool SpdyHttpStream::IsFinishedSendingBody() {
   return request_body_stream_->eof();
 }
 

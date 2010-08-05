@@ -284,6 +284,7 @@ class DelayedSocketData : public StaticSocketDataProvider,
   virtual MockWriteResult OnWrite(const std::string& data);
   virtual void Reset();
   void CompleteRead();
+  void ForceNextRead();
 
  private:
   int write_delay_;
