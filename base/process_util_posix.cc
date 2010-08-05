@@ -24,7 +24,6 @@
 #include "base/logging.h"
 #include "base/platform_thread.h"
 #include "base/process_util.h"
-#include "base/rand_util.h"
 #include "base/scoped_ptr.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -34,6 +33,7 @@
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
 #include "base/mach_ipc_mac.h"
+#include "base/rand_util.h"
 #else
 extern char** environ;
 #endif
