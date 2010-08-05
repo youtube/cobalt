@@ -262,6 +262,7 @@ int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
   CHECK(stream_.get());
 
   stream_->SetDelegate(this);
+
   linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
   CreateSpdyHeadersFromHttpRequest(*request_info_, headers.get());
   stream_->set_spdy_headers(headers);
@@ -285,7 +286,7 @@ int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
   CHECK(!stream_->cancelled());
   CHECK(response);
 
-  if (stream_->response_complete()) {
+  if (!stream_->pushed() && stream_->response_complete()) {
     if (stream_->response_status() == OK)
       return ERR_FAILED;
     else
@@ -297,16 +298,14 @@ int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
   // a) A client initiated request. In this case, |response_info_| should be
   //    NULL to start with.
   // b) A client request which matches a response that the server has already
-  //    pushed.  In this case, the value of |*push_response_info_| is copied
-  //    over to the new response object |*response|.  |push_response_info_| is
-  //    deleted, and |response_info_| is reset |response|.
+  //    pushed.
   if (push_response_info_.get()) {
-    *response = *push_response_info_;
+    *response = *(push_response_info_.get());
     push_response_info_.reset();
-    response_info_ = NULL;
   }
+  else
+    DCHECK_EQ(static_cast<HttpResponseInfo*>(NULL), response_info_);
 
-  DCHECK_EQ(static_cast<HttpResponseInfo*>(NULL), response_info_);
   response_info_ = response;
 
   bool has_upload_data = request_body_stream_.get() != NULL;

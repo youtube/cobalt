@@ -279,24 +279,7 @@ int SpdySession::GetPushStream(
     streams_pushed_and_claimed_count_++;
     return OK;
   }
-
-  // Check if we have a pending push stream for this url.
-  // Note that we shouldn't have a pushed stream for non-GET method.
-  PendingStreamMap::iterator it;
-  it = pending_streams_.find(path);
-  if (it != pending_streams_.end()) {
-    // Server has advertised a stream, but not yet sent it.
-    DCHECK(!it->second);
-    // Server will assign a stream id when the push stream arrives.  Use 0 for
-    // now.
-    net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
-    *stream = new SpdyStream(this, 0, true);
-    (*stream)->set_path(path);
-    (*stream)->set_net_log(stream_net_log);
-    it->second = *stream;
-    return OK;
-  }
-  return OK;
+  return NULL;
 }
 
 int SpdySession::CreateStream(
@@ -473,16 +456,19 @@ void SpdySession::CloseStream(spdy::SpdyStreamId stream_id, int status) {
 
 void SpdySession::ResetStream(
     spdy::SpdyStreamId stream_id, spdy::SpdyStatusCodes status) {
-  DCHECK(IsStreamActive(stream_id));
-  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-  CHECK_EQ(stream->stream_id(), stream_id);
-
   LOG(INFO) << "Sending a RST_STREAM frame for stream " << stream_id
             << " with status " << status;
 
   scoped_ptr<spdy::SpdyRstStreamControlFrame> rst_frame(
       spdy_framer_.CreateRstStream(stream_id, status));
-  QueueFrame(rst_frame.get(), stream->priority(), stream);
+
+  // Default to lowest priority unless we know otherwise.
+  int priority = 3;
+  if(IsStreamActive(stream_id)) {
+    scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
+    priority = stream->priority();
+  }
+  QueueFrame(rst_frame.get(), priority, NULL);
 
   DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
 }
@@ -786,9 +772,9 @@ void SpdySession::CloseAllStreams(net::Error status) {
 
   if (!active_streams_.empty())
     abandoned_streams.Add(active_streams_.size());
-  if (!pushed_streams_.empty()) {
-    streams_abandoned_count_ += pushed_streams_.size();
-    abandoned_push_streams.Add(pushed_streams_.size());
+  if (!unclaimed_pushed_streams_.empty()) {
+    streams_abandoned_count_ += unclaimed_pushed_streams_.size();
+    abandoned_push_streams.Add(unclaimed_pushed_streams_.size());
   }
 
   for (int i = 0;i < NUM_PRIORITIES;++i) {
@@ -807,16 +793,6 @@ void SpdySession::CloseAllStreams(net::Error status) {
       << "): " << stream->path();
     DeleteStream(stream->stream_id(), status);
   }
-
-  // TODO(erikchen): ideally stream->OnClose() is only ever called by
-  // DeleteStream, but pending streams fall into their own category for now.
-  PendingStreamMap::iterator it;
-  for (it = pending_streams_.begin(); it != pending_streams_.end(); ++it) {
-    const scoped_refptr<SpdyStream>& stream = it->second;
-    if (stream)
-      stream->OnClose(ERR_ABORTED);
-  }
-  pending_streams_.clear();
 
   // We also need to drain the queue.
   while (queue_.size())
@@ -870,12 +846,13 @@ void SpdySession::ActivateStream(SpdyStream* stream) {
 }
 
 void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
-  // Remove the stream from pushed_streams_ and active_streams_.
-  ActivePushedStreamList::iterator it;
-  for (it = pushed_streams_.begin(); it != pushed_streams_.end(); ++it) {
-    scoped_refptr<SpdyStream> curr = *it;
+  // Remove the stream from unclaimed_pushed_streams_ and active_streams_.
+  PushedStreamMap::iterator it;
+  for (it = unclaimed_pushed_streams_.begin();
+       it != unclaimed_pushed_streams_.end(); ++it) {
+    scoped_refptr<SpdyStream> curr = it->second;
     if (id == curr->stream_id()) {
-      pushed_streams_.erase(it);
+      unclaimed_pushed_streams_.erase(it);
       break;
     }
   }
@@ -906,22 +883,19 @@ scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
 
   LOG(INFO) << "Looking for push stream: " << path;
 
-  scoped_refptr<SpdyStream> stream;
-
-  // We just walk a linear list here.
-  ActivePushedStreamList::iterator it;
-  for (it = pushed_streams_.begin(); it != pushed_streams_.end(); ++it) {
-    stream = *it;
-    if (path == stream->path()) {
-      CHECK(stream->pushed());
-      pushed_streams_.erase(it);
-      used_push_streams.Increment();
-      LOG(INFO) << "Push Stream Claim for: " << path;
-      return stream;
-    }
+  PushedStreamMap::iterator it = unclaimed_pushed_streams_.find(path);
+  if (it != unclaimed_pushed_streams_.end()) {
+    LOG(INFO) << "Push stream: " << path << " found.";
+    net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
+    scoped_refptr<SpdyStream> stream = it->second;
+    unclaimed_pushed_streams_.erase(it);
+    used_push_streams.Increment();
+    return stream;
   }
-
-  return NULL;
+  else {
+    LOG(INFO) << "Push stream: " << path << " not found.";
+    return NULL;
+  }
 }
 
 bool SpdySession::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
@@ -972,9 +946,9 @@ bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
 void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
                         const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
-
-  LOG(INFO) << "Spdy SynStream for stream " << stream_id;
-
+  spdy::SpdyStreamId associated_stream_id = frame.associated_stream_id();
+  LOG(INFO) << "Spdy SynStream for stream " << stream_id
+            << " with associated stream " << associated_stream_id;
   // Server-initiated streams should have even sequence numbers.
   if ((stream_id & 0x1) != 0) {
     LOG(ERROR) << "Received invalid OnSyn stream id " << stream_id;
@@ -983,6 +957,14 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
 
   if (IsStreamActive(stream_id)) {
     LOG(ERROR) << "Received OnSyn for active stream " << stream_id;
+    return;
+  }
+
+  if (associated_stream_id == 0) {
+    LOG(ERROR) << "Received invalid OnSyn associated stream id "
+               << associated_stream_id
+               << " for stream " << stream_id;
+    ResetStream(stream_id, spdy::INVALID_STREAM);
     return;
   }
 
@@ -999,54 +981,47 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
       headers->find("path")->second : "";
 
   // Verify that the response had a URL for us.
-  DCHECK(!path.empty());
   if (path.empty()) {
+    ResetStream(stream_id, spdy::PROTOCOL_ERROR);
     LOG(WARNING) << "Pushed stream did not contain a path.";
     return;
   }
 
-  // Only HTTP push a stream.
+  if (!IsStreamActive(associated_stream_id)) {
+    LOG(ERROR) << "Received OnSyn with inactive associated stream "
+               << associated_stream_id;
+    ResetStream(stream_id, spdy::INVALID_ASSOCIATED_STREAM);
+    return;
+  }
+
   scoped_refptr<SpdyStream> stream;
 
-  // Check if we already have a delegate awaiting this stream.
-  PendingStreamMap::iterator it;
-  it = pending_streams_.find(path);
-  if (it != pending_streams_.end()) {
-    stream = it->second;
-    pending_streams_.erase(it);
+  stream = new SpdyStream(this, stream_id, true);
+
+  if (net_log_.HasListener()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
+        new NetLogSpdySynParameter(
+            headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
+            stream_id));
   }
 
-  if (stream) {
-    CHECK(stream->pushed());
-    CHECK_EQ(0u, stream->stream_id());
-    stream->set_stream_id(stream_id);
-    const BoundNetLog& log = stream->net_log();
-    if (log.HasListener()) {
-      log.AddEvent(
-          NetLog::TYPE_SPDY_STREAM_PUSHED_SYN_STREAM,
-          new NetLogSpdySynParameter(
-              headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
-              stream_id));
-    }
-  } else {
-    stream = new SpdyStream(this, stream_id, true);
+  // TODO(erikchen): Actually do something with the associated id.
 
-    if (net_log_.HasListener()) {
-      net_log_.AddEvent(
-          NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
-          new NetLogSpdySynParameter(
-              headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
-              stream_id));
-    }
+  stream->set_path(path);
+
+  // There should not be an existing pushed stream with the same path.
+  PushedStreamMap::iterator it = unclaimed_pushed_streams_.find(path);
+  if (it != unclaimed_pushed_streams_.end()) {
+    LOG(ERROR) << "Received duplicate pushed stream with path: " << path;
+    ResetStream(stream_id, spdy::PROTOCOL_ERROR);
   }
-
-  pushed_streams_.push_back(stream);
+  unclaimed_pushed_streams_[path] = stream;
 
   // Activate a stream and parse the headers.
   ActivateStream(stream);
 
-  stream->set_path(path);
-
+  // Parse the headers.
   if (!Respond(*headers, stream))
     return;
 
@@ -1081,34 +1056,6 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
     return;
   }
   stream->set_syn_reply_received();
-
-  // We record content declared as being pushed so that we don't
-  // request a duplicate stream which is already scheduled to be
-  // sent to us.
-  spdy::SpdyHeaderBlock::const_iterator it;
-  it = headers->find("x-associated-content");
-  if (it != headers->end()) {
-    const std::string& content = it->second;
-    std::string::size_type start = 0;
-    std::string::size_type end = 0;
-    do {
-      end = content.find("||", start);
-      if (end == std::string::npos)
-        end = content.length();
-      std::string url = content.substr(start, end - start);
-      std::string::size_type pos = url.find("??");
-      if (pos == std::string::npos)
-        break;
-      url = url.substr(pos + 2);
-      GURL gurl(url);
-      std::string path = gurl.PathForRequest();
-      if (path.length())
-        pending_streams_[path] = NULL;
-      else
-        LOG(INFO) << "Invalid X-Associated-Content path: " << url;
-      start = end + 2;
-    } while (start < content.length());
-  }
 
   const BoundNetLog& log = stream->net_log();
   if (log.HasListener()) {
@@ -1152,7 +1099,7 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
           *reinterpret_cast<const spdy::SpdySettingsControlFrame*>(frame));
       break;
     case spdy::RST_STREAM:
-      OnFin(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
+      OnRst(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
       break;
     case spdy::SYN_STREAM:
       OnSyn(*reinterpret_cast<const spdy::SpdySynStreamControlFrame*>(frame),
@@ -1172,7 +1119,7 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
   }
 }
 
-void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
+void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
   LOG(INFO) << "Spdy Fin for stream " << stream_id;
 
