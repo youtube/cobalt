@@ -124,6 +124,22 @@ GSourceFuncs WorkSourceFuncs = {
 
 namespace base {
 
+struct MessagePumpForUI::RunState {
+  Delegate* delegate;
+  Dispatcher* dispatcher;
+
+  // Used to flag that the current Run() invocation should return ASAP.
+  bool should_quit;
+
+  // Used to count how many Run() invocations are on the stack.
+  int run_depth;
+
+  // This keeps the state of whether the pump got signaled that there was new
+  // work to be done. Since we eat the message on the wake up pipe as soon as
+  // we get it, we keep that state here to stay consistent.
+  bool has_work;
+};
+
 MessagePumpForUI::MessagePumpForUI()
     : state_(NULL),
       context_(g_main_context_default()),
