@@ -55,10 +55,14 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
     ADD_FAILURE() << "OnSendBody should not be called";
     return ERR_UNEXPECTED;
   }
-  virtual bool OnSendBodyComplete(int status) {
+  virtual void OnSendBodyComplete(int status) {
     ADD_FAILURE() << "OnSendBodyComplete should not be called";
+  }
+
+  virtual bool IsFinishedSendingBody() {
     return true;
   }
+
   virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) {

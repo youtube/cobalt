@@ -548,6 +548,11 @@ void DelayedSocketData::CompleteRead() {
     socket()->OnReadComplete(GetNextRead());
 }
 
+void DelayedSocketData::ForceNextRead() {
+  write_delay_ = 0;
+  CompleteRead();
+}
+
 OrderedSocketData::OrderedSocketData(
     MockRead* reads, size_t reads_count, MockWrite* writes, size_t writes_count)
     : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
