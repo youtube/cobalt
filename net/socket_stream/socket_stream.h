@@ -220,6 +220,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   // Used for WebSocketThrottleTest.
   void CopyAddrInfo(struct addrinfo* head);
 
+  void DoClose();
+
   // Finishes the job.
   // Calls OnError and OnClose of delegate, and no more
   // notifications will be sent to delegate.
@@ -321,6 +323,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   PendingDataQueue pending_write_bufs_;
 
   bool closing_;
+  bool server_closed_;
 
   scoped_ptr<SocketStreamMetrics> metrics_;
 
