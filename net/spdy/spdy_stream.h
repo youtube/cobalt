@@ -48,8 +48,10 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
 
     // Called when data has been sent. |status| indicates network error
     // or number of bytes has been sent.
+    virtual void OnSendBodyComplete(int status) = 0;
+
     // Returns true if no more data to be sent.
-    virtual bool OnSendBodyComplete(int status) = 0;
+    virtual bool IsFinishedSendingBody() = 0;
 
     // Called when SYN_REPLY received. |status| indicates network error.
     // Returns network error code.
@@ -223,6 +225,10 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   spdy::SpdyStreamId stream_id_;
   std::string path_;
   int priority_;
+
+  // Tracks when a window update has already triggered a write, but
+  // the write has not yet completed.
+  bool window_update_write_pending_;
   int send_window_size_;
 
   const bool pushed_;
