@@ -38,8 +38,9 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
   // components.
   string16 domain;
   string16 user;
-  size_t backslash_idx = username->find(L'\\');
-  if (backslash_idx == std::wstring::npos) {
+  const char16 backslash_character = '\\';
+  size_t backslash_idx = username->find(backslash_character);
+  if (backslash_idx == string16::npos) {
     user = *username;
   } else {
     domain = username->substr(0, backslash_idx);
