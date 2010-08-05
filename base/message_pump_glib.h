@@ -82,21 +82,7 @@ class MessagePumpForUI : public MessagePump {
  private:
   // We may make recursive calls to Run, so we save state that needs to be
   // separate between them in this structure type.
-  struct RunState {
-    Delegate* delegate;
-    Dispatcher* dispatcher;
-
-    // Used to flag that the current Run() invocation should return ASAP.
-    bool should_quit;
-
-    // Used to count how many Run() invocations are on the stack.
-    int run_depth;
-
-    // This keeps the state of whether the pump got signaled that there was new
-    // work to be done. Since we eat the message on the wake up pipe as soon as
-    // we get it, we keep that state here to stay consistent.
-    bool has_work;
-  };
+  struct RunState;
 
   // Invoked from EventDispatcher. Notifies all observers we're about to
   // process an event.
