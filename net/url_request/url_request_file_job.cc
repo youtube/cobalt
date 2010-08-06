@@ -23,7 +23,7 @@
 #include "base/message_loop.h"
 #include "base/platform_file.h"
 #include "base/string_util.h"
-#include "base/worker_pool.h"
+#include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
@@ -33,6 +33,10 @@
 #include "net/http/http_util.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_file_dir_job.h"
+
+#if defined(OS_WIN)
+#include "base/worker_pool.h"
+#endif
 
 #if defined(OS_WIN)
 class URLRequestFileJob::AsyncResolver :

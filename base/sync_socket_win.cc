@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <windows.h>
 #include <sys/types.h>
-#include "base/atomicops.h"
 #include "base/logging.h"
 
 
