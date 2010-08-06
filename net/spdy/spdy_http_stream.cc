@@ -196,28 +196,30 @@ uint64 SpdyHttpStream::GetUploadProgress() const {
 }
 
 int SpdyHttpStream::ReadResponseHeaders(CompletionCallback* callback) {
-  DCHECK(stream_->is_idle());
-  // Note: The SpdyStream may have already received the response headers, so
-  //       this call may complete synchronously.
   CHECK(callback);
+  CHECK(!stream_->cancelled());
 
-  if (stream_->response_complete())
+  if (stream_->closed())
     return stream_->response_status();
 
-  int result = stream_->DoReadResponseHeaders();
-  if (result == ERR_IO_PENDING) {
-    CHECK(!user_callback_);
-    user_callback_ = callback;
+  // Check if we already have the response headers. If so, return synchronously.
+  if(stream_->response_received()) {
+    CHECK(stream_->is_idle());
+    return OK;
   }
-  return result;
+
+  // Still waiting for the response, return IO_PENDING.
+  CHECK(!user_callback_);
+  user_callback_ = callback;
+  return ERR_IO_PENDING;
 }
 
 int SpdyHttpStream::ReadResponseBody(
     IOBuffer* buf, int buf_len, CompletionCallback* callback) {
+  CHECK(stream_->is_idle());
   CHECK(buf);
   CHECK(buf_len);
   CHECK(callback);
-  DCHECK(stream_->is_idle());
 
   // If we have data buffered, complete the IO immediately.
   if (!response_body_.empty()) {
@@ -240,7 +242,7 @@ int SpdyHttpStream::ReadResponseBody(
       bytes_read += bytes_to_copy;
     }
     return bytes_read;
-  } else if (stream_->response_complete()) {
+  } else if (stream_->closed()) {
     return stream_->response_status();
   }
 
@@ -286,7 +288,7 @@ int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
   CHECK(!stream_->cancelled());
   CHECK(response);
 
-  if (!stream_->pushed() && stream_->response_complete()) {
+  if (!stream_->pushed() && stream_->closed()) {
     if (stream_->response_status() == OK)
       return ERR_FAILED;
     else
@@ -309,7 +311,7 @@ int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
   response_info_ = response;
 
   bool has_upload_data = request_body_stream_.get() != NULL;
-  int result = stream_->DoSendRequest(has_upload_data);
+  int result = stream_->SendRequest(has_upload_data);
   if (result == ERR_IO_PENDING) {
     CHECK(!user_callback_);
     user_callback_ = callback;
@@ -379,7 +381,7 @@ void SpdyHttpStream::OnDataReceived(const char* data, int length) {
   // Note that data may be received for a SpdyStream prior to the user calling
   // ReadResponseBody(), therefore user_buffer_ may be NULL.  This may often
   // happen for server initiated streams.
-  if (length > 0 && !stream_->response_complete()) {
+  if (length > 0 && !stream_->closed()) {
     // Save the received data.
     IOBufferWithSize* io_buffer = new IOBufferWithSize(length);
     memcpy(io_buffer->data(), data, length);
@@ -433,7 +435,7 @@ void SpdyHttpStream::ScheduleBufferedReadCallback() {
 // the caller.  Returns true if we should wait, false otherwise.
 bool SpdyHttpStream::ShouldWaitForMoreBufferedData() const {
   // If the response is complete, there is no point in waiting.
-  if (stream_->response_complete())
+  if (stream_->closed())
     return false;
 
   int bytes_buffered = 0;

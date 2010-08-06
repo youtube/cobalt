@@ -221,7 +221,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   (*headers)["version"] = "HTTP/1.1";
   stream->set_spdy_headers(headers);
 
-  EXPECT_EQ(ERR_IO_PENDING, stream->DoSendRequest(true));
+  EXPECT_EQ(ERR_IO_PENDING, stream->SendRequest(true));
 
   EXPECT_EQ(OK, callback.WaitForResult());
 

@@ -68,7 +68,7 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
 
   // Indicates if the response body has been completely read.
   virtual bool IsResponseBodyComplete() const {
-    return stream_->response_complete();
+    return stream_->closed();
   }
 
   // With SPDY the end of response is always detectable.
