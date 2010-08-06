@@ -940,6 +940,7 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
     EXPECT_EQ(8U, data->read_index());
 
     const HttpResponseInfo* response1 = trans1->GetResponseInfo();
+    ASSERT_TRUE(response1 != NULL);
     EXPECT_TRUE(response1->headers != NULL);
     EXPECT_TRUE(response1->was_fetched_via_spdy);
     out.status_line = response1->headers->GetStatusLine();
@@ -950,6 +951,7 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
     EXPECT_EQ("hello!hello!", out.response_data);
 
     const HttpResponseInfo* response2 = trans2->GetResponseInfo();
+    ASSERT_TRUE(response2 != NULL);
     out.status_line = response2->headers->GetStatusLine();
     out.response_info = *response2;
     out.rv = ReadTransaction(trans2.get(), &out.response_data);
@@ -1349,6 +1351,7 @@ TEST_P(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
   EXPECT_EQ(OK, rv);
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
   EXPECT_TRUE(response->headers != NULL);
   EXPECT_TRUE(response->was_fetched_via_spdy);
   std::string response_data;
