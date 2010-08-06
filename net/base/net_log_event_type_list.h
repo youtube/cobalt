@@ -521,9 +521,6 @@ EVENT_TYPE(SPDY_STREAM_SEND_BODY)
 //   }
 EVENT_TYPE(SPDY_STREAM_SYN_REPLY)
 
-// Measures the time taken to read headers on a stream.
-EVENT_TYPE(SPDY_STREAM_READ_HEADERS)
-
 // Measures the time taken to read the body on a stream.
 EVENT_TYPE(SPDY_STREAM_READ_BODY)
 
