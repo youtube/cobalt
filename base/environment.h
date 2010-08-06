@@ -36,7 +36,7 @@ class Environment {
   virtual bool HasVar(const char* variable_name);
 
   // Returns true on success, otherwise returns false.
-  virtual bool SetEnv(const char* variable_name,
+  virtual bool SetVar(const char* variable_name,
                       const std::string& new_value) = 0;
 
   // Returns true on success, otherwise returns false.
