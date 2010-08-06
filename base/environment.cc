@@ -40,8 +40,8 @@ class EnvironmentImpl : public base::Environment {
     return GetEnvImpl(alternate_case_var.c_str(), result);
   }
 
-  virtual bool SetEnv(const char* variable_name, const std::string& new_value) {
-    return SetEnvImpl(variable_name, new_value);
+  virtual bool SetVar(const char* variable_name, const std::string& new_value) {
+    return SetVarImpl(variable_name, new_value);
   }
 
   virtual bool UnSetVar(const char* variable_name) {
@@ -75,7 +75,7 @@ class EnvironmentImpl : public base::Environment {
 #endif
   }
 
-  bool SetEnvImpl(const char* variable_name, const std::string& new_value) {
+  bool SetVarImpl(const char* variable_name, const std::string& new_value) {
 #if defined(OS_POSIX)
     // On success, zero is returned.
     return setenv(variable_name, new_value.c_str(), 1) == 0;
