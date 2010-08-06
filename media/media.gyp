@@ -428,11 +428,11 @@
             '..',
           ],
           'sources': [
-            'media_foundation/main.cc',
-            'media_foundation/h264mft.cc',
-            'media_foundation/h264mft.h',
-            'media_foundation/file_reader_util.cc',
-            'media_foundation/mf_file_reader_util.h',
+            'mf/mft_h264_decoder.cc',
+            'mf/mft_h264_decoder.h',
+            'mf/file_reader_util.cc',
+            'mf/file_reader_util.h',
+            'mf/main.cc',
           ],
           'msvs_settings': {
             'VCLinkerTool': {
