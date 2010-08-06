@@ -278,6 +278,7 @@ struct sslSocketOpsStr {
 /* Flags interpreted by ssl send functions. */
 #define ssl_SEND_FLAG_FORCE_INTO_BUFFER	0x40000000
 #define ssl_SEND_FLAG_NO_BUFFER		0x20000000
+#define ssl_SEND_FLAG_NO_FLUSH		0x10000000
 #define ssl_SEND_FLAG_MASK		0x7f000000
 
 /*
@@ -743,7 +744,8 @@ struct TLSExtensionDataStr {
 
     /* SessionTicket Extension related data. */
     PRBool ticketTimestampVerified;
-    PRBool emptySessionTicket;
+    PRBool serverReceivedEmptySessionTicket;
+    PRBool clientSentNonEmptySessionTicket;
 
     /* SNI Extension related data
      * Names data is not coppied from the input buffer. It can not be
@@ -1503,6 +1505,29 @@ extern SECStatus ssl3_VerifySignedHashes(SSL3Hashes *hash,
 extern SECStatus ssl3_CacheWrappedMasterSecret(sslSocket *ss,
 			sslSessionID *sid, ssl3CipherSpec *spec,
 			SSL3KEAType effectiveExchKeyType);
+extern const ssl3CipherSuiteDef* ssl_LookupCipherSuiteDef(ssl3CipherSuite suite);
+extern SECStatus ssl3_SetupPendingCipherSpec(sslSocket *ss);
+extern SECStatus ssl3_SendClientKeyExchange(sslSocket *ss);
+extern SECStatus ssl3_SendFinished(sslSocket *ss, PRInt32 flags);
+extern SECStatus ssl3_CompressMACEncryptRecord
+	(sslSocket *        ss,
+	 SSL3ContentType    type,
+	 const SSL3Opaque * pIn,
+	 PRUint32           contentLen);
+extern PRBool ssl3_ClientExtensionAdvertised(sslSocket *ss, PRUint16 ex_type);
+extern SECStatus ssl3_SetupMasterSecretFromSessionID(sslSocket* ss);
+extern SECStatus ssl3_ComputeHandshakeHashes(
+	sslSocket *     ss,
+	ssl3CipherSpec *spec,   /* uses ->master_secret */
+	SSL3Hashes *    hashes, /* output goes here. */
+	PRUint32        sender);
+extern SECStatus ssl3_UpdateHandshakeHashes(sslSocket* ss, unsigned char *b,
+					    unsigned int l);
+extern SECStatus ssl3_ComputeTLSFinished(
+	ssl3CipherSpec *spec,
+	PRBool          isServer,
+	const   SSL3Finished *  hashes,
+	TLSFinished  *  tlsFinished);
 
 /* Functions that handle ClientHello and ServerHello extensions. */
 extern SECStatus ssl3_HandleServerNameXtn(sslSocket * ss,
