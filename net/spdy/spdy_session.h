@@ -296,10 +296,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // yet been satisfied
   PendingCreateStreamQueue create_stream_queues_[NUM_PRIORITIES];
 
-  // TODO(mbelshe): We need to track these stream lists better.
-  //                I suspect it is possible to remove a stream from
-  //                one list, but not the other.
-
   // Map from stream id to all active streams.  Streams are active in the sense
   // that they have a consumer (typically SpdyNetworkTransaction and regardless
   // of whether or not there is currently any ongoing IO [might be waiting for

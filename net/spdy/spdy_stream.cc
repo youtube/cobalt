@@ -20,12 +20,11 @@ SpdyStream::SpdyStream(
       send_window_size_(spdy::kInitialWindowSize),
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
-      syn_reply_received_(false),
+      response_received_(false),
       session_(session),
       delegate_(NULL),
       request_time_(base::Time::Now()),
       response_(new spdy::SpdyHeaderBlock),
-      response_complete_(false),
       io_state_(STATE_NONE),
       response_status_(OK),
       cancelled_(false),
@@ -42,7 +41,7 @@ void SpdyStream::SetDelegate(Delegate* delegate) {
   delegate_ = delegate;
 
   if (pushed_) {
-    CHECK(!response_->empty());
+    CHECK(response_received());
     MessageLoop::current()->PostTask(
         FROM_HERE, NewRunnableMethod(this,
                                      &SpdyStream::PushedStreamReplayData));
@@ -72,7 +71,7 @@ void SpdyStream::PushedStreamReplayData() {
 
 void SpdyStream::DetachDelegate() {
   delegate_ = NULL;
-  if (!response_complete_)
+  if (!closed())
     Cancel();
 }
 
@@ -115,7 +114,7 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
 
   // If the stream was stalled due to consumed window size, restart the
   // I/O loop.
-  if (!response_complete_ && !delegate_->IsFinishedSendingBody()) {
+  if (!closed() && !delegate_->IsFinishedSendingBody()) {
     // Don't start the I/O loop for every WINDOW_UPDATE frame received,
     // since we may receive many of them before the "write" due to first
     // received WINDOW_UPDATE is completed.
@@ -154,8 +153,7 @@ void SpdyStream::SetRequestTime(base::Time t) {
 
 int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   int rv = OK;
-  LOG(INFO) << "OnResponseReceived";
-  DCHECK_NE(io_state_, STATE_OPEN);
+  LOG(INFO) << "Received response for stream " << stream_id_;
 
   metrics_.StartStream();
 
@@ -165,17 +163,14 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   recv_first_byte_time_ = base::TimeTicks::Now();
   response_time_ = base::Time::Now();
 
-  if (io_state_ == STATE_NONE) {
-    CHECK(pushed_);
-    io_state_ = STATE_READ_HEADERS;
-  } else if (io_state_ == STATE_READ_HEADERS_COMPLETE) {
-    CHECK(!pushed_);
-  } else {
-    // We're not expecting a response while in this state.  Error!
-    rv = ERR_SPDY_PROTOCOL_ERROR;
-  }
+  // If we receive a response before we are in STATE_WAITING_FOR_RESPONSE, then
+  // the server has sent the SYN_REPLY too early.
+  if (!pushed_ && io_state_ != STATE_WAITING_FOR_RESPONSE)
+    return ERR_SPDY_PROTOCOL_ERROR;
+  if (pushed_)
+    CHECK(io_state_ == STATE_NONE);
+  io_state_ = STATE_OPEN;
 
-  rv = DoLoop(rv);
   if (delegate_)
     rv = delegate_->OnResponseReceived(*response_, response_time_, rv);
   // If delegate_ is not yet attached, we'll call OnResponseReceived after the
@@ -202,12 +197,12 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     return;
   }
 
- CHECK(!response_complete_);
+ CHECK(!closed());
 
   // If we don't have a response, then the SYN_REPLY did not come through.
   // We cannot pass data up to the caller unless the reply headers have been
   // received.
-  if (response_->empty()) {
+  if (!response_received()) {
     session_->CloseStream(stream_id_, ERR_SYN_REPLY_NOT_RECEIVED);
     return;
   }
@@ -238,26 +233,18 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
   delegate_->OnDataReceived(data, length);
 }
 
-void SpdyStream::OnWriteComplete(int status) {
-  // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
-  // should discontinue the DoLoop.
-
-  // Clear it just in case this write lead to a 0 size send window, so that
-  // incoming window updates will cause a write to be scheduled again.
+// This function is only called when an entire frame is written.
+void SpdyStream::OnWriteComplete(int bytes) {
   window_update_write_pending_ = false;
-
-  // It is possible that this stream was closed while we had a write pending.
-  if (response_complete_)
+  DCHECK_LE(0, bytes);
+  send_bytes_ += bytes;
+  if (cancelled() || closed())
     return;
-
-  if (status > 0)
-    send_bytes_ += status;
-
-  DoLoop(status);
+  DoLoop(bytes);
 }
 
 void SpdyStream::OnClose(int status) {
-  response_complete_ = true;
+  io_state_ = STATE_DONE;
   response_status_ = status;
   Delegate* delegate = delegate_;
   delegate_ = NULL;
@@ -274,53 +261,20 @@ void SpdyStream::Cancel() {
     session_->ResetStream(stream_id_, spdy::CANCEL);
 }
 
-int SpdyStream::DoSendRequest(bool has_upload_data) {
-  CHECK(!cancelled_);
-
-  if (!pushed_) {
-    spdy::SpdyControlFlags flags = spdy::CONTROL_FLAG_NONE;
-    if (!has_upload_data)
-      flags = spdy::CONTROL_FLAG_FIN;
-
-    CHECK(request_.get());
-    int result = session_->WriteSynStream(
-        stream_id_, static_cast<RequestPriority>(priority_), flags,
-        request_);
-    if (result != ERR_IO_PENDING)
-      return result;
-  }
-
-  send_time_ = base::TimeTicks::Now();
-
-  int result = OK;
-  if (!pushed_) {
-    DCHECK_EQ(io_state_, STATE_NONE);
-    io_state_ = STATE_SEND_HEADERS;
-  } else {
-    // Pushed stream should not have upload data.
-    DCHECK(!has_upload_data);
-    DCHECK(!response_->empty());
-    DCHECK_EQ(io_state_, STATE_OPEN);
+int SpdyStream::SendRequest(bool has_upload_data) {
+  // Pushed streams do not send any data, and should always be in STATE_OPEN or
+  // STATE_DONE. However, we still want to return IO_PENDING to mimic non-push
+  // behavior.
+  has_upload_data_ = has_upload_data;
+  if (pushed_) {
+    send_time_ = base::TimeTicks::Now();
+    DCHECK(!has_upload_data_);
+    DCHECK(response_received());
     return ERR_IO_PENDING;
   }
-  return DoLoop(result);
-}
-
-int SpdyStream::DoReadResponseHeaders() {
-  CHECK(!cancelled_);
-
-  // The SYN_REPLY has already been received.
-  if (!response_->empty()) {
-    CHECK_EQ(STATE_OPEN, io_state_);
-    return OK;
-  } else {
-    CHECK_EQ(STATE_NONE, io_state_);
-  }
-
-
-  io_state_ = STATE_READ_HEADERS;
-  // Q: do we need to run DoLoop here?
-  return ERR_IO_PENDING;
+  CHECK_EQ(STATE_NONE, io_state_);
+  io_state_ = STATE_SEND_HEADERS;
+  return DoLoop(OK);
 }
 
 int SpdyStream::WriteStreamData(IOBuffer* data, int length,
@@ -337,7 +291,7 @@ int SpdyStream::DoLoop(int result) {
     State state = io_state_;
     io_state_ = STATE_NONE;
     switch (state) {
-      // State machine 1: Send headers and wait for response headers.
+      // State machine 1: Send headers and body.
       case STATE_SEND_HEADERS:
         CHECK_EQ(OK, result);
         net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS, NULL);
@@ -356,16 +310,12 @@ int SpdyStream::DoLoop(int result) {
         net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY, NULL);
         result = DoSendBodyComplete(result);
         break;
-      case STATE_READ_HEADERS:
-        CHECK_EQ(OK, result);
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_READ_HEADERS, NULL);
-        result = DoReadHeaders();
+      // This is an intermediary waiting state. This state is reached when all
+      // data has been sent, but no data has been received.
+      case STATE_WAITING_FOR_RESPONSE:
+        io_state_ = STATE_WAITING_FOR_RESPONSE;
+        result = ERR_IO_PENDING;
         break;
-      case STATE_READ_HEADERS_COMPLETE:
-        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_READ_HEADERS, NULL);
-        result = DoReadHeadersComplete(result);
-        break;
-
       // State machine 2: connection is established.
       // In STATE_OPEN, OnResponseReceived has already been called.
       // OnDataReceived, OnClose and OnWriteCompelte can be called.
@@ -398,12 +348,20 @@ int SpdyStream::DoLoop(int result) {
 }
 
 int SpdyStream::DoSendHeaders() {
-  // The SpdySession will always call us back when the send is complete.
-  // TODO(willchan): This code makes the assumption that for the non-push stream
-  // case, the client code calls SendRequest() after creating the stream and
-  // before yielding back to the MessageLoop.  This is true in the current code,
-  // but is not obvious from the headers.  We should make the code handle
-  // SendRequest() being called after the SYN_REPLY has been received.
+  CHECK(!cancelled_);
+
+  spdy::SpdyControlFlags flags = spdy::CONTROL_FLAG_NONE;
+  if (!has_upload_data_)
+    flags = spdy::CONTROL_FLAG_FIN;
+
+  CHECK(request_.get());
+  int result = session_->WriteSynStream(
+      stream_id_, static_cast<RequestPriority>(priority_), flags,
+      request_);
+  if (result != ERR_IO_PENDING)
+    return result;
+
+  send_time_ = base::TimeTicks::Now();
   io_state_ = STATE_SEND_HEADERS_COMPLETE;
   return ERR_IO_PENDING;
 }
@@ -419,7 +377,7 @@ int SpdyStream::DoSendHeadersComplete(int result) {
 
   // There is no body, skip that state.
   if (delegate_->OnSendHeadersComplete(result)) {
-    io_state_ = STATE_READ_HEADERS;
+    io_state_ = STATE_WAITING_FOR_RESPONSE;
     return OK;
   }
 
@@ -454,19 +412,9 @@ int SpdyStream::DoSendBodyComplete(int result) {
   if (!delegate_->IsFinishedSendingBody())
     io_state_ = STATE_SEND_BODY;
   else
-    io_state_ = STATE_READ_HEADERS;
+    io_state_ = STATE_WAITING_FOR_RESPONSE;
 
   return OK;
-}
-
-int SpdyStream::DoReadHeaders() {
-  io_state_ = STATE_READ_HEADERS_COMPLETE;
-  return !response_->empty() ? OK : ERR_IO_PENDING;
-}
-
-int SpdyStream::DoReadHeadersComplete(int result) {
-  io_state_ = STATE_OPEN;
-  return result;
 }
 
 int SpdyStream::DoOpen(int result) {
