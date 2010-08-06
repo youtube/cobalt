@@ -115,7 +115,7 @@ class MockEnvironment : public base::Environment {
     return false;
   }
 
-  virtual bool SetEnv(const char* variable_name, const std::string& new_value) {
+  virtual bool SetVar(const char* variable_name, const std::string& new_value) {
     ADD_FAILURE();
     return false;
   }

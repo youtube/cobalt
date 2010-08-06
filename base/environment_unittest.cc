@@ -23,12 +23,12 @@ TEST_F(EnvironmentTest, HasVar) {
   EXPECT_TRUE(env->HasVar("PATH"));
 }
 
-TEST_F(EnvironmentTest, SetEnvVar) {
+TEST_F(EnvironmentTest, SetVar) {
   scoped_ptr<base::Environment> env(base::Environment::Create());
 
   const char kFooUpper[] = "FOO";
   const char kFooLower[] = "foo";
-  EXPECT_TRUE(env->SetEnv(kFooUpper, kFooLower));
+  EXPECT_TRUE(env->SetVar(kFooUpper, kFooLower));
 
   // Now verify that the environment has the new variable.
   EXPECT_TRUE(env->HasVar(kFooUpper));
@@ -44,7 +44,7 @@ TEST_F(EnvironmentTest, UnSetVar) {
   const char kFooUpper[] = "FOO";
   const char kFooLower[] = "foo";
   // First set some environment variable.
-  EXPECT_TRUE(env->SetEnv(kFooUpper, kFooLower));
+  EXPECT_TRUE(env->SetVar(kFooUpper, kFooLower));
 
   // Now verify that the environment has the new variable.
   EXPECT_TRUE(env->HasVar(kFooUpper));
