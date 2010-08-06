@@ -6,7 +6,6 @@
 
 #include "base/callback.h"
 #include "base/stl_util-inl.h"
-#include "base/waitable_event.h"
 #include "media/base/pipeline_impl.h"
 #include "media/base/media_format.h"
 #include "media/base/filters.h"
