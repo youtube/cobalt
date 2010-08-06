@@ -83,13 +83,10 @@ static SECStatus ssl3_SendCertificate(       sslSocket *ss);
 static SECStatus ssl3_SendEmptyCertificate(  sslSocket *ss);
 static SECStatus ssl3_SendCertificateRequest(sslSocket *ss);
 static SECStatus ssl3_SendNextProto(         sslSocket *ss);
-static SECStatus ssl3_SendFinished(          sslSocket *ss, PRInt32 flags);
 static SECStatus ssl3_SendServerHello(       sslSocket *ss);
 static SECStatus ssl3_SendServerHelloDone(   sslSocket *ss);
 static SECStatus ssl3_SendServerKeyExchange( sslSocket *ss);
 static SECStatus ssl3_NewHandshakeHashes(    sslSocket *ss);
-static SECStatus ssl3_UpdateHandshakeHashes( sslSocket *ss, unsigned char *b, 
-                                             unsigned int l);
 
 static SECStatus Null_Cipher(void *ctx, unsigned char *output, int *outputLen,
 			     int maxOutputLen, const unsigned char *input,
@@ -583,7 +580,7 @@ void SSL_AtomicIncrementLong(long * x)
 
 /* return pointer to ssl3CipherSuiteDef for suite, or NULL */
 /* XXX This does a linear search.  A binary search would be better. */
-static const ssl3CipherSuiteDef *
+const ssl3CipherSuiteDef *
 ssl_LookupCipherSuiteDef(ssl3CipherSuite suite)
 {
     int cipher_suite_def_len =
@@ -1211,7 +1208,7 @@ ssl3_DestroyCipherSpec(ssl3CipherSpec *spec, PRBool freeSrvName)
 ** Caller must hold the ssl3 handshake lock.
 ** Acquires & releases SpecWriteLock.
 */
-static SECStatus
+SECStatus
 ssl3_SetupPendingCipherSpec(sslSocket *ss)
 {
     ssl3CipherSpec *          pwSpec;
@@ -2039,7 +2036,7 @@ ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
     return isPresent;
 }
 
-static SECStatus
+SECStatus
 ssl3_CompressMACEncryptRecord(sslSocket *        ss,
                               SSL3ContentType    type,
 		              const SSL3Opaque * pIn,
@@ -3174,7 +3171,7 @@ loser:
 **		ssl3_HandleHandshakeMessage()
 ** Caller must hold the ssl3Handshake lock.
 */
-static SECStatus
+SECStatus
 ssl3_UpdateHandshakeHashes(sslSocket *ss, unsigned char *b, unsigned int l)
 {
     SECStatus  rv = SECSuccess;
@@ -3433,7 +3430,7 @@ ssl3_ConsumeHandshakeVariable(sslSocket *ss, SECItem *i, PRInt32 bytes,
  * Caller must hold a read or write lock on the Spec R/W lock.
  *	(There is presently no way to assert on a Read lock.)
  */
-static SECStatus
+SECStatus
 ssl3_ComputeHandshakeHashes(sslSocket *     ss,
                             ssl3CipherSpec *spec,   /* uses ->master_secret */
 			    SSL3Hashes *    hashes, /* output goes here. */
@@ -4722,7 +4719,7 @@ loser:
 
 
 /* Called from ssl3_HandleServerHelloDone(). */
-static SECStatus
+SECStatus
 ssl3_SendClientKeyExchange(sslSocket *ss)
 {
     SECKEYPublicKey *	serverKey 	= NULL;
@@ -4859,6 +4856,94 @@ done:
     if (buf.data)
 	PORT_Free(buf.data);
     return rv;
+}
+
+/* Called from ssl3_HandleServerHello to set up the master secret in
+ * ss->ssl3.pwSpec and the auth algorithm and kea type in ss->sec in the case
+ * of a successful session resumption. */
+SECStatus ssl3_SetupMasterSecretFromSessionID(sslSocket* ss) {
+    sslSessionID *sid = ss->sec.ci.sid;
+    ssl3CipherSpec *pwSpec = ss->ssl3.pwSpec;
+    SECItem wrappedMS;   /* wrapped master secret. */
+
+    ss->sec.authAlgorithm = sid->authAlgorithm;
+    ss->sec.authKeyBits   = sid->authKeyBits;
+    ss->sec.keaType       = sid->keaType;
+    ss->sec.keaKeyBits    = sid->keaKeyBits;
+
+    /* 3 cases here:
+     * a) key is wrapped (implies using PKCS11)
+     * b) key is unwrapped, but we're still using PKCS11
+     * c) key is unwrapped, and we're bypassing PKCS11.
+     */
+    if (sid->u.ssl3.keys.msIsWrapped) {
+	PK11SlotInfo *slot;
+	PK11SymKey *  wrapKey;     /* wrapping key */
+	CK_FLAGS      keyFlags      = 0;
+
+	if (ss->opt.bypassPKCS11) {
+	    /* we cannot restart a non-bypass session in a
+	    ** bypass socket.
+	    */
+	    return SECFailure;
+	}
+	/* unwrap master secret with PKCS11 */
+	slot = SECMOD_LookupSlot(sid->u.ssl3.masterModuleID,
+				 sid->u.ssl3.masterSlotID);
+	if (slot == NULL) {
+	    return SECFailure;
+	}
+	if (!PK11_IsPresent(slot)) {
+	    PK11_FreeSlot(slot);
+	    return SECFailure;
+	}
+	wrapKey = PK11_GetWrapKey(slot, sid->u.ssl3.masterWrapIndex,
+				  sid->u.ssl3.masterWrapMech,
+				  sid->u.ssl3.masterWrapSeries,
+				  ss->pkcs11PinArg);
+	PK11_FreeSlot(slot);
+	if (wrapKey == NULL) {
+	    return SECFailure;
+	}
+
+	if (ss->version > SSL_LIBRARY_VERSION_3_0) {	/* isTLS */
+	    keyFlags = CKF_SIGN | CKF_VERIFY;
+	}
+
+	wrappedMS.data = sid->u.ssl3.keys.wrapped_master_secret;
+	wrappedMS.len  = sid->u.ssl3.keys.wrapped_master_secret_len;
+	pwSpec->master_secret =
+	    PK11_UnwrapSymKeyWithFlags(wrapKey, sid->u.ssl3.masterWrapMech,
+			NULL, &wrappedMS, CKM_SSL3_MASTER_KEY_DERIVE,
+			CKA_DERIVE, sizeof(SSL3MasterSecret), keyFlags);
+	PK11_FreeSymKey(wrapKey);
+	if (pwSpec->master_secret == NULL) {
+	    return SECFailure;
+	}
+    } else if (ss->opt.bypassPKCS11) {
+	/* MS is not wrapped */
+	wrappedMS.data = sid->u.ssl3.keys.wrapped_master_secret;
+	wrappedMS.len  = sid->u.ssl3.keys.wrapped_master_secret_len;
+	memcpy(pwSpec->raw_master_secret, wrappedMS.data, wrappedMS.len);
+	pwSpec->msItem.data = pwSpec->raw_master_secret;
+	pwSpec->msItem.len  = wrappedMS.len;
+    } else {
+	/* We CAN restart a bypass session in a non-bypass socket. */
+	/* need to import the raw master secret to session object */
+	PK11SlotInfo *slot = PK11_GetInternalSlot();
+	wrappedMS.data = sid->u.ssl3.keys.wrapped_master_secret;
+	wrappedMS.len  = sid->u.ssl3.keys.wrapped_master_secret_len;
+	pwSpec->master_secret =
+	    PK11_ImportSymKey(slot, CKM_SSL3_MASTER_KEY_DERIVE,
+			      PK11_OriginUnwrap, CKA_ENCRYPT,
+			      &wrappedMS, NULL);
+	PK11_FreeSlot(slot);
+	if (pwSpec->master_secret == NULL) {
+	    return SECFailure;
+	}
+    }
+
+    return SECSuccess;
 }
 
 /* Called from ssl3_HandleHandshakeMessage() when it has deciphered a complete
@@ -5036,118 +5121,40 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 
     if (sid_match &&
 	sid->version == ss->version &&
-	sid->u.ssl3.cipherSuite == ss->ssl3.hs.cipher_suite) do {
-	ssl3CipherSpec *pwSpec = ss->ssl3.pwSpec;
+	sid->u.ssl3.cipherSuite == ss->ssl3.hs.cipher_suite) {
+	rv = ssl3_SetupMasterSecretFromSessionID(ss);
+	/* Failure of ssl3_SetupMasterSecretFromSessionID not considered an
+	 * error.  Continue with a full handshake. */
+	if (rv == SECSuccess) {
+	    /* Got a Match */
+	    SSL_AtomicIncrementLong(& ssl3stats.hsh_sid_cache_hits );
 
-	SECItem       wrappedMS;   /* wrapped master secret. */
+	    /* If we sent a session ticket, then this is a stateless resume. */
+	    if (sid->version > SSL_LIBRARY_VERSION_3_0 &&
+		sid->u.ssl3.sessionTicket.ticket.data != NULL)
+		SSL_AtomicIncrementLong(& ssl3stats.hsh_sid_stateless_resumes );
 
-	ss->sec.authAlgorithm = sid->authAlgorithm;
-	ss->sec.authKeyBits   = sid->authKeyBits;
-	ss->sec.keaType       = sid->keaType;
-	ss->sec.keaKeyBits    = sid->keaKeyBits;
+	    if (ssl3_ExtensionNegotiated(ss, ssl_session_ticket_xtn))
+		ss->ssl3.hs.ws = wait_new_session_ticket;
+	    else
+		ss->ssl3.hs.ws = wait_change_cipher;
 
-	/* 3 cases here:
-	 * a) key is wrapped (implies using PKCS11)
-	 * b) key is unwrapped, but we're still using PKCS11
-	 * c) key is unwrapped, and we're bypassing PKCS11.
-	 */
-	if (sid->u.ssl3.keys.msIsWrapped) {
-	    PK11SlotInfo *slot;
-	    PK11SymKey *  wrapKey;     /* wrapping key */
-	    CK_FLAGS      keyFlags      = 0;
+	    ss->ssl3.hs.isResuming = PR_TRUE;
 
-	    if (ss->opt.bypassPKCS11) {
-		/* we cannot restart a non-bypass session in a 
-		** bypass socket.
-		*/
-		break;  
-	    }
-	    /* unwrap master secret with PKCS11 */
-	    slot = SECMOD_LookupSlot(sid->u.ssl3.masterModuleID,
-				     sid->u.ssl3.masterSlotID);
-	    if (slot == NULL) {
-		break;		/* not considered an error. */
-	    }
-	    if (!PK11_IsPresent(slot)) {
-		PK11_FreeSlot(slot);
-		break;		/* not considered an error. */
-	    }
-	    wrapKey = PK11_GetWrapKey(slot, sid->u.ssl3.masterWrapIndex,
-				      sid->u.ssl3.masterWrapMech,
-				      sid->u.ssl3.masterWrapSeries,
-				      ss->pkcs11PinArg);
-	    PK11_FreeSlot(slot);
-	    if (wrapKey == NULL) {
-		break;		/* not considered an error. */
+	    /* copy the peer cert from the SID */
+	    if (sid->peerCert != NULL) {
+		ss->sec.peerCert = CERT_DupCertificate(sid->peerCert);
+		ssl3_CopyPeerCertsFromSID(ss, sid);
 	    }
 
-	    if (ss->version > SSL_LIBRARY_VERSION_3_0) {	/* isTLS */
-		keyFlags = CKF_SIGN | CKF_VERIFY;
+	    /* NULL value for PMS signifies re-use of the old MS */
+	    rv = ssl3_InitPendingCipherSpec(ss,  NULL);
+	    if (rv != SECSuccess) {
+		goto alert_loser;
 	    }
-
-	    wrappedMS.data = sid->u.ssl3.keys.wrapped_master_secret;
-	    wrappedMS.len  = sid->u.ssl3.keys.wrapped_master_secret_len;
-	    pwSpec->master_secret =
-		PK11_UnwrapSymKeyWithFlags(wrapKey, sid->u.ssl3.masterWrapMech, 
-			    NULL, &wrappedMS, CKM_SSL3_MASTER_KEY_DERIVE,
-			    CKA_DERIVE, sizeof(SSL3MasterSecret), keyFlags);
-	    errCode = PORT_GetError();
-	    PK11_FreeSymKey(wrapKey);
-	    if (pwSpec->master_secret == NULL) {
-		break;	/* errorCode set just after call to UnwrapSymKey. */
-	    }
-	} else if (ss->opt.bypassPKCS11) {
-	    /* MS is not wrapped */
-	    wrappedMS.data = sid->u.ssl3.keys.wrapped_master_secret;
-	    wrappedMS.len  = sid->u.ssl3.keys.wrapped_master_secret_len;
-	    memcpy(pwSpec->raw_master_secret, wrappedMS.data, wrappedMS.len);
-	    pwSpec->msItem.data = pwSpec->raw_master_secret;
-	    pwSpec->msItem.len  = wrappedMS.len;
-	} else {
-	    /* We CAN restart a bypass session in a non-bypass socket. */
-	    /* need to import the raw master secret to session object */
-	    PK11SlotInfo *slot = PK11_GetInternalSlot();
-	    wrappedMS.data = sid->u.ssl3.keys.wrapped_master_secret;
-	    wrappedMS.len  = sid->u.ssl3.keys.wrapped_master_secret_len;
-	    pwSpec->master_secret =  
-		PK11_ImportSymKey(slot, CKM_SSL3_MASTER_KEY_DERIVE, 
-				  PK11_OriginUnwrap, CKA_ENCRYPT, 
-				  &wrappedMS, NULL);
-	    PK11_FreeSlot(slot);
-	    if (pwSpec->master_secret == NULL) {
-		break; 
-	    }
+	    return SECSuccess;
 	}
-
-	/* Got a Match */
-	SSL_AtomicIncrementLong(& ssl3stats.hsh_sid_cache_hits );
-
-	/* If we sent a session ticket, then this is a stateless resume. */
-	if (sid->version > SSL_LIBRARY_VERSION_3_0 &&
-	    sid->u.ssl3.sessionTicket.ticket.data != NULL)
-	    SSL_AtomicIncrementLong(& ssl3stats.hsh_sid_stateless_resumes );
-
-	if (ssl3_ExtensionNegotiated(ss, ssl_session_ticket_xtn))
-	    ss->ssl3.hs.ws = wait_new_session_ticket;
-	else
-	    ss->ssl3.hs.ws = wait_change_cipher;
-
-	ss->ssl3.hs.isResuming = PR_TRUE;
-
-	/* copy the peer cert from the SID */
-	if (sid->peerCert != NULL) {
-	    ss->sec.peerCert = CERT_DupCertificate(sid->peerCert);
-	    ssl3_CopyPeerCertsFromSID(ss, sid);
-	}
-
-
-	/* NULL value for PMS signifies re-use of the old MS */
-	rv = ssl3_InitPendingCipherSpec(ss,  NULL);
-	if (rv != SECSuccess) {
-	    goto alert_loser;	/* err code was set */
-	}
-	return SECSuccess;
-    } while (0);
+    }
 
     if (sid_match)
 	SSL_AtomicIncrementLong(& ssl3stats.hsh_sid_cache_not_ok );
@@ -6105,7 +6112,7 @@ ssl3_HandleClientHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
      * ticket extension, but sent an empty ticket.
      */
     if (!ssl3_ExtensionNegotiated(ss, ssl_session_ticket_xtn) ||
-	ss->xtnData.emptySessionTicket) {
+	ss->xtnData.serverReceivedEmptySessionTicket) {
 	if (sidBytes.len > 0 && !ss->opt.noCache) {
 	    SSL_TRC(7, ("%d: SSL3[%d]: server, lookup client session-id for 0x%08x%08x%08x%08x",
 			SSL_GETPID(), ss->fd, ss->sec.ci.peer.pr_s6_addr32[0],
@@ -8152,7 +8159,7 @@ ssl3_RestartHandshakeAfterServerCert(sslSocket *ss)
     return rv;
 }
 
-static SECStatus
+SECStatus
 ssl3_ComputeTLSFinished(ssl3CipherSpec *spec,
 			PRBool          isServer,
                 const   SSL3Finished *  hashes,
@@ -8236,7 +8243,7 @@ ssl3_SendNextProto(sslSocket *ss)
  *             ssl3_HandleClientHello
  *             ssl3_HandleFinished
  */
-static SECStatus
+SECStatus
 ssl3_SendFinished(sslSocket *ss, PRInt32 flags)
 {
     ssl3CipherSpec *cwSpec;
@@ -8289,9 +8296,11 @@ ssl3_SendFinished(sslSocket *ss, PRInt32 flags)
 	if (rv != SECSuccess) 
 	    goto fail; 		/* err set by AppendHandshake. */
     }
-    rv = ssl3_FlushHandshake(ss, flags);
-    if (rv != SECSuccess) {
-	goto fail;	/* error code set by ssl3_FlushHandshake */
+    if ((flags & ssl_SEND_FLAG_NO_FLUSH) == 0) {
+	rv = ssl3_FlushHandshake(ss, flags);
+	if (rv != SECSuccess) {
+	    goto fail;	/* error code set by ssl3_FlushHandshake */
+	}
     }
     return SECSuccess;
 
