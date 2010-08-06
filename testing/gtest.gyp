@@ -51,6 +51,8 @@
       'conditions': [
         ['OS == "mac"', {
           'sources': [
+            'gtest_mac.h',
+            'gtest_mac.mm',
             'platform_test_mac.mm'
           ],
           'link_settings': {
