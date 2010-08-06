@@ -11,7 +11,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
-#include "base/atomicops.h"
 #include "base/file_util.h"
 #include "base/logging.h"
 
