@@ -1022,8 +1022,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   }
   unclaimed_pushed_streams_[path] = stream;
 
-  // Activate a stream and parse the headers.
   ActivateStream(stream);
+  stream->set_response_received();
 
   // Parse the headers.
   if (!Respond(*headers, stream))
@@ -1054,12 +1054,12 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
 
-  if (stream->syn_reply_received()) {
+  if (stream->response_received()) {
     LOG(WARNING) << "Received duplicate SYN_REPLY for stream " << stream_id;
     CloseStream(stream->stream_id(), ERR_SPDY_PROTOCOL_ERROR);
     return;
   }
-  stream->set_syn_reply_received();
+  stream->set_response_received();
 
   const BoundNetLog& log = stream->net_log();
   if (log.HasListener()) {
@@ -1125,12 +1125,12 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
 
 void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
-  LOG(INFO) << "Spdy Fin for stream " << stream_id;
+  LOG(INFO) << "Spdy RST for stream " << stream_id;
 
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
     // NOTE:  it may just be that the stream was cancelled.
-    LOG(WARNING) << "Received FIN for invalid stream" << stream_id;
+    LOG(WARNING) << "Received RST for invalid stream" << stream_id;
     return;
   }
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
