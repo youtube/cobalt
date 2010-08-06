@@ -111,7 +111,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         BoundNetLog(),
         &handler);
     EXPECT_EQ(OK, rv);
-    EXPECT_FALSE(handler.get() == NULL);
+    ASSERT_FALSE(handler.get() == NULL);
     EXPECT_STREQ("basic", handler->scheme().c_str());
     EXPECT_STREQ("FooBar", handler->realm().c_str());
     EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
@@ -138,7 +138,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         BoundNetLog(),
         &handler);
     EXPECT_EQ(OK, rv);
-    EXPECT_FALSE(handler.get() == NULL);
+    ASSERT_FALSE(handler.get() == NULL);
     EXPECT_STREQ("digest", handler->scheme().c_str());
     EXPECT_STREQ("FooBar", handler->realm().c_str());
     EXPECT_EQ(HttpAuth::AUTH_PROXY, handler->target());
@@ -170,7 +170,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         BoundNetLog(),
         &handler);
     EXPECT_EQ(OK, rv);
-    EXPECT_FALSE(handler.get() == NULL);
+    ASSERT_FALSE(handler.get() == NULL);
     EXPECT_STREQ("negotiate", handler->scheme().c_str());
     EXPECT_STREQ("", handler->realm().c_str());
     EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
