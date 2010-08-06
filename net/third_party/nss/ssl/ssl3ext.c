@@ -298,7 +298,7 @@ ssl3_ExtensionNegotiated(sslSocket *ss, PRUint16 ex_type) {
 	                          xtnData->numNegotiated, ex_type);
 }
 
-static PRBool
+PRBool
 ssl3_ClientExtensionAdvertised(sslSocket *ss, PRUint16 ex_type) {
     TLSExtensionData *xtnData = &ss->xtnData;
     return arrayContainsExtension(xtnData->advertised,
@@ -513,6 +513,8 @@ ssl3_SendSessionTicketXtn(
 	    rv = ssl3_AppendHandshakeVariable(ss, session_ticket->ticket.data,
 		session_ticket->ticket.len, 2);
 	    ss->xtnData.ticketTimestampVerified = PR_FALSE;
+	    if (!ss->sec.isServer)
+		ss->xtnData.clientSentNonEmptySessionTicket = PR_TRUE;
 	} else {
 	    rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
 	}
@@ -1019,7 +1021,7 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
      * instead of terminating the current connection.
      */
     if (data->len == 0) {
-	ss->xtnData.emptySessionTicket = PR_TRUE;
+	ss->xtnData.serverReceivedEmptySessionTicket = PR_TRUE;
     } else {
 	int                    i;
 	SECItem                extension_data;
