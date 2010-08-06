@@ -26,7 +26,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(TOOLKIT_USES_GTK)
 #include <gtk/gtk.h>
 #endif
 
@@ -62,10 +62,10 @@ class TestSuite {
     base::EnableTerminationOnHeapCorruption();
     CommandLine::Init(argc, argv);
     testing::InitGoogleTest(&argc, argv);
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(TOOLKIT_USES_GTK)
     g_thread_init(NULL);
     gtk_init_check(&argc, &argv);
-#endif  // defined(OS_LINUX)
+#endif  // defined(TOOLKIT_USES_GTK)
     // Don't add additional code to this constructor.  Instead add it to
     // Initialize().  See bug 6436.
   }
