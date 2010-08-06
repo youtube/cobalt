@@ -22,6 +22,7 @@ ClientSocketHandle::ClientSocketHandle()
 
 ClientSocketHandle::~ClientSocketHandle() {
   Reset();
+  UpdateConnectivityStateForSocket();
 }
 
 void ClientSocketHandle::Reset() {
