@@ -138,6 +138,11 @@ HttpNetworkSession::GetSocketPoolForSSLWithProxy(
 }
 
 // static
+int HttpNetworkSession::max_sockets_per_group() {
+  return g_max_sockets_per_group;
+}
+
+// static
 void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
   DCHECK_LT(0, socket_count);
   // The following is a sanity check... but we should NEVER be near this value.
@@ -149,7 +154,9 @@ void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
 void HttpNetworkSession::set_max_sockets_per_proxy_server(int socket_count) {
   DCHECK_LT(0, socket_count);
   DCHECK_GT(100, socket_count);  // Sanity check.
-
+  // Assert this case early on. The max number of sockets per group cannot
+  // exceed the max number of sockets per proxy server.
+  DCHECK_LE(g_max_sockets_per_group, socket_count);
   g_max_sockets_per_proxy_server = socket_count;
 }
 
