@@ -101,6 +101,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     return network_delegate_;
   }
 
+  static int max_sockets_per_group();
   static void set_max_sockets_per_group(int socket_count);
   static void set_max_sockets_per_proxy_server(int socket_count);
 
