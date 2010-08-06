@@ -378,6 +378,7 @@ bool DictionaryValue::Equals(const Value* other) const {
 }
 
 bool DictionaryValue::HasKey(const std::string& key) const {
+  DCHECK(IsStringUTF8(key));
   ValueMap::const_iterator current_entry = dictionary_.find(key);
   DCHECK((current_entry == dictionary_.end()) || current_entry->second);
   return current_entry != dictionary_.end();
@@ -404,6 +405,7 @@ void DictionaryValue::Clear() {
 }
 
 void DictionaryValue::Set(const std::string& path, Value* in_value) {
+  DCHECK(IsStringUTF8(path));
   DCHECK(in_value);
 
   std::string current_path(path);
@@ -507,6 +509,7 @@ void DictionaryValue::SetWithoutPathExpansion(const std::wstring& key,
 }
 
 bool DictionaryValue::Get(const std::string& path, Value** out_value) const {
+  DCHECK(IsStringUTF8(path));
   std::string current_path(path);
   const DictionaryValue* current_dictionary = this;
   for (size_t delimiter_position = current_path.find('.');
@@ -682,6 +685,7 @@ bool DictionaryValue::GetList(const std::wstring& path,
 
 bool DictionaryValue::GetWithoutPathExpansion(const std::string& key,
                                               Value** out_value) const {
+  DCHECK(IsStringUTF8(key));
   ValueMap::const_iterator entry_iterator = dictionary_.find(key);
   if (entry_iterator == dictionary_.end())
     return false;
@@ -792,6 +796,7 @@ bool DictionaryValue::GetListWithoutPathExpansion(const std::wstring& key,
 }
 
 bool DictionaryValue::Remove(const std::string& path, Value** out_value) {
+  DCHECK(IsStringUTF8(path));
   std::string current_path(path);
   DictionaryValue* current_dictionary = this;
   size_t delimiter_position = current_path.rfind('.');
@@ -813,6 +818,7 @@ bool DictionaryValue::Remove(const std::wstring& path, Value** out_value) {
 
 bool DictionaryValue::RemoveWithoutPathExpansion(const std::string& key,
                                                  Value** out_value) {
+  DCHECK(IsStringUTF8(key));
   ValueMap::iterator entry_iterator = dictionary_.find(key);
   if (entry_iterator == dictionary_.end())
     return false;
