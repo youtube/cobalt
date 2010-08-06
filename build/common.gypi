@@ -947,6 +947,11 @@
               '-fdata-sections',
               '-ffunction-sections',
             ],
+            'ldflags': [
+              # Specifically tell the linker to perform optimizations.
+              # See http://lwn.net/Articles/192624/ .
+              '-Wl,-O1',
+            ],
             'conditions' : [
               ['no_gc_sections==0', {
                 'ldflags': [
