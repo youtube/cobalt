@@ -491,7 +491,7 @@ class ClientSocketPoolBase {
             const scoped_refptr<SocketParams>& params,
             const BoundNetLog& net_log)
         : internal::ClientSocketPoolBaseHelper::Request(
-            handle, callback, priority, net_log),
+              handle, callback, priority, net_log),
           params_(params) {}
 
     const scoped_refptr<SocketParams>& params() const { return params_; }
@@ -531,9 +531,9 @@ class ClientSocketPoolBase {
       ConnectJobFactory* connect_job_factory)
       : histograms_(histograms),
         helper_(new internal::ClientSocketPoolBaseHelper(
-          max_sockets, max_sockets_per_group,
-          unused_idle_socket_timeout, used_idle_socket_timeout,
-          new ConnectJobFactoryAdaptor(connect_job_factory))) {}
+            max_sockets, max_sockets_per_group,
+            unused_idle_socket_timeout, used_idle_socket_timeout,
+            new ConnectJobFactoryAdaptor(connect_job_factory))) {}
 
   virtual ~ClientSocketPoolBase() {}
 
@@ -611,8 +611,7 @@ class ClientSocketPoolBase {
     typedef typename ClientSocketPoolBase<SocketParams>::ConnectJobFactory
         ConnectJobFactory;
 
-    explicit ConnectJobFactoryAdaptor(
-        ConnectJobFactory* connect_job_factory)
+    explicit ConnectJobFactoryAdaptor(ConnectJobFactory* connect_job_factory)
         : connect_job_factory_(connect_job_factory) {}
     virtual ~ConnectJobFactoryAdaptor() {}
 
