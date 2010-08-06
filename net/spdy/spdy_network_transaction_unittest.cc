@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
 #include <vector>
 
 #include "net/base/net_log_unittest.h"
@@ -960,6 +961,148 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
 
   EXPECT_TRUE(data->at_read_eof());
   EXPECT_TRUE(data->at_write_eof());
+}
+
+// Test that a simple PUT request works.
+TEST_P(SpdyNetworkTransactionTest, Put) {
+  // Setup the request
+  HttpRequestInfo request;
+  request.method = "PUT";
+  request.url = GURL("http://www.google.com/");
+
+  const SpdyHeaderInfo kSynStartHeader = {
+    spdy::SYN_STREAM,             // Kind = Syn
+    1,                            // Stream ID
+    0,                            // Associated stream ID
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    spdy::CONTROL_FLAG_FIN,       // Control Flags
+    false,                        // Compressed
+    spdy::INVALID,                // Status
+    NULL,                         // Data
+    0,                            // Length
+    spdy::DATA_FLAG_NONE          // Data Flags
+  };
+  const char* const kPutHeaders[] = {
+    "method", "PUT",
+    "url", "/",
+    "host", "www.google.com",
+    "scheme", "http",
+    "version", "HTTP/1.1",
+    "content-length", "0"
+  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPacket(kSynStartHeader, NULL, 0,
+    kPutHeaders, arraysize(kPutHeaders)/2));
+  MockWrite writes[] = {
+    CreateMockWrite(*req)
+  };
+
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  const SpdyHeaderInfo kSynReplyHeader = {
+    spdy::SYN_REPLY,              // Kind = SynReply
+    1,                            // Stream ID
+    0,                            // Associated stream ID
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    spdy::CONTROL_FLAG_NONE,      // Control Flags
+    false,                        // Compressed
+    spdy::INVALID,                // Status
+    NULL,                         // Data
+    0,                            // Length
+    spdy::DATA_FLAG_NONE          // Data Flags
+  };
+  static const char* const kStandardGetHeaders[] = {
+    "status", "200",
+    "version", "HTTP/1.1"
+    "content-length", "1234"
+  };
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPacket(kSynReplyHeader,
+      NULL, 0, kStandardGetHeaders, arraysize(kStandardGetHeaders)/2));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(request,
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+}
+
+// Test that a simple HEAD request works.
+TEST_P(SpdyNetworkTransactionTest, Head) {
+  // Setup the request
+  HttpRequestInfo request;
+  request.method = "HEAD";
+  request.url = GURL("http://www.google.com/");
+
+  const SpdyHeaderInfo kSynStartHeader = {
+    spdy::SYN_STREAM,             // Kind = Syn
+    1,                            // Stream ID
+    0,                            // Associated stream ID
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    spdy::CONTROL_FLAG_FIN,       // Control Flags
+    false,                        // Compressed
+    spdy::INVALID,                // Status
+    NULL,                         // Data
+    0,                            // Length
+    spdy::DATA_FLAG_NONE          // Data Flags
+  };
+  const char* const kHeadHeaders[] = {
+    "method", "HEAD",
+    "url", "/",
+    "host", "www.google.com",
+    "scheme", "http",
+    "version", "HTTP/1.1",
+    "content-length", "0"
+  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPacket(kSynStartHeader, NULL, 0,
+    kHeadHeaders, arraysize(kHeadHeaders)/2));
+  MockWrite writes[] = {
+    CreateMockWrite(*req)
+  };
+
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  const SpdyHeaderInfo kSynReplyHeader = {
+    spdy::SYN_REPLY,              // Kind = SynReply
+    1,                            // Stream ID
+    0,                            // Associated stream ID
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    spdy::CONTROL_FLAG_NONE,      // Control Flags
+    false,                        // Compressed
+    spdy::INVALID,                // Status
+    NULL,                         // Data
+    0,                            // Length
+    spdy::DATA_FLAG_NONE          // Data Flags
+  };
+  static const char* const kStandardGetHeaders[] = {
+    "status", "200",
+    "version", "HTTP/1.1"
+    "content-length", "1234"
+  };
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPacket(kSynReplyHeader,
+      NULL, 0, kStandardGetHeaders, arraysize(kStandardGetHeaders)/2));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(request,
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
 }
 
 // Test that a simple POST works.
