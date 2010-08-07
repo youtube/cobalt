@@ -21,8 +21,8 @@ namespace {
 
 class EnvironmentImpl : public base::Environment {
  public:
-  virtual bool GetEnv(const char* variable_name, std::string* result) {
-    if (GetEnvImpl(variable_name, result))
+  virtual bool GetVar(const char* variable_name, std::string* result) {
+    if (GetVarImpl(variable_name, result))
       return true;
 
     // Some commonly used variable names are uppercase while others
@@ -37,7 +37,7 @@ class EnvironmentImpl : public base::Environment {
       alternate_case_var = StringToLowerASCII(std::string(variable_name));
     else
       return false;
-    return GetEnvImpl(alternate_case_var.c_str(), result);
+    return GetVarImpl(alternate_case_var.c_str(), result);
   }
 
   virtual bool SetVar(const char* variable_name, const std::string& new_value) {
@@ -49,7 +49,7 @@ class EnvironmentImpl : public base::Environment {
   }
 
  private:
-  bool GetEnvImpl(const char* variable_name, std::string* result) {
+  bool GetVarImpl(const char* variable_name, std::string* result) {
 #if defined(OS_POSIX)
     const char* env_value = getenv(variable_name);
     if (!env_value)
@@ -120,7 +120,7 @@ Environment* Environment::Create() {
 }
 
 bool Environment::HasVar(const char* variable_name) {
-  return GetEnv(variable_name, NULL);
+  return GetVar(variable_name, NULL);
 }
 
 }  // namespace base
