@@ -63,7 +63,7 @@ bool PathProviderPosix(int key, FilePath* result) {
       // tree configurations (sub-project builds, gyp --output_dir, etc.)
       scoped_ptr<base::Environment> env(base::Environment::Create());
       std::string cr_source_root;
-      if (env->GetEnv("CR_SOURCE_ROOT", &cr_source_root)) {
+      if (env->GetVar("CR_SOURCE_ROOT", &cr_source_root)) {
         path = FilePath(cr_source_root);
         if (file_util::PathExists(path.Append("base/base_paths_posix.cc"))) {
           *result = path;
