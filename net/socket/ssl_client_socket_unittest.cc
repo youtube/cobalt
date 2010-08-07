@@ -38,6 +38,11 @@ class SSLClientSocketTest : public PlatformTest {
     ASSERT_TRUE(success);
   }
 
+  void StartClientAuthServer() {
+    server_.set_ssl_client_auth(true);
+    StartOKServer();
+  }
+
   void StartMismatchedServer() {
     bool success = server_.Start(net::TestServerLauncher::ProtoHTTP,
         server_.kMismatchedHostName, server_.kOKHTTPSPort,
@@ -184,6 +189,51 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
     rv = callback.WaitForResult();
     EXPECT_EQ(net::ERR_CERT_COMMON_NAME_INVALID, rv);
+  }
+
+  // We cannot test sock->IsConnected(), as the NSS implementation disconnects
+  // the socket when it encounters an error, whereas other implementations
+  // leave it connected.
+
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+}
+
+// TODO(davidben): Also test providing a certificate.
+TEST_F(SSLClientSocketTest, ConnectClientAuthNoCert) {
+  StartClientAuthServer();
+
+  net::AddressList addr;
+  TestCompletionCallback callback;
+
+  net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL, net::BoundNetLog());
+  EXPECT_EQ(net::OK, rv);
+
+  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  rv = transport->Connect(&callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+
+  scoped_ptr<net::SSLClientSocket> sock(
+      socket_factory_->CreateSSLClientSocket(transport,
+          server_.kHostName, kDefaultSSLConfig));
+
+  EXPECT_FALSE(sock->IsConnected());
+
+  rv = sock->Connect(&callback);
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+  if (rv != net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
+    ASSERT_EQ(net::ERR_IO_PENDING, rv);
+    EXPECT_FALSE(sock->IsConnected());
+    EXPECT_FALSE(net::LogContainsEndEvent(
+        log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+
+    rv = callback.WaitForResult();
+    EXPECT_EQ(net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED, rv);
   }
 
   // We cannot test sock->IsConnected(), as the NSS implementation disconnects
