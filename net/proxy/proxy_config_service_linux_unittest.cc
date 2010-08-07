@@ -105,7 +105,7 @@ class MockEnvironment : public base::Environment {
   }
 
   // Begin base::Environment implementation.
-  virtual bool GetEnv(const char* variable_name, std::string* result) {
+  virtual bool GetVar(const char* variable_name, std::string* result) {
     const char* env_value = table.Get(variable_name);
     if (env_value) {
       // Note that the variable may be defined but empty.

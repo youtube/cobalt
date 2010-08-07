@@ -83,7 +83,7 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromEnvVarForScheme(
     const char* variable, ProxyServer::Scheme scheme,
     ProxyServer* result_server) {
   std::string env_value;
-  if (env_var_getter_->GetEnv(variable, &env_value)) {
+  if (env_var_getter_->GetVar(variable, &env_value)) {
     if (!env_value.empty()) {
       env_value = FixupProxyHostScheme(scheme, env_value);
       ProxyServer proxy_server =
@@ -111,7 +111,7 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
   // extension has ever used this, but it still sounds like a good
   // idea.
   std::string auto_proxy;
-  if (env_var_getter_->GetEnv("auto_proxy", &auto_proxy)) {
+  if (env_var_getter_->GetVar("auto_proxy", &auto_proxy)) {
     if (auto_proxy.empty()) {
       // Defined and empty => autodetect
       config->set_auto_detect(true);
@@ -151,7 +151,7 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
     // If the above were not defined, try for socks.
     ProxyServer::Scheme scheme = ProxyServer::SCHEME_SOCKS4;
     std::string env_version;
-    if (env_var_getter_->GetEnv("SOCKS_VERSION", &env_version)
+    if (env_var_getter_->GetVar("SOCKS_VERSION", &env_version)
         && env_version == "5")
       scheme = ProxyServer::SCHEME_SOCKS5;
     if (GetProxyFromEnvVarForScheme("SOCKS_SERVER", scheme, &proxy_server)) {
@@ -161,7 +161,7 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
   }
   // Look for the proxy bypass list.
   std::string no_proxy;
-  env_var_getter_->GetEnv("no_proxy", &no_proxy);
+  env_var_getter_->GetVar("no_proxy", &no_proxy);
   if (config->proxy_rules().empty()) {
     // Having only "no_proxy" set, presumably to "*", makes it
     // explicit that env vars do specify a configuration: having no
@@ -428,13 +428,13 @@ class GConfSettingGetterImplKDE
         env_var_getter_(env_var_getter), file_loop_(NULL) {
     // Derive the location of the kde config dir from the environment.
     std::string home;
-    if (env_var_getter->GetEnv("KDEHOME", &home) && !home.empty()) {
+    if (env_var_getter->GetVar("KDEHOME", &home) && !home.empty()) {
       // $KDEHOME is set. Use it unconditionally.
       kde_config_dir_ = KDEHomeToConfigPath(FilePath(home));
     } else {
       // $KDEHOME is unset. Try to figure out what to use. This seems to be
       // the common case on most distributions.
-      if (!env_var_getter->GetEnv(base::env_vars::kHome, &home))
+      if (!env_var_getter->GetVar(base::env_vars::kHome, &home))
         // User has no $HOME? Give up. Later we'll report the failure.
         return;
       if (base::GetDesktopEnvironment(env_var_getter) ==
@@ -688,7 +688,7 @@ class GConfSettingGetterImplKDE
     string_map_type::iterator it = string_table_.find(key);
     if (it != string_table_.end()) {
       std::string value;
-      if (env_var_getter_->GetEnv(it->second.c_str(), &value))
+      if (env_var_getter_->GetVar(it->second.c_str(), &value))
         it->second = value;
       else
         string_table_.erase(it);
@@ -700,7 +700,7 @@ class GConfSettingGetterImplKDE
     if (it != strings_table_.end()) {
       std::string value;
       if (!it->second.empty() &&
-          env_var_getter_->GetEnv(it->second[0].c_str(), &value))
+          env_var_getter_->GetVar(it->second[0].c_str(), &value))
         AddHostList(key, value);
       else
         strings_table_.erase(it);
