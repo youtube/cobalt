@@ -437,6 +437,21 @@ TEST_F(HostResolverImplTest, EmptyHost) {
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
 }
 
+TEST_F(HostResolverImplTest, LongHost) {
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
+      new RuleBasedHostResolverProc(NULL);
+  resolver_proc->AllowDirectLookup("*");
+
+  scoped_refptr<HostResolver> host_resolver(
+      CreateHostResolverImpl(resolver_proc));
+  AddressList adrlist;
+  const int kPortnum = 5555;
+  std::string hostname(4097, 'a');
+  HostResolver::RequestInfo info(hostname, kPortnum);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, BoundNetLog());
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
+}
+
 // Helper class used by HostResolverImplTest.DeDupeRequests. It receives request
 // completion notifications for all the resolves, so it can tally up and
 // determine when we are done.
