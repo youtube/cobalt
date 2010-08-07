@@ -30,9 +30,9 @@ class Environment {
 
   // Gets an environment variable's value and stores it in |result|.
   // Returns false if the key is unset.
-  virtual bool GetEnv(const char* variable_name, std::string* result) = 0;
+  virtual bool GetVar(const char* variable_name, std::string* result) = 0;
 
-  // Syntactic sugar for GetEnv(variable_name, NULL);
+  // Syntactic sugar for GetVar(variable_name, NULL);
   virtual bool HasVar(const char* variable_name);
 
   // Returns true on success, otherwise returns false.
