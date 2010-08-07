@@ -76,6 +76,13 @@ class TestServerLauncher {
 
   FilePath GetDocumentRootPath() { return document_root_dir_; }
 
+  // When Start is called, if protocol is HTTPS and ssl_client_auth_ is true,
+  // the server will request a client certificate on each connection. Must be
+  // called before Start to take effect.
+  void set_ssl_client_auth(bool ssl_client_auth) {
+    ssl_client_auth_ = ssl_client_auth;
+  }
+
   // Issuer name of the root cert that should be trusted for the test to work.
   static const wchar_t kCertIssuerName[];
 
@@ -122,6 +129,8 @@ class TestServerLauncher {
 #if defined(USE_NSS)
   scoped_refptr<X509Certificate> cert_;
 #endif
+
+  bool ssl_client_auth_;
 
   DISALLOW_COPY_AND_ASSIGN(TestServerLauncher);
 };
@@ -253,6 +262,22 @@ class HTTPSTestServer : public HTTPTestServer {
     scoped_refptr<HTTPSTestServer> test_server = new HTTPSTestServer();
     FilePath docroot = FilePath::FromWStringHack(document_root);
     FilePath certpath = test_server->launcher_.GetOKCertPath();
+    if (!test_server->Start(net::TestServerLauncher::ProtoHTTP,
+        net::TestServerLauncher::kHostName,
+        net::TestServerLauncher::kOKHTTPSPort,
+        docroot, certpath, std::wstring())) {
+      return NULL;
+    }
+    return test_server;
+  }
+
+  // Create a server which requests SSL client auth
+  static scoped_refptr<HTTPSTestServer> CreateClientAuthServer(
+      const std::wstring& document_root) {
+    scoped_refptr<HTTPSTestServer> test_server = new HTTPSTestServer();
+    FilePath docroot = FilePath::FromWStringHack(document_root);
+    FilePath certpath = test_server->launcher_.GetOKCertPath();
+    test_server->launcher_.set_ssl_client_auth(true);
     if (!test_server->Start(net::TestServerLauncher::ProtoHTTP,
         net::TestServerLauncher::kHostName,
         net::TestServerLauncher::kOKHTTPSPort,
