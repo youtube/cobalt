@@ -4,8 +4,6 @@
 
 #include "media/audio/fake_audio_input_stream.h"
 
-#include "base/at_exit.h"
-
 using base::Time;
 using base::TimeDelta;
 
