@@ -434,6 +434,52 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
   }
 }
 
+namespace {
+
+class SSLClientAuthTestDelegate : public TestDelegate {
+ public:
+  SSLClientAuthTestDelegate() : on_certificate_requested_count_(0) {
+  }
+  virtual void OnCertificateRequested(
+      URLRequest* request,
+      net::SSLCertRequestInfo* cert_request_info) {
+    on_certificate_requested_count_++;
+    MessageLoop::current()->Quit();
+  }
+  int on_certificate_requested_count() {
+    return on_certificate_requested_count_;
+  }
+ private:
+  int on_certificate_requested_count_;
+};
+
+}  // namespace
+
+// TODO(davidben): Test the rest of the code. Specifically,
+// - Filtering which certificates to select.
+// - Sending a certificate back.
+// - Getting a certificate request in an SSL renegotiation sending the
+//   HTTP request.
+TEST_F(HTTPSRequestTest, ClientAuthTest) {
+  scoped_refptr<HTTPSTestServer> server =
+      HTTPSTestServer::CreateClientAuthServer(L"net/data/ssl");
+  ASSERT_TRUE(NULL != server.get());
+
+  SSLClientAuthTestDelegate d;
+  {
+    TestURLRequest r(server->TestServerPage(""), &d);
+
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(1, d.on_certificate_requested_count());
+    EXPECT_FALSE(d.received_data_before_response());
+    EXPECT_EQ(0, d.bytes_received());
+  }
+}
+
 TEST_F(URLRequestTestHTTP, CancelTest) {
   TestDelegate d;
   {
