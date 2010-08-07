@@ -9,11 +9,11 @@
 
 typedef PlatformTest EnvironmentTest;
 
-TEST_F(EnvironmentTest, GetEnvVar) {
+TEST_F(EnvironmentTest, GetVar) {
   // Every setup should have non-empty PATH...
   scoped_ptr<base::Environment> env(base::Environment::Create());
   std::string env_value;
-  EXPECT_TRUE(env->GetEnv("PATH", &env_value));
+  EXPECT_TRUE(env->GetVar("PATH", &env_value));
   EXPECT_NE(env_value, "");
 }
 
@@ -34,7 +34,7 @@ TEST_F(EnvironmentTest, SetVar) {
   EXPECT_TRUE(env->HasVar(kFooUpper));
 
   std::string var_value;
-  EXPECT_TRUE(env->GetEnv(kFooUpper, &var_value));
+  EXPECT_TRUE(env->GetVar(kFooUpper, &var_value));
   EXPECT_EQ(var_value, kFooLower);
 }
 
