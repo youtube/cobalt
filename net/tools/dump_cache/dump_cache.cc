@@ -41,8 +41,8 @@ const char kUpgradeHelp[] =
     "executable should be compiled with version 5.2 being the current one.";
 
 // Folders to read and write cache files.
-const wchar_t kInputPath[] = L"input";
-const wchar_t kOutputPath[] = L"output";
+const char kInputPath[] = "input";
+const char kOutputPath[] = "output";
 
 // Dumps the file headers to stdout.
 const wchar_t kDumpHeaders[] = L"dump-headers";
@@ -115,14 +115,15 @@ int main(int argc, const char* argv[]) {
   CommandLine::Init(argc, argv);
 
   const CommandLine& command_line = *CommandLine::ForCurrentProcess();
-  std::wstring input_path = command_line.GetSwitchValue(kInputPath);
+  std::wstring input_path = command_line.GetSwitchValueNative(kInputPath);
   if (input_path.empty())
     return Help();
 
   bool upgrade = false;
   bool slave_required = false;
   bool copy_to_text = false;
-  std::wstring output_path = command_line.GetSwitchValue(kOutputPath);
+  // TODO(evanm): port to FilePath.
+  std::wstring output_path = command_line.GetSwitchValueNative(kOutputPath);
   if (command_line.HasSwitch(kUpgrade))
     upgrade = true;
   if (command_line.HasSwitch(kDumpToFiles))
@@ -146,7 +147,7 @@ int main(int argc, const char* argv[]) {
     slave_required = true;
   }
 
-  std::wstring pipe_number = command_line.GetSwitchValue(kPipe);
+  std::wstring pipe_number = command_line.GetSwitchValueNative(kPipe);
   if (command_line.HasSwitch(kSlave) && slave_required)
     return RunSlave(input_path, pipe_number);
 
