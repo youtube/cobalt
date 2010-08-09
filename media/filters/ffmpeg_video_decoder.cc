@@ -224,6 +224,9 @@ FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
   if (timestamp != StreamSample::kInvalidTimestamp &&
       timestamp.ToInternalValue() != 0) {
     pts.timestamp = timestamp;
+    // We need to clean up the timestamp we pushed onto the |pts_heap|.
+    if (!pts_heap->IsEmpty())
+      pts_heap->Pop();
   } else if (!pts_heap->IsEmpty()) {
     // If the frame did not have pts, try to get the pts from the |pts_heap|.
     pts.timestamp = pts_heap->Top();
