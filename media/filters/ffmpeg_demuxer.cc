@@ -426,8 +426,8 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
 
       // Initialize the bitstream if OpenMAX is enabled.
       // TODO(hclam): Should be enabled by the decoder.
-      CommandLine* cmd = CommandLine::ForCurrentProcess();
-      if (cmd->HasSwitch(switches::kEnableAcceleratedDecoding)) {
+      if (CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kEnableOpenMax)) {
         // TODO(ajwong): Unittest this branch of the if statement.
         // TODO(hclam): In addition to codec we should also check the container.
         const char* filter_name = NULL;
