@@ -8,7 +8,7 @@
 #include "net/base/net_log_unittest.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/spdy/spdy_http_stream.h"
-#include "net/spdy/spdy_network_transaction.h"
+#include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_test_util.h"
 #include "net/url_request/url_request_unittest.h"
 #include "testing/platform_test.h"
@@ -510,61 +510,60 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGets) {
 
     MockRead(true, 0, 0),  // EOF
   };
-
   scoped_refptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
+  scoped_refptr<OrderedSocketData> data_placeholder(
+      new OrderedSocketData(NULL, 0, NULL, 0));
 
   BoundNetLog log;
   TransactionHelperResult out;
-  {
-    SpdySessionDependencies session_deps;
-    HttpNetworkSession* session =
-        SpdySessionDependencies::SpdyCreateSession(&session_deps);
-    SpdySession::SetSSLMode(false);
-    scoped_ptr<SpdyNetworkTransaction> trans1(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans2(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans3(
-        new SpdyNetworkTransaction(session));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.RunPreTestSetup();
+  helper.AddData(data.get());
+  // We require placeholder data because three get requests are sent out, so
+  // there needs to be three sets of SSL connection data.
+  helper.AddData(data_placeholder.get());
+  helper.AddData(data_placeholder.get());
+  scoped_ptr<HttpNetworkTransaction> trans1(
+      new HttpNetworkTransaction(helper.session()));
+  scoped_ptr<HttpNetworkTransaction> trans2(
+      new HttpNetworkTransaction(helper.session()));
+  scoped_ptr<HttpNetworkTransaction> trans3(
+      new HttpNetworkTransaction(helper.session()));
 
-    session_deps.socket_factory.AddSocketDataProvider(data);
+  TestCompletionCallback callback1;
+  TestCompletionCallback callback2;
+  TestCompletionCallback callback3;
 
-    TestCompletionCallback callback1;
-    TestCompletionCallback callback2;
-    TestCompletionCallback callback3;
+  HttpRequestInfo httpreq1 = CreateGetRequest();
+  HttpRequestInfo httpreq2 = CreateGetRequest();
+  HttpRequestInfo httpreq3 = CreateGetRequest();
 
-    HttpRequestInfo httpreq1 = CreateGetRequest();
-    HttpRequestInfo httpreq2 = CreateGetRequest();
-    HttpRequestInfo httpreq3 = CreateGetRequest();
+  out.rv = trans1->Start(&httpreq1, &callback1, log);
+  ASSERT_EQ(ERR_IO_PENDING, out.rv);
+  out.rv = trans2->Start(&httpreq2, &callback2, log);
+  ASSERT_EQ(ERR_IO_PENDING, out.rv);
+  out.rv = trans3->Start(&httpreq3, &callback3, log);
+  ASSERT_EQ(ERR_IO_PENDING, out.rv);
 
-    out.rv = trans1->Start(&httpreq1, &callback1, log);
-    ASSERT_EQ(ERR_IO_PENDING, out.rv);
-    out.rv = trans2->Start(&httpreq2, &callback2, log);
-    ASSERT_EQ(ERR_IO_PENDING, out.rv);
-    out.rv = trans3->Start(&httpreq3, &callback3, log);
-    ASSERT_EQ(ERR_IO_PENDING, out.rv);
+  out.rv = callback1.WaitForResult();
+  ASSERT_EQ(OK, out.rv);
+  out.rv = callback3.WaitForResult();
+  ASSERT_EQ(OK, out.rv);
 
-    out.rv = callback1.WaitForResult();
-    ASSERT_EQ(OK, out.rv);
-    out.rv = callback3.WaitForResult();
-    ASSERT_EQ(OK, out.rv);
+  const HttpResponseInfo* response1 = trans1->GetResponseInfo();
+  EXPECT_TRUE(response1->headers != NULL);
+  EXPECT_TRUE(response1->was_fetched_via_spdy);
+  out.status_line = response1->headers->GetStatusLine();
+  out.response_info = *response1;
 
-    const HttpResponseInfo* response1 = trans1->GetResponseInfo();
-    EXPECT_TRUE(response1->headers != NULL);
-    EXPECT_TRUE(response1->was_fetched_via_spdy);
-    out.status_line = response1->headers->GetStatusLine();
-    out.response_info = *response1;
+  trans2->GetResponseInfo();
 
-    trans2->GetResponseInfo();
-
-    out.rv = ReadTransaction(trans1.get(), &out.response_data);
-  }
+  out.rv = ReadTransaction(trans1.get(), &out.response_data);
+  helper.VerifyDataConsumed();
   EXPECT_EQ(OK, out.rv);
-
-  EXPECT_TRUE(data->at_read_eof());
-  EXPECT_TRUE(data->at_write_eof());
 
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -606,14 +605,14 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
                          CreateMockWrite(*req3),
   };
   MockRead reads[] = {
-    CreateMockRead(*settings_frame, 0),
+    CreateMockRead(*settings_frame, 1),
     CreateMockRead(*resp),
     CreateMockRead(*body),
     CreateMockRead(*fbody),
-    CreateMockRead(*resp2, 6),
+    CreateMockRead(*resp2, 7),
     CreateMockRead(*body2),
     CreateMockRead(*fbody2),
-    CreateMockRead(*resp3, 11),
+    CreateMockRead(*resp3, 12),
     CreateMockRead(*body3),
     CreateMockRead(*fbody3),
 
@@ -623,22 +622,26 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
   scoped_refptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
+  scoped_refptr<OrderedSocketData> data_placeholder(
+      new OrderedSocketData(NULL, 0, NULL, 0));
 
   BoundNetLog log;
   TransactionHelperResult out;
   {
-    SpdySessionDependencies session_deps;
-    HttpNetworkSession* session =
-        SpdySessionDependencies::SpdyCreateSession(&session_deps);
-    SpdySession::SetSSLMode(false);
-    scoped_ptr<SpdyNetworkTransaction> trans1(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans2(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans3(
-        new SpdyNetworkTransaction(session));
-
-    session_deps.socket_factory.AddSocketDataProvider(data);
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.RunPreTestSetup();
+  helper.AddData(data.get());
+  // We require placeholder data because three get requests are sent out, so
+  // there needs to be three sets of SSL connection data.
+  helper.AddData(data_placeholder.get());
+  helper.AddData(data_placeholder.get());
+    scoped_ptr<HttpNetworkTransaction> trans1(
+        new HttpNetworkTransaction(helper.session()));
+    scoped_ptr<HttpNetworkTransaction> trans2(
+        new HttpNetworkTransaction(helper.session()));
+    scoped_ptr<HttpNetworkTransaction> trans3(
+        new HttpNetworkTransaction(helper.session()));
 
     TestCompletionCallback callback1;
     TestCompletionCallback callback2;
@@ -653,6 +656,7 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
     // run transaction 1 through quickly to force a read of our SETTINGS
     // frame
     out.rv = callback1.WaitForResult();
+    ASSERT_EQ(OK, out.rv);
 
     out.rv = trans2->Start(&httpreq2, &callback2, log);
     ASSERT_EQ(out.rv, ERR_IO_PENDING);
@@ -666,6 +670,7 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
     ASSERT_EQ(OK, out.rv);
 
     const HttpResponseInfo* response1 = trans1->GetResponseInfo();
+    ASSERT_TRUE(response1 != NULL);
     EXPECT_TRUE(response1->headers != NULL);
     EXPECT_TRUE(response1->was_fetched_via_spdy);
     out.status_line = response1->headers->GetStatusLine();
@@ -690,11 +695,9 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
     EXPECT_EQ(OK, out.rv);
     EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
     EXPECT_EQ("hello!hello!", out.response_data);
+  helper.VerifyDataConsumed();
   }
   EXPECT_EQ(OK, out.rv);
-
-  EXPECT_TRUE(data->at_read_eof());
-  EXPECT_TRUE(data->at_write_eof());
 }
 
 // Similar to ThreeGetsWithMaxConcurrent above, however this test adds
@@ -734,21 +737,21 @@ TEST_P(SpdyNetworkTransactionTest, FourGetsWithMaxConcurrentPriority) {
   scoped_ptr<spdy::SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   MockWrite writes[] = { CreateMockWrite(*req),
-                         CreateMockWrite(*req2),
-                         CreateMockWrite(*req4),
-                         CreateMockWrite(*req3),
+    CreateMockWrite(*req2),
+    CreateMockWrite(*req4),
+    CreateMockWrite(*req3),
   };
   MockRead reads[] = {
-    CreateMockRead(*settings_frame, 0),
+    CreateMockRead(*settings_frame, 1),
     CreateMockRead(*resp),
     CreateMockRead(*body),
     CreateMockRead(*fbody),
-    CreateMockRead(*resp2, 6),
+    CreateMockRead(*resp2, 7),
     CreateMockRead(*body2),
     CreateMockRead(*fbody2),
-    CreateMockRead(*resp4, 12),
+    CreateMockRead(*resp4, 13),
     CreateMockRead(*fbody4),
-    CreateMockRead(*resp3, 15),
+    CreateMockRead(*resp3, 16),
     CreateMockRead(*body3),
     CreateMockRead(*fbody3),
 
@@ -757,100 +760,102 @@ TEST_P(SpdyNetworkTransactionTest, FourGetsWithMaxConcurrentPriority) {
 
   scoped_refptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
-                            writes, arraysize(writes)));
+        writes, arraysize(writes)));
+  scoped_refptr<OrderedSocketData> data_placeholder(
+      new OrderedSocketData(NULL, 0, NULL, 0));
 
   BoundNetLog log;
   TransactionHelperResult out;
-  {
-    SpdySessionDependencies session_deps;
-    HttpNetworkSession* session =
-        SpdySessionDependencies::SpdyCreateSession(&session_deps);
-    SpdySession::SetSSLMode(false);
-    scoped_ptr<SpdyNetworkTransaction> trans1(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans2(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans3(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans4(
-        new SpdyNetworkTransaction(session));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+      BoundNetLog(), GetParam());
+  helper.RunPreTestSetup();
+  helper.AddData(data.get());
+  // We require placeholder data because four get requests are sent out, so
+  // there needs to be four sets of SSL connection data.
+  helper.AddData(data_placeholder.get());
+  helper.AddData(data_placeholder.get());
+  helper.AddData(data_placeholder.get());
+  scoped_ptr<HttpNetworkTransaction> trans1(
+      new HttpNetworkTransaction(helper.session()));
+  scoped_ptr<HttpNetworkTransaction> trans2(
+      new HttpNetworkTransaction(helper.session()));
+  scoped_ptr<HttpNetworkTransaction> trans3(
+      new HttpNetworkTransaction(helper.session()));
+  scoped_ptr<HttpNetworkTransaction> trans4(
+      new HttpNetworkTransaction(helper.session()));
 
-    session_deps.socket_factory.AddSocketDataProvider(data);
+  TestCompletionCallback callback1;
+  TestCompletionCallback callback2;
+  TestCompletionCallback callback3;
+  TestCompletionCallback callback4;
 
-    TestCompletionCallback callback1;
-    TestCompletionCallback callback2;
-    TestCompletionCallback callback3;
-    TestCompletionCallback callback4;
+  HttpRequestInfo httpreq1 = CreateGetRequest();
+  HttpRequestInfo httpreq2 = CreateGetRequest();
+  HttpRequestInfo httpreq3 = CreateGetRequest();
+  HttpRequestInfo httpreq4 = CreateGetRequest();
+  httpreq4.priority = HIGHEST;
 
-    HttpRequestInfo httpreq1 = CreateGetRequest();
-    HttpRequestInfo httpreq2 = CreateGetRequest();
-    HttpRequestInfo httpreq3 = CreateGetRequest();
-    HttpRequestInfo httpreq4 = CreateGetRequest();
-    httpreq4.priority = HIGHEST;
+  out.rv = trans1->Start(&httpreq1, &callback1, log);
+  ASSERT_EQ(ERR_IO_PENDING, out.rv);
+  // run transaction 1 through quickly to force a read of our SETTINGS
+  // frame
+  out.rv = callback1.WaitForResult();
+  ASSERT_EQ(OK, out.rv);
 
-    out.rv = trans1->Start(&httpreq1, &callback1, log);
-    ASSERT_EQ(ERR_IO_PENDING, out.rv);
-    // run transaction 1 through quickly to force a read of our SETTINGS
-    // frame
-    out.rv = callback1.WaitForResult();
-    ASSERT_EQ(OK, out.rv);
+  out.rv = trans2->Start(&httpreq2, &callback2, log);
+  ASSERT_EQ(ERR_IO_PENDING, out.rv);
+  out.rv = trans3->Start(&httpreq3, &callback3, log);
+  ASSERT_EQ(ERR_IO_PENDING, out.rv);
+  out.rv = trans4->Start(&httpreq4, &callback4, log);
+  ASSERT_EQ(ERR_IO_PENDING, out.rv);
 
-    out.rv = trans2->Start(&httpreq2, &callback2, log);
-    ASSERT_EQ(ERR_IO_PENDING, out.rv);
-    out.rv = trans3->Start(&httpreq3, &callback3, log);
-    ASSERT_EQ(ERR_IO_PENDING, out.rv);
-    out.rv = trans4->Start(&httpreq4, &callback4, log);
-    ASSERT_EQ(ERR_IO_PENDING, out.rv);
+  out.rv = callback2.WaitForResult();
+  ASSERT_EQ(OK, out.rv);
+  EXPECT_EQ(data->read_index(), 7U);  // i.e. the third & fourth trans queued
 
-    out.rv = callback2.WaitForResult();
-    ASSERT_EQ(OK, out.rv);
-    EXPECT_EQ(data->read_index(), 7U);  // i.e. the third & fourth trans queued
+  out.rv = callback3.WaitForResult();
+  ASSERT_EQ(OK, out.rv);
 
-    out.rv = callback3.WaitForResult();
-    ASSERT_EQ(OK, out.rv);
+  const HttpResponseInfo* response1 = trans1->GetResponseInfo();
+  EXPECT_TRUE(response1->headers != NULL);
+  EXPECT_TRUE(response1->was_fetched_via_spdy);
+  out.status_line = response1->headers->GetStatusLine();
+  out.response_info = *response1;
+  out.rv = ReadTransaction(trans1.get(), &out.response_data);
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!hello!", out.response_data);
 
-    const HttpResponseInfo* response1 = trans1->GetResponseInfo();
-    EXPECT_TRUE(response1->headers != NULL);
-    EXPECT_TRUE(response1->was_fetched_via_spdy);
-    out.status_line = response1->headers->GetStatusLine();
-    out.response_info = *response1;
-    out.rv = ReadTransaction(trans1.get(), &out.response_data);
-    EXPECT_EQ(OK, out.rv);
-    EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-    EXPECT_EQ("hello!hello!", out.response_data);
+  const HttpResponseInfo* response2 = trans2->GetResponseInfo();
+  out.status_line = response2->headers->GetStatusLine();
+  out.response_info = *response2;
+  out.rv = ReadTransaction(trans2.get(), &out.response_data);
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!hello!", out.response_data);
 
-    const HttpResponseInfo* response2 = trans2->GetResponseInfo();
-    out.status_line = response2->headers->GetStatusLine();
-    out.response_info = *response2;
-    out.rv = ReadTransaction(trans2.get(), &out.response_data);
-    EXPECT_EQ(OK, out.rv);
-    EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-    EXPECT_EQ("hello!hello!", out.response_data);
+  // notice: response3 gets two hellos, response4 gets one
+  // hello, so we know dequeuing priority was respected.
+  const HttpResponseInfo* response3 = trans3->GetResponseInfo();
+  out.status_line = response3->headers->GetStatusLine();
+  out.response_info = *response3;
+  out.rv = ReadTransaction(trans3.get(), &out.response_data);
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!hello!", out.response_data);
 
-    // notice: response3 gets two hellos, response4 gets one
-    // hello, so we know dequeuing priority was respected.
-    const HttpResponseInfo* response3 = trans3->GetResponseInfo();
-    out.status_line = response3->headers->GetStatusLine();
-    out.response_info = *response3;
-    out.rv = ReadTransaction(trans3.get(), &out.response_data);
-    EXPECT_EQ(OK, out.rv);
-    EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-    EXPECT_EQ("hello!hello!", out.response_data);
-
-    out.rv = callback4.WaitForResult();
-    EXPECT_EQ(OK, out.rv);
-    const HttpResponseInfo* response4 = trans4->GetResponseInfo();
-    out.status_line = response4->headers->GetStatusLine();
-    out.response_info = *response4;
-    out.rv = ReadTransaction(trans4.get(), &out.response_data);
-    EXPECT_EQ(OK, out.rv);
-    EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-    EXPECT_EQ("hello!", out.response_data);
-  }
+  out.rv = callback4.WaitForResult();
+  EXPECT_EQ(OK, out.rv);
+  const HttpResponseInfo* response4 = trans4->GetResponseInfo();
+  out.status_line = response4->headers->GetStatusLine();
+  out.response_info = *response4;
+  out.rv = ReadTransaction(trans4.get(), &out.response_data);
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!", out.response_data);
+  helper.VerifyDataConsumed();
   EXPECT_EQ(OK, out.rv);
 
-  EXPECT_TRUE(data->at_read_eof());
-  EXPECT_TRUE(data->at_write_eof());
 }
 
 // Similar to ThreeGetsMaxConcurrrent above, however, this test
@@ -883,14 +888,14 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
   scoped_ptr<spdy::SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   MockWrite writes[] = { CreateMockWrite(*req),
-                         CreateMockWrite(*req2),
+    CreateMockWrite(*req2),
   };
   MockRead reads[] = {
-    CreateMockRead(*settings_frame, 0),
+    CreateMockRead(*settings_frame, 1),
     CreateMockRead(*resp),
     CreateMockRead(*body),
     CreateMockRead(*fbody),
-    CreateMockRead(*resp2, 6),
+    CreateMockRead(*resp2, 7),
     CreateMockRead(*body2),
     CreateMockRead(*fbody2),
     MockRead(true, 0, 0),  // EOF
@@ -898,71 +903,74 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
 
   scoped_refptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
-                            writes, arraysize(writes)));
+        writes, arraysize(writes)));
+  scoped_refptr<OrderedSocketData> data_placeholder(
+      new OrderedSocketData(NULL, 0, NULL, 0));
 
   BoundNetLog log;
   TransactionHelperResult out;
-  {
-    SpdySessionDependencies session_deps;
-    HttpNetworkSession* session =
-        SpdySessionDependencies::SpdyCreateSession(&session_deps);
-    SpdySession::SetSSLMode(false);
-    scoped_ptr<SpdyNetworkTransaction> trans1(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans2(
-        new SpdyNetworkTransaction(session));
-    scoped_ptr<SpdyNetworkTransaction> trans3(
-        new SpdyNetworkTransaction(session));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+      BoundNetLog(), GetParam());
+  helper.RunPreTestSetup();
+  helper.AddData(data.get());
+  // We require placeholder data because three get requests are sent out, so
+  // there needs to be three sets of SSL connection data.
+  helper.AddData(data_placeholder.get());
+  helper.AddData(data_placeholder.get());
+  scoped_ptr<HttpNetworkTransaction> trans1(
+      new HttpNetworkTransaction(helper.session()));
+  scoped_ptr<HttpNetworkTransaction> trans2(
+      new HttpNetworkTransaction(helper.session()));
+  scoped_ptr<HttpNetworkTransaction> trans3(
+      new HttpNetworkTransaction(helper.session()));
 
-    session_deps.socket_factory.AddSocketDataProvider(data);
+  TestCompletionCallback callback1;
+  TestCompletionCallback callback2;
+  TestCompletionCallback callback3;
 
-    TestCompletionCallback callback1;
-    TestCompletionCallback callback2;
-    TestCompletionCallback callback3;
+  HttpRequestInfo httpreq1 = CreateGetRequest();
+  HttpRequestInfo httpreq2 = CreateGetRequest();
+  HttpRequestInfo httpreq3 = CreateGetRequest();
 
-    HttpRequestInfo httpreq1 = CreateGetRequest();
-    HttpRequestInfo httpreq2 = CreateGetRequest();
-    HttpRequestInfo httpreq3 = CreateGetRequest();
+  out.rv = trans1->Start(&httpreq1, &callback1, log);
+  ASSERT_EQ(out.rv, ERR_IO_PENDING);
+  // run transaction 1 through quickly to force a read of our SETTINGS
+  // frame
+  out.rv = callback1.WaitForResult();
+  ASSERT_EQ(OK, out.rv);
 
-    out.rv = trans1->Start(&httpreq1, &callback1, log);
-    ASSERT_EQ(out.rv, ERR_IO_PENDING);
-    // run transaction 1 through quickly to force a read of our SETTINGS
-    // frame
-    out.rv = callback1.WaitForResult();
+  out.rv = trans2->Start(&httpreq2, &callback2, log);
+  ASSERT_EQ(out.rv, ERR_IO_PENDING);
+  out.rv = trans3->Start(&httpreq3, &callback3, log);
+  delete trans3.release();
+  ASSERT_EQ(out.rv, ERR_IO_PENDING);
+  out.rv = callback2.WaitForResult();
+  ASSERT_EQ(OK, out.rv);
 
-    out.rv = trans2->Start(&httpreq2, &callback2, log);
-    ASSERT_EQ(out.rv, ERR_IO_PENDING);
-    out.rv = trans3->Start(&httpreq3, &callback3, log);
-    delete trans3.release();
-    ASSERT_EQ(out.rv, ERR_IO_PENDING);
-    out.rv = callback2.WaitForResult();
+  EXPECT_EQ(8U, data->read_index());
 
-    EXPECT_EQ(8U, data->read_index());
+  const HttpResponseInfo* response1 = trans1->GetResponseInfo();
+  ASSERT_TRUE(response1 != NULL);
+  EXPECT_TRUE(response1->headers != NULL);
+  EXPECT_TRUE(response1->was_fetched_via_spdy);
+  out.status_line = response1->headers->GetStatusLine();
+  out.response_info = *response1;
+  out.rv = ReadTransaction(trans1.get(), &out.response_data);
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!hello!", out.response_data);
 
-    const HttpResponseInfo* response1 = trans1->GetResponseInfo();
-    ASSERT_TRUE(response1 != NULL);
-    EXPECT_TRUE(response1->headers != NULL);
-    EXPECT_TRUE(response1->was_fetched_via_spdy);
-    out.status_line = response1->headers->GetStatusLine();
-    out.response_info = *response1;
-    out.rv = ReadTransaction(trans1.get(), &out.response_data);
-    EXPECT_EQ(OK, out.rv);
-    EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-    EXPECT_EQ("hello!hello!", out.response_data);
-
-    const HttpResponseInfo* response2 = trans2->GetResponseInfo();
-    ASSERT_TRUE(response2 != NULL);
-    out.status_line = response2->headers->GetStatusLine();
-    out.response_info = *response2;
-    out.rv = ReadTransaction(trans2.get(), &out.response_data);
-    EXPECT_EQ(OK, out.rv);
-    EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-    EXPECT_EQ("hello!hello!", out.response_data);
-  }
+  const HttpResponseInfo* response2 = trans2->GetResponseInfo();
+  ASSERT_TRUE(response2 != NULL);
+  out.status_line = response2->headers->GetStatusLine();
+  out.response_info = *response2;
+  out.rv = ReadTransaction(trans2.get(), &out.response_data);
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!hello!", out.response_data);
+  helper.VerifyDataConsumed();
   EXPECT_EQ(OK, out.rv);
 
-  EXPECT_TRUE(data->at_read_eof());
-  EXPECT_TRUE(data->at_write_eof());
 }
 
 // Test that a simple PUT request works.
