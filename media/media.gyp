@@ -182,6 +182,7 @@
         'media',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
+        '../base/base.gyp:test_support_base',
         '../base/base.gyp:test_support_perf',
         '../testing/gtest.gyp:gtest',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
@@ -216,6 +217,7 @@
         'media',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
+        '../base/base.gyp:test_support_base',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
@@ -470,6 +472,7 @@
             'omx_wrapper',
             '../base/base.gyp:base',
             '../base/base.gyp:base_i18n',
+            '../base/base.gyp:test_support_base',
             '../testing/gtest.gyp:gtest',
           ],
           'conditions': [
