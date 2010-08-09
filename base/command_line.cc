@@ -280,9 +280,12 @@ bool CommandLine::HasSwitch(const std::string& switch_string) const {
   return switches_.find(lowercased_switch) != switches_.end();
 }
 
+#if defined(OS_WIN)
+// Deprecated; still temporarily available on Windows.
 bool CommandLine::HasSwitch(const std::wstring& switch_string) const {
   return HasSwitch(WideToASCII(switch_string));
 }
+#endif
 
 std::string CommandLine::GetSwitchValueASCII(
     const std::string& switch_string) const {
