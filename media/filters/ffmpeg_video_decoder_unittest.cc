@@ -344,6 +344,7 @@ TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
 
   // Set a pts and duration on |video_frame_| and make sure it overrides
   // |pts_heap|.
+  pts_heap.Push(base::TimeDelta::FromMicroseconds(123));
   video_frame_->SetTimestamp(base::TimeDelta::FromMicroseconds(456));
   video_frame_->SetDuration(base::TimeDelta::FromMicroseconds(789));
   result_pts = decoder_->FindPtsAndDuration(time_base,
