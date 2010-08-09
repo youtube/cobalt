@@ -6,13 +6,16 @@
 
 #include <string>
 
+#include "base/field_trial.h"
 #include "base/histogram.h"
 #include "net/socket/client_socket_handle.h"
 
 namespace net {
 
 ClientSocketPoolHistograms::ClientSocketPoolHistograms(
-    const std::string& pool_name) {
+    const std::string& pool_name)
+    : is_http_proxy_connection_(false),
+      is_socks_connection_(false) {
   // UMA_HISTOGRAM_ENUMERATION
   socket_type_ = LinearHistogram::FactoryGet("Net.SocketType_" + pool_name, 1,
       ClientSocketHandle::NUM_TYPES, ClientSocketHandle::NUM_TYPES + 1,
@@ -35,6 +38,11 @@ ClientSocketPoolHistograms::ClientSocketPoolHistograms(
       base::TimeDelta::FromMilliseconds(1),
       base::TimeDelta::FromMinutes(6),
       100, Histogram::kUmaTargetedHistogramFlag);
+
+  if (pool_name == "HTTPProxy")
+    is_http_proxy_connection_ = true;
+  else if (pool_name == "SOCK")
+    is_socks_connection_ = true;
 }
 
 void ClientSocketPoolHistograms::AddSocketType(int type) const {
@@ -43,6 +51,26 @@ void ClientSocketPoolHistograms::AddSocketType(int type) const {
 
 void ClientSocketPoolHistograms::AddRequestTime(base::TimeDelta time) const {
   request_time_->AddTime(time);
+
+  static bool proxy_connection_impact_trial_exists(
+      FieldTrialList::Find("ProxyConnectionImpact") &&
+      !FieldTrialList::Find("ProxyConnectionImpact")->group_name().empty());
+  if (proxy_connection_impact_trial_exists && is_http_proxy_connection_) {
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        FieldTrial::MakeName("Net.HttpProxySocketRequestTime",
+                             "ProxyConnectionImpact"),
+        time,
+        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
+        100);
+  }
+  if (proxy_connection_impact_trial_exists && is_socks_connection_) {
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        FieldTrial::MakeName("Net.SocksSocketRequestTime",
+                             "ProxyConnectionImpact"),
+        time,
+        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
+        100);
+  }
 }
 
 void ClientSocketPoolHistograms::AddUnusedIdleTime(base::TimeDelta time) const {
