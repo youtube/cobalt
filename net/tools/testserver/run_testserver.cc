@@ -41,7 +41,9 @@ int main(int argc, const char* argv[]) {
     protocol = "http";
     port = net::kHTTPDefaultPort;
   }
-  std::wstring doc_root = command_line->GetSwitchValue("doc-root");
+  // TODO(phajdan.jr): refactor this.
+  std::wstring doc_root =
+      command_line->GetSwitchValuePath("doc-root").ToWStringHack();
   if (doc_root.empty()) {
     printf("Error: --doc-root must be specified\n");
     PrintUsage();
