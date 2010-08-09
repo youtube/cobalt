@@ -850,6 +850,7 @@ void SpdySession::ActivateStream(SpdyStream* stream) {
 }
 
 void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
+  DLOG(INFO) << "Removing SpdyStream " << id << " from active stream list.";
   // Remove the stream from unclaimed_pushed_streams_ and active_streams_.
   PushedStreamMap::iterator it;
   for (it = unclaimed_pushed_streams_.begin();
