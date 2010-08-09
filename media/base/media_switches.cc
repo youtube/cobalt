@@ -11,6 +11,9 @@ namespace switches {
 const char kAlsaDevice[] = "alsa-device";
 #endif
 
+// Enable hardware decoding through gpu process.
+const char kEnableAcceleratedDecoding[]  = "enable-accelerated-decoding";
+
 // Enable hardware decoding using OpenMax API.
 // In practice this is for ChromeOS ARM.
 const char kEnableOpenMax[] = "enable-openmax";
