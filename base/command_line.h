@@ -95,19 +95,12 @@ class CommandLine {
   // (Switch names are case-insensitive.)
   bool HasSwitch(const std::string& switch_string) const;
 
-  // Deprecated version of the above.
-  bool HasSwitch(const std::wstring& switch_string) const;
-
   // Returns the value associated with the given switch.  If the
   // switch has no value or isn't present, this method returns
   // the empty string.
   std::string GetSwitchValueASCII(const std::string& switch_string) const;
   FilePath GetSwitchValuePath(const std::string& switch_string) const;
   StringType GetSwitchValueNative(const std::string& switch_string) const;
-
-  // Deprecated versions of the above.
-  std::wstring GetSwitchValue(const std::string& switch_string) const;
-  std::wstring GetSwitchValue(const std::wstring& switch_string) const;
 
   // Get the number of switches in this process.
   size_t GetSwitchCount() const { return switches_.size(); }
@@ -140,10 +133,6 @@ class CommandLine {
 
   // Returns the program part of the command line string (the first item).
   FilePath GetProgram() const;
-
-  // Returns the program part of the command line string (the first item).
-  // Deprecated version of the above.
-  std::wstring program() const;
 
   // Return a copy of the string prefixed with a switch prefix.
   // Used internally.
@@ -181,6 +170,16 @@ class CommandLine {
   // line.  Commonly used when launching a subprocess.
   void CopySwitchesFrom(const CommandLine& source, const char* const switches[],
                         size_t count);
+
+  // APIs that work with wstrings are deprecated.
+  // TODO(evanm): remove all of these.
+  std::wstring GetSwitchValue(const std::string& switch_string) const;
+  std::wstring GetSwitchValue(const std::wstring& switch_string) const;
+  std::wstring program() const;
+#if defined(OS_WIN)
+  // Deprecated on non-Windows.
+  bool HasSwitch(const std::wstring& switch_string) const;
+#endif
 
  private:
   friend class InProcessBrowserTest;
