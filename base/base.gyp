@@ -55,9 +55,7 @@
       'msvs_guid': '27A30967-4BBA-48D1-8522-CDE95F7B1CEC',
       'sources': [
         # Infrastructure files.
-        'multiprocess_test.h',
         'test/run_all_unittests.cc',
-        'test/test_suite.h',
 
         # Tests.
         'at_exit_unittest.cc',
@@ -169,6 +167,7 @@
       'dependencies': [
         'base',
         'base_i18n',
+        'test_support_base',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
       ],
@@ -225,13 +224,21 @@
       'type': '<(library)',
       'dependencies': [
         'base',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
+        'test/multiprocess_test.cc',
+        'test/multiprocess_test.h',
+        'test/perf_test_suite.cc',
+        'test/perf_test_suite.h',
         'test/test_file_util.h',
         'test/test_file_util_linux.cc',
         'test/test_file_util_mac.cc',
         'test/test_file_util_posix.cc',
         'test/test_file_util_win.cc',
+        'test/test_suite.cc',
+        'test/test_suite.h',
       ],
     },
     {

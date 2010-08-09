@@ -4,6 +4,7 @@
 
 #include "build/build_config.h"
 #include "base/histogram.h"
+#include "base/nss_util.h"
 #include "net/base/net_test_suite.h"
 #if defined(OS_WIN)
 #include "net/socket/ssl_client_socket_nss_factory.h"
