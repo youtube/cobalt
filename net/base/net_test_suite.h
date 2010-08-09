@@ -11,7 +11,7 @@
 #include "base/test/test_suite.h"
 #include "net/base/mock_host_resolver.h"
 
-class NetTestSuite : public base::TestSuite {
+class NetTestSuite : public TestSuite {
  public:
   NetTestSuite(int argc, char** argv) : TestSuite(argc, argv) {
   }

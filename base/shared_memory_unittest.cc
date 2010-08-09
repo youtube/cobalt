@@ -3,13 +3,12 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/multiprocess_test.h"
 #include "base/platform_thread.h"
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/shared_memory.h"
 #include "base/scoped_ptr.h"
-#include "base/test/multiprocess_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "testing/multiprocess_func_list.h"
 
 static const int kNumThreads = 5;
 static const int kNumTasks = 5;
@@ -272,11 +271,13 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
   for (int i = 0; i < count; i++) {
     memories[i].Close();
   }
+
 }
+
 
 // On POSIX it is especially important we test shmem across processes,
 // not just across threads.  But the test is enabled on all platforms.
-class SharedMemoryProcessTest : public base::MultiProcessTest {
+class SharedMemoryProcessTest : public MultiProcessTest {
  public:
 
   static void CleanUp() {
@@ -325,7 +326,7 @@ TEST_F(SharedMemoryProcessTest, Tasks) {
 
   base::ProcessHandle handles[kNumTasks];
   for (int index = 0; index < kNumTasks; ++index) {
-    handles[index] = SpawnChild("SharedMemoryTestMain", false);
+    handles[index] = SpawnChild("SharedMemoryTestMain");
   }
 
   int exit_code = 0;
@@ -340,5 +341,6 @@ TEST_F(SharedMemoryProcessTest, Tasks) {
 MULTIPROCESS_TEST_MAIN(SharedMemoryTestMain) {
   return SharedMemoryProcessTest::TaskTestMain();
 }
+
 
 }  // namespace base

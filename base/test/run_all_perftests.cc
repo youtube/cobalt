@@ -5,5 +5,5 @@
 #include "base/test/perf_test_suite.h"
 
 int main(int argc, char** argv) {
-  return base::PerfTestSuite(argc, argv).Run();
+  return PerfTestSuite(argc, argv).Run();
 }

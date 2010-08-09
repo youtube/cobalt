@@ -42,7 +42,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 int main(int argc, char** argv) {
-  return base::PerfTestSuite(argc, argv).Run();
+  return PerfTestSuite(argc, argv).Run();
 }
 
 namespace media {
