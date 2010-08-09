@@ -1340,6 +1340,7 @@ int HttpNetworkTransaction::DoDrainBodyForAuthRestartComplete(int result) {
   return OK;
 }
 
+// static
 void HttpNetworkTransaction::LogHttpConnectedMetrics(
     const ClientSocketHandle& handle) {
   UMA_HISTOGRAM_ENUMERATION("Net.HttpSocketType", handle.reuse_type(),
