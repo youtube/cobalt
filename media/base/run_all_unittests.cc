@@ -5,5 +5,5 @@
 #include "base/test/test_suite.h"
 
 int main(int argc, char** argv) {
-  return base::TestSuite(argc, argv).Run();
+  return TestSuite(argc, argv).Run();
 }
