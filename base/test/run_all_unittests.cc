@@ -5,7 +5,7 @@
 #include "base/test/test_suite.h"
 
 int main(int argc, char** argv) {
-  TestSuite test_suite(argc, argv);
+  base::TestSuite test_suite(argc, argv);
   test_suite.EnforceTestIsolation();
   return test_suite.Run();
 }
