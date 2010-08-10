@@ -49,6 +49,21 @@ class AudioInputController :
                         uint32 size) = 0;
   };
 
+  // AudioInputController::Create uses the currently registered Factory to
+  // create the AudioInputController. Factory is intended for testing.
+  class Factory {
+   public:
+    virtual AudioInputController* Create(EventHandler* event_handler,
+                                         AudioManager::Format format,
+                                         int channels,
+                                         int sample_rate,
+                                         int bits_per_sample,
+                                         int samples_per_packet) = 0;
+
+   protected:
+    virtual ~Factory() {}
+  };
+
   virtual ~AudioInputController();
 
   // Factory method for creating an AudioInputController.
@@ -63,8 +78,15 @@ class AudioInputController :
       int bits_per_sample,            // Number of bits per sample.
       int samples_per_packet);        // Size of the hardware buffer.
 
+  // Sets the factory used by the static method Create. AudioInputController
+  // does not take ownership of |factory|. A value of NULL results in an
+  // AudioInputController being created directly.
+#if defined(UNIT_TEST)
+  static void set_factory(Factory* factory) { factory_ = factory; }
+#endif
+
   // Starts recording in this audio input stream.
-  void Record();
+  virtual void Record();
 
   // Closes the audio input stream and shutdown the audio input controller
   // thread. This method returns only after all operations are completed. This
@@ -72,7 +94,7 @@ class AudioInputController :
   //
   // It is safe to call this method more than once. Calls after the first one
   // will have no effect.
-  void Close();
+  virtual void Close();
 
   ///////////////////////////////////////////////////////////////////////////
   // AudioInputCallback methods.
@@ -80,7 +102,7 @@ class AudioInputController :
   virtual void OnClose(AudioInputStream* stream);
   virtual void OnError(AudioInputStream* stream, int code);
 
- private:
+ protected:
   // Internal state of the source.
   enum State {
     kEmpty,
@@ -112,6 +134,8 @@ class AudioInputController :
 
   // The audio input controller thread that this object runs on.
   base::Thread thread_;
+
+  static Factory* factory_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioInputController);
 };
