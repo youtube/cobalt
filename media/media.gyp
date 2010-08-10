@@ -286,6 +286,18 @@
       ],
     },
     {
+      'target_name': 'media_test_support',
+      'type': '<(library)',
+      'dependencies': [
+        'media',
+        '../base/base.gyp:base',
+      ],
+      'sources': [
+        'audio/test_audio_input_controller_factory.cc',
+        'audio/test_audio_input_controller_factory.h',
+      ],
+    },
+    {
       'target_name': 'media_bench',
       'type': 'executable',
       'msvs_guid': '45BC4F87-4604-4962-A751-7C7B29A080BF',
