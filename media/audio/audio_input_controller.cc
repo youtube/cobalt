@@ -15,6 +15,9 @@ const int kMaxSamplesPerPacket = kMaxSampleRate;
 
 namespace media {
 
+// static
+AudioInputController::Factory* AudioInputController::factory_ = NULL;
+
 AudioInputController::AudioInputController(EventHandler* handler)
     : handler_(handler),
       stream_(NULL),
@@ -39,6 +42,11 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
       (bits_per_sample > kMaxBitsPerSample) || (bits_per_sample <= 0) ||
       (samples_per_packet > kMaxSamplesPerPacket) || (samples_per_packet < 0))
     return NULL;
+
+  if (factory_) {
+    return factory_->Create(event_handler, format, channels, sample_rate,
+                            bits_per_sample, samples_per_packet);
+  }
 
   scoped_refptr<AudioInputController> controller = new AudioInputController(
       event_handler);
