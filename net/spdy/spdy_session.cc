@@ -1156,7 +1156,23 @@ void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
 void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
   LOG(INFO) << "Spdy GOAWAY for session[" << this << "] for " <<
       host_port_pair().ToString();
-
+  if(!active_streams_.empty() || !unclaimed_pushed_streams_.empty()) {
+    LOG(ERROR) << "Spdy GOAWAY received with " << active_streams_.size()
+               << " streams still active.";
+    LOG(ERROR) << "Spdy GOAWAY received with "
+               << unclaimed_pushed_streams_.size()
+               << " unclaimed push streams.";
+    net_log_.AddEvent(
+        NetLog::TYPE_SPDY_SESSION_GOAWAY,
+        new NetLogIntegerParameter(
+          "number of streams still active: ",
+          active_streams_.size()));
+    net_log_.AddEvent(
+        NetLog::TYPE_SPDY_SESSION_GOAWAY,
+        new NetLogIntegerParameter(
+          "number of unclaimed push streams: ",
+          unclaimed_pushed_streams_.size()));
+  }
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_GOAWAY,
       new NetLogIntegerParameter(
@@ -1164,6 +1180,7 @@ void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
           frame.last_accepted_stream_id()));
 
   RemoveFromPool();
+  CloseAllStreams(net::ERR_ABORTED);
 
   // TODO(willchan): Cancel any streams that are past the GoAway frame's
   // |last_accepted_stream_id|.
