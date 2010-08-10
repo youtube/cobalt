@@ -11,6 +11,15 @@
 #include "base/string_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+// To test Windows quoting behavior, we use a string that has some backslashes
+// and quotes.
+// Consider the command-line argument: q\"bs1\bs2\\bs3q\\\"
+// Here it is with C-style escapes.
+#define TRICKY_QUOTED L"q\\\"bs1\\bs2\\\\bs3q\\\\\\\""
+// It should be parsed by Windows as: q"bs1\bs2\\bs3q\"
+// Here that is with C-style escapes.
+#define TRICKY L"q\"bs1\\bs2\\\\bs3q\\\""
+
 TEST(CommandLineTest, CommandLineConstructor) {
 #if defined(OS_WIN)
   CommandLine cl = CommandLine::FromString(
@@ -18,6 +27,7 @@ TEST(CommandLineTest, CommandLineConstructor) {
                      L"--other-switches=\"--dog=canine --cat=feline\" "
                      L"-spaetzle=Crepe   -=loosevalue  flan "
                      L"--input-translation=\"45\"--output-rotation "
+                     L"--quotes=" TRICKY_QUOTED L" "
                      L"-- -- --not-a-switch "
                      L"\"in the time of submarines...\"");
   EXPECT_FALSE(cl.command_line_string().empty());
@@ -51,6 +61,9 @@ TEST(CommandLineTest, CommandLineConstructor) {
 #endif
   EXPECT_TRUE(cl.HasSwitch("other-switches"));
   EXPECT_TRUE(cl.HasSwitch("input-translation"));
+#if defined(OS_WIN)
+  EXPECT_TRUE(cl.HasSwitch("quotes"));
+#endif
 
   EXPECT_EQ("Crepe", cl.GetSwitchValueASCII("spaetzle"));
   EXPECT_EQ("", cl.GetSwitchValueASCII("Foo"));
@@ -59,6 +72,9 @@ TEST(CommandLineTest, CommandLineConstructor) {
   EXPECT_EQ("--dog=canine --cat=feline", cl.GetSwitchValueASCII(
       "other-switches"));
   EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
+#if defined(OS_WIN)
+  EXPECT_EQ(TRICKY, cl.GetSwitchValueNative("quotes"));
+#endif
 
   const std::vector<CommandLine::StringType>& args = cl.args();
   ASSERT_EQ(5U, args.size());
@@ -106,6 +122,8 @@ TEST(CommandLineTest, AppendSwitches) {
   std::string value3 = "a value with spaces";
   std::string switch4 = "switch4";
   std::string value4 = "\"a value with quotes\"";
+  std::string switch5 = "quotes";
+  std::string value5 = WideToASCII(TRICKY);
 
   CommandLine cl(FilePath(FILE_PATH_LITERAL("Program")));
 
@@ -113,6 +131,7 @@ TEST(CommandLineTest, AppendSwitches) {
   cl.AppendSwitchASCII(switch2, value);
   cl.AppendSwitchASCII(switch3, value3);
   cl.AppendSwitchASCII(switch4, value4);
+  cl.AppendSwitchASCII(switch5, value5);
 
   EXPECT_TRUE(cl.HasSwitch(switch1));
   EXPECT_TRUE(cl.HasSwitch(switch2));
@@ -121,4 +140,16 @@ TEST(CommandLineTest, AppendSwitches) {
   EXPECT_EQ(value3, cl.GetSwitchValueASCII(switch3));
   EXPECT_TRUE(cl.HasSwitch(switch4));
   EXPECT_EQ(value4, cl.GetSwitchValueASCII(switch4));
+  EXPECT_TRUE(cl.HasSwitch(switch5));
+  EXPECT_EQ(value5, cl.GetSwitchValueASCII(switch5));
+
+#if defined(OS_WIN)
+  EXPECT_EQ(L"\"Program\" "
+            L"--switch1 "
+            L"--switch2=value "
+            L"--switch3=\"a value with spaces\" "
+            L"--switch4=\"\\\"a value with quotes\\\"\" "
+            L"--quotes=\"" TRICKY_QUOTED L"\"",
+            cl.command_line_string());
+#endif
 }
