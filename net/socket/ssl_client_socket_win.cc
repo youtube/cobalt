@@ -254,6 +254,41 @@ static CredHandle* GetCredHandle(PCCERT_CONTEXT client_cert,
 
 //-----------------------------------------------------------------------------
 
+// This callback is intended to be used with CertFindChainInStore. In addition
+// to filtering by extended/enhanced key usage, we do not show expired
+// certificates and require digital signature usage in the key usage
+// extension.
+//
+// This matches our behavior on Mac OS X and that of NSS. It also matches the
+// default behavior of IE8. See http://support.microsoft.com/kb/890326 and
+// http://blogs.msdn.com/b/askie/archive/2009/06/09/my-expired-client-certificates-no-longer-display-when-connecting-to-my-web-server-using-ie8.aspx
+static BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
+                                          void* find_arg) {
+  // Verify the certificate's KU is good.
+  BYTE key_usage;
+  if (CertGetIntendedKeyUsage(X509_ASN_ENCODING, cert_context->pCertInfo,
+                              &key_usage, 1)) {
+    if (!(key_usage & CERT_DIGITAL_SIGNATURE_KEY_USAGE))
+      return FALSE;
+  } else {
+    DWORD err = GetLastError();
+    // If |err| is non-zero, it's an actual error. Otherwise the extension
+    // just isn't present, and we treat it as if everything was allowed.
+    if (err) {
+      DLOG(ERROR) << "CertGetIntendedKeyUsage failed: " << err;
+      return FALSE;
+    }
+  }
+
+  // Verify the current time is within the certificate's validity period.
+  if (CertVerifyTimeValidity(NULL, cert_context->pCertInfo) != 0)
+    return FALSE;
+
+  return TRUE;
+}
+
+//-----------------------------------------------------------------------------
+
 // A memory certificate store for client certificates.  This allows us to
 // close the "MY" system certificate store when we finish searching for
 // client certificates.
@@ -409,6 +444,7 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
   find_by_issuer_para.pszUsageIdentifier = szOID_PKIX_KP_CLIENT_AUTH;
   find_by_issuer_para.cIssuer = issuer_list.cIssuers;
   find_by_issuer_para.rgIssuer = issuer_list.aIssuers;
+  find_by_issuer_para.pfnFindCallback = ClientCertFindCallback;
 
   PCCERT_CHAIN_CONTEXT chain_context = NULL;
 
