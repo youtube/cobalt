@@ -28,5 +28,13 @@ Patches:
     they're available when we resume a session.
     patches/cachecerts.patch
 
+  * List TLS_DHE_RSA_WITH_AES_256_CBC_SHA after TLS_RSA_WITH_AES_256_CBC_SHA
+    in ClientHello to communicate securely with some servers that use
+    256-bit DH keys.  Remove this patch when we upgrade to NSS 3.12.7,
+    which rejects DH keys shorter than 512 bits.
+    patches/deprioritizedhe.patch
+    http://crbug.com/51694
+    https://bugzilla.mozilla.org/show_bug.cgi?id=583337
+
 The ssl/bodge directory contains files taken from the NSS repo that we required
 for building libssl outside of its usual build environment.
