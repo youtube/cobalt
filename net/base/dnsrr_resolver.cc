@@ -281,6 +281,12 @@ class ResolveTask : public Task {
     static const int RES_USE_DNSSEC = 0;
 #endif
 
+#ifndef RES_USE_EDNS0
+    // Some versions of glibc are so old that they don't support EDNS0 either.
+    // http://code.google.com/p/chromium/issues/detail?id=51676
+    static const int RES_USE_EDNS0 = 0;
+#endif
+
     // We set the options explicitly. Note that this removes several default
     // options: RES_DEFNAMES and RES_DNSRCH (see res_init(3)).
     _res.options = RES_INIT | RES_RECURSE | RES_USE_EDNS0 | RES_USE_DNSSEC;
