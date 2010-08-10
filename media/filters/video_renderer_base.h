@@ -46,6 +46,7 @@ class VideoRendererBase : public VideoRenderer,
   // MediaFilter implementation.
   virtual void Play(FilterCallback* callback);
   virtual void Pause(FilterCallback* callback);
+  virtual void Flush(FilterCallback* callback);
   virtual void Stop(FilterCallback* callback);
   virtual void SetPlaybackRate(float playback_rate);
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
@@ -153,6 +154,7 @@ class VideoRendererBase : public VideoRenderer,
   enum State {
     kUninitialized,
     kPaused,
+    kFlushing,
     kSeeking,
     kPlaying,
     kEnded,
@@ -178,7 +180,7 @@ class VideoRendererBase : public VideoRenderer,
   float playback_rate_;
 
   // Filter callbacks.
-  scoped_ptr<FilterCallback> pause_callback_;
+  scoped_ptr<FilterCallback> flush_callback_;
   scoped_ptr<FilterCallback> seek_callback_;
 
   base::TimeDelta seek_timestamp_;
