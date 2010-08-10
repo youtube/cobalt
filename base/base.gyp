@@ -70,6 +70,7 @@
         'condition_variable_unittest.cc',
         'crypto/encryptor_unittest.cc',
         'crypto/rsa_private_key_unittest.cc',
+        'crypto/rsa_private_key_nss_unittest.cc',
         'crypto/signature_creator_unittest.cc',
         'crypto/signature_verifier_unittest.cc',
         'crypto/symmetric_key_unittest.cc',
@@ -189,6 +190,7 @@
         }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"
           'sources!': [
             'message_pump_glib_unittest.cc',
+            'crypto/rsa_private_key_nss_unittest.cc',
           ]
         }],
         # This is needed to trigger the dll copy step on windows.
