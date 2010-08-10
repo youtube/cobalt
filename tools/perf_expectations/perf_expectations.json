@@ -45,7 +45,7 @@
  "xp-release-dual-core/moz/total_byte_r/IO_r": {"delta": 260, "var": 55},
  "xp-release-dual-core/moz/total_op_b/IO_op_b": {"delta": -4250, "var": 350},
  "xp-release-dual-core/moz/total_op_r/IO_op_r": {"delta": 535, "var": 590},
- "xp-release-dual-core/moz/vm_peak_b/vm_pk_b": {"delta": 1000000, "var": 80000},
+ "xp-release-dual-core/moz/vm_peak_b/vm_pk_b": {"delta": 1050000, "var": 80000},
  "xp-release-dual-core/moz/vm_peak_r/vm_pk_r": {"delta": -14800000, "var": 523700},
  "xp-release-dual-core/startup/warm/t": {"delta": 0, "var": 30},
  "xp-release-single-core/dhtml/times/t": {"delta": 0, "var": 14},
