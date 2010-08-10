@@ -61,6 +61,9 @@
         # toolkit_views test below.
         'chromeos%': '0',
 
+        # Disable touch support by default.
+        'touchui%': 0,
+
         # To do a shared build on linux we need to be able to choose between
         # type static_library and shared_library. We default to doing a static
         # build but you can override this with "gyp -Dlibrary=shared_library"
@@ -70,11 +73,12 @@
         'library%': 'static_library',
       },
 
-      # Set default value of toolkit_views on for Windows and Chrome OS.
+      # Set default value of toolkit_views on for Windows, Chrome OS
+      # and the touch UI.
       # We set it at this level of nesting so the value is available for
       # other conditionals below.
       'conditions': [
-        ['OS=="win" or chromeos==1', {
+        ['OS=="win" or chromeos==1 or touchui==1', {
           'toolkit_views%': 1,
         }, {
           'toolkit_views%': 0,
@@ -94,8 +98,9 @@
       'linux_chromium_dump_symbols%': 0,
       # Also see linux_strip_binary below.
 
-      # Copy conditionally-set chromeos variable out one scope.
+      # Copy conditionally-set chromeos and touchui variables out one scope.
       'chromeos%': '<(chromeos)',
+      'touchui%': '<(touchui)',
 
       # This variable tells WebCore.gyp and JavaScriptCore.gyp whether they are
       # are built under a chromium full build (1) or a webkit.org chromium
@@ -146,6 +151,7 @@
     'host_arch%': '<(host_arch)',
     'toolkit_views%': '<(toolkit_views)',
     'chromeos%': '<(chromeos)',
+    'touchui%': '<(touchui)',
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
     'linux_fpic%': '<(linux_fpic)',
@@ -380,9 +386,6 @@
       'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk',
       'vi', 'zh-CN', 'zh-TW',
     ],
-    
-    # Disable touch support by default.
-    'touchui%': 0,
   },
   'target_defaults': {
     'variables': {
