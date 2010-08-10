@@ -7,6 +7,8 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/time.h"
+#include "media/base/factory.h"
+#include "media/base/filters.h"
 #include "media/base/pts_heap.h"
 #include "media/base/video_frame.h"
 #include "media/filters/decoder_base.h"
@@ -18,7 +20,7 @@ namespace media {
 
 class VideoDecodeEngine;
 
-class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
+class FFmpegVideoDecoder : public VideoDecoder {
  public:
   explicit FFmpegVideoDecoder(VideoDecodeEngine* engine);
   virtual ~FFmpegVideoDecoder();
@@ -26,16 +28,17 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   static FilterFactory* CreateFactory();
   static bool IsMediaFormatSupported(const MediaFormat& media_format);
 
- protected:
-  virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
-                            Task* done_cb);
-  virtual void DoStop(Task* done_cb);
-  virtual void DoSeek(base::TimeDelta time, Task* done_cb);
-  virtual void DoDecode(Buffer* input);
+  // MediaFilter implementation.
+  virtual void Stop(FilterCallback* callback);
+  virtual void Seek(base::TimeDelta time, FilterCallback* callback);
+  virtual void Flush(FilterCallback* callback);
 
- protected:
-  virtual void OnEmptyBufferDone(scoped_refptr<Buffer> buffer);
-  virtual void FillThisBuffer(scoped_refptr<VideoFrame> frame);
+  // Decoder implementation.
+  virtual void Initialize(DemuxerStream* demuxer_stream,
+                          FilterCallback* callback);
+  virtual const MediaFormat& media_format() { return media_format_; }
+  virtual void FillThisBuffer(scoped_refptr<VideoFrame> video_frame);
+  virtual bool ProvidesBuffer();
 
  private:
   friend class FilterFactoryImpl1<FFmpegVideoDecoder, VideoDecodeEngine*>;
@@ -58,26 +61,29 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   };
 
   enum DecoderState {
+    kUnInitialized,
     kNormal,
     kFlushCodec,
     kDecodeFinished,
+    kStopped
   };
 
-  // Implement DecoderBase template methods.
-  virtual void EnqueueVideoFrame(const scoped_refptr<VideoFrame>& video_frame);
+  void OnInitializeComplete(FilterCallback* done_cb);
+  void OnStopComplete(FilterCallback* callback);
+  void OnFlushComplete(FilterCallback* callback);
+  void OnSeekComplete(FilterCallback* callback);
+  void OnReadComplete(Buffer* buffer);
 
-  // Create an empty video frame and queue it.
-  virtual void EnqueueEmptyFrame();
+  // TODO(jiesun): until demuxer pass scoped_refptr<Buffer>: we could not merge
+  // this with OnReadComplete
+  void OnReadCompleteTask(scoped_refptr<Buffer> buffer);
 
-  // Methods that pickup after the decode engine has finished its action.
-  virtual void OnInitializeComplete(bool* success /* Not owned */,
-                                    Task* done_cb);
-
-  virtual void OnDecodeComplete(scoped_refptr<VideoFrame> video_frame);
+  virtual void OnEngineEmptyBufferDone(scoped_refptr<Buffer> buffer);
+  virtual void OnEngineFillBufferDone(scoped_refptr<VideoFrame> video_frame);
 
   // Attempt to get the PTS and Duration for this frame by examining the time
   // info provided via packet stream (stored in |pts_heap|), or the info
-  // writen into the AVFrame itself.  If no data is available in either, then
+  // written into the AVFrame itself.  If no data is available in either, then
   // attempt to generate a best guess of the pts based on the last known pts.
   //
   // Data inside the AVFrame (if provided) is trusted the most, followed
@@ -88,22 +94,28 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
                                        const TimeTuple& last_pts,
                                        const VideoFrame* frame);
 
-  // Signals the pipeline that a decode error occurs, and moves the decoder
-  // into the kDecodeFinished state.
-  virtual void SignalPipelineError();
-
   // Injection point for unittest to provide a mock engine.  Takes ownership of
   // the provided engine.
   virtual void SetVideoDecodeEngineForTest(VideoDecodeEngine* engine);
 
   size_t width_;
   size_t height_;
+  MediaFormat media_format_;
 
   PtsHeap pts_heap_;  // Heap of presentation timestamps.
   TimeTuple last_pts_;
   scoped_ptr<AVRational> time_base_;  // Pointer to avoid needing full type.
   DecoderState state_;
   scoped_ptr<VideoDecodeEngine> decode_engine_;
+
+  // Tracks the number of asynchronous reads issued to |demuxer_stream_|.
+  // Using size_t since it is always compared against deque::size().
+  size_t pending_reads_;
+  // Tracks the number of asynchronous reads issued from renderer.
+  size_t pending_requests_;
+
+  // Pointer to the demuxer stream that will feed us compressed buffers.
+  scoped_refptr<DemuxerStream> demuxer_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoder);
 };
