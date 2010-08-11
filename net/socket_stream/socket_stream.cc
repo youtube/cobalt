@@ -390,8 +390,7 @@ void SocketStream::DoLoop(int result) {
         result = DoResolveHostComplete(result);
         break;
       case STATE_TCP_CONNECT:
-        DCHECK_EQ(OK, result);
-        result = DoTcpConnect();
+        result = DoTcpConnect(result);
         break;
       case STATE_TCP_CONNECT_COMPLETE:
         result = DoTcpConnectComplete(result);
@@ -428,7 +427,8 @@ void SocketStream::DoLoop(int result) {
         result = DoReadWrite(result);
         break;
       case STATE_AUTH_REQUIRED:
-        NOTREACHED() << "Should not run DoLoop in STATE_AUTH_REQUIRED state.";
+        // It might be called when DoClose is called while waiting in
+        // STATE_AUTH_REQUIRED.
         Finish(result);
         return;
       case STATE_CLOSE:
@@ -541,7 +541,11 @@ int SocketStream::DoResolveHostComplete(int result) {
   return result;
 }
 
-int SocketStream::DoTcpConnect() {
+int SocketStream::DoTcpConnect(int result) {
+  if (result != OK) {
+    next_state_ = STATE_CLOSE;
+    return result;
+  }
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
   DCHECK(factory_);
   socket_.reset(factory_->CreateTCPClientSocket(addresses_,
