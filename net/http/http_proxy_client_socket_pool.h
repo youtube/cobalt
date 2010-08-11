@@ -13,20 +13,20 @@
 #include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/host_resolver.h"
 #include "net/http/http_auth.h"
-#include "net/proxy/proxy_server.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
-#include "net/socket/tcp_client_socket_pool.h"
 
 namespace net {
 
 class ClientSocketFactory;
 class ConnectJobFactory;
+class HostResolver;
 class HttpAuthController;
 class HttpNetworkSession;
+class TCPClientSocketPool;
+class TCPSocketParams;
 
 class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
  public:
