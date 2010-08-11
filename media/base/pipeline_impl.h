@@ -118,7 +118,6 @@ class PipelineImpl : public Pipeline, public FilterHost {
     kInitVideoRenderer,
     kPausing,
     kSeeking,
-    kFlushing,
     kStarting,
     kStarted,
     kEnded,
