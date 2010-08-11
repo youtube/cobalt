@@ -105,28 +105,14 @@ class PerfExpectationsUnittest(unittest.TestCase):
     for key in perf_data:
       if key == 'load':
         continue
-
-      # First check if regress/improve is in the key's data.
-      if 'regress' in perf_data[key]:
-        if 'improve' not in perf_data[key]:
-          bad_keys.append(key)
-        if (not isinstance(perf_data[key]['regress'], int) and
-            not isinstance(perf_data[key]['regress'], float)):
-          bad_keys.append(key)
-        if (not isinstance(perf_data[key]['improve'], int) and
-            not isinstance(perf_data[key]['improve'], float)):
-          bad_keys.append(key)
-      else:
-        # Otherwise check if delta/var is in the key's data.
-        if 'delta' not in perf_data[key] or 'var' not in perf_data[key]:
-          bad_keys.append(key)
-        if (not isinstance(perf_data[key]['delta'], int) and
-            not isinstance(perf_data[key]['delta'], float)):
-          bad_keys.append(key)
-        if (not isinstance(perf_data[key]['var'], int) and
-            not isinstance(perf_data[key]['var'], float)):
-          bad_keys.append(key)
-
+      if 'delta' not in perf_data[key] or 'var' not in perf_data[key]:
+        bad_keys.append(key)
+      if (not isinstance(perf_data[key]['delta'], int) and
+          not isinstance(perf_data[key]['delta'], float)):
+        bad_keys.append(key)
+      if (not isinstance(perf_data[key]['var'], int) and
+          not isinstance(perf_data[key]['var'], float)):
+        bad_keys.append(key)
     if len(bad_keys) > 0:
       msg = "perf expectations key values missing or invalid delta/var"
       raise Exception("%s: %s" % (msg, bad_keys))
