@@ -9,17 +9,18 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_chunked_decoder.h"
-#include "net/http/http_response_info.h"
-#include "net/socket/client_socket_handle.h"
 
 namespace net {
 
 class ClientSocketHandle;
+class DrainableIOBuffer;
+class GrowableIOBuffer;
 struct HttpRequestInfo;
+class HttpResponseInfo;
+class IOBuffer;
 
 class HttpStreamParser {
  public:

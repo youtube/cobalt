@@ -6,6 +6,7 @@
 
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/auth.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
