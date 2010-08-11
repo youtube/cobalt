@@ -13,16 +13,18 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/io_buffer.h"
+#include "base/scoped_ptr.h"
 #include "net/http/http_stream.h"
-#include "net/http/http_stream_parser.h"
 
 namespace net {
 
 class BoundNetLog;
 class ClientSocketHandle;
-struct HttpRequestInfo;
+class GrowableIOBuffer;
 class HttpResponseInfo;
+struct HttpRequestInfo;
+class HttpStreamParser;
+class IOBuffer;
 class UploadDataStream;
 
 class HttpBasicStream : public HttpStream {
@@ -44,7 +46,7 @@ class HttpBasicStream : public HttpStream {
 
   virtual int ReadResponseHeaders(CompletionCallback* callback);
 
-  virtual HttpResponseInfo* GetResponseInfo() const;
+  virtual const HttpResponseInfo* GetResponseInfo() const;
 
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
                                CompletionCallback* callback);

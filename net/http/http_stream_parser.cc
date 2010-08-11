@@ -6,10 +6,13 @@
 
 #include "base/compiler_specific.h"
 #include "base/histogram.h"
+#include "net/base/auth.h"
 #include "net/base/io_buffer.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
+#include "net/socket/client_socket_handle.h"
 
 namespace net {
 
