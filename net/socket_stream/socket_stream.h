@@ -241,7 +241,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   int DoResolveProxyComplete(int result);
   int DoResolveHost();
   int DoResolveHostComplete(int result);
-  int DoTcpConnect();
+  int DoTcpConnect(int result);
   int DoTcpConnectComplete(int result);
   int DoWriteTunnelHeaders();
   int DoWriteTunnelHeadersComplete(int result);
