@@ -172,7 +172,6 @@ class MockVideoDecoder : public VideoDecoder {
                                 FilterCallback* callback));
   MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD1(FillThisBuffer, void(scoped_refptr<VideoFrame>));
-  MOCK_METHOD0(ProvidesBuffer, bool());
 
  protected:
   virtual ~MockVideoDecoder() {}
@@ -223,7 +222,6 @@ class MockVideoRenderer : public VideoRenderer {
   MOCK_METHOD2(Initialize, void(VideoDecoder* decoder,
                                 FilterCallback* callback));
   MOCK_METHOD0(HasEnded, bool());
-  MOCK_METHOD1(FillThisBufferDone, void(scoped_refptr<VideoFrame> frame));
 
  protected:
   virtual ~MockVideoRenderer() {}
