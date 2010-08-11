@@ -86,6 +86,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoWriteLoop(int result);
 
   int DoHandshake();
+  bool CheckDNSSECChain();
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
   int DoPayloadRead();
