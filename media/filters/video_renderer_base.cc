@@ -4,7 +4,6 @@
 
 #include "base/callback.h"
 #include "media/base/buffers.h"
-#include "media/base/callback.h"
 #include "media/base/filter_host.h"
 #include "media/base/video_frame.h"
 #include "media/filters/video_renderer_base.h"
@@ -91,7 +90,7 @@ bool VideoRendererBase::ParseMediaFormat(
 
 void VideoRendererBase::Play(FilterCallback* callback) {
   AutoLock auto_lock(lock_);
-  DCHECK(kPaused == state_ || kFlushing == state_);
+  DCHECK_EQ(kPaused, state_);
   scoped_ptr<FilterCallback> c(callback);
   state_ = kPlaying;
   callback->Run();
@@ -100,24 +99,17 @@ void VideoRendererBase::Play(FilterCallback* callback) {
 void VideoRendererBase::Pause(FilterCallback* callback) {
   AutoLock auto_lock(lock_);
   DCHECK(state_ == kPlaying || state_ == kEnded);
-  AutoCallbackRunner done_runner(callback);
+  pause_callback_.reset(callback);
   state_ = kPaused;
-}
 
-void VideoRendererBase::Flush(FilterCallback* callback) {
-  DCHECK(state_ == kPaused);
-
-  AutoLock auto_lock(lock_);
-  flush_callback_.reset(callback);
-  state_ = kFlushing;
-
+  // TODO(jiesun): currently we use Pause() to fulfill Flush().
   // Filter is considered paused when we've finished all pending reads, which
   // implies all buffers are returned to owner in Decoder/Renderer. Renderer
   // is considered paused with one more contingency that |pending_paint_| is
   // false, such that no client of us is holding any reference to VideoFrame.
   if (pending_reads_ == 0 && pending_paint_ == false) {
-    flush_callback_->Run();
-    flush_callback_.reset();
+    pause_callback_->Run();
+    pause_callback_.reset();
     FlushBuffers();
   }
 }
@@ -155,7 +147,7 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
 
 void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
   AutoLock auto_lock(lock_);
-  DCHECK(kPaused == state_ || kFlushing == state_);
+  DCHECK_EQ(kPaused, state_);
   DCHECK_EQ(0u, pending_reads_) << "Pending reads should have completed";
   state_ = kSeeking;
   seek_callback_.reset(callback);
@@ -250,7 +242,8 @@ void VideoRendererBase::ThreadMain() {
     if (state_ == kStopped)
       return;
 
-    if (state_ != kPlaying || playback_rate_ == 0) {
+    if (state_ == kPaused || state_ == kSeeking || state_ == kEnded ||
+        playback_rate_ == 0) {
       remaining_time = kIdleTimeDelta;
     } else if (frames_queue_ready_.empty() ||
                frames_queue_ready_.front()->IsEndOfStream()) {
@@ -357,7 +350,7 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
 
   // We should have initialized and have the current frame.
   DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying ||
-         state_ == kFlushing || state_ == kEnded);
+         state_ == kEnded);
   *frame_out = current_frame_;
   pending_paint_ = true;
 }
@@ -375,11 +368,11 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   // frame is timed-out. We will wake up our main thread to advance the current
   // frame when this is true.
   frame_available_.Signal();
-  if (state_ == kFlushing && pending_reads_ == 0 && flush_callback_.get()) {
+  if (state_ == kPaused && pending_reads_ == 0 && pause_callback_.get()) {
     // No more pending reads!  We're now officially "paused".
     FlushBuffers();
-    flush_callback_->Run();
-    flush_callback_.reset();
+    pause_callback_->Run();
+    pause_callback_.reset();
   }
 }
 
@@ -394,7 +387,7 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
   }
 
   DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying ||
-         state_ == kFlushing || state_ == kEnded);
+         state_ == kEnded);
   DCHECK_GT(pending_reads_, 0u);
   --pending_reads_;
 
@@ -412,7 +405,7 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
   // Check for our preroll complete condition.
   if (state_ == kSeeking) {
     DCHECK(seek_callback_.get());
-    if (frames_queue_ready_.size() == kMaxFrames || frame->IsEndOfStream()) {
+    if (frames_queue_ready_.size() == kMaxFrames) {
       // We're paused, so make sure we update |current_frame_| to represent
       // our new location.
       state_ = kPaused;
@@ -420,22 +413,18 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
       // Because we might remain paused (i.e., we were not playing before we
       // received a seek), we can't rely on ThreadMain() to notify the subclass
       // the frame has been updated.
-      scoped_refptr<VideoFrame> first_frame;
-      first_frame = frames_queue_ready_.front();
-      if (!first_frame->IsEndOfStream()) {
-        frames_queue_ready_.pop_front();
-        current_frame_ = first_frame;
-      }
+      current_frame_ = frames_queue_ready_.front();
+      frames_queue_ready_.pop_front();
       OnFrameAvailable();
 
       seek_callback_->Run();
       seek_callback_.reset();
     }
-  } else if (state_ == kFlushing && pending_reads_ == 0 && !pending_paint_) {
+  } else if (state_ == kPaused && pending_reads_ == 0 && !pending_paint_) {
     // No more pending reads!  We're now officially "paused".
-    if (flush_callback_.get()) {
-      flush_callback_->Run();
-      flush_callback_.reset();
+    if (pause_callback_.get()) {
+      pause_callback_->Run();
+      pause_callback_.reset();
     }
   }
 }
@@ -461,7 +450,7 @@ void VideoRendererBase::FlushBuffers() {
   // We should never put EOF frame into "done queue".
   while (!frames_queue_ready_.empty()) {
     scoped_refptr<VideoFrame> video_frame = frames_queue_ready_.front();
-    if (!video_frame->IsEndOfStream()) {
+    if (video_frame->IsEndOfStream()) {
       frames_queue_done_.push_back(video_frame);
     }
     frames_queue_ready_.pop_front();
