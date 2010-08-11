@@ -30,6 +30,15 @@ const char HttpRequestHeaders::kRange[] = "Range";
 const char HttpRequestHeaders::kReferer[] = "Referer";
 const char HttpRequestHeaders::kUserAgent[] = "User-Agent";
 
+HttpRequestHeaders::HeaderKeyValuePair::HeaderKeyValuePair() {
+}
+
+HttpRequestHeaders::HeaderKeyValuePair::HeaderKeyValuePair(
+    const base::StringPiece& key, const base::StringPiece& value)
+    : key(key.data(), key.size()), value(value.data(), value.size()) {
+}
+
+
 HttpRequestHeaders::Iterator::Iterator(const HttpRequestHeaders& headers)
     : started_(false),
       curr_(headers.headers_.begin()),

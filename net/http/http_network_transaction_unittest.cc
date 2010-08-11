@@ -13,6 +13,7 @@
 #include "base/file_util.h"
 #include "base/scoped_ptr.h"
 #include "base/utf_string_conversions.h"
+#include "net/base/auth.h"
 #include "net/base/capturing_net_log.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
