@@ -12,6 +12,7 @@
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
+#include "net/socket/tcp_client_socket_pool.h"
 
 namespace net {
 
