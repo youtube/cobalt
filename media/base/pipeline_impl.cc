@@ -57,19 +57,6 @@ const char* GetThreadName() {
   }
 }
 
-// Helper function used with NewRunnableMethod to implement a (very) crude
-// blocking counter.
-//
-// TODO(scherkus): remove this as soon as Stop() is made asynchronous.
-void DecrementCounter(Lock* lock, ConditionVariable* cond_var, int* count) {
-  AutoLock auto_lock(*lock);
-  --(*count);
-  CHECK(*count >= 0);
-  if (*count == 0) {
-    cond_var->Signal();
-  }
-}
-
 }  // namespace
 
 PipelineImpl::PipelineImpl(MessageLoop* message_loop)
@@ -149,6 +136,7 @@ bool PipelineImpl::IsInitialized() const {
   AutoLock auto_lock(lock_);
   switch (state_) {
     case kPausing:
+    case kFlushing:
     case kSeeking:
     case kStarting:
     case kStarted:
@@ -382,6 +370,7 @@ void PipelineImpl::FinishInitialization() {
 // static
 bool PipelineImpl::TransientState(State state) {
   return state == kPausing ||
+         state == kFlushing ||
          state == kSeeking ||
          state == kStarting ||
          state == kStopping;
@@ -391,6 +380,8 @@ bool PipelineImpl::TransientState(State state) {
 PipelineImpl::State PipelineImpl::FindNextState(State current) {
   // TODO(scherkus): refactor InitializeTask() to make use of this function.
   if (current == kPausing)
+    return kFlushing;
+  if (current == kFlushing)
     return kSeeking;
   if (current == kSeeking)
     return kStarting;
@@ -842,6 +833,8 @@ void PipelineImpl::FilterStateTransitionTask() {
     MediaFilter* filter = filters_[filters_.size() - remaining_transitions_];
     if (state_ == kPausing) {
       filter->Pause(NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+    } else if (state_ == kFlushing) {
+      filter->Flush(NewCallback(this, &PipelineImpl::OnFilterStateTransition));
     } else if (state_ == kSeeking) {
       filter->Seek(seek_timestamp_,
           NewCallback(this, &PipelineImpl::OnFilterStateTransition));
