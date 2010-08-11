@@ -55,4 +55,16 @@ bool SSLConfigService::IsKnownStrictTLSServer(const std::string& hostname) {
   return false;
 }
 
+static bool g_dnssec_enabled = false;
+
+// static
+void SSLConfigService::EnableDNSSEC() {
+  g_dnssec_enabled = true;
+}
+
+// static
+bool SSLConfigService::dnssec_enabled() {
+  return g_dnssec_enabled;
+}
+
 }  // namespace net
