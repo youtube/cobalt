@@ -13,6 +13,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/field_trial.h"
 #include "base/histogram.h"
 #include "base/ref_counted.h"
 #include "base/string_util.h"
@@ -830,8 +831,19 @@ int HttpCache::Transaction::DoAddToEntry() {
 
 int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_WAITING, NULL);
-  UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait",
-                      base::TimeTicks::Now() - entry_lock_waiting_since_);
+
+  const base::TimeDelta entry_lock_wait =
+      base::TimeTicks::Now() - entry_lock_waiting_since_;
+  UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait", entry_lock_wait);
+  static const bool prefetching_fieldtrial =
+      FieldTrialList::Find("Prefetch") &&
+      !FieldTrialList::Find("Prefetch")->group_name().empty();
+  if (prefetching_fieldtrial) {
+    UMA_HISTOGRAM_TIMES(
+        FieldTrial::MakeName("HttpCache.EntryLockWait", "Prefetch"),
+        entry_lock_wait);
+  }
+
   entry_lock_waiting_since_ = base::TimeTicks();
   DCHECK(new_entry_);
   cache_pending_ = false;
