@@ -13,21 +13,23 @@
 #include "base/time.h"
 #include "net/base/host_resolver.h"
 #include "net/base/ssl_config_service.h"
-#include "net/http/http_proxy_client_socket.h"
-#include "net/http/http_proxy_client_socket_pool.h"
+#include "net/http/http_response_info.h"
 #include "net/proxy/proxy_server.h"
-#include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
-#include "net/socket/socks_client_socket_pool.h"
-#include "net/socket/ssl_client_socket.h"
-#include "net/socket/tcp_client_socket_pool.h"
 
 namespace net {
 
 class ClientSocketFactory;
 class ConnectJobFactory;
+class HttpProxyClientSocketPool;
+class HttpProxySocketParams;
+class SOCKSClientSocketPool;
+class SOCKSSocketParams;
+class SSLClientSocket;
+class TCPClientSocketPool;
+class TCPSocketParams;
 
 // SSLSocketParams only needs the socket params for the transport socket
 // that will be used (denoted by |proxy|).
