@@ -7,22 +7,26 @@
 #pragma once
 
 #include "base/time.h"
-#include "net/base/auth.h"
-#include "net/base/io_buffer.h"
-#include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
-#include "net/http/http_response_headers.h"
 #include "net/http/http_vary_data.h"
 
 class Pickle;
 
 namespace net {
 
+class AuthChallengeInfo;
+class HttpResponseHeaders;
+class IOBufferWithSize;
+class SSLCertRequestInfo;
+
 class HttpResponseInfo {
  public:
   HttpResponseInfo();
+  HttpResponseInfo(const HttpResponseInfo& rhs);
   ~HttpResponseInfo();
-  // Default copy-constructor and assignment operator are OK!
+  HttpResponseInfo& operator=(const HttpResponseInfo& rhs);
+  // Even though we could get away with the copy ctor and default operator=,
+  // that would prevent us from doing a bunch of forward declaration.
 
   // The following is only defined if the request_time member is set.
   // If this response was resurrected from cache, then this bool is set, and

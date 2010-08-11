@@ -4,6 +4,10 @@
 
 #include "net/http/http_basic_stream.h"
 
+#include "net/base/io_buffer.h"
+#include "net/base/net_errors.h"
+#include "net/http/http_stream_parser.h"
+
 namespace net {
 
 HttpBasicStream::HttpBasicStream(ClientSocketHandle* connection)
@@ -39,7 +43,7 @@ int HttpBasicStream::ReadResponseHeaders(CompletionCallback* callback) {
   return parser_->ReadResponseHeaders(callback);
 }
 
-HttpResponseInfo* HttpBasicStream::GetResponseInfo() const {
+const HttpResponseInfo* HttpBasicStream::GetResponseInfo() const {
   return parser_->GetResponseInfo();
 }
 

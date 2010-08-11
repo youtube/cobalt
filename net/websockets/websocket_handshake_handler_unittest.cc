@@ -8,6 +8,7 @@
 #include "base/basictypes.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/websockets/websocket_handshake_handler.h"
 
