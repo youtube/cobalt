@@ -185,8 +185,6 @@
         'base/x509_cert_types_mac.cc',
         'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
         'third_party/mozilla_security_manager/nsKeygenHandler.h',
-        'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
-        'third_party/mozilla_security_manager/nsPKCS12Blob.h',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -207,8 +205,6 @@
               'base/x509_certificate_nss.cc',
               'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
               'third_party/mozilla_security_manager/nsKeygenHandler.h',
-              'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
-              'third_party/mozilla_security_manager/nsPKCS12Blob.h',
             ],
           },
         ],
@@ -669,7 +665,6 @@
       'msvs_guid': 'E99DA267-BE90-4F45-88A1-6919DB2C7567',
       'sources': [
         'base/address_list_unittest.cc',
-        'base/cert_database_nss_unittest.cc',
         'base/cookie_monster_unittest.cc',
         'base/data_url_unittest.cc',
         'base/directory_lister_unittest.cc',
@@ -818,11 +813,6 @@
               'base/sdch_filter_unittest.cc',
             ],
           },
-          {  # else: OS is not in the above list
-            'sources!': [
-              'base/cert_database_nss_unittest.cc',
-            ],
-          }
         ],
         ['OS == "linux"', {
           'conditions': [

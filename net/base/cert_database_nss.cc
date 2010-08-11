@@ -13,20 +13,15 @@
 #include <keyhi.h>     // SECKEY_CreateSubjectPublicKeyInfo()
 
 #include "base/logging.h"
-#include "base/nss_util.h"
 #include "base/scoped_ptr.h"
+#include "base/nss_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
-#include "net/third_party/mozilla_security_manager/nsPKCS12Blob.h"
-
-// PSM = Mozilla's Personal Security Manager.
-namespace psm = mozilla_security_manager;
 
 namespace net {
 
 CertDatabase::CertDatabase() {
   base::EnsureNSSInit();
-  psm::EnsurePKCS12Init();
 }
 
 int CertDatabase::CheckUserCert(X509Certificate* cert_obj) {
@@ -88,18 +83,6 @@ int CertDatabase::AddUserCert(X509Certificate* cert_obj) {
   }
   PK11_FreeSlot(slot);
   return OK;
-}
-
-int CertDatabase::ImportFromPKCS12(
-    const std::string& data, const string16& password) {
-  return psm::nsPKCS12Blob_Import(data.data(), data.size(), password);
-}
-
-int CertDatabase::ExportToPKCS12(
-    const CertificateList& certs,
-    const string16& password,
-    std::string* output) {
-  return psm::nsPKCS12Blob_Export(output, certs, password);
 }
 
 }  // namespace net
