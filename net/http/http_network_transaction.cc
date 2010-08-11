@@ -18,6 +18,7 @@
 #include "base/string_number_conversions.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/auth.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/host_mapping_rules.h"
 #include "net/base/io_buffer.h"

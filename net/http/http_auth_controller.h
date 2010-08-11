@@ -67,9 +67,7 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
     return handler_.get() && !identity_.invalid;
   }
 
-  virtual scoped_refptr<AuthChallengeInfo> auth_info() {
-    return auth_info_;
-  }
+  virtual scoped_refptr<AuthChallengeInfo> auth_info();
 
   virtual bool IsAuthSchemeDisabled(const std::string& scheme) const;
   virtual void DisableAuthScheme(const std::string& scheme);

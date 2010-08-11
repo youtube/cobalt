@@ -5,12 +5,14 @@
 #include "net/http/http_auth_controller.h"
 
 #include "base/utf_string_conversions.h"
+#include "net/base/auth.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_util.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_response_headers.h"
 
 namespace net {
 
@@ -350,6 +352,10 @@ void HttpAuthController::OnIOComplete(int result) {
     user_callback_ = NULL;
     c->Run(result);
   }
+}
+
+scoped_refptr<AuthChallengeInfo> HttpAuthController::auth_info() {
+  return auth_info_;
 }
 
 bool HttpAuthController::IsAuthSchemeDisabled(const std::string& scheme) const {
