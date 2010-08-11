@@ -53,6 +53,11 @@
         'base/directory_lister.h',
         'base/dns_reload_timer.cc',
         'base/dns_reload_timer.h',
+        'base/dnssec_chain_verifier.cc',
+        'base/dnssec_chain_verifier.h',
+        'base/dnssec_keyset.cc',
+        'base/dnssec_keyset.h',
+        'base/dnssec_proto.h',
         'base/dns_util.cc',
         'base/dns_util.h',
         'base/dnsrr_resolver.cc',
@@ -205,8 +210,7 @@
         ],
         [ 'OS == "win"', {
             'dependencies': [
-              # For nss_memio.{c,h}, which require only NSPR.
-              '../third_party/nss/nss.gyp:nspr',
+              '../third_party/nss/nss.gyp:nss',
               'tld_cleanup',
             ],
           },
@@ -221,8 +225,7 @@
         ],
         [ 'OS == "mac"', {
             'dependencies': [
-              # For nss_memio.{c,h}, which require only NSPR.
-              '../third_party/nss/nss.gyp:nspr',
+              '../third_party/nss/nss.gyp:nss',
             ],
             'link_settings': {
               'libraries': [
@@ -665,6 +668,7 @@
         'base/cookie_monster_unittest.cc',
         'base/data_url_unittest.cc',
         'base/directory_lister_unittest.cc',
+        'base/dnssec_unittest.cc',
         'base/dns_util_unittest.cc',
         'base/dnsrr_resolver_unittest.cc',
         'base/escape_unittest.cc',

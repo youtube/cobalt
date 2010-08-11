@@ -51,10 +51,12 @@
 #include <dlfcn.h>
 #endif
 #include <certdb.h>
+#include <hasht.h>
 #include <keyhi.h>
 #include <nspr.h>
 #include <nss.h>
 #include <secerr.h>
+#include <sechash.h>
 #include <ssl.h>
 #include <sslerr.h>
 #include <pk11pub.h>
@@ -67,6 +69,8 @@
 #include "base/string_util.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_verifier.h"
+#include "net/base/dnssec_chain_verifier.h"
+#include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
@@ -1493,10 +1497,89 @@ int SSLClientSocketNSS::DoHandshake() {
   return net_error;
 }
 
+// CheckDNSSECChain tries to validate a DNSSEC chain embedded in
+// |server_cert_nss_|. It returns true iff a chain is found that proves the
+// value of a CERT record that contains a valid public key fingerprint.
+bool SSLClientSocketNSS::CheckDNSSECChain() {
+  if (!server_cert_nss_)
+    return false;
+
+  bool good = false;
+  // CERT_FindCertExtensionByOID isn't exported so we have to install an OID,
+  // get a tag for it and find the extension by using that tag.
+  static SECOidTag dnssec_chain_tag;
+  static bool dnssec_chain_tag_valid;
+  if (!dnssec_chain_tag_valid) {
+    // It's harmless if multiple threads enter this block concurrently.
+    static const uint8 kDNSSECChainOID[] =
+        // 1.3.6.1.4.1.11129.13172
+        // (iso.org.dod.internet.private.enterprises.google.13172)
+        {0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0xe6, 0x74};
+    SECOidData oid_data;
+    memset(&oid_data, 0, sizeof(oid_data));
+    oid_data.oid.data = const_cast<uint8*>(kDNSSECChainOID);
+    oid_data.oid.len = sizeof(kDNSSECChainOID);
+    oid_data.desc = "DNSSEC chain";
+    oid_data.supportedExtension = SUPPORTED_CERT_EXTENSION;
+    dnssec_chain_tag = SECOID_AddEntry(&oid_data);
+    DCHECK_NE(SEC_OID_UNKNOWN, dnssec_chain_tag);
+    dnssec_chain_tag_valid = true;
+  }
+
+  SECItem dnssec_embedded_chain;
+  SECStatus rv = CERT_FindCertExtension(server_cert_nss_,
+      dnssec_chain_tag, &dnssec_embedded_chain);
+  if (rv != SECSuccess)
+    return false;
+
+  base::StringPiece chain(
+      reinterpret_cast<char*>(dnssec_embedded_chain.data),
+      dnssec_embedded_chain.len);
+  std::string dns_hostname;
+  if (!DNSDomainFromDot(hostname_, &dns_hostname))
+    return false;
+  DNSSECChainVerifier verifier(dns_hostname, chain);
+  DNSSECChainVerifier::Error err = verifier.Verify();
+  if (err != DNSSECChainVerifier::OK) {
+    LOG(ERROR) << "DNSSEC chain verification failed: " << err;
+    return false;
+  }
+
+  if (verifier.rrtype() != kDNS_CERT)
+    return false;
+
+  uint8 hash[SHA1_LENGTH];
+  rv = HASH_HashBuf(HASH_AlgSHA1, hash,
+                    server_cert_nss_->derPublicKey.data,
+                    server_cert_nss_->derPublicKey.len);
+  if (rv != SECSuccess)
+    return false;
+
+  const std::vector<base::StringPiece>& rrdatas = verifier.rrdatas();
+  for (unsigned i = 0; i < rrdatas.size(); i++) {
+    const uint8* data =
+        reinterpret_cast<const uint8*>(rrdatas[i].data());
+    // See RFC 4398 section 2 for details of the CERT format.
+    static const uint8 kCERTHeader[] = {0, 9, 0, 0, 1};
+    if (rrdatas[i].size() == 5 + SHA1_LENGTH &&
+        memcmp(data, kCERTHeader, sizeof(kCERTHeader)) == 0 &&
+        memcmp(data + sizeof(kCERTHeader), hash, sizeof(hash)) == 0) {
+      good = true;
+      break;
+    }
+  }
+
+  SECITEM_FreeItem(&dnssec_embedded_chain, PR_FALSE);
+  return good;
+}
+
 int SSLClientSocketNSS::DoVerifyCert(int result) {
   DCHECK(server_cert_);
   GotoState(STATE_VERIFY_CERT_COMPLETE);
   int flags = 0;
+
+  if (ssl_config_.dnssec_enabled && CheckDNSSECChain())
+    return OK;
 
   if (ssl_config_.rev_checking_enabled)
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
@@ -1511,7 +1594,6 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
 // Derived from AuthCertificateCallback() in
 // mozilla/source/security/manager/ssl/src/nsNSSCallbacks.cpp.
 int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
-  DCHECK(verifier_.get());
   verifier_.reset();
 
   if (result == OK) {
