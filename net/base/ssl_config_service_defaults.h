@@ -20,6 +20,7 @@ class SSLConfigServiceDefaults : public SSLConfigService {
   // Store default SSL config settings in |config|.
   virtual void GetSSLConfig(SSLConfig* config) {
     *config = default_config_;
+    config->dnssec_enabled = SSLConfigService::dnssec_enabled();
   }
 
  private:
