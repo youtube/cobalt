@@ -133,7 +133,7 @@ class HttpAuthCache::Entry {
   FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddPath);
   FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddToExistingEntry);
 
-  Entry() {}
+  Entry();
 
   // Adds a path defining the realm's protection space. If the path is
   // already contained in the protection space, is a no-op.
