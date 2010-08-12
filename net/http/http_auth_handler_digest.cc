@@ -87,6 +87,16 @@ std::string HttpAuthHandlerDigest::AlgorithmToString(int algorithm) {
   }
 }
 
+HttpAuthHandlerDigest::HttpAuthHandlerDigest(int nonce_count)
+    : stale_(false),
+      algorithm_(ALGORITHM_UNSPECIFIED),
+      qop_(0),
+      nonce_count_(nonce_count) {
+}
+
+HttpAuthHandlerDigest::~HttpAuthHandlerDigest() {
+}
+
 int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
     const string16* username,
     const string16* password,
