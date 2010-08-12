@@ -16,6 +16,7 @@
 //   400-499 Cache errors
 //   500-599 ?
 //   600-699 FTP errors
+//   700-799 Certificate manager errors
 //
 
 // An asynchronous IO operation is not yet complete.  This usually does not
@@ -420,3 +421,9 @@ NET_ERROR(FTP_COMMAND_NOT_SUPPORTED, -606)
 // order.
 // FTP response code 503.
 NET_ERROR(FTP_BAD_COMMAND_SEQUENCE, -607)
+
+// PKCS #12 import failed due to incorrect password.
+NET_ERROR(PKCS12_IMPORT_BAD_PASSWORD, -701)
+
+// PKCS #12 import failed due to other error.
+NET_ERROR(PKCS12_IMPORT_FAILED, -702)
