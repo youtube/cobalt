@@ -70,9 +70,8 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     QOP_AUTH_INT = 1 << 1,
   };
 
-  explicit HttpAuthHandlerDigest(int nonce_count) : nonce_count_(nonce_count) {}
-
-  ~HttpAuthHandlerDigest() {}
+  explicit HttpAuthHandlerDigest(int nonce_count);
+  ~HttpAuthHandlerDigest();
 
   // Parse the challenge, saving the results into this instance.
   // Returns true on success.
