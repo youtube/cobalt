@@ -567,6 +567,24 @@ EVENT_TYPE(SOCKET_STREAM_SENT)
 EVENT_TYPE(SOCKET_STREAM_RECEIVED)
 
 // ------------------------------------------------------------------------
+// WebSocketJob
+// ------------------------------------------------------------------------
+
+// This event is sent for a WebSocket handshake request.
+// The following parameters are attached:
+//   {
+//     "headers": <handshake request message>
+//   }
+EVENT_TYPE(WEB_SOCKET_SEND_REQUEST_HEADERS)
+
+// This event is sent on receipt of the WebSocket handshake response headers.
+// The following parameters are attached:
+//   {
+//     "headers": <handshake response message>
+//   }
+EVENT_TYPE(WEB_SOCKET_READ_RESPONSE_HEADERS)
+
+// ------------------------------------------------------------------------
 // SOCKS5ClientSocket
 // ------------------------------------------------------------------------
 
