@@ -353,37 +353,10 @@ std::string CommandLine::command_line_string() const {
 }
 #endif
 
-// static
-std::wstring CommandLine::PrefixedSwitchString(
-    const std::string& switch_string) {
-#if defined(OS_WIN)
-  return kSwitchPrefixes[0] + ASCIIToWide(switch_string);
-#else
-  return ASCIIToWide(kSwitchPrefixes[0] + switch_string);
-#endif
-}
-
-// static
-std::wstring CommandLine::PrefixedSwitchStringWithValue(
-    const std::string& switch_string, const std::wstring& value_string) {
-  if (value_string.empty()) {
-    return PrefixedSwitchString(switch_string);
-  }
-
-  return PrefixedSwitchString(switch_string +
-#if defined(OS_WIN)
-                              WideToASCII(kSwitchValueSeparator)
-#else
-                              kSwitchValueSeparator
-#endif
-                              ) + value_string;
-}
-
 #if defined(OS_WIN)
 void CommandLine::AppendSwitch(const std::string& switch_string) {
-  std::wstring prefixed_switch_string = PrefixedSwitchString(switch_string);
   command_line_string_.append(L" ");
-  command_line_string_.append(prefixed_switch_string);
+  command_line_string_.append(kSwitchPrefixes[0] + ASCIIToWide(switch_string));
   switches_[switch_string] = L"";
 }
 
@@ -437,15 +410,16 @@ static std::wstring WindowsStyleQuote(const std::wstring& arg) {
 }
 
 void CommandLine::AppendSwitchNative(const std::string& switch_string,
-                                     const std::wstring& value_string) {
-  std::wstring quoted_value_string = WindowsStyleQuote(value_string);
+                                     const std::wstring& value) {
   std::wstring combined_switch_string =
-      PrefixedSwitchStringWithValue(switch_string, quoted_value_string);
+      kSwitchPrefixes[0] + ASCIIToWide(switch_string);
+  if (!value.empty())
+    combined_switch_string += kSwitchValueSeparator + WindowsStyleQuote(value);
 
   command_line_string_.append(L" ");
   command_line_string_.append(combined_switch_string);
 
-  switches_[switch_string] = value_string;
+  switches_[switch_string] = value;
 }
 
 void CommandLine::AppendLooseValue(const std::wstring& value) {
@@ -486,8 +460,10 @@ void CommandLine::AppendSwitch(const std::string& switch_string) {
 
 void CommandLine::AppendSwitchNative(const std::string& switch_string,
                                      const std::string& value) {
-  argv_.push_back(kSwitchPrefixes[0] + switch_string +
-                  kSwitchValueSeparator + value);
+  std::string combined_switch_string = kSwitchPrefixes[0] + switch_string;
+  if (!value.empty())
+    combined_switch_string += kSwitchValueSeparator + value;
+  argv_.push_back(combined_switch_string);
   switches_[switch_string] = value;
 }
 
