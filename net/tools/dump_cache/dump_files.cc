@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -108,7 +108,10 @@ class CacheDumper {
   explicit CacheDumper(const std::wstring& path)
       : path_(path),
         block_files_(FilePath::FromWStringHack(path)),
-        index_(NULL) {}
+        index_(NULL),
+        current_hash_(0),
+        next_addr_(0) {
+  }
 
   bool Init();
 
@@ -147,8 +150,6 @@ bool CacheDumper::Init() {
     return false;
   }
 
-  current_hash_ = 0;
-  next_addr_ = 0;
   return true;
 }
 
