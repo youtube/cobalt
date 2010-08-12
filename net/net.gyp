@@ -581,6 +581,7 @@
         'websockets/websocket_handshake_handler.h',
         'websockets/websocket_job.cc',
         'websockets/websocket_job.h',
+        'websockets/websocket_net_log_params.h',
         'websockets/websocket_throttle.cc',
         'websockets/websocket_throttle.h',
       ],

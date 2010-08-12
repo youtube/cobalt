@@ -413,6 +413,12 @@ void WebSocketHandshakeResponseHandler::RemoveHeaders(
   headers_ = FilterHeaders(headers_, headers_to_remove, headers_to_remove_len);
 }
 
+std::string WebSocketHandshakeResponseHandler::GetRawResponse() const {
+  DCHECK(HasResponse());
+  return std::string(original_.data(),
+                     original_header_length_ + kResponseKeySize);
+}
+
 std::string WebSocketHandshakeResponseHandler::GetResponse() {
   DCHECK(HasResponse());
   DCHECK(status_line_.size() > 0);
