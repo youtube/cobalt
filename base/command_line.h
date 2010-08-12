@@ -79,9 +79,6 @@ class CommandLine {
   // If Init is called only once, e.g. in main(), calling Reset() is not
   // necessary.
   static void Reset();
-  // The same function snuck into this class under two different names;
-  // this one remains for backwards compat with the older o3d build.
-  static void Terminate() { Reset(); }
 
   // Get the singleton CommandLine representing the current process's
   // command line.  Note: returned value is mutable, but not thread safe;
@@ -133,16 +130,6 @@ class CommandLine {
 
   // Returns the program part of the command line string (the first item).
   FilePath GetProgram() const;
-
-  // Return a copy of the string prefixed with a switch prefix.
-  // Used internally.
-  static std::wstring PrefixedSwitchString(const std::string& switch_string);
-
-  // Return a copy of the string prefixed with a switch prefix,
-  // and appended with the given value. Used internally.
-  static std::wstring PrefixedSwitchStringWithValue(
-                        const std::string& switch_string,
-                        const std::wstring& value_string);
 
   // Append a switch to the command line.
   void AppendSwitch(const std::string& switch_string);
