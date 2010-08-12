@@ -1102,22 +1102,6 @@ std::wstring FilePath::ToWStringHack() const {
 }
 #endif
 
-FilePath FilePath::FromString(const std::string& string) {
-#if defined(OS_POSIX)
-  return FilePath(string);
-#elif defined(OS_WIN)
-  return FilePath(base::SysUTF8ToWide(string));
-#endif
-}
-
-std::string FilePath::ToString() const {
-#if defined(OS_POSIX)
-  return value();
-#elif defined(OS_WIN)
-  return base::SysWideToUTF8(value());
-#endif
-}
-
 FilePath FilePath::StripTrailingSeparators() const {
   FilePath new_path(path_);
   new_path.StripTrailingSeparatorsInternal();

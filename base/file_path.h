@@ -293,24 +293,6 @@ class FilePath {
   static FilePath FromWStringHack(const std::wstring& wstring);
   std::wstring ToWStringHack() const;
 
-  // These methods provide a way to convert a FilePath to a std::string and back
-  // without losing information. Because most code dealing with files either
-  // directly takes a FilePath or a (deprecated) wstring, they're probably only
-  // useful for storage in non-FilePath-aware data structures.
-  //
-  // The encoding used is UTF-8 on Windows, and whatever happens to be the
-  // native string encoding on POSIX platforms (on Mac OS X it's UTF-8 again).
-  //
-  // Platform | Native      | Used
-  //          | encoding    | encoding
-  // ---------+-------------+----------
-  // Win      | UTF-16      | UTF-8
-  // Linux    | unspecified | same
-  // Mac OS X | UTF-8       | UTF-8
-  //
-  static FilePath FromString(const std::string& string);
-  std::string ToString() const;
-
   // Static helper method to write a StringType to a pickle.
   static void WriteStringTypeToPickle(Pickle* pickle,
                                       const FilePath::StringType& path);
