@@ -111,6 +111,10 @@
       # compilation.
       'fastbuild%': 0,
 
+      # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
+      # libraries on linux x86-64 and arm.
+      'linux_fpic%': 0,
+
       # Python version.
       'python_ver%': '2.5',
 
@@ -150,6 +154,7 @@
     'touchui%': '<(touchui)',
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
+    'linux_fpic%': '<(linux_fpic)',
     'python_ver%': '<(python_ver)',
     'armv7%': '<(armv7)',
     'arm_neon%': '<(arm_neon)',
@@ -1082,7 +1087,7 @@
               }],
             ],
           }],
-          ['OS=="linux" and (target_arch=="x64" or target_arch=="arm")', {
+          ['linux_fpic==1', {
             'cflags': [
               '-fPIC',
             ],
@@ -1114,6 +1119,12 @@
             # When building with shared libraries, remove the visiblity-hiding
             # flag.
             'cflags!': [ '-fvisibility=hidden' ],
+            'conditions': [
+              ['target_arch=="x64" or target_arch=="arm"', {
+                # Shared libraries need -fPIC on x86-64 and arm
+                'cflags': ['-fPIC']
+              }]
+            ],
           }],
           ['linux_use_heapchecker==1', {
             'variables': {'linux_use_tcmalloc%': 1},
