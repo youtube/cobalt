@@ -98,6 +98,9 @@ class WebSocketHandshakeResponseHandler {
   void RemoveHeaders(const char* const headers_to_remove[],
                      size_t headers_to_remove_len);
 
+  // Gets raw WebSocket handshake response received from WebSocket server.
+  std::string GetRawResponse() const;
+
   // Gets WebSocket handshake response message sent to renderer process.
   std::string GetResponse();
 

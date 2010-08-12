@@ -9,6 +9,7 @@
 #include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/cookie_policy.h"
 #include "net/base/cookie_store.h"
 #include "net/base/io_buffer.h"
@@ -16,6 +17,7 @@
 #include "net/url_request/url_request_context.h"
 #include "net/websockets/websocket_frame_handler.h"
 #include "net/websockets/websocket_handshake_handler.h"
+#include "net/websockets/websocket_net_log_params.h"
 #include "net/websockets/websocket_throttle.h"
 
 namespace {
@@ -309,6 +311,9 @@ void WebSocketJob::OnCanGetCookiesCompleted(int policy) {
 
     const std::string& handshake_request = handshake_request_->GetRawRequest();
     handshake_request_sent_ = 0;
+    socket_->net_log()->AddEvent(
+        NetLog::TYPE_WEB_SOCKET_SEND_REQUEST_HEADERS,
+        new NetLogWebSocketHandshakeParameter(handshake_request));
     socket_->SendData(handshake_request.data(),
                       handshake_request.size());
   }
@@ -347,6 +352,10 @@ void WebSocketJob::OnReceivedHandshakeResponse(
     return;
   }
   // handshake message is completed.
+  socket_->net_log()->AddEvent(
+      NetLog::TYPE_WEB_SOCKET_READ_RESPONSE_HEADERS,
+      new NetLogWebSocketHandshakeParameter(
+          handshake_response_->GetRawResponse()));
   if (len - response_length > 0) {
     // If we received extra data, it should be frame data.
     receive_frame_handler_->AppendData(data + response_length,
