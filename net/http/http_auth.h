@@ -121,7 +121,11 @@ class HttpAuth {
    public:
     ChallengeTokenizer(std::string::const_iterator begin,
                        std::string::const_iterator end)
-        : props_(begin, end, ','), valid_(true), begin_(begin), end_(end),
+        : props_(begin, end, ','),
+          valid_(true),
+          begin_(begin),
+          end_(end),
+          value_is_quoted_(false),
           expect_base64_token_(false) {
       Init(begin, end);
     }

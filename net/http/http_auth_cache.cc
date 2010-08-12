@@ -134,6 +134,10 @@ HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
   return entry;
 }
 
+HttpAuthCache::Entry::Entry()
+    : nonce_count_(0) {
+}
+
 void HttpAuthCache::Entry::AddPath(const std::string& path) {
   std::string parent_dir = GetParentDirectory(path);
   if (!HasEnclosingPath(parent_dir)) {
