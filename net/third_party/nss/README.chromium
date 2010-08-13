@@ -4,7 +4,7 @@ URL: http://www.mozilla.org/projects/security/pki/nss/
 This directory includes a copy of NSS's libssl from the CVS repo at:
   :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot
 
-The snapshot was updated to the CVS tag: NSS_3_12_6_RC0
+The snapshot was updated to the CVS tag: NSS_3_12_7_RTM
 
 Patches:
 
