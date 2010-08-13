@@ -422,11 +422,14 @@ void CommandLine::AppendSwitchNative(const std::string& switch_string,
   switches_[switch_string] = value;
 }
 
-void CommandLine::AppendLooseValue(const std::wstring& value) {
-  // TODO(evan): the quoting here is wrong, but current callers rely on it
-  // being wrong.  I have another branch which fixes all the callers.
+void CommandLine::AppendArg(const std::string& value) {
+  DCHECK(IsStringUTF8(value));
+  AppendArgNative(UTF8ToWide(value));
+}
+
+void CommandLine::AppendArgNative(const std::wstring& value) {
   command_line_string_.append(L" ");
-  command_line_string_.append(value);
+  command_line_string_.append(WindowsStyleQuote(value));
   args_.push_back(value);
 }
 
@@ -472,8 +475,13 @@ void CommandLine::AppendSwitchASCII(const std::string& switch_string,
   AppendSwitchNative(switch_string, value_string);
 }
 
-void CommandLine::AppendLooseValue(const std::wstring& value) {
-  argv_.push_back(base::SysWideToNativeMB(value));
+void CommandLine::AppendArg(const std::string& value) {
+  AppendArgNative(value);
+}
+
+void CommandLine::AppendArgNative(const std::string& value) {
+  DCHECK(IsStringUTF8(value));
+  argv_.push_back(value);
 }
 
 void CommandLine::AppendArguments(const CommandLine& other,
@@ -498,6 +506,10 @@ void CommandLine::PrependWrapper(const std::string& wrapper) {
 }
 
 #endif
+
+void CommandLine::AppendArgPath(const FilePath& path) {
+  AppendArgNative(path.value());
+}
 
 void CommandLine::AppendSwitchPath(const std::string& switch_string,
                                    const FilePath& path) {

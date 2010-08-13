@@ -141,8 +141,14 @@ class CommandLine {
   void AppendSwitchASCII(const std::string& switch_string,
                          const std::string& value);
 
-  // Append a loose value to the command line.
-  void AppendLooseValue(const std::wstring& value);
+  // Append an argument to the command line.
+  // Note on quoting: the argument will be quoted properly such that it is
+  // interpreted as one argument to the target command.
+  // AppendArg is primarily for ASCII; non-ASCII input will be
+  // interpreted as UTF-8.
+  void AppendArg(const std::string& value);
+  void AppendArgPath(const FilePath& value);
+  void AppendArgNative(const StringType& value);
 
   // Append the arguments from another command line to this one.
   // If |include_program| is true, include |other|'s program as well.
