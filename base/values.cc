@@ -832,12 +832,6 @@ bool DictionaryValue::RemoveWithoutPathExpansion(const std::string& key,
   return true;
 }
 
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::RemoveWithoutPathExpansion(const std::wstring& key,
-                                                 Value** out_value) {
-  return RemoveWithoutPathExpansion(WideToUTF8(key), out_value);
-}
-
 DictionaryValue* DictionaryValue::DeepCopyWithoutEmptyChildren() {
   Value* copy = CopyWithoutEmptyChildren(this);
   return copy ? static_cast<DictionaryValue*>(copy) : new DictionaryValue;
