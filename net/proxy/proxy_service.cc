@@ -8,6 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/values.h"
 #include "base/histogram.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
@@ -40,8 +41,10 @@ using base::TimeTicks;
 
 namespace net {
 
-static const size_t kMaxNumNetLogEntries = 100;
-static const size_t kDefaultNumPacThreads = 4;
+namespace {
+
+const size_t kMaxNumNetLogEntries = 100;
+const size_t kDefaultNumPacThreads = 4;
 
 // Config getter that always returns direct settings.
 class ProxyConfigServiceDirect : public ProxyConfigService {
@@ -138,6 +141,33 @@ class ProxyResolverFactoryForNonV8 : public ProxyResolverFactory {
 #endif
   }
 };
+
+// NetLog parameter to describe a proxy configuration change.
+class ProxyConfigChangedNetLogParam : public NetLog::EventParameters {
+ public:
+  ProxyConfigChangedNetLogParam(const ProxyConfig& old_config,
+                                const ProxyConfig& new_config)
+      : old_config_(old_config),
+        new_config_(new_config) {
+  }
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    // The "old_config" is optional -- the first notification will not have
+    // any "previous" configuration.
+    if (old_config_.is_valid())
+      dict->Set("old_config", old_config_.ToValue());
+    dict->Set("new_config", new_config_.ToValue());
+    return dict;
+  }
+
+ private:
+  const ProxyConfig old_config_;
+  const ProxyConfig new_config_;
+  DISALLOW_COPY_AND_ASSIGN(ProxyConfigChangedNetLogParam);
+};
+
+}  // namespace
 
 // ProxyService::PacRequest ---------------------------------------------------
 
@@ -643,11 +673,23 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 }
 
 void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
+  ProxyConfig old_config = config_;
   ResetProxyConfig();
 
   // Increment the ID to reflect that the config has changed.
   config_ = config;
   config_.set_id(next_config_id_++);
+
+  // Emit the proxy settings change to the NetLog stream.
+  if (net_log_) {
+    scoped_refptr<NetLog::EventParameters> params =
+        new ProxyConfigChangedNetLogParam(old_config, config);
+    net_log_->AddEntry(net::NetLog::TYPE_PROXY_CONFIG_CHANGED,
+                       base::TimeTicks::Now(),
+                       NetLog::Source(),
+                       NetLog::PHASE_NONE,
+                       params);
+  }
 
   if (!config_.MayRequirePACResolver()) {
     SetReady();

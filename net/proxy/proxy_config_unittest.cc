@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <ostream>
-
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service_common_unittest.h"
 #include "net/proxy/proxy_info.h"
@@ -253,12 +251,6 @@ TEST(ProxyConfigTest, ParseProxyRules) {
   }
 }
 
-std::string ProxyConfigToString(const ProxyConfig& config) {
-  std::ostringstream stream;
-  stream << config;
-  return stream.str();
-}
-
 TEST(ProxyConfigTest, ToString) {
   // Manual proxy.
   {
@@ -272,7 +264,7 @@ TEST(ProxyConfigTest, ToString) {
               "Manual settings:\n"
               "  Proxy server: single-proxy:81\n"
               "  Bypass list: [None]",
-              ProxyConfigToString(config));
+              config.ToString());
   }
 
   // Autodetect + custom PAC + manual proxy.
@@ -288,7 +280,7 @@ TEST(ProxyConfigTest, ToString) {
               "Manual settings:\n"
               "  Proxy server: single-proxy:81\n"
               "  Bypass list: [None]",
-              ProxyConfigToString(config));
+              config.ToString());
   }
 
   // Manual proxy with bypass list + bypass local.
@@ -309,7 +301,7 @@ TEST(ProxyConfigTest, ToString) {
               "    google.com\n"
               "    bypass2.net:1730\n"
               "    <local>",
-              ProxyConfigToString(config));
+              config.ToString());
   }
 
   // Proxy-per scheme (HTTP and HTTPS)
@@ -327,7 +319,7 @@ TEST(ProxyConfigTest, ToString) {
               "    HTTP: proxy-for-http:1801\n"
               "    HTTPS: proxy-for-https:1802\n"
               "  Bypass list: [None]",
-              ProxyConfigToString(config));
+              config.ToString());
   }
 
   // Proxy-per scheme (HTTP and SOCKS)
@@ -345,7 +337,7 @@ TEST(ProxyConfigTest, ToString) {
               "    HTTP: proxy-for-http:1801\n"
               "    SOCKS: socks4://socks-server:6083\n"
               "  Bypass list: [None]",
-              ProxyConfigToString(config));
+              config.ToString());
   }
 
   // No proxy.
@@ -359,7 +351,7 @@ TEST(ProxyConfigTest, ToString) {
               "Manual settings:\n"
               "  Proxy server: [None]\n"
               "  Bypass list: [None]",
-              ProxyConfigToString(config));
+              config.ToString());
   }
 
   // Manual proxy with bypass list + bypass local, list reversed.
@@ -381,7 +373,7 @@ TEST(ProxyConfigTest, ToString) {
               "    google.com\n"
               "    bypass2.net:1730\n"
               "    <local>",
-              ProxyConfigToString(config));
+              config.ToString());
   }
 }
 
