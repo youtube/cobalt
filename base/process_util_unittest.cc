@@ -205,18 +205,16 @@ TEST_F(ProcessUtilTest, GetAppOutput) {
                                  .Append(FILE_PATH_LITERAL("python.exe"));
 
   CommandLine cmd_line(python_runtime);
-  cmd_line.AppendLooseValue(L"-c");
-  cmd_line.AppendLooseValue(L"\"import sys; sys.stdout.write('" +
-      ASCIIToWide(message) + L"');\"");
+  cmd_line.AppendArg("-c");
+  cmd_line.AppendArg("import sys; sys.stdout.write('" + message + "');");
   std::string output;
   ASSERT_TRUE(base::GetAppOutput(cmd_line, &output));
   EXPECT_EQ(message, output);
 
   // Let's make sure stderr is ignored.
   CommandLine other_cmd_line(python_runtime);
-  other_cmd_line.AppendLooseValue(L"-c");
-  other_cmd_line.AppendLooseValue(
-      L"\"import sys; sys.stderr.write('Hello!');\"");
+  other_cmd_line.AppendArg("-c");
+  other_cmd_line.AppendArg("import sys; sys.stderr.write('Hello!');");
   output.clear();
   ASSERT_TRUE(base::GetAppOutput(other_cmd_line, &output));
   EXPECT_EQ("", output);
