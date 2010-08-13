@@ -6,13 +6,14 @@
 #define NET_PROXY_PROXY_CONFIG_H_
 #pragma once
 
-#include <ostream>
 #include <string>
 #include <vector>
 
 #include "googleurl/src/gurl.h"
 #include "net/proxy/proxy_bypass_rules.h"
 #include "net/proxy/proxy_server.h"
+
+class Value;
 
 namespace net {
 
@@ -115,7 +116,7 @@ class ProxyConfig {
   // Used to numerically identify this configuration.
   ID id() const { return id_; }
   void set_id(int id) { id_ = id; }
-  bool is_valid() { return id_ != INVALID_ID; }
+  bool is_valid() const { return id_ != INVALID_ID; }
 
   // Returns true if the given config is equivalent to this config.
   bool Equals(const ProxyConfig& other) const;
@@ -123,6 +124,13 @@ class ProxyConfig {
   // Returns true if this config could possibly require the proxy service to
   // use a PAC resolver.
   bool MayRequirePACResolver() const;
+
+  // Creates a textual dump of the configuration.
+  std::string ToString() const;
+
+  // Creates a Value dump of this configuration. The caller is responsible for
+  // deleting the returned value.
+  Value* ToValue() const;
 
   ProxyRules& proxy_rules() {
     return proxy_rules_;
@@ -185,13 +193,6 @@ class ProxyConfig {
 
 }  // namespace net
 
-// Dumps a human-readable string representation of the configuration to |out|;
-// used when logging the configuration changes.
-std::ostream& operator<<(std::ostream& out, const net::ProxyConfig& config);
 
-// Dumps a human-readable string representation of the |rules| to |out|;
-// used for logging and for better unittest failure output.
-std::ostream& operator<<(std::ostream& out,
-                         const net::ProxyConfig::ProxyRules& rules);
 
 #endif  // NET_PROXY_PROXY_CONFIG_H_
