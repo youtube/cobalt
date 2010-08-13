@@ -29,6 +29,7 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(VideoDecodeEngine* engine)
       decode_engine_(engine),
       pending_reads_(0),
       pending_requests_(0) {
+  memset(&info_, 0, sizeof(info_));
 }
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder() {
@@ -47,13 +48,16 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   DCHECK_EQ(MessageLoop::current(), message_loop());
   DCHECK(!demuxer_stream_);
+  DCHECK(!initialize_callback_.get());
 
   demuxer_stream_ = demuxer_stream;
+  initialize_callback_.reset(callback);
 
   // Get the AVStream by querying for the provider interface.
   AVStreamProvider* av_stream_provider;
   if (!demuxer_stream->QueryInterface(&av_stream_provider)) {
-    FFmpegVideoDecoder::OnInitializeComplete(callback);
+    VideoCodecInfo info = {0};
+    FFmpegVideoDecoder::OnInitializeComplete(info);
     return;
   }
   AVStream* av_stream = av_stream_provider->GetAVStream();
@@ -68,41 +72,56 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   if (width_ > Limits::kMaxDimension ||
       height_ > Limits::kMaxDimension ||
       (width_ * height_) > Limits::kMaxCanvas) {
-    FFmpegVideoDecoder::OnInitializeComplete(callback);
+    VideoCodecInfo info = {0};
+    FFmpegVideoDecoder::OnInitializeComplete(info);
     return;
   }
 
-  decode_engine_->Initialize(
-      message_loop(),
-      av_stream,
-      NewCallback(this, &FFmpegVideoDecoder::OnEngineEmptyBufferDone),
-      NewCallback(this, &FFmpegVideoDecoder::OnEngineFillBufferDone),
-      NewRunnableMethod(this,
-                        &FFmpegVideoDecoder::OnInitializeComplete,
-                        callback));
+  VideoCodecConfig config;
+  switch (av_stream->codec->codec_id) {
+    case CODEC_ID_VC1:
+      config.codec_ = kCodecVC1; break;
+    case CODEC_ID_H264:
+      config.codec_ = kCodecH264; break;
+    case CODEC_ID_THEORA:
+      config.codec_ = kCodecTheora; break;
+    case CODEC_ID_MPEG2VIDEO:
+      config.codec_ = kCodecMPEG2; break;
+    case CODEC_ID_MPEG4:
+      config.codec_ = kCodecMPEG4; break;
+    default:
+      NOTREACHED();
+  }
+  config.opaque_context_ = av_stream;
+  config.width_ = width_;
+  config.height_ = config.height_;
+  decode_engine_->Initialize(message_loop(), this, config);
 }
 
-void FFmpegVideoDecoder::OnInitializeComplete(FilterCallback* callback) {
-  CHECK_EQ(MessageLoop::current(), message_loop());
+void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
+  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK(initialize_callback_.get());
 
-  AutoCallbackRunner done_runner(callback);
+  info_ = info;  // Save a copy.
 
-  bool success = decode_engine_->state() == VideoDecodeEngine::kNormal;
-  if (success) {
+  if (info.success_) {
     media_format_.SetAsString(MediaFormat::kMimeType,
                               mime_type::kUncompressedVideo);
     media_format_.SetAsInteger(MediaFormat::kWidth, width_);
     media_format_.SetAsInteger(MediaFormat::kHeight, height_);
     media_format_.SetAsInteger(
         MediaFormat::kSurfaceType,
-        static_cast<int>(VideoFrame::TYPE_SYSTEM_MEMORY));
+        static_cast<int>(info.stream_info_.surface_type_));
     media_format_.SetAsInteger(
         MediaFormat::kSurfaceFormat,
-        static_cast<int>(decode_engine_->GetSurfaceFormat()));
+        static_cast<int>(info.stream_info_.surface_format_));
     state_ = kNormal;
   } else {
     host()->SetError(PIPELINE_ERROR_DECODE);
   }
+
+  initialize_callback_->Run();
+  initialize_callback_.reset();
 }
 
 void FFmpegVideoDecoder::Stop(FilterCallback* callback) {
@@ -115,15 +134,17 @@ void FFmpegVideoDecoder::Stop(FilterCallback* callback) {
   }
 
   DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK(!uninitialize_callback_.get());
 
-  decode_engine_->Stop(
-      NewRunnableMethod(this, &FFmpegVideoDecoder::OnStopComplete, callback));
+  uninitialize_callback_.reset(callback);
+  decode_engine_->Uninitialize();
 }
 
-void FFmpegVideoDecoder::OnStopComplete(FilterCallback* callback) {
+void FFmpegVideoDecoder::OnUninitializeComplete() {
   DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK(uninitialize_callback_.get());
 
-  AutoCallbackRunner done_runner(callback);
+  AutoCallbackRunner done_runner(uninitialize_callback_.release());
   state_ = kStopped;
 }
 
@@ -137,26 +158,28 @@ void FFmpegVideoDecoder::Flush(FilterCallback* callback) {
   }
 
   DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK(!flush_callback_.get());
+
+  flush_callback_.reset(callback);
 
   // Everything in the presentation time queue is invalid, clear the queue.
   while (!pts_heap_.IsEmpty())
     pts_heap_.Pop();
 
-  decode_engine_->Flush(
-      NewRunnableMethod(this, &FFmpegVideoDecoder::OnFlushComplete, callback));
+  decode_engine_->Flush();
 }
 
-void FFmpegVideoDecoder::OnFlushComplete(FilterCallback* callback) {
+void FFmpegVideoDecoder::OnFlushComplete() {
   DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK(flush_callback_.get());
 
-  AutoCallbackRunner done_runner(callback);
+  AutoCallbackRunner done_runner(flush_callback_.release());
 
   // Since we are sending Flush() in reverse order of filter. (i.e. flushing
   // renderer before decoder). we could guaranteed the following invariant.
   // TODO(jiesun): when we move to parallel Flush, we should remove this.
   DCHECK_EQ(0u, pending_reads_) << "Pending reads should have completed";
   DCHECK_EQ(0u, pending_requests_) << "Pending requests should be empty";
-
 }
 
 void FFmpegVideoDecoder::Seek(base::TimeDelta time,
@@ -171,16 +194,26 @@ void FFmpegVideoDecoder::Seek(base::TimeDelta time,
   }
 
   DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK(!seek_callback_.get());
 
-  decode_engine_->Seek(
-      NewRunnableMethod(this, &FFmpegVideoDecoder::OnSeekComplete, callback));
+  seek_callback_.reset(callback);
+  decode_engine_->Seek();
 }
 
-void FFmpegVideoDecoder::OnSeekComplete(FilterCallback* callback) {
+void FFmpegVideoDecoder::OnSeekComplete() {
   DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK(seek_callback_.get());
 
-  AutoCallbackRunner done_runner(callback);
+  AutoCallbackRunner done_runner(seek_callback_.release());
   state_ = kNormal;
+}
+
+void FFmpegVideoDecoder::OnError() {
+  NOTIMPLEMENTED();
+}
+
+void FFmpegVideoDecoder::OnFormatChange(VideoStreamInfo stream_info) {
+  NOTIMPLEMENTED();
 }
 
 void FFmpegVideoDecoder::OnReadComplete(Buffer* buffer_in) {
@@ -277,7 +310,7 @@ void FFmpegVideoDecoder::FillThisBuffer(
   decode_engine_->FillThisBuffer(video_frame);
 }
 
-void FFmpegVideoDecoder::OnEngineFillBufferDone(
+void FFmpegVideoDecoder::OnFillBufferCallback(
     scoped_refptr<VideoFrame> video_frame) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
 
@@ -311,7 +344,7 @@ void FFmpegVideoDecoder::OnEngineFillBufferDone(
   }
 }
 
-void FFmpegVideoDecoder::OnEngineEmptyBufferDone(
+void FFmpegVideoDecoder::OnEmptyBufferCallback(
     scoped_refptr<Buffer> buffer) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
   DCHECK_LE(pending_reads_, pending_requests_);
@@ -373,13 +406,13 @@ FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
 }
 
 bool FFmpegVideoDecoder::ProvidesBuffer() {
-  if (!decode_engine_.get()) return false;
-  return decode_engine_->ProvidesBuffer();
+  DCHECK(info_.success_);
+  return info_.provides_buffers_;
 }
 
 void FFmpegVideoDecoder::SetVideoDecodeEngineForTest(
     VideoDecodeEngine* engine) {
-  decode_engine_.reset(engine);
+  decode_engine_ = engine;
 }
 
 // static
