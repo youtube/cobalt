@@ -39,7 +39,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: ssl3con.c,v 1.134 2010/02/03 03:44:29 wtc%google.com Exp $ */
+/* $Id: ssl3con.c,v 1.142 2010/06/24 19:53:20 wtc%google.com Exp $ */
 
 #include "cert.h"
 #include "ssl.h"
@@ -570,11 +570,11 @@ typedef struct tooLongStr {
 void SSL_AtomicIncrementLong(long * x)
 {
     if ((sizeof *x) == sizeof(PRInt32)) {
-        PR_AtomicIncrement((PRInt32 *)x);
+        PR_ATOMIC_INCREMENT((PRInt32 *)x);
     } else {
     	tooLong * tl = (tooLong *)x;
-	if (PR_AtomicIncrement(&tl->low) == 0)
-	    PR_AtomicIncrement(&tl->high);
+	if (PR_ATOMIC_INCREMENT(&tl->low) == 0)
+	    PR_ATOMIC_INCREMENT(&tl->high);
     }
 }
 
@@ -2614,7 +2614,8 @@ ssl3_HandleAlert(sslSocket *ss, sslBuffer *buf)
     case unexpected_message: 	error = SSL_ERROR_HANDSHAKE_UNEXPECTED_ALERT;
 									  break;
     case bad_record_mac: 	error = SSL_ERROR_BAD_MAC_ALERT; 	  break;
-    case decryption_failed: 	error = SSL_ERROR_DECRYPTION_FAILED_ALERT; 
+    case decryption_failed_RESERVED:
+                                error = SSL_ERROR_DECRYPTION_FAILED_ALERT; 
     									  break;
     case record_overflow: 	error = SSL_ERROR_RECORD_OVERFLOW_ALERT;  break;
     case decompression_failure: error = SSL_ERROR_DECOMPRESSION_FAILURE_ALERT;
@@ -3954,7 +3955,7 @@ ssl3_SendClientHello(sslSocket *ss)
 
     if (ss->ssl3.hs.sendingSCSV) {
 	/* Add the actual SCSV */
-	rv = ssl3_AppendHandshakeNumber(ss, TLS_RENEGO_PROTECTION_REQUEST,
+	rv = ssl3_AppendHandshakeNumber(ss, TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
 					sizeof(ssl3CipherSuite));
 	if (rv != SECSuccess) {
 	    return rv;	/* err set by ssl3_AppendHandshake* */
@@ -5311,14 +5312,22 @@ ssl3_HandleServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */
 	}
+	if (dh_p.len < 512/8)
+	    goto alert_loser;
     	rv = ssl3_ConsumeHandshakeVariable(ss, &dh_g, 2, &b, &length);
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */
 	}
+	if (dh_g.len == 0 || dh_g.len > dh_p.len + 1 ||
+	   (dh_g.len == 1 && dh_g.data[0] == 0))
+	    goto alert_loser;
     	rv = ssl3_ConsumeHandshakeVariable(ss, &dh_Ys, 2, &b, &length);
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */
 	}
+	if (dh_Ys.len == 0 || dh_Ys.len > dh_p.len + 1 ||
+	   (dh_Ys.len == 1 && dh_Ys.data[0] == 0))
+	    goto alert_loser;
     	rv = ssl3_ConsumeHandshakeVariable(ss, &signature, 2, &b, &length);
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */
@@ -6005,8 +6014,7 @@ ssl3_HandleClientHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	goto alert_loser;
     }
     if (ss->ssl3.hs.ws == idle_handshake  &&
-        (ss->opt.enableRenegotiation == SSL_RENEGOTIATE_NEVER ||
-         ss->opt.enableRenegotiation == SSL_RENEGOTIATE_CLIENT_ONLY)) {
+        ss->opt.enableRenegotiation == SSL_RENEGOTIATE_NEVER) {
 	desc    = no_renegotiation;
 	level   = alert_warning;
 	errCode = SSL_ERROR_RENEGOTIATION_NOT_ALLOWED;
@@ -6082,7 +6090,7 @@ ssl3_HandleClientHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	 */
 	for (i = 0; i + 1 < suites.len; i += 2) {
 	    PRUint16 suite_i = (suites.data[i] << 8) | suites.data[i + 1];
-	    if (suite_i == TLS_RENEGO_PROTECTION_REQUEST) {
+	    if (suite_i == TLS_EMPTY_RENEGOTIATION_INFO_SCSV) {
 		SSL3Opaque * b2 = (SSL3Opaque *)emptyRIext;
 		PRUint32     L2 = sizeof emptyRIext;
 		(void)ssl3_HandleHelloExtensions(ss, &b2, &L2);
@@ -6091,7 +6099,8 @@ ssl3_HandleClientHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	}
     }
     if (ss->firstHsDone &&
-        ss->opt.enableRenegotiation == SSL_RENEGOTIATE_REQUIRES_XTN && 
+        (ss->opt.enableRenegotiation == SSL_RENEGOTIATE_REQUIRES_XTN ||
+        ss->opt.enableRenegotiation == SSL_RENEGOTIATE_TRANSITIONAL) && 
 	!ssl3_ExtensionNegotiated(ss, ssl_renegotiation_info_xtn)) {
 	desc    = no_renegotiation;
 	level   = alert_warning;
@@ -6797,7 +6806,7 @@ suite_found:
      */
     for (i = 0; i+2 < suite_length; i += 3) {
 	PRUint32 suite_i = (suites[i] << 16) | (suites[i+1] << 8) | suites[i+2];
-	if (suite_i == TLS_RENEGO_PROTECTION_REQUEST) {
+	if (suite_i == TLS_EMPTY_RENEGOTIATION_INFO_SCSV) {
 	    SSL3Opaque * b2 = (SSL3Opaque *)emptyRIext;
 	    PRUint32     L2 = sizeof emptyRIext;
 	    (void)ssl3_HandleHelloExtensions(ss, &b2, &L2);
@@ -7598,7 +7607,7 @@ get_fake_cert(SECItem *pCertItem, int *pIndex)
     }
     *pIndex   = (NULL != strstr(testdir, "root"));
     extension = (strstr(testdir, "simple") ? "" : ".der");
-    fileNum     = PR_AtomicIncrement(&connNum) - 1;
+    fileNum     = PR_ATOMIC_INCREMENT(&connNum) - 1;
     if ((startat = PR_GetEnv("START_AT")) != NULL) {
 	fileNum += atoi(startat);
     }
@@ -8982,27 +8991,29 @@ const ssl3BulkCipherDef *cipher_def;
 
     PRINT_BUF(80, (ss, "cleartext:", plaintext->buf, plaintext->len));
     if (rv != SECSuccess) {
-	int err = ssl_MapLowLevelError(SSL_ERROR_DECRYPTION_FAILURE);
-	ssl_ReleaseSpecReadLock(ss);
-	SSL3_SendAlert(ss, alert_fatal,
-	               isTLS ? decryption_failed : bad_record_mac);
-	PORT_SetError(err);
-	return SECFailure;
+        /* All decryption failures must be treated like a bad record
+         * MAC; see RFC 5246 (TLS 1.2). 
+         */
+        padIsBad = PR_TRUE;
     }
 
     /* If it's a block cipher, check and strip the padding. */
-    if (cipher_def->type == type_block) {
-	padding_length = *(plaintext->buf + plaintext->len - 1);
+    if (cipher_def->type == type_block && !padIsBad) {
+        PRUint8 * pPaddingLen = plaintext->buf + plaintext->len - 1;
+	padding_length = *pPaddingLen;
 	/* TLS permits padding to exceed the block size, up to 255 bytes. */
 	if (padding_length + 1 + crSpec->mac_size > plaintext->len)
 	    padIsBad = PR_TRUE;
-	/* if TLS, check value of first padding byte. */
-	else if (padding_length && isTLS && 
-	         padding_length != *(plaintext->buf +
-	                             plaintext->len - (padding_length + 1)))
-	    padIsBad = PR_TRUE;
-	else
-	    plaintext->len -= padding_length + 1;
+	else {
+            plaintext->len -= padding_length + 1;
+            /* In TLS all padding bytes must be equal to the padding length. */
+            if (isTLS) {
+                PRUint8 *p;
+                for (p = pPaddingLen - padding_length; p < pPaddingLen; ++p) {
+                    padIsBad |= *p ^ padding_length;
+                }
+            }
+        }
     }
 
     /* Remove the MAC. */
@@ -9017,11 +9028,7 @@ const ssl3BulkCipherDef *cipher_def;
 	rType, cText->version, crSpec->read_seq_num, 
 	plaintext->buf, plaintext->len, hash, &hashBytes);
     if (rv != SECSuccess) {
-	int err = ssl_MapLowLevelError(SSL_ERROR_MAC_COMPUTATION_FAILURE);
-	ssl_ReleaseSpecReadLock(ss);
-	SSL3_SendAlert(ss, alert_fatal, bad_record_mac);
-	PORT_SetError(err);
-	return rv;
+        padIsBad = PR_TRUE;     /* really macIsBad */
     }
 
     /* Check the MAC */
@@ -9120,7 +9127,11 @@ const ssl3BulkCipherDef *cipher_def;
     ** function, not by this function.
     */
     if (rType == content_application_data) {
-    	return SECSuccess;
+	if (ss->firstHsDone)
+	    return SECSuccess;
+	(void)SSL3_SendAlert(ss, alert_fatal, unexpected_message);
+	PORT_SetError(SSL_ERROR_RX_UNEXPECTED_APPLICATION_DATA);
+	return SECFailure;
     }
 
     /* It's a record that must be handled by ssl itself, not the application.
@@ -9279,14 +9290,14 @@ ssl3_NewKeyPair( SECKEYPrivateKey * privKey, SECKEYPublicKey * pubKey)
 ssl3KeyPair *
 ssl3_GetKeyPairRef(ssl3KeyPair * keyPair)
 {
-    PR_AtomicIncrement(&keyPair->refCount);
+    PR_ATOMIC_INCREMENT(&keyPair->refCount);
     return keyPair;
 }
 
 void
 ssl3_FreeKeyPair(ssl3KeyPair * keyPair)
 {
-    PRInt32 newCount =  PR_AtomicDecrement(&keyPair->refCount);
+    PRInt32 newCount =  PR_ATOMIC_DECREMENT(&keyPair->refCount);
     if (!newCount) {
 	if (keyPair->privKey)
 	    SECKEY_DestroyPrivateKey(keyPair->privKey);
@@ -9502,9 +9513,7 @@ ssl3_RedoHandshake(sslSocket *ss, PRBool flushCache)
 	PORT_SetError(SSL_ERROR_HANDSHAKE_NOT_COMPLETED);
 	return SECFailure;
     }
-    if (ss->opt.enableRenegotiation == SSL_RENEGOTIATE_NEVER ||
-       (ss->opt.enableRenegotiation == SSL_RENEGOTIATE_CLIENT_ONLY &&
-        ss->sec.isServer)) {
+    if (ss->opt.enableRenegotiation == SSL_RENEGOTIATE_NEVER) {
 	PORT_SetError(SSL_ERROR_RENEGOTIATION_NOT_ALLOWED);
 	return SECFailure;
     }
