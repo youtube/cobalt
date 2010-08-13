@@ -529,7 +529,7 @@ int SocketStream::DoResolveHost() {
 }
 
 int SocketStream::DoResolveHostComplete(int result) {
-  if (result == OK) {
+  if (result == OK && delegate_) {
     next_state_ = STATE_TCP_CONNECT;
     result = delegate_->OnStartOpenConnection(this, &io_callback_);
     if (result == net::ERR_IO_PENDING)
