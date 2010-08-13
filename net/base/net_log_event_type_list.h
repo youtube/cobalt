@@ -91,6 +91,19 @@ EVENT_TYPE(PROXY_SERVICE_WAITING_FOR_INIT_PAC)
 //   }
 EVENT_TYPE(PROXY_SERVICE_RESOLVED_PROXY_LIST)
 
+// This event is emitted whenever the proxy settings used by ProxyService
+// change.
+//
+// It contains these parameters:
+//  {
+//     "old_config": <Dump of the previous proxy settings>,
+//     "new_config": <Dump of the new proxy settings>
+//  }
+//
+// Note that the "old_config" key will be omitted on the first fetch of the
+// proxy settings (since there wasn't a previous value).
+EVENT_TYPE(PROXY_CONFIG_CHANGED)
+
 // ------------------------------------------------------------------------
 // Proxy Resolver
 // ------------------------------------------------------------------------
