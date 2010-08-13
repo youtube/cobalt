@@ -44,7 +44,7 @@ int RunSlave(int iteration) {
   PathService::Get(base::FILE_EXE, &exe);
 
   CommandLine cmdline(exe);
-  cmdline.AppendLooseValue(UTF8ToWide(base::IntToString(iteration)));
+  cmdline.AppendArg(base::IntToString(iteration));
 
   base::ProcessHandle handle;
   if (!base::LaunchApp(cmdline, false, false, &handle)) {
