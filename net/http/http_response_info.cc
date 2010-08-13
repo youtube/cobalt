@@ -71,6 +71,7 @@ HttpResponseInfo::HttpResponseInfo(const HttpResponseInfo& rhs)
     : was_cached(rhs.was_cached),
       was_fetched_via_spdy(rhs.was_fetched_via_spdy),
       was_npn_negotiated(rhs.was_npn_negotiated),
+      was_alternate_protocol_available(rhs.was_alternate_protocol_available),
       was_fetched_via_proxy(rhs.was_fetched_via_proxy),
       request_time(rhs.request_time),
       response_time(rhs.response_time),
@@ -89,6 +90,7 @@ HttpResponseInfo& HttpResponseInfo::operator=(const HttpResponseInfo& rhs) {
   was_cached = rhs.was_cached;
   was_fetched_via_spdy = rhs.was_fetched_via_spdy;
   was_npn_negotiated = rhs.was_npn_negotiated;
+  was_alternate_protocol_available = rhs.was_alternate_protocol_available;
   was_fetched_via_proxy = rhs.was_fetched_via_proxy;
   request_time = rhs.request_time;
   response_time = rhs.response_time;
