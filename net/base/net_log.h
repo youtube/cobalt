@@ -11,6 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
+#include "base/values.h"
 
 class Value;
 
@@ -122,6 +123,21 @@ class NetLog {
 
   // Returns a list of all the available EventTypes.
   static std::vector<EventType> GetAllEventTypes();
+
+  // Returns a C-String symbolic name for |source_type|.
+  static const char* SourceTypeToString(SourceType source_type);
+
+  // Returns a C-String symbolic name for |event_phase|.
+  static const char* EventPhaseToString(EventPhase event_phase);
+
+  // Serializes the specified event to a DictionaryValue.
+  // If |use_strings| is true, uses strings rather than numeric ids.
+  static Value* EntryToDictionaryValue(net::NetLog::EventType type,
+                                       const base::TimeTicks& time,
+                                       const net::NetLog::Source& source,
+                                       net::NetLog::EventPhase phase,
+                                       net::NetLog::EventParameters* params,
+                                       bool use_strings);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NetLog);
