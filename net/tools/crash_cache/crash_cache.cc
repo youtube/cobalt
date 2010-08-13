@@ -45,7 +45,7 @@ int RunSlave(RankCrashes action) {
   PathService::Get(base::FILE_EXE, &exe);
 
   CommandLine cmdline(exe);
-  cmdline.AppendLooseValue(UTF8ToWide(base::IntToString(action)));
+  cmdline.AppendArg(base::IntToString(action));
 
   base::ProcessHandle handle;
   if (!base::LaunchApp(cmdline, false, false, &handle)) {
