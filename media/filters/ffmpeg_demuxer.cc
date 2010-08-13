@@ -205,9 +205,29 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
   read_callback->Run(buffer);
 }
 
-void FFmpegDemuxerStream::SetBitstreamConverter(
-    BitstreamConverter* converter) {
-  bitstream_converter_.reset(converter);
+void FFmpegDemuxerStream::EnableBitstreamConverter() {
+  // Called by hardware decoder to require different bitstream converter.
+  // Currently we assume that converter is determined by codec_id;
+  DCHECK(stream_);
+
+  const char* filter_name = NULL;
+  if (stream_->codec->codec_id == CODEC_ID_H264) {
+    filter_name = "h264_mp4toannexb";
+  } else if (stream_->codec->codec_id == CODEC_ID_MPEG4) {
+    filter_name = "mpeg4video_es";
+  } else if (stream_->codec->codec_id == CODEC_ID_WMV3) {
+    filter_name = "vc1_asftorcv";
+  } else if (stream_->codec->codec_id == CODEC_ID_VC1) {
+    filter_name = "vc1_asftoannexg";
+  } else {
+    NOTREACHED();
+  }
+
+  if (filter_name) {
+    bitstream_converter_.reset(
+        new FFmpegBitstreamConverter(filter_name, stream_->codec));
+    CHECK(bitstream_converter_->Initialize());
+  }
 }
 
 // static
@@ -423,31 +443,6 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
 
       FFmpegDemuxerStream* demuxer_stream
           = new FFmpegDemuxerStream(this, stream);
-
-      // Initialize the bitstream if OpenMAX is enabled.
-      // TODO(hclam): Should be enabled by the decoder.
-      CommandLine* cmd = CommandLine::ForCurrentProcess();
-      if (cmd->HasSwitch(switches::kEnableAcceleratedDecoding)) {
-        // TODO(ajwong): Unittest this branch of the if statement.
-        // TODO(hclam): In addition to codec we should also check the container.
-        const char* filter_name = NULL;
-        if (stream->codec->codec_id == CODEC_ID_H264) {
-          filter_name = "h264_mp4toannexb";
-        } else if (stream->codec->codec_id == CODEC_ID_MPEG4) {
-          filter_name = "mpeg4video_es";
-        } else if (stream->codec->codec_id == CODEC_ID_WMV3) {
-          filter_name = "vc1_asftorcv";
-        } else if (stream->codec->codec_id == CODEC_ID_VC1) {
-          filter_name = "vc1_asftoannexg";
-        }
-
-        if (filter_name) {
-          BitstreamConverter* bitstream_converter =
-              new FFmpegBitstreamConverter(filter_name, codec_context);
-          CHECK(bitstream_converter->Initialize());
-          demuxer_stream->SetBitstreamConverter(bitstream_converter);
-        }
-      }
 
       DCHECK(demuxer_stream);
       streams_.push_back(demuxer_stream);
