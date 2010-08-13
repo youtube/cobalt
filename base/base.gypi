@@ -184,6 +184,7 @@
           'resource_util.h',
           'safe_strerror_posix.cc',
           'safe_strerror_posix.h',
+          'scoped_aedesc.h',
           'scoped_bstr_win.cc',
           'scoped_bstr_win.h',
           'scoped_callback_factory.h',
@@ -331,6 +332,11 @@
               ],
             },
           ],
+          [ 'OS != "mac"', {
+              'sources!': [
+                'scoped_aedesc.h'
+              ],
+          }],
           # For now, just test the *BSD platforms enough to exclude them.
           # Subsequent changes will include them further.
           [ 'OS != "freebsd"', {
