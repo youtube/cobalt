@@ -148,6 +148,8 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
   DCHECK_GT(process_id, 1) << " tried to kill invalid process_id";
   if (process_id <= 1)
     return false;
+  static unsigned kMaxSleepMs = 1000;
+  unsigned sleep_ms = 4;
 
   bool result = kill(process_id, SIGTERM) == 0;
 
@@ -171,7 +173,9 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
         DPLOG(ERROR) << "Error waiting for process " << process_id;
       }
 
-      sleep(1);
+      usleep(sleep_ms * 1000);
+      if (sleep_ms < kMaxSleepMs)
+        sleep_ms *= 2;
     }
 
     if (!exited)
