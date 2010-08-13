@@ -349,8 +349,6 @@ class DictionaryValue : public Value {
   // Like Remove(), but without special treatment of '.'.  This allows e.g. URLs
   // to be used as paths.
   bool RemoveWithoutPathExpansion(const std::string& key, Value** out_value);
-  /*DEPRECATED*/bool RemoveWithoutPathExpansion(const std::wstring& key,
-                                                Value** out_value);
 
   // Makes a copy of |this| but doesn't include empty dictionaries and lists in
   // the copy.  This never returns NULL, even if |this| itself is empty.
