@@ -12,6 +12,7 @@
 #include "media/base/pts_heap.h"
 #include "media/base/video_frame.h"
 #include "media/filters/decoder_base.h"
+#include "media/filters/video_decode_engine.h"
 
 // FFmpeg types.
 struct AVRational;
@@ -20,7 +21,8 @@ namespace media {
 
 class VideoDecodeEngine;
 
-class FFmpegVideoDecoder : public VideoDecoder {
+class FFmpegVideoDecoder : public VideoDecoder,
+                           public VideoDecodeEngine::EventHandler {
  public:
   explicit FFmpegVideoDecoder(VideoDecodeEngine* engine);
   virtual ~FFmpegVideoDecoder();
@@ -41,6 +43,16 @@ class FFmpegVideoDecoder : public VideoDecoder {
   virtual bool ProvidesBuffer();
 
  private:
+  // VideoDecodeEngine::EventHandler interface.
+  virtual void OnInitializeComplete(const VideoCodecInfo& info);
+  virtual void OnUninitializeComplete();
+  virtual void OnFlushComplete();
+  virtual void OnSeekComplete();
+  virtual void OnError();
+  virtual void OnFormatChange(VideoStreamInfo stream_info);
+  virtual void OnEmptyBufferCallback(scoped_refptr<Buffer> buffer);
+  virtual void OnFillBufferCallback(scoped_refptr<VideoFrame> frame);
+
   friend class FilterFactoryImpl1<FFmpegVideoDecoder, VideoDecodeEngine*>;
   friend class DecoderPrivateMock;
   friend class FFmpegVideoDecoderTest;
@@ -68,8 +80,6 @@ class FFmpegVideoDecoder : public VideoDecoder {
     kStopped
   };
 
-  void OnInitializeComplete(FilterCallback* done_cb);
-  void OnStopComplete(FilterCallback* callback);
   void OnFlushComplete(FilterCallback* callback);
   void OnSeekComplete(FilterCallback* callback);
   void OnReadComplete(Buffer* buffer);
@@ -77,9 +87,6 @@ class FFmpegVideoDecoder : public VideoDecoder {
   // TODO(jiesun): until demuxer pass scoped_refptr<Buffer>: we could not merge
   // this with OnReadComplete
   void OnReadCompleteTask(scoped_refptr<Buffer> buffer);
-
-  virtual void OnEngineEmptyBufferDone(scoped_refptr<Buffer> buffer);
-  virtual void OnEngineFillBufferDone(scoped_refptr<VideoFrame> video_frame);
 
   // Attempt to get the PTS and Duration for this frame by examining the time
   // info provided via packet stream (stored in |pts_heap|), or the info
@@ -106,13 +113,20 @@ class FFmpegVideoDecoder : public VideoDecoder {
   TimeTuple last_pts_;
   scoped_ptr<AVRational> time_base_;  // Pointer to avoid needing full type.
   DecoderState state_;
-  scoped_ptr<VideoDecodeEngine> decode_engine_;
+  scoped_refptr<VideoDecodeEngine> decode_engine_;
 
   // Tracks the number of asynchronous reads issued to |demuxer_stream_|.
   // Using size_t since it is always compared against deque::size().
   size_t pending_reads_;
   // Tracks the number of asynchronous reads issued from renderer.
   size_t pending_requests_;
+
+  scoped_ptr<FilterCallback> initialize_callback_;
+  scoped_ptr<FilterCallback> uninitialize_callback_;
+  scoped_ptr<FilterCallback> flush_callback_;
+  scoped_ptr<FilterCallback> seek_callback_;
+
+  VideoCodecInfo info_;
 
   // Pointer to the demuxer stream that will feed us compressed buffers.
   scoped_refptr<DemuxerStream> demuxer_stream_;
