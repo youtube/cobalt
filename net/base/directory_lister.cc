@@ -39,8 +39,8 @@ class DirectoryDataEvent : public Task {
 
 // Comparator for sorting FindInfo's. This uses the locale aware filename
 // comparison function on the filenames for sorting in the user's locale.
-static bool CompareFindInfo(const file_util::FileEnumerator::FindInfo& a,
-                            const file_util::FileEnumerator::FindInfo& b) {
+static bool CompareFindInfoAlpha(const file_util::FileEnumerator::FindInfo& a,
+                                 const file_util::FileEnumerator::FindInfo& b) {
   // Parent directory before all else.
   if (file_util::IsDotDot(file_util::FileEnumerator::GetFilename(a)))
     return true;
@@ -58,10 +58,47 @@ static bool CompareFindInfo(const file_util::FileEnumerator::FindInfo& a,
       file_util::FileEnumerator::GetFilename(b));
 }
 
+static bool CompareFindInfoDate(const file_util::FileEnumerator::FindInfo& a,
+                                const file_util::FileEnumerator::FindInfo& b) {
+  // Parent directory before all else.
+  if (file_util::IsDotDot(file_util::FileEnumerator::GetFilename(a)))
+    return true;
+  if (file_util::IsDotDot(file_util::FileEnumerator::GetFilename(b)))
+    return false;
+
+  // Directories before regular files.
+  bool a_is_directory = file_util::FileEnumerator::IsDirectory(a);
+  bool b_is_directory = file_util::FileEnumerator::IsDirectory(b);
+  if (a_is_directory != b_is_directory)
+    return a_is_directory;
+#if defined(OS_POSIX)
+  return a.stat.st_mtime > b.stat.st_mtime;
+#elif defined(OS_WIN)
+  if (a.ftLastWriteTime.dwHighDateTime == b.ftLastWriteTime.dwHighDateTime) {
+    return a.ftLastWriteTime.dwLowDateTime > b.ftLastWriteTime.dwLowDateTime;
+  } else {
+    return a.ftLastWriteTime.dwHighDateTime > b.ftLastWriteTime.dwHighDateTime;
+  }
+#endif
+}
+
+
 DirectoryLister::DirectoryLister(const FilePath& dir,
                                  DirectoryListerDelegate* delegate)
     : dir_(dir),
       delegate_(delegate),
+      sort_(DEFAULT),
+      message_loop_(NULL),
+      thread_(kNullThreadHandle) {
+  DCHECK(!dir.value().empty());
+}
+
+DirectoryLister::DirectoryLister(const FilePath& dir,
+                                 SORT_TYPE sort,
+                                 DirectoryListerDelegate* delegate)
+    : dir_(dir),
+      delegate_(delegate),
+      sort_(sort),
       message_loop_(NULL),
       thread_(kNullThreadHandle) {
   DCHECK(!dir.value().empty());
@@ -108,12 +145,11 @@ void DirectoryLister::ThreadMain() {
     Release();
     return;
   }
-
   file_util::FileEnumerator file_enum(dir_, false,
       static_cast<file_util::FileEnumerator::FILE_TYPE>(
-          file_util::FileEnumerator::FILES |
-          file_util::FileEnumerator::DIRECTORIES |
-          file_util::FileEnumerator::INCLUDE_DOT_DOT));
+      file_util::FileEnumerator::FILES |
+      file_util::FileEnumerator::DIRECTORIES |
+      file_util::FileEnumerator::INCLUDE_DOT_DOT));
 
   while (!canceled_.IsSet() && !(file_enum.Next().value().empty())) {
     e->data.push_back(file_util::FileEnumerator::FindInfo());
@@ -133,7 +169,11 @@ void DirectoryLister::ThreadMain() {
   if (!e->data.empty()) {
     // Sort the results. See the TODO above (this sort should be removed and we
     // should do it from JS).
-    std::sort(e->data.begin(), e->data.end(), CompareFindInfo);
+    if (sort_ == DATE) {
+      std::sort(e->data.begin(), e->data.end(), CompareFindInfoDate);
+    } else {
+      std::sort(e->data.begin(), e->data.end(), CompareFindInfoAlpha);
+    }
 
     message_loop_->PostTask(FROM_HERE, e);
     e = new DirectoryDataEvent(this);

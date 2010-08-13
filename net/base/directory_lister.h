@@ -39,7 +39,19 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
     virtual ~DirectoryListerDelegate() {}
   };
 
-  DirectoryLister(const FilePath& dir, DirectoryListerDelegate* delegate);
+  enum SORT_TYPE {
+    DEFAULT,
+    DATE,
+    ALPHA
+  };
+
+  DirectoryLister(const FilePath& dir,
+                  DirectoryListerDelegate* delegate);
+
+  DirectoryLister(const FilePath& dir,
+                  SORT_TYPE sort,
+                  DirectoryListerDelegate* delegate);
+
 
   // Call this method to start the directory enumeration thread.
   bool Start();
@@ -68,6 +80,7 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
 
   FilePath dir_;
   DirectoryListerDelegate* delegate_;
+  SORT_TYPE sort_;
   MessageLoop* message_loop_;
   PlatformThreadHandle thread_;
   base::CancellationFlag canceled_;
