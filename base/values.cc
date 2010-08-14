@@ -782,19 +782,6 @@ bool DictionaryValue::GetStringWithoutPathExpansion(
   return value->GetAsString(out_value);
 }
 
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetDictionaryWithoutPathExpansion(
-    const std::wstring& key,
-    DictionaryValue** out_value) const {
-  return GetDictionaryWithoutPathExpansion(WideToUTF8(key), out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetListWithoutPathExpansion(const std::wstring& key,
-                                                  ListValue** out_value) const {
-  return GetListWithoutPathExpansion(WideToUTF8(key), out_value);
-}
-
 bool DictionaryValue::Remove(const std::string& path, Value** out_value) {
   DCHECK(IsStringUTF8(path));
   std::string current_path(path);
