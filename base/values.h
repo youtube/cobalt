@@ -323,14 +323,6 @@ class DictionaryValue : public Value {
                                          DictionaryValue** out_value) const;
   bool GetListWithoutPathExpansion(const std::string& key,
                                    ListValue** out_value) const;
-  /*DEPRECATED*/bool GetWithoutPathExpansion(const std::wstring& key,
-                                             Value** out_value) const;
-  /*DEPRECATED*/bool GetIntegerWithoutPathExpansion(const std::wstring& key,
-                                                    int* out_value) const;
-  /*DEPRECATED*/bool GetStringWithoutPathExpansion(
-                    const std::wstring& key, std::string* out_value) const;
-  /*DEPRECATED*/bool GetStringWithoutPathExpansion(
-                    const std::wstring& key, std::wstring* out_value) const;
 
   // Removes the Value with the specified path from this dictionary (or one
   // of its child dictionaries, if the path is more than just a local key).
