@@ -508,9 +508,6 @@ TEST_F(ValuesTest, DictionaryWithoutPathExpansionDeprecated) {
   EXPECT_TRUE(dict.HasKey(L"this.isnt.expanded"));
   Value* value3;
   EXPECT_FALSE(dict.Get(L"this.isnt.expanded", &value3));
-  Value* value4;
-  ASSERT_TRUE(dict.GetWithoutPathExpansion(L"this.isnt.expanded", &value4));
-  EXPECT_EQ(Value::TYPE_NULL, value4->GetType());
 }
 
 TEST_F(ValuesTest, DeepCopy) {
