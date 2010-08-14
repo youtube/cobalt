@@ -494,22 +494,6 @@ TEST_F(ValuesTest, DictionaryWithoutPathExpansion) {
   EXPECT_EQ(Value::TYPE_NULL, value4->GetType());
 }
 
-// TODO(viettrungluu): deprecate:
-TEST_F(ValuesTest, DictionaryWithoutPathExpansionDeprecated) {
-  DictionaryValue dict;
-  dict.Set(L"this.is.expanded", Value::CreateNullValue());
-  dict.SetWithoutPathExpansion(L"this.isnt.expanded", Value::CreateNullValue());
-
-  EXPECT_FALSE(dict.HasKey(L"this.is.expanded"));
-  EXPECT_TRUE(dict.HasKey(L"this"));
-  Value* value1;
-  EXPECT_TRUE(dict.Get(L"this", &value1));
-
-  EXPECT_TRUE(dict.HasKey(L"this.isnt.expanded"));
-  Value* value3;
-  EXPECT_FALSE(dict.Get(L"this.isnt.expanded", &value3));
-}
-
 TEST_F(ValuesTest, DeepCopy) {
   DictionaryValue original_dict;
   Value* original_null = Value::CreateNullValue();
@@ -936,7 +920,7 @@ TEST_F(ValuesTest, RemoveEmptyChildrenDeprecated) {
   // Remove empty lists and dictionaries.
   root->Set(L"empty_dict", new DictionaryValue);
   root->Set(L"empty_list", new ListValue);
-  root->SetWithoutPathExpansion(L"a.b.c.d.e", new DictionaryValue);
+  root->SetWithoutPathExpansion("a.b.c.d.e", new DictionaryValue);
   root.reset(root->DeepCopyWithoutEmptyChildren());
   EXPECT_TRUE(root->empty());
 

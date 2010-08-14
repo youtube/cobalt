@@ -497,12 +497,6 @@ void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
   dictionary_[key] = in_value;
 }
 
-// TODO(viettrungluu): Deprecated and to be removed:
-void DictionaryValue::SetWithoutPathExpansion(const std::wstring& key,
-                                              Value* in_value) {
-  SetWithoutPathExpansion(WideToUTF8(key), in_value);
-}
-
 bool DictionaryValue::Get(const std::string& path, Value** out_value) const {
   DCHECK(IsStringUTF8(path));
   std::string current_path(path);
