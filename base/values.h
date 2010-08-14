@@ -223,7 +223,6 @@ class DictionaryValue : public Value {
 
   // Returns true if the current dictionary has a value for the given key.
   bool HasKey(const std::string& key) const;
-  /*DEPRECATED*/bool HasKeyASCII(const std::string& key) const;
   /*DEPRECATED*/bool HasKey(const std::wstring& key) const;
 
   // Returns the number of Values in this dictionary.

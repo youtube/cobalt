@@ -385,11 +385,6 @@ bool DictionaryValue::HasKey(const std::string& key) const {
 }
 
 // TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::HasKeyASCII(const std::string& key) const {
-  return HasKey(key);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
 bool DictionaryValue::HasKey(const std::wstring& key) const {
   return HasKey(WideToUTF8(key));
 }
