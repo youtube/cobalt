@@ -302,10 +302,10 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
   DictionaryValue* dict_val = static_cast<DictionaryValue*>(root.get());
   real_val = 0.0;
-  ASSERT_TRUE(dict_val->GetReal(L"number", &real_val));
+  ASSERT_TRUE(dict_val->GetReal("number", &real_val));
   ASSERT_DOUBLE_EQ(9.87654321, real_val);
   Value* null_val = NULL;
-  ASSERT_TRUE(dict_val->Get(L"null", &null_val));
+  ASSERT_TRUE(dict_val->Get("null", &null_val));
   ASSERT_TRUE(null_val->IsType(Value::TYPE_NULL));
   str_val.clear();
   ASSERT_TRUE(dict_val->GetString(L"S", &str_val));
@@ -342,15 +342,15 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
   dict_val = static_cast<DictionaryValue*>(root.get());
   DictionaryValue* inner_dict = NULL;
-  ASSERT_TRUE(dict_val->GetDictionary(L"inner", &inner_dict));
+  ASSERT_TRUE(dict_val->GetDictionary("inner", &inner_dict));
   ListValue* inner_array = NULL;
-  ASSERT_TRUE(inner_dict->GetList(L"array", &inner_array));
+  ASSERT_TRUE(inner_dict->GetList("array", &inner_array));
   ASSERT_EQ(1U, inner_array->GetSize());
   bool_value = true;
-  ASSERT_TRUE(dict_val->GetBoolean(L"false", &bool_value));
+  ASSERT_TRUE(dict_val->GetBoolean("false", &bool_value));
   ASSERT_FALSE(bool_value);
   inner_dict = NULL;
-  ASSERT_TRUE(dict_val->GetDictionary(L"d", &inner_dict));
+  ASSERT_TRUE(dict_val->GetDictionary("d", &inner_dict));
 
   root2.reset(JSONReader::Read(
       "{\"inner\": {\"array\":[true] , },\"false\":false,\"d\":{},}", true));
@@ -363,15 +363,15 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
   dict_val = static_cast<DictionaryValue*>(root.get());
   int integer_value = 0;
-  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion(L"a.b", &integer_value));
+  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion("a.b", &integer_value));
   EXPECT_EQ(3, integer_value);
-  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion(L"c", &integer_value));
+  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion("c", &integer_value));
   EXPECT_EQ(2, integer_value);
   inner_dict = NULL;
-  ASSERT_TRUE(dict_val->GetDictionaryWithoutPathExpansion(L"d.e.f",
+  ASSERT_TRUE(dict_val->GetDictionaryWithoutPathExpansion("d.e.f",
                                                           &inner_dict));
   ASSERT_EQ(1U, inner_dict->size());
-  EXPECT_TRUE(inner_dict->GetIntegerWithoutPathExpansion(L"g.h.i.j",
+  EXPECT_TRUE(inner_dict->GetIntegerWithoutPathExpansion("g.h.i.j",
                                                          &integer_value));
   EXPECT_EQ(1, integer_value);
 
@@ -379,9 +379,9 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root.get());
   ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
   dict_val = static_cast<DictionaryValue*>(root.get());
-  EXPECT_TRUE(dict_val->GetInteger(L"a.b", &integer_value));
+  EXPECT_TRUE(dict_val->GetInteger("a.b", &integer_value));
   EXPECT_EQ(2, integer_value);
-  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion(L"a.b", &integer_value));
+  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion("a.b", &integer_value));
   EXPECT_EQ(1, integer_value);
 
   // Invalid, no closing brace
