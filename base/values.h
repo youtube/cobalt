@@ -268,8 +268,6 @@ class DictionaryValue : public Value {
   // Like Set(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
   void SetWithoutPathExpansion(const std::string& key, Value* in_value);
-  /*DEPRECATED*/void SetWithoutPathExpansion(const std::wstring& key,
-                                             Value* in_value);
 
   // Gets the Value associated with the given path starting from this object.
   // A path has the form "<key>" or "<key>.<key>.[...]", where "." indexes
