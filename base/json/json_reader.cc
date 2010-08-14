@@ -295,7 +295,7 @@ Value* JSONReader::BuildValue(bool is_root) {
             return NULL;
 
           // Convert the key into a wstring.
-          std::wstring dict_key;
+          std::string dict_key;
           bool success = dict_key_value->GetAsString(&dict_key);
           DCHECK(success);
 

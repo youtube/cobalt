@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -79,18 +79,18 @@ TEST(JSONWriterTest, Writing) {
 
   // Test keys with periods
   DictionaryValue period_dict;
-  period_dict.SetWithoutPathExpansion(L"a.b", Value::CreateIntegerValue(3));
-  period_dict.SetWithoutPathExpansion(L"c", Value::CreateIntegerValue(2));
+  period_dict.SetWithoutPathExpansion("a.b", Value::CreateIntegerValue(3));
+  period_dict.SetWithoutPathExpansion("c", Value::CreateIntegerValue(2));
   DictionaryValue* period_dict2 = new DictionaryValue;
-  period_dict2->SetWithoutPathExpansion(L"g.h.i.j",
+  period_dict2->SetWithoutPathExpansion("g.h.i.j",
                                         Value::CreateIntegerValue(1));
-  period_dict.SetWithoutPathExpansion(L"d.e.f", period_dict2);
+  period_dict.SetWithoutPathExpansion("d.e.f", period_dict2);
   JSONWriter::Write(&period_dict, false, &output_js);
   ASSERT_EQ("{\"a.b\":3,\"c\":2,\"d.e.f\":{\"g.h.i.j\":1}}", output_js);
 
   DictionaryValue period_dict3;
   period_dict3.Set(L"a.b", Value::CreateIntegerValue(2));
-  period_dict3.SetWithoutPathExpansion(L"a.b", Value::CreateIntegerValue(1));
+  period_dict3.SetWithoutPathExpansion("a.b", Value::CreateIntegerValue(1));
   JSONWriter::Write(&period_dict3, false, &output_js);
   ASSERT_EQ("{\"a\":{\"b\":2},\"a.b\":1}", output_js);
 }
