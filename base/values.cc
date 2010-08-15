@@ -94,14 +94,6 @@ Value* Value::CreateStringValue(const string16& in_value) {
   return new StringValue(in_value);
 }
 
-#if !defined(WCHAR_T_IS_UTF16)
-// TODO(viettrungluu): Deprecated and to be removed:
-// static
-Value* Value::CreateStringValue(const std::wstring& in_value) {
-  return new StringValue(in_value);
-}
-#endif
-
 // static
 BinaryValue* Value::CreateBinaryValue(char* buffer, size_t size) {
   return BinaryValue::Create(buffer, size);
@@ -481,7 +473,7 @@ void DictionaryValue::SetString(const std::wstring& path,
 // TODO(viettrungluu): Deprecated and to be removed:
 void DictionaryValue::SetString(const std::wstring& path,
                                 const std::wstring& in_value) {
-  Set(path, CreateStringValue(in_value));
+  Set(WideToUTF8(path), CreateStringValue(WideToUTF8(in_value)));
 }
 #endif
 

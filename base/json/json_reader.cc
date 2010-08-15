@@ -504,7 +504,7 @@ Value* JSONReader::DecodeString(const Token& token) {
       decoded_str.push_back(c);
     }
   }
-  return Value::CreateStringValue(decoded_str);
+  return Value::CreateStringValue(WideToUTF16Hack(decoded_str));
 }
 
 JSONReader::Token JSONReader::ParseToken() {

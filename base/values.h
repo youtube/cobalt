@@ -57,9 +57,6 @@ class Value {
   static Value* CreateRealValue(double in_value);
   static Value* CreateStringValue(const std::string& in_value);
   static Value* CreateStringValue(const string16& in_value);
-#if !defined(WCHAR_T_IS_UTF16)
-  /*DEPRECATED*/static Value* CreateStringValue(const std::wstring& in_value);
-#endif
 
   // This one can return NULL if the input isn't valid.  If the return value
   // is non-null, the new object has taken ownership of the buffer pointer.
