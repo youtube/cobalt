@@ -38,8 +38,7 @@ class ValuesTest: public testing::Test {
 // to std::string. I've temporarily kept the old methods taking std::wstring for
 // compatibility. The ...Deprecated tests are the old tests which use these
 // methods, and remain to test compatibility. They will be removed once the old
-// methods are removed. There are also parts of tests marked DEPRECATED which
-// are to be deleted.
+// methods are removed.
 
 TEST_F(ValuesTest, Basic) {
   // Test basic dictionary getting/setting
@@ -228,9 +227,6 @@ TEST_F(ValuesTest, StringValueDeprecated) {
   scoped_ptr<Value> narrow_value(Value::CreateStringValue("narrow"));
   ASSERT_TRUE(narrow_value.get());
   ASSERT_TRUE(narrow_value->IsType(Value::TYPE_STRING));
-  scoped_ptr<Value> wide_value(Value::CreateStringValue(L"wide"));
-  ASSERT_TRUE(wide_value.get());
-  ASSERT_TRUE(wide_value->IsType(Value::TYPE_STRING));
   scoped_ptr<Value> utf16_value(
       Value::CreateStringValue(ASCIIToUTF16("utf16")));
   ASSERT_TRUE(utf16_value.get());
@@ -246,13 +242,6 @@ TEST_F(ValuesTest, StringValueDeprecated) {
   ASSERT_EQ(std::string("narrow"), narrow);
   ASSERT_EQ(std::wstring(L"narrow"), wide);
   ASSERT_EQ(ASCIIToUTF16("narrow"), utf16);
-
-  ASSERT_TRUE(wide_value->GetAsString(&narrow));
-  ASSERT_TRUE(wide_value->GetAsString(&wide));
-  ASSERT_TRUE(wide_value->GetAsString(&utf16));
-  ASSERT_EQ(std::string("wide"), narrow);
-  ASSERT_EQ(std::wstring(L"wide"), wide);
-  ASSERT_EQ(ASCIIToUTF16("wide"), utf16);
 
   ASSERT_TRUE(utf16_value->GetAsString(&narrow));
   ASSERT_TRUE(utf16_value->GetAsString(&wide));
@@ -632,8 +621,6 @@ TEST_F(ValuesTest, DeepCopyDeprecated) {
   original_dict.Set(L"real", original_real);
   Value* original_string = Value::CreateStringValue("hello");
   original_dict.Set(L"string", original_string);
-  Value* original_wstring = Value::CreateStringValue(L"peek-a-boo");
-  original_dict.Set(L"wstring", original_wstring);
   Value* original_utf16 = Value::CreateStringValue(ASCIIToUTF16("hello16"));
   original_dict.Set(L"utf16", original_utf16);
 
@@ -701,18 +688,6 @@ TEST_F(ValuesTest, DeepCopyDeprecated) {
   ASSERT_EQ(std::string("hello"), copy_string_value);
   ASSERT_EQ(std::wstring(L"hello"), copy_wstring_value);
   ASSERT_EQ(ASCIIToUTF16("hello"), copy_utf16_value);
-
-  Value* copy_wstring = NULL;
-  ASSERT_TRUE(copy_dict->Get(L"wstring", &copy_wstring));
-  ASSERT_TRUE(copy_wstring);
-  ASSERT_NE(copy_wstring, original_wstring);
-  ASSERT_TRUE(copy_wstring->IsType(Value::TYPE_STRING));
-  ASSERT_TRUE(copy_wstring->GetAsString(&copy_string_value));
-  ASSERT_TRUE(copy_wstring->GetAsString(&copy_wstring_value));
-  ASSERT_TRUE(copy_wstring->GetAsString(&copy_utf16_value));
-  ASSERT_EQ(std::string("peek-a-boo"), copy_string_value);
-  ASSERT_EQ(std::wstring(L"peek-a-boo"), copy_wstring_value);
-  ASSERT_EQ(ASCIIToUTF16("peek-a-boo"), copy_utf16_value);
 
   Value* copy_utf16 = NULL;
   ASSERT_TRUE(copy_dict->Get(L"utf16", &copy_utf16));
