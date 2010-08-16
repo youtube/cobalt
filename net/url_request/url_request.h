@@ -379,7 +379,7 @@ class URLRequest : public NonThreadSafe {
   bool was_cached() const { return response_info_.was_cached; }
 
   // True if response could use alternate protocol. However, browser will
-  // ingore the alternate protocol if spdy is not enabled.
+  // ignore the alternate protocol if spdy is not enabled.
   bool was_fetched_via_spdy() const {
     return response_info_.was_fetched_via_spdy;
   }
@@ -390,7 +390,7 @@ class URLRequest : public NonThreadSafe {
     return response_info_.was_npn_negotiated;
   }
 
-  // Returns true if the URLRequest was delivered when the alertnate protocol
+  // Returns true if the URLRequest was delivered when the alternate protocol
   // is available.
   bool was_alternate_protocol_available() const {
     return response_info_.was_alternate_protocol_available;
@@ -572,7 +572,7 @@ class URLRequest : public NonThreadSafe {
   void ResponseStarted();
 
   // Allow an interceptor's URLRequestJob to restart this request.
-  // Should only be called if the original job has not started a resposne.
+  // Should only be called if the original job has not started a response.
   void Restart();
 
  private:
@@ -596,7 +596,7 @@ class URLRequest : public NonThreadSafe {
 
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
-  // cookie store, socket poool, etc.)
+  // cookie store, socket pool, etc.)
   scoped_refptr<URLRequestContext> context_;
 
   // Tracks the time spent in various load states throughout this request.
