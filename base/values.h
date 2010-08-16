@@ -92,9 +92,6 @@ class Value {
   virtual bool GetAsReal(double* out_value) const;
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(string16* out_value) const;
-#if !defined(WCHAR_T_IS_UTF16)
-  /*DEPRECATED*/virtual bool GetAsString(std::wstring* out_value) const;
-#endif
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
@@ -159,9 +156,6 @@ class StringValue : public Value {
   // Subclassed methods
   bool GetAsString(std::string* out_value) const;
   bool GetAsString(string16* out_value) const;
-#if !defined(WCHAR_T_IS_UTF16)
-  /*DEPRECATED*/bool GetAsString(std::wstring* out_value) const;
-#endif
   Value* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
@@ -293,10 +287,6 @@ class DictionaryValue : public Value {
                                 bool* out_value) const;
   /*DEPRECATED*/bool GetInteger(const std::wstring& path, int* out_value) const;
   /*DEPRECATED*/bool GetReal(const std::wstring& path, double* out_value) const;
-  /*DEPRECATED*/bool GetString(const std::wstring& path,
-                               std::string* out_value) const;
-  /*DEPRECATED*/bool GetString(const std::wstring& path,
-                               std::wstring* out_value) const;
   /*DEPRECATED*/bool GetBinary(const std::wstring& path,
                                BinaryValue** out_value) const;
   /*DEPRECATED*/bool GetDictionary(const std::wstring& path,
@@ -433,9 +423,6 @@ class ListValue : public Value {
   bool GetReal(size_t index, double* out_value) const;
   bool GetString(size_t index, std::string* out_value) const;
   bool GetString(size_t index, string16* out_value) const;
-#if !defined(WCHAR_T_IS_UTF16)
-  /*DEPRECATED*/bool GetString(size_t index, std::wstring* out_value) const;
-#endif
   bool GetBinary(size_t index, BinaryValue** out_value) const;
   bool GetDictionary(size_t index, DictionaryValue** out_value) const;
   bool GetList(size_t index, ListValue** out_value) const;
