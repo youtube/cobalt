@@ -119,13 +119,6 @@ bool Value::GetAsString(string16* out_value) const {
   return false;
 }
 
-#if !defined(WCHAR_T_IS_UTF16)
-// TODO(viettrungluu): Deprecated and to be removed:
-bool Value::GetAsString(std::wstring* out_value) const {
-  return false;
-}
-#endif
-
 Value* Value::DeepCopy() const {
   // This method should only be getting called for null Values--all subclasses
   // need to provide their own implementation;.
@@ -253,15 +246,6 @@ bool StringValue::GetAsString(string16* out_value) const {
     *out_value = UTF8ToUTF16(value_);
   return true;
 }
-
-#if !defined(WCHAR_T_IS_UTF16)
-// TODO(viettrungluu): Deprecated and to be removed:
-bool StringValue::GetAsString(std::wstring* out_value) const {
-  if (out_value)
-    *out_value = UTF8ToWide(value_);
-  return true;
-}
-#endif
 
 Value* StringValue::DeepCopy() const {
   return CreateStringValue(value_);
@@ -631,22 +615,6 @@ bool DictionaryValue::GetReal(const std::wstring& path,
 }
 
 // TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetString(const std::wstring& path,
-                                std::string* out_value) const {
-  return GetString(WideToUTF8(path), out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetString(const std::wstring& path,
-                                std::wstring* out_value) const {
-  Value* value;
-  if (!Get(WideToUTF8(path), &value))
-    return false;
-
-  return value->GetAsString(out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
 bool DictionaryValue::GetBinary(const std::wstring& path,
                                 BinaryValue** out_value) const {
   return GetBinary(WideToUTF8(path), out_value);
@@ -984,17 +952,6 @@ bool ListValue::GetString(size_t index, string16* out_value) const {
 
   return value->GetAsString(out_value);
 }
-
-#if !defined(WCHAR_T_IS_UTF16)
-// TODO(viettrungluu): Deprecated and to be removed:
-bool ListValue::GetString(size_t index, std::wstring* out_value) const {
-  Value* value;
-  if (!Get(index, &value))
-    return false;
-
-  return value->GetAsString(out_value);
-}
-#endif
 
 bool ListValue::GetBinary(size_t index, BinaryValue** out_value) const {
   Value* value;
