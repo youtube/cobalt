@@ -37,25 +37,6 @@ const char kStrictFailureHandling[] = "strict_failure_handling";
 // Match function used by the GetTestCount method.
 typedef bool (*TestMatch)(const testing::TestInfo&);
 
-// By setting up a shadow AtExitManager, this test event listener ensures that
-// no state is carried between tests (like singletons, lazy instances, etc).
-// Of course it won't help if the code under test corrupts memory.
-class TestIsolationEnforcer : public testing::EmptyTestEventListener {
- public:
-  virtual void OnTestStart(const testing::TestInfo& test_info) {
-    ASSERT_FALSE(exit_manager_.get());
-    exit_manager_.reset(new base::ShadowingAtExitManager());
-  }
-
-  virtual void OnTestEnd(const testing::TestInfo& test_info) {
-    ASSERT_TRUE(exit_manager_.get());
-    exit_manager_.reset();
-  }
-
- private:
-  scoped_ptr<base::ShadowingAtExitManager> exit_manager_;
-};
-
 class TestSuite {
  public:
   TestSuite(int argc, char** argv);
@@ -109,13 +90,6 @@ class TestSuite {
     }
 
     return count;
-  }
-
-  // TODO(phajdan.jr): Enforce isolation for all tests once it's stable.
-  void EnforceTestIsolation() {
-    testing::TestEventListeners& listeners =
-        testing::UnitTest::GetInstance()->listeners();
-    listeners.Append(new TestIsolationEnforcer);
   }
 
   void CatchMaybeTests() {
