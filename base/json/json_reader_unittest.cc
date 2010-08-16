@@ -1,10 +1,12 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "base/json/json_reader.h"
 #include "base/scoped_ptr.h"
+#include "base/string_piece.h"
+#include "base/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
 
@@ -168,9 +170,9 @@ TEST(JSONReaderTest, Reading) {
   root.reset(JSONReader().JsonToValue("\"hello world\"", false, false));
   ASSERT_TRUE(root.get());
   ASSERT_TRUE(root->IsType(Value::TYPE_STRING));
-  std::wstring str_val;
+  std::string str_val;
   ASSERT_TRUE(root->GetAsString(&str_val));
-  ASSERT_EQ(L"hello world", str_val);
+  ASSERT_EQ("hello world", str_val);
 
   // Empty string
   root.reset(JSONReader().JsonToValue("\"\"", false, false));
@@ -178,7 +180,7 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root->IsType(Value::TYPE_STRING));
   str_val.clear();
   ASSERT_TRUE(root->GetAsString(&str_val));
-  ASSERT_EQ(L"", str_val);
+  ASSERT_EQ("", str_val);
 
   // Test basic string escapes
   root.reset(JSONReader().JsonToValue("\" \\\"\\\\\\/\\b\\f\\n\\r\\t\\v\"",
@@ -187,7 +189,7 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root->IsType(Value::TYPE_STRING));
   str_val.clear();
   ASSERT_TRUE(root->GetAsString(&str_val));
-  ASSERT_EQ(L" \"\\/\b\f\n\r\t\v", str_val);
+  ASSERT_EQ(" \"\\/\b\f\n\r\t\v", str_val);
 
   // Test hex and unicode escapes including the null character.
   root.reset(JSONReader().JsonToValue("\"\\x41\\x00\\u1234\"", false,
@@ -196,7 +198,7 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root->IsType(Value::TYPE_STRING));
   str_val.clear();
   ASSERT_TRUE(root->GetAsString(&str_val));
-  ASSERT_EQ(std::wstring(L"A\0\x1234", 3), str_val);
+  ASSERT_EQ(std::wstring(L"A\0\x1234", 3), UTF8ToWide(str_val));
 
   // Test invalid strings
   root.reset(JSONReader().JsonToValue("\"no closing quote", false, false));
@@ -308,8 +310,8 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(dict_val->Get("null", &null_val));
   ASSERT_TRUE(null_val->IsType(Value::TYPE_NULL));
   str_val.clear();
-  ASSERT_TRUE(dict_val->GetString(L"S", &str_val));
-  ASSERT_EQ(L"str", str_val);
+  ASSERT_TRUE(dict_val->GetString("S", &str_val));
+  ASSERT_EQ("str", str_val);
 
   root2.reset(JSONReader::Read(
       "{\"number\":9.87654321, \"null\":null , \"\\x53\" : \"str\", }", true));
@@ -444,7 +446,7 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root->IsType(Value::TYPE_STRING));
   str_val.clear();
   ASSERT_TRUE(root->GetAsString(&str_val));
-  ASSERT_EQ(L"\x7f51\x9875", str_val);
+  ASSERT_EQ(L"\x7f51\x9875", UTF8ToWide(str_val));
 
   // Test invalid utf8 encoded input
   root.reset(JSONReader().JsonToValue("\"345\xb0\xa1\xb0\xa2\"",
