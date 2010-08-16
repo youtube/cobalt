@@ -436,6 +436,7 @@
           'dependencies': [
             'media',
             '../base/base.gyp:base',
+            '../base/base.gyp:test_support_base',
           ],
           'include_dirs': [
             '..',
