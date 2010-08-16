@@ -227,8 +227,17 @@
       'type': '<(library)',
       'dependencies': [
         'base',
+        'base_i18n',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
+      ],
+      'conditions': [
+        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+          'dependencies': [
+            # test_suite initializes GTK.
+            '../build/linux/system.gyp:gtk',
+          ],
+        }],
       ],
       'sources': [
         'test/test_file_util.h',
