@@ -361,12 +361,12 @@ int MockSSLClientSocket::Connect(net::CompletionCallback* callback) {
   int rv = transport_->socket()->Connect(connect_callback);
   if (rv == net::OK) {
     delete connect_callback;
+    if (data_->connect.result == net::OK)
+      connected_ = true;
     if (data_->connect.async) {
       RunCallbackAsync(callback, data_->connect.result);
       return net::ERR_IO_PENDING;
     }
-    if (data_->connect.result == net::OK)
-      connected_ = true;
     return data_->connect.result;
   }
   return rv;
