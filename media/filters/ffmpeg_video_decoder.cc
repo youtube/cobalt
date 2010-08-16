@@ -94,7 +94,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   }
   config.opaque_context_ = av_stream;
   config.width_ = width_;
-  config.height_ = config.height_;
+  config.height_ = height_;
   decode_engine_->Initialize(message_loop(), this, config);
 }
 
