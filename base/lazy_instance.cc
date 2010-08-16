@@ -36,19 +36,8 @@ void LazyInstanceHelper::CompleteInstance(void* instance, void (*dtor)(void*)) {
   // Instance is created, go from CREATING to CREATED.
   base::subtle::Release_Store(&state_, STATE_CREATED);
 
-  // Allow reusing the LazyInstance (reset it to the initial state). This
-  // makes possible calling all AtExit callbacks between tests. Assumes that
-  // no other threads execute when AtExit callbacks are processed.
-  base::AtExitManager::RegisterCallback(&LazyInstanceHelper::ResetState,
-                                        this);
-
   // Make sure that the lazily instantiated object will get destroyed at exit.
   base::AtExitManager::RegisterCallback(dtor, instance);
-}
-
-// static
-void LazyInstanceHelper::ResetState(void* helper) {
-  reinterpret_cast<LazyInstanceHelper*>(helper)->state_ = STATE_EMPTY;
 }
 
 }  // namespace base

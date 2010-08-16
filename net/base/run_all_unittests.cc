@@ -23,6 +23,5 @@ int main(int argc, char** argv) {
   base::EnsureNSPRInit();
 #endif
 
-  // TODO(phajdan.jr): Enforce test isolation, http://crbug.com/12710.
   return test_suite.Run();
 }
