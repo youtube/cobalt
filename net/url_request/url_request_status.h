@@ -9,7 +9,7 @@
 #define NET_URL_REQUEST_URL_REQUEST_STATUS_H_
 #pragma once
 
-// Respresents the result of a URL request. It encodes errors and various
+// Represents the result of a URL request. It encodes errors and various
 // types of success.
 class URLRequestStatus {
  public:
