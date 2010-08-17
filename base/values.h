@@ -146,11 +146,6 @@ class StringValue : public Value {
   // Initializes a StringValue with a string16.
   explicit StringValue(const string16& in_value);
 
-#if !defined(WCHAR_T_IS_UTF16)
-  // Initializes a StringValue with a wide character string.
-  /*DEPRECATED*/explicit StringValue(const std::wstring& in_value);
-#endif
-
   ~StringValue();
 
   // Subclassed methods
@@ -202,7 +197,6 @@ class BinaryValue: public Value {
 // DictionaryValue provides a key-value dictionary with (optional) "path"
 // parsing for recursive access; see the comment at the top of the file. Keys
 // are |std::string|s and should be UTF-8 encoded.
-// TODO(viettrungluu): Things marked DEPRECATED will be removed. crbug.com/23581
 class DictionaryValue : public Value {
  public:
   DictionaryValue();
@@ -214,7 +208,6 @@ class DictionaryValue : public Value {
 
   // Returns true if the current dictionary has a value for the given key.
   bool HasKey(const std::string& key) const;
-  /*DEPRECATED*/bool HasKey(const std::wstring& key) const;
 
   // Returns the number of Values in this dictionary.
   size_t size() const { return dictionary_.size(); }
@@ -235,7 +228,6 @@ class DictionaryValue : public Value {
   // Note that the dictionary takes ownership of the value referenced by
   // |in_value|, and therefore |in_value| must be non-NULL.
   void Set(const std::string& path, Value* in_value);
-  /*DEPRECATED*/void Set(const std::wstring& path, Value* in_value);
 
   // Convenience forms of Set().  These methods will replace any existing
   // value at that path, even if it has a different type.
@@ -244,17 +236,6 @@ class DictionaryValue : public Value {
   void SetReal(const std::string& path, double in_value);
   void SetString(const std::string& path, const std::string& in_value);
   void SetString(const std::string& path, const string16& in_value);
-  /*DEPRECATED*/void SetBoolean(const std::wstring& path, bool in_value);
-  /*DEPRECATED*/void SetInteger(const std::wstring& path, int in_value);
-  /*DEPRECATED*/void SetReal(const std::wstring& path, double in_value);
-  /*DEPRECATED*/void SetString(const std::wstring& path,
-                               const std::string& in_value);
-  /*DEPRECATED*/void SetString(const std::wstring& path,
-                               const string16& in_value);
-#if !defined(WCHAR_T_IS_UTF16)
-  /*DEPRECATED*/void SetString(const std::wstring& path,
-                               const std::wstring& in_value);
-#endif
 
   // Like Set(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
@@ -268,7 +249,6 @@ class DictionaryValue : public Value {
   // Otherwise, it will return false and |out_value| will be untouched.
   // Note that the dictionary always owns the value that's returned.
   bool Get(const std::string& path, Value** out_value) const;
-  /*DEPRECATED*/bool Get(const std::wstring& path, Value** out_value) const;
 
   // These are convenience forms of Get().  The value will be retrieved
   // and the return value will be true if the path is valid and the value at
@@ -306,7 +286,6 @@ class DictionaryValue : public Value {
   // be deleted.  This method returns true if |path| is a valid path; otherwise
   // it will return false and the DictionaryValue object will be unchanged.
   bool Remove(const std::string& path, Value** out_value);
-  /*DEPRECATED*/bool Remove(const std::wstring& path, Value** out_value);
 
   // Like Remove(), but without special treatment of '.'.  This allows e.g. URLs
   // to be used as paths.
