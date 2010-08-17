@@ -596,42 +596,6 @@ bool DictionaryValue::GetList(const std::string& path,
   return true;
 }
 
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetBoolean(const std::wstring& path,
-                                 bool* out_value) const {
-  return GetBoolean(WideToUTF8(path), out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetInteger(const std::wstring& path,
-                                 int* out_value) const {
-  return GetInteger(WideToUTF8(path), out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetReal(const std::wstring& path,
-                              double* out_value) const {
-  return GetReal(WideToUTF8(path), out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetBinary(const std::wstring& path,
-                                BinaryValue** out_value) const {
-  return GetBinary(WideToUTF8(path), out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetDictionary(const std::wstring& path,
-                                    DictionaryValue** out_value) const {
-  return GetDictionary(WideToUTF8(path), out_value);
-}
-
-// TODO(viettrungluu): Deprecated and to be removed:
-bool DictionaryValue::GetList(const std::wstring& path,
-                              ListValue** out_value) const {
-  return GetList(WideToUTF8(path), out_value);
-}
-
 bool DictionaryValue::GetWithoutPathExpansion(const std::string& key,
                                               Value** out_value) const {
   DCHECK(IsStringUTF8(key));
