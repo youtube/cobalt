@@ -6,16 +6,19 @@
 
 #include "base/at_exit.h"
 #include "base/base_paths.h"
+#include "base/base_switches.h"
+#include "base/command_line.h"
 #include "base/debug_on_start.h"
 #include "base/debug_util.h"
 #include "base/file_path.h"
 #include "base/i18n/icu_util.h"
-#include "base/multiprocess_test.h"
+#include "base/logging.h"
 #include "base/nss_util.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/scoped_ptr.h"
+#include "base/test/multiprocess_test.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -23,6 +26,22 @@
 #if defined(TOOLKIT_USES_GTK)
 #include <gtk/gtk.h>
 #endif
+
+namespace {
+
+class MaybeTestDisabler : public testing::EmptyTestEventListener {
+ public:
+  virtual void OnTestStart(const testing::TestInfo& test_info) {
+    ASSERT_FALSE(TestSuite::IsMarkedMaybe(test_info))
+        << "Probably the OS #ifdefs don't include all of the necessary "
+           "platforms.\nPlease ensure that no tests have the MAYBE_ prefix "
+           "after the code is preprocessed.";
+  }
+};
+
+}  // namespace
+
+const char TestSuite::kStrictFailureHandling[] = "strict_failure_handling";
 
 TestSuite::TestSuite(int argc, char** argv) {
   base::EnableTerminationOnHeapCorruption();
@@ -36,6 +55,60 @@ TestSuite::TestSuite(int argc, char** argv) {
   // Initialize().  See bug 6436.
 }
 
+TestSuite::~TestSuite() {
+  CommandLine::Reset();
+}
+
+// static
+bool TestSuite::IsMarkedFlaky(const testing::TestInfo& test) {
+  return strncmp(test.name(), "FLAKY_", 6) == 0;
+}
+
+// static
+bool TestSuite::IsMarkedFailing(const testing::TestInfo& test) {
+  return strncmp(test.name(), "FAILS_", 6) == 0;
+}
+
+// static
+bool TestSuite::IsMarkedMaybe(const testing::TestInfo& test) {
+  return strncmp(test.name(), "MAYBE_", 6) == 0;
+}
+
+// static
+bool TestSuite::ShouldIgnoreFailure(const testing::TestInfo& test) {
+  if (CommandLine::ForCurrentProcess()->HasSwitch(kStrictFailureHandling))
+    return false;
+  return IsMarkedFlaky(test) || IsMarkedFailing(test);
+}
+
+// static
+bool TestSuite::NonIgnoredFailures(const testing::TestInfo& test) {
+  return test.should_run() && test.result()->Failed() &&
+      !ShouldIgnoreFailure(test);
+}
+
+int TestSuite::GetTestCount(TestMatch test_match) {
+  testing::UnitTest* instance = testing::UnitTest::GetInstance();
+  int count = 0;
+
+  for (int i = 0; i < instance->total_test_case_count(); ++i) {
+    const testing::TestCase& test_case = *instance->GetTestCase(i);
+    for (int j = 0; j < test_case.total_test_count(); ++j) {
+      if (test_match(*test_case.GetTestInfo(j))) {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
+
+void TestSuite::CatchMaybeTests() {
+  testing::TestEventListeners& listeners =
+      testing::UnitTest::GetInstance()->listeners();
+  listeners.Append(new MaybeTestDisabler);
+}
+
 // Don't add additional code to this method.  Instead add it to
 // Initialize().  See bug 6436.
 int TestSuite::Run() {
@@ -44,7 +117,7 @@ int TestSuite::Run() {
   Initialize();
   std::string client_func =
       CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          kRunClientProcess);
+          switches::kTestChildProcess);
   // Check to see if we are being run as a client process.
   if (!client_func.empty())
     return multi_process_function_list::InvokeChildProcessTest(client_func);
@@ -76,4 +149,66 @@ int TestSuite::Run() {
   Shutdown();
 
   return result;
+}
+
+// static
+void TestSuite::UnitTestAssertHandler(const std::string& str) {
+  RAW_LOG(FATAL, str.c_str());
+}
+
+void TestSuite::SuppressErrorDialogs() {
+#if defined(OS_WIN)
+  UINT new_flags = SEM_FAILCRITICALERRORS |
+                   SEM_NOGPFAULTERRORBOX |
+                   SEM_NOOPENFILEERRORBOX;
+
+  // Preserve existing error mode, as discussed at
+  // http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx
+  UINT existing_flags = SetErrorMode(new_flags);
+  SetErrorMode(existing_flags | new_flags);
+#endif  // defined(OS_WIN)
+}
+
+void TestSuite::Initialize() {
+  // Initialize logging.
+  FilePath exe;
+  PathService::Get(base::FILE_EXE, &exe);
+  FilePath log_filename = exe.ReplaceExtension(FILE_PATH_LITERAL("log"));
+  logging::InitLogging(log_filename.value().c_str(),
+                       logging::LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG,
+                       logging::LOCK_LOG_FILE,
+                       logging::DELETE_OLD_LOG_FILE);
+  // We want process and thread IDs because we may have multiple processes.
+  // Note: temporarily enabled timestamps in an effort to catch bug 6361.
+  logging::SetLogItems(true, true, true, true);
+
+  CHECK(base::EnableInProcessStackDumping());
+#if defined(OS_WIN)
+  // Make sure we run with high resolution timer to minimize differences
+  // between production code and test code.
+  base::Time::EnableHighResolutionTimer(true);
+#endif  // defined(OS_WIN)
+
+  // In some cases, we do not want to see standard error dialogs.
+  if (!DebugUtil::BeingDebugged() &&
+      !CommandLine::ForCurrentProcess()->HasSwitch("show-error-dialogs")) {
+    SuppressErrorDialogs();
+    DebugUtil::SuppressDialogs();
+    logging::SetLogAssertHandler(UnitTestAssertHandler);
+  }
+
+  icu_util::Initialize();
+
+#if defined(USE_NSS)
+  // Trying to repeatedly initialize and cleanup NSS and NSPR may result in
+  // a deadlock. Such repeated initialization will happen when using test
+  // isolation. Prevent problems by initializing NSS here, so that the cleanup
+  // will be done only on process exit.
+  base::EnsureNSSInit();
+#endif  // defined(USE_NSS)
+
+  CatchMaybeTests();
+}
+
+void TestSuite::Shutdown() {
 }

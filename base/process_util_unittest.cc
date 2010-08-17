@@ -9,13 +9,14 @@
 #include "base/command_line.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
-#include "base/multiprocess_test.h"
 #include "base/path_service.h"
 #include "base/platform_thread.h"
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
+#include "base/test/multiprocess_test.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/multiprocess_func_list.h"
 
 #if defined(OS_LINUX)
 #include <errno.h>
@@ -62,7 +63,7 @@ void SignalChildren(const char* filename) {
 
 }  // namespace
 
-class ProcessUtilTest : public MultiProcessTest {
+class ProcessUtilTest : public base::MultiProcessTest {
 #if defined(OS_POSIX)
  public:
   // Spawn a child process that counts how many file descriptors are open.
@@ -75,7 +76,7 @@ MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
 }
 
 TEST_F(ProcessUtilTest, SpawnChild) {
-  base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess");
+  base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
   base::CloseProcessHandle(handle);
@@ -88,7 +89,7 @@ MULTIPROCESS_TEST_MAIN(SlowChildProcess) {
 
 TEST_F(ProcessUtilTest, KillSlowChild) {
   remove("SlowChildProcess.die");
-  base::ProcessHandle handle = this->SpawnChild("SlowChildProcess");
+  base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
   SignalChildren("SlowChildProcess.die");
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
@@ -98,7 +99,7 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
 
 TEST_F(ProcessUtilTest, DidProcessCrash) {
   remove("SlowChildProcess.die");
-  base::ProcessHandle handle = this->SpawnChild("SlowChildProcess");
+  base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
 
   bool child_exited = true;
@@ -118,7 +119,7 @@ TEST_F(ProcessUtilTest, DidProcessCrash) {
 // Note: a platform may not be willing or able to lower the priority of
 // a process. The calls to SetProcessBackground should be noops then.
 TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
-  base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess");
+  base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   base::Process process(handle);
   int old_priority = process.GetPriority();
   process.SetProcessBackgrounded(true);
