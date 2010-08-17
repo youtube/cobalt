@@ -167,6 +167,11 @@ void SetLogFilterPrefix(const char* filter);
 void SetLogItems(bool enable_process_id, bool enable_thread_id,
                  bool enable_timestamp, bool enable_tickcount);
 
+// Sets whether or not you'd like to see fatal debug messages popped up in
+// a dialog box or not.
+// Dialogs are not shown by default.
+void SetShowErrorDialogs(bool enable_dialogs);
+
 // Sets the Log Assert Handler that will be used to notify of check failures.
 // The default handler shows a dialog box and then terminate the process,
 // however clients can use this function to override with their own handling
