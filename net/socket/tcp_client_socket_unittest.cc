@@ -26,7 +26,9 @@ const char kServerReply[] = "HTTP/1.1 404 Not Found";
 class TCPClientSocketTest
     : public PlatformTest, public ListenSocket::ListenSocketDelegate {
  public:
-  TCPClientSocketTest() : net_log_(CapturingNetLog::kUnbounded) {
+  TCPClientSocketTest()
+      : listen_port_(0),
+        net_log_(CapturingNetLog::kUnbounded) {
   }
 
   // Implement ListenSocketDelegate methods

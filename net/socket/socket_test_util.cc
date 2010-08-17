@@ -312,8 +312,8 @@ int MockTCPClientSocket::CompleteRead() {
   return result;
 }
 
-class MockSSLClientSocket::ConnectCallback :
-    public net::CompletionCallbackImpl<MockSSLClientSocket::ConnectCallback> {
+class MockSSLClientSocket::ConnectCallback
+    : public net::CompletionCallbackImpl<MockSSLClientSocket::ConnectCallback> {
  public:
   ConnectCallback(MockSSLClientSocket *ssl_client_socket,
                   net::CompletionCallback* user_callback,
@@ -347,7 +347,8 @@ MockSSLClientSocket::MockSSLClientSocket(
     : MockClientSocket(transport_socket->socket()->NetLog().net_log()),
       transport_(transport_socket),
       data_(data),
-      is_npn_state_set_(false) {
+      is_npn_state_set_(false),
+      new_npn_value_(false) {
   DCHECK(data_);
 }
 
