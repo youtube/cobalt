@@ -207,6 +207,8 @@ int MapNSPRError(PRErrorCode err) {
       return ERR_SSL_BAD_RECORD_MAC_ALERT;
     case SSL_ERROR_UNSAFE_NEGOTIATION:
       return ERR_SSL_UNSAFE_NEGOTIATION;
+    case SSL_ERROR_WEAK_SERVER_KEY:
+      return ERR_SSL_WEAK_SERVER_KEY;
 
     default: {
       if (IS_SSL_ERROR(err)) {
@@ -521,7 +523,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     // http://extendedsubset.com/?p=8
 
     rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
-                       SSL_RENEGOTIATE_UNRESTRICTED);
+                       SSL_RENEGOTIATE_TRANSITIONAL);
   }
   if (rv != SECSuccess)
      LOG(INFO) << "SSL_ENABLE_RENEGOTIATION failed.";

@@ -201,6 +201,8 @@ SSL_ERROR_UNSAFE_NEGOTIATION            = (SSL_ERROR_BASE + 113),
 
 SSL_ERROR_RX_UNEXPECTED_UNCOMPRESSED_RECORD	= (SSL_ERROR_BASE + 114),
 
+SSL_ERROR_WEAK_SERVER_KEY               = (SSL_ERROR_BASE + 115),
+
 SSL_ERROR_END_OF_LIST	/* let the c compiler determine the value of this. */
 } SSLErrorCodes;
 #endif /* NO_SECURITY_ERROR_ENUM */
