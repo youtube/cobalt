@@ -18,6 +18,11 @@
 #include "base/string16.h"
 #include "base/string_piece.h"  // For implicit conversions.
 
+// TODO(brettw) remove this dependency. Previously StringPrintf lived in this
+// file. We need to convert the callers over to using stringprintf.h instead
+// and then remove this.
+#include "base/stringprintf.h"
+
 // Safe standard library wrappers for all platforms.
 
 namespace base {
@@ -448,33 +453,6 @@ void ReplaceSubstringsAfterOffset(std::string* str,
                                   std::string::size_type start_offset,
                                   const std::string& find_this,
                                   const std::string& replace_with);
-
-// Return a C++ string given printf-like input.
-std::string StringPrintf(const char* format, ...) PRINTF_FORMAT(1, 2);
-std::wstring StringPrintf(const wchar_t* format, ...) WPRINTF_FORMAT(1, 2);
-
-// Return a C++ string given vprintf-like input.
-std::string StringPrintV(const char* format, va_list ap) PRINTF_FORMAT(1, 0);
-
-// Store result into a supplied string and return it
-const std::string& SStringPrintf(std::string* dst, const char* format, ...)
-    PRINTF_FORMAT(2, 3);
-const std::wstring& SStringPrintf(std::wstring* dst,
-                                  const wchar_t* format, ...)
-    WPRINTF_FORMAT(2, 3);
-
-// Append result to a supplied string
-void StringAppendF(std::string* dst, const char* format, ...)
-    PRINTF_FORMAT(2, 3);
-void StringAppendF(std::wstring* dst, const wchar_t* format, ...)
-    WPRINTF_FORMAT(2, 3);
-
-// Lower-level routine that takes a va_list and appends to a specified
-// string.  All other routines are just convenience wrappers around it.
-void StringAppendV(std::string* dst, const char* format, va_list ap)
-    PRINTF_FORMAT(2, 0);
-void StringAppendV(std::wstring* dst, const wchar_t* format, va_list ap)
-    WPRINTF_FORMAT(2, 0);
 
 // This is mpcomplete's pattern for saving a string copy when dealing with
 // a function that writes results into a wchar_t[] and wanting the result to
