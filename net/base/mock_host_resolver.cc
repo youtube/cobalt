@@ -9,7 +9,6 @@
 #include "base/ref_counted.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 
 namespace net {
 
@@ -28,10 +27,15 @@ int CreateIPAddress(const std::string& host,
     return ERR_UNEXPECTED;
   }
 
-  AddressList result(ip_number, -1, false);
-  struct addrinfo* ai = const_cast<struct addrinfo*>(result.head());
-  ai->ai_canonname = strdup(canonical_name.c_str());
-  *addrlist = result;
+  if (ip_number.size() == 4) {
+    *addrlist = AddressList::CreateIPv4Address(&ip_number[0], canonical_name);
+  } else if (ip_number.size() == 16) {
+    *addrlist = AddressList::CreateIPv6Address(&ip_number[0], canonical_name);
+  } else {
+    NOTREACHED();
+    return ERR_UNEXPECTED;
+  }
+
   return OK;
 }
 
@@ -157,10 +161,6 @@ void RuleBasedHostResolverProc::AddIPLiteralRule(
     const std::string& host_pattern,
     const std::string& ip_literal,
     const std::string& canonical_name) {
-  // Literals are always resolved to themselves by HostResolverImpl,
-  // consequently we do not support remapping them.
-  IPAddressNumber ip_number;
-  DCHECK(!ParseIPLiteralToNumber(host_pattern, &ip_number));
   Rule rule(Rule::kResolverTypeIPLiteral,
             host_pattern,
             ADDRESS_FAMILY_UNSPECIFIED,
