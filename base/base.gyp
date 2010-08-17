@@ -212,6 +212,7 @@
             'event_trace_provider_win_unittest.cc',
             'object_watcher_unittest.cc',
             'pe_image_unittest.cc',
+	    'registry_unittest.cc',
             'scoped_bstr_win_unittest.cc',
             'scoped_comptr_win_unittest.cc',
             'scoped_variant_win_unittest.cc',
