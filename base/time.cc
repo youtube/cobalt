@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "base/time.h"
-#include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/third_party/nspr/prtime.h"
 
