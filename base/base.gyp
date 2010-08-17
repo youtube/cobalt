@@ -117,6 +117,7 @@
         'process_util_unittest_mac.mm',
         'rand_util_unittest.cc',
         'ref_counted_unittest.cc',
+	'registry_unittest.cc',
         'scoped_bstr_win_unittest.cc',
         'scoped_comptr_win_unittest.cc',
         'scoped_native_library_unittest.cc',
