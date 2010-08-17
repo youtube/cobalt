@@ -257,9 +257,6 @@ TEST_F(SSLClientSocketTest, Read) {
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
   int rv = resolver_->Resolve(info, &addr, &callback, NULL, net::BoundNetLog());
-  EXPECT_EQ(net::ERR_IO_PENDING, rv);
-
-  rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
@@ -319,9 +316,6 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
   int rv = resolver_->Resolve(info, &addr, &callback, NULL, net::BoundNetLog());
-  EXPECT_EQ(net::ERR_IO_PENDING, rv);
-
-  rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
