@@ -50,10 +50,10 @@ TEST(JSONWriterTest, Writing) {
   // list list nesting, etc.
   DictionaryValue root_dict;
   ListValue* list = new ListValue;
-  root_dict.Set(L"list", list);
+  root_dict.Set("list", list);
   DictionaryValue* inner_dict = new DictionaryValue;
   list->Append(inner_dict);
-  inner_dict->SetInteger(L"inner int", 10);
+  inner_dict->SetInteger("inner int", 10);
   ListValue* inner_list = new ListValue;
   list->Append(inner_list);
   list->Append(Value::CreateBooleanValue(true));
@@ -89,7 +89,7 @@ TEST(JSONWriterTest, Writing) {
   ASSERT_EQ("{\"a.b\":3,\"c\":2,\"d.e.f\":{\"g.h.i.j\":1}}", output_js);
 
   DictionaryValue period_dict3;
-  period_dict3.Set(L"a.b", Value::CreateIntegerValue(2));
+  period_dict3.Set("a.b", Value::CreateIntegerValue(2));
   period_dict3.SetWithoutPathExpansion("a.b", Value::CreateIntegerValue(1));
   JSONWriter::Write(&period_dict3, false, &output_js);
   ASSERT_EQ("{\"a\":{\"b\":2},\"a.b\":1}", output_js);
