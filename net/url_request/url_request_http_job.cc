@@ -27,7 +27,6 @@
 #include "net/http/http_transaction.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
-#include "net/request_throttler/request_throttler_header_adapter.h"
 #include "net/url_request/https_prober.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
@@ -92,8 +91,6 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
           this, &URLRequestHttpJob::OnReadCompleted)),
       read_in_progress_(false),
       transaction_(NULL),
-      throttling_entry_(Singleton<RequestThrottlerManager>::get()->
-           RegisterRequestUrl(request->url())),
       sdch_dictionary_advertised_(false),
       sdch_test_activated_(false),
       sdch_test_control_(false),
@@ -572,11 +569,6 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // also need this info.
   is_cached_content_ = response_info_->was_cached;
 
-  if (!is_cached_content_) {
-    RequestThrottlerHeaderAdapter response_adapter(response_info_->headers);
-    throttling_entry_->UpdateWithResponse(&response_adapter);
-  }
-
   ProcessStrictTransportSecurityHeader();
 
   if (SdchManager::Global() &&
@@ -624,37 +616,30 @@ void URLRequestHttpJob::StartTransaction() {
   // If we already have a transaction, then we should restart the transaction
   // with auth provided by username_ and password_.
 
-  int return_value;
-
+  int rv;
   if (transaction_.get()) {
-    return_value = transaction_->RestartWithAuth(username_,
-        password_, &start_callback_);
+    rv = transaction_->RestartWithAuth(username_, password_, &start_callback_);
     username_.clear();
     password_.clear();
   } else {
     DCHECK(request_->context());
     DCHECK(request_->context()->http_transaction_factory());
 
-    return_value = request_->context()->http_transaction_factory()->
-        CreateTransaction(&transaction_);
-    if (return_value == net::OK) {
-      if (throttling_entry_->IsRequestAllowed()) {
-        return_value = transaction_->Start(
-            &request_info_, &start_callback_, request_->net_log());
-      } else {
-        // Special error code for the exponential back-off module.
-        return_value = net::ERR_TEMPORARILY_THROTTLED_BY_DDOS;
-      }
+    rv = request_->context()->http_transaction_factory()->CreateTransaction(
+        &transaction_);
+    if (rv == net::OK) {
+      rv = transaction_->Start(
+          &request_info_, &start_callback_, request_->net_log());
     }
   }
 
-  if (return_value == net::ERR_IO_PENDING)
+  if (rv == net::ERR_IO_PENDING)
     return;
 
   // The transaction started synchronously, but we need to notify the
   // URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestHttpJob::OnStartCompleted, return_value));
+      this, &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
 void URLRequestHttpJob::AddExtraHeaders() {
