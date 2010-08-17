@@ -40,6 +40,9 @@ class PollingProxyConfigService : public ProxyConfigService {
 
   virtual ~PollingProxyConfigService();
 
+  // Polls for changes by posting a task to the worker pool.
+  void CheckForChangesNow();
+
  private:
   class Core;
   scoped_refptr<Core> core_;
