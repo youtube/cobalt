@@ -124,6 +124,10 @@ int main(int argc, const char* argv[]) {
   bool copy_to_text = false;
   // TODO(evanm): port to FilePath.
   std::wstring output_path = command_line.GetSwitchValueNative(kOutputPath);
+  // Make sure that output directory ends with a slash.
+  if (output_path.size() >= 1 && output_path[output_path.size() - 1] != '\\')
+    output_path.push_back('\\');
+
   if (command_line.HasSwitch(kUpgrade))
     upgrade = true;
   if (command_line.HasSwitch(kDumpToFiles))
