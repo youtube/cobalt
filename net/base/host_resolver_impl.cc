@@ -754,6 +754,8 @@ HostResolverImpl::~HostResolverImpl() {
     delete job_pools_[i];
 }
 
+// TODO(eroman): Don't create cache entries for hostnames which are simply IP
+// address literals.
 int HostResolverImpl::Resolve(const RequestInfo& info,
                               AddressList* addresses,
                               CompletionCallback* callback,
@@ -769,23 +771,6 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
 
   // Update the net log and notify registered observers.
   OnStartRequest(net_log, request_id, info);
-
-  // Check for IP literal.
-  IPAddressNumber ip_number;
-  if (ParseIPLiteralToNumber(info.hostname(), &ip_number)) {
-    DCHECK_EQ((info.host_resolver_flags() &
-               ~(HOST_RESOLVER_CANONNAME | HOST_RESOLVER_LOOPBACK_ONLY)), 0)
-        << " Unhandled flag";
-    AddressList result(ip_number, info.port(),
-                       (info.host_resolver_flags() & HOST_RESOLVER_CANONNAME));
-
-    *addresses = result;
-    // Update the net log and notify registered observers.
-    OnFinishRequest(net_log, request_id, info, OK,
-                    0,  /* os_error (unknown since from cache) */
-                    false  /* was_from_cache */);
-    return OK;
-  }
 
   // Build a key that identifies the request in the cache and in the
   // outstanding jobs map.
