@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include "base/command_line.h"
 #include "base/basictypes.h"
 #include "base/file_path.h"
-#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // To test Windows quoting behavior, we use a string that has some backslashes
@@ -123,7 +123,7 @@ TEST(CommandLineTest, AppendSwitches) {
   std::string switch4 = "switch4";
   std::string value4 = "\"a value with quotes\"";
   std::string switch5 = "quotes";
-  std::string value5 = WideToASCII(TRICKY);
+  std::string value5 = WideToUTF8(TRICKY);
 
   CommandLine cl(FilePath(FILE_PATH_LITERAL("Program")));
 
