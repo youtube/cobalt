@@ -48,10 +48,8 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
 
     // Called when data has been sent. |status| indicates network error
     // or number of bytes has been sent.
-    virtual void OnSendBodyComplete(int status) = 0;
-
     // Returns true if no more data to be sent.
-    virtual bool IsFinishedSendingBody() = 0;
+    virtual bool OnSendBodyComplete(int status) = 0;
 
     // Called when SYN_STREAM or SYN_REPLY received. |status| indicates network
     // error. Returns network error code.
@@ -108,6 +106,10 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   int send_window_size() const { return send_window_size_; }
   void set_send_window_size(int window_size) {
     send_window_size_ = window_size;
+  }
+
+  void set_stalled_by_flow_control(bool stalled) {
+    stalled_by_flow_control_ = stalled;
   }
 
   // Increases |send_window_size_| with delta extracted from a WINDOW_UPDATE
@@ -218,9 +220,8 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   std::string path_;
   int priority_;
 
-  // Tracks when a window update has already triggered a write, but
-  // the write has not yet completed.
-  bool window_update_write_pending_;
+  // Flow control variables.
+  bool stalled_by_flow_control_;
   int send_window_size_;
 
   const bool pushed_;

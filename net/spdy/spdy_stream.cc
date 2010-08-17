@@ -16,7 +16,7 @@ SpdyStream::SpdyStream(
     : continue_buffering_data_(true),
       stream_id_(stream_id),
       priority_(0),
-      window_update_write_pending_(false),
+      stalled_by_flow_control_(false),
       send_window_size_(spdy::kInitialWindowSize),
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
@@ -88,9 +88,9 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
   int new_window_size = send_window_size_ + delta_window_size;
 
-  // We shouldn't be receving WINDOW_UPDATE before or after that state,
-  // since before means we've not written SYN_STREAM yet, and after means
-  // we've written a DATA frame with FIN bit.
+  // We should ignore WINDOW_UPDATEs received before or after this state,
+  // since before means we've not written SYN_STREAM yet (i.e. it's too
+  // early) and after means we've written a DATA frame with FIN bit.
   if (io_state_ != STATE_SEND_BODY_COMPLETE)
     return;
 
@@ -112,16 +112,8 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
             << " by " << delta_window_size << " bytes";
   send_window_size_ = new_window_size;
 
-  // If the stream was stalled due to consumed window size, restart the
-  // I/O loop.
-  if (!closed() && !delegate_->IsFinishedSendingBody()) {
-    // Don't start the I/O loop for every WINDOW_UPDATE frame received,
-    // since we may receive many of them before the "write" due to first
-    // received WINDOW_UPDATE is completed.
-    if (window_update_write_pending_)
-      return;
-
-    window_update_write_pending_ = true;
+  if (stalled_by_flow_control_) {
+    stalled_by_flow_control_ = false;
     io_state_ = STATE_SEND_BODY;
     DoLoop(OK);
   }
@@ -235,7 +227,6 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
 
 // This function is only called when an entire frame is written.
 void SpdyStream::OnWriteComplete(int bytes) {
-  window_update_write_pending_ = false;
   DCHECK_LE(0, bytes);
   send_bytes_ += bytes;
   if (cancelled() || closed())
@@ -408,8 +399,7 @@ int SpdyStream::DoSendBodyComplete(int result) {
   if (!delegate_)
     return ERR_UNEXPECTED;
 
-  delegate_->OnSendBodyComplete(result);
-  if (!delegate_->IsFinishedSendingBody())
+  if (!delegate_->OnSendBodyComplete(result))
     io_state_ = STATE_SEND_BODY;
   else
     io_state_ = STATE_WAITING_FOR_RESPONSE;
