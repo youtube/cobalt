@@ -11,13 +11,17 @@
 *.xcodeproj
 *~
 .*.sw?
+.DS_Store
 .cproject
 .gdbinit
-.DS_Store
 .metadata
 .project
+/Makefile
 /_out
 /breakpad/src/
+/build/Debug
+/build/Purify
+/build/Release
 /build/util/support
 /chrome/Debug
 /chrome/Hammer
@@ -29,6 +33,7 @@
 /chrome/installer/mac/internal
 /chrome/installer/mac/third_party/xz/xz
 /chrome/personalization/
+/chrome/test/data/extensions/api_test/permissions/nacl_enabled/bin
 /chrome/test/data/firefox2_profile/searchplugins
 /chrome/test/data/firefox2_searchplugins
 /chrome/test/data/firefox3_profile/searchplugins
@@ -43,7 +48,6 @@
 /data
 /googleurl
 /gpu/gles2_conform_test
-/Makefile
 /native_client
 /out
 /rlz
@@ -51,10 +55,10 @@
 /sdch/open-vcdiff
 /testing/gtest
 /testserver.log
-/third_party/angle
 /third_party/GTM
 /third_party/WebKit
 /third_party/adobe/flash/binaries
+/third_party/angle
 /third_party/cacheinvalidation/files
 /third_party/chromeos_login_manager
 /third_party/chromeos_text_input
@@ -62,8 +66,8 @@
 /third_party/cygwin
 /third_party/ffmpeg
 /third_party/forge
-/third_party/googlemac
 /third_party/gles2_conform
+/third_party/googlemac
 /third_party/hunspell
 /third_party/hunspell_dictionaries
 /third_party/icu
@@ -73,9 +77,9 @@
 /third_party/mingw-w64
 /third_party/nss
 /third_party/ots
+/third_party/pdfsqueeze
 /third_party/pefile
 /third_party/personalization
-/third_party/pdfsqueeze
 /third_party/platformsdk_win2008_6_1
 /third_party/ppapi
 /third_party/protobuf2
@@ -94,8 +98,8 @@
 /tools/gyp
 /tools/page_cycler/acid3
 /tools/tryserver
-/valgrind.tmp
 /v8
+/valgrind.tmp
 /webkit/Debug
 /webkit/Release
 /webkit/data/bmp_decoder
@@ -103,6 +107,6 @@
 /webkit/data/layout_tests/LayoutTests
 /webkit/data/test_shell/plugins
 /webkit/data/xbm_decoder
-/xcodebuild
 /x86-generic_out/
+/xcodebuild
 SConstruct
