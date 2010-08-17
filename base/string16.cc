@@ -13,7 +13,6 @@
 
 #elif defined(WCHAR_T_IS_UTF32)
 
-#include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 
 namespace base {
