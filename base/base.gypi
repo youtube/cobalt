@@ -228,6 +228,8 @@
           'string_util.cc',
           'string_util.h',
           'string_util_win.h',
+          'stringprintf.cc',
+          'stringprintf.h',
           'sys_info.h',
           'sys_info_chromeos.cc',
           'sys_info_freebsd.cc',

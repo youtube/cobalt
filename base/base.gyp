@@ -135,6 +135,7 @@
         'string_split_unittest.cc',
         'string_tokenizer_unittest.cc',
         'string_util_unittest.cc',
+        'stringprintf_unittest.cc',
         'sys_info_unittest.cc',
         'sys_string_conversions_mac_unittest.mm',
         'sys_string_conversions_unittest.cc',
