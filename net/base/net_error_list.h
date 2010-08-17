@@ -168,6 +168,9 @@ NET_ERROR(PROXY_AUTH_REQUESTED, -127)
 // A known TLS strict server didn't offer the renegotiation extension.
 NET_ERROR(SSL_UNSAFE_NEGOTIATION, -128)
 
+// The SSL server is using a weak cryptographic key.
+NET_ERROR(SSL_WEAK_SERVER_KEY, -129)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
