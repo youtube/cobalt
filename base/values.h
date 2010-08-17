@@ -283,16 +283,6 @@ class DictionaryValue : public Value {
   bool GetDictionary(const std::string& path,
                      DictionaryValue** out_value) const;
   bool GetList(const std::string& path, ListValue** out_value) const;
-  /*DEPRECATED*/bool GetBoolean(const std::wstring& path,
-                                bool* out_value) const;
-  /*DEPRECATED*/bool GetInteger(const std::wstring& path, int* out_value) const;
-  /*DEPRECATED*/bool GetReal(const std::wstring& path, double* out_value) const;
-  /*DEPRECATED*/bool GetBinary(const std::wstring& path,
-                               BinaryValue** out_value) const;
-  /*DEPRECATED*/bool GetDictionary(const std::wstring& path,
-                                   DictionaryValue** out_value) const;
-  /*DEPRECATED*/bool GetList(const std::wstring& path,
-                             ListValue** out_value) const;
 
   // Like Get(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
