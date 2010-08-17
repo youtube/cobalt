@@ -22,10 +22,11 @@ class PollingProxyConfigService::Core
   Core(base::TimeDelta poll_interval,
        GetConfigFunction get_config_func)
       : get_config_func_(get_config_func),
+        poll_interval_(poll_interval),
+        have_initialized_origin_loop_(false),
         has_config_(false),
         poll_task_outstanding_(false),
-        poll_interval_(poll_interval),
-        have_initialized_origin_loop_(false) {
+        poll_task_queued_(false) {
   }
 
   // Called when the parent PollingProxyConfigService is destroyed
@@ -66,20 +67,31 @@ class PollingProxyConfigService::Core
     LazyInitializeOriginLoop();
     DCHECK(origin_loop_proxy_->BelongsToCurrentThread());
 
-    if (poll_task_outstanding_)
-      return;  // Still waiting for earlier test to finish.
-
-    base::TimeTicks now = base::TimeTicks::Now();
-
     if (last_poll_time_.is_null() ||
-        (now - last_poll_time_) > poll_interval_) {
-      last_poll_time_ = now;
-      poll_task_outstanding_ = true;
-      WorkerPool::PostTask(
-          FROM_HERE,
-          NewRunnableMethod(
-              this, &Core::PollOnWorkerThread, get_config_func_), true);
+        (base::TimeTicks::Now() - last_poll_time_) > poll_interval_) {
+      CheckForChangesNow();
     }
+  }
+
+  void CheckForChangesNow() {
+    LazyInitializeOriginLoop();
+    DCHECK(origin_loop_proxy_->BelongsToCurrentThread());
+
+    if (poll_task_outstanding_) {
+      // Only allow one task to be outstanding at a time. If we get a poll
+      // request while we are busy, we will defer it until the current poll
+      // completes.
+      poll_task_queued_ = true;
+      return;
+    }
+
+    last_poll_time_ = base::TimeTicks::Now();
+    poll_task_outstanding_ = true;
+    poll_task_queued_ = false;
+    WorkerPool::PostTask(
+        FROM_HERE,
+        NewRunnableMethod(
+            this, &Core::PollOnWorkerThread, get_config_func_), true);
   }
 
  private:
@@ -111,6 +123,9 @@ class PollingProxyConfigService::Core
       last_config_ = config;
       FOR_EACH_OBSERVER(Observer, observers_, OnProxyConfigChanged(config));
     }
+
+    if (poll_task_queued_)
+      CheckForChangesNow();
   }
 
   void LazyInitializeOriginLoop() {
@@ -126,15 +141,17 @@ class PollingProxyConfigService::Core
 
   GetConfigFunction get_config_func_;
   ObserverList<Observer> observers_;
-  bool has_config_;
-  bool poll_task_outstanding_;
   ProxyConfig last_config_;
   base::TimeTicks last_poll_time_;
   base::TimeDelta poll_interval_;
-  bool have_initialized_origin_loop_;
 
   Lock lock_;
   scoped_refptr<base::MessageLoopProxy> origin_loop_proxy_;
+
+  bool have_initialized_origin_loop_;
+  bool has_config_;
+  bool poll_task_outstanding_;
+  bool poll_task_queued_;
 };
 
 PollingProxyConfigService::PollingProxyConfigService(
@@ -161,6 +178,10 @@ bool PollingProxyConfigService::GetLatestProxyConfig(ProxyConfig* config) {
 
 void PollingProxyConfigService::OnLazyPoll() {
   core_->OnLazyPoll();
+}
+
+void PollingProxyConfigService::CheckForChangesNow() {
+  core_->CheckForChangesNow();
 }
 
 }  // namespace net
