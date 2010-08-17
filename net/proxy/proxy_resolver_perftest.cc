@@ -83,10 +83,14 @@ class PacPerfSuiteRunner {
   // |resolver_name| is the label used when logging the results.
   PacPerfSuiteRunner(net::ProxyResolver* resolver,
                      const std::string& resolver_name)
-      : resolver_(resolver), resolver_name_(resolver_name) {
+      : resolver_(resolver),
+        resolver_name_(resolver_name),
+        test_server_(net::TestServer::TYPE_HTTP,
+            FilePath(FILE_PATH_LITERAL("net/data/proxy_resolver_perftest"))) {
   }
 
   void RunAllTests() {
+    ASSERT_TRUE(test_server_.Start());
     for (size_t i = 0; i < arraysize(kPerfTests); ++i) {
       const PacPerfTest& test_data = kPerfTests[i];
       RunTest(test_data.pac_name,
@@ -100,9 +104,8 @@ class PacPerfSuiteRunner {
                const PacQuery* queries,
                int queries_len) {
     if (!resolver_->expects_pac_bytes()) {
-      InitHttpServer();
       GURL pac_url =
-          server_->TestServerPage(std::string("files/") + script_name);
+          test_server_.GetURL(std::string("files/") + script_name);
       int rv = resolver_->SetPacScript(
           net::ProxyResolverScriptData::FromURL(pac_url), NULL);
       EXPECT_EQ(net::OK, rv);
@@ -145,16 +148,6 @@ class PacPerfSuiteRunner {
     timer.Done();
   }
 
-  // Lazily startup an HTTP server (to serve the PAC script).
-  void InitHttpServer() {
-    DCHECK(!resolver_->expects_pac_bytes());
-    if (!server_) {
-      server_ = net::HTTPTestServer::CreateServer(
-          L"net/data/proxy_resolver_perftest");
-    }
-    ASSERT_TRUE(server_.get() != NULL);
-  }
-
   // Read the PAC script from disk and initialize the proxy resolver with it.
   void LoadPacScriptIntoResolver(const std::string& script_name) {
     FilePath path;
@@ -180,7 +173,7 @@ class PacPerfSuiteRunner {
 
   net::ProxyResolver* resolver_;
   std::string resolver_name_;
-  scoped_refptr<net::HTTPTestServer> server_;
+  net::TestServer test_server_;
 };
 
 #if defined(OS_WIN)
