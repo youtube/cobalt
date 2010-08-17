@@ -23,6 +23,10 @@ import SocketServer
 import sys
 import time
 import urllib2
+import warnings
+
+# Ignore deprecation warnings, they make our output more cluttered.
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import pyftpdlib.ftpserver
 import tlslite
@@ -78,6 +82,9 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
                                     sessionCache=self.session_cache,
                                     reqCert=self.ssl_client_auth)
       tlsConnection.ignoreAbruptClose = True
+      return True
+    except tlslite.api.TLSAbruptCloseError:
+      # Ignore abrupt close.
       return True
     except tlslite.api.TLSError, error:
       print "Handshake failure:", str(error)
@@ -1201,10 +1208,29 @@ def TryKillingOldServer(port):
       # Common case, indicates no server running.
       pass
 
+class FileMultiplexer:
+  def __init__(self, fd1, fd2) :
+    self.__fd1 = fd1
+    self.__fd2 = fd2
+
+  def __del__(self) :
+    if self.__fd1 != sys.stdout and self.__fd1 != sys.stderr:
+      self.__fd1.close()
+    if self.__fd2 != sys.stdout and self.__fd2 != sys.stderr:
+      self.__fd2.close()
+
+  def write(self, text) :
+    self.__fd1.write(text)
+    self.__fd2.write(text)
+
+  def flush(self) :
+    self.__fd1.flush()
+    self.__fd2.flush()
+
 def main(options, args):
-  # redirect output to a log file so it doesn't spam the unit test output
   logfile = open('testserver.log', 'w')
-  sys.stderr = sys.stdout = logfile
+  sys.stdout = FileMultiplexer(sys.stdout, logfile)
+  sys.stderr = FileMultiplexer(sys.stderr, logfile)
 
   port = options.port
 
