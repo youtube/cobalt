@@ -52,7 +52,7 @@ class Rendezvous : public CallbackRunner<Tuple1<int> > {
 // This test is disabled because it depends on the external network to pass.
 // However, it may be useful when chaging the code.
 TEST_F(DnsRRResolverTest, DISABLED_NetworkResolve) {
-  RRResponse response;
+  DnsRRResolver::Response response;
   Rendezvous callback;
   ASSERT_TRUE(DnsRRResolver::Resolve(
         "agl._pka.imperialviolet.org", kDNS_TXT, 0, &callback, &response));
@@ -111,7 +111,7 @@ static const uint8 kExamplePacket[] = {
 };
 
 TEST_F(DnsRRResolverTest, ParseExample) {
-  RRResponse response;
+  DnsRRResolver::Response response;
   ASSERT_TRUE(response.ParseFromResponse(kExamplePacket,
               sizeof(kExamplePacket), kDNS_TXT));
   ASSERT_EQ(1u, response.rrdatas.size());
@@ -124,7 +124,7 @@ TEST_F(DnsRRResolverTest, ParseExample) {
 }
 
 TEST_F(DnsRRResolverTest, FuzzTruncation) {
-  RRResponse response;
+  DnsRRResolver::Response response;
 
   for (unsigned len = sizeof(kExamplePacket); len <= sizeof(kExamplePacket);
        len--) {
@@ -133,7 +133,7 @@ TEST_F(DnsRRResolverTest, FuzzTruncation) {
 }
 
 TEST_F(DnsRRResolverTest, FuzzCorruption) {
-  RRResponse response;
+  DnsRRResolver::Response response;
   uint8 copy[sizeof(kExamplePacket)];
 
 
