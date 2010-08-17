@@ -433,8 +433,10 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
 
   // Obey send window size of the stream if flow control is enabled.
   if (use_flow_control_) {
-    if (stream->send_window_size() <= 0)
+    if (stream->send_window_size() <= 0) {
+      stream->set_stalled_by_flow_control(true);
       return ERR_IO_PENDING;
+    }
     int new_len = std::min(len, stream->send_window_size());
     if (new_len < len) {
       len = new_len;

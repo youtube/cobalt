@@ -1371,33 +1371,75 @@ TEST_P(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
 
 // Test that sent data frames and received WINDOW_UPDATE frames change
 // the send_window_size_ correctly.
-TEST_P(SpdyNetworkTransactionTest, WindowUpdate) {
+
+// WINDOW_UPDATE is different than most other frames in that it can arrive
+// while the client is still sending the request body.  In order to enforce
+// this scenario, we feed a couple of dummy frames and give a delay of 0 to
+// socket data provider, so that initial read that is done as soon as the
+// stream is created, succeeds and schedules another read.  This way reads
+// and writes are interleaved; after doing a full frame write, SpdyStream
+// will break out of DoLoop and will read and process a WINDOW_UPDATE.
+// Once our WINDOW_UPDATE is read, we cannot send SYN_REPLY right away
+// since request has not been completely written, therefore we feed
+// enough number of WINDOW_UPDATEs to finish the first read and cause a
+// write, leading to a complete write of request body; after that we send
+// a reply with a body, to cause a graceful shutdown.
+
+// TODO(agayev): develop a socket data provider where both, reads and
+// writes are ordered so that writing tests like these are easy, right now
+// we are working around the limitations as described above and it's not
+// deterministic, tests may fail under specific circumstances.
+TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
   SpdySession::SetFlowControl(true);
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(kUploadDataSize, NULL, 0));
-  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  static int kFrameCount = 2;
+  scoped_ptr<std::string> content(
+      new std::string(kMaxSpdyFrameChunkSize, 'a'));
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(
+      kMaxSpdyFrameChunkSize * kFrameCount, NULL, 0));
+  scoped_ptr<spdy::SpdyFrame> body(
+      ConstructSpdyBodyFrame(1, content->c_str(), content->size(), false));
+  scoped_ptr<spdy::SpdyFrame> body_end(
+      ConstructSpdyBodyFrame(1, content->c_str(), content->size(), true));
+
   MockWrite writes[] = {
     CreateMockWrite(*req),
     CreateMockWrite(*body),
+    CreateMockWrite(*body_end),
   };
 
   static const int kDeltaWindowSize = 0xff;
+  static const int kDeltaCount = 4;
   scoped_ptr<spdy::SpdyFrame> window_update(
       ConstructSpdyWindowUpdate(1, kDeltaWindowSize));
-  scoped_ptr<spdy::SpdyFrame> reply(ConstructSpdyPostSynReply(NULL, 0));
+  scoped_ptr<spdy::SpdyFrame> window_update_dummy(
+      ConstructSpdyWindowUpdate(2, kDeltaWindowSize));
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
   MockRead reads[] = {
+    CreateMockRead(*window_update_dummy),
+    CreateMockRead(*window_update_dummy),
+    CreateMockRead(*window_update),     // Four updates, therefore window
+    CreateMockRead(*window_update),     // size should increase by
+    CreateMockRead(*window_update),     // kDeltaWindowSize * 4
     CreateMockRead(*window_update),
-    CreateMockRead(*reply),
-    CreateMockRead(*body),
+    CreateMockRead(*resp),
+    CreateMockRead(*body_end),
     MockRead(true, 0, 0)  // EOF
   };
 
   scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(2, reads, arraysize(reads),
+      new DelayedSocketData(0, reads, arraysize(reads),
                             writes, arraysize(writes)));
 
-  NormalSpdyTransactionHelper helper(CreatePostRequest(),
-                                     BoundNetLog(), GetParam());
+  // Setup the request
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL(kDefaultURL);
+  request.upload_data = new UploadData();
+  for (int i = 0; i < kFrameCount; ++i)
+    request.upload_data->AppendBytes(content->c_str(), content->size());
+
+  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam());
   helper.AddData(data.get());
   helper.RunPreTestSetup();
 
@@ -1410,18 +1452,20 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdate) {
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
 
-  // ASSERT_TRUE(trans->spdy_http_stream_ != NULL);
-  // ASSERT_TRUE(trans->spdy_http_stream_->stream() != NULL);
-  // EXPECT_EQ(spdy::kInitialWindowSize + kDeltaWindowSize - kUploadDataSize,
-  //           trans->spdy_http_stream_->stream()->send_window_size());
+  SpdyHttpStream* stream =
+      static_cast<SpdyHttpStream*>(trans->stream_.get());
+  ASSERT_TRUE(stream != NULL);
+  ASSERT_TRUE(stream->stream() != NULL);
+  EXPECT_EQ(spdy::kInitialWindowSize +
+            kDeltaWindowSize * kDeltaCount -
+            kMaxSpdyFrameChunkSize * kFrameCount,
+            stream->stream()->send_window_size());
   helper.VerifyDataConsumed();
   SpdySession::SetFlowControl(false);
 }
 
-// Test that WINDOW_UPDATE frame causing overflow is handled correctly.
-// Since WINDOW_UPDATEs should appear only when we're in the middle of a
-// long POST, we create a few full frame writes to force a WINDOW_UPDATE in
-// between.
+// Test that WINDOW_UPDATE frame causing overflow is handled correctly.  We
+// use the same trick as in the above test to enforce our scenario.
 TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   SpdySession::SetFlowControl(true);
 
@@ -1429,13 +1473,10 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   // set content-length header correctly)
   static int kFrameCount = 3;
 
-  // Construct content for a data frame of maximum size.
   scoped_ptr<std::string> content(
       new std::string(kMaxSpdyFrameChunkSize, 'a'));
-
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(
       kMaxSpdyFrameChunkSize * kFrameCount, NULL, 0));
-
   scoped_ptr<spdy::SpdyFrame> body(
       ConstructSpdyBodyFrame(1, content->c_str(), content->size(), false));
   scoped_ptr<spdy::SpdyFrame> rst(
@@ -1455,21 +1496,6 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   scoped_ptr<spdy::SpdyFrame> window_update2(
       ConstructSpdyWindowUpdate(2, kDeltaWindowSize));
   scoped_ptr<spdy::SpdyFrame> reply(ConstructSpdyPostSynReply(NULL, 0));
-
-  // 1. Once we start writing a request, we do not read until the whole
-  // request is written completely, UNLESS, the first ReadSocket() call
-  // during the stream creation succeeded and caused another ReadSocket()
-  // to be scheduled.
-
-  // 2. We are trying to simulate WINDOW_UPDATE frame being received in the
-  // middle of a POST request's body being sent.
-
-  // In order to achieve 2, we force 1 to happen by giving
-  // DelayedSocketData a write delay of 0 and feeding SPDY dummy
-  // window_update2 frames which will be ignored, but will cause
-  // ReadSocket() to be scheduled and reads and writes to be interleaved,
-  // which will cause our window_update frame to be read right in the
-  // middle of a POST request being sent.
 
   MockRead reads[] = {
     CreateMockRead(*window_update2),
@@ -1516,7 +1542,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
 
 // Test that after hitting a send window size of 0, the write process
 // stalls and upon receiving WINDOW_UPDATE frame write resumes.
-//
+
 // This test constructs a POST request followed by enough data frames
 // containing 'a' that would make the window size 0, followed by another
 // data frame containing default content (which is "hello!") and this frame
@@ -1568,7 +1594,7 @@ TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
   writes[i++] = CreateMockWrite(*body2);
   writes[i] = CreateMockWrite(*body3);
 
-  // Construct read frame, just give enough space to upload the rest of the
+  // Construct read frame, give enough space to upload the rest of the
   // data.
   scoped_ptr<spdy::SpdyFrame> window_update(
       ConstructSpdyWindowUpdate(1, kUploadDataSize));
@@ -1608,10 +1634,13 @@ TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   MessageLoop::current()->RunAllPending(); // Write as much as we can.
-  // ASSERT_TRUE(trans->spdy_http_stream_ != NULL);
-  // ASSERT_TRUE(trans->spdy_http_stream_->stream() != NULL);
-  // EXPECT_EQ(0, trans->spdy_http_stream_->stream()->send_window_size());
-  // EXPECT_FALSE(trans->spdy_http_stream_->IsFinishedSendingBody());
+
+  SpdyHttpStream* stream =
+      static_cast<SpdyHttpStream*>(trans->stream_.get());
+  ASSERT_TRUE(stream != NULL);
+  ASSERT_TRUE(stream->stream() != NULL);
+  EXPECT_EQ(0, stream->stream()->send_window_size());
+  EXPECT_FALSE(stream->request_body_stream_->eof());
 
   data->ForceNextRead();   // Read in WINDOW_UPDATE frame.
   rv = callback.WaitForResult();

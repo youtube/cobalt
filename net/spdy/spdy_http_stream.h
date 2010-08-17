@@ -85,8 +85,7 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
 
   virtual bool OnSendHeadersComplete(int status);
   virtual int OnSendBody();
-  virtual void OnSendBodyComplete(int status);
-  virtual bool IsFinishedSendingBody();
+  virtual bool OnSendBodyComplete(int status);
 
   // Called by the SpdySession when a response (e.g. a SYN_REPLY) has been
   // received for this stream.
@@ -117,6 +116,8 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   bool ShouldResendFailedRequest(int error) const;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, FlowControlStallResume);
+
   // Call the user callback.
   void DoCallback(int rv);
 
