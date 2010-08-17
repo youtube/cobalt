@@ -1383,16 +1383,14 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   return SECWouldBlock;
 #else
-  CERTCertificate* cert = NULL;
-  SECKEYPrivateKey* privkey = NULL;
   void* wincx  = SSL_RevealPinArg(socket);
 
   // Second pass: a client certificate should have been selected.
   if (that->ssl_config_.send_client_cert) {
     if (that->ssl_config_.client_cert) {
-      cert = CERT_DupCertificate(
+      CERTCertificate* cert = CERT_DupCertificate(
           that->ssl_config_.client_cert->os_cert_handle());
-      privkey = PK11_FindKeyByAnyCert(cert, wincx);
+      SECKEYPrivateKey* privkey = PK11_FindKeyByAnyCert(cert, wincx);
       if (privkey) {
         // TODO(jsorianopastor): We should wait for server certificate
         // verification before sending our credentials.  See
@@ -1407,33 +1405,32 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     return SECFailure;
   }
 
-  CERTCertNicknames* names = CERT_GetCertNicknames(
-      CERT_GetDefaultCertDB(), SEC_CERT_NICKNAMES_USER, wincx);
-  if (names) {
-    for (int i = 0; i < names->numnicknames; ++i) {
-      cert = CERT_FindUserCertByUsage(
-          CERT_GetDefaultCertDB(), names->nicknames[i],
-          certUsageSSLClient, PR_FALSE, wincx);
-      if (!cert)
+  // Iterate over all client certificates.
+  CERTCertList* client_certs = CERT_FindUserCertsByUsage(
+      CERT_GetDefaultCertDB(), certUsageSSLClient,
+      PR_FALSE, PR_FALSE, wincx);
+  if (client_certs) {
+    for (CERTCertListNode* node = CERT_LIST_HEAD(client_certs);
+         !CERT_LIST_END(node, client_certs);
+         node = CERT_LIST_NEXT(node)) {
+      // Only offer unexpired certificates.
+      if (CERT_CheckCertValidTimes(node->cert, PR_Now(), PR_TRUE) !=
+          secCertTimeValid)
         continue;
-      // Only check unexpired certs.
-      if (CERT_CheckCertValidTimes(cert, PR_Now(), PR_TRUE) ==
-          secCertTimeValid && (!ca_names->nnames ||
-          NSS_CmpCertChainWCANames(cert, ca_names) == SECSuccess)) {
-        privkey = PK11_FindKeyByAnyCert(cert, wincx);
-        if (privkey) {
-          X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
-              cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-              net::X509Certificate::OSCertHandles());
-          that->client_certs_.push_back(x509_cert);
-          CERT_DestroyCertificate(cert);
-          SECKEY_DestroyPrivateKey(privkey);
-          continue;
-        }
-      }
-      CERT_DestroyCertificate(cert);
+      // Filter by issuer.
+      //
+      // TODO(davidben): This does a binary comparison of the DER-encoded
+      // issuers. We should match according to RFC 5280 sec. 7.1. We should find
+      // an appropriate NSS function or add one if needbe.
+      if (ca_names->nnames &&
+          NSS_CmpCertChainWCANames(node->cert, ca_names) != SECSuccess)
+        continue;
+      X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
+          node->cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
+          net::X509Certificate::OSCertHandles());
+      that->client_certs_.push_back(x509_cert);
     }
-    CERT_FreeNicknames(names);
+    CERT_DestroyCertList(client_certs);
   }
 
   // Tell NSS to suspend the client authentication.  We will then abort the
