@@ -11,7 +11,6 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/message_pump_default.h"
-#include "base/string_util.h"
 #include "base/thread_local.h"
 
 #if defined(OS_MACOSX)

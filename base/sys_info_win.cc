@@ -9,7 +9,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 
 namespace base {
 
@@ -58,7 +58,8 @@ std::string SysInfo::OperatingSystemVersion() {
   info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
   GetVersionEx(&info);
 
-  return StringPrintf("%lu.%lu", info.dwMajorVersion, info.dwMinorVersion);
+  return base::StringPrintf("%lu.%lu",
+                            info.dwMajorVersion, info.dwMinorVersion);
 }
 
 // TODO: Implement OperatingSystemVersionComplete, which would include

@@ -16,7 +16,6 @@
 #include "base/lock.h"
 #include "base/logging.h"
 #include "base/singleton.h"
-#include "base/string_util.h"
 
 namespace base {
   bool PathProvider(int key, FilePath* result);

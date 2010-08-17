@@ -25,7 +25,7 @@
 #include "base/platform_thread.h"
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
-#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/time.h"
 #include "base/waitable_event.h"
 

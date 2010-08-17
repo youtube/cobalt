@@ -4,6 +4,7 @@
 
 #include "base/string_split.h"
 
+#include "base/logging.h"
 #include "base/string_util.h"
 
 namespace base {
