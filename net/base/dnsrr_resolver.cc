@@ -8,6 +8,7 @@
 #include <resolv.h>
 #endif
 
+#include "base/message_loop.h"
 #include "base/string_piece.h"
 #include "base/task.h"
 #include "base/worker_pool.h"
@@ -18,6 +19,63 @@
 namespace net {
 
 static const uint16 kClassIN = 1;
+
+namespace {
+
+class CompletionCallbackTask : public Task,
+                               public MessageLoop::DestructionObserver {
+ public:
+  explicit CompletionCallbackTask(CompletionCallback* callback,
+                                  MessageLoop* ml)
+      : callback_(callback),
+        rv_(OK),
+        posted_(false),
+        message_loop_(ml) {
+    ml->AddDestructionObserver(this);
+  }
+
+  void set_rv(int rv) {
+    rv_ = rv;
+  }
+
+  void Post() {
+    AutoLock locked(lock_);
+    DCHECK(!posted_);
+
+    if (!message_loop_) {
+      // MessageLoop got deleted, nothing to do.
+      delete this;
+      return;
+    }
+    posted_ = true;
+    message_loop_->PostTask(FROM_HERE, this);
+  }
+
+  // Task interface
+  void Run() {
+    message_loop_->RemoveDestructionObserver(this);
+    callback_->Run(rv_);
+    // We will be deleted by the message loop.
+  }
+
+  // DestructionObserver interface
+  virtual void WillDestroyCurrentMessageLoop() {
+    AutoLock locked(lock_);
+    message_loop_ = NULL;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CompletionCallbackTask);
+
+  CompletionCallback* callback_;
+  int rv_;
+  bool posted_;
+
+  Lock lock_;  // covers |message_loop_|
+  MessageLoop* message_loop_;
+};
+
+}  // anonymous namespace
 
 #if defined(OS_POSIX)
 
@@ -147,14 +205,16 @@ class Buffer {
   }
 
  private:
+  DISALLOW_COPY_AND_ASSIGN(Buffer);
+
   const uint8* p_;
   const uint8* const packet_;
   unsigned len_;
   const unsigned packet_len_;
 };
 
-bool DnsRRResolver::Response::ParseFromResponse(const uint8* p, unsigned len,
-                                                uint16 rrtype_requested) {
+bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
+                                   uint16 rrtype_requested) {
   name.clear();
   ttl = 0;
   dnssec = false;
@@ -240,35 +300,40 @@ class ResolveTask : public Task {
  public:
   ResolveTask(const std::string& name, uint16 rrtype,
               uint16 flags, CompletionCallback* callback,
-              DnsRRResolver::Response* response)
+              RRResponse* response, MessageLoop* ml)
       : name_(name),
         rrtype_(rrtype),
         flags_(flags),
-        callback_(callback),
+        subtask_(new CompletionCallbackTask(callback, ml)),
         response_(response) {
   }
 
   virtual void Run() {
     // Runs on a worker thread.
 
+    bool r = true;
     if ((_res.options & RES_INIT) == 0) {
       if (res_ninit(&_res) != 0)
-        return Failure();
+        r = false;
     }
 
-    unsigned long saved_options = _res.options;
-    bool r = Do();
+    if (r) {
+      unsigned long saved_options = _res.options;
+      r = Do();
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-    if (!r && DnsReloadTimerHasExpired()) {
-      res_nclose(&_res);
-      if (res_ninit(&_res) == 0)
-        r = Do();
-    }
+      if (!r && DnsReloadTimerHasExpired()) {
+        res_nclose(&_res);
+        if (res_ninit(&_res) == 0)
+          r = Do();
+      }
 #endif
-    _res.options = saved_options;
+      _res.options = saved_options;
+    }
     int error = r ? OK : ERR_NAME_NOT_RESOLVED;
-    callback_->Run(error);
+
+    subtask_->set_rv(error);
+    subtask_.release()->Post();
   }
 
   bool Do() {
@@ -302,15 +367,11 @@ class ResolveTask : public Task {
  private:
   DISALLOW_COPY_AND_ASSIGN(ResolveTask);
 
-  void Failure() {
-    callback_->Run(ERR_NAME_NOT_RESOLVED);
-  }
-
   const std::string name_;
   const uint16 rrtype_;
   const uint16 flags_;
-  CompletionCallback* const callback_;
-  DnsRRResolver::Response* const response_;
+  scoped_ptr<CompletionCallbackTask> subtask_;
+  RRResponse* const response_;
 };
 #else  // OS_POSIX
 // On non-Linux platforms we fail everything for now.
@@ -318,7 +379,7 @@ class ResolveTask : public Task {
  public:
   ResolveTask(const std::string& name, uint16 rrtype,
               uint16 flags, CompletionCallback* callback,
-              DnsRRResolver::Response* response)
+              RRResponse* response)
       : callback_(callback) {
   }
 
@@ -335,7 +396,7 @@ class ResolveTask : public Task {
 // static
 bool DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
                             uint16 flags, CompletionCallback* callback,
-                            Response* response) {
+                            RRResponse* response) {
   if (!callback || !response || name.empty())
     return false;
 
@@ -343,7 +404,8 @@ bool DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
   if (rrtype == kDNS_ANY)
     return false;
 
-  ResolveTask* task = new ResolveTask(name, rrtype, flags, callback, response);
+  ResolveTask* task = new ResolveTask(name, rrtype, flags, callback, response,
+                                      MessageLoop::current());
 
   return WorkerPool::PostTask(FROM_HERE, task, true /* task is slow */);
 }
