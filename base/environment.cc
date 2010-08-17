@@ -78,22 +78,21 @@ class EnvironmentImpl : public base::Environment {
   bool SetVarImpl(const char* variable_name, const std::string& new_value) {
 #if defined(OS_POSIX)
     // On success, zero is returned.
-    return setenv(variable_name, new_value.c_str(), 1) == 0;
+    return !setenv(variable_name, new_value.c_str(), 1);
 #elif defined(OS_WIN)
-    // On success, a nonzero is returned.
-    return ::SetEnvironmentVariable(ASCIIToWide(variable_name).c_str(),
-                                    ASCIIToWide(new_value).c_str()) != 0;
+    // On success, a nonzero value is returned.
+    return !!SetEnvironmentVariable(UTF8ToWide(variable_name).c_str(),
+                                    UTF8ToWide(new_value).c_str());
 #endif
   }
 
   bool UnSetVarImpl(const char* variable_name) {
 #if defined(OS_POSIX)
     // On success, zero is returned.
-    return unsetenv(variable_name) == 0;
+    return !unsetenv(variable_name);
 #elif defined(OS_WIN)
-    // On success, a nonzero is returned.
-    return ::SetEnvironmentVariable(ASCIIToWide(variable_name).c_str(),
-                                    NULL) != 0;
+    // On success, a nonzero value is returned.
+    return !!SetEnvironmentVariable(UTF8ToWide(variable_name).c_str(), NULL);
 #endif
   }
 };
