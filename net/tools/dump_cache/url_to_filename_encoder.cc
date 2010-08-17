@@ -40,16 +40,16 @@ uint64 ParseLeadingHex64Value(const char *str, uint64 deflt) {
 namespace net {
 
 // The escape character choice is made here -- all code and tests in this
-// directory are based off of this constant.  However, our test ata
+// directory are based off of this constant.  However, our testdata
 // has tons of dependencies on this, so it cannot be changed without
 // re-running those tests and fixing them.
-const char kTruncationChar = '-';
-const char kEscapeChar = ',';
-const size_t kMaximumSubdirectoryLength = 128;
+const char UrlToFilenameEncoder::kEscapeChar = ',';
+const char UrlToFilenameEncoder::kTruncationChar = '-';
+const size_t UrlToFilenameEncoder::kMaximumSubdirectoryLength = 128;
 
-void UrlToFilenameEncoder::AppendSegment(
-    char dir_separator, string* segment, string* dest) {
-  if (segment->empty() || (*segment == ".") || (*segment == "..")) {
+void UrlToFilenameEncoder::AppendSegment(string* segment, string* dest) {
+  CHECK(!segment->empty());
+  if ((*segment == ".") || (*segment == "..")) {
     dest->append(1, kEscapeChar);
     dest->append(*segment);
     segment->clear();
@@ -83,9 +83,11 @@ void UrlToFilenameEncoder::AppendSegment(
 }
 
 void UrlToFilenameEncoder::EncodeSegment(const string& filename_prefix,
-                                         const string& filename_ending,
+                                         const string& escaped_ending,
                                          char dir_separator,
                                          string* encoded_filename) {
+  string filename_ending = UrlUtilities::Unescape(escaped_ending);
+
   char encoded[3];
   int encoded_len;
   string segment;
@@ -113,22 +115,17 @@ void UrlToFilenameEncoder::EncodeSegment(const string& filename_prefix,
   for (; index < filename_ending.length(); ++index) {
     unsigned char ch = static_cast<unsigned char>(filename_ending[index]);
 
-    if (ch == dir_separator) {
-      AppendSegment(dir_separator, &segment, encoded_filename);
+    // Note: instead of outputing an empty segment, we let the second slash
+    // be escaped below.
+    if ((ch == dir_separator) && !segment.empty()) {
+      AppendSegment(&segment, encoded_filename);
       encoded_filename->append(1, dir_separator);
       segment.clear();
     } else {
-      // & is common in URLs and is legal filename syntax, but is also
-      // a special Unix shell character, so let's avoid making
-      // filenames with &, as well as ?.  It's probably better to
-      // blow up query-params than it is to make it hard to work with
-      // the files in shell-scripts.
-      if ((ch == 0x5F) || (ch == 0x2E) ||    // underscore period
-          (ch == 0x25) || (ch == 0x3D) ||    // percent equals
-          (ch == 0x2B) || (ch == 0x2D) ||    // plus dash
-          ((0x30 <= ch) && (ch <= 0x39)) ||  // Digits [0-9]
-          ((0x41 <= ch) && (ch <= 0x5A)) ||  // Uppercase [A-Z]
-          ((0x61 <= ch) && (ch <= 0x7A))) {  // Lowercase [a-z]
+      // After removing unsafe chars the only safe ones are _.=+- and alphanums.
+      if ((ch == '_') || (ch == '.') || (ch == '=') || (ch == '+') ||
+          (ch == '-') || (('0' <= ch) && (ch <= '9')) ||
+          (('A' <= ch) && (ch <= 'Z')) || (('a' <= ch) && (ch <= 'z'))) {
         encoded[0] = ch;
         encoded_len = 1;
       } else {
@@ -141,13 +138,9 @@ void UrlToFilenameEncoder::EncodeSegment(const string& filename_prefix,
       }
       segment.append(encoded, encoded_len);
 
-      // Note:  We chop paths into medium sized 'chunks'.
-      //        This is due to filename limits on Windows and Unix.
-      //        The Windows limit appears to be 128 characters, and
-      //        Unix is larger, but not as large as URLs with large
-      //        numbers of query params.
+      // If segment is too big, we must chop it into chunks.
       if (segment.size() > kMaximumSubdirectoryLength) {
-        AppendSegment(dir_separator, &segment, encoded_filename);
+        AppendSegment(&segment, encoded_filename);
         encoded_filename->append(1, dir_separator);
       }
     }
@@ -159,7 +152,7 @@ void UrlToFilenameEncoder::EncodeSegment(const string& filename_prefix,
   // us over the 128 char limit, then we will need to append "/" and the
   // remaining chars.
   segment += kEscapeChar;
-  AppendSegment(dir_separator, &segment, encoded_filename);
+  AppendSegment(&segment, encoded_filename);
   if (!segment.empty()) {
     // The last overflow segment is special, because we appended in
     // kEscapeChar above.  We won't need to check it again for size
@@ -191,6 +184,8 @@ bool UrlToFilenameEncoder::Decode(const string& encoded_filename,
       case kStart:
         if (ch == kEscapeChar) {
           state = kEscape;
+        } else if (ch == dir_separator) {
+          decoded_url->append(1, '/');  // URLs only use '/' not '\\'
         } else {
           decoded_url->append(1, ch);
         }
@@ -205,9 +200,9 @@ bool UrlToFilenameEncoder::Decode(const string& encoded_filename,
           decoded_url->append(1, '.');
           state = kEscapeDot;  // Look for at most one more dot.
         } else if (ch == dir_separator) {
-          // Consider url "//x".  This will get encoded to "/,/x,".
+          // Consider url "//x".  This was once encoded to "/,/x,".
           // This code is what skips the first Escape.
-          decoded_url->append(1, ch);
+          decoded_url->append(1, '/');  // URLs only use '/' not '\\'
           state = kStart;
         } else {
           return false;
@@ -244,7 +239,7 @@ bool UrlToFilenameEncoder::Decode(const string& encoded_filename,
   return (state == kEscape);
 }
 
-// Escapes the given input |path| and chop any individual components
+// Escape the given input |path| and chop any individual components
 // of the path which are greater than kMaximumSubdirectoryLength characters
 // into two chunks.
 //
@@ -295,4 +290,3 @@ string UrlToFilenameEncoder::LegacyEscape(const string& path) {
 }
 
 }  // namespace net
-
