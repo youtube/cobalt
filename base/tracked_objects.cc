@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include "base/format_macros.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 
 using base::TimeDelta;
 
@@ -53,10 +54,12 @@ void DeathData::AddDeathData(const DeathData& other) {
 void DeathData::Write(std::string* output) const {
   if (!count_)
     return;
-  if (1 == count_)
-    StringAppendF(output, "(1)Life in %dms ", AverageMsDuration());
-  else
-    StringAppendF(output, "(%d)Lives %dms/life ", count_, AverageMsDuration());
+  if (1 == count_) {
+    base::StringAppendF(output, "(1)Life in %dms ", AverageMsDuration());
+  } else {
+    base::StringAppendF(output, "(%d)Lives %dms/life ",
+                        count_, AverageMsDuration());
+  }
 }
 
 void DeathData::Clear() {
@@ -538,9 +541,9 @@ const std::string Snapshot::DeathThreadName() const {
 
 void Snapshot::Write(std::string* output) const {
   death_data_.Write(output);
-  StringAppendF(output, "%s->%s ",
-                birth_->birth_thread()->ThreadName().c_str(),
-                death_thread_->ThreadName().c_str());
+  base::StringAppendF(output, "%s->%s ",
+                      birth_->birth_thread()->ThreadName().c_str(),
+                      death_thread_->ThreadName().c_str());
   birth_->location().Write(true, true, output);
 }
 
@@ -648,33 +651,37 @@ void Aggregation::Write(std::string* output) const {
   if (locations_.size() == 1) {
     locations_.begin()->first.Write(true, true, output);
   } else {
-    StringAppendF(output, "%" PRIuS " Locations. ", locations_.size());
-    if (birth_files_.size() > 1)
-      StringAppendF(output, "%" PRIuS " Files. ", birth_files_.size());
-    else
-      StringAppendF(output, "All born in %s. ",
-                    birth_files_.begin()->first.c_str());
+    base::StringAppendF(output, "%" PRIuS " Locations. ", locations_.size());
+    if (birth_files_.size() > 1) {
+      base::StringAppendF(output, "%" PRIuS " Files. ", birth_files_.size());
+    } else {
+      base::StringAppendF(output, "All born in %s. ",
+                          birth_files_.begin()->first.c_str());
+    }
   }
 
-  if (birth_threads_.size() > 1)
-    StringAppendF(output, "%" PRIuS " BirthingThreads. ",
-                  birth_threads_.size());
-  else
-    StringAppendF(output, "All born on %s. ",
-                  birth_threads_.begin()->first->ThreadName().c_str());
+  if (birth_threads_.size() > 1) {
+    base::StringAppendF(output, "%" PRIuS " BirthingThreads. ",
+                        birth_threads_.size());
+  } else {
+    base::StringAppendF(output, "All born on %s. ",
+                        birth_threads_.begin()->first->ThreadName().c_str());
+  }
 
   if (death_threads_.size() > 1) {
-    StringAppendF(output, "%" PRIuS " DeathThreads. ", death_threads_.size());
+    base::StringAppendF(output, "%" PRIuS " DeathThreads. ",
+                        death_threads_.size());
   } else {
-    if (death_threads_.begin()->first)
-      StringAppendF(output, "All deleted on %s. ",
-                  death_threads_.begin()->first->ThreadName().c_str());
-    else
+    if (death_threads_.begin()->first) {
+      base::StringAppendF(output, "All deleted on %s. ",
+                          death_threads_.begin()->first->ThreadName().c_str());
+    } else {
       output->append("All these objects are still alive.");
+    }
   }
 
   if (birth_count_ > 1)
-    StringAppendF(output, "Births=%d ", birth_count_);
+    base::StringAppendF(output, "Births=%d ", birth_count_);
 
   DeathData::Write(output);
 }
@@ -969,23 +976,24 @@ bool Comparator::WriteSortGrouping(const Snapshot& sample,
   bool wrote_data = false;
   switch (selector_) {
     case BIRTH_THREAD:
-      StringAppendF(output, "All new on %s ",
-                    sample.birth_thread()->ThreadName().c_str());
+      base::StringAppendF(output, "All new on %s ",
+                          sample.birth_thread()->ThreadName().c_str());
       wrote_data = true;
       break;
 
     case DEATH_THREAD:
-      if (sample.death_thread())
-        StringAppendF(output, "All deleted on %s ",
-                      sample.DeathThreadName().c_str());
-      else
+      if (sample.death_thread()) {
+        base::StringAppendF(output, "All deleted on %s ",
+                            sample.DeathThreadName().c_str());
+      } else {
         output->append("All still alive ");
+      }
       wrote_data = true;
       break;
 
     case BIRTH_FILE:
-      StringAppendF(output, "All born in %s ",
-                    sample.location().file_name());
+      base::StringAppendF(output, "All born in %s ",
+                          sample.location().file_name());
       break;
 
     case BIRTH_FUNCTION:
@@ -1008,11 +1016,11 @@ void Comparator::WriteSnapshot(const Snapshot& sample,
   sample.death_data().Write(output);
   if (!(combined_selectors_ & BIRTH_THREAD) ||
       !(combined_selectors_ & DEATH_THREAD))
-    StringAppendF(output, "%s->%s ",
-                  (combined_selectors_ & BIRTH_THREAD) ? "*" :
-                    sample.birth().birth_thread()->ThreadName().c_str(),
-                  (combined_selectors_ & DEATH_THREAD) ? "*" :
-                    sample.DeathThreadName().c_str());
+    base::StringAppendF(output, "%s->%s ",
+                        (combined_selectors_ & BIRTH_THREAD) ? "*" :
+                          sample.birth().birth_thread()->ThreadName().c_str(),
+                        (combined_selectors_ & DEATH_THREAD) ? "*" :
+                          sample.DeathThreadName().c_str());
   sample.birth().location().Write(!(combined_selectors_ & BIRTH_FILE),
                                   !(combined_selectors_ & BIRTH_FUNCTION),
                                   output);
