@@ -399,6 +399,11 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
   const int kPortnum = 5555;
   HostResolver::RequestInfo info("2001:db8::1", kPortnum);
   int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, BoundNetLog());
+  // On computers without IPv6 support, getaddrinfo cannot convert IPv6
+  // address literals to addresses (getaddrinfo returns EAI_NONAME).  So this
+  // test has to allow host_resolver->Resolve to fail.
+  if (err == ERR_NAME_NOT_RESOLVED)
+    return;
   EXPECT_EQ(OK, err);
 
   const struct addrinfo* ainfo = adrlist.head();
