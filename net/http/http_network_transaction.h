@@ -84,7 +84,7 @@ class HttpNetworkTransaction : public HttpTransaction {
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, ResetStateForRestart);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdate);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateReceived);
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateOverflow);
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, FlowControlStallResume);
 
