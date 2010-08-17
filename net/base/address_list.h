@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/ref_counted.h"
+#include "net/base/net_util.h"
 
 struct addrinfo;
 
@@ -20,6 +21,11 @@ class AddressList {
  public:
   // Constructs an empty address list.
   AddressList() {}
+
+  // Constructs an address list for a single IP literal.  If
+  // |canonicalize_name| is true, fill the ai_canonname field with the
+  // canonicalized IP address.
+  AddressList(const IPAddressNumber& address, int port, bool canonicalize_name);
 
   // Adopt the given addrinfo list in place of the existing one if any.  This
   // hands over responsibility for freeing the addrinfo list to the AddressList
@@ -59,20 +65,6 @@ class AddressList {
   // Clears all data from this address list. This leaves the list in the same
   // empty state as when first constructed.
   void Reset();
-
-  // Used by unit-tests to manually create an IPv4 AddressList. |data| should
-  // be an IPv4 address in network order (big endian).
-  // If |canonical_name| is non-empty, it will be duplicated in the
-  // ai_canonname field of the addrinfo struct.
-  static AddressList CreateIPv4Address(unsigned char data[4],
-                                       const std::string& canonical_name);
-
-  // Used by unit-tests to manually create an IPv6 AddressList. |data| should
-  // be an IPv6 address in network order (big endian).
-  // If |canonical_name| is non-empty, it will be duplicated in the
-  // ai_canonname field of the addrinfo struct.
-  static AddressList CreateIPv6Address(unsigned char data[16],
-                                       const std::string& canonical_name);
 
   // Get access to the head of the addrinfo list.
   const struct addrinfo* head() const { return data_->head; }
