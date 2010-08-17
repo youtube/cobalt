@@ -52,9 +52,6 @@ struct TupleTraits<P&> {
   typedef P& ParamType;
 };
 
-template <class P>
-struct TupleTypes { };
-
 // Tuple -----------------------------------------------------------------------
 //
 // This set of classes is useful for bundling 0 or more heterogeneous data types
@@ -79,6 +76,9 @@ template <class A>
 struct Tuple1 {
  public:
   typedef A TypeA;
+  typedef Tuple1<typename TupleTraits<A>::ValueType> ValueTuple;
+  typedef Tuple1<typename TupleTraits<A>::RefType> RefTuple;
+  typedef Tuple1<typename TupleTraits<A>::ParamType> ParamTuple;
 
   Tuple1() {}
   explicit Tuple1(typename TupleTraits<A>::ParamType a) : a(a) {}
@@ -91,6 +91,12 @@ struct Tuple2 {
  public:
   typedef A TypeA;
   typedef B TypeB;
+  typedef Tuple2<typename TupleTraits<A>::ValueType,
+                 typename TupleTraits<B>::ValueType> ValueTuple;
+  typedef Tuple2<typename TupleTraits<A>::RefType,
+                 typename TupleTraits<B>::RefType> RefTuple;
+  typedef Tuple2<typename TupleTraits<A>::ParamType,
+                 typename TupleTraits<B>::ParamType> ParamTuple;
 
   Tuple2() {}
   Tuple2(typename TupleTraits<A>::ParamType a,
@@ -108,6 +114,15 @@ struct Tuple3 {
   typedef A TypeA;
   typedef B TypeB;
   typedef C TypeC;
+  typedef Tuple3<typename TupleTraits<A>::ValueType,
+                 typename TupleTraits<B>::ValueType,
+                 typename TupleTraits<C>::ValueType> ValueTuple;
+  typedef Tuple3<typename TupleTraits<A>::RefType,
+                 typename TupleTraits<B>::RefType,
+                 typename TupleTraits<C>::RefType> RefTuple;
+  typedef Tuple3<typename TupleTraits<A>::ParamType,
+                 typename TupleTraits<B>::ParamType,
+                 typename TupleTraits<C>::ParamType> ParamTuple;
 
   Tuple3() {}
   Tuple3(typename TupleTraits<A>::ParamType a,
@@ -128,6 +143,18 @@ struct Tuple4 {
   typedef B TypeB;
   typedef C TypeC;
   typedef D TypeD;
+  typedef Tuple4<typename TupleTraits<A>::ValueType,
+                 typename TupleTraits<B>::ValueType,
+                 typename TupleTraits<C>::ValueType,
+                 typename TupleTraits<D>::ValueType> ValueTuple;
+  typedef Tuple4<typename TupleTraits<A>::RefType,
+                 typename TupleTraits<B>::RefType,
+                 typename TupleTraits<C>::RefType,
+                 typename TupleTraits<D>::RefType> RefTuple;
+  typedef Tuple4<typename TupleTraits<A>::ParamType,
+                 typename TupleTraits<B>::ParamType,
+                 typename TupleTraits<C>::ParamType,
+                 typename TupleTraits<D>::ParamType> ParamTuple;
 
   Tuple4() {}
   Tuple4(typename TupleTraits<A>::ParamType a,
@@ -151,6 +178,21 @@ struct Tuple5 {
   typedef C TypeC;
   typedef D TypeD;
   typedef E TypeE;
+  typedef Tuple5<typename TupleTraits<A>::ValueType,
+    typename TupleTraits<B>::ValueType,
+    typename TupleTraits<C>::ValueType,
+    typename TupleTraits<D>::ValueType,
+    typename TupleTraits<E>::ValueType> ValueTuple;
+  typedef Tuple5<typename TupleTraits<A>::RefType,
+    typename TupleTraits<B>::RefType,
+    typename TupleTraits<C>::RefType,
+    typename TupleTraits<D>::RefType,
+    typename TupleTraits<E>::RefType> RefTuple;
+  typedef Tuple5<typename TupleTraits<A>::ParamType,
+    typename TupleTraits<B>::ParamType,
+    typename TupleTraits<C>::ParamType,
+    typename TupleTraits<D>::ParamType,
+    typename TupleTraits<E>::ParamType> ParamTuple;
 
   Tuple5() {}
   Tuple5(typename TupleTraits<A>::ParamType a,
@@ -177,6 +219,24 @@ struct Tuple6 {
   typedef D TypeD;
   typedef E TypeE;
   typedef F TypeF;
+  typedef Tuple6<typename TupleTraits<A>::ValueType,
+    typename TupleTraits<B>::ValueType,
+    typename TupleTraits<C>::ValueType,
+    typename TupleTraits<D>::ValueType,
+    typename TupleTraits<E>::ValueType,
+    typename TupleTraits<F>::ValueType> ValueTuple;
+  typedef Tuple6<typename TupleTraits<A>::RefType,
+    typename TupleTraits<B>::RefType,
+    typename TupleTraits<C>::RefType,
+    typename TupleTraits<D>::RefType,
+    typename TupleTraits<E>::RefType,
+    typename TupleTraits<F>::RefType> RefTuple;
+  typedef Tuple6<typename TupleTraits<A>::ParamType,
+    typename TupleTraits<B>::ParamType,
+    typename TupleTraits<C>::ParamType,
+    typename TupleTraits<D>::ParamType,
+    typename TupleTraits<E>::ParamType,
+    typename TupleTraits<F>::ParamType> ParamTuple;
 
   Tuple6() {}
   Tuple6(typename TupleTraits<A>::ParamType a,
@@ -206,6 +266,27 @@ struct Tuple7 {
   typedef E TypeE;
   typedef F TypeF;
   typedef G TypeG;
+  typedef Tuple7<typename TupleTraits<A>::ValueType,
+    typename TupleTraits<B>::ValueType,
+    typename TupleTraits<C>::ValueType,
+    typename TupleTraits<D>::ValueType,
+    typename TupleTraits<E>::ValueType,
+    typename TupleTraits<F>::ValueType,
+    typename TupleTraits<G>::ValueType> ValueTuple;
+  typedef Tuple7<typename TupleTraits<A>::RefType,
+    typename TupleTraits<B>::RefType,
+    typename TupleTraits<C>::RefType,
+    typename TupleTraits<D>::RefType,
+    typename TupleTraits<E>::RefType,
+    typename TupleTraits<F>::RefType,
+    typename TupleTraits<G>::RefType> RefTuple;
+  typedef Tuple7<typename TupleTraits<A>::ParamType,
+    typename TupleTraits<B>::ParamType,
+    typename TupleTraits<C>::ParamType,
+    typename TupleTraits<D>::ParamType,
+    typename TupleTraits<E>::ParamType,
+    typename TupleTraits<F>::ParamType,
+    typename TupleTraits<G>::ParamType> ParamTuple;
 
   Tuple7() {}
   Tuple7(typename TupleTraits<A>::ParamType a,
@@ -239,6 +320,30 @@ struct Tuple8 {
   typedef F TypeF;
   typedef G TypeG;
   typedef H TypeH;
+  typedef Tuple8<typename TupleTraits<A>::ValueType,
+    typename TupleTraits<B>::ValueType,
+    typename TupleTraits<C>::ValueType,
+    typename TupleTraits<D>::ValueType,
+    typename TupleTraits<E>::ValueType,
+    typename TupleTraits<F>::ValueType,
+    typename TupleTraits<G>::ValueType,
+    typename TupleTraits<H>::ValueType> ValueTuple;
+  typedef Tuple8<typename TupleTraits<A>::RefType,
+    typename TupleTraits<B>::RefType,
+    typename TupleTraits<C>::RefType,
+    typename TupleTraits<D>::RefType,
+    typename TupleTraits<E>::RefType,
+    typename TupleTraits<F>::RefType,
+    typename TupleTraits<G>::RefType,
+    typename TupleTraits<H>::RefType> RefTuple;
+  typedef Tuple8<typename TupleTraits<A>::ParamType,
+    typename TupleTraits<B>::ParamType,
+    typename TupleTraits<C>::ParamType,
+    typename TupleTraits<D>::ParamType,
+    typename TupleTraits<E>::ParamType,
+    typename TupleTraits<F>::ParamType,
+    typename TupleTraits<G>::ParamType,
+    typename TupleTraits<H>::ParamType> ParamTuple;
 
   Tuple8() {}
   Tuple8(typename TupleTraits<A>::ParamType a,
@@ -260,159 +365,6 @@ struct Tuple8 {
   F f;
   G g;
   H h;
-};
-
-// Tuple types ----------------------------------------------------------------
-//
-// Allows for selection of ValueTuple/RefTuple/ParamTuple without needing the
-// definitions of class types the tuple takes as parameters.
-
-template <>
-struct TupleTypes< Tuple0 > {
-  typedef Tuple0 ValueTuple;
-  typedef Tuple0 RefTuple;
-  typedef Tuple0 ParamTuple;
-};
-
-template <class A>
-struct TupleTypes< Tuple1<A> > {
-  typedef Tuple1<typename TupleTraits<A>::ValueType> ValueTuple;
-  typedef Tuple1<typename TupleTraits<A>::RefType> RefTuple;
-  typedef Tuple1<typename TupleTraits<A>::ParamType> ParamTuple;
-};
-
-template <class A, class B>
-struct TupleTypes< Tuple2<A, B> > {
-  typedef Tuple2<typename TupleTraits<A>::ValueType,
-                 typename TupleTraits<B>::ValueType> ValueTuple;
-typedef Tuple2<typename TupleTraits<A>::RefType,
-               typename TupleTraits<B>::RefType> RefTuple;
-  typedef Tuple2<typename TupleTraits<A>::ParamType,
-                 typename TupleTraits<B>::ParamType> ParamTuple;
-};
-
-template <class A, class B, class C>
-struct TupleTypes< Tuple3<A, B, C> > {
-  typedef Tuple3<typename TupleTraits<A>::ValueType,
-                 typename TupleTraits<B>::ValueType,
-                 typename TupleTraits<C>::ValueType> ValueTuple;
-typedef Tuple3<typename TupleTraits<A>::RefType,
-               typename TupleTraits<B>::RefType,
-               typename TupleTraits<C>::RefType> RefTuple;
-  typedef Tuple3<typename TupleTraits<A>::ParamType,
-                 typename TupleTraits<B>::ParamType,
-                 typename TupleTraits<C>::ParamType> ParamTuple;
-};
-
-template <class A, class B, class C, class D>
-struct TupleTypes< Tuple4<A, B, C, D> > {
-  typedef Tuple4<typename TupleTraits<A>::ValueType,
-                 typename TupleTraits<B>::ValueType,
-                 typename TupleTraits<C>::ValueType,
-                 typename TupleTraits<D>::ValueType> ValueTuple;
-typedef Tuple4<typename TupleTraits<A>::RefType,
-               typename TupleTraits<B>::RefType,
-               typename TupleTraits<C>::RefType,
-               typename TupleTraits<D>::RefType> RefTuple;
-  typedef Tuple4<typename TupleTraits<A>::ParamType,
-                 typename TupleTraits<B>::ParamType,
-                 typename TupleTraits<C>::ParamType,
-                 typename TupleTraits<D>::ParamType> ParamTuple;
-};
-
-template <class A, class B, class C, class D, class E>
-struct TupleTypes< Tuple5<A, B, C, D, E> > {
-  typedef Tuple5<typename TupleTraits<A>::ValueType,
-                 typename TupleTraits<B>::ValueType,
-                 typename TupleTraits<C>::ValueType,
-                 typename TupleTraits<D>::ValueType,
-                 typename TupleTraits<E>::ValueType> ValueTuple;
-typedef Tuple5<typename TupleTraits<A>::RefType,
-               typename TupleTraits<B>::RefType,
-               typename TupleTraits<C>::RefType,
-               typename TupleTraits<D>::RefType,
-               typename TupleTraits<E>::RefType> RefTuple;
-  typedef Tuple5<typename TupleTraits<A>::ParamType,
-                 typename TupleTraits<B>::ParamType,
-                 typename TupleTraits<C>::ParamType,
-                 typename TupleTraits<D>::ParamType,
-                 typename TupleTraits<E>::ParamType> ParamTuple;
-};
-
-template <class A, class B, class C, class D, class E, class F>
-struct TupleTypes< Tuple6<A, B, C, D, E, F> > {
-  typedef Tuple6<typename TupleTraits<A>::ValueType,
-                 typename TupleTraits<B>::ValueType,
-                 typename TupleTraits<C>::ValueType,
-                 typename TupleTraits<D>::ValueType,
-                 typename TupleTraits<E>::ValueType,
-                 typename TupleTraits<F>::ValueType> ValueTuple;
-typedef Tuple6<typename TupleTraits<A>::RefType,
-               typename TupleTraits<B>::RefType,
-               typename TupleTraits<C>::RefType,
-               typename TupleTraits<D>::RefType,
-               typename TupleTraits<E>::RefType,
-               typename TupleTraits<F>::RefType> RefTuple;
-  typedef Tuple6<typename TupleTraits<A>::ParamType,
-                 typename TupleTraits<B>::ParamType,
-                 typename TupleTraits<C>::ParamType,
-                 typename TupleTraits<D>::ParamType,
-                 typename TupleTraits<E>::ParamType,
-                 typename TupleTraits<F>::ParamType> ParamTuple;
-};
-
-template <class A, class B, class C, class D, class E, class F, class G>
-struct TupleTypes< Tuple7<A, B, C, D, E, F, G> > {
-  typedef Tuple7<typename TupleTraits<A>::ValueType,
-                 typename TupleTraits<B>::ValueType,
-                 typename TupleTraits<C>::ValueType,
-                 typename TupleTraits<D>::ValueType,
-                 typename TupleTraits<E>::ValueType,
-                 typename TupleTraits<F>::ValueType,
-                 typename TupleTraits<G>::ValueType> ValueTuple;
-typedef Tuple7<typename TupleTraits<A>::RefType,
-               typename TupleTraits<B>::RefType,
-               typename TupleTraits<C>::RefType,
-               typename TupleTraits<D>::RefType,
-               typename TupleTraits<E>::RefType,
-               typename TupleTraits<F>::RefType,
-               typename TupleTraits<G>::RefType> RefTuple;
-  typedef Tuple7<typename TupleTraits<A>::ParamType,
-                 typename TupleTraits<B>::ParamType,
-                 typename TupleTraits<C>::ParamType,
-                 typename TupleTraits<D>::ParamType,
-                 typename TupleTraits<E>::ParamType,
-                 typename TupleTraits<F>::ParamType,
-                 typename TupleTraits<G>::ParamType> ParamTuple;
-};
-
-template <class A, class B, class C, class D, class E, class F, class G,
-          class H>
-struct TupleTypes< Tuple8<A, B, C, D, E, F, G, H> > {
-  typedef Tuple8<typename TupleTraits<A>::ValueType,
-                 typename TupleTraits<B>::ValueType,
-                 typename TupleTraits<C>::ValueType,
-                 typename TupleTraits<D>::ValueType,
-                 typename TupleTraits<E>::ValueType,
-                 typename TupleTraits<F>::ValueType,
-                 typename TupleTraits<G>::ValueType,
-                 typename TupleTraits<H>::ValueType> ValueTuple;
-typedef Tuple8<typename TupleTraits<A>::RefType,
-               typename TupleTraits<B>::RefType,
-               typename TupleTraits<C>::RefType,
-               typename TupleTraits<D>::RefType,
-               typename TupleTraits<E>::RefType,
-               typename TupleTraits<F>::RefType,
-               typename TupleTraits<G>::RefType,
-               typename TupleTraits<H>::RefType> RefTuple;
-  typedef Tuple8<typename TupleTraits<A>::ParamType,
-                 typename TupleTraits<B>::ParamType,
-                 typename TupleTraits<C>::ParamType,
-                 typename TupleTraits<D>::ParamType,
-                 typename TupleTraits<E>::ParamType,
-                 typename TupleTraits<F>::ParamType,
-                 typename TupleTraits<G>::ParamType,
-                 typename TupleTraits<H>::ParamType> ParamTuple;
 };
 
 // Tuple creators -------------------------------------------------------------
