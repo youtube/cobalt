@@ -11,12 +11,10 @@
 #include <vector>
 
 #include "base/scoped_ptr.h"
-#include "base/string_util.h"
 #include "base/string16.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 #include "net/http/http_request_info.h"
-#include "net/request_throttler/request_throttler_manager.h"
 #include "net/url_request/url_request_job.h"
 
 namespace net {
@@ -114,9 +112,6 @@ class URLRequestHttpJob : public URLRequestJob {
   GURL sdch_dictionary_url_;
 
   scoped_ptr<net::HttpTransaction> transaction_;
-
-  // This is used to supervise traffic and enforce exponential back-off.
-  scoped_refptr<RequestThrottlerEntryInterface> throttling_entry_;
 
   // Indicated if an SDCH dictionary was advertised, and hence an SDCH
   // compressed response is expected.  We use this to help detect (accidental?)

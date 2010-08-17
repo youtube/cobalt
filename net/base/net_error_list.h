@@ -171,10 +171,6 @@ NET_ERROR(SSL_UNSAFE_NEGOTIATION, -128)
 // The SSL server is using a weak cryptographic key.
 NET_ERROR(SSL_WEAK_SERVER_KEY, -129)
 
-// The request throttler module cancelled this request because the are too many
-// requests to a server that is failing requests.
-NET_ERROR(TEMPORARILY_THROTTLED_BY_DDOS, -130)
-
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
