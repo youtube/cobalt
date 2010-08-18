@@ -652,27 +652,27 @@ DataUnits GetByteDisplayUnits(int64 bytes) {
 
 // TODO(mpcomplete): deal with locale
 // Byte suffixes.  This must match the DataUnits enum.
-static const char* const kByteStrings[] = {
-  "B",
-  "kB",
-  "MB",
-  "GB"
+static const wchar_t* const kByteStrings[] = {
+  L"B",
+  L"kB",
+  L"MB",
+  L"GB"
 };
 
-static const char* const kSpeedStrings[] = {
-  "B/s",
-  "kB/s",
-  "MB/s",
-  "GB/s"
+static const wchar_t* const kSpeedStrings[] = {
+  L"B/s",
+  L"kB/s",
+  L"MB/s",
+  L"GB/s"
 };
 
-string16 FormatBytesInternal(int64 bytes,
-                             DataUnits units,
-                             bool show_units,
-                             const char* const* suffix) {
+std::wstring FormatBytesInternal(int64 bytes,
+                                 DataUnits units,
+                                 bool show_units,
+                                 const wchar_t* const* suffix) {
   if (bytes < 0) {
     NOTREACHED() << "Negative bytes value";
-    return string16();
+    return std::wstring();
   }
 
   DCHECK(units >= DATA_UNITS_BYTE && units <= DATA_UNITS_GIBIBYTE);
@@ -682,26 +682,26 @@ string16 FormatBytesInternal(int64 bytes,
   for (int i = 0; i < units; ++i)
     unit_amount /= 1024.0;
 
-  char buf[64];
+  wchar_t buf[64];
   if (bytes != 0 && units != DATA_UNITS_BYTE && unit_amount < 100)
-    base::snprintf(buf, arraysize(buf), "%.1lf", unit_amount);
+    base::swprintf(buf, arraysize(buf), L"%.1lf", unit_amount);
   else
-    base::snprintf(buf, arraysize(buf), "%.0lf", unit_amount);
+    base::swprintf(buf, arraysize(buf), L"%.0lf", unit_amount);
 
-  std::string ret(buf);
+  std::wstring ret(buf);
   if (show_units) {
-    ret += " ";
+    ret += L" ";
     ret += suffix[units];
   }
 
-  return ASCIIToUTF16(ret);
+  return ret;
 }
 
-string16 FormatBytes(int64 bytes, DataUnits units, bool show_units) {
+std::wstring FormatBytes(int64 bytes, DataUnits units, bool show_units) {
   return FormatBytesInternal(bytes, units, show_units, kByteStrings);
 }
 
-string16 FormatSpeed(int64 bytes, DataUnits units, bool show_units) {
+std::wstring FormatSpeed(int64 bytes, DataUnits units, bool show_units) {
   return FormatBytesInternal(bytes, units, show_units, kSpeedStrings);
 }
 
