@@ -106,7 +106,7 @@ inline ::testing::AssertionResult LogContainsEntryWithType(
 
 
 // Expect that the log contains an event, but don't care about where
-// as long as the first index where it is found is at least |min_index|.
+// as long as the index where it is found is greater than min_index.
 // Returns the position where the event was found.
 inline size_t ExpectLogContainsSomewhere(
     const CapturingNetLog::EntryList& entries,
@@ -122,25 +122,6 @@ inline size_t ExpectLogContainsSomewhere(
   }
   EXPECT_LT(i, entries.size());
   EXPECT_GE(i, min_index);
-  return i;
-}
-
-// Expect that the log contains an event, but don't care about where
-// as long as one index where it is found is at least |min_index|.
-// Returns the first such position where the event was found.
-inline size_t ExpectLogContainsSomewhereAfter(
-    const CapturingNetLog::EntryList& entries,
-    size_t min_index,
-    NetLog::EventType expected_event,
-    NetLog::EventPhase expected_phase) {
-  size_t i = min_index;
-  for (; i < entries.size(); ++i) {
-    const CapturingNetLog::Entry& entry = entries[i];
-    if (entry.type == expected_event &&
-        entry.phase == expected_phase)
-      break;
-  }
-  EXPECT_LT(i, entries.size());
   return i;
 }
 
