@@ -208,6 +208,11 @@
             '../icu/icu.gyp:icui18n',
             '../icu/icu.gyp:icuuc',
           ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              '.',
+            ],
+          },
           'msvs_disabled_warnings': [
               4018, 4244,
           ],
