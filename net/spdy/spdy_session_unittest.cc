@@ -69,10 +69,10 @@ TEST_F(SpdySessionTest, GoAway) {
   };
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   data.set_connect_data(connect_data);
-  session_deps.socket_factory.AddSocketDataProvider(&data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(false, OK);
-  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
       SpdySessionDependencies::SpdyCreateSession(&session_deps));
