@@ -27,7 +27,8 @@ class SSLClientSocketTest : public PlatformTest {
  public:
   SSLClientSocketTest()
       : resolver_(net::CreateSystemHostResolver(
-            net::HostResolver::kDefaultParallelism)),
+            net::HostResolver::kDefaultParallelism,
+            NULL)),
         socket_factory_(net::ClientSocketFactory::GetDefaultFactory()) {
   }
 
