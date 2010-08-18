@@ -763,8 +763,12 @@ int HttpNetworkTransaction::DoInitConnection() {
         authentication_url = UpgradeUrlToHttps(authentication_url);
       }
       establishing_tunnel_ = using_ssl_;
+      std::string user_agent;
+      request_->extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
+                                        &user_agent);
       http_proxy_params = new HttpProxySocketParams(proxy_tcp_params,
                                                     authentication_url,
+                                                    user_agent,
                                                     endpoint_,
                                                     session_, using_ssl_);
     } else {

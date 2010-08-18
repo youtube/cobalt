@@ -34,7 +34,9 @@ class HttpProxyClientSocket : public ClientSocket {
   // by the time Connect() is called.  If tunnel is true then on Connect()
   // this socket will establish an Http tunnel.
   HttpProxyClientSocket(ClientSocketHandle* transport_socket,
-                        const GURL& request_url, const HostPortPair& endpoint,
+                        const GURL& request_url,
+                        const std::string& user_agent,
+                        const HostPortPair& endpoint,
                         const HostPortPair& proxy_server,
                         const scoped_refptr<HttpNetworkSession>& session,
                         bool tunnel);

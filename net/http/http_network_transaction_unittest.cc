@@ -3575,6 +3575,44 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_UserAgent) {
   EXPECT_EQ(OK, rv);
 }
 
+TEST_F(HttpNetworkTransactionTest, BuildRequest_UserAgentOverTunnel) {
+  SessionDependencies session_deps(CreateFixedProxyService("myproxy:70"));
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.extra_headers.SetHeader(HttpRequestHeaders::kUserAgent,
+                                  "Chromium Ultra Awesome X Edition");
+
+  MockWrite data_writes[] = {
+    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "User-Agent: Chromium Ultra Awesome X Edition\r\n\r\n"),
+  };
+  MockRead data_reads[] = {
+    // Return an error, so the transaction stops here (this test isn't
+    // interested in the rest).
+    MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"),
+    MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
+    MockRead("Proxy-Connection: close\r\n\r\n"),
+  };
+
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads),
+                                data_writes, arraysize(data_writes));
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+}
+
 TEST_F(HttpNetworkTransactionTest, BuildRequest_Referer) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(

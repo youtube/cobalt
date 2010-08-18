@@ -46,10 +46,10 @@ class HttpProxyClientSocketPoolTest : public ClientSocketPoolTest {
                                         NULL,
                                         NULL)),
         notunnel_socket_params_(new HttpProxySocketParams(
-              ignored_tcp_socket_params_, GURL("http://host"),
+              ignored_tcp_socket_params_, GURL("http://host"), "",
               HostPortPair("host", 80), NULL, false)),
         tunnel_socket_params_(new HttpProxySocketParams(
-              ignored_tcp_socket_params_, GURL("http://host"),
+              ignored_tcp_socket_params_, GURL("http://host"), "",
               HostPortPair("host", 80), session_, true)),
         http_proxy_histograms_(
             new ClientSocketPoolHistograms("HttpProxyUnitTest")),
