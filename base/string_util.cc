@@ -652,27 +652,27 @@ DataUnits GetByteDisplayUnits(int64 bytes) {
 
 // TODO(mpcomplete): deal with locale
 // Byte suffixes.  This must match the DataUnits enum.
-static const wchar_t* const kByteStrings[] = {
-  L"B",
-  L"kB",
-  L"MB",
-  L"GB"
+static const char* const kByteStrings[] = {
+  "B",
+  "kB",
+  "MB",
+  "GB"
 };
 
-static const wchar_t* const kSpeedStrings[] = {
-  L"B/s",
-  L"kB/s",
-  L"MB/s",
-  L"GB/s"
+static const char* const kSpeedStrings[] = {
+  "B/s",
+  "kB/s",
+  "MB/s",
+  "GB/s"
 };
 
-std::wstring FormatBytesInternal(int64 bytes,
-                                 DataUnits units,
-                                 bool show_units,
-                                 const wchar_t* const* suffix) {
+string16 FormatBytesInternal(int64 bytes,
+                             DataUnits units,
+                             bool show_units,
+                             const char* const* suffix) {
   if (bytes < 0) {
     NOTREACHED() << "Negative bytes value";
-    return std::wstring();
+    return string16();
   }
 
   DCHECK(units >= DATA_UNITS_BYTE && units <= DATA_UNITS_GIBIBYTE);
@@ -682,26 +682,26 @@ std::wstring FormatBytesInternal(int64 bytes,
   for (int i = 0; i < units; ++i)
     unit_amount /= 1024.0;
 
-  wchar_t buf[64];
+  char buf[64];
   if (bytes != 0 && units != DATA_UNITS_BYTE && unit_amount < 100)
-    base::swprintf(buf, arraysize(buf), L"%.1lf", unit_amount);
+    base::snprintf(buf, arraysize(buf), "%.1lf", unit_amount);
   else
-    base::swprintf(buf, arraysize(buf), L"%.0lf", unit_amount);
+    base::snprintf(buf, arraysize(buf), "%.0lf", unit_amount);
 
-  std::wstring ret(buf);
+  std::string ret(buf);
   if (show_units) {
-    ret += L" ";
+    ret += " ";
     ret += suffix[units];
   }
 
-  return ret;
+  return ASCIIToUTF16(ret);
 }
 
-std::wstring FormatBytes(int64 bytes, DataUnits units, bool show_units) {
+string16 FormatBytes(int64 bytes, DataUnits units, bool show_units) {
   return FormatBytesInternal(bytes, units, show_units, kByteStrings);
 }
 
-std::wstring FormatSpeed(int64 bytes, DataUnits units, bool show_units) {
+string16 FormatSpeed(int64 bytes, DataUnits units, bool show_units) {
   return FormatBytesInternal(bytes, units, show_units, kSpeedStrings);
 }
 
