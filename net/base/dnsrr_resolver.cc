@@ -8,6 +8,8 @@
 #include <resolv.h>
 #endif
 
+#include "base/message_loop.h"
+#include "base/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "base/task.h"
 #include "base/worker_pool.h"
@@ -19,7 +21,159 @@ namespace net {
 
 static const uint16 kClassIN = 1;
 
+namespace {
+
+class CompletionCallbackTask : public Task,
+                               public MessageLoop::DestructionObserver {
+ public:
+  explicit CompletionCallbackTask(CompletionCallback* callback,
+                                  MessageLoop* ml)
+      : callback_(callback),
+        rv_(OK),
+        posted_(false),
+        message_loop_(ml) {
+    ml->AddDestructionObserver(this);
+  }
+
+  void set_rv(int rv) {
+    rv_ = rv;
+  }
+
+  void Post() {
+    AutoLock locked(lock_);
+    DCHECK(!posted_);
+
+    if (!message_loop_) {
+      // MessageLoop got deleted, nothing to do.
+      delete this;
+      return;
+    }
+    posted_ = true;
+    message_loop_->PostTask(FROM_HERE, this);
+  }
+
+  // Task interface
+  void Run() {
+    message_loop_->RemoveDestructionObserver(this);
+    callback_->Run(rv_);
+    // We will be deleted by the message loop.
+  }
+
+  // DestructionObserver interface
+  virtual void WillDestroyCurrentMessageLoop() {
+    AutoLock locked(lock_);
+    message_loop_ = NULL;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CompletionCallbackTask);
+
+  CompletionCallback* callback_;
+  int rv_;
+  bool posted_;
+
+  Lock lock_;  // covers |message_loop_|
+  MessageLoop* message_loop_;
+};
+
 #if defined(OS_POSIX)
+class ResolveTask : public Task {
+ public:
+  ResolveTask(const std::string& name, uint16 rrtype,
+              uint16 flags, CompletionCallback* callback,
+              RRResponse* response, MessageLoop* ml)
+      : name_(name),
+        rrtype_(rrtype),
+        flags_(flags),
+        subtask_(new CompletionCallbackTask(callback, ml)),
+        response_(response) {
+  }
+
+  virtual void Run() {
+    // Runs on a worker thread.
+
+    bool r = true;
+    if ((_res.options & RES_INIT) == 0) {
+      if (res_ninit(&_res) != 0)
+        r = false;
+    }
+
+    if (r) {
+      unsigned long saved_options = _res.options;
+      r = Do();
+
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
+      if (!r && DnsReloadTimerHasExpired()) {
+        res_nclose(&_res);
+        if (res_ninit(&_res) == 0)
+          r = Do();
+      }
+#endif
+      _res.options = saved_options;
+    }
+    int error = r ? OK : ERR_NAME_NOT_RESOLVED;
+
+    subtask_->set_rv(error);
+    subtask_.release()->Post();
+  }
+
+  bool Do() {
+    // For DNSSEC, a 4K buffer is suggested
+    static const unsigned kMaxDNSPayload = 4096;
+
+#ifndef RES_USE_DNSSEC
+    // Some versions of libresolv don't have support for the DO bit. In this
+    // case, we proceed without it.
+    static const int RES_USE_DNSSEC = 0;
+#endif
+
+#ifndef RES_USE_EDNS0
+    // Some versions of glibc are so old that they don't support EDNS0 either.
+    // http://code.google.com/p/chromium/issues/detail?id=51676
+    static const int RES_USE_EDNS0 = 0;
+#endif
+
+    // We set the options explicitly. Note that this removes several default
+    // options: RES_DEFNAMES and RES_DNSRCH (see res_init(3)).
+    _res.options = RES_INIT | RES_RECURSE | RES_USE_EDNS0 | RES_USE_DNSSEC;
+    uint8 answer[kMaxDNSPayload];
+    int len = res_search(name_.c_str(), kClassIN, rrtype_, answer,
+                         sizeof(answer));
+    if (len == -1)
+      return false;
+
+    return response_->ParseFromResponse(answer, len, rrtype_);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ResolveTask);
+
+  const std::string name_;
+  const uint16 rrtype_;
+  const uint16 flags_;
+  scoped_ptr<CompletionCallbackTask> subtask_;
+  RRResponse* const response_;
+};
+#else  // OS_POSIX
+// On non-Linux platforms we fail everything for now.
+class ResolveTask : public Task {
+ public:
+  ResolveTask(const std::string& name, uint16 rrtype,
+              uint16 flags, CompletionCallback* callback,
+              RRResponse* response, MessageLoop* ml)
+      : subtask_(new CompletionCallbackTask(callback, ml)) {
+  }
+
+  virtual void Run() {
+    subtask_->set_rv(ERR_NAME_NOT_RESOLVED);
+    subtask_->Post();
+  }
+
+ private:
+  CompletionCallbackTask* const subtask_;
+  DISALLOW_COPY_AND_ASSIGN(ResolveTask);
+};
+#endif
 
 // A Buffer is used for walking over a DNS packet.
 class Buffer {
@@ -147,14 +301,19 @@ class Buffer {
   }
 
  private:
+  DISALLOW_COPY_AND_ASSIGN(Buffer);
+
   const uint8* p_;
   const uint8* const packet_;
   unsigned len_;
   const unsigned packet_len_;
 };
 
-bool DnsRRResolver::Response::ParseFromResponse(const uint8* p, unsigned len,
-                                                uint16 rrtype_requested) {
+}  // anonymous namespace
+
+bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
+                                   uint16 rrtype_requested) {
+#if defined(OS_POSIX)
   name.clear();
   ttl = 0;
   dnssec = false;
@@ -232,110 +391,16 @@ bool DnsRRResolver::Response::ParseFromResponse(const uint8* p, unsigned len,
       signatures.push_back(std::string(rrdata.data(), rrdata.size()));
     }
   }
+#endif  // defined(OS_POSIX)
 
   return true;
 }
 
-class ResolveTask : public Task {
- public:
-  ResolveTask(const std::string& name, uint16 rrtype,
-              uint16 flags, CompletionCallback* callback,
-              DnsRRResolver::Response* response)
-      : name_(name),
-        rrtype_(rrtype),
-        flags_(flags),
-        callback_(callback),
-        response_(response) {
-  }
-
-  virtual void Run() {
-    // Runs on a worker thread.
-
-    if ((_res.options & RES_INIT) == 0) {
-      if (res_ninit(&_res) != 0)
-        return Failure();
-    }
-
-    unsigned long saved_options = _res.options;
-    bool r = Do();
-
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-    if (!r && DnsReloadTimerHasExpired()) {
-      res_nclose(&_res);
-      if (res_ninit(&_res) == 0)
-        r = Do();
-    }
-#endif
-    _res.options = saved_options;
-    int error = r ? OK : ERR_NAME_NOT_RESOLVED;
-    callback_->Run(error);
-  }
-
-  bool Do() {
-    // For DNSSEC, a 4K buffer is suggested
-    static const unsigned kMaxDNSPayload = 4096;
-
-#ifndef RES_USE_DNSSEC
-    // Some versions of libresolv don't have support for the DO bit. In this
-    // case, we proceed without it.
-    static const int RES_USE_DNSSEC = 0;
-#endif
-
-#ifndef RES_USE_EDNS0
-    // Some versions of glibc are so old that they don't support EDNS0 either.
-    // http://code.google.com/p/chromium/issues/detail?id=51676
-    static const int RES_USE_EDNS0 = 0;
-#endif
-
-    // We set the options explicitly. Note that this removes several default
-    // options: RES_DEFNAMES and RES_DNSRCH (see res_init(3)).
-    _res.options = RES_INIT | RES_RECURSE | RES_USE_EDNS0 | RES_USE_DNSSEC;
-    uint8 answer[kMaxDNSPayload];
-    int len = res_search(name_.c_str(), kClassIN, rrtype_, answer,
-                         sizeof(answer));
-    if (len == -1)
-      return false;
-
-    return response_->ParseFromResponse(answer, len, rrtype_);
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ResolveTask);
-
-  void Failure() {
-    callback_->Run(ERR_NAME_NOT_RESOLVED);
-  }
-
-  const std::string name_;
-  const uint16 rrtype_;
-  const uint16 flags_;
-  CompletionCallback* const callback_;
-  DnsRRResolver::Response* const response_;
-};
-#else  // OS_POSIX
-// On non-Linux platforms we fail everything for now.
-class ResolveTask : public Task {
- public:
-  ResolveTask(const std::string& name, uint16 rrtype,
-              uint16 flags, CompletionCallback* callback,
-              DnsRRResolver::Response* response)
-      : callback_(callback) {
-  }
-
-  virtual void Run() {
-    callback_->Run(ERR_NAME_NOT_RESOLVED);
-  }
-
- private:
-  CompletionCallback* const callback_;
-  DISALLOW_COPY_AND_ASSIGN(ResolveTask);
-};
-#endif
 
 // static
 bool DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
                             uint16 flags, CompletionCallback* callback,
-                            Response* response) {
+                            RRResponse* response) {
   if (!callback || !response || name.empty())
     return false;
 
@@ -343,7 +408,8 @@ bool DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
   if (rrtype == kDNS_ANY)
     return false;
 
-  ResolveTask* task = new ResolveTask(name, rrtype, flags, callback, response);
+  ResolveTask* task = new ResolveTask(name, rrtype, flags, callback, response,
+                                      MessageLoop::current());
 
   return WorkerPool::PostTask(FROM_HERE, task, true /* task is slow */);
 }
