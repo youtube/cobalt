@@ -78,15 +78,14 @@ class HostResolverImpl : public HostResolver,
   // will use. Use SetPoolConstraints() to specify finer-grain settings.
   HostResolverImpl(HostResolverProc* resolver_proc,
                    HostCache* cache,
-                   size_t max_jobs,
-                   NetLog* net_log_);
+                   size_t max_jobs);
 
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& source_net_log);
+                      const BoundNetLog& net_log);
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(HostResolver::Observer* observer);
   virtual void RemoveObserver(HostResolver::Observer* observer);
@@ -156,22 +155,20 @@ class HostResolverImpl : public HostResolver,
                      const AddressList& addrlist);
 
   // Called when a request has just been started.
-  void OnStartRequest(const BoundNetLog& source_net_log,
-                      const BoundNetLog& request_net_log,
+  void OnStartRequest(const BoundNetLog& net_log,
                       int request_id,
                       const RequestInfo& info);
 
   // Called when a request has just completed (before its callback is run).
-  void OnFinishRequest(const BoundNetLog& source_net_log,
-                       const BoundNetLog& request_net_log,
+  void OnFinishRequest(const BoundNetLog& net_log,
                        int request_id,
                        const RequestInfo& info,
                        int net_error,
-                       int os_error);
+                       int os_error,
+                       bool was_from_cache);
 
   // Called when a request has been cancelled.
-  void OnCancelRequest(const BoundNetLog& source_net_log,
-                       const BoundNetLog& request_net_log,
+  void OnCancelRequest(const BoundNetLog& net_log,
                        int request_id,
                        const RequestInfo& info);
 
@@ -258,8 +255,6 @@ class HostResolverImpl : public HostResolver,
 
   // Any resolver flags that should be added to a request by default.
   HostResolverFlags additional_resolver_flags_;
-
-  NetLog* net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(HostResolverImpl);
 };
