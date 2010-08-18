@@ -31,7 +31,9 @@ class TCPSocketParams;
 class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
  public:
   HttpProxySocketParams(const scoped_refptr<TCPSocketParams>& proxy_server,
-                        const GURL& request_url, HostPortPair endpoint,
+                        const GURL& request_url,
+                        const std::string& user_agent,
+                        HostPortPair endpoint,
                         scoped_refptr<HttpNetworkSession> session,
                         bool tunnel);
 
@@ -39,6 +41,7 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
     return tcp_params_;
   }
   const GURL& request_url() const { return request_url_; }
+  const std::string& user_agent() const { return user_agent_; }
   const HostPortPair& endpoint() const { return endpoint_; }
   const scoped_refptr<HttpNetworkSession>& session() {
     return session_;
@@ -51,6 +54,7 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
 
   const scoped_refptr<TCPSocketParams> tcp_params_;
   const GURL request_url_;
+  const std::string user_agent_;
   const HostPortPair endpoint_;
   const scoped_refptr<HttpNetworkSession> session_;
   const bool tunnel_;

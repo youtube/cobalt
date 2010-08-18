@@ -19,11 +19,13 @@ namespace net {
 HttpProxySocketParams::HttpProxySocketParams(
     const scoped_refptr<TCPSocketParams>& proxy_server,
     const GURL& request_url,
+    const std::string& user_agent,
     HostPortPair endpoint,
     scoped_refptr<HttpNetworkSession> session,
     bool tunnel)
     : tcp_params_(proxy_server),
       request_url_(request_url),
+      user_agent_(user_agent),
       endpoint_(endpoint),
       session_(tunnel ? session : NULL),
       tunnel_(tunnel) {
@@ -143,6 +145,7 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
   // Add a HttpProxy connection on top of the tcp socket.
   socket_.reset(new HttpProxyClientSocket(tcp_socket_handle_.release(),
                                           params_->request_url(),
+                                          params_->user_agent(),
                                           params_->endpoint(),
                                           proxy_server,
                                           params_->session(),
