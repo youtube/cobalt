@@ -16,9 +16,8 @@
 namespace {
 
 // Use getaddrinfo() to allocate an addrinfo structure.
-void CreateAddressList(const std::string& hostname,
-                       int port,
-                       net::AddressList* addrlist) {
+int CreateAddressList(const std::string& hostname, int port,
+                      net::AddressList* addrlist) {
 #if defined(OS_WIN)
   net::EnsureWinsockInit();
 #endif
@@ -26,20 +25,21 @@ void CreateAddressList(const std::string& hostname,
                                   net::ADDRESS_FAMILY_UNSPECIFIED,
                                   0,
                                   addrlist, NULL);
-  EXPECT_EQ(0, rv);
-  addrlist->SetPort(port);
+  if (rv == 0)
+    addrlist->SetPort(port);
+  return rv;
 }
 
 void CreateLongAddressList(net::AddressList* addrlist, int port) {
-  CreateAddressList("192.168.1.1", port, addrlist);
+  EXPECT_EQ(0, CreateAddressList("192.168.1.1", port, addrlist));
   net::AddressList second_list;
-  CreateAddressList("192.168.1.2", port, &second_list);
+  EXPECT_EQ(0, CreateAddressList("192.168.1.2", port, &second_list));
   addrlist->Append(second_list.head());
 }
 
 TEST(AddressListTest, GetPort) {
   net::AddressList addrlist;
-  CreateAddressList("192.168.1.1", 81, &addrlist);
+  EXPECT_EQ(0, CreateAddressList("192.168.1.1", 81, &addrlist));
   EXPECT_EQ(81, addrlist.GetPort());
 
   addrlist.SetPort(83);
@@ -48,7 +48,7 @@ TEST(AddressListTest, GetPort) {
 
 TEST(AddressListTest, Assignment) {
   net::AddressList addrlist1;
-  CreateAddressList("192.168.1.1", 85, &addrlist1);
+  EXPECT_EQ(0, CreateAddressList("192.168.1.1", 85, &addrlist1));
   EXPECT_EQ(85, addrlist1.GetPort());
 
   // Should reference the same data as addrlist1 -- so when we change addrlist1
@@ -107,10 +107,10 @@ TEST(AddressListTest, CopyNonRecursive) {
 
 TEST(AddressListTest, Append) {
   net::AddressList addrlist1;
-  CreateAddressList("192.168.1.1", 11, &addrlist1);
+  EXPECT_EQ(0, CreateAddressList("192.168.1.1", 11, &addrlist1));
   EXPECT_EQ(11, addrlist1.GetPort());
   net::AddressList addrlist2;
-  CreateAddressList("192.168.1.2", 12, &addrlist2);
+  EXPECT_EQ(0, CreateAddressList("192.168.1.2", 12, &addrlist2));
   EXPECT_EQ(12, addrlist2.GetPort());
 
   ASSERT_TRUE(addrlist1.head()->ai_next == NULL);
@@ -170,6 +170,47 @@ TEST(AddressListTest, Canonical) {
   std::string canon_name3 = "blah";
   EXPECT_FALSE(addrlist_no_canon.GetCanonicalName(&canon_name3));
   EXPECT_EQ("blah", canon_name3);
+}
+
+TEST(AddressListTest, IPLiteralConstructor) {
+  struct TestData {
+    std::string ip_address;
+    std::string canonical_ip_address;
+    bool is_ipv6;
+  } tests[] = {
+    { "127.0.00.1", "127.0.0.1", false },
+    { "192.168.1.1", "192.168.1.1", false },
+    { "::1", "::1", true },
+    { "2001:db8:0::42", "2001:db8::42", true },
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); i++) {
+    net::AddressList expected_list;
+    int rv = CreateAddressList(tests[i].canonical_ip_address, 80,
+                               &expected_list);
+    if (tests[i].is_ipv6 && rv != 0) {
+      LOG(WARNING) << "Unable to resolve ip literal '" << tests[i].ip_address
+                   << "' test skipped.";
+      continue;
+    }
+    ASSERT_EQ(0, rv);
+    const struct addrinfo* good_ai = expected_list.head();
+
+    net::IPAddressNumber ip_number;
+    net::ParseIPLiteralToNumber(tests[i].ip_address, &ip_number);
+    net::AddressList test_list(ip_number, 80, true);
+    const struct addrinfo* test_ai = test_list.head();
+
+    EXPECT_EQ(good_ai->ai_family, test_ai->ai_family);
+    EXPECT_EQ(good_ai->ai_socktype, test_ai->ai_socktype);
+    EXPECT_EQ(good_ai->ai_addrlen, test_ai->ai_addrlen);
+    size_t sockaddr_size =
+        good_ai->ai_socktype == AF_INET ? sizeof(struct sockaddr_in) :
+        good_ai->ai_socktype == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
+    EXPECT_EQ(memcmp(good_ai->ai_addr, test_ai->ai_addr, sockaddr_size), 0);
+    EXPECT_EQ(good_ai->ai_next, test_ai->ai_next);
+    EXPECT_EQ(strcmp(tests[i].canonical_ip_address.c_str(),
+                     test_ai->ai_canonname), 0);
+  }
 }
 
 }  // namespace
