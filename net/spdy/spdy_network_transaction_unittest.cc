@@ -66,7 +66,8 @@ class SpdyNetworkTransactionTest
           session_(SpdySessionDependencies::SpdyCreateSession(
               session_deps_.get())),
           log_(log),
-          test_type_(test_type) {
+          test_type_(test_type),
+          deterministic_(false) {
             switch (test_type_) {
               case SPDYNOSSL:
               case SPDYSSL:
@@ -79,6 +80,12 @@ class SpdyNetworkTransactionTest
                 NOTREACHED();
             }
           }
+
+    void SetDeterministic() {
+      session_ = SpdySessionDependencies::SpdyCreateSessionDeterministic(
+          session_deps_.get());
+      deterministic_ = true;
+    }
 
     void RunPreTestSetup() {
       if (!session_deps_.get())
@@ -190,6 +197,7 @@ class SpdyNetworkTransactionTest
     }
 
     void AddData(StaticSocketDataProvider* data) {
+      DCHECK(!deterministic_);
       data_vector_.push_back(data);
       linked_ptr<SSLSocketDataProvider> ssl_(
           new SSLSocketDataProvider(true, OK));
@@ -200,14 +208,36 @@ class SpdyNetworkTransactionTest
       }
       ssl_vector_.push_back(ssl_);
       if(test_type_ == SPDYNPN || test_type_ == SPDYSSL)
-        session_deps_->socket_factory.AddSSLSocketDataProvider(ssl_.get());
-      session_deps_->socket_factory.AddSocketDataProvider(data);
+        session_deps_->socket_factory->AddSSLSocketDataProvider(ssl_.get());
+      session_deps_->socket_factory->AddSocketDataProvider(data);
+    }
+
+    void AddDeterministicData(DeterministicSocketData* data) {
+      DCHECK(deterministic_);
+      data_vector_.push_back(data);
+      linked_ptr<SSLSocketDataProvider> ssl_(
+          new SSLSocketDataProvider(true, OK));
+      if (test_type_ == SPDYNPN) {
+        ssl_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+        ssl_->next_proto = "spdy/2";
+        ssl_->was_npn_negotiated = true;
+      }
+      ssl_vector_.push_back(ssl_);
+      if(test_type_ == SPDYNPN || test_type_ == SPDYSSL)
+        session_deps_->deterministic_socket_factory->
+            AddSSLSocketDataProvider(ssl_.get());
+      session_deps_->deterministic_socket_factory->AddSocketDataProvider(data);
     }
 
     // This can only be called after RunPreTestSetup. It adds a Data Provider,
     // but not a corresponding SSL data provider
     void AddDataNoSSL(StaticSocketDataProvider* data) {
-      session_deps_->socket_factory.AddSocketDataProvider(data);
+      DCHECK(!deterministic_);
+      session_deps_->socket_factory->AddSocketDataProvider(data);
+    }
+    void AddDataNoSSL(DeterministicSocketData* data) {
+      DCHECK(deterministic_);
+      session_deps_->deterministic_socket_factory->AddSocketDataProvider(data);
     }
 
     void SetSession(const scoped_refptr<HttpNetworkSession>& session) {
@@ -239,6 +269,7 @@ class SpdyNetworkTransactionTest
     const BoundNetLog& log_;
     SpdyNetworkTransactionTestTypes test_type_;
     int port_;
+    bool deterministic_;
   };
 
   void ConnectStatusHelperWithExpectedStatus(const MockRead& status,
@@ -1274,38 +1305,42 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
 // The client upon cancellation tries to send a RST_STREAM frame. The mock
 // socket causes the TCP write to return zero. This test checks that the client
 // tries to queue up the RST_STREAM frame again.
-TEST_P(SpdyNetworkTransactionTest, DISABLED_SocketWriteReturnsZero) {
+TEST_P(SpdyNetworkTransactionTest, SocketWriteReturnsZero) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   scoped_ptr<spdy::SpdyFrame> rst(
       ConstructSpdyRstStream(1, spdy::CANCEL));
   MockWrite writes[] = {
-    CreateMockWrite(*req.get(), 1),
-    MockWrite(true, 0, 0, 3),
-    CreateMockWrite(*rst.get(), 4),
+    CreateMockWrite(*req.get(), 0, false),
+    MockWrite(false, 0, 0, 2),
+    CreateMockWrite(*rst.get(), 3, false),
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
-    CreateMockRead(*resp.get(), 2),
-    MockRead(true, 0, 0, 5)  // EOF
+    CreateMockRead(*resp.get(), 1, false),
+    MockRead(false, 0, 0, 4)  // EOF
   };
 
-  scoped_refptr<OrderedSocketData> data(
-      new OrderedSocketData(reads, arraysize(reads),
+  scoped_refptr<DeterministicSocketData> data(
+      new DeterministicSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(), GetParam());
-  helper.AddData(data.get());
+  helper.SetDeterministic();
   helper.RunPreTestSetup();
+  helper.AddDeterministicData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
 
   TestCompletionCallback callback;
   int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback.WaitForResult();
+
+  data->SetStop(2);
+  data->Run();
   helper.ResetTrans();
-  MessageLoop::current()->RunAllPending();
-  data->CompleteRead();
+  data->SetStop(20);
+  data->Run();
+
   helper.VerifyDataConsumed();
 }
 
@@ -1687,42 +1722,44 @@ TEST_P(SpdyNetworkTransactionTest, CancelledTransaction) {
 }
 
 // Verify that the client sends a Rst Frame upon cancelling the stream.
-TEST_P(SpdyNetworkTransactionTest, DISABLED_CancelledTransactionSendRst) {
+TEST_P(SpdyNetworkTransactionTest, CancelledTransactionSendRst) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   scoped_ptr<spdy::SpdyFrame> rst(
       ConstructSpdyRstStream(1, spdy::CANCEL));
   MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
-    CreateMockWrite(*rst, 3),
+    CreateMockWrite(*req, 0, false),
+    CreateMockWrite(*rst, 2, false),
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    MockRead(true, 0, 0, 4)  // EOF
+    CreateMockRead(*resp, 1, false),
+    MockRead(false, 0, 0, 3)  // EOF
   };
 
-  scoped_refptr<OrderedSocketData> data(
-      new OrderedSocketData(reads, arraysize(reads),
+  scoped_refptr<DeterministicSocketData> data(
+      new DeterministicSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(),
                                      GetParam());
+  helper.SetDeterministic();
   helper.RunPreTestSetup();
-  helper.AddData(data.get());
+  helper.AddDeterministicData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
 
   TestCompletionCallback callback;
 
   int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback.WaitForResult();
-  helper.ResetTrans();  // Cancel the transaction.
 
-  // Finish running rest of tasks.
-  MessageLoop::current()->RunAllPending();
-  data->CompleteRead();
+  data->SetStop(2);
+  data->Run();
+  helper.ResetTrans();
+  data->SetStop(20);
+  data->Run();
+
   helper.VerifyDataConsumed();
 }
 

@@ -17,6 +17,7 @@
 #include "base/scoped_ptr.h"
 #include "base/scoped_vector.h"
 #include "base/string16.h"
+#include "base/weak_ptr.h"
 #include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -168,6 +169,7 @@ class StaticSocketDataProvider : public SocketDataProvider {
         write_index_(0),
         write_count_(writes_count) {
   }
+  virtual ~StaticSocketDataProvider() {}
 
   // SocketDataProvider methods:
   virtual MockRead GetNextRead();
@@ -343,6 +345,89 @@ class OrderedSocketData : public StaticSocketDataProvider,
   ScopedRunnableMethodFactory<OrderedSocketData> factory_;
 };
 
+class DeterministicMockTCPClientSocket;
+
+// This class gives the user full control over the mock socket reads and writes,
+// including the timing of the callbacks. By default, synchronous reads and
+// writes will force the callback for that read or write to complete before
+// allowing another read or write to finish.
+//
+// Sequence numbers are preserved across both reads and writes. There should be
+// no gaps in sequence numbers, and no repeated sequence numbers. i.e.
+//  MockWrite writes[] = {
+//    MockWrite(true, "first write", length, 0),
+//    MockWrite(false, "second write", length, 3),
+//  };
+//
+//  MockRead reads[] = {
+//    MockRead(false, "first read", length, 1)
+//    MockRead(false, "second read", length, 2)
+//  };
+// Example control flow:
+// The first write completes. A call to read() returns ERR_IO_PENDING, since the
+// first write's callback has not happened yet. The first write's callback is
+// called. Now the first read's callback will be called. A call to write() will
+// succeed, because the write() API requires this, but the callback will not be
+// called until the second read has completed and its callback called.
+class DeterministicSocketData : public StaticSocketDataProvider,
+    public base::RefCounted<DeterministicSocketData> {
+ public:
+  // |reads| the list of MockRead completions.
+  // |writes| the list of MockWrite completions.
+  DeterministicSocketData(MockRead* reads, size_t reads_count,
+                          MockWrite* writes, size_t writes_count);
+
+  // |connect| the result for the connect phase.
+  // |reads| the list of MockRead completions.
+  // |writes| the list of MockWrite completions.
+  DeterministicSocketData(const MockConnect& connect,
+                          MockRead* reads, size_t reads_count,
+                          MockWrite* writes, size_t writes_count);
+
+  // When the socket calls Read(), that calls GetNextRead(), and expects either
+  // ERR_IO_PENDING or data.
+  virtual MockRead GetNextRead();
+
+  // When the socket calls Write(), it always completes synchronously. OnWrite()
+  // checks to make sure the written data matches the expected data. The
+  // callback will not be invoked until its sequence number is reached.
+  virtual MockWriteResult OnWrite(const std::string& data);
+
+  virtual void Reset();
+
+  // Consume all the data up to the give stop point (via SetStop()).
+  void Run();
+
+  // Stop when Read() is about to consume a MockRead with sequence_number >=
+  // seq. Instead feed ERR_IO_PENDING to Read().
+  virtual void SetStop(int seq) { stopping_sequence_number_ = seq; }
+
+  void CompleteRead();
+  bool stopped() const { return stopped_; }
+  void SetStopped(bool val) { stopped_ = val; }
+  MockRead& current_read() { return current_read_; }
+  MockRead& current_write() { return current_write_; }
+  int next_read_seq() const { return next_read_seq_; }
+  int sequence_number() const { return sequence_number_; }
+  void set_socket(base::WeakPtr<DeterministicMockTCPClientSocket> socket) {
+    socket_ = socket;
+  }
+
+ private:
+  // Invoke the read and write callbacks, if the timing is appropriate.
+  void InvokeCallbacks();
+
+  int sequence_number_;
+  MockRead current_read_;
+  MockWrite current_write_;
+  int next_read_seq_;
+  int stopping_sequence_number_;
+  bool stopped_;
+  base::WeakPtr<DeterministicMockTCPClientSocket> socket_;
+  bool print_debug_;
+};
+
+
 // Holds an array of SocketDataProvider elements.  As Mock{TCP,SSL}ClientSocket
 // objects get instantiated, they take their data from the i'th element of this
 // array.
@@ -404,6 +489,12 @@ class MockClientSocketFactory : public ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config);
+  SocketDataProviderArray<SocketDataProvider>& mock_data() {
+    return mock_data_;
+  }
+  std::vector<MockTCPClientSocket*>& tcp_client_sockets() {
+    return tcp_client_sockets_;
+  }
 
  private:
   SocketDataProviderArray<SocketDataProvider> mock_data_;
@@ -417,7 +508,6 @@ class MockClientSocketFactory : public ClientSocketFactory {
 class MockClientSocket : public net::SSLClientSocket {
  public:
   explicit MockClientSocket(net::NetLog* net_log);
-
   // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback) = 0;
   virtual void Disconnect();
@@ -448,6 +538,7 @@ class MockClientSocket : public net::SSLClientSocket {
   virtual void OnReadComplete(const MockRead& data) = 0;
 
  protected:
+  virtual ~MockClientSocket() {}
   void RunCallbackAsync(net::CompletionCallback* callback, int result);
   void RunCallback(net::CompletionCallback*, int result);
 
@@ -499,6 +590,40 @@ class MockTCPClientSocket : public MockClientSocket {
   net::IOBuffer* pending_buf_;
   int pending_buf_len_;
   net::CompletionCallback* pending_callback_;
+};
+
+class DeterministicMockTCPClientSocket : public MockClientSocket,
+    public base::SupportsWeakPtr<DeterministicMockTCPClientSocket> {
+ public:
+  DeterministicMockTCPClientSocket(net::NetLog* net_log,
+      net::DeterministicSocketData* data);
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    net::CompletionCallback* callback);
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   net::CompletionCallback* callback);
+  virtual void CompleteWrite();
+  virtual int CompleteRead();
+  virtual void OnReadComplete(const MockRead& data);
+
+  virtual int Connect(net::CompletionCallback* callback);
+  virtual void Disconnect();
+  virtual bool IsConnected() const;
+  virtual bool IsConnectedAndIdle() const { return IsConnected(); }
+  bool write_pending() { return write_pending_; }
+  bool read_pending() { return read_pending_; }
+
+ private:
+  bool write_pending_;
+  net::CompletionCallback* write_callback_;
+  int write_result_;
+
+  net::MockRead read_data_;
+
+  net::IOBuffer* read_buf_;
+  int read_buf_len_;
+  bool read_pending_;
+  net::CompletionCallback* read_callback_;
+  net::DeterministicSocketData* data_;
 };
 
 class MockSSLClientSocket : public MockClientSocket {
@@ -659,11 +784,45 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
 
  private:
   ClientSocketFactory* client_socket_factory_;
+  ScopedVector<MockConnectJob> job_list_;
   int release_count_;
   int cancel_count_;
-  ScopedVector<MockConnectJob> job_list_;
 
   DISALLOW_COPY_AND_ASSIGN(MockTCPClientSocketPool);
+};
+
+class DeterministicMockClientSocketFactory : public ClientSocketFactory {
+ public:
+  void AddSocketDataProvider(DeterministicSocketData* socket);
+  void AddSSLSocketDataProvider(SSLSocketDataProvider* socket);
+  void ResetNextMockIndexes();
+
+  // Return |index|-th MockSSLClientSocket (starting from 0) that the factory
+  // created.
+  MockSSLClientSocket* GetMockSSLClientSocket(size_t index) const;
+
+  // ClientSocketFactory
+  virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses,
+                                              NetLog* net_log);
+  virtual SSLClientSocket* CreateSSLClientSocket(
+      ClientSocketHandle* transport_socket,
+      const std::string& hostname,
+      const SSLConfig& ssl_config);
+
+  SocketDataProviderArray<DeterministicSocketData>& mock_data() {
+    return mock_data_;
+  }
+  std::vector<DeterministicMockTCPClientSocket*>& tcp_client_sockets() {
+    return tcp_client_sockets_;
+  }
+
+ private:
+  SocketDataProviderArray<DeterministicSocketData> mock_data_;
+  SocketDataProviderArray<SSLSocketDataProvider> mock_ssl_data_;
+
+  // Store pointers to handed out sockets in case the test wants to get them.
+  std::vector<DeterministicMockTCPClientSocket*> tcp_client_sockets_;
+  std::vector<MockSSLClientSocket*> ssl_client_sockets_;
 };
 
 class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
