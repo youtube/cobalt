@@ -484,21 +484,28 @@ TEST_F(ValuesTest, Equals) {
   dv.SetString("d2", ASCIIToUTF16("http://google.com"));
   dv.Set("e", Value::CreateNullValue());
 
-  DictionaryValue* copy = static_cast<DictionaryValue*>(dv.DeepCopy());
-  EXPECT_TRUE(dv.Equals(copy));
+  scoped_ptr<DictionaryValue> copy;
+  copy.reset(static_cast<DictionaryValue*>(dv.DeepCopy()));
+  EXPECT_TRUE(dv.Equals(copy.get()));
 
   ListValue* list = new ListValue;
   list->Append(Value::CreateNullValue());
   list->Append(new DictionaryValue);
   dv.Set("f", list);
 
-  EXPECT_FALSE(dv.Equals(copy));
+  EXPECT_FALSE(dv.Equals(copy.get()));
   copy->Set("f", list->DeepCopy());
-  EXPECT_TRUE(dv.Equals(copy));
+  EXPECT_TRUE(dv.Equals(copy.get()));
 
   list->Append(Value::CreateBooleanValue(true));
-  EXPECT_FALSE(dv.Equals(copy));
-  delete copy;
+  EXPECT_FALSE(dv.Equals(copy.get()));
+
+  // Check if Equals detects differences in only the keys.
+  copy.reset(static_cast<DictionaryValue*>(dv.DeepCopy()));
+  EXPECT_TRUE(dv.Equals(copy.get()));
+  copy->Remove("a", NULL);
+  copy->SetBoolean("aa", false);
+  EXPECT_FALSE(dv.Equals(copy.get()));
 }
 
 TEST_F(ValuesTest, RemoveEmptyChildren) {
