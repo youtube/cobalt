@@ -217,13 +217,12 @@ TEST_F(RTLTest, GetDisplayStringInLTRDirectionality) {
     { L"abc\x05d0\x05d1.jpg", L"\x202a"L"abc\x05d0\x05d1.jpg\x202c" },
   };
   for (unsigned int i = 0; i < arraysize(test_data); ++i) {
-    std::wstring input = test_data[i].raw_filename;
-    std::wstring expected =
-        base::i18n::GetDisplayStringInLTRDirectionality(&input);
+    string16 input = WideToUTF16(test_data[i].raw_filename);
+    string16 expected = base::i18n::GetDisplayStringInLTRDirectionality(input);
     if (base::i18n::IsRTL())
-      EXPECT_EQ(test_data[i].display_string, expected);
+      EXPECT_EQ(expected, WideToUTF16(test_data[i].display_string));
     else
-      EXPECT_EQ(input, expected);
+      EXPECT_EQ(expected, input);
   }
 }
 
