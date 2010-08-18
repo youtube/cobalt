@@ -51,7 +51,8 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
 
 HttpProxyClientSocket::HttpProxyClientSocket(
     ClientSocketHandle* transport_socket, const GURL& request_url,
-    const HostPortPair& endpoint, const HostPortPair& proxy_server,
+    const std::string& user_agent, const HostPortPair& endpoint,
+    const HostPortPair& proxy_server,
     const scoped_refptr<HttpNetworkSession>& session, bool tunnel)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
@@ -68,6 +69,9 @@ HttpProxyClientSocket::HttpProxyClientSocket(
   // Synthesize the bits of a request that we actually use.
   request_.url = request_url;
   request_.method = "GET";
+  if (!user_agent.empty())
+    request_.extra_headers.SetHeader(HttpRequestHeaders::kUserAgent,
+                                     user_agent);
 }
 
 HttpProxyClientSocket::~HttpProxyClientSocket() {
