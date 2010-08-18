@@ -188,7 +188,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   MockConnect connect_data(false, OK);
   data->set_connect_data(connect_data);
 
-  session_deps.socket_factory.AddSocketDataProvider(data.get());
+  session_deps.socket_factory->AddSocketDataProvider(data.get());
   SpdySession::SetSSLMode(false);
 
   scoped_refptr<SpdySession> session(CreateSpdySession());
