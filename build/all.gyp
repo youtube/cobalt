@@ -219,6 +219,24 @@
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
           ],
         },
+        {
+          'target_name': 'chromium_builder_dbg_valgrind_mac',
+          'type': 'none',
+          'dependencies': [
+            '../app/app.gyp:app_unittests',
+            '../base/base.gyp:base_unittests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
+            '../ipc/ipc.gyp:ipc_tests',
+            '../media/media.gyp:media_unittests',
+            '../net/net.gyp:net_unittests',
+            '../printing/printing.gyp:printing_unittests',
+            '../remoting/remoting.gyp:remoting_unittests',
+            '../chrome/chrome.gyp:unit_tests',
+            '../chrome/chrome.gyp:ui_tests',
+            '../jingle/jingle.gyp:notifier_unit_tests',
+            '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
+          ],
+        },
       ],  # targets
     }], # OS="mac"
     ['OS=="win"', {
