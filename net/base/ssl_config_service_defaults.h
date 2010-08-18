@@ -21,6 +21,7 @@ class SSLConfigServiceDefaults : public SSLConfigService {
   virtual void GetSSLConfig(SSLConfig* config) {
     *config = default_config_;
     config->dnssec_enabled = SSLConfigService::dnssec_enabled();
+    config->false_start_enabled = SSLConfigService::false_start_enabled();
   }
 
  private:

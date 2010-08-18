@@ -20,6 +20,7 @@ struct SSLConfig {
   SSLConfig()
       : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
         tls1_enabled(true), ssl3_fallback(false), dnssec_enabled(false),
+        false_start_enabled(true),
         send_client_cert(false), verify_ev_cert(false) {
   }
 
@@ -31,6 +32,8 @@ struct SSLConfig {
   bool ssl3_fallback;  // True if we are falling back to SSL 3.0 (one still
                        // needs to clear tls1_enabled).
   bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
+
+  bool false_start_enabled;  // True if we'll use TLS False Start.
 
   // TODO(wtc): move the following members to a new SSLParams structure.  They
   // are not SSL configuration settings.
@@ -97,10 +100,19 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   // http://crbug.com and email the link to agl AT chromium DOT org.
   static bool IsKnownStrictTLSServer(const std::string& hostname);
 
+  // Returns true if the given hostname is known to be incompatible with TLS
+  // False Start.
+  static bool IsKnownFalseStartIncompatibleServer(const std::string& hostname);
+
   // Enables the acceptance of self-signed certificates which contain an
   // embedded DNSSEC chain proving their validity.
   static void EnableDNSSEC();
   static bool dnssec_enabled();
+
+  // Disables False Start in SSL connections.
+  static void DisableFalseStart();
+  // True if we use False Start for SSL and TLS.
+  static bool false_start_enabled();
 
  protected:
   friend class base::RefCountedThreadSafe<SSLConfigService>;

@@ -504,9 +504,12 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_FALSE_START
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_FALSE_START, PR_TRUE);
+  rv = SSL_OptionSet(
+      nss_fd_, SSL_ENABLE_FALSE_START,
+      ssl_config_.false_start_enabled &&
+      !SSLConfigService::IsKnownFalseStartIncompatibleServer(hostname_));
   if (rv != SECSuccess)
-     LOG(INFO) << "SSL_ENABLE_FALSE_START failed.  Old system nss?";
+    LOG(INFO) << "SSL_ENABLE_FALSE_START failed.  Old system nss?";
 #endif
 
 #ifdef SSL_ENABLE_RENEGOTIATION
