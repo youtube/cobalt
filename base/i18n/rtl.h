@@ -6,6 +6,7 @@
 #define BASE_I18N_RTL_H_
 #pragma once
 
+#include "base/compiler_specific.h"
 #include "base/string16.h"
 #include "build/build_config.h"
 
@@ -135,14 +136,16 @@ void WrapPathWithLTRFormatting(const FilePath& path,
 // string is wrapped with LRE (Left-To-Right Embedding) and PDF (Pop
 // Directional Formatting) marks and returned. In LTR locale, the string itself
 // is returned.
-std::wstring GetDisplayStringInLTRDirectionality(std::wstring* text);
+string16 GetDisplayStringInLTRDirectionality(const string16& text) 
+    WARN_UNUSED_RESULT;
 
 // Strip the beginning (U+202A..U+202B, U+202D..U+202E) and/or ending (U+202C)
 // explicit bidi control characters from |text|, if there are any. Otherwise,
 // return the text itself. Explicit bidi control characters display and have
 // semantic effect. They can be deleted so they might not always appear in a
 // pair.
-const string16 StripWrappingBidiControlCharacters(const string16& text);
+const string16 StripWrappingBidiControlCharacters(const string16& text)
+    WARN_UNUSED_RESULT;
 
 }  // namespace i18n
 }  // namespace base

@@ -269,10 +269,12 @@ void WrapPathWithLTRFormatting(const FilePath& path,
   rtl_safe_path->push_back(kPopDirectionalFormatting);
 }
 
-std::wstring GetDisplayStringInLTRDirectionality(std::wstring* text) {
-  if (IsRTL())
-    WrapStringWithLTRFormatting(text);
-  return *text;
+string16 GetDisplayStringInLTRDirectionality(const string16& text) {
+  if (!IsRTL())
+    return text;
+  string16 text_mutable(text);
+  WrapStringWithLTRFormatting(&text_mutable);
+  return text_mutable;
 }
 
 const string16 StripWrappingBidiControlCharacters(const string16& text) {
