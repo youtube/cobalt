@@ -331,7 +331,8 @@ bool DictionaryValue::Equals(const Value* other) const {
   while (lhs_it != end_keys() && rhs_it != other_dict->end_keys()) {
     Value* lhs;
     Value* rhs;
-    if (!GetWithoutPathExpansion(*lhs_it, &lhs) ||
+    if (*lhs_it != *rhs_it ||
+        !GetWithoutPathExpansion(*lhs_it, &lhs) ||
         !other_dict->GetWithoutPathExpansion(*rhs_it, &rhs) ||
         !lhs->Equals(rhs)) {
       return false;
