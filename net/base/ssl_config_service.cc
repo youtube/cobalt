@@ -75,6 +75,14 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
 
 static bool g_dnssec_enabled = false;
 static bool g_false_start_enabled = true;
+static bool g_mitm_proxies_allowed = false;
+
+// static
+void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
+  ssl_config->dnssec_enabled = g_dnssec_enabled;
+  ssl_config->false_start_enabled = g_false_start_enabled;
+  ssl_config->mitm_proxies_allowed = g_mitm_proxies_allowed;
+}
 
 // static
 void SSLConfigService::EnableDNSSEC() {
@@ -94,6 +102,16 @@ void SSLConfigService::DisableFalseStart() {
 // static
 bool SSLConfigService::false_start_enabled() {
   return g_false_start_enabled;
+}
+
+// static
+void SSLConfigService::AllowMITMProxies() {
+  g_mitm_proxies_allowed = true;
+}
+
+// static
+bool SSLConfigService::mitm_proxies_allowed() {
+  return g_mitm_proxies_allowed;
 }
 
 }  // namespace net
