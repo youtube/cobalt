@@ -9,7 +9,6 @@
 #include <deque>
 #include <map>
 #include <string>
-#include <vector>
 
 #include "base/linked_ptr.h"
 #include "base/ref_counted.h"

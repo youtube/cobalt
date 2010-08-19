@@ -6,7 +6,6 @@
 #define NET_URL_REQUEST_URL_REQUEST_HTTP_JOB_H_
 #pragma once
 
-#include <set>
 #include <string>
 #include <vector>
 

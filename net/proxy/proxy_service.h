@@ -6,7 +6,6 @@
 #define NET_PROXY_PROXY_SERVICE_H_
 #pragma once
 
-#include <string>
 #include <vector>
 
 #include "base/gtest_prod_util.h"

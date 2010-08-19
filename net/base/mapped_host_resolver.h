@@ -7,7 +7,6 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include "base/ref_counted.h"
 #include "net/base/host_mapping_rules.h"
