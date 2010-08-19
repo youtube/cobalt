@@ -10,9 +10,6 @@
 #define NET_DISK_CACHE_TRACE_H__
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
 

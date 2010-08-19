@@ -6,10 +6,8 @@
 #define NET_FTP_FTP_NETWORK_TRANSACTION_H_
 #pragma once
 
-#include <queue>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
