@@ -11,8 +11,6 @@
 #include "base/file_path.h"
 #include "base/string16.h"
 
-class FilePath;
-
 namespace file_util {
 
 // Returns true if file_name does not have any illegal character. The input
