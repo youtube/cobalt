@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,8 +13,6 @@
 #include "base/message_loop.h"
 #include "base/timer.h"
 #include "build/build_config.h"
-
-class FilePath;
 
 // Re-creates a given test file inside the cache test folder.
 bool CreateCacheTestFile(const FilePath& name);
@@ -42,7 +40,8 @@ bool CheckCacheIntegrity(const FilePath& path, bool new_eviction);
 class ScopedTestCache {
  public:
   ScopedTestCache();
-  ScopedTestCache(const std::string& name);  // Use a specific folder name.
+  // Use a specific folder name.
+  explicit ScopedTestCache(const std::string& name);
   ~ScopedTestCache();
 
   FilePath path() const { return path_; }

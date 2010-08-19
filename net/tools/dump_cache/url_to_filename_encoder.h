@@ -76,14 +76,12 @@
 // NOTE: we avoid using some classes here (like FilePath and GURL) because we
 //       share this code with other projects externally.
 
-#ifndef NET_TOOLS_DUMP_CACHE_URL_TO_FILE_ENCODER_H_
-#define NET_TOOLS_DUMP_CACHE_URL_TO_FILE_ENCODER_H_
+#ifndef NET_TOOLS_DUMP_CACHE_URL_TO_FILENAME_ENCODER_H_
+#define NET_TOOLS_DUMP_CACHE_URL_TO_FILENAME_ENCODER_H_
 #pragma once
 
 #include <string>
 
-#include "base/file_path.h"
-#include "base/file_util.h"
 #include "base/string_util.h"
 #include "net/tools/dump_cache/url_utilities.h"
 
@@ -211,4 +209,4 @@ class UrlToFilenameEncoder {
 
 }  // namespace net
 
-#endif  // NET_TOOLS_DUMP_CACHE_URL_TO_FILE_ENCODER_H_
+#endif  // NET_TOOLS_DUMP_CACHE_URL_TO_FILENAME_ENCODER_H_
