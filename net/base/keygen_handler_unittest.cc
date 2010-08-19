@@ -73,7 +73,7 @@ void AssertValidSignedPublicKeyAndChallenge(const std::string& result,
 }
 
 TEST_F(KeygenHandlerTest, SmokeTest) {
-  KeygenHandler handler(768, "some challenge");
+  KeygenHandler handler(768, "some challenge", GURL("http://www.example.com"));
   handler.set_stores_key(false);  // Don't leave the key-pair behind
   std::string result = handler.GenKeyAndSignChallenge();
   LOG(INFO) << "KeygenHandler produced: " << result;
@@ -90,7 +90,8 @@ class ConcurrencyTestTask : public Task {
   }
 
   virtual void Run() {
-    KeygenHandler handler(768, "some challenge");
+    KeygenHandler handler(768, "some challenge",
+                          GURL("http://www.example.com"));
     handler.set_stores_key(false); // Don't leave the key-pair behind.
     *result_ = handler.GenKeyAndSignChallenge();
     event_->Signal();
