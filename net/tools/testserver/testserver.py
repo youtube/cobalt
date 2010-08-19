@@ -1197,17 +1197,6 @@ def MakeDataDir():
 
   return my_data_dir
 
-def TryKillingOldServer(port):
-  # Note that an HTTP /kill request to the FTP server has the effect of
-  # killing it.
-  for protocol in ["http", "https"]:
-    try:
-      urllib2.urlopen("%s://localhost:%d/kill" % (protocol, port)).read()
-      print "Killed old server instance on port %d (via %s)" % (port, protocol)
-    except urllib2.URLError:
-      # Common case, indicates no server running.
-      pass
-
 class FileMultiplexer:
   def __init__(self, fd1, fd2) :
     self.__fd1 = fd1
@@ -1233,9 +1222,6 @@ def main(options, args):
   sys.stderr = FileMultiplexer(sys.stderr, logfile)
 
   port = options.port
-
-  # Try to free up the port if there's an orphaned old instance.
-  TryKillingOldServer(port)
 
   if options.server_type == SERVER_HTTP:
     if options.cert:
