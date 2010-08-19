@@ -13,6 +13,8 @@
 #include "base/lock.h"
 #include "base/logging.h"
 #include "base/scoped_cftyperef.h"
+#include "base/string_util.h"
+#include "base/sys_string_conversions.h"
 
 // These are in Security.framework but not declared in a public header.
 extern const SecAsn1Template kSecAsn1AlgorithmIDTemplate[];
@@ -89,6 +91,7 @@ static const SecAsn1Template kSignedPublicKeyAndChallengeTemplate[] = {
 
 
 static OSStatus CreateRSAKeyPair(int size_in_bits,
+                                 SecAccessRef initial_access,
                                  SecKeyRef* out_pub_key,
                                  SecKeyRef* out_priv_key);
 static OSStatus SignData(CSSM_DATA data,
@@ -98,14 +101,31 @@ static OSStatus SignData(CSSM_DATA data,
 std::string KeygenHandler::GenKeyAndSignChallenge() {
   std::string result;
   OSStatus err;
+  SecAccessRef initial_access = NULL;
   SecKeyRef public_key = NULL;
   SecKeyRef private_key = NULL;
   SecAsn1CoderRef coder = NULL;
   CSSM_DATA signature = {0, NULL};
 
   {
+    if (url_.has_host()) {
+      // TODO(davidben): Use something like "Key generated for
+      // example.com", but localize it.
+      scoped_cftyperef<CFStringRef> label(
+          base::SysUTF8ToCFStringRef(url_.host()));
+      // Create an initial access object to set the SecAccessRef. This
+      // sets a label on the Keychain dialogs. Pass NULL as the second
+      // argument to use the default trusted list; only allow the
+      // current application to access without user confirmation.
+      err = SecAccessCreate(label, NULL, &initial_access);
+      // If we fail, just continue without a label.
+      if (err)
+        base::LogCSSMError("SecAccessCreate", err);
+    }
+
     // Create the key-pair.
-    err = CreateRSAKeyPair(key_size_in_bits_, &public_key, &private_key);
+    err = CreateRSAKeyPair(key_size_in_bits_, initial_access,
+                           &public_key, &private_key);
     if (err)
       goto failure;
 
@@ -188,6 +208,8 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
   free(signature.Data);
   if (coder)
     SecAsn1CoderRelease(coder);
+  if (initial_access)
+    CFRelease(initial_access);
   if (public_key)
     CFRelease(public_key);
   if (private_key)
@@ -196,7 +218,12 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
 }
 
 
+// Create an RSA key pair with size |size_in_bits|. |initial_access|
+// is passed as the initial access control list in Keychain. The
+// public and private keys are placed in |out_pub_key| and
+// |out_priv_key|, respectively.
 static OSStatus CreateRSAKeyPair(int size_in_bits,
+                                 SecAccessRef initial_access,
                                  SecKeyRef* out_pub_key,
                                  SecKeyRef* out_priv_key) {
   OSStatus err;
@@ -221,7 +248,7 @@ static OSStatus CreateRSAKeyPair(int size_in_bits,
         CSSM_KEYUSE_DECRYPT | CSSM_KEYUSE_SIGN | CSSM_KEYUSE_UNWRAP,
         CSSM_KEYATTR_EXTRACTABLE | CSSM_KEYATTR_PERMANENT |
             CSSM_KEYATTR_SENSITIVE,
-        NULL,
+        initial_access,
         out_pub_key, out_priv_key);
   }
   if (err)
