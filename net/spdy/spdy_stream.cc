@@ -277,6 +277,10 @@ bool SpdyStream::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
   return session_->GetSSLInfo(ssl_info, was_npn_negotiated);
 }
 
+bool SpdyStream::GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) {
+  return session_->GetSSLCertRequestInfo(cert_request_info);
+}
+
 int SpdyStream::DoLoop(int result) {
   do {
     State state = io_state_;

@@ -30,6 +30,7 @@
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_stream.h"
+#include "net/http/http_stream_factory.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/proxy/proxy_resolver.h"
@@ -4237,7 +4238,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
     },
   };
 
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpStreamFactory::set_use_alternate_protocols(true);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     scoped_refptr<HttpNetworkSession> session(
@@ -4261,7 +4262,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
                 tcp_conn_pool->last_group_name_received());
   }
 
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
@@ -4289,7 +4290,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
     },
   };
 
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpStreamFactory::set_use_alternate_protocols(true);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     scoped_refptr<HttpNetworkSession> session(
@@ -4315,7 +4316,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
                 http_proxy_pool->last_group_name_received());
   }
 
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
@@ -4355,7 +4356,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
     },
   };
 
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpStreamFactory::set_use_alternate_protocols(true);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     scoped_refptr<HttpNetworkSession> session(
@@ -4382,7 +4383,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
                 socks_conn_pool->last_group_name_received());
   }
 
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, ReconsiderProxyAfterFailedConnection) {
@@ -5124,8 +5125,8 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
 }
 
 TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
-  HttpNetworkTransaction::SetNextProtos("needs_to_be_set_for_this_test");
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpStreamFactory::set_next_protos("needs_to_be_set_for_this_test");
+  HttpStreamFactory::set_use_alternate_protocols(true);
 
   SessionDependencies session_deps;
 
@@ -5181,12 +5182,12 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
   expected_alternate.protocol = HttpAlternateProtocols::NPN_SPDY_2;
   EXPECT_TRUE(expected_alternate.Equals(alternate));
 
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
-  HttpNetworkTransaction::SetNextProtos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
+  HttpStreamFactory::set_next_protos("");
 }
 
 TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpStreamFactory::set_use_alternate_protocols(true);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -5244,7 +5245,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
   const HttpAlternateProtocols::PortProtocolPair alternate =
       alternate_protocols->GetAlternateProtocolFor(http_host_port_pair);
   EXPECT_EQ(HttpAlternateProtocols::BROKEN, alternate.protocol);
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 // TODO(willchan): Redo this test to use TLS/NPN=>SPDY.  Currently, the code
@@ -5301,8 +5302,8 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 //  }
 
 TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos(kExpectedNPNString);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -5350,13 +5351,13 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
   std::string response_data;
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello world", response_data);
-  HttpNetworkTransaction::SetNextProtos("");
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos(kExpectedNPNString);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -5434,8 +5435,8 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello!", response_data);
 
-  HttpNetworkTransaction::SetNextProtos("");
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 class CapturingProxyResolver : public ProxyResolver {
@@ -5473,8 +5474,8 @@ class CapturingProxyResolver : public ProxyResolver {
 };
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos(kExpectedNPNString);
 
   ProxyConfig proxy_config;
   proxy_config.set_auto_detect(true);
@@ -5574,14 +5575,14 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   EXPECT_EQ("https://www.google.com/",
             capturing_proxy_resolver->resolved()[1].spec());
 
-  HttpNetworkTransaction::SetNextProtos("");
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest,
        UseAlternateProtocolForNpnSpdyWithExistingSpdySession) {
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos(kExpectedNPNString);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -5669,8 +5670,8 @@ TEST_F(HttpNetworkTransactionTest,
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello!", response_data);
 
-  HttpNetworkTransaction::SetNextProtos("");
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 // GenerateAuthToken is a mighty big test.
@@ -6309,8 +6310,8 @@ TEST_F(HttpNetworkTransactionTest,
 // This tests the case that a request is issued via http instead of spdy after
 // npn is negotiated.
 TEST_F(HttpNetworkTransactionTest, NpnWithHttpOverSSL) {
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos("\x08http/1.1\x07http1.1");
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos("\x08http/1.1\x07http1.1");
   SessionDependencies session_deps;
   HttpRequestInfo request;
   request.method = "GET";
@@ -6363,16 +6364,16 @@ TEST_F(HttpNetworkTransactionTest, NpnWithHttpOverSSL) {
   EXPECT_TRUE(response->was_npn_negotiated);
   EXPECT_FALSE(response->was_alternate_protocol_available);
 
-  HttpNetworkTransaction::SetNextProtos("");
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   // Simulate the SSL handshake completing with an NPN negotiation
   // followed by an immediate server closing of the socket.
   // Fix crash:  http://crbug.com/46369
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(kExpectedNPNString);
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos(kExpectedNPNString);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -6409,15 +6410,15 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(ERR_CONNECTION_CLOSED, callback.WaitForResult());
 
-  HttpNetworkTransaction::SetNextProtos("");
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   // This test ensures that the URL passed into the proxy is upgraded
   // to https when doing an Alternate Protocol upgrade.
-  HttpNetworkTransaction::SetUseAlternateProtocols(true);
-  HttpNetworkTransaction::SetNextProtos(
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::set_next_protos(
       "\x08http/1.1\x07http1.1\x06spdy/2\x04spdy");
 
   SessionDependencies session_deps(CreateFixedProxyService("myproxy:70"));
@@ -6551,8 +6552,47 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   EXPECT_EQ("https", request_url.scheme());
   EXPECT_EQ("www.google.com", request_url.host());
 
-  HttpNetworkTransaction::SetNextProtos("");
-  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+  HttpStreamFactory::set_next_protos("");
+  HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+// Test that if we cancel the transaction as the connection is completing, that
+// everything tears down correctly.
+TEST_F(HttpNetworkTransactionTest, SimpleCancel) {
+  // Setup everything about the connection to complete synchronously, so that
+  // after calling HttpNetworkTransaction::Start, the only thing we're waiting
+  // for is the callback from the HttpStreamRequest.
+  // Then cancel the transaction.
+  // Verify that we don't crash.
+  MockConnect mock_connect(false, OK);
+  MockRead data_reads[] = {
+    MockRead(false, "HTTP/1.0 200 OK\r\n\r\n"),
+    MockRead(false, "hello world"),
+    MockRead(false, OK),
+  };
+
+  SessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
+  data.set_connect_data(mock_connect);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback callback;
+
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int rv = trans->Start(&request, &callback, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  trans.reset();  // Cancel the transaction here.
+
+  MessageLoop::current()->RunAllPending();
 }
 
 }  // namespace net

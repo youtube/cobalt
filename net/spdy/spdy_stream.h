@@ -22,6 +22,7 @@
 namespace net {
 
 class SpdySession;
+class SSLCertRequestInfo;
 class SSLInfo;
 
 // The SpdyStream is used by the SpdySession to represent each stream known
@@ -168,7 +169,12 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   int WriteStreamData(IOBuffer* data, int length,
                       spdy::SpdyDataFlags flags);
 
+  // Fills SSL info in |ssl_info| and returns true when SSL is in use.
   bool GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated);
+
+  // Fills SSL Certificate Request info |cert_request_info| and returns
+  // true when SSL is in use.
+  bool GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
   bool is_idle() const {
     return io_state_ == STATE_OPEN || io_state_ == STATE_DONE;

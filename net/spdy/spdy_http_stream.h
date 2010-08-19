@@ -17,6 +17,7 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_stream.h"
 #include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_stream.h"
 
 namespace net {
@@ -66,6 +67,9 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   virtual int ReadResponseBody(
       IOBuffer* buf, int buf_len, CompletionCallback* callback);
 
+  // Closes the stream.
+  virtual void Close(bool not_reusable);
+
   // Indicates if the response body has been completely read.
   virtual bool IsResponseBodyComplete() const {
     return stream_->closed();
@@ -76,6 +80,17 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
 
   // A SPDY stream never has more data after the FIN.
   virtual bool IsMoreDataBuffered() const { return false; }
+
+  virtual bool IsConnectionReused() const {
+    return spdy_session_->IsReused();
+  }
+
+  virtual void SetConnectionReused() {
+    // SPDY doesn't need an indicator here.
+  }
+
+  virtual void GetSSLInfo(SSLInfo* ssl_info);
+  virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
   // ===================================================
   // SpdyStream::Delegate.
@@ -112,8 +127,6 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   // SpdyHttpSession call back |callback| set by SendRequest,
   // ReadResponseHeaders or ReadResponseBody.
   virtual void OnClose(int status);
-
-  bool ShouldResendFailedRequest(int error) const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, FlowControlStallResume);
