@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "base/scoped_native_library.h"
+#if defined(OS_WIN)
+#include "base/file_path.h"
+#endif
 
 #include "testing/gtest/include/gtest/gtest.h"
 
