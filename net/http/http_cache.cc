@@ -380,7 +380,7 @@ void HttpCache::CloseCurrentConnections() {
   if (session) {
     session->tcp_socket_pool()->Flush();
     if (session->spdy_session_pool())
-      session->spdy_session_pool()->CloseAllSessions();
+      session->spdy_session_pool()->CloseCurrentSessions();
   }
 }
 
