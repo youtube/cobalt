@@ -73,8 +73,12 @@ class SpdySessionPool
   // should be creating a new session.
   bool HasSession(const HostPortProxyPair& host_port_proxy_pair) const;
 
-  // Close all Spdy Sessions; used for debugging.
+  // Close all SpdySessions, including any new ones created in the process of
+  // closing the current ones.
   void CloseAllSessions();
+  // Close only the currently existing SpdySessions. Let any new ones created
+  // continue to live.
+  void CloseCurrentSessions();
 
   // Removes a SpdySession from the SpdySessionPool. This should only be called
   // by SpdySession, because otherwise session->state_ is not set to CLOSED.
@@ -106,11 +110,6 @@ class SpdySessionPool
   const SpdySessionList* GetSessionList(
       const HostPortProxyPair& host_port_proxy_pair) const;
   void RemoveSessionList(const HostPortProxyPair& host_port_proxy_pair);
-  // Releases the SpdySessionPool reference to all sessions.  Will result in all
-  // idle sessions being deleted, and the active sessions from being reused, so
-  // they will be deleted once all active streams belonging to that session go
-  // away.
-  void ClearSessions();
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;

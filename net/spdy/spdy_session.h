@@ -150,13 +150,17 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // the session as permanently closed.
   // |err| should not be OK; this function is intended to be called on
   // error.
-  void CloseSessionOnError(net::Error err);
+  // |remove_from_pool| indicates whether to also remove the session from the
+  // session pool.
+  void CloseSessionOnError(net::Error err, bool remove_from_pool);
 
   // Indicates whether the session is being reused after having successfully
   // used to send/receive data in the past.
   bool IsReused() const {
     return frames_received_ > 0;
   }
+
+  void set_in_session_pool(bool val) { in_session_pool_ = val; }
 
  private:
   friend class base::RefCounted<SpdySession>;

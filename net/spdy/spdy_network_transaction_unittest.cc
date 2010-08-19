@@ -132,7 +132,7 @@ class SpdyNetworkTransactionTest
 
       output_.rv = callback.WaitForResult();
       if (output_.rv != OK) {
-        session_->spdy_session_pool()->ClearSessions();
+        session_->spdy_session_pool()->CloseCurrentSessions();
         return;
       }
 
@@ -1568,7 +1568,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
 
   ASSERT_TRUE(helper.session() != NULL);
   ASSERT_TRUE(helper.session()->spdy_session_pool() != NULL);
-  helper.session()->spdy_session_pool()->ClearSessions();
+  helper.session()->spdy_session_pool()->CloseAllSessions();
   helper.VerifyDataConsumed();
 
   SpdySession::SetFlowControl(false);
