@@ -383,8 +383,10 @@ ACTION_P3(DecodeComplete, decoder, video_frame, time_tuple) {
 }
 ACTION_P2(DecodeNotComplete, decoder, buffer) {
   scoped_refptr<VideoFrame> null_frame;
-  decoder->OnFillBufferCallback(null_frame);
-  decoder->OnEmptyBufferCallback(buffer);
+  if (buffer->IsEndOfStream()) // We had started flushing.
+    decoder->OnFillBufferCallback(null_frame);
+  else
+    decoder->OnEmptyBufferCallback(buffer);
 }
 
 ACTION_P(ConsumePTS, pts_heap) {
@@ -434,7 +436,7 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
       .WillOnce(DecodeNotComplete(decoder_.get(), buffer_))
       .WillOnce(DecodeComplete(decoder_.get(), video_frame_, kTestPts2))
       .WillOnce(DecodeComplete(decoder_.get(), video_frame_, kTestPts3))
-      .WillOnce(DecodeNotComplete(decoder_.get(), buffer_));
+      .WillOnce(DecodeNotComplete(decoder_.get(), end_of_stream_buffer_));
   EXPECT_CALL(*renderer_.get(), FillThisBufferDone(_))
       .Times(4);
 
