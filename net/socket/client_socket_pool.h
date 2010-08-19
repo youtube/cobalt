@@ -7,7 +7,6 @@
 #pragma once
 
 #include <deque>
-#include <map>
 #include <string>
 
 #include "base/basictypes.h"

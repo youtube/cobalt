@@ -1,12 +1,10 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_SSL_INFO_H_
 #define NET_BASE_SSL_INFO_H_
 #pragma once
-
-#include <string>
 
 #include "net/base/cert_status_flags.h"
 #include "net/base/x509_certificate.h"
