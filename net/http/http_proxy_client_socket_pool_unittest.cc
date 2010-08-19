@@ -7,6 +7,7 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service_defaults.h"
