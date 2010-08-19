@@ -7,4 +7,5 @@ any modification below this line.
 ================================================================================
 
 Smash, smash, smash...
+clobber!
 Yet again.
