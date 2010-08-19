@@ -12,7 +12,7 @@ namespace psm = mozilla_security_manager;
 namespace net {
 
 std::string KeygenHandler::GenKeyAndSignChallenge() {
-  return psm::GenKeyAndSignChallenge(key_size_in_bits_, challenge_,
+  return psm::GenKeyAndSignChallenge(key_size_in_bits_, challenge_, url_,
                                      stores_key_);
 }
 
