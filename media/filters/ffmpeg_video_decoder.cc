@@ -174,12 +174,6 @@ void FFmpegVideoDecoder::OnFlushComplete() {
   DCHECK(flush_callback_.get());
 
   AutoCallbackRunner done_runner(flush_callback_.release());
-
-  // Since we are sending Flush() in reverse order of filter. (i.e. flushing
-  // renderer before decoder). we could guaranteed the following invariant.
-  // TODO(jiesun): when we move to parallel Flush, we should remove this.
-  DCHECK_EQ(0u, pending_reads_) << "Pending reads should have completed";
-  DCHECK_EQ(0u, pending_requests_) << "Pending requests should be empty";
 }
 
 void FFmpegVideoDecoder::Seek(base::TimeDelta time,
@@ -195,6 +189,10 @@ void FFmpegVideoDecoder::Seek(base::TimeDelta time,
 
   DCHECK_EQ(MessageLoop::current(), message_loop());
   DCHECK(!seek_callback_.get());
+
+  // TODO(jiesun): when we move to parallel Flush, we should remove this.
+  DCHECK_EQ(0u, pending_reads_) << "Pending reads should have completed";
+  DCHECK_EQ(0u, pending_requests_) << "Pending requests should be empty";
 
   seek_callback_.reset(callback);
   decode_engine_->Seek();
@@ -349,11 +347,9 @@ void FFmpegVideoDecoder::OnEmptyBufferCallback(
   DCHECK_EQ(MessageLoop::current(), message_loop());
   DCHECK_LE(pending_reads_, pending_requests_);
 
-  if (state_ != kDecodeFinished) {
-    demuxer_stream_->Read(
-        NewCallback(this, &FFmpegVideoDecoder::OnReadComplete));
-    ++pending_reads_;
-  }
+  demuxer_stream_->Read(
+      NewCallback(this, &FFmpegVideoDecoder::OnReadComplete));
+  ++pending_reads_;
 }
 
 FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
