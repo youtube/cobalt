@@ -7,7 +7,6 @@
 #pragma once
 
 #include <list>
-#include <set>
 #include <string>
 
 #include "base/gtest_prod_util.h"

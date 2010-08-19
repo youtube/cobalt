@@ -6,7 +6,6 @@
 #define NET_BASE_HOST_RESOLVER_IMPL_H_
 #pragma once
 
-#include <string>
 #include <vector>
 
 #include "base/non_thread_safe.h"
