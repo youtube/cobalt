@@ -418,6 +418,11 @@ class ListValue : public Value {
   // Returns true if successful, or false if the index was out of range.
   bool Insert(size_t index, Value* in_value);
 
+  // Swaps contents with the |other| list.
+  void Swap(ListValue* other) {
+    list_.swap(other->list_);
+  }
+
   // Iteration
   typedef ValueVector::iterator iterator;
   typedef ValueVector::const_iterator const_iterator;
