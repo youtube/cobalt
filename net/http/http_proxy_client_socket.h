@@ -26,7 +26,7 @@ namespace net {
 class AddressList;
 class ClientSocketHandle;
 class HttpStream;
-class IOBuffer;;
+class IOBuffer;
 
 class HttpProxyClientSocket : public ClientSocket {
  public:

@@ -21,6 +21,8 @@ class GrowableIOBuffer;
 struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
+class SSLCertRequestInfo;
+class SSLInfo;
 
 class HttpStreamParser {
  public:
@@ -45,6 +47,8 @@ class HttpStreamParser {
   int ReadResponseBody(IOBuffer* buf, int buf_len,
                        CompletionCallback* callback);
 
+  void Close(bool not_reusable);
+
   uint64 GetUploadProgress() const;
 
   HttpResponseInfo* GetResponseInfo();
@@ -54,6 +58,14 @@ class HttpStreamParser {
   bool CanFindEndOfResponse() const;
 
   bool IsMoreDataBuffered() const;
+
+  bool IsConnectionReused() const;
+
+  void SetConnectionReused();
+
+  void GetSSLInfo(SSLInfo* ssl_info);
+
+  void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
  private:
   // FOO_COMPLETE states implement the second half of potentially asynchronous

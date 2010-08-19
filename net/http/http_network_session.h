@@ -19,6 +19,7 @@
 #include "net/http/http_network_delegate.h"
 #include "net/http/http_network_transaction.h"
 #include "net/http/http_proxy_client_socket_pool.h"
+#include "net/http/http_stream_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socks_client_socket_pool.h"
@@ -101,6 +102,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     return network_delegate_;
   }
 
+  const scoped_refptr<HttpStreamFactory>& http_stream_factory() {
+    return http_stream_factory_;
+  }
+
   static int max_sockets_per_group();
   static void set_max_sockets_per_group(int socket_count);
   static void set_max_sockets_per_proxy_server(int socket_count);
@@ -164,6 +169,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
+  scoped_refptr<HttpStreamFactory> http_stream_factory_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   HttpNetworkDelegate* const network_delegate_;
   NetLog* net_log_;

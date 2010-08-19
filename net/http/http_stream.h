@@ -18,11 +18,13 @@
 
 namespace net {
 
-struct HttpRequestInfo;
+class BoundNetLog;
 class HttpResponseInfo;
 class IOBuffer;
+class SSLCertRequestInfo;
+class SSLInfo;
 class UploadDataStream;
-class BoundNetLog;
+struct HttpRequestInfo;
 
 class HttpStream {
  public:
@@ -71,6 +73,17 @@ class HttpStream {
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
                                CompletionCallback* callback) = 0;
 
+  // Closes the stream.
+  // |not_reusable| indicates if the stream can be used for further requests.
+  // In the case of HTTP, where we re-use the byte-stream (e.g. the connection)
+  // this means we need to close the connection; in the case of SPDY, where the
+  // underlying stream is never reused, it has no effect.
+  // TODO(mbelshe): We should figure out how to fold the not_reusable flag
+  //                into the stream implementation itself so that the caller
+  //                does not need to pass it at all.  We might also be able to
+  //                eliminate the SetConnectionReused() below.
+  virtual void Close(bool not_reusable) = 0;
+
   // Indicates if the response body has been completely read.
   virtual bool IsResponseBodyComplete() const = 0;
 
@@ -84,6 +97,23 @@ class HttpStream {
   // is complete, this function indicates if more data (either erroneous or
   // as part of the next pipelined response) has been read from the socket.
   virtual bool IsMoreDataBuffered() const = 0;
+
+  // A stream exists on top of a connection.  If the connection has been used
+  // to successfully exchange data in the past, error handling for the
+  // stream is done differently.  This method returns true if the underlying
+  // connection is reused or has been connected and idle for some time.
+  virtual bool IsConnectionReused() const = 0;
+  virtual void SetConnectionReused() = 0;
+
+  // Get the SSLInfo associated with this stream's connection.  This should
+  // only be called for streams over SSL sockets, otherwise the behavior is
+  // undefined.
+  virtual void GetSSLInfo(SSLInfo* ssl_info) = 0;
+
+  // Get the SSLCertRequestInfo associated with this stream's connection.
+  // This should only be called for streams over SSL sockets, otherwise the
+  // behavior is undefined.
+  virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HttpStream);
