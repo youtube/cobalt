@@ -132,6 +132,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Fills SSL info in |ssl_info| and returns true when SSL is in use.
   bool GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated);
 
+  // Fills SSL Certificate Request info |cert_request_info| and returns
+  // true when SSL is in use.
+  bool GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
+
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
@@ -148,12 +152,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // error.
   void CloseSessionOnError(net::Error err);
 
-  // Indicates whether we should retry failed requets on a session.
-  bool ShouldResendFailedRequest(int error) const {
-    // NOTE: we resend a request only if this connection has successfully
-    // been used for some data receiving.  Otherwise, we assume the error
-    // is not transient.
-    // This is primarily for use with recovery from a TCP RESET.
+  // Indicates whether the session is being reused after having successfully
+  // used to send/receive data in the past.
+  bool IsReused() const {
     return frames_received_ > 0;
   }
 

@@ -52,6 +52,10 @@ int HttpBasicStream::ReadResponseBody(IOBuffer* buf, int buf_len,
   return parser_->ReadResponseBody(buf, buf_len, callback);
 }
 
+void HttpBasicStream::Close(bool not_reusable) {
+  parser_->Close(not_reusable);
+}
+
 bool HttpBasicStream::IsResponseBodyComplete() const {
   return parser_->IsResponseBodyComplete();
 }
@@ -62,6 +66,23 @@ bool HttpBasicStream::CanFindEndOfResponse() const {
 
 bool HttpBasicStream::IsMoreDataBuffered() const {
   return parser_->IsMoreDataBuffered();
+}
+
+bool HttpBasicStream::IsConnectionReused() const {
+  return parser_->IsConnectionReused();
+}
+
+void HttpBasicStream::SetConnectionReused() {
+  parser_->SetConnectionReused();
+}
+
+void HttpBasicStream::GetSSLInfo(SSLInfo* ssl_info) {
+  parser_->GetSSLInfo(ssl_info);
+}
+
+void HttpBasicStream::GetSSLCertRequestInfo(
+    SSLCertRequestInfo* cert_request_info) {
+  parser_->GetSSLCertRequestInfo(cert_request_info);
 }
 
 }  // namespace net
