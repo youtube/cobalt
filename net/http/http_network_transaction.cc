@@ -833,7 +833,12 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
   if (done) {
     LogTransactionMetrics();
     stream_->Close(!keep_alive);
-    stream_.reset();
+    // Note: we don't reset the stream here.  We've closed it, but we still
+    // need it around so that callers can call methods such as
+    // GetUploadProgress() and have them be meaningful.
+    // TODO(mbelshe): This means we closed the stream here, and we close it
+    // again in ~HttpNetworkTransaction.  Clean that up.
+
     // The next Read call will return 0 (EOF).
   }
 
