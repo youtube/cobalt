@@ -48,9 +48,11 @@
 #include <keyhi.h>     // SECKEY_CreateSubjectPublicKeyInfo()
 
 #include "base/base64.h"
+#include "base/logging.h"
 #include "base/nss_util_internal.h"
 #include "base/nss_util.h"
-#include "base/logging.h"
+#include "base/string_util.h"
+#include "googleurl/src/gurl.h"
 
 namespace {
 
@@ -94,6 +96,7 @@ namespace mozilla_security_manager {
 // in mozilla/security/manager/ssl/src/nsKeygenHandler.cpp.
 std::string GenKeyAndSignChallenge(int key_size_in_bits,
                                    const std::string& challenge,
+                                   const GURL& url,
                                    bool stores_key) {
   // Key pair generation mechanism - only RSA is supported at present.
   PRUint32 keyGenMechanism = CKM_RSA_PKCS_KEY_PAIR_GEN;  // from nss/pkcs11t.h
@@ -169,6 +172,18 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
     LOG(INFO) << "Generation of Keypair failed!";
     isSuccess = false;
     goto failure;
+  }
+
+  // Set friendly names for the keys.
+  if (url.has_host()) {
+    // TODO(davidben): Use something like "Key generated for
+    // example.com", but localize it.
+    const std::string& label = url.host();
+    {
+      base::AutoNSSWriteLock lock;
+      PK11_SetPublicKeyNickname(publicKey, label.c_str());
+      PK11_SetPrivateKeyNickname(privateKey, label.c_str());
+    }
   }
 
   // The CA expects the signed public key in a specific format
