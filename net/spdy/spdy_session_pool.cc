@@ -90,7 +90,7 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
 }
 
 void SpdySessionPool::OnIPAddressChanged() {
-  ClearSessions();
+  CloseCurrentSessions();
 }
 
 SpdySessionPool::SpdySessionList*
@@ -131,25 +131,41 @@ void SpdySessionPool::RemoveSessionList(
   }
 }
 
-void SpdySessionPool::ClearSessions() {
-  while (!sessions_.empty()) {
-    SpdySessionList* list = sessions_.begin()->second;
-    DCHECK(list);
-    sessions_.erase(sessions_.begin()->first);
-    while (list->size()) {
-      list->pop_front();
-    }
-    delete list;
-  }
-}
-
 void SpdySessionPool::CloseAllSessions() {
   while (!sessions_.empty()) {
     SpdySessionList* list = sessions_.begin()->second;
-    DCHECK(list);
+    CHECK(list);
     const scoped_refptr<SpdySession>& session = list->front();
-    DCHECK(session);
-    session->CloseSessionOnError(net::ERR_ABORTED);
+    CHECK(session);
+    // This call takes care of removing the session from the pool, as well as
+    // removing the session list if the list is empty.
+    session->CloseSessionOnError(net::ERR_ABORTED, true);
+  }
+}
+
+void SpdySessionPool::CloseCurrentSessions() {
+  SpdySessionsMap old_map;
+  old_map.swap(sessions_);
+  for (SpdySessionsMap::const_iterator it = old_map.begin();
+       it != old_map.end(); ++it) {
+    SpdySessionList* list = it->second;
+    CHECK(list);
+    const scoped_refptr<SpdySession>& session = list->front();
+    CHECK(session);
+    session->set_in_session_pool(false);
+  }
+
+  while (!old_map.empty()) {
+    SpdySessionList* list = old_map.begin()->second;
+    CHECK(list);
+    const scoped_refptr<SpdySession>& session = list->front();
+    CHECK(session);
+    session->CloseSessionOnError(net::ERR_ABORTED, false);
+    list->pop_front();
+    if (list->empty()) {
+      delete list;
+      old_map.erase(old_map.begin()->first);
+    }
   }
 }
 

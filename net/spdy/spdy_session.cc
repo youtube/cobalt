@@ -507,7 +507,7 @@ void SpdySession::OnTCPConnect(int result) {
 
   if (result != net::OK) {
     DCHECK_LT(result, 0);
-    CloseSessionOnError(static_cast<net::Error>(result));
+    CloseSessionOnError(static_cast<net::Error>(result), true);
     return;
   } else {
     UpdateConnectionTypeHistograms(CONNECTION_SPDY);
@@ -555,7 +555,7 @@ void SpdySession::OnSSLConnect(int result) {
     ReadSocket();
   } else {
     DCHECK_LT(result, 0);  // It should be an error, not a byte count.
-    CloseSessionOnError(static_cast<net::Error>(result));
+    CloseSessionOnError(static_cast<net::Error>(result), true);
   }
 }
 
@@ -576,7 +576,7 @@ void SpdySession::OnReadComplete(int bytes_read) {
           host_port_pair().ToString() << "].";
       error = ERR_CONNECTION_CLOSED;
     }
-    CloseSessionOnError(error);
+    CloseSessionOnError(error, true);
     return;
   }
 
@@ -650,7 +650,7 @@ void SpdySession::OnWriteComplete(int result) {
     in_flight_write_.release();
 
     // The stream is now errored.  Close it down.
-    CloseSessionOnError(static_cast<net::Error>(result));
+    CloseSessionOnError(static_cast<net::Error>(result), true);
   }
 }
 
@@ -671,7 +671,7 @@ net::Error SpdySession::ReadSocket() {
   switch (bytes_read) {
     case 0:
       // Socket is closed!
-      CloseSessionOnError(ERR_CONNECTION_CLOSED);
+      CloseSessionOnError(ERR_CONNECTION_CLOSED, true);
       return ERR_CONNECTION_CLOSED;
     case net::ERR_IO_PENDING:
       // Waiting for data.  Nothing to do now.
@@ -732,7 +732,7 @@ void SpdySession::WriteSocket() {
             spdy_framer_.CompressFrame(uncompressed_frame));
         if (!compressed_frame.get()) {
           LOG(ERROR) << "SPDY Compression failure";
-          CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR);
+          CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true);
           return;
         }
 
@@ -824,7 +824,7 @@ void SpdySession::QueueFrame(spdy::SpdyFrame* frame,
   WriteSocketLater();
 }
 
-void SpdySession::CloseSessionOnError(net::Error err) {
+void SpdySession::CloseSessionOnError(net::Error err, bool remove_from_pool) {
   // Closing all streams can have a side-effect of dropping the last reference
   // to |this|.  Hold a reference through this function.
   scoped_refptr<SpdySession> self(this);
@@ -839,7 +839,8 @@ void SpdySession::CloseSessionOnError(net::Error err) {
   if (state_ != CLOSED) {
     state_ = CLOSED;
     error_ = err;
-    RemoveFromPool();
+    if (remove_from_pool)
+      RemoveFromPool();
     CloseAllStreams(err);
   }
 }
@@ -929,7 +930,7 @@ bool SpdySession::GetSSLCertRequestInfo(
 
 void SpdySession::OnError(spdy::SpdyFramer* framer) {
   LOG(ERROR) << "SpdySession error: " << framer->error_code();
-  CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR);
+  CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true);
 }
 
 void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
