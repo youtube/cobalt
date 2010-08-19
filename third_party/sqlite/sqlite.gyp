@@ -211,6 +211,7 @@
           'direct_dependent_settings': {
             'include_dirs': [
               '.',
+              '../..',
             ],
           },
           'msvs_disabled_warnings': [
