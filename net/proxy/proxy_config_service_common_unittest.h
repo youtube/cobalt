@@ -1,13 +1,10 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_COMMON_UNITTEST_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_COMMON_UNITTEST_H_
 #pragma once
-
-#include <string>
-#include <vector>
 
 #include "net/proxy/proxy_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
