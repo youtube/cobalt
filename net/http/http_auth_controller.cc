@@ -8,6 +8,7 @@
 #include "net/base/auth.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_util.h"
+#include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"

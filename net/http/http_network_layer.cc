@@ -187,27 +187,27 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     const std::string& option = *it;
     if (option == kDisableSSL) {
       SpdySession::SetSSLMode(false);  // Disable SSL
-      HttpNetworkTransaction::SetUseSSLOverSpdyWithoutNPN(false);
-      HttpNetworkTransaction::SetUseSpdyWithoutNPN(true);
+      HttpStreamFactory::set_force_spdy_over_ssl(false);
+      HttpStreamFactory::set_force_spdy_always(true);
     } else if (option == kSSL) {
-      HttpNetworkTransaction::SetUseSSLOverSpdyWithoutNPN(true);
-      HttpNetworkTransaction::SetUseSpdyWithoutNPN(true);
+      HttpStreamFactory::set_force_spdy_over_ssl(true);
+      HttpStreamFactory::set_force_spdy_always(true);
     } else if (option == kDisableCompression) {
       spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
-      HttpNetworkTransaction::SetUseAlternateProtocols(use_alt_protocols);
-      HttpNetworkTransaction::SetNextProtos(kNpnProtosFull);
+      HttpStreamFactory::set_use_alternate_protocols(use_alt_protocols);
+      HttpStreamFactory::set_next_protos(kNpnProtosFull);
     } else if (option == kEnableNpnHttpOnly) {
       // Avoid alternate protocol in this case. Otherwise, browser will try SSL
       // and then fallback to http. This introduces extra load.
-      HttpNetworkTransaction::SetUseAlternateProtocols(false);
-      HttpNetworkTransaction::SetNextProtos(kNpnProtosHttpOnly);
+      HttpStreamFactory::set_use_alternate_protocols(false);
+      HttpStreamFactory::set_next_protos(kNpnProtosHttpOnly);
     } else if (option == kEnableVersionOne) {
       spdy::SpdyFramer::set_protocol_version(1);
-      HttpNetworkTransaction::SetNextProtos(kNpnProtosFullV1);
+      HttpStreamFactory::set_next_protos(kNpnProtosFullV1);
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;
-      HttpNetworkTransaction::SetUseAlternateProtocols(false);
+      HttpStreamFactory::set_use_alternate_protocols(false);
     } else if (option == kEnableFlowControl) {
       SpdySession::SetFlowControl(true);
     } else if (option.empty() && it == spdy_options.begin()) {

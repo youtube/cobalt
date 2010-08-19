@@ -32,6 +32,7 @@ int g_max_sockets_per_proxy_server = 32;
 
 }  // namespace
 
+// TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(
     HostResolver* host_resolver,
     ProxyService* proxy_service,
@@ -61,6 +62,7 @@ HttpNetworkSession::HttpNetworkSession(
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
       spdy_session_pool_(spdy_session_pool),
+      http_stream_factory_(new HttpStreamFactory()),
       http_auth_handler_factory_(http_auth_handler_factory),
       network_delegate_(network_delegate),
       net_log_(net_log) {

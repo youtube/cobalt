@@ -51,11 +51,21 @@ class HttpBasicStream : public HttpStream {
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
                                CompletionCallback* callback);
 
+  virtual void Close(bool not_reusable);
+
   virtual bool IsResponseBodyComplete() const;
 
   virtual bool CanFindEndOfResponse() const;
 
   virtual bool IsMoreDataBuffered() const;
+
+  virtual bool IsConnectionReused() const;
+
+  virtual void SetConnectionReused();
+
+  virtual void GetSSLInfo(SSLInfo* ssl_info);
+
+  virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
  private:
   scoped_refptr<GrowableIOBuffer> read_buf_;

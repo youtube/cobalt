@@ -14,6 +14,7 @@
 #include "base/string_util.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_util.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
@@ -257,6 +258,12 @@ int SpdyHttpStream::ReadResponseBody(
   return ERR_IO_PENDING;
 }
 
+void SpdyHttpStream::Close(bool not_reusable) {
+  // Note: the not_reusable flag has no meaning for SPDY streams.
+
+  Cancel();
+}
+
 int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
                                 UploadDataStream* request_body,
                                 HttpResponseInfo* response,
@@ -358,6 +365,11 @@ int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
     response_info_ = push_response_info_.get();
   }
 
+  // TODO(mbelshe): This is the time of all headers received, not just time
+  // to first byte.
+  DCHECK(response_info_->response_time.is_null());
+  response_info_->response_time = base::Time::Now();
+
   if (!SpdyHeadersToHttpResponse(response, response_info_)) {
     status = ERR_INVALID_RESPONSE;
   } else {
@@ -407,10 +419,6 @@ void SpdyHttpStream::OnClose(int status) {
   }
   if (!invoked_callback && user_callback_)
     DoCallback(status);
-}
-
-bool SpdyHttpStream::ShouldResendFailedRequest(int error) const {
-  return spdy_session_->ShouldResendFailedRequest(error);
 }
 
 void SpdyHttpStream::ScheduleBufferedReadCallback() {
@@ -483,6 +491,18 @@ void SpdyHttpStream::DoCallback(int rv) {
   CompletionCallback* c = user_callback_;
   user_callback_ = NULL;
   c->Run(rv);
+}
+
+void SpdyHttpStream::GetSSLInfo(SSLInfo* ssl_info) {
+  DCHECK(stream_);
+  bool using_npn;
+  stream_->GetSSLInfo(ssl_info, &using_npn);
+}
+
+void SpdyHttpStream::GetSSLCertRequestInfo(
+    SSLCertRequestInfo* cert_request_info) {
+  DCHECK(stream_);
+  stream_->GetSSLCertRequestInfo(cert_request_info);
 }
 
 }  // namespace net
