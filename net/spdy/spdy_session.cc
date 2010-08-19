@@ -916,6 +916,17 @@ bool SpdySession::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
   return false;
 }
 
+bool SpdySession::GetSSLCertRequestInfo(
+    SSLCertRequestInfo* cert_request_info) {
+  if (is_secure_) {
+    SSLClientSocket* ssl_socket =
+        reinterpret_cast<SSLClientSocket*>(connection_->socket());
+    ssl_socket->GetSSLCertRequestInfo(cert_request_info);
+    return true;
+  }
+  return false;
+}
+
 void SpdySession::OnError(spdy::SpdyFramer* framer) {
   LOG(ERROR) << "SpdySession error: " << framer->error_code();
   CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR);
