@@ -81,6 +81,8 @@
           'file_util_mac.mm',
           'file_util_posix.cc',
           'file_util_win.cc',
+          'file_util_proxy.cc',
+          'file_util_proxy.h',
           'file_version_info.h',
           'file_version_info_mac.h',
           'file_version_info_mac.mm',
