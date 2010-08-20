@@ -42,6 +42,7 @@
 #include <p12plcy.h>
 #include <secerr.h>
 
+#include "base/crypto/scoped_nss_types.h"
 #include "base/logging.h"
 #include "base/nss_util_internal.h"
 #include "base/string_util.h"
@@ -260,14 +261,14 @@ void EnsurePKCS12Init() {
 int nsPKCS12Blob_Import(const char* pkcs12_data,
                         size_t pkcs12_len,
                         const string16& password) {
-  PK11SlotInfo *slot = base::GetDefaultNSSKeySlot();
-  if (!slot) {
+  base::ScopedPK11Slot slot(base::GetDefaultNSSKeySlot());
+  if (!slot.get()) {
     LOG(ERROR) << "Couldn't get Internal key slot!";
     return net::ERR_PKCS12_IMPORT_FAILED;
   }
 
   int rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password, false,
-                                     slot);
+                                     slot.get());
 
   // When the user entered a zero length password:
   //   An empty password should be represented as an empty
@@ -278,10 +279,8 @@ int nsPKCS12Blob_Import(const char* pkcs12_data,
   //   without giving a user prompt when trying the different empty password flavors.
   if (rv == net::ERR_PKCS12_IMPORT_BAD_PASSWORD && password.size() == 0) {
     rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password, true,
-                                   slot);
+                                   slot.get());
   }
-
-  PK11_FreeSlot(slot);
   return rv;
 }
 
