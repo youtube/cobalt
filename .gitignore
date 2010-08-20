@@ -96,6 +96,7 @@
 /tools/distcc
 /tools/grit/grit/test/data
 /tools/gyp
+/tools/histograms/
 /tools/page_cycler/acid3
 /tools/tryserver
 /v8
