@@ -432,6 +432,8 @@
           'hmac_win.cc',
           'image_util.cc',
           'image_util.h',
+          'keyboard_code_conversion.cc',
+          'keyboard_code_conversion.h',
           'keyboard_code_conversion_gtk.cc',
           'keyboard_code_conversion_gtk.h',
           'keyboard_code_conversion_mac.mm',
