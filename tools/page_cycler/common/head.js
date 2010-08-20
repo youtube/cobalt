@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -50,10 +50,20 @@ function __pages() {  // fetch lazily
   return this.data;
 }
 function __get_timings() {
-  return __get_cookie("__pc_timings");
+  if (sessionStorage == null)
+    return __get_cookie("__pc_timings");
+  else {
+    if (sessionStorage.getItem("__pc_timings") == null)
+      return "";
+    else
+      return sessionStorage["__pc_timings"];
+  }
 }
 function __set_timings(timings) {
-  document.cookie = "__pc_timings=" + timings + "; path=/";
+  if (sessionStorage == null)
+    document.cookie = "__pc_timings=" + timings + "; path=/";
+  else
+    sessionStorage["__pc_timings"]=timings;
 }
 function __ontimeout() {
   var doc;
@@ -74,15 +84,16 @@ function __ontimeout() {
   } else {
     doc = "../" + __pages()[__page] + "/index.html"
   }
-  
+
   var timings = __tl;
   var oldTimings = __get_timings();
-  if (oldTimings != "") { 
+  if (oldTimings != "") {
     timings = oldTimings + "," + timings;
   }
   __set_timings(timings);
-  
-  var url = doc + "?n=" + __iterations + "&i=" + __cycle + "&p=" + __page + "&ts=" + ts + "&td=" + __td + "&tf=" + __tf;
+
+  var url = doc + "?n=" + __iterations + "&i=" + __cycle + "&p=" + __page +
+    "&ts=" + ts + "&td=" + __td + "&tf=" + __tf;
   document.location.href = url;
 }
 function __onload() {
