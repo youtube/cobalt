@@ -925,9 +925,6 @@
               # One can use '-gstabs' to enable building the debugging
               # information in STABS format for breakpad's dumpsyms.
             ],
-            'ldflags': [
-              '-rdynamic',  # Allows backtrace to resolve symbols.
-            ],
           },
           'Release_Base': {
             'variables': {
