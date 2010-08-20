@@ -612,9 +612,29 @@ inline bool MakeFileUnreadable(const FilePath& path) {
   // is passed in. If it is 0 then the whole file is paged in. The step size
   // which indicates the number of bytes to skip after every page touched is
   // also passed in.
-  bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
-                    size_t step_size);
+bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
+                  size_t step_size);
 #endif  // OS_WIN
+
+#if defined(OS_LINUX)
+// Broad categories of file systems as returned by statfs() on Linux.
+enum FileSystemType {
+  FILE_SYSTEM_UNKNOWN,  // statfs failed.
+  FILE_SYSTEM_0,        // statfs.f_type == 0 means unknown, may indicate AFS.
+  FILE_SYSTEM_ORDINARY,       // on-disk filesystem like ext2
+  FILE_SYSTEM_NFS,
+  FILE_SYSTEM_SMB,
+  FILE_SYSTEM_CODA,
+  FILE_SYSTEM_MEMORY,         // in-memory file system
+  FILE_SYSTEM_OTHER,          // any other value.
+  FILE_SYSTEM_TYPE_COUNT
+};
+
+// Attempts determine the FileSystemType for |path|.
+// Returns false if |path| doesn't exist.
+bool GetFileSystemType(const FilePath& path, FileSystemType* type);
+#endif
+
 }  // namespace file_util
 
 // Deprecated functions have been moved to this separate header file,
