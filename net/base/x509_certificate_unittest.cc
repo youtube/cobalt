@@ -272,9 +272,9 @@ TEST(X509CertificateTest, WebkitCertParsing) {
   EXPECT_EQ("California", subject.state_or_province_name);
   EXPECT_EQ("US", subject.country_name);
   EXPECT_EQ(0U, subject.street_addresses.size());
-  EXPECT_EQ(1U, subject.organization_names.size());
+  ASSERT_EQ(1U, subject.organization_names.size());
   EXPECT_EQ("Apple Inc.", subject.organization_names[0]);
-  EXPECT_EQ(1U, subject.organization_unit_names.size());
+  ASSERT_EQ(1U, subject.organization_unit_names.size());
   EXPECT_EQ("Mac OS Forge", subject.organization_unit_names[0]);
   EXPECT_EQ(0U, subject.domain_components.size());
 
@@ -284,9 +284,9 @@ TEST(X509CertificateTest, WebkitCertParsing) {
   EXPECT_EQ("Arizona", issuer.state_or_province_name);
   EXPECT_EQ("US", issuer.country_name);
   EXPECT_EQ(0U, issuer.street_addresses.size());
-  EXPECT_EQ(1U, issuer.organization_names.size());
+  ASSERT_EQ(1U, issuer.organization_names.size());
   EXPECT_EQ("GoDaddy.com, Inc.", issuer.organization_names[0]);
-  EXPECT_EQ(1U, issuer.organization_unit_names.size());
+  ASSERT_EQ(1U, issuer.organization_unit_names.size());
   EXPECT_EQ("http://certificates.godaddy.com/repository",
       issuer.organization_unit_names[0]);
   EXPECT_EQ(0U, issuer.domain_components.size());
@@ -304,7 +304,7 @@ TEST(X509CertificateTest, WebkitCertParsing) {
 
   std::vector<std::string> dns_names;
   webkit_cert->GetDNSNames(&dns_names);
-  EXPECT_EQ(2U, dns_names.size());
+  ASSERT_EQ(2U, dns_names.size());
   EXPECT_EQ("*.webkit.org", dns_names[0]);
   EXPECT_EQ("webkit.org", dns_names[1]);
 
@@ -329,7 +329,7 @@ TEST(X509CertificateTest, ThawteCertParsing) {
   EXPECT_EQ("California", subject.state_or_province_name);
   EXPECT_EQ("US", subject.country_name);
   EXPECT_EQ(0U, subject.street_addresses.size());
-  EXPECT_EQ(1U, subject.organization_names.size());
+  ASSERT_EQ(1U, subject.organization_names.size());
   EXPECT_EQ("Thawte Inc", subject.organization_names[0]);
   EXPECT_EQ(0U, subject.organization_unit_names.size());
   EXPECT_EQ(0U, subject.domain_components.size());
@@ -340,9 +340,9 @@ TEST(X509CertificateTest, ThawteCertParsing) {
   EXPECT_EQ("", issuer.state_or_province_name);
   EXPECT_EQ("US", issuer.country_name);
   EXPECT_EQ(0U, issuer.street_addresses.size());
-  EXPECT_EQ(1U, issuer.organization_names.size());
+  ASSERT_EQ(1U, issuer.organization_names.size());
   EXPECT_EQ("thawte, Inc.", issuer.organization_names[0]);
-  EXPECT_EQ(1U, issuer.organization_unit_names.size());
+  ASSERT_EQ(1U, issuer.organization_unit_names.size());
   EXPECT_EQ("Terms of use at https://www.thawte.com/cps (c)06",
             issuer.organization_unit_names[0]);
   EXPECT_EQ(0U, issuer.domain_components.size());
@@ -360,7 +360,7 @@ TEST(X509CertificateTest, ThawteCertParsing) {
 
   std::vector<std::string> dns_names;
   thawte_cert->GetDNSNames(&dns_names);
-  EXPECT_EQ(1U, dns_names.size());
+  ASSERT_EQ(1U, dns_names.size());
   EXPECT_EQ("www.thawte.com", dns_names[0]);
 
 #if TEST_EV
