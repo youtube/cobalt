@@ -17,10 +17,6 @@
 
 class URLRequestContext;
 
-namespace net {
-struct list_state;
-}
-
 // A URLRequestJob subclass that is built on top of FtpTransaction. It
 // provides an implementation for FTP.
 class URLRequestFtpJob : public URLRequestJob {
