@@ -102,7 +102,7 @@ bool URLRequestFileDirJob::GetCharset(string* charset) {
 }
 
 void URLRequestFileDirJob::OnListFile(
-    const file_util::FileEnumerator::FindInfo& data) {
+    const net::DirectoryLister::DirectoryListerData& data) {
   // We wait to write out the header until we get the first file, so that we
   // can catch errors from DirectoryLister and show an error page.
   if (!wrote_header_) {
@@ -122,26 +122,26 @@ void URLRequestFileDirJob::OnListFile(
   }
 
 #if defined(OS_WIN)
-  int64 size = (static_cast<unsigned __int64>(data.nFileSizeHigh) << 32) |
-      data.nFileSizeLow;
+  int64 size = (static_cast<unsigned __int64>(data.info.nFileSizeHigh) << 32) |
+      data.info.nFileSizeLow;
 
   // Note that we should not convert ftLastWriteTime to the local time because
   // ICU's datetime formatting APIs expect time in UTC and take into account
   // the timezone before formatting.
   data_.append(net::GetDirectoryListingEntry(
-      data.cFileName, std::string(),
-      (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? true : false,
+      data.info.cFileName, std::string(),
+      (data.info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? true : false,
       size,
-      base::Time::FromFileTime(data.ftLastWriteTime)));
+      base::Time::FromFileTime(data.info.ftLastWriteTime)));
 
 #elif defined(OS_POSIX)
   // TOOD(jungshik): The same issue as for the directory name.
   data_.append(net::GetDirectoryListingEntry(
-      WideToUTF16(base::SysNativeMBToWide(data.filename)),
-      data.filename,
-      S_ISDIR(data.stat.st_mode),
-      data.stat.st_size,
-      base::Time::FromTimeT(data.stat.st_mtime)));
+      WideToUTF16(base::SysNativeMBToWide(data.info.filename)),
+      data.info.filename,
+      S_ISDIR(data.info.stat.st_mode),
+      data.info.stat.st_size,
+      base::Time::FromTimeT(data.info.stat.st_mtime)));
 #endif
 
   // TODO(darin): coalesce more?
