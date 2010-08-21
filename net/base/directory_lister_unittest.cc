@@ -5,6 +5,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/i18n/file_util_icu.h"
+#include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "net/base/directory_lister.h"
@@ -17,14 +18,32 @@ class DirectoryListerTest : public testing::Test {};
 
 class ListerDelegate : public net::DirectoryLister::DirectoryListerDelegate {
  public:
-  ListerDelegate() : error_(-1) {
+  explicit ListerDelegate(bool recursive) : error_(-1), recursive_(recursive) {
   }
-  void OnListFile(const file_util::FileEnumerator::FindInfo& data) {
-    file_list_.push_back(data);
+  void OnListFile(const net::DirectoryLister::DirectoryListerData& data) {
+    file_list_.push_back(data.info);
+    paths_.push_back(data.path);
   }
   void OnListDone(int error) {
     error_ = error;
     MessageLoop::current()->Quit();
+    if (recursive_)
+      CheckRecursiveSort();
+    else
+      CheckSort();
+  }
+  void CheckRecursiveSort() {
+    // Check that we got files in the right order.
+    if (!file_list_.empty()) {
+      for (size_t previous = 0, current = 1;
+           current < file_list_.size();
+           previous++, current++) {
+        EXPECT_TRUE(file_util::LocaleAwareCompareFilenames(
+            paths_[previous], paths_[current]));
+      }
+    }
+  }
+  void CheckSort() {
     // Check that we got files in the right order.
     if (!file_list_.empty()) {
       for (size_t previous = 0, current = 1;
@@ -48,16 +67,36 @@ class ListerDelegate : public net::DirectoryLister::DirectoryListerDelegate {
   int error() const { return error_; }
  private:
   int error_;
+  bool recursive_;
   std::vector<file_util::FileEnumerator::FindInfo> file_list_;
+  std::vector<FilePath> paths_;
 };
 
 TEST(DirectoryListerTest, BigDirTest) {
   FilePath path;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
 
-  ListerDelegate delegate;
+  ListerDelegate delegate(false);
   scoped_refptr<net::DirectoryLister> lister =
       new net::DirectoryLister(path, &delegate);
+
+  lister->Start();
+
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(delegate.error(), net::OK);
+}
+
+TEST(DirectoryListerTest, BigDirRecursiveTest) {
+  FilePath path;
+  ASSERT_TRUE(PathService::Get(base::DIR_EXE, &path));
+
+  ListerDelegate delegate(true);
+  scoped_refptr<net::DirectoryLister> lister =
+      new net::DirectoryLister(path,
+                               true,
+                               net::DirectoryLister::FULL_PATH,
+                               &delegate);
 
   lister->Start();
 
@@ -70,7 +109,7 @@ TEST(DirectoryListerTest, CancelTest) {
   FilePath path;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
 
-  ListerDelegate delegate;
+  ListerDelegate delegate(false);
   scoped_refptr<net::DirectoryLister> lister =
       new net::DirectoryLister(path, &delegate);
 
