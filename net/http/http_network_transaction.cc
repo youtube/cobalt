@@ -442,8 +442,7 @@ void HttpNetworkTransaction::OnNeedsClientAuth(
   DCHECK_EQ(STATE_INIT_STREAM_COMPLETE, next_state_);
 
   response_.cert_request_info = cert_info;
-  int result = HandleCertificateRequest(ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
-  DoCallback(result);
+  OnIOComplete(ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
 }
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
@@ -579,6 +578,8 @@ int HttpNetworkTransaction::DoInitStreamComplete(int result) {
   if (result == OK) {
     next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
     DCHECK(stream_.get());
+  } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
+    result = HandleCertificateRequest(result);
   }
 
   // At this point we are done with the stream_request_.
@@ -987,6 +988,7 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
   //   long time while the user selects a certificate.
   //   Second, even if we did keep the connection open, NSS has a bug where
   //   restarting the handshake for ClientAuth is currently broken.
+  DCHECK_EQ(error, ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
 
   if (stream_.get()) {
     // Since we already have a stream, we're being called as part of SSL
@@ -999,10 +1001,8 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
   if (stream_request_.get()) {
     // The server is asking for a client certificate during the initial
     // handshake.
-    DCHECK_EQ(STATE_INIT_STREAM_COMPLETE, next_state_);
     stream_request_->Cancel();
     stream_request_ = NULL;
-    next_state_ = STATE_INIT_STREAM;
   }
 
   // If the user selected one of the certificate in client_certs for this
@@ -1014,6 +1014,9 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
         response_.cert_request_info->client_certs;
     for (size_t i = 0; i < client_certs.size(); ++i) {
       if (client_cert->fingerprint().Equals(client_certs[i]->fingerprint())) {
+        // TODO(davidben): Add a unit test which covers this path; we need to be
+        // able to send a legitimate certificate and also bypass/clear the
+        // SSL session cache.
         ssl_config_.client_cert = client_cert;
         ssl_config_.send_client_cert = true;
         next_state_ = STATE_INIT_STREAM;
