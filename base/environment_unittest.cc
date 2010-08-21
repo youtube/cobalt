@@ -17,6 +17,34 @@ TEST_F(EnvironmentTest, GetVar) {
   EXPECT_NE(env_value, "");
 }
 
+TEST_F(EnvironmentTest, GetVarReverse) {
+  scoped_ptr<base::Environment> env(base::Environment::Create());
+  const char* kFooUpper = "FOO";
+  const char* kFooLower = "foo";
+
+  // Set a variable in UPPER case.
+  EXPECT_TRUE(env->SetVar(kFooUpper, kFooLower));
+
+  // And then try to get this variable passing the lower case.
+  std::string env_value;
+  EXPECT_TRUE(env->GetVar(kFooLower, &env_value));
+
+  EXPECT_STREQ(env_value.c_str(), kFooLower);
+
+  EXPECT_TRUE(env->UnSetVar(kFooUpper));
+
+  const char* kBar = "bar";
+  // Now do the opposite, set the variable in the lower case.
+  EXPECT_TRUE(env->SetVar(kFooLower, kBar));
+
+  // And then try to get this variable passing the UPPER case.
+  EXPECT_TRUE(env->GetVar(kFooUpper, &env_value));
+
+  EXPECT_STREQ(env_value.c_str(), kBar);
+
+  EXPECT_TRUE(env->UnSetVar(kFooLower));
+}
+
 TEST_F(EnvironmentTest, HasVar) {
   // Every setup should have PATH...
   scoped_ptr<base::Environment> env(base::Environment::Create());
