@@ -13,8 +13,6 @@
 
 namespace disk_cache {
 
-class EntryImpl;
-
 // This class encapsulates common behavior of a single "block" of data that is
 // stored on a block-file. It implements the FileBlock interface, so it can be
 // serialized directly to the backing file.

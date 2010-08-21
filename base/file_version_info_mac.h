@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,8 +17,6 @@
 #else
 class NSBundle;
 #endif
-
-class FilePath;
 
 // Provides a way to access the version information for a file.
 // This is the information you access when you select a file in the Windows

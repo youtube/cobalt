@@ -24,14 +24,10 @@
 
 namespace net {
 
-class ClientSocketFactory;
-class ClientSocketHandle;
 class HttpAuthController;
 class HttpNetworkSession;
-class HttpRequestHeaders;
 class HttpStream;
 class HttpStreamHandle;
-class HttpStreamRequest;
 class IOBuffer;
 
 class HttpNetworkTransaction : public HttpTransaction,
