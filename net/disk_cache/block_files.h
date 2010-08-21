@@ -17,8 +17,6 @@
 
 namespace disk_cache {
 
-class EntryImpl;
-
 // This class handles the set of block-files open by the disk cache.
 class BlockFiles {
  public:

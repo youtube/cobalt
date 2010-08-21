@@ -12,7 +12,6 @@
 namespace net {
 
 class FtpNetworkSession;
-class FtpAuthCache;
 class HostResolver;
 
 class FtpNetworkLayer : public FtpTransactionFactory {

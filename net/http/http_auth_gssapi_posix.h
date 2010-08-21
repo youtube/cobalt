@@ -16,11 +16,7 @@
 #define GSS_USE_FUNCTION_POINTERS
 #include "net/third_party/gssapi/gssapi.h"
 
-class GURL;
-
 namespace net {
-
-struct HttpRequestInfo;
 
 extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
 extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;

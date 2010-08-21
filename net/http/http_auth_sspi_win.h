@@ -22,9 +22,6 @@
 
 namespace net {
 
-struct HttpRequestInfo;
-class ProxyInfo;
-
 // SSPILibrary is introduced so unit tests can mock the calls to Windows' SSPI
 // implementation. The default implementation simply passes the arguments on to
 // the SSPI implementation provided by Secur32.dll.

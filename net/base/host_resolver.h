@@ -14,13 +14,10 @@
 #include "net/base/completion_callback.h"
 #include "net/base/request_priority.h"
 
-class MessageLoop;
-
 namespace net {
 
 class AddressList;
 class BoundNetLog;
-class HostCache;
 class HostResolverImpl;
 
 // This class represents the task of resolving hostnames (or IP address

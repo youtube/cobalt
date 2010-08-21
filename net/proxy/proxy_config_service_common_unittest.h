@@ -14,8 +14,6 @@
 
 namespace net {
 
-class ProxyBypassRules;
-
 // This structure contains our expectations on what values the ProxyRules
 // should have.
 struct ProxyRulesExpectation {
