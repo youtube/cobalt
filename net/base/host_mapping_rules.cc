@@ -28,8 +28,18 @@ bool HostMappingRules::RewriteHost(HostPortPair* host_port) const {
        it != map_rules_.end(); ++it) {
     const MapRule& rule = *it;
 
-    if (!MatchPatternASCII(host_port->host(), rule.hostname_pattern))
-      continue;  // This rule doesn't apply.
+    // The rule's hostname_pattern will be something like:
+    //     www.foo.com
+    //     *.foo.com
+    //     www.foo.com:1234
+    //     *.foo.com:1234
+    // First, we'll check for a match just on hostname.
+    // If that fails, we'll check for a match with both hostname and port.
+    if (!MatchPatternASCII(host_port->host(), rule.hostname_pattern)) {
+      std::string host_port_string = host_port->ToString();
+      if (!MatchPatternASCII(host_port_string, rule.hostname_pattern))
+        continue;  // This rule doesn't apply.
+    }
 
     host_port->set_host(rule.replacement_hostname);
     if (rule.replacement_port != -1)
