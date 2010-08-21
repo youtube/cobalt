@@ -28,7 +28,8 @@ class URLRequestFileDirJob
   virtual bool GetCharset(std::string* charset);
 
   // DirectoryLister::DirectoryListerDelegate methods:
-  virtual void OnListFile(const file_util::FileEnumerator::FindInfo& data);
+  virtual void OnListFile(
+      const net::DirectoryLister::DirectoryListerData& data);
   virtual void OnListDone(int error);
 
   bool list_complete() const { return list_complete_; }

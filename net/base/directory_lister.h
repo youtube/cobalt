@@ -6,11 +6,14 @@
 #define NET_BASE_DIRECTORY_LISTER_H_
 #pragma once
 
+#include <vector>
+
 #include "base/cancellation_flag.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/platform_thread.h"
 #include "base/ref_counted.h"
+#include "base/task.h"
 
 class MessageLoop;
 
@@ -26,27 +29,42 @@ namespace net {
 class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
                         public PlatformThread::Delegate {
  public:
+  // Represents one file found.
+  struct DirectoryListerData {
+    file_util::FileEnumerator::FindInfo info;
+    FilePath path;
+  };
+
   // Implement this class to receive directory entries.
   class DirectoryListerDelegate {
    public:
-    virtual void OnListFile(
-        const file_util::FileEnumerator::FindInfo& data) = 0;
+    // Called for each file found by the lister.
+    virtual void OnListFile(const DirectoryListerData& data) = 0;
+
+    // Called when the listing is complete.
     virtual void OnListDone(int error) = 0;
 
    protected:
     virtual ~DirectoryListerDelegate() {}
   };
 
+  // Sort options
+  // ALPHA_DIRS_FIRST is the default sort :
+  //   directories first in name order, then files by name order
+  // FULL_PATH sorts by paths as strings, ignoring files v. directories
+  // DATE sorts by last modified date
   enum SORT_TYPE {
-    DEFAULT,
+    NO_SORT,
     DATE,
-    ALPHA
+    ALPHA_DIRS_FIRST,
+    FULL_PATH
   };
 
   DirectoryLister(const FilePath& dir,
                   DirectoryListerDelegate* delegate);
 
   DirectoryLister(const FilePath& dir,
+                  bool recursive,
                   SORT_TYPE sort,
                   DirectoryListerDelegate* delegate);
 
@@ -70,13 +88,21 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
   friend class base::RefCountedThreadSafe<DirectoryLister>;
   friend class DirectoryDataEvent;
 
+  // Comparison methods for sorting, chosen based on |sort_|.
+  static bool CompareAlphaDirsFirst(const DirectoryListerData& a,
+                                    const DirectoryListerData& b);
+  static bool CompareDate(const DirectoryListerData& a,
+                          const DirectoryListerData& b);
+  static bool CompareFullPath(const DirectoryListerData& a,
+                              const DirectoryListerData& b);
+
   ~DirectoryLister();
 
-  void OnReceivedData(const file_util::FileEnumerator::FindInfo* data,
-                      int count);
+  void OnReceivedData(const DirectoryListerData* data, int count);
   void OnDone(int error);
 
   FilePath dir_;
+  bool recursive_;
   DirectoryListerDelegate* delegate_;
   SORT_TYPE sort_;
   MessageLoop* message_loop_;
