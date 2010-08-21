@@ -467,6 +467,17 @@ TEST_F(HTTPSRequestTest, ClientAuthTest) {
     EXPECT_EQ(1, d.on_certificate_requested_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(0, d.bytes_received());
+
+    // Send no certificate.
+    // TODO(davidben): Get temporary client cert import (with keys) working on
+    // all platforms so we can test sending a cert as well.
+    r.ContinueWithCertificate(NULL);
+
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(1, d.response_started_count());
+    EXPECT_FALSE(d.received_data_before_response());
+    EXPECT_NE(0, d.bytes_received());
   }
 }
 

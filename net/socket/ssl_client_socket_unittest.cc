@@ -167,8 +167,9 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
       log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
 }
 
-// TODO(davidben): Also test providing a certificate.
-TEST_F(SSLClientSocketTest, ConnectClientAuthNoCert) {
+// Attempt to connect to a page which requests a client certificate. It should
+// return an error code on connect.
+TEST_F(SSLClientSocketTest, ConnectClientAuthCertRequested) {
   net::TestServer test_server(net::TestServer::TYPE_HTTPS_CLIENT_AUTH,
                               FilePath());
   ASSERT_TRUE(test_server.Start());
@@ -209,6 +210,59 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthNoCert) {
 
   EXPECT_TRUE(net::LogContainsEndEvent(
       log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+}
+
+// Connect to a server requesting optional client authentication. Send it a
+// null certificate. It should allow the connection.
+//
+// TODO(davidben): Also test providing an actual certificate.
+TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS_CLIENT_AUTH,
+                              FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  net::AddressList addr;
+  ASSERT_TRUE(test_server.GetAddressList(&addr));
+
+  TestCompletionCallback callback;
+  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  int rv = transport->Connect(&callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+
+  net::SSLConfig ssl_config = kDefaultSSLConfig;
+  ssl_config.send_client_cert = true;
+  ssl_config.client_cert = NULL;
+
+  scoped_ptr<net::SSLClientSocket> sock(
+      socket_factory_->CreateSSLClientSocket(transport,
+          test_server.host_port_pair().host(), ssl_config));
+
+  EXPECT_FALSE(sock->IsConnected());
+
+  // Our test server accepts certificate-less connections.
+  // TODO(davidben): Add a test which requires them and verify the error.
+  rv = sock->Connect(&callback);
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+  if (rv != net::OK) {
+    ASSERT_EQ(net::ERR_IO_PENDING, rv);
+    EXPECT_FALSE(sock->IsConnected());
+    EXPECT_FALSE(net::LogContainsEndEvent(
+        log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+
+    rv = callback.WaitForResult();
+    EXPECT_EQ(net::OK, rv);
+  }
+
+  EXPECT_TRUE(sock->IsConnected());
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+
+  sock->Disconnect();
+  EXPECT_FALSE(sock->IsConnected());
 }
 
 // TODO(wtc): Add unit tests for IsConnectedAndIdle:
