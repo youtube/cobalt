@@ -21,7 +21,6 @@
 namespace net {
 
 class AuthChallengeInfo;
-class HostResolver;
 class HttpAuthHandler;
 class HttpNetworkSession;
 class HttpRequestHeaders;

@@ -20,10 +20,7 @@
 
 namespace net {
 
-class ClientSocketFactory;
-class ConnectJobFactory;
 class HostResolver;
-class HttpAuthController;
 class HttpNetworkSession;
 class TCPClientSocketPool;
 class TCPSocketParams;

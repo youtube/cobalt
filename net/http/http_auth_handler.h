@@ -18,8 +18,6 @@ class Histogram;
 
 namespace net {
 
-class HostResolver;
-class ProxyInfo;
 struct HttpRequestInfo;
 
 // HttpAuthHandler is the interface for the authentication schemes

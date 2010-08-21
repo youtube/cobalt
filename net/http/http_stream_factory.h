@@ -22,10 +22,7 @@
 
 namespace net {
 
-class ClientSocketHandle;
-class HttpAuthController;
 class HttpNetworkSession;
-class HttpStreamRequest;
 
 class HttpStreamFactory : public StreamFactory,
                           public base::RefCounted<HttpStreamFactory> {

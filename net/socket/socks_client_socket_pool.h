@@ -21,7 +21,6 @@
 
 namespace net {
 
-class ClientSocketFactory;
 class ConnectJobFactory;
 class TCPClientSocketPool;
 class TCPSocketParams;
