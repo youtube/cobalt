@@ -62,7 +62,7 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
   """This is a specialization of StoppableHTTPerver that add https support."""
 
   def __init__(self, server_address, request_hander_class, cert_path,
-               ssl_client_auth):
+               ssl_client_auth, ssl_client_cas):
     s = open(cert_path).read()
     x509 = tlslite.api.X509()
     x509.parse(s)
@@ -70,6 +70,12 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
     s = open(cert_path).read()
     self.private_key = tlslite.api.parsePEMKey(s, private=True)
     self.ssl_client_auth = ssl_client_auth
+    self.ssl_client_cas = []
+    for ca_file in ssl_client_cas:
+        s = open(ca_file).read()
+        x509 = tlslite.api.X509()
+        x509.parse(s)
+        self.ssl_client_cas.append(x509.subject)
 
     self.session_cache = tlslite.api.SessionCache()
     StoppableHTTPServer.__init__(self, server_address, request_hander_class)
@@ -80,7 +86,8 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
       tlsConnection.handshakeServer(certChain=self.cert_chain,
                                     privateKey=self.private_key,
                                     sessionCache=self.session_cache,
-                                    reqCert=self.ssl_client_auth)
+                                    reqCert=self.ssl_client_auth,
+                                    reqCAs=self.ssl_client_cas)
       tlsConnection.ignoreAbruptClose = True
       return True
     except tlslite.api.TLSAbruptCloseError:
@@ -1227,10 +1234,16 @@ def main(options, args):
     if options.cert:
       # let's make sure the cert file exists.
       if not os.path.isfile(options.cert):
-        print 'specified cert file not found: ' + options.cert + ' exiting...'
+        print 'specified server cert file not found: ' + options.cert + \
+              ' exiting...'
         return
+      for ca_cert in options.ssl_client_ca:
+        if not os.path.isfile(ca_cert):
+          print 'specified trusted client CA file not found: ' + ca_cert + \
+                ' exiting...'
+          return
       server = HTTPSServer(('127.0.0.1', port), TestPageHandler, options.cert,
-                           options.ssl_client_auth)
+                           options.ssl_client_auth, options.ssl_client_ca)
       print 'HTTPS server started on port %d...' % port
     else:
       server = StoppableHTTPServer(('127.0.0.1', port), TestPageHandler)
@@ -1297,6 +1310,10 @@ if __name__ == '__main__':
                            'the server should use.')
   option_parser.add_option('', '--ssl-client-auth', action='store_true',
                            help='Require SSL client auth on every connection.')
+  option_parser.add_option('', '--ssl-client-ca', action='append', default=[],
+                           help='Specify that the client certificate request '
+                           'should indicate that it supports the CA contained '
+                           'in the specified certificate file')
   option_parser.add_option('', '--file-root-url', default='/files/',
                            help='Specify a root URL for files served.')
   option_parser.add_option('', '--never-die', default=False,
