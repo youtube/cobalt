@@ -105,12 +105,16 @@ class HttpCache::WorkItem {
       trans_->io_callback()->Run(result);
   }
 
-  // Notifies the caller about the operation completion.
-  void DoCallback(int result, disk_cache::Backend* backend) {
+  // Notifies the caller about the operation completion. Returns true if the
+  // callback was invoked.
+  bool DoCallback(int result, disk_cache::Backend* backend) {
     if (backend_)
       *backend_ = backend;
-    if (callback_)
+    if (callback_) {
       callback_->Run(result);
+      return true;
+    }
+    return false;
   }
 
   WorkItemOperation operation() { return operation_; }
@@ -298,7 +302,8 @@ HttpCache::~HttpCache() {
       // deliver the callbacks.
       BackendCallback* callback =
           static_cast<BackendCallback*>(pending_op->callback);
-      callback->Cancel();
+      if (callback)
+        callback->Cancel();
     } else {
       delete pending_op->callback;
     }
@@ -1009,26 +1014,39 @@ void HttpCache::OnBackendCreated(int result, PendingOp* pending_op) {
   WorkItemOperation op = item->operation();
   DCHECK_EQ(WI_CREATE_BACKEND, op);
 
-  backend_factory_.reset();  // Reclaim memory.
+  // We don't need the callback anymore.
+  pending_op->callback = NULL;
 
-  if (result == OK)
-    disk_cache_.reset(temp_backend_);
+  if (backend_factory_.get()) {
+    // We may end up calling OnBackendCreated multiple times if we have pending
+    // work items. The first call saves the backend and releases the factory,
+    // and the last call clears building_backend_.
+    backend_factory_.reset();  // Reclaim memory.
+    if (result == OK)
+      disk_cache_.reset(temp_backend_);
+  }
 
-  item->DoCallback(result, temp_backend_);
-
-  // Notify all callers and delete all pending work items.
-  while (!pending_op->pending_queue.empty()) {
-    scoped_ptr<WorkItem> pending_item(pending_op->pending_queue.front());
+  if (!pending_op->pending_queue.empty()) {
+    WorkItem* pending_item = pending_op->pending_queue.front();
     pending_op->pending_queue.pop_front();
     DCHECK_EQ(WI_CREATE_BACKEND, pending_item->operation());
 
-    // This could be an external caller or a transaction waiting on Start().
-    pending_item->DoCallback(result, temp_backend_);
-    pending_item->NotifyTransaction(result, NULL);
+    // We want to process a single callback at a time, because the cache may
+    // go away from the callback.
+    pending_op->writer = pending_item;
+
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        task_factory_.NewRunnableMethod(&HttpCache::OnBackendCreated,
+                                        result, pending_op));
+  } else {
+    building_backend_ = false;
+    DeletePendingOp(pending_op);
   }
 
-  DeletePendingOp(pending_op);
-  building_backend_ = false;
+  // The cache may be gone when we return from the callback.
+  if (!item->DoCallback(result, temp_backend_))
+    item->NotifyTransaction(result, NULL);
 }
 
 }  // namespace net
