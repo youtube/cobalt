@@ -28,38 +28,6 @@ namespace net {
 
 namespace {
 
-class ScopedCERTCertificate {
- public:
-  explicit ScopedCERTCertificate(CERTCertificate* cert)
-      : cert_(cert) {}
-
-  ~ScopedCERTCertificate() {
-    if (cert_)
-      CERT_DestroyCertificate(cert_);
-  }
-
- private:
-  CERTCertificate* cert_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedCERTCertificate);
-};
-
-class ScopedCERTCertList {
- public:
-  explicit ScopedCERTCertList(CERTCertList* cert_list)
-      : cert_list_(cert_list) {}
-
-  ~ScopedCERTCertList() {
-    if (cert_list_)
-      CERT_DestroyCertList(cert_list_);
-  }
-
- private:
-  CERTCertList* cert_list_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedCERTCertList);
-};
-
 class ScopedCERTCertificatePolicies {
  public:
   explicit ScopedCERTCertificatePolicies(CERTCertificatePolicies* policies)
