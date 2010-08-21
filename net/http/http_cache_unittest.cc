@@ -680,6 +680,20 @@ class MockBlockingBackendFactory : public net::HttpCache::BackendFactory {
   bool fail_;
 };
 
+class DeleteCacheCompletionCallback : public TestCompletionCallback {
+ public:
+  explicit DeleteCacheCompletionCallback(MockHttpCache* cache)
+      : cache_(cache) {}
+
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    delete cache_;
+    TestCompletionCallback::RunWithParams(params);
+  }
+
+ private:
+  MockHttpCache* cache_;
+};
+
 //-----------------------------------------------------------------------------
 // helpers
 
@@ -2011,20 +2025,6 @@ TEST(HttpCache, DeleteCacheWaitingForBackend) {
 
   callback->Run(net::ERR_ABORTED);
 }
-
-class DeleteCacheCompletionCallback : public TestCompletionCallback {
- public:
-  explicit DeleteCacheCompletionCallback(MockHttpCache* cache)
-      : cache_(cache) {}
-
-  virtual void RunWithParams(const Tuple1<int>& params) {
-    delete cache_;
-    TestCompletionCallback::RunWithParams(params);
-  }
-
- private:
-  MockHttpCache* cache_;
-};
 
 // Tests that we can delete the cache while creating the backend, from within
 // one of the callbacks.
