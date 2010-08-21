@@ -45,8 +45,6 @@ enum {
 };
 
 class ClientSocket;
-class HttpRequestHeaders;
-class HttpResponseHeaders;
 class MockClientSocket;
 class SSLClientSocket;
 

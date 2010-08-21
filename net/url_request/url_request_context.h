@@ -27,7 +27,6 @@ class FtpTransactionFactory;
 class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
 class HttpTransactionFactory;
-class SocketStream;
 }
 class URLRequest;
 

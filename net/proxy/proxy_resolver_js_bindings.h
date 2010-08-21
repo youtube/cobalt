@@ -10,8 +10,6 @@
 
 #include "base/string16.h"
 
-class MessageLoop;
-
 namespace net {
 
 class HostResolver;

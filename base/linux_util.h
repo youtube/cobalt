@@ -11,8 +11,6 @@
 
 #include <string>
 
-class FilePath;
-
 namespace base {
 
 static const char kFindInodeSwitch[] = "--find-inode";

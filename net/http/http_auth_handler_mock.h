@@ -16,6 +16,8 @@
 
 namespace net {
 
+class HostResolver;
+
 // MockAuthHandler is used in tests to reliably trigger edge cases.
 class HttpAuthHandlerMock : public HttpAuthHandler {
  public:

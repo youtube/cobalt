@@ -21,7 +21,6 @@ class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
 class HttpNetworkSession;
 class NetLog;
-class ProxyInfo;
 class ProxyService;
 class SpdySessionPool;
 class SSLConfigService;
