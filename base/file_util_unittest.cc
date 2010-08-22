@@ -428,7 +428,7 @@ TEST_F(FileUtilTest, NormalizeFilePathBasic) {
   ASSERT_FALSE(file_util::PathExists(file_a_path));
   ASSERT_FALSE(file_util::NormalizeFilePath(file_a_path,
                                             &normalized_file_a_path))
-    << "NormalizeFilePath() should fail on nonexistant paths.";
+    << "NormalizeFilePath() should fail on nonexistent paths.";
 
   CreateTextFile(file_a_path, bogus_content);
   ASSERT_TRUE(file_util::PathExists(file_a_path));
