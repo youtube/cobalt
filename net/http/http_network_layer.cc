@@ -148,6 +148,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kDisableCompression[] = "no-compress";
   static const char kDisableAltProtocols[] = "no-alt-protocols";
   static const char kEnableVersionOne[] = "v1";
+  static const char kForceAltProtocols[] = "force-alt-protocols";
 
   // If flow-control is enabled, received WINDOW_UPDATE and SETTINGS
   // messages are processed and outstanding window size is actually obeyed
@@ -210,6 +211,11 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       HttpStreamFactory::set_use_alternate_protocols(false);
     } else if (option == kEnableFlowControl) {
       SpdySession::SetFlowControl(true);
+    } else if (option == kForceAltProtocols) {
+      HttpAlternateProtocols::PortProtocolPair pair;
+      pair.port = 443;
+      pair.protocol = HttpAlternateProtocols::NPN_SPDY_2;
+      HttpAlternateProtocols::ForceAlternateProtocol(pair);
     } else if (option.empty() && it == spdy_options.begin()) {
       continue;
     } else {
