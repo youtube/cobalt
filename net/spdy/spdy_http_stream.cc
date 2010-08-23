@@ -391,7 +391,8 @@ void SpdyHttpStream::OnDataReceived(const char* data, int length) {
   // Note that data may be received for a SpdyStream prior to the user calling
   // ReadResponseBody(), therefore user_buffer_ may be NULL.  This may often
   // happen for server initiated streams.
-  if (length > 0 && !stream_->closed()) {
+  DCHECK(!stream_->closed() || stream_->pushed());
+  if (length > 0) {
     // Save the received data.
     IOBufferWithSize* io_buffer = new IOBufferWithSize(length);
     memcpy(io_buffer->data(), data, length);
