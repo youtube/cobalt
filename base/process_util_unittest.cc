@@ -555,9 +555,9 @@ int tc_set_new_mode(int mode);
 }
 #endif  // defined(USE_TCMALLOC)
 
-class OutOfMemoryTest : public testing::Test {
+class OutOfMemoryDeathTest : public testing::Test {
  public:
-  OutOfMemoryTest()
+  OutOfMemoryDeathTest()
       : value_(NULL),
         // Make test size as large as possible minus a few pages so
         // that alignment or other rounding doesn't make it wrap.
@@ -566,9 +566,6 @@ class OutOfMemoryTest : public testing::Test {
   }
 
   virtual void SetUp() {
-    // Must call EnableTerminationOnOutOfMemory() because that is called from
-    // chrome's main function and therefore hasn't been called yet.
-    base::EnableTerminationOnOutOfMemory();
 #if defined(USE_TCMALLOC)
     tc_set_new_mode(1);
   }
@@ -578,56 +575,92 @@ class OutOfMemoryTest : public testing::Test {
 #endif  // defined(USE_TCMALLOC)
   }
 
+  void SetUpInDeathAssert() {
+    // Must call EnableTerminationOnOutOfMemory() because that is called from
+    // chrome's main function and therefore hasn't been called yet.
+    // Since this call may result in another thread being created and death
+    // tests shouldn't be started in a multithread environment, this call
+    // should be done inside of the ASSERT_DEATH.
+    base::EnableTerminationOnOutOfMemory();
+  }
+
   void* value_;
   size_t test_size_;
   ssize_t signed_test_size_;
 };
 
-TEST_F(OutOfMemoryTest, New) {
-  ASSERT_DEATH(value_ = operator new(test_size_), "");
+TEST_F(OutOfMemoryDeathTest, New) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = operator new(test_size_);
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, NewArray) {
-  ASSERT_DEATH(value_ = new char[test_size_], "");
+TEST_F(OutOfMemoryDeathTest, NewArray) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = new char[test_size_];
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, Malloc) {
-  ASSERT_DEATH(value_ = malloc(test_size_), "");
+TEST_F(OutOfMemoryDeathTest, Malloc) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc(test_size_);
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, Realloc) {
-  ASSERT_DEATH(value_ = realloc(NULL, test_size_), "");
+TEST_F(OutOfMemoryDeathTest, Realloc) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = realloc(NULL, test_size_);
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, Calloc) {
-  ASSERT_DEATH(value_ = calloc(1024, test_size_ / 1024L), "");
+TEST_F(OutOfMemoryDeathTest, Calloc) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = calloc(1024, test_size_ / 1024L);
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, Valloc) {
-  ASSERT_DEATH(value_ = valloc(test_size_), "");
+TEST_F(OutOfMemoryDeathTest, Valloc) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = valloc(test_size_);
+    }, "");
 }
 
 #if defined(OS_LINUX)
-TEST_F(OutOfMemoryTest, Pvalloc) {
-  ASSERT_DEATH(value_ = pvalloc(test_size_), "");
+TEST_F(OutOfMemoryDeathTest, Pvalloc) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = pvalloc(test_size_);
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, Memalign) {
-  ASSERT_DEATH(value_ = memalign(4, test_size_), "");
+TEST_F(OutOfMemoryDeathTest, Memalign) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = memalign(4, test_size_);
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, ViaSharedLibraries) {
+TEST_F(OutOfMemoryDeathTest, ViaSharedLibraries) {
   // g_try_malloc is documented to return NULL on failure. (g_malloc is the
   // 'safe' default that crashes if allocation fails). However, since we have
   // hopefully overridden malloc, even g_try_malloc should fail. This tests
   // that the run-time symbol resolution is overriding malloc for shared
   // libraries as well as for our code.
-  ASSERT_DEATH(value_ = g_try_malloc(test_size_), "");
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = g_try_malloc(test_size_);
+    }, "");
 }
 #endif  // OS_LINUX
 
 #if defined(OS_POSIX)
-TEST_F(OutOfMemoryTest, Posix_memalign) {
+TEST_F(OutOfMemoryDeathTest, Posix_memalign) {
   typedef int (*memalign_t)(void **, size_t, size_t);
 #if defined(OS_MACOSX)
   // posix_memalign only exists on >= 10.6. Use dlsym to grab it at runtime
@@ -641,7 +674,10 @@ TEST_F(OutOfMemoryTest, Posix_memalign) {
     // Grab the return value of posix_memalign to silence a compiler warning
     // about unused return values. We don't actually care about the return
     // value, since we're asserting death.
-    ASSERT_DEATH(EXPECT_EQ(ENOMEM, memalign(&value_, 8, test_size_)), "");
+    ASSERT_DEATH({
+        SetUpInDeathAssert();
+        EXPECT_EQ(ENOMEM, memalign(&value_, 8, test_size_));
+      }, "");
   }
 }
 #endif  // OS_POSIX
@@ -650,32 +686,43 @@ TEST_F(OutOfMemoryTest, Posix_memalign) {
 
 // Purgeable zone tests (if it exists)
 
-TEST_F(OutOfMemoryTest, MallocPurgeable) {
+TEST_F(OutOfMemoryDeathTest, MallocPurgeable) {
   malloc_zone_t* zone = base::GetPurgeableZone();
   if (zone)
-    ASSERT_DEATH(value_ = malloc_zone_malloc(zone, test_size_), "");
+    ASSERT_DEATH({
+        SetUpInDeathAssert();
+        value_ = malloc_zone_malloc(zone, test_size_);
+      }, "");
 }
 
-TEST_F(OutOfMemoryTest, ReallocPurgeable) {
+TEST_F(OutOfMemoryDeathTest, ReallocPurgeable) {
   malloc_zone_t* zone = base::GetPurgeableZone();
   if (zone)
-    ASSERT_DEATH(value_ = malloc_zone_realloc(zone, NULL, test_size_), "");
+    ASSERT_DEATH({
+        SetUpInDeathAssert();
+        value_ = malloc_zone_realloc(zone, NULL, test_size_);
+      }, "");
 }
 
-TEST_F(OutOfMemoryTest, CallocPurgeable) {
+TEST_F(OutOfMemoryDeathTest, CallocPurgeable) {
   malloc_zone_t* zone = base::GetPurgeableZone();
   if (zone)
-    ASSERT_DEATH(value_ = malloc_zone_calloc(zone, 1024, test_size_ / 1024L),
-                 "");
+    ASSERT_DEATH({
+        SetUpInDeathAssert();
+        value_ = malloc_zone_calloc(zone, 1024, test_size_ / 1024L);
+      }, "");
 }
 
-TEST_F(OutOfMemoryTest, VallocPurgeable) {
+TEST_F(OutOfMemoryDeathTest, VallocPurgeable) {
   malloc_zone_t* zone = base::GetPurgeableZone();
   if (zone)
-    ASSERT_DEATH(value_ = malloc_zone_valloc(zone, test_size_), "");
+    ASSERT_DEATH({
+        SetUpInDeathAssert();
+        value_ = malloc_zone_valloc(zone, test_size_);
+      }, "");
 }
 
-TEST_F(OutOfMemoryTest, PosixMemalignPurgeable) {
+TEST_F(OutOfMemoryDeathTest, PosixMemalignPurgeable) {
   malloc_zone_t* zone = base::GetPurgeableZone();
 
   typedef void* (*zone_memalign_t)(malloc_zone_t*, size_t, size_t);
@@ -686,7 +733,10 @@ TEST_F(OutOfMemoryTest, PosixMemalignPurgeable) {
         dlsym(RTLD_DEFAULT, "malloc_zone_memalign"));
 
   if (zone && zone_memalign) {
-    ASSERT_DEATH(value_ = zone_memalign(zone, 8, test_size_), "");
+    ASSERT_DEATH({
+        SetUpInDeathAssert();
+        value_ = zone_memalign(zone, 8, test_size_);
+      }, "");
   }
 }
 
@@ -697,19 +747,28 @@ TEST_F(OutOfMemoryTest, PosixMemalignPurgeable) {
 // it's likely that they'll fail because they would require a preposterous
 // amount of (virtual) memory.
 
-TEST_F(OutOfMemoryTest, CFAllocatorSystemDefault) {
-  ASSERT_DEATH(while ((value_ =
-      base::AllocateViaCFAllocatorSystemDefault(signed_test_size_))) {}, "");
+TEST_F(OutOfMemoryDeathTest, CFAllocatorSystemDefault) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      while ((value_ =
+              base::AllocateViaCFAllocatorSystemDefault(signed_test_size_))) {}
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, CFAllocatorMalloc) {
-  ASSERT_DEATH(while ((value_ =
-      base::AllocateViaCFAllocatorMalloc(signed_test_size_))) {}, "");
+TEST_F(OutOfMemoryDeathTest, CFAllocatorMalloc) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      while ((value_ =
+              base::AllocateViaCFAllocatorMalloc(signed_test_size_))) {}
+    }, "");
 }
 
-TEST_F(OutOfMemoryTest, CFAllocatorMallocZone) {
-  ASSERT_DEATH(while ((value_ =
-      base::AllocateViaCFAllocatorMallocZone(signed_test_size_))) {}, "");
+TEST_F(OutOfMemoryDeathTest, CFAllocatorMallocZone) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      while ((value_ =
+              base::AllocateViaCFAllocatorMallocZone(signed_test_size_))) {}
+    }, "");
 }
 
 #if !defined(ARCH_CPU_64_BITS)
@@ -717,9 +776,11 @@ TEST_F(OutOfMemoryTest, CFAllocatorMallocZone) {
 // See process_util_unittest_mac.mm for an explanation of why this test isn't
 // run in the 64-bit environment.
 
-TEST_F(OutOfMemoryTest, PsychoticallyBigObjCObject) {
-  ASSERT_DEATH(while ((value_ =
-      base::AllocatePsychoticallyBigObjCObject())) {}, "");
+TEST_F(OutOfMemoryDeathTest, PsychoticallyBigObjCObject) {
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      while ((value_ = base::AllocatePsychoticallyBigObjCObject())) {}
+    }, "");
 }
 
 #endif  // !ARCH_CPU_64_BITS
