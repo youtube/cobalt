@@ -46,7 +46,7 @@
  "xp-release-dual-core/moz/total_op_b/IO_op_b": {"improve": -5200, "regress": -2800},
  "xp-release-dual-core/moz/total_op_r/IO_op_r": {"improve": -350, "regress": 1420},
  "xp-release-dual-core/moz/vm_peak_b/vm_pk_b": {"improve": 879000, "regress": 3801000},
- "xp-release-dual-core/moz/vm_peak_r/vm_pk_r": {"improve": -15585550, "regress": -14014450},
+ "xp-release-dual-core/moz/vm_peak_r/vm_pk_r": {"improve": -12174066, "regress": -10368590},
  "xp-release-dual-core/startup/warm/t": {"improve": -45, "regress": 45},
  "xp-release-single-core/dhtml/times/t": {"improve": -21, "regress": 21},
  "xp-release-single-core/intl1/times/t": {"improve": 510, "regress": 930},
