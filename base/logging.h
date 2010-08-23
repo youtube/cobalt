@@ -126,6 +126,31 @@ enum LogLockingState { LOCK_LOG_FILE, DONT_LOCK_LOG_FILE };
 // Defaults to APPEND_TO_OLD_LOG_FILE.
 enum OldFileDeletionState { DELETE_OLD_LOG_FILE, APPEND_TO_OLD_LOG_FILE };
 
+// TODO(avi): do we want to do a unification of character types here?
+#if defined(OS_WIN)
+typedef wchar_t PathChar;
+#else
+typedef char PathChar;
+#endif
+
+// Define different names for the BaseInitLoggingImpl() function depending on
+// whether NDEBUG is defined or not so that we'll fail to link if someone tries
+// to compile logging.cc with NDEBUG but includes logging.h without defining it,
+// or vice versa.
+#if NDEBUG
+#define BaseInitLoggingImpl BaseInitLoggingImpl_built_with_NDEBUG
+#else
+#define BaseInitLoggingImpl BaseInitLoggingImpl_built_without_NDEBUG
+#endif
+
+// Implementation of the InitLogging() method declared below.  We use a
+// more-specific name so we can #define it above without affecting other code
+// that has named stuff "InitLogging".
+void BaseInitLoggingImpl(const PathChar* log_file,
+                         LoggingDestination logging_dest,
+                         LogLockingState lock_log,
+                         OldFileDeletionState delete_old);
+
 // Sets the log file name and other global logging state. Calling this function
 // is recommended, and is normally done at the beginning of application init.
 // If you don't call it, all the flags will be initialized to their default
@@ -136,14 +161,12 @@ enum OldFileDeletionState { DELETE_OLD_LOG_FILE, APPEND_TO_OLD_LOG_FILE };
 // The default log file is initialized to "debug.log" in the application
 // directory. You probably don't want this, especially since the program
 // directory may not be writable on an enduser's system.
-#if defined(OS_WIN)
-void InitLogging(const wchar_t* log_file, LoggingDestination logging_dest,
-                 LogLockingState lock_log, OldFileDeletionState delete_old);
-#elif defined(OS_POSIX)
-// TODO(avi): do we want to do a unification of character types here?
-void InitLogging(const char* log_file, LoggingDestination logging_dest,
-                 LogLockingState lock_log, OldFileDeletionState delete_old);
-#endif
+inline void InitLogging(const PathChar* log_file,
+                        LoggingDestination logging_dest,
+                        LogLockingState lock_log,
+                        OldFileDeletionState delete_old) {
+  BaseInitLoggingImpl(log_file, logging_dest, lock_log, delete_old);
+}
 
 // Sets the log level. Anything at or above this level will be written to the
 // log file/displayed to the user (if applicable). Anything below this level
