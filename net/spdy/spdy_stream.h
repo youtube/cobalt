@@ -265,7 +265,6 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   base::TimeTicks recv_last_byte_time_;
   int send_bytes_;
   int recv_bytes_;
-  bool histograms_recorded_;
   // Data received before delegate is attached.
   std::vector<scoped_refptr<IOBufferWithSize> > pending_buffers_;
 
