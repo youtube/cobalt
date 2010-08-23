@@ -13,6 +13,12 @@
 
 class FilePath;
 
+namespace net {
+
+class IOBuffer;
+
+}  // namespace net
+
 namespace disk_cache {
 
 class Backend;
@@ -90,6 +96,14 @@ class DiskCacheTestWithCache : public DiskCacheTest {
   int DoomEntriesSince(const base::Time initial_time);
   int OpenNextEntry(void** iter, disk_cache::Entry** next_entry);
   void FlushQueueForTest();
+  int ReadData(disk_cache::Entry* entry, int index, int offset,
+                net::IOBuffer* buf, int len);
+  int WriteData(disk_cache::Entry* entry, int index, int offset,
+                net::IOBuffer* buf, int len, bool truncate);
+  int ReadSparseData(disk_cache::Entry* entry, int64 offset, net::IOBuffer* buf,
+                     int len);
+  int WriteSparseData(disk_cache::Entry* entry, int64 offset,
+                      net::IOBuffer* buf, int len);
 
   // cache_ will always have a valid object, regardless of how the cache was
   // initialized. The implementation pointers can be NULL.
