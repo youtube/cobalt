@@ -198,6 +198,10 @@ SpdySession::~SpdySession() {
     connection_->socket()->Disconnect();
   }
 
+  // Streams should all be gone now.
+  DCHECK_EQ(0u, num_active_streams());
+  DCHECK_EQ(0u, num_unclaimed_pushed_streams());
+
   RecordHistograms();
 
   net_log_.EndEvent(NetLog::TYPE_SPDY_SESSION, NULL);
@@ -781,6 +785,7 @@ void SpdySession::CloseAllStreams(net::Error status) {
   if (!unclaimed_pushed_streams_.empty()) {
     streams_abandoned_count_ += unclaimed_pushed_streams_.size();
     abandoned_push_streams.Add(unclaimed_pushed_streams_.size());
+    unclaimed_pushed_streams_.clear();
   }
 
   for (int i = 0;i < NUM_PRIORITIES;++i) {
@@ -854,14 +859,19 @@ void SpdySession::ActivateStream(SpdyStream* stream) {
 
 void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
   DLOG(INFO) << "Removing SpdyStream " << id << " from active stream list.";
-  // Remove the stream from unclaimed_pushed_streams_ and active_streams_.
-  PushedStreamMap::iterator it;
-  for (it = unclaimed_pushed_streams_.begin();
-       it != unclaimed_pushed_streams_.end(); ++it) {
-    scoped_refptr<SpdyStream> curr = it->second;
-    if (id == curr->stream_id()) {
-      unclaimed_pushed_streams_.erase(it);
-      break;
+
+  // For push streams, if they are being deleted normally, we leave
+  // the stream in the unclaimed_pushed_streams_ list.  However, if
+  // the stream is errored out, clean it up entirely.
+  if (status != OK) {
+    PushedStreamMap::iterator it;
+    for (it = unclaimed_pushed_streams_.begin();
+         it != unclaimed_pushed_streams_.end(); ++it) {
+      scoped_refptr<SpdyStream> curr = it->second;
+      if (id == curr->stream_id()) {
+        unclaimed_pushed_streams_.erase(it);
+        break;
+      }
     }
   }
 

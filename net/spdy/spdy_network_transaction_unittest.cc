@@ -10,6 +10,7 @@
 #include "net/http/http_transaction_unittest.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_test_util.h"
 #include "net/url_request/url_request_unittest.h"
 #include "testing/platform_test.h"
@@ -81,6 +82,18 @@ class SpdyNetworkTransactionTest
                 NOTREACHED();
             }
           }
+
+    ~NormalSpdyTransactionHelper() {
+      // Any test which doesn't close the socket by sending it an EOF will
+      // have a valid session left open, which leaks the entire session pool.
+      // This is just fine - in fact, some of our tests intentionally do this
+      // so that we can check consistency of the SpdySessionPool as the test
+      // finishes.  If we had put an EOF on the socket, the SpdySession would
+      // have closed and we wouldn't be able to check the consistency.
+
+      // Forcefully close existing sessions here.
+      session()->spdy_session_pool()->CloseAllSessions();
+    }
 
     void SetDeterministic() {
       session_ = SpdySessionDependencies::SpdyCreateSessionDeterministic(
@@ -247,12 +260,15 @@ class SpdyNetworkTransactionTest
     HttpNetworkTransaction* trans() { return trans_.get(); }
     void ResetTrans() { trans_.reset(); }
     TransactionHelperResult& output() { return output_; }
-    HttpRequestInfo& request() { return request_; }
-    scoped_refptr<HttpNetworkSession>& session() { return session_; }
+    const HttpRequestInfo& request() const { return request_; }
+    const scoped_refptr<HttpNetworkSession>& session() const {
+      return session_;
+    }
     scoped_ptr<SpdySessionDependencies>& session_deps() {
       return session_deps_;
     }
-    int port() { return port_; }
+    int port() const { return port_; }
+    SpdyNetworkTransactionTestTypes test_type() const { return test_type_; }
 
    private:
     typedef std::vector<StaticSocketDataProvider*> DataVector;
@@ -307,28 +323,54 @@ class SpdyNetworkTransactionTest
     return google_post_request_;
   }
 
-  class RunServerPushTestCallback : public CallbackRunner< Tuple1<int> > {
-   public:
-    RunServerPushTestCallback(scoped_refptr<net::IOBufferWithSize> buffer,
-                              std::string& result, bool& need_read_callback)
-        : buffer_(buffer), result_(result),
-        need_read_callback_(need_read_callback) {}
+  // Read the result of a particular transaction, knowing that we've got
+  // multiple transactions in the read pipeline; so as we read, we may have
+  // to skip over data destined for other transactions while we consume
+  // the data for |trans|.
+  int ReadResult(HttpNetworkTransaction* trans,
+                 OrderedSocketData* data,
+                 std::string* result) {
+    const int kSize = 3000;
 
-    virtual void RunWithParams(const Tuple1<int>& params) {
-      // Indicates some type of error.
-      if(params.a <= 0)
-        return;
-
-      std::string temp(buffer_->data(), params.a);
-      result_.append(temp);
-      need_read_callback_ = true;
+    int bytes_read = 0;
+    scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(kSize);
+    TestCompletionCallback callback;
+    while (true) {
+      int rv = trans->Read(buf, kSize, &callback);
+      if (rv == ERR_IO_PENDING) {
+        // Multiple transactions may be in the data set.  Keep pulling off
+        // reads until we complete our callback.
+        while (!callback.have_result()) {
+          data->CompleteRead();
+          MessageLoop::current()->RunAllPending();
+        }
+        rv = callback.WaitForResult();
+      } else if (rv <= 0) {
+        break;
+      }
+      result->append(buf->data(), rv);
+      bytes_read += rv;
     }
+    return bytes_read;
+  }
 
-   private:
-    scoped_refptr<net::IOBufferWithSize> buffer_;
-    std::string& result_;
-    bool need_read_callback_;
-  };
+  void VerifyStreamsClosed(const NormalSpdyTransactionHelper& helper) {
+    // This lengthy block is reaching into the pool to dig out the active
+    // session.  Once we have the session, we verify that the streams are
+    // all closed and not leaked at this point.
+    const GURL& url = helper.request().url;
+    int port = helper.test_type() == SPDYNPN ? 443 : 80;
+    HostPortPair host_port_pair(url.host(), port);
+    HostPortProxyPair pair(host_port_pair, "DIRECT");
+    BoundNetLog log;
+    const scoped_refptr<HttpNetworkSession>& session = helper.session();
+    scoped_refptr<SpdySessionPool> pool(session->spdy_session_pool());
+    EXPECT_TRUE(pool->HasSession(pair));
+    scoped_refptr<SpdySession> spdy_session(pool->Get(pair, session, log));
+    ASSERT_TRUE(spdy_session.get() != NULL);
+    EXPECT_EQ(0u, spdy_session->num_active_streams());
+    EXPECT_EQ(0u, spdy_session->num_unclaimed_pushed_streams());
+  }
 
   void RunServerPushTest(MockWrite writes[], int writes_length,
                          MockRead reads[], int reads_length,
@@ -353,8 +395,6 @@ class SpdyNetworkTransactionTest
     rv = callback.WaitForResult();
 
     // Request the pushed path.
-    const int kSize = 3000;
-    scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(kSize);
     scoped_ptr<HttpNetworkTransaction> trans2(
         new HttpNetworkTransaction(helper.session()));
     rv = trans2->Start(&CreateGetPushRequest(), &callback, BoundNetLog());
@@ -363,37 +403,30 @@ class SpdyNetworkTransactionTest
 
     // The data for the pushed path may be coming in more than 1 packet. Compile
     // the results into a single string.
+
+    // Read the server push body.
+    std::string result2;
+    ReadResult(trans2.get(), data, &result2);
+    // Read the response body.
     std::string result;
-    bool need_read_callback = true;
-    RunServerPushTestCallback callback2(buf, result, need_read_callback);
-    while(!data->at_read_eof())
-    {
-      if(need_read_callback) {
-        while((rv = trans2->Read(buf, kSize, &callback2)) > 0) {
-          std::string result1(buf->data(),rv);
-          result.append(result1);
-        }
-        need_read_callback = false;
-      }
-      else
-        data->CompleteRead();
-      MessageLoop::current()->RunAllPending();
-    }
+    ReadResult(trans, data, &result);
 
     // Verify that we consumed all test data.
     EXPECT_TRUE(data->at_read_eof());
     EXPECT_TRUE(data->at_write_eof());
 
     // Verify that the received push data is same as the expected push data.
-    EXPECT_EQ(result.compare(expected),0) << "Received data: "
-                                          << result
-                                          << "||||| Expected data: "
-                                          << expected;
+    EXPECT_EQ(result2.compare(expected), 0) << "Received data: "
+                                            << result2
+                                            << "||||| Expected data: "
+                                            << expected;
 
     // Verify the SYN_REPLY.
     // Copy the response info, because trans goes away.
     *response = *trans->GetResponseInfo();
     *response2 = *trans2->GetResponseInfo();
+
+    VerifyStreamsClosed(helper);
   }
 
  private:
@@ -1766,7 +1799,7 @@ class SpdyNetworkTransactionTest::StartTransactionCallback
     : public CallbackRunner< Tuple1<int> > {
  public:
   explicit StartTransactionCallback(
-      scoped_refptr<HttpNetworkSession>& session,
+      const scoped_refptr<HttpNetworkSession>& session,
       NormalSpdyTransactionHelper& helper)
       : session_(session), helper_(helper) {}
 
@@ -1785,7 +1818,7 @@ class SpdyNetworkTransactionTest::StartTransactionCallback
   }
 
  private:
-  scoped_refptr<HttpNetworkSession>& session_;
+  const scoped_refptr<HttpNetworkSession>& session_;
   NormalSpdyTransactionHelper& helper_;
 };
 
@@ -2156,125 +2189,33 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
 TEST_P(SpdyNetworkTransactionTest, ServerPushSingleDataFrame) {
   static const unsigned char kPushBodyFrame[] = {
     0x00, 0x00, 0x00, 0x02,                                      // header, ID
-    0x01, 0x00, 0x00, 0x05,                                      // FIN, length
-    'h', 'e', 'l', 'l', 'o',                                     // "hello"
+    0x01, 0x00, 0x00, 0x06,                                      // FIN, length
+    'p', 'u', 's', 'h', 'e', 'd'                                 // "pushed"
   };
-
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
   MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
+    CreateMockWrite(*stream1_syn, 1),
   };
 
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rep(ConstructSpdyPush(NULL, 0, 2, 1, "/foo.dat"));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL, 0, 2, 1, "/foo.dat"));
   MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    CreateMockRead(*rep, 3),
+    CreateMockRead(*stream1_reply, 2),
+    CreateMockRead(*stream2_syn, 3),
+    CreateMockRead(*stream1_body, 4, false),
     MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
-             arraysize(kPushBodyFrame), 4),
-    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
-    MockRead(true, 0, 0, 6)  // EOF
-  };
-
-  HttpResponseInfo response;
-  HttpResponseInfo response2;
-  std::string expected_push_result("hello");
-  RunServerPushTest(writes, arraysize(writes), reads, arraysize(reads),
-                    &response, &response2, expected_push_result);
-
-  // Verify the SYN_REPLY.
-  EXPECT_TRUE(response.headers != NULL);
-  EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
-
-  // Verify the pushed stream.
-  EXPECT_TRUE(response2.headers != NULL);
-  EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
-}
-
-TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrame) {
-  static const unsigned char kPushBodyFrame1[] = {
-    0x00, 0x00, 0x00, 0x02,                                      // header, ID
-    0x01, 0x00, 0x00, 0x1E,                                      // FIN, length
-    'h', 'e', 'l', 'l', 'o',                                     // "hello"
-  };
-  static const char kPushBodyFrame2[] = " my darling";
-  static const char kPushBodyFrame3[] = " hello";
-  static const char kPushBodyFrame4[] = " my baby";
-
-  scoped_ptr<spdy::SpdyFrame> req(
-      ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
-  MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
-  };
-
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rep(ConstructSpdyPush(NULL, 0, 2, 1, "/foo.dat"));
-  MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    CreateMockRead(*rep, 3),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame1),
-             arraysize(kPushBodyFrame1), 4),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame2),
-             arraysize(kPushBodyFrame2) - 1, 5),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame3),
-             arraysize(kPushBodyFrame3) - 1, 6),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),
-             arraysize(kPushBodyFrame4) - 1, 7),
-    MockRead(true, ERR_IO_PENDING, 8),  // Force a pause
-    MockRead(true, 0, 0, 9)  // EOF
-  };
-
-  HttpResponseInfo response;
-  HttpResponseInfo response2;
-  std::string expected_push_result("hello my darling hello my baby");
-  RunServerPushTest(writes, arraysize(writes), reads, arraysize(reads),
-                    &response, &response2, expected_push_result);
-
-  // Verify the SYN_REPLY.
-  EXPECT_TRUE(response.headers != NULL);
-  EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
-
-  // Verify the pushed stream.
-  EXPECT_TRUE(response2.headers != NULL);
-  EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
-}
-
-TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrameInterrupted) {
-  static const unsigned char kPushBodyFrame1[] = {
-    0x00, 0x00, 0x00, 0x02,                                      // header, ID
-    0x01, 0x00, 0x00, 0x1E,                                      // FIN, length
-    'h', 'e', 'l', 'l', 'o',                                     // "hello"
-  };
-  static const char kPushBodyFrame2[] = " my darling";
-  static const char kPushBodyFrame3[] = " hello";
-  static const char kPushBodyFrame4[] = " my baby";
-
-  scoped_ptr<spdy::SpdyFrame> req(
-      ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
-  MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
-  };
-
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rep(ConstructSpdyPush(NULL, 0, 2, 1, "/foo.dat"));
-  MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    CreateMockRead(*rep, 3),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame1),
-             arraysize(kPushBodyFrame1), 4),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame2),
-             arraysize(kPushBodyFrame2) - 1, 5),
+             arraysize(kPushBodyFrame), 5),
     MockRead(true, ERR_IO_PENDING, 6),  // Force a pause
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame3),
-             arraysize(kPushBodyFrame3) - 1, 7),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),
-             arraysize(kPushBodyFrame4) - 1, 8),
-    MockRead(true, 0, 0, 9)  // EOF
   };
 
   HttpResponseInfo response;
   HttpResponseInfo response2;
-  std::string expected_push_result("hello my darling hello my baby");
+  std::string expected_push_result("pushed");
   RunServerPushTest(writes, arraysize(writes), reads, arraysize(reads),
                     &response, &response2, expected_push_result);
 
@@ -2287,21 +2228,27 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrameInterrupted) {
   EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
 }
 
-TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID0) {
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
-  scoped_ptr<spdy::SpdyFrame> res(
-      ConstructSpdyRstStream(2, spdy::INVALID_STREAM));
+TEST_P(SpdyNetworkTransactionTest, ServerPushServerAborted) {
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
   MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
-    CreateMockWrite(*res, 4),
+    CreateMockWrite(*stream1_syn, 1),
   };
 
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rep(ConstructSpdyPush(NULL, 0, 2, 0, "/foo.dat"));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL, 0, 2, 1, "/foo.dat"));
+  scoped_ptr<spdy::SpdyFrame>
+    stream2_rst(ConstructSpdyRstStream(2, spdy::PROTOCOL_ERROR));
   MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    CreateMockRead(*rep, 3),
-    MockRead(true, 0, 0, 5)  // EOF
+    CreateMockRead(*stream1_reply, 2),
+    CreateMockRead(*stream2_syn, 3),
+    CreateMockRead(*stream2_rst, 4),
+    CreateMockRead(*stream1_body, 5, false),
+    MockRead(true, ERR_IO_PENDING, 6),  // Force a pause
   };
 
   scoped_refptr<OrderedSocketData> data(
@@ -2320,7 +2267,168 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID0) {
   int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
-  data->CompleteRead();
+  EXPECT_EQ(OK, rv);
+
+  // Verify that we consumed all test data.
+  EXPECT_TRUE(data->at_read_eof()) << "Read count: "
+                                   << data->read_count()
+                                   << " Read index: "
+                                   << data->read_index();
+  EXPECT_TRUE(data->at_write_eof()) << "Write count: "
+                                    << data->write_count()
+                                    << " Write index: "
+                                    << data->write_index();
+
+  // Verify the SYN_REPLY.
+  HttpResponseInfo response = *trans->GetResponseInfo();
+  EXPECT_TRUE(response.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
+}
+
+TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrame) {
+  static const unsigned char kPushBodyFrame1[] = {
+    0x00, 0x00, 0x00, 0x02,                                      // header, ID
+    0x01, 0x00, 0x00, 0x1F,                                      // FIN, length
+    'p', 'u', 's', 'h', 'e', 'd'                                 // "pushed"
+  };
+  static const char kPushBodyFrame2[] = " my darling";
+  static const char kPushBodyFrame3[] = " hello";
+  static const char kPushBodyFrame4[] = " my baby";
+
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
+  MockWrite writes[] = {
+    CreateMockWrite(*stream1_syn, 1),
+  };
+
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL, 0, 2, 1, "/foo.dat"));
+  MockRead reads[] = {
+    CreateMockRead(*stream1_reply, 2),
+    CreateMockRead(*stream2_syn, 3),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame1),
+             arraysize(kPushBodyFrame1), 4),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame2),
+             arraysize(kPushBodyFrame2) - 1, 5),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame3),
+             arraysize(kPushBodyFrame3) - 1, 6),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),
+             arraysize(kPushBodyFrame4) - 1, 7),
+    CreateMockRead(*stream1_body, 8, false),
+    MockRead(true, ERR_IO_PENDING, 9),  // Force a pause
+  };
+
+  HttpResponseInfo response;
+  HttpResponseInfo response2;
+  std::string expected_push_result("pushed my darling hello my baby");
+  RunServerPushTest(writes, arraysize(writes), reads, arraysize(reads),
+                    &response, &response2, expected_push_result);
+
+  // Verify the SYN_REPLY.
+  EXPECT_TRUE(response.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
+
+  // Verify the pushed stream.
+  EXPECT_TRUE(response2.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
+}
+
+TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrameInterrupted) {
+  static const unsigned char kPushBodyFrame1[] = {
+    0x00, 0x00, 0x00, 0x02,                                      // header, ID
+    0x01, 0x00, 0x00, 0x1F,                                      // FIN, length
+    'p', 'u', 's', 'h', 'e', 'd'                                 // "pushed"
+  };
+  static const char kPushBodyFrame2[] = " my darling";
+  static const char kPushBodyFrame3[] = " hello";
+  static const char kPushBodyFrame4[] = " my baby";
+
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
+  MockWrite writes[] = {
+    CreateMockWrite(*stream1_syn, 1),
+  };
+
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL, 0, 2, 1, "/foo.dat"));
+  MockRead reads[] = {
+    CreateMockRead(*stream1_reply, 2),
+    CreateMockRead(*stream2_syn, 3),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame1),
+             arraysize(kPushBodyFrame1), 4),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame2),
+             arraysize(kPushBodyFrame2) - 1, 5),
+    MockRead(true, ERR_IO_PENDING, 6),  // Force a pause
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame3),
+             arraysize(kPushBodyFrame3) - 1, 7),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),
+             arraysize(kPushBodyFrame4) - 1, 8),
+    CreateMockRead(*stream1_body.get(), 9, false),
+    MockRead(true, ERR_IO_PENDING, 10)  // Force a pause.
+  };
+
+  HttpResponseInfo response;
+  HttpResponseInfo response2;
+  std::string expected_push_result("pushed my darling hello my baby");
+  RunServerPushTest(writes, arraysize(writes), reads, arraysize(reads),
+                    &response, &response2, expected_push_result);
+
+  // Verify the SYN_REPLY.
+  EXPECT_TRUE(response.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
+
+  // Verify the pushed stream.
+  EXPECT_TRUE(response2.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
+}
+
+TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID0) {
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_rst(ConstructSpdyRstStream(2, spdy::INVALID_STREAM));
+  MockWrite writes[] = {
+    CreateMockWrite(*stream1_syn, 1),
+    CreateMockWrite(*stream2_rst, 4),
+  };
+
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL, 0, 2, 0, "/foo.dat"));
+  MockRead reads[] = {
+    CreateMockRead(*stream1_reply, 2),
+    CreateMockRead(*stream2_syn, 3),
+    CreateMockRead(*stream1_body, 4),
+    MockRead(true, ERR_IO_PENDING, 5)  // Force a pause
+  };
+
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+
+  helper.RunPreTestSetup();
+  helper.AddData(data.get());
+
+  HttpNetworkTransaction* trans = helper.trans();
+
+  // Start the transaction with basic parameters.
+  TestCompletionCallback callback;
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
 
   // Verify that we consumed all test data.
@@ -2340,20 +2448,26 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID0) {
 }
 
 TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID9) {
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
-  scoped_ptr<spdy::SpdyFrame> res(
-      ConstructSpdyRstStream(2, spdy::INVALID_ASSOCIATED_STREAM));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_rst(ConstructSpdyRstStream(2, spdy::INVALID_ASSOCIATED_STREAM));
   MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
-    CreateMockWrite(*res, 4),
+    CreateMockWrite(*stream1_syn, 1),
+    CreateMockWrite(*stream2_rst, 4),
   };
 
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rep(ConstructSpdyPush(NULL, 0, 2, 9, "/foo.dat"));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL, 0, 2, 9, "/foo.dat"));
   MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    CreateMockRead(*rep, 3),
-    MockRead(true, 0, 0, 5)  // EOF
+    CreateMockRead(*stream1_reply, 2),
+    CreateMockRead(*stream2_syn, 3),
+    CreateMockRead(*stream1_body, 4),
+    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
   };
 
   scoped_refptr<OrderedSocketData> data(
@@ -2372,7 +2486,6 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID9) {
   int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
-  data->CompleteRead();
   EXPECT_EQ(OK, rv);
 
   // Verify that we consumed all test data.
@@ -2392,20 +2505,26 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID9) {
 }
 
 TEST_P(SpdyNetworkTransactionTest, ServerPushNoURL) {
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
-  scoped_ptr<spdy::SpdyFrame> res(
-      ConstructSpdyRstStream(2, spdy::PROTOCOL_ERROR));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_rst(ConstructSpdyRstStream(2, spdy::PROTOCOL_ERROR));
   MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
-    CreateMockWrite(*res, 4),
+    CreateMockWrite(*stream1_syn, 1),
+    CreateMockWrite(*stream2_rst, 4),
   };
 
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rep(ConstructSpdyPush(NULL, 0, 2, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL, 0, 2, 1));
   MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    CreateMockRead(*rep, 3),
-    MockRead(true, 0, 0, 5)  // EOF
+    CreateMockRead(*stream1_reply, 2),
+    CreateMockRead(*stream2_syn, 3),
+    CreateMockRead(*stream1_body, 4),
+    MockRead(true, ERR_IO_PENDING, 5)  // Force a pause
   };
 
   scoped_refptr<OrderedSocketData> data(
@@ -2424,7 +2543,6 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushNoURL) {
   int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
-  data->CompleteRead();
   EXPECT_EQ(OK, rv);
   // Verify that we consumed all test data.
   EXPECT_TRUE(data->at_read_eof()) << "Read count: "
@@ -3743,8 +3861,8 @@ TEST_P(SpdyNetworkTransactionTest, ProxyConnect) {
                                      BoundNetLog(), GetParam());
   helper.session_deps().reset(new SpdySessionDependencies(
       net::SpdyCreateFixedProxyService("myproxy:70")));
-  helper.session() = SpdySessionDependencies::SpdyCreateSession(
-      helper.session_deps().get());
+  helper.SetSession(SpdySessionDependencies::SpdyCreateSession(
+      helper.session_deps().get()));
   helper.RunPreTestSetup();
   HttpNetworkTransaction* trans = helper.trans();
 
@@ -3970,7 +4088,7 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   NormalSpdyTransactionHelper helper_proxy(request_proxy,
                                            BoundNetLog(), GetParam());
   helper_proxy.session_deps().swap(ssd_proxy);
-  helper_proxy.session() = session_proxy;
+  helper_proxy.SetSession(session_proxy);
   helper_proxy.RunPreTestSetup();
   helper_proxy.AddData(data_proxy.get());
 
