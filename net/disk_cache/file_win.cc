@@ -15,7 +15,7 @@ namespace {
 struct MyOverlapped {
   MyOverlapped(disk_cache::File* file, size_t offset,
                disk_cache::FileIOCallback* callback);
-  ~MyOverlapped();
+  ~MyOverlapped() {}
   OVERLAPPED* overlapped() {
     return &context_.overlapped;
   }
@@ -23,8 +23,6 @@ struct MyOverlapped {
   MessageLoopForIO::IOContext context_;
   scoped_refptr<disk_cache::File> file_;
   disk_cache::FileIOCallback* callback_;
-  const void* buffer_;
-  bool delete_buffer_;  // Delete the user buffer at completion.
 };
 
 COMPILE_ASSERT(!offsetof(MyOverlapped, context_), starts_with_overlapped);
@@ -58,15 +56,6 @@ MyOverlapped::MyOverlapped(disk_cache::File* file, size_t offset,
   context_.overlapped.Offset = static_cast<DWORD>(offset);
   file_ = file;
   callback_ = callback;
-}
-
-MyOverlapped::~MyOverlapped() {
-  if (delete_buffer_) {
-    DCHECK(!callback_);
-    // This whole thing could be updated to use IOBuffer, but PostWrite is not
-    // used at the moment. TODO(rvargas): remove or update this code.
-    delete[] reinterpret_cast<const char*>(buffer_);
-  }
 }
 
 }  // namespace
@@ -207,29 +196,18 @@ bool File::Write(const void* buffer, size_t buffer_len, size_t offset,
     return Write(buffer, buffer_len, offset);
   }
 
-  return AsyncWrite(buffer, buffer_len, offset, true, callback, completed);
-}
-
-bool File::PostWrite(const void* buffer, size_t buffer_len, size_t offset) {
-  DCHECK(init_);
-  return AsyncWrite(buffer, buffer_len, offset, false, NULL, NULL);
+  return AsyncWrite(buffer, buffer_len, offset, callback, completed);
 }
 
 bool File::AsyncWrite(const void* buffer, size_t buffer_len, size_t offset,
-                      bool notify, FileIOCallback* callback, bool* completed) {
+                      FileIOCallback* callback, bool* completed) {
   DCHECK(init_);
+  DCHECK(callback);
+  DCHECK(completed);
   if (buffer_len > ULONG_MAX || offset > ULONG_MAX)
     return false;
 
   MyOverlapped* data = new MyOverlapped(this, offset, callback);
-  bool dummy_completed;
-  if (!callback) {
-    DCHECK(!notify);
-    data->delete_buffer_ = true;
-    data->buffer_ = buffer;
-    completed = &dummy_completed;
-  }
-
   DWORD size = static_cast<DWORD>(buffer_len);
 
   DWORD actual;

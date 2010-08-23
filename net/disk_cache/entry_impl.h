@@ -133,6 +133,7 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   enum {
      kNumStreams = 3
   };
+  class UserBuffer;
 
   ~EntryImpl();
 
@@ -158,17 +159,28 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   // given offset.
   bool PrepareTarget(int index, int offset, int buf_len, bool truncate);
 
-  // Grows the size of the storage used to store user data, if needed.
-  bool GrowUserBuffer(int index, int offset, int buf_len, bool truncate);
+  // Adjusts the internal buffer and file handle for a write that truncates this
+  // stream.
+  bool HandleTruncation(int index, int offset, int buf_len);
+
+  // Copies data from disk to the internal buffer.
+  bool CopyToLocalBuffer(int index);
 
   // Reads from a block data file to this object's memory buffer.
   bool MoveToLocalBuffer(int index);
 
   // Loads the external file to this object's memory buffer.
-  bool ImportSeparateFile(int index, int offset, int buf_len);
+  bool ImportSeparateFile(int index, int new_size);
 
-  // Flush the in-memory data to the backing storage.
-  bool Flush(int index, int size, bool async);
+  // Makes sure that the internal buffer can handle the a write of |buf_len|
+  // bytes to |offset|.
+  bool PrepareBuffer(int index, int offset, int buf_len);
+
+  // Flushes the in-memory data to the backing storage.
+  bool Flush(int index);
+
+  // Updates the size of a given data stream.
+  void UpdateSize(int index, int old_size, int new_size);
 
   // Initializes the sparse control object. Returns a net error code.
   int InitSparseData();
@@ -195,7 +207,7 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   CacheEntryBlock entry_;     // Key related information for this entry.
   CacheRankingsBlock node_;   // Rankings related information for this entry.
   BackendImpl* backend_;      // Back pointer to the cache.
-  scoped_array<char> user_buffers_[kNumStreams];  // Store user data.
+  scoped_ptr<UserBuffer> user_buffers_[kNumStreams];  // Stores user data.
   // Files to store external user data and key.
   scoped_refptr<File> files_[kNumStreams + 1];
   mutable std::string key_;           // Copy of the key.

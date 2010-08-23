@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/disk_cache_test_base.h"
 
+#include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
@@ -189,4 +190,36 @@ void DiskCacheTestWithCache::FlushQueueForTest() {
   TestCompletionCallback cb;
   int rv = cache_impl_->FlushQueueForTest(&cb);
   EXPECT_EQ(net::OK, cb.GetResult(rv));
+}
+
+int DiskCacheTestWithCache::ReadData(disk_cache::Entry* entry, int index,
+                                     int offset, net::IOBuffer* buf, int len) {
+  TestCompletionCallback cb;
+  int rv = entry->ReadData(index, offset, buf, len, &cb);
+  return cb.GetResult(rv);
+}
+
+
+int DiskCacheTestWithCache::WriteData(disk_cache::Entry* entry, int index,
+                                      int offset, net::IOBuffer* buf, int len,
+                                      bool truncate) {
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(index, offset, buf, len, &cb, truncate);
+  return cb.GetResult(rv);
+}
+
+int DiskCacheTestWithCache::ReadSparseData(disk_cache::Entry* entry,
+                                           int64 offset, net::IOBuffer* buf,
+                                           int len) {
+  TestCompletionCallback cb;
+  int rv = entry->ReadSparseData(offset, buf, len, &cb);
+  return cb.GetResult(rv);
+}
+
+int DiskCacheTestWithCache::WriteSparseData(disk_cache::Entry* entry,
+                                            int64 offset,
+                                            net::IOBuffer* buf, int len) {
+  TestCompletionCallback cb;
+  int rv = entry->WriteSparseData(offset, buf, len, &cb);
+  return cb.GetResult(rv);
 }

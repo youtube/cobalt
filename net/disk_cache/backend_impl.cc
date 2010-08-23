@@ -465,6 +465,7 @@ int BackendImpl::SyncInit() {
   entry_count_ = byte_count_ = 0;
 
   if (!restarted_) {
+    buffer_bytes_ = 0;
     trace_object_ = TraceObject::GetTraceObject();
     // Create a recurrent timer of 30 secs.
     int timer_delay = unit_test_ ? 1000 : 30000;
@@ -966,6 +967,22 @@ void BackendImpl::ModifyStorageSize(int32 old_size, int32 new_size) {
 
 void BackendImpl::TooMuchStorageRequested(int32 size) {
   stats_.ModifyStorageStats(0, size);
+}
+
+bool BackendImpl::IsAllocAllowed(int current_size, int new_size) {
+  DCHECK_GT(new_size, current_size);
+  int to_add = new_size - current_size;
+  if (buffer_bytes_ + to_add > MaxBuffersSize())
+    return false;
+
+  buffer_bytes_ += to_add;
+  HISTOGRAM_COUNTS("DiskCache.BufferBytes", buffer_bytes_ / 10);
+  return true;
+}
+
+void BackendImpl::BufferDeleted(int size) {
+  buffer_bytes_ -= size;
+  DCHECK_GE(size, 0);
 }
 
 bool BackendImpl::IsLoaded() const {
@@ -1863,6 +1880,24 @@ int BackendImpl::CheckAllEntries() {
 bool BackendImpl::CheckEntry(EntryImpl* cache_entry) {
   RankingsNode* rankings = cache_entry->rankings()->Data();
   return !rankings->dummy;
+}
+
+int BackendImpl::MaxBuffersSize() {
+  static int64 total_memory = base::SysInfo::AmountOfPhysicalMemory();
+  static bool done = false;
+
+  if (!done) {
+    const int kMaxBuffersSize = 30 * 1024 * 1024;
+
+    // We want to use up to 2% of the computer's memory.
+    total_memory = total_memory * 2 / 100;
+    if (total_memory > kMaxBuffersSize || total_memory <= 0)
+      total_memory = kMaxBuffersSize;
+
+    done = true;
+  }
+
+  return static_cast<int>(total_memory);
 }
 
 }  // namespace disk_cache
