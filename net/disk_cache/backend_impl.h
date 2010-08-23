@@ -175,6 +175,17 @@ class BackendImpl : public Backend {
   // Logs requests that are denied due to being too big.
   void TooMuchStorageRequested(int32 size);
 
+  // Returns true if a temporary buffer is allowed to be extended.
+  bool IsAllocAllowed(int current_size, int new_size);
+
+  // Tracks the release of |size| bytes by an entry buffer.
+  void BufferDeleted(int size);
+
+  // Only intended for testing the two previous methods.
+  int GetTotalBuffersSize() const {
+    return buffer_bytes_;
+  }
+
   // Returns true if this instance seems to be under heavy load.
   bool IsLoaded() const;
 
@@ -314,6 +325,9 @@ class BackendImpl : public Backend {
   // Part of the self test. Returns false if the entry is corrupt.
   bool CheckEntry(EntryImpl* cache_entry);
 
+  // Returns the maximum total memory for the memory buffers.
+  int MaxBuffersSize();
+
   InFlightBackendIO background_queue_;  // The controller of pending operations.
   scoped_refptr<MappedFile> index_;  // The main cache index.
   FilePath path_;  // Path to the folder used as backing storage.
@@ -329,6 +343,7 @@ class BackendImpl : public Backend {
   int num_pending_io_;  // Number of pending IO operations.
   int entry_count_;  // Number of entries accessed lately.
   int byte_count_;  // Number of bytes read/written lately.
+  int buffer_bytes_;  // Total size of the temporary entries' buffers.
   net::CacheType cache_type_;
   int uma_report_;  // Controls transmision of UMA data.
   uint32 user_flags_;  // Flags set by the user.
