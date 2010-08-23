@@ -33,13 +33,12 @@ struct SSLConfig {
                        // needs to clear tls1_enabled).
   bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
 
-  // True if we believe that this connection might be MITM attacked. This
-  // sounds a little worse than it is: large networks sometimes MITM attack all
-  // SSL connections on egress. We want to know this because we might not have
-  // the end-to-end connection that we believe that we have based on the
-  // hostname. Therefore, certain certificate checks can't be performed and we
-  // can't use outside knowledge about whether the server has the renegotiation
-  // extension.
+  // True if we allow this connection to be MITM attacked. This sounds a little
+  // worse than it is: large networks sometimes MITM attack all SSL connections
+  // on egress. We want to know this because we might not have the end-to-end
+  // connection that we believe that we have based on the hostname. Therefore,
+  // certain certificate checks can't be performed and we can't use outside
+  // knowledge about whether the server has the renegotiation extension.
   bool mitm_proxies_allowed;
 
   bool false_start_enabled;  // True if we'll use TLS False Start.
@@ -118,8 +117,8 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   static void EnableDNSSEC();
   static bool dnssec_enabled();
 
-  // Enables the |may_be_manipulated| flag in SSLConfig objects. See the
-  // comment about this flag in |SSLConfig|.
+  // Sets a global flag which allows SSL connections to be MITM attacked. See
+  // the comment about this flag in |SSLConfig|.
   static void AllowMITMProxies();
   static bool mitm_proxies_allowed();
 
@@ -129,12 +128,12 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   static bool false_start_enabled();
 
  protected:
-  // SetFlags sets the values of several flags based on global configuration.
-  static void SetSSLConfigFlags(SSLConfig*);
-
   friend class base::RefCountedThreadSafe<SSLConfigService>;
 
   virtual ~SSLConfigService() {}
+
+  // SetFlags sets the values of several flags based on global configuration.
+  static void SetSSLConfigFlags(SSLConfig*);
 };
 
 }  // namespace net
