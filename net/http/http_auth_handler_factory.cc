@@ -53,6 +53,52 @@ HttpAuthHandlerRegistryFactory* HttpAuthHandlerFactory::CreateDefault() {
   return registry_factory;
 }
 
+namespace {
+
+bool IsSupportedScheme(const std::vector<std::string>& supported_schemes,
+                       const std::string& scheme) {
+  std::vector<std::string>::const_iterator it = std::find(
+      supported_schemes.begin(), supported_schemes.end(), scheme);
+  return it != supported_schemes.end();
+}
+
+}
+
+// static
+HttpAuthHandlerRegistryFactory* HttpAuthHandlerRegistryFactory::Create(
+    const std::vector<std::string>& supported_schemes,
+    URLSecurityManager* security_manager,
+    HostResolver* host_resolver,
+    bool negotiate_disable_cname_lookup,
+    bool negotiate_enable_port) {
+  HttpAuthHandlerRegistryFactory* registry_factory =
+      new HttpAuthHandlerRegistryFactory();
+  if (IsSupportedScheme(supported_schemes, "basic"))
+    registry_factory->RegisterSchemeFactory(
+        "basic", new HttpAuthHandlerBasic::Factory());
+  if (IsSupportedScheme(supported_schemes, "digest"))
+    registry_factory->RegisterSchemeFactory(
+        "digest", new HttpAuthHandlerDigest::Factory());
+  if (IsSupportedScheme(supported_schemes, "ntlm")) {
+    HttpAuthHandlerNTLM::Factory* ntlm_factory =
+        new HttpAuthHandlerNTLM::Factory();
+    ntlm_factory->set_url_security_manager(security_manager);
+    registry_factory->RegisterSchemeFactory("ntlm", ntlm_factory);
+  }
+  if (IsSupportedScheme(supported_schemes, "negotiate")) {
+    HttpAuthHandlerNegotiate::Factory* negotiate_factory =
+        new HttpAuthHandlerNegotiate::Factory();
+    negotiate_factory->set_url_security_manager(security_manager);
+    DCHECK(host_resolver != NULL || negotiate_disable_cname_lookup);
+    negotiate_factory->set_host_resolver(host_resolver);
+    negotiate_factory->set_disable_cname_lookup(negotiate_disable_cname_lookup);
+    negotiate_factory->set_use_port(negotiate_enable_port);
+    registry_factory->RegisterSchemeFactory("negotiate", negotiate_factory);
+  }
+
+  return registry_factory;
+}
+
 HttpAuthHandlerRegistryFactory::HttpAuthHandlerRegistryFactory() {
 }
 
