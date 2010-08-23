@@ -31,6 +31,8 @@
         'base',
       ],
       'sources': [
+        'i18n/char_iterator.cc',
+        'i18n/char_iterator.h',
         'i18n/file_util_icu.cc',
         'i18n/file_util_icu.h',
         'i18n/icu_encoding_detection.cc',
@@ -88,6 +90,7 @@
         'histogram_unittest.cc',
         'hmac_unittest.cc',
         'id_map_unittest.cc',
+        'i18n/char_iterator_unittest.cc',
         'i18n/file_util_icu_unittest.cc',
         'i18n/icu_string_conversions_unittest.cc',
         'i18n/rtl_unittest.cc',
