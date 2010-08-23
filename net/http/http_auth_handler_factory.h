@@ -8,6 +8,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/scoped_ptr.h"
 #include "net/http/http_auth.h"
@@ -18,6 +19,7 @@ class GURL;
 namespace net {
 
 class BoundNetLog;
+class HostResolver;
 class HttpAuthHandler;
 class HttpAuthHandlerRegistryFactory;
 
@@ -151,6 +153,29 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
                                 int digest_nonce_count,
                                 const BoundNetLog& net_log,
                                 scoped_ptr<HttpAuthHandler>* handler);
+
+  // Creates an HttpAuthHandlerRegistryFactory.
+  //
+  // |supported_schemes| is a list of authentication schemes. Valid values
+  // include "basic", "digest", "ntlm", and "negotiate", where case matters.
+  //
+  // |security_manager| is used by the NTLM and Negotiate authenticators
+  // to determine which servers Integrated Authentication can be used with. If
+  // NULL, Integrated Authentication will not be used with any server.
+  //
+  // |host_resolver| is used by the Negotiate authentication handler to perform
+  // CNAME lookups to generate a Kerberos SPN for the server. If the "negotiate"
+  // scheme is used and |negotiate_disable_cname_lookup| is false,
+  // |host_resolver| must not be NULL.
+  //
+  // |negotiate_disable_cname_lookup| and |negotiate_enable_port| both control
+  // how Negotiate does SPN generation, by default these should be false.
+  static HttpAuthHandlerRegistryFactory* Create(
+      const std::vector<std::string>& supported_schemes,
+      URLSecurityManager* security_manager,
+      HostResolver* host_resolver,
+      bool negotiate_disable_cname_lookup,
+      bool negotiate_enable_port);
 
  private:
   typedef std::map<std::string, HttpAuthHandlerFactory*> FactoryMap;
