@@ -82,10 +82,8 @@ const int kAlwaysPrintErrorLevel = LOG_ERROR;
 // will be lazily initialized to the default value when it is
 // first needed.
 #if defined(OS_WIN)
-typedef wchar_t PathChar;
 typedef std::wstring PathString;
 #else
-typedef char PathChar;
 typedef std::string PathString;
 #endif
 PathString* log_file_name = NULL;
@@ -248,8 +246,10 @@ void InitLogMutex() {
 #endif
 }
 
-void InitLogging(const PathChar* new_log_file, LoggingDestination logging_dest,
-                 LogLockingState lock_log, OldFileDeletionState delete_old) {
+void BaseInitLoggingImpl(const PathChar* new_log_file,
+                         LoggingDestination logging_dest,
+                         LogLockingState lock_log,
+                         OldFileDeletionState delete_old) {
   g_enable_dcheck =
       CommandLine::ForCurrentProcess()->HasSwitch(switches::kEnableDCHECK);
 
