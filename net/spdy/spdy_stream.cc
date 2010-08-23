@@ -29,11 +29,12 @@ SpdyStream::SpdyStream(
       response_status_(OK),
       cancelled_(false),
       send_bytes_(0),
-      recv_bytes_(0),
-      histograms_recorded_(false) {}
+      recv_bytes_(0) {
+}
 
 SpdyStream::~SpdyStream() {
   DLOG(INFO) << "Deleting SpdyStream for stream " << stream_id_;
+  UpdateHistograms();
 }
 
 void SpdyStream::SetDelegate(Delegate* delegate) {
@@ -183,9 +184,12 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
       IOBufferWithSize* buf = new IOBufferWithSize(length);
       memcpy(buf->data(), data, length);
       pending_buffers_.push_back(buf);
-    }
-    else
+    } else {
       pending_buffers_.push_back(NULL);
+      metrics_.StopStream();
+      session_->CloseStream(stream_id_, net::OK);
+      // Note: |this| may be deleted after calling CloseStream.
+    }
     return;
   }
 
@@ -202,9 +206,8 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
   // A zero-length read means that the stream is being closed.
   if (!length) {
     metrics_.StopStream();
-    scoped_refptr<SpdyStream> self(this);
     session_->CloseStream(stream_id_, net::OK);
-    UpdateHistograms();
+    // Note: |this| may be deleted after calling CloseStream.
     return;
   }
 
@@ -419,11 +422,6 @@ int SpdyStream::DoOpen(int result) {
 }
 
 void SpdyStream::UpdateHistograms() {
-  if (histograms_recorded_)
-    return;
-
-  histograms_recorded_ = true;
-
   // We need all timers to be filled in, otherwise metrics can be bogus.
   if (send_time_.is_null() || recv_first_byte_time_.is_null() ||
       recv_last_byte_time_.is_null())
