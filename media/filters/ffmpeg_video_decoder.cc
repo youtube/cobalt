@@ -89,6 +89,8 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
       config.codec_ = kCodecMPEG2; break;
     case CODEC_ID_MPEG4:
       config.codec_ = kCodecMPEG4; break;
+    case CODEC_ID_VP8:
+      config.codec_ = kCodecVP8; break;
     default:
       NOTREACHED();
   }
