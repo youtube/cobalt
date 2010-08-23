@@ -37,12 +37,11 @@ class BackgroundIO : public base::RefCountedThreadSafe<BackgroundIO> {
 
   // Read and Write are the operations that can be performed asynchronously.
   // The actual parameters for the operation are setup in the constructor of
-  // the object, with the exception of |delete_buffer|, that allows a write
-  // without a callback. Both methods should be called from a worker thread, by
-  // posting a task to the WorkerPool (they are RunnableMethods). When finished,
+  // the object. Both methods should be called from a worker thread, by posting
+  // a task to the WorkerPool (they are RunnableMethods). When finished,
   // controller->OnIOComplete() is called.
   void Read();
-  void Write(bool delete_buffer);
+  void Write();
 
   // This method signals the controller that this operation is finished, in the
   // original thread (presumably the IO-Thread). In practice, this is a
@@ -122,8 +121,7 @@ class InFlightIO {
   void PostRead(disk_cache::File* file, void* buf, size_t buf_len,
                 size_t offset, disk_cache::FileIOCallback* callback);
   void PostWrite(disk_cache::File* file, const void* buf, size_t buf_len,
-                 size_t offset, disk_cache::FileIOCallback* callback,
-                 bool delete_buffer);
+                 size_t offset, disk_cache::FileIOCallback* callback);
 
   // Blocks the current thread until all IO operations tracked by this object
   // complete.
@@ -167,12 +165,8 @@ void BackgroundIO::Cancel() {
 }
 
 // Runs on a worker thread.
-void BackgroundIO::Write(bool delete_buffer) {
+void BackgroundIO::Write() {
   bool rv = file_->Write(buf_, buf_len_, offset_);
-  if (delete_buffer) {
-    // TODO(rvargas): remove or update this code.
-    delete[] reinterpret_cast<const char*>(buf_);
-  }
 
   bytes_ = rv ? static_cast<int>(buf_len_) : -1;
   controller_->OnIOComplete(this);
@@ -203,8 +197,7 @@ void InFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
 
 void InFlightIO::PostWrite(disk_cache::File* file, const void* buf,
                            size_t buf_len, size_t offset,
-                           disk_cache::FileIOCallback* callback,
-                           bool delete_buffer) {
+                           disk_cache::FileIOCallback* callback) {
   scoped_refptr<BackgroundIO> operation =
       new BackgroundIO(file, buf, buf_len, offset, callback, this);
   io_list_.insert(operation.get());
@@ -214,8 +207,7 @@ void InFlightIO::PostWrite(disk_cache::File* file, const void* buf,
     callback_thread_ = MessageLoop::current();
 
   WorkerPool::PostTask(FROM_HERE,
-                       NewRunnableMethod(operation.get(), &BackgroundIO::Write,
-                                         delete_buffer),
+                       NewRunnableMethod(operation.get(), &BackgroundIO::Write),
                        true);
 }
 
@@ -342,22 +334,17 @@ bool File::Write(const void* buffer, size_t buffer_len, size_t offset,
     return Write(buffer, buffer_len, offset);
   }
 
-  return AsyncWrite(buffer, buffer_len, offset, true, callback, completed);
-}
-
-bool File::PostWrite(const void* buffer, size_t buffer_len, size_t offset) {
-  DCHECK(init_);
-  return AsyncWrite(buffer, buffer_len, offset, false, NULL, NULL);
+  return AsyncWrite(buffer, buffer_len, offset, callback, completed);
 }
 
 bool File::AsyncWrite(const void* buffer, size_t buffer_len, size_t offset,
-                      bool notify, FileIOCallback* callback, bool* completed) {
+                      FileIOCallback* callback, bool* completed) {
   DCHECK(init_);
   if (buffer_len > ULONG_MAX || offset > ULONG_MAX)
     return false;
 
   InFlightIO* io_operations = Singleton<InFlightIO>::get();
-  io_operations->PostWrite(this, buffer, buffer_len, offset, callback, !notify);
+  io_operations->PostWrite(this, buffer, buffer_len, offset, callback);
 
   if (completed)
     *completed = false;

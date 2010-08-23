@@ -77,9 +77,214 @@ void ClearInvalidData(char* buffer, int offset, int valid_len) {
     memset(buffer + offset + valid_len, 0, end);
 }
 
+const int kMaxBufferSize = 1024 * 1024;  // 1 MB.
+
 }  // namespace
 
 namespace disk_cache {
+
+// This class handles individual memory buffers that store data before it is
+// sent to disk. The buffer can start at any offset, but if we try to write to
+// anywhere in the first 16KB of the file (kMaxBlockSize), we set the offset to
+// zero. The buffer grows up to a size determined by the backend, to keep the
+// total memory used under control.
+class EntryImpl::UserBuffer {
+ public:
+  explicit UserBuffer(BackendImpl* backend)
+      : backend_(backend->GetWeakPtr()), offset_(0), grow_allowed_(true) {
+    buffer_.reserve(kMaxBlockSize);
+  }
+  ~UserBuffer() {
+    if (backend_)
+      backend_->BufferDeleted(capacity() - kMaxBlockSize);
+  }
+
+  // Returns true if we can handle writing |len| bytes to |offset|.
+  bool PreWrite(int offset, int len);
+
+  // Truncates the buffer to |offset| bytes.
+  void Truncate(int offset);
+
+  // Writes |len| bytes from |buf| at the given |offset|.
+  void Write(int offset, net::IOBuffer* buf, int len);
+
+  // Returns true if we can read |len| bytes from |offset|, given that the
+  // actual file has |eof| bytes stored. Note that the number of bytes to read
+  // may be modified by this method even though it returns false: that means we
+  // should do a smaller read from disk.
+  bool PreRead(int eof, int offset, int* len);
+
+  // Read |len| bytes from |buf| at the given |offset|.
+  int Read(int offset, net::IOBuffer* buf, int len);
+
+  // Prepare this buffer for reuse.
+  void Reset();
+
+  char* Data() { return buffer_.size() ? &buffer_[0] : NULL; }
+  int Size() { return static_cast<int>(buffer_.size()); }
+  int Start() { return offset_; }
+  int End() { return offset_ + Size(); }
+
+ private:
+  int capacity() { return static_cast<int>(buffer_.capacity()); }
+  bool GrowBuffer(int required, int limit);
+
+  base::WeakPtr<BackendImpl> backend_;
+  int offset_;
+  std::vector<char> buffer_;
+  bool grow_allowed_;
+  DISALLOW_COPY_AND_ASSIGN(UserBuffer);
+};
+
+bool EntryImpl::UserBuffer::PreWrite(int offset, int len) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GE(len, 0);
+  DCHECK_GE(offset + len, 0);
+
+  // We don't want to write before our current start.
+  if (offset < offset_)
+    return false;
+
+  // Lets get the common case out of the way.
+  if (offset + len <= capacity())
+    return true;
+
+  // If we are writing to the first 16K (kMaxBlockSize), we want to keep the
+  // buffer offset_ at 0.
+  if (!Size() && offset > kMaxBlockSize)
+    return GrowBuffer(len, kMaxBufferSize);
+
+  int required = offset - offset_ + len;
+  return GrowBuffer(required, kMaxBufferSize * 6 / 5);
+}
+
+void EntryImpl::UserBuffer::Truncate(int offset) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GE(offset, offset_);
+
+  offset -= offset_;
+  if (Size() >= offset)
+    buffer_.resize(offset);
+}
+
+void EntryImpl::UserBuffer::Write(int offset, net::IOBuffer* buf, int len) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GE(len, 0);
+  DCHECK_GE(offset + len, 0);
+  DCHECK_GE(offset, offset_);
+
+  if (!Size() && offset > kMaxBlockSize)
+    offset_ = offset;
+
+  offset -= offset_;
+
+  if (offset > Size())
+    buffer_.resize(offset);
+
+  if (!len)
+    return;
+
+  char* buffer = buf->data();
+  int valid_len = Size() - offset;
+  int copy_len = std::min(valid_len, len);
+  if (copy_len) {
+    memcpy(&buffer_[offset], buffer, copy_len);
+    len -= copy_len;
+    buffer += copy_len;
+  }
+  if (!len)
+    return;
+
+  buffer_.insert(buffer_.end(), buffer, buffer + len);
+}
+
+bool EntryImpl::UserBuffer::PreRead(int eof, int offset, int* len) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GT(*len, 0);
+
+  if (offset < offset_) {
+    // We are reading before this buffer.
+    if (offset >= eof)
+      return true;
+
+    // If the read overlaps with the buffer, change its length so that there is
+    // no overlap.
+    *len = std::min(*len, offset_ - offset);
+    *len = std::min(*len, eof - offset);
+
+    // We should read from disk.
+    return false;
+  }
+
+  if (!Size())
+    return false;
+
+  // See if we can fulfill the first part of the operation.
+  return (offset - offset_ < Size());
+}
+
+int EntryImpl::UserBuffer::Read(int offset, net::IOBuffer* buf, int len) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GT(len, 0);
+  DCHECK(Size() || offset < offset_);
+
+  int clean_bytes = 0;
+  if (offset < offset_) {
+    // We don't have a file so lets fill the first part with 0.
+    clean_bytes = std::min(offset_ - offset, len);
+    memset(buf->data(), 0, clean_bytes);
+    if (len == clean_bytes)
+      return len;
+    offset = offset_;
+    len -= clean_bytes;
+  }
+
+  int start = offset - offset_;
+  int available = Size() - start;
+  DCHECK_GE(start, 0);
+  DCHECK_GE(available, 0);
+  len = std::min(len, available);
+  memcpy(buf->data() + clean_bytes, &buffer_[start], len);
+  return len + clean_bytes;
+}
+
+void EntryImpl::UserBuffer::Reset() {
+  if (!grow_allowed_) {
+    if (backend_)
+      backend_->BufferDeleted(capacity() - kMaxBlockSize);
+    grow_allowed_ = true;
+    std::vector<char> tmp;
+    buffer_.swap(tmp);
+  }
+  offset_ = 0;
+  buffer_.clear();
+}
+
+bool EntryImpl::UserBuffer::GrowBuffer(int required, int limit) {
+  DCHECK_GE(required, 0);
+  int current_size = capacity();
+  if (required <= current_size)
+    return true;
+
+  if (required > limit)
+    return false;
+
+  if (!backend_)
+    return false;
+
+  int to_add = std::max(required - current_size, kMaxBlockSize * 4);
+  to_add = std::max(current_size, to_add);
+  required = std::min(current_size + to_add, limit);
+
+  grow_allowed_ = backend_->IsAllocAllowed(current_size, required);
+  if (!grow_allowed_)
+    return false;
+
+  buffer_.reserve(required);
+  return true;
+}
+
+// ------------------------------------------------------------------------
 
 EntryImpl::EntryImpl(BackendImpl* backend, Addr address)
     : entry_(NULL, Addr(0)), node_(NULL, Addr(0)) {
@@ -107,9 +312,10 @@ EntryImpl::~EntryImpl() {
     bool ret = true;
     for (int index = 0; index < kNumStreams; index++) {
       if (user_buffers_[index].get()) {
-        if (!(ret = Flush(index, entry_.Data()->data_size[index], false)))
+        if (!(ret = Flush(index)))
           LOG(ERROR) << "Failed to save user data";
-      } else if (unreported_size_[index]) {
+      }
+      if (unreported_size_[index]) {
         backend_->ModifyStorageSize(
             entry_.Data()->data_size[index] - unreported_size_[index],
             entry_.Data()->data_size[index]);
@@ -302,10 +508,12 @@ int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
   backend_->OnEvent(Stats::READ_DATA);
   backend_->OnRead(buf_len);
 
-  if (user_buffers_[index].get()) {
+  // We need the current size in disk.
+  int eof = entry_size - unreported_size_[index];
+  if (user_buffers_[index].get() &&
+      user_buffers_[index]->PreRead(eof, offset, &buf_len)) {
     // Complete the operation locally.
-    DCHECK(kMaxBlockSize >= offset + buf_len);
-    memcpy(buf->data() , user_buffers_[index].get() + offset, buf_len);
+    buf_len = user_buffers_[index]->Read(offset, buf, buf_len);
     ReportIOTime(kRead, start);
     return buf_len;
   }
@@ -368,28 +576,13 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
 
   // Read the size at this point (it may change inside prepare).
   int entry_size = entry_.Data()->data_size[index];
+  bool extending = entry_size < offset + buf_len;
+  truncate = truncate && entry_size > offset + buf_len;
   if (!PrepareTarget(index, offset, buf_len, truncate))
     return net::ERR_FAILED;
 
-  if (entry_size < offset + buf_len) {
-    unreported_size_[index] += offset + buf_len - entry_size;
-    entry_.Data()->data_size[index] = offset + buf_len;
-    entry_.set_modified();
-    if (!buf_len)
-      truncate = true;  // Force file extension.
-  } else if (truncate) {
-      // If the size was modified inside PrepareTarget, we should not do
-      // anything here.
-      if ((entry_size > offset + buf_len) &&
-          (entry_size == entry_.Data()->data_size[index])) {
-        unreported_size_[index] += offset + buf_len - entry_size;
-        entry_.Data()->data_size[index] = offset + buf_len;
-        entry_.set_modified();
-      } else {
-        // Nothing to truncate.
-        truncate = false;
-      }
-  }
+  if (extending || truncate)
+    UpdateSize(index, entry_size, offset + buf_len);
 
   UpdateRank(true);
 
@@ -398,16 +591,17 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
 
   if (user_buffers_[index].get()) {
     // Complete the operation locally.
-    if (!buf_len)
-      return 0;
-
-    DCHECK(kMaxBlockSize >= offset + buf_len);
-    memcpy(user_buffers_[index].get() + offset, buf->data(), buf_len);
+    user_buffers_[index]->Write(offset, buf, buf_len);
     ReportIOTime(kWrite, start);
     return buf_len;
   }
 
   Addr address(entry_.Data()->data_addr[index]);
+  if (truncate && offset + buf_len == 0) {
+    DCHECK(!address.is_initialized());
+    return 0;
+  }
+
   File* file = GetBackingFile(address, index);
   if (!file)
     return net::ERR_FAILED;
@@ -416,7 +610,7 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
   if (address.is_block_file()) {
     file_offset += address.start_block() * address.BlockSize() +
                    kBlockHeaderSize;
-  } else if (truncate) {
+  } else if (truncate || (extending && !buf_len)) {
     if (!file->SetLength(offset + buf_len))
       return net::ERR_FAILED;
   }
@@ -793,171 +987,218 @@ File* EntryImpl::GetExternalFile(Addr address, int index) {
   return files_[index].get();
 }
 
+// We keep a memory buffer for everything that ends up stored on a block file
+// (because we don't know yet the final data size), and for some of the data
+// that end up on external files. This function will initialize that memory
+// buffer and / or the files needed to store the data.
+//
+// In general, a buffer may overlap data already stored on disk, and in that
+// case, the contents of the buffer are the most accurate. It may also extend
+// the file, but we don't want to read from disk just to keep the buffer up to
+// date. This means that as soon as there is a chance to get confused about what
+// is the most recent version of some part of a file, we'll flush the buffer and
+// reuse it for the new data. Keep in mind that the normal use pattern is quite
+// simple (write sequentially from the beginning), so we optimize for handling
+// that case.
 bool EntryImpl::PrepareTarget(int index, int offset, int buf_len,
                               bool truncate) {
+  if (truncate)
+    return HandleTruncation(index, offset, buf_len);
+
   Addr address(entry_.Data()->data_addr[index]);
+  if (address.is_initialized()) {
+    if (address.is_block_file() && !MoveToLocalBuffer(index))
+      return false;
 
-  if (address.is_initialized() || user_buffers_[index].get())
-    return GrowUserBuffer(index, offset, buf_len, truncate);
+    if (!user_buffers_[index].get() && offset < kMaxBlockSize) {
+      // We are about to create a buffer for the first 16KB, make sure that we
+      // preserve existing data.
+      if (!CopyToLocalBuffer(index))
+        return false;
+    }
+  }
 
-  if (offset + buf_len > kMaxBlockSize)
-    return CreateDataBlock(index, offset + buf_len);
+  if (!user_buffers_[index].get())
+    user_buffers_[index].reset(new UserBuffer(backend_));
 
-  user_buffers_[index].reset(new char[kMaxBlockSize]);
-
-  // Overwrite the parts of the buffer that are not going to be written
-  // by the current operation (and yes, let's assume that nothing is going
-  // to fail, and we'll actually write over the part that we are not cleaning
-  // here). The point is to avoid writing random stuff to disk later on.
-  ClearInvalidData(user_buffers_[index].get(), offset, buf_len);
-
-  return true;
+  return PrepareBuffer(index, offset, buf_len);
 }
 
 // We get to this function with some data already stored. If there is a
 // truncation that results on data stored internally, we'll explicitly
 // handle the case here.
-bool EntryImpl::GrowUserBuffer(int index, int offset, int buf_len,
-                               bool truncate) {
+bool EntryImpl::HandleTruncation(int index, int offset, int buf_len) {
   Addr address(entry_.Data()->data_addr[index]);
 
-  if (offset + buf_len > kMaxBlockSize) {
-    // The data has to be stored externally.
-    if (address.is_initialized()) {
-      if (address.is_separate_file())
+  int current_size = entry_.Data()->data_size[index];
+  int new_size = offset + buf_len;
+
+  if (!new_size) {
+    // This is by far the most common scenario.
+    DeleteData(address, index);
+    backend_->ModifyStorageSize(current_size - unreported_size_[index], 0);
+    entry_.Data()->data_addr[index] = 0;
+    entry_.Data()->data_size[index] = 0;
+    unreported_size_[index] = 0;
+    entry_.Store();
+
+    user_buffers_[index].reset();
+    return true;
+  }
+
+  // We never postpone truncating a file, if there is one, but we may postpone
+  // telling the backend about the size reduction.
+  if (user_buffers_[index].get()) {
+    DCHECK_GE(current_size, user_buffers_[index]->Start());
+    if (!address.is_initialized()) {
+      // There is no overlap between the buffer and disk.
+      if (new_size > user_buffers_[index]->Start()) {
+        // Just truncate our buffer.
+        DCHECK_LT(new_size, user_buffers_[index]->End());
+        user_buffers_[index]->Truncate(new_size);
         return true;
-      if (!MoveToLocalBuffer(index))
-        return false;
+      }
+
+      // Just discard our buffer.
+      user_buffers_[index]->Reset();
+      return PrepareBuffer(index, offset, buf_len);
     }
-    return Flush(index, offset + buf_len, true);
+
+    // There is some overlap or we need to extend the file before the
+    // truncation.
+    if (offset > user_buffers_[index]->Start())
+      user_buffers_[index]->Truncate(new_size);
+    UpdateSize(index, current_size, new_size);
+    if (!Flush(index))
+      return false;
+    user_buffers_[index].reset();
   }
 
-  if (!address.is_initialized()) {
-    DCHECK(user_buffers_[index].get());
-    if (truncate)
-      ClearInvalidData(user_buffers_[index].get(), 0, offset + buf_len);
-    return true;
-  }
-  if (address.is_separate_file()) {
-    if (!truncate)
-      return true;
-    return ImportSeparateFile(index, offset, buf_len);
-  }
+  // We have data somewhere, and it is not in a buffer.
+  DCHECK(!user_buffers_[index].get());
+  DCHECK(address.is_initialized());
 
-  // At this point we are dealing with data stored on disk, inside a block file.
-  if (offset + buf_len <= address.BlockSize() * address.num_blocks())
-    return true;
+  if (new_size > kMaxBlockSize)
+    return true;  // Let the operation go directly to disk.
 
-  // ... and the allocated block has to change.
-  if (!MoveToLocalBuffer(index))
-    return false;
-
-  int clear_start = entry_.Data()->data_size[index];
-  if (truncate)
-    clear_start = std::min(clear_start, offset + buf_len);
-  else if (offset < clear_start)
-    clear_start = std::max(offset + buf_len, clear_start);
-
-  // Clear the end of the buffer.
-  ClearInvalidData(user_buffers_[index].get(), 0, clear_start);
-  return true;
+  return ImportSeparateFile(index, offset + buf_len);
 }
 
-bool EntryImpl::MoveToLocalBuffer(int index) {
+bool EntryImpl::CopyToLocalBuffer(int index) {
   Addr address(entry_.Data()->data_addr[index]);
   DCHECK(!user_buffers_[index].get());
   DCHECK(address.is_initialized());
-  scoped_array<char> buffer(new char[kMaxBlockSize]);
+
+  int len = std::min(entry_.Data()->data_size[index], kMaxBlockSize);
+  user_buffers_[index].reset(new UserBuffer(backend_));
+  user_buffers_[index]->Write(len, NULL, 0);
 
   File* file = GetBackingFile(address, index);
-  size_t len = entry_.Data()->data_size[index];
-  size_t offset = 0;
+  int offset = 0;
 
   if (address.is_block_file())
     offset = address.start_block() * address.BlockSize() + kBlockHeaderSize;
 
-  if (!file || !file->Read(buffer.get(), len, offset, NULL, NULL))
+  if (!file ||
+      !file->Read(user_buffers_[index]->Data(), len, offset, NULL, NULL)) {
+    user_buffers_[index].reset();
+    return false;
+  }
+  return true;
+}
+
+bool EntryImpl::MoveToLocalBuffer(int index) {
+  if (!CopyToLocalBuffer(index))
     return false;
 
+  Addr address(entry_.Data()->data_addr[index]);
   DeleteData(address, index);
   entry_.Data()->data_addr[index] = 0;
   entry_.Store();
 
   // If we lose this entry we'll see it as zero sized.
-  backend_->ModifyStorageSize(static_cast<int>(len) - unreported_size_[index],
-                              0);
-  unreported_size_[index] = static_cast<int>(len);
-
-  user_buffers_[index].swap(buffer);
+  int len = entry_.Data()->data_size[index];
+  backend_->ModifyStorageSize(len - unreported_size_[index], 0);
+  unreported_size_[index] = len;
   return true;
 }
 
-bool EntryImpl::ImportSeparateFile(int index, int offset, int buf_len) {
-  if (entry_.Data()->data_size[index] > offset + buf_len) {
-    unreported_size_[index] += offset + buf_len -
-                               entry_.Data()->data_size[index];
-    entry_.Data()->data_size[index] = offset + buf_len;
+bool EntryImpl::ImportSeparateFile(int index, int new_size) {
+  if (entry_.Data()->data_size[index] > new_size)
+    UpdateSize(index, entry_.Data()->data_size[index], new_size);
+
+  return MoveToLocalBuffer(index);
+}
+
+bool EntryImpl::PrepareBuffer(int index, int offset, int buf_len) {
+  DCHECK(user_buffers_[index].get());
+  if (offset > user_buffers_[index]->End()) {
+    // We are about to extend the buffer (with zeros), so make sure that we are
+    // not overwriting anything.
+    Addr address(entry_.Data()->data_addr[index]);
+    if (address.is_initialized() && address.is_separate_file()) {
+      int eof = entry_.Data()->data_size[index];
+      if (eof > user_buffers_[index]->Start() && !Flush(index))
+        return false;
+    }
   }
 
-  if (!MoveToLocalBuffer(index))
-    return false;
+  if (!user_buffers_[index]->PreWrite(offset, buf_len)) {
+    if (!Flush(index))
+      return false;
 
-  // Clear the end of the buffer.
-  ClearInvalidData(user_buffers_[index].get(), 0, offset + buf_len);
+    // Lets try again.
+    if (!user_buffers_[index]->PreWrite(offset, buf_len)) {
+      // We cannot complete the operation with a buffer.
+      DCHECK(!user_buffers_[index]->Size());
+      DCHECK(!user_buffers_[index]->Start());
+      user_buffers_[index].reset();
+    }
+  }
   return true;
 }
 
-// The common scenario is that this is called from the destructor of the entry,
-// to write to disk what we have buffered. We don't want to hold the destructor
-// until the actual IO finishes, so we'll send an asynchronous write that will
-// free up the memory containing the data. To be consistent, this method always
-// returns with the buffer freed up (on success).
-bool EntryImpl::Flush(int index, int size, bool async) {
+bool EntryImpl::Flush(int index) {
   Addr address(entry_.Data()->data_addr[index]);
   DCHECK(user_buffers_[index].get());
-  DCHECK(!address.is_initialized());
 
-  if (!size)
+  if (!entry_.Data()->data_size[index]) {
+    DCHECK(!user_buffers_[index]->Size());
     return true;
+  }
 
-  if (!CreateDataBlock(index, size))
+  if (!address.is_initialized() &&
+      !CreateDataBlock(index, entry_.Data()->data_size[index]))
     return false;
 
   address.set_value(entry_.Data()->data_addr[index]);
 
   File* file = GetBackingFile(address, index);
-  size_t len = entry_.Data()->data_size[index];
-  size_t offset = 0;
-  if (address.is_block_file())
+  int len = user_buffers_[index]->Size();
+  int offset = user_buffers_[index]->Start();
+  if (address.is_block_file()) {
+    DCHECK_EQ(len, entry_.Data()->data_size[index]);
+    DCHECK(!offset);
     offset = address.start_block() * address.BlockSize() + kBlockHeaderSize;
-
-  // We just told the backend to store len bytes for real.
-  DCHECK(len == static_cast<size_t>(unreported_size_[index]));
-  backend_->ModifyStorageSize(0, static_cast<int>(len));
-  unreported_size_[index] = 0;
+  }
 
   if (!file)
     return false;
 
-  // TODO(rvargas): figure out if it's worth to re-enable posting operations.
-  // Right now it is only used from GrowUserBuffer, not the destructor, and
-  // it is not accounted for from the point of view of the total number of
-  // pending operations of the cache. It is also racing with the actual write
-  // on the GrowUserBuffer path because there is no code to exclude the range
-  // that is going to be written.
-  async = false;
-  if (async) {
-    if (!file->PostWrite(user_buffers_[index].get(), len, offset))
-      return false;
-    // The buffer is deleted from the PostWrite operation.
-    ignore_result(user_buffers_[index].release());
-  } else {
-    if (!file->Write(user_buffers_[index].get(), len, offset, NULL, NULL))
-      return false;
-    user_buffers_[index].reset(NULL);
-  }
+  if (!file->Write(user_buffers_[index]->Data(), len, offset, NULL, NULL))
+    return false;
+  user_buffers_[index]->Reset();
 
   return true;
+}
+
+void EntryImpl::UpdateSize(int index, int old_size, int new_size) {
+  if (entry_.Data()->data_size[index] == new_size)
+    return;
+
+  unreported_size_[index] += new_size - old_size;
+  entry_.Data()->data_size[index] = new_size;
+  entry_.set_modified();
 }
 
 int EntryImpl::InitSparseData() {
@@ -983,13 +1224,16 @@ uint32 EntryImpl::GetEntryFlags() {
 }
 
 void EntryImpl::GetData(int index, char** buffer, Addr* address) {
-  if (user_buffers_[index].get()) {
+  if (user_buffers_[index].get() && user_buffers_[index]->Size() &&
+      !user_buffers_[index]->Start()) {
     // The data is already in memory, just copy it and we're done.
     int data_len = entry_.Data()->data_size[index];
-    DCHECK(data_len <= kMaxBlockSize);
-    *buffer = new char[data_len];
-    memcpy(*buffer, user_buffers_[index].get(), data_len);
-    return;
+    if (data_len <= user_buffers_[index]->Size()) {
+      DCHECK(!user_buffers_[index]->Start());
+      *buffer = new char[data_len];
+      memcpy(*buffer, user_buffers_[index]->Data(), data_len);
+      return;
+    }
   }
 
   // Bad news: we'd have to read the info from disk so instead we'll just tell
