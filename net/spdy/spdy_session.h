@@ -162,6 +162,13 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   void set_in_session_pool(bool val) { in_session_pool_ = val; }
 
+  // Access to the number of active and pending streams.  These are primarily
+  // available for testing and diagnostics.
+  size_t num_active_streams() const { return active_streams_.size(); }
+  size_t num_unclaimed_pushed_streams() const {
+      return unclaimed_pushed_streams_.size();
+  }
+
  private:
   friend class base::RefCounted<SpdySession>;
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, GetActivePushStream);
