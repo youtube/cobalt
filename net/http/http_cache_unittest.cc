@@ -667,6 +667,7 @@ class MockBlockingBackendFactory : public net::HttpCache::BackendFactory {
     }
   }
 
+  disk_cache::Backend** backend() { return backend_; }
   void set_fail(bool fail) { fail_ = fail; }
 
   net::CompletionCallback* callback() { return callback_; }
@@ -2019,10 +2020,12 @@ TEST(HttpCache, DeleteCacheWaitingForBackend) {
   // We cannot call FinishCreation because the factory itself will go away with
   // the cache, so grab the callback and attempt to use it.
   net::CompletionCallback* callback = factory->callback();
+  disk_cache::Backend** backend = factory->backend();
 
   cache.reset();
   MessageLoop::current()->RunAllPending();
 
+  *backend = NULL;
   callback->Run(net::ERR_ABORTED);
 }
 
