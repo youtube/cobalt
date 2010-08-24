@@ -17,6 +17,7 @@
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 
 #include <new>
@@ -613,10 +614,17 @@ void EnableTerminationOnOutOfMemory() {
 
   g_oom_killer_enabled = true;
 
-  int32 os_major;
-  int32 os_minor;
-  int32 os_bugfix;
-  SysInfo::OperatingSystemVersionNumbers(&os_major, &os_minor, &os_bugfix);
+  // Not SysInfo::OperatingSystemVersionNumbers as that calls through to Gestalt
+  // which ends up (on > 10.6) spawning threads.
+  struct utsname machine_info;
+  if (uname(&machine_info)) {
+    return;
+  }
+
+  // The string machine_info.release is the xnu/Darwin version number, "9.xxx"
+  // on Mac OS X 10.5, and "10.xxx" on Mac OS X 10.6. See
+  // http://en.wikipedia.org/wiki/Darwin_(operating_system) .
+  long darwin_version = strtol(machine_info.release, NULL, 10);
 
   // === C malloc/calloc/valloc/realloc/posix_memalign ===
 
@@ -635,8 +643,7 @@ void EnableTerminationOnOutOfMemory() {
         !g_old_memalign_purgeable) << "Old allocators unexpectedly non-null";
 
   // See http://trac.webkit.org/changeset/53362/trunk/WebKitTools/DumpRenderTree/mac
-  bool zone_allocators_protected =
-      ((os_major == 10 && os_minor > 6) || os_major > 10);
+  bool zone_allocators_protected = darwin_version > 10;
 
   ChromeMallocZone* default_zone =
       reinterpret_cast<ChromeMallocZone*>(malloc_default_zone());
@@ -752,7 +759,7 @@ void EnableTerminationOnOutOfMemory() {
       << "Old allocators unexpectedly non-null";
 
   bool cf_allocator_internals_known =
-      (os_major == 10 && (os_minor == 5 || os_minor == 6));
+      darwin_version == 9 || darwin_version == 10;
 
   if (cf_allocator_internals_known) {
     ChromeCFAllocatorRef allocator = const_cast<ChromeCFAllocatorRef>(
