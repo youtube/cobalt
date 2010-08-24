@@ -817,8 +817,6 @@ void SSLClientSocketNSS::CheckSecureRenegotiation() const {
 void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   EnterFunction("");
   ssl_info->Reset();
-  // A temporary CHECK for tracking down http://crbug.com/49862.
-  CHECK(server_cert_);
   if (!server_cert_)
     return;
 
