@@ -4,7 +4,6 @@
 
 #include <CoreAudio/AudioHardware.h>
 
-#include "base/at_exit.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/mac/audio_manager_mac.h"
@@ -75,22 +74,7 @@ void AudioManagerMac::ReleaseOutputStream(
   delete stream;
 }
 
-namespace {
-
-AudioManagerMac* g_audio_manager = NULL;
-
-}  // namespace.
-
-void DestroyAudioManagerMac(void* param) {
-  delete g_audio_manager;
-  g_audio_manager = NULL;
-}
-
-// By convention, the AudioManager is not thread safe.
-AudioManager* AudioManager::GetAudioManager() {
-  if (!g_audio_manager) {
-    g_audio_manager = new AudioManagerMac();
-    base::AtExitManager::RegisterCallback(&DestroyAudioManagerMac, NULL);
-  }
-  return g_audio_manager;
+// static
+AudioManager* AudioManager::CreateAudioManager() {
+  return new AudioManagerMac();
 }

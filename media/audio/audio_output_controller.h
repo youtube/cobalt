@@ -8,10 +8,12 @@
 #include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
-#include "base/thread.h"
 #include "base/time.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_manager.h"
 #include "media/audio/simple_sources.h"
+
+class MessageLoop;
 
 // An AudioOutputController controls an AudioOutputStream and provides data
 // to this output stream. It has an important function that it executes
@@ -138,9 +140,9 @@ class AudioOutputController
   // has effect when the stream is paused.
   void Flush();
 
-  // Closes the audio output stream and shutdown the audio controller thread.
-  // This method returns only after all operations are completed. This
-  // controller cannot be used after this method is called.
+  // Closes the audio output stream. It changes state to kClosed and returns
+  // right away. The physical resources are freed on the audio thread if
+  // neccessary.
   //
   // It is safe to call this method more than once. Calls after the first one
   // will have no effect.
@@ -203,8 +205,8 @@ class AudioOutputController
   // SyncReader is used only in low latency mode for synchronous reading.
   SyncReader* sync_reader_;
 
-  // The audio controller thread that this object runs on.
-  base::Thread thread_;
+  // The message loop of audio thread that this object runs on.
+  MessageLoop* message_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputController);
 };
