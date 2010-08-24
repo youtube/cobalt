@@ -7,7 +7,6 @@
 #include <math.h>
 
 #include "media/base/filter_host.h"
-#include "media/audio/audio_manager.h"
 
 namespace media {
 

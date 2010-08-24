@@ -11,12 +11,12 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/thread.h"
-#include "media/audio/audio_manager_base.h"
+#include "media/audio/audio_io.h"
 
 class AlsaPcmOutputStream;
 class AlsaWrapper;
 
-class AudioManagerLinux : public AudioManagerBase {
+class AudioManagerLinux : public AudioManager {
  public:
   AudioManagerLinux();
 
@@ -44,11 +44,16 @@ class AudioManagerLinux : public AudioManagerBase {
   virtual ~AudioManagerLinux();
 
  private:
+  // Thread used to interact with AudioOutputStreams created by this
+  // audio manger.
+  base::Thread audio_thread_;
   scoped_ptr<AlsaWrapper> wrapper_;
 
   Lock lock_;
   std::map<AlsaPcmOutputStream*, scoped_refptr<AlsaPcmOutputStream> >
       active_streams_;
+
+  bool initialized_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerLinux);
 };

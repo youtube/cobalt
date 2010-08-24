@@ -4,8 +4,6 @@
 
 #include "media/audio/audio_output_controller.h"
 
-#include "base/message_loop.h"
-
 // The following parameters limit the request buffer and packet size from the
 // renderer to avoid renderer from requesting too much memory.
 static const uint32 kMegabytes = 1024 * 1024;
@@ -37,12 +35,12 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
                                              uint32 capacity,
                                              SyncReader* sync_reader)
     : handler_(handler),
-      stream_(NULL),
       volume_(1.0),
       state_(kEmpty),
       hardware_pending_bytes_(0),
       buffer_capacity_(capacity),
-      sync_reader_(sync_reader) {
+      sync_reader_(sync_reader),
+      thread_("AudioOutputControllerThread") {
 }
 
 AudioOutputController::~AudioOutputController() {
@@ -67,9 +65,10 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
   scoped_refptr<AudioOutputController> controller = new AudioOutputController(
       event_handler, buffer_capacity, NULL);
 
-  controller->message_loop_ =
-      AudioManager::GetAudioManager()->GetMessageLoop();
-  controller->message_loop_->PostTask(
+  // Start the audio controller thread and post a task to create the
+  // audio stream.
+  controller->thread_.Start();
+  controller->thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(controller.get(), &AudioOutputController::DoCreate,
                         format, channels, sample_rate, bits_per_sample,
@@ -97,9 +96,10 @@ scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
   scoped_refptr<AudioOutputController> controller = new AudioOutputController(
       event_handler, 0, sync_reader);
 
-  controller->message_loop_ =
-      AudioManager::GetAudioManager()->GetMessageLoop();
-  controller->message_loop_->PostTask(
+  // Start the audio controller thread and post a task to create the
+  // audio stream.
+  controller->thread_.Start();
+  controller->thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(controller.get(), &AudioOutputController::DoCreate,
                         format, channels, sample_rate, bits_per_sample,
@@ -108,43 +108,43 @@ scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
 }
 
 void AudioOutputController::Play() {
-  DCHECK(message_loop_);
-  message_loop_->PostTask(
+  DCHECK(thread_.IsRunning());
+  thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &AudioOutputController::DoPlay));
 }
 
 void AudioOutputController::Pause() {
-  DCHECK(message_loop_);
-  message_loop_->PostTask(
+  DCHECK(thread_.IsRunning());
+  thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &AudioOutputController::DoPause));
 }
 
 void AudioOutputController::Flush() {
-  DCHECK(message_loop_);
-  message_loop_->PostTask(
+  DCHECK(thread_.IsRunning());
+  thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &AudioOutputController::DoFlush));
 }
 
 void AudioOutputController::Close() {
-  {
-    AutoLock auto_lock(lock_);
-    // Don't do anything if the stream is already closed.
-    if (state_ == kClosed)
-      return;
-    state_ = kClosed;
+  if (!thread_.IsRunning()) {
+    // If the thread is not running make sure we are stopped.
+    DCHECK_EQ(kClosed, state_);
+    return;
   }
 
-  message_loop_->PostTask(
+  // Wait for all tasks to complete on the audio thread.
+  thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &AudioOutputController::DoClose));
+  thread_.Stop();
 }
 
 void AudioOutputController::SetVolume(double volume) {
-  DCHECK(message_loop_);
-  message_loop_->PostTask(
+  DCHECK(thread_.IsRunning());
+  thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &AudioOutputController::DoSetVolume, volume));
 }
@@ -159,14 +159,8 @@ void AudioOutputController::EnqueueData(const uint8* data, uint32 size) {
 void AudioOutputController::DoCreate(AudioManager::Format format, int channels,
                                      int sample_rate, int bits_per_sample,
                                      uint32 hardware_buffer_size) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
-
-  AutoLock auto_lock(lock_);
-
-  // Close() can be called before DoCreate() is executed.
-  if (state_ == kClosed)
-    return;
-  DCHECK(state_ == kEmpty);
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  DCHECK_EQ(kEmpty, state_);
 
   // Create the stream in the first place.
   stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(
@@ -197,20 +191,22 @@ void AudioOutputController::DoCreate(AudioManager::Format format, int channels,
 
   // If in normal latency mode then start buffering.
   if (!LowLatencyMode()) {
+    AutoLock auto_lock(lock_);
     SubmitOnMoreData_Locked();
   }
 }
 
 void AudioOutputController::DoPlay() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+
+  // We can start from created or paused state.
+  if (state_ != kCreated && state_ != kPaused)
+    return;
 
   State old_state;
   // Update the |state_| to kPlaying.
   {
     AutoLock auto_lock(lock_);
-    // We can start from created or paused state.
-    if (state_ != kCreated && state_ != kPaused)
-      return;
     old_state = state_;
     state_ = kPlaying;
   }
@@ -223,14 +219,15 @@ void AudioOutputController::DoPlay() {
 }
 
 void AudioOutputController::DoPause() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+
+  // We can pause from started state.
+  if (state_ != kPlaying)
+    return;
 
   // Sets the |state_| to kPaused so we don't draw more audio data.
   {
     AutoLock auto_lock(lock_);
-    // We can pause from started state.
-    if (state_ != kPlaying)
-      return;
     state_ = kPaused;
   }
 
@@ -243,22 +240,24 @@ void AudioOutputController::DoPause() {
 }
 
 void AudioOutputController::DoFlush() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+
+  if (state_ != kPaused)
+    return;
 
   // TODO(hclam): Actually flush the audio device.
 
   // If we are in the regular latency mode then flush the push source.
   if (!sync_reader_) {
     AutoLock auto_lock(lock_);
-    if (state_ != kPaused)
-      return;
     push_source_.ClearAll();
   }
 }
 
 void AudioOutputController::DoClose() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
-  DCHECK_EQ(kClosed, state_);
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  DCHECK_NE(kClosed, state_);
+
   // |stream_| can be null if creating the device failed in DoCreate().
   if (stream_) {
     stream_->Stop();
@@ -266,26 +265,27 @@ void AudioOutputController::DoClose() {
     // After stream is closed it is destroyed, so don't keep a reference to it.
     stream_ = NULL;
   }
+
+  // Update the current state. Since the stream is closed at this point
+  // there's no other threads reading |state_| so we don't need to lock.
+  state_ = kClosed;
 }
 
 void AudioOutputController::DoSetVolume(double volume) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
 
   // Saves the volume to a member first. We may not be able to set the volume
   // right away but when the stream is created we'll set the volume.
   volume_ = volume;
 
-  {
-    AutoLock auto_lock(lock_);
-    if (state_ != kPlaying && state_ != kPaused && state_ != kCreated)
-      return;
-  }
+  if (state_ != kPlaying && state_ != kPaused && state_ != kCreated)
+    return;
 
   stream_->SetVolume(volume_);
 }
 
 void AudioOutputController::DoReportError(int code) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
   handler_->OnError(this, code);
 }
 
@@ -332,7 +332,7 @@ void AudioOutputController::OnClose(AudioOutputStream* stream) {
 
 void AudioOutputController::OnError(AudioOutputStream* stream, int code) {
   // Handle error on the audio controller thread.
-  message_loop_->PostTask(
+  thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &AudioOutputController::DoReportError, code));
 }

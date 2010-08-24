@@ -6,7 +6,6 @@
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
-#include "media/audio/audio_manager.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/simple_sources.h"
 #include "testing/gtest/include/gtest/gtest.h"

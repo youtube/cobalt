@@ -7,7 +7,7 @@
 
 #include "media/audio/audio_io.h"
 
-class AudioManagerOpenBSD : public AudioManagerBase {
+class AudioManagerOpenBSD : public AudioManager {
  public:
   AudioManagerOpenBSD();
 
