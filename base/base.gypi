@@ -256,6 +256,8 @@
           'template_util.h',
           'thread.cc',
           'thread.h',
+          'thread_checker.cc',
+          'thread_checker.h',
           'thread_collision_warner.cc',
           'thread_collision_warner.h',
           'thread_local.h',
