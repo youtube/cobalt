@@ -40,6 +40,13 @@ enum PlatformFileFlags {
   PLATFORM_FILE_DELETE_ON_CLOSE = 2048
 };
 
+// TODO(dumi): add more specific error codes for CreatePlatformFile().
+// TODO(dumi): add more error codes as we add new methods to FileUtilProxy.
+enum PlatformFileErrors {
+  PLATFORM_FILE_OK = 0,
+  PLATFORM_FILE_ERROR = -1
+};
+
 // Creates or opens the given file. If PLATFORM_FILE_OPEN_ALWAYS is used, and
 // |created| is provided, |created| will be set to true if the file was created
 // or to false in case the file was just opened.

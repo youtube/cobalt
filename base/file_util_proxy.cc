@@ -14,12 +14,13 @@ class MessageLoopRelay
  public:
   MessageLoopRelay()
       : origin_message_loop_proxy_(
-          base::MessageLoopProxy::CreateForCurrentThread()) {
+          base::MessageLoopProxy::CreateForCurrentThread()),
+        error_code_(base::PLATFORM_FILE_OK) {
   }
 
-  void Start(scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
+  bool Start(scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
              const tracked_objects::Location& from_here) {
-    message_loop_proxy->PostTask(
+    return message_loop_proxy->PostTask(
         from_here,
         NewRunnableMethod(this, &MessageLoopRelay::ProcessOnTargetThread));
   }
@@ -34,6 +35,14 @@ class MessageLoopRelay
   // Called to notify the callback on the origin thread.
   virtual void RunCallback() = 0;
 
+  void set_error_code(int error_code) {
+    error_code_ = error_code;
+  }
+
+  int error_code() const {
+    return error_code_;
+  }
+
  private:
   void ProcessOnTargetThread() {
     RunWork();
@@ -43,6 +52,7 @@ class MessageLoopRelay
   }
 
   scoped_refptr<base::MessageLoopProxy> origin_message_loop_proxy_;
+  int error_code_;
 };
 
 class RelayCreateOrOpen : public MessageLoopRelay {
@@ -69,10 +79,13 @@ class RelayCreateOrOpen : public MessageLoopRelay {
 
   virtual void RunWork() {
     file_handle_ = base::CreatePlatformFile(file_path_, file_flags_, &created_);
+    if (file_handle_ == base::kInvalidPlatformFileValue)
+      set_error_code(base::PLATFORM_FILE_ERROR);
   }
 
   virtual void RunCallback() {
-    callback_->Run(base::PassPlatformFile(&file_handle_), created_);
+    callback_->Run(error_code(), base::PassPlatformFile(&file_handle_),
+                   created_);
     delete callback_;
   }
 
@@ -115,10 +128,13 @@ class RelayCreateTemporary : public MessageLoopRelay {
         base::PLATFORM_FILE_ASYNC |
         base::PLATFORM_FILE_TEMPORARY;
     file_handle_ = base::CreatePlatformFile(file_path_, file_flags, NULL);
+    if (file_handle_ == base::kInvalidPlatformFileValue)
+      set_error_code(base::PLATFORM_FILE_ERROR);
   }
 
   virtual void RunCallback() {
-    callback_->Run(base::PassPlatformFile(&file_handle_), file_path_);
+    callback_->Run(error_code(), base::PassPlatformFile(&file_handle_),
+                   file_path_);
     delete callback_;
   }
 
@@ -133,8 +149,7 @@ class RelayWithStatusCallback : public MessageLoopRelay {
  public:
   explicit RelayWithStatusCallback(
       base::FileUtilProxy::StatusCallback* callback)
-      : callback_(callback),
-        succeeded_(false) {
+      : callback_(callback) {
     // It is OK for callback to be NULL.
   }
 
@@ -142,16 +157,13 @@ class RelayWithStatusCallback : public MessageLoopRelay {
   virtual void RunCallback() {
     // The caller may not have been interested in the result.
     if (callback_) {
-      callback_->Run(succeeded_);
+      callback_->Run(error_code());
       delete callback_;
     }
   }
 
-  void SetStatus(bool succeeded) { succeeded_ = succeeded; }
-
  private:
   base::FileUtilProxy::StatusCallback* callback_;
-  bool succeeded_;
 };
 
 class RelayClose : public RelayWithStatusCallback {
@@ -164,7 +176,8 @@ class RelayClose : public RelayWithStatusCallback {
 
  protected:
   virtual void RunWork() {
-    SetStatus(base::ClosePlatformFile(file_handle_));
+    if (!base::ClosePlatformFile(file_handle_))
+      set_error_code(base::PLATFORM_FILE_ERROR);
   }
 
  private:
@@ -183,7 +196,8 @@ class RelayDelete : public RelayWithStatusCallback {
 
  protected:
   virtual void RunWork() {
-    SetStatus(file_util::Delete(file_path_, recursive_));
+    if (!file_util::Delete(file_path_, recursive_))
+      set_error_code(base::PLATFORM_FILE_ERROR);
   }
 
  private:
@@ -191,10 +205,10 @@ class RelayDelete : public RelayWithStatusCallback {
   bool recursive_;
 };
 
-void Start(const tracked_objects::Location& from_here,
+bool Start(const tracked_objects::Location& from_here,
            scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
            scoped_refptr<MessageLoopRelay> relay) {
-  relay->Start(message_loop_proxy, from_here);
+  return relay->Start(message_loop_proxy, from_here);
 }
 
 }  // namespace
@@ -202,44 +216,45 @@ void Start(const tracked_objects::Location& from_here,
 namespace base {
 
 // static
-void FileUtilProxy::CreateOrOpen(
+bool FileUtilProxy::CreateOrOpen(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path, int file_flags,
     CreateOrOpenCallback* callback) {
-  Start(FROM_HERE, message_loop_proxy, new RelayCreateOrOpen(
+  return Start(FROM_HERE, message_loop_proxy, new RelayCreateOrOpen(
       message_loop_proxy, file_path, file_flags, callback));
 }
 
 // static
-void FileUtilProxy::CreateTemporary(
+bool FileUtilProxy::CreateTemporary(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     CreateTemporaryCallback* callback) {
-  Start(FROM_HERE, message_loop_proxy,
-        new RelayCreateTemporary(message_loop_proxy, callback));
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayCreateTemporary(message_loop_proxy, callback));
 }
 
 // static
-void FileUtilProxy::Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+bool FileUtilProxy::Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                           base::PlatformFile file_handle,
                           StatusCallback* callback) {
-  Start(FROM_HERE, message_loop_proxy, new RelayClose(file_handle, callback));
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayClose(file_handle, callback));
 }
 
 // static
-void FileUtilProxy::Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+bool FileUtilProxy::Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                            const FilePath& file_path,
                            StatusCallback* callback) {
-  Start(FROM_HERE, message_loop_proxy,
-        new RelayDelete(file_path, false, callback));
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayDelete(file_path, false, callback));
 }
 
 // static
-void FileUtilProxy::RecursiveDelete(
+bool FileUtilProxy::RecursiveDelete(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path,
     StatusCallback* callback) {
-  Start(FROM_HERE, message_loop_proxy,
-        new RelayDelete(file_path, true, callback));
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayDelete(file_path, true, callback));
 }
 
 } // namespace base
