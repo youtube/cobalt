@@ -4,6 +4,7 @@
 
 #include "media/audio/linux/audio_manager_linux.h"
 
+#include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "media/audio/fake_audio_input_stream.h"
@@ -11,6 +12,12 @@
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/base/media_switches.h"
+
+
+namespace {
+
+AudioManagerLinux* g_audio_manager = NULL;
+}  // namespace
 
 // Implementation of AudioManager.
 bool AudioManagerLinux::HasAudioOutputDevices() {
@@ -49,7 +56,7 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
     return FakeAudioOutputStream::MakeFakeStream();
   }
 
-  if (!initialized()) {
+  if (!initialized_) {
     return NULL;
   }
 
@@ -61,14 +68,16 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
   AlsaPcmOutputStream* stream =
       new AlsaPcmOutputStream(device_name, format, channels, sample_rate,
                               bits_per_sample, wrapper_.get(), this,
-                              GetMessageLoop());
+                              audio_thread_.message_loop());
 
   AutoLock l(lock_);
   active_streams_[stream] = scoped_refptr<AlsaPcmOutputStream>(stream);
   return stream;
 }
 
-AudioManagerLinux::AudioManagerLinux() {
+AudioManagerLinux::AudioManagerLinux()
+    : audio_thread_("AudioThread"),
+      initialized_(false) {
 }
 
 AudioManagerLinux::~AudioManagerLinux() {
@@ -82,7 +91,7 @@ AudioManagerLinux::~AudioManagerLinux() {
 }
 
 void AudioManagerLinux::Init() {
-  AudioManagerBase::Init();
+  initialized_ = audio_thread_.Start();
   wrapper_.reset(new AlsaWrapper());
 }
 
@@ -101,7 +110,17 @@ void AudioManagerLinux::ReleaseOutputStream(AlsaPcmOutputStream* stream) {
   }
 }
 
-// static
-AudioManager* AudioManager::CreateAudioManager() {
-  return new AudioManagerLinux();
+// TODO(ajwong): Collapse this with the windows version.
+void DestroyAudioManagerLinux(void* not_used) {
+  delete g_audio_manager;
+  g_audio_manager = NULL;
+}
+
+AudioManager* AudioManager::GetAudioManager() {
+  if (!g_audio_manager) {
+    g_audio_manager = new AudioManagerLinux();
+    g_audio_manager->Init();
+    base::AtExitManager::RegisterCallback(&DestroyAudioManagerLinux, NULL);
+  }
+  return g_audio_manager;
 }

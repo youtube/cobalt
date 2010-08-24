@@ -7,6 +7,7 @@
 #include <windows.h>
 #include <mmsystem.h>
 
+#include "base/at_exit.h"
 #include "base/basictypes.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
@@ -40,6 +41,8 @@ const int kMaxSamplesPerPacket = kMaxSampleRate;
 // where you first need to fill in that number of buffers before starting to
 // play.
 const int kNumInputBuffers = 3;
+
+AudioManagerWin* g_audio_manager = NULL;
 
 }  // namespace.
 
@@ -122,7 +125,15 @@ void AudioManagerWin::UnMuteAll() {
 AudioManagerWin::~AudioManagerWin() {
 }
 
-// static
-AudioManager* AudioManager::CreateAudioManager() {
-  return new AudioManagerWin();
+void DestroyAudioManagerWin(void* param) {
+  delete g_audio_manager;
+  g_audio_manager = NULL;
+}
+
+AudioManager* AudioManager::GetAudioManager() {
+  if (!g_audio_manager) {
+    g_audio_manager = new AudioManagerWin();
+    base::AtExitManager::RegisterCallback(&DestroyAudioManagerWin, NULL);
+  }
+  return g_audio_manager;
 }

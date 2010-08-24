@@ -14,7 +14,6 @@ using ::testing::AtLeast;
 using ::testing::Exactly;
 using ::testing::InvokeWithoutArgs;
 using ::testing::NotNull;
-using ::testing::Return;
 
 static const int kSampleRate = AudioManager::kAudioCDSampleRate;
 static const int kBitsPerSample = 16;
@@ -69,10 +68,6 @@ static bool IsRunningHeadless() {
   return false;
 }
 
-ACTION_P(SignalEvent, event) {
-  event->Signal();
-}
-
 ACTION_P3(SignalEvent, event, count, limit) {
   if (++*count >= limit) {
     event->Signal();
@@ -91,10 +86,7 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
                                     kHardwareBufferSize, kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
-  // Close the controller immediately. At this point, chances are that
-  // DoCreate() hasn't been called yet. In any case, it should be safe to call
-  // Close() and it should not try to call |event_handler| later (the test
-  // would crash otherwise).
+  // Close the controller immediately.
   controller->Close();
 }
 
@@ -108,7 +100,7 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
 
   // If OnCreated is called then signal the event.
   EXPECT_CALL(event_handler, OnCreated(NotNull()))
-      .WillOnce(SignalEvent(&event));
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
 
   // OnPlaying() will be called only once.
   EXPECT_CALL(event_handler, OnPlaying(NotNull()))
@@ -128,13 +120,14 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
 
   // Wait for OnCreated() to be called.
   event.Wait();
+  event.Reset();
 
   // Play and then wait for the event to be signaled.
   controller->Play();
   event.Wait();
 
-  // Now stop the controller. The object is freed later after DoClose() is
-  // executed.
+  // Now stop the controller. This should shutdown the internal
+  // thread and we hold the only reference to it.
   controller->Close();
 }
 
@@ -185,8 +178,8 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
   controller->Pause();
   event.Wait();
 
-  // Now stop the controller. The object is freed later after DoClose() is
-  // executed.
+  // Now stop the controller. This should shutdown the internal
+  // thread and we hold the only reference to it.
   controller->Close();
 }
 
@@ -249,8 +242,8 @@ TEST(AudioOutputControllerTest, PlayPausePlay) {
   controller->Play();
   event.Wait();
 
-  // Now stop the controller. The object is freed later after DoClose() is
-  // executed.
+  // Now stop the controller. This should shutdown the internal
+  // thread and we hold the only reference to it.
   controller->Close();
 }
 
@@ -277,17 +270,6 @@ TEST(AudioOutputControllerTest, CloseTwice) {
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
-  base::WaitableEvent event(false, false);
-
-  // If OnCreated is called then signal the event.
-  EXPECT_CALL(event_handler, OnCreated(NotNull()))
-      .WillOnce(SignalEvent(&event));
-
-  // One OnMoreData() is expected.
-  EXPECT_CALL(event_handler, OnMoreData(NotNull(), _, 0))
-      .Times(AtLeast(1))
-      .WillRepeatedly(SignalEvent(&event));
-
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(&event_handler,
                                     AudioManager::AUDIO_PCM_LINEAR, kChannels,
@@ -295,12 +277,7 @@ TEST(AudioOutputControllerTest, CloseTwice) {
                                     kHardwareBufferSize, kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
-  // Wait for OnCreated() to be called.
-  event.Wait();
-
-  // Wait for OnMoreData() to be called.
-  event.Wait();
-
+  // Close the controller immediately.
   controller->Close();
   controller->Close();
 }

@@ -10,7 +10,6 @@
 #include "base/scoped_ptr.h"
 #include "base/thread.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_manager.h"
 
 // An AudioInputController controls an AudioInputStream and records data
 // from this input stream. It has an important function that it executes

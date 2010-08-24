@@ -36,8 +36,8 @@
 #include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/thread.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_manager_base.h"
 
 namespace media {
 class SeekableBuffer;
