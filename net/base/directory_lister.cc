@@ -112,7 +112,7 @@ DirectoryLister::DirectoryLister(const FilePath& dir,
                                  SORT_TYPE sort,
                                  DirectoryListerDelegate* delegate)
     : dir_(dir),
-      recursive_(false),
+      recursive_(recursive),
       delegate_(delegate),
       sort_(sort),
       message_loop_(NULL),
