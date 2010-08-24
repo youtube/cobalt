@@ -27,7 +27,7 @@
 #elif defined(OS_MACOSX)
 #include "net/proxy/proxy_config_service_mac.h"
 #include "net/proxy/proxy_resolver_mac.h"
-#elif defined(OS_LINUX)
+#elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
 #include "net/proxy/proxy_config_service_linux.h"
 #endif
 #include "net/proxy/proxy_resolver.h"
@@ -645,6 +645,10 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
   return new ProxyConfigServiceWin();
 #elif defined(OS_MACOSX)
   return new ProxyConfigServiceMac(io_loop);
+#elif defined(OS_CHROMEOS)
+  NOTREACHED() << "ProxyConfigService for ChromeOS should be created in "
+               << "chrome_url_request_context.cc::CreateProxyConfigService.";
+  return NULL;
 #elif defined(OS_LINUX)
   ProxyConfigServiceLinux* linux_config_service
       = new ProxyConfigServiceLinux();
