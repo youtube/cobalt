@@ -28,6 +28,11 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
       CreateSPN(origin_),
       auth_token);
 #else  // !defined(NTLM_SSPI)
+  // TODO(cbentzel): Shouldn't be hitting this case.
+  if (!username || !password) {
+    LOG(ERROR) << "Username and password are expected to be non-NULL.";
+    return ERR_MISSING_AUTH_CREDENTIALS;
+  }
   // TODO(wtc): See if we can use char* instead of void* for in_buf and
   // out_buf.  This change will need to propagate to GetNextToken,
   // GenerateType1Msg, and GenerateType3Msg, and perhaps further.
