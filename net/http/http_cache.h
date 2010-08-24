@@ -347,7 +347,6 @@ class HttpCache : public HttpTransactionFactory,
 
   // Used when lazily constructing the disk_cache_.
   scoped_ptr<BackendFactory> backend_factory_;
-  disk_cache::Backend* temp_backend_;
   bool building_backend_;
 
   Mode mode_;
