@@ -4,7 +4,6 @@
 
 #include "media/audio/openbsd/audio_manager_openbsd.h"
 
-#include "base/at_exit.h"
 #include "base/logging.h"
 
 namespace {
@@ -48,6 +47,7 @@ AudioManagerOpenBSD::~AudioManagerOpenBSD() {
 }
 
 void AudioManagerOpenBSD::Init() {
+  AudioManagerBase::Init();
 }
 
 void AudioManagerOpenBSD::MuteAll() {
@@ -70,4 +70,9 @@ AudioManager* AudioManager::GetAudioManager() {
     base::AtExitManager::RegisterCallback(&DestroyAudioManagerOpenBSD, NULL);
   }
   return g_audio_manager;
+}
+
+// static
+AudioManager* AudioManager::CreateAudioManager() {
+  return new AudioManagerOpenBSD();
 }
