@@ -23,6 +23,21 @@ namespace net {
 
 namespace {
 
+// Assert that the (manual-reset) event object is not signaled.
+void AssertEventNotSignaled(WSAEVENT hEvent) {
+  DWORD wait_rv = WaitForSingleObject(hEvent, 0);
+  if (wait_rv != WAIT_TIMEOUT) {
+    DWORD err = ERROR_SUCCESS;
+    if (wait_rv == WAIT_FAILED)
+      err = GetLastError();
+    CHECK(false);  // Crash.
+    // This LOG statement is unreachable since we have already crashed, but it
+    // should prevent the compiler from optimizing away the |wait_rv| and
+    // |err| variables so they appear nicely on the stack in crash dumps.
+    LOG(INFO) << "wait_rv=" << wait_rv << ", err=" << err;
+  }
+}
+
 // If the (manual-reset) event object is signaled, resets it and returns true.
 // Otherwise, does nothing and returns false.  Called after a Winsock function
 // succeeds synchronously
@@ -508,9 +523,8 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
   core_->read_buffer_.len = buf_len;
   core_->read_buffer_.buf = buf->data();
 
-  // TODO(wtc): Remove the CHECK after enough testing.
-  CHECK_EQ(static_cast<DWORD>(WAIT_TIMEOUT),
-           WaitForSingleObject(core_->read_overlapped_.hEvent, 0));
+  // TODO(wtc): Remove the assertion after enough testing.
+  AssertEventNotSignaled(core_->read_overlapped_.hEvent);
   DWORD num, flags = 0;
   int rv = WSARecv(socket_, &core_->read_buffer_, 1, &num, &flags,
                    &core_->read_overlapped_, NULL);
@@ -558,9 +572,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   core_->write_buffer_.buf = buf->data();
   core_->write_buffer_length_ = buf_len;
 
-  // TODO(wtc): Remove the CHECK after enough testing.
-  CHECK_EQ(static_cast<DWORD>(WAIT_TIMEOUT),
-           WaitForSingleObject(core_->write_overlapped_.hEvent, 0));
+  // TODO(wtc): Remove the assertion after enough testing.
+  AssertEventNotSignaled(core_->write_overlapped_.hEvent);
   DWORD num;
   int rv = WSASend(socket_, &core_->write_buffer_, 1, &num, 0,
                    &core_->write_overlapped_, NULL);
