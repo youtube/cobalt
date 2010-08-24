@@ -376,7 +376,7 @@ void AlsaPcmOutputStream::GetVolume(double* volume) {
 }
 
 void AlsaPcmOutputStream::OpenTask(uint32 packet_size) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // Initialize the configuration variables.
   packet_size_ = packet_size;
@@ -422,7 +422,7 @@ void AlsaPcmOutputStream::OpenTask(uint32 packet_size) {
 }
 
 void AlsaPcmOutputStream::StartTask() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   if (stop_stream_) {
     return;
@@ -454,7 +454,7 @@ void AlsaPcmOutputStream::StartTask() {
 void AlsaPcmOutputStream::CloseTask() {
   // NOTE: Keep this function idempotent to handle errors that might cause
   // multiple CloseTasks to be posted.
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // Shutdown the audio device.
   if (playback_handle_ && !CloseDevice(playback_handle_)) {
@@ -470,7 +470,7 @@ void AlsaPcmOutputStream::CloseTask() {
 }
 
 void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // If stopped, simulate a 0-lengthed packet.
   if (stop_stream_) {
@@ -558,7 +558,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
 }
 
 void AlsaPcmOutputStream::WritePacket() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // If the device is in error, just eat the bytes.
   if (stop_stream_) {
@@ -611,7 +611,7 @@ void AlsaPcmOutputStream::WritePacket() {
 }
 
 void AlsaPcmOutputStream::WriteTask() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   if (stop_stream_) {
     return;
@@ -625,7 +625,7 @@ void AlsaPcmOutputStream::WriteTask() {
 }
 
 void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   if (stop_stream_) {
     return;
@@ -778,7 +778,7 @@ bool AlsaPcmOutputStream::CloseDevice(snd_pcm_t* handle) {
 }
 
 snd_pcm_sframes_t AlsaPcmOutputStream::GetAvailableFrames() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   if (stop_stream_) {
     return 0;
