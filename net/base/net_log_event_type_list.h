@@ -20,14 +20,86 @@ EVENT_TYPE(REQUEST_ALIVE)
 // HostResolverImpl
 // ------------------------------------------------------------------------
 
-// The start/end of a host resolve (DNS) request.
-// If an error occurred, the end phase will contain these parameters:
+// The start/end of waiting on a host resolve (DNS) request.
+// The BEGIN phase contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source id of the request being waited on>
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL)
+
+// The start/end of a host resolve (DNS) request.  Note that these events are
+// logged for all DNS requests, though not all requests result in the creation
+// of a HostResolvedImpl::Request object.
+//
+// The BEGIN phase contains the following parameters:
+//
+//   {
+//     "host": <Hostname associated with the request>
+//     "source_dependency": <Source id, if any, of what created the request>
+//   }
+//
+// If an error occurred, the END phase will contain these parameters:
 //   {
 //     "net_error": <The net error code integer for the failure>,
 //     "os_error": <The exact error code integer that getaddrinfo() returned>,
-//     "was_from_cache": <True if the response was gotten from the cache>
 //   }
-EVENT_TYPE(HOST_RESOLVER_IMPL)
+
+EVENT_TYPE(HOST_RESOLVER_IMPL_REQUEST)
+
+// This event is logged when a request is handled by a cache entry.
+EVENT_TYPE(HOST_RESOLVER_IMPL_CACHE_HIT)
+
+// This event means a request was queued/dequeued for subsequent job creation,
+// because there are already too many active HostResolverImpl::Jobs.
+//
+// The BEGIN phase contains the following parameters:
+//
+//   {
+//     "priority": <Priority of the queued request>
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_POOL_QUEUE)
+
+// This event is created when a new HostResolverImpl::Request is evicted from
+// JobPool without a Job being created, because the limit on number of queued
+// Requests was reached.
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_POOL_QUEUE_EVICTED)
+
+// This event is created when a new HostResolverImpl::Job is about to be created
+// for a request.
+EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_JOB)
+
+// This is logged for a request when it's attached to a
+// HostResolverImpl::Job.  When this occurs without a preceding
+// HOST_RESOLVER_IMPL_CREATE_JOB entry, it means the request was attached to an
+// existing HostResolverImpl::Job.
+//
+// If the BoundNetLog used to create the event has a valid source id, the BEGIN
+// phase contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source identifier for the attached Job>
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_ATTACH)
+
+// The creation/completion of a host resolve (DNS) job.
+// The BEGIN phase contains the following parameters:
+//
+//   {
+//     "host": <Hostname associated with the request>
+//     "source_dependency": <Source id, if any, of what created the request>
+//   }
+//
+// On success, the END phase has these parameters:
+//   {
+//     "address_list": <The host name being resolved>,
+//   }
+// If an error occurred, the END phase will contain these parameters:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//     "os_error": <The exact error code integer that getaddrinfo() returned>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB)
 
 // ------------------------------------------------------------------------
 // InitProxyResolver

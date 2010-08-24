@@ -19,6 +19,7 @@ namespace net {
 class AddressList;
 class BoundNetLog;
 class HostResolverImpl;
+class NetLog;
 
 // This class represents the task of resolving hostnames (or IP address
 // literal) to an AddressList object.
@@ -244,7 +245,8 @@ class SingleRequestHostResolver {
 // |max_concurrent_resolves| is how many resolve requests will be allowed to
 // run in parallel. Pass HostResolver::kDefaultParallelism to choose a
 // default value.
-HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves);
+HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
+                                       NetLog* net_log);
 
 }  // namespace net
 
