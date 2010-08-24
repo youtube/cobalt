@@ -11,6 +11,13 @@
 
 namespace net {
 
+Value* NetLog::Source::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("type", static_cast<int>(type));
+  dict->SetInteger("id", static_cast<int>(id));
+  return dict;
+}
+
 // static
 const char* NetLog::EventTypeToString(EventType event) {
   switch (event) {
@@ -169,11 +176,7 @@ Value* NetLogStringParameter::ToValue() const {
 Value* NetLogSourceParameter::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
 
-  DictionaryValue* source_dict = new DictionaryValue();
-  source_dict->SetInteger("type", static_cast<int>(value_.type));
-  source_dict->SetInteger("id", static_cast<int>(value_.id));
-
-  dict->Set(name_, source_dict);
+  dict->Set(name_, value_.ToValue());
   return dict;
 }
 

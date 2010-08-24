@@ -70,7 +70,10 @@ class NetLog {
 
     Source() : type(SOURCE_NONE), id(kInvalidId) {}
     Source(SourceType type, uint32 id) : type(type), id(id) {}
-    bool is_valid() { return id != kInvalidId; }
+    bool is_valid() const { return id != kInvalidId; }
+
+    // The caller takes ownership of the returned Value*.
+    Value* ToValue() const;
 
     SourceType type;
     uint32 id;
