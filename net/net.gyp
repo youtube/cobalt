@@ -608,6 +608,12 @@
             '../v8/tools/gyp/v8.gyp:v8',
           ],
         }],
+        ['chromeos==1', {
+          'sources!': [
+             'proxy/proxy_config_service_linux.cc',
+             'proxy/proxy_config_service_linux.h',
+          ],
+        }],
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
             'dependencies': [
               '../build/linux/system.gyp:gconf',
@@ -824,6 +830,11 @@
         'websockets/websocket_unittest.cc',
       ],
       'conditions': [
+        ['chromeos==1', {
+          'sources!': [
+             'proxy/proxy_config_service_linux_unittest.cc',
+          ],
+        }],
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
             'dependencies': [
               '../build/linux/system.gyp:gtk',
