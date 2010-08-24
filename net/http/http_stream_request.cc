@@ -36,7 +36,7 @@ GURL UpgradeUrlToHttps(const GURL& original_url) {
   return original_url.ReplaceComponents(replacements);
 }
 
-}
+}  // namespace
 
 HttpStreamRequest::HttpStreamRequest(
     HttpStreamFactory* factory,
@@ -620,11 +620,8 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
     return OK;
   }
 
-  if (result < 0 && !ssl_started) {
-    // A temporary CHECK for tracking down http://crbug.com/49862.
-    CHECK(!IsCertificateError(result));
+  if (result < 0 && !ssl_started)
     return ReconsiderProxyAfterError(result);
-  }
   establishing_tunnel_ = false;
 
   if (connection_->socket()) {
