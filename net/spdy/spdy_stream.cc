@@ -52,7 +52,7 @@ void SpdyStream::SetDelegate(Delegate* delegate) {
 }
 
 void SpdyStream::PushedStreamReplayData() {
-  if (cancelled_ || delegate_ == NULL)
+  if (cancelled_ || !delegate_)
     return;
 
   delegate_->OnResponseReceived(*response_, response_time_, OK);
@@ -61,11 +61,17 @@ void SpdyStream::PushedStreamReplayData() {
   std::vector<scoped_refptr<IOBufferWithSize> > buffers;
   buffers.swap(pending_buffers_);
   for (size_t i = 0; i < buffers.size(); ++i) {
-    if (delegate_){
-      if (buffers[i])
-        delegate_->OnDataReceived(buffers[i]->data(), buffers[i]->size());
-      else
-        delegate_->OnDataReceived(NULL, 0);
+    // It is always possible that a callback to the delegate results in
+    // the delegate no longer being available.
+    if (!delegate_)
+      break;
+    if (buffers[i]) {
+      delegate_->OnDataReceived(buffers[i]->data(), buffers[i]->size());
+    } else {
+      delegate_->OnDataReceived(NULL, 0);
+      session_->CloseStream(stream_id_, net::OK);
+      // Note: |this| may be deleted after calling CloseStream.
+      DCHECK_EQ(buffers.size() - 1, i);
     }
   }
 }
@@ -187,8 +193,8 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     } else {
       pending_buffers_.push_back(NULL);
       metrics_.StopStream();
-      session_->CloseStream(stream_id_, net::OK);
-      // Note: |this| may be deleted after calling CloseStream.
+      // Note: we leave the stream open in the session until the stream
+      //       is claimed.
     }
     return;
   }
