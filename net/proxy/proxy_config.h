@@ -70,9 +70,7 @@ class ProxyConfig {
     void ParseFromString(const std::string& proxy_rules);
 
     // Returns one of {&proxy_for_http, &proxy_for_https, &proxy_for_ftp,
-    // &socks_proxy}, or NULL if it is a scheme that we don't have a mapping
-    // for. If the scheme mapping is not present and socks_proxy is defined,
-    // we fall back to using socks_proxy.
+    // &fallback_proxy}, or NULL if there is no proxy to use.
     // Should only call this if the type is TYPE_PROXY_PER_SCHEME.
     const ProxyServer* MapUrlSchemeToProxy(const std::string& url_scheme) const;
 
@@ -95,14 +93,14 @@ class ProxyConfig {
     ProxyServer proxy_for_https;
     ProxyServer proxy_for_ftp;
 
-    // Set if the configuration has a SOCKS proxy fallback.
-    ProxyServer socks_proxy;
+    // Used when there isn't a more specific per-scheme proxy server.
+    ProxyServer fallback_proxy;
 
    private:
-    // Returns one of {&proxy_for_http, &proxy_for_https, &proxy_for_ftp,
-    // &socks_proxy}, or NULL if it is a scheme that we don't have a mapping
+    // Returns one of {&proxy_for_http, &proxy_for_https, &proxy_for_ftp}
+    // or NULL if it is a scheme that we don't have a mapping
     // for. Should only call this if the type is TYPE_PROXY_PER_SCHEME.
-    ProxyServer* MapSchemeToProxy(const std::string& scheme);
+    ProxyServer* MapUrlSchemeToProxyNoFallback(const std::string& scheme);
   };
 
   typedef int ID;

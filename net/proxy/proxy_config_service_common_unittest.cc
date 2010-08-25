@@ -66,8 +66,8 @@ std::string FlattenProxyBypass(const ProxyBypassRules& bypass_rules) {
                            rules.proxy_for_http, &failure_details, &failed);
   MatchesProxyServerHelper("Bad proxy_for_https", proxy_for_https,
                            rules.proxy_for_https, &failure_details, &failed);
-  MatchesProxyServerHelper("Bad proxy_for_socks", socks_proxy,
-                           rules.socks_proxy, &failure_details, &failed);
+  MatchesProxyServerHelper("Bad fallback_proxy", fallback_proxy,
+                           rules.fallback_proxy, &failure_details, &failed);
 
   std::string actual_flattened_bypass = FlattenProxyBypass(rules.bypass_rules);
   if (std::string(flattened_bypass_rules) != actual_flattened_bypass) {
