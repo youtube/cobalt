@@ -579,7 +579,8 @@ void HttpStreamParser::SetConnectionReused() {
 
 void HttpStreamParser::GetSSLInfo(SSLInfo* ssl_info) {
   if (request_->url.SchemeIs("https")) {
-    CHECK(connection_->socket()->IsConnected());
+    if (!connection_->socket() || !connection_->socket()->IsConnected())
+      return;
     SSLClientSocket* ssl_socket =
         static_cast<SSLClientSocket*>(connection_->socket());
     ssl_socket->GetSSLInfo(ssl_info);
@@ -591,7 +592,6 @@ void HttpStreamParser::GetSSLCertRequestInfo(
   if (request_->url.SchemeIs("https")) {
     if (!connection_->socket() || !connection_->socket()->IsConnected())
       return;
-    CHECK(connection_->socket()->IsConnected());
     SSLClientSocket* ssl_socket =
         static_cast<SSLClientSocket*>(connection_->socket());
     ssl_socket->GetSSLCertRequestInfo(cert_request_info);

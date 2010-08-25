@@ -493,6 +493,10 @@ void MockSSLClientSocket::Disconnect() {
     transport_->socket()->Disconnect();
 }
 
+bool MockSSLClientSocket::IsConnected() const {
+  return transport_->socket()->IsConnected();
+}
+
 int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* callback) {
   return transport_->socket()->Read(buf, buf_len, callback);
