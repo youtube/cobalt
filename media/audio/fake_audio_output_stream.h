@@ -41,9 +41,9 @@ class FakeAudioOutputStream : public AudioOutputStream {
   AudioSourceCallback* callback_;
   scoped_array<char> buffer_;
   uint32 packet_size_;
+  bool closed_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioOutputStream);
 };
 
 #endif  // MEDIA_AUDIO_FAKE_AUDIO_OUTPUT_STREAM_H_
-

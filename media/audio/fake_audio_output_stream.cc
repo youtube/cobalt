@@ -5,6 +5,7 @@
 #include "media/audio/fake_audio_output_stream.h"
 
 #include "base/at_exit.h"
+#include "base/logging.h"
 
 bool FakeAudioOutputStream::has_created_fake_stream_ = false;
 FakeAudioOutputStream* FakeAudioOutputStream::last_fake_stream_ = NULL;
@@ -15,7 +16,15 @@ AudioOutputStream* FakeAudioOutputStream::MakeFakeStream() {
     base::AtExitManager::RegisterCallback(&DestroyLastFakeStream, NULL);
   has_created_fake_stream_ = true;
 
-  return new FakeAudioOutputStream();
+  FakeAudioOutputStream* new_stream = new FakeAudioOutputStream();
+
+  if (last_fake_stream_) {
+    DCHECK(last_fake_stream_->closed_);
+    delete last_fake_stream_;
+  }
+  last_fake_stream_ = new_stream;
+
+  return new_stream;
 }
 
 // static
@@ -55,20 +64,20 @@ void FakeAudioOutputStream::Close() {
     callback_->OnClose(this);
     callback_ = NULL;
   }
-
-  if (last_fake_stream_)
-    delete last_fake_stream_;
-  last_fake_stream_ = this;
+  closed_ = true;
 }
 
 FakeAudioOutputStream::FakeAudioOutputStream()
     : volume_(0),
       callback_(NULL),
-      packet_size_(0) {
+      packet_size_(0),
+      closed_(false) {
 }
 
 // static
 void FakeAudioOutputStream::DestroyLastFakeStream(void* param) {
-  if (last_fake_stream_)
+  if (last_fake_stream_) {
+    DCHECK(last_fake_stream_->closed_);
     delete last_fake_stream_;
+  }
 }
