@@ -419,7 +419,7 @@ class TestClientSocketPool : public ClientSocketPool {
 
   void CleanupTimedOutIdleSockets() { base_.CleanupIdleSockets(false); }
 
-  void EnableBackupJobs() { base_.EnableBackupJobs(); }
+  void EnableConnectBackupJobs() { base_.EnableConnectBackupJobs(); }
 
  private:
   ~TestClientSocketPool() {}
@@ -995,7 +995,7 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
 // Regression test for http://crbug.com/40952.
 TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketAtSocketLimitDeleteGroup) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-  pool_->EnableBackupJobs();
+  pool_->EnableConnectBackupJobs();
   connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
 
   for (int i = 0; i < kDefaultMaxSockets; ++i) {
@@ -1923,7 +1923,7 @@ TEST_F(ClientSocketPoolBaseTest, DoNotReuseSocketAfterFlush) {
 TEST_F(ClientSocketPoolBaseTest, BackupSocketCancelAtMaxSockets) {
   // Max 4 sockets globally, max 4 sockets per group.
   CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
-  pool_->EnableBackupJobs();
+  pool_->EnableConnectBackupJobs();
 
   // Create the first socket and set to ERR_IO_PENDING.  This creates a
   // backup job.
