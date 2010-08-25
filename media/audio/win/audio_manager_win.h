@@ -8,7 +8,7 @@
 #include <windows.h>
 
 #include "base/basictypes.h"
-#include "media/audio/audio_io.h"
+#include "media/audio/audio_manager_base.h"
 
 class PCMWaveInAudioInputStream;
 class PCMWaveOutAudioOutputStream;
@@ -16,7 +16,7 @@ class PCMWaveOutAudioOutputStream;
 // Windows implementation of the AudioManager singleton. This class is internal
 // to the audio output and only internal users can call methods not exposed by
 // the AudioManager class.
-class AudioManagerWin : public AudioManager {
+class AudioManagerWin : public AudioManagerBase {
  public:
   AudioManagerWin() {}
   // Implementation of AudioManager.
