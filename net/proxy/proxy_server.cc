@@ -72,6 +72,13 @@ std::string HostNoBrackets(const std::string& host) {
 
 ProxyServer::ProxyServer(Scheme scheme, const HostPortPair& host_port_pair)
       : scheme_(scheme), host_port_pair_(host_port_pair) {
+  if (scheme_ == SCHEME_DIRECT || scheme_ == SCHEME_INVALID) {
+    // |host_port_pair| isn't relevant for these special schemes, so none should
+    // have been specified. It is important for this to be consistent since we
+    // do raw field comparisons in the equality and comparison functions.
+    DCHECK(host_port_pair.Equals(HostPortPair()));
+    host_port_pair_ = HostPortPair();
+  }
 }
 
 const HostPortPair& ProxyServer::host_port_pair() const {
@@ -208,21 +215,24 @@ ProxyServer ProxyServer::FromSchemeHostAndPort(
   if (scheme == SCHEME_DIRECT && begin != end)
     return ProxyServer();  // Invalid -- DIRECT cannot have a host/port.
 
-  std::string host;
-  int port = -1;
+  HostPortPair host_port_pair;
 
   if (scheme != SCHEME_INVALID && scheme != SCHEME_DIRECT) {
+    std::string host;
+    int port = -1;
     // If the scheme has a host/port, parse it.
     bool ok = net::ParseHostAndPort(begin, end, &host, &port);
     if (!ok)
       return ProxyServer();  // Invalid -- failed parsing <host>[":"<port>]
+
+    // Choose a default port number if none was given.
+    if (port == -1)
+      port = GetDefaultPortForScheme(scheme);
+
+    host_port_pair = HostPortPair(HostNoBrackets(host), port);
   }
 
-  // Choose a default port number if none was given.
-  if (port == -1)
-    port = GetDefaultPortForScheme(scheme);
-
-  return ProxyServer(scheme, HostPortPair(HostNoBrackets(host), port));
+  return ProxyServer(scheme, host_port_pair);
 }
 
 }  // namespace net

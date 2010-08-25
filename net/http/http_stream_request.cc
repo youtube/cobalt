@@ -423,7 +423,7 @@ int HttpStreamRequest::DoInitConnection() {
 
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
-  HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server().ToPacString());
+  HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
   if (session_->spdy_session_pool()->HasSession(pair)) {
     using_spdy_ = true;
     next_state_ = STATE_INIT_STREAM;
@@ -684,8 +684,7 @@ int HttpStreamRequest::DoInitStream() {
       session_->spdy_session_pool();
   scoped_refptr<SpdySession> spdy_session;
 
-  HostPortProxyPair pair(endpoint_,
-                         proxy_info()->proxy_server().ToPacString());
+  HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
   if (session_->spdy_session_pool()->HasSession(pair)) {
     spdy_session =
         session_->spdy_session_pool()->Get(pair, session_, net_log_);
