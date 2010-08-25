@@ -40,6 +40,8 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
   virtual bool IsConnectedAndIdle() const;
   virtual int GetPeerAddress(AddressList* address) const;
   virtual const BoundNetLog& NetLog() const { return net_log_; }
+  virtual void SetSubresourceSpeculation();
+  virtual void SetOmniboxSpeculation();
 
   // Socket methods:
   // Multiple outstanding requests are not supported.
@@ -161,6 +163,10 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
   int connect_os_error_;
 
   BoundNetLog net_log_;
+
+  // Record of connectivity and transmissions, for use in speculative connection
+  // histograms.
+  UseHistory use_history_;
 
   DISALLOW_COPY_AND_ASSIGN(TCPClientSocketLibevent);
 };

@@ -174,6 +174,22 @@ bool HttpProxyClientSocket::IsConnectedAndIdle() const {
     transport_->socket()->IsConnectedAndIdle();
 }
 
+void HttpProxyClientSocket::SetSubresourceSpeculation() {
+  if (transport_.get() && transport_->socket()) {
+    transport_->socket()->SetSubresourceSpeculation();
+  } else {
+    NOTREACHED();
+  }
+}
+
+void HttpProxyClientSocket::SetOmniboxSpeculation() {
+  if (transport_.get() && transport_->socket()) {
+    transport_->socket()->SetOmniboxSpeculation();
+  } else {
+    NOTREACHED();
+  }
+}
+
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 CompletionCallback* callback) {
   DCHECK(!user_callback_);
