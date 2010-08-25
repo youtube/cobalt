@@ -322,7 +322,7 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
     // because an active network attacker can already control HTTP sessions.
     // We reach this case when the user cancels a 407 proxy auth prompt.
     // See http://crbug.com/8473.
-    DCHECK(proxy_info_.is_http());
+    DCHECK(proxy_info_.is_http() || proxy_info_.is_https());
     DCHECK_EQ(headers->response_code(), 407);
     LOG(WARNING) << "Blocked proxy response with status "
                  << headers->response_code() << " to CONNECT request for "
@@ -658,7 +658,8 @@ int HttpNetworkTransaction::DoSendRequest() {
     HttpRequestHeaders request_headers;
 
     BuildRequestHeaders(request_, authorization_headers, request_body,
-                        !is_https_request() && proxy_info_.is_http(),
+                        !is_https_request() && (proxy_info_.is_http() ||
+                                        proxy_info_.is_https()),
                         &request_line, &request_headers);
 
     if (session_->network_delegate())
@@ -1093,7 +1094,8 @@ void HttpNetworkTransaction::ResetConnectionAndRequestForResend() {
 }
 
 bool HttpNetworkTransaction::ShouldApplyProxyAuth() const {
-  return !is_https_request() && proxy_info_.is_http();
+  return !is_https_request() &&
+      (proxy_info_.is_https() || proxy_info_.is_http());
 }
 
 bool HttpNetworkTransaction::ShouldApplyServerAuth() const {
@@ -1134,13 +1136,15 @@ bool HttpNetworkTransaction::HaveAuth(HttpAuth::Target target) const {
 
 GURL HttpNetworkTransaction::AuthURL(HttpAuth::Target target) const {
   switch (target) {
-    case HttpAuth::AUTH_PROXY:
+    case HttpAuth::AUTH_PROXY: {
       if (!proxy_info_.proxy_server().is_valid() ||
           proxy_info_.proxy_server().is_direct()) {
         return GURL();  // There is no proxy server.
       }
-      return GURL("http://" +
+      const char* scheme = proxy_info_.is_https() ? "https://" : "http://";
+      return GURL(scheme +
                   proxy_info_.proxy_server().host_port_pair().ToString());
+    }
     case HttpAuth::AUTH_SERVER:
       return request_->url;
     default:
