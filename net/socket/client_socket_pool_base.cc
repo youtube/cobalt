@@ -27,6 +27,10 @@ namespace {
 // some conditions.  See http://crbug.com/4606.
 const int kCleanupInterval = 10;  // DO NOT INCREASE THIS TIMEOUT.
 
+// Indicate whether or not we should establish a new TCP connection after a
+// certain timeout has passed without receiving an ACK.
+bool g_connect_backup_jobs_enabled = true;
+
 }  // namespace
 
 namespace net {
@@ -137,7 +141,7 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
       unused_idle_socket_timeout_(unused_idle_socket_timeout),
       used_idle_socket_timeout_(used_idle_socket_timeout),
       connect_job_factory_(connect_job_factory),
-      backup_jobs_enabled_(false),
+      connect_backup_jobs_enabled_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
       pool_generation_number_(0),
       in_destructor_(false) {
@@ -247,10 +251,11 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     // If we don't have any sockets in this group, set a timer for potentially
     // creating a new one.  If the SYN is lost, this backup socket may complete
     // before the slow socket, improving end user latency.
-    if (group.IsEmpty() && !group.backup_job && backup_jobs_enabled_) {
-      group.backup_job = connect_job_factory_->NewConnectJob(group_name,
-                                                             *request,
-                                                             this);
+    if (group.IsEmpty() && !group.connect_backup_job &&
+        connect_backup_jobs_enabled_) {
+      group.connect_backup_job = connect_job_factory_->NewConnectJob(group_name,
+                                                                    *request,
+                                                                     this);
       StartBackupSocketTimer(group_name);
     }
 
@@ -327,7 +332,7 @@ void ClientSocketPoolBaseHelper::OnBackupSocketTimerFired(
   CHECK(group.backup_task);
   group.backup_task = NULL;
 
-  CHECK(group.backup_job);
+  CHECK(group.connect_backup_job);
 
   // If there are no more jobs pending, there is no work to do.
   // If we've done our cleanups correctly, this should not happen.
@@ -345,14 +350,15 @@ void ClientSocketPoolBaseHelper::OnBackupSocketTimerFired(
     return;
   }
 
-  group.backup_job->net_log().AddEvent(NetLog::TYPE_SOCKET_BACKUP_CREATED,
-                                       NULL);
+  group.connect_backup_job->net_log().AddEvent(
+      NetLog::TYPE_SOCKET_BACKUP_CREATED,
+      NULL);
   SIMPLE_STATS_COUNTER("socket.backup_created");
-  int rv = group.backup_job->Connect();
+  int rv = group.connect_backup_job->Connect();
   connecting_socket_count_++;
-  group.jobs.insert(group.backup_job);
-  ConnectJob* job = group.backup_job;
-  group.backup_job = NULL;
+  group.jobs.insert(group.connect_backup_job);
+  ConnectJob* job = group.connect_backup_job;
+  group.connect_backup_job = NULL;
   if (rv != ERR_IO_PENDING)
     OnConnectJobComplete(rv, job);
 }
@@ -493,6 +499,15 @@ void ClientSocketPoolBaseHelper::CleanupIdleSockets(bool force) {
       ++i;
     }
   }
+}
+
+// static
+void ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(bool enabled) {
+  g_connect_backup_jobs_enabled = enabled;
+}
+
+void ClientSocketPoolBaseHelper::EnableConnectBackupJobs() {
+  connect_backup_jobs_enabled_ = g_connect_backup_jobs_enabled;
 }
 
 void ClientSocketPoolBaseHelper::IncrementIdleCount() {
