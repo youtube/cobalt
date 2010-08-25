@@ -28,7 +28,7 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
                      net::NetLog* net_log,
                      const net::NetLog::Source& source);
 
-  ~TCPClientSocketWin();
+  virtual ~TCPClientSocketWin();
 
   // ClientSocket methods:
   virtual int Connect(CompletionCallback* callback);
@@ -37,6 +37,8 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
   virtual bool IsConnectedAndIdle() const;
   virtual int GetPeerAddress(AddressList* address) const;
   virtual const BoundNetLog& NetLog() const { return net_log_; }
+  virtual void SetSubresourceSpeculation();
+  virtual void SetOmniboxSpeculation();
 
   // Socket methods:
   // Multiple outstanding requests are not supported.
@@ -113,6 +115,10 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
   int connect_os_error_;
 
   BoundNetLog net_log_;
+
+  // Record of connectivity and transmissions, for use in speculative connection
+  // histograms.
+  UseHistory use_history_;
 
   DISALLOW_COPY_AND_ASSIGN(TCPClientSocketWin);
 };
