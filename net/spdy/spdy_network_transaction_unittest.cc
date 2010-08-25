@@ -3860,7 +3860,7 @@ TEST_P(SpdyNetworkTransactionTest, ProxyConnect) {
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(), GetParam());
   helper.session_deps().reset(new SpdySessionDependencies(
-      net::SpdyCreateFixedProxyService("myproxy:70")));
+      ProxyService::CreateFixedFromPacResult("PROXY myproxy:70")));
   helper.SetSession(SpdySessionDependencies::SpdyCreateSession(
       helper.session_deps().get()));
   helper.RunPreTestSetup();
@@ -3957,6 +3957,16 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   // we can use the same pool in the second transaction.
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(), GetParam());
+
+  // Use a proxy service which returns a proxy fallback list from DIRECT to
+  // myproxy:70. For this test there will be no fallback, so it is equivalent
+  // to simply DIRECT. The reason for appending the second proxy is to verify
+  // that the session pool key used does is just "DIRECT".
+  helper.session_deps().reset(new SpdySessionDependencies(
+      ProxyService::CreateFixedFromPacResult("DIRECT; PROXY myproxy:70")));
+  helper.SetSession(SpdySessionDependencies::SpdyCreateSession(
+      helper.session_deps().get()));
+
   scoped_refptr<SpdySessionPool> spdy_session_pool =
       helper.session_deps()->spdy_session_pool;
   helper.RunPreTestSetup();
@@ -4000,10 +4010,10 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
 
   // Check that the SpdySession is still in the SpdySessionPool.
   HostPortPair host_port_pair("www.google.com", helper.port());
-  HostPortProxyPair pair(host_port_pair, "DIRECT");
-  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
-  HostPortProxyPair nonexistent_pair(host_port_pair, "PROXY www.foo.com");
-  EXPECT_FALSE(spdy_session_pool->HasSession(nonexistent_pair));
+  HostPortProxyPair session_pool_key_direct(host_port_pair, "DIRECT");
+  EXPECT_TRUE(spdy_session_pool->HasSession(session_pool_key_direct));
+  HostPortProxyPair session_pool_key_proxy(host_port_pair, "PROXY www.foo.com");
+  EXPECT_FALSE(spdy_session_pool->HasSession(session_pool_key_proxy));
 
   // Set up data for the proxy connection.
   const char kConnect443[] = {"CONNECT www.google.com:443 HTTP/1.1\r\n"
@@ -4079,8 +4089,8 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   request_proxy.url = GURL("http://www.google.com/foo.dat");
   request_proxy.load_flags = 0;
   scoped_ptr<SpdySessionDependencies> ssd_proxy(
-      new SpdySessionDependencies(net::SpdyCreateFixedProxyService(
-          "myproxy:70")));
+      new SpdySessionDependencies(
+          ProxyService::CreateFixedFromPacResult("PROXY myproxy:70")));
   // Ensure that this transaction uses the same SpdySessionPool.
   ssd_proxy->spdy_session_pool = spdy_session_pool;
   scoped_refptr<HttpNetworkSession> session_proxy =
