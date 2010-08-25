@@ -515,22 +515,6 @@ EVENT_TYPE(HTTP_TRANSACTION_READ_BODY)
 EVENT_TYPE(HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART)
 
 // ------------------------------------------------------------------------
-// SpdyNetworkTransaction
-// ------------------------------------------------------------------------
-
-// Measures the time taken to get a spdy stream.
-EVENT_TYPE(SPDY_TRANSACTION_INIT_CONNECTION)
-
-// Measures the time taken to send the request to the server.
-EVENT_TYPE(SPDY_TRANSACTION_SEND_REQUEST)
-
-// Measures the time to read HTTP response headers from the server.
-EVENT_TYPE(SPDY_TRANSACTION_READ_HEADERS)
-
-// Measures the time to read the entity body from the server.
-EVENT_TYPE(SPDY_TRANSACTION_READ_BODY)
-
-// ------------------------------------------------------------------------
 // SpdySession
 // ------------------------------------------------------------------------
 
