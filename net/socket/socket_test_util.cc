@@ -1178,4 +1178,102 @@ const char kSOCKS5OkResponse[] =
     { 0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x00, 0x50 };
 const int kSOCKS5OkResponseLength = arraysize(kSOCKS5OkResponse);
 
+MockSSLClientSocketPool::MockSSLClientSocketPool(
+    int max_sockets,
+    int max_sockets_per_group,
+    const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+    ClientSocketFactory* socket_factory)
+    : SSLClientSocketPool(max_sockets, max_sockets_per_group, histograms,
+                          NULL, socket_factory,
+                          new MockTCPClientSocketPool(max_sockets,
+                                                      max_sockets_per_group,
+                                                      histograms,
+                                                      socket_factory),
+                          NULL, NULL, NULL),
+      client_socket_factory_(socket_factory),
+      release_count_(0),
+      cancel_count_(0) {
+}
+
+int MockSSLClientSocketPool::RequestSocket(const std::string& group_name,
+                                           const void* socket_params,
+                                           RequestPriority priority,
+                                           ClientSocketHandle* handle,
+                                           CompletionCallback* callback,
+                                           const BoundNetLog& net_log) {
+  ClientSocket* socket = client_socket_factory_->CreateTCPClientSocket(
+      AddressList(), net_log.net_log(), net::NetLog::Source());
+  MockConnectJob* job = new MockConnectJob(socket, handle, callback);
+  job_list_.push_back(job);
+  handle->set_pool_id(1);
+  return job->Connect();
+}
+
+void MockSSLClientSocketPool::CancelRequest(const std::string& group_name,
+                                            ClientSocketHandle* handle) {
+  std::vector<MockConnectJob*>::iterator i;
+  for (i = job_list_.begin(); i != job_list_.end(); ++i) {
+    if ((*i)->CancelHandle(handle)) {
+      cancel_count_++;
+      break;
+    }
+  }
+}
+
+void MockSSLClientSocketPool::ReleaseSocket(const std::string& group_name,
+                                            ClientSocket* socket, int id) {
+  EXPECT_EQ(1, id);
+  release_count_++;
+  delete socket;
+}
+
+MockSSLClientSocketPool::~MockSSLClientSocketPool() {}
+
+MockSSLClientSocketPool::MockConnectJob::MockConnectJob(
+    ClientSocket* socket,
+    ClientSocketHandle* handle,
+    CompletionCallback* callback)
+    : socket_(socket),
+      handle_(handle),
+      user_callback_(callback),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          connect_callback_(this, &MockConnectJob::OnConnect)) {
+}
+
+int MockSSLClientSocketPool::MockConnectJob::Connect() {
+  int rv = socket_->Connect(&connect_callback_);
+  if (rv == OK) {
+    user_callback_ = NULL;
+    OnConnect(OK);
+  }
+  return rv;
+}
+
+bool MockSSLClientSocketPool::MockConnectJob::CancelHandle(
+    const ClientSocketHandle* handle) {
+  if (handle != handle_)
+    return false;
+  socket_.reset();
+  handle_ = NULL;
+  user_callback_ = NULL;
+  return true;
+}
+
+void MockSSLClientSocketPool::MockConnectJob::OnConnect(int rv) {
+  if (!socket_.get())
+    return;
+  if (rv == OK) {
+    handle_->set_socket(socket_.release());
+  } else {
+    socket_.reset();
+  }
+
+  handle_ = NULL;
+
+  if (user_callback_) {
+    CompletionCallback* callback = user_callback_;
+    user_callback_ = NULL;
+    callback->Run(rv);
+  }
+}
 }  // namespace net
