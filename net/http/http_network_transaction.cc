@@ -155,7 +155,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       user_callback_(NULL),
       session_(session),
       request_(NULL),
-      reused_socket_(false),
       headers_valid_(false),
       logged_response_time_(false),
       read_buf_len_(0),
@@ -598,7 +597,6 @@ int HttpNetworkTransaction::DoInitStreamComplete(int result) {
   if (result == OK) {
     next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
 
-    reused_socket_ = stream_->IsConnectionReused();
     if (is_https_request())
       stream_->GetSSLInfo(&response_.ssl_info);
   } else {
@@ -924,7 +922,8 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
       base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
       100);
 
-  if (!reused_socket_) {
+  bool reused_socket = stream_->IsConnectionReused();
+  if (!reused_socket) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
         "Net.Transaction_Connected_New",
         total_duration,
@@ -952,7 +951,7 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
         total_duration, base::TimeDelta::FromMilliseconds(1),
         base::TimeDelta::FromMinutes(10), 100);
 
-    if (!reused_socket_) {
+    if (!reused_socket) {
       UMA_HISTOGRAM_CLIPPED_TIMES(
           FieldTrial::MakeName("Net.Transaction_Connected_New", "SpdyImpact"),
           total_duration, base::TimeDelta::FromMilliseconds(1),
@@ -995,7 +994,7 @@ void HttpNetworkTransaction::LogTransactionMetrics() const {
                               total_duration,
                               base::TimeDelta::FromMilliseconds(1),
                               base::TimeDelta::FromMinutes(10), 100);
-  if (!reused_socket_) {
+  if (!stream_->IsConnectionReused()) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
         "Net.Transaction_Latency_Total_New_Connection_Under_10",
         total_duration, base::TimeDelta::FromMilliseconds(1),
