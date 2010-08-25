@@ -536,7 +536,10 @@ void BackendImpl::CleanupCache() {
       data_->header.crash = 0;
 
     File::WaitForPendingIO(&num_pending_io_);
-    DCHECK(!num_refs_);
+    if (user_flags_ & kNoRandom) {
+      // This is a net_unittest, verify that we are not 'leaking' entries.
+      DCHECK(!num_refs_);
+    }
   }
   factory_.RevokeAll();
   ptr_factory_.InvalidateWeakPtrs();
