@@ -83,6 +83,37 @@ class ProxyResolverNull : public ProxyResolver {
   }
 };
 
+// ProxyResolver that simulates a PAC script which returns
+// |pac_string| for every single URL.
+class ProxyResolverFromPacString : public ProxyResolver {
+ public:
+  ProxyResolverFromPacString(const std::string& pac_string)
+      : ProxyResolver(false /*expects_pac_bytes*/),
+        pac_string_(pac_string) {}
+
+  virtual int GetProxyForURL(const GURL& url,
+                             ProxyInfo* results,
+                             CompletionCallback* callback,
+                             RequestHandle* request,
+                             const BoundNetLog& net_log) {
+    results->UsePacString(pac_string_);
+    return OK;
+  }
+
+  virtual void CancelRequest(RequestHandle request) {
+    NOTREACHED();
+  }
+
+  virtual int SetPacScript(
+      const scoped_refptr<ProxyResolverScriptData>& pac_script,
+      CompletionCallback* callback) {
+    return OK;
+  }
+
+ private:
+  const std::string pac_string_;
+};
+
 // This factory creates V8ProxyResolvers with appropriate javascript bindings.
 class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
  public:
@@ -357,6 +388,23 @@ ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
 ProxyService* ProxyService::CreateNull() {
   // Use direct connections.
   return new ProxyService(new ProxyConfigServiceDirect, new ProxyResolverNull,
+                          NULL);
+}
+
+// static
+ProxyService* ProxyService::CreateFixedFromPacResult(
+    const std::string& pac_string) {
+
+  // We need the settings to contain an "automatic" setting, otherwise the
+  // ProxyResolver dependency we give it will never be used.
+  scoped_ptr<ProxyConfigService> proxy_config_service(
+      new ProxyConfigServiceFixed(ProxyConfig::CreateAutoDetect()));
+
+  scoped_ptr<ProxyResolver> proxy_resolver(
+      new ProxyResolverFromPacString(pac_string));
+
+  return new ProxyService(proxy_config_service.release(),
+                          proxy_resolver.release(),
                           NULL);
 }
 
