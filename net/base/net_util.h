@@ -295,6 +295,7 @@ void AppendFormattedHost(const GURL& url,
 // into the middle of a component that was entirely removed, past the end of the
 // string, or into the middle of an encoding sequence), it will be set to
 // std::wstring::npos.
+// TODO(viettrungluu): remove wstring version.
 std::wstring FormatUrl(const GURL& url,
                        const std::wstring& languages,
                        FormatUrlTypes format_types,
@@ -302,6 +303,13 @@ std::wstring FormatUrl(const GURL& url,
                        url_parse::Parsed* new_parsed,
                        size_t* prefix_end,
                        size_t* offset_for_adjustment);
+string16 FormatUrl(const GURL& url,
+                   const std::string& languages,
+                   FormatUrlTypes format_types,
+                   UnescapeRule::Type unescape_rules,
+                   url_parse::Parsed* new_parsed,
+                   size_t* prefix_end,
+                   size_t* offset_for_adjustment);
 
 // This is a convenience function for FormatUrl() with
 // format_types = kFormatUrlOmitAll and unescape = SPACES.  This is the typical
