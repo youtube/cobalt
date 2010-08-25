@@ -91,6 +91,8 @@
       # building on.
       'target_arch%': '<(host_arch)',
 
+      # TODO(thestig) remove these after the Linux Reliability bot stops
+      # using them.
       # We do want to build Chromium with Breakpad support in certain
       # situations. I.e. for Chrome bot.
       'linux_chromium_breakpad%': 0,
@@ -247,7 +249,11 @@
     # Set this to true to enable SELinux support.
     'selinux%': 0,
 
-    # Strip the binary after dumping symbols.
+    # Override whether we should use Breakpad on Linux. I.e. for Chrome bot.
+    'linux_breakpad%': 0,
+    # And if we want to dump symbols for Breakpad-enabled builds.
+    'linux_dump_symbols%': 0,
+    # And if we want to strip the binary after dumping symbols.
     'linux_strip_binary%': 0,
 
     # Enable TCMalloc.
@@ -300,8 +306,6 @@
         'conditions': [
           ['branding=="Chrome" or linux_chromium_breakpad==1', {
             'linux_breakpad%': 1,
-          }, {
-            'linux_breakpad%': 0,
           }],
           # All Chrome builds have breakpad symbols, but only process the
           # symbols from official builds.
@@ -311,8 +315,6 @@
            '(branding=="Chrome" and buildtype=="Official" and '
            'target_arch=="ia32")', {
             'linux_dump_symbols%': 1,
-          }, {
-            'linux_dump_symbols%': 0,
           }],
           ['toolkit_views==0', {
             # GTK wants Title Case strings
@@ -355,7 +357,6 @@
           ['component=="shared_library"', {
             'win_use_allocator_shim%': 0,
           }],
-        
           ['MSVS_VERSION=="2005"', {
             'msvs_multi_core_compile%': 0,
           },{
@@ -1272,7 +1273,6 @@
             ],
           }],
         ],
-        
         'msvs_system_include_dirs': [
           '<(DEPTH)/third_party/platformsdk_win7/files/Include',
           '<(DEPTH)/third_party/directxsdk/files/Include',
@@ -1293,7 +1293,6 @@
               [ 'msvs_multi_core_compile', {
                 'AdditionalOptions': ['/MP'],
               }],
-              
               ['component=="shared_library"', {
                 'ExceptionHandling': '1',  # /EHsc
               }, {
