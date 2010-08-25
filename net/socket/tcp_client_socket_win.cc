@@ -414,8 +414,10 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
     params = new NetLogIntegerParameter("os_error", os_error);
   net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
 
-  if (result == OK)
+  if (result == OK) {
+    use_history_.set_was_ever_connected();
     return OK;  // Done!
+  }
 
   // Close whatever partially connected socket we currently have.
   DoDisconnect();
@@ -514,6 +516,14 @@ int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
   return OK;
 }
 
+void TCPClientSocketWin::SetSubresourceSpeculation() {
+  use_history_.set_subresource_speculation();
+}
+
+void TCPClientSocketWin::SetOmniboxSpeculation() {
+  use_history_.set_subresource_speculation();
+}
+
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionCallback* callback) {
@@ -544,6 +554,8 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
       static StatsCounter read_bytes("tcp.read_bytes");
       read_bytes.Add(num);
+      if (num > 0)
+        use_history_.set_was_used_to_convey_data();
       net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
                         new NetLogIntegerParameter("num_bytes", num));
       return static_cast<int>(num);
@@ -570,8 +582,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   DCHECK_GT(buf_len, 0);
   DCHECK(!core_->write_iobuffer_);
 
-  static StatsCounter reads("tcp.writes");
-  reads.Increment();
+  static StatsCounter writes("tcp.writes");
+  writes.Increment();
 
   core_->write_buffer_.len = buf_len;
   core_->write_buffer_.buf = buf->data();
@@ -594,6 +606,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
       }
       static StatsCounter write_bytes("tcp.write_bytes");
       write_bytes.Add(rv);
+      if (rv > 0)
+        use_history_.set_was_used_to_convey_data();
       net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_SENT,
                         new NetLogIntegerParameter("num_bytes", rv));
       return rv;
@@ -698,9 +712,6 @@ void TCPClientSocketWin::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(read_callback_);
 
-  static StatsCounter read_bytes("tcp.read_bytes");
-  read_bytes.Add(rv);
-
   // since Run may result in Read being called, clear read_callback_ up front.
   CompletionCallback* c = read_callback_;
   read_callback_ = NULL;
@@ -710,9 +721,6 @@ void TCPClientSocketWin::DoReadCallback(int rv) {
 void TCPClientSocketWin::DoWriteCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(write_callback_);
-
-  static StatsCounter write_bytes("tcp.write_bytes");
-  write_bytes.Add(rv);
 
   // since Run may result in Write being called, clear write_callback_ up front.
   CompletionCallback* c = write_callback_;
@@ -757,6 +765,10 @@ void TCPClientSocketWin::DidCompleteRead() {
   waiting_read_ = false;
   core_->read_iobuffer_ = NULL;
   if (ok) {
+    static StatsCounter read_bytes("tcp.read_bytes");
+    read_bytes.Add(num_bytes);
+    if (num_bytes > 0)
+      use_history_.set_was_used_to_convey_data();
     net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
                       new NetLogIntegerParameter("num_bytes", num_bytes));
   }
@@ -784,6 +796,10 @@ void TCPClientSocketWin::DidCompleteWrite() {
                  << " bytes reported.";
       rv = ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
     } else {
+      static StatsCounter write_bytes("tcp.write_bytes");
+      write_bytes.Add(num_bytes);
+      if (num_bytes > 0)
+        use_history_.set_was_used_to_convey_data();
       net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_SENT,
                         new NetLogIntegerParameter("num_bytes", rv));
     }
