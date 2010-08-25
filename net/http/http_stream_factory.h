@@ -8,7 +8,6 @@
 #include <set>
 #include <string>
 
-
 #include "base/scoped_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_mapping_rules.h"
@@ -19,10 +18,10 @@
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 
-
 namespace net {
 
 class HttpNetworkSession;
+struct HttpRequestInfo;
 
 class HttpStreamFactory : public StreamFactory,
                           public base::RefCounted<HttpStreamFactory> {

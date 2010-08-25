@@ -29,6 +29,7 @@ class HttpNetworkSession;
 class HttpStream;
 class HttpStreamHandle;
 class IOBuffer;
+struct HttpRequestInfo;
 
 class HttpNetworkTransaction : public HttpTransaction,
                                public StreamFactory::StreamRequestDelegate {
@@ -72,6 +73,8 @@ class HttpNetworkTransaction : public HttpTransaction,
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, FlowControlStallResume);
 
   enum State {
+    STATE_CREATE_STREAM,
+    STATE_CREATE_STREAM_COMPLETE,
     STATE_INIT_STREAM,
     STATE_INIT_STREAM_COMPLETE,
     STATE_GENERATE_PROXY_AUTH_TOKEN,
@@ -101,6 +104,8 @@ class HttpNetworkTransaction : public HttpTransaction,
   // argument receive the result from the previous state.  If a method returns
   // ERR_IO_PENDING, then the result from OnIOComplete will be passed to the
   // next state method as the result arg.
+  int DoCreateStream();
+  int DoCreateStreamComplete(int result);
   int DoInitStream();
   int DoInitStreamComplete(int result);
   int DoGenerateProxyAuthToken();
