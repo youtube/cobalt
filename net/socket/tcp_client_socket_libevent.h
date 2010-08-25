@@ -27,8 +27,9 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a
   // connection.
-  explicit TCPClientSocketLibevent(const AddressList& addresses,
-                                   net::NetLog* net_log);
+  TCPClientSocketLibevent(const AddressList& addresses,
+                          net::NetLog* net_log,
+                          const net::NetLog::Source& source);
 
   virtual ~TCPClientSocketLibevent();
 

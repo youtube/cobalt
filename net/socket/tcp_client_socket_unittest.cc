@@ -97,7 +97,7 @@ void TCPClientSocketTest::SetUp() {
   HostResolver::RequestInfo info("localhost", listen_port_);
   int rv = resolver->Resolve(info, &addr, NULL, NULL, BoundNetLog());
   CHECK_EQ(rv, OK);
-  sock_.reset(new TCPClientSocket(addr, &net_log_));
+  sock_.reset(new TCPClientSocket(addr, &net_log_, NetLog::Source()));
 }
 
 TEST_F(TCPClientSocketTest, Connect) {

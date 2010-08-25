@@ -48,8 +48,10 @@ SSLClientSocketFactory g_ssl_factory = DefaultSSLClientSocketFactory;
 class DefaultClientSocketFactory : public ClientSocketFactory {
  public:
   virtual ClientSocket* CreateTCPClientSocket(
-      const AddressList& addresses, NetLog* net_log) {
-    return new TCPClientSocket(addresses, net_log);
+      const AddressList& addresses,
+      NetLog* net_log,
+      const NetLog::Source& source) {
+    return new TCPClientSocket(addresses, net_log, source);
   }
 
   virtual SSLClientSocket* CreateSSLClientSocket(
