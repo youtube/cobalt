@@ -67,7 +67,6 @@ SOCKS5ClientSocket::~SOCKS5ClientSocket() {
 int SOCKS5ClientSocket::Connect(CompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
-  DCHECK(transport_->socket()->IsConnected());
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
 
