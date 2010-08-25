@@ -53,7 +53,7 @@ std::ostream& operator<<(std::ostream& out,
              << "    proxy_for_http: " << rules.proxy_for_http << "\n"
              << "    proxy_for_https: " << rules.proxy_for_https << "\n"
              << "    proxy_for_ftp: " << rules.proxy_for_ftp << "\n"
-             << "    socks_proxy: " << rules.socks_proxy << "\n"
+             << "    fallback_proxy: " << rules.fallback_proxy << "\n"
              << "  }";
 }
 
@@ -88,8 +88,10 @@ std::ostream& operator<<(std::ostream& out, const ProxyConfig& config) {
         out << "    HTTPS: " << config.proxy_rules().proxy_for_https << "\n";
       if (config.proxy_rules().proxy_for_ftp.is_valid())
         out << "    FTP: " << config.proxy_rules().proxy_for_ftp << "\n";
-      if (config.proxy_rules().socks_proxy.is_valid())
-        out << "    SOCKS: " << config.proxy_rules().socks_proxy << "\n";
+      if (config.proxy_rules().fallback_proxy.is_valid()) {
+        out << "    (fallback): "
+            << config.proxy_rules().fallback_proxy << "\n";
+      }
       break;
   }
 
@@ -126,7 +128,7 @@ bool ProxyConfig::ProxyRules::Equals(const ProxyRules& other) const {
          proxy_for_http == other.proxy_for_http &&
          proxy_for_https == other.proxy_for_https &&
          proxy_for_ftp == other.proxy_for_ftp &&
-         socks_proxy == other.socks_proxy &&
+         fallback_proxy == other.fallback_proxy &&
          bypass_rules.Equals(other.bypass_rules) &&
          reverse_bypass == other.reverse_bypass;
 }
@@ -176,7 +178,7 @@ void ProxyConfig::ProxyRules::ParseFromString(const std::string& proxy_rules) {
   proxy_for_http = ProxyServer();
   proxy_for_https = ProxyServer();
   proxy_for_ftp = ProxyServer();
-  socks_proxy = ProxyServer();
+  fallback_proxy = ProxyServer();
 
   StringTokenizer proxy_server_list(proxy_rules, ";");
   while (proxy_server_list.GetNext()) {
@@ -203,11 +205,21 @@ void ProxyConfig::ProxyRules::ParseFromString(const std::string& proxy_rules) {
 
       // Add it to the per-scheme mappings (if supported scheme).
       type = TYPE_PROXY_PER_SCHEME;
-      if (ProxyServer* entry = MapSchemeToProxy(url_scheme)) {
-        std::string proxy_server_token = proxy_server_for_scheme.token();
-        ProxyServer::Scheme scheme = (entry == &socks_proxy) ?
-            ProxyServer::SCHEME_SOCKS4 : ProxyServer::SCHEME_HTTP;
-        *entry = ProxyServer::FromURI(proxy_server_token, scheme);
+      ProxyServer* entry = MapUrlSchemeToProxyNoFallback(url_scheme);
+      ProxyServer::Scheme default_scheme = ProxyServer::SCHEME_HTTP;
+
+      // socks=XXX is inconsistent with the other formats, since "socks"
+      // is not a URL scheme. Rather this means "for everything else, send
+      // it to the SOCKS proxy server XXX".
+      if (url_scheme == "socks") {
+        DCHECK(!entry);
+        entry = &fallback_proxy;
+        default_scheme = ProxyServer::SCHEME_SOCKS4;
+      }
+
+      if (entry) {
+        *entry = ProxyServer::FromURI(proxy_server_for_scheme.token(),
+                                      default_scheme);
       }
     }
   }
@@ -216,25 +228,23 @@ void ProxyConfig::ProxyRules::ParseFromString(const std::string& proxy_rules) {
 const ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxy(
     const std::string& url_scheme) const {
   const ProxyServer* proxy_server =
-      const_cast<ProxyRules*>(this)->MapSchemeToProxy(url_scheme);
+      const_cast<ProxyRules*>(this)->MapUrlSchemeToProxyNoFallback(url_scheme);
   if (proxy_server && proxy_server->is_valid())
     return proxy_server;
-  if (socks_proxy.is_valid())
-    return &socks_proxy;
+  if (fallback_proxy.is_valid())
+    return &fallback_proxy;
   return NULL;  // No mapping for this scheme. Use direct.
 }
 
-ProxyServer* ProxyConfig::ProxyRules::MapSchemeToProxy(
+ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxyNoFallback(
     const std::string& scheme) {
-  DCHECK(type == TYPE_PROXY_PER_SCHEME);
+  DCHECK_EQ(TYPE_PROXY_PER_SCHEME, type);
   if (scheme == "http")
     return &proxy_for_http;
   if (scheme == "https")
     return &proxy_for_https;
   if (scheme == "ftp")
     return &proxy_for_ftp;
-  if (scheme == "socks")
-    return &socks_proxy;
   return NULL;  // No mapping for this scheme.
 }
 
