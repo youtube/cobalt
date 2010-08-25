@@ -11,6 +11,7 @@
 #include "base/path_service.h"
 #include "base/sync_socket.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_manager.h"
 #include "media/audio/simple_sources.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
