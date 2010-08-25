@@ -142,14 +142,12 @@ int HttpStreamRequest::RestartTunnelWithProxyAuth(const string16& username,
 }
 
 LoadState HttpStreamRequest::GetLoadState() const {
-  // TODO(wtc): Define a new LoadState value for the
-  // STATE_INIT_CONNECTION_COMPLETE state, which delays the HTTP request.
   switch (next_state_) {
     case STATE_RESOLVE_PROXY_COMPLETE:
       return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
-    case STATE_INIT_CONNECTION_COMPLETE:
+    case STATE_CREATE_STREAM_COMPLETE:
       return connection_->GetLoadState();
-    case STATE_INIT_STREAM_COMPLETE:
+    case STATE_INIT_CONNECTION_COMPLETE:
       return LOAD_STATE_SENDING_REQUEST;
     default:
       return LOAD_STATE_IDLE;
@@ -320,12 +318,12 @@ int HttpStreamRequest::DoLoop(int result) {
       case STATE_RESTART_TUNNEL_AUTH_COMPLETE:
         rv = DoRestartTunnelAuthComplete(rv);
         break;
-      case STATE_INIT_STREAM:
+      case STATE_CREATE_STREAM:
         DCHECK_EQ(OK, rv);
-        rv = DoInitStream();
+        rv = DoCreateStream();
         break;
-      case STATE_INIT_STREAM_COMPLETE:
-        rv = DoInitStreamComplete(rv);
+      case STATE_CREATE_STREAM_COMPLETE:
+        rv = DoCreateStreamComplete(rv);
         break;
       default:
         NOTREACHED() << "bad state";
@@ -426,7 +424,7 @@ int HttpStreamRequest::DoInitConnection() {
   HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
   if (session_->spdy_session_pool()->HasSession(pair)) {
     using_spdy_ = true;
-    next_state_ = STATE_INIT_STREAM;
+    next_state_ = STATE_CREATE_STREAM;
     return OK;
   }
 
@@ -656,7 +654,7 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
       return HandleSSLHandshakeError(result);
   }
 
-  next_state_ = STATE_INIT_STREAM;
+  next_state_ = STATE_CREATE_STREAM;
   return OK;
 }
 
@@ -669,13 +667,13 @@ int HttpStreamRequest::DoWaitingUserAction(int result) {
   return ERR_IO_PENDING;
 }
 
-int HttpStreamRequest::DoInitStream() {
-  next_state_ = STATE_INIT_STREAM_COMPLETE;
+int HttpStreamRequest::DoCreateStream() {
+  next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
   if (!using_spdy_) {
     HttpBasicStream* stream = new HttpBasicStream(connection_.get());
     stream_.reset(new HttpStreamHandle(connection_.release(), stream));
-    return stream_->InitializeStream(&request_info(), net_log_, &io_callback_);
+    return OK;
   }
 
   CHECK(!stream_.get());
@@ -705,10 +703,10 @@ int HttpStreamRequest::DoInitStream() {
 
   SpdyHttpStream* stream = new SpdyHttpStream(spdy_session);
   stream_.reset(new HttpStreamHandle(NULL, stream));
-  return stream_->InitializeStream(&request_info(), net_log_, &io_callback_);
+  return OK;
 }
 
-int HttpStreamRequest::DoInitStreamComplete(int result) {
+int HttpStreamRequest::DoCreateStreamComplete(int result) {
   if (result < 0)
     return result;
 
