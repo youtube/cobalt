@@ -231,6 +231,8 @@ class ClientSocketPoolBaseHelper
     return group_map_.find(group_name)->second.jobs.size();
   }
 
+  bool HasGroup(const std::string& group_name) const;
+
   // Closes all idle sockets if |force| is true.  Else, only closes idle
   // sockets that timed out or can't be reused.  Made public for testing.
   void CleanupIdleSockets(bool force);
@@ -582,6 +584,10 @@ class ClientSocketPoolBase {
 
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return helper_->NumConnectJobsInGroup(group_name);
+  }
+
+  bool HasGroup(const std::string& group_name) const {
+    return helper_->HasGroup(group_name);
   }
 
   void CleanupIdleSockets(bool force) {
