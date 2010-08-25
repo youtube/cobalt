@@ -42,7 +42,6 @@ SSLSocketParams::SSLSocketParams(
       DCHECK(socks_params_.get() == NULL);
       break;
     case ProxyServer::SCHEME_HTTP:
-    case ProxyServer::SCHEME_HTTPS:
       DCHECK(tcp_params_.get() == NULL);
       DCHECK(http_proxy_params_.get() != NULL);
       DCHECK(socks_params_.get() == NULL);
@@ -115,7 +114,6 @@ int SSLConnectJob::ConnectInternal() {
       next_state_ = STATE_TCP_CONNECT;
       break;
     case ProxyServer::SCHEME_HTTP:
-    case ProxyServer::SCHEME_HTTPS:
       next_state_ = STATE_TUNNEL_CONNECT;
       break;
     case ProxyServer::SCHEME_SOCKS4:
@@ -224,7 +222,7 @@ int SSLConnectJob::DoTunnelConnect() {
       params_->http_proxy_params();
   return transport_socket_handle_->Init(
       group_name(), http_proxy_params,
-      http_proxy_params->destination().priority(), &callback_,
+      http_proxy_params->tcp_params()->destination().priority(), &callback_,
       http_proxy_pool_, net_log());
 }
 
