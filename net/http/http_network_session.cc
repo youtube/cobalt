@@ -46,10 +46,6 @@ HttpNetworkSession::HttpNetworkSession(
       tcp_for_http_proxy_pool_histograms_(
           new ClientSocketPoolHistograms("TCPforHTTPProxy")),
       http_proxy_pool_histograms_(new ClientSocketPoolHistograms("HTTPProxy")),
-      tcp_for_https_proxy_pool_histograms_(
-          new ClientSocketPoolHistograms("TCPforHTTPSProxy")),
-      ssl_for_https_proxy_pool_histograms_(
-          new ClientSocketPoolHistograms("SSLforHTTPSProxy")),
       tcp_for_socks_pool_histograms_(
           new ClientSocketPoolHistograms("TCPforSOCKS")),
       socks_pool_histograms_(new ClientSocketPoolHistograms("SOCK")),
@@ -95,16 +91,6 @@ HttpNetworkSession::GetSocketPoolForHTTPProxy(const HostPortPair& http_proxy) {
                       g_max_sockets_per_proxy_server, g_max_sockets_per_group,
                       tcp_for_http_proxy_pool_histograms_, host_resolver_,
                       socket_factory_, net_log_),
-                  new SSLClientSocketPool(
-                      g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                      ssl_for_https_proxy_pool_histograms_, host_resolver_,
-                      socket_factory_,
-                      new TCPClientSocketPool(
-                          g_max_sockets_per_proxy_server,
-                          g_max_sockets_per_group,
-                          tcp_for_https_proxy_pool_histograms_, host_resolver_,
-                          socket_factory_, net_log_),
-                          NULL, NULL, net_log_),
                   net_log_)));
 
   return ret.first->second;
