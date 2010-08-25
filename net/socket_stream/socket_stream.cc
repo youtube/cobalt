@@ -549,7 +549,8 @@ int SocketStream::DoTcpConnect(int result) {
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
   DCHECK(factory_);
   socket_.reset(factory_->CreateTCPClientSocket(addresses_,
-                                                 net_log_.net_log()));
+                                                net_log_.net_log(),
+                                                net_log_.source()));
   metrics_->OnStartConnection();
   return socket_->Connect(&io_callback_);
 }
