@@ -240,7 +240,6 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
   if (result < 0)
     return result;
 
-  DCHECK(tunnel_socket->IsConnected());
   next_state_ = STATE_SSL_CONNECT;
   return result;
 }

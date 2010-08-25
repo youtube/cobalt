@@ -636,6 +636,7 @@ class MockSSLClientSocket : public MockClientSocket {
   // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
+  virtual bool IsConnected() const;
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
