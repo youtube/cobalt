@@ -170,6 +170,9 @@ SpdyHttpStream::~SpdyHttpStream() {
 int SpdyHttpStream::InitializeStream(const HttpRequestInfo* request_info,
                                      const BoundNetLog& stream_net_log,
                                      CompletionCallback* callback) {
+  if (spdy_session_->IsClosed())
+   return ERR_CONNECTION_CLOSED;
+
   request_info_ = request_info;
   if (request_info_->method == "GET") {
     int error = spdy_session_->GetPushStream(request_info_->url, &stream_,
@@ -180,10 +183,10 @@ int SpdyHttpStream::InitializeStream(const HttpRequestInfo* request_info,
 
   if (stream_.get())
     return OK;
-  else
-    return spdy_session_->CreateStream(request_info_->url,
-                                       request_info_->priority, &stream_,
-                                       stream_net_log, callback);
+
+  return spdy_session_->CreateStream(request_info_->url,
+                                     request_info_->priority, &stream_,
+                                     stream_net_log, callback);
 }
 
 const HttpResponseInfo* SpdyHttpStream::GetResponseInfo() const {

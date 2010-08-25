@@ -22,6 +22,7 @@ namespace net {
 
 class HttpResponseHeaders;
 class PartialData;
+struct HttpRequestInfo;
 
 // This is the transaction that is returned by the HttpCache transaction
 // factory.
