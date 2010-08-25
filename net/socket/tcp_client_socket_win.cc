@@ -271,7 +271,8 @@ void TCPClientSocketWin::Core::WriteDelegate::OnObjectSignaled(
 //-----------------------------------------------------------------------------
 
 TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
-                                       net::NetLog* net_log)
+                                       net::NetLog* net_log,
+                                       const net::NetLog::Source& source)
     : socket_(INVALID_SOCKET),
       addresses_(addresses),
       current_ai_(NULL),
@@ -282,7 +283,11 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+
+  scoped_refptr<NetLog::EventParameters> params;
+  if (source.is_valid())
+    params = new NetLogSourceParameter("source_dependency", source);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
   EnsureWinsockInit();
 }
 

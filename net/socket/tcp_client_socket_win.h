@@ -24,7 +24,9 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a
   // connection.
-  TCPClientSocketWin(const AddressList& addresses, net::NetLog* net_log);
+  TCPClientSocketWin(const AddressList& addresses,
+                     net::NetLog* net_log,
+                     const net::NetLog::Source& source);
 
   ~TCPClientSocketWin();
 

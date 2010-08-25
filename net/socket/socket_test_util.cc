@@ -903,7 +903,9 @@ MockSSLClientSocket* MockClientSocketFactory::GetMockSSLClientSocket(
 }
 
 ClientSocket* MockClientSocketFactory::CreateTCPClientSocket(
-    const AddressList& addresses, net::NetLog* net_log) {
+    const AddressList& addresses,
+    net::NetLog* net_log,
+    const NetLog::Source& source) {
   SocketDataProvider* data_provider = mock_data_.GetNext();
   MockTCPClientSocket* socket =
       new MockTCPClientSocket(addresses, net_log, data_provider);
@@ -945,7 +947,9 @@ MockSSLClientSocket* DeterministicMockClientSocketFactory::
 }
 
 ClientSocket* DeterministicMockClientSocketFactory::CreateTCPClientSocket(
-    const AddressList& addresses, net::NetLog* net_log) {
+    const AddressList& addresses,
+    net::NetLog* net_log,
+    const net::NetLog::Source& source) {
   DeterministicSocketData* data_provider = mock_data().GetNext();
   DeterministicMockTCPClientSocket* socket =
       new DeterministicMockTCPClientSocket(net_log, data_provider);
@@ -1100,7 +1104,7 @@ int MockTCPClientSocketPool::RequestSocket(const std::string& group_name,
                                            CompletionCallback* callback,
                                            const BoundNetLog& net_log) {
   ClientSocket* socket = client_socket_factory_->CreateTCPClientSocket(
-      AddressList(), net_log.net_log());
+      AddressList(), net_log.net_log(), net::NetLog::Source());
   MockConnectJob* job = new MockConnectJob(socket, handle, callback);
   job_list_.push_back(job);
   handle->set_pool_id(1);

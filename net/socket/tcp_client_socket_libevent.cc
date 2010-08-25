@@ -99,8 +99,10 @@ int MapConnectError(int os_error) {
 
 //-----------------------------------------------------------------------------
 
-TCPClientSocketLibevent::TCPClientSocketLibevent(const AddressList& addresses,
-                                                 net::NetLog* net_log)
+TCPClientSocketLibevent::TCPClientSocketLibevent(
+    const AddressList& addresses,
+    net::NetLog* net_log,
+    const net::NetLog::Source& source)
     : socket_(kInvalidSocket),
       addresses_(addresses),
       current_ai_(NULL),
@@ -111,7 +113,10 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(const AddressList& addresses,
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  scoped_refptr<NetLog::EventParameters> params;
+  if (source.is_valid())
+    params = new NetLogSourceParameter("source_dependency", source);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
 }
 
 TCPClientSocketLibevent::~TCPClientSocketLibevent() {
