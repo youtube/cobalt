@@ -48,7 +48,8 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -91,7 +92,8 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -134,7 +136,8 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -180,7 +183,8 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthCertRequested) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -227,7 +231,8 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
 
   TestCompletionCallback callback;
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, &log, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -279,7 +284,8 @@ TEST_F(SSLClientSocketTest, Read) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   TestCompletionCallback callback;
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, NULL, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -337,7 +343,8 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
   TestCompletionCallback callback;  // Used for everything except Write.
   TestCompletionCallback callback2;  // Used for Write only.
 
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, NULL, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -394,7 +401,8 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   TestCompletionCallback callback;
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, NULL, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
@@ -446,7 +454,8 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   TestCompletionCallback callback;
-  net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, NULL, net::NetLog::Source());
   int rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
