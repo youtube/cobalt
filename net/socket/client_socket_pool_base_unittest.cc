@@ -89,8 +89,10 @@ class MockClientSocketFactory : public ClientSocketFactory {
  public:
   MockClientSocketFactory() : allocation_count_(0) {}
 
-  virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses,
-                                              NetLog* /* net_log */) {
+  virtual ClientSocket* CreateTCPClientSocket(
+      const AddressList& addresses,
+      NetLog* /* net_log */,
+      const NetLog::Source& /*source*/) {
     allocation_count_++;
     return NULL;
   }
@@ -168,7 +170,8 @@ class TestConnectJob : public ConnectJob {
 
   virtual int ConnectInternal() {
     AddressList ignored;
-    client_socket_factory_->CreateTCPClientSocket(ignored, NULL);
+    client_socket_factory_->CreateTCPClientSocket(
+        ignored, NULL, net::NetLog::Source());
     set_socket(new MockClientSocket());
     switch (job_type_) {
       case kMockJob:

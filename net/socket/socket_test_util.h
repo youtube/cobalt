@@ -481,8 +481,10 @@ class MockClientSocketFactory : public ClientSocketFactory {
   MockSSLClientSocket* GetMockSSLClientSocket(size_t index) const;
 
   // ClientSocketFactory
-  virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses,
-                                              NetLog* net_log);
+  virtual ClientSocket* CreateTCPClientSocket(
+      const AddressList& addresses,
+      NetLog* net_log,
+      const NetLog::Source& source);
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
@@ -802,7 +804,8 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
 
   // ClientSocketFactory
   virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses,
-                                              NetLog* net_log);
+                                              NetLog* net_log,
+                                              const NetLog::Source& source);
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const std::string& hostname,

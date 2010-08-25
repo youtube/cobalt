@@ -8,12 +8,13 @@
 
 #include <string>
 
+#include "net/base/net_log.h"
+
 namespace net {
 
 class AddressList;
 class ClientSocket;
 class ClientSocketHandle;
-class NetLog;
 class SSLClientSocket;
 struct SSLConfig;
 
@@ -29,8 +30,12 @@ class ClientSocketFactory {
  public:
   virtual ~ClientSocketFactory() {}
 
+  // |source| is the NetLog::Source for the entity trying to create the socket,
+  // if it has one.
   virtual ClientSocket* CreateTCPClientSocket(
-      const AddressList& addresses, NetLog* net_log) = 0;
+      const AddressList& addresses,
+      NetLog* net_log,
+      const NetLog::Source& source) = 0;
 
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
