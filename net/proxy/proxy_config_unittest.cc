@@ -104,7 +104,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     const char* proxy_for_http;
     const char* proxy_for_https;
     const char* proxy_for_ftp;
-    const char* socks_proxy;
+    const char* fallback_proxy;
   } tests[] = {
     // One HTTP proxy for all schemes.
     {
@@ -246,8 +246,8 @@ TEST(ProxyConfigTest, ParseProxyRules) {
                             config.proxy_rules().proxy_for_https);
     ExpectProxyServerEquals(tests[i].proxy_for_ftp,
                             config.proxy_rules().proxy_for_ftp);
-    ExpectProxyServerEquals(tests[i].socks_proxy,
-                            config.proxy_rules().socks_proxy);
+    ExpectProxyServerEquals(tests[i].fallback_proxy,
+                            config.proxy_rules().fallback_proxy);
   }
 }
 
@@ -335,7 +335,7 @@ TEST(ProxyConfigTest, ToString) {
               "Manual settings:\n"
               "  Proxy server: \n"
               "    HTTP: proxy-for-http:1801\n"
-              "    SOCKS: socks4://socks-server:6083\n"
+              "    (fallback): socks4://socks-server:6083\n"
               "  Bypass list: [None]",
               config.ToString());
   }

@@ -122,7 +122,7 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
     if (proxy_server.is_valid()) {
       config->proxy_rules().type =
           ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules().socks_proxy = proxy_server;
+      config->proxy_rules().fallback_proxy = proxy_server;
     }
   }
 
