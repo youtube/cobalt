@@ -24,6 +24,7 @@ class HttpAuthController;
 class HttpNetworkSession;
 class HttpStreamFactory;
 class StreamRequestDelegate;
+struct HttpRequestInfo;
 
 // An HttpStreamRequest exists for each stream which is in progress of being
 // created for the StreamFactory.
@@ -67,8 +68,8 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
     STATE_WAITING_USER_ACTION,
     STATE_RESTART_TUNNEL_AUTH,
     STATE_RESTART_TUNNEL_AUTH_COMPLETE,
-    STATE_INIT_STREAM,
-    STATE_INIT_STREAM_COMPLETE,
+    STATE_CREATE_STREAM,
+    STATE_CREATE_STREAM_COMPLETE,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE,
     STATE_NONE
@@ -101,8 +102,8 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
   int DoWaitingUserAction(int result);
-  int DoInitStream();
-  int DoInitStreamComplete(int result);
+  int DoCreateStream();
+  int DoCreateStreamComplete(int result);
   int DoRestartTunnelAuth();
   int DoRestartTunnelAuthComplete(int result);
 
