@@ -132,6 +132,13 @@ class ProxyServer {
            host_port_pair_.Equals(other.host_port_pair_);
   }
 
+  // Comparator function so this can be placed in a std::map.
+  bool operator<(const ProxyServer& other) const {
+    if (scheme_ != other.scheme_)
+      return scheme_ < other.scheme_;
+    return host_port_pair_ < other.host_port_pair_;
+  }
+
  private:
   // Creates a ProxyServer given a scheme, and host/port string. If parsing the
   // host/port string fails, the returned instance will be invalid.
