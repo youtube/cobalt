@@ -327,6 +327,12 @@ CaptureGroupNameSocketPool<ParentPool>::CaptureGroupNameSocketPool(
     : ParentPool(0, 0, NULL, session->host_resolver(), NULL, NULL) {}
 
 template<>
+CaptureGroupNameHttpProxySocketPool::CaptureGroupNameSocketPool(
+    HttpNetworkSession* session)
+    : HttpProxyClientSocketPool(0, 0, NULL, session->host_resolver(), NULL,
+                                NULL, NULL) {}
+
+template<>
 CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
     HttpNetworkSession* session)
     : SSLClientSocketPool(0, 0, NULL, session->host_resolver(), NULL, NULL,
@@ -1659,6 +1665,153 @@ TEST_F(HttpNetworkTransactionTest, UnexpectedProxyAuth) {
 
   rv = callback.WaitForResult();
   EXPECT_EQ(ERR_UNEXPECTED_PROXY_AUTH, rv);
+}
+
+
+// Test a simple get through an HTTPS Proxy.
+TEST_F(HttpNetworkTransactionTest, HttpsProxyGet) {
+  // Configure against https proxy server "proxy:70".
+  SessionDependencies session_deps(CreateFixedProxyService("https://proxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+
+  // Since we have proxy, should use full url
+  MockWrite data_writes1[] = {
+    MockWrite("GET http://www.google.com/ HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead data_reads1[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
+    MockRead("Content-Length: 100\r\n\r\n"),
+    MockRead(false, OK),
+  };
+
+  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                 data_writes1, arraysize(data_writes1));
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  SSLSocketDataProvider ssl(true, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  TestCompletionCallback callback1;
+
+  int rv = trans->Start(&request, &callback1, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+
+  EXPECT_TRUE(response->headers->IsKeepAlive());
+  EXPECT_EQ(200, response->headers->response_code());
+  EXPECT_EQ(100, response->headers->GetContentLength());
+  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
+
+  // The password prompt info should not be set.
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+}
+
+// Test the challenge-response-retry sequence through an HTTPS Proxy
+TEST_F(HttpNetworkTransactionTest, HttpsProxyAuthRetry) {
+  // Configure against https proxy server "proxy:70".
+  SessionDependencies session_deps(CreateFixedProxyService("https://proxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  // when the no authentication data flag is set.
+  request.load_flags = net::LOAD_DO_NOT_SEND_AUTH_DATA;
+
+  // Since we have proxy, should use full url
+  MockWrite data_writes1[] = {
+    MockWrite("GET http://www.google.com/ HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n\r\n"),
+
+    // After calling trans->RestartWithAuth(), this is the request we should
+    // be issuing -- the final header line contains the credentials.
+    MockWrite("GET http://www.google.com/ HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+  };
+
+  // The proxy responds to the GET with a 407, using a persistent
+  // connection.
+  MockRead data_reads1[] = {
+    // No credentials.
+    MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"),
+    MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
+    MockRead("Proxy-Connection: keep-alive\r\n"),
+    MockRead("Content-Length: 0\r\n\r\n"),
+
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
+    MockRead("Content-Length: 100\r\n\r\n"),
+    MockRead(false, OK),
+  };
+
+  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                 data_writes1, arraysize(data_writes1));
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  SSLSocketDataProvider ssl(true, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  TestCompletionCallback callback1;
+
+  int rv = trans->Start(&request, &callback1, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+
+  EXPECT_EQ(407, response->headers->response_code());
+  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
+
+  // The password prompt info should have been set in response->auth_challenge.
+  ASSERT_FALSE(response->auth_challenge.get() == NULL);
+
+  EXPECT_EQ(L"proxy:70", response->auth_challenge->host_and_port);
+  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
+  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+
+  TestCompletionCallback callback2;
+
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback2.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+
+  EXPECT_TRUE(response->headers->IsKeepAlive());
+  EXPECT_EQ(200, response->headers->response_code());
+  EXPECT_EQ(100, response->headers->GetContentLength());
+  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
+
+  // The password prompt info should not be set.
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
 }
 
 void HttpNetworkTransactionTest::ConnectStatusHelperWithExpectedStatus(
@@ -3689,6 +3842,143 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaProxy) {
     EXPECT_FALSE(response == NULL);
     EXPECT_EQ(100, response->headers->GetContentLength());
   }
+}
+
+
+// Test HTTPS connections to a site, going through an HTTPS proxy
+TEST_F(HttpNetworkTransactionTest, HTTPSViaHttpsProxy) {
+  SessionDependencies session_deps(CreateFixedProxyService("https://proxy:70"));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.load_flags = 0;
+
+  MockWrite data_writes[] = {
+    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n\r\n"),
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.0 200 Connected\r\n\r\n"),
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
+    MockRead("Content-Length: 100\r\n\r\n"),
+    MockRead(false, OK),
+  };
+
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads),
+                                data_writes, arraysize(data_writes));
+  SSLSocketDataProvider proxy_ssl(true, OK);  // SSL to the proxy
+  SSLSocketDataProvider tunnel_ssl(true, OK);  // SSL through the tunnel
+
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&proxy_ssl);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&tunnel_ssl);
+
+  TestCompletionCallback callback;
+
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+
+  ASSERT_FALSE(response == NULL);
+
+  EXPECT_TRUE(response->headers->IsKeepAlive());
+  EXPECT_EQ(200, response->headers->response_code());
+  EXPECT_EQ(100, response->headers->GetContentLength());
+  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
+}
+
+// Test HTTPS connections to a site with a bad certificate, going through an
+// HTTPS proxy
+TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaHttpsProxy) {
+  SessionDependencies session_deps(CreateFixedProxyService("https://proxy:70"));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.load_flags = 0;
+
+  // Attempt to fetch the URL from a server with a bad cert
+  MockWrite bad_cert_writes[] = {
+    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead bad_cert_reads[] = {
+    MockRead("HTTP/1.0 200 Connected\r\n\r\n"),
+    MockRead(false, OK)
+  };
+
+  // Attempt to fetch the URL with a good cert
+  MockWrite good_data_writes[] = {
+    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n\r\n"),
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead good_cert_reads[] = {
+    MockRead("HTTP/1.0 200 Connected\r\n\r\n"),
+    MockRead("HTTP/1.0 200 OK\r\n"),
+    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
+    MockRead("Content-Length: 100\r\n\r\n"),
+    MockRead(false, OK),
+  };
+
+  StaticSocketDataProvider ssl_bad_certificate(
+      bad_cert_reads, arraysize(bad_cert_reads),
+      bad_cert_writes, arraysize(bad_cert_writes));
+  StaticSocketDataProvider data(good_cert_reads, arraysize(good_cert_reads),
+                                good_data_writes, arraysize(good_data_writes));
+  SSLSocketDataProvider ssl_bad(true, ERR_CERT_AUTHORITY_INVALID);
+  SSLSocketDataProvider ssl(true, OK);
+
+  // SSL to the proxy, then CONNECT request, then SSL with bad certificate
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  session_deps.socket_factory.AddSocketDataProvider(&ssl_bad_certificate);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_bad);
+
+  // SSL to the proxy, then CONNECT request, then valid SSL certificate
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  TestCompletionCallback callback;
+
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(ERR_CERT_AUTHORITY_INVALID, rv);
+
+  rv = trans->RestartIgnoringLastError(&callback);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+
+  EXPECT_FALSE(response == NULL);
+  EXPECT_EQ(100, response->headers->GetContentLength());
 }
 
 TEST_F(HttpNetworkTransactionTest, BuildRequest_UserAgent) {
