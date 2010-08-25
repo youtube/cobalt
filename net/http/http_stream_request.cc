@@ -393,7 +393,8 @@ int HttpStreamRequest::DoResolveProxyComplete(int result) {
 
   // Remove unsupported proxies from the list.
   proxy_info()->RemoveProxiesWithoutScheme(
-      ProxyServer::SCHEME_DIRECT | ProxyServer::SCHEME_HTTP |
+      ProxyServer::SCHEME_DIRECT |
+      ProxyServer::SCHEME_HTTP | ProxyServer::SCHEME_HTTPS |
       ProxyServer::SCHEME_SOCKS4 | ProxyServer::SCHEME_SOCKS5);
 
   if (proxy_info()->is_empty()) {
@@ -459,7 +460,7 @@ int HttpStreamRequest::DoInitConnection() {
         new TCPSocketParams(*proxy_host_port, request_info().priority,
                             request_info().referrer, disable_resolver_cache);
 
-    if (proxy_info()->is_http()) {
+    if (proxy_info()->is_http() || proxy_info()->is_https()) {
       GURL authentication_url = request_info().url;
       if (using_ssl_ && !authentication_url.SchemeIs("https")) {
         // If a proxy tunnel connection needs to be established due to
@@ -477,7 +478,17 @@ int HttpStreamRequest::DoInitConnection() {
       std::string user_agent;
       request_info().extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
                                              &user_agent);
+      scoped_refptr<SSLSocketParams> ssl_params;
+      if (proxy_info()->is_https()) {
+        // Set ssl_params, and unset proxy_tcp_params
+        ssl_params = GenerateSslParams(proxy_tcp_params, NULL, NULL,
+                                       ProxyServer::SCHEME_DIRECT,
+                                       want_spdy_over_npn);
+        proxy_tcp_params = NULL;
+      }
+
       http_proxy_params = new HttpProxySocketParams(proxy_tcp_params,
+                                                    ssl_params,
                                                     authentication_url,
                                                     user_agent,
                                                     endpoint_,
@@ -502,35 +513,10 @@ int HttpStreamRequest::DoInitConnection() {
 
   // Deal with SSL - which layers on top of any given proxy.
   if (using_ssl_) {
-    if (factory_->IsTLSIntolerantServer(request_info().url)) {
-      LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
-                   << GetHostAndPort(request_info().url);
-      ssl_config()->ssl3_fallback = true;
-      ssl_config()->tls1_enabled = false;
-    }
-
-    UMA_HISTOGRAM_ENUMERATION("Net.ConnectionUsedSSLv3Fallback",
-                              static_cast<int>(ssl_config()->ssl3_fallback), 2);
-
-    int load_flags = request_info().load_flags;
-    if (factory_->ignore_certificate_errors())
-      load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
-    if (request_info().load_flags & LOAD_VERIFY_EV_CERT)
-      ssl_config()->verify_ev_cert = true;
-
-    if (proxy_info()->proxy_server().scheme() == ProxyServer::SCHEME_HTTP ||
-        proxy_info()->proxy_server().scheme() == ProxyServer::SCHEME_HTTPS) {
-      ssl_config()->mitm_proxies_allowed = true;
-    }
-
     scoped_refptr<SSLSocketParams> ssl_params =
-        new SSLSocketParams(tcp_params, http_proxy_params, socks_params,
-                            proxy_info()->proxy_server().scheme(),
-                            request_info().url.HostNoBrackets(), *ssl_config(),
-                            load_flags,
-                            force_spdy_always_ && force_spdy_over_ssl_,
-                            want_spdy_over_npn);
-
+        GenerateSslParams(tcp_params, http_proxy_params, socks_params,
+                          proxy_info()->proxy_server().scheme(),
+                          want_spdy_over_npn);
     scoped_refptr<SSLClientSocketPool> ssl_pool;
     if (proxy_info()->is_direct())
       ssl_pool = session_->ssl_socket_pool();
@@ -543,7 +529,7 @@ int HttpStreamRequest::DoInitConnection() {
   }
 
   // Finally, get the connection started.
-  if (proxy_info()->is_http()) {
+  if (proxy_info()->is_http() || proxy_info()->is_https()) {
     return connection_->Init(
         connection_group, http_proxy_params, request_info().priority,
         &io_callback_, session_->GetSocketPoolForHTTPProxy(*proxy_host_port),
@@ -741,6 +727,47 @@ int HttpStreamRequest::DoRestartTunnelAuthComplete(int result) {
   return ReconsiderProxyAfterError(result);
 }
 
+// Returns a newly create SSLSocketParams, and sets several
+// fields of ssl_config_.
+scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSslParams(
+    scoped_refptr<TCPSocketParams> tcp_params,
+    scoped_refptr<HttpProxySocketParams> http_proxy_params,
+    scoped_refptr<SOCKSSocketParams> socks_params,
+    ProxyServer::Scheme proxy_scheme,
+    bool want_spdy_over_npn) {
+
+  if (factory_->IsTLSIntolerantServer(request_info().url)) {
+    LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
+        << GetHostAndPort(request_info().url);
+    ssl_config()->ssl3_fallback = true;
+    ssl_config()->tls1_enabled = false;
+  }
+
+  UMA_HISTOGRAM_ENUMERATION("Net.ConnectionUsedSSLv3Fallback",
+                            static_cast<int>(ssl_config()->ssl3_fallback), 2);
+
+  int load_flags = request_info().load_flags;
+  if (factory_->ignore_certificate_errors())
+    load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
+  if (request_info().load_flags & LOAD_VERIFY_EV_CERT)
+    ssl_config()->verify_ev_cert = true;
+
+    if (proxy_info()->proxy_server().scheme() == ProxyServer::SCHEME_HTTP ||
+        proxy_info()->proxy_server().scheme() == ProxyServer::SCHEME_HTTPS) {
+      ssl_config()->mitm_proxies_allowed = true;
+    }
+
+  scoped_refptr<SSLSocketParams> ssl_params =
+      new SSLSocketParams(tcp_params, http_proxy_params, socks_params,
+                          proxy_scheme, request_info().url.HostNoBrackets(),
+                          *ssl_config(), load_flags,
+                          force_spdy_always_ && force_spdy_over_ssl_,
+                          want_spdy_over_npn);
+
+  return ssl_params;
+}
+
+
 void HttpStreamRequest::MarkBrokenAlternateProtocolAndFallback() {
   // We have to:
   // * Reset the endpoint to be the unmodified URL specified destination.
@@ -913,4 +940,3 @@ void HttpStreamRequest::LogHttpConnectedMetrics(
 }
 
 }  // namespace net
-
