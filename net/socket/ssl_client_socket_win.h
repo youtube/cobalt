@@ -51,6 +51,8 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual bool IsConnectedAndIdle() const;
   virtual int GetPeerAddress(AddressList* address) const;
   virtual const BoundNetLog& NetLog() const { return net_log_; }
+  virtual void SetSubresourceSpeculation();
+  virtual void SetOmniboxSpeculation();
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);

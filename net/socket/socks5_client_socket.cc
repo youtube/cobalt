@@ -106,6 +106,22 @@ bool SOCKS5ClientSocket::IsConnectedAndIdle() const {
   return completed_handshake_ && transport_->socket()->IsConnectedAndIdle();
 }
 
+void SOCKS5ClientSocket::SetSubresourceSpeculation() {
+  if (transport_.get() && transport_->socket()) {
+    transport_->socket()->SetSubresourceSpeculation();
+  } else {
+    NOTREACHED();
+  }
+}
+
+void SOCKS5ClientSocket::SetOmniboxSpeculation() {
+  if (transport_.get() && transport_->socket()) {
+    transport_->socket()->SetOmniboxSpeculation();
+  } else {
+    NOTREACHED();
+  }
+}
+
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.
 int SOCKS5ClientSocket::Read(IOBuffer* buf, int buf_len,
