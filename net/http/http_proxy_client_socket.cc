@@ -81,7 +81,6 @@ HttpProxyClientSocket::~HttpProxyClientSocket() {
 int HttpProxyClientSocket::Connect(CompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
-  DCHECK(transport_->socket()->IsConnected());
   DCHECK(!user_callback_);
 
   if (!tunnel_)
