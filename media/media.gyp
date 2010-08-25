@@ -466,10 +466,6 @@
             '..',
           ],
           'sources': [
-            'mf/basic_renderer.cc',
-            'mf/basic_renderer.h',
-            'mf/d3d_util.cc',
-            'mf/d3d_util.h',
             'mf/file_reader_util.cc',
             'mf/file_reader_util.h',
             'mf/mft_h264_decoder_example.cc',
@@ -495,8 +491,6 @@
             '..',
           ],
           'sources': [
-            'mf/d3d_util.cc',
-            'mf/d3d_util.h',
             'mf/file_reader_util.cc',
             'mf/file_reader_util.h',
             'mf/test/mft_h264_decoder_unittest.cc',
