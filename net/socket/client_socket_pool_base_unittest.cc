@@ -420,6 +420,10 @@ class TestClientSocketPool : public ClientSocketPool {
     return base_.NumConnectJobsInGroup(group_name);
   }
 
+  bool HasGroup(const std::string& group_name) const {
+    return base_.HasGroup(group_name);
+  }
+
   void CleanupTimedOutIdleSockets() { base_.CleanupIdleSockets(false); }
 
   void EnableConnectBackupJobs() { base_.EnableConnectBackupJobs(); }
@@ -2057,7 +2061,7 @@ TEST_F(ClientSocketPoolBaseTest, DelayedSocketBindingAtGroupCapacity) {
 
 // Test out the case where we have one socket connected, one
 // connecting, when the first socket finishes and goes idle.
-// Although the second connection is pending, th second request
+// Although the second connection is pending, the second request
 // should complete, by taking the first socket's idle socket.
 TEST_F(ClientSocketPoolBaseTest, DelayedSocketBindingAtStall) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
@@ -2103,6 +2107,40 @@ TEST_F(ClientSocketPoolBaseTest, DelayedSocketBindingAtStall) {
   EXPECT_EQ(0, pool_->NumConnectJobsInGroup("a"));
 
   MessageLoop::current()->RunAllPending();
+}
+
+// Cover the case where on an available socket slot, we have one pending
+// request that completes synchronously, thereby making the Group empty.
+TEST_F(ClientSocketPoolBaseTest, SynchronouslyProcessOnePendingRequest) {
+  const int kUnlimitedSockets = 100;
+  const int kOneSocketPerGroup = 1;
+  CreatePool(kUnlimitedSockets, kOneSocketPerGroup);
+
+  // Make the first request asynchronous fail.
+  // This will free up a socket slot later.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
+
+  ClientSocketHandle handle1;
+  TestCompletionCallback callback1;
+  EXPECT_EQ(ERR_IO_PENDING, handle1.Init("a", params_, kDefaultPriority,
+                                         &callback1, pool_, BoundNetLog()));
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // Make the second request synchronously fail.  This should make the Group
+  // empty.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockFailingJob);
+  ClientSocketHandle handle2;
+  TestCompletionCallback callback2;
+  // It'll be ERR_IO_PENDING now, but the TestConnectJob will synchronously fail
+  // when created.
+  EXPECT_EQ(ERR_IO_PENDING, handle2.Init("a", params_, kDefaultPriority,
+                                         &callback2, pool_, BoundNetLog()));
+
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  EXPECT_EQ(ERR_CONNECTION_FAILED, callback1.WaitForResult());
+  EXPECT_EQ(ERR_CONNECTION_FAILED, callback2.WaitForResult());
+  EXPECT_FALSE(pool_->HasGroup("a"));
 }
 
 }  // namespace
