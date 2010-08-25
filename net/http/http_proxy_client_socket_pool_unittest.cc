@@ -29,26 +29,13 @@ namespace {
 const int kMaxSockets = 32;
 const int kMaxSocketsPerGroup = 6;
 
-enum HttpProxyType {
-  HTTP,
-  HTTPS
-};
-
-typedef ::testing::TestWithParam<HttpProxyType> TestWithHttpParam;
-
-class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
+class HttpProxyClientSocketPoolTest : public ClientSocketPoolTest {
  protected:
   HttpProxyClientSocketPoolTest()
-      : ssl_config_(),
-        ignored_tcp_socket_params_(new TCPSocketParams(
+      : ignored_tcp_socket_params_(new TCPSocketParams(
             HostPortPair("proxy", 80), MEDIUM, GURL(), false)),
-        ignored_ssl_socket_params_(new SSLSocketParams(
-            ignored_tcp_socket_params_, NULL, NULL, ProxyServer::SCHEME_DIRECT,
-            "host", ssl_config_, 0, false, false)),
         tcp_histograms_(new ClientSocketPoolHistograms("MockTCP")),
         tcp_socket_pool_(new MockTCPClientSocketPool(kMaxSockets,
-            kMaxSocketsPerGroup, tcp_histograms_, &tcp_client_socket_factory_)),
-        ssl_socket_pool_(new MockSSLClientSocketPool(kMaxSockets,
             kMaxSocketsPerGroup, tcp_histograms_, &tcp_client_socket_factory_)),
         http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault()),
         session_(new HttpNetworkSession(new MockHostResolver,
@@ -59,11 +46,16 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                                         http_auth_handler_factory_.get(),
                                         NULL,
                                         NULL)),
+        notunnel_socket_params_(new HttpProxySocketParams(
+              ignored_tcp_socket_params_, GURL("http://host"), "",
+              HostPortPair("host", 80), NULL, false)),
+        tunnel_socket_params_(new HttpProxySocketParams(
+              ignored_tcp_socket_params_, GURL("http://host"), "",
+              HostPortPair("host", 80), session_, true)),
         http_proxy_histograms_(
             new ClientSocketPoolHistograms("HttpProxyUnitTest")),
         pool_(new HttpProxyClientSocketPool(kMaxSockets, kMaxSocketsPerGroup,
-            http_proxy_histograms_, NULL, tcp_socket_pool_, ssl_socket_pool_,
-            NULL)) {
+            http_proxy_histograms_, NULL, tcp_socket_pool_, NULL)) {
   }
 
   void AddAuthToCache() {
@@ -73,64 +65,32 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                                 "Basic realm=MyRealm1", kFoo, kBar, "/");
   }
 
-  scoped_refptr<TCPSocketParams> GetTcpParams() {
-    if (GetParam() == HTTPS)
-      return scoped_refptr<TCPSocketParams>();
-    return ignored_tcp_socket_params_;
+  int StartRequest(const std::string& group_name, RequestPriority priority) {
+    return StartRequestUsingPool(
+        pool_, group_name, priority, tunnel_socket_params_);
   }
-
-  scoped_refptr<SSLSocketParams> GetSslParams() {
-    if (GetParam() == HTTP)
-      return scoped_refptr<SSLSocketParams>();
-    return ignored_ssl_socket_params_;
-  }
-
-  // Returns the a correctly constructed HttpProxyParms
-  // for the HTTP or HTTPS proxy.
-  scoped_refptr<HttpProxySocketParams> GetParams(bool tunnel) {
-    return scoped_refptr<HttpProxySocketParams>(new HttpProxySocketParams(
-        GetTcpParams(), GetSslParams(), GURL("http://host/"), "",
-        HostPortPair("host", 80), session_, tunnel));
-  }
-
-  scoped_refptr<HttpProxySocketParams> GetTunnelParams() {
-    return GetParams(true);
-  }
-
-  scoped_refptr<HttpProxySocketParams> GetNoTunnelParams() {
-    return GetParams(false);
-  }
-
-  SSLConfig ssl_config_;
 
   scoped_refptr<TCPSocketParams> ignored_tcp_socket_params_;
-  scoped_refptr<SSLSocketParams> ignored_ssl_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_histograms_;
   MockClientSocketFactory tcp_client_socket_factory_;
   scoped_refptr<MockTCPClientSocketPool> tcp_socket_pool_;
-  scoped_refptr<MockSSLClientSocketPool> ssl_socket_pool_;
 
   MockClientSocketFactory socket_factory_;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
   scoped_refptr<HttpNetworkSession> session_;
+  scoped_refptr<HttpProxySocketParams> notunnel_socket_params_;
+  scoped_refptr<HttpProxySocketParams> tunnel_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> http_proxy_histograms_;
   scoped_refptr<HttpProxyClientSocketPool> pool_;
 };
 
-//-----------------------------------------------------------------------------
-// All tests are run with three different connection types: SPDY after NPN
-// negotiation, SPDY without SSL, and SPDY with SSL.
-INSTANTIATE_TEST_CASE_P(HttpProxyClientSocketPoolTests,
-                        HttpProxyClientSocketPoolTest,
-                        ::testing::Values(HTTP, HTTPS));
-
-TEST_P(HttpProxyClientSocketPoolTest, NoTunnel) {
+TEST_F(HttpProxyClientSocketPoolTest, NoTunnel) {
   StaticSocketDataProvider data;
   data.set_connect_data(MockConnect(false, 0));
   tcp_client_socket_factory_.AddSocketDataProvider(&data);
 
   ClientSocketHandle handle;
-  int rv = handle.Init("a", GetNoTunnelParams(), LOW, NULL, pool_,
+  int rv = handle.Init("a", notunnel_socket_params_, LOW, NULL, pool_,
                        BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(handle.is_initialized());
@@ -140,7 +100,7 @@ TEST_P(HttpProxyClientSocketPoolTest, NoTunnel) {
   EXPECT_TRUE(tunnel_socket->IsConnected());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
+TEST_F(HttpProxyClientSocketPoolTest, NeedAuth) {
   MockWrite writes[] = {
       MockWrite("CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
@@ -160,7 +120,7 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
-  int rv = handle.Init("a", GetTunnelParams(), LOW, &callback, pool_,
+  int rv = handle.Init("a", tunnel_socket_params_, LOW, &callback, pool_,
                        BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
@@ -174,7 +134,7 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
   EXPECT_FALSE(tunnel_socket->IsConnected());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
+TEST_F(HttpProxyClientSocketPoolTest, HaveAuth) {
   MockWrite writes[] = {
       MockWrite(false,
                 "CONNECT host:80 HTTP/1.1\r\n"
@@ -194,7 +154,7 @@ TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
-  int rv = handle.Init("a", GetTunnelParams(), LOW, &callback, pool_,
+  int rv = handle.Init("a", tunnel_socket_params_, LOW, &callback, pool_,
                        BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(handle.is_initialized());
@@ -204,7 +164,7 @@ TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
   EXPECT_TRUE(tunnel_socket->IsConnected());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
+TEST_F(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
   MockWrite writes[] = {
       MockWrite("CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
@@ -222,7 +182,7 @@ TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
-  int rv = handle.Init("a", GetTunnelParams(), LOW, &callback, pool_,
+  int rv = handle.Init("a", tunnel_socket_params_, LOW, &callback, pool_,
                        BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
@@ -236,7 +196,7 @@ TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
   EXPECT_TRUE(tunnel_socket->IsConnected());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
+TEST_F(HttpProxyClientSocketPoolTest, TCPError) {
   StaticSocketDataProvider data;
   data.set_connect_data(MockConnect(true, ERR_CONNECTION_CLOSED));
 
@@ -244,7 +204,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
-  int rv = handle.Init("a", GetTunnelParams(), LOW, &callback, pool_,
+  int rv = handle.Init("a", tunnel_socket_params_, LOW, &callback, pool_,
                        BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
@@ -255,7 +215,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
   EXPECT_FALSE(handle.socket());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
+TEST_F(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
   MockWrite writes[] = {
       MockWrite("CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
@@ -274,7 +234,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
-  int rv = handle.Init("a", GetTunnelParams(), LOW, &callback, pool_,
+  int rv = handle.Init("a", tunnel_socket_params_, LOW, &callback, pool_,
                        BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
@@ -285,7 +245,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
   EXPECT_FALSE(handle.socket());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, TunnelSetupError) {
+TEST_F(HttpProxyClientSocketPoolTest, TunnelSetupError) {
   MockWrite writes[] = {
       MockWrite("CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
@@ -303,7 +263,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelSetupError) {
 
   ClientSocketHandle handle;
   TestCompletionCallback callback;
-  int rv = handle.Init("a", GetTunnelParams(), LOW, &callback, pool_,
+  int rv = handle.Init("a", tunnel_socket_params_, LOW, &callback, pool_,
                        BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
