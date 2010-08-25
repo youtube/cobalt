@@ -25,7 +25,7 @@ class SpdyHttpStreamTest : public testing::Test {
   int InitSession(MockRead* reads, size_t reads_count,
                   MockWrite* writes, size_t writes_count,
                   HostPortPair& host_port_pair) {
-    HostPortProxyPair pair(host_port_pair, "");
+    HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
     data_ = new OrderedSocketData(reads, reads_count, writes, writes_count);
     session_deps_.socket_factory->AddSocketDataProvider(data_.get());
     http_session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps_);
@@ -58,7 +58,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
-  HostPortProxyPair pair(host_port_pair, "");
+  HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
   EXPECT_EQ(OK, InitSession(reads, arraysize(reads), writes, arraysize(writes),
       host_port_pair));
 
@@ -108,7 +108,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
-  HostPortProxyPair pair(host_port_pair, "");
+  HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
   EXPECT_EQ(OK, InitSession(reads, arraysize(reads), writes, arraysize(writes),
       host_port_pair));
 

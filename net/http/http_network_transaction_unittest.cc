@@ -5801,7 +5801,8 @@ TEST_F(HttpNetworkTransactionTest,
   EXPECT_EQ("hello world", response_data);
 
   // Set up an initial SpdySession in the pool to reuse.
-  HostPortProxyPair pair(HostPortPair("www.google.com", 443), "DIRECT");
+  HostPortProxyPair pair(HostPortPair("www.google.com", 443),
+                         ProxyServer::Direct());
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, session, BoundNetLog());
   scoped_refptr<TCPSocketParams> tcp_params =

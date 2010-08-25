@@ -300,3 +300,69 @@ TEST(ProxyServerTest, FromPACStringInvalid) {
     EXPECT_FALSE(uri.is_valid());
   }
 }
+
+TEST(ProxyServerTest, ComparatorAndEquality) {
+  struct {
+    // Inputs.
+    const char* server1;
+    const char* server2;
+
+    // Expectation.
+    //   -1 means server1 is less than server2
+    //    0 means server1 equals server2
+    //    1 means server1 is greater than server2
+    int expected_comparison;
+  } tests[] = {
+    { // Equal.
+      "foo:11",
+      "http://foo:11",
+      0
+    },
+    { // Port is different.
+      "foo:333",
+      "foo:444",
+      -1
+    },
+    { // Host is different.
+      "foo:33",
+      "bar:33",
+      1
+    },
+    { // Scheme is different.
+      "socks4://foo:33",
+      "http://foo:33",
+      1
+    },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    // Parse the expected inputs to ProxyServer instances.
+    const net::ProxyServer server1 =
+        net::ProxyServer::FromURI(
+            tests[i].server1, net::ProxyServer::SCHEME_HTTP);
+
+    const net::ProxyServer server2 =
+        net::ProxyServer::FromURI(
+            tests[i].server2, net::ProxyServer::SCHEME_HTTP);
+
+    switch (tests[i].expected_comparison) {
+      case -1:
+        EXPECT_TRUE(server1 < server2);
+        EXPECT_FALSE(server2 < server1);
+        EXPECT_FALSE(server2 == server1);
+        break;
+      case 0:
+        EXPECT_FALSE(server1 < server2);
+        EXPECT_FALSE(server2 < server1);
+        EXPECT_TRUE(server2 == server1);
+        break;
+      case 1:
+        EXPECT_FALSE(server1 < server2);
+        EXPECT_TRUE(server2 < server1);
+        EXPECT_FALSE(server2 == server1);
+        break;
+      default:
+        FAIL() << "Invalid expectation. Can be only -1, 0, 1";
+    }
+  }
+}
