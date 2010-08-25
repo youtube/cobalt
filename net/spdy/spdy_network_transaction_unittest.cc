@@ -361,7 +361,7 @@ class SpdyNetworkTransactionTest
     const GURL& url = helper.request().url;
     int port = helper.test_type() == SPDYNPN ? 443 : 80;
     HostPortPair host_port_pair(url.host(), port);
-    HostPortProxyPair pair(host_port_pair, "DIRECT");
+    HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
     BoundNetLog log;
     const scoped_refptr<HttpNetworkSession>& session = helper.session();
     scoped_refptr<SpdySessionPool> pool(session->spdy_session_pool());
@@ -4010,9 +4010,12 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
 
   // Check that the SpdySession is still in the SpdySessionPool.
   HostPortPair host_port_pair("www.google.com", helper.port());
-  HostPortProxyPair session_pool_key_direct(host_port_pair, "DIRECT");
+  HostPortProxyPair session_pool_key_direct(
+      host_port_pair, ProxyServer::Direct());
   EXPECT_TRUE(spdy_session_pool->HasSession(session_pool_key_direct));
-  HostPortProxyPair session_pool_key_proxy(host_port_pair, "PROXY www.foo.com");
+  HostPortProxyPair session_pool_key_proxy(
+      host_port_pair,
+      ProxyServer::FromURI("www.foo.com", ProxyServer::SCHEME_HTTP));
   EXPECT_FALSE(spdy_session_pool->HasSession(session_pool_key_proxy));
 
   // Set up data for the proxy connection.

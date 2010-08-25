@@ -119,7 +119,7 @@ class SpdyStreamTest : public testing::Test {
   scoped_refptr<SpdySession> CreateSpdySession() {
     spdy::SpdyFramer::set_enable_compression_default(false);
     HostPortPair host_port_pair("www.google.com", 80);
-    HostPortProxyPair pair(host_port_pair, "");
+    HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
     scoped_refptr<SpdySession> session(
         session_->spdy_session_pool()->Get(pair, session_, BoundNetLog()));
     return session;
