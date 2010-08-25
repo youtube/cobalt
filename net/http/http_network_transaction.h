@@ -208,9 +208,6 @@ class HttpNetworkTransaction : public HttpTransaction,
   scoped_refptr<StreamFactory::StreamRequestJob> stream_request_;
   scoped_ptr<HttpStreamHandle> stream_;
 
-  // True if this transaction was serviced on a reused socket.
-  bool reused_socket_;
-
   // True if we've validated the headers that the stream parser has returned.
   bool headers_valid_;
 
