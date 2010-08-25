@@ -1621,6 +1621,19 @@ std::wstring FormatUrl(const GURL& url,
   return url_string;
 }
 
+// TODO(viettrungluu): convert the code in wstring version to this form.
+string16 FormatUrl(const GURL& url,
+                   const std::string& languages,
+                   FormatUrlTypes format_types,
+                   UnescapeRule::Type unescape_rules,
+                   url_parse::Parsed* new_parsed,
+                   size_t* prefix_end,
+                   size_t* offset_for_adjustment) {
+  return WideToUTF16Hack(
+      FormatUrl(url, ASCIIToWide(languages), format_types, unescape_rules,
+                new_parsed, prefix_end, offset_for_adjustment));
+}
+
 bool CanStripTrailingSlash(const GURL& url) {
   // Omit the path only for standard, non-file URLs with nothing but "/" after
   // the hostname.
