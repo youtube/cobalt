@@ -80,7 +80,7 @@ TEST_F(SpdySessionTest, GoAway) {
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
-  HostPortProxyPair pair(test_host_port_pair, "");
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
   scoped_refptr<SpdySessionPool> spdy_session_pool(
       http_session->spdy_session_pool());
