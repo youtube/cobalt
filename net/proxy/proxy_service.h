@@ -178,7 +178,15 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
   // Creates a proxy service that always fails to fetch the proxy configuration,
   // so it falls back to direct connect.
+  // TODO(eroman): Rename to CreateDirect().
   static ProxyService* CreateNull();
+
+  // This method is used by tests to create a ProxyService that returns a
+  // hardcoded proxy fallback list (|pac_string|) for every URL.
+  //
+  // |pac_string| is a list of proxy servers, in the format that a PAC script
+  // would return it. For example, "PROXY foobar:99; SOCKS fml:2; DIRECT"
+  static ProxyService* CreateFixedFromPacResult(const std::string& pac_string);
 
   // Creates a config service appropriate for this platform that fetches the
   // system proxy settings.
