@@ -76,6 +76,9 @@ class MockClientSocket : public ClientSocket {
     return net_log_;
   }
 
+  virtual void SetSubresourceSpeculation() {}
+  virtual void SetOmniboxSpeculation() {}
+
  private:
   bool connected_;
   BoundNetLog net_log_;
