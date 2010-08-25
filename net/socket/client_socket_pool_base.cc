@@ -401,6 +401,10 @@ void ClientSocketPoolBaseHelper::CancelRequest(
   }
 }
 
+bool ClientSocketPoolBaseHelper::HasGroup(const std::string& group_name) const {
+  return ContainsKey(group_map_, group_name);
+}
+
 void ClientSocketPoolBaseHelper::CloseIdleSockets() {
   CleanupIdleSockets(true);
 }
@@ -691,11 +695,11 @@ void ClientSocketPoolBaseHelper::RemoveConnectJob(const ConnectJob* job,
 
 void ClientSocketPoolBaseHelper::OnAvailableSocketSlot(
     const std::string& group_name, Group* group) {
-  if (!group->pending_requests.empty())
-    ProcessPendingRequest(group_name, group);
-
+  DCHECK(ContainsKey(group_map_, group_name));
   if (group->IsEmpty())
     group_map_.erase(group_name);
+  else if (!group->pending_requests.empty())
+    ProcessPendingRequest(group_name, group);
 }
 
 void ClientSocketPoolBaseHelper::ProcessPendingRequest(
@@ -705,6 +709,8 @@ void ClientSocketPoolBaseHelper::ProcessPendingRequest(
   if (rv != ERR_IO_PENDING) {
     scoped_ptr<const Request> request(RemoveRequestFromQueue(
           group->pending_requests.begin(), &group->pending_requests));
+    if (group->IsEmpty())
+      group_map_.erase(group_name);
 
     scoped_refptr<NetLog::EventParameters> params;
     if (rv != OK)
