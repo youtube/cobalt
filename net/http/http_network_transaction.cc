@@ -176,7 +176,7 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
   request_ = request_info;
   start_time_ = base::Time::Now();
 
-  next_state_ = STATE_INIT_STREAM;
+  next_state_ = STATE_CREATE_STREAM;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
@@ -189,7 +189,7 @@ int HttpNetworkTransaction::RestartIgnoringLastError(
   DCHECK(!stream_request_.get());
   DCHECK_EQ(STATE_NONE, next_state_);
 
-  next_state_ = STATE_INIT_STREAM;
+  next_state_ = STATE_CREATE_STREAM;
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
@@ -215,7 +215,7 @@ int HttpNetworkTransaction::RestartWithCertificate(
   // Reset the other member variables.
   // Note: this is necessary only with SSL renegotiation.
   ResetStateForRestart();
-  next_state_ = STATE_INIT_STREAM;
+  next_state_ = STATE_CREATE_STREAM;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
@@ -241,7 +241,7 @@ int HttpNetworkTransaction::RestartWithAuth(
   if (target == HttpAuth::AUTH_PROXY && establishing_tunnel_) {
     // In this case, we've gathered credentials for use with proxy
     // authentication of a tunnel.
-    DCHECK_EQ(STATE_INIT_STREAM_COMPLETE, next_state_);
+    DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
     DCHECK(stream_request_ != NULL);
     auth_controllers_[target] = NULL;
     ResetStateForRestart();
@@ -294,7 +294,7 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
       stream_->SetConnectionReused();
     }
     stream_->Close(!keep_alive);
-    next_state_ = STATE_INIT_STREAM;
+    next_state_ = STATE_CREATE_STREAM;
   }
 
   // Reset the other member variables.
@@ -353,7 +353,7 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
   // TODO(wtc): Define a new LoadState value for the
   // STATE_INIT_CONNECTION_COMPLETE state, which delays the HTTP request.
   switch (next_state_) {
-    case STATE_INIT_STREAM_COMPLETE:
+    case STATE_CREATE_STREAM_COMPLETE:
       return stream_request_->GetLoadState();
     case STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE:
     case STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE:
@@ -376,7 +376,7 @@ uint64 HttpNetworkTransaction::GetUploadProgress() const {
 }
 
 void HttpNetworkTransaction::OnStreamReady(HttpStreamHandle* stream) {
-  DCHECK_EQ(STATE_INIT_STREAM_COMPLETE, next_state_);
+  DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK(stream_request_.get());
 
   stream_.reset(stream);
@@ -385,16 +385,12 @@ void HttpNetworkTransaction::OnStreamReady(HttpStreamHandle* stream) {
   response_.was_npn_negotiated = stream_request_->was_npn_negotiated();
   response_.was_fetched_via_spdy = stream_request_->using_spdy();
   response_.was_fetched_via_proxy = !proxy_info_.is_direct();
-  reused_socket_ = stream->IsConnectionReused();
-
-  if (is_https_request())
-    stream->GetSSLInfo(&response_.ssl_info);
 
   OnIOComplete(OK);
 }
 
 void HttpNetworkTransaction::OnStreamFailed(int result) {
-  DCHECK_EQ(STATE_INIT_STREAM_COMPLETE, next_state_);
+  DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK_NE(OK, result);
   DCHECK(stream_request_.get());
   DCHECK(!stream_.get());
@@ -404,7 +400,7 @@ void HttpNetworkTransaction::OnStreamFailed(int result) {
 
 void HttpNetworkTransaction::OnCertificateError(int result,
                                                 const SSLInfo& ssl_info) {
-  DCHECK_EQ(STATE_INIT_STREAM_COMPLETE, next_state_);
+  DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK_NE(OK, result);
   DCHECK(stream_request_.get());
   DCHECK(!stream_.get());
@@ -413,9 +409,9 @@ void HttpNetworkTransaction::OnCertificateError(int result,
 
   // TODO(mbelshe):  For now, we're going to pass the error through, and that
   // will close the stream_request in all cases.  This means that we're always
-  // going to restart an entire INIT_STREAM, even if the connection is good and
-  // the user chooses to ignore the error.  This is not ideal, but not the end
-  // of the world either.
+  // going to restart an entire STATE_CREATE_STREAM, even if the connection is
+  // good and the user chooses to ignore the error.  This is not ideal, but not
+  // the end of the world either.
 
   OnIOComplete(result);
 }
@@ -424,7 +420,7 @@ void HttpNetworkTransaction::OnNeedsProxyAuth(
     const scoped_refptr<HttpAuthController>& auth_controller,
     const HttpResponseInfo& proxy_response) {
   DCHECK(stream_request_.get());
-  DCHECK_EQ(STATE_INIT_STREAM_COMPLETE, next_state_);
+  DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
 
   establishing_tunnel_ = true;
   response_.headers = proxy_response.headers;
@@ -439,7 +435,7 @@ void HttpNetworkTransaction::OnNeedsProxyAuth(
 
 void HttpNetworkTransaction::OnNeedsClientAuth(
     const scoped_refptr<SSLCertRequestInfo>& cert_info) {
-  DCHECK_EQ(STATE_INIT_STREAM_COMPLETE, next_state_);
+  DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
 
   response_.cert_request_info = cert_info;
   OnIOComplete(ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
@@ -492,6 +488,13 @@ int HttpNetworkTransaction::DoLoop(int result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
+      case STATE_CREATE_STREAM:
+        DCHECK_EQ(OK, rv);
+        rv = DoCreateStream();
+        break;
+      case STATE_CREATE_STREAM_COMPLETE:
+        rv = DoCreateStreamComplete(rv);
+        break;
       case STATE_INIT_STREAM:
         DCHECK_EQ(OK, rv);
         rv = DoInitStream();
@@ -561,8 +564,8 @@ int HttpNetworkTransaction::DoLoop(int result) {
   return rv;
 }
 
-int HttpNetworkTransaction::DoInitStream() {
-  next_state_ = STATE_INIT_STREAM_COMPLETE;
+int HttpNetworkTransaction::DoCreateStream() {
+  next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
   session_->http_stream_factory()->RequestStream(request_,
                                                  &ssl_config_,
@@ -574,16 +577,38 @@ int HttpNetworkTransaction::DoInitStream() {
   return ERR_IO_PENDING;
 }
 
-int HttpNetworkTransaction::DoInitStreamComplete(int result) {
+int HttpNetworkTransaction::DoCreateStreamComplete(int result) {
   if (result == OK) {
-    next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
+    next_state_ = STATE_INIT_STREAM;
     DCHECK(stream_.get());
-  } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
-    result = HandleCertificateRequest(result);
   }
 
   // At this point we are done with the stream_request_.
   stream_request_ = NULL;
+  return result;
+}
+
+int HttpNetworkTransaction::DoInitStream() {
+  DCHECK(stream_.get());
+  next_state_ = STATE_INIT_STREAM_COMPLETE;
+  return stream_->InitializeStream(request_, net_log_, &io_callback_);
+}
+
+int HttpNetworkTransaction::DoInitStreamComplete(int result) {
+  if (result == OK) {
+    next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
+
+    reused_socket_ = stream_->IsConnectionReused();
+    if (is_https_request())
+      stream_->GetSSLInfo(&response_.ssl_info);
+  } else {
+    if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
+      result = HandleCertificateRequest(result);
+
+    if (result < 0)
+      return HandleIOError(result);
+  }
+
   return result;
 }
 
@@ -1019,7 +1044,7 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
         // SSL session cache.
         ssl_config_.client_cert = client_cert;
         ssl_config_.send_client_cert = true;
-        next_state_ = STATE_INIT_STREAM;
+        next_state_ = STATE_CREATE_STREAM;
         // Reset the other member variables.
         // Note: this is necessary only with SSL renegotiation.
         ResetStateForRestart();
@@ -1089,7 +1114,7 @@ void HttpNetworkTransaction::ResetConnectionAndRequestForResend() {
   // headers, but we may need to resend the CONNECT request first to recreate
   // the SSL tunnel.
   request_headers_.clear();
-  next_state_ = STATE_INIT_STREAM;  // Resend the request.
+  next_state_ = STATE_CREATE_STREAM;  // Resend the request.
 }
 
 bool HttpNetworkTransaction::ShouldApplyProxyAuth() const {
@@ -1155,8 +1180,8 @@ GURL HttpNetworkTransaction::AuthURL(HttpAuth::Target target) const {
 std::string HttpNetworkTransaction::DescribeState(State state) {
   std::string description;
   switch (state) {
-    STATE_CASE(STATE_INIT_STREAM);
-    STATE_CASE(STATE_INIT_STREAM_COMPLETE);
+    STATE_CASE(STATE_CREATE_STREAM);
+    STATE_CASE(STATE_CREATE_STREAM_COMPLETE);
     STATE_CASE(STATE_SEND_REQUEST);
     STATE_CASE(STATE_SEND_REQUEST_COMPLETE);
     STATE_CASE(STATE_READ_HEADERS);
