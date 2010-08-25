@@ -22,8 +22,12 @@ namespace net {
 class ClientSocketHandle;
 class HttpAuthController;
 class HttpNetworkSession;
+class HttpProxySocketParams;
 class HttpStreamFactory;
+class SOCKSSocketParams;
+class SSLSocketParams;
 class StreamRequestDelegate;
+class TCPSocketParams;
 struct HttpRequestInfo;
 
 // An HttpStreamRequest exists for each stream which is in progress of being
@@ -106,6 +110,15 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   int DoCreateStreamComplete(int result);
   int DoRestartTunnelAuth();
   int DoRestartTunnelAuthComplete(int result);
+
+  // Returns a newly create SSLSocketParams, and sets several
+  // fields of ssl_config_.
+  scoped_refptr<SSLSocketParams> GenerateSslParams(
+      scoped_refptr<TCPSocketParams> tcp_params,
+      scoped_refptr<HttpProxySocketParams> http_proxy_params,
+      scoped_refptr<SOCKSSocketParams> socks_params,
+      ProxyServer::Scheme proxy_scheme,
+      bool want_spdy_over_npn);
 
   // AlternateProtocol API
   void MarkBrokenAlternateProtocolAndFallback();
@@ -203,4 +216,3 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
 }  // namespace net
 
 #endif  // NET_HTTP_HTTP_STREAM_REQUEST_H_
-

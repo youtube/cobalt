@@ -156,6 +156,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   scoped_refptr<ClientSocketPoolHistograms> tcp_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_for_http_proxy_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> http_proxy_pool_histograms_;
+  scoped_refptr<ClientSocketPoolHistograms>
+    tcp_for_https_proxy_pool_histograms_;
+  scoped_refptr<ClientSocketPoolHistograms>
+    ssl_for_https_proxy_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_for_socks_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> socks_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> ssl_pool_histograms_;
