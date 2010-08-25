@@ -239,7 +239,8 @@ class ClientSocketPoolBaseHelper
     return connect_job_factory_->ConnectionTimeout();
   }
 
-  void EnableBackupJobs() { backup_jobs_enabled_ = true; }
+  static void set_connect_backup_jobs_enabled(bool enabled);
+  void EnableConnectBackupJobs();
 
  private:
   friend class base::RefCounted<ClientSocketPoolBaseHelper>;
@@ -271,7 +272,7 @@ class ClientSocketPoolBaseHelper
   struct Group {
     Group()
         : active_socket_count(0),
-          backup_job(NULL),
+          connect_backup_job(NULL),
           backup_task(NULL) {
     }
 
@@ -299,9 +300,9 @@ class ClientSocketPoolBaseHelper
     }
 
     void CleanupBackupJob() {
-      if (backup_job) {
-        delete backup_job;
-        backup_job = NULL;
+      if (connect_backup_job) {
+        delete connect_backup_job;
+        connect_backup_job = NULL;
       }
       if (backup_task) {
         backup_task->Cancel();
@@ -314,7 +315,7 @@ class ClientSocketPoolBaseHelper
     RequestQueue pending_requests;
     int active_socket_count;  // number of active sockets used by clients
     // A backup job in case the connect for this group takes too long.
-    ConnectJob* backup_job;
+    ConnectJob* connect_backup_job;
     CancelableTask* backup_task;
   };
 
@@ -461,7 +462,7 @@ class ClientSocketPoolBaseHelper
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 
   // TODO(vandebo) Remove when backup jobs move to TCPClientSocketPool
-  bool backup_jobs_enabled_;
+  bool connect_backup_jobs_enabled_;
 
   // A factory to pin the backup_job tasks.
   ScopedRunnableMethodFactory<ClientSocketPoolBaseHelper> method_factory_;
@@ -595,7 +596,7 @@ class ClientSocketPoolBase {
     return histograms_;
   }
 
-  void EnableBackupJobs() { helper_->EnableBackupJobs(); }
+  void EnableConnectBackupJobs() { helper_->EnableConnectBackupJobs(); }
 
   void Flush() { helper_->Flush(); }
 
