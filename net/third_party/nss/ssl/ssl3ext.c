@@ -247,6 +247,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_session_ticket_xtn,     &ssl3_ClientHandleSessionTicketXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientHandleNextProtoNegoXtn },
+    { ssl_snap_start_xtn,         &ssl3_ClientHandleSnapStartXtn },
     { -1, NULL }
 };
 
@@ -270,7 +271,9 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
     { ssl_ec_point_formats_xtn,   &ssl3_SendSupportedPointFormatsXtn },
 #endif
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
-    { ssl_next_proto_neg_xtn,     &ssl3_ClientSendNextProtoNegoXtn }
+    { ssl_next_proto_neg_xtn,     &ssl3_ClientSendNextProtoNegoXtn },
+    { ssl_snap_start_xtn,         &ssl3_SendSnapStartXtn }
+    /* NOTE: The Snap Start sender MUST be the last extension in the list. */
     /* any extra entries will appear as { 0, NULL }    */
 };
 

@@ -1166,7 +1166,7 @@ ssl3_CleanupKeyMaterial(ssl3KeyMaterial *mat)
 **             ssl3_DestroySSL3Info
 ** Caller must hold SpecWriteLock.
 */
-static void
+void
 ssl3_DestroyCipherSpec(ssl3CipherSpec *spec, PRBool freeSrvName)
 {
     PRBool freeit = (PRBool)(!spec->bypassCiphers);
@@ -2791,6 +2791,16 @@ ssl3_HandleChangeCipherSpecs(sslSocket *ss, sslBuffer *buf)
     SSL_TRC(3, ("%d: SSL3[%d] Set Current Read Cipher Suite to Pending",
 		SSL_GETPID(), ss->fd ));
 
+    if (ss->ssl3.hs.snapStartType == snap_start_resume) {
+	/* If the server sent us a ChangeCipherSpec message then our Snap Start
+         * resume handshake was successful and we need to switch our current
+         * write cipher spec to reflect the ChangeCipherSpec message embedded
+         * in the ClientHello that the server has now processed. */
+	ssl3_DestroyCipherSpec(ss->ssl3.cwSpec, PR_TRUE/*freeSrvName*/);
+	ss->ssl3.cwSpec = ss->ssl3.pwSpec;
+	ss->ssl3.pwSpec = NULL;
+    }
+
     /* If we are really through with the old cipher prSpec
      * (Both the read and write sides have changed) destroy it.
      */
@@ -3094,7 +3104,7 @@ loser:
     return SECFailure;
 }
 
-static SECStatus 
+SECStatus
 ssl3_RestartHandshakeHashes(sslSocket *ss)
 {
     SECStatus rv = SECSuccess;
@@ -4029,7 +4039,18 @@ ssl3_SendClientHello(sslSocket *ss)
 	return rv;	/* error code set by ssl3_FlushHandshake */
     }
 
-    ss->ssl3.hs.ws = wait_server_hello;
+    switch (ss->ssl3.hs.snapStartType) {
+    case snap_start_full:
+	ss->ssl3.hs.ws = wait_new_session_ticket;
+	break;
+    case snap_start_resume:
+	ss->ssl3.hs.ws = wait_change_cipher;
+	break;
+    default:
+	ss->ssl3.hs.ws = wait_server_hello;
+	break;
+    }
+
     return rv;
 }
 
@@ -4971,6 +4992,14 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     PORT_Assert( ss->opt.noLocks || ssl_HaveRecvBufLock(ss) );
     PORT_Assert( ss->opt.noLocks || ssl_HaveSSL3HandshakeLock(ss) );
 
+    if (ss->ssl3.hs.snapStartType == snap_start_full ||
+	ss->ssl3.hs.snapStartType == snap_start_resume) {
+	/* Snap Start handshake was rejected. */
+        rv = ssl3_ResetForSnapStartRecovery(ss, b, length);
+        if (rv != SECSuccess)
+            return rv;
+    }
+
     rv = ssl3_InitState(ss);
     if (rv != SECSuccess) {
 	errCode = PORT_GetError(); /* ssl3_InitState has set the error code. */
@@ -4980,6 +5009,15 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
         errCode = SSL_ERROR_RX_UNEXPECTED_SERVER_HELLO;
 	desc    = unexpected_message;
 	goto alert_loser;
+    }
+
+    if (!ss->ssl3.serverHelloPredictionData.data) {
+        /* If this allocation fails it will only stop the application from
+	 * recording the ServerHello information and performing future Snap
+	 * Starts. */
+	if (SECITEM_AllocItem(NULL, &ss->ssl3.serverHelloPredictionData,
+			      length))
+	    memcpy(ss->ssl3.serverHelloPredictionData.data, b, length);
     }
 
     temp = ssl3_ConsumeHandshakeNumber(ss, 2, &b, &length);
@@ -7559,6 +7597,15 @@ ssl3_HandleNewSessionTicket(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	return SECFailure;
     }
 
+    if (ss->ssl3.hs.snapStartType == snap_start_full) {
+	/* Snap Start handshake was successful. Switch the cipher spec. */
+	ssl_GetSpecWriteLock(ss);
+	ssl3_DestroyCipherSpec(ss->ssl3.cwSpec, PR_TRUE/*freeSrvName*/);
+	ss->ssl3.cwSpec = ss->ssl3.pwSpec;
+	ss->ssl3.pwSpec = NULL;
+	ssl_ReleaseSpecWriteLock(ss);
+    }
+
     session_ticket.received_timestamp = ssl_Time();
     if (length < 4) {
 	(void)SSL3_SendAlert(ss, alert_fatal, decode_error);
@@ -8313,6 +8360,21 @@ ssl3_SendFinished(sslSocket *ss, PRInt32 flags)
 	    goto fail;	/* error code set by ssl3_FlushHandshake */
 	}
     }
+
+    if ((ss->ssl3.hs.snapStartType == snap_start_recovery ||
+         ss->ssl3.hs.snapStartType == snap_start_resume_recovery) &&
+	ss->ssl3.snapStartApplicationData.data) {
+	/* In the event that the server ignored the application data in our
+	 * snap start extension, we need to retransmit it now. */
+	PRInt32 sent = ssl3_SendRecord(ss, content_application_data,
+                                       ss->ssl3.snapStartApplicationData.data,
+                                       ss->ssl3.snapStartApplicationData.len,
+                                       flags);
+	SECITEM_FreeItem(&ss->ssl3.snapStartApplicationData, PR_FALSE);
+	if (sent < 0)
+	    return (SECStatus)sent;	/* error code set by ssl3_SendRecord */
+    }
+
     return SECSuccess;
 
 fail:
@@ -8438,12 +8500,21 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 	    PORT_SetError(SSL_ERROR_RX_MALFORMED_FINISHED);
 	    return SECFailure;
 	}
-	rv = ssl3_ComputeTLSFinished(ss->ssl3.crSpec, !isServer, 
-	                             hashes, &tlsFinished);
-	if (!isServer)
-	    ss->ssl3.hs.finishedMsgs.tFinished[1] = tlsFinished;
-	else
-	    ss->ssl3.hs.finishedMsgs.tFinished[0] = tlsFinished;
+
+	if (ss->ssl3.hs.snapStartType == snap_start_resume) {
+	    /* In this case we have already advanced the Finished hash past the
+	     * server's verify_data because we needed to predict the server's
+	     * Finished message in order to compute our own (which includes
+	     * it). When we did this, we stored a copy in tFinished[1]. */
+            tlsFinished = ss->ssl3.hs.finishedMsgs.tFinished[1];
+	} else {
+	    rv = ssl3_ComputeTLSFinished(ss->ssl3.crSpec, !isServer,
+					 hashes, &tlsFinished);
+	    if (!isServer)
+		ss->ssl3.hs.finishedMsgs.tFinished[1] = tlsFinished;
+	    else
+		ss->ssl3.hs.finishedMsgs.tFinished[0] = tlsFinished;
+	}
 	ss->ssl3.hs.finishedBytes = sizeof tlsFinished;
 	if (rv != SECSuccess ||
 	    0 != NSS_SecureMemcmp(&tlsFinished, b, length)) {
@@ -8474,8 +8545,9 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 
     ssl_GetXmitBufLock(ss);	/*************************************/
 
-    if ((isServer && !ss->ssl3.hs.isResuming) ||
-	(!isServer && ss->ssl3.hs.isResuming)) {
+    if (ss->ssl3.hs.snapStartType != snap_start_resume &&
+	((isServer && !ss->ssl3.hs.isResuming) ||
+	 (!isServer && ss->ssl3.hs.isResuming))) {
 	PRInt32 flags = 0;
 
 	/* Send a NewSessionTicket message if the client sent us
@@ -8652,8 +8724,13 @@ ssl3_HandleHandshakeMessage(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	    return rv;
 	}
     }
-    /* We should not include hello_request messages in the handshake hashes */
-    if (ss->ssl3.hs.msg_type != hello_request) {
+    /* We should not include hello_request messages in the handshake hashes.
+     * Likewise, for Finished messages from the server during a Snap Start
+     * resume, we have already predicted and included the message in our
+     * Finished hash. */
+    if (ss->ssl3.hs.msg_type != hello_request &&
+	!(ss->ssl3.hs.msg_type == finished &&
+	 ss->ssl3.hs.snapStartType == snap_start_resume)) {
 	rv = ssl3_UpdateHandshakeHashes(ss, (unsigned char*) hdr, 4);
 	if (rv != SECSuccess) return rv;	/* err code already set. */
 	rv = ssl3_UpdateHandshakeHashes(ss, b, length);
@@ -9554,6 +9631,15 @@ ssl3_DestroySSL3Info(sslSocket *ss)
        ss->ssl3.clientCertChain = NULL;
     }
 
+    if (ss->ssl3.predictedCertChain != NULL)
+	ssl3_CleanupPredictedPeerCertificates(ss);
+
+    if (ss->ssl3.serverHelloPredictionData.data)
+	SECITEM_FreeItem(&ss->ssl3.serverHelloPredictionData, PR_FALSE);
+
+    if (ss->ssl3.snapStartApplicationData.data)
+	SECITEM_FreeItem(&ss->ssl3.snapStartApplicationData, PR_FALSE);
+
     /* clean up handshake */
     if (ss->opt.bypassPKCS11) {
 	SHA1_DestroyContext((SHA1Context *)ss->ssl3.hs.sha_cx, PR_FALSE);
@@ -9570,6 +9656,9 @@ ssl3_DestroySSL3Info(sslSocket *ss)
 	ss->ssl3.hs.messages.buf = NULL;
 	ss->ssl3.hs.messages.len = 0;
 	ss->ssl3.hs.messages.space = 0;
+    }
+    if (ss->ssl3.hs.origClientHello.data) {
+	SECITEM_FreeItem(&ss->ssl3.hs.origClientHello, PR_FALSE);
     }
 
     /* free the SSL3Buffer (msg_body) */
