@@ -77,7 +77,7 @@ class ProxyInfo {
 
   // Returns the first valid proxy server. is_empty() must be false to be able
   // to call this function.
-  ProxyServer proxy_server() const { return proxy_list_.Get(); }
+  const ProxyServer& proxy_server() const { return proxy_list_.Get(); }
 
   // See description in ProxyList::ToPacString().
   std::string ToPacString() const;
