@@ -204,9 +204,23 @@ typedef enum {
 #endif
     ssl_session_ticket_xtn           = 35,
     ssl_next_proto_neg_xtn           = 13172,
+    ssl_snap_start_xtn               = 13174,
     ssl_renegotiation_info_xtn       = 0xff01	/* experimental number */
 } SSLExtensionType;
 
-#define SSL_MAX_EXTENSIONS             6
+#define SSL_MAX_EXTENSIONS             7
+
+typedef enum {
+    /* No Snap Start handshake was attempted. */
+    SSL_SNAP_START_NONE = 0,
+    /* A Snap Start full handshake was completed. */
+    SSL_SNAP_START_FULL = 1,
+    /* A Snap Start full handshake was attempted, but failed. */
+    SSL_SNAP_START_RECOVERY = 2,
+    /* A Snap Start resume handshake was completed. */
+    SSL_SNAP_START_RESUME = 3,
+    /* A Snap Start resume handshake was attempted, but failed. */
+    SSL_SNAP_START_RESUME_RECOVERY = 4
+} SSLSnapStartResult;
 
 #endif /* __sslt_h_ */
