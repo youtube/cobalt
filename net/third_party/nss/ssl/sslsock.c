@@ -738,6 +738,10 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 	ss->opt.enableFalseStart = on;
 	break;
 
+      case SSL_ENABLE_SNAP_START:
+	ss->opt.enableSnapStart = on;
+	break;
+
       default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	rv = SECFailure;
@@ -802,6 +806,7 @@ SSL_OptionGet(PRFileDesc *fd, PRInt32 which, PRBool *pOn)
     case SSL_REQUIRE_SAFE_NEGOTIATION: 
                                   on = ss->opt.requireSafeNegotiation; break;
     case SSL_ENABLE_FALSE_START:  on = ss->opt.enableFalseStart;   break;
+    case SSL_ENABLE_SNAP_START:   on = ss->opt.enableSnapStart;    break;
 
     default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -853,6 +858,7 @@ SSL_OptionGetDefault(PRInt32 which, PRBool *pOn)
                                   on = ssl_defaults.requireSafeNegotiation; 
 				  break;
     case SSL_ENABLE_FALSE_START:  on = ssl_defaults.enableFalseStart;   break;
+    case SSL_ENABLE_SNAP_START:   on = ssl_defaults.enableSnapStart;   break;
 
     default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -998,6 +1004,10 @@ SSL_OptionSetDefault(PRInt32 which, PRBool on)
 
       case SSL_ENABLE_FALSE_START:
 	ssl_defaults.enableFalseStart = on;
+	break;
+
+      case SSL_ENABLE_SNAP_START:
+	ssl_defaults.enableSnapStart = on;
 	break;
 
       default:
