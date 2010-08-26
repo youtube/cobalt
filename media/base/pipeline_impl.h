@@ -30,31 +30,26 @@ namespace media {
 //
 // Here's a state diagram that describes the lifetime of this object.
 //
-//   [ *Created ]
-//         | Start()
-//         V
-//   [ InitXXX (for each filter) ]
-//         |
-//         V
-//   [ Seeking (for each filter) ] <----------------------.
-//         |                                              |
+//   [ *Created ]                                    [ Stopped ]
+//         | Start()                                      ^
+//         V                       SetError()             |
+//   [ InitXXX (for each filter) ] -------->[ Stopping (for each filter) ]
+//         |                                              ^
+//         V                                              | if Stop
+//   [ Seeking (for each filter) ] <--------[ Flushing (for each filter) ]
+//         |                         if Seek              ^
 //         V                                              |
 //   [ Starting (for each filter) ]                       |
 //         |                                              |
-//         V      Seek()                                  |
-//   [ Started ] --------> [ Pausing (for each filter) ] -'
-//         |                                              |
-//         |   NotifyEnded()                Seek()        |
+//         V      Seek()/Stop()                           |
+//   [ Started ] -------------------------> [ Pausing (for each filter) ]
+//         |                                              ^
+//         |   NotifyEnded()             Seek()/Stop()    |
 //         `-------------> [ Ended ] ---------------------'
-//
-//                  SetError()
-//   [ Any State ] -------------> [ Stopping (for each filter)]
-//         | Stop()                             |
-//         V                                    V
-//   [ Stopping (for each filter) ]         [ Error ]
-//         |
-//         V
-//   [ Stopped ]
+//                                                        ^  SetError()
+//                                                        |
+//                                         [ Any State Other Than InitXXX ]
+
 //
 // Initialization is a series of state transitions from "Created" through each
 // filter initialization state.  When all filter initialization states have
@@ -142,6 +137,15 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Helper method to tell whether we are stopped or in error.
   bool IsPipelineStopped();
 
+  // Helper method to tell whether we are in transition to stop state.
+  bool IsPipelineTearingDown();
+
+  // We could also be delayed by a transition during seek is performed.
+  bool IsPipelineStopPending();
+
+  // Helper method to tell whether we are in transition to seek state.
+  bool IsPipelineSeeking();
+
   // Helper method to execute callback from Start() and reset
   // |filter_factory_|. Called when initialization completes
   // normally or when pipeline is stopped or error occurs during
@@ -153,7 +157,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   static bool TransientState(State state);
 
   // Given the current state, returns the next state.
-  static State FindNextState(State current);
+  State FindNextState(State current);
 
   // FilterHost implementation.
   virtual void SetError(PipelineError error);
@@ -296,8 +300,14 @@ class PipelineImpl : public Pipeline, public FilterHost {
   template <class Filter>
   void GetFilter(scoped_refptr<Filter>* filter_out) const;
 
-  // Kicks off stopping filters. Called by StopTask() and ErrorChangedTask().
-  void StartDestroyingFilters();
+  // Kicks off destroying filters. Called by StopTask() and ErrorChangedTask().
+  // When we start to tear down the pipeline, we will consider two cases:
+  // 1. when pipeline has not been initialized, we will transit to stopping
+  // state first.
+  // 2. when pipeline has been initialized, we will first transit to pausing
+  // => flushing => stopping => stopped state.
+  // This will remove the race condition during stop between filters.
+  void TearDownPipeline();
 
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;
@@ -307,6 +317,15 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Whether or not the pipeline is running.
   bool running_;
+
+  // Whether or not the pipeline is in transition for a seek operation.
+  bool seek_pending_;
+
+  // Whether or not the pipeline is pending a stop operation.
+  bool stop_pending_;
+
+  // Whether or not the pipeline is perform a stop operation.
+  bool tearing_down_;
 
   // Duration of the media in microseconds.  Set by filters.
   base::TimeDelta duration_;
