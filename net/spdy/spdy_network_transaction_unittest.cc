@@ -1447,12 +1447,12 @@ TEST_P(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
 // a reply with a body, to cause a graceful shutdown.
 
 // TODO(agayev): develop a socket data provider where both, reads and
-// writes are ordered so that writing tests like these are easy, right now
-// we are working around the limitations as described above and it's not
-// deterministic, tests may fail under specific circumstances.
-// TODO(mbelshe): Disabling until we have deterministic sockets!
-TEST_P(SpdyNetworkTransactionTest, DISABLED_WindowUpdateReceived) {
-  SpdySession::SetFlowControl(true);
+// writes are ordered so that writing tests like these are easy and rewrite
+// all these tests using it.  Right now we are working around the
+// limitations as described above and it's not deterministic, tests may
+// fail under specific circumstances.
+TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
+  SpdySession::set_flow_control(true);
 
   static int kFrameCount = 2;
   scoped_ptr<std::string> content(
@@ -1478,6 +1478,7 @@ TEST_P(SpdyNetworkTransactionTest, DISABLED_WindowUpdateReceived) {
       ConstructSpdyWindowUpdate(2, kDeltaWindowSize));
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
   MockRead reads[] = {
+    CreateMockRead(*window_update_dummy),
     CreateMockRead(*window_update_dummy),
     CreateMockRead(*window_update_dummy),
     CreateMockRead(*window_update),     // Four updates, therefore window
@@ -1523,13 +1524,95 @@ TEST_P(SpdyNetworkTransactionTest, DISABLED_WindowUpdateReceived) {
             kMaxSpdyFrameChunkSize * kFrameCount,
             stream->stream()->send_window_size());
   helper.VerifyDataConsumed();
-  SpdySession::SetFlowControl(false);
+  SpdySession::set_flow_control(false);
+}
+
+// Test that received data frames and sent WINDOW_UPDATE frames change
+// the recv_window_size_ correctly.
+TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
+  SpdySession::set_flow_control(true);
+
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> window_update(
+      ConstructSpdyWindowUpdate(1, kUploadDataSize));
+
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+    CreateMockWrite(*window_update),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(
+      ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> body_no_fin(
+      ConstructSpdyBodyFrame(1, false));
+  scoped_ptr<spdy::SpdyFrame> body_fin(
+      ConstructSpdyBodyFrame(1, NULL, 0, true));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body_no_fin),
+    MockRead(true, ERR_IO_PENDING, 0),  // Force a pause
+    CreateMockRead(*body_fin),
+    MockRead(true, ERR_IO_PENDING, 0),  // Force a pause
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.AddData(data.get());
+  helper.RunPreTestSetup();
+  HttpNetworkTransaction* trans = helper.trans();
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(&helper.request(), &callback, BoundNetLog());
+
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  SpdyHttpStream* stream =
+      static_cast<SpdyHttpStream*>(trans->stream_.get()->stream_.get());
+  ASSERT_TRUE(stream != NULL);
+  ASSERT_TRUE(stream->stream() != NULL);
+
+  EXPECT_EQ(spdy::kInitialWindowSize - kUploadDataSize,
+            stream->stream()->recv_window_size());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+
+  // Issue a read which will cause a WINDOW_UPDATE to be sent and window
+  // size increased to default.
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kUploadDataSize);
+  rv = trans->Read(buf, kUploadDataSize, NULL);
+  EXPECT_EQ(kUploadDataSize, rv);
+  std::string content(buf->data(), buf->data()+kUploadDataSize);
+  EXPECT_STREQ(kUploadData, content.c_str());
+
+  // Schedule the reading of empty data frame with FIN
+  data->CompleteRead();
+
+  // Force write of WINDOW_UPDATE which was scheduled during the above
+  // read.
+  MessageLoop::current()->RunAllPending();
+
+  // Read EOF.
+  data->CompleteRead();
+
+  helper.VerifyDataConsumed();
+  SpdySession::set_flow_control(false);
 }
 
 // Test that WINDOW_UPDATE frame causing overflow is handled correctly.  We
 // use the same trick as in the above test to enforce our scenario.
 TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
-  SpdySession::SetFlowControl(true);
+  SpdySession::set_flow_control(true);
 
   // number of full frames we hope to write (but will not, used to
   // set content-length header correctly)
@@ -1602,7 +1685,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   helper.session()->spdy_session_pool()->CloseAllSessions();
   helper.VerifyDataConsumed();
 
-  SpdySession::SetFlowControl(false);
+  SpdySession::set_flow_control(false);
 }
 
 // Test that after hitting a send window size of 0, the write process
@@ -1621,7 +1704,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
 // After that, next read is artifically enforced, which causes a
 // WINDOW_UPDATE to be read and I/O process resumes.
 TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
-  SpdySession::SetFlowControl(true);
+  SpdySession::set_flow_control(true);
 
   // Number of frames we need to send to zero out the window size: data
   // frames plus SYN_STREAM plus the last data frame; also we need another
@@ -1711,7 +1794,7 @@ TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
   rv = callback.WaitForResult();
   helper.VerifyDataConsumed();
 
-  SpdySession::SetFlowControl(false);
+  SpdySession::set_flow_control(false);
 }
 
 TEST_P(SpdyNetworkTransactionTest, CancelledTransaction) {
