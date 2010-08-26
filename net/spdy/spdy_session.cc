@@ -172,6 +172,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       received_settings_(false),
       in_session_pool_(true),
       initial_send_window_size_(spdy::kInitialWindowSize),
+      initial_recv_window_size_(spdy::kInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
@@ -369,6 +370,7 @@ int SpdySession::CreateStreamImpl(
   stream->set_path(path);
   stream->set_net_log(stream_net_log);
   stream->set_send_window_size(initial_send_window_size_);
+  stream->set_recv_window_size(initial_recv_window_size_);
   ActivateStream(stream);
 
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyPriorityCount",
@@ -1253,6 +1255,20 @@ void SpdySession::OnWindowUpdate(
 
   if (use_flow_control_)
     stream->IncreaseSendWindowSize(delta_window_size);
+}
+
+void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
+                                   int delta_window_size) {
+  DCHECK(IsStreamActive(stream_id));
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
+  CHECK_EQ(stream->stream_id(), stream_id);
+
+  LOG(INFO) << "Sending a WINDOW_UPDATE frame for stream " << stream_id
+            << " with delta window size " << delta_window_size;
+
+  scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
+      spdy_framer_.CreateWindowUpdate(stream_id, delta_window_size));
+  QueueFrame(window_update_frame.get(), stream->priority(), stream);
 }
 
 void SpdySession::SendSettings() {
