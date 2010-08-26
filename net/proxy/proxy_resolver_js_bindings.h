@@ -34,7 +34,8 @@ class ProxyResolverJSBindings {
   // |*ip_address_list| with the result.
   //
   // This is a Microsoft extension to PAC for IPv6, see:
-  // http://blogs.msdn.com/wndp/articles/IPV6_PAC_Extensions_v0_9.aspx
+  // http://blogs.msdn.com/b/wndp/archive/2006/07/13/ipv6-pac-extensions-v0-9.aspx
+
   virtual bool MyIpAddressEx(std::string* ip_address_list) = 0;
 
   // Handler for "dnsResolve(host)". Returns true on success and fills
@@ -46,7 +47,7 @@ class ProxyResolverJSBindings {
   // |*ip_address_list| with the result.
   //
   // This is a Microsoft extension to PAC for IPv6, see:
-  // http://blogs.msdn.com/wndp/articles/IPV6_PAC_Extensions_v0_9.aspx
+  // http://blogs.msdn.com/b/wndp/archive/2006/07/13/ipv6-pac-extensions-v0-9.aspx
   virtual bool DnsResolveEx(const std::string& host,
                             std::string* ip_address_list) = 0;
 
