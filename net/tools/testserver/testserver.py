@@ -162,6 +162,10 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                                                    client_address,
                                                    socket_server)
 
+  def log_request(self, *args, **kwargs):
+    # Disable request logging to declutter test log output.
+    pass
+
   def _ShouldHandleRequest(self, handler_name):
     """Determines if the path can be handled by the handler.
 
