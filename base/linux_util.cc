@@ -126,9 +126,12 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
 
 namespace base {
 
+// Account for the terminating null character.
+static const int kDistroSize = 128 + 1;
+
 // We use this static string to hold the Linux distro info. If we
 // crash, the crash handler code will send this in the crash dump.
-std::string linux_distro =
+char g_linux_distro[kDistroSize] =
 #if defined(OS_CHROMEOS)
     "CrOS";
 #else  // if defined(OS_LINUX)
@@ -137,7 +140,7 @@ std::string linux_distro =
 
 std::string GetLinuxDistro() {
 #if defined(OS_CHROMEOS)
-  return linux_distro;
+  return g_linux_distro;
 #elif defined(OS_LINUX)
   LinuxDistroHelper* distro_state_singleton = LinuxDistroHelper::Get();
   LinuxDistroState state = distro_state_singleton->State();
@@ -154,23 +157,28 @@ std::string GetLinuxDistro() {
       // lsb_release -d should return: Description:<tab>Distro Info
       static const std::string field = "Description:\t";
       if (output.compare(0, field.length(), field) == 0) {
-        linux_distro = output.substr(field.length());
-        TrimWhitespaceASCII(linux_distro, TRIM_ALL, &linux_distro);
+        SetLinuxDistro(output.substr(field.length()));
       }
     }
     distro_state_singleton->CheckFinished();
-    return linux_distro;
+    return g_linux_distro;
   } else if (STATE_CHECK_STARTED == state) {
     // If the distro check above is in progress in some other thread, we're
     // not going to wait for the results.
     return "Unknown";
   } else {
     // In STATE_CHECK_FINISHED, no more writing to |linux_distro|.
-    return linux_distro;
+    return g_linux_distro;
   }
 #else
   NOTIMPLEMENTED();
 #endif
+}
+
+void SetLinuxDistro(const std::string& distro) {
+  std::string trimmed_distro;
+  TrimWhitespaceASCII(distro, TRIM_ALL, &trimmed_distro);
+  base::strlcpy(g_linux_distro, trimmed_distro.c_str(), kDistroSize);
 }
 
 bool FileDescriptorGetInode(ino_t* inode_out, int fd) {
