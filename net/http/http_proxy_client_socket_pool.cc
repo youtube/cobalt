@@ -8,6 +8,7 @@
 
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
@@ -172,6 +173,9 @@ int HttpProxyConnectJob::DoSSLConnect() {
 }
 
 int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
+  if (IsCertificateError(result) &&
+      params_->ssl_params()->load_flags() & LOAD_IGNORE_ALL_CERT_ERRORS)
+    result = OK;
   if (result < 0) {
     if (transport_socket_handle_->socket())
       transport_socket_handle_->socket()->Disconnect();
