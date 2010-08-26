@@ -145,6 +145,18 @@ void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
 #endif
 
 #if defined(OS_WIN)
+
+enum IntegrityLevel {
+  INTEGRITY_UNKNOWN,
+  LOW_INTEGRITY,
+  MEDIUM_INTEGRITY,
+  HIGH_INTEGRITY,
+};
+// Determine the integrity level of the specified process. Returns false
+// if the system does not support integrity levels (pre-Vista) or in the case
+// of an underlying system failure.
+bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level);
+
 // Runs the given application name with the given command line. Normally, the
 // first command line argument should be the path to the process, and don't
 // forget to quote it.
