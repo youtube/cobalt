@@ -11,6 +11,10 @@
 
 #if defined(USE_SYSTEM_SQLITE)
 #include <sqlite3.h>
+
+// A no-op implementation of database preloading (not available
+// when using system sqlite).
+int sqlite3Preload(sqlite3 *db) { return SQLITE_OK; }
 #else
 #include "third_party/sqlite/src/preprocessed/sqlite3.h"
 #endif
