@@ -108,6 +108,11 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_JOB)
 // The start/end of auto-detect + custom PAC URL configuration.
 EVENT_TYPE(INIT_PROXY_RESOLVER)
 
+// The start/end of when proxy autoconfig was artificially paused following
+// a network change event. (We wait some amount of time after being told of
+// network changes to avoid hitting spurious errors during auto-detect).
+EVENT_TYPE(INIT_PROXY_RESOLVER_WAIT)
+
 // The start/end of download of a PAC script. This could be the well-known
 // WPAD URL (if testing auto-detect), or a custom PAC URL.
 //
