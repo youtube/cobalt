@@ -20,7 +20,7 @@
  "mac-release-10.6/intl1/times/t": {"improve": 535, "regress": 865},
  "mac-release-10.6/intl2/times/t": {"improve": -30, "regress": 150},
  "mac-release-10.6/morejs/times/t": {"improve": -115, "regress": 35},
- "mac-release-10.6/moz/times/t": {"improve": -5, "regress": 115},
+ "mac-release-10.6/moz/times/t": {"improve": 30, "regress": 170},
  "mac-release-10.6/startup/times/t": {"improve": -2, "regress": 22},
  "vista-release-dual-core/dhtml/times/t": {"improve": -20, "regress": 40},
  "vista-release-dual-core/intl1/times/t": {"improve": 67, "regress": 293},
