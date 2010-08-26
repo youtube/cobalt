@@ -18,6 +18,7 @@ SpdyStream::SpdyStream(
       priority_(0),
       stalled_by_flow_control_(false),
       send_window_size_(spdy::kInitialWindowSize),
+      recv_window_size_(spdy::kInitialWindowSize),
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
       response_received_(false),
@@ -142,6 +143,37 @@ void SpdyStream::DecreaseSendWindowSize(int delta_window_size) {
   send_window_size_ -= delta_window_size;
 }
 
+void SpdyStream::IncreaseRecvWindowSize(int delta_window_size) {
+  DCHECK_GE(delta_window_size, 1);
+  // By the time a read is isued, stream may become inactive.
+  if (!session_->IsStreamActive(stream_id_))
+    return;
+  int new_window_size = recv_window_size_ + delta_window_size;
+  if (recv_window_size_ > 0)
+    DCHECK(new_window_size > 0);
+
+  LOG(INFO) << "Increasing stream " << stream_id_
+            << " recv_window_size_ [current:" << recv_window_size_ << "]"
+            << " by " << delta_window_size << " bytes";
+  recv_window_size_ = new_window_size;
+  session_->SendWindowUpdate(stream_id_, delta_window_size);
+}
+
+void SpdyStream::DecreaseRecvWindowSize(int delta_window_size) {
+  DCHECK_GE(delta_window_size, 1);
+
+  LOG(INFO) << "Decreasing stream " << stream_id_
+            << " recv_window_size_ [current:" << recv_window_size_ << "]"
+            << " by " << delta_window_size  << " bytes";
+  recv_window_size_ -= delta_window_size;
+
+  // Since we never decrease the initial window size, we should never hit
+  // a negative |recv_window_size_|, if we do, it's a flow-control violation.
+  if (recv_window_size_ < 0)
+    session_->ResetStream(stream_id_, spdy::FLOW_CONTROL_ERROR);
+}
+
+
 base::Time SpdyStream::GetRequestTime() const {
   return request_time_;
 }
@@ -216,6 +248,9 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     // Note: |this| may be deleted after calling CloseStream.
     return;
   }
+
+  if (session_->flow_control())
+    DecreaseRecvWindowSize(length);
 
   // Track our bandwidth.
   metrics_.RecordBytes(length);
