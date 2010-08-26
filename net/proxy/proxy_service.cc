@@ -46,6 +46,45 @@ namespace {
 const size_t kMaxNumNetLogEntries = 100;
 const size_t kDefaultNumPacThreads = 4;
 
+// When the IP address changes we don't immediately re-run proxy auto-config.
+// Instead, we  wait for |kNumMillisToStallAfterNetworkChanges| before
+// attempting to re-valuate proxy auto-config.
+//
+// During this time window, any resolve requests sent to the ProxyService will
+// be queued. Once we have waited the required amount of them, the proxy
+// auto-config step will be run, and the queued requests resumed.
+//
+// The reason we play this game is that our signal for detecting network
+// changes (NetworkChangeNotifier) may fire *before* the system's networking
+// dependencies are fully configured. This is a problem since it means if
+// we were to run proxy auto-config right away, it could fail due to spurious
+// DNS failures. (see http://crbug.com/50779 for more details.)
+//
+// By adding the wait window, we give things a chance to get properly set up.
+// Now by the time we run the proxy-autoconfig there is a lower chance of
+// getting transient DNS / connect failures.
+//
+// Admitedly this is a hack. Ideally we would have NetworkChangeNotifier
+// deliver a reliable signal indicating that the network has changed AND is
+// ready for action... But until then, we can reduce the likelihood of users
+// getting wedged because of proxy detection failures on network switch.
+//
+// The obvious downside to this strategy is it introduces an additional
+// latency when switching networks. This delay shouldn't be too disruptive
+// assuming network switches are infrequent and user initiated. However if
+// NetworkChangeNotifier delivers network changes more frequently this could
+// cause jankiness. (NetworkChangeNotifier broadcasts a change event when ANY
+// interface goes up/down. So in theory if the non-primary interface were
+// hopping on and off wireless networks our constant delayed reconfiguration
+// could add noticeable jank.)
+//
+// The specific hard-coded wait time below is arbitrary.
+// Basically I ran some experiments switching between wireless networks on
+// a Linux Ubuntu (Lucid) laptop, and experimentally found this timeout fixes
+// things. It is entirely possible that the value is insuficient for other
+// setups.
+const int64 kNumMillisToStallAfterNetworkChanges = 2000;
+
 // Config getter that always returns direct settings.
 class ProxyConfigServiceDirect : public ProxyConfigService {
  public:
@@ -334,7 +373,10 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
       ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
           this, &ProxyService::OnInitProxyResolverComplete)),
       current_state_(STATE_NONE) ,
-      net_log_(net_log) {
+      net_log_(net_log),
+      stall_proxy_auto_config_delay_(
+          base::TimeDelta::FromMilliseconds(
+              kNumMillisToStallAfterNetworkChanges)) {
   NetworkChangeNotifier::AddObserver(this);
   ResetConfigService(config_service);
 }
@@ -755,14 +797,22 @@ void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
       new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get(),
                             net_log_));
 
+  // If we changed networks recently, we should delay running proxy auto-config.
+  base::TimeDelta wait_delay =
+      stall_proxy_autoconfig_until_ - base::TimeTicks::Now();
+
   int rv = init_proxy_resolver_->Init(
-      config_, &init_proxy_resolver_callback_);
+      config_, wait_delay, &init_proxy_resolver_callback_);
 
   if (rv != ERR_IO_PENDING)
     OnInitProxyResolverComplete(rv);
 }
 
 void ProxyService::OnIPAddressChanged() {
+  // See the comment block by |kNumMillisToStallAfterNetworkChanges| for info.
+  stall_proxy_autoconfig_until_ =
+      base::TimeTicks::Now() + stall_proxy_auto_config_delay_;
+
   State previous_state = ResetProxyConfig();
   if (previous_state != STATE_NONE)
     ApplyProxyConfigIfAvailable();

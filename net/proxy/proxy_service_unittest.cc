@@ -1590,6 +1590,10 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service->SetProxyScriptFetcher(fetcher);
 
+  // Disable the "wait after IP address changes" hack, so this unit-test can
+  // complete quickly.
+  service->set_stall_proxy_auto_config_delay(base::TimeDelta());
+
   // Start 1 request.
 
   ProxyInfo info1;
