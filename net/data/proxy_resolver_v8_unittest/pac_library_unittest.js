@@ -76,6 +76,87 @@ Tests.testShExpMatch = function(t) {
   t.expectFalse(shExpMatch("foo.jpg", "foo"));
 };
 
+Tests.testSortIpAddressList = function(t) {
+  t.expectEquals("::1;::2;::3", sortIpAddressList("::2;::3;::1"));
+  t.expectEquals(
+      "2001:4898:28:3:201:2ff:feea:fc14;fe80::5efe:157:9d3b:8b16;157.59.139.22",
+      sortIpAddressList("157.59.139.22;" +
+                        "2001:4898:28:3:201:2ff:feea:fc14;" +
+                        "fe80::5efe:157:9d3b:8b16"));
+
+  // Single IP address (v4 and v6).
+  t.expectEquals("127.0.0.1", sortIpAddressList("127.0.0.1"));
+  t.expectEquals("::1", sortIpAddressList("::1"))
+
+  // Verify that IPv6 address is not re-written (not reduced).
+  t.expectEquals("0:0::1;192.168.1.1", sortIpAddressList("192.168.1.1;0:0::1"));
+
+  // Input is already sorted.
+  t.expectEquals("::1;192.168.1.3", sortIpAddressList("::1;192.168.1.3"));
+
+  // Same-valued IP addresses (also tests stability).
+  t.expectEquals("0::1;::1;0:0::1", sortIpAddressList("0::1;::1;0:0::1"));
+
+  // Contains extra semi-colons.
+  t.expectEquals("127.0.0.1", sortIpAddressList(";127.0.0.1;"));
+
+  // Contains whitespace (spaces and tabs).
+  t.expectEquals("192.168.0.1;192.168.0.2",
+      sortIpAddressList("192.168.0.1; 192.168.0.2"));
+  t.expectEquals("127.0.0.0;127.0.0.1;127.0.0.2",
+      sortIpAddressList("127.0.0.1;	127.0.0.2;	 127.0.0.0"));
+
+  // Empty lists.
+  t.expectFalse(sortIpAddressList(""));
+  t.expectFalse(sortIpAddressList(" "));
+  t.expectFalse(sortIpAddressList(";"));
+  t.expectFalse(sortIpAddressList(";;"));
+  t.expectFalse(sortIpAddressList(" ;  ; "));
+
+  // Invalid IP addresses.
+  t.expectFalse(sortIpAddressList("256.0.0.1"));
+  t.expectFalse(sortIpAddressList("192.168.1.1;0:0:0:1;127.0.0.1"));
+
+  // Call sortIpAddressList() with wonky arguments.
+  t.expectEquals(null, sortIpAddressList());
+  t.expectEquals(null, sortIpAddressList(null));
+  t.expectEquals(null, sortIpAddressList(null, null));
+};
+
+Tests.testIsInNetEx = function(t) {
+  t.expectTrue(isInNetEx("198.95.249.79", "198.95.249.79/32"));
+  t.expectTrue(isInNetEx("198.95.115.10", "198.95.0.0/16"));
+  t.expectTrue(isInNetEx("198.95.1.1", "198.95.0.0/16"));
+  t.expectTrue(isInNetEx("198.95.1.1", "198.95.3.3/16"));
+  t.expectTrue(isInNetEx("0:0:0:0:0:0:7f00:1", "0:0:0:0:0:0:7f00:1/32"));
+  t.expectTrue(isInNetEx("3ffe:8311:ffff:abcd:1234:dead:beef:101",
+                         "3ffe:8311:ffff::/48"));
+
+  // IPv4 and IPv6 mix.
+  t.expectFalse(isInNetEx("127.0.0.1", "0:0:0:0:0:0:7f00:1/16"));
+  t.expectFalse(isInNetEx("192.168.24.3", "fe80:0:0:0:0:0:c0a8:1803/32"));
+
+  t.expectFalse(isInNetEx("198.95.249.78", "198.95.249.79/32"));
+  t.expectFalse(isInNetEx("198.96.115.10", "198.95.0.0/16"));
+  t.expectFalse(isInNetEx("3fff:8311:ffff:abcd:1234:dead:beef:101",
+                          "3ffe:8311:ffff::/48"));
+
+  // Call isInNetEx with wonky arguments.
+  t.expectEquals(null, isInNetEx());
+  t.expectEquals(null, isInNetEx(null));
+  t.expectEquals(null, isInNetEx(null, null));
+  t.expectEquals(null, isInNetEx(null, null, null));
+  t.expectEquals(null, isInNetEx("198.95.249.79"));
+
+  // Invalid IP address.
+  t.expectFalse(isInNetEx("256.0.0.1", "198.95.249.79"));
+  t.expectFalse(isInNetEx("127.0.0.1 ", "127.0.0.1/32"));  // Extra space.
+
+  // Invalid prefix.
+  t.expectFalse(isInNetEx("198.95.115.10", "198.95.0.0/34"));
+  t.expectFalse(isInNetEx("127.0.0.1", "127.0.0.1"));  // Missing '/' in prefix.
+};
+
 Tests.testWeekdayRange = function(t) {
   // Test with local time.
   MockDate.setCurrent("Tue Mar 03 2009");
