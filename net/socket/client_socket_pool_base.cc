@@ -583,6 +583,12 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
 
   BoundNetLog job_log = job->net_log();
 
+  // ConnectJobs may hold references to pools which may hold references back to
+  // this pool, so RemoveConnectJob() may eventually lead to something calling
+  // Release() on |this| which deletes it in the middle of this function.  Hold
+  // a self-reference to prevent deletion of |this|.
+  const scoped_refptr<ClientSocketPoolBaseHelper> self(this);
+
   if (result == OK) {
     DCHECK(socket.get());
     RemoveConnectJob(job, group);
