@@ -924,8 +924,6 @@
             'cflags': [
               '-O>(debug_optimize)',
               '-g',
-              # One can use '-gstabs' to enable building the debugging
-              # information in STABS format for breakpad's dumpsyms.
             ],
           },
           'Release_Base': {
@@ -1108,7 +1106,7 @@
             ],
           }],
           ['linux_breakpad==1', {
-            'cflags': [ '-gstabs' ],
+            'cflags': [ '-g' ],
             'defines': ['USE_LINUX_BREAKPAD'],
           }],
           ['linux_use_seccomp_sandbox==1 and buildtype!="Official"', {

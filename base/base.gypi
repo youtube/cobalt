@@ -665,11 +665,6 @@
           'cflags': [
             '-fPIC',
           ],
-          # Official builds set -gstabs, which fails when building with -fPIC.
-          # It's useless on 64 bits anyways because breakpad doesn't work then.
-          'cflags!': [
-            '-gstabs',
-          ],
           'direct_dependent_settings': {
             'include_dirs': [
               '..',
