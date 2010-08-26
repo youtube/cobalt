@@ -141,7 +141,12 @@ class SpdySession : public base::RefCounted<SpdySession>,
   static bool SSLMode() { return use_ssl_; }
 
   // Enable or disable flow control.
-  static void SetFlowControl(bool enable) { use_flow_control_ = enable; }
+  static void set_flow_control(bool enable) { use_flow_control_ = enable; }
+  static bool flow_control() { return use_flow_control_; }
+
+  // Send WINDOW_UPDATE frame, called by a stream whenever receive window
+  // size is increased.
+  void SendWindowUpdate(spdy::SpdyStreamId stream_id, int delta_window_size);
 
   // If session is closed, no new streams/transactions should be created.
   bool IsClosed() const { return state_ == CLOSED; }
@@ -365,6 +370,12 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // arriving SETTINGS frame; newly created streams use this value for the
   // initial send window size.
   int initial_send_window_size_;
+
+  // Initial receive window size for the session; there are plans to add a
+  // command line switch that would cause a SETTINGS frame with window size
+  // announcement to be sent on startup; newly created streams will use
+  // this value for the initial receive window size.
+  int initial_recv_window_size_;
 
   BoundNetLog net_log_;
 
