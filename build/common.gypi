@@ -529,6 +529,16 @@
          }],  # OS==win
         ],  # conditions for coverage
       }],  # coverage!=0
+      ['OS=="win"', {
+        'defines': [
+          '__STD_C',
+          '_CRT_SECURE_NO_DEPRECATE',
+          '_SCL_SECURE_NO_DEPRECATE',
+        ],
+        'include_dirs': [
+          '<(DEPTH)/third_party/wtl/include',
+        ],
+      }],  # OS==win
     ],  # conditions for 'target_defaults'
     'target_conditions': [
       ['chromium_code==0', {
