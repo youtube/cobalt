@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+#include <cstdio>
+
 #include "net/proxy/proxy_resolver_v8.h"
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
@@ -13,6 +17,7 @@
 #include "net/base/host_cache.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
+#include "net/base/net_util.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_request_context.h"
@@ -26,25 +31,27 @@
 // pulls in.
 //
 // In addition, we implement a subset of Microsoft's extensions to PAC.
-// TODO(eroman): Implement the rest.
-//
-//   - myIpAddressEx()
-//   - dnsResolveEx()
-//   - isResolvableEx()
+// - myIpAddressEx()
+// - dnsResolveEx()
+// - isResolvableEx()
+// - isInNetEx()
+// - sortIpAddressList()
 //
 // It is worth noting that the original PAC specification does not describe
 // the return values on failure. Consequently, there are compatibility
 // differences between browsers on what to return on failure, which are
 // illustrated below:
 //
-// ----------------+-------------+-------------------+--------------
-//                 | Firefox3    | InternetExplorer8 |  --> Us <---
-// ----------------+-------------+-------------------+--------------
-// myIpAddress()   | "127.0.0.1" |  ???              |  "127.0.0.1"
-// dnsResolve()    | null        |  false            |  null
-// myIpAddressEx() | N/A         |  ""               |  ""
-// dnsResolveEx()  | N/A         |  ""               |  ""
-// ----------------+-------------+-------------------+--------------
+// --------------------+-------------+-------------------+--------------
+//                     | Firefox3    | InternetExplorer8 |  --> Us <---
+// --------------------+-------------+-------------------+--------------
+// myIpAddress()       | "127.0.0.1" |  ???              |  "127.0.0.1"
+// dnsResolve()        | null        |  false            |  null
+// myIpAddressEx()     | N/A         |  ""               |  ""
+// sortIpAddressList() | N/A         |  false            |  false
+// dnsResolveEx()      | N/A         |  ""               |  ""
+// isInNetEx()         | N/A         |  false            |  false
+// --------------------+-------------+-------------------+--------------
 //
 // TODO(eroman): The cell above reading ??? means I didn't test it.
 //
@@ -53,15 +60,17 @@
 // include both IPv4 and IPv6. The following table illustrates the
 // differences:
 //
-// -----------------+-------------+-------------------+--------------
-//                  | Firefox3    | InternetExplorer8 |  --> Us <---
-// -----------------+-------------+-------------------+--------------
-// myIpAddress()    | IPv4/IPv6   |  IPv4             |  IPv4
-// dnsResolve()     | IPv4/IPv6   |  IPv4             |  IPv4
-// isResolvable()   | IPv4/IPv6   |  IPv4             |  IPv4
-// myIpAddressEx()  | N/A         |  IPv4/IPv6        |  IPv4/IPv6
-// dnsResolveEx()   | N/A         |  IPv4/IPv6        |  IPv4/IPv6
-// isResolvableEx() | N/A         |  IPv4/IPv6        |  IPv4/IPv6
+// --------------------+-------------+-------------------+--------------
+//                     | Firefox3    | InternetExplorer8 |  --> Us <---
+// --------------------+-------------+-------------------+--------------
+// myIpAddress()       | IPv4/IPv6   |  IPv4             |  IPv4
+// dnsResolve()        | IPv4/IPv6   |  IPv4             |  IPv4
+// isResolvable()      | IPv4/IPv6   |  IPv4             |  IPv4
+// myIpAddressEx()     | N/A         |  IPv4/IPv6        |  IPv4/IPv6
+// dnsResolveEx()      | N/A         |  IPv4/IPv6        |  IPv4/IPv6
+// sortIpAddressList() | N/A         |  IPv4/IPv6        |  IPv4/IPv6
+// isResolvableEx()    | N/A         |  IPv4/IPv6        |  IPv4/IPv6
+// isInNetEx()         | N/A         |  IPv4/IPv6        |  IPv4/IPv6
 // -----------------+-------------+-------------------+--------------
 
 namespace net {
@@ -125,6 +134,13 @@ class V8ExternalASCIILiteral : public v8::String::ExternalAsciiStringResource {
 // strings there are savings by sharing the storage. This number identifies
 // the cutoff length for when to start wrapping rather than creating copies.
 const size_t kMaxStringBytesForCopy = 256;
+
+// Converts a V8 String to a UTF8 std::string.
+std::string V8StringToUTF8(v8::Handle<v8::String> s) {
+  std::string result;
+  s->WriteUtf8(WriteInto(&result, s->Length() + 1));
+  return result;
+}
 
 // Converts a V8 String to a UTF16 string16.
 string16 V8StringToUTF16(v8::Handle<v8::String> s) {
@@ -211,6 +227,101 @@ bool GetHostnameArgument(const v8::Arguments& args, std::string* hostname) {
   DCHECK(success);
   DCHECK(IsStringASCII(*hostname));
   return success;
+}
+
+// Wrapper for passing around IP address strings and IPAddressNumber objects.
+struct IPAddress {
+  IPAddress(const std::string& ip_string, const IPAddressNumber& ip_number)
+      : string_value(ip_string),
+        ip_address_number(ip_number) {
+  }
+
+  // Used for sorting IP addresses in ascending order in SortIpAddressList().
+  // IP6 addresses are placed ahead of IPv4 addresses.
+  bool operator<(const IPAddress& rhs) const {
+    const IPAddressNumber& ip1 = this->ip_address_number;
+    const IPAddressNumber& ip2 = rhs.ip_address_number;
+    if (ip1.size() != ip2.size())
+      return ip1.size() > ip2.size();  // IPv6 before IPv4.
+    DCHECK(ip1.size() == ip2.size());
+    return memcmp(&ip1[0], &ip2[0], ip1.size()) < 0;  // Ascending order.
+  }
+
+  std::string string_value;
+  IPAddressNumber ip_address_number;
+};
+
+// Handler for "sortIpAddressList(IpAddressList)". |ip_address_list| is a
+// semi-colon delimited string containing IP addresses.
+// |sorted_ip_address_list| is the resulting list of sorted semi-colon delimited
+// IP addresses or an empty string if unable to sort the IP address list.
+// Returns 'true' if the sorting was successful, and 'false' if the input was an
+// empty string, a string of separators (";" in this case), or if any of the IP
+// addresses in the input list failed to parse.
+bool SortIpAddressList(const std::string& ip_address_list,
+                       std::string* sorted_ip_address_list) {
+  sorted_ip_address_list->clear();
+
+  // Strip all whitespace (mimics IE behavior).
+  std::string cleaned_ip_address_list;
+  RemoveChars(ip_address_list, " \t", &cleaned_ip_address_list);
+  if (cleaned_ip_address_list.empty())
+    return false;
+
+  // Split-up IP addresses and store them in a vector.
+  std::vector<IPAddress> ip_vector;
+  IPAddressNumber ip_num;
+  StringTokenizer str_tok(cleaned_ip_address_list, ";");
+  while (str_tok.GetNext()) {
+    if (!ParseIPLiteralToNumber(str_tok.token(), &ip_num))
+      return false;
+    ip_vector.push_back(IPAddress(str_tok.token(), ip_num));
+  }
+
+  if (ip_vector.empty())  // Can happen if we have something like
+    return false;         // sortIpAddressList(";") or sortIpAddressList("; ;")
+
+  DCHECK(!ip_vector.empty());
+
+  // Sort lists according to ascending numeric value.
+  if (ip_vector.size() > 1)
+    std::stable_sort(ip_vector.begin(), ip_vector.end());
+
+  // Return a semi-colon delimited list of sorted addresses (IPv6 followed by
+  // IPv4).
+  for (size_t i = 0; i < ip_vector.size(); ++i) {
+    if (i > 0)
+      *sorted_ip_address_list += ";";
+    *sorted_ip_address_list += ip_vector[i].string_value;
+  }
+  return true;
+}
+
+// Handler for "isInNetEx(ip_address, ip_prefix)". |ip_address| is a string
+// containing an IPv4/IPv6 address, and |ip_prefix| is a string containg a
+// slash-delimited IP prefix with the top 'n' bits specified in the bit
+// field. This returns 'true' if the address is in the same subnet, and
+// 'false' otherwise. Also returns 'false' if the prefix is in an incorrect
+// format, or if an address and prefix of different types are used (e.g. IPv6
+// address and IPv4 prefix).
+bool IsInNetEx(const std::string& ip_address, const std::string& ip_prefix) {
+  IPAddressNumber address;
+  if (!ParseIPLiteralToNumber(ip_address, &address))
+    return false;
+
+  IPAddressNumber prefix;
+  size_t prefix_length_in_bits;
+  if (!ParseCIDRBlock(ip_prefix, &prefix, &prefix_length_in_bits))
+    return false;
+
+  // Both |address| and |prefix| must be of the same type (IPv4 or IPv6).
+  if (address.size() != prefix.size())
+    return false;
+
+  DCHECK((address.size() == 4 && prefix.size() == 4) ||
+         (address.size() == 16 && prefix.size() == 16));
+
+  return IPNumberMatchesPrefix(address, prefix, prefix_length_in_bits);
 }
 
 }  // namespace
@@ -310,7 +421,7 @@ class ProxyResolverV8::Context {
     global_template->Set(ASCIILiteralToV8String("dnsResolve"),
         dns_resolve_template);
 
-    // Microsoft's PAC extensions (incomplete):
+    // Microsoft's PAC extensions:
 
     v8::Local<v8::FunctionTemplate> dns_resolve_ex_template =
         v8::FunctionTemplate::New(&DnsResolveExCallback, v8_this_);
@@ -321,6 +432,16 @@ class ProxyResolverV8::Context {
         v8::FunctionTemplate::New(&MyIpAddressExCallback, v8_this_);
     global_template->Set(ASCIILiteralToV8String("myIpAddressEx"),
                          my_ip_address_ex_template);
+
+    v8::Local<v8::FunctionTemplate> sort_ip_address_list_template =
+        v8::FunctionTemplate::New(&SortIpAddressListCallback, v8_this_);
+    global_template->Set(ASCIILiteralToV8String("sortIpAddressList"),
+                         sort_ip_address_list_template);
+
+    v8::Local<v8::FunctionTemplate> is_in_net_ex_template =
+        v8::FunctionTemplate::New(&IsInNetExCallback, v8_this_);
+    global_template->Set(ASCIILiteralToV8String("isInNetEx"),
+                         is_in_net_ex_template);
 
     v8_context_ = v8::Context::New(NULL, global_template);
 
@@ -507,14 +628,46 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
-      success = context->js_bindings_->DnsResolveEx(hostname,
-                                                    &ip_address_list);
+      success = context->js_bindings_->DnsResolveEx(hostname, &ip_address_list);
     }
 
     if (!success)
       ip_address_list = std::string();
 
     return ASCIIStringToV8String(ip_address_list);
+  }
+
+  // V8 callback for when "sortIpAddressList()" is invoked by the PAC script.
+  static v8::Handle<v8::Value> SortIpAddressListCallback(
+      const v8::Arguments& args) {
+    // We need at least one string argument.
+    if (args.Length() == 0 || args[0].IsEmpty() || !args[0]->IsString())
+      return v8::Null();
+
+    std::string ip_address_list = V8StringToUTF8(args[0]->ToString());
+    if (!IsStringASCII(ip_address_list))
+      return v8::Null();
+    std::string sorted_ip_address_list;
+    bool success = SortIpAddressList(ip_address_list, &sorted_ip_address_list);
+    if (!success)
+      return v8::False();
+    return ASCIIStringToV8String(sorted_ip_address_list);
+  }
+
+  // V8 callback for when "isInNetEx()" is invoked by the PAC script.
+  static v8::Handle<v8::Value> IsInNetExCallback(const v8::Arguments& args) {
+    // We need at least 2 string arguments.
+    if (args.Length() < 2 || args[0].IsEmpty() || !args[0]->IsString() ||
+        args[1].IsEmpty() || !args[1]->IsString())
+      return v8::Null();
+
+    std::string ip_address = V8StringToUTF8(args[0]->ToString());
+    if (!IsStringASCII(ip_address))
+      return v8::False();
+    std::string ip_prefix = V8StringToUTF8(args[1]->ToString());
+    if (!IsStringASCII(ip_prefix))
+      return v8::False();
+    return IsInNetEx(ip_address, ip_prefix) ? v8::True() : v8::False();
   }
 
   ProxyResolverJSBindings* js_bindings_;
