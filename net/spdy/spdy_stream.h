@@ -109,6 +109,11 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
     send_window_size_ = window_size;
   }
 
+  int recv_window_size() const { return recv_window_size_; }
+  void set_recv_window_size(int window_size) {
+    recv_window_size_ = window_size;
+  }
+
   void set_stalled_by_flow_control(bool stalled) {
     stalled_by_flow_control_ = stalled;
   }
@@ -120,6 +125,16 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
 
   // Decreases |send_window_size_| by the given number of bytes.
   void DecreaseSendWindowSize(int delta_window_size);
+
+  // Increases |recv_window_size_| by the given number of bytes, also sends
+  // a WINDOW_UPDATE frame.
+  void IncreaseRecvWindowSize(int delta_window_size);
+
+  // Decreases |recv_window_size_| by the given number of bytes, called
+  // whenever data is read.  May also send a RST_STREAM and remove the
+  // stream from the session if the resultant |recv_window_size_| is
+  // negative, since that would be a flow control violation.
+  void DecreaseRecvWindowSize(int delta_window_size);
 
   const BoundNetLog& net_log() const { return net_log_; }
   void set_net_log(const BoundNetLog& log) { net_log_ = log; }
@@ -229,6 +244,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // Flow control variables.
   bool stalled_by_flow_control_;
   int send_window_size_;
+  int recv_window_size_;
 
   const bool pushed_;
   ScopedBandwidthMetrics metrics_;
