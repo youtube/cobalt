@@ -91,15 +91,6 @@
       # building on.
       'target_arch%': '<(host_arch)',
 
-      # TODO(thestig) remove these after the Linux Reliability bot stops
-      # using them.
-      # We do want to build Chromium with Breakpad support in certain
-      # situations. I.e. for Chrome bot.
-      'linux_chromium_breakpad%': 0,
-      # And if we want to dump symbols.
-      'linux_chromium_dump_symbols%': 0,
-      # Also see linux_strip_binary below.
-
       # Copy conditionally-set chromeos and touchui variables out one scope.
       'chromeos%': '<(chromeos)',
       'touchui%': '<(touchui)',
@@ -304,15 +295,14 @@
         # Figure out the python architecture to decide if we build pyauto.
         'python_arch%': '<!(<(DEPTH)/build/linux/python_arch.sh <(sysroot)/usr/lib/libpython<(python_ver).so.1.0)',
         'conditions': [
-          ['branding=="Chrome" or linux_chromium_breakpad==1', {
+          ['branding=="Chrome"', {
             'linux_breakpad%': 1,
           }],
           # All Chrome builds have breakpad symbols, but only process the
           # symbols from official builds.
           # TODO(mmoss) dump_syms segfaults on x64. Enable once dump_syms and
           # crash server handle 64-bit symbols.
-          ['linux_chromium_dump_symbols==1 or '
-           '(branding=="Chrome" and buildtype=="Official" and '
+          ['(branding=="Chrome" and buildtype=="Official" and '
            'target_arch=="ia32")', {
             'linux_dump_symbols%': 1,
           }],
