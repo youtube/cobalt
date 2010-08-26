@@ -144,6 +144,7 @@
         'sys_info_unittest.cc',
         'sys_string_conversions_mac_unittest.mm',
         'sys_string_conversions_unittest.cc',
+        'task_queue_unittest.cc',
         'thread_checker_unittest.cc',
         'thread_collision_warner_unittest.cc',
         'thread_local_storage_unittest.cc',
