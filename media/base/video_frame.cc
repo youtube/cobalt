@@ -4,6 +4,8 @@
 
 #include "media/base/video_frame.h"
 
+#include "base/logging.h"
+
 namespace media {
 
 // static

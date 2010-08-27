@@ -11,7 +11,6 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/gtest_prod_util.h"
-#include "base/logging.h"
 #include "base/ref_counted.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/file_stream.h"
