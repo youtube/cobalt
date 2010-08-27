@@ -6,13 +6,15 @@
 
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
+#include "media/audio/mac/audio_input_mac.h"
 #include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
 
-bool AudioManagerMac::HasAudioOutputDevices() {
+namespace {
+bool HasAudioHardware(AudioObjectPropertySelector selector) {
   AudioDeviceID output_device_id = kAudioObjectUnknown;
-  AudioObjectPropertyAddress property_address = {
-    kAudioHardwarePropertyDefaultOutputDevice,  // mSelector
+  const AudioObjectPropertyAddress property_address = {
+    selector,
     kAudioObjectPropertyScopeGlobal,            // mScope
     kAudioObjectPropertyElementMaster           // mElement
   };
@@ -24,12 +26,16 @@ bool AudioManagerMac::HasAudioOutputDevices() {
                                             &output_device_id_size,
                                             &output_device_id);
   return err == kAudioHardwareNoError &&
-         output_device_id != kAudioObjectUnknown;
+      output_device_id != kAudioObjectUnknown;
+}
+}  // namespace
+
+bool AudioManagerMac::HasAudioOutputDevices() {
+  return HasAudioHardware(kAudioHardwarePropertyDefaultOutputDevice);
 }
 
 bool AudioManagerMac::HasAudioInputDevices() {
-  // TODO(satish): implement.
-  return false;
+  return HasAudioHardware(kAudioHardwarePropertyDefaultInputDevice);
 }
 
 AudioInputStream* AudioManagerMac::MakeAudioInputStream(
@@ -42,8 +48,10 @@ AudioInputStream* AudioManagerMac::MakeAudioInputStream(
     return FakeAudioInputStream::MakeFakeStream(channels, bits_per_sample,
                                                 sample_rate,
                                                 samples_per_packet);
+  } else if (format == AUDIO_PCM_LINEAR) {
+    return new PCMQueueInAudioInputStream(this, channels, sample_rate,
+                                          bits_per_sample, samples_per_packet);
   }
-  // TODO(satish): implement.
   return NULL;
 }
 
@@ -52,12 +60,13 @@ AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
     int channels,
     int sample_rate,
     char bits_per_sample) {
-  if (format == AUDIO_MOCK)
+  if (format == AUDIO_MOCK) {
     return FakeAudioOutputStream::MakeFakeStream();
-  else if (format != AUDIO_PCM_LINEAR)
-    return NULL;
-  return new PCMQueueOutAudioOutputStream(this, channels, sample_rate,
-                                          bits_per_sample);
+  } else if (format == AUDIO_PCM_LINEAR) {
+    return new PCMQueueOutAudioOutputStream(this, channels, sample_rate,
+                                            bits_per_sample);
+  }
+  return NULL;
 }
 
 void AudioManagerMac::MuteAll() {
@@ -71,6 +80,11 @@ void AudioManagerMac::UnMuteAll() {
 // Called by the stream when it has been released by calling Close().
 void AudioManagerMac::ReleaseOutputStream(
     PCMQueueOutAudioOutputStream* stream) {
+  delete stream;
+}
+
+// Called by the stream when it has been released by calling Close().
+void AudioManagerMac::ReleaseInputStream(PCMQueueInAudioInputStream* stream) {
   delete stream;
 }
 
