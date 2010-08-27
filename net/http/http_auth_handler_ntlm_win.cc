@@ -9,7 +9,6 @@
 
 #include "net/http/http_auth_handler_ntlm.h"
 
-#include "base/logging.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
