@@ -979,7 +979,7 @@ bool BackendImpl::IsAllocAllowed(int current_size, int new_size) {
     return false;
 
   buffer_bytes_ += to_add;
-  HISTOGRAM_COUNTS("DiskCache.BufferBytes", buffer_bytes_ / 10);
+  CACHE_UMA(COUNTS_50000, "BufferBytes", 0, buffer_bytes_ / 1024);
   return true;
 }
 
