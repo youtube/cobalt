@@ -94,19 +94,19 @@ class SSLClientSocket : public ClientSocket {
     return false;
   }
 
-  virtual bool wasNpnNegotiated() const {
+  virtual bool was_npn_negotiated() const {
     return was_npn_negotiated_;
   }
 
-  virtual bool setWasNpnNegotiated(bool negotiated) {
+  virtual bool set_was_npn_negotiated(bool negotiated) {
     return was_npn_negotiated_ = negotiated;
   }
 
-  virtual bool wasSpdyNegotiated() const {
+  virtual bool was_spdy_negotiated() const {
     return was_spdy_negotiated_;
   }
 
-  virtual bool setWasSpdyNegotiated(bool negotiated) {
+  virtual bool set_was_spdy_negotiated(bool negotiated) {
     return was_spdy_negotiated_ = negotiated;
   }
 

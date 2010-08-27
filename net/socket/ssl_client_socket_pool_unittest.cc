@@ -277,7 +277,7 @@ TEST_F(SSLClientSocketPoolTest, DirectWithNPN) {
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
   SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle.socket());
-  EXPECT_TRUE(ssl_socket->wasNpnNegotiated());
+  EXPECT_TRUE(ssl_socket->was_npn_negotiated());
 }
 
 TEST_F(SSLClientSocketPoolTest, DirectNoSPDY) {
@@ -329,7 +329,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   EXPECT_TRUE(handle.socket());
 
   SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle.socket());
-  EXPECT_TRUE(ssl_socket->wasNpnNegotiated());
+  EXPECT_TRUE(ssl_socket->was_npn_negotiated());
   std::string proto;
   ssl_socket->GetNextProto(&proto);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
@@ -360,7 +360,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   EXPECT_TRUE(handle.socket());
 
   SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle.socket());
-  EXPECT_TRUE(ssl_socket->wasNpnNegotiated());
+  EXPECT_TRUE(ssl_socket->was_npn_negotiated());
   std::string proto;
   ssl_socket->GetNextProto(&proto);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
