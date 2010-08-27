@@ -4,6 +4,7 @@
 
 #include "base/environment.h"
 #include "base/basictypes.h"
+#include "base/logging.h"
 #include "base/waitable_event.h"
 #include "media/audio/audio_output_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"

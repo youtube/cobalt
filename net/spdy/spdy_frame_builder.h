@@ -1,9 +1,9 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_SPDY_FRAME_BUILDER_H_
-#define NET_SPDY_FRAME_BUILDER_H_
+#ifndef NET_SPDY_SPDY_FRAME_BUILDER_H_
+#define NET_SPDY_SPDY_FRAME_BUILDER_H_
 #pragma once
 
 #ifdef WIN32
@@ -14,7 +14,7 @@
 
 #include <string>
 
-#include "base/logging.h"
+#include "base/basictypes.h"
 #include "net/spdy/spdy_protocol.h"
 
 namespace spdy {
@@ -160,5 +160,4 @@ class SpdyFrameBuilder {
 
 }  // namespace spdy
 
-#endif  // NET_SPDY_FRAME_BUILDER_H_
-
+#endif  // NET_SPDY_SPDY_FRAME_BUILDER_H_
