@@ -9,13 +9,22 @@
 namespace net {
 
 URLSecurityManagerWhitelist::URLSecurityManagerWhitelist(
-    HttpAuthFilter* whitelist) : whitelist_(whitelist) {
+    const HttpAuthFilter* whitelist_default,
+    const HttpAuthFilter* whitelist_delegate)
+    : whitelist_default_(whitelist_default),
+      whitelist_delegate_(whitelist_delegate) {
 }
 
 bool URLSecurityManagerWhitelist::CanUseDefaultCredentials(
-    const GURL& auth_origin) {
-  if (whitelist_.get())
-    return whitelist_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
+    const GURL& auth_origin) const  {
+  if (whitelist_default_.get())
+    return whitelist_default_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
+  return false;
+}
+
+bool URLSecurityManagerWhitelist::CanDelegate(const GURL& auth_origin) const {
+  if (whitelist_delegate_.get())
+    return whitelist_delegate_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
   return false;
 }
 

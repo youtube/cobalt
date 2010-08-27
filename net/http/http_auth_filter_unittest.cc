@@ -78,7 +78,7 @@ static const UrlData urls[] = {
 
 TEST(HttpAuthFilterTest, EmptyFilter) {
   // Create an empty filter
-  HttpAuthFilterWhitelist filter;
+  HttpAuthFilterWhitelist filter("");
   for (size_t i = 0; i < arraysize(urls); i++) {
     EXPECT_EQ(urls[i].target == HttpAuth::AUTH_PROXY,
               filter.IsValid(urls[i].url, urls[i].target))
@@ -88,7 +88,6 @@ TEST(HttpAuthFilterTest, EmptyFilter) {
 
 TEST(HttpAuthFilterTest, NonEmptyFilter) {
   // Create an non-empty filter
-  HttpAuthFilterWhitelist filter;
   std::string server_whitelist_filter_string;
   for (size_t i = 0; i < arraysize(server_whitelist_array); ++i) {
     if (!server_whitelist_filter_string.empty())
@@ -96,7 +95,7 @@ TEST(HttpAuthFilterTest, NonEmptyFilter) {
     server_whitelist_filter_string += "*";
     server_whitelist_filter_string += server_whitelist_array[i];
   }
-  filter.SetWhitelist(server_whitelist_filter_string);
+  HttpAuthFilterWhitelist filter(server_whitelist_filter_string);
   for (size_t i = 0; i < arraysize(urls); i++) {
     EXPECT_EQ(urls[i].matches, filter.IsValid(urls[i].url, urls[i].target))
         << " " << i << ": " << urls[i].url;

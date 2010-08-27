@@ -23,12 +23,34 @@ class URLSecurityManager {
   virtual ~URLSecurityManager() {}
 
   // Creates a platform-dependent instance of URLSecurityManager.
-  // The URLSecurityManager takes ownership of the HttpAuthFilter.
-  static URLSecurityManager* Create(HttpAuthFilter* whitelist);
+  //
+  // |whitelist_default| is the whitelist of servers that default credentials
+  // can be used with during NTLM or Negotiate authentication. If
+  // |whitelist_default| is NULL and the platform is Windows, it indicates
+  // that security zone mapping should be used to determine whether default
+  // credentials sxhould be used. If |whitelist_default| is NULL and the
+  // platform is non-Windows, it indicates that no servers should be
+  // whitelisted.
+  //
+  // |whitelist_delegate| is the whitelist of servers that are allowed
+  // to have Delegated Kerberos tickets. If |whitelist_delegate| is NULL,
+  // no servers can have delegated Kerberos tickets.
+  //
+  // Both |whitelist_default| and |whitelist_delegate| will be owned by
+  // the created URLSecurityManager.
+  //
+  // TODO(cbentzel): Perhaps it's better to make a non-abstract HttpAuthFilter
+  //                 and just copy into the URLSecurityManager?
+  static URLSecurityManager* Create(const HttpAuthFilter* whitelist_default,
+                                    const HttpAuthFilter* whitelist_delegate);
 
   // Returns true if we can send the default credentials to the server at
   // |auth_origin| for HTTP NTLM or Negotiate authentication.
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) = 0;
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const = 0;
+
+  // Returns true if Kerberos delegation is allowed for the server at
+  // |auth_origin| for HTTP Negotiate authentication.
+  virtual bool CanDelegate(const GURL& auth_origin) const = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManager);
@@ -36,26 +58,32 @@ class URLSecurityManager {
 
 class URLSecurityManagerWhitelist : public URLSecurityManager {
  public:
-  // The URLSecurityManagerWhitelist takes ownership of the HttpAuthFilter.
-  explicit URLSecurityManagerWhitelist(HttpAuthFilter* whitelist);
+  // The URLSecurityManagerWhitelist takes ownership of the whitelists.
+  URLSecurityManagerWhitelist(const HttpAuthFilter* whitelist_default,
+                              const HttpAuthFilter* whitelist_delegation);
 
   // URLSecurityManager methods.
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin);
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const;
+  virtual bool CanDelegate(const GURL& auth_origin) const;
 
  private:
-  scoped_ptr<HttpAuthFilter> whitelist_;
+  scoped_ptr<const HttpAuthFilter> whitelist_default_;
+  scoped_ptr<const HttpAuthFilter> whitelist_delegate_;
 
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerWhitelist);
 };
 
 #if defined(UNIT_TEST)
-// An URLSecurityManager which always allows default credentials.
+// An URLSecurityManager which is very permissive.
 class URLSecurityManagerAllow : public URLSecurityManager {
  public:
   URLSecurityManagerAllow() {}
   virtual ~URLSecurityManagerAllow() {}
 
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) {
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const {
+    return true;
+  }
+  virtual bool CanDelegate(const GURL& auth_origin) const {
     return true;
   }
 
