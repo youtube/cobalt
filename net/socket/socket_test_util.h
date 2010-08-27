@@ -652,8 +652,8 @@ class MockSSLClientSocket : public MockClientSocket {
   // SSLClientSocket methods:
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
   virtual NextProtoStatus GetNextProto(std::string* proto);
-  virtual bool wasNpnNegotiated() const;
-  virtual bool setWasNpnNegotiated(bool negotiated);
+  virtual bool was_npn_negotiated() const;
+  virtual bool set_was_npn_negotiated(bool negotiated);
 
   // This MockSocket does not implement the manual async IO feature.
   virtual void OnReadComplete(const MockRead& data) { NOTIMPLEMENTED(); }

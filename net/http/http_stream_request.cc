@@ -563,9 +563,9 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
   if (ssl_started && (result == OK || IsCertificateError(result))) {
     SSLClientSocket* ssl_socket =
       static_cast<SSLClientSocket*>(connection_->socket());
-    if (ssl_socket->wasNpnNegotiated()) {
+    if (ssl_socket->was_npn_negotiated()) {
       was_npn_negotiated_ = true;
-      if (ssl_socket->wasSpdyNegotiated())
+      if (ssl_socket->was_spdy_negotiated())
         using_spdy_ = true;
     }
     if (force_spdy_over_ssl_ && force_spdy_always_)
