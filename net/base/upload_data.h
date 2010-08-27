@@ -13,6 +13,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
 #include "base/ref_counted.h"
+#include "googleurl/src/gurl.h"
 #include "net/base/file_stream.h"
 #include "base/time.h"
 
@@ -24,7 +25,8 @@ class UploadData : public base::RefCounted<UploadData> {
 
   enum Type {
     TYPE_BYTES,
-    TYPE_FILE
+    TYPE_FILE,
+    TYPE_BLOB
   };
 
   class Element {
@@ -50,6 +52,7 @@ class UploadData : public base::RefCounted<UploadData> {
     const base::Time& expected_file_modification_time() const {
       return expected_file_modification_time_;
     }
+    const GURL& blob_url() const { return blob_url_; }
 
     void SetToBytes(const char* bytes, int bytes_len) {
       type_ = TYPE_BYTES;
@@ -71,6 +74,13 @@ class UploadData : public base::RefCounted<UploadData> {
       file_range_offset_ = offset;
       file_range_length_ = length;
       expected_file_modification_time_ = expected_modification_time;
+    }
+
+    // TODO(jianli): UploadData should not contain any blob reference. We need
+    // to define another structure to represent WebKit::WebHTTPBody.
+    void SetToBlobUrl(const GURL& blob_url) {
+      type_ = TYPE_BLOB;
+      blob_url_ = blob_url;
     }
 
     // Returns the byte-length of the element.  For files that do not exist, 0
@@ -97,6 +107,7 @@ class UploadData : public base::RefCounted<UploadData> {
     uint64 file_range_offset_;
     uint64 file_range_length_;
     base::Time expected_file_modification_time_;
+    GURL blob_url_;
     bool override_content_length_;
     bool content_length_computed_;
     uint64 content_length_;
@@ -125,6 +136,11 @@ class UploadData : public base::RefCounted<UploadData> {
     elements_.push_back(Element());
     elements_.back().SetToFilePathRange(file_path, offset, length,
                                         expected_modification_time);
+  }
+
+  void AppendBlob(const GURL& blob_url) {
+    elements_.push_back(Element());
+    elements_.back().SetToBlobUrl(blob_url);
   }
 
   // Returns the total size in bytes of the data to upload.
