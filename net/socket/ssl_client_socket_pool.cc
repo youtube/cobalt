@@ -281,7 +281,6 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
     status = ssl_socket_->GetNextProto(&proto);
 
   // If we want spdy over npn, make sure it succeeded.
-  bool spdy_over_npn_succeeded = false;
   if (status == SSLClientSocket::kNextProtoNegotiated) {
     ssl_socket_->setWasNpnNegotiated(true);
     SSLClientSocket::NextProto next_protocol =
@@ -291,10 +290,10 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
     // TODO(mbelshe): verify it was a protocol we advertised?
     if (next_protocol == SSLClientSocket::kProtoSPDY1 ||
         next_protocol == SSLClientSocket::kProtoSPDY2) {
-      spdy_over_npn_succeeded = true;
+      ssl_socket_->setWasSpdyNegotiated(true);
     }
   }
-  if (params_->want_spdy_over_npn() && !spdy_over_npn_succeeded)
+  if (params_->want_spdy_over_npn() && !ssl_socket_->wasSpdyNegotiated())
     return ERR_NPN_NEGOTIATION_FAILED;
 
   // Spdy might be turned on by default, or it might be over npn.
