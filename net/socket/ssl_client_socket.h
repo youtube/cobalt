@@ -25,7 +25,7 @@ class SSLInfo;
 //
 class SSLClientSocket : public ClientSocket {
  public:
-  SSLClientSocket() : was_npn_negotiated_(false) {
+  SSLClientSocket() : was_npn_negotiated_(false), was_spdy_negotiated_(false) {
   }
   // Next Protocol Negotiation (NPN) allows a TLS client and server to come to
   // an agreement about the application level protocol to speak over a
@@ -102,9 +102,19 @@ class SSLClientSocket : public ClientSocket {
     return was_npn_negotiated_ = negotiated;
   }
 
+  virtual bool wasSpdyNegotiated() const {
+    return was_spdy_negotiated_;
+  }
+
+  virtual bool setWasSpdyNegotiated(bool negotiated) {
+    return was_spdy_negotiated_ = negotiated;
+  }
+
  private:
   // True if NPN was responded to, independent of selecting SPDY or HTTP.
   bool was_npn_negotiated_;
+  // True if NPN successfully negotiated SPDY.
+  bool was_spdy_negotiated_;
 };
 
 }  // namespace net
