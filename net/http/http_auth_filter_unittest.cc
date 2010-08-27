@@ -4,7 +4,6 @@
 
 #include <iostream>
 
-#include "base/logging.h"
 
 #include "base/scoped_ptr.h"
 #include "googleurl/src/gurl.h"

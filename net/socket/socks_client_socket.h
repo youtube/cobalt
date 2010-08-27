@@ -8,8 +8,8 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/logging.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "googleurl/src/gurl.h"

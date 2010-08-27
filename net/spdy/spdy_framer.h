@@ -18,7 +18,6 @@
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/spdy/spdy_protocol.h"
 

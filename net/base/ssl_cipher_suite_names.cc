@@ -6,7 +6,6 @@
 
 #include <stdlib.h>
 
-#include "base/logging.h"
 
 // Rather than storing the names of all the ciphersuites we eliminate the
 // redundancy and break each cipher suite into a key exchange method, cipher
