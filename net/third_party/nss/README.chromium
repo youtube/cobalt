@@ -14,6 +14,8 @@ Patches:
 
   * False start support
     patches/falsestart.patch
+    patches/falsestart2.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=525092
 
   * Commenting out a couple of functions because they need NSS symbols
     which may not exist in the system NSS library.
