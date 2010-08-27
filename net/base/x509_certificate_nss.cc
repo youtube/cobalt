@@ -590,10 +590,6 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
   // Compare with CERT_VerifyCertName().
   GetCertSubjectAltNamesOfType(cert_handle_, certDNSName, dns_names);
 
-  // TODO(port): suppress nss's support of the obsolete extension
-  //  SEC_OID_NS_CERT_EXT_SSL_SERVER_NAME
-  // by providing our own authCertificate callback.
-
   if (dns_names->empty())
     dns_names->push_back(subject_.common_name);
 }
