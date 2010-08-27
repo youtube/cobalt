@@ -517,13 +517,13 @@ SSLClientSocket::NextProtoStatus MockSSLClientSocket::GetNextProto(
   return data_->next_proto_status;
 }
 
-bool MockSSLClientSocket::wasNpnNegotiated() const {
+bool MockSSLClientSocket::was_npn_negotiated() const {
   if (is_npn_state_set_)
     return new_npn_value_;
   return data_->was_npn_negotiated;
 }
 
-bool MockSSLClientSocket::setWasNpnNegotiated(bool negotiated) {
+bool MockSSLClientSocket::set_was_npn_negotiated(bool negotiated) {
   is_npn_state_set_ = true;
   return new_npn_value_ = negotiated;
 }

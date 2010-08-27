@@ -923,7 +923,7 @@ bool SpdySession::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_->socket());
     ssl_socket->GetSSLInfo(ssl_info);
-    *was_npn_negotiated = ssl_socket->wasNpnNegotiated();
+    *was_npn_negotiated = ssl_socket->was_npn_negotiated();
     return true;
   }
   return false;
