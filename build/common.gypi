@@ -256,6 +256,10 @@
     # Disable TCMalloc's heapchecker.
     'linux_use_heapchecker%': 0,
 
+    # Disable shadow stack keeping used by heapcheck to unwind the stacks
+    # better.
+    'linux_keep_shadow_stacks%': 0,
+
     # Set to 1 to turn on seccomp sandbox by default.
     # (Note: this is ignored for official builds.)
     'linux_use_seccomp_sandbox%': 0,
@@ -1131,6 +1135,10 @@
           }],
           ['linux_use_heapchecker==0', {
             'defines': ['NO_HEAPCHECKER'],
+          }],
+          ['linux_keep_shadow_stacks==1', {
+            'defines': ['KEEP_SHADOW_STACKS'],
+            'cflags': ['-finstrument-functions'],
           }],
         ],
       },
