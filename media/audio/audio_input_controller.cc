@@ -154,6 +154,9 @@ void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
 }
 
 void AudioInputController::OnClose(AudioInputStream* stream) {
+  // TODO(satish): Sometimes the device driver closes the input stream without
+  // us asking for it (may be if the device was unplugged?). Check how to handle
+  // such cases here.
 }
 
 void AudioInputController::OnError(AudioInputStream* stream, int code) {
