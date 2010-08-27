@@ -565,17 +565,8 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
       static_cast<SSLClientSocket*>(connection_->socket());
     if (ssl_socket->wasNpnNegotiated()) {
       was_npn_negotiated_ = true;
-      std::string proto;
-      ssl_socket->GetNextProto(&proto);
-      SSLClientSocket::NextProto next_protocol =
-          SSLClientSocket::NextProtoFromString(proto);
-      // If we negotiated either version of SPDY, we must have
-      // advertised it, so allow it.
-      // TODO(mbelshe): verify it was a protocol we advertised?
-      if (next_protocol == SSLClientSocket::kProtoSPDY1 ||
-          next_protocol == SSLClientSocket::kProtoSPDY2) {
+      if (ssl_socket->wasSpdyNegotiated())
         using_spdy_ = true;
-      }
     }
     if (force_spdy_over_ssl_ && force_spdy_always_)
       using_spdy_ = true;
