@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "media/audio/linux/alsa_output.h"
