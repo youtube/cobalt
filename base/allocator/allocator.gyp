@@ -354,6 +354,17 @@
             '<(tcmalloc_dir)/src/debugallocation.cc',
           ],
         }],
+        [ 'linux_keep_shadow_stacks==1', {
+          'sources': [
+            '<(tcmalloc_dir)/src/linux_shadow_stacks.cc',
+            '<(tcmalloc_dir)/src/linux_shadow_stacks.h',
+            '<(tcmalloc_dir)/src/stacktrace_shadow-inl.h',
+          ],
+          'cflags': [
+            '-finstrument-functions',
+            '-DKEEP_SHADOW_STACKS',
+          ],
+        }],
         [ 'linux_use_heapchecker==0', {
           # Do not compile and link the heapchecker source.
           'sources!': [
