@@ -24,6 +24,9 @@ uint64 UploadData::Element::GetContentLength() {
 
   if (type_ == TYPE_BYTES)
     return static_cast<uint64>(bytes_.size());
+  else if (type_ == TYPE_BLOB)
+    // The blob reference will be resolved later.
+    return 0;
 
   DCHECK_EQ(TYPE_FILE, type_);
   DCHECK(!file_stream_);
