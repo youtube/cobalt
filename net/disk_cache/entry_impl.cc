@@ -286,8 +286,8 @@ bool EntryImpl::UserBuffer::GrowBuffer(int required, int limit) {
 
 // ------------------------------------------------------------------------
 
-EntryImpl::EntryImpl(BackendImpl* backend, Addr address)
-    : entry_(NULL, Addr(0)), node_(NULL, Addr(0)) {
+EntryImpl::EntryImpl(BackendImpl* backend, Addr address, bool read_only)
+    : entry_(NULL, Addr(0)), node_(NULL, Addr(0)), read_only_(read_only) {
   entry_.LazyInit(backend->File(address), address);
   doomed_ = false;
   backend_ = backend;
@@ -394,7 +394,7 @@ int EntryImpl::ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
   if (!callback)
     return ReadDataImpl(index, offset, buf, buf_len, callback);
 
-  DCHECK(node_.Data()->dirty);
+  DCHECK(node_.Data()->dirty || read_only_);
   if (index < 0 || index >= kNumStreams)
     return net::ERR_INVALID_ARGUMENT;
 
@@ -415,7 +415,7 @@ int EntryImpl::WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
   if (!callback)
     return WriteDataImpl(index, offset, buf, buf_len, callback, truncate);
 
-  DCHECK(node_.Data()->dirty);
+  DCHECK(node_.Data()->dirty || read_only_);
   if (index < 0 || index >= kNumStreams)
     return net::ERR_INVALID_ARGUMENT;
 
@@ -487,7 +487,7 @@ void EntryImpl::DoomImpl() {
 
 int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
                             int buf_len, CompletionCallback* callback) {
-  DCHECK(node_.Data()->dirty);
+  DCHECK(node_.Data()->dirty || read_only_);
   if (index < 0 || index >= kNumStreams)
     return net::ERR_INVALID_ARGUMENT;
 
@@ -553,7 +553,7 @@ int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
 int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
                              int buf_len, CompletionCallback* callback,
                              bool truncate) {
-  DCHECK(node_.Data()->dirty);
+  DCHECK(node_.Data()->dirty || read_only_);
   if (index < 0 || index >= kNumStreams)
     return net::ERR_INVALID_ARGUMENT;
 
@@ -639,7 +639,7 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
 
 int EntryImpl::ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
                                   CompletionCallback* callback) {
-  DCHECK(node_.Data()->dirty);
+  DCHECK(node_.Data()->dirty || read_only_);
   int result = InitSparseData();
   if (net::OK != result)
     return result;
@@ -653,7 +653,7 @@ int EntryImpl::ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
 
 int EntryImpl::WriteSparseDataImpl(int64 offset, net::IOBuffer* buf,
                                    int buf_len, CompletionCallback* callback) {
-  DCHECK(node_.Data()->dirty);
+  DCHECK(node_.Data()->dirty || read_only_);
   int result = InitSparseData();
   if (net::OK != result)
     return result;
@@ -820,6 +820,9 @@ bool EntryImpl::LoadNodeAddress() {
 bool EntryImpl::Update() {
   DCHECK(node_.HasData());
 
+  if (read_only_)
+    return true;
+
   RankingsNode* rankings = node_.Data();
   if (!rankings->dirty) {
     rankings->dirty = backend_->GetCurrentEntryId();
@@ -956,7 +959,7 @@ void EntryImpl::DeleteData(Addr address, int index) {
 void EntryImpl::UpdateRank(bool modified) {
   if (!doomed_) {
     // Everything is handled by the backend.
-    backend_->UpdateRank(this, true);
+    backend_->UpdateRank(this, modified);
     return;
   }
 

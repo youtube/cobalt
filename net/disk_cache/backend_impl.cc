@@ -511,6 +511,12 @@ int BackendImpl::SyncInit() {
   if (!block_files_.Init(create_files))
     return net::ERR_FAILED;
 
+  // We want to minimize the changes to cache for an AppCache.
+  if (cache_type() == net::APP_CACHE) {
+    DCHECK(!new_eviction_);
+    read_only_ = true;
+  }
+
   // stats_ and rankings_ may end up calling back to us so we better be enabled.
   disabled_ = false;
   if (!stats_.Init(this, &data_->header.stats))
@@ -597,6 +603,7 @@ int BackendImpl::SyncDoomAllEntries() {
 
 int BackendImpl::SyncDoomEntriesBetween(const base::Time initial_time,
                                         const base::Time end_time) {
+  DCHECK_NE(net::APP_CACHE, cache_type_);
   if (end_time.is_null())
     return SyncDoomEntriesSince(initial_time);
 
@@ -634,6 +641,7 @@ int BackendImpl::SyncDoomEntriesBetween(const base::Time initial_time,
 // We use OpenNextEntryImpl to retrieve elements from the cache, until we get
 // entries that are too old.
 int BackendImpl::SyncDoomEntriesSince(const base::Time initial_time) {
+  DCHECK_NE(net::APP_CACHE, cache_type_);
   if (disabled_)
     return net::ERR_FAILED;
 
@@ -744,7 +752,8 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
     return NULL;
   }
 
-  scoped_refptr<EntryImpl> cache_entry(new EntryImpl(this, entry_address));
+  scoped_refptr<EntryImpl> cache_entry(
+      new EntryImpl(this, entry_address, false));
   IncreaseNumRefs();
 
   if (!cache_entry->CreateEntry(node_address, key, hash)) {
@@ -1342,7 +1351,8 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry, bool* dirty) {
     return 0;
   }
 
-  scoped_refptr<EntryImpl> cache_entry(new EntryImpl(this, address));
+  scoped_refptr<EntryImpl> cache_entry(
+      new EntryImpl(this, address, read_only_));
   IncreaseNumRefs();
   *entry = NULL;
 
@@ -1660,7 +1670,7 @@ void BackendImpl::AddStorageSize(int32 bytes) {
   data_->header.num_bytes += bytes;
   DCHECK_GE(data_->header.num_bytes, 0);
 
-  if (data_->header.num_bytes > max_size_)
+  if (data_->header.num_bytes > max_size_ && !read_only_)
     eviction_.TrimCache(false);
 }
 

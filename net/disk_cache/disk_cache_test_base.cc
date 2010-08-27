@@ -74,7 +74,7 @@ void DiskCacheTestWithCache::InitDiskCache() {
 
   TestCompletionCallback cb;
   int rv = disk_cache::BackendImpl::CreateBackend(
-               path, force_creation_, size_, net::DISK_CACHE,
+               path, force_creation_, size_, type_,
                disk_cache::kNoRandom, thread, &cache_, &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 }
@@ -97,6 +97,7 @@ void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
   if (new_eviction_)
     cache_impl_->SetNewEviction();
 
+  cache_impl_->SetType(type_);
   cache_impl_->SetFlags(disk_cache::kNoRandom);
   TestCompletionCallback cb;
   int rv = cache_impl_->Init(&cb);

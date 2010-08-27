@@ -326,8 +326,9 @@ int MemEntryImpl::ReadyForSparseIO(
 
 bool MemEntryImpl::CreateEntry(const std::string& key) {
   key_ = key;
-  last_modified_ = Time::Now();
-  last_used_ = Time::Now();
+  Time current = Time::Now();
+  last_modified_ = current;
+  last_used_ = current;
   Open();
   backend_->ModifyStorageSize(0, static_cast<int32>(key.size()));
   return true;
@@ -431,8 +432,9 @@ bool MemEntryImpl::InitChildEntry(MemEntryImpl* parent, int child_id) {
   DCHECK(!child_id_);
   parent_ = parent;
   child_id_ = child_id;
-  last_modified_ = Time::Now();
-  last_used_ = Time::Now();
+  Time current = Time::Now();
+  last_modified_ = current;
+  last_used_ = current;
   // Insert this to the backend's ranking list.
   backend_->InsertIntoRankingList(this);
   return true;

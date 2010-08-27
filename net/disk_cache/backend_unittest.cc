@@ -113,6 +113,11 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyBasics) {
   BackendBasics();
 }
 
+TEST_F(DiskCacheBackendTest, AppCacheBasics) {
+  SetCacheType(net::APP_CACHE);
+  BackendBasics();
+}
+
 void DiskCacheBackendTest::BackendKeying() {
   InitCache();
   const char* kName1 = "the first key";
@@ -165,6 +170,11 @@ TEST_F(DiskCacheBackendTest, NewEvictionKeying) {
 
 TEST_F(DiskCacheBackendTest, MemoryOnlyKeying) {
   SetMemoryOnlyMode();
+  BackendKeying();
+}
+
+TEST_F(DiskCacheBackendTest, AppCacheKeying) {
+  SetCacheType(net::APP_CACHE);
   BackendKeying();
 }
 
@@ -466,6 +476,14 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyLoad) {
   BackendLoad();
 }
 
+TEST_F(DiskCacheBackendTest, AppCacheLoad) {
+  SetCacheType(net::APP_CACHE);
+  // Work with a tiny index table (16 entries)
+  SetMask(0xf);
+  SetMaxSize(0x100000);
+  BackendLoad();
+}
+
 // Before looking for invalid entries, let's check a valid entry.
 void DiskCacheBackendTest::BackendValidEntry() {
   SetDirectMode();
@@ -540,6 +558,12 @@ TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry) {
   BackendInvalidEntry();
 }
 
+// We'll be leaking memory from this test.
+TEST_F(DiskCacheBackendTest, AppCacheInvalidEntry) {
+  SetCacheType(net::APP_CACHE);
+  BackendInvalidEntry();
+}
+
 // Almost the same test, but this time crash the cache after reading an entry.
 // We'll be leaking memory from this test.
 void DiskCacheBackendTest::BackendInvalidEntryRead() {
@@ -562,8 +586,15 @@ void DiskCacheBackendTest::BackendInvalidEntryRead() {
 
   SimulateCrash();
 
-  EXPECT_NE(net::OK, OpenEntry(key, &entry));
-  EXPECT_EQ(0, cache_->GetEntryCount());
+  if (type_ == net::APP_CACHE) {
+    // Reading an entry and crashing should not make it dirty.
+    ASSERT_EQ(net::OK, OpenEntry(key, &entry));
+    EXPECT_EQ(1, cache_->GetEntryCount());
+    entry->Close();
+  } else {
+    EXPECT_NE(net::OK, OpenEntry(key, &entry));
+    EXPECT_EQ(0, cache_->GetEntryCount());
+  }
 }
 
 // We'll be leaking memory from this test.
@@ -574,6 +605,12 @@ TEST_F(DiskCacheBackendTest, InvalidEntryRead) {
 // We'll be leaking memory from this test.
 TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntryRead) {
   SetNewEviction();
+  BackendInvalidEntryRead();
+}
+
+// We'll be leaking memory from this test.
+TEST_F(DiskCacheBackendTest, AppCacheInvalidEntryRead) {
+  SetCacheType(net::APP_CACHE);
   BackendInvalidEntryRead();
 }
 
@@ -634,6 +671,12 @@ TEST_F(DiskCacheBackendTest, InvalidEntryWithLoad) {
 // We'll be leaking memory from this test.
 TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntryWithLoad) {
   SetNewEviction();
+  BackendInvalidEntryWithLoad();
+}
+
+// We'll be leaking memory from this test.
+TEST_F(DiskCacheBackendTest, AppCacheInvalidEntryWithLoad) {
+  SetCacheType(net::APP_CACHE);
   BackendInvalidEntryWithLoad();
 }
 
@@ -807,6 +850,11 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyEnumerations) {
   BackendEnumerations();
 }
 
+TEST_F(DiskCacheBackendTest, AppCacheEnumerations) {
+  SetCacheType(net::APP_CACHE);
+  BackendEnumerations();
+}
+
 // Verifies enumerations while entries are open.
 void DiskCacheBackendTest::BackendEnumerations2() {
   InitCache();
@@ -823,7 +871,7 @@ void DiskCacheBackendTest::BackendEnumerations2() {
   ASSERT_EQ(net::OK, OpenEntry(second, &entry1));
   void* iter = NULL;
   ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry2));
-  ASSERT_EQ(entry2->GetKey(), second);
+  EXPECT_EQ(entry2->GetKey(), second);
 
   // Two entries and the iterator pointing at "first".
   entry1->Close();
@@ -831,7 +879,22 @@ void DiskCacheBackendTest::BackendEnumerations2() {
 
   // The iterator should still be valid, so we should not crash.
   ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry2));
-  ASSERT_EQ(entry2->GetKey(), first);
+  EXPECT_EQ(entry2->GetKey(), first);
+  entry2->Close();
+  cache_->EndEnumeration(&iter);
+
+  // Modify the oldest entry and get the newest element.
+  ASSERT_EQ(net::OK, OpenEntry(first, &entry1));
+  EXPECT_EQ(0, WriteData(entry1, 0, 200, NULL, 0, false));
+  ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry2));
+  if (type_ == net::APP_CACHE) {
+    // The list is not updated.
+    EXPECT_EQ(entry2->GetKey(), second);
+  } else {
+    EXPECT_EQ(entry2->GetKey(), first);
+  }
+
+  entry1->Close();
   entry2->Close();
   cache_->EndEnumeration(&iter);
 }
@@ -850,6 +913,10 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyEnumerations2) {
   BackendEnumerations2();
 }
 
+TEST_F(DiskCacheBackendTest, AppCacheEnumerations2) {
+  SetCacheType(net::APP_CACHE);
+  BackendEnumerations2();
+}
 
 // Verify handling of invalid entries while doing enumerations.
 // We'll be leaking memory from this test.
@@ -1619,6 +1686,11 @@ TEST_F(DiskCacheBackendTest, NewEvictionDoomAll) {
 
 TEST_F(DiskCacheBackendTest, MemoryOnlyDoomAll) {
   SetMemoryOnlyMode();
+  BackendDoomAll();
+}
+
+TEST_F(DiskCacheBackendTest, AppCacheOnlyDoomAll) {
+  SetCacheType(net::APP_CACHE);
   BackendDoomAll();
 }
 
