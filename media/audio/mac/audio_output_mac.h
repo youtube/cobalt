@@ -5,12 +5,10 @@
 #ifndef MEDIA_AUDIO_MAC_AUDIO_OUTPUT_MAC_H_
 #define MEDIA_AUDIO_MAC_AUDIO_OUTPUT_MAC_H_
 
-#include <AudioToolbox/AudioQueue.h>
 #include <AudioToolbox/AudioFormat.h>
+#include <AudioToolbox/AudioQueue.h>
 
 #include "media/audio/audio_io.h"
-
-#include "base/basictypes.h"
 
 class AudioManagerMac;
 
