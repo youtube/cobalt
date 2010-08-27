@@ -29,6 +29,7 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void ExternalAsyncIO();
   void StreamAccess();
   void GetKey();
+  void GetTimes();
   void GrowData();
   void TruncateData();
   void ZeroLengthIO();
@@ -488,6 +489,59 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyGetKey) {
   SetMemoryOnlyMode();
   InitCache();
   GetKey();
+}
+
+void DiskCacheEntryTest::GetTimes() {
+  std::string key("the first key");
+  disk_cache::Entry* entry;
+
+  Time t1 = Time::Now();
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+  EXPECT_TRUE(entry->GetLastModified() >= t1);
+  EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
+
+  PlatformThread::Sleep(20);
+  Time t2 = Time::Now();
+  EXPECT_TRUE(t2 > t1);
+  EXPECT_EQ(0, WriteData(entry, 0, 200, NULL, 0, false));
+  if (type_ == net::APP_CACHE) {
+    EXPECT_TRUE(entry->GetLastModified() < t2);
+  } else {
+    EXPECT_TRUE(entry->GetLastModified() >= t2);
+  }
+  EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
+
+  PlatformThread::Sleep(20);
+  Time t3 = Time::Now();
+  EXPECT_TRUE(t3 > t2);
+  const int kSize = 200;
+  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  EXPECT_EQ(kSize, ReadData(entry, 0, 0, buffer, kSize));
+  if (type_ == net::APP_CACHE) {
+    EXPECT_TRUE(entry->GetLastUsed() < t2);
+    EXPECT_TRUE(entry->GetLastModified() < t2);
+  } else {
+    EXPECT_TRUE(entry->GetLastUsed() >= t3);
+    EXPECT_TRUE(entry->GetLastModified() < t3);
+  }
+  entry->Close();
+}
+
+TEST_F(DiskCacheEntryTest, GetTimes) {
+  InitCache();
+  GetTimes();
+}
+
+TEST_F(DiskCacheEntryTest, MemoryOnlyGetTimes) {
+  SetMemoryOnlyMode();
+  InitCache();
+  GetTimes();
+}
+
+TEST_F(DiskCacheEntryTest, AppCacheGetTimes) {
+  SetCacheType(net::APP_CACHE);
+  InitCache();
+  GetTimes();
 }
 
 void DiskCacheEntryTest::GrowData() {
