@@ -30,7 +30,7 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
     kAsyncIO
   };
 
-  EntryImpl(BackendImpl* backend, Addr address);
+  EntryImpl(BackendImpl* backend, Addr address, bool read_only);
 
   // Entry interface.
   virtual void Doom();
@@ -213,6 +213,7 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   mutable std::string key_;           // Copy of the key.
   int unreported_size_[kNumStreams];  // Bytes not reported yet to the backend.
   bool doomed_;               // True if this entry was removed from the cache.
+  bool read_only_;            // True if not yet writing.
   scoped_ptr<SparseControl> sparse_;  // Support for sparse entries.
 
   DISALLOW_COPY_AND_ASSIGN(EntryImpl);

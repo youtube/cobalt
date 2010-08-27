@@ -503,7 +503,7 @@ bool BlockFiles::FixBlockFileHeader(MappedFile* file) {
   return true;
 }
 
-// We are interested in the total number of block used by this file type, and
+// We are interested in the total number of blocks used by this file type, and
 // the max number of blocks that we can store (reported as the percentage of
 // used blocks). In order to find out the number of used blocks, we have to
 // substract the empty blocks from the total blocks for each file in the chain.
