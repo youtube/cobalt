@@ -141,6 +141,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   int DoResolveCanonicalNameComplete(int rv);
   int DoGenerateAuthToken();
   int DoGenerateAuthTokenComplete(int rv);
+  bool CanDelegate() const;
 
   AuthSystem auth_system_;
   bool disable_cname_lookup_;
@@ -165,7 +166,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   State next_state_;
 
-  URLSecurityManager* url_security_manager_;
+  const URLSecurityManager* url_security_manager_;
 };
 
 }  // namespace net

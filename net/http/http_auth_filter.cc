@@ -16,7 +16,9 @@ typedef std::set<string16> RegistryWhitelist;
 // entries in the registry mean that you are only allowed to connect to the site
 // via HTTPS and still be considered 'safe'.
 
-HttpAuthFilterWhitelist::HttpAuthFilterWhitelist() {
+HttpAuthFilterWhitelist::HttpAuthFilterWhitelist(
+    const std::string& server_whitelist) {
+  SetWhitelist(server_whitelist);
 }
 
 HttpAuthFilterWhitelist::~HttpAuthFilterWhitelist() {

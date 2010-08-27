@@ -90,6 +90,8 @@ bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
   if (!AllowsDefaultCredentials())
     return false;
 #endif
+  if (CanDelegate())
+    auth_system_.Delegate();
   scheme_ = "negotiate";
   score_ = 4;
   properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
@@ -111,6 +113,15 @@ bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
   if (!url_security_manager_)
     return false;
   return url_security_manager_->CanUseDefaultCredentials(origin_);
+}
+
+bool HttpAuthHandlerNegotiate::CanDelegate() const {
+  // TODO(cbentzel): Should delegation be allowed on proxies?
+  if (target_ == HttpAuth::AUTH_PROXY)
+    return false;
+  if (!url_security_manager_)
+    return false;
+  return url_security_manager_->CanDelegate(origin_);
 }
 
 std::wstring HttpAuthHandlerNegotiate::CreateSPN(

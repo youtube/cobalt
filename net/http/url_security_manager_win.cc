@@ -11,6 +11,7 @@
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
+#include "net/http/http_auth_filter.h"
 
 // The Windows implementation of URLSecurityManager uses WinINet/IE's
 // URL security zone manager.  See the MSDN page "URL Security Zones" at
@@ -27,32 +28,30 @@ namespace net {
 
 class URLSecurityManagerWin : public URLSecurityManager {
  public:
-  URLSecurityManagerWin();
+  explicit URLSecurityManagerWin(const HttpAuthFilter* whitelist_delegate);
 
   // URLSecurityManager methods:
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin);
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const;
+  virtual bool CanDelegate(const GURL& auth_origin) const;
 
  private:
+  bool EnsureSystemSecurityManager();
+
   ScopedComPtr<IInternetSecurityManager> security_manager_;
+  scoped_ptr<const HttpAuthFilter> whitelist_delegate_;
 
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerWin);
 };
 
-URLSecurityManagerWin::URLSecurityManagerWin() {
+URLSecurityManagerWin::URLSecurityManagerWin(
+    const HttpAuthFilter* whitelist_delegate)
+    : whitelist_delegate_(whitelist_delegate) {
 }
 
-
 bool URLSecurityManagerWin::CanUseDefaultCredentials(
-    const GURL& auth_origin) {
-  if (!security_manager_) {
-    HRESULT hr = CoInternetCreateSecurityManager(NULL,
-                                                 security_manager_.Receive(),
-                                                 NULL);
-    if (FAILED(hr) || !security_manager_) {
-      LOG(ERROR) << "Unable to create the Windows Security Manager instance";
-      return false;
-    }
-  }
+    const GURL& auth_origin) const {
+  if (!const_cast<URLSecurityManagerWin*>(this)->EnsureSystemSecurityManager())
+    return false;
 
   std::wstring url_w = ASCIIToWide(auth_origin.spec());
   DWORD policy = 0;
@@ -103,13 +102,36 @@ bool URLSecurityManagerWin::CanUseDefaultCredentials(
   }
 }
 
+bool URLSecurityManagerWin::CanDelegate(const GURL& auth_origin) const {
+  // TODO(cbentzel): Could this just use the security zone as well? Apparently
+  //                 this is what IE does as well.
+  if (whitelist_delegate_.get())
+    return whitelist_delegate_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
+  return false;
+}
+
+bool URLSecurityManagerWin::EnsureSystemSecurityManager() {
+  if (!security_manager_) {
+    HRESULT hr = CoInternetCreateSecurityManager(NULL,
+                                                 security_manager_.Receive(),
+                                                 NULL);
+    if (FAILED(hr) || !security_manager_) {
+      LOG(ERROR) << "Unable to create the Windows Security Manager instance";
+      return false;
+    }
+  }
+  return true;
+}
+
 // static
 URLSecurityManager* URLSecurityManager::Create(
-    HttpAuthFilter* whitelist) {
+    const HttpAuthFilter* whitelist_default,
+    const HttpAuthFilter* whitelist_delegate) {
   // If we have a whitelist, just use that.
-  if (whitelist)
-    return new URLSecurityManagerWhitelist(whitelist);
-  return new URLSecurityManagerWin();
+  if (whitelist_default)
+    return new URLSecurityManagerWhitelist(whitelist_default,
+                                           whitelist_delegate);
+  return new URLSecurityManagerWin(whitelist_delegate);
 }
 
 }  //  namespace net
