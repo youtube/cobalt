@@ -108,7 +108,8 @@ HttpAuthSSPI::HttpAuthSSPI(SSPILibrary* library,
     : library_(library),
       scheme_(scheme),
       security_package_(security_package),
-      max_token_length_(max_token_length) {
+      max_token_length_(max_token_length),
+      can_delegate_(false) {
   DCHECK(library_);
   SecInvalidateHandle(&cred_);
   SecInvalidateHandle(&ctxt_);
@@ -128,6 +129,10 @@ bool HttpAuthSSPI::NeedsIdentity() const {
 
 bool HttpAuthSSPI::IsFinalRound() const {
   return !decoded_server_auth_token_.empty();
+}
+
+void HttpAuthSSPI::Delegate() {
+  can_delegate_ = true;
 }
 
 void HttpAuthSSPI::ResetSecurityContext() {
@@ -224,14 +229,10 @@ int HttpAuthSSPI::OnFirstRound(const string16* username,
 
 int HttpAuthSSPI::GetNextSecurityToken(
     const std::wstring& spn,
-    const void * in_token,
+    const void* in_token,
     int in_token_len,
     void** out_token,
     int* out_token_len) {
-  SECURITY_STATUS status;
-  TimeStamp expiry;
-
-  DWORD ctxt_attr;
   CtxtHandle* ctxt_ptr;
   SecBufferDesc in_buffer_desc, out_buffer_desc;
   SecBufferDesc* in_buffer_desc_ptr;
@@ -269,20 +270,27 @@ int HttpAuthSSPI::GetNextSecurityToken(
   if (!out_buffer.pvBuffer)
     return ERR_OUT_OF_MEMORY;
 
+  DWORD context_flags = 0;
+  // Firefox only sets ISC_REQ_DELEGATE, but MSDN documentation indicates that
+  // ISC_REQ_MUTUAL_AUTH must also be set.
+  if (can_delegate_)
+    context_flags |= (ISC_REQ_DELEGATE | ISC_REQ_MUTUAL_AUTH);
+
   // This returns a token that is passed to the remote server.
-  status = library_->InitializeSecurityContext(
+  DWORD context_attribute;
+  SECURITY_STATUS status = library_->InitializeSecurityContext(
       &cred_,  // phCredential
       ctxt_ptr,  // phContext
       const_cast<wchar_t *>(spn.c_str()),  // pszTargetName
-      0,  // fContextReq
+      context_flags,  // fContextReq
       0,  // Reserved1 (must be 0)
       SECURITY_NATIVE_DREP,  // TargetDataRep
       in_buffer_desc_ptr,  // pInput
       0,  // Reserved2 (must be 0)
       &ctxt_,  // phNewContext
       &out_buffer_desc,  // pOutput
-      &ctxt_attr,  // pfContextAttr
-      &expiry);  // ptsExpiry
+      &context_attribute,  // pfContextAttr
+      NULL);  // ptsExpiry
   // On success, the function returns SEC_I_CONTINUE_NEEDED on the first call
   // and SEC_E_OK on the second call.  On failure, the function returns an
   // error code.

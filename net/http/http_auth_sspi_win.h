@@ -96,6 +96,11 @@ class HttpAuthSSPI {
                         const std::wstring& spn,
                         std::string* auth_token);
 
+  // Delegation is allowed on the Kerberos ticket. This allows certain servers
+  // to act as the user, such as an IIS server retrieiving data from a
+  // Kerberized MSSQL server.
+  void Delegate();
+
  private:
   int OnFirstRound(const string16* username,
                    const string16* password);
@@ -116,6 +121,7 @@ class HttpAuthSSPI {
   ULONG max_token_length_;
   CredHandle cred_;
   CtxtHandle ctxt_;
+  bool can_delegate_;
 };
 
 // Splits |combined| into domain and username.
