@@ -240,6 +240,11 @@ class HttpAuthGSSAPI {
                         const std::wstring& spn,
                         std::string* auth_token);
 
+  // Delegation is allowed on the Kerberos ticket. This allows certain servers
+  // to act as the user, such as an IIS server retrieiving data from a
+  // Kerberized MSSQL server.
+  void Delegate();
+
  private:
   int OnFirstRound(const string16* username,
                    const string16* password);
@@ -254,6 +259,7 @@ class HttpAuthGSSAPI {
   GSSAPILibrary* library_;
   std::string decoded_server_auth_token_;
   ScopedSecurityContext scoped_sec_context_;
+  bool can_delegate_;
 };
 
 }  // namespace net
