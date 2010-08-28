@@ -32,6 +32,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_module.h"
 #include "net/base/net_util.h"
+#include "net/base/ssl_connection_status_flags.h"
 #include "net/base/upload_data.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/ftp/ftp_network_layer.h"
@@ -90,6 +91,17 @@ scoped_refptr<net::UploadData> CreateSimpleUploadData(const char* data) {
   scoped_refptr<net::UploadData> upload = new net::UploadData;
   upload->AppendBytes(data, strlen(data));
   return upload;
+}
+
+// Verify that the SSLInfo of a successful SSL connection has valid values.
+void CheckSSLInfo(const net::SSLInfo& ssl_info) {
+  // -1 means unknown.  0 means no encryption.
+  EXPECT_GT(ssl_info.security_bits, 0);
+
+  // The cipher suite TLS_NULL_WITH_NULL_NULL (0) must not be negotiated.
+  int cipher_suite = net::SSLConnectionStatusToCipherSuite(
+      ssl_info.connection_status);
+  EXPECT_NE(0, cipher_suite);
 }
 
 }  // namespace
@@ -363,6 +375,7 @@ TEST_F(HTTPSRequestTest, HTTPSGetTest) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
+    CheckSSLInfo(r.ssl_info());
   }
 }
 
@@ -386,10 +399,12 @@ TEST_F(HTTPSRequestTest, HTTPSMismatchedTest) {
       EXPECT_EQ(1, d.response_started_count());
       EXPECT_FALSE(d.received_data_before_response());
       EXPECT_TRUE(d.have_certificate_errors());
-      if (err_allowed)
+      if (err_allowed) {
         EXPECT_NE(0, d.bytes_received());
-      else
+        CheckSSLInfo(r.ssl_info());
+      } else {
         EXPECT_EQ(0, d.bytes_received());
+      }
     }
   }
 }
@@ -416,10 +431,12 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
       EXPECT_EQ(1, d.response_started_count());
       EXPECT_FALSE(d.received_data_before_response());
       EXPECT_TRUE(d.have_certificate_errors());
-      if (err_allowed)
+      if (err_allowed) {
         EXPECT_NE(0, d.bytes_received());
-      else
+        CheckSSLInfo(r.ssl_info());
+      } else {
         EXPECT_EQ(0, d.bytes_received());
+      }
     }
   }
 }
