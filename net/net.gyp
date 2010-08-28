@@ -239,6 +239,7 @@
               'libraries': [
                 '$(SDKROOT)/System/Library/Frameworks/Security.framework',
                 '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
+                '$(SDKROOT)/usr/lib/libresolv.dylib',
               ]
             },
           },
