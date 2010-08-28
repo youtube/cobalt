@@ -23,6 +23,7 @@ class CertVerifyResult {
     has_md2_ca = false;
   }
 
+  // Bitmask of CERT_STATUS_* from net/base/cert_status_flags.h
   int cert_status;
 
   // Properties of the certificate chain.
