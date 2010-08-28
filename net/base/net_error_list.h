@@ -259,13 +259,17 @@ NET_ERROR(CERT_INVALID, -207)
 // signature algorithm.
 NET_ERROR(CERT_WEAK_SIGNATURE_ALGORITHM, -208)
 
+// The domain has CERT records which are tagged as being an exclusive list of
+// valid fingerprints. But the certificate presented was not in this list.
+NET_ERROR(CERT_NOT_IN_DNS, -209)
+
 // Add new certificate error codes here.
 //
 // Update the value of CERT_END whenever you add a new certificate error
 // code.
 
 // The value immediately past the last certificate error code.
-NET_ERROR(CERT_END, -209)
+NET_ERROR(CERT_END, -210)
 
 // The URL is invalid.
 NET_ERROR(INVALID_URL, -300)
