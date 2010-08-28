@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "net/base/completion_callback.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/socket/client_socket.h"
@@ -16,6 +17,20 @@ namespace net {
 
 class SSLCertRequestInfo;
 class SSLInfo;
+struct RRResponse;
+
+// DNSSECProvider is an interface to an object that can return DNSSEC data.
+class DNSSECProvider {
+ public:
+  // GetDNSSECRecords will either:
+  //   1) set |*out| to NULL and return OK.
+  //   2) set |*out| to a pointer, which is owned by this object, and return OK.
+  //   3) return IO_PENDING and call |callback| on the current MessageLoop at
+  //      some point in the future. Once the callback has been made, this
+  //      function will return OK if called again.
+  virtual int GetDNSSECRecords(RRResponse** out,
+                               CompletionCallback* callback) = 0;
+};
 
 // A client socket that uses SSL as the transport layer.
 //
@@ -101,6 +116,8 @@ class SSLClientSocket : public ClientSocket {
   virtual bool set_was_npn_negotiated(bool negotiated) {
     return was_npn_negotiated_ = negotiated;
   }
+
+  virtual void UseDNSSEC(DNSSECProvider*) { }
 
   virtual bool was_spdy_negotiated() const {
     return was_spdy_negotiated_;
