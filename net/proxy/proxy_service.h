@@ -109,12 +109,13 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // Tells the resolver to purge any memory it does not need.
   void PurgeMemory();
 
-  // Returns true if we have called UpdateConfig() at least once.
-  bool config_has_been_initialized() const {
-    return config_.id() != ProxyConfig::INVALID_ID;
-  }
 
   // Returns the last configuration fetched from ProxyConfigService.
+  const ProxyConfig& fetched_config() {
+    return fetched_config_;
+  }
+
+  // Returns the current configuration being used by ProxyConfigService.
   const ProxyConfig& config() {
     return config_;
   }
@@ -269,15 +270,16 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
 
-  // We store the proxy config and a counter (ID) that is incremented each time
-  // the config changes.
+  // We store the proxy configuration that was last fetched from the
+  // ProxyConfigService, as well as the resulting "effective" configuration.
+  // The effective configuration is what we condense the original fetched
+  // settings to after testing the various automatic settings (auto-detect
+  // and custom PAC url).
+  ProxyConfig fetched_config_;
   ProxyConfig config_;
 
   // Increasing ID to give to the next ProxyConfig that we set.
   int next_config_id_;
-
-  // Indicates whether the ProxyResolver should be sent requests.
-  bool should_use_proxy_resolver_;
 
   // The time when the proxy configuration was last read from the system.
   base::TimeTicks config_last_update_time_;

@@ -369,7 +369,6 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
                            NetLog* net_log)
     : resolver_(resolver),
       next_config_id_(1),
-      should_use_proxy_resolver_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
           this, &ProxyService::OnInitProxyResolverComplete)),
       current_state_(STATE_NONE) ,
@@ -504,11 +503,12 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
   if (current_state_ != STATE_READY)
     return ERR_IO_PENDING;  // Still initializing.
 
-  if (should_use_proxy_resolver_)
+  DCHECK_NE(config_.id(), ProxyConfig::INVALID_ID);
+
+  if (config_.MayRequirePACResolver())
     return ERR_IO_PENDING;  // Must submit the request to the proxy resolver.
 
   // Use the manual proxy settings.
-  DCHECK(config_.id() != ProxyConfig::INVALID_ID);
   config_.proxy_rules().Apply(url, result);
   result->config_id_ = config_.id();
   return OK;
@@ -583,16 +583,17 @@ void ProxyService::ApplyProxyConfigIfAvailable() {
 void ProxyService::OnInitProxyResolverComplete(int result) {
   DCHECK_EQ(STATE_WAITING_FOR_INIT_PROXY_RESOLVER, current_state_);
   DCHECK(init_proxy_resolver_.get());
-  DCHECK(config_.MayRequirePACResolver());
-  DCHECK(!should_use_proxy_resolver_);
+  DCHECK(fetched_config_.MayRequirePACResolver());
   init_proxy_resolver_.reset();
-
-  should_use_proxy_resolver_ = result == OK;
 
   if (result != OK) {
     LOG(INFO) << "Failed configuring with PAC script, falling-back to manual "
                  "proxy servers.";
+    config_ = fetched_config_;
+    config_.ClearAutomaticSettings();
   }
+
+  config_.set_id(fetched_config_.id());
 
   // Resume any requests which we had to defer until the PAC script was
   // downloaded.
@@ -694,7 +695,6 @@ ProxyService::State ProxyService::ResetProxyConfig() {
 
   proxy_retry_info_.clear();
   init_proxy_resolver_.reset();
-  should_use_proxy_resolver_ = false;
   SuspendAllPendingRequests();
   config_ = ProxyConfig();
   current_state_ = STATE_NONE;
@@ -767,17 +767,17 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 }
 
 void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
-  ProxyConfig old_config = config_;
+  ProxyConfig old_fetched_config = fetched_config_;
   ResetProxyConfig();
 
   // Increment the ID to reflect that the config has changed.
-  config_ = config;
-  config_.set_id(next_config_id_++);
+  fetched_config_ = config;
+  fetched_config_.set_id(next_config_id_++);
 
   // Emit the proxy settings change to the NetLog stream.
   if (net_log_) {
     scoped_refptr<NetLog::EventParameters> params =
-        new ProxyConfigChangedNetLogParam(old_config, config);
+        new ProxyConfigChangedNetLogParam(old_fetched_config, fetched_config_);
     net_log_->AddEntry(net::NetLog::TYPE_PROXY_CONFIG_CHANGED,
                        base::TimeTicks::Now(),
                        NetLog::Source(),
@@ -785,7 +785,8 @@ void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
                        params);
   }
 
-  if (!config_.MayRequirePACResolver()) {
+  if (!fetched_config_.MayRequirePACResolver()) {
+    config_ = fetched_config_;
     SetReady();
     return;
   }
@@ -802,7 +803,7 @@ void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
       stall_proxy_autoconfig_until_ - base::TimeTicks::Now();
 
   int rv = init_proxy_resolver_->Init(
-      config_, wait_delay, &init_proxy_resolver_callback_);
+      fetched_config_, wait_delay, &config_, &init_proxy_resolver_callback_);
 
   if (rv != ERR_IO_PENDING)
     OnInitProxyResolverComplete(rv);
