@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "base/scoped_ptr.h"
+#include "base/time.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
@@ -46,6 +47,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
   virtual NextProtoStatus GetNextProto(std::string* proto);
+  virtual void UseDNSSEC(DNSSECProvider*);
 
   // ClientSocket methods:
   virtual int Connect(CompletionCallback* callback);
@@ -88,7 +90,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoWriteLoop(int result);
 
   int DoHandshake();
-  bool CheckDNSSECChain();
+
+  int DoVerifyDNSSEC(int result);
+  int DoVerifyDNSSECComplete(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
   int DoPayloadRead();
@@ -158,9 +162,16 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True if the SSL handshake has been completed.
   bool completed_handshake_;
 
+  // This pointer is owned by the caller of UseDNSSEC.
+  DNSSECProvider* dnssec_provider_;
+  // The time when we started waiting for DNSSEC records.
+  base::Time dnssec_wait_start_time_;
+
   enum State {
     STATE_NONE,
     STATE_HANDSHAKE,
+    STATE_VERIFY_DNSSEC,
+    STATE_VERIFY_DNSSEC_COMPLETE,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
   };
