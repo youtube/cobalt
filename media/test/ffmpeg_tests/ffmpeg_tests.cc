@@ -93,7 +93,7 @@ int main(int argc, const char** argv) {
     out_path = FilePath(filenames[1]);
 
   // Default flags that match Chrome defaults.
-  int video_threads = 3;
+  int video_threads = 2;
   int verbose_level = AV_LOG_FATAL;
   int max_frames = 0;
   int max_loops = 0;
@@ -228,7 +228,6 @@ int main(int argc, const char** argv) {
     video_threads = 1;
   }
 
-  codec_context->flags2 |= CODEC_FLAG2_FAST;
   codec_context->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
   codec_context->error_recognition = FF_ER_CAREFUL;
 
