@@ -120,7 +120,14 @@ class ProxyConfig {
 
   // Returns true if this config could possibly require the proxy service to
   // use a PAC resolver.
+  // TODO(eroman): rename to HasAutomaticSettings() for consistency with
+  //               ClearAutomaticSettings().
   bool MayRequirePACResolver() const;
+
+  void ClearAutomaticSettings() {
+    auto_detect_ = false;
+    pac_url_ = GURL();
+  }
 
   // Creates a textual dump of the configuration.
   std::string ToString() const;
