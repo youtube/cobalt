@@ -30,6 +30,18 @@ int g_max_sockets_per_group = 6;
 // http://crbug.com/44501 for details about proxy server connection limits.
 int g_max_sockets_per_proxy_server = 32;
 
+// Appends information about all |socket_pools| to the end of |list|.
+template <class MapType>
+static void AddSocketPoolsToList(ListValue* list,
+                                 const MapType& socket_pools,
+                                 const std::string& type) {
+  typename MapType::const_iterator socket_pool_it = socket_pools.begin();
+  for (typename MapType::const_iterator it = socket_pools.begin();
+       it != socket_pools.end(); it++) {
+    list->Append(it->second->GetInfoAsValue(it->first.ToString(), type));
+  }
+}
+
 }  // namespace
 
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
@@ -151,6 +163,24 @@ HttpNetworkSession::GetSocketPoolForSSLWithProxy(
                                                           new_pool));
 
   return ret.first->second;
+}
+
+Value* HttpNetworkSession::SocketPoolInfoToValue() const {
+  ListValue* list = new ListValue();
+  list->Append(tcp_socket_pool_->GetInfoAsValue("tcp_socket_pool",
+                                                "tcp_socket_pool"));
+  list->Append(ssl_socket_pool_->GetInfoAsValue("ssl_socket_pool",
+                                                "ssl_socket_pool"));
+  AddSocketPoolsToList(list,
+                       http_proxy_socket_pools_,
+                       "http_proxy_socket_pool");
+  AddSocketPoolsToList(list,
+                       socks_socket_pools_,
+                       "proxy_socket_pool");
+  AddSocketPoolsToList(list,
+                       ssl_socket_pools_for_proxies_,
+                       "ssl_socket_pool_for_proxies");
+  return list;
 }
 
 // static
