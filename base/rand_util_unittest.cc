@@ -27,3 +27,11 @@ TEST(RandUtilTest, RandDouble) {
  EXPECT_GT(1.0, number);
  EXPECT_LE(0.0, number);
 }
+
+// Make sure that it is still appropriate to use RandGenerator in conjunction
+// with std::random_shuffle().
+TEST(RandUtilTest, RandGeneratorForRandomShuffle) {
+  EXPECT_EQ(base::RandGenerator(1), 0U);
+  EXPECT_LE(std::numeric_limits<ptrdiff_t>::max(),
+            std::numeric_limits<int64>::max());
+}

@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,9 +16,8 @@ namespace base {
 int RandInt(int min, int max) {
   DCHECK(min <= max);
 
-  uint64 range = static_cast<int64>(max) - min + 1;
-  uint64 number = base::RandUint64();
-  int result = min + static_cast<int>(number % range);
+  uint64 range = static_cast<uint64>(max) - min + 1;
+  int result = min + static_cast<int>(base::RandGenerator(range));
   DCHECK(result >= min && result <= max);
   return result;
 }
@@ -35,6 +34,11 @@ double RandDouble() {
   double result = ldexp(static_cast<double>(random_bits), -1 * kBits);
   DCHECK(result >= 0.0 && result < 1.0);
   return result;
+}
+
+uint64 RandGenerator(uint64 max) {
+  DCHECK(max > 0);
+  return base::RandUint64() % max;
 }
 
 }  // namespace base
