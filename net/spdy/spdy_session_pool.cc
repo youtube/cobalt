@@ -33,16 +33,23 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
     if (list->size() >= static_cast<unsigned int>(g_max_sessions_per_domain)) {
       spdy_session = list->front();
       list->pop_front();
+      net_log.AddEvent(NetLog::TYPE_SPDY_SESSION_POOL_FOUND_EXISTING_SESSION,
+                       new NetLogSourceParameter("session",
+                           spdy_session->net_log().source()));
     }
   } else {
     list = AddSessionList(host_port_proxy_pair);
   }
 
   DCHECK(list);
-  if (!spdy_session)
+  if (!spdy_session) {
     spdy_session = new SpdySession(host_port_proxy_pair,
                                    session,
                                    net_log.net_log());
+    net_log.AddEvent(NetLog::TYPE_SPDY_SESSION_POOL_CREATED_NEW_SESSION,
+                     new NetLogSourceParameter("session",
+                         spdy_session->net_log().source()));
+  }
 
   DCHECK(spdy_session);
   list->push_back(spdy_session);
@@ -67,9 +74,13 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
   DCHECK(list->empty());
   list->push_back(*spdy_session);
 
+  net_log.AddEvent(NetLog::TYPE_SPDY_SESSION_POOL_IMPORTED_SESSION_FROM_SOCKET,
+                   new NetLogSourceParameter("session",
+                       (*spdy_session)->net_log().source()));
+
   // Now we can initialize the session with the SSL socket.
   return (*spdy_session)->InitializeWithSocket(connection, is_secure,
-                                                  certificate_error_code);
+                                               certificate_error_code);
 }
 
 bool SpdySessionPool::HasSession(
@@ -85,6 +96,9 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
   if (!list)
     return;
   list->remove(session);
+  session->net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_POOL_REMOVE_SESSION,
+                              new NetLogSourceParameter("session",
+                                  session->net_log().source()));
   if (list->empty())
     RemoveSessionList(session->host_port_proxy_pair());
 }
