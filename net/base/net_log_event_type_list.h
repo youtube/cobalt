@@ -524,6 +524,10 @@ EVENT_TYPE(HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART)
 // ------------------------------------------------------------------------
 
 // The start/end of a SpdySession.
+//   {
+//     "host": <The host-port string>,
+//     "proxy": <The Proxy PAC string>,
+//   }
 EVENT_TYPE(SPDY_SESSION)
 
 // On sending a SPDY SETTINGS frame.
@@ -556,6 +560,34 @@ EVENT_TYPE(SPDY_SESSION_GOAWAY)
 //     "id": <The stream id>
 //   }
 EVENT_TYPE(SPDY_SESSION_PUSHED_SYN_STREAM)
+
+// ------------------------------------------------------------------------
+// SpdySessionPool
+// ------------------------------------------------------------------------
+
+// This event indicates the pool is reusing an existing session
+//   {
+//     "id": <The session id>,
+//   }
+EVENT_TYPE(SPDY_SESSION_POOL_FOUND_EXISTING_SESSION)
+
+// This event indicates the pool created a new session
+//   {
+//     "id": <The session id>,
+//   }
+EVENT_TYPE(SPDY_SESSION_POOL_CREATED_NEW_SESSION)
+
+// This event indicates that a SSL socket has been upgraded to a SPDY session.
+//   {
+//     "id": <The session id>,
+//   }
+EVENT_TYPE(SPDY_SESSION_POOL_IMPORTED_SESSION_FROM_SOCKET)
+
+// This event indicates that the session has been removed.
+//   {
+//     "id": <The session id>,
+//   }
+EVENT_TYPE(SPDY_SESSION_POOL_REMOVE_SESSION)
 
 // ------------------------------------------------------------------------
 // SpdyStream
