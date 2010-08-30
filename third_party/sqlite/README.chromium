@@ -1,4 +1,5 @@
 Name: SQLite
+License File: src/LICENSE
 URL: http://sqlite.org/
 
 Instructions for importing a new release of SQLite from sqlite.org.
