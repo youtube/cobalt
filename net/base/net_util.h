@@ -315,7 +315,12 @@ string16 FormatUrl(const GURL& url,
 // format_types = kFormatUrlOmitAll and unescape = SPACES.  This is the typical
 // set of flags for "URLs to display to the user".  You should be cautious about
 // using this for URLs which will be parsed or sent to other applications.
+// TODO(viettrungluu): remove wstring version.
 inline std::wstring FormatUrl(const GURL& url, const std::wstring& languages) {
+  return FormatUrl(url, languages, kFormatUrlOmitAll, UnescapeRule::SPACES,
+                   NULL, NULL, NULL);
+}
+inline string16 FormatUrl(const GURL& url, const std::string& languages) {
   return FormatUrl(url, languages, kFormatUrlOmitAll, UnescapeRule::SPACES,
                    NULL, NULL, NULL);
 }
