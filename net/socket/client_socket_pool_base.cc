@@ -395,6 +395,48 @@ LoadState ClientSocketPoolBaseHelper::GetLoadState(
   return LOAD_STATE_IDLE;
 }
 
+Value* ClientSocketPoolBaseHelper::GetInfoAsValue(
+    const std::string& name, const std::string& type) const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("name", name);
+  dict->SetString("type", type);
+  dict->SetInteger("handed_out_socket_count", handed_out_socket_count_);
+  dict->SetInteger("connecting_socket_count", connecting_socket_count_);
+  dict->SetInteger("idle_socket_count", idle_socket_count_);
+  dict->SetInteger("max_socket_count", max_sockets_);
+  dict->SetInteger("max_sockets_per_group", max_sockets_per_group_);
+  dict->SetInteger("pool_generation_number", pool_generation_number_);
+
+  if (group_map_.empty())
+    return dict;
+
+  DictionaryValue* all_groups_dict = new DictionaryValue();
+  for (GroupMap::const_iterator it = group_map_.begin();
+       it != group_map_.end(); it++) {
+    const Group* group = it->second;
+    DictionaryValue* group_dict = new DictionaryValue();
+
+    group_dict->SetInteger("pending_request_count",
+                           group->pending_requests().size());
+    if (!group->pending_requests().empty()) {
+      group_dict->SetInteger("top_pending_priority",
+                             group->TopPendingPriority());
+    }
+
+    group_dict->SetInteger("active_socket_count", group->active_socket_count());
+    group_dict->SetInteger("idle_socket_count", group->idle_sockets().size());
+    group_dict->SetInteger("connect_job_count", group->jobs().size());
+
+    group_dict->SetBoolean("is_stalled",
+                           group->IsStalled(max_sockets_per_group_));
+    group_dict->SetBoolean("has_backup_job", group->HasBackupJob());
+
+    all_groups_dict->SetWithoutPathExpansion(it->first, group_dict);
+  }
+  dict->Set("groups", all_groups_dict);
+  return dict;
+}
+
 bool ClientSocketPoolBaseHelper::IdleSocket::ShouldCleanup(
     base::TimeTicks now,
     base::TimeDelta timeout) const {
