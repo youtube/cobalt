@@ -210,7 +210,7 @@ int MapNSPRError(PRErrorCode err) {
     case SSL_ERROR_UNSAFE_NEGOTIATION:
       return ERR_SSL_UNSAFE_NEGOTIATION;
     case SSL_ERROR_WEAK_SERVER_KEY:
-      return ERR_SSL_WEAK_SERVER_KEY;
+      return ERR_SSL_WEAK_SERVER_EPHEMERAL_DH_KEY;
 
     default: {
       if (IS_SSL_ERROR(err)) {
