@@ -24,7 +24,6 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/logging.h"
 
 class FilePath;
 class InProcessBrowserTest;
@@ -83,10 +82,7 @@ class CommandLine {
   // Get the singleton CommandLine representing the current process's
   // command line.  Note: returned value is mutable, but not thread safe;
   // only mutate if you know what you're doing!
-  static CommandLine* ForCurrentProcess() {
-    DCHECK(current_process_commandline_);
-    return current_process_commandline_;
-  }
+  static CommandLine* ForCurrentProcess();
 
   // Returns true if this command line contains the given switch.
   // (Switch names are case-insensitive.)
@@ -180,10 +176,7 @@ class CommandLine {
   CommandLine();
 
   // Used by InProcessBrowserTest.
-  static CommandLine* ForCurrentProcessMutable() {
-    DCHECK(current_process_commandline_);
-    return current_process_commandline_;
-  }
+  static CommandLine* ForCurrentProcessMutable();
 
   // The singleton CommandLine instance representing the current process's
   // command line.
