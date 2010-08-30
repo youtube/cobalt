@@ -74,6 +74,21 @@ void AdjustSocketBufferSizes(ClientSocket* socket) {
   socket->SetSendBufferSize(kSocketBufferSize);
 }
 
+class NetLogSpdySessionParameter : public NetLog::EventParameters {
+ public:
+  explicit NetLogSpdySessionParameter(const HostPortProxyPair& host_pair)
+      : host_pair_(host_pair) {}
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->Set("host", new StringValue(host_pair_.first.ToString()));
+    dict->Set("proxy", new StringValue(host_pair_.second.ToPacString()));
+    return dict;
+  }
+ private:
+  const HostPortProxyPair host_pair_;
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySessionParameter);
+};
+
 class NetLogSpdySynParameter : public NetLog::EventParameters {
  public:
   NetLogSpdySynParameter(const linked_ptr<spdy::SpdyHeaderBlock>& headers,
@@ -176,8 +191,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
-      new NetLogStringParameter("host_port",
-                                host_port_proxy_pair_.first.ToString()));
+      new NetLogSpdySessionParameter(host_port_proxy_pair_));
 
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 

@@ -174,6 +174,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
       return unclaimed_pushed_streams_.size();
   }
 
+  const BoundNetLog& net_log() const { return net_log_; }
+
  private:
   friend class base::RefCounted<SpdySession>;
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, GetActivePushStream);
