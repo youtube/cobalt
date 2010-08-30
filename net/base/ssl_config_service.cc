@@ -60,7 +60,8 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
     const std::string& hostname) {
   // If this list starts growing, it'll need to be something more efficient
   // than a linear list.
-  static const char kFalseStartIncompatibleServers[][15] = {
+  static const char kFalseStartIncompatibleServers[][23] = {
+      "moneycenter.yodlee.com",
       "www.picnik.com",
   };
 
