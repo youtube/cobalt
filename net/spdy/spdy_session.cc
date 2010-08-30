@@ -28,29 +28,6 @@
 #include "net/spdy/spdy_settings_storage.h"
 #include "net/spdy/spdy_stream.h"
 
-namespace {
-
-// Diagnostics function to dump the headers of a request.
-// TODO(mbelshe): Remove this function.
-void DumpSpdyHeaders(const spdy::SpdyHeaderBlock& headers) {
-  // Because this function gets called on every request,
-  // take extra care to optimize it away if logging is turned off.
-  if (logging::LOG_INFO < logging::GetMinLogLevel())
-    return;
-
-  spdy::SpdyHeaderBlock::const_iterator it = headers.begin();
-  while (it != headers.end()) {
-    std::string val = (*it).second;
-    std::string::size_type pos = 0;
-    while ((pos = val.find('\0', pos)) != val.npos)
-      val[pos] = '\n';
-    LOG(INFO) << (*it).first << "==" << val;
-    ++it;
-  }
-}
-
-}  // namespace
-
 namespace net {
 
 namespace {
@@ -419,9 +396,6 @@ int SpdySession::WriteSynStream(
   static StatsCounter spdy_requests("spdy.requests");
   spdy_requests.Increment();
   streams_initiated_count_++;
-
-  LOG(INFO) << "SPDY SYN_STREAM HEADERS ----------------------------------";
-  DumpSpdyHeaders(*headers);
 
   const BoundNetLog& log = stream->net_log();
   if (log.HasListener()) {
@@ -1015,11 +989,6 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
 
   streams_pushed_count_++;
 
-  LOG(INFO) << "SpdySession: Syn received for stream: " << stream_id;
-
-  LOG(INFO) << "SPDY SYN RESPONSE HEADERS -----------------------";
-  DumpSpdyHeaders(*headers);
-
   // TODO(mbelshe): DCHECK that this is a GET method?
 
   const std::string& path = ContainsKey(*headers, "path") ?
@@ -1087,9 +1056,6 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
     LOG(WARNING) << "Received SYN_REPLY for invalid stream " << stream_id;
     return;
   }
-
-  LOG(INFO) << "SPDY SYN_REPLY RESPONSE HEADERS for stream: " << stream_id;
-  DumpSpdyHeaders(*headers);
 
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK_EQ(stream->stream_id(), stream_id);
