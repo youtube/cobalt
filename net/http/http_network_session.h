@@ -106,6 +106,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     return http_stream_factory_;
   }
 
+  // Creates a Value summary of the state of the socket pools. The caller is
+  // responsible for deleting the returned value.
+  Value* SocketPoolInfoToValue() const;
+
   static int max_sockets_per_group();
   static void set_max_sockets_per_group(int socket_count);
   static void set_max_sockets_per_proxy_server(int socket_count);

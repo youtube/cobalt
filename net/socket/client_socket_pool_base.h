@@ -237,6 +237,9 @@ class ClientSocketPoolBaseHelper
   // sockets that timed out or can't be reused.  Made public for testing.
   void CleanupIdleSockets(bool force);
 
+  // See ClientSocketPool::GetInfoAsValue for documentation on this function.
+  Value* GetInfoAsValue(const std::string& name, const std::string& type) const;
+
   base::TimeDelta ConnectionTimeout() const {
     return connect_job_factory_->ConnectionTimeout();
   }
@@ -599,6 +602,11 @@ class ClientSocketPoolBase {
 
   void CleanupIdleSockets(bool force) {
     return helper_->CleanupIdleSockets(force);
+  }
+
+  Value* GetInfoAsValue(const std::string& name,
+                        const std::string& type) const {
+    return helper_->GetInfoAsValue(name, type);
   }
 
   base::TimeDelta ConnectionTimeout() const {
