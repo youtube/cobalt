@@ -273,6 +273,12 @@ void CommandLine::Reset() {
   current_process_commandline_ = NULL;
 }
 
+// static
+CommandLine* CommandLine::ForCurrentProcess() {
+  DCHECK(current_process_commandline_);
+  return current_process_commandline_;
+}
+
 bool CommandLine::HasSwitch(const std::string& switch_string) const {
   std::string lowercased_switch(switch_string);
 #if defined(OS_WIN)
@@ -529,4 +535,10 @@ void CommandLine::CopySwitchesFrom(const CommandLine& source,
 
 // private
 CommandLine::CommandLine() {
+}
+
+// static
+CommandLine* CommandLine::ForCurrentProcessMutable() {
+  DCHECK(current_process_commandline_);
+  return current_process_commandline_;
 }
