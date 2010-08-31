@@ -122,10 +122,14 @@ void BoundNetLog::AddEntryWithTime(
   }
 }
 
-bool BoundNetLog::HasListener() const {
+NetLog::LogLevel BoundNetLog::GetLogLevel() const {
   if (net_log_)
-    return net_log_->HasListener();
-  return false;
+    return net_log_->GetLogLevel();
+  return NetLog::LOG_BASIC;
+}
+
+bool BoundNetLog::IsLoggingAll() const {
+  return GetLogLevel() == NetLog::LOG_ALL;
 }
 
 void BoundNetLog::AddEvent(
