@@ -414,6 +414,15 @@ TEST(StringUtilTest, IsStringUTF8) {
   EXPECT_FALSE(IsStringUTF8("\xd9\xee\xe4\xee"));
   // U+03B3 U+03B5 U+03B9 U+03AC in ISO-8859-7
   EXPECT_FALSE(IsStringUTF8("\xe3\xe5\xe9\xdC"));
+
+  // Check that we support Embedded Nulls. The first uses the canonical UTF-8
+  // representation, and the second uses a 2-byte sequence. The second version
+  // is invalid UTF-8 since UTF-8 states that the shortest encoding for a
+  // given codepoint must be used.
+  static const char kEmbeddedNull[] = "embedded\0null";
+  EXPECT_TRUE(IsStringUTF8(
+      std::string(kEmbeddedNull, sizeof(kEmbeddedNull))));
+  EXPECT_FALSE(IsStringUTF8("embedded\xc0\x80U+0000"));
 }
 
 TEST(StringUtilTest, ConvertASCII) {
