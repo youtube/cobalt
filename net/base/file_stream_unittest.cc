@@ -51,7 +51,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
       file_util::WriteFile(temp_file_path(), kTestData, kTestDataSize));
   int flags = base::PLATFORM_FILE_OPEN_ALWAYS | base::PLATFORM_FILE_READ;
   base::PlatformFile file = base::CreatePlatformFile(
-      temp_file_path().ToWStringHack(), flags, &created);
+      temp_file_path(), flags, &created, NULL);
 
   // Seek to the beginning of the file and read.
   net::FileStream read_stream(file, flags);
@@ -66,8 +66,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
   // 2. Test writing with a file handle.
   file_util::Delete(temp_file_path(), false);
   flags = base::PLATFORM_FILE_OPEN_ALWAYS | base::PLATFORM_FILE_WRITE;
-  file = base::CreatePlatformFile(temp_file_path().ToWStringHack(),
-                                  flags, &created);
+  file = base::CreatePlatformFile(temp_file_path(), flags, &created, NULL);
 
   net::FileStream write_stream(file, flags);
   ASSERT_EQ(0, write_stream.Seek(net::FROM_BEGIN, 0));

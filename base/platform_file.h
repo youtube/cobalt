@@ -37,22 +37,30 @@ enum PlatformFileFlags {
   PLATFORM_FILE_ASYNC = 256,
   PLATFORM_FILE_TEMPORARY = 512,        // Used on Windows only
   PLATFORM_FILE_HIDDEN = 1024,          // Used on Windows only
-  PLATFORM_FILE_DELETE_ON_CLOSE = 2048
+  PLATFORM_FILE_DELETE_ON_CLOSE = 2048,
+  PLATFORM_FILE_TRUNCATE = 4096
 };
 
-// TODO(dumi): add more specific error codes for CreatePlatformFile().
-// TODO(dumi): add more error codes as we add new methods to FileUtilProxy.
-enum PlatformFileErrors {
+enum PlatformFileError {
   PLATFORM_FILE_OK = 0,
-  PLATFORM_FILE_ERROR = -1
+  PLATFORM_FILE_ERROR_FAILED = -1,
+  PLATFORM_FILE_ERROR_IN_USE = -2,
+  PLATFORM_FILE_ERROR_EXISTS = -3,
+  PLATFORM_FILE_ERROR_NOT_FOUND = -4,
+  PLATFORM_FILE_ERROR_ACCESS_DENIED = -5,
+  PLATFORM_FILE_ERROR_TOO_MANY_OPENED = -6,
+  PLATFORM_FILE_ERROR_NO_MEMORY = -7,
+  PLATFORM_FILE_ERROR_NO_SPACE = -7,
+  PLATFORM_FILE_ERROR_NOT_A_DIRECTORY = -9
 };
 
 // Creates or opens the given file. If PLATFORM_FILE_OPEN_ALWAYS is used, and
 // |created| is provided, |created| will be set to true if the file was created
-// or to false in case the file was just opened.
+// or to false in case the file was just opened. |error_code| can be NULL.
 PlatformFile CreatePlatformFile(const FilePath& name,
                                 int flags,
-                                bool* created);
+                                bool* created,
+                                PlatformFileError* error_code);
 // Deprecated.
 PlatformFile CreatePlatformFile(const std::wstring& name,
                                 int flags,

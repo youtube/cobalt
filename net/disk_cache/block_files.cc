@@ -224,7 +224,7 @@ bool BlockFiles::CreateBlockFile(int index, FileType file_type, bool force) {
   flags |= base::PLATFORM_FILE_WRITE | base::PLATFORM_FILE_EXCLUSIVE_WRITE;
 
   scoped_refptr<File> file(new File(
-      base::CreatePlatformFile(name, flags, NULL)));
+      base::CreatePlatformFile(name, flags, NULL, NULL)));
   if (!file->IsValid())
     return false;
 

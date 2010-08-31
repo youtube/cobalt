@@ -11,7 +11,8 @@ namespace base {
 
 PlatformFile CreatePlatformFile(const FilePath& name,
                                 int flags,
-                                bool* created) {
+                                bool* created,
+                                PlatformFileError* error_code) {
   DWORD disposition = 0;
 
   if (flags & PLATFORM_FILE_OPEN)
@@ -30,6 +31,12 @@ PlatformFile CreatePlatformFile(const FilePath& name,
   if (flags & PLATFORM_FILE_CREATE_ALWAYS) {
     DCHECK(!disposition);
     disposition = CREATE_ALWAYS;
+  }
+
+  if (flags & PLATFORM_FILE_TRUNCATE) {
+    DCHECK(!disposition);
+    DCHECK(flags & PLATFORM_FILE_WRITE);
+    disposition = TRUNCATE_EXISTING;
   }
 
   if (!disposition) {
@@ -63,12 +70,33 @@ PlatformFile CreatePlatformFile(const FilePath& name,
     *created = (ERROR_ALREADY_EXISTS != GetLastError());
   }
 
+  if ((file == kInvalidPlatformFileValue) && error_code) {
+    DWORD last_error = GetLastError();
+    switch (last_error) {
+      case ERROR_SHARING_VIOLATION:
+        *error_code = PLATFORM_FILE_ERROR_IN_USE;
+        break;
+      case ERROR_FILE_EXISTS:
+        *error_code = PLATFORM_FILE_ERROR_EXISTS;
+        break;
+      case ERROR_FILE_NOT_FOUND:
+        *error_code = PLATFORM_FILE_ERROR_NOT_FOUND;
+        break;
+      case ERROR_ACCESS_DENIED:
+        *error_code = PLATFORM_FILE_ERROR_ACCESS_DENIED;
+        break;
+      default:
+        *error_code = PLATFORM_FILE_ERROR_FAILED;
+    }
+  }
+
   return file;
 }
 
 PlatformFile CreatePlatformFile(const std::wstring& name, int flags,
                                 bool* created) {
-  return CreatePlatformFile(FilePath::FromWStringHack(name), flags, created);
+  return CreatePlatformFile(FilePath::FromWStringHack(name), flags,
+                            created, NULL);
 }
 
 bool ClosePlatformFile(PlatformFile file) {
