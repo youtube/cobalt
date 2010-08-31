@@ -400,10 +400,13 @@ class ClientSocketPoolBaseHelper
   // whether or not the socket has previously been used.
   void AddIdleSocket(ClientSocket* socket, bool used, Group* group);
 
-  // Iterates through |connect_job_map_|, canceling all ConnectJobs.
-  // Afterwards, it iterates through all groups and deletes them if they are no
-  // longer needed.
+  // Iterates through |group_map_|, canceling all ConnectJobs and deleting
+  // groups if they are no longer needed.
   void CancelAllConnectJobs();
+
+  // Iterates through |group_map_|, posting ERR_ABORTED callbacks for all
+  // requests, and then deleting groups if they are no longer needed.
+  void AbortAllRequests();
 
   // Returns true if we can't create any more sockets due to the total limit.
   bool ReachedMaxSocketsLimit() const;
