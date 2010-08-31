@@ -16,7 +16,7 @@ namespace base {
 
 // TODO(erikkay): does it make sense to support PLATFORM_FILE_EXCLUSIVE_* here?
 PlatformFile CreatePlatformFile(const FilePath& name, int flags,
-                                bool* created) {
+                                bool* created, PlatformFileError* error_code) {
   int open_flags = 0;
   if (flags & PLATFORM_FILE_CREATE)
     open_flags = O_CREAT | O_EXCL;
@@ -30,6 +30,8 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
       !(flags & PLATFORM_FILE_OPEN_ALWAYS)) {
     NOTREACHED();
     errno = EOPNOTSUPP;
+    if (error_code)
+      *error_code = PLATFORM_FILE_ERROR_FAILED;
     return kInvalidPlatformFileValue;
   }
 
@@ -39,6 +41,11 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     open_flags |= O_WRONLY;
   } else if (!(flags & PLATFORM_FILE_READ)) {
     NOTREACHED();
+  }
+
+  if (flags & PLATFORM_FILE_TRUNCATE) {
+    DCHECK(flags & PLATFORM_FILE_WRITE);
+    open_flags |= O_TRUNC;
   }
 
   DCHECK(O_RDONLY == 0);
@@ -61,8 +68,42 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     }
   }
 
-  if ((descriptor > 0) && (flags & PLATFORM_FILE_DELETE_ON_CLOSE)) {
+  if ((descriptor < 0) && (flags & PLATFORM_FILE_DELETE_ON_CLOSE)) {
     unlink(name.value().c_str());
+  }
+
+  if ((descriptor < 0) && error_code) {
+    switch (errno) {
+      case EACCES:
+      case EISDIR:
+      case EROFS:
+      case EPERM:
+        *error_code = PLATFORM_FILE_ERROR_ACCESS_DENIED;
+        break;
+      case ETXTBSY:
+        *error_code = PLATFORM_FILE_ERROR_IN_USE;
+        break;
+      case EEXIST:
+        *error_code = PLATFORM_FILE_ERROR_EXISTS;
+        break;
+      case ENOENT:
+        *error_code = PLATFORM_FILE_ERROR_NOT_FOUND;
+        break;
+      case EMFILE:
+        *error_code = PLATFORM_FILE_ERROR_TOO_MANY_OPENED;
+        break;
+      case ENOMEM:
+        *error_code = PLATFORM_FILE_ERROR_NO_MEMORY;
+        break;
+      case ENOSPC:
+        *error_code = PLATFORM_FILE_ERROR_NO_SPACE;
+        break;
+      case ENOTDIR:
+        *error_code = PLATFORM_FILE_ERROR_NOT_A_DIRECTORY;
+        break;
+      default:
+        *error_code = PLATFORM_FILE_ERROR_FAILED;
+    }
   }
 
   return descriptor;
@@ -70,7 +111,8 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
 
 PlatformFile CreatePlatformFile(const std::wstring& name, int flags,
                                 bool* created) {
-  return CreatePlatformFile(FilePath::FromWStringHack(name), flags, created);
+  return CreatePlatformFile(FilePath::FromWStringHack(name), flags,
+                            created, NULL);
 }
 
 bool ClosePlatformFile(PlatformFile file) {

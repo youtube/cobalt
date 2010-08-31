@@ -37,11 +37,11 @@ class MessageLoopRelay
   // Called to notify the callback on the origin thread.
   virtual void RunCallback() = 0;
 
-  void set_error_code(int error_code) {
+  void set_error_code(base::PlatformFileError error_code) {
     error_code_ = error_code;
   }
 
-  int error_code() const {
+  base::PlatformFileError error_code() const {
     return error_code_;
   }
 
@@ -54,7 +54,7 @@ class MessageLoopRelay
   }
 
   scoped_refptr<base::MessageLoopProxy> origin_message_loop_proxy_;
-  int error_code_;
+  base::PlatformFileError error_code_;
 };
 
 class RelayCreateOrOpen : public MessageLoopRelay {
@@ -80,9 +80,10 @@ class RelayCreateOrOpen : public MessageLoopRelay {
   }
 
   virtual void RunWork() {
-    file_handle_ = base::CreatePlatformFile(file_path_, file_flags_, &created_);
-    if (file_handle_ == base::kInvalidPlatformFileValue)
-      set_error_code(base::PLATFORM_FILE_ERROR);
+    base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
+    file_handle_ = base::CreatePlatformFile(file_path_, file_flags_,
+                                            &created_, &error_code);
+    set_error_code(error_code);
   }
 
   virtual void RunCallback() {
@@ -129,9 +130,10 @@ class RelayCreateTemporary : public MessageLoopRelay {
         base::PLATFORM_FILE_WRITE |
         base::PLATFORM_FILE_ASYNC |
         base::PLATFORM_FILE_TEMPORARY;
-    file_handle_ = base::CreatePlatformFile(file_path_, file_flags, NULL);
-    if (file_handle_ == base::kInvalidPlatformFileValue)
-      set_error_code(base::PLATFORM_FILE_ERROR);
+    base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
+    file_handle_ = base::CreatePlatformFile(file_path_, file_flags,
+                                            NULL, &error_code);
+    set_error_code(error_code);
   }
 
   virtual void RunCallback() {
@@ -179,7 +181,7 @@ class RelayClose : public RelayWithStatusCallback {
  protected:
   virtual void RunWork() {
     if (!base::ClosePlatformFile(file_handle_))
-      set_error_code(base::PLATFORM_FILE_ERROR);
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
   }
 
  private:
@@ -199,7 +201,7 @@ class RelayDelete : public RelayWithStatusCallback {
  protected:
   virtual void RunWork() {
     if (!file_util::Delete(file_path_, recursive_))
-      set_error_code(base::PLATFORM_FILE_ERROR);
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
   }
 
  private:
@@ -212,25 +214,24 @@ class RelayGetFileInfo : public MessageLoopRelay {
   RelayGetFileInfo(const FilePath& file_path,
                    base::FileUtilProxy::GetFileInfoCallback* callback)
       : callback_(callback),
-        file_path_(file_path),
-        exists_(false) {
+        file_path_(file_path) {
     DCHECK(callback);
   }
 
  protected:
   virtual void RunWork() {
-    exists_ = file_util::GetFileInfo(file_path_, &file_info_);
+    if (!file_util::GetFileInfo(file_path_, &file_info_))
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
   }
 
   virtual void RunCallback() {
-    callback_->Run(exists_, file_info_);
+    callback_->Run(error_code(), file_info_);
     delete callback_;
   }
 
  private:
   base::FileUtilProxy::GetFileInfoCallback* callback_;
   FilePath file_path_;
-  bool exists_;
   file_util::FileInfo file_info_;
 };
 
