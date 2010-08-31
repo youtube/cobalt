@@ -505,7 +505,7 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
 
   DCHECK_NE(config_.id(), ProxyConfig::INVALID_ID);
 
-  if (config_.MayRequirePACResolver())
+  if (config_.HasAutomaticSettings())
     return ERR_IO_PENDING;  // Must submit the request to the proxy resolver.
 
   // Use the manual proxy settings.
@@ -583,7 +583,7 @@ void ProxyService::ApplyProxyConfigIfAvailable() {
 void ProxyService::OnInitProxyResolverComplete(int result) {
   DCHECK_EQ(STATE_WAITING_FOR_INIT_PROXY_RESOLVER, current_state_);
   DCHECK(init_proxy_resolver_.get());
-  DCHECK(fetched_config_.MayRequirePACResolver());
+  DCHECK(fetched_config_.HasAutomaticSettings());
   init_proxy_resolver_.reset();
 
   if (result != OK) {
@@ -785,7 +785,7 @@ void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
                        params);
   }
 
-  if (!fetched_config_.MayRequirePACResolver()) {
+  if (!fetched_config_.HasAutomaticSettings()) {
     config_ = fetched_config_;
     SetReady();
     return;
