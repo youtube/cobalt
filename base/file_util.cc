@@ -338,10 +338,6 @@ bool MemoryMappedFile::IsValid() {
 
 // Deprecated functions ----------------------------------------------------
 
-bool ReadFileToString(const std::wstring& path, std::string* contents) {
-  return ReadFileToString(FilePath::FromWStringHack(path), contents);
-}
-
 bool AbsolutePath(std::wstring* path_str) {
   FilePath path(FilePath::FromWStringHack(*path_str));
   if (!AbsolutePath(&path))
