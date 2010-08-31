@@ -161,8 +161,13 @@ bool ProxyConfig::Equals(const ProxyConfig& other) const {
          proxy_rules_.Equals(other.proxy_rules());
 }
 
-bool ProxyConfig::MayRequirePACResolver() const {
+bool ProxyConfig::HasAutomaticSettings() const {
   return auto_detect_ || has_pac_url();
+}
+
+void ProxyConfig::ClearAutomaticSettings() {
+  auto_detect_ = false;
+  pac_url_ = GURL();
 }
 
 Value* ProxyConfig::ToValue() const {

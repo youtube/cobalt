@@ -118,16 +118,11 @@ class ProxyConfig {
   // Returns true if the given config is equivalent to this config.
   bool Equals(const ProxyConfig& other) const;
 
-  // Returns true if this config could possibly require the proxy service to
-  // use a PAC resolver.
-  // TODO(eroman): rename to HasAutomaticSettings() for consistency with
-  //               ClearAutomaticSettings().
-  bool MayRequirePACResolver() const;
+  // Returns true if this config contains any "automatic" settings. See the
+  // class description for what that means.
+  bool HasAutomaticSettings() const;
 
-  void ClearAutomaticSettings() {
-    auto_detect_ = false;
-    pac_url_ = GURL();
-  }
+  void ClearAutomaticSettings();
 
   // Creates a Value dump of this configuration. The caller is responsible for
   // deleting the returned value.
