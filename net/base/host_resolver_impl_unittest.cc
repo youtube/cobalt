@@ -1103,8 +1103,9 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   EXPECT_EQ(OK, callback.WaitForResult());
 }
 
+// http://crbug.com/53965: Flaky.
 // Test that IP address changes send ERR_ABORTED to pending requests.
-TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
+TEST_F(HostResolverImplTest, FLAKY_AbortOnIPAddressChanged) {
   scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs, NULL));
 
