@@ -129,9 +129,6 @@ class ProxyConfig {
     pac_url_ = GURL();
   }
 
-  // Creates a textual dump of the configuration.
-  std::string ToString() const;
-
   // Creates a Value dump of this configuration. The caller is responsible for
   // deleting the returned value.
   Value* ToValue() const;
