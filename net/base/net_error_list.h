@@ -442,3 +442,14 @@ NET_ERROR(PKCS12_IMPORT_BAD_PASSWORD, -701)
 
 // PKCS #12 import failed due to other error.
 NET_ERROR(PKCS12_IMPORT_FAILED, -702)
+
+// CA import failed - not a CA cert.
+NET_ERROR(IMPORT_CA_CERT_NOT_CA, -703)
+
+// Import failed - certificate already exists in database.
+// Note it's a little weird this is an error but reimporting a PKCS12 is ok
+// (no-op).  That's how mozilla does it, though.
+NET_ERROR(IMPORT_CERT_ALREADY_EXISTS, -704)
+
+// CA import failed due to some other error.
+NET_ERROR(IMPORT_CA_CERT_FAILED, -705)

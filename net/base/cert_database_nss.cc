@@ -4,19 +4,18 @@
 
 #include "net/base/cert_database.h"
 
+#include <cert.h>
+#include <certdb.h>
+#include <keyhi.h>
 #include <pk11pub.h>
 #include <secmod.h>
-#include <ssl.h>
-#include <nssb64.h>    // NSSBase64_EncodeItem()
-#include <secder.h>    // DER_Encode()
-#include <cryptohi.h>  // SEC_DerSignData()
-#include <keyhi.h>     // SECKEY_CreateSubjectPublicKeyInfo()
 
 #include "base/logging.h"
 #include "base/nss_util.h"
 #include "base/scoped_ptr.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
+#include "net/third_party/mozilla_security_manager/nsNSSCertificateDB.h"
 #include "net/third_party/mozilla_security_manager/nsPKCS12Blob.h"
 
 // PSM = Mozilla's Personal Security Manager.
@@ -100,6 +99,64 @@ int CertDatabase::ExportToPKCS12(
     const string16& password,
     std::string* output) {
   return psm::nsPKCS12Blob_Export(output, certs, password);
+}
+
+X509Certificate* CertDatabase::FindRootInList(
+    const CertificateList& certificates) {
+  DCHECK_GT(certificates.size(), 0U);
+
+  if (certificates.size() == 1)
+    return certificates[0].get();
+
+  X509Certificate* cert0 = certificates[0];
+  X509Certificate* cert1 = certificates[1];
+  X509Certificate* certn_2 = certificates[certificates.size() - 2];
+  X509Certificate* certn_1 = certificates[certificates.size() - 1];
+
+  if (CERT_CompareName(&cert1->os_cert_handle()->issuer,
+                       &cert0->os_cert_handle()->subject) == SECEqual)
+    return cert0;
+  if (CERT_CompareName(&certn_2->os_cert_handle()->issuer,
+                       &certn_1->os_cert_handle()->subject) == SECEqual)
+    return certn_1;
+
+  LOG(INFO) << "certificate list is not a hierarchy";
+  return cert0;
+}
+
+bool CertDatabase::ImportCACerts(const CertificateList& certificates,
+                                 unsigned int trust_bits,
+                                 ImportCertResultList* not_imported) {
+  X509Certificate* root = FindRootInList(certificates);
+  return psm::ImportCACerts(certificates, root, trust_bits, not_imported);
+}
+
+bool CertDatabase::SetCertTrust(const X509Certificate* cert,
+                                CertType type,
+                                unsigned int trusted) {
+  return psm::SetCertTrust(cert, type, trusted);
+}
+
+bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
+  // For some reason, PK11_DeleteTokenCertAndKey only calls
+  // SEC_DeletePermCertificate if the private key is found.  So, we check
+  // whether a private key exists before deciding which function to call to
+  // delete the cert.
+  SECKEYPrivateKey *privKey = PK11_FindKeyByAnyCert(cert->os_cert_handle(),
+                                                    NULL);
+  if (privKey) {
+    SECKEY_DestroyPrivateKey(privKey);
+    if (PK11_DeleteTokenCertAndKey(cert->os_cert_handle(), NULL)) {
+      LOG(ERROR) << "PK11_DeleteTokenCertAndKey failed: " << PORT_GetError();
+      return false;
+    }
+  } else {
+    if (SEC_DeletePermCertificate(cert->os_cert_handle())) {
+      LOG(ERROR) << "SEC_DeletePermCertificate failed: " << PORT_GetError();
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace net
