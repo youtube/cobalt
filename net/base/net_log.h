@@ -95,6 +95,15 @@ class NetLog {
     DISALLOW_COPY_AND_ASSIGN(EventParameters);
   };
 
+  // Specifies the granularity of events that should be emitted to the log.
+  enum LogLevel {
+    // Log everything possible, even if it is slow and memory expensive.
+    LOG_ALL,
+
+    // Only log events which are cheap, and don't consume much memory.
+    LOG_BASIC,
+  };
+
   NetLog() {}
   virtual ~NetLog() {}
 
@@ -117,8 +126,9 @@ class NetLog {
   // Returns a unique ID which can be used as a source ID.
   virtual uint32 NextID() = 0;
 
-  // Returns true if more complicated messages should be sent to the log.
-  virtual bool HasListener() const = 0;
+  // Returns the logging level for this NetLog. This is used to avoid computing
+  // and saving expensive log entries.
+  virtual LogLevel GetLogLevel() const = 0;
 
   // Returns a C-String symbolic name for |event_type|.
   static const char* EventTypeToString(EventType event_type);
@@ -177,7 +187,10 @@ class BoundNetLog {
   void EndEvent(NetLog::EventType event_type,
                 const scoped_refptr<NetLog::EventParameters>& params) const;
 
-  bool HasListener() const;
+  NetLog::LogLevel GetLogLevel() const;
+
+  // Returns true if the log level is LOG_ALL.
+  bool IsLoggingAll() const;
 
   // Helper to create a BoundNetLog given a NetLog and a SourceType. Takes care
   // of creating a unique source ID, and handles the case of NULL net_log.

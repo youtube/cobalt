@@ -490,7 +490,7 @@ void URLRequest::OrphanJob() {
 }
 
 int URLRequest::Redirect(const GURL& location, int http_status_code) {
-  if (net_log_.HasListener()) {
+  if (net_log_.IsLoggingAll()) {
     net_log_.AddEvent(
         net::NetLog::TYPE_URL_REQUEST_REDIRECTED,
         new net::NetLogStringParameter(
