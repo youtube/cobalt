@@ -6,16 +6,23 @@
 
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "net/base/file_stream.h"
 #include "net/base/net_errors.h"
 
 namespace net {
 
-uint64 UploadData::GetContentLength() {
-  uint64 len = 0;
-  std::vector<Element>::iterator it = elements_.begin();
-  for (; it != elements_.end(); ++it)
-    len += (*it).GetContentLength();
-  return len;
+UploadData::Element::Element()
+    : type_(TYPE_BYTES),
+      file_range_offset_(0),
+      file_range_length_(kuint64max),
+      override_content_length_(false),
+      content_length_computed_(false),
+      file_stream_(NULL) {
+}
+
+UploadData::Element::~Element() {
+  // In the common case |file__stream_| will be null.
+  delete file_stream_;
 }
 
 uint64 UploadData::Element::GetContentLength() {
@@ -87,6 +94,49 @@ FileStream* UploadData::Element::NewFileStreamForReading() {
   }
 
   return file.release();
+}
+
+UploadData::UploadData() : identifier_(0) {
+}
+
+void UploadData::AppendBytes(const char* bytes, int bytes_len) {
+  if (bytes_len > 0) {
+    elements_.push_back(Element());
+    elements_.back().SetToBytes(bytes, bytes_len);
+  }
+}
+
+void UploadData::AppendFile(const FilePath& file_path) {
+  elements_.push_back(Element());
+  elements_.back().SetToFilePath(file_path);
+}
+
+void UploadData::AppendFileRange(const FilePath& file_path,
+                                 uint64 offset, uint64 length,
+                                 const base::Time& expected_modification_time) {
+  elements_.push_back(Element());
+  elements_.back().SetToFilePathRange(file_path, offset, length,
+                                      expected_modification_time);
+}
+
+void UploadData::AppendBlob(const GURL& blob_url) {
+  elements_.push_back(Element());
+  elements_.back().SetToBlobUrl(blob_url);
+}
+
+uint64 UploadData::GetContentLength() {
+  uint64 len = 0;
+  std::vector<Element>::iterator it = elements_.begin();
+  for (; it != elements_.end(); ++it)
+    len += (*it).GetContentLength();
+  return len;
+}
+
+void UploadData::SetElements(const std::vector<Element>& elements) {
+  elements_ = elements;
+}
+
+UploadData::~UploadData() {
 }
 
 }  // namespace net

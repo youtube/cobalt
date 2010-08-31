@@ -62,6 +62,9 @@ HostResolverProc* HostResolverProc::GetDefault() {
   return default_proc_;
 }
 
+HostResolverProc::~HostResolverProc() {
+}
+
 int HostResolverProc::ResolveUsingPrevious(
     const std::string& host,
     AddressFamily address_family,

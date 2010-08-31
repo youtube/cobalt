@@ -14,6 +14,7 @@
 #include "base/string_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cookie_policy.h"
+#include "net/base/cookie_store.h"
 #include "net/base/filter.h"
 #include "net/base/transport_security_state.h"
 #include "net/base/load_flags.h"

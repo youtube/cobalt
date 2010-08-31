@@ -18,6 +18,7 @@
 #include "base/ref_counted.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "net/base/cert_status_flags.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
