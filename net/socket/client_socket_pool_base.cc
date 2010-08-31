@@ -11,6 +11,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "base/values.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/socket/client_socket_handle.h"
