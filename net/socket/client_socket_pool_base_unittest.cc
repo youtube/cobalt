@@ -1933,6 +1933,63 @@ TEST_F(ClientSocketPoolBaseTest, DoNotReuseSocketAfterFlush) {
   EXPECT_EQ(ClientSocketHandle::UNUSED, handle.reuse_type());
 }
 
+class ConnectWithinCallback : public CallbackRunner< Tuple1<int> > {
+ public:
+  ConnectWithinCallback(
+      const std::string& group_name,
+      const scoped_refptr<TestSocketParams>& params,
+      const scoped_refptr<TestClientSocketPool>& pool)
+      : group_name_(group_name), params_(params), pool_(pool) {}
+
+  ~ConnectWithinCallback() {}
+
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    callback_.RunWithParams(params);
+    EXPECT_EQ(ERR_IO_PENDING,
+              handle_.Init(group_name_,
+                           params_,
+                           kDefaultPriority,
+                           &nested_callback_,
+                           pool_,
+                           BoundNetLog()));
+  }
+
+  int WaitForResult() {
+    return callback_.WaitForResult();
+  }
+
+  int WaitForNestedResult() {
+    return nested_callback_.WaitForResult();
+  }
+
+ private:
+  const std::string group_name_;
+  const scoped_refptr<TestSocketParams> params_;
+  const scoped_refptr<TestClientSocketPool> pool_;
+  ClientSocketHandle handle_;
+  TestCompletionCallback callback_;
+  TestCompletionCallback nested_callback_;
+};
+
+TEST_F(ClientSocketPoolBaseTest, AbortAllRequestsOnFlush) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+
+  // First job will be waiting until it gets aborted.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+
+  ClientSocketHandle handle;
+  ConnectWithinCallback callback("a", params_, pool_);
+  EXPECT_EQ(ERR_IO_PENDING, handle.Init("a", params_, kDefaultPriority,
+                                        &callback, pool_, BoundNetLog()));
+
+  // Second job will be started during the first callback, and will
+  // asynchronously complete with OK.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+  pool_->Flush();
+  EXPECT_EQ(ERR_ABORTED, callback.WaitForResult());
+  EXPECT_EQ(OK, callback.WaitForNestedResult());
+}
+
 // Cancel a pending socket request while we're at max sockets,
 // and verify that the backup socket firing doesn't cause a crash.
 TEST_F(ClientSocketPoolBaseTest, BackupSocketCancelAtMaxSockets) {
