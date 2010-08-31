@@ -1013,7 +1013,11 @@ OutStringType DoReplaceStringPlaceholders(const FormatStringType& format_string,
         ++i;
         DCHECK('$' == *i || '1' <= *i) << "Invalid placeholder: " << *i;
         if ('$' == *i) {
-          formatted.push_back('$');
+          while (i != format_string.end() && '$' == *i) {
+            formatted.push_back('$');
+            ++i;
+          }
+          --i;
         } else {
           uintptr_t index = *i - '1';
           if (offsets) {
