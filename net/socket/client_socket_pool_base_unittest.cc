@@ -1940,8 +1940,8 @@ TEST_F(ClientSocketPoolBaseTest, BackupSocketCancelAtMaxSockets) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
   pool_->EnableConnectBackupJobs();
 
-  // Create the first socket and set to ERR_IO_PENDING.  This creates a
-  // backup job.
+  // Create the first socket and set to ERR_IO_PENDING.  This starts the backup
+  // timer.
   connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
   ClientSocketHandle handle;
   TestCompletionCallback callback;
@@ -1967,6 +1967,30 @@ TEST_F(ClientSocketPoolBaseTest, BackupSocketCancelAtMaxSockets) {
 
   MessageLoop::current()->RunAllPending();
   EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
+}
+
+TEST_F(ClientSocketPoolBaseTest, CancelBackupSocketWhenThereAreNoRequests) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
+  pool_->EnableConnectBackupJobs();
+
+  // Create the first socket and set to ERR_IO_PENDING.  This starts the backup
+  // timer.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING, handle.Init("bar", params_, kDefaultPriority,
+                                        &callback, pool_, BoundNetLog()));
+  ASSERT_TRUE(pool_->HasGroup("bar"));
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("bar"));
+
+  // Cancel the socket request.  This should cancel the backup timer.  Wait for
+  // the backup time to see if it indeed got canceled.
+  handle.Reset();
+  // Wait for the backup timer to fire (add some slop to ensure it fires)
+  PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3);
+  MessageLoop::current()->RunAllPending();
+  ASSERT_TRUE(pool_->HasGroup("bar"));
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("bar"));
 }
 
 // Test delayed socket binding for the case where we have two connects,
