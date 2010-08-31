@@ -4,10 +4,7 @@
 
 #include "net/proxy/proxy_config.h"
 
-#include <sstream>
-
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/values.h"
@@ -17,107 +14,12 @@ namespace net {
 
 namespace {
 
-// Helper to stringize a ProxyServer.
-std::ostream& operator<<(std::ostream& out,
-                         const ProxyServer& proxy_server) {
-  if (proxy_server.is_valid())
-    out << proxy_server.ToURI();
-  return out;
-}
-
-const char* BoolToYesNoString(bool b) {
-  return b ? "Yes" : "No";
-}
-
-std::ostream& operator<<(std::ostream& out,
-                         const ProxyConfig::ProxyRules& rules) {
-  // Stringize the type enum.
-  std::string type;
-  switch (rules.type) {
-    case net::ProxyConfig::ProxyRules::TYPE_NO_RULES:
-      type = "TYPE_NO_RULES";
-      break;
-    case net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME:
-      type = "TYPE_PROXY_PER_SCHEME";
-      break;
-    case net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY:
-      type = "TYPE_SINGLE_PROXY";
-      break;
-    default:
-      type = base::IntToString(rules.type);
-      break;
-  }
-  return out << "  {\n"
-             << "    type: " << type << "\n"
-             << "    single_proxy: " << rules.single_proxy << "\n"
-             << "    proxy_for_http: " << rules.proxy_for_http << "\n"
-             << "    proxy_for_https: " << rules.proxy_for_https << "\n"
-             << "    proxy_for_ftp: " << rules.proxy_for_ftp << "\n"
-             << "    fallback_proxy: " << rules.fallback_proxy << "\n"
-             << "  }";
-}
-
-std::ostream& operator<<(std::ostream& out, const ProxyConfig& config) {
-  // "Automatic" settings.
-  out << "Automatic settings:\n";
-  out << "  Auto-detect: " << BoolToYesNoString(config.auto_detect()) << "\n";
-  out << "  Custom PAC script: ";
-  if (config.has_pac_url())
-    out << config.pac_url();
-  else
-    out << "[None]";
-  out << "\n";
-
-  // "Manual" settings.
-  out << "Manual settings:\n";
-  out << "  Proxy server: ";
-
-  switch (config.proxy_rules().type) {
-    case net::ProxyConfig::ProxyRules::TYPE_NO_RULES:
-      out << "[None]\n";
-      break;
-    case net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY:
-      out << config.proxy_rules().single_proxy;
-      out << "\n";
-      break;
-    case net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME:
-      out << "\n";
-      if (config.proxy_rules().proxy_for_http.is_valid())
-        out << "    HTTP: " << config.proxy_rules().proxy_for_http << "\n";
-      if (config.proxy_rules().proxy_for_https.is_valid())
-        out << "    HTTPS: " << config.proxy_rules().proxy_for_https << "\n";
-      if (config.proxy_rules().proxy_for_ftp.is_valid())
-        out << "    FTP: " << config.proxy_rules().proxy_for_ftp << "\n";
-      if (config.proxy_rules().fallback_proxy.is_valid()) {
-        out << "    (fallback): "
-            << config.proxy_rules().fallback_proxy << "\n";
-      }
-      break;
-  }
-
-  if (config.proxy_rules().reverse_bypass)
-    out << "  Only use proxy for: ";
-  else
-    out << "  Bypass list: ";
-  if (config.proxy_rules().bypass_rules.rules().empty()) {
-    out << "[None]";
-  } else {
-    const net::ProxyBypassRules& bypass_rules =
-        config.proxy_rules().bypass_rules;
-    net::ProxyBypassRules::RuleList::const_iterator it;
-    for (it = bypass_rules.rules().begin();
-         it != bypass_rules.rules().end(); ++it) {
-      out << "\n    " << (*it)->ToString();
-    }
-  }
-
-  return out;
-}
-
-std::string ProxyConfigToString(const ProxyConfig& proxy_config) {
-  std::ostringstream stream;
-  stream << proxy_config;
-  return stream.str();
+// If |proxy| is valid, sets it in |dict| under the key |name|.
+void AddProxyToValue(const char* name,
+                     const ProxyServer& proxy,
+                     DictionaryValue* dict) {
+  if (proxy.is_valid())
+    dict->SetString(name, proxy.ToURI());
 }
 
 }  // namespace
@@ -263,15 +165,53 @@ bool ProxyConfig::MayRequirePACResolver() const {
   return auto_detect_ || has_pac_url();
 }
 
-std::string ProxyConfig::ToString() const {
-  return ProxyConfigToString(*this);
-}
-
 Value* ProxyConfig::ToValue() const {
-  // TODO(eroman): send a dictionary rather than a flat string, so the
-  //               javascript client can do prettier formatting.
-  //               crbug.com/52011
-  return Value::CreateStringValue(ToString());
+  DictionaryValue* dict = new DictionaryValue();
+
+  // Output the automatic settings.
+  if (auto_detect_)
+    dict->SetBoolean("auto_detect", auto_detect_);
+  if (has_pac_url())
+    dict->SetString("pac_url", pac_url_.possibly_invalid_spec());
+
+  // Output the manual settings.
+  if (proxy_rules_.type != ProxyRules::TYPE_NO_RULES) {
+    switch (proxy_rules_.type) {
+      case ProxyRules::TYPE_SINGLE_PROXY:
+        AddProxyToValue("single_proxy", proxy_rules_.single_proxy, dict);
+        break;
+      case ProxyRules::TYPE_PROXY_PER_SCHEME: {
+        DictionaryValue* dict2 = new DictionaryValue();
+        AddProxyToValue("http", proxy_rules_.proxy_for_http, dict2);
+        AddProxyToValue("https", proxy_rules_.proxy_for_https, dict2);
+        AddProxyToValue("ftp", proxy_rules_.proxy_for_ftp, dict2);
+        AddProxyToValue("fallback", proxy_rules_.fallback_proxy, dict2);
+        dict->Set("proxy_per_scheme", dict2);
+        break;
+      }
+      default:
+        NOTREACHED();
+    }
+
+    // Output the bypass rules.
+    const ProxyBypassRules& bypass = proxy_rules_.bypass_rules;
+    if (!bypass.rules().empty()) {
+      if (proxy_rules_.reverse_bypass)
+        dict->SetBoolean("reverse_bypass", true);
+
+      ListValue* list = new ListValue();
+
+      for (ProxyBypassRules::RuleList::const_iterator it =
+              bypass.rules().begin();
+           it != bypass.rules().end(); ++it) {
+        list->Append(Value::CreateStringValue((*it)->ToString()));
+      }
+
+      dict->Set("bypass_list", list);
+    }
+  }
+
+  return dict;
 }
 
 }  // namespace net
