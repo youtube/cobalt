@@ -395,16 +395,6 @@ struct UrlTestData {
   size_t prefix_len;
 };
 
-struct UrlTestDataDeprecated {
-  const char* description;
-  const char* input;
-  const std::wstring languages;
-  net::FormatUrlTypes format_types;
-  UnescapeRule::Type escape_rules;
-  const std::wstring output;
-  size_t prefix_len;
-};
-
 // Returns an addrinfo for the given 32-bit address (IPv4.)
 // The result lives in static storage, so don't delete it.
 // |bytes| should be an array of length 4.
@@ -866,17 +856,17 @@ TEST(NetUtilTest, IDNToUnicodeAdjustOffset) {
     {2, 2},
     {4, 4},
     {5, 5},
-    {6, std::wstring::npos},
-    {16, std::wstring::npos},
+    {6, string16::npos},
+    {16, string16::npos},
     {17, 7},
     {18, 8},
-    {19, std::wstring::npos},
-    {25, std::wstring::npos},
+    {19, string16::npos},
+    {25, string16::npos},
     {34, 12},
     {35, 13},
     {38, 16},
-    {39, std::wstring::npos},
-    {std::wstring::npos, std::wstring::npos},
+    {39, string16::npos},
+    {string16::npos, string16::npos},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(adjust_cases); ++i) {
     size_t offset = adjust_cases[i].input_offset;
@@ -1527,296 +1517,143 @@ TEST(NetUtilTest, FormatUrl) {
   }
 }
 
-TEST(NetUtilTest, FormatUrlDeprecated) {
-  net::FormatUrlTypes default_format_type = net::kFormatUrlOmitUsernamePassword;
-  const UrlTestDataDeprecated tests[] = {
-    {"Empty URL", "", L"", default_format_type, UnescapeRule::NORMAL, L"", 0},
-
-    {"Simple URL",
-     "http://www.google.com/", L"", default_format_type, UnescapeRule::NORMAL,
-     L"http://www.google.com/", 7},
-
-    {"With a port number and a reference",
-     "http://www.google.com:8080/#\xE3\x82\xB0", L"", default_format_type,
-     UnescapeRule::NORMAL,
-     L"http://www.google.com:8080/#\x30B0", 7},
-
-    // -------- IDN tests --------
-    {"Japanese IDN with ja",
-     "http://xn--l8jvb1ey91xtjb.jp", L"ja", default_format_type,
-     UnescapeRule::NORMAL, L"http://\x671d\x65e5\x3042\x3055\x3072.jp/", 7},
-
-    {"Japanese IDN with en",
-     "http://xn--l8jvb1ey91xtjb.jp", L"en", default_format_type,
-     UnescapeRule::NORMAL, L"http://xn--l8jvb1ey91xtjb.jp/", 7},
-
-    {"Japanese IDN without any languages",
-     "http://xn--l8jvb1ey91xtjb.jp", L"", default_format_type,
-     UnescapeRule::NORMAL,
-     // Single script is safe for empty languages.
-     L"http://\x671d\x65e5\x3042\x3055\x3072.jp/", 7},
-
-    {"mailto: with Japanese IDN",
-     "mailto:foo@xn--l8jvb1ey91xtjb.jp", L"ja", default_format_type,
-     UnescapeRule::NORMAL,
-     // GURL doesn't assume an email address's domain part as a host name.
-     L"mailto:foo@xn--l8jvb1ey91xtjb.jp", 7},
-
-    {"file: with Japanese IDN",
-     "file://xn--l8jvb1ey91xtjb.jp/config.sys", L"ja", default_format_type,
-     UnescapeRule::NORMAL,
-     L"file://\x671d\x65e5\x3042\x3055\x3072.jp/config.sys", 7},
-
-    {"ftp: with Japanese IDN",
-     "ftp://xn--l8jvb1ey91xtjb.jp/config.sys", L"ja", default_format_type,
-     UnescapeRule::NORMAL,
-     L"ftp://\x671d\x65e5\x3042\x3055\x3072.jp/config.sys", 6},
-
-    // -------- omit_username_password flag tests --------
-    {"With username and password, omit_username_password=false",
-     "http://user:passwd@example.com/foo", L"",
-     net::kFormatUrlOmitNothing, UnescapeRule::NORMAL,
-     L"http://user:passwd@example.com/foo", 19},
-
-    {"With username and password, omit_username_password=true",
-     "http://user:passwd@example.com/foo", L"", default_format_type,
-     UnescapeRule::NORMAL, L"http://example.com/foo", 7},
-
-    {"With username and no password",
-     "http://user@example.com/foo", L"", default_format_type,
-     UnescapeRule::NORMAL, L"http://example.com/foo", 7},
-
-    {"Just '@' without username and password",
-     "http://@example.com/foo", L"", default_format_type, UnescapeRule::NORMAL,
-     L"http://example.com/foo", 7},
-
-    // GURL doesn't think local-part of an email address is username for URL.
-    {"mailto:, omit_username_password=true",
-     "mailto:foo@example.com", L"", default_format_type, UnescapeRule::NORMAL,
-     L"mailto:foo@example.com", 7},
-
-    // -------- unescape flag tests --------
-    {"Do not unescape",
-     "http://%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB.jp/"
-     "%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB"
-     "?q=%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB", L"en", default_format_type,
-     UnescapeRule::NONE,
-     // GURL parses %-encoded hostnames into Punycode.
-     L"http://xn--qcka1pmc.jp/%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB"
-     L"?q=%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB", 7},
-
-    {"Unescape normally",
-     "http://%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB.jp/"
-     "%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB"
-     "?q=%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB", L"en", default_format_type,
-     UnescapeRule::NORMAL,
-     L"http://xn--qcka1pmc.jp/\x30B0\x30FC\x30B0\x30EB"
-     L"?q=\x30B0\x30FC\x30B0\x30EB", 7},
-
-    {"Unescape normally including unescape spaces",
-     "http://www.google.com/search?q=Hello%20World", L"en", default_format_type,
-     UnescapeRule::SPACES, L"http://www.google.com/search?q=Hello World", 7},
-
-    /*
-    {"unescape=true with some special characters",
-    "http://user%3A:%40passwd@example.com/foo%3Fbar?q=b%26z", L"",
-    net::kFormatUrlOmitNothing, UnescapeRule::NORMAL,
-    L"http://user%3A:%40passwd@example.com/foo%3Fbar?q=b%26z", 25},
-    */
-    // Disabled: the resultant URL becomes "...user%253A:%2540passwd...".
-
-    // -------- omit http: --------
-    {"omit http with user name",
-     "http://user@example.com/foo", L"", net::kFormatUrlOmitAll,
-     UnescapeRule::NORMAL, L"example.com/foo", 0},
-
-    {"omit http",
-     "http://www.google.com/", L"en", net::kFormatUrlOmitHTTP,
-     UnescapeRule::NORMAL, L"www.google.com/",
-     0},
-
-    {"omit http with https",
-     "https://www.google.com/", L"en", net::kFormatUrlOmitHTTP,
-     UnescapeRule::NORMAL, L"https://www.google.com/",
-     8},
-
-    {"omit http starts with ftp.",
-     "http://ftp.google.com/", L"en", net::kFormatUrlOmitHTTP,
-     UnescapeRule::NORMAL, L"http://ftp.google.com/",
-     7},
-
-    // -------- omit trailing slash on bare hostname --------
-    {"omit slash when it's the entire path",
-     "http://www.google.com/", L"en",
-     net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
-     L"http://www.google.com", 7},
-    {"omit slash when there's a ref",
-     "http://www.google.com/#ref", L"en",
-     net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
-     L"http://www.google.com/#ref", 7},
-    {"omit slash when there's a query",
-     "http://www.google.com/?", L"en",
-     net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
-     L"http://www.google.com/?", 7},
-    {"omit slash when it's not the entire path",
-     "http://www.google.com/foo", L"en",
-     net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
-     L"http://www.google.com/foo", 7},
-    {"omit slash for nonstandard URLs",
-     "data:/", L"en", net::kFormatUrlOmitTrailingSlashOnBareHostname,
-     UnescapeRule::NORMAL, L"data:/", 5},
-    {"omit slash for file URLs",
-     "file:///", L"en", net::kFormatUrlOmitTrailingSlashOnBareHostname,
-     UnescapeRule::NORMAL, L"file:///", 7},
-
-    // -------- view-source: --------
-    {"view-source",
-     "view-source:http://xn--qcka1pmc.jp/", L"ja", default_format_type,
-     UnescapeRule::NORMAL, L"view-source:http://\x30B0\x30FC\x30B0\x30EB.jp/",
-     19},
-
-    {"view-source of view-source",
-     "view-source:view-source:http://xn--qcka1pmc.jp/", L"ja",
-     default_format_type, UnescapeRule::NORMAL,
-     L"view-source:view-source:http://xn--qcka1pmc.jp/", 12},
-
-    // view-source should omit http and trailing slash where non-view-source
-    // would.
-    {"view-source omit http",
-     "view-source:http://a.b/c", L"en", net::kFormatUrlOmitAll,
-     UnescapeRule::NORMAL, L"view-source:a.b/c",
-     12},
-    {"view-source omit http starts with ftp.",
-     "view-source:http://ftp.b/c", L"en", net::kFormatUrlOmitAll,
-     UnescapeRule::NORMAL, L"view-source:http://ftp.b/c",
-     19},
-    {"view-source omit slash when it's the entire path",
-     "view-source:http://a.b/", L"en", net::kFormatUrlOmitAll,
-     UnescapeRule::NORMAL, L"view-source:a.b",
-     12},
-  };
-
-  for (size_t i = 0; i < arraysize(tests); ++i) {
-    size_t prefix_len;
-    std::wstring formatted = net::FormatUrl(
-        GURL(tests[i].input), tests[i].languages, tests[i].format_types,
-        tests[i].escape_rules, NULL, &prefix_len, NULL);
-    EXPECT_EQ(tests[i].output, formatted) << tests[i].description;
-    EXPECT_EQ(tests[i].prefix_len, prefix_len) << tests[i].description;
-  }
-}
-
 TEST(NetUtilTest, FormatUrlParsed) {
   // No unescape case.
   url_parse::Parsed parsed;
-  std::wstring formatted = net::FormatUrl(
+  string16 formatted = net::FormatUrl(
       GURL("http://\xE3\x82\xB0:\xE3\x83\xBC@xn--qcka1pmc.jp:8080/"
            "%E3%82%B0/?q=%E3%82%B0#\xE3\x82\xB0"),
-      L"ja", net::kFormatUrlOmitNothing, UnescapeRule::NONE, &parsed, NULL,
+      "ja", net::kFormatUrlOmitNothing, UnescapeRule::NONE, &parsed, NULL,
       NULL);
-  EXPECT_EQ(L"http://%E3%82%B0:%E3%83%BC@\x30B0\x30FC\x30B0\x30EB.jp:8080"
-      L"/%E3%82%B0/?q=%E3%82%B0#\x30B0", formatted);
-  EXPECT_EQ(L"%E3%82%B0",
+  EXPECT_EQ(WideToUTF16(
+      L"http://%E3%82%B0:%E3%83%BC@\x30B0\x30FC\x30B0\x30EB.jp:8080"
+      L"/%E3%82%B0/?q=%E3%82%B0#\x30B0"), formatted);
+  EXPECT_EQ(WideToUTF16(L"%E3%82%B0"),
       formatted.substr(parsed.username.begin, parsed.username.len));
-  EXPECT_EQ(L"%E3%83%BC",
+  EXPECT_EQ(WideToUTF16(L"%E3%83%BC"),
       formatted.substr(parsed.password.begin, parsed.password.len));
-  EXPECT_EQ(L"\x30B0\x30FC\x30B0\x30EB.jp",
+  EXPECT_EQ(WideToUTF16(L"\x30B0\x30FC\x30B0\x30EB.jp"),
       formatted.substr(parsed.host.begin, parsed.host.len));
-  EXPECT_EQ(L"8080", formatted.substr(parsed.port.begin, parsed.port.len));
-  EXPECT_EQ(L"/%E3%82%B0/",
+  EXPECT_EQ(WideToUTF16(L"8080"),
+      formatted.substr(parsed.port.begin, parsed.port.len));
+  EXPECT_EQ(WideToUTF16(L"/%E3%82%B0/"),
       formatted.substr(parsed.path.begin, parsed.path.len));
-  EXPECT_EQ(L"q=%E3%82%B0",
+  EXPECT_EQ(WideToUTF16(L"q=%E3%82%B0"),
       formatted.substr(parsed.query.begin, parsed.query.len));
-  EXPECT_EQ(L"\x30B0", formatted.substr(parsed.ref.begin, parsed.ref.len));
+  EXPECT_EQ(WideToUTF16(L"\x30B0"),
+      formatted.substr(parsed.ref.begin, parsed.ref.len));
 
   // Unescape case.
   formatted = net::FormatUrl(
       GURL("http://\xE3\x82\xB0:\xE3\x83\xBC@xn--qcka1pmc.jp:8080/"
            "%E3%82%B0/?q=%E3%82%B0#\xE3\x82\xB0"),
-      L"ja", net::kFormatUrlOmitNothing, UnescapeRule::NORMAL, &parsed, NULL,
+      "ja", net::kFormatUrlOmitNothing, UnescapeRule::NORMAL, &parsed, NULL,
       NULL);
-  EXPECT_EQ(L"http://\x30B0:\x30FC@\x30B0\x30FC\x30B0\x30EB.jp:8080"
-      L"/\x30B0/?q=\x30B0#\x30B0", formatted);
-  EXPECT_EQ(L"\x30B0",
+  EXPECT_EQ(WideToUTF16(L"http://\x30B0:\x30FC@\x30B0\x30FC\x30B0\x30EB.jp:8080"
+      L"/\x30B0/?q=\x30B0#\x30B0"), formatted);
+  EXPECT_EQ(WideToUTF16(L"\x30B0"),
       formatted.substr(parsed.username.begin, parsed.username.len));
-  EXPECT_EQ(L"\x30FC",
+  EXPECT_EQ(WideToUTF16(L"\x30FC"),
       formatted.substr(parsed.password.begin, parsed.password.len));
-  EXPECT_EQ(L"\x30B0\x30FC\x30B0\x30EB.jp",
+  EXPECT_EQ(WideToUTF16(L"\x30B0\x30FC\x30B0\x30EB.jp"),
       formatted.substr(parsed.host.begin, parsed.host.len));
-  EXPECT_EQ(L"8080", formatted.substr(parsed.port.begin, parsed.port.len));
-  EXPECT_EQ(L"/\x30B0/", formatted.substr(parsed.path.begin, parsed.path.len));
-  EXPECT_EQ(L"q=\x30B0",
+  EXPECT_EQ(WideToUTF16(L"8080"),
+      formatted.substr(parsed.port.begin, parsed.port.len));
+  EXPECT_EQ(WideToUTF16(L"/\x30B0/"),
+      formatted.substr(parsed.path.begin, parsed.path.len));
+  EXPECT_EQ(WideToUTF16(L"q=\x30B0"),
       formatted.substr(parsed.query.begin, parsed.query.len));
-  EXPECT_EQ(L"\x30B0", formatted.substr(parsed.ref.begin, parsed.ref.len));
+  EXPECT_EQ(WideToUTF16(L"\x30B0"),
+      formatted.substr(parsed.ref.begin, parsed.ref.len));
 
   // Omit_username_password + unescape case.
   formatted = net::FormatUrl(
       GURL("http://\xE3\x82\xB0:\xE3\x83\xBC@xn--qcka1pmc.jp:8080/"
            "%E3%82%B0/?q=%E3%82%B0#\xE3\x82\xB0"),
-      L"ja", net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
-      &parsed, NULL, NULL);
-  EXPECT_EQ(L"http://\x30B0\x30FC\x30B0\x30EB.jp:8080"
-      L"/\x30B0/?q=\x30B0#\x30B0", formatted);
+      "ja", net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, &parsed,
+      NULL, NULL);
+  EXPECT_EQ(WideToUTF16(L"http://\x30B0\x30FC\x30B0\x30EB.jp:8080"
+      L"/\x30B0/?q=\x30B0#\x30B0"), formatted);
   EXPECT_FALSE(parsed.username.is_valid());
   EXPECT_FALSE(parsed.password.is_valid());
-  EXPECT_EQ(L"\x30B0\x30FC\x30B0\x30EB.jp",
+  EXPECT_EQ(WideToUTF16(L"\x30B0\x30FC\x30B0\x30EB.jp"),
       formatted.substr(parsed.host.begin, parsed.host.len));
-  EXPECT_EQ(L"8080", formatted.substr(parsed.port.begin, parsed.port.len));
-  EXPECT_EQ(L"/\x30B0/", formatted.substr(parsed.path.begin, parsed.path.len));
-  EXPECT_EQ(L"q=\x30B0",
+  EXPECT_EQ(WideToUTF16(L"8080"),
+      formatted.substr(parsed.port.begin, parsed.port.len));
+  EXPECT_EQ(WideToUTF16(L"/\x30B0/"),
+      formatted.substr(parsed.path.begin, parsed.path.len));
+  EXPECT_EQ(WideToUTF16(L"q=\x30B0"),
       formatted.substr(parsed.query.begin, parsed.query.len));
-  EXPECT_EQ(L"\x30B0", formatted.substr(parsed.ref.begin, parsed.ref.len));
+  EXPECT_EQ(WideToUTF16(L"\x30B0"),
+      formatted.substr(parsed.ref.begin, parsed.ref.len));
 
   // View-source case.
   formatted = net::FormatUrl(
       GURL("view-source:http://user:passwd@host:81/path?query#ref"),
-      L"", net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, &parsed,
+      "", net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, &parsed,
       NULL, NULL);
-  EXPECT_EQ(L"view-source:http://host:81/path?query#ref", formatted);
-  EXPECT_EQ(L"view-source:http",
+  EXPECT_EQ(WideToUTF16(L"view-source:http://host:81/path?query#ref"),
+      formatted);
+  EXPECT_EQ(WideToUTF16(L"view-source:http"),
       formatted.substr(parsed.scheme.begin, parsed.scheme.len));
   EXPECT_FALSE(parsed.username.is_valid());
   EXPECT_FALSE(parsed.password.is_valid());
-  EXPECT_EQ(L"host", formatted.substr(parsed.host.begin, parsed.host.len));
-  EXPECT_EQ(L"81", formatted.substr(parsed.port.begin, parsed.port.len));
-  EXPECT_EQ(L"/path", formatted.substr(parsed.path.begin, parsed.path.len));
-  EXPECT_EQ(L"query", formatted.substr(parsed.query.begin, parsed.query.len));
-  EXPECT_EQ(L"ref", formatted.substr(parsed.ref.begin, parsed.ref.len));
+  EXPECT_EQ(WideToUTF16(L"host"),
+      formatted.substr(parsed.host.begin, parsed.host.len));
+  EXPECT_EQ(WideToUTF16(L"81"),
+      formatted.substr(parsed.port.begin, parsed.port.len));
+  EXPECT_EQ(WideToUTF16(L"/path"),
+      formatted.substr(parsed.path.begin, parsed.path.len));
+  EXPECT_EQ(WideToUTF16(L"query"),
+      formatted.substr(parsed.query.begin, parsed.query.len));
+  EXPECT_EQ(WideToUTF16(L"ref"),
+      formatted.substr(parsed.ref.begin, parsed.ref.len));
 
   // omit http case.
   formatted = net::FormatUrl(
       GURL("http://host:8000/a?b=c#d"),
-      L"", net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, &parsed, NULL, NULL);
-  EXPECT_EQ(L"host:8000/a?b=c#d", formatted);
+      "", net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, &parsed, NULL, NULL);
+  EXPECT_EQ(WideToUTF16(L"host:8000/a?b=c#d"), formatted);
   EXPECT_FALSE(parsed.scheme.is_valid());
   EXPECT_FALSE(parsed.username.is_valid());
   EXPECT_FALSE(parsed.password.is_valid());
-  EXPECT_EQ(L"host", formatted.substr(parsed.host.begin, parsed.host.len));
-  EXPECT_EQ(L"8000", formatted.substr(parsed.port.begin, parsed.port.len));
-  EXPECT_EQ(L"/a", formatted.substr(parsed.path.begin, parsed.path.len));
-  EXPECT_EQ(L"b=c", formatted.substr(parsed.query.begin, parsed.query.len));
-  EXPECT_EQ(L"d", formatted.substr(parsed.ref.begin, parsed.ref.len));
+  EXPECT_EQ(WideToUTF16(L"host"),
+      formatted.substr(parsed.host.begin, parsed.host.len));
+  EXPECT_EQ(WideToUTF16(L"8000"),
+      formatted.substr(parsed.port.begin, parsed.port.len));
+  EXPECT_EQ(WideToUTF16(L"/a"),
+      formatted.substr(parsed.path.begin, parsed.path.len));
+  EXPECT_EQ(WideToUTF16(L"b=c"),
+      formatted.substr(parsed.query.begin, parsed.query.len));
+  EXPECT_EQ(WideToUTF16(L"d"),
+      formatted.substr(parsed.ref.begin, parsed.ref.len));
 
   // omit http starts with ftp case.
   formatted = net::FormatUrl(
       GURL("http://ftp.host:8000/a?b=c#d"),
-      L"", net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, &parsed, NULL, NULL);
-  EXPECT_EQ(L"http://ftp.host:8000/a?b=c#d", formatted);
+      "", net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, &parsed, NULL, NULL);
+  EXPECT_EQ(WideToUTF16(L"http://ftp.host:8000/a?b=c#d"), formatted);
   EXPECT_TRUE(parsed.scheme.is_valid());
   EXPECT_FALSE(parsed.username.is_valid());
   EXPECT_FALSE(parsed.password.is_valid());
-  EXPECT_EQ(L"http", formatted.substr(parsed.scheme.begin, parsed.scheme.len));
-  EXPECT_EQ(L"ftp.host", formatted.substr(parsed.host.begin, parsed.host.len));
-  EXPECT_EQ(L"8000", formatted.substr(parsed.port.begin, parsed.port.len));
-  EXPECT_EQ(L"/a", formatted.substr(parsed.path.begin, parsed.path.len));
-  EXPECT_EQ(L"b=c", formatted.substr(parsed.query.begin, parsed.query.len));
-  EXPECT_EQ(L"d", formatted.substr(parsed.ref.begin, parsed.ref.len));
+  EXPECT_EQ(WideToUTF16(L"http"),
+      formatted.substr(parsed.scheme.begin, parsed.scheme.len));
+  EXPECT_EQ(WideToUTF16(L"ftp.host"),
+      formatted.substr(parsed.host.begin, parsed.host.len));
+  EXPECT_EQ(WideToUTF16(L"8000"),
+      formatted.substr(parsed.port.begin, parsed.port.len));
+  EXPECT_EQ(WideToUTF16(L"/a"),
+      formatted.substr(parsed.path.begin, parsed.path.len));
+  EXPECT_EQ(WideToUTF16(L"b=c"),
+      formatted.substr(parsed.query.begin, parsed.query.len));
+  EXPECT_EQ(WideToUTF16(L"d"),
+      formatted.substr(parsed.ref.begin, parsed.ref.len));
 
   // omit http starts with 'f' case.
   formatted = net::FormatUrl(
       GURL("http://f/"),
-      L"", net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, &parsed, NULL, NULL);
-  EXPECT_EQ(L"f/", formatted);
+      "", net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, &parsed, NULL, NULL);
+  EXPECT_EQ(WideToUTF16(L"f/"), formatted);
   EXPECT_FALSE(parsed.scheme.is_valid());
   EXPECT_FALSE(parsed.username.is_valid());
   EXPECT_FALSE(parsed.password.is_valid());
@@ -1824,8 +1661,10 @@ TEST(NetUtilTest, FormatUrlParsed) {
   EXPECT_TRUE(parsed.path.is_valid());
   EXPECT_FALSE(parsed.query.is_valid());
   EXPECT_FALSE(parsed.ref.is_valid());
-  EXPECT_EQ(L"f", formatted.substr(parsed.host.begin, parsed.host.len));
-  EXPECT_EQ(L"/", formatted.substr(parsed.path.begin, parsed.path.len));
+  EXPECT_EQ(WideToUTF16(L"f"),
+      formatted.substr(parsed.host.begin, parsed.host.len));
+  EXPECT_EQ(WideToUTF16(L"/"),
+      formatted.substr(parsed.path.begin, parsed.path.len));
 }
 
 TEST(NetUtilTest, FormatUrlAdjustOffset) {
@@ -1839,13 +1678,13 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
     {22, 22},
     {23, 23},
     {25, 25},
-    {26, std::wstring::npos},
-    {500000, std::wstring::npos},
-    {std::wstring::npos, std::wstring::npos},
+    {26, string16::npos},
+    {500000, string16::npos},
+    {string16::npos, string16::npos},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(basic_cases); ++i) {
     size_t offset = basic_cases[i].input_offset;
-    net::FormatUrl(GURL("http://www.google.com/foo/"), L"en",
+    net::FormatUrl(GURL("http://www.google.com/foo/"), "en",
                    net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
                    NULL, NULL, &offset);
     EXPECT_EQ(basic_cases[i].output_offset, offset);
@@ -1858,18 +1697,18 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
   } omit_auth_cases[] = {
     {"http://foo:bar@www.google.com/", 6, 6},
     {"http://foo:bar@www.google.com/", 7, 7},
-    {"http://foo:bar@www.google.com/", 8, std::wstring::npos},
-    {"http://foo:bar@www.google.com/", 10, std::wstring::npos},
-    {"http://foo:bar@www.google.com/", 11, std::wstring::npos},
-    {"http://foo:bar@www.google.com/", 14, std::wstring::npos},
+    {"http://foo:bar@www.google.com/", 8, string16::npos},
+    {"http://foo:bar@www.google.com/", 10, string16::npos},
+    {"http://foo:bar@www.google.com/", 11, string16::npos},
+    {"http://foo:bar@www.google.com/", 14, string16::npos},
     {"http://foo:bar@www.google.com/", 15, 7},
     {"http://foo:bar@www.google.com/", 25, 17},
-    {"http://foo@www.google.com/", 9, std::wstring::npos},
+    {"http://foo@www.google.com/", 9, string16::npos},
     {"http://foo@www.google.com/", 11, 7},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(omit_auth_cases); ++i) {
     size_t offset = omit_auth_cases[i].input_offset;
-    net::FormatUrl(GURL(omit_auth_cases[i].input_url), L"en",
+    net::FormatUrl(GURL(omit_auth_cases[i].input_url), "en",
                    net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
                    NULL, NULL, &offset);
     EXPECT_EQ(omit_auth_cases[i].output_offset, offset);
@@ -1882,30 +1721,30 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
     {12, 12},
     {13, 13},
     {19, 19},
-    {20, std::wstring::npos},
+    {20, string16::npos},
     {23, 19},
     {26, 22},
-    {std::wstring::npos, std::wstring::npos},
+    {string16::npos, string16::npos},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(view_source_cases); ++i) {
     size_t offset = view_source_cases[i].input_offset;
-    net::FormatUrl(GURL("view-source:http://foo@www.google.com/"), L"en",
+    net::FormatUrl(GURL("view-source:http://foo@www.google.com/"), "en",
                    net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
                    NULL, NULL, &offset);
     EXPECT_EQ(view_source_cases[i].output_offset, offset);
   }
 
   const AdjustOffsetCase idn_hostname_cases[] = {
-    {8, std::wstring::npos},
-    {16, std::wstring::npos},
-    {24, std::wstring::npos},
+    {8, string16::npos},
+    {16, string16::npos},
+    {24, string16::npos},
     {25, 12},
     {30, 17},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(idn_hostname_cases); ++i) {
     size_t offset = idn_hostname_cases[i].input_offset;
     // "http://\x671d\x65e5\x3042\x3055\x3072.jp/foo/"
-    net::FormatUrl(GURL("http://xn--l8jvb1ey91xtjb.jp/foo/"), L"ja",
+    net::FormatUrl(GURL("http://xn--l8jvb1ey91xtjb.jp/foo/"), "ja",
                    net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL,
                    NULL, NULL, &offset);
     EXPECT_EQ(idn_hostname_cases[i].output_offset, offset);
@@ -1913,22 +1752,22 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
 
   const AdjustOffsetCase unescape_cases[] = {
     {25, 25},
-    {26, std::wstring::npos},
-    {27, std::wstring::npos},
+    {26, string16::npos},
+    {27, string16::npos},
     {28, 26},
-    {35, std::wstring::npos},
+    {35, string16::npos},
     {41, 31},
     {59, 33},
-    {60, std::wstring::npos},
-    {67, std::wstring::npos},
-    {68, std::wstring::npos},
+    {60, string16::npos},
+    {67, string16::npos},
+    {68, string16::npos},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(unescape_cases); ++i) {
     size_t offset = unescape_cases[i].input_offset;
     // "http://www.google.com/foo bar/\x30B0\x30FC\x30B0\x30EB"
     net::FormatUrl(GURL(
         "http://www.google.com/foo%20bar/%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB"),
-        L"en", net::kFormatUrlOmitUsernamePassword, UnescapeRule::SPACES, NULL,
+        "en", net::kFormatUrlOmitUsernamePassword, UnescapeRule::SPACES, NULL,
         NULL, &offset);
     EXPECT_EQ(unescape_cases[i].output_offset, offset);
   }
@@ -1936,30 +1775,30 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
   const AdjustOffsetCase ref_cases[] = {
     {30, 30},
     {31, 31},
-    {32, std::wstring::npos},
+    {32, string16::npos},
     {34, 32},
     {37, 33},
-    {38, std::wstring::npos},
+    {38, string16::npos},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(ref_cases); ++i) {
     size_t offset = ref_cases[i].input_offset;
     // "http://www.google.com/foo.html#\x30B0\x30B0z"
     net::FormatUrl(GURL(
-        "http://www.google.com/foo.html#\xE3\x82\xB0\xE3\x82\xB0z"), L"en",
+        "http://www.google.com/foo.html#\xE3\x82\xB0\xE3\x82\xB0z"), "en",
         net::kFormatUrlOmitUsernamePassword, UnescapeRule::NORMAL, NULL, NULL,
         &offset);
     EXPECT_EQ(ref_cases[i].output_offset, offset);
   }
 
   const AdjustOffsetCase omit_http_cases[] = {
-    {0, std::wstring::npos},
-    {3, std::wstring::npos},
+    {0, string16::npos},
+    {3, string16::npos},
     {7, 0},
     {8, 1},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(omit_http_cases); ++i) {
     size_t offset = omit_http_cases[i].input_offset;
-    net::FormatUrl(GURL("http://www.google.com"), L"en",
+    net::FormatUrl(GURL("http://www.google.com"), "en",
         net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, NULL, NULL, &offset);
     EXPECT_EQ(omit_http_cases[i].output_offset, offset);
   }
@@ -1971,7 +1810,7 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(omit_http_start_with_ftp); ++i) {
     size_t offset = omit_http_start_with_ftp[i].input_offset;
-    net::FormatUrl(GURL("http://ftp.google.com"), L"en",
+    net::FormatUrl(GURL("http://ftp.google.com"), "en",
         net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, NULL, NULL, &offset);
     EXPECT_EQ(omit_http_start_with_ftp[i].output_offset, offset);
   }
@@ -1979,12 +1818,12 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
   const AdjustOffsetCase omit_all_cases[] = {
     {12, 0},
     {13, 1},
-    {0, std::wstring::npos},
-    {3, std::wstring::npos},
+    {0, string16::npos},
+    {3, string16::npos},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(omit_all_cases); ++i) {
     size_t offset = omit_all_cases[i].input_offset;
-    net::FormatUrl(GURL("http://user@foo.com/"), L"en", net::kFormatUrlOmitAll,
+    net::FormatUrl(GURL("http://user@foo.com/"), "en", net::kFormatUrlOmitAll,
                    UnescapeRule::NORMAL, NULL, NULL, &offset);
     EXPECT_EQ(omit_all_cases[i].output_offset, offset);
   }

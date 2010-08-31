@@ -294,15 +294,7 @@ void AppendFormattedHost(const GURL& url,
 // 8.  If the offset cannot be successfully adjusted (e.g. because it points
 // into the middle of a component that was entirely removed, past the end of the
 // string, or into the middle of an encoding sequence), it will be set to
-// std::wstring::npos.
-// TODO(viettrungluu): remove wstring version.
-std::wstring FormatUrl(const GURL& url,
-                       const std::wstring& languages,
-                       FormatUrlTypes format_types,
-                       UnescapeRule::Type unescape_rules,
-                       url_parse::Parsed* new_parsed,
-                       size_t* prefix_end,
-                       size_t* offset_for_adjustment);
+// string16::npos.
 string16 FormatUrl(const GURL& url,
                    const std::string& languages,
                    FormatUrlTypes format_types,
@@ -315,11 +307,6 @@ string16 FormatUrl(const GURL& url,
 // format_types = kFormatUrlOmitAll and unescape = SPACES.  This is the typical
 // set of flags for "URLs to display to the user".  You should be cautious about
 // using this for URLs which will be parsed or sent to other applications.
-// TODO(viettrungluu): remove wstring version.
-inline std::wstring FormatUrl(const GURL& url, const std::wstring& languages) {
-  return FormatUrl(url, languages, kFormatUrlOmitAll, UnescapeRule::SPACES,
-                   NULL, NULL, NULL);
-}
 inline string16 FormatUrl(const GURL& url, const std::string& languages) {
   return FormatUrl(url, languages, kFormatUrlOmitAll, UnescapeRule::SPACES,
                    NULL, NULL, NULL);
