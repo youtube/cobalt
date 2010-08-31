@@ -18,9 +18,7 @@ enum {
 
 PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
     AudioManagerMac* manager,
-    int channels,
-    int sampling_rate,
-    char bits_per_sample,
+    AudioParameters params,
     uint32 samples_per_buffer)
     : manager_(manager),
       callback_(NULL),
@@ -31,14 +29,14 @@ PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
   // A frame is one sample across all channels. In interleaved audio the per
   // frame fields identify the set of n |channels|. In uncompressed audio, a
   // packet is always one frame.
-  format_.mSampleRate = sampling_rate;
+  format_.mSampleRate = params.sample_rate;
   format_.mFormatID = kAudioFormatLinearPCM;
   format_.mFormatFlags = kLinearPCMFormatFlagIsPacked |
                          kLinearPCMFormatFlagIsSignedInteger;
-  format_.mBitsPerChannel = bits_per_sample;
-  format_.mChannelsPerFrame = channels;
+  format_.mBitsPerChannel = params.bits_per_sample;
+  format_.mChannelsPerFrame = params.channels;
   format_.mFramesPerPacket = 1;
-  format_.mBytesPerPacket = (bits_per_sample * channels) / 8;
+  format_.mBytesPerPacket = (params.bits_per_sample * params.channels) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
 
   buffer_size_bytes_ = format_.mBytesPerFrame * samples_per_buffer;

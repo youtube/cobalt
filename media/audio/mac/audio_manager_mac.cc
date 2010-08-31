@@ -38,33 +38,21 @@ bool AudioManagerMac::HasAudioInputDevices() {
   return HasAudioHardware(kAudioHardwarePropertyDefaultInputDevice);
 }
 
-AudioInputStream* AudioManagerMac::MakeAudioInputStream(
-    Format format,
-    int channels,
-    int sample_rate,
-    char bits_per_sample,
-    uint32 samples_per_packet) {
-  if (format == AUDIO_MOCK) {
-    return FakeAudioInputStream::MakeFakeStream(channels, bits_per_sample,
-                                                sample_rate,
-                                                samples_per_packet);
-  } else if (format == AUDIO_PCM_LINEAR) {
-    return new PCMQueueInAudioInputStream(this, channels, sample_rate,
-                                          bits_per_sample, samples_per_packet);
-  }
-  return NULL;
+AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
+    AudioParameters params) {
+  if (params.format == AudioParameters::AUDIO_MOCK)
+    return FakeAudioOutputStream::MakeFakeStream();
+  else if (params.format != AudioParameters::AUDIO_PCM_LINEAR)
+    return NULL;
+  return new PCMQueueOutAudioOutputStream(this, params);
 }
 
-AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
-    Format format,
-    int channels,
-    int sample_rate,
-    char bits_per_sample) {
-  if (format == AUDIO_MOCK) {
-    return FakeAudioOutputStream::MakeFakeStream();
-  } else if (format == AUDIO_PCM_LINEAR) {
-    return new PCMQueueOutAudioOutputStream(this, channels, sample_rate,
-                                            bits_per_sample);
+AudioInputStream* AudioManagerMac::MakeAudioInputStream(
+    AudioParameters params, uint32 samples_per_packet) {
+  if (params.format == AudioParameters::AUDIO_MOCK) {
+    return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+    return new PCMQueueInAudioInputStream(this, params, samples_per_packet);
   }
   return NULL;
 }

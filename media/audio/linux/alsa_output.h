@@ -37,7 +37,7 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_manager_base.h"
+#include "media/audio/audio_parameters.h"
 
 namespace media {
 class SeekableBuffer;
@@ -45,6 +45,7 @@ class SeekableBuffer;
 
 class AlsaWrapper;
 class AudioManagerLinux;
+class MessageLoop;
 
 class AlsaPcmOutputStream :
     public AudioOutputStream,
@@ -72,10 +73,7 @@ class AlsaPcmOutputStream :
   //
   // If unsure of what to use for |device_name|, use |kAutoSelectDevice|.
   AlsaPcmOutputStream(const std::string& device_name,
-                      AudioManager::Format format,
-                      uint32 channels,
-                      uint32 sample_rate,
-                      uint32 bits_per_sample,
+                      AudioParameters params,
                       AlsaWrapper* wrapper,
                       AudioManagerLinux* manager,
                       MessageLoop* message_loop);

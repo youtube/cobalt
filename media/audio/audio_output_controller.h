@@ -106,10 +106,7 @@ class AudioOutputController
   // event handler will receive a OnCreated() call.
   static scoped_refptr<AudioOutputController> Create(
       EventHandler* event_handler,
-      AudioManager::Format format,    // Format of the stream.
-      int channels,                   // Number of channels.
-      int sample_rate,                // Sampling frequency/rate.
-      int bits_per_sample,            // Number of bits per sample.
+      AudioParameters params,
       uint32 hardware_buffer_size,    // Size of the hardware buffer.
 
       // Soft limit for buffer capacity in this controller. This parameter
@@ -119,10 +116,7 @@ class AudioOutputController
   // Factory method for creating a low latency audio stream.
   static scoped_refptr<AudioOutputController> CreateLowLatency(
       EventHandler* event_handler,
-      AudioManager::Format format,    // Format of the stream.
-      int channels,                   // Number of channels.
-      int sample_rate,                // Sampling frequency/rate.
-      int bits_per_sample,            // Number of bits per sample.
+      AudioParameters params,
       uint32 hardware_buffer_size,    // Size of the hardware buffer.
 
       // External synchronous reader for audio controller.
@@ -170,9 +164,7 @@ class AudioOutputController
                         uint32 capacity, SyncReader* sync_reader);
 
   // The following methods are executed on the audio controller thread.
-  void DoCreate(AudioManager::Format format, int channels,
-                int sample_rate, int bits_per_sample,
-                uint32 hardware_buffer_size);
+  void DoCreate(AudioParameters params, uint32 hardware_buffer_size);
   void DoPlay();
   void DoPause();
   void DoFlush();

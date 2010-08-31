@@ -20,15 +20,11 @@ class NullAudioManager : public AudioManager {
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices() { return false; }
   virtual bool HasAudioInputDevices() { return false; }
-  virtual AudioOutputStream* MakeAudioOutputStream(Format format, int channels,
-                                                   int sample_rate,
-                                                   char bits_per_sample) {
+  virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params) {
     NOTIMPLEMENTED();
     return NULL;
   }
-  virtual AudioInputStream* MakeAudioInputStream(Format format, int channels,
-                                                 int sample_rate,
-                                                 char bits_per_sample,
+  virtual AudioInputStream* MakeAudioInputStream(AudioParameters params,
                                                  uint32 samples_per_packet) {
     NOTIMPLEMENTED();
     return NULL;

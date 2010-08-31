@@ -14,13 +14,14 @@
 #include "base/thread.h"
 #include "base/time.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_parameters.h"
 
 class FakeAudioInputStream :
     public AudioInputStream,
     public base::RefCountedThreadSafe<FakeAudioInputStream> {
  public:
-  static AudioInputStream* MakeFakeStream(int channels, int bits_per_sample,
-                                   int sampling_rate, int samples_per_packet);
+  static AudioInputStream* MakeFakeStream(AudioParameters params,
+                                          int samples_per_packet);
 
   virtual bool Open();
   virtual void Start(AudioInputCallback* callback);
@@ -31,8 +32,7 @@ class FakeAudioInputStream :
   // Give RefCountedThreadSafe access our destructor.
   friend class base::RefCountedThreadSafe<FakeAudioInputStream>;
 
-  FakeAudioInputStream(int channels, int bits_per_sample, int sampling_rate,
-                       int samples_per_packet);
+  FakeAudioInputStream(AudioParameters params, int samples_per_packet);
   virtual ~FakeAudioInputStream() {}
 
   void DoCallback();
@@ -48,4 +48,3 @@ class FakeAudioInputStream :
 };
 
 #endif  // MEDIA_AUDIO_FAKE_AUDIO_INPUT_STREAM_H_
-
