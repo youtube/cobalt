@@ -1022,6 +1022,15 @@ TEST(StringUtilTest, StdStringReplaceStringPlaceholders) {
   EXPECT_EQ(formatted, "9aa,8bb,7cc,6dd,5ee,4ff,3gg,2hh,1ii");
 }
 
+TEST(StringUtilTest, ReplaceStringPlaceholdersConsecutiveDollarSigns) {
+  std::vector<std::string> subst;
+  subst.push_back("a");
+  subst.push_back("b");
+  subst.push_back("c");
+  EXPECT_EQ(ReplaceStringPlaceholders("$$1 $$$2 $$$$3", subst, NULL),
+            "$1 $$2 $$$3");
+}
+
 TEST(StringUtilTest, SplitStringAlongWhitespace) {
   struct TestData {
     const std::wstring input;
