@@ -13,6 +13,8 @@ static const uint32 kMaxHardwareBufferSize = 2 * kMegabytes;
 static const int kMaxChannels = 32;
 static const int kMaxBitsPerSample = 64;
 static const int kMaxSampleRate = 192000;
+// Signal a pause in low-latency mode.
+static const int kPauseMark = -1;
 
 // Return true if the parameters for creating an audio stream is valid.
 // Return false otherwise.
@@ -238,6 +240,11 @@ void AudioOutputController::DoPause() {
   // it discards all the internal buffer in the audio device.
   // TODO(hclam): Actually pause the audio device.
   stream_->Stop();
+
+  if (LowLatencyMode()) {
+    // Send a special pause mark to the low-latency audio thread.
+    sync_reader_->UpdatePendingBytes(kPauseMark);
+  }
 
   handler_->OnPaused(this);
 }
