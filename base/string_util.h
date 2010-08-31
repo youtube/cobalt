@@ -579,8 +579,9 @@ void SplitStringAlongWhitespace(const std::string& str,
                                 std::vector<std::string>* result);
 
 // Replace $1-$2-$3..$9 in the format string with |a|-|b|-|c|..|i| respectively.
-// Additionally, $$ is replaced by $. The offsets parameter here can
-// be NULL. This only allows you to use up to nine replacements.
+// Additionally, any number of consecutive '$' characters is replaced by that
+// number less one. Eg $$->$, $$$->$$, etc. The offsets parameter here can be
+// NULL. This only allows you to use up to nine replacements.
 string16 ReplaceStringPlaceholders(const string16& format_string,
                                    const std::vector<string16>& subst,
                                    std::vector<size_t>* offsets);
