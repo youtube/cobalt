@@ -11545,20 +11545,6 @@ xmldecl_done:
 	int cur = ctxt->input->cur - ctxt->input->base;
 	int res;
 
-        /* Chromium note: commenting out the following block of code is a gory
-         * hack, meant to partially undo
-         *  http://git.gnome.org/browse/libxml2/commit/?id=a6c76a
-         *
-         * WebKit and libxml disagree about who is responsible for the
-         * document encoding.
-         *
-         * This bug:
-         *   https://bugs.webkit.org/show_bug.cgi?id=30508
-         * has links to test cases, libxml bug reports, and mailing list threads
-         * arguing about it; for now, though, we can just undo the change that
-         * caused libxml to regress.
-         */
-#if 0
         /*
          * Specific handling if we autodetected an encoding, we should not
          * push more than the first line ... which depend on the encoding
@@ -11594,7 +11580,6 @@ xmldecl_done:
                 remain = 0;
             }
         }
-#endif
 	res =xmlParserInputBufferPush(ctxt->input->buf, size, chunk);
 	if (res < 0) {
 	    ctxt->errNo = XML_PARSER_EOF;
