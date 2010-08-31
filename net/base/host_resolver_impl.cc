@@ -258,9 +258,7 @@ class HostResolverImpl::Request {
   void OnComplete(int error, const AddressList& addrlist) {
     if (error == OK)
       addresses_->SetFrom(addrlist, port());
-    CompletionCallback* callback = callback_;
-    MarkAsCancelled();
-    callback->Run(error);
+    callback_->Run(error);
   }
 
   int port() const {
@@ -842,7 +840,8 @@ HostResolverImpl::~HostResolverImpl() {
   // requests, which will also be cancelled.
   DiscardIPv6ProbeJob();
 
-  CancelAllJobs();
+  for (JobMap::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
+    it->second->Cancel();
 
   // In case we are being deleted during the processing of a callback.
   if (cur_completing_job_)
@@ -1036,7 +1035,9 @@ void HostResolverImpl::Shutdown() {
   DCHECK(CalledOnValidThread());
 
   // Cancel the outstanding jobs.
-  CancelAllJobs();
+  for (JobMap::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
+    it->second->Cancel();
+  jobs_.clear();
   DiscardIPv6ProbeJob();
 
   shutdown_ = true;
@@ -1089,18 +1090,6 @@ void HostResolverImpl::OnJobComplete(Job* job,
   if (cache_.get())
     cache_->Set(job->key(), net_error, addrlist, base::TimeTicks::Now());
 
-  OnJobCompleteInternal(job, net_error, os_error, addrlist);
-}
-
-void HostResolverImpl::AbortJob(Job* job) {
-  OnJobCompleteInternal(job, ERR_ABORTED, 0 /* no os_error */, AddressList());
-}
-
-void HostResolverImpl::OnJobCompleteInternal(
-    Job* job,
-    int net_error,
-    int os_error,
-    const AddressList& addrlist) {
   // Make a note that we are executing within OnJobComplete() in case the
   // HostResolver is deleted by a callback invocation.
   DCHECK(!cur_completing_job_);
@@ -1210,7 +1199,6 @@ void HostResolverImpl::OnIPAddressChanged() {
     ipv6_probe_job_ = new IPv6ProbeJob(this);
     ipv6_probe_job_->Start();
   }
-  AbortAllJobs();
 #if defined(OS_LINUX)
   if (HaveOnlyLoopbackAddresses()) {
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
@@ -1327,22 +1315,6 @@ int HostResolverImpl::EnqueueRequest(JobPool* pool, Request* req) {
   }
 
   return ERR_IO_PENDING;
-}
-
-void HostResolverImpl::CancelAllJobs() {
-  JobMap jobs;
-  jobs.swap(jobs_);
-  for (JobMap::iterator it = jobs.begin(); it != jobs.end(); ++it)
-    it->second->Cancel();
-}
-
-void HostResolverImpl::AbortAllJobs() {
-  JobMap jobs;
-  jobs.swap(jobs_);
-  for (JobMap::iterator it = jobs.begin(); it != jobs.end(); ++it) {
-    AbortJob(it->second);
-    it->second->Cancel();
-  }
 }
 
 }  // namespace net
