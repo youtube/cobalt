@@ -847,7 +847,7 @@ bool BackendImpl::CreateExternalFile(Addr* address) {
                 base::PLATFORM_FILE_CREATE |
                 base::PLATFORM_FILE_EXCLUSIVE_WRITE;
     scoped_refptr<disk_cache::File> file(new disk_cache::File(
-        base::CreatePlatformFile(name, flags, NULL)));
+        base::CreatePlatformFile(name, flags, NULL, NULL)));
     if (!file->IsValid())
       continue;
 
@@ -1240,7 +1240,7 @@ bool BackendImpl::InitBackingStore(bool* file_created) {
               base::PLATFORM_FILE_OPEN_ALWAYS |
               base::PLATFORM_FILE_EXCLUSIVE_WRITE;
   scoped_refptr<disk_cache::File> file(new disk_cache::File(
-      base::CreatePlatformFile(index_name, flags, file_created)));
+      base::CreatePlatformFile(index_name, flags, file_created, NULL)));
 
   if (!file->IsValid())
     return false;

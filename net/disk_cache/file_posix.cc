@@ -260,7 +260,7 @@ bool File::Init(const FilePath& name) {
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE;
-  platform_file_ = base::CreatePlatformFile(name, flags, NULL);
+  platform_file_ = base::CreatePlatformFile(name, flags, NULL, NULL);
   if (platform_file_ < 0) {
     platform_file_ = 0;
     return false;
