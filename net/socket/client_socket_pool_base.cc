@@ -336,6 +336,10 @@ void ClientSocketPoolBaseHelper::CancelRequest(
         RemoveConnectJob(*group->jobs().begin(), group);
         CheckForStalledSocketGroups();
       }
+
+      // If there are no more requests, we kill the backup timer.
+      if (group->pending_requests().empty())
+        group->CleanupBackupJob();
       break;
     }
   }
@@ -887,6 +891,11 @@ void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
       !HasAvailableSocketSlot(pool->max_sockets_per_group_) ||
       (*jobs_.begin())->GetLoadState() == LOAD_STATE_RESOLVING_HOST) {
     StartBackupSocketTimer(group_name, pool);
+    return;
+  }
+
+  if (pending_requests_.empty()) {
+    LOG(DFATAL) << "No pending request for backup job.";
     return;
   }
 
