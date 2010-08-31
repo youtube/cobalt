@@ -10,6 +10,10 @@
 #include "base/ref_counted.h"
 #include "base/tracked_objects.h"
 
+namespace file_util {
+struct FileInfo;
+}
+
 namespace base {
 
 class MessageLoopProxy;
@@ -54,6 +58,16 @@ class FileUtilProxy {
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
       StatusCallback* callback);
+
+  // Retrieves the information about a file. It is invalid to pass NULL for the
+  // callback.
+  typedef Callback2<bool /*exists*/,
+                    const file_util::FileInfo& /*file_info*/
+                    >::Type GetFileInfoCallback;
+  static bool GetFileInfo(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const FilePath& file_path,
+      GetFileInfoCallback* callback);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FileUtilProxy);
