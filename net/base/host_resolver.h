@@ -36,14 +36,7 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // the rest are optional (and have reasonable defaults).
   class RequestInfo {
    public:
-    RequestInfo(const std::string& hostname, int port)
-        : hostname_(hostname),
-          address_family_(ADDRESS_FAMILY_UNSPECIFIED),
-          host_resolver_flags_(0),
-          port_(port),
-          allow_cached_response_(true),
-          is_speculative_(false),
-          priority_(MEDIUM) {}
+    RequestInfo(const std::string& hostname, int port);
 
     int port() const { return port_; }
     void set_port(int port) {

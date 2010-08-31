@@ -5,6 +5,7 @@
 #include "net/socket/ssl_client_socket_win.h"
 
 #include <schnlsp.h>
+#include <map>
 
 #include "base/compiler_specific.h"
 #include "base/lock.h"

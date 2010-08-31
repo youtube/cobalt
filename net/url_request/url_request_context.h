@@ -13,8 +13,6 @@
 
 #include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
-#include "net/base/cookie_store.h"
-#include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
@@ -23,10 +21,13 @@
 
 namespace net {
 class CookiePolicy;
+class CookieStore;
 class FtpTransactionFactory;
+class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
 class HttpTransactionFactory;
+class SSLConfigService;
 }
 class URLRequest;
 
@@ -35,15 +36,7 @@ class URLRequestContext
     : public base::RefCountedThreadSafe<URLRequestContext>,
       public NonThreadSafe {
  public:
-  URLRequestContext()
-      : net_log_(NULL),
-        http_transaction_factory_(NULL),
-        ftp_transaction_factory_(NULL),
-        http_auth_handler_factory_(NULL),
-        network_delegate_(NULL),
-        cookie_policy_(NULL),
-        transport_security_state_(NULL) {
-  }
+  URLRequestContext();
 
   net::NetLog* net_log() const {
     return net_log_;
@@ -114,7 +107,7 @@ class URLRequestContext
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContext>;
 
-  virtual ~URLRequestContext() {}
+  virtual ~URLRequestContext();
 
   // The following members are expected to be initialized and owned by
   // subclasses.

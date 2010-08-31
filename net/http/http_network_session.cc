@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/values.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/url_security_manager.h"
 #include "net/spdy/spdy_session_pool.h"

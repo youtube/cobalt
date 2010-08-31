@@ -39,7 +39,7 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
  protected:
   friend class base::RefCountedThreadSafe<HostResolverProc>;
 
-  virtual ~HostResolverProc() {}
+  virtual ~HostResolverProc();
 
   // Asks the fallback procedure (if set) to do the resolve.
   int ResolveUsingPrevious(const std::string& host,

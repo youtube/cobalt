@@ -5245,7 +5245,7 @@ TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
   element.SetToFilePath(temp_file_path);
   element.SetContentLength(kFakeSize);
   elements.push_back(element);
-  request.upload_data->set_elements(elements);
+  request.upload_data->SetElements(elements);
   EXPECT_EQ(kFakeSize, request.upload_data->GetContentLength());
 
   MockRead data_reads[] = {
@@ -5302,7 +5302,7 @@ TEST_F(HttpNetworkTransactionTest, UploadUnreadableFile) {
   UploadData::Element element;
   element.SetToFilePath(temp_file);
   elements.push_back(element);
-  request.upload_data->set_elements(elements);
+  request.upload_data->SetElements(elements);
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n\r\n"),
@@ -5357,7 +5357,7 @@ TEST_F(HttpNetworkTransactionTest, UnreadableUploadFileAfterAuthRestart) {
   UploadData::Element element;
   element.SetToFilePath(temp_file);
   elements.push_back(element);
-  request.upload_data->set_elements(elements);
+  request.upload_data->SetElements(elements);
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 401 Unauthorized\r\n"),
