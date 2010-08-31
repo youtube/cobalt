@@ -79,23 +79,23 @@ void AudioRendererImpl::OnError(AudioOutputStream* stream, int code) {
 
 bool AudioRendererImpl::OnInitialize(const MediaFormat& media_format) {
   // Parse out audio parameters.
-  int channels;
-  int sample_rate;
-  int sample_bits;
-  if (!ParseMediaFormat(media_format, &channels, &sample_rate, &sample_bits)) {
+  AudioParameters params;
+  if (!ParseMediaFormat(media_format, &params.channels,
+                        &params.sample_rate, &params.bits_per_sample)) {
     return false;
   }
 
-  bytes_per_second_ = sample_rate * channels * sample_bits / 8;
+  bytes_per_second_ = params.sample_rate * params.channels *
+      params.bits_per_sample / 8;
 
   // Create our audio stream.
-  stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, channels, sample_rate, sample_bits);
+  stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(params);
   if (!stream_)
     return false;
 
   // Calculate buffer size and open the stream.
-  size_t size = kSamplesPerBuffer * channels * sample_bits / 8;
+  size_t size = kSamplesPerBuffer * params.channels *
+      params.bits_per_sample / 8;
   if (!stream_->Open(size)) {
     stream_->Close();
     stream_ = NULL;

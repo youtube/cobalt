@@ -25,8 +25,8 @@ WAVEHDR* GetNextBuffer(WAVEHDR* current) {
 }  // namespace
 
 PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
-    AudioManagerWin* manager, int channels, int sampling_rate, int num_buffers,
-    char bits_per_sample, uint32 samples_per_packet, UINT device_id)
+    AudioManagerWin* manager, AudioParameters params, int num_buffers,
+    uint32 samples_per_packet, UINT device_id)
     : state_(kStateEmpty),
       manager_(manager),
       device_id_(device_id),
@@ -34,11 +34,11 @@ PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
       callback_(NULL),
       num_buffers_(num_buffers),
       buffer_(NULL),
-      channels_(channels) {
+      channels_(params.channels) {
   format_.wFormatTag = WAVE_FORMAT_PCM;
-  format_.nChannels = channels > 2 ? 2 : channels;
-  format_.nSamplesPerSec = sampling_rate;
-  format_.wBitsPerSample = bits_per_sample;
+  format_.nChannels = params.channels > 2 ? 2 : params.channels;
+  format_.nSamplesPerSec = params.sample_rate;
+  format_.wBitsPerSample = params.bits_per_sample;
   format_.cbSize = 0;
   format_.nBlockAlign = (format_.nChannels * format_.wBitsPerSample) / 8;
   format_.nAvgBytesPerSec = format_.nBlockAlign * format_.nSamplesPerSec;

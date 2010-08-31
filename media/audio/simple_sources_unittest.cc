@@ -72,14 +72,14 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
   const int freq = 200;
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             freq, AudioManager::kTelephoneSampleRate);
+                             freq, AudioParameters::kTelephoneSampleRate);
 
   AudioManager* audio_man = AudioManager::GetAudioManager();
   ASSERT_TRUE(NULL != audio_man);
-  AudioOutputStream* oas =
-      audio_man->MakeAudioOutputStream(AudioManager::AUDIO_MOCK, 1,
-                                       AudioManager::kTelephoneSampleRate,
-                                       bytes_per_sample * 2);
+  AudioParameters params(
+      AudioParameters::AUDIO_MOCK, 1, AudioParameters::kTelephoneSampleRate,
+      bytes_per_sample * 2);
+  AudioOutputStream* oas = audio_man->MakeAudioOutputStream(params);
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open(samples * bytes_per_sample));
 
@@ -93,7 +93,7 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
           FakeAudioOutputStream::GetLastFakeStream()->buffer());
   ASSERT_TRUE(NULL != last_buffer);
 
-  uint32 half_period = AudioManager::kTelephoneSampleRate / (freq * 2);
+  uint32 half_period = AudioParameters::kTelephoneSampleRate / (freq * 2);
 
   // Spot test positive incursion of sine wave.
   EXPECT_EQ(0, last_buffer[0]);

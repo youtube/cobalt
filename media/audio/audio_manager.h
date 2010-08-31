@@ -6,6 +6,7 @@
 #define MEDIA_AUDIO_AUDIO_MANAGER_H_
 
 #include "base/basictypes.h"
+#include "media/audio/audio_parameters.h"
 
 class AudioInputStream;
 class AudioOutputStream;
@@ -16,20 +17,6 @@ class MessageLoop;
 // iterators over the existing streams.
 class AudioManager {
  public:
-  enum Format {
-    AUDIO_PCM_LINEAR = 0,     // PCM is 'raw' amplitude samples.
-    AUDIO_PCM_LOW_LATENCY,    // Linear PCM, low latency requested.
-    AUDIO_MOCK,               // Creates a dummy AudioOutputStream object.
-    AUDIO_LAST_FORMAT         // Only used for validation of format.
-  };
-
-  // Telephone quality sample rate, mostly for speech-only audio.
-  static const uint32 kTelephoneSampleRate = 8000;
-  // CD sampling rate is 44.1 KHz or conveniently 2x2x3x3x5x5x7x7.
-  static const uint32 kAudioCDSampleRate = 44100;
-  // Digital Audio Tape sample rate.
-  static const uint32 kAudioDATSampleRate = 48000;
-
   // Returns true if the OS reports existence of audio devices. This does not
   // guarantee that the existing devices support all formats and sample rates.
   virtual bool HasAudioOutputDevices() = 0;
@@ -52,9 +39,7 @@ class AudioManager {
   //    available.
   //
   // Do not free the returned AudioOutputStream. It is owned by AudioManager.
-  virtual AudioOutputStream* MakeAudioOutputStream(Format format, int channels,
-                                                   int sample_rate,
-                                                   char bits_per_sample) = 0;
+  virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params) = 0;
 
   // Factory to create audio recording streams.
   // |channels| can be 1 or 2.
@@ -68,9 +53,7 @@ class AudioManager {
   //
   // Do not free the returned AudioInputStream. It is owned by AudioManager.
   // When you are done with it, call |Stop()| and |Close()| to release it.
-  virtual AudioInputStream* MakeAudioInputStream(Format format, int channels,
-                                                 int sample_rate,
-                                                 char bits_per_sample,
+  virtual AudioInputStream* MakeAudioInputStream(AudioParameters params,
                                                  uint32 samples_per_packet) = 0;
 
   // Muting continues playback but effectively the volume is set to zero.

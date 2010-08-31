@@ -55,10 +55,7 @@ class AudioInputController :
   class Factory {
    public:
     virtual AudioInputController* Create(EventHandler* event_handler,
-                                         AudioManager::Format format,
-                                         int channels,
-                                         int sample_rate,
-                                         int bits_per_sample,
+                                         AudioParameters params,
                                          int samples_per_packet) = 0;
 
    protected:
@@ -73,10 +70,7 @@ class AudioInputController :
   // handler will receive a OnCreated() call.
   static scoped_refptr<AudioInputController> Create(
       EventHandler* event_handler,
-      AudioManager::Format format,    // Format of the stream.
-      int channels,                   // Number of channels.
-      int sample_rate,                // Sampling frequency/rate.
-      int bits_per_sample,            // Number of bits per sample.
+      AudioParameters params,
       int samples_per_packet);        // Size of the hardware buffer.
 
   // Sets the factory used by the static method Create. AudioInputController
@@ -116,8 +110,7 @@ class AudioInputController :
   AudioInputController(EventHandler* handler);
 
   // The following methods are executed on the audio controller thread.
-  void DoCreate(AudioManager::Format format, int channels,
-                int sample_rate, int bits_per_sample,
+  void DoCreate(AudioParameters params,
                 uint32 samples_per_packet);
   void DoRecord();
   void DoClose();

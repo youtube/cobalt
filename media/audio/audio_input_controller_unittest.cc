@@ -16,7 +16,7 @@ using ::testing::NotNull;
 
 namespace {
 
-const int kSampleRate = AudioManager::kAudioCDSampleRate;
+const int kSampleRate = AudioParameters::kAudioCDSampleRate;
 const int kBitsPerSample = 16;
 const int kChannels = 2;
 const int kSamplesPerPacket = kSampleRate / 10;
@@ -54,9 +54,10 @@ TEST(AudioInputControllerTest, CreateAndClose) {
   EXPECT_CALL(event_handler, OnCreated(NotNull()))
       .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
 
-  scoped_refptr<AudioInputController> controller = AudioInputController::Create(
-      &event_handler, AudioManager::AUDIO_MOCK, kChannels,
-      kSampleRate, kBitsPerSample, kSamplesPerPacket);
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannels,
+                         kSampleRate, kBitsPerSample);
+  scoped_refptr<AudioInputController> controller =
+      AudioInputController::Create(&event_handler, params, kSamplesPerPacket);
   ASSERT_TRUE(controller.get());
 
   // Wait for OnCreated() to be called.
@@ -84,9 +85,10 @@ TEST(AudioInputControllerTest, RecordAndClose) {
       .Times(AtLeast(10))
       .WillRepeatedly(CheckCountAndSignalEvent(&count, 10, &event));
 
-  scoped_refptr<AudioInputController> controller = AudioInputController::Create(
-      &event_handler, AudioManager::AUDIO_MOCK, kChannels,
-      kSampleRate, kBitsPerSample, kSamplesPerPacket);
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannels,
+                         kSampleRate, kBitsPerSample);
+  scoped_refptr<AudioInputController> controller =
+      AudioInputController::Create(&event_handler, params, kSamplesPerPacket);
   ASSERT_TRUE(controller.get());
 
   // Wait for OnCreated() to be called.
@@ -105,9 +107,10 @@ TEST(AudioInputControllerTest, SamplesPerPacketTooLarge) {
   // Create an audio device with a very large packet size.
   MockAudioInputControllerEventHandler event_handler;
 
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannels,
+                         kSampleRate, kBitsPerSample);
   scoped_refptr<AudioInputController> controller = AudioInputController::Create(
-      &event_handler, AudioManager::AUDIO_MOCK, kChannels,
-      kSampleRate, kBitsPerSample, kSamplesPerPacket * 1000);
+      &event_handler, params, kSamplesPerPacket * 1000);
   ASSERT_FALSE(controller);
 }
 
@@ -115,9 +118,10 @@ TEST(AudioInputControllerTest, SamplesPerPacketTooLarge) {
 TEST(AudioInputControllerTest, CloseTwice) {
   MockAudioInputControllerEventHandler event_handler;
   EXPECT_CALL(event_handler, OnCreated(NotNull()));
-  scoped_refptr<AudioInputController> controller = AudioInputController::Create(
-      &event_handler, AudioManager::AUDIO_MOCK, kChannels,
-      kSampleRate, kBitsPerSample, kSamplesPerPacket);
+  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannels,
+                         kSampleRate, kBitsPerSample);
+  scoped_refptr<AudioInputController> controller =
+      AudioInputController::Create(&event_handler, params, kSamplesPerPacket);
   ASSERT_TRUE(controller.get());
 
   controller->Close();

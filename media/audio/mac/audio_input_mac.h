@@ -9,6 +9,7 @@
 #include <AudioToolbox/AudioFormat.h>
 
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_parameters.h"
 
 class AudioManagerMac;
 
@@ -18,9 +19,7 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
  public:
   // Parameters as per AudioManager::MakeAudioInputStream.
   PCMQueueInAudioInputStream(AudioManagerMac* manager,
-                             int channels,
-                             int sampling_rate,
-                             char bits_per_sample,
+                             AudioParameters params,
                              uint32 samples_per_packet);
   virtual ~PCMQueueInAudioInputStream();
 

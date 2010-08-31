@@ -22,7 +22,6 @@ class AudioManagerBase : public AudioManager {
 
   bool initialized() { return initialized_; }
 
- protected:
   // Thread used to interact with AudioOutputStreams created by this
   // audio manger.
   base::Thread audio_thread_;

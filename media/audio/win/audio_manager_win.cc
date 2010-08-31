@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,27 +13,19 @@
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
+#include "media/base/limits.h"
 
 namespace {
 
-// The next 3 constants are some sensible limits to prevent integer overflow
-// at this layer.
 // Up to 6 channels can be passed to the driver.
 // This should work, given the right drivers, but graceful error handling is
 // needed.
 // In theory 7.1 could also be supported, but it has not been tested.
-// The 192 Khz constant is the frequency of quicktime lossless audio codec.
-// MP4 is limited to 96 Khz, and mp3 is limited to 48 Khz.
-// OGG vorbis was initially limited to 96 Khz, but recent tools are unlimited.
-// 192 Khz is also the limit on most PC audio hardware.  The minimum is 100 Hz.
-// Humans range is 20 to 20000 Hz.  Below 20 can be felt (woofer).
+// TODO(sergeyu): Test that 7.1 audio works.
+const int kWinMaxChannels = 6;
 
-const int kMaxChannels = 6;
-const int kMaxSampleRate = 192000;
-const int kMaxBitsPerSample = 64;
-
-const int kMaxInputChannels = 2;
-const int kMaxSamplesPerPacket = kMaxSampleRate;
+const int kWinMaxInputChannels = 2;
+const int kMaxSamplesPerPacket = media::Limits::kMaxSampleRate;
 // We use 3 buffers for recording audio so that if a recording callback takes
 // some time to return we won't lose audio. More buffers while recording are
 // ok because they don't introduce any delay in recording, unlike in playback
@@ -56,48 +48,32 @@ bool AudioManagerWin::HasAudioInputDevices() {
 // - PCMWaveOutAudioOutputStream: Based on the waveOutWrite API (in progress)
 // - PCMDXSoundAudioOutputStream: Based on DirectSound or XAudio (future work).
 AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
-    Format format,
-    int channels,
-    int sample_rate,
-    char bits_per_sample) {
-  if ((channels > kMaxChannels) || (channels <= 0) ||
-      (sample_rate > kMaxSampleRate) || (sample_rate <= 0) ||
-      (bits_per_sample > kMaxBitsPerSample) || (bits_per_sample <= 0))
+    AudioParameters params) {
+  if (!params.IsValid() || (params.channels > kWinMaxChannels))
     return NULL;
 
-  if (format == AUDIO_MOCK) {
+  if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioOutputStream::MakeFakeStream();
-  } else if (format == AUDIO_PCM_LINEAR) {
-    return new PCMWaveOutAudioOutputStream(this, channels, sample_rate, 3,
-                                           bits_per_sample, WAVE_MAPPER);
-  } else if (format == AUDIO_PCM_LOW_LATENCY) {
+  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+    return new PCMWaveOutAudioOutputStream(this, params, 3, WAVE_MAPPER);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     // TODO(cpu): waveout cannot hit 20ms latency. Use other method.
-    return new PCMWaveOutAudioOutputStream(this, channels, sample_rate, 2,
-                                           bits_per_sample, WAVE_MAPPER);
+    return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
   }
   return NULL;
 }
 
 // Factory for the implementations of AudioInputStream.
 AudioInputStream* AudioManagerWin::MakeAudioInputStream(
-    Format format,
-    int channels,
-    int sample_rate,
-    char bits_per_sample,
-    uint32 samples_per_packet) {
-  if ((channels > kMaxInputChannels) || (channels <= 0) ||
-      (sample_rate > kMaxSampleRate) || (sample_rate <= 0) ||
-      (bits_per_sample > kMaxBitsPerSample) || (bits_per_sample <= 0) ||
+    AudioParameters params, uint32 samples_per_packet) {
+  if (!params.IsValid() || (params.channels > kWinMaxInputChannels) ||
       (samples_per_packet > kMaxSamplesPerPacket) || (samples_per_packet < 0))
     return NULL;
 
-  if (format == AUDIO_MOCK) {
-    return FakeAudioInputStream::MakeFakeStream(channels, bits_per_sample,
-                                                sample_rate,
-                                                samples_per_packet);
-  } else if (format == AUDIO_PCM_LINEAR) {
-    return new PCMWaveInAudioInputStream(this, channels, sample_rate,
-                                         kNumInputBuffers, bits_per_sample,
+  if (params.format == AudioParameters::AUDIO_MOCK) {
+    return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+    return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
                                          samples_per_packet, WAVE_MAPPER);
   }
   return NULL;

@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/scoped_handle_win.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_parameters.h"
 
 class AudioManagerWin;
 
@@ -19,9 +20,8 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   // The ctor takes all the usual parameters, plus |manager| which is the
   // the audio manager who is creating this object and |device_id| which
   // is provided by the operating system.
-  PCMWaveInAudioInputStream(AudioManagerWin* manager, int channels,
-                            int sampling_rate, int num_buffers,
-                            char bits_per_sample, uint32 samples_per_packet,
+  PCMWaveInAudioInputStream(AudioManagerWin* manager, AudioParameters params,
+                            int num_buffers, uint32 samples_per_packet,
                             UINT device_id);
   virtual ~PCMWaveInAudioInputStream();
 

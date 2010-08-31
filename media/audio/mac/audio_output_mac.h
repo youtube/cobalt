@@ -9,6 +9,7 @@
 #include <AudioToolbox/AudioQueue.h>
 
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_parameters.h"
 
 class AudioManagerMac;
 
@@ -20,8 +21,7 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   // The ctor takes all the usual parameters, plus |manager| which is the
   // the audio manager who is creating this object.
   PCMQueueOutAudioOutputStream(AudioManagerMac* manager,
-                               int channels, int sampling_rate,
-                               char bits_per_sample);
+                               AudioParameters params);
   // The dtor is typically called by the AudioManager only and it is usually
   // triggered by calling AudioOutputStream::Close().
   virtual ~PCMQueueOutAudioOutputStream();

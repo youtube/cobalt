@@ -117,7 +117,7 @@ namespace {
 
 // ALSA is currently limited to 48Khz.
 // TODO(fbarchard): Resample audio from higher frequency to 48000.
-const uint32 kMaxSampleRate = 48000;
+const int kAlsaMaxSampleRate = 48000;
 
 snd_pcm_format_t BitsToFormat(char bits_per_sample) {
   switch (bits_per_sample) {
@@ -237,20 +237,17 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
-                                         AudioManager::Format format,
-                                         uint32 channels,
-                                         uint32 sample_rate,
-                                         uint32 bits_per_sample,
+                                         AudioParameters params,
                                          AlsaWrapper* wrapper,
                                          AudioManagerLinux* manager,
                                          MessageLoop* message_loop)
     : shared_data_(MessageLoop::current()),
       requested_device_name_(device_name),
-      pcm_format_(BitsToFormat(bits_per_sample)),
-      channels_(channels),
-      sample_rate_(sample_rate),
-      bytes_per_sample_(bits_per_sample / 8),
-      bytes_per_frame_(channels_ * bits_per_sample / 8),
+      pcm_format_(BitsToFormat(params.bits_per_sample)),
+      channels_(params.channels),
+      sample_rate_(params.sample_rate),
+      bytes_per_sample_(params.bits_per_sample / 8),
+      bytes_per_frame_(channels_ * params.bits_per_sample / 8),
       should_downmix_(false),
       latency_micros_(0),
       micros_per_packet_(0),
@@ -265,18 +262,18 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       message_loop_(message_loop) {
 
   // Sanity check input values.
-  if ((sample_rate > kMaxSampleRate) || (sample_rate <= 0)) {
+  if ((params.sample_rate > kAlsaMaxSampleRate) || (params.sample_rate <= 0)) {
     LOG(WARNING) << "Unsupported audio frequency.";
     shared_data_.TransitionTo(kInError);
   }
 
-  if (AudioManager::AUDIO_PCM_LINEAR != format) {
+  if (AudioParameters::AUDIO_PCM_LINEAR != params.format) {
     LOG(WARNING) << "Only linear PCM supported.";
     shared_data_.TransitionTo(kInError);
   }
 
   if (pcm_format_ == SND_PCM_FORMAT_UNKNOWN) {
-    LOG(WARNING) << "Unsupported bits per sample: " << bits_per_sample;
+    LOG(WARNING) << "Unsupported bits per sample: " << params.bits_per_sample;
     shared_data_.TransitionTo(kInError);
   }
 }
