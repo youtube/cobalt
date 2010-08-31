@@ -352,6 +352,7 @@ bool ClientSocketPoolBaseHelper::HasGroup(const std::string& group_name) const {
 
 void ClientSocketPoolBaseHelper::CloseIdleSockets() {
   CleanupIdleSockets(true);
+  DCHECK_EQ(0, idle_socket_count_);
 }
 
 int ClientSocketPoolBaseHelper::IdleSocketCountInGroup(
@@ -689,7 +690,9 @@ void ClientSocketPoolBaseHelper::OnIPAddressChanged() {
 
 void ClientSocketPoolBaseHelper::Flush() {
   pool_generation_number_++;
+  CancelAllConnectJobs();
   CloseIdleSockets();
+  AbortAllRequests();
 }
 
 void ClientSocketPoolBaseHelper::RemoveConnectJob(const ConnectJob* job,
@@ -787,6 +790,35 @@ void ClientSocketPoolBaseHelper::CancelAllConnectJobs() {
 
     // Delete group if no longer needed.
     if (group->IsEmpty()) {
+      // RemoveGroup() will call .erase() which will invalidate the iterator,
+      // but i will already have been incremented to a valid iterator before
+      // RemoveGroup() is called.
+      RemoveGroup(i++);
+    } else {
+      ++i;
+    }
+  }
+  DCHECK_EQ(0, connecting_socket_count_);
+}
+
+void ClientSocketPoolBaseHelper::AbortAllRequests() {
+  for (GroupMap::iterator i = group_map_.begin(); i != group_map_.end();) {
+    Group* group = i->second;
+
+    RequestQueue pending_requests;
+    pending_requests.swap(*group->mutable_pending_requests());
+    for (RequestQueue::iterator it2 = pending_requests.begin();
+         it2 != pending_requests.end(); ++it2) {
+      const Request* request = *it2;
+      InvokeUserCallbackLater(
+          request->handle(), request->callback(), ERR_ABORTED);
+    }
+
+    // Delete group if no longer needed.
+    if (group->IsEmpty()) {
+      // RemoveGroup() will call .erase() which will invalidate the iterator,
+      // but i will already have been incremented to a valid iterator before
+      // RemoveGroup() is called.
       RemoveGroup(i++);
     } else {
       ++i;
