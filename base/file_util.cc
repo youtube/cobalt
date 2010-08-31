@@ -320,9 +320,9 @@ bool MemoryMappedFile::Initialize(const FilePath& file_name) {
 }
 
 bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
-  file_ = base::CreatePlatformFile(file_name,
-      base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ,
-      NULL);
+  file_ = base::CreatePlatformFile(
+      file_name, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ,
+      NULL, NULL);
 
   if (file_ == base::kInvalidPlatformFileValue) {
     LOG(ERROR) << "Couldn't open " << file_name.value();
