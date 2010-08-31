@@ -17,7 +17,7 @@ using ::testing::InvokeWithoutArgs;
 using ::testing::NotNull;
 using ::testing::Return;
 
-static const int kSampleRate = AudioManager::kAudioCDSampleRate;
+static const int kSampleRate = AudioParameters::kAudioCDSampleRate;
 static const int kBitsPerSample = 16;
 static const int kChannels = 2;
 static const int kHardwareBufferSize = kSampleRate * kBitsPerSample *
@@ -85,10 +85,10 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+                         kSampleRate, kBitsPerSample);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler,
-                                    AudioManager::AUDIO_PCM_LINEAR, kChannels,
-                                    kSampleRate, kBitsPerSample,
+      AudioOutputController::Create(&event_handler, params,
                                     kHardwareBufferSize, kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
@@ -120,10 +120,10 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
       .Times(AtLeast(10))
       .WillRepeatedly(SignalEvent(&event, &count, 10));
 
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+                         kSampleRate, kBitsPerSample);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler,
-                                    AudioManager::AUDIO_PCM_LINEAR, kChannels,
-                                    kSampleRate, kBitsPerSample,
+      AudioOutputController::Create(&event_handler, params,
                                     kHardwareBufferSize, kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
@@ -166,10 +166,10 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
       .Times(Exactly(1))
       .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
 
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+                         kSampleRate, kBitsPerSample);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler,
-                                    AudioManager::AUDIO_PCM_LINEAR, kChannels,
-                                    kSampleRate, kBitsPerSample,
+      AudioOutputController::Create(&event_handler, params,
                                     kHardwareBufferSize, kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
@@ -224,10 +224,10 @@ TEST(AudioOutputControllerTest, PlayPausePlay) {
     .Times(Exactly(1))
     .RetiresOnSaturation();
 
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+                         kSampleRate, kBitsPerSample);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler,
-                                    AudioManager::AUDIO_PCM_LINEAR, kChannels,
-                                    kSampleRate, kBitsPerSample,
+      AudioOutputController::Create(&event_handler, params,
                                     kHardwareBufferSize, kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
@@ -261,10 +261,10 @@ TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
 
   // Create an audio device with a very large hardware buffer size.
   MockAudioOutputControllerEventHandler event_handler;
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+                         kSampleRate, kBitsPerSample);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler,
-                                    AudioManager::AUDIO_PCM_LINEAR, kChannels,
-                                    kSampleRate, kBitsPerSample,
+      AudioOutputController::Create(&event_handler, params,
                                     kHardwareBufferSize * 1000,
                                     kBufferCapacity);
 
@@ -289,10 +289,10 @@ TEST(AudioOutputControllerTest, CloseTwice) {
       .Times(AtLeast(1))
       .WillRepeatedly(SignalEvent(&event));
 
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannels,
+                         kSampleRate, kBitsPerSample);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler,
-                                    AudioManager::AUDIO_PCM_LINEAR, kChannels,
-                                    kSampleRate, kBitsPerSample,
+      AudioOutputController::Create(&event_handler, params,
                                     kHardwareBufferSize, kBufferCapacity);
   ASSERT_TRUE(controller.get());
 

@@ -206,8 +206,8 @@ class ReadOnlyMappedFile {
 TEST(WinAudioTest, MockStreamBasicCallbacks) {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   ASSERT_TRUE(NULL != audio_man);
-  AudioOutputStream* oas =
-      audio_man->MakeAudioOutputStream(AudioManager::AUDIO_MOCK, 2, 8000, 8);
+  AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
+      AudioParameters(AudioParameters::AUDIO_MOCK, 2, 8000, 8));
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open(256));
   TestSourceBasic source;
@@ -236,7 +236,7 @@ TEST(WinAudioTest, PCMWaveStreamGetAndClose) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 2, 8000, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16));
   ASSERT_TRUE(NULL != oas);
   oas->Close();
 }
@@ -249,14 +249,19 @@ TEST(WinAudioTest, SanityOnMakeParams) {
   ASSERT_TRUE(NULL != audio_man);
   if (!audio_man->HasAudioOutputDevices())
     return;
-  AudioManager::Format fmt = AudioManager::AUDIO_PCM_LINEAR;
-  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(fmt, 8, 8000, 16));
-  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(fmt, 1, 1024 * 1024,
-                                                       16));
-  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(fmt, 2, 8000, 80));
-  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(fmt, -2, 8000, 16));
-  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(fmt, 2, -8000, 16));
-  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(fmt, 2, -8000, -16));
+  AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
+  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
+      AudioParameters(fmt, 8, 8000, 16)));
+  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
+      AudioParameters(fmt, 1, 1024 * 1024, 16)));
+  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
+      AudioParameters(fmt, 2, 8000, 80)));
+  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
+      AudioParameters(fmt, -2, 8000, 16)));
+  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
+      AudioParameters(fmt, 2, -8000, 16)));
+  EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
+      AudioParameters(fmt, 2, -8000, -16)));
 }
 
 // Test that it can be opened and closed.
@@ -268,7 +273,7 @@ TEST(WinAudioTest, PCMWaveStreamOpenAndClose) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 2, 8000, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16));
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open(1024));
   oas->Close();
@@ -283,7 +288,7 @@ TEST(WinAudioTest, PCMWaveStreamOpenLimit) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-    AudioManager::AUDIO_PCM_LINEAR, 2, 8000, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16));
   ASSERT_TRUE(NULL != oas);
   EXPECT_FALSE(oas->Open(1024 * 1024 * 1024));
   oas->Close();
@@ -299,7 +304,7 @@ TEST(WinAudioTest, PCMWaveStreamTripleBuffer) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 1, 16000, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1, 16000, 16));
   ASSERT_TRUE(NULL != oas);
   TestSourceTripleBuffer test_triple_buffer;
   EXPECT_TRUE(oas->Open(512));
@@ -323,7 +328,7 @@ TEST(WinAudioTest, PCMWaveSlowSource) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 1, 16000, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1, 16000, 16));
   ASSERT_TRUE(NULL != oas);
   TestSourceLaggy test_laggy(2, 90);
   EXPECT_TRUE(oas->Open(512));
@@ -349,12 +354,13 @@ TEST(WinAudioTest, PCMWaveStreamPlaySlowLoop) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 1, AudioManager::kAudioCDSampleRate, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
+                      AudioParameters::kAudioCDSampleRate, 16));
   ASSERT_TRUE(NULL != oas);
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             200.0, AudioManager::kAudioCDSampleRate);
-  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+                             200.0, AudioParameters::kAudioCDSampleRate);
+  uint32 bytes_100_ms = (AudioParameters::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
   oas->SetVolume(1.0);
@@ -379,12 +385,13 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44Kss) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 1, AudioManager::kAudioCDSampleRate, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
+                      AudioParameters::kAudioCDSampleRate, 16));
   ASSERT_TRUE(NULL != oas);
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             200.0, AudioManager::kAudioCDSampleRate);
-  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+                             200.0, AudioParameters::kAudioCDSampleRate);
+  uint32 bytes_100_ms = (AudioParameters::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
   oas->SetVolume(1.0);
@@ -406,13 +413,13 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone22Kss) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 1, AudioManager::kAudioCDSampleRate/2,
-      16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
+                      AudioParameters::kAudioCDSampleRate / 2, 16));
   ASSERT_TRUE(NULL != oas);
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             200.0, AudioManager::kAudioCDSampleRate/2);
-  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 20) * 2;
+                             200.0, AudioParameters::kAudioCDSampleRate/2);
+  uint32 bytes_100_ms = (AudioParameters::kAudioCDSampleRate / 20) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
 
@@ -452,7 +459,7 @@ TEST(WinAudioTest, PushSourceFile16KHz)  {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 1, 16000, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1, 16000, 16));
   ASSERT_TRUE(NULL != oas);
 
   // compute buffer size for 100ms of audio. Which is 3200 bytes.
@@ -496,12 +503,13 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 1, AudioManager::kAudioCDSampleRate, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
+                      AudioParameters::kAudioCDSampleRate, 16));
   ASSERT_TRUE(NULL != oas);
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             200.0, AudioManager::kAudioCDSampleRate);
-  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+                             200.0, AudioParameters::kAudioCDSampleRate);
+  uint32 bytes_100_ms = (AudioParameters::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
   oas->SetVolume(1.0);
@@ -534,13 +542,14 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44KssLowLatency) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LOW_LATENCY, 1, AudioManager::kAudioCDSampleRate,
-      16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY, 1,
+                      AudioParameters::kAudioCDSampleRate, 16));
   ASSERT_TRUE(NULL != oas);
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             200.0, AudioManager::kAudioCDSampleRate);
-  uint32 bytes_50_ms = (AudioManager::kAudioCDSampleRate / 20) * sizeof(uint16);
+                             200.0, AudioParameters::kAudioCDSampleRate);
+  uint32 bytes_50_ms = (AudioParameters::kAudioCDSampleRate / 20) *
+      sizeof(uint16);
 
   EXPECT_TRUE(oas->Open(bytes_50_ms));
   oas->SetVolume(1.0);
@@ -561,11 +570,12 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LINEAR, 1, AudioManager::kAudioCDSampleRate, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
+                      AudioParameters::kAudioCDSampleRate, 16));
   ASSERT_TRUE(NULL != oas);
 
   NiceMock<MockAudioSource> source;
-  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+  uint32 bytes_100_ms = (AudioParameters::kAudioCDSampleRate / 10) * 2;
   EXPECT_TRUE(oas->Open(bytes_100_ms));
 
   // We expect the amount of pending bytes will reaching 2 times of
@@ -642,7 +652,7 @@ DWORD __stdcall SyncSocketThread(void* context) {
   SyncThreadContext& ctx = *(reinterpret_cast<SyncThreadContext*>(context));
 
   const int kTwoSecBytes =
-      AudioManager::kAudioCDSampleRate * 2 * sizeof(uint16);
+      AudioParameters::kAudioCDSampleRate * 2 * sizeof(uint16);
   char* buffer = new char[kTwoSecBytes];
   SineWaveAudioSource sine(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM,
                            1, ctx.sine_freq, ctx.sample_rate);
@@ -679,9 +689,10 @@ TEST(WinAudioTest, SyncSocketBasic) {
   if (!audio_man->HasAudioOutputDevices())
     return;
 
-  int sample_rate = AudioManager::kAudioCDSampleRate;
+  int sample_rate = AudioParameters::kAudioCDSampleRate;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioManager::AUDIO_PCM_LOW_LATENCY, 1, sample_rate, 16);
+      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY, 1,
+                      sample_rate, 16));
   ASSERT_TRUE(NULL != oas);
 
   // compute buffer size for 20ms of audio, 882 samples (mono).

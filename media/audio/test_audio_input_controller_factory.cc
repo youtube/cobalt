@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,10 +25,7 @@ TestAudioInputControllerFactory::TestAudioInputControllerFactory()
 
 AudioInputController* TestAudioInputControllerFactory::Create(
     AudioInputController::EventHandler* event_handler,
-    AudioManager::Format format,
-    int channels,
-    int sample_rate,
-    int bits_per_sample,
+    AudioParameters params,
     int samples_per_packet) {
   DCHECK(!controller_);  // Only one test instance managed at a time.
   controller_ = new TestAudioInputController(this, event_handler);

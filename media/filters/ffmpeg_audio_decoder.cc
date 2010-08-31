@@ -61,13 +61,11 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
   DCHECK_GT(codec_context_->channels, 0);
   DCHECK_GT(bps, 0);
   DCHECK_GT(codec_context_->sample_rate, 0);
-  if (codec_context_->channels == 0 ||
-      static_cast<size_t>(codec_context_->channels) > Limits::kMaxChannels ||
-      bps == 0 ||
-      static_cast<size_t>(bps) > Limits::kMaxBPS ||
-      codec_context_->sample_rate == 0 ||
-      (static_cast<size_t>(codec_context_->sample_rate) >
-       Limits::kMaxSampleRate)) {
+  if (codec_context_->channels <= 0 ||
+      codec_context_->channels > Limits::kMaxChannels ||
+      bps <= 0 || bps > Limits::kMaxBitsPerSample ||
+      codec_context_->sample_rate <= 0 ||
+      codec_context_->sample_rate > Limits::kMaxSampleRate) {
     return;
   }
 

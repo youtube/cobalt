@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/scoped_handle_win.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_parameters.h"
 
 class AudioManagerWin;
 
@@ -28,9 +29,8 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // The ctor takes all the usual parameters, plus |manager| which is the
   // the audio manager who is creating this object and |device_id| which
   // is provided by the operating system.
-  PCMWaveOutAudioOutputStream(AudioManagerWin* manager,
-                              int channels, int sampling_rate, int num_buffers,
-                              char bits_per_sample, UINT device_id);
+  PCMWaveOutAudioOutputStream(AudioManagerWin* manager, AudioParameters params,
+                              int num_buffers, UINT device_id);
   virtual ~PCMWaveOutAudioOutputStream();
 
   // Implementation of AudioOutputStream.

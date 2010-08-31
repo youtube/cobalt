@@ -23,29 +23,11 @@ bool AudioManagerLinux::HasAudioInputDevices() {
   return false;
 }
 
-AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
-    Format format,
-    int channels,
-    int sample_rate,
-    char bits_per_sample,
-    uint32 samples_per_packet) {
-  if (format == AUDIO_MOCK) {
-    return FakeAudioInputStream::MakeFakeStream(channels, bits_per_sample,
-                                                sample_rate,
-                                                samples_per_packet);
-  }
-  // TODO(satish): implement.
-  return NULL;
-}
-
 AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
-    Format format,
-    int channels,
-    int sample_rate,
-    char bits_per_sample) {
+    AudioParameters params) {
   // Early return for testing hook.  Do this before checking for
   // |initialized_|.
-  if (format == AudioManager::AUDIO_MOCK) {
+  if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioOutputStream::MakeFakeStream();
   }
 
@@ -59,13 +41,21 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
         switches::kAlsaDevice);
   }
   AlsaPcmOutputStream* stream =
-      new AlsaPcmOutputStream(device_name, format, channels, sample_rate,
-                              bits_per_sample, wrapper_.get(), this,
+      new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this,
                               GetMessageLoop());
 
   AutoLock l(lock_);
   active_streams_[stream] = scoped_refptr<AlsaPcmOutputStream>(stream);
   return stream;
+}
+
+AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
+    AudioParameters params, uint32 samples_per_packet) {
+  if (params.format == AudioParameters::AUDIO_MOCK) {
+    return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
+  }
+  // TODO(satish): implement.
+  return NULL;
 }
 
 AudioManagerLinux::AudioManagerLinux() {

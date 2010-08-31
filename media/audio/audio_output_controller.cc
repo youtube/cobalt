@@ -10,28 +10,23 @@
 // renderer to avoid renderer from requesting too much memory.
 static const uint32 kMegabytes = 1024 * 1024;
 static const uint32 kMaxHardwareBufferSize = 2 * kMegabytes;
-static const int kMaxChannels = 32;
-static const int kMaxBitsPerSample = 64;
-static const int kMaxSampleRate = 192000;
 // Signal a pause in low-latency mode.
 static const int kPauseMark = -1;
 
+namespace {
 // Return true if the parameters for creating an audio stream is valid.
 // Return false otherwise.
-static bool CheckParameters(int channels, int sample_rate,
-                            int bits_per_sample, uint32 hardware_buffer_size) {
-  if (channels <= 0 || channels > kMaxChannels)
-    return false;
-  if (sample_rate <= 0 || sample_rate > kMaxSampleRate)
-    return false;
-  if (bits_per_sample <= 0 || bits_per_sample > kMaxBitsPerSample)
+static bool CheckParameters(AudioParameters params,
+                            uint32 hardware_buffer_size) {
+  if (!params.IsValid())
     return false;
   if (hardware_buffer_size <= 0 ||
-      hardware_buffer_size > kMaxHardwareBufferSize) {
+      hardware_buffer_size > kMaxHardwareBufferSize)
     return false;
-  }
   return true;
 }
+
+}  // namespace
 
 namespace media {
 
@@ -54,15 +49,11 @@ AudioOutputController::~AudioOutputController() {
 // static
 scoped_refptr<AudioOutputController> AudioOutputController::Create(
     EventHandler* event_handler,
-    AudioManager::Format format,
-    int channels,
-    int sample_rate,
-    int bits_per_sample,
+    AudioParameters params,
     uint32 hardware_buffer_size,
     uint32 buffer_capacity) {
 
-  if (!CheckParameters(channels, sample_rate, bits_per_sample,
-                       hardware_buffer_size))
+  if (!CheckParameters(params, hardware_buffer_size))
     return NULL;
 
   // Starts the audio controller thread.
@@ -74,25 +65,20 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
   controller->message_loop_->PostTask(
       FROM_HERE,
       NewRunnableMethod(controller.get(), &AudioOutputController::DoCreate,
-                        format, channels, sample_rate, bits_per_sample,
-                        hardware_buffer_size));
+                        params, hardware_buffer_size));
   return controller;
 }
 
 // static
 scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
     EventHandler* event_handler,
-    AudioManager::Format format,
-    int channels,
-    int sample_rate,
-    int bits_per_sample,
+    AudioParameters params,
     uint32 hardware_buffer_size,
     SyncReader* sync_reader) {
 
   DCHECK(sync_reader);
 
-  if (!CheckParameters(channels, sample_rate, bits_per_sample,
-                       hardware_buffer_size))
+  if (!CheckParameters(params, hardware_buffer_size))
     return NULL;
 
   // Starts the audio controller thread.
@@ -104,8 +90,7 @@ scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
   controller->message_loop_->PostTask(
       FROM_HERE,
       NewRunnableMethod(controller.get(), &AudioOutputController::DoCreate,
-                        format, channels, sample_rate, bits_per_sample,
-                        hardware_buffer_size));
+                        params, hardware_buffer_size));
   return controller;
 }
 
@@ -158,8 +143,7 @@ void AudioOutputController::EnqueueData(const uint8* data, uint32 size) {
   SubmitOnMoreData_Locked();
 }
 
-void AudioOutputController::DoCreate(AudioManager::Format format, int channels,
-                                     int sample_rate, int bits_per_sample,
+void AudioOutputController::DoCreate(AudioParameters params,
                                      uint32 hardware_buffer_size) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
@@ -170,17 +154,14 @@ void AudioOutputController::DoCreate(AudioManager::Format format, int channels,
     return;
   DCHECK(state_ == kEmpty);
 
-  // Create the stream in the first place.
-  stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(
-      format, channels, sample_rate, bits_per_sample);
-
+  stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(params);
   if (!stream_) {
     // TODO(hclam): Define error types.
     handler_->OnError(this, 0);
     return;
   }
 
-  if (stream_ && !stream_->Open(hardware_buffer_size)) {
+  if (!stream_->Open(hardware_buffer_size)) {
     stream_->Close();
     stream_ = NULL;
 
