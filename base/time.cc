@@ -66,8 +66,6 @@ time_t Time::ToTimeT() const {
 
 // static
 Time Time::FromDoubleT(double dt) {
-  if (dt == 0)
-    return Time();  // Preserve 0 so we can tell it doesn't exist.
   return Time(static_cast<int64>((dt *
                                   static_cast<double>(kMicrosecondsPerSecond)) +
                                  kTimeTToMicrosecondsOffset));
