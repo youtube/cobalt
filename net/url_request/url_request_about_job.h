@@ -21,7 +21,7 @@ class URLRequestAboutJob : public URLRequestJob {
   static URLRequest::ProtocolFactory Factory;
 
  private:
-  ~URLRequestAboutJob() {}
+  ~URLRequestAboutJob();
 
   void StartAsync();
 };

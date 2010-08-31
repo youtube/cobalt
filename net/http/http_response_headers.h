@@ -251,8 +251,8 @@ class HttpResponseHeaders
 
   typedef base::hash_set<std::string> HeaderSet;
 
-  HttpResponseHeaders() {}
-  ~HttpResponseHeaders() {}
+  HttpResponseHeaders();
+  ~HttpResponseHeaders();
 
   // Initializes from the given raw headers.
   void Parse(const std::string& raw_input);

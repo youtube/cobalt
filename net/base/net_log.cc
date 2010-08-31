@@ -161,6 +161,9 @@ NetLogStringParameter::NetLogStringParameter(const char* name,
     : name_(name), value_(value) {
 }
 
+NetLogStringParameter::~NetLogStringParameter() {
+}
+
 Value* NetLogIntegerParameter::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
   dict->SetInteger(name_, value_);

@@ -11,7 +11,6 @@
 
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
-#include "base/values.h"
 
 class Value;
 
@@ -198,6 +197,7 @@ class NetLogStringParameter : public NetLog::EventParameters {
  public:
   // |name| must be a string literal.
   NetLogStringParameter(const char* name, const std::string& value);
+  virtual ~NetLogStringParameter();
 
   const std::string& value() const {
     return value_;

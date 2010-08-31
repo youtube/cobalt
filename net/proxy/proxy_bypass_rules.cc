@@ -123,7 +123,19 @@ bool IsIPAddress(const std::string& domain) {
 
 }  // namespace
 
+ProxyBypassRules::ProxyBypassRules() {
+}
+
+ProxyBypassRules::ProxyBypassRules(const ProxyBypassRules& rhs)
+    : rules_(rhs.rules_) {
+}
+
 ProxyBypassRules::~ProxyBypassRules() {
+}
+
+ProxyBypassRules& ProxyBypassRules::operator=(const ProxyBypassRules& rhs) {
+  rules_ = rhs.rules_;
+  return *this;
 }
 
 bool ProxyBypassRules::Matches(const GURL& url) const {

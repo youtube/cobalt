@@ -20,6 +20,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/ssl_config_service.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_auth_handler.h"
