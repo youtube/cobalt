@@ -24,11 +24,13 @@ class FileUtilProxy {
   // This callback is used by methods that report only an error code.  It is
   // valid to pass NULL as the callback parameter to any function that takes a
   // StatusCallback, in which case the operation will complete silently.
-  typedef Callback1<int /* error code */>::Type StatusCallback;
+  typedef Callback1<base::PlatformFileError /* error code */
+                    >::Type StatusCallback;
 
   // Creates or opens a file with the given flags.  It is invalid to pass NULL
   // for the callback.
-  typedef Callback3<int /* error code */, base::PassPlatformFile,
+  typedef Callback3<base::PlatformFileError /* error code */,
+                    base::PassPlatformFile,
                     bool /* created */>::Type CreateOrOpenCallback;
   static bool CreateOrOpen(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                            const FilePath& file_path,
@@ -37,7 +39,8 @@ class FileUtilProxy {
 
   // Creates a temporary file for writing.  The path and an open file handle
   // are returned.  It is invalid to pass NULL for the callback.
-  typedef Callback3<int /* error code */, base::PassPlatformFile,
+  typedef Callback3<base::PlatformFileError /* error code */,
+                    base::PassPlatformFile,
                     FilePath>::Type CreateTemporaryCallback;
   static bool CreateTemporary(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
@@ -61,7 +64,7 @@ class FileUtilProxy {
 
   // Retrieves the information about a file. It is invalid to pass NULL for the
   // callback.
-  typedef Callback2<bool /*exists*/,
+  typedef Callback2<base::PlatformFileError /* error code */,
                     const file_util::FileInfo& /*file_info*/
                     >::Type GetFileInfoCallback;
   static bool GetFileInfo(
