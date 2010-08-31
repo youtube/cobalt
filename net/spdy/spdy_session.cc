@@ -398,7 +398,7 @@ int SpdySession::WriteSynStream(
   streams_initiated_count_++;
 
   const BoundNetLog& log = stream->net_log();
-  if (log.HasListener()) {
+  if (log.IsLoggingAll()) {
     log.AddEvent(
         NetLog::TYPE_SPDY_STREAM_SYN_STREAM,
         new NetLogSpdySynParameter(headers, flags, stream_id));
@@ -1012,7 +1012,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
 
   stream = new SpdyStream(this, stream_id, true);
 
-  if (net_log_.HasListener()) {
+  if (net_log_.IsLoggingAll()) {
     net_log_.AddEvent(
         NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
         new NetLogSpdySynParameter(
@@ -1069,7 +1069,7 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   stream->set_response_received();
 
   const BoundNetLog& log = stream->net_log();
-  if (log.HasListener()) {
+  if (log.IsLoggingAll()) {
     log.AddEvent(
         NetLog::TYPE_SPDY_STREAM_SYN_REPLY,
         new NetLogSpdySynParameter(

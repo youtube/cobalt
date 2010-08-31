@@ -652,7 +652,7 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
   // Log the result of the proxy resolution.
   if (result_code == OK) {
     // When full logging is enabled, dump the proxy list.
-    if (net_log.HasListener()) {
+    if (net_log.IsLoggingAll()) {
       net_log.AddEvent(
           NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
           new NetLogStringParameter("pac_string", result->ToPacString()));
