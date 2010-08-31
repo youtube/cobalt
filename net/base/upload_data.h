@@ -172,6 +172,31 @@ class UploadData : public base::RefCounted<UploadData> {
   int64 identifier_;
 };
 
+#if defined(UNIT_TEST)
+inline bool operator==(const UploadData::Element& a,
+                       const UploadData::Element& b) {
+  if (a.type() != b.type())
+    return false;
+  if (a.type() == UploadData::TYPE_BYTES)
+    return a.bytes() == b.bytes();
+  if (a.type() == UploadData::TYPE_FILE) {
+    return a.file_path() == b.file_path() &&
+           a.file_range_offset() == b.file_range_offset() &&
+           a.file_range_length() == b.file_range_length() &&
+           a.expected_file_modification_time() ==
+              b.expected_file_modification_time();
+  }
+  if (a.type() == UploadData::TYPE_BLOB)
+    return a.blob_url() == b.blob_url();
+  return false;
+}
+
+inline bool operator!=(const UploadData::Element& a,
+                       const UploadData::Element& b) {
+  return !(a == b);
+}
+#endif  // defined(UNIT_TEST)
+
 }  // namespace net
 
 #endif  // NET_BASE_UPLOAD_DATA_H_

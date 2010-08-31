@@ -7,6 +7,8 @@
 #include "base/file_util.h"
 #include "base/message_loop_proxy.h"
 
+// TODO(jianli): Move the code from anonymous namespace to base namespace so
+// that all of the base:: prefixes would be unnecessary.
 namespace {
 
 class MessageLoopRelay
@@ -205,6 +207,33 @@ class RelayDelete : public RelayWithStatusCallback {
   bool recursive_;
 };
 
+class RelayGetFileInfo : public MessageLoopRelay {
+ public:
+  RelayGetFileInfo(const FilePath& file_path,
+                   base::FileUtilProxy::GetFileInfoCallback* callback)
+      : callback_(callback),
+        file_path_(file_path),
+        exists_(false) {
+    DCHECK(callback);
+  }
+
+ protected:
+  virtual void RunWork() {
+    exists_ = file_util::GetFileInfo(file_path_, &file_info_);
+  }
+
+  virtual void RunCallback() {
+    callback_->Run(exists_, file_info_);
+    delete callback_;
+  }
+
+ private:
+  base::FileUtilProxy::GetFileInfoCallback* callback_;
+  FilePath file_path_;
+  bool exists_;
+  file_util::FileInfo file_info_;
+};
+
 bool Start(const tracked_objects::Location& from_here,
            scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
            scoped_refptr<MessageLoopRelay> relay) {
@@ -255,6 +284,15 @@ bool FileUtilProxy::RecursiveDelete(
     StatusCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayDelete(file_path, true, callback));
+}
+
+// static
+bool FileUtilProxy::GetFileInfo(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    GetFileInfoCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayGetFileInfo(file_path, callback));
 }
 
 } // namespace base
