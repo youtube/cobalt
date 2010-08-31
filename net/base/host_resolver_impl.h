@@ -156,6 +156,14 @@ class HostResolverImpl : public HostResolver,
   void OnJobComplete(Job* job, int net_error, int os_error,
                      const AddressList& addrlist);
 
+  // Aborts |job|.  Same as OnJobComplete() except does not remove |job|
+  // from |jobs_| and does not cache the result (ERR_ABORTED).
+  void AbortJob(Job* job);
+
+  // Used by both OnJobComplete() and AbortJob();
+  void OnJobCompleteInternal(Job* job, int net_error, int os_error,
+                             const AddressList& addrlist);
+
   // Called when a request has just been started.
   void OnStartRequest(const BoundNetLog& source_net_log,
                       const BoundNetLog& request_net_log,
@@ -210,6 +218,12 @@ class HostResolverImpl : public HostResolver,
 
   // Adds a pending request |req| to |pool|.
   int EnqueueRequest(JobPool* pool, Request* req);
+
+  // Cancels all jobs.
+  void CancelAllJobs();
+
+  // Aborts all jobs.
+  void AbortAllJobs();
 
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;
