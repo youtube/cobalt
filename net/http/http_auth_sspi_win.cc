@@ -199,7 +199,7 @@ int HttpAuthSSPI::GenerateAuthToken(const string16* username,
   free(out_buf);
   if (!base64_rv) {
     LOG(ERROR) << "Base64 encoding of auth token failed.";
-    return ERR_UNEXPECTED;
+    return ERR_ENCODING_CONVERSION_FAILED;
   }
   *auth_token = scheme_ + " " + encode_output;
   return OK;
@@ -225,6 +225,47 @@ int HttpAuthSSPI::OnFirstRound(const string16* username,
   }
 
   return rv;
+}
+
+namespace {
+
+int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
+  switch (status) {
+    case SEC_E_OK:
+    case SEC_I_CONTINUE_NEEDED:
+      return OK;
+    case SEC_I_COMPLETE_AND_CONTINUE:
+    case SEC_I_COMPLETE_NEEDED:
+    case SEC_I_INCOMPLETE_CREDENTIALS:
+    case SEC_E_INCOMPLETE_MESSAGE:
+    case SEC_E_INTERNAL_ERROR:
+      // These are return codes reported by InitializeSecurityContext
+      // but not expected by Chrome (for example, INCOMPLETE_CREDENTIALS
+      // and INCOMPLETE_MESSAGE are intended for schannel).
+      LOG(ERROR) << "Unmapped SECURITY_STATUS " << status;
+      return ERR_UNMAPPED_SSPI_ERROR;
+    case SEC_E_INSUFFICIENT_MEMORY:
+      return ERR_OUT_OF_MEMORY;
+    case SEC_E_UNSUPPORTED_FUNCTION:
+      // This indicates a programming error.
+      NOTREACHED();
+      return ERR_UNEXPECTED;
+    case SEC_E_INVALID_TOKEN:
+      return ERR_INVALID_RESPONSE;
+    case SEC_E_LOGON_DENIED:
+    case SEC_E_NO_CREDENTIALS:
+    case SEC_E_WRONG_PRINCIPAL:
+    case SEC_E_INVALID_HANDLE:
+      return ERR_INVALID_AUTH_CREDENTIALS;
+    case SEC_E_NO_AUTHENTICATING_AUTHORITY:
+    case SEC_E_TARGET_UNKNOWN:
+      return ERR_MISCONFIGURED_AUTH_ENVIRONMENT;
+    default:
+      LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
+      return ERR_UNEXPECTED;
+  }
+}
+
 }
 
 int HttpAuthSSPI::GetNextSecurityToken(
@@ -253,7 +294,7 @@ int HttpAuthSSPI::GetNextSecurityToken(
     // sequence.  If we have already initialized our security context, then
     // we're incorrectly reusing the auth handler for a new sequence.
     if (SecIsValidHandle(&ctxt_)) {
-      LOG(ERROR) << "Cannot restart authentication sequence";
+      NOTREACHED();
       return ERR_UNEXPECTED;
     }
     ctxt_ptr = NULL;
@@ -291,14 +332,11 @@ int HttpAuthSSPI::GetNextSecurityToken(
       &out_buffer_desc,  // pOutput
       &context_attribute,  // pfContextAttr
       NULL);  // ptsExpiry
-  // On success, the function returns SEC_I_CONTINUE_NEEDED on the first call
-  // and SEC_E_OK on the second call.  On failure, the function returns an
-  // error code.
-  if (status != SEC_I_CONTINUE_NEEDED && status != SEC_E_OK) {
-    LOG(ERROR) << "InitializeSecurityContext failed " << status;
+  int rv = MapInitializeSecurityContextStatusToError(status);
+  if (rv != OK) {
     ResetSecurityContext();
     free(out_buffer.pvBuffer);
-    return ERR_UNEXPECTED;  // TODO(wtc): map error code.
+    return rv;
   }
   if (!out_buffer.cbBuffer) {
     free(out_buffer.pvBuffer);
