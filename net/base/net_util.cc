@@ -69,6 +69,8 @@
 
 using base::Time;
 
+namespace net {
+
 namespace {
 
 // what we prepend to get a file URL
@@ -746,7 +748,15 @@ void AdjustComponents(int delta, url_parse::Parsed* parsed) {
   AdjustComponent(delta, &(parsed->ref));
 }
 
-// Helper for FormatUrl().
+std::wstring FormatUrlInternal(const GURL& url,
+                               const std::wstring& languages,
+                               FormatUrlTypes format_types,
+                               UnescapeRule::Type unescape_rules,
+                               url_parse::Parsed* new_parsed,
+                               size_t* prefix_end,
+                               size_t* offset_for_adjustment);
+
+// Helper for FormatUrl()/FormatUrlInternal().
 std::wstring FormatViewSourceUrl(const GURL& url,
                                  const std::wstring& languages,
                                  net::FormatUrlTypes format_types,
@@ -763,8 +773,8 @@ std::wstring FormatViewSourceUrl(const GURL& url,
       std::wstring::npos : (*offset_for_adjustment - kViewSourceLengthPlus1);
   size_t* temp_offset_ptr = (*offset_for_adjustment < kViewSourceLengthPlus1) ?
       NULL : &temp_offset;
-  std::wstring result = net::FormatUrl(real_url, languages,
-      format_types, unescape_rules, new_parsed, prefix_end, temp_offset_ptr);
+  std::wstring result = FormatUrlInternal(real_url, languages, format_types,
+      unescape_rules, new_parsed, prefix_end, temp_offset_ptr);
   result.insert(0, kWideViewSource);
 
   // Adjust position values.
@@ -785,19 +795,6 @@ std::wstring FormatViewSourceUrl(const GURL& url,
   return result;
 }
 
-}  // namespace
-
-namespace net {
-
-const FormatUrlType kFormatUrlOmitNothing                     = 0;
-const FormatUrlType kFormatUrlOmitUsernamePassword            = 1 << 0;
-const FormatUrlType kFormatUrlOmitHTTP                        = 1 << 1;
-const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname = 1 << 2;
-const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
-    kFormatUrlOmitHTTP | kFormatUrlOmitTrailingSlashOnBareHostname;
-
-std::set<int> explicitly_allowed_ports;
-
 // Appends the substring |in_component| inside of the URL |spec| to |output|,
 // and the resulting range will be filled into |out_component|. |unescape_rules|
 // defines how to clean the URL for human readability.  |offset_for_adjustment|
@@ -808,12 +805,248 @@ std::set<int> explicitly_allowed_ports;
 // components.  Otherwise it points into the component being converted, and is
 // adjusted to point to the same logical place in |output|.
 // |offset_for_adjustment| may not be NULL.
-static void AppendFormattedComponent(const std::string& spec,
-                                     const url_parse::Component& in_component,
-                                     UnescapeRule::Type unescape_rules,
-                                     std::wstring* output,
-                                     url_parse::Component* out_component,
-                                     size_t* offset_for_adjustment);
+void AppendFormattedComponent(const std::string& spec,
+                              const url_parse::Component& in_component,
+                              UnescapeRule::Type unescape_rules,
+                              std::wstring* output,
+                              url_parse::Component* out_component,
+                              size_t* offset_for_adjustment) {
+  DCHECK(output);
+  DCHECK(offset_for_adjustment);
+  if (in_component.is_nonempty()) {
+    out_component->begin = static_cast<int>(output->length());
+    size_t offset_past_current_output =
+        ((*offset_for_adjustment == std::wstring::npos) ||
+         (*offset_for_adjustment < output->length())) ?
+            std::wstring::npos : (*offset_for_adjustment - output->length());
+    size_t* offset_into_component =
+        (offset_past_current_output >= static_cast<size_t>(in_component.len)) ?
+            NULL : &offset_past_current_output;
+    if (unescape_rules == UnescapeRule::NONE) {
+      output->append(UTF8ToWideAndAdjustOffset(
+          spec.substr(in_component.begin, in_component.len),
+          offset_into_component));
+    } else {
+      output->append(UTF16ToWideHack(UnescapeAndDecodeUTF8URLComponent(
+          spec.substr(in_component.begin, in_component.len), unescape_rules,
+          offset_into_component)));
+    }
+    out_component->len =
+        static_cast<int>(output->length()) - out_component->begin;
+    if (offset_into_component) {
+      *offset_for_adjustment = (*offset_into_component == std::wstring::npos) ?
+          std::wstring::npos : (out_component->begin + *offset_into_component);
+    } else if (offset_past_current_output != std::wstring::npos) {
+      *offset_for_adjustment += out_component->len - in_component.len;
+    }
+  } else {
+    out_component->reset();
+  }
+}
+
+// TODO(viettrungluu): This is really the old-fashioned version, made internal.
+// I need to really convert |FormatUrl()|.
+std::wstring FormatUrlInternal(const GURL& url,
+                               const std::wstring& languages,
+                               FormatUrlTypes format_types,
+                               UnescapeRule::Type unescape_rules,
+                               url_parse::Parsed* new_parsed,
+                               size_t* prefix_end,
+                               size_t* offset_for_adjustment) {
+  url_parse::Parsed parsed_temp;
+  if (!new_parsed)
+    new_parsed = &parsed_temp;
+  else
+    *new_parsed = url_parse::Parsed();
+  size_t offset_temp = std::wstring::npos;
+  if (!offset_for_adjustment)
+    offset_for_adjustment = &offset_temp;
+
+  std::wstring url_string;
+
+  // Check for empty URLs or 0 available text width.
+  if (url.is_empty()) {
+    if (prefix_end)
+      *prefix_end = 0;
+    *offset_for_adjustment = std::wstring::npos;
+    return url_string;
+  }
+
+  // Special handling for view-source:.  Don't use chrome::kViewSourceScheme
+  // because this library shouldn't depend on chrome.
+  const char* const kViewSource = "view-source";
+  // Reject "view-source:view-source:..." to avoid deep recursion.
+  const char* const kViewSourceTwice = "view-source:view-source:";
+  if (url.SchemeIs(kViewSource) &&
+      !StartsWithASCII(url.possibly_invalid_spec(), kViewSourceTwice, false)) {
+    return FormatViewSourceUrl(url, languages, format_types,
+        unescape_rules, new_parsed, prefix_end, offset_for_adjustment);
+  }
+
+  // We handle both valid and invalid URLs (this will give us the spec
+  // regardless of validity).
+  const std::string& spec = url.possibly_invalid_spec();
+  const url_parse::Parsed& parsed = url.parsed_for_possibly_invalid_spec();
+  if (*offset_for_adjustment >= spec.length())
+    *offset_for_adjustment = std::wstring::npos;
+
+  // Copy everything before the username (the scheme and the separators.)
+  // These are ASCII.
+  std::copy(spec.begin(),
+      spec.begin() + parsed.CountCharactersBefore(url_parse::Parsed::USERNAME,
+                                                  true),
+      std::back_inserter(url_string));
+
+  const wchar_t kHTTP[] = L"http://";
+  const char kFTP[] = "ftp.";
+  // URLFixerUpper::FixupURL() treats "ftp.foo.com" as ftp://ftp.foo.com.  This
+  // means that if we trim "http://" off a URL whose host starts with "ftp." and
+  // the user inputs this into any field subject to fixup (which is basically
+  // all input fields), the meaning would be changed.  (In fact, often the
+  // formatted URL is directly pre-filled into an input field.)  For this reason
+  // we avoid stripping "http://" in this case.
+  bool omit_http =
+      (format_types & kFormatUrlOmitHTTP) && (url_string == kHTTP) &&
+      (url.host().compare(0, arraysize(kFTP) - 1, kFTP) != 0);
+
+  new_parsed->scheme = parsed.scheme;
+
+  if ((format_types & kFormatUrlOmitUsernamePassword) != 0) {
+    // Remove the username and password fields. We don't want to display those
+    // to the user since they can be used for attacks,
+    // e.g. "http://google.com:search@evil.ru/"
+    new_parsed->username.reset();
+    new_parsed->password.reset();
+    if ((*offset_for_adjustment != std::wstring::npos) &&
+        (parsed.username.is_nonempty() || parsed.password.is_nonempty())) {
+      if (parsed.username.is_nonempty() && parsed.password.is_nonempty()) {
+        // The seeming off-by-one and off-by-two in these first two lines are to
+        // account for the ':' after the username and '@' after the password.
+        if (*offset_for_adjustment >
+            static_cast<size_t>(parsed.password.end())) {
+          *offset_for_adjustment -=
+              (parsed.username.len + parsed.password.len + 2);
+        } else if (*offset_for_adjustment >
+                   static_cast<size_t>(parsed.username.begin)) {
+          *offset_for_adjustment = std::wstring::npos;
+        }
+      } else {
+        const url_parse::Component* nonempty_component =
+            parsed.username.is_nonempty() ? &parsed.username : &parsed.password;
+        // The seeming off-by-one in these first two lines is to account for the
+        // '@' after the username/password.
+        if (*offset_for_adjustment >
+            static_cast<size_t>(nonempty_component->end())) {
+          *offset_for_adjustment -= (nonempty_component->len + 1);
+        } else if (*offset_for_adjustment >
+                   static_cast<size_t>(nonempty_component->begin)) {
+          *offset_for_adjustment = std::wstring::npos;
+        }
+      }
+    }
+  } else {
+    AppendFormattedComponent(spec, parsed.username, unescape_rules, &url_string,
+                             &new_parsed->username, offset_for_adjustment);
+    if (parsed.password.is_valid())
+      url_string.push_back(':');
+    AppendFormattedComponent(spec, parsed.password, unescape_rules, &url_string,
+                             &new_parsed->password, offset_for_adjustment);
+    if (parsed.username.is_valid() || parsed.password.is_valid())
+      url_string.push_back('@');
+  }
+  if (prefix_end)
+    *prefix_end = static_cast<size_t>(url_string.length());
+
+  AppendFormattedHost(url, languages, &url_string, new_parsed,
+                      offset_for_adjustment);
+
+  // Port.
+  if (parsed.port.is_nonempty()) {
+    url_string.push_back(':');
+    new_parsed->port.begin = url_string.length();
+    std::copy(spec.begin() + parsed.port.begin,
+              spec.begin() + parsed.port.end(), std::back_inserter(url_string));
+    new_parsed->port.len = url_string.length() - new_parsed->port.begin;
+  } else {
+    new_parsed->port.reset();
+  }
+
+  // Path and query both get the same general unescape & convert treatment.
+  if (!(format_types & kFormatUrlOmitTrailingSlashOnBareHostname) ||
+      !CanStripTrailingSlash(url)) {
+    AppendFormattedComponent(spec, parsed.path, unescape_rules, &url_string,
+                             &new_parsed->path, offset_for_adjustment);
+  }
+  if (parsed.query.is_valid())
+    url_string.push_back('?');
+  AppendFormattedComponent(spec, parsed.query, unescape_rules, &url_string,
+                           &new_parsed->query, offset_for_adjustment);
+
+  // Reference is stored in valid, unescaped UTF-8, so we can just convert.
+  if (parsed.ref.is_valid()) {
+    url_string.push_back('#');
+    new_parsed->ref.begin = url_string.length();
+    size_t offset_past_current_output =
+        ((*offset_for_adjustment == std::wstring::npos) ||
+         (*offset_for_adjustment < url_string.length())) ?
+            std::wstring::npos : (*offset_for_adjustment - url_string.length());
+    size_t* offset_into_ref =
+        (offset_past_current_output >= static_cast<size_t>(parsed.ref.len)) ?
+            NULL : &offset_past_current_output;
+    if (parsed.ref.len > 0) {
+      url_string.append(UTF8ToWideAndAdjustOffset(spec.substr(parsed.ref.begin,
+                                                              parsed.ref.len),
+                                                  offset_into_ref));
+    }
+    new_parsed->ref.len = url_string.length() - new_parsed->ref.begin;
+    if (offset_into_ref) {
+      *offset_for_adjustment = (*offset_into_ref == std::wstring::npos) ?
+          std::wstring::npos : (new_parsed->ref.begin + *offset_into_ref);
+    } else if (offset_past_current_output != std::wstring::npos) {
+      // We clamped the offset near the beginning of this function to ensure it
+      // was within the input URL.  If we reach here, the input was something
+      // invalid and non-parseable such that the offset was past any component
+      // we could figure out.  In this case it won't be represented in the
+      // output string, so reset it.
+      *offset_for_adjustment = std::wstring::npos;
+    }
+  }
+
+  // If we need to strip out http do it after the fact. This way we don't need
+  // to worry about how offset_for_adjustment is interpreted.
+  const size_t kHTTPSize = arraysize(kHTTP) - 1;
+  if (omit_http && !url_string.compare(0, kHTTPSize, kHTTP)) {
+    url_string = url_string.substr(kHTTPSize);
+    if (*offset_for_adjustment != std::wstring::npos) {
+      if (*offset_for_adjustment < kHTTPSize)
+        *offset_for_adjustment = std::wstring::npos;
+      else
+        *offset_for_adjustment -= kHTTPSize;
+    }
+    if (prefix_end)
+      *prefix_end -= kHTTPSize;
+
+    // Adjust new_parsed.
+    DCHECK(new_parsed->scheme.is_valid());
+    int delta = -(new_parsed->scheme.len + 3);  // +3 for ://.
+    new_parsed->scheme.reset();
+    AdjustComponents(delta, new_parsed);
+  }
+
+  return url_string;
+}
+
+}  // namespace
+
+const FormatUrlType kFormatUrlOmitNothing                     = 0;
+const FormatUrlType kFormatUrlOmitUsernamePassword            = 1 << 0;
+const FormatUrlType kFormatUrlOmitHTTP                        = 1 << 1;
+const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname = 1 << 2;
+const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
+    kFormatUrlOmitHTTP | kFormatUrlOmitTrailingSlashOnBareHostname;
+
+// TODO(viettrungluu): We don't want non-POD globals; change this.
+std::set<int> explicitly_allowed_ports;
 
 GURL FilePathToFileURL(const FilePath& path) {
   // Produce a URL like "file:///C:/foo" for a regular file, or
@@ -1391,237 +1624,7 @@ void AppendFormattedHost(const GURL& url,
   }
 }
 
-/* static */
-void AppendFormattedComponent(const std::string& spec,
-                              const url_parse::Component& in_component,
-                              UnescapeRule::Type unescape_rules,
-                              std::wstring* output,
-                              url_parse::Component* out_component,
-                              size_t* offset_for_adjustment) {
-  DCHECK(output);
-  DCHECK(offset_for_adjustment);
-  if (in_component.is_nonempty()) {
-    out_component->begin = static_cast<int>(output->length());
-    size_t offset_past_current_output =
-        ((*offset_for_adjustment == std::wstring::npos) ||
-         (*offset_for_adjustment < output->length())) ?
-            std::wstring::npos : (*offset_for_adjustment - output->length());
-    size_t* offset_into_component =
-        (offset_past_current_output >= static_cast<size_t>(in_component.len)) ?
-            NULL : &offset_past_current_output;
-    if (unescape_rules == UnescapeRule::NONE) {
-      output->append(UTF8ToWideAndAdjustOffset(
-          spec.substr(in_component.begin, in_component.len),
-          offset_into_component));
-    } else {
-      output->append(UTF16ToWideHack(UnescapeAndDecodeUTF8URLComponent(
-          spec.substr(in_component.begin, in_component.len), unescape_rules,
-          offset_into_component)));
-    }
-    out_component->len =
-        static_cast<int>(output->length()) - out_component->begin;
-    if (offset_into_component) {
-      *offset_for_adjustment = (*offset_into_component == std::wstring::npos) ?
-          std::wstring::npos : (out_component->begin + *offset_into_component);
-    } else if (offset_past_current_output != std::wstring::npos) {
-      *offset_for_adjustment += out_component->len - in_component.len;
-    }
-  } else {
-    out_component->reset();
-  }
-}
-
-std::wstring FormatUrl(const GURL& url,
-                       const std::wstring& languages,
-                       FormatUrlTypes format_types,
-                       UnescapeRule::Type unescape_rules,
-                       url_parse::Parsed* new_parsed,
-                       size_t* prefix_end,
-                       size_t* offset_for_adjustment) {
-  url_parse::Parsed parsed_temp;
-  if (!new_parsed)
-    new_parsed = &parsed_temp;
-  else
-    *new_parsed = url_parse::Parsed();
-  size_t offset_temp = std::wstring::npos;
-  if (!offset_for_adjustment)
-    offset_for_adjustment = &offset_temp;
-
-  std::wstring url_string;
-
-  // Check for empty URLs or 0 available text width.
-  if (url.is_empty()) {
-    if (prefix_end)
-      *prefix_end = 0;
-    *offset_for_adjustment = std::wstring::npos;
-    return url_string;
-  }
-
-  // Special handling for view-source:.  Don't use chrome::kViewSourceScheme
-  // because this library shouldn't depend on chrome.
-  const char* const kViewSource = "view-source";
-  // Reject "view-source:view-source:..." to avoid deep recursion.
-  const char* const kViewSourceTwice = "view-source:view-source:";
-  if (url.SchemeIs(kViewSource) &&
-      !StartsWithASCII(url.possibly_invalid_spec(), kViewSourceTwice, false)) {
-    return FormatViewSourceUrl(url, languages, format_types,
-        unescape_rules, new_parsed, prefix_end, offset_for_adjustment);
-  }
-
-  // We handle both valid and invalid URLs (this will give us the spec
-  // regardless of validity).
-  const std::string& spec = url.possibly_invalid_spec();
-  const url_parse::Parsed& parsed = url.parsed_for_possibly_invalid_spec();
-  if (*offset_for_adjustment >= spec.length())
-    *offset_for_adjustment = std::wstring::npos;
-
-  // Copy everything before the username (the scheme and the separators.)
-  // These are ASCII.
-  std::copy(spec.begin(),
-      spec.begin() + parsed.CountCharactersBefore(url_parse::Parsed::USERNAME,
-                                                  true),
-      std::back_inserter(url_string));
-
-  const wchar_t kHTTP[] = L"http://";
-  const char kFTP[] = "ftp.";
-  // URLFixerUpper::FixupURL() treats "ftp.foo.com" as ftp://ftp.foo.com.  This
-  // means that if we trim "http://" off a URL whose host starts with "ftp." and
-  // the user inputs this into any field subject to fixup (which is basically
-  // all input fields), the meaning would be changed.  (In fact, often the
-  // formatted URL is directly pre-filled into an input field.)  For this reason
-  // we avoid stripping "http://" in this case.
-  bool omit_http =
-      (format_types & kFormatUrlOmitHTTP) && (url_string == kHTTP) &&
-      (url.host().compare(0, arraysize(kFTP) - 1, kFTP) != 0);
-
-  new_parsed->scheme = parsed.scheme;
-
-  if ((format_types & kFormatUrlOmitUsernamePassword) != 0) {
-    // Remove the username and password fields. We don't want to display those
-    // to the user since they can be used for attacks,
-    // e.g. "http://google.com:search@evil.ru/"
-    new_parsed->username.reset();
-    new_parsed->password.reset();
-    if ((*offset_for_adjustment != std::wstring::npos) &&
-        (parsed.username.is_nonempty() || parsed.password.is_nonempty())) {
-      if (parsed.username.is_nonempty() && parsed.password.is_nonempty()) {
-        // The seeming off-by-one and off-by-two in these first two lines are to
-        // account for the ':' after the username and '@' after the password.
-        if (*offset_for_adjustment >
-            static_cast<size_t>(parsed.password.end())) {
-          *offset_for_adjustment -=
-              (parsed.username.len + parsed.password.len + 2);
-        } else if (*offset_for_adjustment >
-                   static_cast<size_t>(parsed.username.begin)) {
-          *offset_for_adjustment = std::wstring::npos;
-        }
-      } else {
-        const url_parse::Component* nonempty_component =
-            parsed.username.is_nonempty() ? &parsed.username : &parsed.password;
-        // The seeming off-by-one in these first two lines is to account for the
-        // '@' after the username/password.
-        if (*offset_for_adjustment >
-            static_cast<size_t>(nonempty_component->end())) {
-          *offset_for_adjustment -= (nonempty_component->len + 1);
-        } else if (*offset_for_adjustment >
-                   static_cast<size_t>(nonempty_component->begin)) {
-          *offset_for_adjustment = std::wstring::npos;
-        }
-      }
-    }
-  } else {
-    AppendFormattedComponent(spec, parsed.username, unescape_rules, &url_string,
-                             &new_parsed->username, offset_for_adjustment);
-    if (parsed.password.is_valid())
-      url_string.push_back(':');
-    AppendFormattedComponent(spec, parsed.password, unescape_rules, &url_string,
-                             &new_parsed->password, offset_for_adjustment);
-    if (parsed.username.is_valid() || parsed.password.is_valid())
-      url_string.push_back('@');
-  }
-  if (prefix_end)
-    *prefix_end = static_cast<size_t>(url_string.length());
-
-  AppendFormattedHost(url, languages, &url_string, new_parsed,
-                      offset_for_adjustment);
-
-  // Port.
-  if (parsed.port.is_nonempty()) {
-    url_string.push_back(':');
-    new_parsed->port.begin = url_string.length();
-    std::copy(spec.begin() + parsed.port.begin,
-              spec.begin() + parsed.port.end(), std::back_inserter(url_string));
-    new_parsed->port.len = url_string.length() - new_parsed->port.begin;
-  } else {
-    new_parsed->port.reset();
-  }
-
-  // Path and query both get the same general unescape & convert treatment.
-  if (!(format_types & kFormatUrlOmitTrailingSlashOnBareHostname) ||
-      !CanStripTrailingSlash(url)) {
-    AppendFormattedComponent(spec, parsed.path, unescape_rules, &url_string,
-                             &new_parsed->path, offset_for_adjustment);
-  }
-  if (parsed.query.is_valid())
-    url_string.push_back('?');
-  AppendFormattedComponent(spec, parsed.query, unescape_rules, &url_string,
-                           &new_parsed->query, offset_for_adjustment);
-
-  // Reference is stored in valid, unescaped UTF-8, so we can just convert.
-  if (parsed.ref.is_valid()) {
-    url_string.push_back('#');
-    new_parsed->ref.begin = url_string.length();
-    size_t offset_past_current_output =
-        ((*offset_for_adjustment == std::wstring::npos) ||
-         (*offset_for_adjustment < url_string.length())) ?
-            std::wstring::npos : (*offset_for_adjustment - url_string.length());
-    size_t* offset_into_ref =
-        (offset_past_current_output >= static_cast<size_t>(parsed.ref.len)) ?
-            NULL : &offset_past_current_output;
-    if (parsed.ref.len > 0) {
-      url_string.append(UTF8ToWideAndAdjustOffset(spec.substr(parsed.ref.begin,
-                                                              parsed.ref.len),
-                                                  offset_into_ref));
-    }
-    new_parsed->ref.len = url_string.length() - new_parsed->ref.begin;
-    if (offset_into_ref) {
-      *offset_for_adjustment = (*offset_into_ref == std::wstring::npos) ?
-          std::wstring::npos : (new_parsed->ref.begin + *offset_into_ref);
-    } else if (offset_past_current_output != std::wstring::npos) {
-      // We clamped the offset near the beginning of this function to ensure it
-      // was within the input URL.  If we reach here, the input was something
-      // invalid and non-parseable such that the offset was past any component
-      // we could figure out.  In this case it won't be represented in the
-      // output string, so reset it.
-      *offset_for_adjustment = std::wstring::npos;
-    }
-  }
-
-  // If we need to strip out http do it after the fact. This way we don't need
-  // to worry about how offset_for_adjustment is interpreted.
-  const size_t kHTTPSize = arraysize(kHTTP) - 1;
-  if (omit_http && !url_string.compare(0, kHTTPSize, kHTTP)) {
-    url_string = url_string.substr(kHTTPSize);
-    if (*offset_for_adjustment != std::wstring::npos) {
-      if (*offset_for_adjustment < kHTTPSize)
-        *offset_for_adjustment = std::wstring::npos;
-      else
-        *offset_for_adjustment -= kHTTPSize;
-    }
-    if (prefix_end)
-      *prefix_end -= kHTTPSize;
-
-    // Adjust new_parsed.
-    DCHECK(new_parsed->scheme.is_valid());
-    int delta = -(new_parsed->scheme.len + 3);  // +3 for ://.
-    new_parsed->scheme.reset();
-    AdjustComponents(delta, new_parsed);
-  }
-
-  return url_string;
-}
-
-// TODO(viettrungluu): convert the code in wstring version to this form.
+// TODO(viettrungluu): convert the wstring |FormatUrlInternal()|.
 string16 FormatUrl(const GURL& url,
                    const std::string& languages,
                    FormatUrlTypes format_types,
@@ -1630,8 +1633,9 @@ string16 FormatUrl(const GURL& url,
                    size_t* prefix_end,
                    size_t* offset_for_adjustment) {
   return WideToUTF16Hack(
-      FormatUrl(url, ASCIIToWide(languages), format_types, unescape_rules,
-                new_parsed, prefix_end, offset_for_adjustment));
+      FormatUrlInternal(url, ASCIIToWide(languages), format_types,
+                        unescape_rules, new_parsed, prefix_end,
+                        offset_for_adjustment));
 }
 
 bool CanStripTrailingSlash(const GURL& url) {
