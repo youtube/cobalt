@@ -53,7 +53,9 @@ void NetworkChangeNotifier::RemoveObserver(Observer* observer) {
 }
 
 NetworkChangeNotifier::NetworkChangeNotifier()
-    : observer_list_(new ObserverListThreadSafe<Observer>()) {
+    : observer_list_(
+        new ObserverListThreadSafe<Observer>(
+            ObserverListBase<Observer>::NOTIFY_EXISTING_ONLY)) {
   DCHECK(!g_network_change_notifier);
   g_network_change_notifier = this;
 }

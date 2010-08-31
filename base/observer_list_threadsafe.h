@@ -53,7 +53,12 @@ template <class ObserverType>
 class ObserverListThreadSafe
     : public base::RefCountedThreadSafe<ObserverListThreadSafe<ObserverType> > {
  public:
-  ObserverListThreadSafe() {}
+  typedef typename ObserverList<ObserverType>::NotificationType
+      NotificationType;
+
+  ObserverListThreadSafe()
+      : type_(ObserverListBase<ObserverType>::NOTIFY_ALL) {}
+  explicit ObserverListThreadSafe(NotificationType type) : type_(type) {}
 
   ~ObserverListThreadSafe() {
     typename ObserversListMap::const_iterator it;
@@ -74,7 +79,7 @@ class ObserverListThreadSafe
     {
       AutoLock lock(list_lock_);
       if (observer_lists_.find(loop) == observer_lists_.end())
-        observer_lists_[loop] = new ObserverList<ObserverType>();
+        observer_lists_[loop] = new ObserverList<ObserverType>(type_);
       list = observer_lists_[loop];
     }
     list->AddObserver(obs);
@@ -195,6 +200,7 @@ class ObserverListThreadSafe
   // These are marked mutable to facilitate having NotifyAll be const.
   Lock list_lock_;  // Protects the observer_lists_.
   ObserversListMap observer_lists_;
+  const NotificationType type_;
 
   DISALLOW_COPY_AND_ASSIGN(ObserverListThreadSafe);
 };
