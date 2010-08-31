@@ -43,8 +43,10 @@ class ProxyBypassRules {
   typedef std::vector<scoped_refptr<Rule> > RuleList;
 
   // Note: This class supports copy constructor and assignment.
-
+  ProxyBypassRules();
+  ProxyBypassRules(const ProxyBypassRules& rhs);
   ~ProxyBypassRules();
+  ProxyBypassRules& operator=(const ProxyBypassRules& rhs);
 
   // Returns the current list of rules.
   const RuleList& rules() const { return rules_; }

@@ -11,6 +11,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/base/x509_certificate.h"
 #include "net/http/http_response_headers.h"
 
 using base::Time;

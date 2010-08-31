@@ -90,9 +90,7 @@ class URLRequest : public NonThreadSafe {
     // the delegate never sees the original redirect response, instead the
     // response produced by the intercept job will be returned.
     virtual URLRequestJob* MaybeInterceptRedirect(URLRequest* request,
-                                                  const GURL& location) {
-      return NULL;
-    }
+                                                  const GURL& location);
 
     // Called after having received a final response, but prior to the
     // the request delegate being informed of the response. This is also
@@ -102,9 +100,7 @@ class URLRequest : public NonThreadSafe {
     // continue. If a new job is provided, the delegate never sees the original
     // response, instead the response produced by the intercept job will be
     // returned.
-    virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request) {
-      return NULL;
-    }
+    virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request);
   };
 
   // The delegate's methods are called from the message loop of the thread
@@ -152,8 +148,7 @@ class URLRequest : public NonThreadSafe {
     // deferring redirect.
     virtual void OnReceivedRedirect(URLRequest* request,
                                     const GURL& new_url,
-                                    bool* defer_redirect) {
-    }
+                                    bool* defer_redirect);
 
     // Called when we receive an authentication failure.  The delegate should
     // call request->SetAuth() with the user's credentials once it obtains them,
@@ -161,9 +156,7 @@ class URLRequest : public NonThreadSafe {
     // When it does so, the request will be reissued, restarting the sequence
     // of On* callbacks.
     virtual void OnAuthRequired(URLRequest* request,
-                                net::AuthChallengeInfo* auth_info) {
-      request->CancelAuth();
-    }
+                                net::AuthChallengeInfo* auth_info);
 
     // Called when we receive an SSL CertificateRequest message for client
     // authentication.  The delegate should call
@@ -172,9 +165,7 @@ class URLRequest : public NonThreadSafe {
     // handshake without a client certificate.
     virtual void OnCertificateRequested(
         URLRequest* request,
-        net::SSLCertRequestInfo* cert_request_info) {
-      request->ContinueWithCertificate(NULL);
-    }
+        net::SSLCertRequestInfo* cert_request_info);
 
     // Called when using SSL and the server responds with a certificate with
     // an error, for example, whose common name does not match the common name
@@ -184,23 +175,19 @@ class URLRequest : public NonThreadSafe {
     // indicating what's wrong with the certificate.
     virtual void OnSSLCertificateError(URLRequest* request,
                                        int cert_error,
-                                       net::X509Certificate* cert) {
-      request->Cancel();
-    }
+                                       net::X509Certificate* cert);
 
     // Called when reading cookies. |blocked_by_policy| is true if access to
     // cookies was denied due to content settings. This method will never be
     // invoked when LOAD_DO_NOT_SEND_COOKIES is specified.
-    virtual void OnGetCookies(URLRequest* request, bool blocked_by_policy) {
-    }
+    virtual void OnGetCookies(URLRequest* request, bool blocked_by_policy);
 
     // Called when a cookie is set. |blocked_by_policy| is true if the cookie
     // was rejected due to content settings. This method will never be invoked
     // when LOAD_DO_NOT_SAVE_COOKIES is specified.
     virtual void OnSetCookie(URLRequest* request,
                              const std::string& cookie_line,
-                             bool blocked_by_policy) {
-    }
+                             bool blocked_by_policy);
 
     // After calling Start(), the delegate will receive an OnResponseStarted
     // callback when the request has completed.  If an error occurred, the

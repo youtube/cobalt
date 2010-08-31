@@ -9,6 +9,7 @@
 #include "base/scoped_vector.h"
 #include "base/string_util.h"
 #include "net/base/cache_type.h"
+#include "net/base/cert_status_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_log_unittest.h"
