@@ -61,10 +61,9 @@ class HttpNetworkTransaction : public HttpTransaction,
   virtual void OnStreamFailed(int status);
   virtual void OnCertificateError(int status, const SSLInfo& ssl_info);
   virtual void OnNeedsProxyAuth(
-      const scoped_refptr<HttpAuthController>& auth_controller,
-      const HttpResponseInfo& response_info);
-  virtual void OnNeedsClientAuth(
-      const scoped_refptr<SSLCertRequestInfo>& cert_info);
+      const HttpResponseInfo& response_info,
+      HttpAuthController* auth_controller);
+  virtual void OnNeedsClientAuth(SSLCertRequestInfo* cert_info);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, ResetStateForRestart);

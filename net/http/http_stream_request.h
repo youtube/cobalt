@@ -45,8 +45,7 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
                      StreamFactory::StreamRequestDelegate* delegate,
                      const BoundNetLog& net_log);
   virtual void Cancel();
-  virtual int RestartWithCertificate(
-      const scoped_refptr<X509Certificate>& client_cert);
+  virtual int RestartWithCertificate(X509Certificate* client_cert);
   virtual int RestartTunnelWithProxyAuth(const string16& username,
                                          const string16& password);
   virtual LoadState GetLoadState() const;
@@ -87,11 +86,9 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   void OnStreamReadyCallback(HttpStreamHandle* stream);
   void OnStreamFailedCallback(int result);
   void OnCertificateErrorCallback(int result, const SSLInfo& ssl_info);
-  void OnNeedsProxyAuthCallback(
-      const scoped_refptr<HttpAuthController>& auth_controller,
-      const HttpResponseInfo& response_info);
-  void OnNeedsClientAuthCallback(
-      const scoped_refptr<SSLCertRequestInfo>& cert_info);
+  void OnNeedsProxyAuthCallback(const HttpResponseInfo& response_info,
+                                HttpAuthController* auth_controller);
+  void OnNeedsClientAuthCallback(SSLCertRequestInfo* cert_info);
 
   void OnIOComplete(int result);
   int RunLoop(int result);
