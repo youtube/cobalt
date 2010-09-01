@@ -380,7 +380,6 @@
     ],
   },
   'target_defaults': {
-    'defines': ['V8_REPORT_EXECUTABLE_MEMORY_USAGE'],
     'variables': {
       # The condition that operates on chromium_code is in a target_conditions
       # section, and will not have access to the default fallback value of
