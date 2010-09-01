@@ -122,8 +122,7 @@ void HttpStreamRequest::Cancel() {
   next_state_ = STATE_NONE;
 }
 
-int HttpStreamRequest::RestartWithCertificate(
-    const scoped_refptr<X509Certificate>& client_cert) {
+int HttpStreamRequest::RestartWithCertificate(X509Certificate* client_cert) {
   ssl_config()->client_cert = client_cert;
   ssl_config()->send_client_cert = true;
   next_state_ = STATE_INIT_CONNECTION;
@@ -201,15 +200,15 @@ void HttpStreamRequest::OnCertificateErrorCallback(int result,
 }
 
 void HttpStreamRequest::OnNeedsProxyAuthCallback(
-    const scoped_refptr<HttpAuthController>& auth_controller,
-    const HttpResponseInfo& response) {
+    const HttpResponseInfo& response,
+    HttpAuthController* auth_controller) {
   if (cancelled_)
     return;
-  delegate_->OnNeedsProxyAuth(auth_controller, response);
+  delegate_->OnNeedsProxyAuth(response, auth_controller);
 }
 
 void HttpStreamRequest::OnNeedsClientAuthCallback(
-    const scoped_refptr<SSLCertRequestInfo>& cert_info) {
+    SSLCertRequestInfo* cert_info) {
   if (cancelled_)
     return;
   delegate_->OnNeedsClientAuth(cert_info);
@@ -255,8 +254,8 @@ int HttpStreamRequest::RunLoop(int result) {
         MessageLoop::current()->PostTask(FROM_HERE,
             NewRunnableMethod(this,
                 &HttpStreamRequest::OnNeedsProxyAuthCallback,
-                http_proxy_socket->auth_controller(),
-                *tunnel_auth_response));
+                *tunnel_auth_response,
+                http_proxy_socket->auth_controller()));
       }
       return ERR_IO_PENDING;
 
