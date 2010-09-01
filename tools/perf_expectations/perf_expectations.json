@@ -24,7 +24,7 @@
  "mac-release-10.6/startup/times/t": {"improve": -2, "regress": 22},
  "vista-release-dual-core/dhtml/times/t": {"improve": -0, "regress": 93},
  "vista-release-dual-core/intl1/times/t": {"improve": 270, "regress": 680},
- "vista-release-dual-core/intl2/times/t": {"improve": -97, "regress": 30},
+ "vista-release-dual-core/intl2/times/t": {"improve": -180, "regress": 215},
  "vista-release-dual-core/morejs/times/t": {"improve": -240, "regress": -155},
  "vista-release-dual-core/moz/times/t": {"improve": -3, "regress": 133},
  "vista-release-dual-core/startup/times/t": {"improve": -15, "regress": 15},
