@@ -32,7 +32,7 @@ class UploadDataStream;
 class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
  public:
   // SpdyHttpStream constructor
-  explicit SpdyHttpStream(SpdySession* spdy_session);
+  SpdyHttpStream(SpdySession* spdy_session, bool direct);
   virtual ~SpdyHttpStream();
 
   SpdyStream* stream() { return stream_.get(); }
@@ -173,6 +173,9 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   // Has more data been received from the network during the wait for the
   // scheduled read callback.
   bool more_read_data_pending_;
+
+  // Is this spdy stream direct to the origin server (or to a proxy).
+  bool direct_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyHttpStream);
 };

@@ -1722,6 +1722,65 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxyGet) {
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
 }
 
+// Test a SPDY get through an HTTPS Proxy.
+TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGet) {
+  // Configure against https proxy server "proxy:70".
+  SessionDependencies session_deps(CreateFixedProxyService("https://proxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  // fetch http://www.google.com/ via SPDY
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST,
+                                                   false));
+  MockWrite spdy_writes[] = { CreateMockWrite(*req) };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame(1, true));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*data),
+    MockRead(true, 0, 0),
+  };
+
+  scoped_refptr<DelayedSocketData> spdy_data(
+      new DelayedSocketData(
+          1,  // wait for one write to finish before reading.
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  TestCompletionCallback callback1;
+
+  int rv = trans->Start(&request, &callback1, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ(net::kUploadData, response_data);
+}
+
 // Test the challenge-response-retry sequence through an HTTPS Proxy
 TEST_F(HttpNetworkTransactionTest, HttpsProxyAuthRetry) {
   // Configure against https proxy server "proxy:70".

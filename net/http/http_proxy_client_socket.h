@@ -39,7 +39,8 @@ class HttpProxyClientSocket : public ClientSocket {
                         const HostPortPair& endpoint,
                         const HostPortPair& proxy_server,
                         const scoped_refptr<HttpNetworkSession>& session,
-                        bool tunnel);
+                        bool tunnel,
+                        bool using_spdy);
 
   // On destruction Disconnect() is called.
   virtual ~HttpProxyClientSocket();
@@ -55,6 +56,10 @@ class HttpProxyClientSocket : public ClientSocket {
 
   const scoped_refptr<HttpAuthController>& auth_controller() {
     return auth_;
+  }
+
+  bool using_spdy() {
+    return using_spdy_;
   }
 
   // ClientSocket methods:
@@ -140,6 +145,8 @@ class HttpProxyClientSocket : public ClientSocket {
   const HostPortPair endpoint_;
   scoped_refptr<HttpAuthController> auth_;
   const bool tunnel_;
+  // If true, then the connection to the proxy is a SPDY connection.
+  const bool using_spdy_;
 
   std::string request_headers_;
 
