@@ -812,6 +812,7 @@ void ClientSocketPoolBaseHelper::AbortAllRequests() {
       const Request* request = *it2;
       InvokeUserCallbackLater(
           request->handle(), request->callback(), ERR_ABORTED);
+      delete request;
     }
 
     // Delete group if no longer needed.
