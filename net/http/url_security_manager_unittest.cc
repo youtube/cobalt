@@ -43,7 +43,7 @@ const TestData kTestDataList[] = {
 
 }  // namespace
 
-TEST(URLSecurityManager, CreateWhitelist) {
+TEST(URLSecurityManager, UseDefaultCredentials) {
   HttpAuthFilterWhitelist* auth_filter = new HttpAuthFilterWhitelist(
       kTestAuthWhitelist);
   ASSERT_TRUE(auth_filter);
@@ -61,5 +61,36 @@ TEST(URLSecurityManager, CreateWhitelist) {
         << " Run: " << i << " URL: '" << gurl << "'";
   }
 }
+
+TEST(URLSecurityManager, CanDelegate) {
+  HttpAuthFilterWhitelist* auth_filter = new HttpAuthFilterWhitelist(
+      kTestAuthWhitelist);
+  ASSERT_TRUE(auth_filter);
+  // The URL security manager takes ownership of |auth_filter|.
+  scoped_ptr<URLSecurityManager> url_security_manager(
+      URLSecurityManager::Create(NULL, auth_filter));
+  ASSERT_TRUE(url_security_manager.get());
+
+  for (size_t i = 0; i < arraysize(kTestDataList); ++i) {
+    GURL gurl(kTestDataList[i].url);
+    bool can_delegate = url_security_manager->CanDelegate(gurl);
+    EXPECT_EQ(kTestDataList[i].succeeds_in_whitelist, can_delegate)
+        << " Run: " << i << " URL: '" << gurl << "'";
+  }
+}
+
+TEST(URLSecurityManager, CanDelegate_NoWhitelist) {
+  // Nothing can delegate in this case.
+  scoped_ptr<URLSecurityManager> url_security_manager(
+      URLSecurityManager::Create(NULL, NULL));
+  ASSERT_TRUE(url_security_manager.get());
+
+  for (size_t i = 0; i < arraysize(kTestDataList); ++i) {
+    GURL gurl(kTestDataList[i].url);
+    bool can_delegate = url_security_manager->CanDelegate(gurl);
+    EXPECT_EQ(false, can_delegate);
+  }
+}
+
 
 }  // namespace net
