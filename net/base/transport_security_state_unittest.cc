@@ -344,4 +344,15 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "foo.noisebridge.net"));
 }
 
+TEST_F(TransportSecurityStateTest, LongNames) {
+  scoped_refptr<TransportSecurityState> state(
+      new TransportSecurityState);
+  const char kLongName[] =
+      "lookupByWaveIdHashAndWaveIdIdAndWaveIdDomainAndWaveletIdIdAnd"
+      "WaveletIdDomainAndBlipBlipid";
+  TransportSecurityState::DomainState domain_state;
+  // Just checks that we don't hit a NOTREACHED.
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, kLongName));
+}
+
 }  // namespace net
