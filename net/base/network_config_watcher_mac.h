@@ -21,26 +21,26 @@ namespace net {
 // Base class for watching the Mac OS system network settings.
 class NetworkConfigWatcherMac : public MessageLoop::DestructionObserver {
  public:
-  NetworkConfigWatcherMac();
+  // NOTE: The lifetime of Delegate is expected to exceed the lifetime of
+  // NetworkConfigWatcherMac.
+  class Delegate {
+   public:
+    virtual ~Delegate() {}
 
- protected:
+    // Called to register the notification keys on |store|.
+    // Implementors are expected to call SCDynamicStoreSetNotificationKeys().
+    // Will be called on the notifier thread.
+    virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store) = 0;
+
+    // Called when one of the notification keys has changed.
+    // Will be called on the notifier thread.
+    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) = 0;
+  };
+
+  explicit NetworkConfigWatcherMac(Delegate* delegate);
   virtual ~NetworkConfigWatcherMac();
 
-  // Called to register the notification keys on |store|.
-  // Implementors are expected to call SCDynamicStoreSetNotificationKeys().
-  // Will be called on the notifier thread.
-  virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store) = 0;
-
-  // Called when one of the notification keys has changed.
-  // Will be called on the notifier thread.
-  virtual void OnNetworkConfigChange(CFArrayRef changed_keys) = 0;
-
  private:
-  // Called back by OS.  Calls OnNetworkConfigChange().
-  static void DynamicStoreCallback(SCDynamicStoreRef /* store */,
-                                   CFArrayRef changed_keys,
-                                   void* config);
-
   // MessageLoop::DestructionObserver:
   virtual void WillDestroyCurrentMessageLoop();
 
@@ -56,6 +56,8 @@ class NetworkConfigWatcherMac : public MessageLoop::DestructionObserver {
   scoped_ptr<base::Thread> notifier_thread_;
 
   scoped_cftyperef<CFRunLoopSourceRef> run_loop_source_;
+
+  Delegate* const delegate_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkConfigWatcherMac);
 };

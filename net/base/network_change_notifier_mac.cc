@@ -9,10 +9,14 @@
 
 namespace net {
 
-NetworkChangeNotifierMac::NetworkChangeNotifierMac() {}
+NetworkChangeNotifierMac::NetworkChangeNotifierMac()
+    : forwarder_(this),
+      config_watcher_(&forwarder_) {}
+NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {}
 
 void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
     SCDynamicStoreRef store) {
+  // Called on notifier thread.
   scoped_cftyperef<CFMutableArrayRef> notification_keys(
       CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
   scoped_cftyperef<CFStringRef> key(SCDynamicStoreKeyCreateNetworkGlobalEntity(
