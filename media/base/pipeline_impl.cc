@@ -215,21 +215,30 @@ base::TimeDelta PipelineImpl::GetBufferedTime() {
   AutoLock auto_lock(lock_);
 
   // If media is fully loaded, then return duration.
-  if (loaded_)
+  if (loaded_ || total_bytes_ == buffered_bytes_) {
+    max_buffered_time_ = duration_;
     return duration_;
+  }
 
   // If buffered time was set, we report that value directly.
   if (buffered_time_.ToInternalValue() > 0)
     return buffered_time_;
 
-  if (total_bytes_ == 0 || current_bytes_ == 0)
+  if (total_bytes_ == 0)
     return base::TimeDelta();
 
   // If buffered time was not set, we use current time, current bytes, and
   // buffered bytes to estimate the buffered time.
   double current_time = static_cast<double>(current_bytes_) / total_bytes_ *
                         duration_.InMilliseconds();
-  double rate = current_time / current_bytes_;
+  double rate = 0.0;
+  if (current_bytes_ == 0) {
+    // If we haven't read any bytes, use the length/size of entire video to
+    // estimate rate.
+    rate = static_cast<double>(duration_.InMilliseconds()) / total_bytes_;
+  } else {
+    rate = current_time / current_bytes_;
+  }
   DCHECK_GE(buffered_bytes_, current_bytes_);
   base::TimeDelta buffered_time = base::TimeDelta::FromMilliseconds(
       static_cast<int64>(rate * (buffered_bytes_ - current_bytes_) +
