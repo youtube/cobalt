@@ -60,15 +60,30 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
     const std::string& hostname) {
   // If this list starts growing, it'll need to be something more efficient
   // than a linear list.
-  static const char kFalseStartIncompatibleServers[][23] = {
-      "moneycenter.yodlee.com",
+  static const char kFalseStartIncompatibleServers[][15] = {
       "www.picnik.com",
   };
 
+  static const char kFalseStartIncompatibleDomains[][11] = {
+      // Added at the request of A10.
+      "yodlee.com",
+  };
+
+  // Note that the hostname is normalised to lower-case by this point.
   for (size_t i = 0; i < arraysize(kFalseStartIncompatibleServers); i++) {
-    // Note that the hostname is normalised to lower-case by this point.
     if (strcmp(hostname.c_str(), kFalseStartIncompatibleServers[i]) == 0)
       return true;
+  }
+
+  for (size_t i = 0; i < arraysize(kFalseStartIncompatibleDomains); i++) {
+    const char* domain = kFalseStartIncompatibleDomains[i];
+    const size_t len = strlen(domain);
+    if (hostname.size() >= len &&
+        memcmp(&hostname[hostname.size() - len], domain, len) == 0 &&
+        (hostname.size() == len ||
+         hostname[hostname.size() - len - 1] == '.')) {
+      return true;
+    }
   }
 
   return false;
