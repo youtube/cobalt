@@ -360,7 +360,8 @@ std::string TransportSecurityState::CanonicaliseHost(const std::string& host) {
 
   std::string new_host;
   if (!DNSDomainFromDot(host, &new_host)) {
-    NOTREACHED();
+    // DNSDomainFromDot can fail if any label is > 63 bytes or if the whole
+    // name is >255 bytes. However, search terms can have those properties.
     return std::string();
   }
 
