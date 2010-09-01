@@ -695,6 +695,13 @@ int HttpNetworkTransaction::DoSendRequest() {
     }
 
     request_headers_ = request_line + request_headers.ToString();
+  } else {
+    if (net_log_.IsLoggingAll()) {
+      net_log_.AddEvent(
+          NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+          new NetLogHttpRequestParameter(request_->url.spec(),
+                                         request_->extra_headers));
+    }
   }
 
   headers_valid_ = false;
