@@ -76,7 +76,10 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   };
 
   // SpdyStream constructor
-  SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed);
+  SpdyStream(SpdySession* session,
+             spdy::SpdyStreamId stream_id,
+             bool pushed,
+             const BoundNetLog& net_log);
 
   // Set new |delegate|. |delegate| must not be NULL.
   // If it already received SYN_REPLY or data, OnResponseReceived() or
@@ -137,7 +140,6 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   void DecreaseRecvWindowSize(int delta_window_size);
 
   const BoundNetLog& net_log() const { return net_log_; }
-  void set_net_log(const BoundNetLog& log) { net_log_ = log; }
 
   const linked_ptr<spdy::SpdyHeaderBlock>& spdy_headers() const;
   void set_spdy_headers(const linked_ptr<spdy::SpdyHeaderBlock>& headers);

@@ -530,6 +530,34 @@ EVENT_TYPE(HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART)
 //   }
 EVENT_TYPE(SPDY_SESSION)
 
+// This event is sent for a SPDY SYN_STREAM.
+// The following parameters are attached:
+//   {
+//     "flags": <The control frame flags>,
+//     "headers": <The list of header:value pairs>,
+//     "id": <The stream id>
+//   }
+EVENT_TYPE(SPDY_SESSION_SYN_STREAM)
+
+// This event is sent for a SPDY SYN_STREAM pushed by the server, where a
+// URLRequest is already waiting for the stream.
+// The following parameters are attached:
+//   {
+//     "flags": <The control frame flags>
+//     "headers": <The list of header:value pairs>
+//     "id": <The stream id>
+//   }
+EVENT_TYPE(SPDY_SESSION_PUSHED_SYN_STREAM)
+
+// This event is sent for a SPDY SYN_REPLY.
+// The following parameters are attached:
+//   {
+//     "flags": <The control frame flags>,
+//     "headers": <The list of header:value pairs>,
+//     "id": <The stream id>
+//   }
+EVENT_TYPE(SPDY_SESSION_SYN_REPLY)
+
 // On sending a SPDY SETTINGS frame.
 // The following parameters are attached:
 //   {
@@ -544,22 +572,71 @@ EVENT_TYPE(SPDY_SESSION_SEND_SETTINGS)
 //   }
 EVENT_TYPE(SPDY_SESSION_RECV_SETTINGS)
 
+// The receipt of a RST_STREAM
+// The following parameters are attached:
+//   {
+//     "stream_id": <The stream ID for the window update>
+//     "status": <The reason for the RST_STREAM>
+//   }
+EVENT_TYPE(SPDY_SESSION_RST_STREAM)
+
+// Sending of a RST_STREAM
+// The following parameters are attached:
+//   {
+//     "stream_id": <The stream ID for the window update>
+//     "status": <The reason for the RST_STREAM>
+//   }
+EVENT_TYPE(SPDY_SESSION_SEND_RST_STREAM)
+
 // Receipt of a SPDY GOAWAY frame.
 // The following parameters are attached:
 //   {
 //     "last_accepted_stream_id": <Last stream id accepted by the server, duh>
+//     "active_streams":          <Number of active streams>
+//     "unclaimed_streams":       <Number of unclaimed push streams>
 //   }
 EVENT_TYPE(SPDY_SESSION_GOAWAY)
 
-// This event is sent for a SPDY SYN_STREAM pushed by the server, but no
-// URLRequest has requested it yet.
-// The following parameters are attached:
+// Receipt of a SPDY WINDOW_UPDATE frame (which controls the send window).
 //   {
-//     "flags": <The control frame flags>
-//     "headers": <The list of header:value pairs>
-//     "id": <The stream id>
+//     "stream_id": <The stream ID for the window update>
+//     "delta"    : <The delta window size>
+//     "new_size" : <The new window size (computed)>
 //   }
-EVENT_TYPE(SPDY_SESSION_PUSHED_SYN_STREAM)
+EVENT_TYPE(SPDY_SESSION_SEND_WINDOW_UPDATE)
+
+// Sending of a SPDY WINDOW_UPDATE frame (which controls the receive window).
+//   {
+//     "stream_id": <The stream ID for the window update>
+//     "delta"    : <The delta window size>
+//     "new_size" : <The new window size (computed)>
+//   }
+EVENT_TYPE(SPDY_SESSION_RECV_WINDOW_UPDATE)
+
+// Sending a data frame
+//   {
+//     "stream_id": <The stream ID for the window update>
+//     "length"   : <The size of data sent>
+//     "flags"    : <Send data flags>
+//   }
+EVENT_TYPE(SPDY_SESSION_SEND_DATA)
+
+// Receiving a data frame
+//   {
+//     "stream_id": <The stream ID for the window update>
+//     "length"   : <The size of data sent>
+//     "flags"    : <Send data flags>
+//   }
+EVENT_TYPE(SPDY_SESSION_RECV_DATA)
+
+// Logs that a stream is stalled on the send window being closed.
+EVENT_TYPE(SPDY_SESSION_STALLED_ON_SEND_WINDOW)
+
+// Session is closing
+//   {
+//     "status": <The error status of the closure>
+//   }
+EVENT_TYPE(SPDY_SESSION_CLOSE)
 
 // ------------------------------------------------------------------------
 // SpdySessionPool
@@ -593,24 +670,8 @@ EVENT_TYPE(SPDY_SESSION_POOL_REMOVE_SESSION)
 // SpdyStream
 // ------------------------------------------------------------------------
 
-// This event is sent for a SPDY SYN_STREAM.
-// The following parameters are attached:
-//   {
-//     "flags": <The control frame flags>,
-//     "headers": <The list of header:value pairs>,
-//     "id": <The stream id>
-//   }
-EVENT_TYPE(SPDY_STREAM_SYN_STREAM)
-
-// This event is sent for a SPDY SYN_STREAM pushed by the server, where a
-// URLRequest is already waiting for the stream.
-// The following parameters are attached:
-//   {
-//     "flags": <The control frame flags>
-//     "headers": <The list of header:value pairs>
-//     "id": <The stream id>
-//   }
-EVENT_TYPE(SPDY_STREAM_PUSHED_SYN_STREAM)
+// The begin and end of a SPDY STREAM.
+EVENT_TYPE(SPDY_STREAM)
 
 // Measures the time taken to send headers on a stream.
 EVENT_TYPE(SPDY_STREAM_SEND_HEADERS)
@@ -618,27 +679,14 @@ EVENT_TYPE(SPDY_STREAM_SEND_HEADERS)
 // Measures the time taken to send the body (e.g. a POST) on a stream.
 EVENT_TYPE(SPDY_STREAM_SEND_BODY)
 
-// This event is sent for a SPDY SYN_REPLY.
-// The following parameters are attached:
-//   {
-//     "flags": <The control frame flags>,
-//     "headers": <The list of header:value pairs>,
-//     "id": <The stream id>
-//   }
-EVENT_TYPE(SPDY_STREAM_SYN_REPLY)
+// Measures the time taken to send headers on a stream.
+EVENT_TYPE(SPDY_STREAM_RECV_HEADERS)
 
 // Measures the time taken to read the body on a stream.
 EVENT_TYPE(SPDY_STREAM_READ_BODY)
 
 // Logs that a stream attached to a pushed stream.
 EVENT_TYPE(SPDY_STREAM_ADOPTED_PUSH_STREAM)
-
-// The receipt of a RST_STREAM
-// The following parameters are attached:
-//   {
-//     "status": <The reason for the RST_STREAM>
-//   }
-EVENT_TYPE(SPDY_STREAM_RST_STREAM)
 
 // ------------------------------------------------------------------------
 // HttpStreamParser
