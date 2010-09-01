@@ -641,6 +641,9 @@ DelayedSocketData::DelayedSocketData(
   set_connect_data(connect);
 }
 
+DelayedSocketData::~DelayedSocketData() {
+}
+
 MockRead DelayedSocketData::GetNextRead() {
   if (write_delay_ > 0)
     return MockRead(true, ERR_IO_PENDING);

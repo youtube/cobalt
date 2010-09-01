@@ -7,7 +7,6 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "base/compiler_specific.h"
 #include "base/task.h"
 #include "net/disk_cache/disk_format.h"
 #include "net/disk_cache/rankings.h"
@@ -21,10 +20,8 @@ class EntryImpl;
 // integrated with BackendImpl.
 class Eviction {
  public:
-  Eviction()
-      : backend_(NULL), init_(false),
-        ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {}
-  ~Eviction() {}
+  Eviction();
+  ~Eviction();
 
   void Init(BackendImpl* backend);
   void Stop();
