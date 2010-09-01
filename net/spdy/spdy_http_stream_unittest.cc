@@ -68,7 +68,8 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   TestCompletionCallback callback;
   HttpResponseInfo response;
   BoundNetLog net_log;
-  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream(session_.get()));
+  scoped_ptr<SpdyHttpStream> http_stream(
+      new SpdyHttpStream(session_.get(), true));
   ASSERT_EQ(
       OK,
       http_stream->InitializeStream(&request, net_log, NULL));
@@ -118,7 +119,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   TestCompletionCallback callback;
   HttpResponseInfo response;
   BoundNetLog net_log;
-  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream(session_));
+  scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream(session_, true));
   ASSERT_EQ(
       OK,
       http_stream->InitializeStream(&request, net_log, NULL));

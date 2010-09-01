@@ -132,6 +132,7 @@ class HttpProxyConnectJob : public ConnectJob {
   CompletionCallbackImpl<HttpProxyConnectJob> callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<ClientSocket> transport_socket_;
+  bool using_spdy_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxyConnectJob);
 };
