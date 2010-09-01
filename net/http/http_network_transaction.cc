@@ -416,8 +416,8 @@ void HttpNetworkTransaction::OnCertificateError(int result,
 }
 
 void HttpNetworkTransaction::OnNeedsProxyAuth(
-    const scoped_refptr<HttpAuthController>& auth_controller,
-    const HttpResponseInfo& proxy_response) {
+    const HttpResponseInfo& proxy_response,
+    HttpAuthController* auth_controller) {
   DCHECK(stream_request_.get());
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
 
@@ -433,7 +433,7 @@ void HttpNetworkTransaction::OnNeedsProxyAuth(
 }
 
 void HttpNetworkTransaction::OnNeedsClientAuth(
-    const scoped_refptr<SSLCertRequestInfo>& cert_info) {
+    SSLCertRequestInfo* cert_info) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
 
   response_.cert_request_info = cert_info;
