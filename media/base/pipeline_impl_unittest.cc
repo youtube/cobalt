@@ -497,7 +497,10 @@ TEST_F(PipelineImplTest, Properties) {
             pipeline_->GetMediaDuration().ToInternalValue());
   EXPECT_EQ(kTotalBytes, pipeline_->GetTotalBytes());
   EXPECT_EQ(kBufferedBytes, pipeline_->GetBufferedBytes());
-  EXPECT_EQ(0,
+
+  // Because kTotalBytes and kBufferedBytes are equal to each other,
+  // the entire video should be buffered.
+  EXPECT_EQ(kDuration.ToInternalValue(),
             pipeline_->GetBufferedTime().ToInternalValue());
 }
 
@@ -516,24 +519,28 @@ TEST_F(PipelineImplTest, GetBufferedTime) {
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
 
-  // If media is loaded, we should return duration of media.
-  pipeline_->SetLoaded(true);
-  EXPECT_EQ(kDuration.ToInternalValue(),
-            pipeline_->GetBufferedTime().ToInternalValue());
-  pipeline_->SetLoaded(false);
+  // TODO(vrk): The following mini-test cases are order-dependent, and should
+  // probably be separated into independent test cases.
 
-  // Buffered time is 0 if no bytes are buffered or read.
+  // Buffered time is 0 if no bytes are buffered.
   pipeline_->SetBufferedBytes(0);
-  EXPECT_EQ(0, pipeline_->GetBufferedTime().ToInternalValue());
-  pipeline_->SetBufferedBytes(kBufferedBytes);
-
-  pipeline_->SetCurrentReadPosition(0);
   EXPECT_EQ(0, pipeline_->GetBufferedTime().ToInternalValue());
 
   // We should return buffered_time_ if it is set and valid.
   const base::TimeDelta buffered = base::TimeDelta::FromSeconds(10);
   pipeline_->SetBufferedTime(buffered);
   EXPECT_EQ(buffered.ToInternalValue(),
+            pipeline_->GetBufferedTime().ToInternalValue());
+
+  // If media has been fully received, we should return the duration
+  // of the media.
+  pipeline_->SetBufferedBytes(kTotalBytes);
+  EXPECT_EQ(kDuration.ToInternalValue(),
+            pipeline_->GetBufferedTime().ToInternalValue());
+
+  // If media is loaded, we should return duration of media.
+  pipeline_->SetLoaded(true);
+  EXPECT_EQ(kDuration.ToInternalValue(),
             pipeline_->GetBufferedTime().ToInternalValue());
 }
 
