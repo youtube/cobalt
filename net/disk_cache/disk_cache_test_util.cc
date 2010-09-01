@@ -151,6 +151,9 @@ MessageLoopHelper::MessageLoopHelper()
       TimeDelta::FromMilliseconds(50), this, &MessageLoopHelper::TimerExpired);
 }
 
+MessageLoopHelper::~MessageLoopHelper() {
+}
+
 bool MessageLoopHelper::WaitUntilCacheIoFinished(int num_callbacks) {
   if (num_callbacks == g_cache_tests_received)
     return true;
