@@ -339,6 +339,49 @@ int BackendImpl::Init(CompletionCallback* callback) {
   return net::ERR_IO_PENDING;
 }
 
+BackendImpl::BackendImpl(const FilePath& path,
+                         base::MessageLoopProxy* cache_thread)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(background_queue_(this, cache_thread)),
+      path_(path),
+      block_files_(path),
+      mask_(0),
+      max_size_(0),
+      cache_type_(net::DISK_CACHE),
+      uma_report_(0),
+      user_flags_(0),
+      init_(false),
+      restarted_(false),
+      unit_test_(false),
+      read_only_(false),
+      new_eviction_(false),
+      first_timer_(true),
+      done_(true, false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
+}
+
+BackendImpl::BackendImpl(const FilePath& path,
+                         uint32 mask,
+                         base::MessageLoopProxy* cache_thread)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(background_queue_(this, cache_thread)),
+      path_(path),
+      block_files_(path),
+      mask_(mask),
+      max_size_(0),
+      cache_type_(net::DISK_CACHE),
+      uma_report_(0),
+      user_flags_(kMask),
+      init_(false),
+      restarted_(false),
+      unit_test_(false),
+      read_only_(false),
+      new_eviction_(false),
+      first_timer_(true),
+      done_(true, false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
+}
+
 BackendImpl::~BackendImpl() {
   background_queue_.WaitForPendingIO();
 

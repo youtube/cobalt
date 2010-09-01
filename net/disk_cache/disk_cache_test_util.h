@@ -76,6 +76,7 @@ class CallbackTest : public CallbackRunner< Tuple1<int> >  {
 class MessageLoopHelper {
  public:
   MessageLoopHelper();
+  ~MessageLoopHelper();
 
   // Run the message loop and wait for num_callbacks before returning. Returns
   // false if we are waiting to long.
