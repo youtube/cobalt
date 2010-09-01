@@ -69,6 +69,10 @@ class CertDatabase {
   int AddUserCert(X509Certificate* cert);
 
 #if defined(USE_NSS)
+  // Get a list of unique certificates in the certificate database.  (One
+  // instance of all certificates.)
+  void ListCerts(CertificateList* certs);
+
   // Import certificates and private keys from PKCS #12 blob.
   // Returns OK or a network error code such as ERR_PKCS12_IMPORT_BAD_PASSWORD
   // or ERR_PKCS12_IMPORT_ERROR.

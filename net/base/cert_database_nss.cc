@@ -89,6 +89,22 @@ int CertDatabase::AddUserCert(X509Certificate* cert_obj) {
   return OK;
 }
 
+void CertDatabase::ListCerts(CertificateList* certs) {
+  certs->clear();
+
+  CERTCertList* cert_list = PK11_ListCerts(PK11CertListUnique, NULL);
+  CERTCertListNode* node;
+  for (node = CERT_LIST_HEAD(cert_list);
+       !CERT_LIST_END(node, cert_list);
+       node = CERT_LIST_NEXT(node)) {
+    certs->push_back(X509Certificate::CreateFromHandle(
+        node->cert,
+        X509Certificate::SOURCE_LONE_CERT_IMPORT,
+        X509Certificate::OSCertHandles()));
+  }
+  CERT_DestroyCertList(cert_list);
+}
+
 int CertDatabase::ImportFromPKCS12(
     const std::string& data, const string16& password) {
   return psm::nsPKCS12Blob_Import(data.data(), data.size(), password);
