@@ -16,6 +16,7 @@
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/tcp_client_socket_pool.h"
+#include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
@@ -67,7 +68,8 @@ HttpProxyConnectJob::HttpProxyConnectJob(
       ssl_pool_(ssl_pool),
       resolver_(host_resolver),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &HttpProxyConnectJob::OnIOComplete)) {
+          callback_(this, &HttpProxyConnectJob::OnIOComplete)),
+      using_spdy_(false) {
 }
 
 HttpProxyConnectJob::~HttpProxyConnectJob() {}
@@ -182,6 +184,10 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
     return result;
   }
 
+  SSLClientSocket* ssl =
+      static_cast<SSLClientSocket*>(transport_socket_handle_->socket());
+  using_spdy_ = ssl->was_spdy_negotiated();
+
   // Reset the timer to just the length of time allowed for HttpProxy handshake
   // so that a fast SSL connection plus a slow HttpProxy failure doesn't take
   // longer to timeout than it should.
@@ -204,7 +210,8 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
                                 params_->user_agent(),
                                 params_->endpoint(),
                                 proxy_server, params_->session(),
-                                params_->tunnel()));
+                                params_->tunnel(),
+                                using_spdy_));
   int result = transport_socket_->Connect(&callback_);
 
   // Clear the circular reference to HttpNetworkSession (|params_| reference
