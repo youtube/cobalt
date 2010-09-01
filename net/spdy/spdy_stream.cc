@@ -11,8 +11,10 @@
 
 namespace net {
 
-SpdyStream::SpdyStream(
-    SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed)
+SpdyStream::SpdyStream(SpdySession* session,
+                       spdy::SpdyStreamId stream_id,
+                       bool pushed,
+                       const BoundNetLog& net_log)
     : continue_buffering_data_(true),
       stream_id_(stream_id),
       priority_(0),
@@ -29,13 +31,17 @@ SpdyStream::SpdyStream(
       io_state_(STATE_NONE),
       response_status_(OK),
       cancelled_(false),
+      has_upload_data_(false),
+      net_log_(net_log),
       send_bytes_(0),
       recv_bytes_(0) {
+  net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM,
+                      new NetLogIntegerParameter("stream_id", stream_id_));
 }
 
 SpdyStream::~SpdyStream() {
-  DLOG(INFO) << "Deleting SpdyStream for stream " << stream_id_;
   UpdateHistograms();
+  net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM, NULL);
 }
 
 void SpdyStream::SetDelegate(Delegate* delegate) {
