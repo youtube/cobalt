@@ -427,6 +427,17 @@ int HttpStreamRequest::DoInitConnection() {
     next_state_ = STATE_CREATE_STREAM;
     return OK;
   }
+  // Check next if we have a spdy session for this proxy.  If so, then go
+  // straight to using that.
+  if (proxy_info()->is_https()) {
+    HostPortProxyPair proxy(proxy_info()->proxy_server().host_port_pair(),
+                            proxy_info()->proxy_server());
+    if (session_->spdy_session_pool()->HasSession(proxy)) {
+      using_spdy_ = true;
+      next_state_ = STATE_CREATE_STREAM;
+      return OK;
+    }
+  }
 
   // Build the string used to uniquely identify connections of this type.
   // Determine the host and port to connect to.
@@ -569,6 +580,14 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
     }
     if (force_spdy_over_ssl_ && force_spdy_always_)
       using_spdy_ = true;
+  } else if (proxy_info()->is_https() && connection_->socket() &&
+        result == OK) {
+    HttpProxyClientSocket* proxy_socket =
+      static_cast<HttpProxyClientSocket*>(connection_->socket());
+    if (proxy_socket->using_spdy()) {
+      was_npn_negotiated_ = true;
+      using_spdy_ = true;
+    }
   }
 
   // We may be using spdy without SSL
@@ -654,15 +673,29 @@ int HttpStreamRequest::DoCreateStream() {
 
   CHECK(!stream_.get());
 
+  bool direct = true;
   const scoped_refptr<SpdySessionPool> spdy_pool =
       session_->spdy_session_pool();
   scoped_refptr<SpdySession> spdy_session;
 
-  HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
-  if (session_->spdy_session_pool()->HasSession(pair)) {
+  const ProxyServer& proxy_server = proxy_info()->proxy_server();
+  HostPortProxyPair pair(endpoint_, proxy_server);
+  if (spdy_pool->HasSession(pair)) {
+    // We have a SPDY session to the origin server.  This might be a direct
+    // connection, or it might be a SPDY session through an HTTP or HTTPS proxy.
     spdy_session =
-        session_->spdy_session_pool()->Get(pair, session_, net_log_);
-  } else {
+        spdy_pool->Get(pair, session_, net_log_);
+  } else if (proxy_info()->is_https()) {
+    // If we don't have a direct SPDY session, and we're using an HTTPS
+    // proxy, then we might have a SPDY session to the proxy
+    pair = HostPortProxyPair(proxy_server.host_port_pair(), proxy_server);
+    if (spdy_pool->HasSession(pair)) {
+      spdy_session = spdy_pool->Get(pair, session_, net_log_);
+    }
+    direct = false;
+  }
+
+  if (!spdy_session.get()) {
     // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
     // extension, or just directly using SSL. Either way, |connection_| must
     // contain an SSLClientSocket.
@@ -677,7 +710,7 @@ int HttpStreamRequest::DoCreateStream() {
   if (spdy_session->IsClosed())
     return ERR_CONNECTION_CLOSED;
 
-  SpdyHttpStream* stream = new SpdyHttpStream(spdy_session);
+  SpdyHttpStream* stream = new SpdyHttpStream(spdy_session, direct);
   stream_.reset(new HttpStreamHandle(NULL, stream));
   return OK;
 }
