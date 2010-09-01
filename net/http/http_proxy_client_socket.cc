@@ -53,7 +53,8 @@ HttpProxyClientSocket::HttpProxyClientSocket(
     ClientSocketHandle* transport_socket, const GURL& request_url,
     const std::string& user_agent, const HostPortPair& endpoint,
     const HostPortPair& proxy_server,
-    const scoped_refptr<HttpNetworkSession>& session, bool tunnel)
+    const scoped_refptr<HttpNetworkSession>& session, bool tunnel,
+    bool using_spdy)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
       next_state_(STATE_NONE),
@@ -65,6 +66,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
                                  GURL("http://" + proxy_server.ToString()),
                                  session) : NULL),
       tunnel_(tunnel),
+      using_spdy_(using_spdy),
       net_log_(transport_socket->socket()->NetLog()) {
   // Synthesize the bits of a request that we actually use.
   request_.url = request_url;
@@ -83,7 +85,12 @@ int HttpProxyClientSocket::Connect(CompletionCallback* callback) {
   DCHECK(transport_->socket());
   DCHECK(!user_callback_);
 
-  if (!tunnel_)
+  // TODO(rch): figure out the right way to set up a tunnel with SPDY.
+  // This approach sends the complete HTTPS request to the proxy
+  // which allows the proxy to see "private" data.  Instead, we should
+  // create an SSL tunnel to the origin server using the CONNECT method
+  // inside a single SPDY stream.
+  if (using_spdy_ || !tunnel_)
     next_state_ = STATE_DONE;
   if (next_state_ == STATE_DONE)
     return OK;

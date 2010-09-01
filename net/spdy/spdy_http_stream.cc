@@ -91,7 +91,8 @@ bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
 // Create a SpdyHeaderBlock for a Spdy SYN_STREAM Frame from
 // a HttpRequestInfo block.
 void CreateSpdyHeadersFromHttpRequest(
-    const net::HttpRequestInfo& info, spdy::SpdyHeaderBlock* headers) {
+    const net::HttpRequestInfo& info, spdy::SpdyHeaderBlock* headers,
+    bool direct) {
   // TODO(willchan): It's not really necessary to convert from
   // HttpRequestHeaders to spdy::SpdyHeaderBlock.
 
@@ -131,7 +132,10 @@ void CreateSpdyHeadersFromHttpRequest(
     (*headers)["content-length"] = "0";
   }
 
-  (*headers)["url"] = net::HttpUtil::PathForRequest(info.url);
+  if (direct)
+    (*headers)["url"] = net::HttpUtil::PathForRequest(info.url);
+  else
+    (*headers)["url"] = net::HttpUtil::SpecForRequest(info.url);
   (*headers)["host"] = net::GetHostAndOptionalPort(info.url);
   (*headers)["scheme"] = info.url.scheme();
   (*headers)["version"] = kHttpProtocolVersion;
@@ -151,7 +155,7 @@ void CreateSpdyHeadersFromHttpRequest(
 
 namespace net {
 
-SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session)
+SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session, bool direct)
     : ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_factory_(this)),
       stream_(NULL),
       spdy_session_(spdy_session),
@@ -160,7 +164,8 @@ SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session)
       user_callback_(NULL),
       user_buffer_len_(0),
       buffered_read_callback_pending_(false),
-      more_read_data_pending_(false) { }
+      more_read_data_pending_(false),
+      direct_(direct) { }
 
 SpdyHttpStream::~SpdyHttpStream() {
   if (stream_)
@@ -279,7 +284,7 @@ int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
   stream_->SetDelegate(this);
 
   linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
-  CreateSpdyHeadersFromHttpRequest(*request_info_, headers.get());
+  CreateSpdyHeadersFromHttpRequest(*request_info_, headers.get(), direct_);
   stream_->set_spdy_headers(headers);
 
   stream_->SetRequestTime(request_time);
