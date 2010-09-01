@@ -1210,7 +1210,6 @@ void HostResolverImpl::OnIPAddressChanged() {
     ipv6_probe_job_ = new IPv6ProbeJob(this);
     ipv6_probe_job_->Start();
   }
-  AbortAllJobs();
 #if defined(OS_LINUX)
   if (HaveOnlyLoopbackAddresses()) {
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
@@ -1218,6 +1217,8 @@ void HostResolverImpl::OnIPAddressChanged() {
     additional_resolver_flags_ &= ~HOST_RESOLVER_LOOPBACK_ONLY;
   }
 #endif
+  AbortAllJobs();
+  // |this| may be deleted inside AbortAllJobs().
 }
 
 void HostResolverImpl::DiscardIPv6ProbeJob() {
