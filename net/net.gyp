@@ -730,6 +730,7 @@
         'base/ssl_cipher_suite_names_unittest.cc',
         'base/ssl_client_auth_cache_unittest.cc',
         'base/ssl_config_service_mac_unittest.cc',
+        'base/ssl_config_service_unittest.cc',
         'base/ssl_config_service_win_unittest.cc',
         'base/static_cookie_policy_unittest.cc',
         'base/transport_security_state_unittest.cc',
