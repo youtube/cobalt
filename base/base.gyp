@@ -98,6 +98,7 @@
         'json/json_reader_unittest.cc',
         'json/json_writer_unittest.cc',
         'json/string_escape_unittest.cc',
+        'keyboard_code_conversion_unittest.cc',
         'lazy_instance_unittest.cc',
         'leak_tracker_unittest.cc',
         'linked_list_unittest.cc',
