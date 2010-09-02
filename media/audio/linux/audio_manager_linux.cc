@@ -8,9 +8,18 @@
 #include "base/logging.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
+#include "media/audio/linux/alsa_input.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
+#include "media/base/limits.h"
 #include "media/base/media_switches.h"
+
+namespace {
+
+const int kMaxInputChannels = 2;
+const int kMaxSamplesPerPacket = media::Limits::kMaxSampleRate;
+
+}  // namespace
 
 // Implementation of AudioManager.
 bool AudioManagerLinux::HasAudioOutputDevices() {
@@ -19,8 +28,8 @@ bool AudioManagerLinux::HasAudioOutputDevices() {
 }
 
 bool AudioManagerLinux::HasAudioInputDevices() {
-  // TODO(satish): implement.
-  return false;
+  // TODO(satish): Make this actually query audio devices.
+  return true;
 }
 
 AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
@@ -36,9 +45,10 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
   }
 
   std::string device_name = AlsaPcmOutputStream::kAutoSelectDevice;
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAlsaDevice)) {
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kAlsaOutputDevice)) {
     device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-        switches::kAlsaDevice);
+        switches::kAlsaOutputDevice);
   }
   AlsaPcmOutputStream* stream =
       new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this,
@@ -51,11 +61,29 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
 
 AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
     AudioParameters params, int samples_per_packet) {
+  if (!params.IsValid() || params.channels > kMaxInputChannels ||
+      samples_per_packet < 0 || samples_per_packet > kMaxSamplesPerPacket)
+    return NULL;
+
   if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
+  } else if (params.format != AudioParameters::AUDIO_PCM_LINEAR) {
+    return NULL;
   }
-  // TODO(satish): implement.
-  return NULL;
+
+  if (!initialized())
+    return NULL;
+
+  std::string device_name = AlsaPcmOutputStream::kAutoSelectDevice;
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAlsaInputDevice)) {
+    device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+        switches::kAlsaInputDevice);
+  }
+
+  AlsaPcmInputStream* stream = new AlsaPcmInputStream(
+      device_name, params, samples_per_packet, wrapper_.get());
+
+  return stream;
 }
 
 AudioManagerLinux::AudioManagerLinux() {
