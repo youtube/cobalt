@@ -27,9 +27,10 @@ class AddressList {
   // canonicalized IP address.
   AddressList(const IPAddressNumber& address, int port, bool canonicalize_name);
 
-  // Adopt the given addrinfo list in place of the existing one if any.  This
-  // hands over responsibility for freeing the addrinfo list to the AddressList
-  // object.
+  // Adopt the given addrinfo list (assumed to have been created by
+  // the system, e.g. returned by getaddrinfo()) in place of the
+  // existing one if any.  This hands over responsibility for freeing
+  // the addrinfo list to the AddressList object.
   void Adopt(struct addrinfo* head);
 
   // Copies the given addrinfo rather than adopting it. If |recursive| is true,
