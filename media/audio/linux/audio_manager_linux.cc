@@ -50,7 +50,7 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
-    AudioParameters params, uint32 samples_per_packet) {
+    AudioParameters params, int samples_per_packet) {
   if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
   }

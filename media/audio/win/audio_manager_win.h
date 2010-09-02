@@ -24,7 +24,7 @@ class AudioManagerWin : public AudioManagerBase {
   virtual bool HasAudioInputDevices();
   virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params);
   virtual AudioInputStream* MakeAudioInputStream(AudioParameters params,
-                                                 uint32 samples_per_packet);
+                                                 int samples_per_packet);
   virtual void MuteAll();
   virtual void UnMuteAll();
 
