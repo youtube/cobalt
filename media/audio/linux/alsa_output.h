@@ -142,10 +142,6 @@ class AlsaPcmOutputStream :
   static uint32 FramesToMicros(uint32 frames, uint32 sample_rate);
   static uint32 FramesToMillis(uint32 frames, uint32 sample_rate);
   std::string FindDeviceForChannels(uint32 channels);
-  snd_pcm_t* OpenDevice(const std::string& device_name,
-                        uint32 channels,
-                        uint32 latency);
-  bool CloseDevice(snd_pcm_t* handle);
   snd_pcm_sframes_t GetAvailableFrames();
 
   // Attempts to find the best matching linux audio device for the given number

@@ -82,6 +82,7 @@
 #include "base/stl_util-inl.h"
 #include "base/time.h"
 #include "media/audio/audio_util.h"
+#include "media/audio/linux/alsa_util.h"
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/audio/linux/audio_manager_linux.h"
 #include "media/base/data_buffer.h"
@@ -118,25 +119,6 @@ namespace {
 // ALSA is currently limited to 48Khz.
 // TODO(fbarchard): Resample audio from higher frequency to 48000.
 const int kAlsaMaxSampleRate = 48000;
-
-snd_pcm_format_t BitsToFormat(char bits_per_sample) {
-  switch (bits_per_sample) {
-    case 8:
-      return SND_PCM_FORMAT_U8;
-
-    case 16:
-      return SND_PCM_FORMAT_S16;
-
-    case 24:
-      return SND_PCM_FORMAT_S24;
-
-    case 32:
-      return SND_PCM_FORMAT_S32;
-
-    default:
-      return SND_PCM_FORMAT_UNKNOWN;
-  }
-}
 
 // While the "default" device may support multi-channel audio, in Alsa, only
 // the device names surround40, surround41, surround50, etc, have a defined
@@ -243,7 +225,7 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
                                          MessageLoop* message_loop)
     : shared_data_(MessageLoop::current()),
       requested_device_name_(device_name),
-      pcm_format_(BitsToFormat(params.bits_per_sample)),
+      pcm_format_(alsa_util::BitsToFormat(params.bits_per_sample)),
       channels_(params.channels),
       sample_rate_(params.sample_rate),
       bytes_per_sample_(params.bits_per_sample / 8),
@@ -391,7 +373,11 @@ void AlsaPcmOutputStream::OpenTask(uint32 packet_size) {
     }
   } else {
     device_name_ = requested_device_name_;
-    playback_handle_ = OpenDevice(device_name_, channels_, latency_micros_);
+    playback_handle_ = alsa_util::OpenPlaybackDevice(wrapper_,
+                                                     device_name_.c_str(),
+                                                     channels_, sample_rate_,
+                                                     pcm_format_,
+                                                     latency_micros_);
   }
 
   // Finish initializing the stream if the device was opened successfully.
@@ -454,7 +440,8 @@ void AlsaPcmOutputStream::CloseTask() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // Shutdown the audio device.
-  if (playback_handle_ && !CloseDevice(playback_handle_)) {
+  if (playback_handle_ &&
+      alsa_util::CloseDevice(wrapper_, playback_handle_) < 0) {
     LOG(WARNING) << "Unable to close audio device. Leaking handle.";
   }
   playback_handle_ = NULL;
@@ -727,53 +714,6 @@ std::string AlsaPcmOutputStream::FindDeviceForChannels(uint32 channels) {
   return guessed_device;
 }
 
-snd_pcm_t* AlsaPcmOutputStream::OpenDevice(const std::string& device_name,
-                                           uint32 channels,
-                                           unsigned int latency) {
-  snd_pcm_t* handle = NULL;
-  int error = wrapper_->PcmOpen(&handle, device_name.c_str(),
-                                SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK);
-  if (error < 0) {
-    LOG(ERROR) << "Cannot open audio device (" << device_name << "): "
-               << wrapper_->StrError(error);
-    return NULL;
-  }
-
-  // Configure the device for software resampling.
-  if ((error = wrapper_->PcmSetParams(handle,
-                                      pcm_format_,
-                                      SND_PCM_ACCESS_RW_INTERLEAVED,
-                                      channels,
-                                      sample_rate_,
-                                      1,  // soft_resample -- let ALSA resample
-                                      latency)) < 0) {
-    LOG(ERROR) << "Unable to set PCM parameters for (" << device_name
-               << "): " << wrapper_->StrError(error)
-               << " -- Format: " << pcm_format_
-               << " Channels: " << channels
-               << " Latency (us): " << latency;
-    if (!CloseDevice(handle)) {
-      // TODO(ajwong): Retry on certain errors?
-      LOG(WARNING) << "Unable to close audio device. Leaking handle.";
-    }
-    return NULL;
-  }
-
-  return handle;
-}
-
-bool AlsaPcmOutputStream::CloseDevice(snd_pcm_t* handle) {
-  std::string name = wrapper_->PcmName(handle);
-  int error = wrapper_->PcmClose(handle);
-  if (error < 0) {
-    LOG(ERROR) << "Error closing audio device (" << name << "): "
-               << wrapper_->StrError(error);
-    return false;
-  }
-
-  return true;
-}
-
 snd_pcm_sframes_t AlsaPcmOutputStream::GetAvailableFrames() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
@@ -812,13 +752,19 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
 
   // Step 1.
   if (!device_name_.empty()) {
-    if ((handle = OpenDevice(device_name_, channels_, latency)) != NULL) {
+    if ((handle = alsa_util::OpenPlaybackDevice(wrapper_, device_name_.c_str(),
+                                                channels_, sample_rate_,
+                                                pcm_format_,
+                                                latency)) != NULL) {
       return handle;
     }
 
     // Step 2.
     device_name_ = kPlugPrefix + device_name_;
-    if ((handle = OpenDevice(device_name_, channels_, latency)) != NULL) {
+    if ((handle = alsa_util::OpenPlaybackDevice(wrapper_, device_name_.c_str(),
+                                                channels_, sample_rate_,
+                                                pcm_format_,
+                                                latency)) != NULL) {
       return handle;
     }
   }
@@ -837,13 +783,17 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
 
   // Step 3.
   device_name_ = kDefaultDevice;
-  if ((handle = OpenDevice(device_name_, default_channels, latency)) != NULL) {
+  if ((handle = alsa_util::OpenPlaybackDevice(wrapper_, device_name_.c_str(),
+                                              default_channels, sample_rate_,
+                                              pcm_format_, latency)) != NULL) {
     return handle;
   }
 
   // Step 4.
   device_name_ = kPlugPrefix + device_name_;
-  if ((handle = OpenDevice(device_name_, default_channels, latency)) != NULL) {
+  if ((handle = alsa_util::OpenPlaybackDevice(wrapper_, device_name_.c_str(),
+                                              default_channels, sample_rate_,
+                                              pcm_format_, latency)) != NULL) {
     return handle;
   }
 
