@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "base/string16.h"
+
 namespace base {
 
 bool SplitStringIntoKeyValues(
@@ -22,6 +24,14 @@ bool SplitStringIntoKeyValuePairs(
     char key_value_delimiter,
     char key_value_pair_delimiter,
     std::vector<std::pair<std::string, std::string> >* kv_pairs);
+
+// The same as SplitString, but use a substring delimiter instead of a char.
+void SplitStringUsingSubstr(const string16& str,
+                            const string16& s,
+                            std::vector<string16>* r);
+void SplitStringUsingSubstr(const std::string& str,
+                            const std::string& s,
+                            std::vector<std::string>* r);
 
 }  // namespace base
 
