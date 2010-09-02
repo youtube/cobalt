@@ -25,7 +25,7 @@ class NullAudioManager : public AudioManager {
     return NULL;
   }
   virtual AudioInputStream* MakeAudioInputStream(AudioParameters params,
-                                                 uint32 samples_per_packet) {
+                                                 int samples_per_packet) {
     NOTIMPLEMENTED();
     return NULL;
   }

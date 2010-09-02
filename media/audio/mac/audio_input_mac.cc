@@ -19,7 +19,7 @@ enum {
 PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
     AudioManagerMac* manager,
     AudioParameters params,
-    uint32 samples_per_buffer)
+    int samples_per_buffer)
     : manager_(manager),
       callback_(NULL),
       audio_queue_(NULL),

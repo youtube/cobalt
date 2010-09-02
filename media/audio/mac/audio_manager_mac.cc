@@ -9,8 +9,12 @@
 #include "media/audio/mac/audio_input_mac.h"
 #include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
+#include "media/base/limits.h"
 
 namespace {
+const int kMaxInputChannels = 2;
+const int kMaxSamplesPerPacket = media::Limits::kMaxSampleRate;
+
 bool HasAudioHardware(AudioObjectPropertySelector selector) {
   AudioDeviceID output_device_id = kAudioObjectUnknown;
   const AudioObjectPropertyAddress property_address = {
@@ -48,7 +52,11 @@ AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerMac::MakeAudioInputStream(
-    AudioParameters params, uint32 samples_per_packet) {
+    AudioParameters params, int samples_per_packet) {
+  if (!params.IsValid() || (params.channels > kMaxInputChannels) ||
+      (samples_per_packet > kMaxSamplesPerPacket) || (samples_per_packet < 0))
+    return NULL;
+
   if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {

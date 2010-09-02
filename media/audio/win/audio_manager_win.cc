@@ -65,7 +65,7 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
 
 // Factory for the implementations of AudioInputStream.
 AudioInputStream* AudioManagerWin::MakeAudioInputStream(
-    AudioParameters params, uint32 samples_per_packet) {
+    AudioParameters params, int samples_per_packet) {
   if (!params.IsValid() || (params.channels > kWinMaxInputChannels) ||
       (samples_per_packet > kMaxSamplesPerPacket) || (samples_per_packet < 0))
     return NULL;
