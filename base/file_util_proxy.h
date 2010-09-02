@@ -21,11 +21,13 @@ struct FileInfo;
 namespace base {
 
 namespace file_util_proxy {
-  // Holds metadata for file or directory entry.
+
+// Holds metadata for file or directory entry.
 struct Entry {
   FilePath::StringType name;
-  bool isDirectory;
+  bool is_directory;
 };
+
 }  // namespace file_util_proxy
 
 class MessageLoopProxy;

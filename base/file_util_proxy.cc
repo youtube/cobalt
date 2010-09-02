@@ -377,7 +377,7 @@ class RelayReadDirectory : public MessageLoopRelay {
       base::file_util_proxy::Entry entry;
       file_util::FileEnumerator::FindInfo info;
       file_enum.GetFindInfo(&info);
-      entry.isDirectory = file_enum.IsDirectory(info);
+      entry.is_directory = file_enum.IsDirectory(info);
       // This will just give the entry's name instead of entire path
       // if we use current.value().
       entry.name = file_util::FileEnumerator::GetFilename(info).value();
