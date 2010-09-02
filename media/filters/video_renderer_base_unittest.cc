@@ -6,6 +6,7 @@
 #include "base/stl_util-inl.h"
 #include "media/base/callback.h"
 #include "media/base/data_buffer.h"
+#include "media/base/limits.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
 #include "media/base/video_frame.h"
@@ -75,6 +76,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(*renderer_, OnStop(NotNull()))
         .WillOnce(DoAll(OnStop(), Return()))
         .RetiresOnSaturation();
+
     EXPECT_CALL(callback_, OnFilterCallback());
     EXPECT_CALL(callback_, OnCallbackDestroyed());
     renderer_->Stop(callback_.NewCallback());
@@ -175,6 +177,10 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
   EXPECT_CALL(callback_, OnFilterCallback());
   EXPECT_CALL(callback_, OnCallbackDestroyed());
 
+  // Initialize, we shouldn't have any reads.
+  renderer_->Initialize(decoder_, callback_.NewCallback());
+  EXPECT_EQ(0u, read_queue_.size());
+
   // Verify the following expectations haven't run until we complete the reads.
   EXPECT_CALL(*renderer_, CheckPoint(0));
 
@@ -185,27 +191,40 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
   EXPECT_CALL(seek_callback, OnFilterCallback());
   EXPECT_CALL(seek_callback, OnCallbackDestroyed());
 
-  // Initialize, we shouldn't have any reads.
-  renderer_->Initialize(decoder_, callback_.NewCallback());
-  EXPECT_EQ(0u, read_queue_.size());
-
   // Now seek to trigger prerolling.
   renderer_->Seek(base::TimeDelta(), seek_callback.NewCallback());
-  EXPECT_LT(0u, read_queue_.size());
 
   // Verify our seek callback hasn't been executed yet.
   renderer_->CheckPoint(0);
 
   // Now satisfy the read requests.  Our callback should be executed after
   // exiting this loop.
-  while (!read_queue_.empty()) {
+  for (unsigned int i = 0; i < Limits::kMaxVideoFrames; i++) {
     const base::TimeDelta kZero;
     scoped_refptr<VideoFrame> frame;
     VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight, kZero,
                             kZero, &frame);
     decoder_->fill_buffer_done_callback()->Run(frame);
-    read_queue_.pop_front();
   }
+
+  MockFilterCallback play_callback;
+  EXPECT_CALL(play_callback, OnFilterCallback());
+  EXPECT_CALL(play_callback, OnCallbackDestroyed());
+
+  renderer_->Play(play_callback.NewCallback());
+
+  StrictMock<MockFilterCallback> pause_callback;
+  EXPECT_CALL(pause_callback, OnFilterCallback());
+  EXPECT_CALL(pause_callback, OnCallbackDestroyed());
+  renderer_->Pause(pause_callback.NewCallback());
+
+  EXPECT_CALL(*decoder_, ProvidesBuffer())
+      .WillRepeatedly(Return(true));
+
+  StrictMock<MockFilterCallback> flush_callback;
+  EXPECT_CALL(flush_callback, OnFilterCallback());
+  EXPECT_CALL(flush_callback, OnCallbackDestroyed());
+  renderer_->Flush(flush_callback.NewCallback());
 }
 
 }  // namespace media

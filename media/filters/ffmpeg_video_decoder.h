@@ -5,6 +5,8 @@
 #ifndef MEDIA_FILTERS_FFMPEG_VIDEO_DECODER_H_
 #define MEDIA_FILTERS_FFMPEG_VIDEO_DECODER_H_
 
+#include <deque>
+
 #include "base/gtest_prod_util.h"
 #include "base/time.h"
 #include "media/base/factory.h"
@@ -33,6 +35,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   // MediaFilter implementation.
   virtual void Stop(FilterCallback* callback);
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
+  virtual void Pause(FilterCallback* callback);
   virtual void Flush(FilterCallback* callback);
 
   // Decoder implementation.
@@ -77,6 +80,8 @@ class FFmpegVideoDecoder : public VideoDecoder,
     kNormal,
     kFlushCodec,
     kDecodeFinished,
+    kPausing,
+    kFlushing,
     kStopped
   };
 
@@ -87,6 +92,9 @@ class FFmpegVideoDecoder : public VideoDecoder,
   // TODO(jiesun): until demuxer pass scoped_refptr<Buffer>: we could not merge
   // this with OnReadComplete
   void OnReadCompleteTask(scoped_refptr<Buffer> buffer);
+
+  // Flush the output buffers that we had held in Paused state.
+  void FlushBuffers();
 
   // Attempt to get the PTS and Duration for this frame by examining the time
   // info provided via packet stream (stored in |pts_heap|), or the info
@@ -115,16 +123,13 @@ class FFmpegVideoDecoder : public VideoDecoder,
   DecoderState state_;
   scoped_refptr<VideoDecodeEngine> decode_engine_;
 
-  // Tracks the number of asynchronous reads issued to |demuxer_stream_|.
-  // Using size_t since it is always compared against deque::size().
-  size_t pending_reads_;
-  // Tracks the number of asynchronous reads issued from renderer.
-  size_t pending_requests_;
-
   scoped_ptr<FilterCallback> initialize_callback_;
   scoped_ptr<FilterCallback> uninitialize_callback_;
   scoped_ptr<FilterCallback> flush_callback_;
   scoped_ptr<FilterCallback> seek_callback_;
+
+  // Hold video frames when flush happens.
+  std::deque<scoped_refptr<VideoFrame> > frame_queue_flushed_;
 
   VideoCodecInfo info_;
 
