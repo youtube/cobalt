@@ -17,7 +17,7 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_interfaces.h"
 #include "media/filters/ffmpeg_video_decoder.h"
-#include "media/video/video_decode_engine.h"
+#include "media/filters/video_decode_engine.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
