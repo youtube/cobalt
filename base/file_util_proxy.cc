@@ -4,7 +4,6 @@
 
 #include "base/file_util_proxy.h"
 
-#include "base/file_util.h"
 #include "base/message_loop_proxy.h"
 
 // TODO(jianli): Move the code from anonymous namespace to base namespace so
@@ -16,7 +15,7 @@ class MessageLoopRelay
  public:
   MessageLoopRelay()
       : origin_message_loop_proxy_(
-          base::MessageLoopProxy::CreateForCurrentThread()),
+            base::MessageLoopProxy::CreateForCurrentThread()),
         error_code_(base::PLATFORM_FILE_OK) {
   }
 
@@ -200,13 +199,201 @@ class RelayDelete : public RelayWithStatusCallback {
 
  protected:
   virtual void RunWork() {
-    if (!file_util::Delete(file_path_, recursive_))
+    if (!file_util::PathExists(file_path_)) {
+      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      return;
+    }
+    if (!file_util::Delete(file_path_, recursive_)) {
+      if (!recursive_ && !file_util::IsDirectoryEmpty(file_path_)) {
+        set_error_code(base::PLATFORM_FILE_ERROR_INVALID_OPERATION);
+        return;
+      }
       set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+    }
   }
 
  private:
   FilePath file_path_;
   bool recursive_;
+};
+
+class RelayCopy : public RelayWithStatusCallback {
+ public:
+  RelayCopy(const FilePath& src_file_path,
+            const FilePath& dest_file_path,
+            base::FileUtilProxy::StatusCallback* callback)
+      : RelayWithStatusCallback(callback),
+        src_file_path_(src_file_path),
+        dest_file_path_(dest_file_path) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    bool dest_path_exists = file_util::PathExists(dest_file_path_);
+    if (!dest_path_exists &&
+        !file_util::DirectoryExists(dest_file_path_.DirName())) {
+      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      return;
+    }
+    // |src_file_path| exists and is a directory.
+    // |dest_file_path| exists and is a file.
+    if (file_util::DirectoryExists(src_file_path_) &&
+        dest_path_exists && !file_util::DirectoryExists(dest_file_path_)) {
+      set_error_code(base::PLATFORM_FILE_ERROR_NOT_A_DIRECTORY);
+      return;
+    }
+    if (file_util::ContainsPath(src_file_path_, dest_file_path_)) {
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+      return;
+    }
+    if (!file_util::CopyDirectory(src_file_path_, dest_file_path_,
+        true /* recursive */)) {
+      if (!file_util::PathExists(src_file_path_)) {
+        set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+        return;
+      }
+      if (src_file_path_.value() == dest_file_path_.value()) {
+        set_error_code(base::PLATFORM_FILE_ERROR_EXISTS);
+        return;
+      }
+      // Something else went wrong.
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+    }
+  }
+
+ private:
+  FilePath src_file_path_;
+  FilePath dest_file_path_;
+};
+
+class RelayMove : public RelayWithStatusCallback {
+ public:
+  RelayMove(const FilePath& src_file_path,
+            const FilePath& dest_file_path,
+            base::FileUtilProxy::StatusCallback* callback)
+      : RelayWithStatusCallback(callback),
+        src_file_path_(src_file_path),
+        dest_file_path_(dest_file_path) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    bool dest_path_exists = file_util::PathExists(dest_file_path_);
+    if (!dest_path_exists &&
+        !file_util::DirectoryExists(dest_file_path_.DirName())) {
+      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      return;
+    }
+    // |src_file_path| exists and is a directory.
+    // |dest_file_path| exists and is a file.
+    if (file_util::DirectoryExists(src_file_path_) &&
+          dest_path_exists &&
+          !file_util::DirectoryExists(dest_file_path_)) {
+      set_error_code(base::PLATFORM_FILE_ERROR_EXISTS);
+      return;
+    }
+    if (file_util::ContainsPath(src_file_path_, dest_file_path_)) {
+      set_error_code(base::PLATFORM_FILE_ERROR_INVALID_OPERATION);
+      return;
+    }
+    if (!file_util::Move(src_file_path_, dest_file_path_)) {
+      if (!file_util::PathExists(src_file_path_)) {
+        set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+        return;
+      }
+      if (src_file_path_.value() == dest_file_path_.value()) {
+        set_error_code(base::PLATFORM_FILE_ERROR_EXISTS);
+        return;
+      }
+      // Something else went wrong.
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+    }
+  }
+
+ private:
+  FilePath src_file_path_;
+  FilePath dest_file_path_;
+};
+
+class RelayCreateDirectory : public RelayWithStatusCallback {
+ public:
+  RelayCreateDirectory(
+      const FilePath& file_path,
+      bool exclusive,
+      base::FileUtilProxy::StatusCallback* callback)
+      : RelayWithStatusCallback(callback),
+        file_path_(file_path),
+        exclusive_(exclusive) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    bool path_exists = file_util::PathExists(file_path_);
+    // If parent dir of file doesn't exist.
+    if (!file_util::PathExists(file_path_.DirName())) {
+      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      return;
+    }
+    if (exclusive_ && path_exists) {
+      set_error_code(base::PLATFORM_FILE_ERROR_EXISTS);
+      return;
+    }
+    // If file exists at the path.
+    if (path_exists && !file_util::DirectoryExists(file_path_)) {
+      set_error_code(base::PLATFORM_FILE_ERROR_EXISTS);
+      return;
+    }
+    if (!file_util::CreateDirectory(file_path_))
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+  }
+
+ private:
+  FilePath file_path_;
+  bool exclusive_;
+};
+
+class RelayReadDirectory : public MessageLoopRelay {
+ public:
+  RelayReadDirectory(const FilePath& file_path,
+      base::FileUtilProxy::ReadDirectoryCallback* callback)
+      : callback_(callback), file_path_(file_path) {
+    DCHECK(callback);
+  }
+
+ protected:
+  virtual void RunWork() {
+    // TODO(kkanetkar): Implement directory read in multiple chunks.
+    if (!file_util::DirectoryExists(file_path_)) {
+      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      return;
+    }
+
+    file_util::FileEnumerator file_enum(
+        file_path_, false, static_cast<file_util::FileEnumerator::FILE_TYPE>(
+        file_util::FileEnumerator::FILES |
+        file_util::FileEnumerator::DIRECTORIES));
+    FilePath current;
+    while (!(current = file_enum.Next()).empty()) {
+      base::file_util_proxy::Entry entry;
+      file_util::FileEnumerator::FindInfo info;
+      file_enum.GetFindInfo(&info);
+      entry.isDirectory = file_enum.IsDirectory(info);
+      // This will just give the entry's name instead of entire path
+      // if we use current.value().
+      entry.name = file_util::FileEnumerator::GetFilename(info).value();
+      entries_.push_back(entry);
+    }
+  }
+
+  virtual void RunCallback() {
+    callback_->Run(error_code(), entries_);
+    delete callback_;
+  }
+
+ private:
+  base::FileUtilProxy::ReadDirectoryCallback* callback_;
+  FilePath file_path_;
+  std::vector<base::file_util_proxy::Entry> entries_;
 };
 
 class RelayGetFileInfo : public MessageLoopRelay {
@@ -220,6 +407,10 @@ class RelayGetFileInfo : public MessageLoopRelay {
 
  protected:
   virtual void RunWork() {
+    if (!file_util::PathExists(file_path_)) {
+      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      return;
+    }
     if (!file_util::GetFileInfo(file_path_, &file_info_))
       set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
   }
@@ -263,6 +454,16 @@ bool FileUtilProxy::CreateTemporary(
 }
 
 // static
+bool FileUtilProxy::CreateDirectory(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    bool exclusive,
+    StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayCreateDirectory(
+      file_path, exclusive, callback));
+}
+
+// static
 bool FileUtilProxy::Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                           base::PlatformFile file_handle,
                           StatusCallback* callback) {
@@ -279,6 +480,43 @@ bool FileUtilProxy::Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
 }
 
 // static
+bool FileUtilProxy::Copy(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+                         const FilePath& src_file_path,
+                         const FilePath& dest_file_path,
+                         StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayCopy(src_file_path, dest_file_path, callback));
+}
+
+// static
+bool FileUtilProxy::Move(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+                         const FilePath& src_file_path,
+                         const FilePath& dest_file_path,
+                         StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayMove(src_file_path, dest_file_path, callback));
+}
+
+// static
+bool FileUtilProxy::ReadDirectory(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    ReadDirectoryCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayReadDirectory(
+               file_path, callback));
+}
+
+// Retrieves the information about a file. It is invalid to pass NULL for the
+// callback.
+bool FileUtilProxy::GetFileInfo(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    GetFileInfoCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayGetFileInfo(
+               file_path, callback));
+}
+
+// static
 bool FileUtilProxy::RecursiveDelete(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path,
@@ -287,13 +525,4 @@ bool FileUtilProxy::RecursiveDelete(
                new RelayDelete(file_path, true, callback));
 }
 
-// static
-bool FileUtilProxy::GetFileInfo(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& file_path,
-    GetFileInfoCallback* callback) {
-  return Start(FROM_HERE, message_loop_proxy,
-               new RelayGetFileInfo(file_path, callback));
-}
-
-} // namespace base
+}  // namespace base

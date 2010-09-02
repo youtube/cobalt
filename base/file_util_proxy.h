@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_FILE_SYSTEM_PROXY_H_
-#define BASE_FILE_SYSTEM_PROXY_H_
+#ifndef BASE_FILE_UTIL_PROXY_H_
+#define BASE_FILE_UTIL_PROXY_H_
+
+#include <vector>
 
 #include "base/callback.h"
+#include "base/file_path.h"
+#include "base/file_util.h"
 #include "base/platform_file.h"
 #include "base/ref_counted.h"
 #include "base/tracked_objects.h"
@@ -15,6 +19,14 @@ struct FileInfo;
 }
 
 namespace base {
+
+namespace file_util_proxy {
+  // Holds metadata for file or directory entry.
+struct Entry {
+  FilePath::StringType name;
+  bool isDirectory;
+};
+}  // namespace file_util_proxy
 
 class MessageLoopProxy;
 
@@ -51,17 +63,6 @@ class FileUtilProxy {
                     base::PlatformFile,
                     StatusCallback* callback);
 
-  // Deletes a file or empty directory.
-  static bool Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                     const FilePath& file_path,
-                     StatusCallback* callback);
-
-  // Deletes a directory and all of its contents.
-  static bool RecursiveDelete(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      const FilePath& file_path,
-      StatusCallback* callback);
-
   // Retrieves the information about a file. It is invalid to pass NULL for the
   // callback.
   typedef Callback2<base::PlatformFileError /* error code */,
@@ -72,10 +73,56 @@ class FileUtilProxy {
       const FilePath& file_path,
       GetFileInfoCallback* callback);
 
+  typedef Callback2<base::PlatformFileError /* error code */,
+      const std::vector<base::file_util_proxy::Entry>&
+       >::Type ReadDirectoryCallback;
+  static bool ReadDirectory(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+                            const FilePath& file_path,
+                            ReadDirectoryCallback* callback);
+
+  // Copies a file or a directory from |src_file_path| to |dest_file_path|
+  // Error cases:
+  // If destination file doesn't exist or destination's parent
+  // doesn't exists.
+  // If source dir exists but destination path is an existing file.
+  // If source is a parent of destination.
+  // If source doesn't exists.
+  static bool Copy(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+                   const FilePath& src_file_path,
+                   const FilePath& dest_file_path,
+                   StatusCallback* callback);
+
+  // Creates directory at given path. It's an error to create
+  // if |exclusive| is true and dir already exists.
+  static bool CreateDirectory(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const FilePath& file_path,
+      bool exclusive,
+      StatusCallback* callback);
+
+  // Deletes a file or empty directory.
+  static bool Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+                     const FilePath& file_path,
+                     StatusCallback* callback);
+
+  // Moves a file or a directory from src_file_path to dest_file_path.
+  // Error cases are similar to Copy method's error cases.
+  static bool Move(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const FilePath& src_file_path,
+      const FilePath& dest_file_path,
+      StatusCallback* callback);
+
+  // Deletes a directory and all of its contents.
+  static bool RecursiveDelete(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const FilePath& file_path,
+      StatusCallback* callback);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FileUtilProxy);
 };
 
-} // namespace base
+}  // namespace base
 
-#endif  // BASE_FILE_SYSTEM_PROXY_H_
+#endif  // BASE_FILE_UTIL_PROXY_H_
