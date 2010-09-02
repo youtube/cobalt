@@ -524,6 +524,10 @@ void TCPClientSocketWin::SetOmniboxSpeculation() {
   use_history_.set_subresource_speculation();
 }
 
+bool TCPClientSocketWin::WasEverUsed() const {
+  return use_history_.was_used_to_convey_data();
+}
+
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionCallback* callback) {

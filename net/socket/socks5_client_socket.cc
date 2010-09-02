@@ -122,6 +122,14 @@ void SOCKS5ClientSocket::SetOmniboxSpeculation() {
   }
 }
 
+bool SOCKS5ClientSocket::WasEverUsed() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->WasEverUsed();
+  }
+  NOTREACHED();
+  return false;
+}
+
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.
 int SOCKS5ClientSocket::Read(IOBuffer* buf, int buf_len,

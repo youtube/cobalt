@@ -252,10 +252,9 @@ class ClientSocketPoolBaseHelper
 
   // Entry for a persistent socket which became idle at time |start_time|.
   struct IdleSocket {
-    IdleSocket() : socket(NULL), used(false) {}
+    IdleSocket() : socket(NULL) {}
     ClientSocket* socket;
     base::TimeTicks start_time;
-    bool used;  // Indicates whether or not the socket has been used yet.
 
     // An idle socket should be removed if it can't be reused, or has been idle
     // for too long. |now| is the current time value (TimeTicks::Now()).
@@ -396,9 +395,8 @@ class ClientSocketPoolBaseHelper
                      Group* group,
                      const BoundNetLog& net_log);
 
-  // Adds |socket| to the list of idle sockets for |group|.  |used| indicates
-  // whether or not the socket has previously been used.
-  void AddIdleSocket(ClientSocket* socket, bool used, Group* group);
+  // Adds |socket| to the list of idle sockets for |group|.
+  void AddIdleSocket(ClientSocket* socket, Group* group);
 
   // Iterates through |group_map_|, canceling all ConnectJobs and deleting
   // groups if they are no longer needed.

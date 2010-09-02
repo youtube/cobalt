@@ -286,8 +286,8 @@ bool ClientSocketPoolBaseHelper::AssignIdleSocketToGroup(
       base::TimeDelta idle_time =
           base::TimeTicks::Now() - idle_socket.start_time;
       HandOutSocket(
-          idle_socket.socket, idle_socket.used, request->handle(), idle_time,
-          group, request->net_log());
+          idle_socket.socket, idle_socket.socket->WasEverUsed(),
+          request->handle(), idle_time, group, request->net_log());
       return true;
     }
     delete idle_socket.socket;
@@ -447,8 +447,11 @@ bool ClientSocketPoolBaseHelper::IdleSocket::ShouldCleanup(
     base::TimeTicks now,
     base::TimeDelta timeout) const {
   bool timed_out = (now - start_time) >= timeout;
-  return timed_out ||
-      !(used ? socket->IsConnectedAndIdle() : socket->IsConnected());
+  if (timed_out)
+    return true;
+  if (socket->WasEverUsed())
+    return !socket->IsConnectedAndIdle();
+  return !socket->IsConnected();
 }
 
 void ClientSocketPoolBaseHelper::CleanupIdleSockets(bool force) {
@@ -474,7 +477,8 @@ void ClientSocketPoolBaseHelper::CleanupIdleSockets(bool force) {
     std::deque<IdleSocket>::iterator j = group->mutable_idle_sockets()->begin();
     while (j != group->idle_sockets().end()) {
       base::TimeDelta timeout =
-          j->used ? used_idle_socket_timeout_ : unused_idle_socket_timeout_;
+          j->socket->WasEverUsed() ?
+          used_idle_socket_timeout_ : unused_idle_socket_timeout_;
       if (force || j->ShouldCleanup(now, timeout)) {
         delete j->socket;
         j = group->mutable_idle_sockets()->erase(j);
@@ -553,7 +557,7 @@ void ClientSocketPoolBaseHelper::ReleaseSocket(const std::string& group_name,
       id == pool_generation_number_;
   if (can_reuse) {
     // Add it to the idle list.
-    AddIdleSocket(socket, true /* used socket */, group);
+    AddIdleSocket(socket, group);
     OnAvailableSocketSlot(group_name, group);
   } else {
     delete socket;
@@ -651,7 +655,7 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
       r->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL, NULL);
       InvokeUserCallbackLater(r->handle(), r->callback(), result);
     } else {
-      AddIdleSocket(socket.release(), false /* unused socket */, group);
+      AddIdleSocket(socket.release(), group);
       OnAvailableSocketSlot(group_name, group);
       CheckForStalledSocketGroups();
     }
@@ -771,12 +775,11 @@ void ClientSocketPoolBaseHelper::HandOutSocket(
 }
 
 void ClientSocketPoolBaseHelper::AddIdleSocket(
-    ClientSocket* socket, bool used, Group* group) {
+    ClientSocket* socket, Group* group) {
   DCHECK(socket);
   IdleSocket idle_socket;
   idle_socket.socket = socket;
   idle_socket.start_time = base::TimeTicks::Now();
-  idle_socket.used = used;
 
   group->mutable_idle_sockets()->push_back(idle_socket);
   IncrementIdleCount();
