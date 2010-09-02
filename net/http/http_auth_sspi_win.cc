@@ -21,13 +21,15 @@ namespace {
 
 int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
                                        const SEC_WCHAR* package) {
+  LOG(INFO) << "AcquireCredentialsHandle returned " << status;
   switch (status) {
     case SEC_E_OK:
       return OK;
     case SEC_E_INSUFFICIENT_MEMORY:
       return ERR_OUT_OF_MEMORY;
     case SEC_E_INTERNAL_ERROR:
-      return ERR_UNEXPECTED;
+      LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
+      return ERR_UNEXPECTED_SSPI_STATUS;
     case SEC_E_NO_CREDENTIALS:
     case SEC_E_NOT_OWNER:
     case SEC_E_UNKNOWN_CREDENTIALS:
@@ -37,8 +39,8 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
       LOG(ERROR) << "Received SEC_E_SECPKG_NOT_FOUND for " << package;
       return ERR_UNSUPPORTED_AUTH_SCHEME;
     default:
-      LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
-      return ERR_UNEXPECTED;
+      LOG(ERROR) << "Undocumented SECURITY_STATUS " << status;
+      return ERR_UNDOCUMENTED_SSPI_STATUS;
   }
 }
 
@@ -230,6 +232,7 @@ int HttpAuthSSPI::OnFirstRound(const string16* username,
 namespace {
 
 int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
+  LOG(INFO) << "InitializeSecurityContext returned " << status;
   switch (status) {
     case SEC_E_OK:
     case SEC_I_CONTINUE_NEEDED:
@@ -242,27 +245,29 @@ int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
       // These are return codes reported by InitializeSecurityContext
       // but not expected by Chrome (for example, INCOMPLETE_CREDENTIALS
       // and INCOMPLETE_MESSAGE are intended for schannel).
-      LOG(ERROR) << "Unmapped SECURITY_STATUS " << status;
-      return ERR_UNMAPPED_SSPI_ERROR;
+      LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
+      return ERR_UNEXPECTED_SSPI_STATUS;
     case SEC_E_INSUFFICIENT_MEMORY:
       return ERR_OUT_OF_MEMORY;
     case SEC_E_UNSUPPORTED_FUNCTION:
-      // This indicates a programming error.
       NOTREACHED();
       return ERR_UNEXPECTED;
+    case SEC_E_INVALID_HANDLE:
+      NOTREACHED();
+      return ERR_INVALID_HANDLE;
     case SEC_E_INVALID_TOKEN:
       return ERR_INVALID_RESPONSE;
     case SEC_E_LOGON_DENIED:
+      return ERR_ACCESS_DENIED;
     case SEC_E_NO_CREDENTIALS:
     case SEC_E_WRONG_PRINCIPAL:
-    case SEC_E_INVALID_HANDLE:
       return ERR_INVALID_AUTH_CREDENTIALS;
     case SEC_E_NO_AUTHENTICATING_AUTHORITY:
     case SEC_E_TARGET_UNKNOWN:
       return ERR_MISCONFIGURED_AUTH_ENVIRONMENT;
     default:
-      LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
-      return ERR_UNEXPECTED;
+      LOG(ERROR) << "Undocumented SECURITY_STATUS " << status;
+      return ERR_UNDOCUMENTED_SSPI_STATUS;
   }
 }
 
