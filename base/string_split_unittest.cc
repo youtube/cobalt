@@ -3,7 +3,10 @@
 // found in the LICENSE file.
 
 #include "base/string_split.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using ::testing::ElementsAre;
 
 namespace base {
 
@@ -127,6 +130,51 @@ TEST_F(SplitStringIntoKeyValuePairsTest, DelimiterInValue) {
   EXPECT_EQ("va:ue1", kv_pairs[0].second);
   EXPECT_EQ("key2", kv_pairs[1].first);
   EXPECT_EQ("value2", kv_pairs[1].second);
+}
+
+TEST(SplitStringUsingSubstrTest, EmptyString) {
+  std::vector<std::string> results;
+  SplitStringUsingSubstr("", "DELIMITER", &results);
+  ASSERT_EQ(1u, results.size());
+  EXPECT_THAT(results, ElementsAre(""));
+}
+
+TEST(SplitStringUsingSubstrTest, StringWithNoDelimiter) {
+  std::vector<std::string> results;
+  SplitStringUsingSubstr("alongwordwithnodelimiter", "DELIMITER", &results);
+  ASSERT_EQ(1u, results.size());
+  EXPECT_THAT(results, ElementsAre("alongwordwithnodelimiter"));
+}
+
+TEST(SplitStringUsingSubstrTest, LeadingDelimitersSkipped) {
+  std::vector<std::string> results;
+  SplitStringUsingSubstr(
+      "DELIMITERDELIMITERDELIMITERoneDELIMITERtwoDELIMITERthree",
+      "DELIMITER",
+      &results);
+  ASSERT_EQ(6u, results.size());
+  EXPECT_THAT(results, ElementsAre("", "", "", "one", "two", "three"));
+}
+
+TEST(SplitStringUsingSubstrTest, ConsecutiveDelimitersSkipped) {
+  std::vector<std::string> results;
+  SplitStringUsingSubstr(
+      "unoDELIMITERDELIMITERDELIMITERdosDELIMITERtresDELIMITERDELIMITERcuatro",
+      "DELIMITER",
+      &results);
+  ASSERT_EQ(7u, results.size());
+  EXPECT_THAT(results, ElementsAre("uno", "", "", "dos", "tres", "", "cuatro"));
+}
+
+TEST(SplitStringUsingSubstrTest, TrailingDelimitersSkipped) {
+  std::vector<std::string> results;
+  SplitStringUsingSubstr(
+      "unDELIMITERdeuxDELIMITERtroisDELIMITERquatreDELIMITERDELIMITERDELIMITER",
+      "DELIMITER",
+      &results);
+  ASSERT_EQ(7u, results.size());
+  EXPECT_THAT(
+      results, ElementsAre("un", "deux", "trois", "quatre", "", "", ""));
 }
 
 }  // namespace base
