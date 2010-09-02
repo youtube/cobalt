@@ -786,4 +786,4 @@ EVENT_TYPE(APPCACHE_DELIVERING_ERROR_RESPONSE)
 
 // This event is emitted whenever NetworkChangeNotifier determines that the
 // underlying network has changed.
-EVENT_TYPE(NETWORK_IP_ADDRESSSES_CHANGED)
+EVENT_TYPE(NETWORK_IP_ADDRESSES_CHANGED)
