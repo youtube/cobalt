@@ -308,6 +308,10 @@ static pid_t fork_and_get_task(task_t* child_task) {
   std::string mach_connection_name = StringPrintf(
       "com.google.Chrome.samplingfork.%p.%d",
       child_task, base::RandInt(0, std::numeric_limits<int>::max()));
+
+  // Create the mach receive port before forking to ensure that it exists when
+  // the child tries to connect.  Mach ports are not duped into the child, so
+  // this is safe to set up here.
   ReceivePort parent_recv_port(mach_connection_name.c_str());
 
   // Error handling philosophy: If Mach IPC fails, don't touch |child_task| but
