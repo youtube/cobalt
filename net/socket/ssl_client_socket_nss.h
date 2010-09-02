@@ -58,6 +58,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual const BoundNetLog& NetLog() const { return net_log_; }
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
+  virtual bool WasEverUsed() const;
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);

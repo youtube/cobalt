@@ -39,6 +39,7 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
   virtual const BoundNetLog& NetLog() const { return net_log_; }
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
+  virtual bool WasEverUsed() const;
 
   // Socket methods:
   // Multiple outstanding requests are not supported.

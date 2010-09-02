@@ -541,4 +541,8 @@ void TCPClientSocketLibevent::SetOmniboxSpeculation() {
   use_history_.set_subresource_speculation();
 }
 
+bool TCPClientSocketLibevent::WasEverUsed() const {
+  return use_history_.was_used_to_convey_data();
+}
+
 }  // namespace net
