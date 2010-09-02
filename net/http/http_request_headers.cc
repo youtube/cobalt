@@ -5,6 +5,7 @@
 #include "net/http/http_request_headers.h"
 
 #include "base/logging.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "net/http/http_util.h"
 
@@ -139,7 +140,8 @@ void HttpRequestHeaders::AddHeadersFromString(
   // TODO(willchan): Consider adding more StringPiece support in string_util.h
   // to eliminate copies.
   std::vector<std::string> header_line_vector;
-  SplitStringUsingSubstr(headers.as_string(), "\r\n", &header_line_vector);
+  base::SplitStringUsingSubstr(headers.as_string(), "\r\n",
+                               &header_line_vector);
   for (std::vector<std::string>::const_iterator it = header_line_vector.begin();
        it != header_line_vector.end(); ++it) {
     if (!it->empty())
