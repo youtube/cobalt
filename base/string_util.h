@@ -534,14 +534,6 @@ void SplitStringDontTrim(const std::string& str,
                          char s,
                          std::vector<std::string>* r);
 
-// The same as SplitString, but use a substring delimiter instead of a char.
-void SplitStringUsingSubstr(const string16& str,
-                            const string16& s,
-                            std::vector<string16>* r);
-void SplitStringUsingSubstr(const std::string& str,
-                            const std::string& s,
-                            std::vector<std::string>* r);
-
 // Splits a string into its fields delimited by any of the characters in
 // |delimiters|.  Each field is added to the |tokens| vector.  Returns the
 // number of tokens found.
