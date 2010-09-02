@@ -126,19 +126,19 @@
         'filters/ffmpeg_glue.h',
         'filters/ffmpeg_interfaces.cc',
         'filters/ffmpeg_interfaces.h',
+        'filters/ffmpeg_video_allocator.cc',
+        'filters/ffmpeg_video_allocator.h',
+        'filters/ffmpeg_video_decode_engine.cc',
+        'filters/ffmpeg_video_decode_engine.h',
         'filters/ffmpeg_video_decoder.cc',
         'filters/ffmpeg_video_decoder.h',
         'filters/file_data_source.cc',
         'filters/file_data_source.h',
         'filters/null_audio_renderer.cc',
         'filters/null_audio_renderer.h',
+        'filters/video_decode_engine.h',
         'filters/video_renderer_base.cc',
         'filters/video_renderer_base.h',
-        'video/ffmpeg_video_allocator.cc',
-        'video/ffmpeg_video_allocator.h',
-        'video/ffmpeg_video_decode_engine.cc',
-        'video/ffmpeg_video_decode_engine.h',
-        'video/video_decode_engine.h',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -170,6 +170,8 @@
         }],
         ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
           'sources': [
+            'filters/omx_video_decode_engine.cc',
+            'filters/omx_video_decode_engine.h',
             'filters/omx_video_decoder.cc',
             'filters/omx_video_decoder.h',
           ],
@@ -270,12 +272,12 @@
         'filters/decoder_base_unittest.cc',
         'filters/ffmpeg_demuxer_unittest.cc',
         'filters/ffmpeg_glue_unittest.cc',
+        'filters/ffmpeg_video_decode_engine_unittest.cc',
         'filters/ffmpeg_video_decoder_unittest.cc',
         'filters/file_data_source_unittest.cc',
         'filters/video_renderer_base_unittest.cc',
         'omx/mock_omx.cc',
         'omx/mock_omx.h',
-        'video/ffmpeg_video_decode_engine_unittest.cc',
       ],
       'conditions': [
         ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
@@ -567,10 +569,10 @@
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
           ],
           'sources': [
+            'filters/omx_video_decode_engine.cc',
+            'filters/omx_video_decode_engine.cc',
             'omx/omx_configurator.cc',
             'omx/omx_configurator.h',
-            'video/omx_video_decode_engine.cc',
-            'video/omx_video_decode_engine.cc',
           ],
           'hard_dependency': 1,
           'export_dependent_settings': [
