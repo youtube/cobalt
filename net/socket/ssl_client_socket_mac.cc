@@ -607,6 +607,14 @@ void SSLClientSocketMac::SetOmniboxSpeculation() {
   }
 }
 
+bool SSLClientSocketMac::WasEverUsed() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->WasEverUsed();
+  }
+  NOTREACHED();
+  return false;
+}
+
 int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(completed_handshake_);

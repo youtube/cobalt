@@ -197,6 +197,14 @@ void HttpProxyClientSocket::SetOmniboxSpeculation() {
   }
 }
 
+bool HttpProxyClientSocket::WasEverUsed() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->WasEverUsed();
+  }
+  NOTREACHED();
+  return false;
+}
+
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 CompletionCallback* callback) {
   DCHECK(!user_callback_);

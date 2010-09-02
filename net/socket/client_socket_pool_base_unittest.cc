@@ -42,7 +42,7 @@ typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
 class MockClientSocket : public ClientSocket {
  public:
-  MockClientSocket() : connected_(false) {}
+  MockClientSocket() : connected_(false), was_used_to_convey_data_(false) {}
 
   // Socket methods:
   virtual int Read(
@@ -51,8 +51,9 @@ class MockClientSocket : public ClientSocket {
   }
 
   virtual int Write(
-      IOBuffer* /* buf */, int /* len */, CompletionCallback* /* callback */) {
-    return ERR_UNEXPECTED;
+      IOBuffer* /* buf */, int len, CompletionCallback* /* callback */) {
+    was_used_to_convey_data_ = true;
+    return len;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
   virtual bool SetSendBufferSize(int32 size) { return true; }
@@ -78,10 +79,12 @@ class MockClientSocket : public ClientSocket {
 
   virtual void SetSubresourceSpeculation() {}
   virtual void SetOmniboxSpeculation() {}
+  virtual bool WasEverUsed() const { return was_used_to_convey_data_; }
 
  private:
   bool connected_;
   BoundNetLog net_log_;
+  bool was_used_to_convey_data_;
 
   DISALLOW_COPY_AND_ASSIGN(MockClientSocket);
 };
@@ -1669,6 +1672,8 @@ TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
 
   req.handle()->Reset();
   EXPECT_EQ(OK, req2.WaitForResult());
+  // Use the socket.
+  EXPECT_EQ(1, req2.handle()->socket()->Write(NULL, 1, NULL));
   req2.handle()->Reset();
 
   // We post all of our delayed tasks with a 2ms delay. I.e. they don't
