@@ -14,7 +14,7 @@
 #include "media/base/pts_heap.h"
 #include "media/base/video_frame.h"
 #include "media/filters/decoder_base.h"
-#include "media/filters/video_decode_engine.h"
+#include "media/video/video_decode_engine.h"
 
 // FFmpeg types.
 struct AVRational;
