@@ -178,7 +178,8 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
       peer_closed_connection_(false),
       pending_buf_(NULL),
       pending_buf_len_(0),
-      pending_callback_(NULL) {
+      pending_callback_(NULL),
+      was_used_to_convey_data_(false) {
   DCHECK(data_);
   data_->Reset();
 }
@@ -248,10 +249,13 @@ int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
   std::string data(buf->data(), buf_len);
   net::MockWriteResult write_result = data_->OnWrite(data);
 
+  was_used_to_convey_data_ = true;
+
   if (write_result.async) {
     RunCallbackAsync(callback, write_result.result);
     return net::ERR_IO_PENDING;
   }
+
   return write_result.result;
 }
 
@@ -278,6 +282,8 @@ void MockTCPClientSocket::OnReadComplete(const MockRead& data) {
 int MockTCPClientSocket::CompleteRead() {
   DCHECK(pending_buf_);
   DCHECK(pending_buf_len_ > 0);
+
+  was_used_to_convey_data_ = true;
 
   // Save the pending async IO data and reset our |pending_| state.
   net::IOBuffer* buf = pending_buf_;
@@ -323,7 +329,8 @@ DeterministicMockTCPClientSocket::DeterministicMockTCPClientSocket(
       read_buf_len_(0),
       read_pending_(false),
       read_callback_(NULL),
-      data_(data) {}
+      data_(data),
+      was_used_to_convey_data_(false) {}
 
 void DeterministicMockTCPClientSocket::OnReadComplete(const MockRead& data) {}
 
@@ -366,6 +373,8 @@ int DeterministicMockTCPClientSocket::Write(
     write_pending_ = true;
     return net::ERR_IO_PENDING;
   }
+
+  was_used_to_convey_data_ = true;
   write_pending_ = false;
   return write_result.result;
 }
@@ -390,10 +399,12 @@ int DeterministicMockTCPClientSocket::Read(
     return ERR_IO_PENDING;
   }
 
+  was_used_to_convey_data_ = true;
   return CompleteRead();
 }
 
 void DeterministicMockTCPClientSocket::CompleteWrite(){
+  was_used_to_convey_data_ = true;
   write_pending_ = false;
   write_callback_->Run(write_result_);
 }
@@ -402,6 +413,8 @@ int DeterministicMockTCPClientSocket::CompleteRead() {
   DCHECK_GT(read_buf_len_, 0);
   DCHECK_LE(read_data_.data_len, read_buf_len_);
   DCHECK(read_buf_);
+
+  was_used_to_convey_data_ = true;
 
   if (read_data_.result == ERR_IO_PENDING)
     read_data_ = data_->GetNextRead();
@@ -495,6 +508,10 @@ void MockSSLClientSocket::Disconnect() {
 
 bool MockSSLClientSocket::IsConnected() const {
   return transport_->socket()->IsConnected();
+}
+
+bool MockSSLClientSocket::WasEverUsed() const {
+  return transport_->socket()->WasEverUsed();
 }
 
 int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
