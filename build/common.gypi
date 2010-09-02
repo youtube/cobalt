@@ -1155,9 +1155,10 @@
     ['OS=="mac"', {
       'target_defaults': {
         'variables': {
-          # This should be 'mac_real_dsym%', but there seems to be a bug
-          # with % in variables that are intended to be set to different
-          # values in different targets, like this one.
+          # These should be 'mac_real_dsym%' and 'mac_strip%', but there
+          # seems to be a bug with % in variables that are intended to be
+          # set to different values in different targets, like these two.
+          'mac_strip': 1,      # Strip debugging symbols from the target.
           'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
         },
         'mac_bundle': 0,
@@ -1205,7 +1206,8 @@
           ['_mac_bundle', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
           }],
-          ['_type=="executable" or _type=="shared_library" or _type=="loadable_module"', {
+          ['(_type=="executable" or _type=="shared_library" or \
+             _type=="loadable_module") and mac_strip!=0', {
             'target_conditions': [
               ['mac_real_dsym == 1', {
                 # To get a real .dSYM bundle produced by dsymutil, set the
@@ -1249,7 +1251,8 @@
                 ],  # postbuilds
               }],  # mac_real_dsym
             ],  # target_conditions
-          }],  # _type=="executable" or _type=="shared_library" or _type=="loadable_module"
+          }],  # (_type=="executable" or _type=="shared_library" or
+               #  _type=="loadable_module") and mac_strip!=0
         ],  # target_conditions
       },  # target_defaults
     }],  # OS=="mac"
