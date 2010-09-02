@@ -564,6 +564,7 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const { return IsConnected(); }
+  virtual bool WasEverUsed() const { return was_used_to_convey_data_; }
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
@@ -594,6 +595,7 @@ class MockTCPClientSocket : public MockClientSocket {
   net::IOBuffer* pending_buf_;
   int pending_buf_len_;
   net::CompletionCallback* pending_callback_;
+  bool was_used_to_convey_data_;
 };
 
 class DeterministicMockTCPClientSocket : public MockClientSocket,
@@ -601,20 +603,26 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
  public:
   DeterministicMockTCPClientSocket(net::NetLog* net_log,
       net::DeterministicSocketData* data);
-  virtual int Write(net::IOBuffer* buf, int buf_len,
-                    net::CompletionCallback* callback);
-  virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback);
-  virtual void CompleteWrite();
-  virtual int CompleteRead();
-  virtual void OnReadComplete(const MockRead& data);
 
+  // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const { return IsConnected(); }
-  bool write_pending() { return write_pending_; }
-  bool read_pending() { return read_pending_; }
+  virtual bool WasEverUsed() const { return was_used_to_convey_data_; }
+
+  // Socket methods:
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    net::CompletionCallback* callback);
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   net::CompletionCallback* callback);
+
+  bool write_pending() const { return write_pending_; }
+  bool read_pending() const { return read_pending_; }
+
+  void CompleteWrite();
+  int CompleteRead();
+  void OnReadComplete(const MockRead& data);
 
  private:
   bool write_pending_;
@@ -628,6 +636,7 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   bool read_pending_;
   net::CompletionCallback* read_callback_;
   net::DeterministicSocketData* data_;
+  bool was_used_to_convey_data_;
 };
 
 class MockSSLClientSocket : public MockClientSocket {
@@ -643,6 +652,7 @@ class MockSSLClientSocket : public MockClientSocket {
   virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
+  virtual bool WasEverUsed() const;
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
@@ -666,6 +676,7 @@ class MockSSLClientSocket : public MockClientSocket {
   net::SSLSocketDataProvider* data_;
   bool is_npn_state_set_;
   bool new_npn_value_;
+  bool was_used_to_convey_data_;
 };
 
 class TestSocketRequest : public CallbackRunner< Tuple1<int> > {

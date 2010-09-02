@@ -677,6 +677,14 @@ void SSLClientSocketNSS::SetOmniboxSpeculation() {
   }
 }
 
+bool SSLClientSocketNSS::WasEverUsed() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->WasEverUsed();
+  }
+  NOTREACHED();
+  return false;
+}
+
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   EnterFunction(buf_len);
