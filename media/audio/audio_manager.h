@@ -54,7 +54,7 @@ class AudioManager {
   // Do not free the returned AudioInputStream. It is owned by AudioManager.
   // When you are done with it, call |Stop()| and |Close()| to release it.
   virtual AudioInputStream* MakeAudioInputStream(AudioParameters params,
-                                                 uint32 samples_per_packet) = 0;
+                                                 int samples_per_packet) = 0;
 
   // Muting continues playback but effectively the volume is set to zero.
   // Un-muting returns the volume to the previous level.
