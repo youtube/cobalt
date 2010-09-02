@@ -28,6 +28,9 @@ class AlsaWrapper {
   virtual snd_pcm_sframes_t PcmWritei(snd_pcm_t* handle,
                                       const void* buffer,
                                       snd_pcm_uframes_t size);
+  virtual snd_pcm_sframes_t PcmReadi(snd_pcm_t* handle,
+                                     void* buffer,
+                                     snd_pcm_uframes_t size);
   virtual int PcmRecover(snd_pcm_t* handle, int err, int silent);
   virtual int PcmSetParams(snd_pcm_t* handle, snd_pcm_format_t format,
                            snd_pcm_access_t access, unsigned int channels,
@@ -38,6 +41,7 @@ class AlsaWrapper {
   virtual const char* PcmName(snd_pcm_t* handle);
   virtual snd_pcm_sframes_t PcmAvailUpdate(snd_pcm_t* handle);
   virtual snd_pcm_state_t PcmState(snd_pcm_t* handle);
+  virtual int PcmStart(snd_pcm_t* handle);
 
   virtual const char* StrError(int errnum);
 

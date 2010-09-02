@@ -43,6 +43,9 @@ class MockAlsaWrapper : public AlsaWrapper {
   MOCK_METHOD3(PcmWritei, snd_pcm_sframes_t(snd_pcm_t* handle,
                                             const void* buffer,
                                             snd_pcm_uframes_t size));
+  MOCK_METHOD3(PcmReadi, snd_pcm_sframes_t(snd_pcm_t* handle,
+                                           void* buffer,
+                                           snd_pcm_uframes_t size));
   MOCK_METHOD3(PcmRecover, int(snd_pcm_t* handle, int err, int silent));
   MOCK_METHOD7(PcmSetParams, int(snd_pcm_t* handle, snd_pcm_format_t format,
                                  snd_pcm_access_t access, unsigned int channels,
@@ -54,6 +57,7 @@ class MockAlsaWrapper : public AlsaWrapper {
   MOCK_METHOD1(PcmName, const char*(snd_pcm_t* handle));
   MOCK_METHOD1(PcmAvailUpdate, snd_pcm_sframes_t(snd_pcm_t* handle));
   MOCK_METHOD1(PcmState, snd_pcm_state_t(snd_pcm_t* handle));
+  MOCK_METHOD1(PcmStart, int(snd_pcm_t* handle));
 
   MOCK_METHOD1(StrError, const char*(int errnum));
 };

@@ -8,7 +8,9 @@ namespace switches {
 
 #if defined(OS_LINUX)
 // The Alsa device to use when opening an audio stream.
-const char kAlsaDevice[] = "alsa-device";
+const char kAlsaOutputDevice[] = "alsa-output-device";
+// The Alsa device to use when opening an audio input stream.
+const char kAlsaInputDevice[] = "alsa-input-device";
 #endif
 
 // Enable hardware decoding through gpu process.
