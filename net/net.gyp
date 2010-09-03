@@ -951,6 +951,20 @@
       ],
     },
     {
+      'target_name': 'run_testserver',
+      'type': 'executable',
+      'dependencies': [
+        'net',
+        'net_test_support',
+        '../base/base.gyp:base',
+        '../testing/gtest.gyp:gtest',
+      ],
+      'msvs_guid': '506F2468-6B1D-48E2-A67C-9D9C6BAC0EC5',
+      'sources': [
+        'tools/testserver/run_testserver.cc',
+      ],
+    },
+    {
       'target_name': 'net_test_support',
       'type': '<(library)',
       'dependencies': [
