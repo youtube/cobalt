@@ -17,7 +17,17 @@ namespace net {
 
 struct HttpRequestInfo {
  public:
-  HttpRequestInfo() : load_flags(0), priority(LOWEST) {
+  enum RequestMotivation{
+    // TODO(mbelshe): move these into Client Socket.
+    PRECONNECT_MOTIVATED,  // This request was motivated by a prefetch.
+    OMNIBOX_MOTIVATED,   // This request was motivated by the omnibox.
+    NORMAL_MOTIVATION    // No special motivation associated with the request.
+  };
+
+  HttpRequestInfo()
+      : load_flags(0),
+        priority(LOWEST),
+        motivation(NORMAL_MOTIVATION) {
   }
 
   // The requested URL.
@@ -40,6 +50,9 @@ struct HttpRequestInfo {
 
   // The priority level for this request.
   RequestPriority priority;
+
+  // The motivation behind this request.
+  RequestMotivation motivation;
 };
 
 }  // namespace net

@@ -108,6 +108,9 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   int DoRestartTunnelAuth();
   int DoRestartTunnelAuthComplete(int result);
 
+  // Set the motivation for this request onto the underlying socket.
+  void SetSocketMotivation();
+
   // Returns a newly create SSLSocketParams, and sets several
   // fields of ssl_config_.
   scoped_refptr<SSLSocketParams> GenerateSslParams(

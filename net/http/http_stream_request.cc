@@ -14,6 +14,7 @@
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
+#include "net/http/http_request_info.h"
 #include "net/http/http_stream_handle.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
@@ -665,6 +666,12 @@ int HttpStreamRequest::DoWaitingUserAction(int result) {
 int HttpStreamRequest::DoCreateStream() {
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
+  // We only set the socket motivation if we're the first to use
+  // this socket.  Is there a race for two SPDY requests?  We really
+  // need to plumb this through to the connect level.
+  if (connection_.get() && connection_->is_reused())
+    SetSocketMotivation();
+
   if (!using_spdy_) {
     HttpBasicStream* stream = new HttpBasicStream(connection_.get());
     stream_.reset(new HttpStreamHandle(connection_.release(), stream));
@@ -748,6 +755,16 @@ int HttpStreamRequest::DoRestartTunnelAuthComplete(int result) {
   }
 
   return ReconsiderProxyAfterError(result);
+}
+
+void HttpStreamRequest::SetSocketMotivation() {
+  DCHECK(connection_.get());
+  DCHECK(connection_->socket());
+  if (request_info_->motivation == HttpRequestInfo::PRECONNECT_MOTIVATED)
+    connection_->socket()->SetSubresourceSpeculation();
+  else if (request_info_->motivation == HttpRequestInfo::OMNIBOX_MOTIVATED)
+    connection_->socket()->SetOmniboxSpeculation();
+  // TODO(mbelshe): Add other motivations (like EARLY_LOAD_MOTIVATED).
 }
 
 // Returns a newly create SSLSocketParams, and sets several
