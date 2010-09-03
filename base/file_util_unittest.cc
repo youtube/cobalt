@@ -1777,7 +1777,7 @@ TEST_F(FileUtilTest, LastModified) {
   ASSERT_TRUE(base::Time::FromString(L"Tue, 15 Nov 1994, 12:45:26 GMT",
               &modification_time));
   ASSERT_TRUE(file_util::SetLastModifiedTime(foobar, modification_time));
-  file_util::FileInfo file_info;
+  base::PlatformFileInfo file_info;
   ASSERT_TRUE(file_util::GetFileInfo(foobar, &file_info));
   ASSERT_TRUE(file_info.last_modified == modification_time);
 }

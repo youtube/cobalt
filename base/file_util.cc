@@ -185,7 +185,7 @@ FILE* CreateAndOpenTemporaryFile(FilePath* path) {
 }
 
 bool GetFileSize(const FilePath& file_path, int64* file_size) {
-  FileInfo info;
+  base::PlatformFileInfo info;
   if (!GetFileInfo(file_path, &info))
     return false;
   *file_size = info.size;

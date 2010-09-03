@@ -14,10 +14,6 @@
 #include "base/ref_counted.h"
 #include "base/tracked_objects.h"
 
-namespace file_util {
-struct FileInfo;
-}
-
 namespace base {
 
 namespace file_util_proxy {
@@ -31,6 +27,7 @@ struct Entry {
 }  // namespace file_util_proxy
 
 class MessageLoopProxy;
+class Time;
 
 // This class provides asynchronous access to common file routines.
 class FileUtilProxy {
@@ -68,7 +65,7 @@ class FileUtilProxy {
   // Retrieves the information about a file. It is invalid to pass NULL for the
   // callback.
   typedef Callback2<base::PlatformFileError /* error code */,
-                    const file_util::FileInfo& /*file_info*/
+                    const base::PlatformFileInfo& /* file_info */
                     >::Type GetFileInfoCallback;
   static bool GetFileInfo(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
