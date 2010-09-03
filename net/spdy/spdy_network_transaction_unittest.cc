@@ -2351,7 +2351,6 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushSingleDataFrame2) {
   EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
 }
 
-
 TEST_P(SpdyNetworkTransactionTest, ServerPushServerAborted) {
   scoped_ptr<spdy::SpdyFrame>
       stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -2407,6 +2406,57 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushServerAborted) {
   HttpResponseInfo response = *trans->GetResponseInfo();
   EXPECT_TRUE(response.headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
+}
+
+TEST_P(SpdyNetworkTransactionTest, ServerPushDuplicate) {
+  // Verify that we don't leak streams and that we properly send a reset
+  // if the server pushes the same stream twice.
+  static const unsigned char kPushBodyFrame[] = {
+    0x00, 0x00, 0x00, 0x02,                                      // header, ID
+    0x01, 0x00, 0x00, 0x06,                                      // FIN, length
+    'p', 'u', 's', 'h', 'e', 'd'                                 // "pushed"
+  };
+
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame>
+      stream3_rst(ConstructSpdyRstStream(4, spdy::PROTOCOL_ERROR));
+  MockWrite writes[] = {
+    CreateMockWrite(*stream1_syn, 1),
+    CreateMockWrite(*stream3_rst, 5),
+  };
+
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL, 0, 2, 1, "/foo.dat"));
+  scoped_ptr<spdy::SpdyFrame>
+      stream3_syn(ConstructSpdyPush(NULL, 0, 4, 1, "/foo.dat"));
+  MockRead reads[] = {
+    CreateMockRead(*stream1_reply, 2),
+    CreateMockRead(*stream2_syn, 3),
+    CreateMockRead(*stream3_syn, 4),
+    CreateMockRead(*stream1_body, 6, false),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+             arraysize(kPushBodyFrame), 7),
+    MockRead(true, ERR_IO_PENDING, 8),  // Force a pause
+  };
+
+  HttpResponseInfo response;
+  HttpResponseInfo response2;
+  std::string expected_push_result("pushed");
+  RunServerPushTest(writes, arraysize(writes), reads, arraysize(reads),
+                    &response, &response2, expected_push_result);
+
+  // Verify the SYN_REPLY.
+  EXPECT_TRUE(response.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
+
+  // Verify the pushed stream.
+  EXPECT_TRUE(response2.headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
 }
 
 TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrame) {
