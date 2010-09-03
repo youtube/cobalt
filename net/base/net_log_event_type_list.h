@@ -638,6 +638,10 @@ EVENT_TYPE(SPDY_SESSION_STALLED_ON_SEND_WINDOW)
 //   }
 EVENT_TYPE(SPDY_SESSION_CLOSE)
 
+// Event when the creation of a stream is stalled because we're at
+// the maximum number of concurrent streams.
+EVENT_TYPE(SPDY_SESSION_STALLED_MAX_STREAMS)
+
 // ------------------------------------------------------------------------
 // SpdySessionPool
 // ------------------------------------------------------------------------
