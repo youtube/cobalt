@@ -109,15 +109,6 @@ void StackDumpSignalHandler(int signal) {
   _exit(1);
 }
 
-void ResetChildSignalHandlersToDefaults() {
-  // The previous signal handlers are likely to be meaningless in the child's
-  // context so we reset them to the defaults for now. http://crbug.com/44953
-  // These signal handlers are setup in browser_main.cc:BrowserMain
-  signal(SIGTERM, SIG_DFL);
-  signal(SIGHUP, SIG_DFL);
-  signal(SIGINT, SIG_DFL);
-}
-
 }  // anonymous namespace
 
 ProcessId GetCurrentProcId() {
@@ -332,9 +323,6 @@ static pid_t fork_and_get_task(task_t* child_task) {
     case -1:
       return pid;
     case 0: {  // child
-      // Must reset signal handlers before doing any mach IPC, as the mach IPC
-      // calls can potentially hang forever.
-      ResetChildSignalHandlersToDefaults();
       MachSendMessage child_message(/* id= */0);
       if (!child_message.AddDescriptor(mach_task_self())) {
         LOG(ERROR) << "child AddDescriptor(mach_task_self()) failed.";
@@ -541,10 +529,12 @@ bool LaunchApp(
     RestoreDefaultExceptionHandler();
 #endif
 
-    // On mac, the signal handlers are reset in |fork_and_get_task()|.
-#if !defined(OS_MACOSX)
-    ResetChildSignalHandlersToDefaults();
-#endif
+    // The previous signal handlers are likely to be meaningless in the child's
+    // context so we reset them to the defaults for now. http://crbug.com/44953
+    // These signal handlers are setup in browser_main.cc:BrowserMain
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
 
 #if 0
     // When debugging it can be helpful to check that we really aren't making
