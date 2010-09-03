@@ -875,25 +875,32 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   // Update the net log and notify registered observers.
   OnStartRequest(source_net_log, request_net_log, request_id, info);
 
-  // Check for IP literal.
-  IPAddressNumber ip_number;
-  if (ParseIPLiteralToNumber(info.hostname(), &ip_number)) {
-    DCHECK_EQ((info.host_resolver_flags() &
-               ~(HOST_RESOLVER_CANONNAME | HOST_RESOLVER_LOOPBACK_ONLY)), 0)
-        << " Unhandled flag";
-    AddressList result(ip_number, info.port(),
-                       (info.host_resolver_flags() & HOST_RESOLVER_CANONNAME));
-
-    *addresses = result;
-    // Update the net log and notify registered observers.
-    OnFinishRequest(source_net_log, request_net_log, request_id, info, OK,
-                    0  /* os_error (unknown since from cache) */);
-    return OK;
-  }
-
   // Build a key that identifies the request in the cache and in the
   // outstanding jobs map.
   Key key = GetEffectiveKeyForRequest(info);
+
+  // Check for IP literal.
+  IPAddressNumber ip_number;
+  if (ParseIPLiteralToNumber(info.hostname(), &ip_number)) {
+    DCHECK_EQ(key.host_resolver_flags &
+                  ~(HOST_RESOLVER_CANONNAME | HOST_RESOLVER_LOOPBACK_ONLY |
+                    HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6),
+              0) << " Unhandled flag";
+    bool ipv6_disabled = default_address_family_ == ADDRESS_FAMILY_IPV4 &&
+        !ipv6_probe_monitoring_;
+    int net_error = OK;
+    if (ip_number.size() == 16 && ipv6_disabled) {
+      net_error = ERR_NAME_NOT_RESOLVED;
+    } else {
+      AddressList result(ip_number, info.port(),
+                         (key.host_resolver_flags & HOST_RESOLVER_CANONNAME));
+      *addresses = result;
+    }
+    // Update the net log and notify registered observers.
+    OnFinishRequest(source_net_log, request_net_log, request_id, info,
+                    net_error, 0  /* os_error (unknown since from cache) */);
+    return net_error;
+  }
 
   // If we have an unexpired cache entry, use it.
   if (info.allow_cached_response() && cache_.get()) {
@@ -1285,11 +1292,16 @@ void HostResolverImpl::ProcessQueuedRequests() {
 
 HostResolverImpl::Key HostResolverImpl::GetEffectiveKeyForRequest(
     const RequestInfo& info) const {
+  HostResolverFlags effective_flags =
+      info.host_resolver_flags() | additional_resolver_flags_;
   AddressFamily effective_address_family = info.address_family();
-  if (effective_address_family == ADDRESS_FAMILY_UNSPECIFIED)
+  if (effective_address_family == ADDRESS_FAMILY_UNSPECIFIED &&
+      default_address_family_ != ADDRESS_FAMILY_UNSPECIFIED) {
     effective_address_family = default_address_family_;
-  return Key(info.hostname(), effective_address_family,
-             info.host_resolver_flags() | additional_resolver_flags_);
+    if (ipv6_probe_monitoring_)
+      effective_flags |= HOST_RESOLVER_DEFAULT_FAMILY_SET_DUE_TO_NO_IPV6;
+  }
+  return Key(info.hostname(), effective_address_family, effective_flags);
 }
 
 HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
