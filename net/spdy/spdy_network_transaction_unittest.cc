@@ -440,7 +440,7 @@ class SpdyNetworkTransactionTest
 //-----------------------------------------------------------------------------
 // All tests are run with three different connection types: SPDY after NPN
 // negotiation, SPDY without SSL, and SPDY with SSL.
-INSTANTIATE_TEST_CASE_P(SpdyNetworkingTest,
+INSTANTIATE_TEST_CASE_P(Spdy,
                         SpdyNetworkTransactionTest,
                         ::testing::Values(SPDYNOSSL, SPDYSSL, SPDYNPN));
 
