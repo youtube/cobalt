@@ -14,39 +14,17 @@
 
 namespace net {
 
-class NetworkChangeNotifierMac: public NetworkChangeNotifier {
+class NetworkChangeNotifierMac : public NetworkConfigWatcherMac,
+                                 public NetworkChangeNotifier {
  public:
   NetworkChangeNotifierMac();
-  virtual ~NetworkChangeNotifierMac();
+
+ protected:
+  // NetworkConfigWatcherMac implementation:
+  virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store);
+  virtual void OnNetworkConfigChange(CFArrayRef changed_keys);
 
  private:
-  // Forwarder just exists to keep the NetworkConfigWatcherMac API out of
-  // NetworkChangeNotifierMac's public API.
-  class Forwarder : public NetworkConfigWatcherMac::Delegate {
-   public:
-    explicit Forwarder(NetworkChangeNotifierMac* net_config_watcher)
-        : net_config_watcher_(net_config_watcher_) {}
-
-    // NetworkConfigWatcherMac::Delegate implementation:
-    virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store) {
-      net_config_watcher_->SetDynamicStoreNotificationKeys(store);
-    }
-    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) {
-      net_config_watcher_->OnNetworkConfigChange(changed_keys);
-    }
-
-   private:
-    NetworkChangeNotifierMac* const net_config_watcher_;
-    DISALLOW_COPY_AND_ASSIGN(Forwarder);
-  };
-
-  // NetworkConfigWatcherMac::Delegate implementation:
-  void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store);
-  void OnNetworkConfigChange(CFArrayRef changed_keys);
-
-  Forwarder forwarder_;
-  const NetworkConfigWatcherMac config_watcher_;
-
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };
 
