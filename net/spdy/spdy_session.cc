@@ -383,6 +383,7 @@ int SpdySession::CreateStream(
     return CreateStreamImpl(url, priority, spdy_stream, stream_net_log);
   }
 
+  net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_STALLED_MAX_STREAMS, NULL);
   create_stream_queues_[priority].push(
       PendingCreateStream(url, priority, spdy_stream,
                           stream_net_log, callback));
@@ -1050,6 +1051,15 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
                         const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
   spdy::SpdyStreamId associated_stream_id = frame.associated_stream_id();
+
+  if (net_log_.IsLoggingAll()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
+        new NetLogSpdySynParameter(
+            headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
+            stream_id));
+  }
+
   // Server-initiated streams should have even sequence numbers.
   if ((stream_id & 0x1) != 0) {
     LOG(ERROR) << "Received invalid OnSyn stream id " << stream_id;
@@ -1090,28 +1100,21 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     return;
   }
 
-  scoped_refptr<SpdyStream> stream;
-
-  stream = new SpdyStream(this, stream_id, true, net_log_);
-
-  if (net_log_.IsLoggingAll()) {
-    net_log_.AddEvent(
-        NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
-        new NetLogSpdySynParameter(
-            headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
-            stream_id));
-  }
-
   // TODO(erikchen): Actually do something with the associated id.
-
-  stream->set_path(path);
 
   // There should not be an existing pushed stream with the same path.
   PushedStreamMap::iterator it = unclaimed_pushed_streams_.find(path);
   if (it != unclaimed_pushed_streams_.end()) {
     LOG(ERROR) << "Received duplicate pushed stream with path: " << path;
     ResetStream(stream_id, spdy::PROTOCOL_ERROR);
+    return;
   }
+
+  scoped_refptr<SpdyStream> stream =
+      new SpdyStream(this, stream_id, true, net_log_);
+
+  stream->set_path(path);
+
   unclaimed_pushed_streams_[path] = stream;
 
   ActivateStream(stream);
