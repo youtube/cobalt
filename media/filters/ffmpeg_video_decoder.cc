@@ -432,7 +432,7 @@ void FFmpegVideoDecoder::FlushBuffers() {
 
 void FFmpegVideoDecoder::SetVideoDecodeEngineForTest(
     VideoDecodeEngine* engine) {
-  decode_engine_ = engine;
+  decode_engine_.reset(engine);
 }
 
 // static
