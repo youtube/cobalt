@@ -15,23 +15,8 @@ DISABLE_RUNNABLE_METHOD_REFCOUNT(net::NetworkConfigWatcherMac);
 
 namespace net {
 
-namespace {
-
-// Called back by OS.  Calls OnNetworkConfigChange().
-void DynamicStoreCallback(SCDynamicStoreRef /* store */,
-                          CFArrayRef changed_keys,
-                          void* config_delegate) {
-  NetworkConfigWatcherMac::Delegate* net_config_delegate =
-      static_cast<NetworkConfigWatcherMac::Delegate*>(config_delegate);
-  net_config_delegate->OnNetworkConfigChange(changed_keys);
-}
-
-}  // namespace
-
-NetworkConfigWatcherMac::NetworkConfigWatcherMac(
-    Delegate* delegate)
-    : notifier_thread_(new base::Thread("NetworkConfigWatcher")),
-      delegate_(delegate) {
+NetworkConfigWatcherMac::NetworkConfigWatcherMac()
+    : notifier_thread_(new base::Thread("NetworkConfigWatcher")) {
   // We create this notifier thread because the notification implementation
   // needs a thread with a CFRunLoop, and there's no guarantee that
   // MessageLoop::current() meets that criterion.
@@ -40,8 +25,7 @@ NetworkConfigWatcherMac::NetworkConfigWatcherMac(
   // TODO(willchan): Look to see if there's a better signal for when it's ok to
   // initialize this, rather than just delaying it by a fixed time.
   const int kNotifierThreadInitializationDelayMS = 1000;
-  notifier_thread_->message_loop()->PostDelayedTask(
-      FROM_HERE,
+  notifier_thread_->message_loop()->PostDelayedTask(FROM_HERE,
       NewRunnableMethod(this, &NetworkConfigWatcherMac::Init),
       kNotifierThreadInitializationDelayMS);
 }
@@ -51,6 +35,16 @@ NetworkConfigWatcherMac::~NetworkConfigWatcherMac() {
   // check that the notifier thread shut down properly.
   notifier_thread_->Stop();
   DCHECK(run_loop_source_ == NULL);
+}
+
+// static
+void NetworkConfigWatcherMac::DynamicStoreCallback(
+    SCDynamicStoreRef /* store */,
+    CFArrayRef changed_keys,
+    void* config) {
+  NetworkConfigWatcherMac* net_config =
+      static_cast<NetworkConfigWatcherMac*>(config);
+  net_config->OnNetworkConfigChange(changed_keys);
 }
 
 void NetworkConfigWatcherMac::WillDestroyCurrentMessageLoop() {
@@ -84,7 +78,7 @@ void NetworkConfigWatcherMac::Init() {
                      kCFRunLoopCommonModes);
 
   // Set up notifications for interface and IP address changes.
-  delegate_->SetDynamicStoreNotificationKeys(store.get());
+  SetDynamicStoreNotificationKeys(store.get());
 
   MessageLoop::current()->AddDestructionObserver(this);
 }
