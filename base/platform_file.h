@@ -6,7 +6,9 @@
 #define BASE_PLATFORM_FILE_H_
 #pragma once
 
+#include "base/basictypes.h"
 #include "build/build_config.h"
+#include "base/time.h"
 #if defined(OS_WIN)
 #include <windows.h>
 #endif
@@ -53,6 +55,28 @@ enum PlatformFileError {
   PLATFORM_FILE_ERROR_NO_SPACE = -8,
   PLATFORM_FILE_ERROR_NOT_A_DIRECTORY = -9,
   PLATFORM_FILE_ERROR_INVALID_OPERATION = -10
+};
+
+// Used to hold information about a given file.
+// If you add more fields to this structure (platform-specific fields are OK),
+// make sure to update all functions that use it in file_util_{win|posix}.cc
+// too, and the ParamTraits<base::PlatformFileInfo> implementation in
+// chrome/common/common_param_traits.cc.
+struct PlatformFileInfo {
+  // The size of the file in bytes.  Undefined when is_directory is true.
+  int64 size;
+
+  // True if the file corresponds to a directory.
+  bool is_directory;
+
+  // The last modified time of a file.
+  base::Time last_modified;
+
+  // The last accessed time of a file.
+  base::Time last_accessed;
+
+  // The creation time of a file.
+  base::Time creation_time;
 };
 
 // Creates or opens the given file. If PLATFORM_FILE_OPEN_ALWAYS is used, and
