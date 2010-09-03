@@ -109,7 +109,7 @@ TEST_F(UploadDataStreamTest, FileChanged) {
   ASSERT_EQ(kTestDataSize, file_util::WriteFile(temp_file_path,
                                                 kTestData, kTestDataSize));
 
-  file_util::FileInfo file_info;
+  base::PlatformFileInfo file_info;
   ASSERT_TRUE(file_util::GetFileInfo(temp_file_path, &file_info));
 
   // Test file not changed.
@@ -124,4 +124,3 @@ TEST_F(UploadDataStreamTest, FileChanged) {
 }
 
 }  // namespace net
-
