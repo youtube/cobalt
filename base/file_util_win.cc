@@ -127,7 +127,7 @@ bool Delete(const FilePath& path, bool recursive) {
   if (!recursive) {
     // If not recursing, then first check to see if |path| is a directory.
     // If it is, then remove it with RemoveDirectory.
-    FileInfo file_info;
+    base::PlatformFileInfo file_info;
     if (GetFileInfo(path, &file_info) && file_info.is_directory)
       return RemoveDirectory(path.value().c_str()) != 0;
 
@@ -675,7 +675,7 @@ bool CreateDirectoryExtraLogging(const FilePath& full_path,
   }
 }
 
-bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
+bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
   WIN32_FILE_ATTRIBUTE_DATA attr;
   if (!GetFileAttributesEx(file_path.value().c_str(),
                            GetFileExInfoStandard, &attr)) {
@@ -690,6 +690,8 @@ bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
   results->is_directory =
       (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
   results->last_modified = base::Time::FromFileTime(attr.ftLastWriteTime);
+  results->last_accessed = base::Time::FromFileTime(attr.ftLastAccessTime);
+  results->creation_time = base::Time::FromFileTime(attr.ftCreationTime);
 
   return true;
 }

@@ -42,7 +42,7 @@ class URLRequestFileJob : public URLRequestJob {
   FilePath file_path_;
 
  private:
-  void DidResolve(bool exists, const file_util::FileInfo& file_info);
+  void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
   void DidRead(int result);
 
   net::CompletionCallbackImpl<URLRequestFileJob> io_callback_;

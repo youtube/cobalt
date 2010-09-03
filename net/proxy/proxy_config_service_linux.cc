@@ -459,8 +459,8 @@ class GConfSettingGetterImplKDE
         FilePath kde4_config = KDEHomeToConfigPath(kde4_path);
         bool use_kde4 = false;
         if (file_util::DirectoryExists(kde4_path)) {
-          file_util::FileInfo kde3_info;
-          file_util::FileInfo kde4_info;
+          base::PlatformFileInfo kde3_info;
+          base::PlatformFileInfo kde4_info;
           if (file_util::GetFileInfo(kde4_config, &kde4_info)) {
             if (file_util::GetFileInfo(kde3_config, &kde3_info)) {
               use_kde4 = kde4_info.last_modified >= kde3_info.last_modified;

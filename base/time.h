@@ -259,6 +259,7 @@ class Time {
 #if defined(OS_WIN)
   static Time FromFileTime(FILETIME ft);
   FILETIME ToFileTime() const;
+  static Time FromLargeInteger(LARGE_INTEGER li);
 
   // The minimum time of a low resolution timer.  This is basically a windows
   // constant of ~15.6ms.  While it does vary on some older OS versions, we'll

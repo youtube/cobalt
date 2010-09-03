@@ -423,7 +423,7 @@ class RelayGetFileInfo : public MessageLoopRelay {
  private:
   base::FileUtilProxy::GetFileInfoCallback* callback_;
   FilePath file_path_;
-  file_util::FileInfo file_info_;
+  base::PlatformFileInfo file_info_;
 };
 
 bool Start(const tracked_objects::Location& from_here,

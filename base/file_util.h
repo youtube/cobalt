@@ -315,22 +315,8 @@ bool NormalizeFilePath(const FilePath& path, FilePath* real_path);
 bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path);
 #endif
 
-// Used to hold information about a given file path.  See GetFileInfo below.
-struct FileInfo {
-  // The size of the file in bytes.  Undefined when is_directory is true.
-  int64 size;
-
-  // True if the file corresponds to a directory.
-  bool is_directory;
-
-  // The last modified time of a file.
-  base::Time last_modified;
-
-  // Add additional fields here as needed.
-};
-
 // Returns information about the given file path.
-bool GetFileInfo(const FilePath& file_path, FileInfo* info);
+bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* info);
 
 // Set the time of the last modification. Useful for unit tests.
 bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified);
