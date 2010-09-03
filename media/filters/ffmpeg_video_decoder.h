@@ -121,7 +121,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   TimeTuple last_pts_;
   scoped_ptr<AVRational> time_base_;  // Pointer to avoid needing full type.
   DecoderState state_;
-  scoped_refptr<VideoDecodeEngine> decode_engine_;
+  scoped_ptr<VideoDecodeEngine> decode_engine_;
 
   scoped_ptr<FilterCallback> initialize_callback_;
   scoped_ptr<FilterCallback> uninitialize_callback_;
