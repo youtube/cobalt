@@ -15,7 +15,8 @@
 
 namespace net {
 
-class ProxyConfigServiceMac : public ProxyConfigService {
+class ProxyConfigServiceMac : public ProxyConfigService,
+                              public NetworkConfigWatcherMac {
  public:
   // Constructs a ProxyConfigService that watches the Mac OS system settings.
   // This instance is expected to be operated and deleted on |io_loop|
@@ -29,38 +30,16 @@ class ProxyConfigServiceMac : public ProxyConfigService {
   virtual void RemoveObserver(Observer* observer);
   virtual bool GetLatestProxyConfig(ProxyConfig* config);
 
+ protected:
+  // NetworkConfigWatcherMac implementation:
+  virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store);
+  virtual void OnNetworkConfigChange(CFArrayRef changed_keys);
+
  private:
   class Helper;
 
-  // Forwarder just exists to keep the NetworkConfigWatcherMac API out of
-  // ProxyConfigServiceMac's public API.
-  class Forwarder : public NetworkConfigWatcherMac::Delegate {
-   public:
-    explicit Forwarder(ProxyConfigServiceMac* net_config_watcher)
-        : net_config_watcher_(net_config_watcher_) {}
-
-    // NetworkConfigWatcherMac::Delegate implementation:
-    virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store) {
-      net_config_watcher_->SetDynamicStoreNotificationKeys(store);
-    }
-    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) {
-      net_config_watcher_->OnNetworkConfigChange(changed_keys);
-    }
-
-   private:
-    ProxyConfigServiceMac* const net_config_watcher_;
-    DISALLOW_COPY_AND_ASSIGN(Forwarder);
-  };
-
-  // NetworkConfigWatcherMac::Delegate implementation:
-  void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store);
-  void OnNetworkConfigChange(CFArrayRef changed_keys);
-
   // Called when the proxy configuration has changed, to notify the observers.
   void OnProxyConfigChanged(const ProxyConfig& new_config);
-
-  Forwarder forwarder_;
-  const NetworkConfigWatcherMac config_watcher_;
 
   ObserverList<Observer> observers_;
 

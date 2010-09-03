@@ -186,9 +186,7 @@ class ProxyConfigServiceMac::Helper
 };
 
 ProxyConfigServiceMac::ProxyConfigServiceMac(MessageLoop* io_loop)
-    : forwarder_(this),
-      config_watcher_(&forwarder_),
-      has_fetched_config_(false),
+    : has_fetched_config_(false),
       helper_(new Helper(this)),
       io_loop_(io_loop) {
   DCHECK(io_loop);
@@ -225,8 +223,6 @@ bool ProxyConfigServiceMac::GetLatestProxyConfig(ProxyConfig* config) {
 
 void ProxyConfigServiceMac::SetDynamicStoreNotificationKeys(
     SCDynamicStoreRef store) {
-  // Called on notifier thread.
-
   CFStringRef proxies_key = SCDynamicStoreKeyCreateProxies(NULL);
   CFArrayRef key_array = CFArrayCreate(
       NULL, (const void **)(&proxies_key), 1, &kCFTypeArrayCallBacks);
