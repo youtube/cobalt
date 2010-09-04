@@ -7,34 +7,9 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/singleton.h"
-#include "base/values.h"
 #include "net/spdy/spdy_session.h"
 
 namespace net {
-
-namespace {
-
-class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
- public:
-  NetLogSpdyStreamWindowUpdateParameter(spdy::SpdyStreamId stream_id,
-                                        int delta,
-                                        int window_size)
-      : stream_id_(stream_id), delta_(delta), window_size_(window_size) {}
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetInteger("id", static_cast<int>(stream_id_));
-    dict->SetInteger("delta", delta_);
-    dict->SetInteger("window_size", window_size_);
-    return dict;
-  }
- private:
-  const spdy::SpdyStreamId stream_id_;
-  const int delta_;
-  const int window_size_;
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdyStreamWindowUpdateParameter);
-};
-
-}
 
 SpdyStream::SpdyStream(SpdySession* session,
                        spdy::SpdyStreamId stream_id,
@@ -146,11 +121,11 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
     return;
   }
 
+  LOG(INFO) << "Increasing stream " << stream_id_
+            << " send_window_size_ [current:" << send_window_size_ << "]"
+            << " by " << delta_window_size << " bytes";
   send_window_size_ = new_window_size;
 
-  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_SEND_WINDOW_UPDATE,
-                    new NetLogSpdyStreamWindowUpdateParameter(stream_id_,
-                        delta_window_size, send_window_size_));
   if (stalled_by_flow_control_) {
     stalled_by_flow_control_ = false;
     io_state_ = STATE_SEND_BODY;
@@ -168,11 +143,10 @@ void SpdyStream::DecreaseSendWindowSize(int delta_window_size) {
   // this call to happen.
   DCHECK_GE(send_window_size_, delta_window_size);
 
+  LOG(INFO) << "Decreasing stream " << stream_id_
+            << " send_window_size_ [current:" << send_window_size_ << "]"
+            << " by " << delta_window_size  << " bytes";
   send_window_size_ -= delta_window_size;
-
-  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_SEND_WINDOW_UPDATE,
-                    new NetLogSpdyStreamWindowUpdateParameter(stream_id_,
-                        -delta_window_size, send_window_size_));
 }
 
 void SpdyStream::IncreaseRecvWindowSize(int delta_window_size) {
@@ -184,20 +158,20 @@ void SpdyStream::IncreaseRecvWindowSize(int delta_window_size) {
   if (recv_window_size_ > 0)
     DCHECK(new_window_size > 0);
 
+  LOG(INFO) << "Increasing stream " << stream_id_
+            << " recv_window_size_ [current:" << recv_window_size_ << "]"
+            << " by " << delta_window_size << " bytes";
   recv_window_size_ = new_window_size;
-  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_RECV_WINDOW_UPDATE,
-                    new NetLogSpdyStreamWindowUpdateParameter(stream_id_,
-                        delta_window_size, recv_window_size_));
   session_->SendWindowUpdate(stream_id_, delta_window_size);
 }
 
 void SpdyStream::DecreaseRecvWindowSize(int delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
 
+  LOG(INFO) << "Decreasing stream " << stream_id_
+            << " recv_window_size_ [current:" << recv_window_size_ << "]"
+            << " by " << delta_window_size  << " bytes";
   recv_window_size_ -= delta_window_size;
-  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_RECV_WINDOW_UPDATE,
-                    new NetLogSpdyStreamWindowUpdateParameter(stream_id_,
-                        -delta_window_size, recv_window_size_));
 
   // Since we never decrease the initial window size, we should never hit
   // a negative |recv_window_size_|, if we do, it's a flow-control violation.
@@ -216,6 +190,7 @@ void SpdyStream::SetRequestTime(base::Time t) {
 
 int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   int rv = OK;
+  LOG(INFO) << "Received response for stream " << stream_id_;
 
   metrics_.StartStream();
 
@@ -243,6 +218,8 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
 
 void SpdyStream::OnDataReceived(const char* data, int length) {
   DCHECK_GE(length, 0);
+  LOG(INFO) << "SpdyStream: Data (" << length << " bytes) received for "
+            << stream_id_;
 
   if (!delegate_ || continue_buffering_data_) {
     // It should be valid for this to happen in the server push case.
@@ -362,16 +339,20 @@ int SpdyStream::DoLoop(int result) {
       // State machine 1: Send headers and body.
       case STATE_SEND_HEADERS:
         CHECK_EQ(OK, result);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS, NULL);
         result = DoSendHeaders();
         break;
       case STATE_SEND_HEADERS_COMPLETE:
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS, NULL);
         result = DoSendHeadersComplete(result);
         break;
       case STATE_SEND_BODY:
         CHECK_EQ(OK, result);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY, NULL);
         result = DoSendBody();
         break;
       case STATE_SEND_BODY_COMPLETE:
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY, NULL);
         result = DoSendBodyComplete(result);
         break;
       // This is an intermediary waiting state. This state is reached when all
