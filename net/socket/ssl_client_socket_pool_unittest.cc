@@ -40,7 +40,7 @@ class SSLClientSocketPoolTest : public ClientSocketPoolTest {
                                         ProxyService::CreateNull(),
                                         &socket_factory_,
                                         new SSLConfigServiceDefaults,
-                                        new SpdySessionPool(),
+                                        new SpdySessionPool(NULL),
                                         http_auth_handler_factory_.get(),
                                         NULL,
                                         NULL)),
@@ -87,6 +87,7 @@ class SSLClientSocketPoolTest : public ClientSocketPoolTest {
         tcp_pool ? tcp_socket_pool_ : NULL,
         http_proxy_pool ? http_proxy_socket_pool_ : NULL,
         socks_pool ? socks_socket_pool_ : NULL,
+        NULL,
         NULL);
   }
 

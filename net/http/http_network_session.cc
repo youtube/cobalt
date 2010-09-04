@@ -73,7 +73,7 @@ HttpNetworkSession::HttpNetworkSession(
       ssl_socket_pool_(new SSLClientSocketPool(
           g_max_sockets, g_max_sockets_per_group, ssl_pool_histograms_,
           host_resolver, client_socket_factory, tcp_socket_pool_, NULL,
-          NULL, net_log)),
+          NULL, ssl_config_service, net_log)),
       socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
@@ -117,7 +117,7 @@ HttpNetworkSession::GetSocketPoolForHTTPProxy(const HostPortPair& http_proxy) {
                           g_max_sockets_per_group,
                           tcp_for_https_proxy_pool_histograms_, host_resolver_,
                           socket_factory_, net_log_),
-                          NULL, NULL, net_log_),
+                      NULL, NULL, ssl_config_service_, net_log_),
                   net_log_)));
 
   return ret.first->second;
@@ -157,7 +157,7 @@ HttpNetworkSession::GetSocketPoolForSSLWithProxy(
       NULL,
       GetSocketPoolForHTTPProxy(proxy_server),
       GetSocketPoolForSOCKSProxy(proxy_server),
-      net_log_);
+      ssl_config_service_, net_log_);
 
   std::pair<SSLSocketPoolMap::iterator, bool> ret =
       ssl_socket_pools_for_proxies_.insert(std::make_pair(proxy_server,

@@ -130,4 +130,22 @@ bool SSLConfigService::mitm_proxies_allowed() {
   return g_mitm_proxies_allowed;
 }
 
+void SSLConfigService::AddObserver(Observer* observer) {
+  observer_list_.AddObserver(observer);
+}
+
+void SSLConfigService::RemoveObserver(Observer* observer) {
+  observer_list_.RemoveObserver(observer);
+}
+
+void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
+                                           const SSLConfig& new_config) {
+  if (orig_config.rev_checking_enabled != new_config.rev_checking_enabled ||
+      orig_config.ssl2_enabled != new_config.ssl2_enabled ||
+      orig_config.ssl3_enabled != new_config.ssl3_enabled ||
+      orig_config.tls1_enabled != new_config.tls1_enabled) {
+    FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
+  }
+}
+
 }  // namespace net
