@@ -327,11 +327,13 @@ static pid_t fork_and_get_task(task_t* child_task) {
   // return a valid pid. If IPC fails in the child, the parent will have to wait
   // until kTimeoutMs is over. This is not optimal, but I've never seen it
   // happen, and stuff should still mostly work.
+  LOG(ERROR) << "fork_and_get_task() about to fork";
   pid_t pid = fork();
   switch (pid) {
     case -1:
       return pid;
     case 0: {  // child
+      LOG(ERROR) << "fork_and_get_task() I'm the child!";
       // Must reset signal handlers before doing any mach IPC, as the mach IPC
       // calls can potentially hang forever.
       ResetChildSignalHandlersToDefaults();
@@ -341,15 +343,19 @@ static pid_t fork_and_get_task(task_t* child_task) {
         return pid;
       }
 
+      LOG(ERROR) << "fork_and_get_task() child creating sender port";
       MachPortSender child_sender(mach_connection_name.c_str());
+      LOG(ERROR) << "fork_and_get_task() child done creating sender port";
       err = child_sender.SendMessage(child_message, kTimeoutMs);
       if (err != KERN_SUCCESS) {
         LOG(ERROR) << "child SendMessage() failed: " << MachErrorCode(err);
         return pid;
       }
+      LOG(ERROR) << "fork_and_get_task() Sent a message to my parent";
       break;
     }
     default: {  // parent
+      LOG(ERROR) << "fork_and_get_task() I'm the parent!";
       MachReceiveMessage child_message;
       err = parent_recv_port.WaitForMessage(&child_message, kTimeoutMs);
       if (err != KERN_SUCCESS) {
@@ -362,6 +368,7 @@ static pid_t fork_and_get_task(task_t* child_task) {
         return pid;
       }
       *child_task = child_message.GetTranslatedPort(0);
+      LOG(ERROR) << "fork_and_get_task() Got a message from the child";
       break;
     }
   }
