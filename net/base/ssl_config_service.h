@@ -8,6 +8,7 @@
 
 #include <vector>
 
+#include "base/observer_list.h"
 #include "base/ref_counted.h"
 #include "net/base/x509_certificate.h"
 
@@ -19,9 +20,9 @@ struct SSLConfig {
   // Default to SSL 2.0 off, SSL 3.0 on, and TLS 1.0 on.
   SSLConfig()
       : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
-        tls1_enabled(true), ssl3_fallback(false), dnssec_enabled(false),
-        mitm_proxies_allowed(false), false_start_enabled(true),
-        send_client_cert(false), verify_ev_cert(false) {
+        tls1_enabled(true), dnssec_enabled(false), mitm_proxies_allowed(false),
+        false_start_enabled(true), send_client_cert(false),
+        verify_ev_cert(false), ssl3_fallback(false) {
   }
 
   bool rev_checking_enabled;  // True if server certificate revocation
@@ -29,8 +30,6 @@ struct SSLConfig {
   bool ssl2_enabled;  // True if SSL 2.0 is enabled.
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
-  bool ssl3_fallback;  // True if we are falling back to SSL 3.0 (one still
-                       // needs to clear tls1_enabled).
   bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
 
   // True if we allow this connection to be MITM attacked. This sounds a little
@@ -73,6 +72,9 @@ struct SSLConfig {
 
   bool verify_ev_cert;  // True if we should verify the certificate for EV.
 
+  bool ssl3_fallback;  // True if we are falling back to SSL 3.0 (one still
+                       // needs to clear tls1_enabled).
+
   // The list of application level protocols supported. If set, this will
   // enable Next Protocol Negotiation (if supported). This is a list of 8-bit
   // length prefixed strings. The order of the protocols doesn't matter expect
@@ -90,6 +92,25 @@ struct SSLConfig {
 // live longer than the configuration preferences.
 class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
  public:
+  // Observer is notified when SSL config settings have changed.
+  class Observer {
+   public:
+    // Notify observers if SSL settings have changed.  We don't check all of the
+    // data in SSLConfig, just those that qualify as a user config change.
+    // The following settings are considered user changes:
+    //     rev_checking_enabled
+    //     ssl2_enabled
+    //     ssl3_enabled
+    //     tls1_enabled
+    virtual void OnSSLConfigChanged() = 0;
+
+   protected:
+    virtual ~Observer() {}
+  };
+
+  SSLConfigService()
+      : observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {}
+
   // Create an instance of SSLConfigService which retrieves the configuration
   // from the system SSL configuration, or an instance of
   // SSLConfigServiceDefaults if the current system does not have a system SSL
@@ -127,6 +148,12 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   // True if we use False Start for SSL and TLS.
   static bool false_start_enabled();
 
+  // Add an observer of this service.
+  void AddObserver(Observer* observer);
+
+  // Remove an observer of this service.
+  void RemoveObserver(Observer* observer);
+
  protected:
   friend class base::RefCountedThreadSafe<SSLConfigService>;
 
@@ -134,6 +161,13 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
 
   // SetFlags sets the values of several flags based on global configuration.
   static void SetSSLConfigFlags(SSLConfig*);
+
+  // Process before/after config update.
+  void ProcessConfigUpdate(const SSLConfig& orig_config,
+                           const SSLConfig& new_config);
+
+ private:
+  ObserverList<Observer> observer_list_;
 };
 
 }  // namespace net
