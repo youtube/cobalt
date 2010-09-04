@@ -445,6 +445,7 @@ SSLClientSocketPool::SSLClientSocketPool(
     const scoped_refptr<TCPClientSocketPool>& tcp_pool,
     const scoped_refptr<HttpProxyClientSocketPool>& http_proxy_pool,
     const scoped_refptr<SOCKSClientSocketPool>& socks_pool,
+    SSLConfigService* ssl_config_service,
     NetLog* net_log)
     : base_(max_sockets, max_sockets_per_group, histograms,
             base::TimeDelta::FromSeconds(
@@ -452,9 +453,16 @@ SSLClientSocketPool::SSLClientSocketPool(
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
             new SSLConnectJobFactory(tcp_pool, http_proxy_pool, socks_pool,
                                      client_socket_factory, host_resolver,
-                                     net_log)) {}
+                                     net_log)),
+      ssl_config_service_(ssl_config_service) {
+  if (ssl_config_service_)
+    ssl_config_service_->AddObserver(this);
+}
 
-SSLClientSocketPool::~SSLClientSocketPool() {}
+SSLClientSocketPool::~SSLClientSocketPool() {
+  if (ssl_config_service_)
+    ssl_config_service_->RemoveObserver(this);
+}
 
 int SSLClientSocketPool::RequestSocket(const std::string& group_name,
                                        const void* socket_params,
@@ -495,6 +503,10 @@ int SSLClientSocketPool::IdleSocketCountInGroup(
 LoadState SSLClientSocketPool::GetLoadState(
     const std::string& group_name, const ClientSocketHandle* handle) const {
   return base_.GetLoadState(group_name, handle);
+}
+
+void SSLClientSocketPool::OnSSLConfigChanged() {
+  Flush();
 }
 
 }  // namespace net

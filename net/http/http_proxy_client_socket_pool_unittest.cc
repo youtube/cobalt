@@ -55,7 +55,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                                         ProxyService::CreateNull(),
                                         &socket_factory_,
                                         new SSLConfigServiceDefaults,
-                                        new SpdySessionPool(),
+                                        new SpdySessionPool(NULL),
                                         http_auth_handler_factory_.get(),
                                         NULL,
                                         NULL)),

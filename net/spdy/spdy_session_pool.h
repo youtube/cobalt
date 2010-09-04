@@ -17,6 +17,7 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
+#include "net/base/ssl_config_service.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_server.h"
 
@@ -34,9 +35,10 @@ class SpdySession;
 // TODO(mbelshe): Make this production ready.
 class SpdySessionPool
     : public base::RefCounted<SpdySessionPool>,
-      public NetworkChangeNotifier::Observer {
+      public NetworkChangeNotifier::Observer,
+      public SSLConfigService::Observer {
  public:
-  SpdySessionPool();
+  explicit SpdySessionPool(SSLConfigService* ssl_config_service);
 
   // Either returns an existing SpdySession or creates a new SpdySession for
   // use.
@@ -92,6 +94,11 @@ class SpdySessionPool
   // or error out due to the IP address change.
   virtual void OnIPAddressChanged();
 
+  // SSLConfigService::Observer methods:
+
+  // We perform the same flushing as described above when SSL settings change.
+  virtual void OnSSLConfigChanged();
+
  private:
   friend class base::RefCounted<SpdySessionPool>;
   friend class SpdySessionPoolPeer;  // For testing.
@@ -116,6 +123,8 @@ class SpdySessionPool
   SpdySessionsMap sessions_;
 
   static int g_max_sessions_per_domain;
+
+  const scoped_refptr<SSLConfigService> ssl_config_service_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPool);
 };

@@ -113,7 +113,7 @@ struct SessionDependencies {
         proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool()),
+        spdy_session_pool(new SpdySessionPool(NULL)),
         net_log(NULL) {}
 
   // Custom proxy service dependency.
@@ -122,7 +122,7 @@ struct SessionDependencies {
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool()),
+        spdy_session_pool(new SpdySessionPool(NULL)),
         net_log(NULL) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
@@ -336,7 +336,7 @@ template<>
 CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
     HttpNetworkSession* session)
     : SSLClientSocketPool(0, 0, NULL, session->host_resolver(), NULL, NULL,
-                          NULL, NULL, NULL) {}
+                          NULL, NULL, NULL, NULL) {}
 
 //-----------------------------------------------------------------------------
 
