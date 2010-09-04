@@ -166,7 +166,8 @@ class SSLConnectJob : public ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(SSLConnectJob);
 };
 
-class SSLClientSocketPool : public ClientSocketPool {
+class SSLClientSocketPool : public ClientSocketPool,
+                            public SSLConfigService::Observer {
  public:
   // Only the pools that will be used are required. i.e. if you never
   // try to create an SSL over SOCKS socket, |socks_pool| may be NULL.
@@ -179,6 +180,7 @@ class SSLClientSocketPool : public ClientSocketPool {
       const scoped_refptr<TCPClientSocketPool>& tcp_pool,
       const scoped_refptr<HttpProxyClientSocketPool>& http_proxy_pool,
       const scoped_refptr<SOCKSClientSocketPool>& socks_pool,
+      SSLConfigService* ssl_config_service,
       NetLog* net_log);
 
   // ClientSocketPool methods:
@@ -226,6 +228,12 @@ class SSLClientSocketPool : public ClientSocketPool {
   virtual ~SSLClientSocketPool();
 
  private:
+  // SSLConfigService::Observer methods:
+
+  // When the user changes the SSL config, we flush all idle sockets so they
+  // won't get re-used.
+  virtual void OnSSLConfigChanged();
+
   typedef ClientSocketPoolBase<SSLSocketParams> PoolBase;
 
   class SSLConnectJobFactory : public PoolBase::ConnectJobFactory {
@@ -261,6 +269,7 @@ class SSLClientSocketPool : public ClientSocketPool {
   };
 
   PoolBase base_;
+  const scoped_refptr<SSLConfigService> ssl_config_service_;
 
   DISALLOW_COPY_AND_ASSIGN(SSLClientSocketPool);
 };
