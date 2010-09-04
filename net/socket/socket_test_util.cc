@@ -1209,7 +1209,7 @@ MockSSLClientSocketPool::MockSSLClientSocketPool(
                                                       max_sockets_per_group,
                                                       histograms,
                                                       socket_factory),
-                          NULL, NULL, NULL),
+                          NULL, NULL, NULL, NULL),
       client_socket_factory_(socket_factory),
       release_count_(0),
       cancel_count_(0) {

@@ -14,13 +14,18 @@ static const size_t kMaxSessionsPerDomain = 1;
 
 int SpdySessionPool::g_max_sessions_per_domain = kMaxSessionsPerDomain;
 
-SpdySessionPool::SpdySessionPool() {
+SpdySessionPool::SpdySessionPool(SSLConfigService* ssl_config_service)
+    : ssl_config_service_(ssl_config_service) {
   NetworkChangeNotifier::AddObserver(this);
+  if (ssl_config_service_)
+    ssl_config_service_->AddObserver(this);
 }
 
 SpdySessionPool::~SpdySessionPool() {
   CloseAllSessions();
 
+  if (ssl_config_service_)
+    ssl_config_service_->RemoveObserver(this);
   NetworkChangeNotifier::RemoveObserver(this);
 }
 
@@ -104,6 +109,10 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
 }
 
 void SpdySessionPool::OnIPAddressChanged() {
+  CloseCurrentSessions();
+}
+
+void SpdySessionPool::OnSSLConfigChanged() {
   CloseCurrentSessions();
 }
 
