@@ -47,13 +47,14 @@ class MockFFmpegDemuxerStream : public MockDemuxerStream,
   DISALLOW_COPY_AND_ASSIGN(MockFFmpegDemuxerStream);
 };
 
+// TODO(hclam): Share this in a separate file.
 class MockVideoDecodeEngine : public VideoDecodeEngine {
  public:
   MOCK_METHOD3(Initialize, void(MessageLoop* message_loop,
                                 VideoDecodeEngine::EventHandler* event_handler,
                                 const VideoCodecConfig& config));
-  MOCK_METHOD1(EmptyThisBuffer, void(scoped_refptr<Buffer> buffer));
-  MOCK_METHOD1(FillThisBuffer, void(scoped_refptr<VideoFrame> buffer));
+  MOCK_METHOD1(ConsumeVideoSample, void(scoped_refptr<Buffer> buffer));
+  MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame> buffer));
   MOCK_METHOD0(Uninitialize, void());
   MOCK_METHOD0(Flush, void());
   MOCK_METHOD0(Seek, void());
@@ -73,11 +74,11 @@ class DecoderPrivateMock : public FFmpegVideoDecoder {
   }
 
   // change access qualifier for test: used in actions.
-  void OnEmptyBufferCallback(scoped_refptr<Buffer> buffer) {
-    FFmpegVideoDecoder::OnEmptyBufferCallback(buffer);
+  void ProduceVideoSample(scoped_refptr<Buffer> buffer) {
+    FFmpegVideoDecoder::ProduceVideoSample(buffer);
   }
-  void OnFillBufferCallback(scoped_refptr<VideoFrame> frame) {
-    FFmpegVideoDecoder::OnFillBufferCallback(frame);
+  void ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
+    FFmpegVideoDecoder::ConsumeVideoFrame(frame);
   }
   void OnReadComplete(Buffer* buffer) {
     FFmpegVideoDecoder::OnReadComplete(buffer);
@@ -366,7 +367,7 @@ TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
 }
 
 ACTION_P2(ReadFromDemux, decoder, buffer) {
-  decoder->OnEmptyBufferCallback(buffer);
+  decoder->ProduceVideoSample(buffer);
 }
 
 ACTION_P3(ReturnFromDemux, decoder, buffer, time_tuple) {
@@ -379,14 +380,14 @@ ACTION_P3(ReturnFromDemux, decoder, buffer, time_tuple) {
 ACTION_P3(DecodeComplete, decoder, video_frame, time_tuple) {
   video_frame->SetTimestamp(time_tuple.timestamp);
   video_frame->SetDuration(time_tuple.duration);
-  decoder->OnFillBufferCallback(video_frame);
+  decoder->ConsumeVideoFrame(video_frame);
 }
 ACTION_P2(DecodeNotComplete, decoder, buffer) {
   scoped_refptr<VideoFrame> null_frame;
   if (buffer->IsEndOfStream()) // We had started flushing.
-    decoder->OnFillBufferCallback(null_frame);
+    decoder->ConsumeVideoFrame(null_frame);
   else
-    decoder->OnEmptyBufferCallback(buffer);
+    decoder->ProduceVideoSample(buffer);
 }
 
 ACTION_P(ConsumePTS, pts_heap) {
@@ -406,8 +407,8 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
   //   5) All state transitions happen as expected.
   InitializeDecoderSuccessfully();
 
-  decoder_->set_fill_buffer_done_callback(
-      NewCallback(renderer_.get(), &MockVideoRenderer::FillThisBufferDone));
+  decoder_->set_consume_video_frame_callback(
+      NewCallback(renderer_.get(), &MockVideoRenderer::ConsumeVideoFrame));
 
   // Setup initial state and check that it is sane.
   ASSERT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);
@@ -416,7 +417,7 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
 
   // Setup decoder to buffer one frame, decode one frame, fail one frame,
   // decode one more, and then fail the last one to end decoding.
-  EXPECT_CALL(*engine_, FillThisBuffer(_))
+  EXPECT_CALL(*engine_, ProduceVideoFrame(_))
       .Times(4)
       .WillRepeatedly(ReadFromDemux(decoder_.get(), buffer_));
   EXPECT_CALL(*demuxer_.get(), Read(_))
@@ -430,20 +431,20 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
                                 end_of_stream_buffer_, kTestPts3))
       .WillOnce(ReturnFromDemux(decoder_.get(),
                                 end_of_stream_buffer_, kTestPts3));
-  EXPECT_CALL(*engine_, EmptyThisBuffer(_))
+  EXPECT_CALL(*engine_, ConsumeVideoSample(_))
       .WillOnce(DecodeNotComplete(decoder_.get(), buffer_))
       .WillOnce(DecodeComplete(decoder_.get(), video_frame_, kTestPts1))
       .WillOnce(DecodeNotComplete(decoder_.get(), buffer_))
       .WillOnce(DecodeComplete(decoder_.get(), video_frame_, kTestPts2))
       .WillOnce(DecodeComplete(decoder_.get(), video_frame_, kTestPts3))
       .WillOnce(DecodeNotComplete(decoder_.get(), end_of_stream_buffer_));
-  EXPECT_CALL(*renderer_.get(), FillThisBufferDone(_))
+  EXPECT_CALL(*renderer_.get(), ConsumeVideoFrame(_))
       .Times(4);
 
   // First request from renderer: at first round decode engine did not produce
   // any frame. Decoder will issue another read from demuxer. at second round
   // decode engine will get a valid frame.
-  decoder_->FillThisBuffer(video_frame_);
+  decoder_->ProduceVideoFrame(video_frame_);
   message_loop_.RunAllPending();
   EXPECT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);
   ASSERT_TRUE(kTestPts1.timestamp == decoder_->last_pts_.timestamp);
@@ -453,7 +454,7 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
   // Second request from renderer: at first round decode engine did not produce
   // any frame. Decoder will issue another read from demuxer. at second round
   // decode engine will get a valid frame.
-  decoder_->FillThisBuffer(video_frame_);
+  decoder_->ProduceVideoFrame(video_frame_);
   message_loop_.RunAllPending();
   EXPECT_EQ(FFmpegVideoDecoder::kFlushCodec, decoder_->state_);
   EXPECT_TRUE(kTestPts2.timestamp == decoder_->last_pts_.timestamp);
@@ -463,7 +464,7 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
   // Third request from renderer: decode engine will return frame on the
   // first round. Input stream had reach EOS, therefore we had entered
   // kFlushCodec state after this call.
-  decoder_->FillThisBuffer(video_frame_);
+  decoder_->ProduceVideoFrame(video_frame_);
   message_loop_.RunAllPending();
   EXPECT_EQ(FFmpegVideoDecoder::kFlushCodec, decoder_->state_);
   EXPECT_TRUE(kTestPts3.timestamp == decoder_->last_pts_.timestamp);
@@ -472,7 +473,7 @@ TEST_F(FFmpegVideoDecoderTest, DoDecode_TestStateTransition) {
 
   // Fourth request from renderer: Both input/output reach EOF. therefore
   // we had reached the kDecodeFinished state after this call.
-  decoder_->FillThisBuffer(video_frame_);
+  decoder_->ProduceVideoFrame(video_frame_);
   message_loop_.RunAllPending();
   EXPECT_EQ(FFmpegVideoDecoder::kDecodeFinished, decoder_->state_);
   EXPECT_TRUE(kTestPts3.timestamp == decoder_->last_pts_.timestamp);

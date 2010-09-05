@@ -53,7 +53,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     renderer_->set_host(&host_);
 
     // Queue all reads from the decoder.
-    EXPECT_CALL(*decoder_, FillThisBuffer(_))
+    EXPECT_CALL(*decoder_, ProduceVideoFrame(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::EnqueueCallback));
 
     // Sets the essential media format keys for this decoder.
@@ -204,7 +204,7 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
     scoped_refptr<VideoFrame> frame;
     VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight, kZero,
                             kZero, &frame);
-    decoder_->fill_buffer_done_callback()->Run(frame);
+    decoder_->VideoFrameReady(frame);
   }
 
   MockFilterCallback play_callback;

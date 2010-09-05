@@ -284,17 +284,16 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
   }
 
   // Otherwise, attempt to decode a single frame.
-  decode_engine_->EmptyThisBuffer(buffer);
+  decode_engine_->ConsumeVideoSample(buffer);
 }
 
-void FFmpegVideoDecoder::FillThisBuffer(
+void FFmpegVideoDecoder::ProduceVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
   if (MessageLoop::current() != message_loop()) {
     message_loop()->PostTask(
         FROM_HERE,
         NewRunnableMethod(this,
-                          &FFmpegVideoDecoder::FillThisBuffer,
-                          video_frame));
+                          &FFmpegVideoDecoder::ProduceVideoFrame, video_frame));
     return;
   }
 
@@ -308,16 +307,16 @@ void FFmpegVideoDecoder::FillThisBuffer(
     // Signal VideoRenderer the end of the stream event.
     scoped_refptr<VideoFrame> empty_frame;
     VideoFrame::CreateEmptyFrame(&empty_frame);
-    fill_buffer_done_callback()->Run(empty_frame);
+    VideoFrameReady(empty_frame);
 
     // Fall through, because we still need to keep record of this frame.
   }
 
   // Notify decode engine the available of new frame.
-  decode_engine_->FillThisBuffer(video_frame);
+  decode_engine_->ProduceVideoFrame(video_frame);
 }
 
-void FFmpegVideoDecoder::OnFillBufferCallback(
+void FFmpegVideoDecoder::ConsumeVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
   DCHECK_NE(state_, kStopped);
@@ -337,7 +336,7 @@ void FFmpegVideoDecoder::OnFillBufferCallback(
     video_frame->SetTimestamp(last_pts_.timestamp);
     video_frame->SetDuration(last_pts_.duration);
 
-    fill_buffer_done_callback()->Run(video_frame);
+    VideoFrameReady(video_frame);
   } else {
     // When in kFlushCodec, any errored decode, or a 0-lengthed frame,
     // is taken as a signal to stop decoding.
@@ -347,12 +346,12 @@ void FFmpegVideoDecoder::OnFillBufferCallback(
       // Signal VideoRenderer the end of the stream event.
       scoped_refptr<VideoFrame> video_frame;
       VideoFrame::CreateEmptyFrame(&video_frame);
-      fill_buffer_done_callback()->Run(video_frame);
+      VideoFrameReady(video_frame);
     }
   }
 }
 
-void FFmpegVideoDecoder::OnEmptyBufferCallback(
+void FFmpegVideoDecoder::ProduceVideoSample(
     scoped_refptr<Buffer> buffer) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
   DCHECK_NE(state_, kStopped);
@@ -424,9 +423,9 @@ void FFmpegVideoDecoder::FlushBuffers() {
     // Depends on who own the buffers, we either return it to the renderer
     // or return it to the decode engine.
     if (ProvidesBuffer())
-      decode_engine_->FillThisBuffer(video_frame);
+      decode_engine_->ProduceVideoFrame(video_frame);
     else
-      fill_buffer_done_callback()->Run(video_frame);
+      VideoFrameReady(video_frame);
   }
 }
 
