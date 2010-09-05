@@ -520,10 +520,12 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   // Obey send window size of the stream if flow control is enabled.
   if (use_flow_control_) {
     if (stream->send_window_size() <= 0) {
-      // TODO(mbelshe): Consider getting rid of set_stalled_by_flow_control()
-      //                and have the stream provide is_stalled().   Right now
-      //                we mark as flow controlled from the SpdySession, and
-      //                unmark flow controlled from the SpdyStream.
+      // Because we queue frames onto the session, it is possible that
+      // a stream was not flow controlled at the time it attempted the
+      // write, but when we go to fulfill the write, it is now flow
+      // controlled.  This is why we need the session to mark the stream
+      // as stalled - because only the session knows for sure when the
+      // stall occurs.
       stream->set_stalled_by_flow_control(true);
       net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_STALLED_ON_SEND_WINDOW,
                          new NetLogIntegerParameter("stream_id", stream_id));
