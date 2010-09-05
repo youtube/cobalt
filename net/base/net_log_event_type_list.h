@@ -677,20 +677,24 @@ EVENT_TYPE(SPDY_SESSION_POOL_REMOVE_SESSION)
 // The begin and end of a SPDY STREAM.
 EVENT_TYPE(SPDY_STREAM)
 
-// Measures the time taken to send headers on a stream.
-EVENT_TYPE(SPDY_STREAM_SEND_HEADERS)
-
-// Measures the time taken to send the body (e.g. a POST) on a stream.
-EVENT_TYPE(SPDY_STREAM_SEND_BODY)
-
-// Measures the time taken to send headers on a stream.
-EVENT_TYPE(SPDY_STREAM_RECV_HEADERS)
-
-// Measures the time taken to read the body on a stream.
-EVENT_TYPE(SPDY_STREAM_READ_BODY)
-
 // Logs that a stream attached to a pushed stream.
 EVENT_TYPE(SPDY_STREAM_ADOPTED_PUSH_STREAM)
+
+// This event indicates that the send window has been updated
+//   {
+//     "id":         <The stream id>,
+//     "delta":      <The window size delta>,
+//     "new_window": <The new window size>,
+//   }
+EVENT_TYPE(SPDY_STREAM_SEND_WINDOW_UPDATE)
+
+// This event indicates that the recv window has been updated
+//   {
+//     "id":         <The stream id>,
+//     "delta":      <The window size delta>,
+//     "new_window": <The new window size>,
+//   }
+EVENT_TYPE(SPDY_STREAM_RECV_WINDOW_UPDATE)
 
 // ------------------------------------------------------------------------
 // HttpStreamParser
