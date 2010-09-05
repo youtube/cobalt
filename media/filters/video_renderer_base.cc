@@ -163,8 +163,8 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   decoder_ = decoder;
   AutoCallbackRunner done_runner(callback);
 
-  decoder_->set_fill_buffer_done_callback(
-      NewCallback(this, &VideoRendererBase::OnFillBufferDone));
+  decoder_->set_consume_video_frame_callback(
+      NewCallback(this, &VideoRendererBase::ConsumeVideoFrame));
   // Notify the pipeline of the video dimensions.
   if (!ParseMediaFormat(decoder->media_format(),
                         &surface_type_,
@@ -355,7 +355,7 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
     FlushBuffers();
 }
 
-void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
+void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
   AutoLock auto_lock(lock_);
 
   // Decoder could reach seek state before our Seek() get called.
@@ -434,7 +434,7 @@ void VideoRendererBase::ReadInput(scoped_refptr<VideoFrame> frame) {
   // We should never return empty frames or EOS frame.
   DCHECK(frame.get() && !frame->IsEndOfStream());
 
-  decoder_->FillThisBuffer(frame);
+  decoder_->ProduceVideoFrame(frame);
   ++pending_reads_;
 }
 
