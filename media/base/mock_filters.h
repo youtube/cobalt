@@ -172,8 +172,13 @@ class MockVideoDecoder : public VideoDecoder {
   MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
                                 FilterCallback* callback));
   MOCK_METHOD0(media_format, const MediaFormat&());
-  MOCK_METHOD1(FillThisBuffer, void(scoped_refptr<VideoFrame>));
+  MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame>));
   MOCK_METHOD0(ProvidesBuffer, bool());
+
+  // Make this method public so that tests can make use of it.
+  void VideoFrameReady(scoped_refptr<VideoFrame> frame) {
+    VideoDecoder::VideoFrameReady(frame);
+  }
 
  protected:
   virtual ~MockVideoDecoder() {}
@@ -196,11 +201,11 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
                                 FilterCallback* callback));
   MOCK_METHOD0(media_format, const MediaFormat&());
-  MOCK_METHOD1(FillThisBuffer, void(scoped_refptr<Buffer>));
+  MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
 
   // change to public to allow unittest for access;
-  FillBufferDoneCallback* fill_buffer_done_callback() {
-    return AudioDecoder::fill_buffer_done_callback();
+  ConsumeAudioSamplesCallback* consume_audio_samples_callback() {
+    return AudioDecoder::consume_audio_samples_callback();
   }
 
  protected:
@@ -224,7 +229,7 @@ class MockVideoRenderer : public VideoRenderer {
   MOCK_METHOD2(Initialize, void(VideoDecoder* decoder,
                                 FilterCallback* callback));
   MOCK_METHOD0(HasEnded, bool());
-  MOCK_METHOD1(FillThisBufferDone, void(scoped_refptr<VideoFrame> frame));
+  MOCK_METHOD1(ConsumeVideoFrame, void(scoped_refptr<VideoFrame> frame));
 
  protected:
   virtual ~MockVideoRenderer() {}

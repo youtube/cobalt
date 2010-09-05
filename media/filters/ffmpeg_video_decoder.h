@@ -42,7 +42,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   virtual void Initialize(DemuxerStream* demuxer_stream,
                           FilterCallback* callback);
   virtual const MediaFormat& media_format() { return media_format_; }
-  virtual void FillThisBuffer(scoped_refptr<VideoFrame> video_frame);
+  virtual void ProduceVideoFrame(scoped_refptr<VideoFrame> video_frame);
   virtual bool ProvidesBuffer();
 
  private:
@@ -53,8 +53,8 @@ class FFmpegVideoDecoder : public VideoDecoder,
   virtual void OnSeekComplete();
   virtual void OnError();
   virtual void OnFormatChange(VideoStreamInfo stream_info);
-  virtual void OnEmptyBufferCallback(scoped_refptr<Buffer> buffer);
-  virtual void OnFillBufferCallback(scoped_refptr<VideoFrame> frame);
+  virtual void ProduceVideoSample(scoped_refptr<Buffer> buffer);
+  virtual void ConsumeVideoFrame(scoped_refptr<VideoFrame> frame);
 
   friend class FilterFactoryImpl1<FFmpegVideoDecoder, VideoDecodeEngine*>;
   friend class DecoderPrivateMock;

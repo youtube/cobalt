@@ -112,7 +112,7 @@ class VideoRendererBase : public VideoRenderer,
  private:
   // Callback from video decoder to deliver decoded video frames and decrements
   // |pending_reads_|.
-  void OnFillBufferDone(scoped_refptr<VideoFrame> frame);
+  void ConsumeVideoFrame(scoped_refptr<VideoFrame> frame);
 
   // Helper method that schedules an asynchronous read from the decoder and
   // increments |pending_reads_|.
