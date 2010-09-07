@@ -223,8 +223,10 @@ int SystemHostResolverProc(const std::string& host,
     }
   }
   if (should_retry) {
-    freeaddrinfo(ai);
-    ai = NULL;
+    if (ai != NULL) {
+      freeaddrinfo(ai);
+      ai = NULL;
+    }
     err = getaddrinfo(host.c_str(), NULL, &hints, &ai);
   }
 
