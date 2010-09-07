@@ -174,13 +174,6 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level);
 bool LaunchApp(const std::wstring& cmdline,
                bool wait, bool start_hidden, ProcessHandle* process_handle);
 
-// Same as LaunchApp, except allows the new process to inherit handles of the
-// parent process.
-bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
-                                    bool wait,
-                                    bool start_hidden,
-                                    ProcessHandle* process_handle);
-
 // Runs the given application name with the given command line as if the user
 // represented by |token| had launched it. The caveats about |cmdline| and
 // |process_handle| explained for LaunchApp above apply as well.
@@ -195,11 +188,10 @@ bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
                      bool start_hidden, ProcessHandle* process_handle);
 
 // Has the same behavior as LaunchAppAsUser, but offers the boolean option to
-// use an empty string for the desktop name and a boolean for allowing the
-// child process to inherit handles from its parent.
+// use an empty string for the desktop name.
 bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
                      bool start_hidden, ProcessHandle* process_handle,
-                     bool empty_desktop_name, bool inherit_handles);
+                     bool empty_desktop_name);
 
 
 #elif defined(OS_POSIX)
