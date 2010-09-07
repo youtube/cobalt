@@ -32,13 +32,7 @@ namespace net {
 
 namespace {
 
-#ifdef WIN32
-// We use an artificially small buffer size on windows because the async IO
-// system will artifiially delay IO completions when we use large buffers.
-const int kReadBufferSize = 2 * 1024;
-#else
 const int kReadBufferSize = 8 * 1024;
-#endif
 
 void AdjustSocketBufferSizes(ClientSocket* socket) {
   // Adjust socket buffer sizes.
