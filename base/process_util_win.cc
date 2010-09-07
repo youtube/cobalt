@@ -191,9 +191,8 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level) {
   return true;
 }
 
-bool LaunchAppImpl(const std::wstring& cmdline,
-                   bool wait, bool start_hidden, bool inherit_handles,
-                   ProcessHandle* process_handle) {
+bool LaunchApp(const std::wstring& cmdline,
+               bool wait, bool start_hidden, ProcessHandle* process_handle) {
   STARTUPINFO startup_info = {0};
   startup_info.cb = sizeof(startup_info);
   startup_info.dwFlags = STARTF_USESHOWWINDOW;
@@ -201,7 +200,7 @@ bool LaunchAppImpl(const std::wstring& cmdline,
   PROCESS_INFORMATION process_info;
   if (!CreateProcess(NULL,
                      const_cast<wchar_t*>(cmdline.c_str()), NULL, NULL,
-                     inherit_handles, 0, NULL, NULL,
+                     FALSE, 0, NULL, NULL,
                      &startup_info, &process_info))
     return false;
 
@@ -220,26 +219,14 @@ bool LaunchAppImpl(const std::wstring& cmdline,
   return true;
 }
 
-bool LaunchApp(const std::wstring& cmdline,
-               bool wait, bool start_hidden, ProcessHandle* process_handle) {
-  return LaunchAppImpl(cmdline, wait, start_hidden, false, process_handle);
-}
-
-bool LaunchAppWithHandleInheritance(
-    const std::wstring& cmdline, bool wait, bool start_hidden,
-    ProcessHandle* process_handle) {
-  return LaunchAppImpl(cmdline, wait, start_hidden, true, process_handle);
-}
-
 bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
                      bool start_hidden, ProcessHandle* process_handle) {
-  return LaunchAppAsUser(token, cmdline, start_hidden, process_handle,
-                         false, false);
+  return LaunchAppAsUser(token, cmdline, start_hidden, process_handle, false);
 }
 
 bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
                      bool start_hidden, ProcessHandle* process_handle,
-                     bool empty_desktop_name, bool inherit_handles) {
+                     bool empty_desktop_name) {
   STARTUPINFO startup_info = {0};
   startup_info.cb = sizeof(startup_info);
   if (empty_desktop_name)
@@ -257,7 +244,7 @@ bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
 
   BOOL launched =
       CreateProcessAsUser(token, NULL, const_cast<wchar_t*>(cmdline.c_str()),
-                          NULL, NULL, inherit_handles, flags, enviroment_block,
+                          NULL, NULL, FALSE, flags, enviroment_block,
                           NULL, &startup_info, &process_info);
 
   DestroyEnvironmentBlock(enviroment_block);
@@ -277,8 +264,8 @@ bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
 
 bool LaunchApp(const CommandLine& cl,
                bool wait, bool start_hidden, ProcessHandle* process_handle) {
-  return LaunchAppImpl(cl.command_line_string(), wait,
-                       false, start_hidden, process_handle);
+  return LaunchApp(cl.command_line_string(), wait,
+                   start_hidden, process_handle);
 }
 
 // Attempts to kill the process identified by the given process
