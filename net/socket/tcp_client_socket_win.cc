@@ -521,7 +521,7 @@ void TCPClientSocketWin::SetSubresourceSpeculation() {
 }
 
 void TCPClientSocketWin::SetOmniboxSpeculation() {
-  use_history_.set_omnibox_speculation();
+  use_history_.set_subresource_speculation();
 }
 
 bool TCPClientSocketWin::WasEverUsed() const {
