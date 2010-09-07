@@ -19,6 +19,7 @@
         '../third_party/icu/icu.gyp:icuuc',
         '../third_party/zlib/zlib.gyp:zlib',
         'net_resources',
+        'ssl_false_start_blacklist_process',
       ],
       'sources': [
         'base/address_family.h',
@@ -165,6 +166,7 @@
         'base/ssl_config_service_mac.h',
         'base/ssl_config_service_win.cc',
         'base/ssl_config_service_win.h',
+        'base/ssl_false_start_blacklist.cc',
         'base/ssl_info.cc',
         'base/ssl_info.h',
         'base/static_cookie_policy.cc',
@@ -198,6 +200,25 @@
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
+      ],
+      'actions': [
+        {
+          'action_name': 'ssl_false_start_blacklist',
+          'inputs': [
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+            'base/ssl_false_start_blacklist.txt',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+          ],
+          'action':
+            ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+             'base/ssl_false_start_blacklist.txt',
+              '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+            ],
+          'message': 'Generating SSL False Start blacklist',
+          'process_outputs_as_sources': 1,
+        },
       ],
       'conditions': [
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
@@ -732,6 +753,7 @@
         'base/ssl_config_service_mac_unittest.cc',
         'base/ssl_config_service_unittest.cc',
         'base/ssl_config_service_win_unittest.cc',
+        'base/ssl_false_start_blacklist_unittest.cc',
         'base/static_cookie_policy_unittest.cc',
         'base/transport_security_state_unittest.cc',
         'base/test_certificate_data.h',
@@ -1110,6 +1132,16 @@
       'msvs_guid': 'FF1BAC48-D326-4CB4-96DA-8B03DE23ED6E',
       'sources': [
         'tools/hresolv/hresolv.cc',
+      ],
+    },
+    {
+      'target_name': 'ssl_false_start_blacklist_process',
+      'type': 'executable',
+      'dependencies': [
+        '../base/base.gyp:base',
+      ],
+      'sources': [
+        'base/ssl_false_start_blacklist_process.cc',
       ],
     },
   ],
