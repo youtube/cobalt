@@ -29,10 +29,8 @@
 
 #if defined(OS_WIN)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_SHARED
-#elif defined(OS_MACOSX)
+#else
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_STATIC
-#elif defined(OS_POSIX)
-#define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_FILE
 #endif
 
 #endif  // ICU_UTIL_DATA_IMPL
@@ -77,7 +75,7 @@ bool Initialize() {
   udata_setCommonData(reinterpret_cast<void*>(addr), &err);
   return err == U_ZERO_ERROR;
 #elif (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_STATIC)
-  // Mac bundles the ICU data in.
+  // Mac/Linux bundle the ICU data in.
   return true;
 #elif (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
   // For now, expect the data file to be alongside the executable.
