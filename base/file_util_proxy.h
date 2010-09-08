@@ -97,6 +97,7 @@ class FileUtilProxy {
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
       bool exclusive,
+      bool recursive,
       StatusCallback* callback);
 
   // Deletes a file or empty directory.
