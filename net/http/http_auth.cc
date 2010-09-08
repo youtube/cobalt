@@ -54,8 +54,8 @@ void HttpAuth::ChooseBestChallenge(
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
         cur_challenge, target, origin, net_log, &cur);
     if (rv != OK) {
-      LOG(WARNING) << "Unable to create AuthHandler. Status: "
-                   << ErrorToString(rv) << " Challenge: " << cur_challenge;
+      LOG(INFO) << "Unable to create AuthHandler. Status: "
+                << ErrorToString(rv) << " Challenge: " << cur_challenge;
       continue;
     }
     if (cur.get() && (!best.get() || best->score() < cur->score()) &&
