@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/time.h"
+#include "base/values.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -268,7 +269,9 @@ HttpProxyClientSocketPool::HttpProxyClientSocketPool(
     const scoped_refptr<TCPClientSocketPool>& tcp_pool,
     const scoped_refptr<SSLClientSocketPool>& ssl_pool,
     NetLog* net_log)
-    : base_(max_sockets, max_sockets_per_group, histograms,
+    : tcp_pool_(tcp_pool),
+      ssl_pool_(ssl_pool),
+      base_(max_sockets, max_sockets_per_group, histograms,
             base::TimeDelta::FromSeconds(
                 ClientSocketPool::unused_idle_socket_timeout()),
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
@@ -317,6 +320,28 @@ int HttpProxyClientSocketPool::IdleSocketCountInGroup(
 LoadState HttpProxyClientSocketPool::GetLoadState(
     const std::string& group_name, const ClientSocketHandle* handle) const {
   return base_.GetLoadState(group_name, handle);
+}
+
+DictionaryValue* HttpProxyClientSocketPool::GetInfoAsValue(
+    const std::string& name,
+    const std::string& type,
+    bool include_nested_pools) const {
+  DictionaryValue* dict = base_.GetInfoAsValue(name, type);
+  if (include_nested_pools) {
+    ListValue* list = new ListValue();
+    if (tcp_pool_.get()) {
+      list->Append(tcp_pool_->GetInfoAsValue("tcp_socket_pool",
+                                             "tcp_socket_pool",
+                                             true));
+    }
+    if (ssl_pool_.get()) {
+      list->Append(ssl_pool_->GetInfoAsValue("ssl_socket_pool",
+                                             "ssl_socket_pool",
+                                             true));
+    }
+    dict->Set("nested_pools", list);
+  }
+  return dict;
 }
 
 }  // namespace net

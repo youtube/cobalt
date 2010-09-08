@@ -140,10 +140,9 @@ class SOCKSClientSocketPool : public ClientSocketPool {
   virtual LoadState GetLoadState(const std::string& group_name,
                                  const ClientSocketHandle* handle) const;
 
-  virtual Value* GetInfoAsValue(const std::string& name,
-                                const std::string& type) const {
-    return base_.GetInfoAsValue(name, type);
-  }
+  virtual DictionaryValue* GetInfoAsValue(const std::string& name,
+                                          const std::string& type,
+                                          bool include_nested_pools) const;
 
   virtual base::TimeDelta ConnectionTimeout() const {
     return base_.ConnectionTimeout();
@@ -186,6 +185,7 @@ class SOCKSClientSocketPool : public ClientSocketPool {
     DISALLOW_COPY_AND_ASSIGN(SOCKSConnectJobFactory);
   };
 
+  const scoped_refptr<TCPClientSocketPool> tcp_pool_;
   PoolBase base_;
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSClientSocketPool);
