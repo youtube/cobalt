@@ -336,6 +336,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
           this, &SSLClientSocketNSS::BufferRecvComplete)),
       transport_send_busy_(false),
       transport_recv_busy_(false),
+      corked_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(handshake_io_callback_(
           this, &SSLClientSocketNSS::OnHandshakeIOComplete)),
       transport_(transport_socket),
@@ -723,6 +724,7 @@ int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
   user_write_buf_ = buf;
   user_write_buf_len_ = buf_len;
 
+  corked_ = false;
   int rv = DoWriteLoop(OK);
 
   if (rv == ERR_IO_PENDING) {
@@ -1109,38 +1111,35 @@ bool SSLClientSocketNSS::DoTransportIO() {
 // > 0 for bytes transferred immediately,
 // < 0 for error (or the non-error ERR_IO_PENDING).
 int SSLClientSocketNSS::BufferSend(void) {
-  if (transport_send_busy_) return ERR_IO_PENDING;
+  if (transport_send_busy_)
+    return ERR_IO_PENDING;
 
-  int nsent = 0;
   EnterFunction("");
-  // nss_bufs_ is a circular buffer.  It may have two contiguous parts
-  // (before and after the wrap).  So this for loop needs two iterations.
-  for (int i = 0; i < 2; ++i) {
-    const char* buf;
-    int nb = memio_GetWriteParams(nss_bufs_, &buf);
-    if (!nb)
-      break;
+  const char* buf1;
+  const char* buf2;
+  unsigned int len1, len2;
+  memio_GetWriteParams(nss_bufs_, &buf1, &len1, &buf2, &len2);
+  const unsigned int len = len1 + len2;
 
-    scoped_refptr<IOBuffer> send_buffer = new IOBuffer(nb);
-    memcpy(send_buffer->data(), buf, nb);
-    int rv = transport_->socket()->Write(send_buffer, nb,
-                                         &buffer_send_callback_);
+  if (corked_ && len < kRecvBufferSize / 2)
+    return 0;
+
+  int rv = 0;
+  if (len) {
+    scoped_refptr<IOBuffer> send_buffer = new IOBuffer(len);
+    memcpy(send_buffer->data(), buf1, len1);
+    memcpy(send_buffer->data() + len1, buf2, len2);
+    rv = transport_->socket()->Write(send_buffer, len,
+                                     &buffer_send_callback_);
     if (rv == ERR_IO_PENDING) {
       transport_send_busy_ = true;
-      break;
     } else {
       memio_PutWriteResult(nss_bufs_, MapErrorToNSS(rv));
-      if (rv < 0) {
-        // Return the error even if the previous Write succeeded.
-        nsent = rv;
-        break;
-      }
-      nsent += rv;
     }
   }
 
-  LeaveFunction(nsent);
-  return nsent;
+  LeaveFunction(rv);
+  return rv;
 }
 
 void SSLClientSocketNSS::BufferSendComplete(int result) {
@@ -1292,6 +1291,23 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
                                                  PRFileDesc* socket,
                                                  PRBool checksig,
                                                  PRBool is_server) {
+#ifdef SSL_ENABLE_FALSE_START
+  // In the event that we are False Starting this connection, we wish to send
+  // out the Finished message and first application data record in the same
+  // packet. This prevents non-determinism when talking to False Start
+  // intolerant servers which, otherwise, might see the two messages in
+  // different reads or not, depending on network conditions.
+  PRBool false_start = 0;
+  SECStatus rv = SSL_OptionGet(socket, SSL_ENABLE_FALSE_START, &false_start);
+  if (rv != SECSuccess)
+    NOTREACHED();
+  if (false_start) {
+    SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+    if (!that->handshake_callback_called_)
+      that->corked_ = true;
+  }
+#endif
+
   // Tell NSS to not verify the certificate.
   return SECSuccess;
 }
