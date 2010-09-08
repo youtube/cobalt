@@ -70,6 +70,9 @@ static void memio_buffer_destroy(struct memio_buffer *mb);
 /* How many bytes can be read out of the buffer without wrapping */
 static int memio_buffer_used_contiguous(const struct memio_buffer *mb);
 
+/* How many bytes exist after the wrap? */
+static int memio_buffer_wrapped_bytes(const struct memio_buffer *mb);
+
 /* How many bytes can be written into the buffer without wrapping */
 static int memio_buffer_unused_contiguous(const struct memio_buffer *mb);
 
@@ -101,6 +104,12 @@ static void memio_buffer_destroy(struct memio_buffer *mb)
 static int memio_buffer_used_contiguous(const struct memio_buffer *mb)
 {
     return (((mb->tail >= mb->head) ? mb->tail : mb->bufsize) - mb->head);
+}
+
+/* How many bytes exist after the wrap? */
+static int memio_buffer_wrapped_bytes(const struct memio_buffer *mb)
+{
+    return (mb->tail >= mb->head) ? 0 : mb->tail;
 }
 
 /* How many bytes can be written into the buffer without wrapping */
@@ -399,13 +408,17 @@ void memio_PutReadResult(memio_Private *secret, int bytes_read)
     }
 }
 
-int memio_GetWriteParams(memio_Private *secret, const char **buf)
+void memio_GetWriteParams(memio_Private *secret,
+                          const char **buf1, unsigned int *len1,
+                          const char **buf2, unsigned int *len2)
 {
     struct memio_buffer* mb = &((PRFilePrivate *)secret)->writebuf;
     PR_ASSERT(mb->bufsize);
 
-    *buf = &mb->buf[mb->head];
-    return memio_buffer_used_contiguous(mb);
+    *buf1 = &mb->buf[mb->head];
+    *len1 = memio_buffer_used_contiguous(mb);
+    *buf2 = mb->buf;
+    *len2 = memio_buffer_wrapped_bytes(mb);
 }
 
 void memio_PutWriteResult(memio_Private *secret, int bytes_written)
@@ -415,8 +428,8 @@ void memio_PutWriteResult(memio_Private *secret, int bytes_written)
 
     if (bytes_written > 0) {
         mb->head += bytes_written;
-        if (mb->head == mb->bufsize)
-            mb->head = 0;
+        if (mb->head >= mb->bufsize)
+            mb->head -= mb->bufsize;
     } else if (bytes_written < 0) {
         mb->last_err = bytes_written;
     }
@@ -453,11 +466,13 @@ int main()
 
     CHECKEQ(memio_buffer_unused_contiguous(&mb), TEST_BUFLEN-1-5);
     CHECKEQ(memio_buffer_used_contiguous(&mb), 5);
+    CHECKEQ(memio_buffer_wrapped_bytes(&mb), 0);
 
     CHECKEQ(memio_buffer_put(&mb, "!", 1), 1);
 
     CHECKEQ(memio_buffer_unused_contiguous(&mb), 0);
     CHECKEQ(memio_buffer_used_contiguous(&mb), 6);
+    CHECKEQ(memio_buffer_wrapped_bytes(&mb), 0);
 
     CHECKEQ(memio_buffer_get(&mb, buf, 6), 6);
     CHECKEQ(memcmp(buf, "howdy!", 6), 0);
@@ -468,6 +483,7 @@ int main()
     CHECKEQ(memio_buffer_put(&mb, "01234", 5), 5);
 
     CHECKEQ(memio_buffer_used_contiguous(&mb), 1);
+    CHECKEQ(memio_buffer_wrapped_bytes(&mb), 4);
     CHECKEQ(memio_buffer_unused_contiguous(&mb), TEST_BUFLEN-1-5);
 
     CHECKEQ(memio_buffer_put(&mb, "5", 1), 1);
