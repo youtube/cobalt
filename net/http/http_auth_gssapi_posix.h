@@ -246,15 +246,11 @@ class HttpAuthGSSAPI {
   void Delegate();
 
  private:
-  int OnFirstRound(const string16* username,
-                   const string16* password);
   int GetNextSecurityToken(const std::wstring& spn,
                            gss_buffer_t in_token,
                            gss_buffer_t out_token);
 
   std::string scheme_;
-  string16 username_;
-  string16 password_;
   gss_OID gss_oid_;
   GSSAPILibrary* library_;
   std::string decoded_server_auth_token_;

@@ -363,15 +363,15 @@ NET_ERROR(ENCODING_DETECTION_FAILED, -340)
 // (GSSAPI) No Kerberos credentials were available during HTTP Authentication.
 NET_ERROR(MISSING_AUTH_CREDENTIALS, -341)
 
-// An unexpected, but documented, SSPI status code was returned.
-NET_ERROR(UNEXPECTED_SSPI_STATUS, -342)
+// An unexpected, but documented, SSPI or GSSAPI status code was returned.
+NET_ERROR(UNEXPECTED_SECURITY_LIBRARY_STATUS, -342)
 
 // The environment was not set up correctly for authentication (for
 // example, no KDC could be found or the principal is unknown.
 NET_ERROR(MISCONFIGURED_AUTH_ENVIRONMENT, -343)
 
-// An undocumented SSPI status code was returned.
-NET_ERROR(UNDOCUMENTED_SSPI_STATUS, -344)
+// An undocumented SSPI or GSSAPI status code was returned.
+NET_ERROR(UNDOCUMENTED_SECURITY_LIBRARY_STATUS, -344)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)

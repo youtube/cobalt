@@ -731,13 +731,7 @@ int HttpAuthGSSAPI::GenerateAuthToken(const string16* username,
                                       const std::wstring& spn,
                                       std::string* auth_token) {
   DCHECK(auth_token);
-  DCHECK((username == NULL) == (password == NULL));
-
-  if (!IsFinalRound()) {
-    int rv = OnFirstRound(username, password);
-    if (rv != OK)
-      return rv;
-  }
+  DCHECK(username == NULL && password == NULL);
 
   gss_buffer_desc input_token = GSS_C_EMPTY_BUFFER;
   input_token.length = decoded_server_auth_token_.length();
@@ -755,24 +749,107 @@ int HttpAuthGSSAPI::GenerateAuthToken(const string16* username,
   std::string encode_input(static_cast<char*>(output_token.value),
                            output_token.length);
   std::string encode_output;
-  bool ok = base::Base64Encode(encode_input, &encode_output);
-  if (!ok)
-    return ERR_UNEXPECTED;
+  bool base64_rv = base::Base64Encode(encode_input, &encode_output);
+  if (!base64_rv) {
+    LOG(ERROR) << "Base64 encoding of auth token failed.";
+    return ERR_ENCODING_CONVERSION_FAILED;
+  }
   *auth_token = scheme_ + " " + encode_output;
   return OK;
 }
 
-int HttpAuthGSSAPI::OnFirstRound(const string16* username,
-                                 const string16* password) {
-  // TODO(cbentzel): Acquire credentials?
-  DCHECK((username == NULL) == (password == NULL));
-  username_.clear();
-  password_.clear();
-  if (username) {
-    username_ = *username;
-    password_ = *password;
+
+namespace {
+
+// GSSAPI status codes consist of a calling error (essentially, a programmer
+// bug), a routine error (defined by the RFC), and supplementary information,
+// all bitwise-or'ed together in different regions of the 32 bit return value.
+// This means a simple switch on the return codes is not sufficient.
+
+int MapImportNameStatusToError(OM_uint32 major_status) {
+  LOG(INFO) << "import_name returned 0x" << std::hex << major_status;
+  if (major_status == GSS_S_COMPLETE)
+    return OK;
+  if (GSS_CALLING_ERROR(major_status) != 0)
+    return ERR_UNEXPECTED;
+  OM_uint32 routine_error = GSS_ROUTINE_ERROR(major_status);
+  switch (routine_error) {
+    case GSS_S_FAILURE:
+      // Looking at the MIT Kerberos implementation, this typically is returned
+      // when memory allocation fails. However, the API does not guarantee
+      // that this is the case, so using ERR_UNEXPECTED rather than
+      // ERR_OUT_OF_MEMORY.
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
+    case GSS_S_BAD_NAME:
+    case GSS_S_BAD_NAMETYPE:
+      return ERR_MALFORMED_IDENTITY;
+    case GSS_S_DEFECTIVE_TOKEN:
+      // Not mentioned in the API, but part of code.
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
+    case GSS_S_BAD_MECH:
+      return ERR_UNSUPPORTED_AUTH_SCHEME;
+    default:
+      return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
   }
-  return OK;
+}
+
+int MapInitSecContextStatusToError(OM_uint32 major_status) {
+  LOG(INFO) << "init_sec_context returned 0x" << std::hex << major_status;
+  // Although GSS_S_CONTINUE_NEEDED is an additional bit, it seems like
+  // other code just checks if major_status is equivalent to it to indicate
+  // that there are no other errors included.
+  if (major_status == GSS_S_COMPLETE || major_status == GSS_S_CONTINUE_NEEDED)
+    return OK;
+  if (GSS_CALLING_ERROR(major_status) != 0)
+    return ERR_UNEXPECTED;
+  OM_uint32 routine_status = GSS_ROUTINE_ERROR(major_status);
+  switch (routine_status) {
+    case GSS_S_DEFECTIVE_TOKEN:
+      return ERR_INVALID_RESPONSE;
+    case GSS_S_DEFECTIVE_CREDENTIAL:
+      // Not expected since this implementation uses the default credential.
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
+    case GSS_S_BAD_SIG:
+      // Probably won't happen, but it's a bad response.
+      return ERR_INVALID_RESPONSE;
+    case GSS_S_NO_CRED:
+      return ERR_INVALID_AUTH_CREDENTIALS;
+    case GSS_S_CREDENTIALS_EXPIRED:
+      return ERR_INVALID_AUTH_CREDENTIALS;
+    case GSS_S_BAD_BINDINGS:
+      // This only happens with mutual authentication.
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
+    case GSS_S_NO_CONTEXT:
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
+    case GSS_S_BAD_NAMETYPE:
+      return ERR_UNSUPPORTED_AUTH_SCHEME;
+    case GSS_S_BAD_NAME:
+      return ERR_UNSUPPORTED_AUTH_SCHEME;
+    case GSS_S_BAD_MECH:
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
+    case GSS_S_FAILURE:
+      // This should be an "Unexpected Security Status" according to the
+      // GSSAPI documentation, but it's typically used to indicate that
+      // credentials are not correctly set up on a user machine, such
+      // as a missing credential cache or hitting this after calling
+      // kdestroy.
+      // TODO(cbentzel): Use minor code for even better mapping?
+      return ERR_MISSING_AUTH_CREDENTIALS;
+    default:
+      if (routine_status != 0)
+        return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
+      break;
+  }
+  OM_uint32 supplemental_status = GSS_SUPPLEMENTARY_INFO(major_status);
+  // Replays could indicate an attack.
+  if (supplemental_status & (GSS_S_DUPLICATE_TOKEN | GSS_S_OLD_TOKEN |
+                             GSS_S_UNSEQ_TOKEN | GSS_S_GAP_TOKEN))
+    return ERR_INVALID_RESPONSE;
+
+  // At this point, every documented status has been checked.
+  return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
+}
+
 }
 
 int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
@@ -791,14 +868,15 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
       &spn_buffer,
       CHROME_GSS_C_NT_HOSTBASED_SERVICE,
       &principal_name);
-  if (major_status != GSS_S_COMPLETE) {
+  int rv = MapImportNameStatusToError(major_status);
+  if (rv != OK) {
     LOG(ERROR) << "Problem importing name from "
                << "spn \"" << spn_principal << "\""
                << std::endl
                << DisplayExtendedStatus(library_,
                                         major_status,
                                         minor_status);
-    return ERR_UNEXPECTED;
+    return rv;
   }
   ScopedName scoped_name(principal_name, library_);
 
@@ -820,8 +898,8 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
       out_token,
       NULL,  // ret flags
       NULL);
-  if (major_status != GSS_S_COMPLETE &&
-      major_status != GSS_S_CONTINUE_NEEDED) {
+  rv = MapInitSecContextStatusToError(major_status);
+  if (rv != OK) {
     LOG(ERROR) << "Problem initializing context. "
                << std::endl
                << DisplayExtendedStatus(library_,
@@ -829,7 +907,7 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
                                         minor_status)
                << std::endl
                << DescribeContext(library_, scoped_sec_context_.get());
-    return ERR_MISSING_AUTH_CREDENTIALS;
+    return rv;
   }
 
   return OK;
