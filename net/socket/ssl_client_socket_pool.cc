@@ -4,6 +4,7 @@
 
 #include "net/socket/ssl_client_socket_pool.h"
 
+#include "base/values.h"
 #include "net/base/dnsrr_resolver.h"
 #include "net/base/dns_util.h"
 #include "net/base/net_errors.h"
@@ -447,7 +448,10 @@ SSLClientSocketPool::SSLClientSocketPool(
     const scoped_refptr<SOCKSClientSocketPool>& socks_pool,
     SSLConfigService* ssl_config_service,
     NetLog* net_log)
-    : base_(max_sockets, max_sockets_per_group, histograms,
+    : tcp_pool_(tcp_pool),
+      http_proxy_pool_(http_proxy_pool),
+      socks_pool_(socks_pool),
+      base_(max_sockets, max_sockets_per_group, histograms,
             base::TimeDelta::FromSeconds(
                 ClientSocketPool::unused_idle_socket_timeout()),
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
@@ -507,6 +511,33 @@ LoadState SSLClientSocketPool::GetLoadState(
 
 void SSLClientSocketPool::OnSSLConfigChanged() {
   Flush();
+}
+
+DictionaryValue* SSLClientSocketPool::GetInfoAsValue(
+    const std::string& name,
+    const std::string& type,
+    bool include_nested_pools) const {
+  DictionaryValue* dict = base_.GetInfoAsValue(name, type);
+  if (include_nested_pools) {
+    ListValue* list = new ListValue();
+    if (tcp_pool_.get()) {
+      list->Append(tcp_pool_->GetInfoAsValue("tcp_socket_pool",
+                                             "tcp_socket_pool",
+                                             false));
+    }
+    if (http_proxy_pool_.get()) {
+      list->Append(http_proxy_pool_->GetInfoAsValue("http_proxy_pool",
+                                                    "http_proxy_pool",
+                                                    true));
+    }
+    if (socks_pool_.get()) {
+      list->Append(socks_pool_->GetInfoAsValue("socks_pool",
+                                               "socks_pool",
+                                               true));
+    }
+    dict->Set("nested_pools", list);
+  }
+  return dict;
 }
 
 }  // namespace net
