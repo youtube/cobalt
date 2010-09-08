@@ -29,7 +29,7 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
       return ERR_OUT_OF_MEMORY;
     case SEC_E_INTERNAL_ERROR:
       LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
-      return ERR_UNEXPECTED_SSPI_STATUS;
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
     case SEC_E_NO_CREDENTIALS:
     case SEC_E_NOT_OWNER:
     case SEC_E_UNKNOWN_CREDENTIALS:
@@ -40,7 +40,7 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
       return ERR_UNSUPPORTED_AUTH_SCHEME;
     default:
       LOG(ERROR) << "Undocumented SECURITY_STATUS " << status;
-      return ERR_UNDOCUMENTED_SSPI_STATUS;
+      return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
   }
 }
 
@@ -246,7 +246,7 @@ int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
       // but not expected by Chrome (for example, INCOMPLETE_CREDENTIALS
       // and INCOMPLETE_MESSAGE are intended for schannel).
       LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
-      return ERR_UNEXPECTED_SSPI_STATUS;
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
     case SEC_E_INSUFFICIENT_MEMORY:
       return ERR_OUT_OF_MEMORY;
     case SEC_E_UNSUPPORTED_FUNCTION:
@@ -267,7 +267,7 @@ int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
       return ERR_MISCONFIGURED_AUTH_ENVIRONMENT;
     default:
       LOG(ERROR) << "Undocumented SECURITY_STATUS " << status;
-      return ERR_UNDOCUMENTED_SSPI_STATUS;
+      return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
   }
 }
 
