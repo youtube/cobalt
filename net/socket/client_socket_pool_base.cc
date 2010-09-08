@@ -401,7 +401,7 @@ LoadState ClientSocketPoolBaseHelper::GetLoadState(
   return LOAD_STATE_IDLE;
 }
 
-Value* ClientSocketPoolBaseHelper::GetInfoAsValue(
+DictionaryValue* ClientSocketPoolBaseHelper::GetInfoAsValue(
     const std::string& name, const std::string& type) const {
   DictionaryValue* dict = new DictionaryValue();
   dict->SetString("name", name);
