@@ -320,17 +320,19 @@ class RelayCreateDirectory : public RelayWithStatusCallback {
   RelayCreateDirectory(
       const FilePath& file_path,
       bool exclusive,
+      bool recursive,
       base::FileUtilProxy::StatusCallback* callback)
       : RelayWithStatusCallback(callback),
         file_path_(file_path),
-        exclusive_(exclusive) {
+        exclusive_(exclusive),
+        recursive_(recursive) {
   }
 
  protected:
   virtual void RunWork() {
     bool path_exists = file_util::PathExists(file_path_);
     // If parent dir of file doesn't exist.
-    if (!file_util::PathExists(file_path_.DirName())) {
+    if (!recursive_ && !file_util::PathExists(file_path_.DirName())) {
       set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
       return;
     }
@@ -350,6 +352,7 @@ class RelayCreateDirectory : public RelayWithStatusCallback {
  private:
   FilePath file_path_;
   bool exclusive_;
+  bool recursive_;
 };
 
 class RelayReadDirectory : public MessageLoopRelay {
@@ -458,9 +461,10 @@ bool FileUtilProxy::CreateDirectory(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     const FilePath& file_path,
     bool exclusive,
+    bool recursive,
     StatusCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy, new RelayCreateDirectory(
-      file_path, exclusive, callback));
+      file_path, exclusive, recursive, callback));
 }
 
 // static
