@@ -233,7 +233,7 @@ UChar32 utf8_nextCharSafeBody(const uint8 *s, int32 *pi, int32 length, UChar32 c
 }
 
 // UTF-16 macros ---------------------------------------------------------------
-// from utf8.h
+// from utf16.h
 
 /**
  * Does this code unit alone encode a code point (BMP, not a surrogate)?
@@ -241,7 +241,7 @@ UChar32 utf8_nextCharSafeBody(const uint8 *s, int32 *pi, int32 length, UChar32 c
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define CBU16_IS_SINGLE(c) !U_IS_SURROGATE(c)
+#define CBU16_IS_SINGLE(c) !CBU_IS_SURROGATE(c)
 
 /**
  * Is this code unit a lead surrogate (U+d800..U+dbff)?
