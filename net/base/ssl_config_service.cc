@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/base/ssl_config_service.h"
+#include "net/base/ssl_false_start_blacklist.h"
 
 #if defined(OS_WIN)
 #include "net/base/ssl_config_service_win.h"
@@ -58,35 +59,7 @@ bool SSLConfigService::IsKnownStrictTLSServer(const std::string& hostname) {
 // static
 bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
     const std::string& hostname) {
-  // If this list starts growing, it'll need to be something more efficient
-  // than a linear list.
-  static const char kFalseStartIncompatibleServers[][15] = {
-      "www.picnik.com",
-  };
-
-  static const char kFalseStartIncompatibleDomains[][11] = {
-      // Added at the request of A10.
-      "yodlee.com",
-  };
-
-  // Note that the hostname is normalised to lower-case by this point.
-  for (size_t i = 0; i < arraysize(kFalseStartIncompatibleServers); i++) {
-    if (strcmp(hostname.c_str(), kFalseStartIncompatibleServers[i]) == 0)
-      return true;
-  }
-
-  for (size_t i = 0; i < arraysize(kFalseStartIncompatibleDomains); i++) {
-    const char* domain = kFalseStartIncompatibleDomains[i];
-    const size_t len = strlen(domain);
-    if (hostname.size() >= len &&
-        memcmp(&hostname[hostname.size() - len], domain, len) == 0 &&
-        (hostname.size() == len ||
-         hostname[hostname.size() - len - 1] == '.')) {
-      return true;
-    }
-  }
-
-  return false;
+  return SSLFalseStartBlacklist::IsMember(hostname.c_str());
 }
 
 static bool g_dnssec_enabled = false;
