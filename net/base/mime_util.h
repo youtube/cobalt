@@ -71,6 +71,29 @@ bool IsStrictMediaMimeType(const std::string& mime_type);
 bool IsSupportedStrictMediaMimeType(const std::string& mime_type,
     const std::vector<std::string>& codecs);
 
+// Get the extensions for images files.
+// Note that we do not erase the existing elements in the the provided vector.
+// Instead, we append the result to it.
+void GetImageExtensions(std::vector<FilePath::StringType>* extensions);
+
+// Get the extensions for audio files.
+// Note that we do not erase the existing elements in the the provided vector.
+// Instead, we append the result to it.
+void GetAudioExtensions(std::vector<FilePath::StringType>* extensions);
+
+// Get the extensions for video files.
+// Note that we do not erase the existing elements in the the provided vector.
+// Instead, we append the result to it.
+void GetVideoExtensions(std::vector<FilePath::StringType>* extensions);
+
+// Get the extensions associated with the given mime type.
+// There could be multiple extensions for a given mime type, like "html,htm"
+// for "text/html".
+// Note that we do not erase the existing elements in the the provided vector.
+// Instead, we append the result to it.
+void GetExtensionsForMimeType(const std::string& mime_type,
+                              std::vector<FilePath::StringType>* extensions);
+
 }  // namespace net
 
 #endif  // NET_BASE_MIME_UTIL_H__
