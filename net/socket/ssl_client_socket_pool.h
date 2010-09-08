@@ -211,10 +211,9 @@ class SSLClientSocketPool : public ClientSocketPool,
   virtual LoadState GetLoadState(const std::string& group_name,
                                  const ClientSocketHandle* handle) const;
 
-  virtual Value* GetInfoAsValue(const std::string& name,
-                                const std::string& type) const {
-    return base_.GetInfoAsValue(name, type);
-  }
+  virtual DictionaryValue* GetInfoAsValue(const std::string& name,
+                                          const std::string& type,
+                                          bool include_nested_pools) const;
 
   virtual base::TimeDelta ConnectionTimeout() const {
     return base_.ConnectionTimeout();
@@ -268,6 +267,9 @@ class SSLClientSocketPool : public ClientSocketPool,
     DISALLOW_COPY_AND_ASSIGN(SSLConnectJobFactory);
   };
 
+  const scoped_refptr<TCPClientSocketPool> tcp_pool_;
+  const scoped_refptr<HttpProxyClientSocketPool> http_proxy_pool_;
+  const scoped_refptr<SOCKSClientSocketPool> socks_pool_;
   PoolBase base_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
 

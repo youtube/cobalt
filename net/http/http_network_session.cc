@@ -35,11 +35,14 @@ int g_max_sockets_per_proxy_server = 32;
 template <class MapType>
 static void AddSocketPoolsToList(ListValue* list,
                                  const MapType& socket_pools,
-                                 const std::string& type) {
+                                 const std::string& type,
+                                 bool include_nested_pools) {
   typename MapType::const_iterator socket_pool_it = socket_pools.begin();
   for (typename MapType::const_iterator it = socket_pools.begin();
        it != socket_pools.end(); it++) {
-    list->Append(it->second->GetInfoAsValue(it->first.ToString(), type));
+    list->Append(it->second->GetInfoAsValue(it->first.ToString(),
+                                            type,
+                                            include_nested_pools));
   }
 }
 
@@ -169,18 +172,28 @@ HttpNetworkSession::GetSocketPoolForSSLWithProxy(
 Value* HttpNetworkSession::SocketPoolInfoToValue() const {
   ListValue* list = new ListValue();
   list->Append(tcp_socket_pool_->GetInfoAsValue("tcp_socket_pool",
-                                                "tcp_socket_pool"));
+                                                "tcp_socket_pool",
+                                                false));
+  // Third parameter is false because |ssl_socket_pool_| uses |tcp_socket_pool_|
+  // internally, and do not want to add it a second time.
   list->Append(ssl_socket_pool_->GetInfoAsValue("ssl_socket_pool",
-                                                "ssl_socket_pool"));
+                                                "ssl_socket_pool",
+                                                false));
   AddSocketPoolsToList(list,
                        http_proxy_socket_pools_,
-                       "http_proxy_socket_pool");
+                       "http_proxy_socket_pool",
+                       true);
   AddSocketPoolsToList(list,
                        socks_socket_pools_,
-                       "proxy_socket_pool");
+                       "socks_socket_pool",
+                       true);
+
+  // Third parameter is false because |ssl_socket_pools_for_proxies_| use
+  // socket pools in |http_proxy_socket_pools_| and |socks_socket_pools_|.
   AddSocketPoolsToList(list,
                        ssl_socket_pools_for_proxies_,
-                       "ssl_socket_pool_for_proxies");
+                       "ssl_socket_pool_for_proxies",
+                       false);
   return list;
 }
 

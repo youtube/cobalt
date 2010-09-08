@@ -412,8 +412,9 @@ class TestClientSocketPool : public ClientSocketPool {
     return base_.GetLoadState(group_name, handle);
   }
 
-  virtual Value* GetInfoAsValue(const std::string& name,
-                                const std::string& type) const {
+  virtual DictionaryValue* GetInfoAsValue(const std::string& name,
+                                          const std::string& type,
+                                          bool include_nested_pools) const {
     return base_.GetInfoAsValue(name, type);
   }
 
