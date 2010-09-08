@@ -124,6 +124,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   CompletionCallbackImpl<SSLClientSocketNSS> buffer_recv_callback_;
   bool transport_send_busy_;
   bool transport_recv_busy_;
+  // corked_ is true if we are currently suspending writes to the network. This
+  // is named after the similar kernel flag, TCP_CORK.
+  bool corked_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
   CompletionCallbackImpl<SSLClientSocketNSS> handshake_io_callback_;
