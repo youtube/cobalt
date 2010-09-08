@@ -11,6 +11,7 @@
 #include "base/hash_tables.h"
 #include "base/logging.h"
 #include "base/singleton.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 
@@ -529,6 +530,181 @@ void ParseCodecString(const std::string& codecs,
                       std::vector<std::string>* codecs_out,
                       const bool strip) {
   GetMimeUtil()->ParseCodecString(codecs, codecs_out, strip);
+}
+
+namespace {
+
+// From http://www.w3schools.com/media/media_mimeref.asp and
+// http://plugindoc.mozdev.org/winmime.php
+static const char* kStandardImageTypes[] = {
+  "image/bmp",
+  "image/cis-cod",
+  "image/gif",
+  "image/ief",
+  "image/jpeg",
+  "image/pict",
+  "image/pipeg",
+  "image/png",
+  "image/svg+xml",
+  "image/tiff",
+  "image/x-cmu-raster",
+  "image/x-cmx",
+  "image/x-icon",
+  "image/x-portable-anymap",
+  "image/x-portable-bitmap",
+  "image/x-portable-graymap",
+  "image/x-portable-pixmap",
+  "image/x-rgb",
+  "image/x-xbitmap",
+  "image/x-xpixmap",
+  "image/x-xwindowdump"
+};
+static const char* kStandardAudioTypes[] = {
+  "audio/aac",
+  "audio/aiff",
+  "audio/amr",
+  "audio/basic",
+  "audio/midi",
+  "audio/mp3",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/mpeg3",
+  "audio/ogg",
+  "audio/vorbis",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-m4a",
+  "audio/x-ms-wma",
+  "audio/vnd.rn-realaudio",
+  "audio/vnd.wave"
+};
+static const char* kStandardVideoTypes[] = {
+  "video/avi",
+  "video/divx",
+  "video/flc",
+  "video/mp4",
+  "video/mpeg",
+  "video/ogg",
+  "video/quicktime",
+  "video/sd-video",
+  "video/webm",
+  "video/x-dv",
+  "video/x-m4v",
+  "video/x-mpeg",
+  "video/x-ms-asf",
+  "video/x-ms-wmv"
+};
+
+void GetExtensionsFromHardCodedMappings(
+    const MimeInfo* mappings,
+    size_t mappings_len,
+    const std::string& leading_mime_type,
+    base::hash_set<FilePath::StringType>* extensions) {
+  FilePath::StringType extension;
+  for (size_t i = 0; i < mappings_len; ++i) {
+    if (StartsWithASCII(mappings[i].mime_type, leading_mime_type, false)) {
+      std::vector<string> this_extensions;
+      base::SplitStringUsingSubstr(mappings[i].extensions,
+                                   ",",
+                                   &this_extensions);
+      for (size_t j = 0; j < this_extensions.size(); ++j) {
+#if defined(OS_WIN)
+        FilePath::StringType extension(UTF8ToWide(this_extensions[j]));
+#else
+        FilePath::StringType extension(this_extensions[j]);
+#endif
+        extensions->insert(extension);
+      }
+    }
+  }
+}
+
+void GetExtensionsHelper(
+    const char** standard_types,
+    size_t standard_types_len,
+    const std::string& leading_mime_type,
+    base::hash_set<FilePath::StringType>* extensions) {
+  FilePath::StringType extension;
+  for (size_t i = 0; i < standard_types_len; ++i) {
+    if (net::GetPreferredExtensionForMimeType(standard_types[i], &extension))
+      extensions->insert(extension);
+  }
+
+  // Also look up the extensions from hard-coded mappings in case that some
+  // supported extensions are not registered in the system registry, like ogg.
+  GetExtensionsFromHardCodedMappings(primary_mappings,
+                                     arraysize(primary_mappings),
+                                     leading_mime_type,
+                                     extensions);
+
+  GetExtensionsFromHardCodedMappings(secondary_mappings,
+                                     arraysize(secondary_mappings),
+                                     leading_mime_type,
+                                     extensions);
+}
+
+// Note that the elements in the source set will be appended to the target
+// vector.
+template<class T>
+void HashSetToVector(base::hash_set<T>* source, std::vector<T>* target) {
+  size_t old_target_size = target->size();
+  target->resize(old_target_size + source->size());
+  size_t i = 0;
+  for (typename base::hash_set<T>::iterator iter = source->begin();
+       iter != source->end(); ++iter, ++i) {
+    target->at(old_target_size + i) = *iter;
+  }
+}
+
+}
+
+void GetImageExtensions(std::vector<FilePath::StringType>* extensions) {
+  base::hash_set<FilePath::StringType> unique_extensions;
+  GetExtensionsHelper(kStandardImageTypes,
+                      arraysize(kStandardImageTypes),
+                      "image/",
+                      &unique_extensions);
+  HashSetToVector(&unique_extensions, extensions);
+}
+
+void GetAudioExtensions(std::vector<FilePath::StringType>* extensions) {
+  base::hash_set<FilePath::StringType> unique_extensions;
+  GetExtensionsHelper(kStandardAudioTypes,
+                      arraysize(kStandardAudioTypes),
+                      "audio/",
+                      &unique_extensions);
+  HashSetToVector(&unique_extensions, extensions);
+}
+
+void GetVideoExtensions(std::vector<FilePath::StringType>* extensions) {
+  base::hash_set<FilePath::StringType> unique_extensions;
+  GetExtensionsHelper(kStandardVideoTypes,
+                      arraysize(kStandardVideoTypes),
+                      "video/",
+                      &unique_extensions);
+  HashSetToVector(&unique_extensions, extensions);
+}
+
+void GetExtensionsForMimeType(const std::string& mime_type,
+                              std::vector<FilePath::StringType>* extensions) {
+  base::hash_set<FilePath::StringType> unique_extensions;
+  FilePath::StringType extension;
+  if (net::GetPreferredExtensionForMimeType(mime_type, &extension))
+    unique_extensions.insert(extension);
+
+  // Also look up the extensions from hard-coded mappings in case that some
+  // supported extensions are not registered in the system registry, like ogg.
+  GetExtensionsFromHardCodedMappings(primary_mappings,
+                                     arraysize(primary_mappings),
+                                     mime_type,
+                                     &unique_extensions);
+
+  GetExtensionsFromHardCodedMappings(secondary_mappings,
+                                     arraysize(secondary_mappings),
+                                     mime_type,
+                                     &unique_extensions);
+
+  HashSetToVector(&unique_extensions, extensions);
 }
 
 }  // namespace net
