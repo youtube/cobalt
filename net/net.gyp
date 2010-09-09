@@ -1137,6 +1137,16 @@
       ],
     },
     {
+      'target_name': 'dnssec_chain_verify',
+      'type': 'executable',
+      'dependencies': [
+        'net_base',
+      ],
+      'sources': [
+        'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
+      ]
+    },
+    {
       'target_name': 'ssl_false_start_blacklist_process',
       'type': 'executable',
       'toolsets': ['host'],
