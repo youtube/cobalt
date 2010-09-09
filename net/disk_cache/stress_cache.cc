@@ -80,7 +80,7 @@ int MasterCode() {
 // to know which instance of the application wrote them.
 void StressTheCache(int iteration) {
   int cache_size = 0x800000;  // 8MB
-  FilePath path = GetCacheFilePath().AppendASCII("_stress");
+  FilePath path = GetCacheFilePath().InsertBeforeExtensionASCII("_stress");
 
   base::Thread cache_thread("CacheThread");
   if (!cache_thread.StartWithOptions(
