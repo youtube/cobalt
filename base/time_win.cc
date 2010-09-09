@@ -150,11 +150,6 @@ FILETIME Time::ToFileTime() const {
 }
 
 // static
-Time Time::FromLargeInteger(LARGE_INTEGER li) {
-  return Time(li.QuadPart / 10);
-}
-
-// static
 void Time::EnableHighResolutionTimer(bool enable) {
   // Test for single-threaded access.
   static PlatformThreadId my_thread = PlatformThread::CurrentId();
