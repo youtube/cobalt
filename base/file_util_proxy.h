@@ -72,11 +72,6 @@ class FileUtilProxy {
       const FilePath& file_path,
       GetFileInfoCallback* callback);
 
-  static bool GetFileInfoFromPlatformFile(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      base::PlatformFile file,
-      GetFileInfoCallback* callback);
-
   typedef Callback2<base::PlatformFileError /* error code */,
       const std::vector<base::file_util_proxy::Entry>&
        >::Type ReadDirectoryCallback;
@@ -122,52 +117,6 @@ class FileUtilProxy {
   static bool RecursiveDelete(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
-      StatusCallback* callback);
-
-  // Reads from a file. On success, the file pointer is moved to position
-  // |offset + bytes_to_read| in the file. The callback can be NULL.
-  typedef Callback2<base::PlatformFileError /* error code */,
-                    int /* bytes read/written */>::Type ReadWriteCallback;
-  static bool Read(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      base::PlatformFile file,
-      int64 offset,
-      char* buffer,
-      int bytes_to_read,
-      ReadWriteCallback* callback);
-
-  // Writes to a file. If |offset| is greater than the length of the file,
-  // |false| is returned. On success, the file pointer is moved to position
-  // |offset + bytes_to_write| in the file. If The callback can be NULL.
-  static bool Write(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      base::PlatformFile file,
-      int64 offset,
-      const char* buffer,
-      int bytes_to_write,
-      ReadWriteCallback* callback);
-
-  // Touches a file. The callback can be NULL.
-  static bool Touch(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      base::PlatformFile file,
-      const base::Time& last_access_time,
-      const base::Time& last_modified_time,
-      StatusCallback* callback);
-
-  // Truncates a file to the given length. If |length| is greater than the
-  // current length of the file, the file will be extended with zeroes.
-  // The callback can be NULL.
-  static bool Truncate(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      base::PlatformFile file,
-      long long length,
-      StatusCallback* callback);
-
-  // Flushes a file. The callback can be NULL.
-  static bool Flush(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      base::PlatformFile file,
       StatusCallback* callback);
 
  private:

@@ -40,8 +40,7 @@ enum PlatformFileFlags {
   PLATFORM_FILE_TEMPORARY = 512,        // Used on Windows only
   PLATFORM_FILE_HIDDEN = 1024,          // Used on Windows only
   PLATFORM_FILE_DELETE_ON_CLOSE = 2048,
-  PLATFORM_FILE_TRUNCATE = 4096,
-  PLATFORM_FILE_WRITE_ATTRIBUTES = 8192 // Used on Windows only
+  PLATFORM_FILE_TRUNCATE = 4096
 };
 
 enum PlatformFileError {
@@ -94,31 +93,6 @@ PlatformFile CreatePlatformFile(const std::wstring& name,
 
 // Closes a file handle
 bool ClosePlatformFile(PlatformFile file);
-
-// Reads the given number of bytes (or until EOF is reached) starting with the
-// given offset. Returns the number of bytes read, or -1 on error.
-int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size);
-
-// Writes the given buffer into the file at the given offset, overwritting any
-// data that was previously there. Returns the number of bytes written, or -1
-// on error.
-int WritePlatformFile(PlatformFile file, int64 offset,
-                      const char* data, int size);
-
-// Truncates the given file to the given length. If |length| is greater than
-// the current size of the file, the file is extended with zeros. If the file
-// doesn't exist, |false| is returned.
-bool TruncatePlatformFile(PlatformFile file, int64 length);
-
-// Flushes the buffers of the given file.
-bool FlushPlatformFile(PlatformFile file);
-
-// Touches the given file.
-bool TouchPlatformFile(PlatformFile file, const Time& last_access_time,
-                       const Time& last_modified_time);
-
-// Returns some information for the given file.
-bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info);
 
 // Use this class to pass ownership of a PlatformFile to a receiver that may or
 // may not want to accept it.  This class does not own the storage for the
