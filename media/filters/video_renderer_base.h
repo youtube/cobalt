@@ -102,11 +102,6 @@ class VideoRendererBase : public VideoRenderer,
   VideoFrame::Format surface_format() { return surface_format_; }
   VideoFrame::SurfaceType surface_type() { return surface_type_; }
 
-  // TODO(jiesun): move this to gles_video_render.cc.
-  inline bool uses_egl_image() {
-    return surface_type_ == media::VideoFrame::TYPE_EGL_IMAGE;
-  }
-
   void ReadInput(scoped_refptr<VideoFrame> frame);
 
  private:
