@@ -151,6 +151,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.EchoHandler] + self._get_handlers
 
     self._mime_types = {
+      'crx' : 'application/x-chrome-extension',
       'gif': 'image/gif',
       'jpeg' : 'image/jpeg',
       'jpg' : 'image/jpeg',
@@ -180,7 +181,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     """Returns the mime type for the specified file_name. So far it only looks
     at the file extension."""
 
-    (shortname, extension) = os.path.splitext(file_name)
+    (shortname, extension) = os.path.splitext(file_name.split("?")[0])
     if len(extension) == 0:
       # no extension.
       return self._default_mime_type
