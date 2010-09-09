@@ -39,16 +39,20 @@ class VideoFrame : public StreamSample {
   };
 
   enum SurfaceType {
+    // Video frame is backed by system memory. The memory can be allocated by
+    // this object or be provided externally.
     TYPE_SYSTEM_MEMORY,
-    TYPE_OMXBUFFERHEAD,
-    TYPE_EGL_IMAGE,
-    TYPE_MFBUFFER,
-    TYPE_DIRECT3DSURFACE
+
+    // Video frame is stored in GL texture(s).
+    TYPE_GL_TEXTURE,
+
+    // Video frame is stored in Direct3D texture(s).
+    TYPE_D3D_TEXTURE,
   };
 
  public:
-  // Creates a new frame with given parameters. Buffers for the frame are
-  // allocated but not initialized.
+  // Creates a new frame in system memory with given parameters. Buffers for
+  // the frame are allocated but not initialized.
   static void CreateFrame(Format format,
                           size_t width,
                           size_t height,
