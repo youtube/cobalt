@@ -372,7 +372,7 @@
     # so Cocoa is happy (http://crbug.com/20441).
     'locales': [
       'am', 'ar', 'bg', 'bn', 'ca', 'cs', 'da', 'de', 'el', 'en-GB',
-      'en-US', 'es-419', 'es', 'et', 'fi', 'fil', 'fr', 'gu', 'he',
+      'en-US', 'es-419', 'es', 'et', 'fa', 'fi', 'fil', 'fr', 'gu', 'he',
       'hi', 'hr', 'hu', 'id', 'it', 'ja', 'kn', 'ko', 'lt', 'lv',
       'ml', 'mr', 'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'ro', 'ru',
       'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk',
