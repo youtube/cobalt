@@ -230,6 +230,9 @@ class Time {
     return us_ == 0;
   }
 
+  // Returns the time for epoch in Unix-like system (Jan 1, 1970).
+  static Time UnixEpoch();
+
   // Returns the current time. Watch out, the system might adjust its clock
   // in which case time will actually go backwards. We don't guarantee that
   // times are increasing, or that two calls to Now() won't be the same.
@@ -249,6 +252,9 @@ class Time {
 
   // Converts time to/from a double which is the number of seconds since epoch
   // (Jan 1, 1970).  Webkit uses this format to represent time.
+  // Because WebKit initializes double time value to 0 to indicate "not
+  // initialized", we map it to empty Time object that also means "not
+  // initialized".
   static Time FromDoubleT(double dt);
   double ToDoubleT() const;
 
