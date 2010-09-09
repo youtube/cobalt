@@ -1613,14 +1613,14 @@ static DNSValidationResult VerifyTXTRecords(
     SECStatus rv;
 
     j = m.find("hr");
-    if (j == m.end() || j->second == "cert") {
-      rv = HASH_HashBuf(hash_algorithm, calculated_hash,
-                        server_cert_nss->derCert.data,
-                        server_cert_nss->derCert.len);
-    } else if (j->second == "pubkey") {
+    if (j == m.end() || j->second == "pubkey") {
       rv = HASH_HashBuf(hash_algorithm, calculated_hash,
                         server_cert_nss->derPublicKey.data,
                         server_cert_nss->derPublicKey.len);
+    } else if (j->second == "cert") {
+      rv = HASH_HashBuf(hash_algorithm, calculated_hash,
+                        server_cert_nss->derCert.data,
+                        server_cert_nss->derCert.len);
     } else {
       continue;
     }
