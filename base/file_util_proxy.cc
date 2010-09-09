@@ -429,6 +429,173 @@ class RelayGetFileInfo : public MessageLoopRelay {
   base::PlatformFileInfo file_info_;
 };
 
+class RelayGetFileInfoFromPlatformFile : public MessageLoopRelay {
+ public:
+  RelayGetFileInfoFromPlatformFile(
+      base::PlatformFile file,
+      base::FileUtilProxy::GetFileInfoCallback* callback)
+      : callback_(callback),
+        file_(file) {
+    DCHECK(callback);
+  }
+
+ protected:
+  virtual void RunWork() {
+    if (!base::GetPlatformFileInfo(file_, &file_info_))
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+  }
+
+  virtual void RunCallback() {
+    callback_->Run(error_code(), file_info_);
+    delete callback_;
+  }
+
+ private:
+  base::FileUtilProxy::GetFileInfoCallback* callback_;
+  base::PlatformFile file_;
+  base::PlatformFileInfo file_info_;
+};
+
+class RelayRead : public MessageLoopRelay {
+ public:
+  RelayRead(base::PlatformFile file,
+            int64 offset,
+            char* buffer,
+            int bytes_to_read,
+            base::FileUtilProxy::ReadWriteCallback* callback)
+      : file_(file),
+        offset_(offset),
+        buffer_(buffer),
+        bytes_to_read_(bytes_to_read),
+        callback_(callback),
+        bytes_read_(0) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    bytes_read_ = base::ReadPlatformFile(file_, offset_, buffer_,
+                                         bytes_to_read_);
+    if (bytes_read_ < 0)
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+  }
+
+  virtual void RunCallback() {
+    if (callback_) {
+      callback_->Run(error_code(), bytes_read_);
+      delete callback_;
+    }
+  }
+
+ private:
+  base::PlatformFile file_;
+  int64 offset_;
+  char* buffer_;
+  int bytes_to_read_;
+  base::FileUtilProxy::ReadWriteCallback* callback_;
+  int bytes_read_;
+};
+
+class RelayWrite : public MessageLoopRelay {
+ public:
+  RelayWrite(base::PlatformFile file,
+             long long offset,
+             const char* buffer,
+             int bytes_to_write,
+             base::FileUtilProxy::ReadWriteCallback* callback)
+      : file_(file),
+        offset_(offset),
+        buffer_(buffer),
+        bytes_to_write_(bytes_to_write),
+        callback_(callback) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    bytes_written_ = base::WritePlatformFile(file_, offset_, buffer_,
+                                             bytes_to_write_);
+    if (bytes_written_ < 0)
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+  }
+
+  virtual void RunCallback() {
+    if (callback_) {
+      callback_->Run(error_code(), bytes_written_);
+      delete callback_;
+    }
+  }
+
+ private:
+  base::PlatformFile file_;
+  int64 offset_;
+  const char* buffer_;
+  int bytes_to_write_;
+  base::FileUtilProxy::ReadWriteCallback* callback_;
+  int bytes_written_;
+};
+
+class RelayTouch : public RelayWithStatusCallback {
+ public:
+  RelayTouch(base::PlatformFile file,
+             const base::Time& last_access_time,
+             const base::Time& last_modified_time,
+             base::FileUtilProxy::StatusCallback* callback)
+      : RelayWithStatusCallback(callback),
+        file_(file),
+        last_access_time_(last_access_time),
+        last_modified_time_(last_modified_time) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    if (!base::TouchPlatformFile(file_, last_access_time_, last_modified_time_))
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+  }
+
+ private:
+  base::PlatformFile file_;
+  base::Time last_access_time_;
+  base::Time last_modified_time_;
+};
+
+class RelayTruncate : public RelayWithStatusCallback {
+ public:
+  RelayTruncate(base::PlatformFile file,
+                int64 length,
+                base::FileUtilProxy::StatusCallback* callback)
+      : RelayWithStatusCallback(callback),
+        file_(file),
+        length_(length) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    if (!base::TruncatePlatformFile(file_, length_))
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+  }
+
+ private:
+  base::PlatformFile file_;
+  int64 length_;
+};
+
+class RelayFlush : public RelayWithStatusCallback {
+ public:
+  RelayFlush(base::PlatformFile file,
+             base::FileUtilProxy::StatusCallback* callback)
+      : RelayWithStatusCallback(callback),
+        file_(file) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    if (!base::FlushPlatformFile(file_))
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+  }
+
+ private:
+  base::PlatformFile file_;
+};
+
 bool Start(const tracked_objects::Location& from_here,
            scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
            scoped_refptr<MessageLoopRelay> relay) {
@@ -527,6 +694,69 @@ bool FileUtilProxy::RecursiveDelete(
     StatusCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayDelete(file_path, true, callback));
+}
+
+// static
+bool FileUtilProxy::GetFileInfoFromPlatformFile(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    PlatformFile file,
+    GetFileInfoCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayGetFileInfoFromPlatformFile(file, callback));
+}
+
+// static
+bool FileUtilProxy::Read(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    PlatformFile file,
+    int64 offset,
+    char* buffer,
+    int bytes_to_read,
+    ReadWriteCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayRead(file, offset, buffer, bytes_to_read, callback));
+}
+
+// static
+bool FileUtilProxy::Write(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    PlatformFile file,
+    int64 offset,
+    const char* buffer,
+    int bytes_to_write,
+    ReadWriteCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayWrite(file, offset, buffer, bytes_to_write, callback));
+}
+
+// static
+bool FileUtilProxy::Touch(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    PlatformFile file,
+    const base::Time& last_access_time,
+    const base::Time& last_modified_time,
+    StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayTouch(file, last_access_time, last_modified_time,
+                              callback));
+}
+
+// static
+bool FileUtilProxy::Truncate(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    PlatformFile file,
+    long long length,
+    StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayTruncate(file, length, callback));
+}
+
+// static
+bool FileUtilProxy::Flush(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    PlatformFile file,
+    StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayFlush(file, callback));
 }
 
 }  // namespace base
