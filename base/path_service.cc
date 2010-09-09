@@ -31,7 +31,6 @@ namespace base {
 namespace {
 
 typedef base::hash_map<int, FilePath> PathMap;
-typedef base::hash_set<int> PathSet;
 
 // We keep a linked list of providers.  In a debug build we ensure that no two
 // providers claim overlapping keys.
@@ -94,8 +93,8 @@ static Provider base_provider_posix = {
 
 struct PathData {
   Lock      lock;
-  PathMap   cache;      // Track mappings from path key to path value.
-  PathSet   overrides;  // Track whether a path has been overridden.
+  PathMap   cache;      // Cache mappings from path key to path value.
+  PathMap   overrides;  // Track path overrides.
   Provider* providers;  // Linked list of path service providers.
 
   PathData() {
@@ -141,6 +140,20 @@ bool PathService::GetFromCache(int key, FilePath* result) {
 }
 
 // static
+bool PathService::GetFromOverrides(int key, FilePath* result) {
+  PathData* path_data = GetPathData();
+  AutoLock scoped_lock(path_data->lock);
+
+  // check for an overriden version.
+  PathMap::const_iterator it = path_data->overrides.find(key);
+  if (it != path_data->overrides.end()) {
+    *result = it->second;
+    return true;
+  }
+  return false;
+}
+
+// static
 void PathService::AddToCache(int key, const FilePath& path) {
   PathData* path_data = GetPathData();
   AutoLock scoped_lock(path_data->lock);
@@ -163,6 +176,9 @@ bool PathService::Get(int key, FilePath* result) {
     return file_util::GetCurrentDirectory(result);
 
   if (GetFromCache(key, result))
+    return true;
+
+  if (GetFromOverrides(key, result))
     return true;
 
   FilePath path;
@@ -199,14 +215,6 @@ bool PathService::Get(int key, std::wstring* result) {
 }
 #endif
 
-bool PathService::IsOverridden(int key) {
-  PathData* path_data = GetPathData();
-  DCHECK(path_data);
-
-  AutoLock scoped_lock(path_data->lock);
-  return path_data->overrides.find(key) != path_data->overrides.end();
-}
-
 bool PathService::Override(int key, const FilePath& path) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
@@ -228,8 +236,14 @@ bool PathService::Override(int key, const FilePath& path) {
     return false;
 
   AutoLock scoped_lock(path_data->lock);
+
+  // Clear the cache now. Some of its entries could have depended
+  // on the value we are overriding, and are now out of sync with reality.
+  path_data->cache.clear();
+
   path_data->cache[key] = file_path;
-  path_data->overrides.insert(key);
+  path_data->overrides[key] = file_path;
+
   return true;
 }
 
