@@ -28,6 +28,7 @@
 /chrome/Release
 /chrome/app/theme/google_chrome
 /chrome/browser/autofill/internal
+/chrome/browser/extensions/default_extensions/chromeos
 /chrome/browser/renderer_host/translate
 /chrome/installer/linux
 /chrome/installer/mac/internal
