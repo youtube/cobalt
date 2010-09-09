@@ -113,7 +113,6 @@
         'path_service_unittest.cc',
         'pe_image_unittest.cc',
         'pickle_unittest.cc',
-        'platform_file_unittest.cc',
         'platform_thread_unittest.cc',
         'pr_time_unittest.cc',
         'process_util_unittest.cc',
