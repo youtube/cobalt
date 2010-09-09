@@ -375,6 +375,8 @@
         'ftp/ftp_util.h',
         'http/des.cc',
         'http/des.h',
+        'http/disk_cache_based_ssl_host_info.cc',
+        'http/disk_cache_based_ssl_host_info.h',
         'http/http_alternate_protocols.cc',
         'http/http_alternate_protocols.h',
         'http/http_atom_list.h',
