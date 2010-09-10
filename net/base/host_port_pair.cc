@@ -12,12 +12,17 @@ HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
     : host_(in_host), port_(in_port) {}
 
 std::string HostPortPair::ToString() const {
+  return StringPrintf("%s:%u", HostForURL().c_str(), port_);
+}
+
+std::string HostPortPair::HostForURL() const {
   // Check to see if the host is an IPv6 address.  If so, added brackets.
   if (host_.find(':') != std::string::npos) {
     DCHECK_NE(host_[0], '[');
-    return StringPrintf("[%s]:%u", host_.c_str(), port_);
+    return StringPrintf("[%s]", host_.c_str());
   }
-  return StringPrintf("%s:%u", host_.c_str(), port_);
+
+  return host_;
 }
 
 }  // namespace net
