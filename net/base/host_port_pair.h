@@ -50,6 +50,9 @@ class HostPortPair {
   // IPv6 literal, it will add brackets around |host_|.
   std::string ToString() const;
 
+  // Returns |host_|, adding IPv6 brackets if needed.
+  std::string HostForURL() const;
+
  private:
   // If |host_| represents an IPv6 address, this string will not contain
   // brackets around the address.
