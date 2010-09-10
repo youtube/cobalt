@@ -69,6 +69,7 @@ int MapPosixError(int os_error) {
     case ECONNREFUSED:
       return ERR_CONNECTION_REFUSED;
     case EHOSTUNREACH:
+    case EHOSTDOWN:
     case ENETUNREACH:
       return ERR_ADDRESS_UNREACHABLE;
     case EADDRNOTAVAIL:
@@ -207,7 +208,7 @@ int TCPClientSocketLibevent::DoConnect() {
   // Check if the connect() failed synchronously.
   connect_os_error_ = errno;
   if (connect_os_error_ != EINPROGRESS)
-    return MapPosixError(connect_os_error_);
+    return MapConnectError(connect_os_error_);
 
   // Otherwise the connect() is going to complete asynchronously, so watch
   // for its completion.
