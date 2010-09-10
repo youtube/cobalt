@@ -227,7 +227,7 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
     bool matches_flags = (r->host_resolver_flags & host_resolver_flags) ==
         host_resolver_flags;
     if (matches_flags && matches_address_family &&
-        MatchPatternASCII(host, r->host_pattern)) {
+        MatchPattern(host, r->host_pattern)) {
       if (r->latency_ms != 0)
         PlatformThread::Sleep(r->latency_ms);
 
