@@ -19,7 +19,7 @@ bool HostMappingRules::RewriteHost(HostPortPair* host_port) const {
   for (ExclusionRuleList::const_iterator it = exclusion_rules_.begin();
        it != exclusion_rules_.end(); ++it) {
     const ExclusionRule& rule = *it;
-    if (MatchPatternASCII(host_port->host(), rule.hostname_pattern))
+    if (MatchPattern(host_port->host(), rule.hostname_pattern))
       return false;
   }
 
@@ -35,9 +35,9 @@ bool HostMappingRules::RewriteHost(HostPortPair* host_port) const {
     //     *.foo.com:1234
     // First, we'll check for a match just on hostname.
     // If that fails, we'll check for a match with both hostname and port.
-    if (!MatchPatternASCII(host_port->host(), rule.hostname_pattern)) {
+    if (!MatchPattern(host_port->host(), rule.hostname_pattern)) {
       std::string host_port_string = host_port->ToString();
-      if (!MatchPatternASCII(host_port_string, rule.hostname_pattern))
+      if (!MatchPattern(host_port_string, rule.hostname_pattern))
         continue;  // This rule doesn't apply.
     }
 

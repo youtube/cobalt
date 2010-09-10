@@ -599,8 +599,8 @@ bool ElideString(const std::wstring& input, int max_len, std::wstring* output);
 // string can contain wildcards like * and ?
 // The backslash character (\) is an escape character for * and ?
 // We limit the patterns to having a max of 16 * or ? characters.
-bool MatchPatternWide(const std::wstring& string, const std::wstring& pattern);
-bool MatchPatternASCII(const std::string& string, const std::string& pattern);
+bool MatchPattern(const std::string& string, const std::string& pattern);
+bool MatchPattern(const string16& string, const string16& pattern);
 
 // Hack to convert any char-like type to its unsigned counterpart.
 // For example, it will convert char, signed char and unsigned char to unsigned
