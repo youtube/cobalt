@@ -8,11 +8,26 @@
 #include <errno.h>
 #include <sys/stat.h>
 
+#include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/utf_string_conversions.h"
 
 namespace base {
+
+#if defined(OS_OPENBSD) || defined(OS_FREEBSD) || \
+    (defined(OS_MACOSX) && \
+     MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
+typedef struct stat stat_wrapper_t;
+static int CallFstat(int fd, stat_wrapper_t *sb) {
+  return fstat(fd, sb);
+}
+#else
+typedef struct stat64 stat_wrapper_t;
+static int CallFstat(int fd, stat_wrapper_t *sb) {
+  return fstat64(fd, sb);
+}
+#endif
 
 // TODO(erikkay): does it make sense to support PLATFORM_FILE_EXCLUSIVE_* here?
 PlatformFile CreatePlatformFile(const FilePath& name, int flags,
@@ -68,41 +83,48 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     }
   }
 
-  if ((descriptor < 0) && (flags & PLATFORM_FILE_DELETE_ON_CLOSE)) {
+  if (created && (descriptor > 0) && (flags & PLATFORM_FILE_CREATE_ALWAYS))
+    *created = true;
+
+  if ((descriptor > 0) && (flags & PLATFORM_FILE_DELETE_ON_CLOSE)) {
     unlink(name.value().c_str());
   }
 
-  if ((descriptor < 0) && error_code) {
-    switch (errno) {
-      case EACCES:
-      case EISDIR:
-      case EROFS:
-      case EPERM:
-        *error_code = PLATFORM_FILE_ERROR_ACCESS_DENIED;
-        break;
-      case ETXTBSY:
-        *error_code = PLATFORM_FILE_ERROR_IN_USE;
-        break;
-      case EEXIST:
-        *error_code = PLATFORM_FILE_ERROR_EXISTS;
-        break;
-      case ENOENT:
-        *error_code = PLATFORM_FILE_ERROR_NOT_FOUND;
-        break;
-      case EMFILE:
-        *error_code = PLATFORM_FILE_ERROR_TOO_MANY_OPENED;
-        break;
-      case ENOMEM:
-        *error_code = PLATFORM_FILE_ERROR_NO_MEMORY;
-        break;
-      case ENOSPC:
-        *error_code = PLATFORM_FILE_ERROR_NO_SPACE;
-        break;
-      case ENOTDIR:
-        *error_code = PLATFORM_FILE_ERROR_NOT_A_DIRECTORY;
-        break;
-      default:
-        *error_code = PLATFORM_FILE_ERROR_FAILED;
+  if (error_code) {
+    if (descriptor >= 0)
+      *error_code = PLATFORM_FILE_OK;
+    else {
+      switch (errno) {
+        case EACCES:
+        case EISDIR:
+        case EROFS:
+        case EPERM:
+          *error_code = PLATFORM_FILE_ERROR_ACCESS_DENIED;
+          break;
+        case ETXTBSY:
+          *error_code = PLATFORM_FILE_ERROR_IN_USE;
+          break;
+        case EEXIST:
+          *error_code = PLATFORM_FILE_ERROR_EXISTS;
+          break;
+        case ENOENT:
+          *error_code = PLATFORM_FILE_ERROR_NOT_FOUND;
+          break;
+        case EMFILE:
+          *error_code = PLATFORM_FILE_ERROR_TOO_MANY_OPENED;
+          break;
+        case ENOMEM:
+          *error_code = PLATFORM_FILE_ERROR_NO_MEMORY;
+          break;
+        case ENOSPC:
+          *error_code = PLATFORM_FILE_ERROR_NO_SPACE;
+          break;
+        case ENOTDIR:
+          *error_code = PLATFORM_FILE_ERROR_NOT_A_DIRECTORY;
+          break;
+        default:
+          *error_code = PLATFORM_FILE_ERROR_FAILED;
+      }
     }
   }
 
@@ -116,7 +138,57 @@ PlatformFile CreatePlatformFile(const std::wstring& name, int flags,
 }
 
 bool ClosePlatformFile(PlatformFile file) {
-  return close(file);
+  return !close(file);
+}
+
+int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
+  if (file < 0)
+    return -1;
+
+  return HANDLE_EINTR(pread(file, data, size, offset));
+}
+
+int WritePlatformFile(PlatformFile file, int64 offset,
+                      const char* data, int size) {
+  if (file < 0)
+    return -1;
+
+  return HANDLE_EINTR(pwrite(file, data, size, offset));
+}
+
+bool TruncatePlatformFile(PlatformFile file, int64 length) {
+  return ((file >= 0) && !HANDLE_EINTR(ftruncate(file, length)));
+}
+
+bool FlushPlatformFile(PlatformFile file) {
+  return !fsync(file);
+}
+
+bool TouchPlatformFile(PlatformFile file, const base::Time& last_access_time,
+                       const base::Time& last_modified_time) {
+  if (file < 0)
+    return false;
+
+  timeval times[2];
+  times[0] = last_access_time.ToTimeVal();
+  times[1] = last_modified_time.ToTimeVal();
+  return !futimes(file, times);
+}
+
+bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info) {
+  if (!info)
+    return false;
+
+  stat_wrapper_t file_info;
+  if (CallFstat(file, &file_info))
+    return false;
+
+  info->is_directory = S_ISDIR(file_info.st_mode);
+  info->size = file_info.st_size;
+  info->last_modified = base::Time::FromTimeT(file_info.st_mtime);
+  info->last_accessed = base::Time::FromTimeT(file_info.st_atime);
+  info->creation_time = base::Time::FromTimeT(file_info.st_ctime);
+  return true;
 }
 
 }  // namespace base
