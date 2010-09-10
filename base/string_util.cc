@@ -1038,102 +1038,116 @@ string16 ReplaceStringPlaceholders(const string16& format_string,
   return result;
 }
 
-template <class CHAR>
-static bool IsWildcard(CHAR character) {
+static bool IsWildcard(base_icu::UChar32 character) {
   return character == '*' || character == '?';
 }
 
 // Move the strings pointers to the point where they start to differ.
-template <class CHAR>
-static void EatSameChars(const CHAR** pattern, const CHAR** string) {
-  bool escaped = false;
-  while (**pattern && **string) {
-    if (!escaped && IsWildcard(**pattern)) {
+template <typename CHAR, typename NEXT>
+static void EatSameChars(const CHAR** pattern, const CHAR* pattern_end,
+                         const CHAR** string, const CHAR* string_end,
+                         NEXT next) {
+  const CHAR* escape = NULL;
+  while (*pattern != pattern_end && *string != string_end) {
+    if (!escape && IsWildcard(**pattern)) {
       // We don't want to match wildcard here, except if it's escaped.
       return;
     }
 
     // Check if the escapement char is found. If so, skip it and move to the
     // next character.
-    if (!escaped && **pattern == L'\\') {
-      escaped = true;
-      (*pattern)++;
+    if (!escape && **pattern == '\\') {
+      escape = *pattern;
+      next(pattern, pattern_end);
       continue;
     }
 
     // Check if the chars match, if so, increment the ptrs.
-    if (**pattern == **string) {
-      (*pattern)++;
-      (*string)++;
+    const CHAR* pattern_next = *pattern;
+    const CHAR* string_next = *string;
+    base_icu::UChar32 pattern_char = next(&pattern_next, pattern_end);
+    if (pattern_char == next(&string_next, string_end) &&
+        pattern_char != (base_icu::UChar32) CBU_SENTINEL) {
+      *pattern = pattern_next;
+      *string = string_next;
     } else {
       // Uh ho, it did not match, we are done. If the last char was an
       // escapement, that means that it was an error to advance the ptr here,
       // let's put it back where it was. This also mean that the MatchPattern
       // function will return false because if we can't match an escape char
       // here, then no one will.
-      if (escaped) {
-        (*pattern)--;
+      if (escape) {
+        *pattern = escape;
       }
       return;
     }
 
-    escaped = false;
+    escape = NULL;
   }
 }
 
-template <class CHAR>
-static void EatWildcard(const CHAR** pattern) {
-  while (**pattern) {
+template <typename CHAR, typename NEXT>
+static void EatWildcard(const CHAR** pattern, const CHAR* end, NEXT next) {
+  while (*pattern != end) {
     if (!IsWildcard(**pattern))
       return;
-    (*pattern)++;
+    next(pattern, end);
   }
 }
 
-template <class CHAR>
-static bool MatchPatternT(const CHAR* eval, const CHAR* pattern, int depth) {
+template <typename CHAR, typename NEXT>
+static bool MatchPatternT(const CHAR* eval, const CHAR* eval_end,
+                          const CHAR* pattern, const CHAR* pattern_end,
+                          int depth,
+                          NEXT next) {
   const int kMaxDepth = 16;
   if (depth > kMaxDepth)
     return false;
 
   // Eat all the matching chars.
-  EatSameChars(&pattern, &eval);
+  EatSameChars(&pattern, pattern_end, &eval, eval_end, next);
 
   // If the string is empty, then the pattern must be empty too, or contains
   // only wildcards.
-  if (*eval == 0) {
-    EatWildcard(&pattern);
-    if (*pattern)
-      return false;
-    return true;
+  if (eval == eval_end) {
+    EatWildcard(&pattern, pattern_end, next);
+    return pattern == pattern_end;
   }
 
   // Pattern is empty but not string, this is not a match.
-  if (*pattern == 0)
+  if (pattern == pattern_end)
     return false;
 
   // If this is a question mark, then we need to compare the rest with
   // the current string or the string with one character eaten.
+  const CHAR* next_pattern = pattern;
+  next(&next_pattern, pattern_end);
   if (pattern[0] == '?') {
-    if (MatchPatternT(eval, pattern + 1, depth + 1) ||
-        MatchPatternT(eval + 1, pattern + 1, depth + 1))
+    if (MatchPatternT(eval, eval_end, next_pattern, pattern_end,
+                      depth + 1, next))
+      return true;
+    const CHAR* next_eval = eval;
+    next(&next_eval, eval_end);
+    if (MatchPatternT(next_eval, eval_end, next_pattern, pattern_end,
+                      depth + 1, next))
       return true;
   }
 
   // This is a *, try to match all the possible substrings with the remainder
   // of the pattern.
   if (pattern[0] == '*') {
-    while (*eval) {
-      if (MatchPatternT(eval, pattern + 1, depth + 1))
+    while (eval != eval_end) {
+      if (MatchPatternT(eval, eval_end, next_pattern, pattern_end,
+                        depth + 1, next))
         return true;
       eval++;
     }
 
     // We reached the end of the string, let see if the pattern contains only
     // wildcards.
-    if (*eval == 0) {
-      EatWildcard(&pattern);
-      if (*pattern)
+    if (eval == eval_end) {
+      EatWildcard(&pattern, pattern_end, next);
+      if (pattern != pattern_end)
         return false;
       return true;
     }
@@ -1142,13 +1156,36 @@ static bool MatchPatternT(const CHAR* eval, const CHAR* pattern, int depth) {
   return false;
 }
 
-bool MatchPatternWide(const std::wstring& eval, const std::wstring& pattern) {
-  return MatchPatternT(eval.c_str(), pattern.c_str(), 0);
+struct NextCharUTF8 {
+  base_icu::UChar32 operator()(const char** p, const char* end) {
+    base_icu::UChar32 c;
+    int offset = 0;
+    CBU8_NEXT(*p, offset, end - *p, c);
+    *p += offset;
+    return c;
+  }
+};
+
+struct NextCharUTF16 {
+  base_icu::UChar32 operator()(const char16** p, const char16* end) {
+    base_icu::UChar32 c;
+    int offset = 0;
+    CBU16_NEXT(*p, offset, end - *p, c);
+    *p += offset;
+    return c;
+  }
+};
+
+bool MatchPattern(const std::string& eval, const std::string& pattern) {
+  return MatchPatternT(eval.c_str(), eval.c_str() + eval.size(),
+                       pattern.c_str(), pattern.c_str() + pattern.size(),
+                       0, NextCharUTF8());
 }
 
-bool MatchPatternASCII(const std::string& eval, const std::string& pattern) {
-  DCHECK(IsStringASCII(eval) && IsStringASCII(pattern));
-  return MatchPatternT(eval.c_str(), pattern.c_str(), 0);
+bool MatchPattern(const string16& eval, const string16& pattern) {
+  return MatchPatternT(eval.c_str(), eval.c_str() + eval.size(),
+                       pattern.c_str(), pattern.c_str() + pattern.size(),
+                       0, NextCharUTF16());
 }
 
 // The following code is compatible with the OpenBSD lcpy interface.  See:

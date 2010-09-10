@@ -332,6 +332,36 @@ UChar32 utf8_nextCharSafeBody(const uint8 *s, int32 *pi, int32 length, UChar32 c
 #define CBU16_MAX_LENGTH 2
 
 /**
+ * Get a code point from a string at a code point boundary offset,
+ * and advance the offset to the next code point boundary.
+ * (Post-incrementing forward iteration.)
+ * "Safe" macro, handles unpaired surrogates and checks for string boundaries.
+ *
+ * The offset may point to the lead surrogate unit
+ * for a supplementary code point, in which case the macro will read
+ * the following trail surrogate as well.
+ * If the offset points to a trail surrogate or
+ * to a single, unpaired lead surrogate, then that itself
+ * will be returned as the code point.
+ *
+ * @param s const UChar * string
+ * @param i string offset, i<length
+ * @param length string length
+ * @param c output UChar32 variable
+ * @stable ICU 2.4
+ */
+#define CBU16_NEXT(s, i, length, c) { \
+    (c)=(s)[(i)++]; \
+    if(CBU16_IS_LEAD(c)) { \
+        uint16 __c2; \
+        if((i)<(length) && CBU16_IS_TRAIL(__c2=(s)[(i)])) { \
+            ++(i); \
+            (c)=CBU16_GET_SUPPLEMENTARY((c), __c2); \
+        } \
+    } \
+}
+
+/**
  * Append a code point to a string, overwriting 1 or 2 code units.
  * The offset points to the current end of the string contents
  * and is advanced (post-increment).
