@@ -912,10 +912,10 @@ TEST(NetUtilTest, CompliantHost) {
 }
 
 TEST(NetUtilTest, StripWWW) {
-  EXPECT_EQ(L"", net::StripWWW(L""));
-  EXPECT_EQ(L"", net::StripWWW(L"www."));
-  EXPECT_EQ(L"blah", net::StripWWW(L"www.blah"));
-  EXPECT_EQ(L"blah", net::StripWWW(L"blah"));
+  EXPECT_EQ(string16(), net::StripWWW(string16()));
+  EXPECT_EQ(string16(), net::StripWWW(ASCIIToUTF16("www.")));
+  EXPECT_EQ(ASCIIToUTF16("blah"), net::StripWWW(ASCIIToUTF16("www.blah")));
+  EXPECT_EQ(ASCIIToUTF16("blah"), net::StripWWW(ASCIIToUTF16("blah")));
 }
 
 TEST(NetUtilTest, GetSuggestedFilename) {
