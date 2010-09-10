@@ -3098,8 +3098,15 @@ TEST_P(SpdyNetworkTransactionTest, DISABLED_CorruptFrameSessionError) {
   }
 }
 
+// Crashes on Mac, see http://crbug.com/55174
+#if defined(OS_MACOSX)
+#define MAYBE_WriteError DISABLED_WriteError
+#else
+#define MAYBE_WriteError WriteError
+#endif  // defined(OS_MACOSX)
+
 // Test that we shutdown correctly on write errors.
-TEST_P(SpdyNetworkTransactionTest, WriteError) {
+TEST_P(SpdyNetworkTransactionTest, MAYBE_WriteError) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = {
     // We'll write 10 bytes successfully
