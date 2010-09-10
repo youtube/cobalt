@@ -32,8 +32,7 @@ class HostnamePatternRule : public ProxyBypassRules::Rule {
 
     // Note it is necessary to lower-case the host, since GURL uses capital
     // letters for percent-escaped characters.
-    return MatchPatternASCII(StringToLowerASCII(url.host()),
-                             hostname_pattern_);
+    return MatchPattern(StringToLowerASCII(url.host()), hostname_pattern_);
   }
 
   virtual std::string ToString() const {

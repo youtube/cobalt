@@ -1064,22 +1064,36 @@ TEST(StringUtilTest, SplitStringAlongWhitespace) {
 }
 
 TEST(StringUtilTest, MatchPatternTest) {
-  EXPECT_EQ(MatchPatternASCII("www.google.com", "*.com"), true);
-  EXPECT_EQ(MatchPatternASCII("www.google.com", "*"), true);
-  EXPECT_EQ(MatchPatternASCII("www.google.com", "www*.g*.org"), false);
-  EXPECT_EQ(MatchPatternASCII("Hello", "H?l?o"), true);
-  EXPECT_EQ(MatchPatternASCII("www.google.com", "http://*)"), false);
-  EXPECT_EQ(MatchPatternASCII("www.msn.com", "*.COM"), false);
-  EXPECT_EQ(MatchPatternASCII("Hello*1234", "He??o\\*1*"), true);
-  EXPECT_EQ(MatchPatternASCII("", "*.*"), false);
-  EXPECT_EQ(MatchPatternASCII("", "*"), true);
-  EXPECT_EQ(MatchPatternASCII("", "?"), true);
-  EXPECT_EQ(MatchPatternASCII("", ""), true);
-  EXPECT_EQ(MatchPatternASCII("Hello", ""), false);
-  EXPECT_EQ(MatchPatternASCII("Hello*", "Hello*"), true);
+  EXPECT_TRUE(MatchPattern("www.google.com", "*.com"));
+  EXPECT_TRUE(MatchPattern("www.google.com", "*"));
+  EXPECT_FALSE(MatchPattern("www.google.com", "www*.g*.org"));
+  EXPECT_TRUE(MatchPattern("Hello", "H?l?o"));
+  EXPECT_FALSE(MatchPattern("www.google.com", "http://*)"));
+  EXPECT_FALSE(MatchPattern("www.msn.com", "*.COM"));
+  EXPECT_TRUE(MatchPattern("Hello*1234", "He??o\\*1*"));
+  EXPECT_FALSE(MatchPattern("", "*.*"));
+  EXPECT_TRUE(MatchPattern("", "*"));
+  EXPECT_TRUE(MatchPattern("", "?"));
+  EXPECT_TRUE(MatchPattern("", ""));
+  EXPECT_FALSE(MatchPattern("Hello", ""));
+  EXPECT_TRUE(MatchPattern("Hello*", "Hello*"));
   // Stop after a certain recursion depth.
-  EXPECT_EQ(MatchPatternASCII("12345678901234567890", "???????????????????*"),
-                              false);
+  EXPECT_FALSE(MatchPattern("123456789012345678", "?????????????????*"));
+
+  // Test UTF8 matching.
+  EXPECT_TRUE(MatchPattern("heart: \xe2\x99\xa0", "*\xe2\x99\xa0"));
+  EXPECT_TRUE(MatchPattern("heart: \xe2\x99\xa0.", "heart: ?."));
+  EXPECT_TRUE(MatchPattern("hearts: \xe2\x99\xa0\xe2\x99\xa0", "*"));
+  // Invalid sequences should be handled as a single invalid character.
+  EXPECT_TRUE(MatchPattern("invalid: \xef\xbf\xbe", "invalid: ?"));
+  // If the pattern has invalid characters, it shouldn't match anything.
+  EXPECT_FALSE(MatchPattern("\xf4\x90\x80\x80", "\xf4\x90\x80\x80"));
+
+  // Test UTF16 character matching.
+  EXPECT_TRUE(MatchPattern(UTF8ToUTF16("www.google.com"),
+                           UTF8ToUTF16("*.com")));
+  EXPECT_TRUE(MatchPattern(UTF8ToUTF16("Hello*1234"),
+                           UTF8ToUTF16("He??o\\*1*")));
 }
 
 TEST(StringUtilTest, LcpyTest) {
