@@ -233,7 +233,7 @@ std::string GetDirectoryListingEntry(const string16& name,
 
 // If text starts with "www." it is removed, otherwise text is returned
 // unmodified.
-std::wstring StripWWW(const std::wstring& text);
+string16 StripWWW(const string16& text);
 
 // Gets the filename from the raw Content-Disposition header (as read from the
 // network).  Otherwise uses the last path component name or hostname from

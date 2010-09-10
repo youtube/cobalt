@@ -1306,8 +1306,8 @@ std::string GetDirectoryListingEntry(const string16& name,
   return result;
 }
 
-std::wstring StripWWW(const std::wstring& text) {
-  const std::wstring www(L"www.");
+string16 StripWWW(const string16& text) {
+  const string16 www(ASCIIToUTF16("www."));
   return (text.compare(0, www.length(), www) == 0) ?
       text.substr(www.length()) : text;
 }
