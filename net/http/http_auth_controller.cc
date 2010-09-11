@@ -4,6 +4,7 @@
 
 #include "net/http/http_auth_controller.h"
 
+#include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
 #include "net/base/host_resolver.h"
@@ -151,27 +152,40 @@ int HttpAuthController::HandleAuthChallenge(
     const BoundNetLog& net_log) {
   DCHECK(headers);
   DCHECK(auth_origin_.is_valid());
-
   LOG(INFO) << "The " << HttpAuth::GetAuthTargetString(target_) << " "
             << auth_origin_ << " requested auth"
             << AuthChallengeLogMessage(headers.get());
 
-  // The auth we tried just failed, hence it can't be valid. Remove it from
-  // the cache so it won't be used again.
-  // TODO(wtc): IsFinalRound is not the right condition.  In a multi-round
-  // auth sequence, the server may fail the auth in round 1 if our first
-  // authorization header is broken.  We should inspect response_.headers to
-  // determine if the server already failed the auth or wants us to continue.
-  // See http://crbug.com/21015.
-  if (HaveAuth() && handler_->IsFinalRound()) {
-    InvalidateRejectedAuthFromCache();
-    handler_.reset();
-    identity_ = HttpAuth::Identity();
+  // Give the existing auth handler first try at the authentication headers.
+  // This will also evict the entry in the HttpAuthCache if the previous
+  // challenge appeared to be rejected, or is using a stale nonce in the Digest
+  // case.
+  if (HaveAuth()) {
+    HttpAuth::AuthorizationResult result = HttpAuth::HandleChallengeResponse(
+        handler_.get(), headers, target_, disabled_schemes_);
+    switch (result) {
+      case HttpAuth::AUTHORIZATION_RESULT_ACCEPT:
+        break;
+      case HttpAuth::AUTHORIZATION_RESULT_INVALID:
+      case HttpAuth::AUTHORIZATION_RESULT_REJECT:
+        InvalidateCurrentHandler();
+        break;
+      case HttpAuth::AUTHORIZATION_RESULT_STALE:
+        // TODO(cbentzel): Support "stale" invalidation in HttpAuthCache.
+        // Right now this does the same invalidation as before.
+        InvalidateCurrentHandler();
+        break;
+      default:
+        NOTREACHED();
+        break;
+    }
   }
 
   identity_.invalid = true;
 
-  if (target_ != HttpAuth::AUTH_SERVER || !do_not_send_server_auth) {
+  bool can_send_auth = (target_ != HttpAuth::AUTH_SERVER ||
+                        !do_not_send_server_auth);
+  if (!handler_.get() && can_send_auth) {
     // Find the best authentication challenge that we support.
     HttpAuth::ChooseBestChallenge(session_->http_auth_handler_factory(),
                                   headers, target_, auth_origin_,
@@ -203,9 +217,6 @@ int HttpAuthController::HandleAuthChallenge(
     SelectNextAuthIdentityToTry();
   } else {
     // Proceed with the existing identity or a null identity.
-    //
-    // TODO(wtc): Add a safeguard against infinite transaction restarts, if
-    // the server keeps returning "NTLM".
     identity_.invalid = false;
   }
 
@@ -263,6 +274,12 @@ void HttpAuthController::ResetAuth(const string16& username,
   }
 }
 
+void HttpAuthController::InvalidateCurrentHandler() {
+  InvalidateRejectedAuthFromCache();
+  handler_.reset();
+  identity_ = HttpAuth::Identity();
+}
+
 void HttpAuthController::InvalidateRejectedAuthFromCache() {
   DCHECK(HaveAuth());
 
@@ -302,8 +319,8 @@ bool HttpAuthController::SelectNextAuthIdentityToTry() {
 
   // Check the auth cache for a realm entry.
   HttpAuthCache::Entry* entry =
-    session_->auth_cache()->Lookup(auth_origin_, handler_->realm(),
-                                   handler_->scheme());
+      session_->auth_cache()->Lookup(auth_origin_, handler_->realm(),
+                                     handler_->scheme());
 
   if (entry) {
     identity_.source = HttpAuth::IDENT_SRC_REALM_LOOKUP;

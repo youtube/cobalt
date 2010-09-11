@@ -10,7 +10,6 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_auth_handler.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -27,6 +26,11 @@ class MockAuthHandler : public HttpAuthHandler {
     score_ = 1;
     target_ = target;
     properties_ = 0;
+  }
+
+  HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuth::ChallengeTokenizer* challenge) {
+    return HttpAuth::AUTHORIZATION_RESULT_REJECT;
   }
 
  protected:

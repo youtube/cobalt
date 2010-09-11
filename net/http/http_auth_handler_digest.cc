@@ -173,8 +173,8 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
   std::string nc = StringPrintf("%08x", nonce_count);
 
   // TODO(eroman): is this the right encoding?
-  std::string authorization = std::string("Digest username=") +
-                              HttpUtil::Quote(UTF16ToUTF8(username));
+  std::string authorization = (std::string("Digest username=") +
+                               HttpUtil::Quote(UTF16ToUTF8(username)));
   authorization += ", realm=" + HttpUtil::Quote(realm_);
   authorization += ", nonce=" + HttpUtil::Quote(nonce_);
   authorization += ", uri=" + HttpUtil::Quote(path);
@@ -199,6 +199,31 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
   }
 
   return authorization;
+}
+
+bool HttpAuthHandlerDigest::Init(HttpAuth::ChallengeTokenizer* challenge) {
+  return ParseChallenge(challenge);
+}
+
+HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
+    HttpAuth::ChallengeTokenizer* challenge) {
+  // Even though Digest is not connection based, a "second round" is parsed
+  // to differentiate between stale and rejected responses.
+  // Note that the state of the current handler is not mutated - this way if
+  // there is a rejection the realm hasn't changed.
+  if (!challenge->valid() ||
+      !LowerCaseEqualsASCII(challenge->scheme(), "digest"))
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
+
+  // Try to find the "stale" value.
+  while (challenge->GetNext()) {
+    if (!LowerCaseEqualsASCII(challenge->name(), "stale"))
+      continue;
+    if (LowerCaseEqualsASCII(challenge->unquoted_value(), "true"))
+      return HttpAuth::AUTHORIZATION_RESULT_STALE;
+  }
+
+  return HttpAuth::AUTHORIZATION_RESULT_REJECT;
 }
 
 // The digest challenge header looks like:
@@ -231,9 +256,10 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   qop_ = QOP_UNSPECIFIED;
   realm_ = nonce_ = domain_ = opaque_ = std::string();
 
+  // FAIL -- Couldn't match auth-scheme.
   if (!challenge->valid() ||
       !LowerCaseEqualsASCII(challenge->scheme(), "digest"))
-    return false;  // FAIL -- Couldn't match auth-scheme.
+    return false;
 
   // Loop through all the properties.
   while (challenge->GetNext()) {
@@ -242,17 +268,18 @@ bool HttpAuthHandlerDigest::ParseChallenge(
       return false;
     }
 
+    // FAIL -- couldn't parse a property.
     if (!ParseChallengeProperty(challenge->name(), challenge->unquoted_value()))
-      return false;  // FAIL -- couldn't parse a property.
+      return false;
   }
 
   // Check if tokenizer failed.
   if (!challenge->valid())
-    return false;  // FAIL
+    return false;
 
   // Check that a minimum set of properties were provided.
   if (nonce_.empty())
-    return false;  // FAIL
+    return false;
 
   return true;
 }

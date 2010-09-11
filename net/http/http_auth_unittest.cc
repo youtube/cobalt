@@ -13,11 +13,35 @@
 #include "net/http/http_auth_filter.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/http_auth_handler_mock.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
+
+namespace {
+
+HttpAuthHandlerMock* CreateMockHandler(bool connection_based) {
+  HttpAuthHandlerMock* auth_handler = new HttpAuthHandlerMock();
+  auth_handler->set_connection_based(connection_based);
+  std::string challenge_text = "Mock";
+  HttpAuth::ChallengeTokenizer challenge(challenge_text.begin(),
+                                         challenge_text.end());
+  GURL origin("www.example.com");
+  EXPECT_TRUE(auth_handler->InitFromChallenge(&challenge,
+                                              HttpAuth::AUTH_SERVER,
+                                              origin,
+                                              BoundNetLog()));
+  return auth_handler;
+}
+
+HttpResponseHeaders* HeadersFromResponseText(const std::string& response) {
+  return new HttpResponseHeaders(
+      HttpUtil::AssembleRawHeaders(response.c_str(), response.length()));
+}
+
+}  // namespace
 
 TEST(HttpAuthTest, ChooseBestChallenge) {
   static const struct {
@@ -82,11 +106,8 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
     // Make a HttpResponseHeaders object.
     std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
     headers_with_status_line += tests[i].headers;
-    scoped_refptr<net::HttpResponseHeaders> headers(
-        new net::HttpResponseHeaders(
-            net::HttpUtil::AssembleRawHeaders(
-                headers_with_status_line.c_str(),
-                headers_with_status_line.length())));
+    scoped_refptr<HttpResponseHeaders> headers(
+        HeadersFromResponseText(headers_with_status_line));
 
     scoped_ptr<HttpAuthHandler> handler;
     HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
@@ -107,130 +128,49 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
   }
 }
 
-TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNTLM) {
-  static const struct {
-    const char* headers;
-    const char* challenge_realm;
-  } tests[] = {
-    {
-      "WWW-Authenticate: NTLM\r\n",
-
-      "",
-    },
-    {
-      "WWW-Authenticate: NTLM "
-      "TlRMTVNTUAACAAAADAAMADgAAAAFgokCTroKF1e/DRcAAAAAAAAAALo"
-      "AugBEAAAABQEoCgAAAA9HAE8ATwBHAEwARQACAAwARwBPAE8ARwBMAE"
-      "UAAQAaAEEASwBFAEUAUwBBAFIAQQAtAEMATwBSAFAABAAeAGMAbwByA"
-      "HAALgBnAG8AbwBnAGwAZQAuAGMAbwBtAAMAQABhAGsAZQBlAHMAYQBy"
-      "AGEALQBjAG8AcgBwAC4AYQBkAC4AYwBvAHIAcAAuAGcAbwBvAGcAbAB"
-      "lAC4AYwBvAG0ABQAeAGMAbwByAHAALgBnAG8AbwBnAGwAZQAuAGMAbw"
-      "BtAAAAAAA=\r\n",
-
-      // Realm is empty.
-      "",
-    }
-  };
-  GURL origin("http://www.example.com");
+TEST(HttpAuthTest, HandleChallengeResponse_RequestBased) {
+  scoped_ptr<HttpAuthHandlerMock> mock_handler(CreateMockHandler(false));
   std::set<std::string> disabled_schemes;
-
-  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
-      HttpAuthHandlerFactory::CreateDefault());
-  scoped_ptr<HttpAuthHandler> handler;
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    // Make a HttpResponseHeaders object.
-    std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
-    headers_with_status_line += tests[i].headers;
-    scoped_refptr<net::HttpResponseHeaders> headers(
-        new net::HttpResponseHeaders(
-            net::HttpUtil::AssembleRawHeaders(
-                headers_with_status_line.c_str(),
-                headers_with_status_line.length())));
-
-    // possibly_deleted_old_handler may point to deleted memory
-    // after ChooseBestChallenge has been called, and should not
-    // be dereferenced.
-    HttpAuthHandler* possibly_deleted_old_handler = handler.get();
-    HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
-                                  headers.get(),
-                                  HttpAuth::AUTH_SERVER,
-                                  origin,
-                                  disabled_schemes,
-                                  BoundNetLog(),
-                                  &handler);
-    EXPECT_TRUE(handler != NULL);
-    // Since NTLM is connection-based, we should continue to use the existing
-    // handler rather than creating a new one.
-    if (i != 0)
-      EXPECT_EQ(possibly_deleted_old_handler, handler.get());
-    ASSERT_NE(reinterpret_cast<net::HttpAuthHandler *>(NULL), handler.get());
-    EXPECT_STREQ(tests[i].challenge_realm, handler->realm().c_str());
-  }
+  scoped_refptr<HttpResponseHeaders> headers(
+      HeadersFromResponseText(
+          "HTTP/1.1 401 Unauthorized\n"
+          "WWW-Authenticate: Mock token_here\n"));
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
+            HttpAuth::HandleChallengeResponse(
+                mock_handler.get(),
+                headers.get(),
+                HttpAuth::AUTH_SERVER,
+                disabled_schemes));
 }
 
-TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNegotiate) {
-  static const struct {
-    const char* headers;
-    const char* challenge_realm;
-  } tests[] = {
-    {
-      "WWW-Authenticate: Negotiate\r\n",
-
-      "",
-    },
-    {
-      "WWW-Authenticate: Negotiate "
-      "TlRMTVNTUAACAAAADAAMADgAAAAFgokCTroKF1e/DRcAAAAAAAAAALo"
-      "AugBEAAAABQEoCgAAAA9HAE8ATwBHAEwARQACAAwARwBPAE8ARwBMAE"
-      "UAAQAaAEEASwBFAEUAUwBBAFIAQQAtAEMATwBSAFAABAAeAGMAbwByA"
-      "HAALgBnAG8AbwBnAGwAZQAuAGMAbwBtAAMAQABhAGsAZQBlAHMAYQBy"
-      "AGEALQBjAG8AcgBwAC4AYQBkAC4AYwBvAHIAcAAuAGcAbwBvAGcAbAB"
-      "lAC4AYwBvAG0ABQAeAGMAbwByAHAALgBnAG8AbwBnAGwAZQAuAGMAbw"
-      "BtAAAAAAA=\r\n",
-
-      // Realm is empty.
-      "",
-    }
-  };
-  GURL origin("http://www.example.com");
+TEST(HttpAuthTest, HandleChallengeResponse_ConnectionBased) {
+  scoped_ptr<HttpAuthHandlerMock> mock_handler(CreateMockHandler(true));
   std::set<std::string> disabled_schemes;
-  URLSecurityManagerAllow url_security_manager;
-  scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
-      HttpAuthHandlerFactory::CreateDefault());
-  http_auth_handler_factory->SetURLSecurityManager(
-      "negotiate", &url_security_manager);
+  scoped_refptr<HttpResponseHeaders> headers(
+      HeadersFromResponseText(
+          "HTTP/1.1 401 Unauthorized\n"
+          "WWW-Authenticate: Mock token_here\n"));
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
+            HttpAuth::HandleChallengeResponse(
+                mock_handler.get(),
+                headers.get(),
+                HttpAuth::AUTH_SERVER,
+                disabled_schemes));
+}
 
-  scoped_ptr<HttpAuthHandler> handler;
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    // Make a HttpResponseHeaders object.
-    std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
-    headers_with_status_line += tests[i].headers;
-    scoped_refptr<net::HttpResponseHeaders> headers(
-        new net::HttpResponseHeaders(
-            net::HttpUtil::AssembleRawHeaders(
-                headers_with_status_line.c_str(),
-                headers_with_status_line.length())));
-
-    HttpAuthHandler* old_handler = handler.get();
-    HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
-                                  headers.get(),
-                                  HttpAuth::AUTH_SERVER,
-                                  origin,
-                                  disabled_schemes,
-                                  BoundNetLog(),
-                                  &handler);
-
-    EXPECT_TRUE(handler != NULL);
-    // Since Negotiate is connection-based, we should continue to use the
-    // existing handler rather than creating a new one.
-    if (i != 0)
-      EXPECT_EQ(old_handler, handler.get());
-
-    ASSERT_NE(reinterpret_cast<net::HttpAuthHandler *>(NULL), handler.get());
-
-    EXPECT_STREQ(tests[i].challenge_realm, handler->realm().c_str());
-  }
+TEST(HttpAuthTest, HandleChallengeResponse_ConnectionBasedNoMatch) {
+  scoped_ptr<HttpAuthHandlerMock> mock_handler(CreateMockHandler(true));
+  std::set<std::string> disabled_schemes;
+  scoped_refptr<HttpResponseHeaders> headers(
+      HeadersFromResponseText(
+          "HTTP/1.1 401 Unauthorized\n"
+          "WWW-Authenticate: Basic realm=\"happy\"\n"));
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
+            HttpAuth::HandleChallengeResponse(
+                mock_handler.get(),
+                headers.get(),
+                HttpAuth::AUTH_SERVER,
+                disabled_schemes));
 }
 
 TEST(HttpAuthTest, ChallengeTokenizer) {
