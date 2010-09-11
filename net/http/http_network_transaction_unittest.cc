@@ -6654,6 +6654,8 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
     kGetAuth,
     // Third round
     kGetAuth,
+    // Fourth round
+    kGetAuth
   };
   MockRead reads[] = {
     // First round
@@ -6661,6 +6663,8 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
     // Second round
     kServerChallenge,
     // Third round
+    kServerChallenge,
+    // Fourth round
     kSuccess,
   };
   StaticSocketDataProvider data_provider(reads, arraysize(reads),
@@ -6688,6 +6692,16 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
 
   // Third round
+  auth_handler->SetGenerateExpectation(false, OK);
+  rv = trans->RestartWithAuth(string16(), string16(), &callback);
+  if (rv == ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+
+  // Fourth round
   auth_handler->SetGenerateExpectation(false, OK);
   rv = trans->RestartWithAuth(string16(), string16(), &callback);
   if (rv == ERR_IO_PENDING)

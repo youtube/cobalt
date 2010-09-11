@@ -38,6 +38,22 @@ class HttpAuthHandler {
                          const GURL& origin,
                          const BoundNetLog& net_log);
 
+  // Determines how the previous authorization attempt was received.
+  //
+  // This is called when the server/proxy responds with a 401/407 after an
+  // earlier authorization attempt. Although this normally means that the
+  // previous attempt was rejected, in multi-round schemes such as
+  // NTLM+Negotiate it may indicate that another round of challenge+response
+  // is required. For Digest authentication it may also mean that the previous
+  // attempt used a stale nonce (and nonce-count) and that a new attempt should
+  // be made with a different nonce provided in the challenge.
+  //
+  // |challenge| must be non-NULL and have already tokenized the
+  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme.
+  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuth::ChallengeTokenizer* challenge) = 0;
+
   // Generates an authentication token, potentially asynchronously.
   //
   // When |username| and |password| are NULL, the default credentials for
@@ -106,11 +122,6 @@ class HttpAuthHandler {
   // TODO(wtc): Find a better way to handle a multi-round challenge-response
   // sequence used by a connection-based authentication scheme.
   virtual bool NeedsIdentity() { return true; }
-
-  // Returns true if this is the final round of the authentication sequence.
-  // For Basic and Digest, the method always returns true because they are
-  // single-round schemes.
-  virtual bool IsFinalRound() { return true; }
 
   // Returns whether the default credentials may be used for the |origin| passed
   // into |InitFromChallenge|. If true, the user does not need to be prompted

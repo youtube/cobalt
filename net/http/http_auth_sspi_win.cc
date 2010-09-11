@@ -129,10 +129,6 @@ bool HttpAuthSSPI::NeedsIdentity() const {
   return decoded_server_auth_token_.empty();
 }
 
-bool HttpAuthSSPI::IsFinalRound() const {
-  return !decoded_server_auth_token_.empty();
-}
-
 void HttpAuthSSPI::Delegate() {
   can_delegate_ = true;
 }
@@ -144,27 +140,35 @@ void HttpAuthSSPI::ResetSecurityContext() {
   }
 }
 
-bool HttpAuthSSPI::ParseChallenge(HttpAuth::ChallengeTokenizer* tok) {
+HttpAuth::AuthorizationResult HttpAuthSSPI::ParseChallenge(
+    HttpAuth::ChallengeTokenizer* tok) {
   // Verify the challenge's auth-scheme.
   if (!tok->valid() ||
       !LowerCaseEqualsASCII(tok->scheme(), StringToLowerASCII(scheme_).c_str()))
-    return false;
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
   tok->set_expect_base64_token(true);
   if (!tok->GetNext()) {
-    decoded_server_auth_token_.clear();
-    return true;
+    // If a context has already been established, an empty challenge
+    // should be treated as a rejection of the current attempt.
+    if (SecIsValidHandle(&ctxt_))
+      return HttpAuth::AUTHORIZATION_RESULT_REJECT;
+    DCHECK(decoded_server_auth_token_.empty());
+    return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
+  } else {
+    // If a context has not already been established, additional tokens should
+    // not be present in the auth challenge.
+    if (!SecIsValidHandle(&ctxt_))
+      return HttpAuth::AUTHORIZATION_RESULT_INVALID;
   }
 
   std::string encoded_auth_token = tok->value();
   std::string decoded_auth_token;
   bool base64_rv = base::Base64Decode(encoded_auth_token, &decoded_auth_token);
-  if (!base64_rv) {
-    LOG(ERROR) << "Base64 decoding of auth token failed.";
-    return false;
-  }
+  if (!base64_rv)
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
   decoded_server_auth_token_ = decoded_auth_token;
-  return true;
+  return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
 }
 
 int HttpAuthSSPI::GenerateAuthToken(const string16* username,
@@ -174,7 +178,7 @@ int HttpAuthSSPI::GenerateAuthToken(const string16* username,
   DCHECK((username == NULL) == (password == NULL));
 
   // Initial challenge.
-  if (!IsFinalRound()) {
+  if (!SecIsValidHandle(&cred_)) {
     int rv = OnFirstRound(username, password);
     if (rv != OK)
       return rv;

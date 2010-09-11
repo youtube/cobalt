@@ -223,9 +223,9 @@ class HttpAuthGSSAPI {
   bool Init();
 
   bool NeedsIdentity() const;
-  bool IsFinalRound() const;
 
-  bool ParseChallenge(HttpAuth::ChallengeTokenizer* tok);
+  HttpAuth::AuthorizationResult ParseChallenge(
+      HttpAuth::ChallengeTokenizer* tok);
 
   // Generates an authentication token.
   // The return value is an error code. If it's not |OK|, the value of

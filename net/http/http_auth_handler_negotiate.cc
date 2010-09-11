@@ -95,16 +95,19 @@ bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
   scheme_ = "negotiate";
   score_ = 4;
   properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
+  HttpAuth::AuthorizationResult auth_result =
+      auth_system_.ParseChallenge(challenge);
+  return (auth_result == HttpAuth::AUTHORIZATION_RESULT_ACCEPT);
+}
+
+HttpAuth::AuthorizationResult HttpAuthHandlerNegotiate::HandleAnotherChallenge(
+    HttpAuth::ChallengeTokenizer* challenge) {
   return auth_system_.ParseChallenge(challenge);
 }
 
 // Require identity on first pass instead of second.
 bool HttpAuthHandlerNegotiate::NeedsIdentity() {
   return auth_system_.NeedsIdentity();
-}
-
-bool HttpAuthHandlerNegotiate::IsFinalRound() {
-  return auth_system_.IsFinalRound();
 }
 
 bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
