@@ -5,6 +5,7 @@
 #include "net/http/http_auth_handler_mock.h"
 
 #include "base/message_loop.h"
+#include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -75,6 +76,16 @@ bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
   score_ = 1;
   properties_ = connection_based_ ? IS_CONNECTION_BASED : 0;
   return true;
+}
+
+HttpAuth::AuthorizationResult HttpAuthHandlerMock::HandleAnotherChallenge(
+    HttpAuth::ChallengeTokenizer* challenge) {
+  if (!is_connection_based())
+    return HttpAuth::AUTHORIZATION_RESULT_REJECT;
+  if (!challenge->valid() ||
+      !LowerCaseEqualsASCII(challenge->scheme(), "mock"))
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
+  return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
 }
 
 int HttpAuthHandlerMock::GenerateAuthTokenImpl(const string16* username,

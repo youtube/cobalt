@@ -114,7 +114,7 @@ std::string DisplayCode(GSSAPILibrary* gssapi_lib,
   // individual message may exceed |kMaxMsgLength|, and the final result
   // will not exceed |kMaxMsgLength|*2-1.
   for (int i = 0; i < kMaxDisplayIterations && rv.size() < kMaxMsgLength;
-      ++i) {
+       ++i) {
     OM_uint32 min_stat;
     gss_buffer_desc_struct msg = GSS_C_EMPTY_BUFFER;
     OM_uint32 maj_stat =
@@ -482,26 +482,26 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
   return NULL;
 }
 
-#define BIND(lib, x) \
-  gss_##x##_type x = reinterpret_cast<gss_##x##_type>( \
-      base::GetFunctionPointerFromNativeLibrary(lib, "gss_" #x)); \
-  if (x == NULL) { \
-    LOG(WARNING) << "Unable to bind function \"" << "gss_" #x << "\""; \
-    return false; \
+#define BIND(lib, x)                                                    \
+  gss_##x##_type x = reinterpret_cast<gss_##x##_type>(                  \
+      base::GetFunctionPointerFromNativeLibrary(lib, "gss_" #x));       \
+  if (x == NULL) {                                                      \
+    LOG(WARNING) << "Unable to bind function \"" << "gss_" #x << "\"";  \
+    return false;                                                       \
   }
 
 bool GSSAPISharedLibrary::BindMethods(base::NativeLibrary lib) {
   DCHECK(lib != NULL);
 
-  BIND(lib, import_name)
-  BIND(lib, release_name)
-  BIND(lib, release_buffer)
-  BIND(lib, display_name)
-  BIND(lib, display_status)
-  BIND(lib, init_sec_context)
-  BIND(lib, wrap_size_limit)
-  BIND(lib, delete_sec_context)
-  BIND(lib, inquire_context)
+  BIND(lib, import_name);
+  BIND(lib, release_name);
+  BIND(lib, release_buffer);
+  BIND(lib, display_name);
+  BIND(lib, display_status);
+  BIND(lib, init_sec_context);
+  BIND(lib, wrap_size_limit);
+  BIND(lib, delete_sec_context);
+  BIND(lib, inquire_context);
 
   import_name_ = import_name;
   release_name_ = release_name;
@@ -638,14 +638,14 @@ OM_uint32 GSSAPISharedLibrary::inquire_context(
     int* open) {
   DCHECK(initialized_);
   return inquire_context_(minor_status,
-                         context_handle,
-                         src_name,
-                         targ_name,
-                         lifetime_rec,
-                         mech_type,
-                         ctx_flags,
-                         locally_initiated,
-                         open);
+                          context_handle,
+                          src_name,
+                          targ_name,
+                          lifetime_rec,
+                          mech_type,
+                          ctx_flags,
+                          locally_initiated,
+                          open);
 }
 GSSAPILibrary* GSSAPILibrary::GetDefault() {
   return Singleton<GSSAPISharedLibrary>::get();
@@ -695,35 +695,40 @@ bool HttpAuthGSSAPI::NeedsIdentity() const {
   return decoded_server_auth_token_.empty();
 }
 
-bool HttpAuthGSSAPI::IsFinalRound() const {
-  return !NeedsIdentity();
-}
-
 void HttpAuthGSSAPI::Delegate() {
   can_delegate_ = true;
 }
 
-bool HttpAuthGSSAPI::ParseChallenge(HttpAuth::ChallengeTokenizer* tok) {
+HttpAuth::AuthorizationResult HttpAuthGSSAPI::ParseChallenge(
+    HttpAuth::ChallengeTokenizer* tok) {
   // Verify the challenge's auth-scheme.
   if (!tok->valid() ||
       !LowerCaseEqualsASCII(tok->scheme(), StringToLowerASCII(scheme_).c_str()))
-    return false;
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
   tok->set_expect_base64_token(true);
   if (!tok->GetNext()) {
-    decoded_server_auth_token_.clear();
-    return true;
+    // If a context has already been established, an empty Negotiate challenge
+    // should be treated as a rejection of the current attempt.
+    if (scoped_sec_context_.get() != GSS_C_NO_CONTEXT)
+      return HttpAuth::AUTHORIZATION_RESULT_REJECT;
+    DCHECK(decoded_server_auth_token_.empty());
+    return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
+  } else {
+    // If a context has not already been established, additional tokens should
+    // not be present in the auth challenge.
+    if (scoped_sec_context_.get() == GSS_C_NO_CONTEXT)
+      return HttpAuth::AUTHORIZATION_RESULT_INVALID;
   }
 
+  // Make sure the additional token is base64 encoded.
   std::string encoded_auth_token = tok->value();
   std::string decoded_auth_token;
   bool base64_rv = base::Base64Decode(encoded_auth_token, &decoded_auth_token);
-  if (!base64_rv) {
-    LOG(ERROR) << "Base64 decoding of auth token failed.";
-    return false;
-  }
+  if (!base64_rv)
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
   decoded_server_auth_token_ = decoded_auth_token;
-  return true;
+  return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
 }
 
 int HttpAuthGSSAPI::GenerateAuthToken(const string16* username,
@@ -735,10 +740,9 @@ int HttpAuthGSSAPI::GenerateAuthToken(const string16* username,
 
   gss_buffer_desc input_token = GSS_C_EMPTY_BUFFER;
   input_token.length = decoded_server_auth_token_.length();
-  input_token.value =
-      (input_token.length > 0) ?
-          const_cast<char*>(decoded_server_auth_token_.data()) :
-          NULL;
+  input_token.value = (input_token.length > 0) ?
+      const_cast<char*>(decoded_server_auth_token_.data()) :
+      NULL;
   gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
   ScopedBuffer scoped_output_token(&output_token, library_);
   int rv = GetNextSecurityToken(spn, &input_token, &output_token);

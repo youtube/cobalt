@@ -291,4 +291,34 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
   }
 }
 
+TEST(HttpAuthHandlerDigest, HandleAnotherChallenge_Failed) {
+  scoped_ptr<HttpAuthHandlerDigest::Factory> factory(
+      new HttpAuthHandlerDigest::Factory());
+  scoped_ptr<HttpAuthHandler> handler;
+  std::string default_challenge =
+      "Digest realm=\"Oblivion\", nonce=\"nonce-value\"";
+  GURL origin("intranet.google.com");
+  int rv = factory->CreateAuthHandlerFromString(
+      default_challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(),
+      &handler);
+  EXPECT_EQ(OK, rv);
+
+  HttpAuth::ChallengeTokenizer tok_default(default_challenge.begin(),
+                                           default_challenge.end());
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
+            handler->HandleAnotherChallenge(&tok_default));
+
+  std::string stale_challenge = default_challenge + ", stale=true";
+  HttpAuth::ChallengeTokenizer tok_stale(stale_challenge.begin(),
+                                         stale_challenge.end());
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_STALE,
+            handler->HandleAnotherChallenge(&tok_stale));
+
+  std::string stale_false_challenge = default_challenge + ", stale=false";
+  HttpAuth::ChallengeTokenizer tok_stale_false(stale_false_challenge.begin(),
+                                               stale_false_challenge.end());
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
+            handler->HandleAnotherChallenge(&tok_stale_false));
+}
+
 } // namespace net

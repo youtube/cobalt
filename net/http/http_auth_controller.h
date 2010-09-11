@@ -81,6 +81,9 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
   // cache entry's data and returns true.
   bool SelectPreemptiveAuth(const BoundNetLog& net_log);
 
+  // Invalidates the current handler, including cache.
+  void InvalidateCurrentHandler();
+
   // Invalidates any auth cache entries after authentication has failed.
   // The identity that was rejected is |identity_|.
   void InvalidateRejectedAuthFromCache();
