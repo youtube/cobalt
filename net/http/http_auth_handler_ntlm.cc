@@ -92,27 +92,48 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
 #endif
 }
 
-// The NTLM challenge header looks like:
-//   WWW-Authenticate: NTLM auth-data
-bool HttpAuthHandlerNTLM::ParseChallenge(
-    HttpAuth::ChallengeTokenizer* tok) {
+bool HttpAuthHandlerNTLM::Init(HttpAuth::ChallengeTokenizer* tok) {
   scheme_ = "ntlm";
   score_ = 3;
   properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
 
+  return ParseChallenge(tok, true) == HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
+}
+
+HttpAuth::AuthorizationResult HttpAuthHandlerNTLM::HandleAnotherChallenge(
+    HttpAuth::ChallengeTokenizer* challenge) {
+  return ParseChallenge(challenge, false);
+}
+
+// The NTLM challenge header looks like:
+//   WWW-Authenticate: NTLM auth-data
+HttpAuth::AuthorizationResult HttpAuthHandlerNTLM::ParseChallenge(
+    HttpAuth::ChallengeTokenizer* tok, bool initial_challenge) {
 #if defined(NTLM_SSPI)
+  // auth_sspi_ contains state for whether or not this is the initial challenge.
   return auth_sspi_.ParseChallenge(tok);
 #else
+  // TODO(cbentzel): Most of the logic between SSPI, GSSAPI, and portable NTLM
+  // authentication parsing could probably be shared - just need to know if
+  // there was previously a challenge round.
   auth_data_.clear();
 
   // Verify the challenge's auth-scheme.
   if (!tok->valid() || !LowerCaseEqualsASCII(tok->scheme(), "ntlm"))
-    return false;
+    return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
   tok->set_expect_base64_token(true);
-  if (tok->GetNext())
-    auth_data_.assign(tok->value_begin(), tok->value_end());
-  return true;
+  if (!tok->GetNext()) {
+    if (!initial_challenge)
+      return HttpAuth::AUTHORIZATION_RESULT_REJECT;
+    return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
+  } else {
+    if (initial_challenge)
+      return HttpAuth::AUTHORIZATION_RESULT_INVALID;
+  }
+
+  auth_data_.assign(tok->value_begin(), tok->value_end());
+  return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
 #endif  // defined(NTLM_SSPI)
 }
 

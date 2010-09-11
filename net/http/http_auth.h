@@ -25,7 +25,6 @@ class HttpResponseHeaders;
 // Utility class for http authentication.
 class HttpAuth {
  public:
-
   // Http authentication can be done the the proxy server, origin server,
   // or both. This enum tracks who the target is.
   enum Target {
@@ -35,6 +34,24 @@ class HttpAuth {
     AUTH_PROXY = 0,
     AUTH_SERVER = 1,
     AUTH_NUM_TARGETS = 2,
+  };
+
+  // What the HTTP WWW-Authenticate/Proxy-Authenticate headers indicate about
+  // the previous authorization attempt.
+  enum AuthorizationResult {
+    AUTHORIZATION_RESULT_ACCEPT,   // The authorization attempt was accepted,
+                                   // although there still may be additional
+                                   // rounds of challenges.
+
+    AUTHORIZATION_RESULT_REJECT,   // The authorization attempt was rejected.
+
+    AUTHORIZATION_RESULT_STALE,    // (Digest) The nonce used in the
+                                   // authorization attempt is stale, but
+                                   // otherwise the attempt was valid.
+
+    AUTHORIZATION_RESULT_INVALID,  // The authentication challenge headers are
+                                   // poorly formed (the authorization attempt
+                                   // itself may have been fine).
   };
 
   // Describes where the identity used for authentication came from.
@@ -88,19 +105,13 @@ class HttpAuth {
 
   // Iterate through the challenge headers, and pick the best one that
   // we support. Obtains the implementation class for handling the challenge,
-  // and passes it back in |*handler|. If the existing handler in |*handler|
-  // should continue to be used (such as for the NTLM authentication scheme),
-  // |*handler| is unchanged. If no supported challenge was found, |*handler|
-  // is set to NULL.
+  // and passes it back in |*handler|. If no supported challenge was found,
+  // |*handler| is set to NULL.
   //
   // |disabled_schemes| is the set of schemes that we should not use.
   //
-  // |origin| is used by the NTLM authentication scheme to construct the
-  // service principal name.  It is ignored by other schemes.
-  //
-  // TODO(wtc): Continuing to use the existing handler in |*handler| (for
-  // NTLM) is new behavior.  Rename ChooseBestChallenge to fully encompass
-  // what it does now.
+  // |origin| is used by the NTLM and Negotiation authentication scheme to
+  // construct the service principal name.  It is ignored by other schemes.
   static void ChooseBestChallenge(
       HttpAuthHandlerFactory* http_auth_handler_factory,
       const HttpResponseHeaders* headers,
@@ -109,6 +120,13 @@ class HttpAuth {
       const std::set<std::string>& disabled_schemes,
       const BoundNetLog& net_log,
       scoped_ptr<HttpAuthHandler>* handler);
+
+  // Handle a response to a previous authentication attempt.
+  static AuthorizationResult HandleChallengeResponse(
+      HttpAuthHandler* handler,
+      const HttpResponseHeaders* headers,
+      Target target,
+      const std::set<std::string>& disabled_schemes);
 
   // ChallengeTokenizer breaks up a challenge string into the the auth scheme
   // and parameter list, according to RFC 2617 Sec 1.2:

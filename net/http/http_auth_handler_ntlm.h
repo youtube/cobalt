@@ -108,14 +108,13 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
 
   virtual bool NeedsIdentity();
 
-  virtual bool IsFinalRound();
-
   virtual bool AllowsDefaultCredentials();
 
+  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuth::ChallengeTokenizer* challenge);
+
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* tok) {
-    return ParseChallenge(tok);
-  }
+  virtual bool Init(HttpAuth::ChallengeTokenizer* tok);
 
   virtual int GenerateAuthTokenImpl(const string16* username,
                                     const string16* password,
@@ -138,8 +137,8 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
 #endif
 
   // Parse the challenge, saving the results into this instance.
-  // Returns true on success.
-  bool ParseChallenge(HttpAuth::ChallengeTokenizer* tok);
+  HttpAuth::AuthorizationResult ParseChallenge(
+      HttpAuth::ChallengeTokenizer* tok, bool initial_challenge);
 
   // Given an input token received from the server, generate the next output
   // token to be sent to the server.

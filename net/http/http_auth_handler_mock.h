@@ -41,7 +41,6 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
                                    CompletionCallback* callback);
 
   virtual bool NeedsIdentity() { return first_round_; }
-  virtual bool IsFinalRound() { return false; }
 
   void SetGenerateExpectation(bool async, int rv);
 
@@ -52,6 +51,9 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   const GURL& request_url() const {
     return request_url_;
   }
+
+  HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuth::ChallengeTokenizer* challenge);
 
   // The Factory class simply returns the same handler each time
   // CreateAuthHandler is called.

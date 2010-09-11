@@ -66,6 +66,52 @@ TEST(HttpAuthHandlerBasicTest, InitFromChallenge) {
       OK,
       "",
     },
+
+    // Realm is valid.
+    {
+      "Basic realm=\"test_realm\"",
+      OK,
+      "test_realm",
+    },
+
+    // The parser ignores tokens which aren't known.
+    {
+      "Basic realm=\"test_realm\",unknown_token=foobar",
+      OK,
+      "test_realm",
+    },
+
+    // The parser skips over tokens which aren't known.
+    {
+      "Basic unknown_token=foobar,realm=\"test_realm\"",
+      OK,
+      "test_realm",
+    },
+
+#if 0
+    // TODO(cbentzel): It's unclear what the parser should do in these cases.
+    //                 It seems like this should either be treated as invalid,
+    //                 or the spaces should be used as a separator.
+    {
+      "Basic realm=\"test_realm\" unknown_token=foobar",
+      OK,
+      "test_realm",
+    },
+
+    // The parser skips over tokens which aren't known.
+    {
+      "Basic unknown_token=foobar realm=\"test_realm\"",
+      OK,
+      "test_realm",
+    },
+#endif
+
+    // The parser fails when the first token is not "Basic".
+    {
+      "Negotiate",
+      ERR_INVALID_RESPONSE,
+      ""
+    },
   };
   HttpAuthHandlerBasic::Factory factory;
   GURL origin("http://www.example.com");
