@@ -79,9 +79,9 @@ class HttpAuthSSPI {
   ~HttpAuthSSPI();
 
   bool NeedsIdentity() const;
-  bool IsFinalRound() const;
 
-  bool ParseChallenge(HttpAuth::ChallengeTokenizer* tok);
+  HttpAuth::AuthorizationResult ParseChallenge(
+      HttpAuth::ChallengeTokenizer* tok);
 
   // Generates an authentication token for the service specified by the
   // Service Principal Name |spn| and stores the value in |*auth_token|.
@@ -102,8 +102,7 @@ class HttpAuthSSPI {
   void Delegate();
 
  private:
-  int OnFirstRound(const string16* username,
-                   const string16* password);
+  int OnFirstRound(const string16* username, const string16* password);
 
   int GetNextSecurityToken(
       const std::wstring& spn,
