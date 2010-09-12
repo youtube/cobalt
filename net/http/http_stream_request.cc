@@ -669,7 +669,7 @@ int HttpStreamRequest::DoCreateStream() {
   // We only set the socket motivation if we're the first to use
   // this socket.  Is there a race for two SPDY requests?  We really
   // need to plumb this through to the connect level.
-  if (connection_.get() && connection_->is_reused())
+  if (connection_.get() && !connection_->is_reused())
     SetSocketMotivation();
 
   if (!using_spdy_) {
@@ -758,8 +758,6 @@ int HttpStreamRequest::DoRestartTunnelAuthComplete(int result) {
 }
 
 void HttpStreamRequest::SetSocketMotivation() {
-  DCHECK(connection_.get());
-  DCHECK(connection_->socket());
   if (request_info_->motivation == HttpRequestInfo::PRECONNECT_MOTIVATED)
     connection_->socket()->SetSubresourceSpeculation();
   else if (request_info_->motivation == HttpRequestInfo::OMNIBOX_MOTIVATED)
