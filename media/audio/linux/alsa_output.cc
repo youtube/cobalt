@@ -771,12 +771,12 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
 
   // For the kDefaultDevice device, we can only reliably depend on 2-channel
   // output to have the correct ordering according to Lennart.  For the channel
-  // formats that we know how to downmix from (5 channel to 6 channel), setup
+  // formats that we know how to downmix from (3 channel to 8 channel), setup
   // downmixing.
   //
   // TODO(ajwong): We need a SupportsFolding() function.
   uint32 default_channels = channels_;
-  if (default_channels >= 5 && default_channels <= 6) {
+  if (default_channels > 2 && default_channels <= 8) {
     should_downmix_ = true;
     default_channels = 2;
   }
