@@ -89,7 +89,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // Volume level from 0 to 1.
   float volume_;
 
-  // Channels from 0 to 6.
+  // Channels from 0 to 8.
   const int channels_;
 
   // Number of bytes yet to be played in the hardware buffer.
