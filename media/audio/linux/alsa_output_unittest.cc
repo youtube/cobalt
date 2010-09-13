@@ -625,6 +625,8 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
                               false, false, false, false };
 
   for (int i = 1; i <= 9; ++i) {
+    if (i == 3 || i == 4 || i == 5)  // invalid number of channels
+      continue;
     SCOPED_TRACE(StringPrintf("Attempting %d Channel", i));
 
     // Hints will only be grabbed for channel numbers that have non-default
