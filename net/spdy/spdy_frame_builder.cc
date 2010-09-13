@@ -104,7 +104,6 @@ bool SpdyFrameBuilder::ReadData(void** iter, const char** data,
 }
 
 char* SpdyFrameBuilder::BeginWrite(size_t length) {
-  size_t offset = length_;
   size_t needed_size = length_ + length;
   if (needed_size > capacity_ && !Resize(std::max(capacity_ * 2, needed_size)))
     return NULL;
@@ -113,7 +112,7 @@ char* SpdyFrameBuilder::BeginWrite(size_t length) {
   DCHECK_LE(length, std::numeric_limits<uint32>::max());
 #endif
 
-  return buffer_ + offset;
+  return buffer_ + length_;
 }
 
 void SpdyFrameBuilder::EndWrite(char* dest, int length) {
@@ -163,16 +162,16 @@ char* SpdyFrameBuilder::BeginWriteData(uint16 length) {
 }
 
 bool SpdyFrameBuilder::Resize(size_t new_capacity) {
-  if (new_capacity < capacity_)
+  if (new_capacity <= capacity_)
     return true;
 
   char* p = new char[new_capacity];
+  if (!p)
+    return false;
   if (buffer_) {
     memcpy(p, buffer_, capacity_);
     delete[] buffer_;
   }
-  if (!p && new_capacity > 0)
-    return false;
   buffer_ = p;
   capacity_ = new_capacity;
   return true;
