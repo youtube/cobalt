@@ -7278,4 +7278,60 @@ TEST_F(HttpNetworkTransactionTest, ProxyTunnelGetHangup) {
       NetLog::PHASE_NONE);
 }
 
+// Test for crbug.com/55424.
+TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
+  SessionDependencies session_deps;
+
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(
+      "https://www.google.com", false, 1, LOWEST));
+  MockWrite spdy_writes[] = { CreateMockWrite(*req) };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame(1, true));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*data),
+    MockRead(true, 0, 0),
+  };
+
+  scoped_refptr<DelayedSocketData> spdy_data(
+      new DelayedSocketData(
+          1,  // wait for one write to finish before reading.
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  // Set up an initial SpdySession in the pool to reuse.
+  HostPortProxyPair pair(HostPortPair("www.google.com", 443),
+                         ProxyServer::Direct());
+  scoped_refptr<SpdySession> spdy_session =
+      session->spdy_session_pool()->Get(pair, session, BoundNetLog());
+  scoped_refptr<TCPSocketParams> tcp_params =
+      new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false);
+  spdy_session->Connect("www.google.com:443", tcp_params, MEDIUM);
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.load_flags = 0;
+
+  // This is the important line that marks this as a preconnect.
+  request.motivation = HttpRequestInfo::PRECONNECT_MOTIVATED;
+
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+}
+
 }  // namespace net
