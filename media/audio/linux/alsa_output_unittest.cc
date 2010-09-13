@@ -621,7 +621,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
                                         kSurround40, kSurround50, kSurround51,
                                         kSurround70, kSurround71,
                                         AlsaPcmOutputStream::kDefaultDevice };
-  bool kExpectedDownmix[] = { false, false, false, false, false, false,
+  bool kExpectedDownmix[] = { false, false, false, false, false, true,
                               false, false, false, false };
 
   for (int i = 1; i <= 9; ++i) {
