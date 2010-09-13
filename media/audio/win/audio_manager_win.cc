@@ -17,12 +17,10 @@
 
 namespace {
 
-// Up to 6 channels can be passed to the driver.
+// Up to 8 channels can be passed to the driver.
 // This should work, given the right drivers, but graceful error handling is
 // needed.
-// In theory 7.1 could also be supported, but it has not been tested.
-// TODO(sergeyu): Test that 7.1 audio works.
-const int kWinMaxChannels = 6;
+const int kWinMaxChannels = 8;
 
 const int kWinMaxInputChannels = 2;
 const int kMaxSamplesPerPacket = media::Limits::kMaxSampleRate;
