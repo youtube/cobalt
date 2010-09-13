@@ -1831,6 +1831,14 @@ bool HaveOnlyLoopbackAddresses() {
     const struct sockaddr* addr = interface->ifa_addr;
     if (!addr)
       continue;
+    if (addr->sa_family == AF_INET6) {
+      // Safe cast since this is AF_INET6.
+      const struct sockaddr_in6* addr_in6 =
+          reinterpret_cast<const struct sockaddr_in6*>(addr);
+      const struct in6_addr* sin6_addr = &addr_in6->sin6_addr;
+      if (IN6_IS_ADDR_LOOPBACK(sin6_addr) || IN6_IS_ADDR_LINKLOCAL(sin6_addr))
+        continue;
+    }
     if (addr->sa_family != AF_INET6 && addr->sa_family != AF_INET)
       continue;
 
