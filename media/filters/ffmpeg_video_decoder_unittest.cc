@@ -87,7 +87,7 @@ class DecoderPrivateMock : public FFmpegVideoDecoder {
 
 ACTION_P2(EngineInitialize, engine, success) {
   engine->event_handler_ = arg1;
-  engine->info_.success_ = success;
+  engine->info_.success = success;
   engine->event_handler_->OnInitializeComplete(engine->info_);
 }
 
