@@ -308,6 +308,7 @@
         'disk_cache/errors.h',
         'disk_cache/eviction.cc',
         'disk_cache/eviction.h',
+        'disk_cache/experiments.h',
         'disk_cache/file.h',
         'disk_cache/file_block.h',
         'disk_cache/file_lock.cc',
