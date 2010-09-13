@@ -8,6 +8,25 @@
 
 namespace media {
 
+static size_t GetNumberOfPlanes(VideoFrame::Format format) {
+  switch (format) {
+    case VideoFrame::RGB555:
+    case VideoFrame::RGB565:
+    case VideoFrame::RGB24:
+    case VideoFrame::RGB32:
+    case VideoFrame::RGBA:
+    case VideoFrame::ASCII:
+      return VideoFrame::kNumRGBPlanes;
+    case VideoFrame::YV12:
+    case VideoFrame::YV16:
+      return VideoFrame::kNumYUVPlanes;
+    case VideoFrame::NV12:
+      return VideoFrame::kNumNV12Planes;
+    default:
+      return 0;
+  }
+}
+
 // static
 void VideoFrame::CreateFrame(VideoFrame::Format format,
                              size_t width,
@@ -52,6 +71,7 @@ void VideoFrame::CreateFrame(VideoFrame::Format format,
   *frame_out = alloc_worked ? frame : NULL;
 }
 
+// static
 void VideoFrame::CreateFrameExternal(SurfaceType type,
                                      Format format,
                                      size_t width,
@@ -75,6 +95,52 @@ void VideoFrame::CreateFrameExternal(SurfaceType type,
     for (size_t i = 0; i < kMaxPlanes; ++i) {
       frame->data_[i] = data[i];
       frame->strides_[i] = strides[i];
+    }
+  }
+  *frame_out = frame;
+}
+
+// static
+void VideoFrame::CreateFrameGlTexture(Format format,
+                                      size_t width,
+                                      size_t height,
+                                      GlTexture const textures[kMaxPlanes],
+                                      base::TimeDelta timestamp,
+                                      base::TimeDelta duration,
+                                      scoped_refptr<VideoFrame>* frame_out) {
+  DCHECK(frame_out);
+  scoped_refptr<VideoFrame> frame =
+      new VideoFrame(TYPE_GL_TEXTURE, format, width, height);
+  if (frame) {
+    frame->SetTimestamp(timestamp);
+    frame->SetDuration(duration);
+    frame->external_memory_ = true;
+    frame->planes_ = GetNumberOfPlanes(format);
+    for (size_t i = 0; i < kMaxPlanes; ++i) {
+      frame->gl_textures_[i] = textures[i];
+    }
+  }
+  *frame_out = frame;
+}
+
+// static
+void VideoFrame::CreateFrameD3dTexture(Format format,
+                                       size_t width,
+                                       size_t height,
+                                       D3dTexture const textures[kMaxPlanes],
+                                       base::TimeDelta timestamp,
+                                       base::TimeDelta duration,
+                                       scoped_refptr<VideoFrame>* frame_out) {
+  DCHECK(frame_out);
+  scoped_refptr<VideoFrame> frame =
+      new VideoFrame(TYPE_D3D_TEXTURE, format, width, height);
+  if (frame) {
+    frame->SetTimestamp(timestamp);
+    frame->SetDuration(duration);
+    frame->external_memory_ = true;
+    frame->planes_ = GetNumberOfPlanes(format);
+    for (size_t i = 0; i < kMaxPlanes; ++i) {
+      frame->d3d_textures_[i] = textures[i];
     }
   }
   *frame_out = frame;
@@ -192,6 +258,8 @@ VideoFrame::VideoFrame(VideoFrame::SurfaceType type,
   planes_ = 0;
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
+  memset(&gl_textures_, 0, sizeof(gl_textures_));
+  memset(&d3d_textures_, 0, sizeof(d3d_textures_));
   external_memory_ = false;
   private_buffer_ = NULL;
 }
