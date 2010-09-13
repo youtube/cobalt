@@ -9,6 +9,7 @@
 #include "base/file_util.h"
 #include "base/histogram.h"
 #include "base/message_loop.h"
+#include "base/rand_util.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
 #include "base/timer.h"
@@ -17,6 +18,7 @@
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/entry_impl.h"
 #include "net/disk_cache/errors.h"
+#include "net/disk_cache/experiments.h"
 #include "net/disk_cache/hash.h"
 #include "net/disk_cache/file.h"
 #include "net/disk_cache/mem_backend_impl.h"
@@ -35,6 +37,8 @@ const char* kIndexName = "index";
 const int kMaxOldFolders = 100;
 
 // Seems like ~240 MB correspond to less than 50k entries for 99% of the people.
+// Note that the actual target is to keep the index table load factor under 55%
+// for most users.
 const int k64kEntriesStore = 240 * 1000 * 1000;
 const int kBaseTableLen = 64 * 1024;
 const int kDefaultCacheSize = 80 * 1024 * 1024;
@@ -134,16 +138,44 @@ bool DelayedCacheCleanup(const FilePath& full_path) {
   return true;
 }
 
-// Sets |current_group| for the current experiment. Returns false if the files
-// should be discarded.
-bool InitExperiment(int* current_group) {
-  if (*current_group == 3 || *current_group == 4) {
-    // Discard current cache for groups 3 and 4.
+// Sets group for the current experiment. Returns false if the files should be
+// discarded.
+bool InitExperiment(disk_cache::IndexHeader* header, uint32 mask) {
+  if (header->experiment == disk_cache::EXPERIMENT_OLD_FILE1 ||
+      header->experiment == disk_cache::EXPERIMENT_OLD_FILE2) {
+    // Discard current cache.
     return false;
   }
 
-  // There is no experiment.
-  *current_group = 0;
+  // See if we already defined the group for this profile.
+  if (header->experiment >= disk_cache::EXPERIMENT_DELETED_LIST_OUT)
+    return true;
+
+  if (!header->create_time || !header->lru.filled) {
+    // Only for users with a full cache.
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT;
+    return true;
+  }
+
+  int index_load = header->num_entries * 100 / (mask + 1);
+  if (index_load > 20) {
+    // Out of the experiment (~ 35% users).
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT;
+    return true;
+  }
+
+  int option = base::RandInt(0, 5);
+  if (option > 1) {
+    // 60% out (39% of the total).
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT;
+  } else if (!option) {
+    // About 13% of the total.
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_CONTROL;
+  } else {
+    // About 13% of the total.
+    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_IN;
+  }
+
   return true;
 }
 
@@ -518,16 +550,14 @@ int BackendImpl::SyncInit() {
 
   init_ = true;
 
-  if (data_->header.experiment != 0 && cache_type_ != net::DISK_CACHE) {
+  if (data_->header.experiment != NO_EXPERIMENT &&
+      cache_type_ != net::DISK_CACHE) {
     // No experiment for other caches.
     return net::ERR_FAILED;
   }
 
   if (!(user_flags_ & disk_cache::kNoRandom)) {
     // The unit test controls directly what to test.
-    if (!InitExperiment(&data_->header.experiment))
-      return net::ERR_FAILED;
-
     new_eviction_ = (cache_type_ == net::DISK_CACHE);
   }
 
@@ -535,6 +565,12 @@ int BackendImpl::SyncInit() {
     ReportError(ERR_INIT_FAILED);
     return net::ERR_FAILED;
   }
+
+  if (!(user_flags_ & disk_cache::kNoRandom) &&
+      cache_type_ == net::DISK_CACHE &&
+      !InitExperiment(&data_->header, mask_))
+    return net::ERR_FAILED;
+
 
   // We don't care if the value overflows. The only thing we care about is that
   // the id cannot be zero, because that value is used as "not dirty".
@@ -630,6 +666,8 @@ int BackendImpl::SyncDoomEntry(const std::string& key) {
 }
 
 int BackendImpl::SyncDoomAllEntries() {
+  // This is not really an error, but it is an interesting condition.
+  ReportError(ERR_CACHE_DOOMED);
   if (!num_refs_) {
     PrepareForRestart();
     DeleteCache(path_, false);
@@ -1654,7 +1692,7 @@ EntryImpl* BackendImpl::ResurrectEntry(EntryImpl* deleted_entry) {
   eviction_.OnCreateEntry(deleted_entry);
   entry_count_++;
 
-  stats_.OnEvent(Stats::CREATE_HIT);
+  stats_.OnEvent(Stats::RESURRECT_HIT);
   Trace("Resurrect entry hit ");
   return deleted_entry;
 }
@@ -1761,8 +1799,14 @@ void BackendImpl::LogStats() {
 
 void BackendImpl::ReportStats() {
   CACHE_UMA(COUNTS, "Entries", 0, data_->header.num_entries);
-  CACHE_UMA(COUNTS_10000, "Size2", 0, data_->header.num_bytes / (1024 * 1024));
-  CACHE_UMA(COUNTS_10000, "MaxSize2", 0, max_size_ / (1024 * 1024));
+
+  int current_size = data_->header.num_bytes / (1024 * 1024);
+  int max_size = max_size_ / (1024 * 1024);
+  CACHE_UMA(COUNTS_10000, "Size2", 0, current_size);
+  CACHE_UMA(COUNTS_10000, "MaxSize2", 0, max_size);
+  if (!max_size)
+    max_size++;
+  CACHE_UMA(PERCENTAGE, "UsedSpace", 0, current_size * 100 / max_size);
 
   CACHE_UMA(COUNTS_10000, "AverageOpenEntries2", 0,
             static_cast<int>(stats_.GetCounter(Stats::OPEN_ENTRIES)));
@@ -1770,8 +1814,13 @@ void BackendImpl::ReportStats() {
             static_cast<int>(stats_.GetCounter(Stats::MAX_ENTRIES)));
   stats_.SetCounter(Stats::MAX_ENTRIES, 0);
 
-  if (!data_->header.create_time || !data_->header.lru.filled)
+  if (!data_->header.create_time || !data_->header.lru.filled) {
+    int cause = data_->header.create_time ? 0 : 1;
+    if (!data_->header.lru.filled)
+      cause |= 2;
+    CACHE_UMA(CACHE_ERROR, "ShortReport", 0, cause);
     return;
+  }
 
   // This is an up to date client that will report FirstEviction() data. After
   // that event, start reporting this:
@@ -1791,7 +1840,8 @@ void BackendImpl::ReportStats() {
     return;
 
   CACHE_UMA(HOURS, "UseTime", 0, static_cast<int>(use_hours));
-  CACHE_UMA(PERCENTAGE, "HitRatio", 0, stats_.GetHitRatio());
+  CACHE_UMA(PERCENTAGE, "HitRatio", data_->header.experiment,
+            stats_.GetHitRatio());
 
   int64 trim_rate = stats_.GetCounter(Stats::TRIM_ENTRY) / use_hours;
   CACHE_UMA(COUNTS, "TrimRate", 0, static_cast<int>(trim_rate));
@@ -1808,14 +1858,15 @@ void BackendImpl::ReportStats() {
   CACHE_UMA(PERCENTAGE, "LargeEntriesRatio", 0, large_ratio);
 
   if (new_eviction_) {
-    CACHE_UMA(PERCENTAGE, "ResurrectRatio", 0, stats_.GetResurrectRatio());
+    CACHE_UMA(PERCENTAGE, "ResurrectRatio", data_->header.experiment,
+              stats_.GetResurrectRatio());
     CACHE_UMA(PERCENTAGE, "NoUseRatio", 0,
               data_->header.lru.sizes[0] * 100 / data_->header.num_entries);
     CACHE_UMA(PERCENTAGE, "LowUseRatio", 0,
               data_->header.lru.sizes[1] * 100 / data_->header.num_entries);
     CACHE_UMA(PERCENTAGE, "HighUseRatio", 0,
               data_->header.lru.sizes[2] * 100 / data_->header.num_entries);
-    CACHE_UMA(PERCENTAGE, "DeletedRatio", 0,
+    CACHE_UMA(PERCENTAGE, "DeletedRatio", data_->header.experiment,
               data_->header.lru.sizes[4] * 100 / data_->header.num_entries);
   }
 
