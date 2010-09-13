@@ -17,6 +17,7 @@
 #include "base/condition_variable.h"
 #include "base/histogram.h"
 #include "base/logging.h"
+#include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
@@ -31,6 +32,15 @@
 #include "net/url_request/url_request_context.h"
 
 namespace {
+
+// Protects |g_io_loop| and |g_io_loop_used|.
+static Lock g_io_loop_lock;
+
+// The io loop used for OCSP.  Read only during OCSPInitSingleton's constructor.
+MessageLoopForIO* g_io_loop = NULL;
+// |g_io_loop_used| is set to true after read by OCSPInitSingleton's
+// constructor.
+bool g_io_loop_used = false;
 
 const int kRecvBufferSize = 4096;
 
@@ -100,6 +110,13 @@ class OCSPInitSingleton : public MessageLoop::DestructionObserver {
 
   OCSPInitSingleton()
       : io_loop_(MessageLoopForIO::current()) {
+    {
+      AutoLock lock(g_io_loop_lock);
+      DCHECK(!g_io_loop_used);
+      g_io_loop_used = true;
+      if (g_io_loop)
+        io_loop_ = g_io_loop;
+    }
     DCHECK(io_loop_);
     io_loop_->AddDestructionObserver(this);
 
@@ -141,9 +158,16 @@ class OCSPInitSingleton : public MessageLoop::DestructionObserver {
   virtual ~OCSPInitSingleton() {
     // IO thread was already deleted before the singleton is deleted
     // in AtExitManager.
-    AutoLock autolock(lock_);
-    DCHECK(!io_loop_);
-    DCHECK(!request_context_);
+    {
+      AutoLock autolock(lock_);
+      DCHECK(!io_loop_);
+      DCHECK(!request_context_);
+    }
+    {
+      AutoLock lock(g_io_loop_lock);
+      g_io_loop_used = false;
+      g_io_loop = NULL;
+    }
   }
 
   SEC_HttpClientFcn client_fcn_;
@@ -781,6 +805,21 @@ char* GetAlternateOCSPAIAInfo(CERTCertificate *cert) {
 }  // anonymous namespace
 
 namespace net {
+
+void SetMessageLoopForOCSP(MessageLoopForIO* message_loop) {
+  DCHECK(message_loop);
+  AutoLock lock(g_io_loop_lock);
+  if (g_io_loop) {
+    LOG(DFATAL) << "Setting OCSP message loop more than once!";
+    return;
+  }
+  if (g_io_loop_used) {
+    LOG(DFATAL) << "Tried to set message loop for OCSP after "
+                << "it's already been used by OCSPInitSingleton!";
+    return;
+  }
+  g_io_loop = message_loop;
+}
 
 void EnsureOCSPInit() {
   Singleton<OCSPInitSingleton>::get();
