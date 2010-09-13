@@ -75,6 +75,7 @@ class Eviction {
   bool trimming_;
   bool delay_trim_;
   bool init_;
+  bool in_experiment_;
   ScopedRunnableMethodFactory<Eviction> factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Eviction);
