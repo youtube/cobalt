@@ -170,7 +170,7 @@ size_t SpdyFramer::ProcessInput(const char* data, size_t len) {
         continue;
 
       case SPDY_READING_COMMON_HEADER: {
-        int bytes_read = ProcessCommonHeader(data, len);
+        size_t bytes_read = ProcessCommonHeader(data, len);
         len -= bytes_read;
         data += bytes_read;
         continue;
@@ -184,7 +184,7 @@ size_t SpdyFramer::ProcessInput(const char* data, size_t len) {
         continue;
 
       case SPDY_CONTROL_FRAME_PAYLOAD: {
-        int bytes_read = ProcessControlFramePayload(data, len);
+        size_t bytes_read = ProcessControlFramePayload(data, len);
         len -= bytes_read;
         data += bytes_read;
       }
@@ -193,7 +193,7 @@ size_t SpdyFramer::ProcessInput(const char* data, size_t len) {
         // control frame has too-large payload
         // intentional fallthrough
       case SPDY_FORWARD_STREAM_FRAME: {
-        int bytes_read = ProcessDataFramePayload(data, len);
+        size_t bytes_read = ProcessDataFramePayload(data, len);
         len -= bytes_read;
         data += bytes_read;
         continue;
@@ -211,7 +211,7 @@ size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
   // state.
   DCHECK_EQ(state_, SPDY_READING_COMMON_HEADER);
 
-  int original_len = len;
+  size_t original_len = len;
   SpdyFrame current_frame(current_frame_buffer_, false);
 
   do {
@@ -422,11 +422,10 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
 }
 
 void SpdyFramer::ExpandControlFrameBuffer(size_t size) {
-  DCHECK_LT(size, kControlFrameBufferMaxSize);
-  if (size < current_frame_capacity_)
+  size_t alloc_size = size + SpdyFrame::size();
+  DCHECK_LT(alloc_size, kControlFrameBufferMaxSize);
+  if (size <= current_frame_capacity_)
     return;
-
-  int alloc_size = size + SpdyFrame::size();
   char* new_buffer = new char[alloc_size];
   memcpy(new_buffer, current_frame_buffer_, current_frame_len_);
   delete [] current_frame_buffer_;
