@@ -8,7 +8,7 @@
 
 namespace net {
 
-CertDatabase::ImportCertResult::ImportCertResult(
+CertDatabase::ImportCertFailure::ImportCertFailure(
     X509Certificate* cert, int err)
     : certificate(cert), net_error(err) {
 }
