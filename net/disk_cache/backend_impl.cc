@@ -12,6 +12,7 @@
 #include "base/rand_util.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
+#include "base/time.h"
 #include "base/timer.h"
 #include "base/worker_pool.h"
 #include "net/base/net_errors.h"
@@ -1195,6 +1196,10 @@ void BackendImpl::OnRead(int32 bytes) {
 void BackendImpl::OnWrite(int32 bytes) {
   // We use the same implementation as OnRead... just log the number of bytes.
   OnRead(bytes);
+}
+
+void BackendImpl::OnOperationCompleted(base::TimeDelta elapsed_time) {
+  CACHE_UMA(TIMES, "TotalIOTime", 0, elapsed_time);
 }
 
 void BackendImpl::OnStatsTimer() {
