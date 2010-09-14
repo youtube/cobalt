@@ -21,6 +21,12 @@ typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 // Constants to classify the type of a certificate.
 // This is only used in the context of CertDatabase, but is defined outside to
 // avoid an awkwardly long type name.
+// The type is a combination of intrinsic properties, such as the presense of an
+// email address or Certificate Authority Basic Constraint, and assigned trust
+// values.  For example, a cert with no email address, basic constraints, or
+// trust, would be classified as UNKNOWN_CERT.  If that cert is then trusted
+// with SetCertTrust(cert, SERVER_CERT, TRUSTED_SSL), it would become a
+// SERVER_CERT.
 enum CertType {
   UNKNOWN_CERT,
   CA_CERT,
@@ -40,6 +46,14 @@ enum CertType {
 class CertDatabase {
  public:
   // Constants that define which usages a certificate is trusted for.
+  // They are used in combination with CertType to specify trust for each type
+  // of certificate.
+  // For a CA_CERT, they specify that the CA is trusted for issuing server and
+  // client certs of each type.
+  // For SERVER_CERT, only TRUSTED_SSL makes sense, and specifies the cert is
+  // trusted as a server.
+  // For EMAIL_CERT, only TRUSTED_EMAIL makes sense, and specifies the cert is
+  // trusted for email.
   enum {
     UNTRUSTED        =      0,
     TRUSTED_SSL      = 1 << 0,
@@ -47,15 +61,15 @@ class CertDatabase {
     TRUSTED_OBJ_SIGN = 1 << 2,
   };
 
-  // Stores per-certificate import results.
-  struct ImportCertResult {
+  // Stores per-certificate error codes for import failures.
+  struct ImportCertFailure {
    public:
-    ImportCertResult(X509Certificate* cert, int err);
+    ImportCertFailure(X509Certificate* cert, int err);
 
     scoped_refptr<X509Certificate> certificate;
     int net_error;
   };
-  typedef std::vector<ImportCertResult> ImportCertResultList;
+  typedef std::vector<ImportCertFailure> ImportCertFailureList;
 
   CertDatabase();
 
@@ -99,7 +113,7 @@ class CertDatabase {
   // imported.
   bool ImportCACerts(const CertificateList& certificates,
                      unsigned int trust_bits,
-                     ImportCertResultList* not_imported);
+                     ImportCertFailureList* not_imported);
 
   // Set trust values for certificate.
   // Returns true on success or false on failure.

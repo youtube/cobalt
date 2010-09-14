@@ -55,7 +55,7 @@ namespace mozilla_security_manager {
 bool ImportCACerts(const net::CertificateList& certificates,
                    net::X509Certificate* root,
                    unsigned int trustBits,
-                   net::CertDatabase::ImportCertResultList* failed) {
+                   net::CertDatabase::ImportCertFailureList* not_imported) {
   base::ScopedPK11Slot slot(base::GetDefaultNSSKeySlot());
   if (!slot.get()) {
     LOG(ERROR) << "Couldn't get internal key slot!";
@@ -67,14 +67,14 @@ bool ImportCACerts(const net::CertificateList& certificates,
   // itself, so we skip it here.
 
   if (!CERT_IsCACert(root->os_cert_handle(), NULL)) {
-    failed->push_back(net::CertDatabase::ImportCertResult(
+    not_imported->push_back(net::CertDatabase::ImportCertFailure(
         root, net::ERR_IMPORT_CA_CERT_NOT_CA));
   } else if (root->os_cert_handle()->isperm) {
     // Mozilla just returns here, but we continue in case there are other certs
     // in the list which aren't already imported.
     // TODO(mattm): should we set/add trust if it differs from the present
     // settings?
-    failed->push_back(net::CertDatabase::ImportCertResult(
+    not_imported->push_back(net::CertDatabase::ImportCertFailure(
         root, net::ERR_IMPORT_CERT_ALREADY_EXISTS));
   } else {
     // Mozilla uses CERT_AddTempCertToPerm, however it is privately exported,
@@ -100,8 +100,9 @@ bool ImportCACerts(const net::CertificateList& certificates,
   // Import additional delivered certificates that can be verified.
   // This is sort of merged in from Mozilla's ImportValidCACertsInList.  Mozilla
   // uses CERT_FilterCertListByUsage to filter out non-ca certs, but we want to
-  // keep using X509Certificates, so that we can use them to build the |failed|
-  // result.  So, we keep using our net::CertificateList and filter it ourself.
+  // keep using X509Certificates, so that we can use them to build the
+  // |not_imported| result.  So, we keep using our net::CertificateList and
+  // filter it ourself.
   for (size_t i = 0; i < certificates.size(); i++) {
     const scoped_refptr<net::X509Certificate>& cert = certificates[i];
     if (cert == root) {
@@ -112,14 +113,14 @@ bool ImportCACerts(const net::CertificateList& certificates,
     // Mozilla uses CERT_FilterCertListByUsage(certList, certUsageAnyCA,
     // PR_TRUE).  Afaict, checking !CERT_IsCACert on each cert is equivalent.
     if (!CERT_IsCACert(cert->os_cert_handle(), NULL)) {
-      failed->push_back(net::CertDatabase::ImportCertResult(
+      not_imported->push_back(net::CertDatabase::ImportCertFailure(
           cert, net::ERR_IMPORT_CA_CERT_NOT_CA));
       LOG(INFO) << "skipping cert (non-ca)";
       continue;
     }
 
     if (cert->os_cert_handle()->isperm) {
-      failed->push_back(net::CertDatabase::ImportCertResult(
+      not_imported->push_back(net::CertDatabase::ImportCertFailure(
           cert, net::ERR_IMPORT_CERT_ALREADY_EXISTS));
       LOG(INFO) << "skipping cert (perm)";
       continue;
@@ -130,7 +131,7 @@ bool ImportCACerts(const net::CertificateList& certificates,
       // TODO(mattm): use better error code (map PORT_GetError to an appropriate
       // error value).  (maybe make MapSecurityError or MapCertErrorToCertStatus
       // public.)
-      failed->push_back(net::CertDatabase::ImportCertResult(
+      not_imported->push_back(net::CertDatabase::ImportCertFailure(
           cert, net::ERR_FAILED));
       LOG(INFO) << "skipping cert (verify) " << PORT_GetError();
       continue;
@@ -150,12 +151,12 @@ bool ImportCACerts(const net::CertificateList& certificates,
       LOG(ERROR) << "PK11_ImportCert failed with error " << PORT_GetError();
       // TODO(mattm): Should we bail or continue on error here?  Mozilla doesn't
       // check error code at all.
-      failed->push_back(net::CertDatabase::ImportCertResult(
+      not_imported->push_back(net::CertDatabase::ImportCertFailure(
           cert, net::ERR_IMPORT_CA_CERT_FAILED));
     }
   }
 
-  // Any errors importing individual certs will be in listed in |failed|.
+  // Any errors importing individual certs will be in listed in |not_imported|.
   return true;
 }
 
