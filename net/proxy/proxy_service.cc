@@ -426,7 +426,7 @@ ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
 }
 
 // static
-ProxyService* ProxyService::CreateNull() {
+ProxyService* ProxyService::CreateDirect() {
   // Use direct connections.
   return new ProxyService(new ProxyConfigServiceDirect, new ProxyResolverNull,
                           NULL);

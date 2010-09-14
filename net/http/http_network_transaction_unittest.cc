@@ -110,7 +110,7 @@ struct SessionDependencies {
   // Default set of dependencies -- "null" proxy service.
   SessionDependencies()
       : host_resolver(new MockHostResolver),
-        proxy_service(ProxyService::CreateNull()),
+        proxy_service(ProxyService::CreateDirect()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
         spdy_session_pool(new SpdySessionPool(NULL)),
@@ -6521,7 +6521,7 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       session_deps.proxy_service =
           CreateFixedProxyService(test_config.proxy_url);
     } else {
-      session_deps.proxy_service = ProxyService::CreateNull();
+      session_deps.proxy_service = ProxyService::CreateDirect();
     }
 
     HttpRequestInfo request;
@@ -6600,7 +6600,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
   HttpAuthHandlerMock::Factory* auth_factory(
       new HttpAuthHandlerMock::Factory());
   session_deps.http_auth_handler_factory.reset(auth_factory);
-  session_deps.proxy_service = ProxyService::CreateNull();
+  session_deps.proxy_service = ProxyService::CreateDirect();
   session_deps.host_resolver->rules()->AddRule("www.example.com", "10.0.0.1");
   session_deps.host_resolver->set_synchronous_mode(true);
 
