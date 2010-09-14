@@ -45,6 +45,9 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "d-wx-wx-wt+  4 ftp      989          512 Dec  8 15:54 incoming",
       net::FtpDirectoryListingEntry::DIRECTORY, "incoming", -1,
       1993, 12, 8, 15, 54 },
+    { "drwxrwxrwx   1 owner    group               0 Sep 13  0:30 audio",
+      net::FtpDirectoryListingEntry::DIRECTORY, "audio", -1,
+      1994, 9, 13, 0, 30 },
 
     // Tests for the wu-ftpd variant:
     { "drwxr-xr-x   2 sys          512 Mar 27  2009 pub",
@@ -100,6 +103,7 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
+    "drwxrwxrwx   1 owner    group               0 Sep 13  0:3 audio",
 
     "d-wx-wx-wt++  4 ftp 989 512 Dec  8 15:54 incoming",
     "d-wx-wx-wt$  4 ftp 989 512 Dec  8 15:54 incoming",
