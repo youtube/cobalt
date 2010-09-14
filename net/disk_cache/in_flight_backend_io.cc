@@ -9,6 +9,7 @@
 #include "net/base/net_errors.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/entry_impl.h"
+#include "net/disk_cache/histogram_macros.h"
 
 namespace disk_cache {
 
@@ -18,6 +19,7 @@ BackendIO::BackendIO(InFlightIO* controller, BackendImpl* backend,
       operation_(OP_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           my_callback_(this, &BackendIO::OnIOComplete)) {
+  start_time_ = base::TimeTicks::Now();
 }
 
 // Runs on the background thread.
@@ -42,6 +44,10 @@ bool BackendIO::IsEntryOperation() {
 
 void BackendIO::ReleaseEntry() {
   entry_ = NULL;
+}
+
+base::TimeDelta BackendIO::ElapsedTime() const {
+  return base::TimeTicks::Now() - start_time_;
 }
 
 void BackendIO::Init() {
@@ -262,6 +268,16 @@ void BackendIO::ExecuteEntryOperation() {
 
 // ---------------------------------------------------------------------------
 
+InFlightBackendIO::InFlightBackendIO(BackendImpl* backend,
+                    base::MessageLoopProxy* background_thread)
+    : backend_(backend),
+      background_thread_(background_thread),
+      queue_entry_ops_(false) {
+}
+
+InFlightBackendIO::~InFlightBackendIO() {
+}
+
 void InFlightBackendIO::Init(CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation = new BackendIO(this, backend_, callback);
   operation->Init();
@@ -409,6 +425,14 @@ void InFlightBackendIO::WaitForPendingIO() {
   InFlightIO::WaitForPendingIO();
 }
 
+void InFlightBackendIO::StartQueingOperations() {
+  queue_entry_ops_ = true;
+}
+
+void InFlightBackendIO::StopQueingOperations() {
+  queue_entry_ops_ = false;
+}
+
 void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
                                             bool cancel) {
   BackendIO* op = static_cast<BackendIO*>(operation);
@@ -417,9 +441,22 @@ void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
     // Process the next request. Note that invoking the callback may result
     // in the backend destruction (and with it this object), so we should deal
     // with the next operation before invoking the callback.
-    scoped_refptr<BackendIO> next_op = pending_ops_.front();
-    pending_ops_.pop_front();
-    PostOperation(next_op);
+    PostQueuedOperation(&pending_ops_);
+  }
+
+  if (op->IsEntryOperation()) {
+    backend_->OnOperationCompleted(op->ElapsedTime());
+    if (!pending_entry_ops_.empty()) {
+      PostQueuedOperation(&pending_entry_ops_);
+
+      // If we are not throttling requests anymore, dispatch the whole queue.
+      if (!queue_entry_ops_) {
+        CACHE_UMA(COUNTS_10000, "FinalQueuedOperations", 0,
+                  pending_entry_ops_.size());
+        while (!pending_entry_ops_.empty())
+          PostQueuedOperation(&pending_entry_ops_);
+      }
+    }
   }
 
   if (op->callback() && (!cancel || op->IsEntryOperation()))
@@ -430,19 +467,35 @@ void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
 }
 
 void InFlightBackendIO::QueueOperation(BackendIO* operation) {
-  if (operation->IsEntryOperation())
+  if (!operation->IsEntryOperation())
+    return QueueOperationToList(operation, &pending_ops_);
+
+  if (!queue_entry_ops_)
     return PostOperation(operation);
 
-  if (pending_ops_.empty())
-    return PostOperation(operation);
+  CACHE_UMA(COUNTS_10000, "QueuedOperations", 0, pending_entry_ops_.size());
 
-  pending_ops_.push_back(operation);
+  QueueOperationToList(operation, &pending_entry_ops_);
 }
 
 void InFlightBackendIO::PostOperation(BackendIO* operation) {
   background_thread_->PostTask(FROM_HERE,
       NewRunnableMethod(operation, &BackendIO::ExecuteOperation));
   OnOperationPosted(operation);
+}
+
+void InFlightBackendIO::PostQueuedOperation(OperationList* from_list) {
+  scoped_refptr<BackendIO> next_op = from_list->front();
+  from_list->pop_front();
+  PostOperation(next_op);
+}
+
+void InFlightBackendIO::QueueOperationToList(BackendIO* operation,
+                                             OperationList* list) {
+  if (list->empty())
+    return PostOperation(operation);
+
+  list->push_back(operation);
 }
 
 }  // namespace
