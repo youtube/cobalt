@@ -142,7 +142,7 @@ X509Certificate* CertDatabase::FindRootInList(
 
 bool CertDatabase::ImportCACerts(const CertificateList& certificates,
                                  unsigned int trust_bits,
-                                 ImportCertResultList* not_imported) {
+                                 ImportCertFailureList* not_imported) {
   X509Certificate* root = FindRootInList(certificates);
   return psm::ImportCACerts(certificates, root, trust_bits, not_imported);
 }
