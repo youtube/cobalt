@@ -28,6 +28,11 @@ class SpdySessionPoolPeer {
 
 namespace {
 
+// Create a proxy service which fails on all requests (falls back to direct).
+ProxyService* CreateNullProxyService() {
+  return ProxyService::CreateNull();
+}
+
 class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  public:
   TestSpdyStreamDelegate(SpdyStream* stream,

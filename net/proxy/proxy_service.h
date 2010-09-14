@@ -177,8 +177,10 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // specified fixed settings. |pc| must not be NULL.
   static ProxyService* CreateFixed(const ProxyConfig& pc);
 
-  // Creates a proxy service that uses a DIRECT connection for all requests.
-  static ProxyService* CreateDirect();
+  // Creates a proxy service that always fails to fetch the proxy configuration,
+  // so it falls back to direct connect.
+  // TODO(eroman): Rename to CreateDirect().
+  static ProxyService* CreateNull();
 
   // This method is used by tests to create a ProxyService that returns a
   // hardcoded proxy fallback list (|pac_string|) for every URL.
