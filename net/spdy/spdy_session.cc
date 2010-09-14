@@ -363,7 +363,7 @@ int SpdySession::GetPushStream(
     streams_pushed_and_claimed_count_++;
     return OK;
   }
-  return NULL;
+  return 0;
 }
 
 int SpdySession::CreateStream(
