@@ -213,6 +213,9 @@ class BackendImpl : public Backend {
   void OnRead(int bytes);
   void OnWrite(int bytes);
 
+  // Keeps track of the time needed to complete some IO operations.
+  void OnOperationCompleted(base::TimeDelta elapsed_time);
+
   // Timer callback to calculate usage statistics.
   void OnStatsTimer();
 
