@@ -175,6 +175,7 @@ class AudioOutputController
   // Helper method to submit a OnMoreData() call to the event handler.
   void SubmitOnMoreData_Locked();
 
+  // |handler_| may be called only if |state_| is not kClosed.
   EventHandler* handler_;
   AudioOutputStream* stream_;
 
@@ -188,6 +189,9 @@ class AudioOutputController
 
   uint32 hardware_pending_bytes_;
   base::Time last_callback_time_;
+
+  // The |lock_| must be acquired whenever we access |state_| or call
+  // |handler_|.
   Lock lock_;
 
   // PushSource role is to buffer and it's only used in regular latency mode.
