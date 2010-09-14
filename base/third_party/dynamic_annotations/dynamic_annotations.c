@@ -141,7 +141,7 @@ static int GetRunningOnValgrind(void) {
   /* value will remain "1" if res == 0 or res >= sizeof(value). The latter
    * can happen only if the given value is long, in this case it can't be "0".
    */
-  if (res > 0 && !strcmp(value, "0"))
+  if (res > 0 && strcmp(value, "0") != 0)
     return 1;
 #endif
   return 0;
