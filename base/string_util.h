@@ -582,7 +582,7 @@ std::string ReplaceStringPlaceholders(const base::StringPiece& format_string,
                                       const std::vector<std::string>& subst,
                                       std::vector<size_t>* offsets);
 
-// Single-string shortcut for ReplaceStringHolders.
+// Single-string shortcut for ReplaceStringHolders. |offset| may be NULL.
 string16 ReplaceStringPlaceholders(const string16& format_string,
                                    const string16& a,
                                    size_t* offset);
