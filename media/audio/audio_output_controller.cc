@@ -187,28 +187,28 @@ void AudioOutputController::DoCreate(AudioParameters params,
 void AudioOutputController::DoPlay() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
-  State old_state;
-  // Update the |state_| to kPlaying.
   {
     AutoLock auto_lock(lock_);
     // We can start from created or paused state.
     if (state_ != kCreated && state_ != kPaused)
       return;
-    old_state = state_;
     state_ = kPlaying;
   }
 
   // We start the AudioOutputStream lazily.
   stream_->Start(this);
 
-  // Tell the event handler that we are now playing.
-  handler_->OnPlaying(this);
+  {
+    AutoLock auto_lock(lock_);
+    // Tell the event handler that we are now playing.
+    if (state_ != kClosed)
+      handler_->OnPlaying(this);
+  }
 }
 
 void AudioOutputController::DoPause() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
-  // Sets the |state_| to kPaused so we don't draw more audio data.
   {
     AutoLock auto_lock(lock_);
     // We can pause from started state.
@@ -227,7 +227,11 @@ void AudioOutputController::DoPause() {
     sync_reader_->UpdatePendingBytes(kPauseMark);
   }
 
-  handler_->OnPaused(this);
+  {
+    AutoLock auto_lock(lock_);
+    if (state_ != kClosed)
+      handler_->OnPaused(this);
+  }
 }
 
 void AudioOutputController::DoFlush() {
@@ -274,7 +278,11 @@ void AudioOutputController::DoSetVolume(double volume) {
 
 void AudioOutputController::DoReportError(int code) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
-  handler_->OnError(this, code);
+  {
+    AutoLock auto_lock(lock_);
+    if (state_ != kClosed)
+      handler_->OnError(this, code);
+  }
 }
 
 uint32 AudioOutputController::OnMoreData(AudioOutputStream* stream,
@@ -335,10 +343,6 @@ void AudioOutputController::SubmitOnMoreData_Locked() {
   uint32 pending_bytes = hardware_pending_bytes_ +
       push_source_.UnProcessedBytes();
 
-  // If we need more data then call the event handler to ask for more data.
-  // It is okay that we don't lock in this block because the parameters are
-  // correct and in the worst case we are just asking more data than needed.
-  AutoUnlock auto_unlock(lock_);
   handler_->OnMoreData(this, timestamp, pending_bytes);
 }
 
