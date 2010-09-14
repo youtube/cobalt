@@ -766,13 +766,13 @@ bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
 }
 
 bool ProcessMetrics::CalculateFreeMemory(FreeMBytes* free) const {
-  const SIZE_T kTopAdress = 0x7F000000;
+  const SIZE_T kTopAddress = 0x7F000000;
   const SIZE_T kMegabyte = 1024 * 1024;
   SIZE_T accumulated = 0;
 
   MEMORY_BASIC_INFORMATION largest = {0};
   UINT_PTR scan = 0;
-  while (scan < kTopAdress) {
+  while (scan < kTopAddress) {
     MEMORY_BASIC_INFORMATION info;
     if (!::VirtualQueryEx(process_, reinterpret_cast<void*>(scan),
                           &info, sizeof(info)))
@@ -780,7 +780,7 @@ bool ProcessMetrics::CalculateFreeMemory(FreeMBytes* free) const {
     if (info.State == MEM_FREE) {
       accumulated += info.RegionSize;
       UINT_PTR end = scan + info.RegionSize;
-      if (info.RegionSize > (largest.RegionSize))
+      if (info.RegionSize > largest.RegionSize)
         largest = info;
     }
     scan += info.RegionSize;
