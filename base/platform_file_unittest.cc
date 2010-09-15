@@ -269,9 +269,9 @@ TEST(PlatformFile, TouchGetInfoPlatformFile) {
   base::Time now = base::Time::Now() + base::TimeDelta::FromSeconds(2);
   EXPECT_EQ(0, info.size);
   EXPECT_FALSE(info.is_directory);
-  EXPECT_TRUE(info.last_accessed <= now);
-  EXPECT_TRUE(info.last_modified <= now);
-  EXPECT_TRUE(info.creation_time <= now);
+  EXPECT_LE(info.last_accessed.ToInternalValue(), now.ToInternalValue());
+  EXPECT_LE(info.last_modified.ToInternalValue(), now.ToInternalValue());
+  EXPECT_LE(info.creation_time.ToInternalValue(), now.ToInternalValue());
   base::Time creation_time = info.creation_time;
 
   // Write "test" to the file.
@@ -304,11 +304,14 @@ TEST(PlatformFile, TouchGetInfoPlatformFile) {
   EXPECT_EQ(info.last_modified.ToTimeVal().tv_sec,
             new_last_modified.ToTimeVal().tv_sec);
 #else
-  EXPECT_TRUE(info.last_accessed == new_last_accessed);
-  EXPECT_TRUE(info.last_modified == new_last_modified);
+  EXPECT_EQ(info.last_accessed.ToInternalValue(),
+            new_last_accessed.ToInternalValue());
+  EXPECT_EQ(info.last_modified.ToInternalValue(),
+            new_last_modified.ToInternalValue());
 #endif
 
-  EXPECT_TRUE(info.creation_time == creation_time);
+  EXPECT_EQ(info.creation_time.ToInternalValue(),
+            creation_time.ToInternalValue());
 
   // Close the file handle to allow the temp directory to be deleted.
   base::ClosePlatformFile(file);
