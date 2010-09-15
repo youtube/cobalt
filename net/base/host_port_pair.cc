@@ -4,12 +4,18 @@
 
 #include "net/base/host_port_pair.h"
 #include "base/string_util.h"
+#include "googleurl/src/gurl.h"
 
 namespace net {
 
 HostPortPair::HostPortPair() : port_(0) {}
 HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
     : host_(in_host), port_(in_port) {}
+
+// static
+HostPortPair HostPortPair::FromURL(const GURL& url) {
+  return HostPortPair(url.HostNoBrackets(), url.EffectiveIntPort());
+}
 
 std::string HostPortPair::ToString() const {
   return StringPrintf("%s:%u", HostForURL().c_str(), port_);

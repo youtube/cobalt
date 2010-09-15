@@ -22,11 +22,9 @@ int MappedHostResolver::Resolve(const RequestInfo& info,
                                 const BoundNetLog& net_log) {
   // Modify the request before forwarding it to |impl_|.
   RequestInfo modified_info = info;
-  HostPortPair host_port(info.hostname(), info.port());
-  if (rules_.RewriteHost(&host_port)) {
-    modified_info.set_hostname(host_port.host());
-    modified_info.set_port(host_port.port());
-  }
+  HostPortPair host_port(info.host_port_pair());
+  if (rules_.RewriteHost(&host_port))
+    modified_info.set_host_port_pair(host_port);
   return impl_->Resolve(modified_info, addresses, callback, out_req, net_log);
 }
 

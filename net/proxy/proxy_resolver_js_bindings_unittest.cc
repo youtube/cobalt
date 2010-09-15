@@ -183,7 +183,7 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
 
   // Verify that our mock setups works as expected, and we get different results
   // depending if the address family was IPV4_ONLY or not.
-  HostResolver::RequestInfo info("foo", 80);
+  HostResolver::RequestInfo info(HostPortPair("foo", 80));
   AddressList address_list;
   EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, NULL, NULL,
                                        BoundNetLog()));

@@ -24,7 +24,7 @@ SOCKSSocketParams::SOCKSSocketParams(
     RequestPriority priority,
     const GURL& referrer)
     : tcp_params_(proxy_server),
-      destination_(host_port_pair.host(), host_port_pair.port()),
+      destination_(host_port_pair),
       socks_v5_(socks_v5) {
   // The referrer is used by the DNS prefetch system to correlate resolutions
   // with the page that triggered them. It doesn't impact the actual addresses

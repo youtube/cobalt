@@ -91,7 +91,7 @@ class SyncProxyResolver : public ProxyResolver {
     EXPECT_FALSE(request);
 
     // Do a synchronous host resolve.
-    HostResolver::RequestInfo info(url.host(), 80);
+    HostResolver::RequestInfo info(HostPortPair::FromURL(url));
     AddressList addresses;
     int rv =
         host_resolver_->Resolve(info, &addresses, NULL, NULL, BoundNetLog());

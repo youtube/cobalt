@@ -173,13 +173,13 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   bool DnsResolveImpl(const std::string& host,
                       std::string* first_ip_address) {
-    // Do a sync resolve of the hostname.
+    // Do a sync resolve of the hostname (port doesn't matter).
     // Disable IPv6 results. We do this because the PAC specification isn't
     // really IPv6 friendly, and Internet Explorer also restricts to IPv4.
     // Consequently a lot of existing PAC scripts assume they will only get
     // IPv4 results, and will misbehave if they get an IPv6 result.
     // See http://crbug.com/24641 for more details.
-    HostResolver::RequestInfo info(host, 80);  // Port doesn't matter.
+    HostResolver::RequestInfo info(HostPortPair(host, 80));
     info.set_address_family(ADDRESS_FAMILY_IPV4);
     AddressList address_list;
 
@@ -198,8 +198,8 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   bool DnsResolveExImpl(const std::string& host,
                         std::string* ip_address_list) {
-    // Do a sync resolve of the hostname.
-    HostResolver::RequestInfo info(host, 80);  // Port doesn't matter.
+    // Do a sync resolve of the hostname (port doesn't matter).
+    HostResolver::RequestInfo info(HostPortPair(host, 80));
     AddressList address_list;
     int result = DnsResolveHelper(info, &address_list);
 

@@ -12,6 +12,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/request_priority.h"
 
 namespace net {
@@ -32,21 +33,19 @@ class NetLog;
 // goes out of scope).
 class HostResolver : public base::RefCounted<HostResolver> {
  public:
-  // The parameters for doing a Resolve(). |hostname| and |port| are required,
+  // The parameters for doing a Resolve(). A hostname and port are required,
   // the rest are optional (and have reasonable defaults).
   class RequestInfo {
    public:
-    RequestInfo(const std::string& hostname, int port);
+    explicit RequestInfo(const HostPortPair& host_port_pair);
 
-    int port() const { return port_; }
-    void set_port(int port) {
-      port_ = port;
+    const HostPortPair& host_port_pair() const { return host_port_pair_; }
+    void set_host_port_pair(const HostPortPair& host_port_pair) {
+      host_port_pair_ = host_port_pair;
     }
 
-    const std::string& hostname() const { return hostname_; }
-    void set_hostname(const std::string& hostname) {
-      hostname_ = hostname;
-    }
+    int port() const { return host_port_pair_.port(); }
+    const std::string& hostname() const { return host_port_pair_.host(); }
 
     AddressFamily address_family() const { return address_family_; }
     void set_address_family(AddressFamily address_family) {
@@ -73,17 +72,14 @@ class HostResolver : public base::RefCounted<HostResolver> {
     void set_referrer(const GURL& referrer) { referrer_ = referrer; }
 
    private:
-    // The hostname to resolve.
-    std::string hostname_;
+    // The hostname to resolve, and the port to use in resulting sockaddrs.
+    HostPortPair host_port_pair_;
 
     // The address family to restrict results to.
     AddressFamily address_family_;
 
     // Flags to use when resolving this request.
     HostResolverFlags host_resolver_flags_;
-
-    // The port number to set in the result's sockaddrs.
-    int port_;
 
     // Whether it is ok to return a result from the host cache.
     bool allow_cached_response_;
