@@ -181,24 +181,26 @@ MessageLoop::~MessageLoop() {
   lazy_tls_ptr.Pointer()->Set(NULL);
 }
 
-void MessageLoop::AddDestructionObserver(DestructionObserver *obs) {
+void MessageLoop::AddDestructionObserver(
+    DestructionObserver* destruction_observer) {
   DCHECK(this == current());
-  destruction_observers_.AddObserver(obs);
+  destruction_observers_.AddObserver(destruction_observer);
 }
 
-void MessageLoop::RemoveDestructionObserver(DestructionObserver *obs) {
+void MessageLoop::RemoveDestructionObserver(
+    DestructionObserver* destruction_observer) {
   DCHECK(this == current());
-  destruction_observers_.RemoveObserver(obs);
+  destruction_observers_.RemoveObserver(destruction_observer);
 }
 
-void MessageLoop::AddTaskObserver(TaskObserver *obs) {
+void MessageLoop::AddTaskObserver(TaskObserver* task_observer) {
   DCHECK_EQ(this, current());
-  task_observers_.AddObserver(obs);
+  task_observers_.AddObserver(task_observer);
 }
 
-void MessageLoop::RemoveTaskObserver(TaskObserver *obs) {
+void MessageLoop::RemoveTaskObserver(TaskObserver* task_observer) {
   DCHECK_EQ(this, current());
-  task_observers_.RemoveObserver(obs);
+  task_observers_.RemoveObserver(task_observer);
 }
 
 void MessageLoop::Run() {
