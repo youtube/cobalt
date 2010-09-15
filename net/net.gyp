@@ -565,6 +565,8 @@
         'spdy/spdy_framer.h',
         'spdy/spdy_http_stream.cc',
         'spdy/spdy_http_stream.h',
+        'spdy/spdy_http_utils.cc',
+        'spdy/spdy_http_utils.h',
         'spdy/spdy_io_buffer.cc',
         'spdy/spdy_io_buffer.h',
         'spdy/spdy_protocol.h',
