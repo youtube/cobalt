@@ -31,7 +31,8 @@ TEST(MappedHostResolverTest, Inclusion) {
 
   // Try resolving "www.google.com:80". There are no mappings yet, so this
   // hits |resolver_impl| and fails.
-  rv = resolver->Resolve(HostResolver::RequestInfo("www.google.com", 80),
+  rv = resolver->Resolve(HostResolver::RequestInfo(
+                             HostPortPair("www.google.com", 80)),
                          &address_list, NULL, NULL, BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, rv);
 
@@ -39,7 +40,8 @@ TEST(MappedHostResolverTest, Inclusion) {
   EXPECT_TRUE(resolver->AddRuleFromString("map *.google.com baz.com"));
 
   // Try resolving "www.google.com:80". Should be remapped to "baz.com:80".
-  rv = resolver->Resolve(HostResolver::RequestInfo("www.google.com", 80),
+  rv = resolver->Resolve(HostResolver::RequestInfo(
+                             HostPortPair("www.google.com", 80)),
                          &address_list, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("192.168.1.5", NetAddressToString(address_list.head()));
@@ -47,7 +49,7 @@ TEST(MappedHostResolverTest, Inclusion) {
 
   // Try resolving "foo.com:77". This will NOT be remapped, so result
   // is "foo.com:77".
-  rv = resolver->Resolve(HostResolver::RequestInfo("foo.com", 77),
+  rv = resolver->Resolve(HostResolver::RequestInfo(HostPortPair("foo.com", 77)),
                          &address_list, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("192.168.1.8", NetAddressToString(address_list.head()));
@@ -57,7 +59,8 @@ TEST(MappedHostResolverTest, Inclusion) {
   EXPECT_TRUE(resolver->AddRuleFromString("Map *.org proxy:99"));
 
   // Try resolving "chromium.org:61". Should be remapped to "proxy:99".
-  rv = resolver->Resolve(HostResolver::RequestInfo("chromium.org", 61),
+  rv = resolver->Resolve(HostResolver::RequestInfo
+                             (HostPortPair("chromium.org", 61)),
                          &address_list, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("192.168.1.11", NetAddressToString(address_list.head()));
@@ -85,14 +88,16 @@ TEST(MappedHostResolverTest, Exclusion) {
   EXPECT_TRUE(resolver->AddRuleFromString("EXCLUDE *.google.com"));
 
   // Try resolving "www.google.com". Should not be remapped due to exclusion).
-  rv = resolver->Resolve(HostResolver::RequestInfo("www.google.com", 80),
+  rv = resolver->Resolve(HostResolver::RequestInfo(
+                             HostPortPair("www.google.com", 80)),
                          &address_list, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("192.168.1.3", NetAddressToString(address_list.head()));
   EXPECT_EQ(80, address_list.GetPort());
 
   // Try resolving "chrome.com:80". Should be remapped to "baz:80".
-  rv = resolver->Resolve(HostResolver::RequestInfo("chrome.com", 80),
+  rv = resolver->Resolve(HostResolver::RequestInfo(
+                             HostPortPair("chrome.com", 80)),
                          &address_list, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("192.168.1.5", NetAddressToString(address_list.head()));
@@ -116,14 +121,16 @@ TEST(MappedHostResolverTest, SetRulesFromString) {
   resolver->SetRulesFromString("map *.com baz , map *.net bar:60");
 
   // Try resolving "www.google.com". Should be remapped to "baz".
-  rv = resolver->Resolve(HostResolver::RequestInfo("www.google.com", 80),
+  rv = resolver->Resolve(HostResolver::RequestInfo(
+                             HostPortPair("www.google.com", 80)),
                          &address_list, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("192.168.1.7", NetAddressToString(address_list.head()));
   EXPECT_EQ(80, address_list.GetPort());
 
   // Try resolving "chrome.net:80". Should be remapped to "bar:60".
-  rv = resolver->Resolve(HostResolver::RequestInfo("chrome.net", 80),
+  rv = resolver->Resolve(HostResolver::RequestInfo(
+                             HostPortPair("chrome.net", 80)),
                          &address_list, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("192.168.1.9", NetAddressToString(address_list.head()));

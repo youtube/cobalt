@@ -509,18 +509,14 @@ int SocketStream::DoResolveHost() {
     proxy_mode_ = kTunnelProxy;
 
   // Determine the host and port to connect to.
-  std::string host;
-  int port;
+  HostPortPair host_port_pair;
   if (proxy_mode_ != kDirectConnection) {
-    HostPortPair host_port_pair = proxy_info_.proxy_server().host_port_pair();
-    host = host_port_pair.host();
-    port = host_port_pair.port();
+    host_port_pair = proxy_info_.proxy_server().host_port_pair();
   } else {
-    host = url_.HostNoBrackets();
-    port = url_.EffectiveIntPort();
+    host_port_pair = HostPortPair::FromURL(url_);
   }
 
-  HostResolver::RequestInfo resolve_info(host, port);
+  HostResolver::RequestInfo resolve_info(host_port_pair);
 
   DCHECK(host_resolver_.get());
   resolver_.reset(new SingleRequestHostResolver(host_resolver_.get()));
@@ -768,8 +764,7 @@ int SocketStream::DoSOCKSConnect() {
   next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
 
   ClientSocket* s = socket_.release();
-  HostResolver::RequestInfo req_info(url_.HostNoBrackets(),
-                                     url_.EffectiveIntPort());
+  HostResolver::RequestInfo req_info(HostPortPair::FromURL(url_));
 
   DCHECK(!proxy_info_.is_empty());
   if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5)

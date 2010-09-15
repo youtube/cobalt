@@ -138,8 +138,7 @@ class RequestInfoParameters : public NetLog::EventParameters {
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("host", HostPortPair(info_.hostname(),
-                                         info_.port()).ToString());
+    dict->SetString("host", info_.host_port_pair().ToString());
     dict->SetInteger("address_family",
                      static_cast<int>(info_.address_family()));
     dict->SetBoolean("allow_cached_response", info_.allow_cached_response());
