@@ -11,7 +11,7 @@
 namespace net {
 
 class HttpResponseInfo;
-class HttpRequestInfo;
+struct HttpRequestInfo;
 
 // Convert a SpdyHeaderBlock into an HttpResponseInfo.
 // |headers| input parameter with the SpdyHeaderBlock.
