@@ -85,6 +85,34 @@ void SetPortRecursive(struct addrinfo* info, int port) {
 
 }  // namespace
 
+struct AddressList::Data : public base::RefCountedThreadSafe<Data> {
+  Data(struct addrinfo* ai, bool is_system_created);
+  struct addrinfo* head;
+
+  // Indicates which free function to use for |head|.
+  bool is_system_created;
+
+ private:
+  friend class base::RefCountedThreadSafe<Data>;
+
+  ~Data();
+};
+
+AddressList::AddressList() {
+}
+
+AddressList::AddressList(const AddressList& addresslist)
+    : data_(addresslist.data_) {
+}
+
+AddressList::~AddressList() {
+}
+
+AddressList& AddressList::operator=(const AddressList& addresslist) {
+  data_ = addresslist.data_;
+  return *this;
+}
+
 AddressList::AddressList(const IPAddressNumber& address, int port,
                          bool canonicalize_name) {
   struct addrinfo* ai = new addrinfo;
@@ -189,6 +217,12 @@ void AddressList::SetFrom(const AddressList& src, int port) {
 void AddressList::Reset() {
   data_ = NULL;
 }
+
+const struct addrinfo* AddressList::head() const {
+  return data_->head;
+}
+
+AddressList::AddressList(Data* data) : data_(data) {}
 
 AddressList::Data::Data(struct addrinfo* ai, bool is_system_created)
     : head(ai), is_system_created(is_system_created) {

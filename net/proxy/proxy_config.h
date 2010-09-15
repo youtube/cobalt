@@ -42,7 +42,8 @@ class ProxyConfig {
 
     // Note that the default of TYPE_NO_RULES results in direct connections
     // being made when using this ProxyConfig.
-    ProxyRules() : reverse_bypass(false), type(TYPE_NO_RULES) {}
+    ProxyRules();
+    ~ProxyRules();
 
     bool empty() const {
       return type == TYPE_NO_RULES;
@@ -109,6 +110,9 @@ class ProxyConfig {
   enum { INVALID_ID = 0 };
 
   ProxyConfig();
+  ProxyConfig(const ProxyConfig& config);
+  ~ProxyConfig();
+  ProxyConfig& operator=(const ProxyConfig& config);
 
   // Used to numerically identify this configuration.
   ID id() const { return id_; }

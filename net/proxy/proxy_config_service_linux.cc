@@ -79,6 +79,9 @@ std::string FixupProxyHostScheme(ProxyServer::Scheme scheme,
 
 }  // namespace
 
+ProxyConfigServiceLinux::Delegate::~Delegate() {
+}
+
 bool ProxyConfigServiceLinux::Delegate::GetProxyFromEnvVarForScheme(
     const char* variable, ProxyServer::Scheme scheme,
     ProxyServer* result_server) {
@@ -1225,6 +1228,10 @@ void ProxyConfigServiceLinux::Delegate::OnDestroy() {
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux()
     : delegate_(new Delegate(base::Environment::Create())) {
+}
+
+ProxyConfigServiceLinux::~ProxyConfigServiceLinux() {
+  delegate_->PostDestroyTask();
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
