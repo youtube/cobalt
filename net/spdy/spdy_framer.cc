@@ -424,7 +424,7 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
 void SpdyFramer::ExpandControlFrameBuffer(size_t size) {
   size_t alloc_size = size + SpdyFrame::size();
   DCHECK_LT(alloc_size, kControlFrameBufferMaxSize);
-  if (size <= current_frame_capacity_)
+  if (alloc_size <= current_frame_capacity_)
     return;
   char* new_buffer = new char[alloc_size];
   memcpy(new_buffer, current_frame_buffer_, current_frame_len_);
