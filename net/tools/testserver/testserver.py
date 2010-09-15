@@ -141,7 +141,6 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.WriteFile,
       self.EchoTitleHandler,
       self.EchoAllHandler,
-      self.ChromiumSyncConfigureHandler,
       self.ChromiumSyncCommandHandler,
       self.EchoHandler] + self._get_handlers
     self._put_handlers = [
@@ -1024,29 +1023,6 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     self.send_response(200)
     self.send_header('Content-type', 'text/html')
-    self.end_headers()
-    return True
-
-  def ChromiumSyncConfigureHandler(self):
-    """Handle updating the configuration of the sync server.
-
-    The name and value pairs of the post payload will update the
-    configuration of the sync server.  Supported tuples are:
-      user_email,<email address> - Sets the email for the fake user account
-    """
-    test_name = "/chromiumsync/configure"
-    if not self._ShouldHandleRequest(test_name):
-      return False
-
-    length = int(self.headers.getheader('content-length'))
-    raw_request = self.rfile.read(length)
-    config = cgi.parse_qs(raw_request, keep_blank_values=1)
-
-    success = self._sync_handler.HandleConfigure(config)
-    if success:
-      self.send_response(200)
-    else:
-      self.send_response(500)
     self.end_headers()
     return True
 
