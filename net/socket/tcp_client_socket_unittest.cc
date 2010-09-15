@@ -94,7 +94,7 @@ void TCPClientSocketTest::SetUp() {
   scoped_refptr<HostResolver> resolver(
       CreateSystemHostResolver(HostResolver::kDefaultParallelism,
                                NULL));
-  HostResolver::RequestInfo info("localhost", listen_port_);
+  HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
   int rv = resolver->Resolve(info, &addr, NULL, NULL, BoundNetLog());
   CHECK_EQ(rv, OK);
   sock_.reset(new TCPClientSocket(addr, &net_log_, NetLog::Source()));

@@ -5006,7 +5006,7 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   // a synchronous lookup.)
   AddressList addrlist;
   int rv = session_deps.host_resolver->Resolve(
-      HostResolver::RequestInfo("www.google.com", 80), &addrlist,
+      HostResolver::RequestInfo(HostPortPair("www.google.com", 80)), &addrlist,
       NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
 
@@ -5014,7 +5014,7 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   // and confirming it completes synchronously.
   TestCompletionCallback resolve_callback;
   rv = session_deps.host_resolver->Resolve(
-      HostResolver::RequestInfo("www.google.com", 80), &addrlist,
+      HostResolver::RequestInfo(HostPortPair("www.google.com", 80)), &addrlist,
       &resolve_callback, NULL, BoundNetLog());
   ASSERT_EQ(OK, rv);
 
