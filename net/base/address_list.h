@@ -20,12 +20,16 @@ namespace net {
 class AddressList {
  public:
   // Constructs an empty address list.
-  AddressList() {}
+  AddressList();
 
   // Constructs an address list for a single IP literal.  If
   // |canonicalize_name| is true, fill the ai_canonname field with the
   // canonicalized IP address.
   AddressList(const IPAddressNumber& address, int port, bool canonicalize_name);
+
+  AddressList(const AddressList& addresslist);
+  ~AddressList();
+  AddressList& operator=(const AddressList& addresslist);
 
   // Adopt the given addrinfo list (assumed to have been created by
   // the system, e.g. returned by getaddrinfo()) in place of the
@@ -68,23 +72,12 @@ class AddressList {
   void Reset();
 
   // Get access to the head of the addrinfo list.
-  const struct addrinfo* head() const { return data_->head; }
+  const struct addrinfo* head() const;
 
  private:
-  struct Data : public base::RefCountedThreadSafe<Data> {
-    Data(struct addrinfo* ai, bool is_system_created);
-    struct addrinfo* head;
+  struct Data;
 
-    // Indicates which free function to use for |head|.
-    bool is_system_created;
-
-   private:
-    friend class base::RefCountedThreadSafe<Data>;
-
-    ~Data();
-  };
-
-  explicit AddressList(Data* data) : data_(data) {}
+  explicit AddressList(Data* data);
 
   scoped_refptr<Data> data_;
 };
