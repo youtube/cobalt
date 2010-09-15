@@ -66,7 +66,7 @@ void SOCKS5ClientSocketTest::SetUp() {
   PlatformTest::SetUp();
 
   // Resolve the "localhost" AddressList used by the TCP connection to connect.
-  HostResolver::RequestInfo info("www.socks-proxy.com", 1080);
+  HostResolver::RequestInfo info(HostPortPair("www.socks-proxy.com", 1080));
   int rv = host_resolver_->Resolve(info, &address_list_, NULL, NULL,
                                    BoundNetLog());
   ASSERT_EQ(OK, rv);
@@ -92,7 +92,7 @@ SOCKS5ClientSocket* SOCKS5ClientSocketTest::BuildMockSocket(
   EXPECT_TRUE(tcp_sock_->IsConnected());
 
   return new SOCKS5ClientSocket(tcp_sock_,
-      HostResolver::RequestInfo(hostname, port));
+      HostResolver::RequestInfo(HostPortPair(hostname, port)));
 }
 
 // Tests a complete SOCKS5 handshake and the disconnection.

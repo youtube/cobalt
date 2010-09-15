@@ -611,13 +611,7 @@ int FtpNetworkTransaction::DoLoop(int result) {
 int FtpNetworkTransaction::DoCtrlResolveHost() {
   next_state_ = STATE_CTRL_RESOLVE_HOST_COMPLETE;
 
-  std::string host;
-  int port;
-
-  host = request_->url.HostNoBrackets();
-  port = request_->url.EffectiveIntPort();
-
-  HostResolver::RequestInfo info(host, port);
+  HostResolver::RequestInfo info(HostPortPair::FromURL(request_->url));
   // No known referrer.
   return resolver_.Resolve(info, &addresses_, &io_callback_, net_log_);
 }

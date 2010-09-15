@@ -79,7 +79,7 @@ SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
   EXPECT_TRUE(tcp_sock_->IsConnected());
 
   return new SOCKSClientSocket(tcp_sock_,
-      HostResolver::RequestInfo(hostname, port),
+      HostResolver::RequestInfo(HostPortPair(hostname, port)),
       host_resolver);
 }
 
