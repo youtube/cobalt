@@ -214,7 +214,7 @@ int HttpAuthHandlerNegotiate::DoResolveCanonicalName() {
 
   // TODO(cbentzel): Add reverse DNS lookup for numeric addresses.
   DCHECK(!single_resolve_.get());
-  HostResolver::RequestInfo info(origin_.host(), 0);
+  HostResolver::RequestInfo info(HostPortPair(origin_.host(), 0));
   info.set_host_resolver_flags(HOST_RESOLVER_CANONNAME);
   single_resolve_.reset(new SingleRequestHostResolver(resolver_));
   return single_resolve_->Resolve(info, &address_list_, &io_callback_,

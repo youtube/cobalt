@@ -201,8 +201,7 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
 int HttpProxyConnectJob::DoHttpProxyConnect() {
   next_state_ = kStateHttpProxyConnectComplete;
   const HostResolver::RequestInfo& tcp_destination = params_->destination();
-  HostPortPair proxy_server(tcp_destination.hostname(),
-                            tcp_destination.port());
+  const HostPortPair& proxy_server = tcp_destination.host_port_pair();
 
   // Add a HttpProxy connection on top of the tcp socket.
   transport_socket_.reset(

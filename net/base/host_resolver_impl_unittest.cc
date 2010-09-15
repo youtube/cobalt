@@ -46,7 +46,7 @@ HostResolverImpl* CreateHostResolverImpl(HostResolverProc* resolver_proc) {
 HostResolver::RequestInfo CreateResolverRequest(
     const std::string& hostname,
     RequestPriority priority) {
-  HostResolver::RequestInfo info(hostname, 80);
+  HostResolver::RequestInfo info(HostPortPair(hostname, 80));
   info.set_priority(priority);
   return info;
 }
@@ -56,7 +56,7 @@ HostResolver::RequestInfo CreateResolverRequestForAddressFamily(
     const std::string& hostname,
     RequestPriority priority,
     AddressFamily address_family) {
-  HostResolver::RequestInfo info(hostname, 80);
+  HostResolver::RequestInfo info(HostPortPair(hostname, 80));
   info.set_priority(priority);
   info.set_address_family(address_family);
   return info;
@@ -164,7 +164,9 @@ class ResolveRequest {
                  const std::string& hostname,
                  int port,
                  Delegate* delegate)
-      : info_(hostname, port), resolver_(resolver), delegate_(delegate),
+      : info_(HostPortPair(hostname, port)),
+        resolver_(resolver),
+        delegate_(delegate),
         ALLOW_THIS_IN_INITIALIZER_LIST(
             callback_(this, &ResolveRequest::OnLookupFinished)) {
     // Start the request.
@@ -265,7 +267,7 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
   scoped_refptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
-  HostResolver::RequestInfo info("just.testing", kPortnum);
+  HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, err);
@@ -297,7 +299,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   scoped_refptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
-  HostResolver::RequestInfo info("just.testing", kPortnum);
+  HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   int err = host_resolver->Resolve(info, &addrlist, &callback_, NULL,
                                    log.bound());
@@ -341,7 +343,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
     AddressList addrlist;
     const int kPortnum = 80;
 
-    HostResolver::RequestInfo info("just.testing", kPortnum);
+    HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
     int err = host_resolver->Resolve(info, &addrlist, &callback_, NULL,
                                      log.bound());
     EXPECT_EQ(ERR_IO_PENDING, err);
@@ -397,7 +399,7 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
-  HostResolver::RequestInfo info("127.1.2.3", kPortnum);
+  HostResolver::RequestInfo info(HostPortPair("127.1.2.3", kPortnum));
   int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, err);
 
@@ -422,7 +424,7 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
-  HostResolver::RequestInfo info("2001:db8::1", kPortnum);
+  HostResolver::RequestInfo info(HostPortPair("2001:db8::1", kPortnum));
   int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, err);
 
@@ -452,7 +454,7 @@ TEST_F(HostResolverImplTest, EmptyHost) {
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
-  HostResolver::RequestInfo info("", kPortnum);
+  HostResolver::RequestInfo info(HostPortPair("", kPortnum));
   int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
 }
@@ -467,7 +469,7 @@ TEST_F(HostResolverImplTest, LongHost) {
   AddressList addrlist;
   const int kPortnum = 5555;
   std::string hostname(4097, 'a');
-  HostResolver::RequestInfo info(hostname, kPortnum);
+  HostResolver::RequestInfo info(HostPortPair(hostname, kPortnum));
   int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
 }
@@ -819,14 +821,14 @@ class BypassCacheVerifier : public ResolveRequest::Delegate {
           reinterpret_cast<CompletionCallback*> (1);
       AddressList addrlist;
 
-      HostResolver::RequestInfo info("a", 70);
+      HostResolver::RequestInfo info(HostPortPair("a", 70));
       int error = resolver->Resolve(info, &addrlist, junk_callback, NULL,
                                     BoundNetLog());
       EXPECT_EQ(OK, error);
 
       // Ok good. Now make sure that if we ask to bypass the cache, it can no
       // longer service the request synchronously.
-      info = HostResolver::RequestInfo("a", 71);
+      info = HostResolver::RequestInfo(HostPortPair("a", 71));
       info.set_allow_cached_response(false);
       final_request_.reset(new ResolveRequest(resolver, info, this));
     } else if (71 == resolve->port()) {
@@ -938,7 +940,7 @@ TEST_F(HostResolverImplTest, Observers) {
   AddressList addrlist;
 
   // Resolve "host1".
-  HostResolver::RequestInfo info1("host1", 70);
+  HostResolver::RequestInfo info1(HostPortPair("host1", 70));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, rv);
@@ -972,7 +974,7 @@ TEST_F(HostResolverImplTest, Observers) {
               CapturingObserver::FinishEntry(1, true, info1));
 
   // Resolve "host2", setting referrer to "http://foobar.com"
-  HostResolver::RequestInfo info2("host2", 70);
+  HostResolver::RequestInfo info2(HostPortPair("host2", 70));
   info2.set_referrer(GURL("http://foobar.com"));
   rv = host_resolver->Resolve(info2, &addrlist, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
@@ -989,7 +991,7 @@ TEST_F(HostResolverImplTest, Observers) {
   host_resolver->RemoveObserver(&observer);
 
   // Resolve "host3"
-  HostResolver::RequestInfo info3("host3", 70);
+  HostResolver::RequestInfo info3(HostPortPair("host3", 70));
   host_resolver->Resolve(info3, &addrlist, NULL, NULL, BoundNetLog());
 
   // No effect this time, since observer was removed.
@@ -1017,7 +1019,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
     EXPECT_EQ(0U, observer.cancel_log.size());
 
     // Start an async resolve for (host1:70).
-    HostResolver::RequestInfo info1("host1", 70);
+    HostResolver::RequestInfo info1(HostPortPair("host1", 70));
     HostResolver::RequestHandle req = NULL;
     AddressList addrlist;
     int rv = host_resolver->Resolve(info1, &addrlist, &callback, &req,
@@ -1043,7 +1045,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
                 CapturingObserver::StartOrCancelEntry(0, info1));
 
     // Start an async request for (host2:60)
-    HostResolver::RequestInfo info2("host2", 60);
+    HostResolver::RequestInfo info2(HostPortPair("host2", 60));
     rv = host_resolver->Resolve(info2, &addrlist, &callback, NULL,
                                 BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -1067,7 +1069,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
   EXPECT_EQ(0U, observer.finish_log.size());
   EXPECT_EQ(2U, observer.cancel_log.size());
 
-  HostResolver::RequestInfo info("host2", 60);
+  HostResolver::RequestInfo info(HostPortPair("host2", 60));
   EXPECT_TRUE(observer.cancel_log[1] ==
               CapturingObserver::StartOrCancelEntry(1, info));
 }
@@ -1080,7 +1082,7 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   AddressList addrlist;
 
   // Resolve "host1".
-  HostResolver::RequestInfo info1("host1", 70);
+  HostResolver::RequestInfo info1(HostPortPair("host1", 70));
   TestCompletionCallback callback;
   int rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL,
                                   BoundNetLog());
@@ -1112,7 +1114,7 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
       new HostResolverImpl(resolver_proc, cache, kMaxJobs, NULL));
 
   // Resolve "host1".
-  HostResolver::RequestInfo info("host1", 70);
+  HostResolver::RequestInfo info(HostPortPair("host1", 70));
   TestCompletionCallback callback;
   AddressList addrlist;
   int rv = host_resolver->Resolve(info, &addrlist, &callback, NULL,
@@ -1171,7 +1173,7 @@ TEST_F(HostResolverImplTest, OnlyAbortExistingRequestsOnIPAddressChange) {
   host_resolver->Reset(resolver_proc);
 
   // Resolve "host1".
-  HostResolver::RequestInfo info("host1", 70);
+  HostResolver::RequestInfo info(HostPortPair("host1", 70));
   ResolveWithinCallback callback(host_resolver, info);
   AddressList addrlist;
   int rv = host_resolver->Resolve(info, &addrlist, &callback, NULL,
