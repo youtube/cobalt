@@ -37,7 +37,7 @@ class SSLClientSocketPoolTest : public ClientSocketPoolTest {
   SSLClientSocketPoolTest()
       : http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault()),
         session_(new HttpNetworkSession(new MockHostResolver,
-                                        ProxyService::CreateNull(),
+                                        ProxyService::CreateDirect(),
                                         &socket_factory_,
                                         new SSLConfigServiceDefaults,
                                         new SpdySessionPool(NULL),
