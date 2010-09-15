@@ -177,4 +177,22 @@ TEST(SplitStringUsingSubstrTest, TrailingDelimitersSkipped) {
       results, ElementsAre("un", "deux", "trois", "quatre", "", "", ""));
 }
 
+TEST(StringSplitTest, StringSplitDontTrim) {
+  std::vector<std::wstring> r;
+
+  SplitStringDontTrim(L"\t\ta\t", L'\t', &r);
+  ASSERT_EQ(4U, r.size());
+  EXPECT_EQ(r[0], L"");
+  EXPECT_EQ(r[1], L"");
+  EXPECT_EQ(r[2], L"a");
+  EXPECT_EQ(r[3], L"");
+  r.clear();
+
+  SplitStringDontTrim(L"\ta\t\nb\tcc", L'\n', &r);
+  ASSERT_EQ(2U, r.size());
+  EXPECT_EQ(r[0], L"\ta\t");
+  EXPECT_EQ(r[1], L"b\tcc");
+  r.clear();
+}
+
 }  // namespace base

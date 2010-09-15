@@ -6,6 +6,8 @@
 
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/third_party/icu/icu_utf.h"
+#include "base/utf_string_conversions.h"
 
 namespace base {
 
@@ -103,6 +105,53 @@ void SplitStringUsingSubstr(const std::string& str,
                             const std::string& s,
                             std::vector<std::string>* r) {
   SplitStringUsingSubstrT(str, s, r);
+}
+
+template<typename STR>
+static void SplitStringT(const STR& str,
+                         const typename STR::value_type s,
+                         bool trim_whitespace,
+                         std::vector<STR>* r) {
+  size_t last = 0;
+  size_t i;
+  size_t c = str.size();
+  for (i = 0; i <= c; ++i) {
+    if (i == c || str[i] == s) {
+      size_t len = i - last;
+      STR tmp = str.substr(last, len);
+      if (trim_whitespace) {
+        STR t_tmp;
+        TrimWhitespace(tmp, TRIM_ALL, &t_tmp);
+        r->push_back(t_tmp);
+      } else {
+        r->push_back(tmp);
+      }
+      last = i + 1;
+    }
+  }
+}
+
+void SplitStringDontTrim(const std::wstring& str,
+                         wchar_t c,
+                         std::vector<std::wstring>* r) {
+  SplitStringT(str, c, false, r);
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+void SplitStringDontTrim(const string16& str,
+                         char16 c,
+                         std::vector<string16>* r) {
+  DCHECK(CBU16_IS_SINGLE(c));
+  SplitStringT(str, c, false, r);
+}
+#endif
+
+void SplitStringDontTrim(const std::string& str,
+                         char c,
+                         std::vector<std::string>* r) {
+  DCHECK(IsStringUTF8(str));
+  DCHECK(c < 0x7F);
+  SplitStringT(str, c, false, r);
 }
 
 }  // namespace base
