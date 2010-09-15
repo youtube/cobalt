@@ -24,6 +24,14 @@ void AddProxyToValue(const char* name,
 
 }  // namespace
 
+ProxyConfig::ProxyRules::ProxyRules()
+    : reverse_bypass(false),
+      type(TYPE_NO_RULES) {
+}
+
+ProxyConfig::ProxyRules::~ProxyRules() {
+}
+
 bool ProxyConfig::ProxyRules::Equals(const ProxyRules& other) const {
   return type == other.type &&
          single_proxy == other.single_proxy &&
@@ -151,6 +159,24 @@ ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxyNoFallback(
 }
 
 ProxyConfig::ProxyConfig() : auto_detect_(false), id_(INVALID_ID) {
+}
+
+ProxyConfig::ProxyConfig(const ProxyConfig& config)
+    : auto_detect_(config.auto_detect_),
+      pac_url_(config.pac_url_),
+      proxy_rules_(config.proxy_rules_),
+      id_(config.id_) {
+}
+
+ProxyConfig::~ProxyConfig() {
+}
+
+ProxyConfig& ProxyConfig::operator=(const ProxyConfig& config) {
+  auto_detect_ = config.auto_detect_;
+  pac_url_ = config.pac_url_;
+  proxy_rules_ = config.proxy_rules_;
+  id_ = config.id_;
+  return *this;
 }
 
 bool ProxyConfig::Equals(const ProxyConfig& other) const {

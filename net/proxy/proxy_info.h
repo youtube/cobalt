@@ -19,6 +19,7 @@ namespace net {
 class ProxyInfo {
  public:
   ProxyInfo();
+  ~ProxyInfo();
   // Default copy-constructor and assignment operator are OK!
 
   // Uses the same proxy server as the given |proxy_info|.
@@ -84,20 +85,14 @@ class ProxyInfo {
 
   // Marks the current proxy as bad. Returns true if there is another proxy
   // available to try in proxy list_.
-  bool Fallback(ProxyRetryInfoMap* proxy_retry_info) {
-    return proxy_list_.Fallback(proxy_retry_info);
-  }
+  bool Fallback(ProxyRetryInfoMap* proxy_retry_info);
 
   // De-prioritizes the proxies that we have cached as not working, by moving
   // them to the end of the proxy list.
-  void DeprioritizeBadProxies(const ProxyRetryInfoMap& proxy_retry_info) {
-    proxy_list_.DeprioritizeBadProxies(proxy_retry_info);
-  }
+  void DeprioritizeBadProxies(const ProxyRetryInfoMap& proxy_retry_info);
 
   // Deletes any entry which doesn't have one of the specified proxy schemes.
-  void RemoveProxiesWithoutScheme(int scheme_bit_field) {
-    proxy_list_.RemoveProxiesWithoutScheme(scheme_bit_field);
-  }
+  void RemoveProxiesWithoutScheme(int scheme_bit_field);
 
  private:
   friend class ProxyService;
