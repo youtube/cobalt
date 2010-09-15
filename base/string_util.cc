@@ -757,6 +757,8 @@ void ReplaceSubstringsAfterOffset(std::string* str,
                                  true);  // replace all instances
 }
 
+// TODO(tfarina): Remove this when finish moving SplitString functions to
+// string_split.[cc/h].
 template<typename STR>
 static void SplitStringT(const STR& str,
                          const typename STR::value_type s,
@@ -799,26 +801,6 @@ void SplitString(const std::string& str,
                  char s,
                  std::vector<std::string>* r) {
   SplitStringT(str, s, true, r);
-}
-
-void SplitStringDontTrim(const std::wstring& str,
-                         wchar_t s,
-                         std::vector<std::wstring>* r) {
-  SplitStringT(str, s, false, r);
-}
-
-#if !defined(WCHAR_T_IS_UTF16)
-void SplitStringDontTrim(const string16& str,
-                         char16 s,
-                         std::vector<string16>* r) {
-  SplitStringT(str, s, false, r);
-}
-#endif
-
-void SplitStringDontTrim(const std::string& str,
-                         char s,
-                         std::vector<std::string>* r) {
-  SplitStringT(str, s, false, r);
 }
 
 template<typename STR>
