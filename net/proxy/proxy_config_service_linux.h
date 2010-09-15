@@ -155,7 +155,7 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
    private:
     friend class base::RefCountedThreadSafe<Delegate>;
 
-    ~Delegate() {}
+    ~Delegate();
 
     // Obtains an environment variable's value. Parses a proxy server
     // specification from it and puts it in result. Returns true if the
@@ -223,9 +223,7 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
   ProxyConfigServiceLinux(base::Environment* env_var_getter,
                           GConfSettingGetter* gconf_getter);
 
-  virtual ~ProxyConfigServiceLinux() {
-    delegate_->PostDestroyTask();
-  }
+  virtual ~ProxyConfigServiceLinux();
 
   void SetupAndFetchInitialConfig(MessageLoop* glib_default_loop,
                                   MessageLoop* io_loop,
