@@ -138,13 +138,11 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.MultipartHandler,
       self.DefaultResponseHandler]
     self._post_handlers = [
-      self.WriteFile,
       self.EchoTitleHandler,
       self.EchoAllHandler,
       self.ChromiumSyncCommandHandler,
       self.EchoHandler] + self._get_handlers
     self._put_handlers = [
-      self.WriteFile,
       self.EchoTitleHandler,
       self.EchoAllHandler,
       self.EchoHandler] + self._get_handlers
@@ -484,32 +482,6 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     length = int(self.headers.getheader('content-length'))
     request = self.rfile.read(length)
     self.wfile.write(request)
-    return True
-
-  def WriteFile(self):
-    """This is handler dumps the content of POST/PUT request to a disk file
-    into the data_dir/dump. Sub-directories are not supported."""
-
-    prefix='/writefile/'
-    if not self.path.startswith(prefix):
-      return False
-
-    file_name = self.path[len(prefix):]
-
-    # do not allow fancy chars in file name
-    re.sub('[^a-zA-Z0-9_.-]+', '', file_name)
-    if len(file_name) and file_name[0] != '.':
-      path = os.path.join(self.server.data_dir, 'dump', file_name);
-      length = int(self.headers.getheader('content-length'))
-      request = self.rfile.read(length)
-      f = open(path, "wb")
-      f.write(request);
-      f.close()
-
-    self.send_response(200)
-    self.send_header('Content-type', 'text/html')
-    self.end_headers()
-    self.wfile.write('<html>%s</html>' % file_name)
     return True
 
   def EchoTitleHandler(self):
@@ -1159,15 +1131,6 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.wfile.write('Use <pre>%s?http://dest...</pre>' % redirect_name)
     self.wfile.write('</body></html>')
 
-def MakeDumpDir(data_dir):
-  """Create directory named 'dump' where uploaded data via HTTP POST/PUT
-  requests will be stored. If the directory already exists all files and
-  subdirectories will be deleted."""
-  dump_dir = os.path.join(data_dir, 'dump');
-  if os.path.isdir(dump_dir):
-    shutil.rmtree(dump_dir)
-  os.mkdir(dump_dir)
-
 def MakeDataDir():
   if options.data_dir:
     if not os.path.isdir(options.data_dir):
@@ -1233,8 +1196,6 @@ def main(options, args):
     server.data_dir = MakeDataDir()
     server.file_root_url = options.file_root_url
     server._sync_handler = None
-
-    MakeDumpDir(server.data_dir)
 
   # means FTP Server
   else:
