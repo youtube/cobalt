@@ -523,17 +523,6 @@ void SplitString(const std::string& str,
                  char s,
                  std::vector<std::string>* r);
 
-// The same as SplitString, but don't trim white space.
-void SplitStringDontTrim(const std::wstring& str,
-                         wchar_t s,
-                         std::vector<std::wstring>* r);
-void SplitStringDontTrim(const string16& str,
-                         char16 s,
-                         std::vector<string16>* r);
-void SplitStringDontTrim(const std::string& str,
-                         char s,
-                         std::vector<std::string>* r);
-
 // Splits a string into its fields delimited by any of the characters in
 // |delimiters|.  Each field is added to the |tokens| vector.  Returns the
 // number of tokens found.
