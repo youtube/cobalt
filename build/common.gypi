@@ -246,6 +246,8 @@
     'linux_dump_symbols%': 0,
     # And if we want to strip the binary after dumping symbols.
     'linux_strip_binary%': 0,
+    # Strip the test binaries needed for Linux reliability tests.
+    'linux_strip_reliability_tests%': 0,
 
     # Enable TCMalloc.
     'linux_use_tcmalloc%': 1,
