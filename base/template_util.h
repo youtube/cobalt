@@ -27,4 +27,4 @@ template <class T> struct is_pointer<T*> : true_type {};
 
 }  // namespace base
 
-#endif
+#endif  // BASE_TEMPLATE_UTIL_H_
