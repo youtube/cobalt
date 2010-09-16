@@ -33,6 +33,8 @@ int MapNetErrorToCertStatus(int error) {
       return CERT_STATUS_INVALID;
     case ERR_CERT_WEAK_SIGNATURE_ALGORITHM:
       return CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
+    case ERR_CERT_NOT_IN_DNS:
+      return CERT_STATUS_NOT_IN_DNS;
     default:
       return 0;
   }
@@ -63,6 +65,8 @@ int MapCertStatusToNetError(int cert_status) {
     return ERR_CERT_UNABLE_TO_CHECK_REVOCATION;
   if (cert_status & CERT_STATUS_NO_REVOCATION_MECHANISM)
     return ERR_CERT_NO_REVOCATION_MECHANISM;
+  if (cert_status & CERT_STATUS_NOT_IN_DNS)
+    return ERR_CERT_NOT_IN_DNS;
 
   NOTREACHED();
   return ERR_UNEXPECTED;
