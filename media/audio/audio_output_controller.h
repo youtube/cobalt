@@ -14,6 +14,7 @@
 #include "media/audio/simple_sources.h"
 
 class MessageLoop;
+class Task;
 
 // An AudioOutputController controls an AudioOutputStream and provides data
 // to this output stream. It has an important function that it executes
@@ -134,13 +135,14 @@ class AudioOutputController
   // has effect when the stream is paused.
   void Flush();
 
-  // Closes the audio output stream. It changes state to kClosed and returns
-  // right away. The physical resources are freed on the audio thread if
-  // neccessary.
+  // Closes the audio output stream. The state is changed and the resources
+  // are freed on the audio thread. closed_task is executed after that.
+  // Callbacks (EventHandler and SyncReader) must exist until closed_task is
+  // called.
   //
   // It is safe to call this method more than once. Calls after the first one
   // will have no effect.
-  void Close();
+  void Close(Task* closed_task);
 
   // Sets the volume of the audio output stream.
   void SetVolume(double volume);
@@ -168,7 +170,7 @@ class AudioOutputController
   void DoPlay();
   void DoPause();
   void DoFlush();
-  void DoClose();
+  void DoClose(Task* closed_task);
   void DoSetVolume(double volume);
   void DoReportError(int code);
 
@@ -190,8 +192,7 @@ class AudioOutputController
   uint32 hardware_pending_bytes_;
   base::Time last_callback_time_;
 
-  // The |lock_| must be acquired whenever we access |state_| or call
-  // |handler_|.
+  // The |lock_| must be acquired whenever we access |push_source_|.
   Lock lock_;
 
   // PushSource role is to buffer and it's only used in regular latency mode.
