@@ -493,6 +493,12 @@ void SSLClientSocketPool::ReleaseSocket(const std::string& group_name,
 
 void SSLClientSocketPool::Flush() {
   base_.Flush();
+  if (http_proxy_pool_)
+    http_proxy_pool_->Flush();
+  if (socks_pool_)
+    socks_pool_->Flush();
+  if (tcp_pool_)
+    tcp_pool_->Flush();
 }
 
 void SSLClientSocketPool::CloseIdleSockets() {
