@@ -71,4 +71,4 @@
 
 #endif
 
-#endif  // !BASE_FORMAT_MACROS_H_
+#endif  // BASE_FORMAT_MACROS_H_
