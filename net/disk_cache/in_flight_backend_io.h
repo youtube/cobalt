@@ -57,6 +57,7 @@ class BackendIO : public BackgroundIO {
   void CloseEntryImpl(EntryImpl* entry);
   void DoomEntryImpl(EntryImpl* entry);
   void FlushQueue();  // Dummy operation.
+  void RunTask(Task* task);
   void ReadData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
                 int buf_len);
   void WriteData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
@@ -92,6 +93,7 @@ class BackendIO : public BackgroundIO {
     OP_CLOSE_ENTRY,
     OP_DOOM_ENTRY,
     OP_FLUSH_QUEUE,
+    OP_RUN_TASK,
     OP_MAX_BACKEND,
     OP_READ,
     OP_WRITE,
@@ -128,6 +130,7 @@ class BackendIO : public BackgroundIO {
   int64 offset64_;
   int64* start_;
   base::TimeTicks start_time_;
+  Task* task_;
 
   DISALLOW_COPY_AND_ASSIGN(BackendIO);
 };
@@ -160,6 +163,7 @@ class InFlightBackendIO : public InFlightIO {
   void CloseEntryImpl(EntryImpl* entry);
   void DoomEntryImpl(EntryImpl* entry);
   void FlushQueue(net::CompletionCallback* callback);
+  void RunTask(Task* task, net::CompletionCallback* callback);
   void ReadData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
                 int buf_len, net::CompletionCallback* callback);
   void WriteData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,

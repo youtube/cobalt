@@ -303,6 +303,9 @@ EntryImpl::EntryImpl(BackendImpl* backend, Addr address, bool read_only)
 // data related to a previous cache entry because the range was not fully
 // written before).
 EntryImpl::~EntryImpl() {
+  Log("~EntryImpl in");
+  backend_->OnEntryDestroyBegin(entry_.address());
+
   // Save the sparse info to disk before deleting this entry.
   sparse_.reset();
 
@@ -333,7 +336,8 @@ EntryImpl::~EntryImpl() {
     }
   }
 
-  backend_->CacheEntryDestroyed(entry_.address());
+  Trace("~EntryImpl out 0x%p", reinterpret_cast<void*>(this));
+  backend_->OnEntryDestroyEnd();
 }
 
 void EntryImpl::Doom() {
@@ -578,9 +582,11 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
   int entry_size = entry_.Data()->data_size[index];
   bool extending = entry_size < offset + buf_len;
   truncate = truncate && entry_size > offset + buf_len;
+  Trace("To PrepareTarget 0x%x", entry_.address().value());
   if (!PrepareTarget(index, offset, buf_len, truncate))
     return net::ERR_FAILED;
 
+  Trace("From PrepareTarget 0x%x", entry_.address().value());
   if (extending || truncate)
     UpdateSize(index, entry_size, offset + buf_len);
 
@@ -771,18 +777,17 @@ void EntryImpl::DeleteEntryData(bool everything) {
   for (int index = 0; index < kNumStreams; index++) {
     Addr address(entry_.Data()->data_addr[index]);
     if (address.is_initialized()) {
-      DeleteData(address, index);
       backend_->ModifyStorageSize(entry_.Data()->data_size[index] -
                                       unreported_size_[index], 0);
       entry_.Data()->data_addr[index] = 0;
       entry_.Data()->data_size[index] = 0;
+      entry_.Store();
+      DeleteData(address, index);
     }
   }
 
-  if (!everything) {
-    entry_.Store();
+  if (!everything)
     return;
-  }
 
   // Remove all traces of this entry.
   backend_->RemoveEntry(this);
@@ -939,6 +944,12 @@ bool EntryImpl::CreateBlock(int size, Addr* address) {
   return true;
 }
 
+// Note that this method may end up modifying a block file so upon return the
+// involved block will be free, and could be reused for something else. If there
+// is a crash after that point (and maybe before returning to the caller), the
+// entry will be left dirty... and at some point it will be discarded; it is
+// important that the entry doesn't keep a reference to this address, or we'll
+// end up deleting the contents of |address| once again.
 void EntryImpl::DeleteData(Addr address, int index) {
   if (!address.is_initialized())
     return;
@@ -1038,12 +1049,12 @@ bool EntryImpl::HandleTruncation(int index, int offset, int buf_len) {
 
   if (!new_size) {
     // This is by far the most common scenario.
-    DeleteData(address, index);
     backend_->ModifyStorageSize(current_size - unreported_size_[index], 0);
     entry_.Data()->data_addr[index] = 0;
     entry_.Data()->data_size[index] = 0;
     unreported_size_[index] = 0;
     entry_.Store();
+    DeleteData(address, index);
 
     user_buffers_[index].reset();
     return true;
@@ -1115,9 +1126,9 @@ bool EntryImpl::MoveToLocalBuffer(int index) {
     return false;
 
   Addr address(entry_.Data()->data_addr[index]);
-  DeleteData(address, index);
   entry_.Data()->data_addr[index] = 0;
   entry_.Store();
+  DeleteData(address, index);
 
   // If we lose this entry we'll see it as zero sized.
   int len = entry_.Data()->data_size[index];

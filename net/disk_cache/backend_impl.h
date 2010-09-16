@@ -140,9 +140,14 @@ class BackendImpl : public Backend {
   // Removes all references to this entry.
   void RemoveEntry(EntryImpl* entry);
 
-  // This method must be called whenever an entry is released for the last time.
-  // |address| is the cache address of the entry.
-  void CacheEntryDestroyed(Addr address);
+  // This method must be called when an entry is released for the last time, so
+  // the entry should not be used anymore. |address| is the cache address of the
+  // entry.
+  void OnEntryDestroyBegin(Addr address);
+
+  // This method must be called after all resources for an entry have been
+  // released.
+  void OnEntryDestroyEnd();
 
   // If the data stored by the provided |rankings| points to an open entry,
   // returns a pointer to that entry, otherwise returns NULL. Note that this
@@ -238,6 +243,10 @@ class BackendImpl : public Backend {
 
   // Sends a dummy operation through the operation queue, for unit tests.
   int FlushQueueForTest(CompletionCallback* callback);
+
+  // Runs the provided task on the cache thread. The task will be automatically
+  // deleted after it runs.
+  int RunTaskForTest(Task* task, CompletionCallback* callback);
 
   // Peforms a simple self-check, and returns the number of dirty items
   // or an error code (negative value).
