@@ -185,9 +185,7 @@ class BackendImpl : public Backend {
   }
 
   // Returns a weak pointer to this object.
-  base::WeakPtr<BackendImpl> GetWeakPtr() {
-    return ptr_factory_.GetWeakPtr();
-  }
+  base::WeakPtr<BackendImpl> GetWeakPtr();
 
   // Returns the group for this client, based on the current cache size.
   int GetSizeGroup() const;
