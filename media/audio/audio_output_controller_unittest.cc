@@ -5,7 +5,6 @@
 #include "base/environment.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/task.h"
 #include "base/waitable_event.h"
 #include "media/audio/audio_output_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -81,18 +80,6 @@ ACTION_P3(SignalEvent, event, count, limit) {
   }
 }
 
-// Helper functions used to close audio controller.
-static void SignalClosedEvent(base::WaitableEvent* event) {
-  event->Signal();
-}
-
-// Closes AudioOutputController synchronously.
-static void CloseAudioController(AudioOutputController* controller) {
-  base::WaitableEvent closed_event(true, false);
-  controller->Close(NewRunnableFunction(&SignalClosedEvent, &closed_event));
-  closed_event.Wait();
-}
-
 TEST(AudioOutputControllerTest, CreateAndClose) {
   if (!HasAudioOutputDevices() || IsRunningHeadless())
     return;
@@ -105,8 +92,11 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
                                     kHardwareBufferSize, kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
-  // Close the controller immediately.
-  CloseAudioController(controller);
+  // Close the controller immediately. At this point, chances are that
+  // DoCreate() hasn't been called yet. In any case, it should be safe to call
+  // Close() and it should not try to call |event_handler| later (the test
+  // would crash otherwise).
+  controller->Close();
 }
 
 TEST(AudioOutputControllerTest, PlayAndClose) {
@@ -144,8 +134,9 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
   controller->Play();
   event.Wait();
 
-  // Now stop the controller.
-  CloseAudioController(controller);
+  // Now stop the controller. The object is freed later after DoClose() is
+  // executed.
+  controller->Close();
 }
 
 TEST(AudioOutputControllerTest, PlayPauseClose) {
@@ -195,8 +186,9 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
   controller->Pause();
   event.Wait();
 
-  // Now stop the controller.
-  CloseAudioController(controller);
+  // Now stop the controller. The object is freed later after DoClose() is
+  // executed.
+  controller->Close();
 }
 
 TEST(AudioOutputControllerTest, PlayPausePlay) {
@@ -258,8 +250,9 @@ TEST(AudioOutputControllerTest, PlayPausePlay) {
   controller->Play();
   event.Wait();
 
-  // Now stop the controller.
-  CloseAudioController(controller);
+  // Now stop the controller. The object is freed later after DoClose() is
+  // executed.
+  controller->Close();
 }
 
 TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
@@ -309,14 +302,8 @@ TEST(AudioOutputControllerTest, CloseTwice) {
   // Wait for OnMoreData() to be called.
   event.Wait();
 
-  base::WaitableEvent closed_event_1(true, false);
-  controller->Close(NewRunnableFunction(&SignalClosedEvent, &closed_event_1));
-
-  base::WaitableEvent closed_event_2(true, false);
-  controller->Close(NewRunnableFunction(&SignalClosedEvent, &closed_event_2));
-
-  closed_event_1.Wait();
-  closed_event_2.Wait();
+  controller->Close();
+  controller->Close();
 }
 
 }  // namespace media
