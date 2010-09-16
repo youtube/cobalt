@@ -839,6 +839,7 @@ int HttpStreamRequest::ReconsiderProxyAfterError(int error) {
   // now exists that corresponds to a proxy server that could load the URL.
   //
   switch (error) {
+    case ERR_PROXY_CONNECTION_FAILED:
     case ERR_NAME_NOT_RESOLVED:
     case ERR_INTERNET_DISCONNECTED:
     case ERR_ADDRESS_UNREACHABLE:

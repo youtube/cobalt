@@ -155,7 +155,7 @@ int HttpProxyConnectJob::DoTCPConnect() {
 
 int HttpProxyConnectJob::DoTCPConnectComplete(int result) {
   if (result != OK)
-    return result;
+    return ERR_PROXY_CONNECTION_FAILED;
 
   // Reset the timer to just the length of time allowed for HttpProxy handshake
   // so that a fast TCP connection plus a slow HttpProxy failure doesn't take
@@ -180,6 +180,8 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
       params_->ssl_params()->load_flags() & LOAD_IGNORE_ALL_CERT_ERRORS)
     result = OK;
   if (result < 0) {
+    // TODO(eroman): return ERR_PROXY_CONNECTION_FAILED if failed with the
+    //               TCP connection.
     if (transport_socket_handle_->socket())
       transport_socket_handle_->socket()->Disconnect();
     return result;
