@@ -73,15 +73,25 @@
         'library%': 'static_library',
       },
 
-      # Set default value of toolkit_views on for Windows, Chrome OS
-      # and the touch UI.
-      # We set it at this level of nesting so the value is available for
+      # We set those at this level of nesting so the values are available for
       # other conditionals below.
       'conditions': [
+        # Set default value of toolkit_views on for Windows, Chrome OS
+        # and the touch UI.
         ['OS=="win" or chromeos==1 or touchui==1', {
           'toolkit_views%': 1,
         }, {
           'toolkit_views%': 0,
+        }],
+
+        # A flag to enable or disable our compile-time dependency
+        # on gnome-keyring. If that dependency is disabled, no gnome-keyring
+        # support will be available. This option is useful
+        # for Linux distributions.
+        ['chromeos==1', {
+          'use_gnome_keyring%': 0,
+        }, {
+          'use_gnome_keyring%': 1,
         }],
       ],
 
@@ -143,6 +153,7 @@
     'target_arch%': '<(target_arch)',
     'host_arch%': '<(host_arch)',
     'toolkit_views%': '<(toolkit_views)',
+    'use_gnome_keyring%': '<(use_gnome_keyring)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
     'inside_chromium_build%': '<(inside_chromium_build)',
