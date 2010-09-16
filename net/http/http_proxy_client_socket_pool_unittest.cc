@@ -250,7 +250,11 @@ TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(ERR_CONNECTION_CLOSED, callback.WaitForResult());
+  if (GetParam() == HTTP)
+    EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, callback.WaitForResult());
+  else
+    EXPECT_EQ(ERR_CONNECTION_CLOSED, callback.WaitForResult());
+
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 }
