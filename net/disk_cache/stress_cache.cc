@@ -10,6 +10,18 @@
 // The child application has two threads: one to exercise the cache in an
 // infinite loop, and another one to asynchronously kill the process.
 
+// A regular build should never crash.
+// To test that the disk cache doesn't generate critical errors with regular
+// application level crashes, add the following code and re-compile:
+//
+//     void BackendImpl::CriticalError(int error) {
+//       NOTREACHED();
+//
+//     void BackendImpl::ReportError(int error) {
+//       if (error && error != ERR_PREVIOUS_CRASH) {
+//         NOTREACHED();
+//       }
+
 #include <string>
 #include <vector>
 
@@ -104,7 +116,11 @@ void StressTheCache(int iteration) {
   int seed = static_cast<int>(Time::Now().ToInternalValue());
   srand(seed);
 
+#ifdef NDEBUG
   const int kNumKeys = 5000;
+#else
+  const int kNumKeys = 1700;
+#endif
   const int kNumEntries = 30;
   std::string keys[kNumKeys];
   disk_cache::Entry* entries[kNumEntries] = {0};
@@ -120,6 +136,8 @@ void StressTheCache(int iteration) {
   for (int i = 0;; i++) {
     int slot = rand() % kNumEntries;
     int key = rand() % kNumKeys;
+    bool truncate = rand() % 2 ? false : true;
+    int size = kSize - (rand() % 4) * kSize / 4;
 
     if (entries[slot])
       entries[slot]->Close();
@@ -130,9 +148,11 @@ void StressTheCache(int iteration) {
       CHECK_EQ(net::OK, cb.GetResult(rv));
     }
 
-    base::snprintf(buffer->data(), kSize, "%d %d", iteration, i);
-    rv = entries[slot]->WriteData(0, 0, buffer, kSize, &cb, false);
-    CHECK_EQ(kSize, cb.GetResult(rv));
+    base::snprintf(buffer->data(), kSize,
+                   "i: %d iter: %d, size: %d, truncate: %d", i, iteration, size,
+                   truncate ? 1 : 0);
+    rv = entries[slot]->WriteData(0, 0, buffer, size, &cb, truncate);
+    CHECK_EQ(size, cb.GetResult(rv));
 
     if (rand() % 100 > 80) {
       key = rand() % kNumKeys;
