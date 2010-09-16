@@ -12,8 +12,11 @@
 
 #include "base/file_path.h"
 #include "base/gtest_prod_util.h"
+#include "base/scoped_ptr.h"
 #include "net/disk_cache/addr.h"
 #include "net/disk_cache/mapped_file.h"
+
+class ThreadChecker;
 
 namespace disk_cache {
 
@@ -48,6 +51,10 @@ class BlockFiles {
   // Sends UMA stats.
   void ReportStats();
 
+  // Returns true if the blocks pointed by a given address are currently used.
+  // This method is only intended for debugging.
+  bool IsValid(Addr address);
+
  private:
   // Set force to true to overwrite the file if it exists.
   bool CreateBlockFile(int index, FileType file_type, bool force);
@@ -81,6 +88,7 @@ class BlockFiles {
   char* zero_buffer_;  // Buffer to speed-up cleaning deleted entries.
   FilePath path_;  // Path to the backing folder.
   std::vector<MappedFile*> block_files_;  // The actual files.
+  scoped_ptr<ThreadChecker> thread_checker_;
 
   FRIEND_TEST_ALL_PREFIXES(DiskCacheTest, BlockFiles_ZeroSizeFile);
   FRIEND_TEST_ALL_PREFIXES(DiskCacheTest, BlockFiles_InvalidFile);

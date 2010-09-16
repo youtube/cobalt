@@ -193,6 +193,18 @@ void DiskCacheTestWithCache::FlushQueueForTest() {
   EXPECT_EQ(net::OK, cb.GetResult(rv));
 }
 
+void DiskCacheTestWithCache::RunTaskForTest(Task* task) {
+  if (memory_only_ || !cache_impl_) {
+    task->Run();
+    delete task;
+    return;
+  }
+
+  TestCompletionCallback cb;
+  int rv = cache_impl_->RunTaskForTest(task, &cb);
+  EXPECT_EQ(net::OK, cb.GetResult(rv));
+}
+
 int DiskCacheTestWithCache::ReadData(disk_cache::Entry* entry, int index,
                                      int offset, net::IOBuffer* buf, int len) {
   TestCompletionCallback cb;
