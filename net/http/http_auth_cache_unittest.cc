@@ -323,6 +323,55 @@ TEST(HttpAuthCacheTest, Remove) {
   EXPECT_FALSE(NULL == entry);
 }
 
+TEST(HttpAuthCacheTest, UpdateStaleChallenge) {
+  HttpAuthCache cache;
+  GURL origin("http://foobar2.com");
+  scoped_ptr<HttpAuthHandler> digest_handler(
+      new MockAuthHandler(kDigest, kRealm1, HttpAuth::AUTH_PROXY));
+  HttpAuthCache::Entry* entry_pre = cache.Add(
+      origin,
+      digest_handler->realm(),
+      digest_handler->scheme(),
+      "Digest realm=Realm1,"
+      "nonce=\"s3MzvFhaBAA=4c520af5acd9d8d7ae26947529d18c8eae1e98f4\"",
+      ASCIIToUTF16("realm-digest-user"),
+      ASCIIToUTF16("realm-digest-password"),
+      "/baz/index.html");
+  ASSERT_TRUE(entry_pre != NULL);
+
+  EXPECT_EQ(2, entry_pre->IncrementNonceCount());
+  EXPECT_EQ(3, entry_pre->IncrementNonceCount());
+  EXPECT_EQ(4, entry_pre->IncrementNonceCount());
+
+  bool update_success = cache.UpdateStaleChallenge(
+      origin,
+      digest_handler->realm(),
+      digest_handler->scheme(),
+      "Digest realm=Realm1,"
+      "nonce=\"claGgoRXBAA=7583377687842fdb7b56ba0555d175baa0b800e3\","
+      "stale=\"true\"");
+  EXPECT_TRUE(update_success);
+
+  // After the stale update, the entry should still exist in the cache and
+  // the nonce count should be reset to 0.
+  HttpAuthCache::Entry* entry_post = cache.Lookup(
+      origin,
+      digest_handler->realm(),
+      digest_handler->scheme());
+  ASSERT_TRUE(entry_post != NULL);
+  EXPECT_EQ(2, entry_post->IncrementNonceCount());
+
+  // UpdateStaleChallenge will fail if an entry doesn't exist in the cache.
+  bool update_failure = cache.UpdateStaleChallenge(
+      origin,
+      kRealm2,
+      digest_handler->scheme(),
+      "Digest realm=Realm2,"
+      "nonce=\"claGgoRXBAA=7583377687842fdb7b56ba0555d175baa0b800e3\","
+      "stale=\"true\"");
+  EXPECT_FALSE(update_failure);
+}
+
 // Test fixture class for eviction tests (contains helpers for bulk
 // insertion and existence testing).
 class HttpAuthCacheEvictionTest : public testing::Test {

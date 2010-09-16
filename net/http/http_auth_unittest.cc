@@ -135,12 +135,15 @@ TEST(HttpAuthTest, HandleChallengeResponse_RequestBased) {
       HeadersFromResponseText(
           "HTTP/1.1 401 Unauthorized\n"
           "WWW-Authenticate: Mock token_here\n"));
+  std::string challenge_used;
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
             HttpAuth::HandleChallengeResponse(
                 mock_handler.get(),
                 headers.get(),
                 HttpAuth::AUTH_SERVER,
-                disabled_schemes));
+                disabled_schemes,
+                &challenge_used));
+  EXPECT_EQ("Mock token_here", challenge_used);
 }
 
 TEST(HttpAuthTest, HandleChallengeResponse_ConnectionBased) {
@@ -150,12 +153,15 @@ TEST(HttpAuthTest, HandleChallengeResponse_ConnectionBased) {
       HeadersFromResponseText(
           "HTTP/1.1 401 Unauthorized\n"
           "WWW-Authenticate: Mock token_here\n"));
+  std::string challenge_used;
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
             HttpAuth::HandleChallengeResponse(
                 mock_handler.get(),
                 headers.get(),
                 HttpAuth::AUTH_SERVER,
-                disabled_schemes));
+                disabled_schemes,
+                &challenge_used));
+  EXPECT_EQ("Mock token_here", challenge_used);
 }
 
 TEST(HttpAuthTest, HandleChallengeResponse_ConnectionBasedNoMatch) {
@@ -165,12 +171,15 @@ TEST(HttpAuthTest, HandleChallengeResponse_ConnectionBasedNoMatch) {
       HeadersFromResponseText(
           "HTTP/1.1 401 Unauthorized\n"
           "WWW-Authenticate: Basic realm=\"happy\"\n"));
+  std::string challenge_used;
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
             HttpAuth::HandleChallengeResponse(
                 mock_handler.get(),
                 headers.get(),
                 HttpAuth::AUTH_SERVER,
-                disabled_schemes));
+                disabled_schemes,
+                &challenge_used));
+  EXPECT_TRUE(challenge_used.empty());
 }
 
 TEST(HttpAuthTest, ChallengeTokenizer) {
