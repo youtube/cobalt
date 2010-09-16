@@ -166,6 +166,12 @@ bool HttpAuthCache::Entry::HasEnclosingPath(const std::string& dir) {
   return false;
 }
 
+void HttpAuthCache::Entry::UpdateStaleChallenge(
+    const std::string& auth_challenge) {
+  auth_challenge_ = auth_challenge;
+  nonce_count_ = 1;
+}
+
 bool HttpAuthCache::Remove(const GURL& origin,
                            const std::string& realm,
                            const std::string& scheme,
@@ -182,6 +188,17 @@ bool HttpAuthCache::Remove(const GURL& origin,
     }
   }
   return false;
+}
+
+bool HttpAuthCache::UpdateStaleChallenge(const GURL& origin,
+                                         const std::string& realm,
+                                         const std::string& scheme,
+                                         const std::string& auth_challenge) {
+  HttpAuthCache::Entry* entry = Lookup(origin, realm, scheme);
+  if (!entry)
+    return false;
+  entry->UpdateStaleChallenge(auth_challenge);
+  return true;
 }
 
 }  // namespace net

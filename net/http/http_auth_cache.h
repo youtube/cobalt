@@ -80,6 +80,16 @@ class HttpAuthCache {
               const string16& username,
               const string16& password);
 
+  // Updates a stale digest entry on server |origin| for realm |realm| and
+  // scheme |scheme|. The cached auth challenge is replaced with
+  // |auth_challenge| and the nonce count is reset.
+  // |UpdateStaleChallenge()| returns true if a matching entry exists in the
+  // cache, false otherwise.
+  bool UpdateStaleChallenge(const GURL& origin,
+                            const std::string& realm,
+                            const std::string& scheme,
+                            const std::string& auth_challenge);
+
   // Prevent unbounded memory growth. These are safeguards for abuse; it is
   // not expected that the limits will be reached in ordinary usage.
   // This also defines the worst-case lookup times (which grow linearly
@@ -127,6 +137,8 @@ class HttpAuthCache::Entry {
   int IncrementNonceCount() {
     return ++nonce_count_;
   }
+
+  void UpdateStaleChallenge(const std::string& auth_challenge);
 
  private:
   friend class HttpAuthCache;
