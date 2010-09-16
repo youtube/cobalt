@@ -119,7 +119,7 @@ TEST_F(SOCKSClientSocketPoolTest, TCPConnectError) {
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, pool_,
                        BoundNetLog());
-  EXPECT_EQ(ERR_CONNECTION_REFUSED, rv);
+  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 }
@@ -137,7 +137,7 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncTCPConnectError) {
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(ERR_CONNECTION_REFUSED, callback.WaitForResult());
+  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, callback.WaitForResult());
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 }

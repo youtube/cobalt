@@ -4910,7 +4910,7 @@ TEST_F(HttpNetworkTransactionTest, ReconsiderProxyAfterFailedConnection) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
-  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, rv);
+  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, rv);
 }
 
 // Host resolution observer used by
