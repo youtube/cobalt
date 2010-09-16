@@ -72,9 +72,6 @@ class TestServer {
                                  const std::string& password);
 
  private:
-  // Appends |dir| to PYTHONPATH.
-  static void AppendToPythonPath(const FilePath& dir);
-
   // Modify PYTHONPATH to contain libraries we need.
   bool SetPythonPath() WARN_UNUSED_RESULT;
 
