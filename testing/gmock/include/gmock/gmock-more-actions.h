@@ -162,7 +162,7 @@ ACTION_TEMPLATE(SetArgReferee,
   // Ensures that argument #k is a reference.  If you get a compiler
   // error on the next line, you are using SetArgReferee<k>(value) in
   // a mock function whose k-th (0-based) argument is not a reference.
-  GMOCK_COMPILE_ASSERT_(internal::is_reference<argk_type>::value,
+  GTEST_COMPILE_ASSERT_(internal::is_reference<argk_type>::value,
                         SetArgReferee_must_be_used_with_a_reference_argument);
   ::std::tr1::get<k>(args) = value;
 }
@@ -198,7 +198,17 @@ ACTION_TEMPLATE(DeleteArg,
 // Action Throw(exception) can be used in a mock function of any type
 // to throw the given exception.  Any copyable value can be thrown.
 #if GTEST_HAS_EXCEPTIONS
+
+// Suppresses the 'unreachable code' warning that VC generates in opt modes.
+#ifdef _MSC_VER
+#pragma warning(push)          // Saves the current warning state.
+#pragma warning(disable:4702)  // Temporarily disables warning 4702.
+#endif
 ACTION_P(Throw, exception) { throw exception; }
+#ifdef _MSC_VER
+#pragma warning(pop)           // Restores the warning state.
+#endif
+
 #endif  // GTEST_HAS_EXCEPTIONS
 
 #ifdef _MSC_VER

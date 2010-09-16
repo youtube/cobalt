@@ -20,7 +20,6 @@
         'gmock/include/gmock/gmock-generated-matchers.h',
         'gmock/include/gmock/gmock-generated-nice-strict.h',
         'gmock/include/gmock/gmock-matchers.h',
-        'gmock/include/gmock/gmock-printers.h',
         'gmock/include/gmock/gmock-spec-builders.h',
         'gmock/include/gmock/gmock.h',
         'gmock/include/gmock/internal/gmock-generated-internal-utils.h',
@@ -30,7 +29,6 @@
         'gmock/src/gmock-cardinalities.cc',
         'gmock/src/gmock-internal-utils.cc',
         'gmock/src/gmock-matchers.cc',
-        'gmock/src/gmock-printers.cc',
         'gmock/src/gmock-spec-builders.cc',
         'gmock/src/gmock.cc',
         'gmock_mutant.h',  # gMock helpers

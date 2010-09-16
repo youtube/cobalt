@@ -42,7 +42,6 @@
 #include <string>
 #include <vector>
 #include <gmock/gmock-matchers.h>
-#include <gmock/gmock-printers.h>
 
 namespace testing {
 namespace internal {
@@ -222,7 +221,7 @@ template <class ArgsTuple, int k0 = -1, int k1 = -1, int k2 = -1, int k3 = -1,
 class ArgsMatcherImpl : public MatcherInterface<ArgsTuple> {
  public:
   // ArgsTuple may have top-level const or reference modifiers.
-  typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(ArgsTuple)) RawArgsTuple;
+  typedef GTEST_REMOVE_REFERENCE_AND_CONST_(ArgsTuple) RawArgsTuple;
   typedef typename internal::TupleFields<RawArgsTuple, k0, k1, k2, k3, k4, k5,
       k6, k7, k8, k9>::type SelectedArgs;
   typedef Matcher<const SelectedArgs&> MonomorphicInnerMatcher;
@@ -315,8 +314,7 @@ class ElementsAreMatcher1 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -344,8 +342,7 @@ class ElementsAreMatcher2 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -372,8 +369,7 @@ class ElementsAreMatcher3 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -402,8 +398,7 @@ class ElementsAreMatcher4 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -434,8 +429,7 @@ class ElementsAreMatcher5 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -470,8 +464,7 @@ class ElementsAreMatcher6 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -508,8 +501,7 @@ class ElementsAreMatcher7 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -548,8 +540,7 @@ class ElementsAreMatcher8 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -591,8 +582,7 @@ class ElementsAreMatcher9 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
@@ -636,8 +626,7 @@ class ElementsAreMatcher10 {
 
   template <typename Container>
   operator Matcher<Container>() const {
-    typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(Container))
-        RawContainer;
+    typedef GTEST_REMOVE_REFERENCE_AND_CONST_(Container) RawContainer;
     typedef typename internal::StlContainerView<RawContainer>::type::value_type
         Element;
 
