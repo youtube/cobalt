@@ -1093,6 +1093,10 @@ std::string BackendImpl::HistogramName(const char* name, int experiment) const {
   return StringPrintf("DiskCache.%d.%s_%d", cache_type_, name, experiment);
 }
 
+base::WeakPtr<BackendImpl> BackendImpl::GetWeakPtr() {
+  return ptr_factory_.GetWeakPtr();
+}
+
 int BackendImpl::GetSizeGroup() const {
   if (disabled_)
     return 0;
