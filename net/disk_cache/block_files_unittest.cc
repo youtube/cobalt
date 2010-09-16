@@ -225,4 +225,53 @@ TEST_F(DiskCacheTest, BlockFiles_Stats) {
   EXPECT_EQ(0, load);
 }
 
+// Tests that we add and remove blocks correctly.
+TEST_F(DiskCacheTest, AllocationMap) {
+  FilePath path = GetCacheFilePath();
+  ASSERT_TRUE(DeleteCache(path));
+  ASSERT_TRUE(file_util::CreateDirectory(path));
+
+  BlockFiles files(path);
+  ASSERT_TRUE(files.Init(true));
+
+  // Create a bunch of entries.
+  const int kSize = 100;
+  Addr address[kSize];
+  for (int i = 0; i < kSize; i++) {
+    SCOPED_TRACE(i);
+    int block_size = i % 4 + 1;
+    EXPECT_TRUE(files.CreateBlock(BLOCK_1K, block_size, &address[i]));
+    EXPECT_EQ(BLOCK_1K, address[i].file_type());
+    EXPECT_EQ(block_size, address[i].num_blocks());
+    int start = address[i].start_block();
+    EXPECT_EQ(start / 4, (start + block_size - 1) / 4);
+  }
+
+  for (int i = 0; i < kSize; i++) {
+    SCOPED_TRACE(i);
+    EXPECT_TRUE(files.IsValid(address[i]));
+  }
+
+  // The first part of the allocation map should be completely filled. We used
+  // 10 bits per each four entries, so 250 bits total.
+  BlockFileHeader* header =
+      reinterpret_cast<BlockFileHeader*>(files.GetFile(address[0])->buffer());
+  uint8* buffer = reinterpret_cast<uint8*>(&header->allocation_map);
+  for (int i =0; i < 29; i++) {
+    SCOPED_TRACE(i);
+    EXPECT_EQ(0xff, buffer[i]);
+  }
+
+  for (int i = 0; i < kSize; i++) {
+    SCOPED_TRACE(i);
+    files.DeleteBlock(address[i], false);
+  }
+
+  // The allocation map should be empty.
+  for (int i =0; i < 50; i++) {
+    SCOPED_TRACE(i);
+    EXPECT_EQ(0, buffer[i]);
+  }
+}
+
 }  // namespace disk_cache

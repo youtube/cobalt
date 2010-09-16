@@ -144,6 +144,9 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   bool CreateBlock(int size, Addr* address);
 
   // Deletes the data pointed by address, maybe backed by files_[index].
+  // Note that most likely the caller should delete (and store) the reference to
+  // |address| *before* calling this method because we don't want to have an
+  // entry using an address that is already free.
   void DeleteData(Addr address, int index);
 
   // Updates ranking information.

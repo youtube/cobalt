@@ -618,6 +618,7 @@ void BackendImpl::CleanupCache() {
   timer_.Stop();
 
   if (init_) {
+    stats_.Store();
     if (data_)
       data_->header.crash = 0;
 
@@ -627,6 +628,7 @@ void BackendImpl::CleanupCache() {
       DCHECK(!num_refs_);
     }
   }
+  block_files_.CloseFiles();
   factory_.RevokeAll();
   ptr_factory_.InvalidateWeakPtrs();
   done_.Signal();
@@ -1020,11 +1022,16 @@ void BackendImpl::RemoveEntry(EntryImpl* entry) {
   DecreaseNumEntries();
 }
 
-void BackendImpl::CacheEntryDestroyed(Addr address) {
+void BackendImpl::OnEntryDestroyBegin(Addr address) {
   EntriesMap::iterator it = open_entries_.find(address.value());
   if (it != open_entries_.end())
     open_entries_.erase(it);
+}
+
+void BackendImpl::OnEntryDestroyEnd() {
   DecreaseNumRefs();
+  if (data_->header.num_bytes > max_size_ && !read_only_)
+    eviction_.TrimCache(false);
 }
 
 EntryImpl* BackendImpl::GetOpenEntry(CacheRankingsBlock* rankings) const {
@@ -1278,6 +1285,11 @@ int BackendImpl::FlushQueueForTest(CompletionCallback* callback) {
   return net::ERR_IO_PENDING;
 }
 
+int BackendImpl::RunTaskForTest(Task* task, CompletionCallback* callback) {
+  background_queue_.RunTask(task, callback);
+  return net::ERR_IO_PENDING;
+}
+
 int BackendImpl::SelfCheck() {
   if (!init_) {
     LOG(ERROR) << "Init failed";
@@ -1476,9 +1488,13 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry, bool* dirty) {
   if (!rankings_.SanityCheck(cache_entry->rankings(), false))
     return ERR_INVALID_LINKS;
 
-  // We only add clean entries to the map.
-  if (!*dirty)
+  if (*dirty) {
+    Trace("Dirty entry 0x%p 0x%x", reinterpret_cast<void*>(cache_entry.get()),
+          address.value());
+  } else {
+    // We only add clean entries to the map.
     open_entries_[address.value()] = cache_entry;
+  }
 
   cache_entry.swap(entry);
   return 0;
@@ -1759,9 +1775,6 @@ void BackendImpl::DestroyInvalidEntryFromEnumeration(EntryImpl* entry) {
 void BackendImpl::AddStorageSize(int32 bytes) {
   data_->header.num_bytes += bytes;
   DCHECK_GE(data_->header.num_bytes, 0);
-
-  if (data_->header.num_bytes > max_size_ && !read_only_)
-    eviction_.TrimCache(false);
 }
 
 void BackendImpl::SubstractStorageSize(int32 bytes) {
@@ -1985,6 +1998,7 @@ int BackendImpl::CheckAllEntries() {
     }
   }
 
+  Trace("CheckAllEntries End");
   if (num_entries + num_dirty != data_->header.num_entries) {
     LOG(ERROR) << "Number of entries mismatch";
     return ERR_NUM_ENTRIES_MISMATCH;
@@ -1994,8 +2008,19 @@ int BackendImpl::CheckAllEntries() {
 }
 
 bool BackendImpl::CheckEntry(EntryImpl* cache_entry) {
+  bool ok = block_files_.IsValid(cache_entry->entry()->address());
+  ok = ok && block_files_.IsValid(cache_entry->rankings()->address());
+  EntryStore* data = cache_entry->entry()->Data();
+  for (size_t i = 0; i < arraysize(data->data_addr); i++) {
+    if (data->data_addr[i]) {
+      Addr address(data->data_addr[i]);
+      if (address.is_block_file())
+        ok = ok && block_files_.IsValid(address);
+    }
+  }
+
   RankingsNode* rankings = cache_entry->rankings()->Data();
-  return !rankings->dummy;
+  return ok && !rankings->dummy;
 }
 
 int BackendImpl::MaxBuffersSize() {
