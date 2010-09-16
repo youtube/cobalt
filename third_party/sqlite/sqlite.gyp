@@ -63,6 +63,12 @@
             # ext, preprocessed, and src, with the exception of src/lempar.c,
             # src/shell*, and src/test*.  Exclusions are applied below in the
             # sources/ and sources! sections.
+            'preprocessed/keywordhash.h',
+            'preprocessed/opcodes.c',
+            'preprocessed/opcodes.h',
+            'preprocessed/parse.c',
+            'preprocessed/parse.h',
+            'preprocessed/sqlite3.h',
             'src/ext/async/sqlite3async.c',
             'src/ext/async/sqlite3async.h',
             'src/ext/fts1/ft_hash.c',
@@ -102,12 +108,6 @@
             'src/ext/icu/sqliteicu.h',
             'src/ext/rtree/rtree.c',
             'src/ext/rtree/rtree.h',
-            'src/preprocessed/keywordhash.h',
-            'src/preprocessed/opcodes.c',
-            'src/preprocessed/opcodes.h',
-            'src/preprocessed/parse.c',
-            'src/preprocessed/parse.h',
-            'src/preprocessed/sqlite3.h',
             'src/src/alter.c',
             'src/src/analyze.c',
             'src/src/attach.c',
@@ -200,8 +200,8 @@
             'src/src/tclsqlite.c',
           ],
           'include_dirs': [
+            'preprocessed',
             'src/ext/icu',
-            'src/preprocessed',
             'src/src',
           ],
           'dependencies': [
