@@ -128,7 +128,7 @@ int SOCKSConnectJob::DoTCPConnect() {
 
 int SOCKSConnectJob::DoTCPConnectComplete(int result) {
   if (result != OK)
-    return result;
+    return ERR_PROXY_CONNECTION_FAILED;
 
   // Reset the timer to just the length of time allowed for SOCKS handshake
   // so that a fast TCP connection plus a slow SOCKS failure doesn't take

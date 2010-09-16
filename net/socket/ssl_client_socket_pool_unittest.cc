@@ -461,7 +461,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyFail) {
   ClientSocketHandle handle;
   TestCompletionCallback callback;
   int rv = handle.Init("a", params, MEDIUM, &callback, pool_, BoundNetLog());
-  EXPECT_EQ(ERR_CONNECTION_FAILED, rv);
+  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
   EXPECT_FALSE(handle.is_ssl_error());
@@ -483,7 +483,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyFailAsync) {
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
 
-  EXPECT_EQ(ERR_CONNECTION_FAILED, callback.WaitForResult());
+  EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, callback.WaitForResult());
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
   EXPECT_FALSE(handle.is_ssl_error());
