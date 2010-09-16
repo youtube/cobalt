@@ -181,17 +181,24 @@ bool InitExperiment(disk_cache::IndexHeader* header, uint32 mask) {
 }
 
 // Initializes the field trial structures to allow performance measurements
-// for the current cache configuration.
-void SetFieldTrialInfo(int size_group) {
+// for the current cache configuration. Returns true if we are active part of
+// the CacheThrottle field trial.
+bool SetFieldTrialInfo(int size_group) {
   static bool first = true;
   if (!first)
-    return;
+    return false;
 
   // Field trials involve static objects so we have to do this only once.
   first = false;
   scoped_refptr<FieldTrial> trial1 = new FieldTrial("CacheSize", 10);
   std::string group1 = StringPrintf("CacheSizeGroup_%d", size_group);
   trial1->AppendGroup(group1, FieldTrial::kAllRemainingProbability);
+
+  scoped_refptr<FieldTrial> trial2 = new FieldTrial("CacheThrottle", 100);
+  int group2a = trial2->AppendGroup("CacheThrottle_On", 10);  // 10 % in.
+  trial2->AppendGroup("CacheThrottle_Off", 10);  // 10 % control.
+
+  return trial2->group() == group2a;
 }
 
 // ------------------------------------------------------------------------
@@ -379,6 +386,7 @@ BackendImpl::BackendImpl(const FilePath& path,
       block_files_(path),
       mask_(0),
       max_size_(0),
+      io_delay_(0),
       cache_type_(net::DISK_CACHE),
       uma_report_(0),
       user_flags_(0),
@@ -388,6 +396,7 @@ BackendImpl::BackendImpl(const FilePath& path,
       read_only_(false),
       new_eviction_(false),
       first_timer_(true),
+      throttle_requests_(false),
       done_(true, false),
       ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
@@ -401,6 +410,7 @@ BackendImpl::BackendImpl(const FilePath& path,
       block_files_(path),
       mask_(mask),
       max_size_(0),
+      io_delay_(0),
       cache_type_(net::DISK_CACHE),
       uma_report_(0),
       user_flags_(kMask),
@@ -410,6 +420,7 @@ BackendImpl::BackendImpl(const FilePath& path,
       read_only_(false),
       new_eviction_(false),
       first_timer_(true),
+      throttle_requests_(false),
       done_(true, false),
       ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
@@ -572,7 +583,6 @@ int BackendImpl::SyncInit() {
       !InitExperiment(&data_->header, mask_))
     return net::ERR_FAILED;
 
-
   // We don't care if the value overflows. The only thing we care about is that
   // the id cannot be zero, because that value is used as "not dirty".
   // Increasing the value once per second gives us many years before we start
@@ -606,8 +616,8 @@ int BackendImpl::SyncInit() {
   eviction_.Init(this);
 
   // Setup load-time data only for the main cache.
-  if (cache_type() == net::DISK_CACHE)
-    SetFieldTrialInfo(GetSizeGroup());
+  if (!throttle_requests_ && cache_type() == net::DISK_CACHE)
+    throttle_requests_ = SetFieldTrialInfo(GetSizeGroup());
 
   return disabled_ ? net::ERR_FAILED : net::OK;
 }
@@ -1211,6 +1221,27 @@ void BackendImpl::OnWrite(int32 bytes) {
 
 void BackendImpl::OnOperationCompleted(base::TimeDelta elapsed_time) {
   CACHE_UMA(TIMES, "TotalIOTime", 0, elapsed_time);
+
+  if (cache_type() != net::DISK_CACHE)
+    return;
+
+  UMA_HISTOGRAM_TIMES(
+      FieldTrial::MakeName("DiskCache.TotalIOTime", "CacheThrottle").data(),
+      elapsed_time);
+
+  if (!throttle_requests_)
+    return;
+
+  const int kMaxNormalDelayMS = 100;
+
+  bool throttling = io_delay_ > kMaxNormalDelayMS;
+
+  // We keep a simple exponential average of elapsed_time.
+  io_delay_ = (io_delay_ + static_cast<int>(elapsed_time.InMilliseconds())) / 2;
+  if (io_delay_ > kMaxNormalDelayMS && !throttling)
+    background_queue_.StartQueingOperations();
+  else if (io_delay_ <= kMaxNormalDelayMS && throttling)
+    background_queue_.StopQueingOperations();
 }
 
 void BackendImpl::OnStatsTimer() {
