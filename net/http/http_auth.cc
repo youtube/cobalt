@@ -56,7 +56,9 @@ HttpAuth::AuthorizationResult HttpAuth::HandleChallengeResponse(
     HttpAuthHandler* handler,
     const HttpResponseHeaders* headers,
     Target target,
-    const std::set<std::string>& disabled_schemes) {
+    const std::set<std::string>& disabled_schemes,
+    std::string* challenge_used) {
+  DCHECK(challenge_used);
   const std::string& current_scheme = handler->scheme();
   if (disabled_schemes.find(current_scheme) != disabled_schemes.end())
     return HttpAuth::AUTHORIZATION_RESULT_REJECT;
@@ -70,10 +72,12 @@ HttpAuth::AuthorizationResult HttpAuth::HandleChallengeResponse(
     if (!LowerCaseEqualsASCII(props.scheme(), current_scheme.c_str()))
       continue;
     authorization_result = handler->HandleAnotherChallenge(&props);
-    if (authorization_result != HttpAuth::AUTHORIZATION_RESULT_INVALID)
+    if (authorization_result != HttpAuth::AUTHORIZATION_RESULT_INVALID) {
+      *challenge_used = challenge;
       return authorization_result;
+    }
   }
-  // Finding no matches is equivalent to rejection
+  // Finding no matches is equivalent to rejection.
   return HttpAuth::AUTHORIZATION_RESULT_REJECT;
 }
 
