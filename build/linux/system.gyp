@@ -259,10 +259,13 @@
       'target_name': 'gnome-keyring',
       'type': 'settings',
       'conditions': [
-        ['chromeos==0', {
+        ['use_gnome_keyring==1', {
           'direct_dependent_settings': {
             'cflags': [
               '<!@(<(pkg-config) --cflags gnome-keyring-1)',
+            ],
+            'defines': [
+              'USE_GNOME_KEYRING',
             ],
             'conditions': [
               ['linux_link_gnome_keyring==0', {
