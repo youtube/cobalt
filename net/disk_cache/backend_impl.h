@@ -340,6 +340,7 @@ class BackendImpl : public Backend {
   int entry_count_;  // Number of entries accessed lately.
   int byte_count_;  // Number of bytes read/written lately.
   int buffer_bytes_;  // Total size of the temporary entries' buffers.
+  int io_delay_;  // Average time (ms) required to complete some IO operations.
   net::CacheType cache_type_;
   int uma_report_;  // Controls transmision of UMA data.
   uint32 user_flags_;  // Flags set by the user.
@@ -350,6 +351,7 @@ class BackendImpl : public Backend {
   bool disabled_;
   bool new_eviction_;  // What eviction algorithm should be used.
   bool first_timer_;  // True if the timer has not been called.
+  bool throttle_requests_;
 
   Stats stats_;  // Usage statistcs.
   base::RepeatingTimer<BackendImpl> timer_;  // Usage timer.
