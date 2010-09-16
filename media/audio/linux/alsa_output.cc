@@ -192,7 +192,8 @@ static void Swizzle51Layout(Format* b, uint32 filled) {
 
 }  // namespace
 
-// Not in an anonymous so that it can be a friend to AlsaPcmOutputStream.
+// Not in an anonymous namespace so that it can be a friend to
+// AlsaPcmOutputStream.
 std::ostream& operator<<(std::ostream& os,
                          AlsaPcmOutputStream::InternalState state) {
   switch (state) {
