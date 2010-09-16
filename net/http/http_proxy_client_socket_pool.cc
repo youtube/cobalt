@@ -307,6 +307,10 @@ void HttpProxyClientSocketPool::ReleaseSocket(const std::string& group_name,
 
 void HttpProxyClientSocketPool::Flush() {
   base_.Flush();
+  if (ssl_pool_)
+    ssl_pool_->Flush();
+  if (tcp_pool_)
+    tcp_pool_->Flush();
 }
 
 void HttpProxyClientSocketPool::CloseIdleSockets() {
