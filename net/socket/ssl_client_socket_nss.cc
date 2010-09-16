@@ -69,6 +69,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
+#include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/dnsrr_resolver.h"
 #include "net/base/dnssec_chain_verifier.h"
@@ -1708,6 +1709,7 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
   if (ssl_config_.dnssec_enabled) {
     DNSValidationResult r = CheckDNSSECChain(hostname_, server_cert_nss_);
     if (r == DNSVR_SUCCESS) {
+      server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
       GotoState(STATE_VERIFY_CERT_COMPLETE);
       return OK;
     }
@@ -1746,18 +1748,19 @@ int SSLClientSocketNSS::DoVerifyDNSSECComplete(int result) {
   if (!ssl_config_.dnssec_enabled) {
     // If DNSSEC is not enabled we don't take any action based on the result,
     // except to record the latency, above.
-    GotoState(STATE_VERIFY_CERT);
     return OK;
   }
 
   switch (r) {
     case DNSVR_FAILURE:
       GotoState(STATE_VERIFY_CERT_COMPLETE);
+      server_cert_verify_result_.cert_status |= CERT_STATUS_NOT_IN_DNS;
       return ERR_CERT_NOT_IN_DNS;
     case DNSVR_CONTINUE:
       GotoState(STATE_VERIFY_CERT);
       break;
     case DNSVR_SUCCESS:
+      server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
       GotoState(STATE_VERIFY_CERT_COMPLETE);
       break;
     default:
