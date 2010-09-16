@@ -161,8 +161,9 @@ int HttpAuthController::HandleAuthChallenge(
   // challenge appeared to be rejected, or is using a stale nonce in the Digest
   // case.
   if (HaveAuth()) {
+    std::string challenge_used;
     HttpAuth::AuthorizationResult result = HttpAuth::HandleChallengeResponse(
-        handler_.get(), headers, target_, disabled_schemes_);
+        handler_.get(), headers, target_, disabled_schemes_, &challenge_used);
     switch (result) {
       case HttpAuth::AUTHORIZATION_RESULT_ACCEPT:
         break;
@@ -171,9 +172,18 @@ int HttpAuthController::HandleAuthChallenge(
         InvalidateCurrentHandler();
         break;
       case HttpAuth::AUTHORIZATION_RESULT_STALE:
-        // TODO(cbentzel): Support "stale" invalidation in HttpAuthCache.
-        // Right now this does the same invalidation as before.
-        InvalidateCurrentHandler();
+        if (session_->auth_cache()->UpdateStaleChallenge(auth_origin_,
+                                                         handler_->realm(),
+                                                         handler_->scheme(),
+                                                         challenge_used)) {
+          handler_.reset();
+          identity_ = HttpAuth::Identity();
+        } else {
+          // It's possible that a server could incorrectly issue a stale
+          // response when the entry is not in the cache. Just evict the
+          // current value from the cache.
+          InvalidateCurrentHandler();
+        }
         break;
       default:
         NOTREACHED();

@@ -126,7 +126,8 @@ class HttpAuth {
       HttpAuthHandler* handler,
       const HttpResponseHeaders* headers,
       Target target,
-      const std::set<std::string>& disabled_schemes);
+      const std::set<std::string>& disabled_schemes,
+      std::string* challenge_used);
 
   // ChallengeTokenizer breaks up a challenge string into the the auth scheme
   // and parameter list, according to RFC 2617 Sec 1.2:
