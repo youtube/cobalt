@@ -219,6 +219,7 @@ void SOCKSClientSocketPool::ReleaseSocket(const std::string& group_name,
 
 void SOCKSClientSocketPool::Flush() {
   base_.Flush();
+  tcp_pool_->Flush();
 }
 
 void SOCKSClientSocketPool::CloseIdleSockets() {
