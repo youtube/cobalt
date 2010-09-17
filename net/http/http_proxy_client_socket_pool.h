@@ -21,7 +21,8 @@
 namespace net {
 
 class HostResolver;
-class HttpNetworkSession;
+class HttpAuthCache;
+class HttpAuthHandlerFactory;
 class SSLClientSocketPool;
 class SSLSocketParams;
 class TCPClientSocketPool;
@@ -38,7 +39,8 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
                         const GURL& request_url,
                         const std::string& user_agent,
                         HostPortPair endpoint,
-                        scoped_refptr<HttpNetworkSession> session,
+                        HttpAuthCache* http_auth_cache,
+                        HttpAuthHandlerFactory* http_auth_handler_factory,
                         bool tunnel);
 
   const scoped_refptr<TCPSocketParams>& tcp_params() const {
@@ -50,8 +52,9 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   const GURL& request_url() const { return request_url_; }
   const std::string& user_agent() const { return user_agent_; }
   const HostPortPair& endpoint() const { return endpoint_; }
-  const scoped_refptr<HttpNetworkSession>& session() {
-    return session_;
+  HttpAuthCache* http_auth_cache() const { return http_auth_cache_; }
+  HttpAuthHandlerFactory* http_auth_handler_factory() const {
+    return http_auth_handler_factory_;
   }
   const HostResolver::RequestInfo& destination() const;
   bool tunnel() const { return tunnel_; }
@@ -65,7 +68,8 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   const GURL request_url_;
   const std::string user_agent_;
   const HostPortPair endpoint_;
-  const scoped_refptr<HttpNetworkSession> session_;
+  HttpAuthCache* const http_auth_cache_;
+  HttpAuthHandlerFactory* const http_auth_handler_factory_;
   const bool tunnel_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxySocketParams);

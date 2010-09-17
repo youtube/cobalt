@@ -25,6 +25,8 @@ namespace net {
 
 class AddressList;
 class ClientSocketHandle;
+class HttpAuthCache;
+class HttpAuthHandleFactory;
 class HttpStream;
 class IOBuffer;
 
@@ -38,7 +40,8 @@ class HttpProxyClientSocket : public ClientSocket {
                         const std::string& user_agent,
                         const HostPortPair& endpoint,
                         const HostPortPair& proxy_server,
-                        const scoped_refptr<HttpNetworkSession>& session,
+                        HttpAuthCache* http_auth_cache,
+                        HttpAuthHandlerFactory* http_auth_handler_factory,
                         bool tunnel,
                         bool using_spdy);
 

@@ -55,7 +55,10 @@ class SSLClientSocketPoolTest : public ClientSocketPoolTest {
             HostPortPair("proxy", 443), MEDIUM, GURL(), false)),
         http_proxy_socket_params_(new HttpProxySocketParams(
             proxy_tcp_socket_params_, NULL, GURL("http://host"), "",
-            HostPortPair("host", 80), session_, true)),
+            HostPortPair("host", 80),
+            session_->auth_cache(),
+            session_->http_auth_handler_factory(),
+            true)),
         http_proxy_socket_pool_(new HttpProxyClientSocketPool(
             kMaxSockets,
             kMaxSocketsPerGroup,

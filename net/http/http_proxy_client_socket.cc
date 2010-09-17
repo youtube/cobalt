@@ -50,10 +50,14 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
 }  // namespace
 
 HttpProxyClientSocket::HttpProxyClientSocket(
-    ClientSocketHandle* transport_socket, const GURL& request_url,
-    const std::string& user_agent, const HostPortPair& endpoint,
+    ClientSocketHandle* transport_socket,
+    const GURL& request_url,
+    const std::string& user_agent,
+    const HostPortPair& endpoint,
     const HostPortPair& proxy_server,
-    const scoped_refptr<HttpNetworkSession>& session, bool tunnel,
+    HttpAuthCache* http_auth_cache,
+    HttpAuthHandlerFactory* http_auth_handler_factory,
+    bool tunnel,
     bool using_spdy)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
@@ -64,7 +68,9 @@ HttpProxyClientSocket::HttpProxyClientSocket(
       auth_(tunnel ?
           new HttpAuthController(HttpAuth::AUTH_PROXY,
                                  GURL("http://" + proxy_server.ToString()),
-                                 session) : NULL),
+                                 http_auth_cache,
+                                 http_auth_handler_factory)
+          : NULL),
       tunnel_(tunnel),
       using_spdy_(using_spdy),
       net_log_(transport_socket->socket()->NetLog()) {
