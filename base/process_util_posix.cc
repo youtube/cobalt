@@ -32,8 +32,6 @@
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
-#include "base/mach_ipc_mac.h"
-#include "base/rand_util.h"
 #else
 extern char** environ;
 #endif
@@ -301,82 +299,6 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
   }
 }
 
-#if defined(OS_MACOSX)
-static std::string MachErrorCode(kern_return_t err) {
-  return StringPrintf("0x%x %s", err, mach_error_string(err));
-}
-
-// Forks the current process and returns the child's |task_t| in the parent
-// process.
-static pid_t fork_and_get_task(task_t* child_task) {
-  const int kTimeoutMs = 100;
-  kern_return_t err;
-
-  // Put a random number into the channel name, so that a compromised renderer
-  // can't pretend being the child that's forked off.
-  std::string mach_connection_name = StringPrintf(
-      "com.google.Chrome.samplingfork.%p.%d",
-      child_task, base::RandInt(0, std::numeric_limits<int>::max()));
-
-  // Create the mach receive port before forking to ensure that it exists when
-  // the child tries to connect.  Mach ports are not duped into the child, so
-  // this is safe to set up here.
-  ReceivePort parent_recv_port(mach_connection_name.c_str());
-
-  // Error handling philosophy: If Mach IPC fails, don't touch |child_task| but
-  // return a valid pid. If IPC fails in the child, the parent will have to wait
-  // until kTimeoutMs is over. This is not optimal, but I've never seen it
-  // happen, and stuff should still mostly work.
-  pid_t pid = fork();
-  switch (pid) {
-    case -1:
-      return pid;
-    case 0: {  // child
-      // Must reset signal handlers before doing any mach IPC, as the mach IPC
-      // calls can potentially hang forever.
-      ResetChildSignalHandlersToDefaults();
-      MachSendMessage child_message(/* id= */0);
-      if (!child_message.AddDescriptor(mach_task_self())) {
-        LOG(ERROR) << "child AddDescriptor(mach_task_self()) failed.";
-        return pid;
-      }
-
-      MachPortSender child_sender(mach_connection_name.c_str());
-      err = child_sender.SendMessage(child_message, kTimeoutMs);
-      if (err != KERN_SUCCESS) {
-        LOG(ERROR) << "child SendMessage() failed: " << MachErrorCode(err);
-        return pid;
-      }
-      break;
-    }
-    default: {  // parent
-      MachReceiveMessage child_message;
-      err = parent_recv_port.WaitForMessage(&child_message, kTimeoutMs);
-      if (err != KERN_SUCCESS) {
-        LOG(ERROR) << "parent WaitForMessage() failed: " << MachErrorCode(err);
-        return pid;
-      }
-
-      if (child_message.GetTranslatedPort(0) == MACH_PORT_NULL) {
-        LOG(ERROR) << "parent GetTranslatedPort(0) failed.";
-        return pid;
-      }
-      *child_task = child_message.GetTranslatedPort(0);
-      break;
-    }
-  }
-  return pid;
-}
-
-bool LaunchApp(const std::vector<std::string>& argv,
-               const environment_vector& env_changes,
-               const file_handle_mapping_vector& fds_to_remap,
-               bool wait, ProcessHandle* process_handle) {
-  return LaunchAppAndGetTask(
-      argv, env_changes, fds_to_remap, wait, NULL, process_handle);
-}
-#endif  // defined(OS_MACOSX)
-
 char** AlterEnvironment(const environment_vector& changes,
                         const char* const* const env) {
   unsigned count = 0;
@@ -498,18 +420,11 @@ char** AlterEnvironment(const environment_vector& changes,
   return ret;
 }
 
-#if defined(OS_MACOSX)
-bool LaunchAppAndGetTask(
-#else
 bool LaunchApp(
-#endif
     const std::vector<std::string>& argv,
     const environment_vector& env_changes,
     const file_handle_mapping_vector& fds_to_remap,
     bool wait,
-#if defined(OS_MACOSX)
-    task_t* task_handle,
-#endif
     ProcessHandle* process_handle) {
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
@@ -518,20 +433,7 @@ bool LaunchApp(
   scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
   scoped_array<char*> new_environ(AlterEnvironment(env_changes, environ));
 
-#if defined(OS_MACOSX)
-  if (task_handle == NULL) {
-    pid = fork();
-  } else {
-    // On OS X, the task_t for a process is needed for several reasons. Sadly,
-    // the function task_for_pid() requires privileges a normal user doesn't
-    // have. Instead, a short-lived Mach IPC connection is opened between parent
-    // and child, and the child sends its task_t to the parent at fork time.
-    *task_handle = MACH_PORT_NULL;
-    pid = fork_and_get_task(task_handle);
-  }
-#else
   pid = fork();
-#endif
   if (pid < 0)
     return false;
 
@@ -541,10 +443,7 @@ bool LaunchApp(
     RestoreDefaultExceptionHandler();
 #endif
 
-    // On mac, the signal handlers are reset in |fork_and_get_task()|.
-#if !defined(OS_MACOSX)
     ResetChildSignalHandlersToDefaults();
-#endif
 
 #if 0
     // When debugging it can be helpful to check that we really aren't making
