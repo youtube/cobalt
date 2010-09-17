@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/file_util.h"
 #include "base/platform_thread.h"
 #include "base/string_util.h"
@@ -713,7 +714,14 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry() {
   // if it took more than that, we posted a task and we'll delete the second
   // entry too.
   MessageLoop::current()->RunAllPending();
+
+  // This may be not thread-safe in general, but for now it's OK so add some
+  // ThreadSanitizer annotations to ignore data races on cache_.
+  // See http://crbug.com/55970
+  ANNOTATE_IGNORE_READS_BEGIN();
   EXPECT_GE(1, cache_->GetEntryCount());
+  ANNOTATE_IGNORE_READS_END();
+
   EXPECT_NE(net::OK, OpenEntry(first, &entry));
 }
 
