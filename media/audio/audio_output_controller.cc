@@ -115,18 +115,12 @@ void AudioOutputController::Flush() {
       NewRunnableMethod(this, &AudioOutputController::DoFlush));
 }
 
-void AudioOutputController::Close() {
-  {
-    AutoLock auto_lock(lock_);
-    // Don't do anything if the stream is already closed.
-    if (state_ == kClosed)
-      return;
-    state_ = kClosed;
-  }
-
+void AudioOutputController::Close(Task* closed_task) {
+  DCHECK(closed_task);
+  DCHECK(message_loop_);
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &AudioOutputController::DoClose));
+      NewRunnableMethod(this, &AudioOutputController::DoClose, closed_task));
 }
 
 void AudioOutputController::SetVolume(double volume) {
@@ -146,8 +140,6 @@ void AudioOutputController::EnqueueData(const uint8* data, uint32 size) {
 void AudioOutputController::DoCreate(AudioParameters params,
                                      uint32 hardware_buffer_size) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
-
-  AutoLock auto_lock(lock_);
 
   // Close() can be called before DoCreate() is executed.
   if (state_ == kClosed)
@@ -180,6 +172,7 @@ void AudioOutputController::DoCreate(AudioParameters params,
 
   // If in normal latency mode then start buffering.
   if (!LowLatencyMode()) {
+    AutoLock auto_lock(lock_);
     SubmitOnMoreData_Locked();
   }
 }
@@ -187,35 +180,25 @@ void AudioOutputController::DoCreate(AudioParameters params,
 void AudioOutputController::DoPlay() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
-  {
-    AutoLock auto_lock(lock_);
-    // We can start from created or paused state.
-    if (state_ != kCreated && state_ != kPaused)
-      return;
-    state_ = kPlaying;
-  }
+  // We can start from created or paused state.
+  if (state_ != kCreated && state_ != kPaused)
+    return;
+  state_ = kPlaying;
 
   // We start the AudioOutputStream lazily.
   stream_->Start(this);
 
-  {
-    AutoLock auto_lock(lock_);
-    // Tell the event handler that we are now playing.
-    if (state_ != kClosed)
-      handler_->OnPlaying(this);
-  }
+  // Tell the event handler that we are now playing.
+  handler_->OnPlaying(this);
 }
 
 void AudioOutputController::DoPause() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
-  {
-    AutoLock auto_lock(lock_);
-    // We can pause from started state.
-    if (state_ != kPlaying)
-      return;
-    state_ = kPaused;
-  }
+  // We can pause from started state.
+  if (state_ != kPlaying)
+    return;
+  state_ = kPaused;
 
   // Then we stop the audio device. This is not the perfect solution because
   // it discards all the internal buffer in the audio device.
@@ -227,11 +210,7 @@ void AudioOutputController::DoPause() {
     sync_reader_->UpdatePendingBytes(kPauseMark);
   }
 
-  {
-    AutoLock auto_lock(lock_);
-    if (state_ != kClosed)
-      handler_->OnPaused(this);
-  }
+  handler_->OnPaused(this);
 }
 
 void AudioOutputController::DoFlush() {
@@ -241,23 +220,30 @@ void AudioOutputController::DoFlush() {
 
   // If we are in the regular latency mode then flush the push source.
   if (!sync_reader_) {
-    AutoLock auto_lock(lock_);
     if (state_ != kPaused)
       return;
     push_source_.ClearAll();
   }
 }
 
-void AudioOutputController::DoClose() {
+void AudioOutputController::DoClose(Task* closed_task) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
-  DCHECK_EQ(kClosed, state_);
-  // |stream_| can be null if creating the device failed in DoCreate().
-  if (stream_) {
-    stream_->Stop();
-    stream_->Close();
-    // After stream is closed it is destroyed, so don't keep a reference to it.
-    stream_ = NULL;
+
+  if (state_ != kClosed) {
+    // |stream_| can be null if creating the device failed in DoCreate().
+    if (stream_) {
+      stream_->Stop();
+      stream_->Close();
+      // After stream is closed it is destroyed, so don't keep a reference to
+      // it.
+      stream_ = NULL;
+    }
+
+    state_ = kClosed;
   }
+
+  closed_task->Run();
+  delete closed_task;
 }
 
 void AudioOutputController::DoSetVolume(double volume) {
@@ -267,22 +253,16 @@ void AudioOutputController::DoSetVolume(double volume) {
   // right away but when the stream is created we'll set the volume.
   volume_ = volume;
 
-  {
-    AutoLock auto_lock(lock_);
-    if (state_ != kPlaying && state_ != kPaused && state_ != kCreated)
-      return;
-  }
+  if (state_ != kPlaying && state_ != kPaused && state_ != kCreated)
+    return;
 
   stream_->SetVolume(volume_);
 }
 
 void AudioOutputController::DoReportError(int code) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
-  {
-    AutoLock auto_lock(lock_);
-    if (state_ != kClosed)
-      handler_->OnError(this, code);
-  }
+  if (state_ != kClosed)
+    handler_->OnError(this, code);
 }
 
 uint32 AudioOutputController::OnMoreData(AudioOutputStream* stream,
@@ -302,8 +282,8 @@ uint32 AudioOutputController::OnMoreData(AudioOutputStream* stream,
       return 0;
     }
 
-    // Push source doesn't need to know the stream and number of pending bytes.
-    // So just pass in NULL and 0.
+    // Push source doesn't need to know the stream and number of pending
+    // bytes. So just pass in NULL and 0.
     uint32 size = push_source_.OnMoreData(NULL, dest, max_size, 0);
     hardware_pending_bytes_ = pending_bytes + size;
     SubmitOnMoreData_Locked();
@@ -317,6 +297,8 @@ uint32 AudioOutputController::OnMoreData(AudioOutputStream* stream,
 }
 
 void AudioOutputController::OnClose(AudioOutputStream* stream) {
+  DCHECK_EQ(message_loop_, MessageLoop::current());
+
   // Push source doesn't need to know the stream so just pass in NULL.
   if (LowLatencyMode()) {
     sync_reader_->Close();
@@ -343,6 +325,10 @@ void AudioOutputController::SubmitOnMoreData_Locked() {
   uint32 pending_bytes = hardware_pending_bytes_ +
       push_source_.UnProcessedBytes();
 
+  // If we need more data then call the event handler to ask for more data.
+  // It is okay that we don't lock in this block because the parameters are
+  // correct and in the worst case we are just asking more data than needed.
+  AutoUnlock auto_unlock(lock_);
   handler_->OnMoreData(this, timestamp, pending_bytes);
 }
 
