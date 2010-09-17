@@ -198,7 +198,12 @@ ReceivePort::ReceivePort(const char *receive_port_name) {
   if (init_result_ != KERN_SUCCESS)
     return;
 
-  NSPort *ns_port = [NSMachPort portWithMachPort:port_];
+  // Without |NSMachPortDeallocateNone|, the NSMachPort seems to deallocate
+  // receive rights on port when it is eventually released.  It is not necessary
+  // to deallocate any rights here as |port_| is fully deallocated in the
+  // ReceivePort destructor.
+  NSPort *ns_port = [NSMachPort portWithMachPort:port_
+                                         options:NSMachPortDeallocateNone];
   NSString *port_name = [NSString stringWithUTF8String:receive_port_name];
   [[NSMachBootstrapServer sharedInstance] registerPort:ns_port name:port_name];
 }
@@ -252,8 +257,12 @@ kern_return_t ReceivePort::WaitForMessage(MachReceiveMessage *out_message,
   out_message->Head()->msgh_reserved = 0;
   out_message->Head()->msgh_id = 0;
 
+  mach_msg_option_t rcv_options = MACH_RCV_MSG;
+  if (timeout != MACH_MSG_TIMEOUT_NONE)
+    rcv_options |= MACH_RCV_TIMEOUT;
+
   kern_return_t result = mach_msg(out_message->Head(),
-                                  MACH_RCV_MSG | MACH_RCV_TIMEOUT,
+                                  rcv_options,
                                   0,
                                   out_message->MaxSize(),
                                   port_,
