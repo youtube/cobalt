@@ -72,6 +72,8 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
 
   // Indicates if the response body has been completely read.
   virtual bool IsResponseBodyComplete() const {
+    if (!stream_)
+      return false;
     return stream_->closed();
   }
 
