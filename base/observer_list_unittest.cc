@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/message_loop.h"
 #include "base/observer_list.h"
 #include "base/observer_list_threadsafe.h"
+
+#include <vector>
+
+#include "base/message_loop.h"
 #include "base/platform_thread.h"
 #include "base/ref_counted.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -224,6 +227,46 @@ TEST(ObserverListThreadSafeTest, BasicTest) {
   EXPECT_EQ(d.total, -10);
 }
 
+class FooRemover : public Foo {
+ public:
+  explicit FooRemover(ObserverListThreadSafe<Foo>* list) : list_(list) {}
+  virtual ~FooRemover() {}
+
+  void AddFooToRemove(Foo* foo) {
+    foos_.push_back(foo);
+  }
+
+  virtual void Observe(int x) {
+    std::vector<Foo*> tmp;
+    tmp.swap(foos_);
+    for (std::vector<Foo*>::iterator it = tmp.begin();
+         it != tmp.end(); ++it) {
+      list_->RemoveObserver(*it);
+    }
+  }
+
+ private:
+  const scoped_refptr<ObserverListThreadSafe<Foo> > list_;
+  std::vector<Foo*> foos_;
+};
+
+TEST(ObserverListThreadSafeTest, RemoveMultipleObservers) {
+  MessageLoop loop;
+  scoped_refptr<ObserverListThreadSafe<Foo> > observer_list(
+      new ObserverListThreadSafe<Foo>);
+
+  FooRemover a(observer_list);
+  Adder b(1);
+
+  observer_list->AddObserver(&a);
+  observer_list->AddObserver(&b);
+
+  a.AddFooToRemove(&a);
+  a.AddFooToRemove(&b);
+
+  observer_list->Notify(&Foo::Observe, 1);
+  loop.RunAllPending();
+}
 
 // A test driver for a multi-threaded notification loop.  Runs a number
 // of observer threads, each of which constantly adds/removes itself
