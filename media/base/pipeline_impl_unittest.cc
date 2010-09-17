@@ -551,6 +551,10 @@ TEST_F(PipelineImplTest, DisableAudioRenderer) {
   streams.push_back(audio_stream());
   streams.push_back(video_stream());
 
+  pipeline_->SetPipelineEndedCallback(
+      NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                  &CallbackHelper::OnEnded));
+
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
   InitializeAudioDecoder(audio_stream());
@@ -580,6 +584,15 @@ TEST_F(PipelineImplTest, DisableAudioRenderer) {
               OnAudioRendererDisabled());
 
   mocks_->audio_renderer()->SetPlaybackRate(1.0f);
+
+  // Verify that ended event is fired when video ends.
+  EXPECT_CALL(*mocks_->audio_renderer(), HasEnded())
+      .WillOnce(Return(false));
+  EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
+      .WillOnce(Return(true));
+  EXPECT_CALL(callbacks_, OnEnded());
+  FilterHost* host = pipeline_;
+  host->NotifyEnded();
 }
 
 TEST_F(PipelineImplTest, EndedCallback) {
