@@ -88,9 +88,16 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   // Returns the a correctly constructed HttpProxyParms
   // for the HTTP or HTTPS proxy.
   scoped_refptr<HttpProxySocketParams> GetParams(bool tunnel) {
-    return scoped_refptr<HttpProxySocketParams>(new HttpProxySocketParams(
-        GetTcpParams(), GetSslParams(), GURL("http://host/"), "",
-        HostPortPair("host", 80), session_, tunnel));
+    return scoped_refptr<HttpProxySocketParams>(
+        new HttpProxySocketParams(
+            GetTcpParams(),
+            GetSslParams(),
+            GURL("http://host/"),
+            "",
+            HostPortPair("host", 80),
+            session_->auth_cache(),
+            session_->http_auth_handler_factory(),
+            tunnel));
   }
 
   scoped_refptr<HttpProxySocketParams> GetTunnelParams() {

@@ -498,12 +498,15 @@ int HttpStreamRequest::DoInitConnection() {
         proxy_tcp_params = NULL;
       }
 
-      http_proxy_params = new HttpProxySocketParams(proxy_tcp_params,
-                                                    ssl_params,
-                                                    authentication_url,
-                                                    user_agent,
-                                                    endpoint_,
-                                                    session_, using_ssl_);
+      http_proxy_params =
+          new HttpProxySocketParams(proxy_tcp_params,
+                                    ssl_params,
+                                    authentication_url,
+                                    user_agent,
+                                    endpoint_,
+                                    session_->auth_cache(),
+                                    session_->http_auth_handler_factory(),
+                                    using_ssl_);
     } else {
       DCHECK(proxy_info()->is_socks());
       char socks_version;
