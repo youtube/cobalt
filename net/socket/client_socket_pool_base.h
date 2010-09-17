@@ -29,7 +29,6 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/compiler_specific.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/task.h"
@@ -486,8 +485,7 @@ class ClientSocketPoolBaseHelper
   // make sure that they are discarded rather than reused.
   int pool_generation_number_;
 
-  // Some parts of this class need to know if the destructor is running.
-  bool in_destructor_;
+  DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolBaseHelper);
 };
 
 }  // namespace internal

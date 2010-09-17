@@ -27,14 +27,16 @@ HttpProxySocketParams::HttpProxySocketParams(
     const GURL& request_url,
     const std::string& user_agent,
     HostPortPair endpoint,
-    scoped_refptr<HttpNetworkSession> session,
+    HttpAuthCache* http_auth_cache,
+    HttpAuthHandlerFactory* http_auth_handler_factory,
     bool tunnel)
     : tcp_params_(tcp_params),
       ssl_params_(ssl_params),
       request_url_(request_url),
       user_agent_(user_agent),
       endpoint_(endpoint),
-      session_(tunnel ? session : NULL),
+      http_auth_cache_(tunnel ? http_auth_cache : NULL),
+      http_auth_handler_factory_(tunnel ? http_auth_handler_factory : NULL),
       tunnel_(tunnel) {
   DCHECK((tcp_params == NULL && ssl_params != NULL) ||
          (tcp_params != NULL && ssl_params == NULL));
@@ -211,7 +213,9 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
                                 params_->request_url(),
                                 params_->user_agent(),
                                 params_->endpoint(),
-                                proxy_server, params_->session(),
+                                proxy_server,
+                                params_->http_auth_cache(),
+                                params_->http_auth_handler_factory(),
                                 params_->tunnel(),
                                 using_spdy_));
   int result = transport_socket_->Connect(&callback_);
