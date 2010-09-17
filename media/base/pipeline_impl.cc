@@ -347,6 +347,7 @@ void PipelineImpl::ResetState() {
   playback_rate_    = 0.0f;
   error_            = PIPELINE_OK;
   waiting_for_clock_update_ = false;
+  audio_disabled_   = false;
   clock_.SetTime(kZero);
   rendered_mime_types_.clear();
 }
@@ -807,7 +808,7 @@ void PipelineImpl::NotifyEndedTask() {
   DCHECK(audio_renderer || video_renderer);
 
   // Make sure every extant renderer has ended.
-  if ((audio_renderer && !audio_renderer->HasEnded()) ||
+  if ((audio_renderer && !audio_renderer->HasEnded() && !audio_disabled_) ||
       (video_renderer && !video_renderer->HasEnded())) {
     return;
   }
@@ -833,6 +834,8 @@ void PipelineImpl::DisableAudioRendererTask() {
   // this variable.
   AutoLock auto_lock(lock_);
   rendered_mime_types_.erase(mime_type::kMajorTypeAudio);
+
+  audio_disabled_ = true;
 
   // Notify all filters of disabled audio renderer.
   for (FilterVector::iterator iter = filters_.begin();
