@@ -18,6 +18,7 @@
 #include "media/filters/ffmpeg_interfaces.h"
 #include "media/filters/ffmpeg_video_decoder.h"
 #include "media/video/video_decode_engine.h"
+#include "media/video/video_decode_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -50,8 +51,9 @@ class MockFFmpegDemuxerStream : public MockDemuxerStream,
 // TODO(hclam): Share this in a separate file.
 class MockVideoDecodeEngine : public VideoDecodeEngine {
  public:
-  MOCK_METHOD3(Initialize, void(MessageLoop* message_loop,
+  MOCK_METHOD4(Initialize, void(MessageLoop* message_loop,
                                 VideoDecodeEngine::EventHandler* event_handler,
+                                VideoDecodeContext* context,
                                 const VideoCodecConfig& config));
   MOCK_METHOD1(ConsumeVideoSample, void(scoped_refptr<Buffer> buffer));
   MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame> buffer));
@@ -182,7 +184,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     EXPECT_CALL(*demuxer_, GetAVStream())
         .WillOnce(Return(&stream_));
 
-    EXPECT_CALL(*engine_, Initialize(_, _, _))
+    EXPECT_CALL(*engine_, Initialize(_, _, _, _))
         .WillOnce(EngineInitialize(engine_, true));
 
     EXPECT_CALL(callback_, OnFilterCallback());
@@ -264,7 +266,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_EngineFails) {
   EXPECT_CALL(*demuxer_, GetAVStream())
       .WillOnce(Return(&stream_));
 
-  EXPECT_CALL(*engine_, Initialize(_, _, _))
+  EXPECT_CALL(*engine_, Initialize(_, _, _, _))
       .WillOnce(EngineInitialize(engine_, false));
 
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
