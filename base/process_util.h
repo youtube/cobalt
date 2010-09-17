@@ -235,18 +235,6 @@ bool LaunchApp(const std::vector<std::string>& argv,
 // The returned array is allocated using new[] and must be freed by the caller.
 char** AlterEnvironment(const environment_vector& changes,
                         const char* const* const env);
-
-#if defined(OS_MACOSX)
-// Similar to the above, but also returns the new process's task_t if
-// |task_handle| is not NULL. If |task_handle| is not NULL, the caller is
-// responsible for calling |mach_port_deallocate()| on the returned handle.
-bool LaunchAppAndGetTask(const std::vector<std::string>& argv,
-                         const environment_vector& environ,
-                         const file_handle_mapping_vector& fds_to_remap,
-                         bool wait,
-                         task_t* task_handle,
-                         ProcessHandle* process_handle);
-#endif  // defined(OS_MACOSX)
 #endif  // defined(OS_POSIX)
 
 // Executes the application specified by cl. This function delegates to one
