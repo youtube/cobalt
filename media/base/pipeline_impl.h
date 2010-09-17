@@ -404,6 +404,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // currently reading.
   int64 current_bytes_;
 
+  // Set to true in DisableAudioRendererTask().
+  bool audio_disabled_;
+
   // Keep track of the maximum buffered position so the buffering appears
   // smooth.
   // TODO(vrk): This is a hack.
