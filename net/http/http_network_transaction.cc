@@ -604,7 +604,10 @@ int HttpNetworkTransaction::DoInitStreamComplete(int result) {
       result = HandleCertificateRequest(result);
 
     if (result < 0)
-      return HandleIOError(result);
+      result = HandleIOError(result);
+
+    // The stream initialization failed, so this stream will never be useful.
+    stream_.reset();
   }
 
   return result;
