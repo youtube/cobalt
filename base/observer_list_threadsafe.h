@@ -182,15 +182,16 @@ class ObserverListThreadSafe
 
     // If there are no more observers on the list, we can now delete it.
     if (list->size() == 0) {
-#ifndef NDEBUG
       {
         AutoLock lock(list_lock_);
-        // Verify this list is no longer registered.
+        // Remove |list| if it's not already removed.
+        // This can happen if multiple observers got removed in a notification.
+        // See http://crbug.com/55725.
         typename ObserversListMap::iterator it =
             observer_lists_.find(MessageLoop::current());
-        DCHECK(it == observer_lists_.end() || it->second != list);
+        if (it != observer_lists_.end() && it->second == list)
+          observer_lists_.erase(it);
       }
-#endif
       delete list;
     }
   }
