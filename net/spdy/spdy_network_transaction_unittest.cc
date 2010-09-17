@@ -760,7 +760,8 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
     EXPECT_EQ(OK, out.rv);
     EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
     EXPECT_EQ("hello!hello!", out.response_data);
-  helper.VerifyDataConsumed();
+
+    helper.VerifyDataConsumed();
   }
   EXPECT_EQ(OK, out.rv);
 }
@@ -920,7 +921,6 @@ TEST_P(SpdyNetworkTransactionTest, FourGetsWithMaxConcurrentPriority) {
   EXPECT_EQ("hello!", out.response_data);
   helper.VerifyDataConsumed();
   EXPECT_EQ(OK, out.rv);
-
 }
 
 // Similar to ThreeGetsMaxConcurrrent above, however, this test
@@ -938,11 +938,6 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
   scoped_ptr<spdy::SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 3));
   scoped_ptr<spdy::SpdyFrame> body2(ConstructSpdyBodyFrame(3, false));
   scoped_ptr<spdy::SpdyFrame> fbody2(ConstructSpdyBodyFrame(3, true));
-
-  scoped_ptr<spdy::SpdyFrame> req3(ConstructSpdyGet(NULL, 0, false, 5, LOWEST));
-  scoped_ptr<spdy::SpdyFrame> resp3(ConstructSpdyGetSynReply(NULL, 0, 5));
-  scoped_ptr<spdy::SpdyFrame> body3(ConstructSpdyBodyFrame(5, false));
-  scoped_ptr<spdy::SpdyFrame> fbody3(ConstructSpdyBodyFrame(5, true));
 
   spdy::SpdySettings settings;
   spdy::SettingsFlagsAndId id(0);
@@ -1035,7 +1030,119 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
   EXPECT_EQ("hello!hello!", out.response_data);
   helper.VerifyDataConsumed();
   EXPECT_EQ(OK, out.rv);
+}
 
+// The KillerCallback will delete the transaction on error as part of the
+// callback.
+class KillerCallback : public TestCompletionCallback {
+ public:
+  explicit KillerCallback(HttpNetworkTransaction* transaction)
+      : transaction_(transaction) {}
+
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    if (params.a < 0)
+      delete transaction_;
+    TestCompletionCallback::RunWithParams(params);
+  }
+
+ private:
+  HttpNetworkTransaction* transaction_;
+};
+
+// Similar to ThreeGetsMaxConcurrrentDelete above, however, this test
+// closes the socket while we have a pending transaction waiting for
+// a pending stream creation.  http://crbug.com/52901
+TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentSocketClose) {
+  // Construct the request.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, false));
+  scoped_ptr<spdy::SpdyFrame> fin_body(ConstructSpdyBodyFrame(1, true));
+
+  scoped_ptr<spdy::SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 3));
+
+  spdy::SpdySettings settings;
+  spdy::SettingsFlagsAndId id(0);
+  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  const size_t max_concurrent_streams = 1;
+
+  settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
+  scoped_ptr<spdy::SpdyFrame> settings_frame(ConstructSpdySettings(settings));
+
+  MockWrite writes[] = { CreateMockWrite(*req),
+    CreateMockWrite(*req2),
+  };
+  MockRead reads[] = {
+    CreateMockRead(*settings_frame, 1),
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    CreateMockRead(*fin_body),
+    CreateMockRead(*resp2, 7),
+    MockRead(true, ERR_CONNECTION_RESET, 0),  // Abort!
+  };
+
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+        writes, arraysize(writes)));
+  scoped_refptr<OrderedSocketData> data_placeholder(
+      new OrderedSocketData(NULL, 0, NULL, 0));
+
+  BoundNetLog log;
+  TransactionHelperResult out;
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+      BoundNetLog(), GetParam());
+  helper.RunPreTestSetup();
+  helper.AddData(data.get());
+  // We require placeholder data because three get requests are sent out, so
+  // there needs to be three sets of SSL connection data.
+  helper.AddData(data_placeholder.get());
+  helper.AddData(data_placeholder.get());
+  HttpNetworkTransaction trans1(helper.session());
+  HttpNetworkTransaction trans2(helper.session());
+  HttpNetworkTransaction* trans3(new HttpNetworkTransaction(helper.session()));
+
+  TestCompletionCallback callback1;
+  TestCompletionCallback callback2;
+  KillerCallback callback3(trans3);
+
+  HttpRequestInfo httpreq1 = CreateGetRequest();
+  HttpRequestInfo httpreq2 = CreateGetRequest();
+  HttpRequestInfo httpreq3 = CreateGetRequest();
+
+  out.rv = trans1.Start(&httpreq1, &callback1, log);
+  ASSERT_EQ(out.rv, ERR_IO_PENDING);
+  // run transaction 1 through quickly to force a read of our SETTINGS
+  // frame
+  out.rv = callback1.WaitForResult();
+  ASSERT_EQ(OK, out.rv);
+
+  out.rv = trans2.Start(&httpreq2, &callback2, log);
+  ASSERT_EQ(out.rv, ERR_IO_PENDING);
+  out.rv = trans3->Start(&httpreq3, &callback3, log);
+  ASSERT_EQ(out.rv, ERR_IO_PENDING);
+  out.rv = callback3.WaitForResult();
+  ASSERT_EQ(ERR_ABORTED, out.rv);
+
+  EXPECT_EQ(6U, data->read_index());
+
+  const HttpResponseInfo* response1 = trans1.GetResponseInfo();
+  ASSERT_TRUE(response1 != NULL);
+  EXPECT_TRUE(response1->headers != NULL);
+  EXPECT_TRUE(response1->was_fetched_via_spdy);
+  out.status_line = response1->headers->GetStatusLine();
+  out.response_info = *response1;
+  out.rv = ReadTransaction(&trans1, &out.response_data);
+  EXPECT_EQ(OK, out.rv);
+
+  const HttpResponseInfo* response2 = trans2.GetResponseInfo();
+  ASSERT_TRUE(response2 != NULL);
+  out.status_line = response2->headers->GetStatusLine();
+  out.response_info = *response2;
+  out.rv = ReadTransaction(&trans2, &out.response_data);
+  EXPECT_EQ(ERR_CONNECTION_RESET, out.rv);
+
+  helper.VerifyDataConsumed();
 }
 
 // Test that a simple PUT request works.
