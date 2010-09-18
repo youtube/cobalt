@@ -79,6 +79,20 @@
             ],
           },
         }],
+        ['clang==1', {
+          # We want gtest features that use tr1::tuple, but clang currently
+          # doesn't support the variadic templates used by libstdc++'s
+          # implementation.  gtest supports this scenario by providing its
+          # own implementation but we must opt in to it.
+          'defines': [
+            'GTEST_USE_OWN_TR1_TUPLE=1',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'GTEST_USE_OWN_TR1_TUPLE=1',
+            ],
+          },
+        }],
       ],
       'direct_dependent_settings': {
         'defines': [

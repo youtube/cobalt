@@ -251,6 +251,12 @@
     # Set this to true to enable SELinux support.
     'selinux%': 0,
 
+    # Set this to true when building with Clang.
+    # See http://code.google.com/p/chromium/wiki/Clang for details.
+    # TODO: eventually clang should behave identically to gcc, and this
+    # won't be necessary.
+    'clang%': 0,
+
     # Override whether we should use Breakpad on Linux. I.e. for Chrome bot.
     'linux_breakpad%': 0,
     # And if we want to dump symbols for Breakpad-enabled builds.
@@ -1113,6 +1119,23 @@
                   '--sysroot=<(sysroot)',
                 ],
               }]]
+          }],
+          ['clang==1', {
+            'cflags': [
+              # Don't warn about unused variables, due to a common pattern:
+              #   scoped_deleter unused_variable(&thing_to_delete);
+              '-Wno-unused-variable',
+              # Clang spots more unused functions.
+              '-Wno-unused-function',
+              # gtest confuses clang.
+              '-Wno-bool-conversions',
+              # Don't die on dtoa code that uses a char as an array index.
+              '-Wno-char-subscripts',
+            ],
+            'cflags!': [
+              # Clang doesn't seem to know know this flag.
+              '-mfpmath=sse',
+            ],
           }],
           ['no_strict_aliasing==1', {
             'cflags': [
