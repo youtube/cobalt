@@ -10,6 +10,7 @@
 
 #include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/completion_callback.h"
 #include "net/http/http_byte_range.h"
 
 // This is a macro to support extending this string literal at compile time.
@@ -17,6 +18,8 @@
 #define HTTP_LWS " \t"
 
 namespace net {
+
+class HttpStream;
 
 class HttpUtil {
  public:
@@ -247,6 +250,10 @@ class HttpUtil {
     std::string::const_iterator value_begin_;
     std::string::const_iterator value_end_;
   };
+
+  // Attempts to read all of the response body of |stream|.  Closes |stream| and
+  // deletes it when complete.
+  static void DrainStreamBodyAndClose(HttpStream* stream);
 };
 
 }  // namespace net
