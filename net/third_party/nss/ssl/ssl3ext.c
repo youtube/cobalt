@@ -578,7 +578,7 @@ ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
 
 SECStatus
 ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
-                                 SECItem *data)
+                                  SECItem *data)
 {
     unsigned int i, j;
     SECStatus rv;

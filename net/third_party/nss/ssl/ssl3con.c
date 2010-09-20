@@ -72,7 +72,8 @@
 #endif
 
 static void      ssl3_CleanupPeerCerts(sslSocket *ss);
-static void      ssl3_CopyPeerCertsFromSID(sslSocket *ss, sslSessionID *sid);
+static void      ssl3_CopyPeerCertsToSID(ssl3CertNode *certs,
+                                         sslSessionID *sid);
 static PK11SymKey *ssl3_GenerateRSAPMS(sslSocket *ss, ssl3CipherSpec *spec,
                                        PK11SlotInfo * serverKeySlot);
 static SECStatus ssl3_DeriveMasterSecret(sslSocket *ss, PK11SymKey *pms);
@@ -82,7 +83,6 @@ static SECStatus ssl3_InitState(             sslSocket *ss);
 static SECStatus ssl3_SendCertificate(       sslSocket *ss);
 static SECStatus ssl3_SendEmptyCertificate(  sslSocket *ss);
 static SECStatus ssl3_SendCertificateRequest(sslSocket *ss);
-static SECStatus ssl3_SendNextProto(         sslSocket *ss);
 static SECStatus ssl3_SendServerHello(       sslSocket *ss);
 static SECStatus ssl3_SendServerHelloDone(   sslSocket *ss);
 static SECStatus ssl3_SendServerKeyExchange( sslSocket *ss);
@@ -5008,6 +5008,12 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	if (SECITEM_AllocItem(NULL, &ss->ssl3.serverHelloPredictionData,
 			      length))
 	    memcpy(ss->ssl3.serverHelloPredictionData.data, b, length);
+	/* ss->ssl3.serverHelloPredictionDataValid is still false at this
+	 * point. We have to record the contents of the ServerHello here
+	 * because we don't have a pointer to the whole message when handling
+	 * the extensions. However, we wait until the Snap Start extenion
+	 * handler to recognise that the server supports Snap Start and to set
+	 * serverHelloPredictionDataValid. */
     }
 
     temp = ssl3_ConsumeHandshakeNumber(ss, 2, &b, &length);
@@ -7604,6 +7610,12 @@ ssl3_HandleNewSessionTicket(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	return SECFailure;  /* malformed */
     }
 
+    if (ss->sec.ci.sid->peerCert == NULL) {
+	ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
+	ssl3_CopyPeerCertsToSID((ssl3CertNode *)ss->ssl3.peerCertChain,
+				ss->sec.ci.sid);
+    }
+
     rv = ssl3_SetSIDSessionTicket(ss->sec.ci.sid, &session_ticket);
     if (rv != SECSuccess) {
 	(void)SSL3_SendAlert(ss, alert_fatal, handshake_failure);
@@ -7795,7 +7807,7 @@ ssl3_CleanupPeerCerts(sslSocket *ss)
     ss->ssl3.peerCertChain = NULL;
 }
 
-static void
+void
 ssl3_CopyPeerCertsFromSID(sslSocket *ss, sslSessionID *sid)
 {
     PRArenaPool *arena;
@@ -8246,7 +8258,7 @@ ssl3_ComputeTLSFinished(ssl3CipherSpec *spec,
 
 /* called from ssl3_HandleServerHelloDone
  */
-static SECStatus
+SECStatus
 ssl3_SendNextProto(sslSocket *ss)
 {
     SECStatus rv;
