@@ -846,6 +846,7 @@ struct ssl3StateStr {
     CERTCertificate **   predictedCertChain;
 			    /* An array terminated with a NULL. */
     SECItem		 serverHelloPredictionData;
+    PRBool		 serverHelloPredictionDataValid;
 			    /* data needed to predict the ServerHello from
 			     * this server. */
     SECItem		 snapStartApplicationData;
@@ -1287,6 +1288,7 @@ extern sslSessionID *ssl3_NewSessionID(sslSocket *ss, PRBool is_server);
 extern sslSessionID *ssl_LookupSID(const PRIPv6Addr *addr, PRUint16 port, 
                                    const char *peerID, const char *urlSvrName);
 extern void      ssl_FreeSID(sslSessionID *sid);
+extern void      ssl3_CopyPeerCertsFromSID(sslSocket *ss, sslSessionID *sid);
 
 extern int       ssl3_SendApplicationData(sslSocket *ss, const PRUint8 *in,
 				          int len, int flags);
@@ -1542,6 +1544,7 @@ extern void ssl3_CleanupPredictedPeerCertificates(sslSocket *ss);
 extern const ssl3CipherSuiteDef* ssl_LookupCipherSuiteDef(ssl3CipherSuite suite);
 extern SECStatus ssl3_SetupPendingCipherSpec(sslSocket *ss);
 extern SECStatus ssl3_SendClientKeyExchange(sslSocket *ss);
+extern SECStatus ssl3_SendNextProto(sslSocket *ss);
 extern SECStatus ssl3_SendFinished(sslSocket *ss, PRInt32 flags);
 extern SECStatus ssl3_CompressMACEncryptRecord
 	(sslSocket *        ss,
