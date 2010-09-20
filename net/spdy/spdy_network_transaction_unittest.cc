@@ -2296,15 +2296,18 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
       "301 Moved Permanently", "http://www.foo.com/index.php",
       "http://www.foo.com/index.php"));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame> res(
+      ConstructSpdyRstStream(2, spdy::CANCEL));
   MockWrite writes[] = {
     CreateMockWrite(*req, 1),
+    CreateMockWrite(*res, 6),
   };
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
     CreateMockRead(*rep, 3),
     CreateMockRead(*body, 4),
     MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
-    MockRead(true, 0, 0, 6)  // EOF
+    MockRead(true, 0, 0, 7)  // EOF
   };
 
   // Setup writes/reads to www.foo.com
