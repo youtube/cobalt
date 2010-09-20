@@ -166,40 +166,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
 
 }
 
-HttpNetworkTransaction::~HttpNetworkTransaction() {
-  if (stream_.get()) {
-    HttpResponseHeaders* headers = GetResponseHeaders();
-    // TODO(mbelshe): The stream_ should be able to compute whether or not the
-    //                stream should be kept alive.  No reason to compute here
-    //                and pass it in.
-    bool try_to_keep_alive =
-        next_state_ == STATE_NONE &&
-        stream_->CanFindEndOfResponse() &&
-        (!headers || headers->IsKeepAlive());
-    if (!try_to_keep_alive) {
-      stream_->Close(true /* not reusable */);
-    } else {
-      if (stream_->IsResponseBodyComplete()) {
-        // If the response body is complete, we can just reuse the socket.
-        stream_->Close(false /* reusable */);
-      } else {
-        // Otherwise, we try to drain the response body.
-        // TODO(willchan): Consider moving this response body draining to the
-        // stream implementation.  For SPDY, there's clearly no point.  For
-        // HTTP, it can vary depending on whether or not we're pipelining.  It's
-        // stream dependent, so the different subtypes should be implementing
-        // their solutions.
-        HttpUtil::DrainStreamBodyAndClose(stream_.release());
-      }
-    }
-  }
-
-  if (stream_request_.get()) {
-    stream_request_->Cancel();
-    stream_request_ = NULL;
-  }
-}
-
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
                                   CompletionCallback* callback,
                                   const BoundNetLog& net_log) {
@@ -474,12 +440,31 @@ void HttpNetworkTransaction::OnNeedsClientAuth(
   OnIOComplete(ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
 }
 
+HttpNetworkTransaction::~HttpNetworkTransaction() {
+  if (stream_.get()) {
+    HttpResponseHeaders* headers = GetResponseHeaders();
+    // TODO(mbelshe): The stream_ should be able to compute whether or not the
+    //                stream should be kept alive.  No reason to compute here
+    //                and pass it in.
+    bool keep_alive = next_state_ == STATE_NONE &&
+                      stream_->IsResponseBodyComplete() &&
+                      stream_->CanFindEndOfResponse() &&
+                      (!headers || headers->IsKeepAlive());
+    stream_->Close(!keep_alive);
+  }
+
+  if (stream_request_.get()) {
+    stream_request_->Cancel();
+    stream_request_ = NULL;
+  }
+}
+
 bool HttpNetworkTransaction::is_https_request() const {
   return request_->url.SchemeIs("https");
 }
 
 void HttpNetworkTransaction::DoCallback(int rv) {
-  DCHECK_NE(rv, ERR_IO_PENDING);
+  DCHECK(rv != ERR_IO_PENDING);
   DCHECK(user_callback_);
 
   // Since Run may result in Read being called, clear user_callback_ up front.

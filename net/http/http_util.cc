@@ -9,15 +9,11 @@
 
 #include <algorithm>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
-#include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/http/http_response_body_drainer.h"
-#include "net/http/http_stream.h"
 
 using std::string;
 
@@ -697,12 +693,6 @@ bool HttpUtil::ValuesIterator::GetNext() {
       return true;
   }
   return false;
-}
-
-void HttpUtil::DrainStreamBodyAndClose(HttpStream* stream) {
-  HttpResponseBodyDrainer* drainer = new HttpResponseBodyDrainer(stream);
-  drainer->Start();
-  // |drainer| will delete itself.
 }
 
 }  // namespace net
