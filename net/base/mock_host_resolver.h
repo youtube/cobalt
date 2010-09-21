@@ -59,6 +59,13 @@ class MockHostResolverBase : public HostResolver {
   // Resets the mock.
   void Reset(HostResolverProc* interceptor);
 
+  void SetPoolConstraints(HostResolverImpl::JobPoolIndex pool_index,
+                          size_t max_outstanding_jobs,
+                          size_t max_pending_requests) {
+    impl_->SetPoolConstraints(
+        pool_index, max_outstanding_jobs, max_pending_requests);
+  }
+
  protected:
   MockHostResolverBase(bool use_caching);
   virtual ~MockHostResolverBase() {}
