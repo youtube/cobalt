@@ -39,7 +39,6 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
-#include "net/http/http_stream_handle.h"
 #include "net/http/http_stream_request.h"
 #include "net/http/http_util.h"
 #include "net/http/url_security_manager.h"
@@ -408,7 +407,7 @@ uint64 HttpNetworkTransaction::GetUploadProgress() const {
   return stream_->GetUploadProgress();
 }
 
-void HttpNetworkTransaction::OnStreamReady(HttpStreamHandle* stream) {
+void HttpNetworkTransaction::OnStreamReady(HttpStream* stream) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK(stream_request_.get());
 

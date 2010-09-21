@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "net/base/net_log_unittest.h"
-#include "net/http/http_stream_handle.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
@@ -1622,8 +1621,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
 
-  SpdyHttpStream* stream =
-      static_cast<SpdyHttpStream*>(trans->stream_->stream());
+  SpdyHttpStream* stream = static_cast<SpdyHttpStream*>(trans->stream_.get());
   ASSERT_TRUE(stream != NULL);
   ASSERT_TRUE(stream->stream() != NULL);
   EXPECT_EQ(spdy::kInitialWindowSize +
@@ -1681,7 +1679,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
   EXPECT_EQ(OK, rv);
 
   SpdyHttpStream* stream =
-      static_cast<SpdyHttpStream*>(trans->stream_.get()->stream_.get());
+      static_cast<SpdyHttpStream*>(trans->stream_.get());
   ASSERT_TRUE(stream != NULL);
   ASSERT_TRUE(stream->stream() != NULL);
 
@@ -1890,8 +1888,7 @@ TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
 
   MessageLoop::current()->RunAllPending(); // Write as much as we can.
 
-  SpdyHttpStream* stream =
-      static_cast<SpdyHttpStream*>(trans->stream_->stream());
+  SpdyHttpStream* stream = static_cast<SpdyHttpStream*>(trans->stream_.get());
   ASSERT_TRUE(stream != NULL);
   ASSERT_TRUE(stream->stream() != NULL);
   EXPECT_EQ(0, stream->stream()->send_window_size());

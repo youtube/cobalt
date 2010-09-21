@@ -72,7 +72,7 @@ class HttpBasicStream : public HttpStream {
 
   scoped_ptr<HttpStreamParser> parser_;
 
-  ClientSocketHandle* connection_;
+  scoped_ptr<ClientSocketHandle> connection_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpBasicStream);
 };

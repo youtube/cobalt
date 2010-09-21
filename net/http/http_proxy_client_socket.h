@@ -25,9 +25,11 @@ namespace net {
 
 class AddressList;
 class ClientSocketHandle;
+class GrowableIOBuffer;
 class HttpAuthCache;
 class HttpAuthHandleFactory;
 class HttpStream;
+class HttpStreamParser;
 class IOBuffer;
 
 class HttpProxyClientSocket : public ClientSocket {
@@ -138,7 +140,8 @@ class HttpProxyClientSocket : public ClientSocket {
   HttpRequestInfo request_;
   HttpResponseInfo response_;
 
-  scoped_ptr<HttpStream> http_stream_;
+  scoped_refptr<GrowableIOBuffer> parser_buf_;
+  scoped_ptr<HttpStreamParser> http_stream_parser_;
   scoped_refptr<IOBuffer> drain_buf_;
 
   // Stores the underlying socket.
