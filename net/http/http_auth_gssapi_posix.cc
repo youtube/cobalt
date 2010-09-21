@@ -299,42 +299,6 @@ std::string DescribeOid(GSSAPILibrary* gssapi_lib, const gss_OID oid) {
   return output;
 }
 
-std::string DescribeBuffer(const gss_buffer_t buffer) {
-  if (!buffer)
-    return "<NULL>";
-  size_t length = buffer->length;
-  std::string output(StringPrintf("(%" PRIuS ") ", length));
-  if (!buffer->value) {
-    output += "<NULL>";
-    return output;
-  }
-  const char* value =
-      reinterpret_cast<const char*>(buffer->value);
-  bool is_printable = true;
-  for (size_t i = 0; i < length; ++i) {
-    if (!isprint(value[i])) {
-      // Allow the last character to be a '0'.
-      if ((i < (length - 1)) && !value[i])
-        continue;
-      is_printable = false;
-      break;
-    }
-  }
-  if (is_printable) {
-    output += "\"";
-    output += value;
-    output += "\"";
-  } else {
-    output += "[";
-    for (size_t i = 0; i < buffer->length; ++i) {
-      output += StringPrintf("\\x%02X", value[i] & 0x0FF);
-    }
-    output += "]";
-  }
-
-  return output;
-}
-
 std::string DescribeName(GSSAPILibrary* gssapi_lib, const gss_name_t name) {
   OM_uint32 major_status = 0;
   OM_uint32 minor_status = 0;

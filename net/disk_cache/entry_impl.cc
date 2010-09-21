@@ -64,19 +64,6 @@ void SyncCallback::Discard() {
   OnFileIOComplete(0);
 }
 
-// Clears buffer before offset and after valid_len, knowing that the size of
-// buffer is kMaxBlockSize.
-void ClearInvalidData(char* buffer, int offset, int valid_len) {
-  DCHECK_GE(offset, 0);
-  DCHECK_GE(valid_len, 0);
-  DCHECK(disk_cache::kMaxBlockSize >= offset + valid_len);
-  if (offset)
-    memset(buffer, 0, offset);
-  int end = disk_cache::kMaxBlockSize - offset - valid_len;
-  if (end)
-    memset(buffer + offset + valid_len, 0, end);
-}
-
 const int kMaxBufferSize = 1024 * 1024;  // 1 MB.
 
 }  // namespace
