@@ -204,60 +204,61 @@ CertificateList X509Certificate::CreateCertificateListFromBytes(
     const char* data, int length, int format) {
   OSCertHandles certificates;
 
+  // Check to see if it is in a PEM-encoded form. This check is performed
+  // first, as both OS X and NSS will both try to convert if they detect
+  // PEM encoding, except they don't do it consistently between the two.
+  base::StringPiece data_string(data, length);
+  std::vector<std::string> pem_headers;
+
+  // To maintain compatibility with NSS/Firefox, CERTIFICATE is a universally
+  // valid PEM block header for any format.
+  pem_headers.push_back(kCertificateHeader);
+  if (format & FORMAT_PKCS7)
+    pem_headers.push_back(kPKCS7Header);
+
+  PEMTokenizer pem_tok(data_string, pem_headers);
+  while (pem_tok.GetNext()) {
+    std::string decoded(pem_tok.data());
+
+    OSCertHandle handle = NULL;
+    if (format & FORMAT_PEM_CERT_SEQUENCE)
+      handle = CreateOSCertHandleFromBytes(decoded.c_str(), decoded.size());
+    if (handle != NULL) {
+      // Parsed a DER encoded certificate. All PEM blocks that follow must
+      // also be DER encoded certificates wrapped inside of PEM blocks.
+      format = FORMAT_PEM_CERT_SEQUENCE;
+      certificates.push_back(handle);
+      continue;
+    }
+
+    // If the first block failed to parse as a DER certificate, and
+    // formats other than PEM are acceptable, check to see if the decoded
+    // data is one of the accepted formats.
+    if (format & ~FORMAT_PEM_CERT_SEQUENCE) {
+      for (size_t i = 0; certificates.empty() &&
+           i < arraysize(kFormatDecodePriority); ++i) {
+        if (format & kFormatDecodePriority[i]) {
+          certificates = CreateOSCertHandlesFromBytes(decoded.c_str(),
+              decoded.size(), kFormatDecodePriority[i]);
+        }
+      }
+    }
+
+    // Stop parsing after the first block for any format but a sequence of
+    // PEM-encoded DER certificates. The case of FORMAT_PEM_CERT_SEQUENCE
+    // is handled above, and continues processing until a certificate fails
+    // to parse.
+    break;
+  }
+
   // Try each of the formats, in order of parse preference, to see if |data|
-  // contains the binary representation of a Format.
+  // contains the binary representation of a Format, if it failed to parse
+  // as a PEM certificate/chain.
   for (size_t i = 0; certificates.empty() &&
        i < arraysize(kFormatDecodePriority); ++i) {
     if (format & kFormatDecodePriority[i])
       certificates = CreateOSCertHandlesFromBytes(data, length,
                                                   kFormatDecodePriority[i]);
-  }
-
-  // No certs were read. Check to see if it is in a PEM-encoded form.
-  if (certificates.empty()) {
-    base::StringPiece data_string(data, length);
-    std::vector<std::string> pem_headers;
-
-    // To maintain compatibility with NSS/Firefox, CERTIFICATE is a universally
-    // valid PEM block header for any format.
-    pem_headers.push_back(kCertificateHeader);
-    if (format & FORMAT_PKCS7)
-      pem_headers.push_back(kPKCS7Header);
-
-    PEMTokenizer pem_tok(data_string, pem_headers);
-    while (pem_tok.GetNext()) {
-      std::string decoded(pem_tok.data());
-
-      OSCertHandle handle = NULL;
-      if (format & FORMAT_PEM_CERT_SEQUENCE)
-        handle = CreateOSCertHandleFromBytes(decoded.c_str(), decoded.size());
-      if (handle != NULL) {
-        // Parsed a DER encoded certificate. All PEM blocks that follow must
-        // also be DER encoded certificates wrapped inside of PEM blocks.
-        format = FORMAT_PEM_CERT_SEQUENCE;
-        certificates.push_back(handle);
-        continue;
-      }
-
-      // If the first block failed to parse as a DER certificate, and
-      // formats other than PEM are acceptable, check to see if the decoded
-      // data is one of the accepted formats.
-      if (format & ~FORMAT_PEM_CERT_SEQUENCE) {
-        for (size_t i = 0; certificates.empty() &&
-             i < arraysize(kFormatDecodePriority); ++i) {
-          if (format & kFormatDecodePriority[i]) {
-            certificates = CreateOSCertHandlesFromBytes(decoded.c_str(),
-                decoded.size(), kFormatDecodePriority[i]);
-          }
-        }
-      }
-
-      // Stop parsing after the first block for any format but a sequence of
-      // PEM-encoded DER certificates. The case of FORMAT_PEM_CERT_SEQUENCE
-      // is handled above, and continues processing until a certificate fails
-      // to parse.
-      break;
-    }
   }
 
   CertificateList results;
