@@ -703,8 +703,19 @@ TEST_P(X509CertificateParseTest, CanParseFormat) {
                   kGoogleParseValidFrom, kGoogleParseValidTo);
 
   size_t i;
-  for (i = 0; i < arraysize(test_data_.chain_fingerprints) &&
-       i < certs.size() && test_data_.chain_fingerprints[i] != NULL; ++i) {
+  for (i = 0; i < arraysize(test_data_.chain_fingerprints); ++i) {
+    if (test_data_.chain_fingerprints[i] == NULL) {
+      // No more test certificates expected - make sure no more were
+      // returned before marking this test a success.
+      EXPECT_EQ(i, certs.size());
+      break;
+    }
+
+    // A cert is expected - make sure that one was parsed.
+    ASSERT_LT(i, certs.size());
+
+    // Compare the parsed certificate with the expected certificate, by
+    // comparing fingerprints.
     const X509Certificate* cert = certs[i];
     const SHA1Fingerprint& actual_fingerprint = cert->fingerprint();
     unsigned char* expected_fingerprint = test_data_.chain_fingerprints[i];
