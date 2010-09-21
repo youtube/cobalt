@@ -32,6 +32,11 @@ class SSLClientSocketTest : public PlatformTest {
         socket_factory_(net::ClientSocketFactory::GetDefaultFactory()) {
   }
 
+  // PerformHTTPSRequest makes an HTTPS request to the testserver by requesting
+  // the given path (i.e. "/"). If |response| is non-NULL then any resulting
+  // bytes (including any HTTP headers etc) are appended to |response|.
+  void PerformHTTPSRequest(const std::string& path, std::string* response);
+
  protected:
   scoped_refptr<net::HostResolver> resolver_;
   net::ClientSocketFactory* socket_factory_;
@@ -276,7 +281,8 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
 //   - Server closes the underlying TCP connection directly.
 //   - Server sends data unexpectedly.
 
-TEST_F(SSLClientSocketTest, Read) {
+void SSLClientSocketTest::PerformHTTPSRequest(const std::string& path,
+                                              std::string* response) {
   net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
   ASSERT_TRUE(test_server.Start());
 
@@ -305,17 +311,17 @@ TEST_F(SSLClientSocketTest, Read) {
   }
   EXPECT_TRUE(sock->IsConnected());
 
-  const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
+  const std::string request_text = "GET " + path + " HTTP/1.0\r\n\r\n";
   scoped_refptr<net::IOBuffer> request_buffer =
-      new net::IOBuffer(arraysize(request_text) - 1);
-  memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
+      new net::IOBuffer(request_text.size());
+  memcpy(request_buffer->data(), request_text.data(), request_text.size());
 
-  rv = sock->Write(request_buffer, arraysize(request_text) - 1, &callback);
+  rv = sock->Write(request_buffer, request_text.size(), &callback);
   EXPECT_TRUE(rv >= 0 || rv == net::ERR_IO_PENDING);
 
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
-  EXPECT_EQ(static_cast<int>(arraysize(request_text) - 1), rv);
+  EXPECT_EQ(static_cast<int>(request_text.size()), rv);
 
   scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(4096);
   for (;;) {
@@ -328,7 +334,13 @@ TEST_F(SSLClientSocketTest, Read) {
     EXPECT_GE(rv, 0);
     if (rv <= 0)
       break;
+    if (response)
+      *response += std::string(buf->data(), rv);
   }
+}
+
+TEST_F(SSLClientSocketTest, Read) {
+  PerformHTTPSRequest("/", NULL /* don't care about reply contents */);
 }
 
 // Test the full duplex mode, with Read and Write pending at the same time.
@@ -540,4 +552,18 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
 
   rv = sock->Connect(&callback);
   EXPECT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
+}
+
+// CorkedFalseStart tries to test that, in a full handshake, an application
+// data record is contained in the same packet as the Finished handshake
+// message. This test is inheriently false-negative-flaky: if everything is
+// good it'll always pass but, if things break, it'll non-deterministicly fail.
+//
+// WARNING: do not mark this test as flaky. See above.
+TEST_F(SSLClientSocketTest, CorkedFalseStart) {
+  std::string response;
+  PerformHTTPSRequest("/corked-false-start", &response);
+  // "979bdf01cb3c" is a random string which is included in the response to
+  // make it easy to grep for.
+  ASSERT_TRUE(std::string::npos != response.find("979bdf01cb3c"));
 }
