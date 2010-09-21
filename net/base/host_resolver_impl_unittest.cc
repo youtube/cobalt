@@ -1130,6 +1130,43 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
   EXPECT_EQ(0u, cache->size());
 }
 
+// Obey pool constraints after IP address has changed.
+TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
+  scoped_refptr<WaitingHostResolverProc> resolver_proc =
+      new WaitingHostResolverProc(NULL);
+  scoped_refptr<MockHostResolver> host_resolver(new MockHostResolver());
+  host_resolver->Reset(resolver_proc);
+
+  const size_t kMaxOutstandingJobs = 1u;
+  const size_t kMaxPendingRequests = 1000000u;  // not relevant.
+  host_resolver->SetPoolConstraints(HostResolverImpl::POOL_NORMAL,
+                                    kMaxOutstandingJobs,
+                                    kMaxPendingRequests);
+
+  // Resolve "host1".
+  HostResolver::RequestInfo info(HostPortPair("host1", 70));
+  TestCompletionCallback callback;
+  AddressList addrlist;
+  int rv = host_resolver->Resolve(info, &addrlist, &callback, NULL,
+                                  BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Triggering an IP address change.
+  NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
+  MessageLoop::current()->RunAllPending();  // Notification happens async.
+  resolver_proc->Signal();
+
+  EXPECT_EQ(ERR_ABORTED, callback.WaitForResult());
+
+  // Don't bother with WaitingHostResolverProc anymore.
+  host_resolver->Reset(NULL);
+
+  rv = host_resolver->Resolve(info, &addrlist, &callback, NULL,
+                              BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+}
+
 class ResolveWithinCallback : public CallbackRunner< Tuple1<int> > {
  public:
   ResolveWithinCallback(
