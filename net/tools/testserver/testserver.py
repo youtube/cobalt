@@ -88,6 +88,7 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
                                     sessionCache=self.session_cache,
                                     reqCert=self.ssl_client_auth,
                                     reqCAs=self.ssl_client_cas)
+      self.corkedFalseStart = tlsConnection.corkedFalseStart
       tlsConnection.ignoreAbruptClose = True
       return True
     except tlslite.api.TLSAbruptCloseError:
@@ -124,6 +125,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.EchoHeader,
       self.EchoHeaderOverride,
       self.EchoAllHandler,
+      self.FalseStartHandler,
       self.FileHandler,
       self.RealFileWithCommonHeaderHandler,
       self.RealBZ2FileWithCommonHeaderHandler,
@@ -585,6 +587,28 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.send_header('Content-type', 'text/html')
     self.send_header('Cache-Control', 'max-age=0')
     self.end_headers()
+    return True
+
+  def FalseStartHandler(self):
+    """This handler returns kMagic1 if the request was made over a corked False
+    Start connection and kMagic2 otherwise."""
+
+    # These are easy to grep for in the reply.
+    kMagic1 = "979bdf01cb3c\n"
+    kMagic2 = "71733287b84e\n"
+
+    if not self._ShouldHandleRequest("/corked-false-start"):
+      return False
+
+    self.send_response(200)
+    self.send_header('Content-type', 'text/plain')
+    self.end_headers()
+    if self.server.corkedFalseStart:
+        self.wfile.write("Client did corked False Start correctly\n")
+        self.wfile.write(kMagic1)
+    else:
+        self.wfile.write("Client didn't do corked False Start\n")
+        self.wfile.write(kMagic2)
     return True
 
   def FileHandler(self):
