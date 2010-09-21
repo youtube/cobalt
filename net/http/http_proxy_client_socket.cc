@@ -11,10 +11,10 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
-#include "net/http/http_basic_stream.h"
 #include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_stream_parser.h"
 #include "net/socket/client_socket_handle.h"
 
 namespace net {
@@ -130,8 +130,8 @@ int HttpProxyClientSocket::PrepareForAuthRestart() {
 
   bool keep_alive = false;
   if (response_.headers->IsKeepAlive() &&
-      http_stream_->CanFindEndOfResponse()) {
-    if (!http_stream_->IsResponseBodyComplete()) {
+      http_stream_parser_->CanFindEndOfResponse()) {
+    if (!http_stream_parser_->IsResponseBodyComplete()) {
       next_state_ = STATE_DRAIN_BODY;
       drain_buf_ = new IOBuffer(kDrainBodyBufferSize);
       return OK;
@@ -157,7 +157,8 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
 
   // Reset the other member variables.
   drain_buf_ = NULL;
-  http_stream_.reset();
+  parser_buf_ = NULL;
+  http_stream_parser_.reset();
   request_headers_.clear();
   response_ = HttpResponseInfo();
   return OK;
@@ -367,10 +368,12 @@ int HttpProxyClientSocket::DoSendRequest() {
     request_headers_ = request_line + request_headers.ToString();
   }
 
-  http_stream_.reset(new HttpBasicStream(transport_.get()));
-  http_stream_->InitializeStream(&request_, net_log_, NULL);
-  return http_stream_->SendRequest(request_headers_, NULL,
-                                   &response_, &io_callback_);
+
+  parser_buf_ = new GrowableIOBuffer();
+  http_stream_parser_.reset(
+      new HttpStreamParser(transport_.get(), &request_, parser_buf_, net_log_));
+  return http_stream_parser_->SendRequest(request_headers_, NULL,
+                                          &response_, &io_callback_);
 }
 
 int HttpProxyClientSocket::DoSendRequestComplete(int result) {
@@ -383,7 +386,7 @@ int HttpProxyClientSocket::DoSendRequestComplete(int result) {
 
 int HttpProxyClientSocket::DoReadHeaders() {
   next_state_ = STATE_READ_HEADERS_COMPLETE;
-  return http_stream_->ReadResponseHeaders(&io_callback_);
+  return http_stream_parser_->ReadResponseHeaders(&io_callback_);
 }
 
 int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
@@ -402,7 +405,7 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
 
   switch (response_.headers->response_code()) {
     case 200:  // OK
-      if (http_stream_->IsMoreDataBuffered())
+      if (http_stream_parser_->IsMoreDataBuffered())
         // The proxy sent extraneous data after the headers.
         return ERR_TUNNEL_CONNECTION_FAILED;
 
@@ -438,15 +441,15 @@ int HttpProxyClientSocket::DoDrainBody() {
   DCHECK(drain_buf_);
   DCHECK(transport_->is_initialized());
   next_state_ = STATE_DRAIN_BODY_COMPLETE;
-  return http_stream_->ReadResponseBody(drain_buf_, kDrainBodyBufferSize,
-                                        &io_callback_);
+  return http_stream_parser_->ReadResponseBody(drain_buf_, kDrainBodyBufferSize,
+                                               &io_callback_);
 }
 
 int HttpProxyClientSocket::DoDrainBodyComplete(int result) {
   if (result < 0)
     return result;
 
-  if (http_stream_->IsResponseBodyComplete())
+  if (http_stream_parser_->IsResponseBodyComplete())
     return DidDrainBodyForAuthRestart(true);
 
   // Keep draining.
