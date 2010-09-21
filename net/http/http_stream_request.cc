@@ -15,7 +15,6 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_request_info.h"
-#include "net/http/http_stream_handle.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -178,7 +177,7 @@ SSLConfig* HttpStreamRequest::ssl_config() const {
   return ssl_config_;
 }
 
-void HttpStreamRequest::OnStreamReadyCallback(HttpStreamHandle* stream) {
+void HttpStreamRequest::OnStreamReadyCallback(HttpStream* stream) {
   if (cancelled_) {
     // The delegate is gone.  We need to cleanup the stream.
     delete stream;
@@ -232,7 +231,8 @@ int HttpStreamRequest::RunLoop(int result) {
     GetSSLInfo();
 
     next_state_ = STATE_WAITING_USER_ACTION;
-    MessageLoop::current()->PostTask(FROM_HERE,
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
         NewRunnableMethod(this,
         &HttpStreamRequest::OnCertificateErrorCallback,
         result, ssl_info_));
@@ -252,7 +252,8 @@ int HttpStreamRequest::RunLoop(int result) {
             http_proxy_socket->GetResponseInfo();
 
         next_state_ = STATE_WAITING_USER_ACTION;
-        MessageLoop::current()->PostTask(FROM_HERE,
+        MessageLoop::current()->PostTask(
+            FROM_HERE,
             NewRunnableMethod(this,
                 &HttpStreamRequest::OnNeedsProxyAuthCallback,
                 *tunnel_auth_response,
@@ -261,7 +262,8 @@ int HttpStreamRequest::RunLoop(int result) {
       return ERR_IO_PENDING;
 
     case ERR_SSL_CLIENT_AUTH_CERT_NEEDED:
-      MessageLoop::current()->PostTask(FROM_HERE,
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
           NewRunnableMethod(this,
           &HttpStreamRequest::OnNeedsClientAuthCallback,
           connection_->ssl_error_response_info().cert_request_info));
@@ -271,14 +273,16 @@ int HttpStreamRequest::RunLoop(int result) {
       break;
 
     case OK:
-      MessageLoop::current()->PostTask(FROM_HERE,
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
           NewRunnableMethod(this,
           &HttpStreamRequest::OnStreamReadyCallback,
           stream_.release()));
       return ERR_IO_PENDING;
 
     default:
-      MessageLoop::current()->PostTask(FROM_HERE,
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
           NewRunnableMethod(this,
           &HttpStreamRequest::OnStreamFailedCallback,
           result));
@@ -676,8 +680,7 @@ int HttpStreamRequest::DoCreateStream() {
     SetSocketMotivation();
 
   if (!using_spdy_) {
-    HttpBasicStream* stream = new HttpBasicStream(connection_.get());
-    stream_.reset(new HttpStreamHandle(connection_.release(), stream));
+    stream_.reset(new HttpBasicStream(connection_.release()));
     return OK;
   }
 
@@ -720,8 +723,7 @@ int HttpStreamRequest::DoCreateStream() {
   if (spdy_session->IsClosed())
     return ERR_CONNECTION_CLOSED;
 
-  SpdyHttpStream* stream = new SpdyHttpStream(spdy_session, direct);
-  stream_.reset(new HttpStreamHandle(NULL, stream));
+  stream_.reset(new SpdyHttpStream(spdy_session, direct));
   return OK;
 }
 

@@ -27,7 +27,7 @@ namespace net {
 class HttpAuthController;
 class HttpNetworkSession;
 class HttpStream;
-class HttpStreamHandle;
+class HttpStreamRequest;
 class IOBuffer;
 struct HttpRequestInfo;
 
@@ -57,7 +57,7 @@ class HttpNetworkTransaction : public HttpTransaction,
   virtual uint64 GetUploadProgress() const;
 
   // StreamRequestDelegate methods:
-  virtual void OnStreamReady(HttpStreamHandle* stream);
+  virtual void OnStreamReady(HttpStream* stream);
   virtual void OnStreamFailed(int status);
   virtual void OnCertificateError(int status, const SSLInfo& ssl_info);
   virtual void OnNeedsProxyAuth(
@@ -206,7 +206,7 @@ class HttpNetworkTransaction : public HttpTransaction,
   ProxyInfo proxy_info_;
 
   scoped_refptr<StreamFactory::StreamRequestJob> stream_request_;
-  scoped_ptr<HttpStreamHandle> stream_;
+  scoped_ptr<HttpStream> stream_;
 
   // True if we've validated the headers that the stream parser has returned.
   bool headers_valid_;
