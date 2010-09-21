@@ -7,6 +7,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_stream_parser.h"
+#include "net/socket/client_socket_handle.h"
 
 namespace net {
 
@@ -18,9 +19,8 @@ HttpBasicStream::HttpBasicStream(ClientSocketHandle* connection)
 int HttpBasicStream::InitializeStream(const HttpRequestInfo* request_info,
                                       const BoundNetLog& net_log,
                                       CompletionCallback* callback) {
-  parser_.reset(new HttpStreamParser(connection_, request_info,
+  parser_.reset(new HttpStreamParser(connection_.get(), request_info,
                                      read_buf_, net_log));
-  connection_ = NULL;
   return OK;
 }
 
