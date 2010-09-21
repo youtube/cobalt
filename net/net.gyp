@@ -438,8 +438,6 @@
         'http/http_stream.h',
         'http/http_stream_factory.cc',
         'http/http_stream_factory.h',
-        'http/http_stream_handle.cc',
-        'http/http_stream_handle.h',
         'http/http_stream_parser.cc',
         'http/http_stream_parser.h',
         'http/http_stream_request.cc',

@@ -5,7 +5,10 @@
 // HttpStream is an interface for reading and writing data to an HttpStream that
 // keeps the client agnostic of the actual underlying transport layer.  This
 // provides an abstraction for both a basic http stream as well as http
-// pipelining implementations.
+// pipelining implementations.  The HttpStream subtype is expected to manage the
+// underlying transport appropriately.  For example, a non-pipelined HttpStream
+// would return the transport socket to the pool for reuse.  SPDY streams on the
+// other hand leave the transport socket management to the SpdySession.
 
 #ifndef NET_HTTP_HTTP_STREAM_H_
 #define NET_HTTP_HTTP_STREAM_H_
