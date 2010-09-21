@@ -379,6 +379,9 @@ NET_ERROR(MISCONFIGURED_AUTH_ENVIRONMENT, -343)
 // An undocumented SSPI or GSSAPI status code was returned.
 NET_ERROR(UNDOCUMENTED_SECURITY_LIBRARY_STATUS, -344)
 
+// The HTTP response was too big to drain.
+NET_ERROR(RESPONSE_BODY_TOO_BIG_TO_DRAIN, -345)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
