@@ -91,6 +91,7 @@ int MapWinsockError(int os_error) {
     case WSAEADDRNOTAVAIL:
       return ERR_ADDRESS_INVALID;
     case WSA_IO_INCOMPLETE:
+      LOG(ERROR) << "Unexpected error " << os_error;
       return ERR_UNEXPECTED;
     case ERROR_SUCCESS:
       return OK;
@@ -342,7 +343,7 @@ int TCPClientSocketWin::DoConnectLoop(int result) {
         rv = DoConnectComplete(rv);
         break;
       default:
-        LOG(DFATAL) << "bad state";
+        LOG(DFATAL) << "bad state " << state;
         rv = ERR_UNEXPECTED;
         break;
     }

@@ -63,6 +63,7 @@ static int MapSecurityError(SECURITY_STATUS err) {
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
     case SEC_E_INVALID_HANDLE:
     case SEC_E_INVALID_TOKEN:
+      LOG(ERROR) << "Unexpected error " << err;
       return ERR_UNEXPECTED;
     case SEC_E_OK:
       return OK;
@@ -814,7 +815,7 @@ int SSLClientSocketWin::DoLoop(int last_io_result) {
         return rv;
       default:
         rv = ERR_UNEXPECTED;
-        NOTREACHED() << "unexpected state";
+        LOG(DFATAL) << "unexpected state " << state;
         break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
@@ -830,7 +831,7 @@ int SSLClientSocketWin::DoHandshakeRead() {
   int buf_len = kRecvBufferSize - bytes_received_;
 
   if (buf_len <= 0) {
-    NOTREACHED() << "Receive buffer is too small!";
+    LOG(DFATAL) << "Receive buffer is too small!";
     return ERR_UNEXPECTED;
   }
 
@@ -1023,8 +1024,10 @@ int SSLClientSocketWin::DoHandshakeWriteComplete(int result) {
     bool overflow = (bytes_sent_ > static_cast<int>(send_buffer_.cbBuffer));
     FreeSendBuffer();
     bytes_sent_ = 0;
-    if (overflow)  // Bug!
+    if (overflow) {  // Bug!
+      LOG(DFATAL) << "overflow";
       return ERR_UNEXPECTED;
+    }
     if (writing_first_token_) {
       writing_first_token_ = false;
       DCHECK(bytes_received_ == 0);
@@ -1358,8 +1361,10 @@ int SSLClientSocketWin::DoPayloadWriteComplete(int result) {
     payload_send_buffer_.reset();
     payload_send_buffer_len_ = 0;
     bytes_sent_ = 0;
-    if (overflow)  // Bug!
+    if (overflow) {  // Bug!
+      LOG(DFATAL) << "overflow";
       return ERR_UNEXPECTED;
+    }
     // Done
     return user_write_buf_len_;
   }
