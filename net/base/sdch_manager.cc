@@ -331,6 +331,9 @@ SdchManager::Dictionary::Dictionary(const std::string& dictionary_text,
         ports_(ports) {
 }
 
+SdchManager::Dictionary::~Dictionary() {
+}
+
 // static
 void SdchManager::GenerateHash(const std::string& dictionary_text,
     std::string* client_hash, std::string* server_hash) {

@@ -53,8 +53,9 @@ class SHA1FingerprintLessThan
 
 // CertPrincipal represents the issuer or subject field of an X.509 certificate.
 struct CertPrincipal {
-  CertPrincipal() { }
-  explicit CertPrincipal(const std::string& name) : common_name(name) { }
+  CertPrincipal();
+  explicit CertPrincipal(const std::string& name);
+  ~CertPrincipal();
 
   // Parses a BER-format DistinguishedName.
   bool ParseDistinguishedName(const void* ber_name_data, size_t length);
@@ -104,6 +105,9 @@ class CertPolicy {
     // This certificate is denied.
     DENIED,
   };
+
+  CertPolicy();
+  ~CertPolicy();
 
   // Returns the judgment this policy makes about this certificate.
   Judgment Check(X509Certificate* cert) const;

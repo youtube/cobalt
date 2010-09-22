@@ -6,11 +6,12 @@
 #define NET_BASE_UPLOAD_DATA_STREAM_H_
 #pragma once
 
-#include "net/base/file_stream.h"
+#include "base/scoped_ptr.h"
 #include "net/base/upload_data.h"
 
 namespace net {
 
+class FileStream;
 class IOBuffer;
 
 class UploadDataStream {
