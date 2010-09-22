@@ -23,8 +23,8 @@ class HttpResponseBodyDrainer {
   // we want to throw away.  The response body is typically a small page just a
   // few hundred bytes long.  We set a limit to prevent it from taking too long,
   // since we may as well just create a new socket then.
-  enum { kDrainBodyBufferSize = 16384 };
-  enum { kTimeoutInSeconds = 5 };
+  static const int kDrainBodyBufferSize = 16384;
+  static const int kTimeoutInSeconds = 5;
 
   explicit HttpResponseBodyDrainer(HttpStream* stream);
 
