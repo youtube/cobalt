@@ -36,6 +36,13 @@ bool match(const std::vector<std::string> &rdn1,
   return true;
 }
 
+CertPrincipal::CertPrincipal() {
+}
+
+CertPrincipal::CertPrincipal(const std::string& name) : common_name(name) {}
+
+CertPrincipal::~CertPrincipal() {
+}
 
 bool CertPrincipal::Matches(const CertPrincipal& against) const {
   return match(common_name, against.common_name) &&
@@ -79,6 +86,12 @@ std::ostream& operator<<(std::ostream& s, const CertPrincipal& p) {
   for (unsigned i = 0; i < p.domain_components.size(); ++i)
     s << "dc=\"" << p.domain_components[i] << "\" ";
   return s << "]";
+}
+
+CertPolicy::CertPolicy() {
+}
+
+CertPolicy::~CertPolicy() {
 }
 
 CertPolicy::Judgment CertPolicy::Check(

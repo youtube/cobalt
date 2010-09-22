@@ -12,7 +12,21 @@
 
 namespace net {
 
+struct HostMappingRules::MapRule {
+  MapRule() : replacement_port(-1) {}
+
+  std::string hostname_pattern;
+  std::string replacement_hostname;
+  int replacement_port;
+};
+
+struct HostMappingRules::ExclusionRule {
+  std::string hostname_pattern;
+};
+
 HostMappingRules::HostMappingRules() {}
+
+HostMappingRules::~HostMappingRules() {}
 
 bool HostMappingRules::RewriteHost(HostPortPair* host_port) const {
   // Check if the hostname was excluded.

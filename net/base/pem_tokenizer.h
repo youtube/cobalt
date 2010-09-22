@@ -24,6 +24,7 @@ class PEMTokenizer {
   // |str| must remain valid for the duration of the PEMTokenizer.
   PEMTokenizer(const base::StringPiece& str,
                const std::vector<std::string>& allowed_block_types);
+  ~PEMTokenizer();
 
   // Attempts to decode the next PEM block in the string. Returns false if no
   // PEM blocks can be decoded. The decoded PEM block will be available via
@@ -46,11 +47,7 @@ class PEMTokenizer {
 
   // A simple cache of the allowed PEM header and footer for a given PEM
   // block type, so that it is only computed once.
-  struct PEMType {
-    std::string type;
-    std::string header;
-    std::string footer;
-  };
+  struct PEMType;
 
   // The string to search, which must remain valid for as long as this class
   // is around.

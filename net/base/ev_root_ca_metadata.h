@@ -44,7 +44,7 @@ class EVRootCAMetadata {
 
  private:
   EVRootCAMetadata();
-  ~EVRootCAMetadata() { }
+  ~EVRootCAMetadata();
 
   friend struct DefaultSingletonTraits<EVRootCAMetadata>;
 
