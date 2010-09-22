@@ -12,6 +12,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
+#include "base/file_util.h"
 #include "base/process_util.h"
 #include "net/base/host_port_pair.h"
 
@@ -109,6 +110,15 @@ class TestServer {
 #if defined(OS_WIN)
   // JobObject used to clean up orphaned child processes.
   ScopedHandle job_handle_;
+
+  // The file handle the child writes to when it starts.
+  ScopedHandle child_fd_;
+#endif
+
+#if defined(OS_POSIX)
+  // The file descriptor the child writes to when it starts.
+  int child_fd_;
+  file_util::ScopedFD child_fd_closer_;
 #endif
 
 #if defined(USE_NSS)
