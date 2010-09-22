@@ -195,6 +195,13 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
   return result;
 }
 
+bool KillProcessGroup(ProcessHandle process_group_id) {
+  bool result = kill(-1 * process_group_id, SIGKILL) == 0;
+  if (!result)
+    PLOG(ERROR) << "Unable to terminate process group " << process_group_id;
+  return result;
+}
+
 // A class to handle auto-closing of DIR*'s.
 class ScopedDIRClose {
  public:
@@ -420,12 +427,13 @@ char** AlterEnvironment(const environment_vector& changes,
   return ret;
 }
 
-bool LaunchApp(
+bool LaunchAppImpl(
     const std::vector<std::string>& argv,
     const environment_vector& env_changes,
     const file_handle_mapping_vector& fds_to_remap,
     bool wait,
-    ProcessHandle* process_handle) {
+    ProcessHandle* process_handle,
+    bool start_new_process_group) {
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
   fd_shuffle1.reserve(fds_to_remap.size());
@@ -439,6 +447,13 @@ bool LaunchApp(
 
   if (pid == 0) {
     // Child process
+
+    if (start_new_process_group) {
+      // Instead of inheriting the process group ID of the parent, the child
+      // starts off a new process group with pgid equal to its process ID.
+      if (setpgid(0, 0) < 0)
+        return false;
+    }
 #if defined(OS_MACOSX)
     RestoreDefaultExceptionHandler();
 #endif
@@ -496,6 +511,26 @@ bool LaunchApp(
   }
 
   return true;
+}
+
+bool LaunchApp(
+    const std::vector<std::string>& argv,
+    const environment_vector& env_changes,
+    const file_handle_mapping_vector& fds_to_remap,
+    bool wait,
+    ProcessHandle* process_handle) {
+  return LaunchAppImpl(argv, env_changes, fds_to_remap,
+                       wait, process_handle, false);
+}
+
+bool LaunchAppInNewProcessGroup(
+    const std::vector<std::string>& argv,
+    const environment_vector& env_changes,
+    const file_handle_mapping_vector& fds_to_remap,
+    bool wait,
+    ProcessHandle* process_handle) {
+  return LaunchAppImpl(argv, env_changes, fds_to_remap, wait,
+                       process_handle, true);
 }
 
 bool LaunchApp(const std::vector<std::string>& argv,

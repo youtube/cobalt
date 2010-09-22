@@ -226,6 +226,14 @@ bool LaunchApp(const std::vector<std::string>& argv,
                const file_handle_mapping_vector& fds_to_remap,
                bool wait, ProcessHandle* process_handle);
 
+// Similar to the above two methods, but starts the child process in a process
+// group of its own, instead of allowing it to inherit the parent's process
+// group. The pgid of the child process will be the same as its pid.
+bool LaunchAppInNewProcessGroup(const std::vector<std::string>& argv,
+                                const environment_vector& environ,
+                                const file_handle_mapping_vector& fds_to_remap,
+                                bool wait, ProcessHandle* process_handle);
+
 // AlterEnvironment returns a modified environment vector, constructed from the
 // given environment and the list of changes given in |changes|. Each key in
 // the environment is matched against the first element of the pairs. In the
@@ -276,7 +284,7 @@ int GetProcessCount(const std::wstring& executable_name,
 // Attempts to kill all the processes on the current machine that were launched
 // from the given executable name, ending them with the given exit code.  If
 // filter is non-null, then only processes selected by the filter are killed.
-// Returns false if all processes were able to be killed off, false if at least
+// Returns true if all processes were able to be killed off, false if at least
 // one couldn't be killed.
 bool KillProcesses(const std::wstring& executable_name, int exit_code,
                    const ProcessFilter* filter);
@@ -286,6 +294,13 @@ bool KillProcesses(const std::wstring& executable_name, int exit_code,
 // for the process to be actually terminated before returning.
 // Returns true if this is successful, false otherwise.
 bool KillProcess(ProcessHandle process, int exit_code, bool wait);
+
+#if defined(OS_POSIX)
+// Attempts to kill the process group identified by |process_group_id|. Returns
+// true on success.
+bool KillProcessGroup(ProcessHandle process_group_id);
+#endif
+
 #if defined(OS_WIN)
 bool KillProcessById(ProcessId process_id, int exit_code, bool wait);
 #endif
