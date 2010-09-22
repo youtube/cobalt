@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_chunked_decoder.h"

@@ -18,12 +18,8 @@ namespace net {
 struct SSLConfig {
   // Default to revocation checking.
   // Default to SSL 2.0 off, SSL 3.0 on, and TLS 1.0 on.
-  SSLConfig()
-      : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
-        tls1_enabled(true), dnssec_enabled(false), mitm_proxies_allowed(false),
-        false_start_enabled(true), send_client_cert(false),
-        verify_ev_cert(false), ssl3_fallback(false) {
-  }
+  SSLConfig();
+  ~SSLConfig();
 
   bool rev_checking_enabled;  // True if server certificate revocation
                               // checking is enabled.
@@ -51,15 +47,7 @@ struct SSLConfig {
   };
 
   // Returns true if |cert| is one of the certs in |allowed_bad_certs|.
-  // TODO(wtc): Move this to a .cc file.  ssl_config_service.cc is Windows
-  // only right now, so I can't move it there.
-  bool IsAllowedBadCert(X509Certificate* cert) const {
-    for (size_t i = 0; i < allowed_bad_certs.size(); ++i) {
-      if (cert == allowed_bad_certs[i].cert)
-        return true;
-    }
-    return false;
-  }
+  bool IsAllowedBadCert(X509Certificate* cert) const;
 
   // Add any known-bad SSL certificate (with its cert status) to
   // |allowed_bad_certs| that should not trigger an ERR_CERT_* error when
@@ -108,8 +96,7 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
     virtual ~Observer() {}
   };
 
-  SSLConfigService()
-      : observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {}
+  SSLConfigService();
 
   // Create an instance of SSLConfigService which retrieves the configuration
   // from the system SSL configuration, or an instance of
@@ -157,7 +144,7 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
  protected:
   friend class base::RefCountedThreadSafe<SSLConfigService>;
 
-  virtual ~SSLConfigService() {}
+  virtual ~SSLConfigService();
 
   // SetFlags sets the values of several flags based on global configuration.
   static void SetSSLConfigFlags(SSLConfig*);

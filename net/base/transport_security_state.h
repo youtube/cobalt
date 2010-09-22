@@ -93,7 +93,7 @@ class TransportSecurityState :
   friend class base::RefCountedThreadSafe<TransportSecurityState>;
   FRIEND_TEST_ALL_PREFIXES(TransportSecurityStateTest, IsPreloaded);
 
-  ~TransportSecurityState() {}
+  ~TransportSecurityState();
 
   // If we have a callback configured, call it to let our serialiser know that
   // our state is dirty.

@@ -161,6 +161,7 @@
         'base/ssl_client_auth_cache.h',
         'base/ssl_config_service.cc',
         'base/ssl_config_service.h',
+        'base/ssl_config_service_defaults.cc',
         'base/ssl_config_service_defaults.h',
         'base/ssl_config_service_mac.cc',
         'base/ssl_config_service_mac.h',
