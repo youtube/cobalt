@@ -39,6 +39,9 @@ except ImportError:
   import md5
   _new_md5 = md5.new
 
+if sys.platform == 'win32':
+  import msvcrt
+
 SERVER_HTTP = 0
 SERVER_FTP = 1
 
@@ -1230,6 +1233,17 @@ def main(options, args):
     server = pyftpdlib.ftpserver.FTPServer(address, ftp_handler)
     print 'FTP server started on port %d...' % port
 
+  # Notify the parent that we've started. (BaseServer subclasses
+  # bind their sockets on construction.)
+  if options.startup_pipe is not None:
+    if sys.platform == 'win32':
+      fd = msvcrt.open_osfhandle(options.startup_pipe, 0)
+    else:
+      fd = options.startup_pipe
+    startup_pipe = os.fdopen(fd, "w")
+    startup_pipe.write("READY")
+    startup_pipe.close()
+
   try:
     server.serve_forever()
   except KeyboardInterrupt:
@@ -1263,6 +1277,9 @@ if __name__ == '__main__':
                            help='Prevent the server from dying when visiting '
                            'a /kill URL. Useful for manually running some '
                            'tests.')
+  option_parser.add_option('', '--startup-pipe', type='int',
+                           dest='startup_pipe',
+                           help='File handle of pipe to parent process')
   options, args = option_parser.parse_args()
 
   sys.exit(main(options, args))
