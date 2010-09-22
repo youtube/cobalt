@@ -16,6 +16,20 @@
 using base::Time;
 using base::TimeDelta;
 
+namespace {
+
+FilePath BuildCachePath(const std::string& name) {
+  FilePath path;
+  PathService::Get(base::DIR_TEMP, &path);  // Ignore return value;
+  path = path.AppendASCII(name);
+  if (!file_util::PathExists(path))
+    file_util::CreateDirectory(path);
+
+  return path;
+}
+
+}  // namespace.
+
 std::string GenerateKey(bool same_length) {
   char key[200];
   CacheTestFillBuffer(key, sizeof(key), same_length);
@@ -41,6 +55,10 @@ void CacheTestFillBuffer(char* buffer, size_t len, bool no_nulls) {
     buffer[0] = 'g';
 }
 
+FilePath GetCacheFilePath() {
+  return BuildCachePath("cache_test");
+}
+
 bool CreateCacheTestFile(const FilePath& name) {
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_READ |
@@ -60,7 +78,7 @@ bool DeleteCache(const FilePath& path) {
   return true;
 }
 
-bool CopyTestCache(const std::string& name, const FilePath& destination) {
+bool CopyTestCache(const std::string& name) {
   FilePath path;
   PathService::Get(base::DIR_SOURCE_ROOT, &path);
   path = path.AppendASCII("net");
@@ -68,9 +86,10 @@ bool CopyTestCache(const std::string& name, const FilePath& destination) {
   path = path.AppendASCII("cache_tests");
   path = path.AppendASCII(name);
 
-  if (!DeleteCache(destination))
+  FilePath dest = GetCacheFilePath();
+  if (!DeleteCache(dest))
     return false;
-  return file_util::CopyDirectory(path, destination, false);
+  return file_util::CopyDirectory(path, dest, false);
 }
 
 bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
@@ -86,11 +105,19 @@ bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
   return cache->SelfCheck() >= 0;
 }
 
-ScopedTestCache::ScopedTestCache() {
-  temp_dir_.CreateUniqueTempDir();
+ScopedTestCache::ScopedTestCache() : path_(GetCacheFilePath()) {
+  bool result = DeleteCache(path_);
+  DCHECK(result);
+}
+
+ScopedTestCache::ScopedTestCache(const std::string& name)
+    : path_(BuildCachePath(name)) {
+  bool result = DeleteCache(path_);
+  DCHECK(result);
 }
 
 ScopedTestCache::~ScopedTestCache() {
+  file_util::Delete(path(), true);
 }
 
 // -----------------------------------------------------------------------
