@@ -9,7 +9,6 @@
 #include "base/basictypes.h"
 #include "base/thread.h"
 #include "net/base/cache_type.h"
-#include "net/disk_cache/disk_cache_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -93,10 +92,6 @@ class DiskCacheTestWithCache : public DiskCacheTest {
     type_ = type;
   }
 
-  FilePath path() const {
-    return test_cache_.path();
-  }
-
   // Utility methods to access the cache and wait for each operation to finish.
   int OpenEntry(const std::string& key, disk_cache::Entry** entry);
   int CreateEntry(const std::string& key, disk_cache::Entry** entry);
@@ -141,9 +136,7 @@ class DiskCacheTestWithCache : public DiskCacheTest {
   void InitDiskCache();
   void InitDiskCacheImpl(const FilePath& path);
 
-  ScopedTestCache test_cache_;
   base::Thread cache_thread_;
-
   DISALLOW_COPY_AND_ASSIGN(DiskCacheTestWithCache);
 };
 

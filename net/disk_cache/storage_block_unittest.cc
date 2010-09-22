@@ -10,9 +10,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST_F(DiskCacheTest, StorageBlock_LoadStore) {
-  ScopedTestCache test_cache;
-  FilePath filename = test_cache.path().AppendASCII("a_test");
-
+  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
@@ -32,9 +30,7 @@ TEST_F(DiskCacheTest, StorageBlock_LoadStore) {
 }
 
 TEST_F(DiskCacheTest, StorageBlock_SetData) {
-  ScopedTestCache test_cache;
-  FilePath filename = test_cache.path().AppendASCII("a_test");
-
+  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
@@ -54,9 +50,7 @@ TEST_F(DiskCacheTest, StorageBlock_SetData) {
 }
 
 TEST_F(DiskCacheTest, StorageBlock_SetModified) {
-  ScopedTestCache test_cache;
-  FilePath filename = test_cache.path().AppendASCII("a_test");
-
+  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
