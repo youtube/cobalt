@@ -1018,7 +1018,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       import chromiumsync
       self.server._sync_handler = chromiumsync.TestServer()
     http_response, raw_reply = self.server._sync_handler.HandleCommand(
-        raw_request)
+        self.path, raw_request)
     self.send_response(http_response)
     self.end_headers()
     self.wfile.write(raw_reply)
