@@ -44,6 +44,9 @@ enum PlatformFileFlags {
   PLATFORM_FILE_WRITE_ATTRIBUTES = 8192 // Used on Windows only
 };
 
+// PLATFORM_FILE_ERROR_ACCESS_DENIED is returned when a call fails because of
+// a filesystem restriction. PLATFORM_FILE_ERROR_SECURITY is returned when a
+// browser policy doesn't allow the operation to be executed.
 enum PlatformFileError {
   PLATFORM_FILE_OK = 0,
   PLATFORM_FILE_ERROR_FAILED = -1,
@@ -55,7 +58,9 @@ enum PlatformFileError {
   PLATFORM_FILE_ERROR_NO_MEMORY = -7,
   PLATFORM_FILE_ERROR_NO_SPACE = -8,
   PLATFORM_FILE_ERROR_NOT_A_DIRECTORY = -9,
-  PLATFORM_FILE_ERROR_INVALID_OPERATION = -10
+  PLATFORM_FILE_ERROR_INVALID_OPERATION = -10,
+  PLATFORM_FILE_ERROR_SECURITY = -11,
+  PLATFORM_FILE_ERROR_ABORT = -12
 };
 
 // Used to hold information about a given file.
