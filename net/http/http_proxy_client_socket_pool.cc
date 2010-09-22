@@ -79,13 +79,13 @@ HttpProxyConnectJob::~HttpProxyConnectJob() {}
 
 LoadState HttpProxyConnectJob::GetLoadState() const {
   switch (next_state_) {
-    case kStateTCPConnect:
-    case kStateTCPConnectComplete:
-    case kStateSSLConnect:
-    case kStateSSLConnectComplete:
+    case STATE_TCP_CONNECT:
+    case STATE_TCP_CONNECT_COMPLETE:
+    case STATE_SSL_CONNECT:
+    case STATE_SSL_CONNECT_COMPLETE:
       return transport_socket_handle_->GetLoadState();
-    case kStateHttpProxyConnect:
-    case kStateHttpProxyConnectComplete:
+    case STATE_HTTP_PROXY_CONNECT:
+    case STATE_HTTP_PROXY_CONNECT_COMPLETE:
       return LOAD_STATE_ESTABLISHING_PROXY_TUNNEL;
     default:
       NOTREACHED();
@@ -95,9 +95,9 @@ LoadState HttpProxyConnectJob::GetLoadState() const {
 
 int HttpProxyConnectJob::ConnectInternal() {
   if (params_->tcp_params())
-    next_state_ = kStateTCPConnect;
+    next_state_ = STATE_TCP_CONNECT;
   else
-    next_state_ = kStateSSLConnect;
+    next_state_ = STATE_SSL_CONNECT;
   return DoLoop(OK);
 }
 
@@ -108,32 +108,32 @@ void HttpProxyConnectJob::OnIOComplete(int result) {
 }
 
 int HttpProxyConnectJob::DoLoop(int result) {
-  DCHECK_NE(next_state_, kStateNone);
+  DCHECK_NE(next_state_, STATE_NONE);
 
   int rv = result;
   do {
     State state = next_state_;
-    next_state_ = kStateNone;
+    next_state_ = STATE_NONE;
     switch (state) {
-      case kStateTCPConnect:
+      case STATE_TCP_CONNECT:
         DCHECK_EQ(OK, rv);
         rv = DoTCPConnect();
         break;
-      case kStateTCPConnectComplete:
+      case STATE_TCP_CONNECT_COMPLETE:
         rv = DoTCPConnectComplete(rv);
         break;
-      case kStateSSLConnect:
+      case STATE_SSL_CONNECT:
         DCHECK_EQ(OK, rv);
         rv = DoSSLConnect();
         break;
-      case kStateSSLConnectComplete:
+      case STATE_SSL_CONNECT_COMPLETE:
         rv = DoSSLConnectComplete(rv);
         break;
-      case kStateHttpProxyConnect:
+      case STATE_HTTP_PROXY_CONNECT:
         DCHECK_EQ(OK, rv);
         rv = DoHttpProxyConnect();
         break;
-      case kStateHttpProxyConnectComplete:
+      case STATE_HTTP_PROXY_CONNECT_COMPLETE:
         rv = DoHttpProxyConnectComplete(rv);
         break;
       default:
@@ -141,13 +141,13 @@ int HttpProxyConnectJob::DoLoop(int result) {
         rv = ERR_FAILED;
         break;
     }
-  } while (rv != ERR_IO_PENDING && next_state_ != kStateNone);
+  } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
 
   return rv;
 }
 
 int HttpProxyConnectJob::DoTCPConnect() {
-  next_state_ = kStateTCPConnectComplete;
+  next_state_ = STATE_TCP_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   return transport_socket_handle_->Init(
       group_name(), params_->tcp_params(),
@@ -164,12 +164,12 @@ int HttpProxyConnectJob::DoTCPConnectComplete(int result) {
   // longer to timeout than it should.
   ResetTimer(base::TimeDelta::FromSeconds(
       kHttpProxyConnectJobTimeoutInSeconds));
-  next_state_ = kStateHttpProxyConnect;
+  next_state_ = STATE_HTTP_PROXY_CONNECT;
   return result;
 }
 
 int HttpProxyConnectJob::DoSSLConnect() {
-  next_state_ = kStateSSLConnectComplete;
+  next_state_ = STATE_SSL_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   return transport_socket_handle_->Init(
       group_name(), params_->ssl_params(),
@@ -198,12 +198,12 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
   // longer to timeout than it should.
   ResetTimer(base::TimeDelta::FromSeconds(
       kHttpProxyConnectJobTimeoutInSeconds));
-  next_state_ = kStateHttpProxyConnect;
+  next_state_ = STATE_HTTP_PROXY_CONNECT;
   return result;
 }
 
 int HttpProxyConnectJob::DoHttpProxyConnect() {
-  next_state_ = kStateHttpProxyConnectComplete;
+  next_state_ = STATE_HTTP_PROXY_CONNECT_COMPLETE;
   const HostResolver::RequestInfo& tcp_destination = params_->destination();
   const HostPortPair& proxy_server = tcp_destination.host_port_pair();
 
