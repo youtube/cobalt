@@ -29,7 +29,6 @@
 #include "base/command_line.h"
 #include "base/debug_util.h"
 #include "base/file_path.h"
-#include "base/file_util.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
@@ -50,16 +49,6 @@ using base::Time;
 
 const int kError = -1;
 const int kExpectedCrash = 100;
-
-FilePath GetStressCacheFilePath() {
-  FilePath path;
-  PathService::Get(base::DIR_TEMP, &path);  // Ignore return value;
-  path = path.AppendASCII("cache_test_stress");
-  if (!file_util::PathExists(path))
-    file_util::CreateDirectory(path);
-
-  return path;
-}
 
 // Starts a new process.
 int RunSlave(int iteration) {
@@ -103,7 +92,7 @@ int MasterCode() {
 // to know which instance of the application wrote them.
 void StressTheCache(int iteration) {
   int cache_size = 0x800000;  // 8MB
-  FilePath path = GetStressCacheFilePath();
+  FilePath path = GetCacheFilePath().InsertBeforeExtensionASCII("_stress");
 
   base::Thread cache_thread("CacheThread");
   if (!cache_thread.StartWithOptions(
