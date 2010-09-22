@@ -94,13 +94,13 @@ class HttpProxyConnectJob : public ConnectJob {
 
  private:
   enum State {
-    kStateTCPConnect,
-    kStateTCPConnectComplete,
-    kStateSSLConnect,
-    kStateSSLConnectComplete,
-    kStateHttpProxyConnect,
-    kStateHttpProxyConnectComplete,
-    kStateNone,
+    STATE_TCP_CONNECT,
+    STATE_TCP_CONNECT_COMPLETE,
+    STATE_SSL_CONNECT,
+    STATE_SSL_CONNECT_COMPLETE,
+    STATE_HTTP_PROXY_CONNECT,
+    STATE_HTTP_PROXY_CONNECT_COMPLETE,
+    STATE_NONE,
   };
 
   // Begins the tcp connection and the optional Http proxy tunnel.  If the
