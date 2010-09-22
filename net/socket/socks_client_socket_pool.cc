@@ -63,11 +63,11 @@ SOCKSConnectJob::~SOCKSConnectJob() {
 
 LoadState SOCKSConnectJob::GetLoadState() const {
   switch (next_state_) {
-    case kStateTCPConnect:
-    case kStateTCPConnectComplete:
+    case STATE_TCP_CONNECT:
+    case STATE_TCP_CONNECT_COMPLETE:
       return tcp_socket_handle_->GetLoadState();
-    case kStateSOCKSConnect:
-    case kStateSOCKSConnectComplete:
+    case STATE_SOCKS_CONNECT:
+    case STATE_SOCKS_CONNECT_COMPLETE:
       return LOAD_STATE_CONNECTING;
     default:
       NOTREACHED();
@@ -76,7 +76,7 @@ LoadState SOCKSConnectJob::GetLoadState() const {
 }
 
 int SOCKSConnectJob::ConnectInternal() {
-  next_state_ = kStateTCPConnect;
+  next_state_ = STATE_TCP_CONNECT;
   return DoLoop(OK);
 }
 
@@ -87,25 +87,25 @@ void SOCKSConnectJob::OnIOComplete(int result) {
 }
 
 int SOCKSConnectJob::DoLoop(int result) {
-  DCHECK_NE(next_state_, kStateNone);
+  DCHECK_NE(next_state_, STATE_NONE);
 
   int rv = result;
   do {
     State state = next_state_;
-    next_state_ = kStateNone;
+    next_state_ = STATE_NONE;
     switch (state) {
-      case kStateTCPConnect:
+      case STATE_TCP_CONNECT:
         DCHECK_EQ(OK, rv);
         rv = DoTCPConnect();
         break;
-      case kStateTCPConnectComplete:
+      case STATE_TCP_CONNECT_COMPLETE:
         rv = DoTCPConnectComplete(rv);
         break;
-      case kStateSOCKSConnect:
+      case STATE_SOCKS_CONNECT:
         DCHECK_EQ(OK, rv);
         rv = DoSOCKSConnect();
         break;
-      case kStateSOCKSConnectComplete:
+      case STATE_SOCKS_CONNECT_COMPLETE:
         rv = DoSOCKSConnectComplete(rv);
         break;
       default:
@@ -113,13 +113,13 @@ int SOCKSConnectJob::DoLoop(int result) {
         rv = ERR_FAILED;
         break;
     }
-  } while (rv != ERR_IO_PENDING && next_state_ != kStateNone);
+  } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
 
   return rv;
 }
 
 int SOCKSConnectJob::DoTCPConnect() {
-  next_state_ = kStateTCPConnectComplete;
+  next_state_ = STATE_TCP_CONNECT_COMPLETE;
   tcp_socket_handle_.reset(new ClientSocketHandle());
   return tcp_socket_handle_->Init(group_name(), socks_params_->tcp_params(),
                                   socks_params_->destination().priority(),
@@ -134,12 +134,12 @@ int SOCKSConnectJob::DoTCPConnectComplete(int result) {
   // so that a fast TCP connection plus a slow SOCKS failure doesn't take
   // longer to timeout than it should.
   ResetTimer(base::TimeDelta::FromSeconds(kSOCKSConnectJobTimeoutInSeconds));
-  next_state_ = kStateSOCKSConnect;
+  next_state_ = STATE_SOCKS_CONNECT;
   return result;
 }
 
 int SOCKSConnectJob::DoSOCKSConnect() {
-  next_state_ = kStateSOCKSConnectComplete;
+  next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
 
   // Add a SOCKS connection on top of the tcp socket.
   if (socks_params_->is_socks_v5()) {
