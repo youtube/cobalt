@@ -30,6 +30,9 @@ IOBufferWithSize::IOBufferWithSize(int size)
       size_(size) {
 }
 
+IOBufferWithSize::~IOBufferWithSize() {
+}
+
 StringIOBuffer::StringIOBuffer(const std::string& s)
     : IOBuffer(static_cast<char*>(NULL)),
       string_data_(s) {

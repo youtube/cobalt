@@ -281,4 +281,7 @@ EVRootCAMetadata::EVRootCAMetadata() {
 #endif
 }
 
+EVRootCAMetadata::~EVRootCAMetadata() {
+}
+
 }  // namespace net
