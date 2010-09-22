@@ -19,10 +19,19 @@ namespace net {
 
 using base::StringPiece;
 
+struct PEMTokenizer::PEMType {
+  std::string type;
+  std::string header;
+  std::string footer;
+};
+
 PEMTokenizer::PEMTokenizer(
     const StringPiece& str,
     const std::vector<std::string>& allowed_block_types) {
   Init(str, allowed_block_types);
+}
+
+PEMTokenizer::~PEMTokenizer() {
 }
 
 bool PEMTokenizer::GetNext() {

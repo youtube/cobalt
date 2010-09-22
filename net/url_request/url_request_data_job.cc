@@ -19,7 +19,6 @@ URLRequestDataJob::URLRequestDataJob(URLRequest* request)
     : URLRequestSimpleJob(request) {
 }
 
-
 bool URLRequestDataJob::GetData(std::string* mime_type,
                                 std::string* charset,
                                 std::string* data) const {
@@ -31,3 +30,5 @@ bool URLRequestDataJob::GetData(std::string* mime_type,
   return net::DataURL::Parse(url, mime_type, charset, data);
 }
 
+URLRequestDataJob::~URLRequestDataJob() {
+}

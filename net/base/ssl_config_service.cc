@@ -15,6 +15,31 @@
 
 namespace net {
 
+SSLConfig::SSLConfig()
+    : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
+      tls1_enabled(true), dnssec_enabled(false), mitm_proxies_allowed(false),
+      false_start_enabled(true), send_client_cert(false),
+      verify_ev_cert(false), ssl3_fallback(false) {
+}
+
+SSLConfig::~SSLConfig() {
+}
+
+bool SSLConfig::IsAllowedBadCert(X509Certificate* cert) const {
+  for (size_t i = 0; i < allowed_bad_certs.size(); ++i) {
+    if (cert == allowed_bad_certs[i].cert)
+      return true;
+  }
+  return false;
+}
+
+SSLConfigService::SSLConfigService()
+    : observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {
+}
+
+SSLConfigService::~SSLConfigService() {
+}
+
 // static
 SSLConfigService* SSLConfigService::CreateSystemSSLConfigService() {
 #if defined(OS_WIN)

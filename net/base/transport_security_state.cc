@@ -347,6 +347,9 @@ void TransportSecurityState::DeleteSince(const base::Time& time) {
     DirtyNotify();
 }
 
+TransportSecurityState::~TransportSecurityState() {
+}
+
 void TransportSecurityState::DirtyNotify() {
   if (delegate_)
     delegate_->StateIsDirty(this);
