@@ -55,9 +55,8 @@ void DiskCacheTestWithCache::InitMemoryCache() {
 }
 
 void DiskCacheTestWithCache::InitDiskCache() {
-  FilePath path = GetCacheFilePath();
   if (first_cleanup_)
-    ASSERT_TRUE(DeleteCache(path));
+    ASSERT_TRUE(DeleteCache(test_cache_.path()));
 
   if (!cache_thread_.IsRunning()) {
     EXPECT_TRUE(cache_thread_.StartWithOptions(
@@ -66,7 +65,7 @@ void DiskCacheTestWithCache::InitDiskCache() {
   ASSERT_TRUE(cache_thread_.message_loop() != NULL);
 
   if (implementation_)
-    return InitDiskCacheImpl(path);
+    return InitDiskCacheImpl(test_cache_.path());
 
   scoped_refptr<base::MessageLoopProxy> thread =
       use_current_thread_ ? base::MessageLoopProxy::CreateForCurrentThread() :
@@ -74,8 +73,8 @@ void DiskCacheTestWithCache::InitDiskCache() {
 
   TestCompletionCallback cb;
   int rv = disk_cache::BackendImpl::CreateBackend(
-               path, force_creation_, size_, type_,
-               disk_cache::kNoRandom, thread, &cache_, &cb);
+      test_cache_.path(), force_creation_, size_, type_,
+      disk_cache::kNoRandom, thread, &cache_, &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 }
 
@@ -111,8 +110,7 @@ void DiskCacheTestWithCache::TearDown() {
     cache_thread_.Stop();
 
   if (!memory_only_ && integrity_) {
-    FilePath path = GetCacheFilePath();
-    EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_));
+    EXPECT_TRUE(CheckCacheIntegrity(path(), new_eviction_));
   }
 
   PlatformTest::TearDown();
@@ -127,10 +125,9 @@ void DiskCacheTestWithCache::SimulateCrash() {
   cache_impl_->ClearRefCountForTest();
 
   delete cache_impl_;
-  FilePath path = GetCacheFilePath();
-  EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_));
+  EXPECT_TRUE(CheckCacheIntegrity(path(), new_eviction_));
 
-  InitDiskCacheImpl(path);
+  InitDiskCacheImpl(path());
 }
 
 void DiskCacheTestWithCache::SetTestMode() {
