@@ -11,7 +11,6 @@
 #include "base/callback.h"
 #include "base/file_path.h"
 #include "base/message_loop.h"
-#include "base/scoped_temp_dir.h"
 #include "base/timer.h"
 #include "build/build_config.h"
 
@@ -21,8 +20,11 @@ bool CreateCacheTestFile(const FilePath& name);
 // Deletes all file son the cache.
 bool DeleteCache(const FilePath& path);
 
-// Copies a set of cache files from the data folder to the destination folder.
-bool CopyTestCache(const std::string& name, const FilePath& destination);
+// Copies a set of cache files from the data folder to the test folder.
+bool CopyTestCache(const std::string& name);
+
+// Gets the path to the cache test folder.
+FilePath GetCacheFilePath();
 
 // Fills buffer with random values (may contain nulls unless no_nulls is true).
 void CacheTestFillBuffer(char* buffer, size_t len, bool no_nulls);
@@ -38,12 +40,14 @@ bool CheckCacheIntegrity(const FilePath& path, bool new_eviction);
 class ScopedTestCache {
  public:
   ScopedTestCache();
+  // Use a specific folder name.
+  explicit ScopedTestCache(const std::string& name);
   ~ScopedTestCache();
 
-  FilePath path() const { return temp_dir_.path(); }
+  FilePath path() const { return path_; }
 
  private:
-  ScopedTempDir temp_dir_;
+  const FilePath path_;  // Path to the cache test folder.
 
   DISALLOW_COPY_AND_ASSIGN(ScopedTestCache);
 };
