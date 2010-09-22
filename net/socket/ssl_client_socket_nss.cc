@@ -457,7 +457,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   /* Push SSL onto our fake I/O socket */
   nss_fd_ = SSL_ImportFD(NULL, nss_fd_);
   if (nss_fd_ == NULL) {
-      return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR/NSS error code.
+    return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR/NSS error code.
   }
   // TODO(port): set more ssl options!  Check errors!
 
@@ -465,11 +465,11 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 
   rv = SSL_OptionSet(nss_fd_, SSL_SECURITY, PR_TRUE);
   if (rv != SECSuccess)
-     return ERR_UNEXPECTED;
+    return ERR_UNEXPECTED;
 
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SSL2, ssl_config_.ssl2_enabled);
   if (rv != SECSuccess)
-     return ERR_UNEXPECTED;
+    return ERR_UNEXPECTED;
 
   // SNI is enabled automatically if TLS is enabled -- as long as
   // SSL_V2_COMPATIBLE_HELLO isn't.
@@ -1228,7 +1228,7 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
         break;
       default:
         rv = ERR_UNEXPECTED;
-        NOTREACHED() << "unexpected state";
+        LOG(DFATAL) << "unexpected state " << state;
         break;
     }
 
@@ -1248,8 +1248,10 @@ int SSLClientSocketNSS::DoReadLoop(int result) {
   if (result < 0)
     return result;
 
-  if (!nss_bufs_)
+  if (!nss_bufs_) {
+    LOG(DFATAL) << "!nss_bufs_";
     return ERR_UNEXPECTED;
+  }
 
   bool network_moved;
   int rv;
@@ -1270,8 +1272,10 @@ int SSLClientSocketNSS::DoWriteLoop(int result) {
   if (result < 0)
     return result;
 
-  if (!nss_bufs_)
+  if (!nss_bufs_) {
+    LOG(DFATAL) << "!nss_bufs_";
     return ERR_UNEXPECTED;
+  }
 
   bool network_moved;
   int rv;
@@ -1557,9 +1561,9 @@ int SSLClientSocketNSS::DoHandshake() {
 // DNSValidationResult enumerates the possible outcomes from processing a
 // set of DNS records.
 enum DNSValidationResult {
-  DNSVR_SUCCESS,  // the cert is immediately acceptable.
-  DNSVR_FAILURE,  // the cert is unconditionally rejected.
-  DNSVR_CONTINUE, // perform CA validation as usual.
+  DNSVR_SUCCESS,   // the cert is immediately acceptable.
+  DNSVR_FAILURE,   // the cert is unconditionally rejected.
+  DNSVR_CONTINUE,  // perform CA validation as usual.
 };
 
 // VerifyTXTRecords processes the RRDATA for a number of DNS TXT records and
