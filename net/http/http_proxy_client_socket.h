@@ -107,7 +107,7 @@ class HttpProxyClientSocket : public ClientSocket {
   // The size in bytes of the buffer we use to drain the response body that
   // we want to throw away.  The response body is typically a small error
   // page just a few hundred bytes long.
-  enum { kDrainBodyBufferSize = 1024 };
+  static const int kDrainBodyBufferSize = 1024;
 
   int PrepareForAuthRestart();
   int DidDrainBodyForAuthRestart(bool keep_alive);

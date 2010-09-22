@@ -68,11 +68,11 @@ class SOCKSConnectJob : public ConnectJob {
 
  private:
   enum State {
-    kStateTCPConnect,
-    kStateTCPConnectComplete,
-    kStateSOCKSConnect,
-    kStateSOCKSConnectComplete,
-    kStateNone,
+    STATE_TCP_CONNECT,
+    STATE_TCP_CONNECT_COMPLETE,
+    STATE_SOCKS_CONNECT,
+    STATE_SOCKS_CONNECT_COMPLETE,
+    STATE_NONE,
   };
 
   // Begins the tcp connection and the SOCKS handshake.  Returns OK on success
