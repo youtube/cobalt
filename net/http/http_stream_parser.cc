@@ -303,16 +303,24 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
         io_state_ = STATE_BODY_PENDING;
         end_offset = 0;
       }
-      DoParseResponseHeaders(end_offset);
+      int rv = DoParseResponseHeaders(end_offset);
+      if (rv < 0)
+        return rv;
       return result;
     }
   }
 
   read_buf_->set_offset(read_buf_->offset() + result);
   DCHECK_LE(read_buf_->offset(), read_buf_->capacity());
-  DCHECK(result >= 0);
+  DCHECK_GE(result,  0);
 
   int end_of_header_offset = ParseResponseHeaders();
+
+  // Note: -1 is special, it indicates we haven't found the end of headers.
+  // Anything less than -1 is a net::Error, so we bail out.
+  if (end_of_header_offset < -1)
+    return end_of_header_offset;
+
   if (end_of_header_offset == -1) {
     io_state_ = STATE_READ_HEADERS;
     // Prevent growing the headers buffer indefinitely.
@@ -481,11 +489,13 @@ int HttpStreamParser::ParseResponseHeaders() {
   if (end_offset == -1)
     return -1;
 
-  DoParseResponseHeaders(end_offset);
+  int rv = DoParseResponseHeaders(end_offset);
+  if (rv < 0)
+    return rv;
   return end_offset + read_buf_unused_offset_;
 }
 
-void HttpStreamParser::DoParseResponseHeaders(int end_offset) {
+int HttpStreamParser::DoParseResponseHeaders(int end_offset) {
   scoped_refptr<HttpResponseHeaders> headers;
   if (response_header_start_offset_ >= 0) {
     headers = new HttpResponseHeaders(HttpUtil::AssembleRawHeaders(
@@ -495,8 +505,23 @@ void HttpStreamParser::DoParseResponseHeaders(int end_offset) {
     headers = new HttpResponseHeaders(std::string("HTTP/0.9 200 OK"));
   }
 
+  // Check for multiple Content-Length headers with a Transfer-Encoding header.
+  // If they exist, it's a potential response smuggling attack.
+
+  void* it = NULL;
+  const std::string content_length_header("Content-Length");
+  std::string ignored_header_value;
+  if (!headers->HasHeader("Transfer-Encoding") &&
+      headers->EnumerateHeader(
+          &it, content_length_header, &ignored_header_value) &&
+      headers->EnumerateHeader(
+          &it, content_length_header, &ignored_header_value)) {
+    return ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH;
+  }
+
   response_->headers = headers;
   response_->vary_data.Init(*request_, *response_->headers);
+  return OK;
 }
 
 void HttpStreamParser::CalculateResponseBodySize() {

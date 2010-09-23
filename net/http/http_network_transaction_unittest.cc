@@ -490,6 +490,41 @@ TEST_F(HttpNetworkTransactionTest, ChunkedEncoding) {
   EXPECT_EQ("Hello world", out.response_data);
 }
 
+// Next tests deal with http://crbug.com/56344.
+
+TEST_F(HttpNetworkTransactionTest,
+       MultipleContentLengthHeadersNoTransferEncoding) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Length: 10\r\n"),
+    MockRead("Content-Length: 5\r\n\r\n"),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+  EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH, out.rv);
+}
+
+TEST_F(HttpNetworkTransactionTest,
+       MultipleContentLengthHeadersTransferEncoding) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Length: 666\r\n"),
+    MockRead("Content-Length: 1337\r\n"),
+    MockRead("Transfer-Encoding: chunked\r\n\r\n"),
+    MockRead("5\r\nHello\r\n"),
+    MockRead("1\r\n"),
+    MockRead(" \r\n"),
+    MockRead("5\r\nworld\r\n"),
+    MockRead("0\r\n\r\nHTTP/1.1 200 OK\r\n"),
+    MockRead(false, OK),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("Hello world", out.response_data);
+}
+
 // Do a request using the HEAD method. Verify that we don't try to read the
 // message body (since HEAD has none).
 TEST_F(HttpNetworkTransactionTest, Head) {
