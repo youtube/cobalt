@@ -37,6 +37,7 @@
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_response_body_drainer.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_stream_request.h"
@@ -188,7 +189,10 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
         // HTTP, it can vary depending on whether or not we're pipelining.  It's
         // stream dependent, so the different subtypes should be implementing
         // their solutions.
-        HttpUtil::DrainStreamBodyAndClose(stream_.release());
+        HttpResponseBodyDrainer* drainer =
+          new HttpResponseBodyDrainer(stream_.release());
+        drainer->Start();
+        // |drainer| will delete itself.
       }
     }
   }
