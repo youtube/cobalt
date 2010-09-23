@@ -31,6 +31,7 @@
 #include "base/platform_file.h"
 #include "base/scoped_ptr.h"
 #include "base/string16.h"
+#include "base/time.h"
 
 #if defined(OS_POSIX)
 #include "base/eintr_wrapper.h"
@@ -317,14 +318,8 @@ bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path);
 // Returns information about the given file path.
 bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* info);
 
-// Sets the time of the last access and the time of the last modification.
-bool TouchFile(const FilePath& path,
-               const base::Time& last_accessed,
-               const base::Time& last_modified);
-
 // Set the time of the last modification. Useful for unit tests.
-bool SetLastModifiedTime(const FilePath& path,
-                         const base::Time& last_modified);
+bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified);
 
 #if defined(OS_POSIX)
 // Store inode number of |path| in |inode|. Return true on success.
