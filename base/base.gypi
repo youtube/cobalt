@@ -221,6 +221,7 @@
           'singleton.h',
           'spin_wait.h',
           'stack_container.h',
+          'stats_counters.cc',
           'stats_counters.h',
           'stats_table.cc',
           'stats_table.h',
