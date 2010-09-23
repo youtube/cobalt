@@ -200,28 +200,6 @@ bool IsDotDot(const FilePath& path) {
   return FILE_PATH_LITERAL("..") == path.BaseName().value();
 }
 
-bool TouchFile(const FilePath& path,
-               const base::Time& last_accessed,
-               const base::Time& last_modified) {
-  base::PlatformFile file =
-      base::CreatePlatformFile(path,
-                               base::PLATFORM_FILE_OPEN |
-                               base::PLATFORM_FILE_WRITE_ATTRIBUTES,
-                               NULL, NULL);
-  if (file != base::kInvalidPlatformFileValue) {
-    bool result = base::TouchPlatformFile(file, last_accessed, last_modified);
-    base::ClosePlatformFile(file);
-    return result;
-  }
-
-  return false;
-}
-
-bool SetLastModifiedTime(const FilePath& path,
-                         const base::Time& last_modified) {
-  return TouchFile(path, last_modified, last_modified);
-}
-
 bool CloseFile(FILE* file) {
   if (file == NULL)
     return true;

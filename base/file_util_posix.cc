@@ -486,6 +486,13 @@ bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
   return true;
 }
 
+bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified) {
+  struct timeval times[2];
+  times[0] = last_modified.ToTimeVal();
+  times[1] = last_modified.ToTimeVal();
+  return (utimes(file_path.value().c_str(), times) == 0);
+}
+
 bool GetInode(const FilePath& path, ino_t* inode) {
   struct stat buffer;
   int result = stat(path.value().c_str(), &buffer);
