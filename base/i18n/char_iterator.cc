@@ -40,7 +40,18 @@ UTF16CharIterator::UTF16CharIterator(const string16* str)
       char_pos_(0),
       char_(0) {
   if (len_)
-    U16_NEXT(str_, next_pos_, len_, char_);
+    ReadChar();
+}
+
+UTF16CharIterator::UTF16CharIterator(const char16* str, size_t str_len)
+    : str_(str),
+      len_(str_len),
+      array_pos_(0),
+      next_pos_(0),
+      char_pos_(0),
+      char_(0) {
+  if (len_)
+    ReadChar();
 }
 
 bool UTF16CharIterator::Advance() {
@@ -50,9 +61,14 @@ bool UTF16CharIterator::Advance() {
   array_pos_ = next_pos_;
   char_pos_++;
   if (next_pos_ < len_)
-    U16_NEXT(str_, next_pos_, len_, char_);
+    ReadChar();
 
   return true;
+}
+
+void UTF16CharIterator::ReadChar() {
+  // This is actually a huge macro, so is worth having in a separate function.
+  U16_NEXT(str_, next_pos_, len_, char_);
 }
 
 }  // namespace base
