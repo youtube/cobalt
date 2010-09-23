@@ -401,3 +401,8 @@ TimeTicks TimeTicks::HighResNow() {
 int64 TimeTicks::GetQPCDriftMicroseconds() {
   return Singleton<HighResNowSingleton>::get()->GetQPCDriftMicroseconds();
 }
+
+// static
+bool TimeTicks::IsHighResClockWorking() {
+  return Singleton<HighResNowSingleton>::get()->IsUsingHighResClock();
+}
