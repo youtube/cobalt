@@ -468,6 +468,10 @@ class TimeTicks {
 #if defined(OS_WIN)
   // Get the absolute value of QPC time drift. For testing.
   static int64 GetQPCDriftMicroseconds();
+
+  // Returns true if the high resolution clock is working on this system.
+  // This is only for testing.
+  static bool IsHighResClockWorking();
 #endif
 
   // Returns true if this object has not been initialized.
