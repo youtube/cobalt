@@ -35,6 +35,14 @@ TEST(ToolsSanityTest, MemoryLeak) {
   leak[4] = 1;  // Make sure the allocated memory is used.
 }
 
+void ReadUninitializedValue(char *ptr) {
+  if (*ptr == true) {
+    (*ptr)++;
+  } else {
+    (*ptr)--;
+  }
+}
+
 void ReadValueOutOfArrayBoundsLeft(char *ptr) {
   LOG(INFO) << "Reading a byte out of bounds: " << ptr[-2];
 }
@@ -54,6 +62,7 @@ void WriteValueOutOfArrayBoundsRight(char *ptr, size_t size) {
 }
 
 void MakeSomeErrors(char *ptr, size_t size) {
+  ReadUninitializedValue(ptr);
   ReadValueOutOfArrayBoundsLeft(ptr);
   ReadValueOutOfArrayBoundsRight(ptr, size);
   WriteValueOutOfArrayBoundsLeft(ptr);
