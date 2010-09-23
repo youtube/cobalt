@@ -75,6 +75,7 @@
         'base/djb2.h',
         'base/factory.h',
         'base/filter_host.h',
+        'base/filters.cc',
         'base/filters.h',
         'base/media.h',
         'base/media_format.cc',
