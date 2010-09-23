@@ -817,11 +817,13 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
       return ResurrectEntry(old_entry);
 
     EntryImpl* parent_entry = MatchEntry(key, hash, true);
-    if (!parent_entry) {
+    if (parent_entry) {
+      parent.swap(&parent_entry);
+    } else if (data_->table[hash & mask_]) {
+      // We should have corrected the problem.
       NOTREACHED();
       return NULL;
     }
-    parent.swap(&parent_entry);
   }
 
   int num_blocks;
