@@ -1753,7 +1753,7 @@ TEST_F(FileUtilTest, Contains) {
 #endif
 }
 
-TEST_F(FileUtilTest, TouchFile) {
+TEST_F(FileUtilTest, LastModified) {
   FilePath data_dir =
       temp_dir_.path().Append(FILE_PATH_LITERAL("FilePathTest"));
 
@@ -1767,25 +1767,15 @@ TEST_F(FileUtilTest, TouchFile) {
   std::string data("hello");
   ASSERT_TRUE(file_util::WriteFile(foobar, data.c_str(), data.length()));
 
-  base::Time access_time;
-  // This timestamp is divisible by one day (in local timezone),
-  // to make it work on FAT too.
-  ASSERT_TRUE(base::Time::FromString(L"Wed, 16 Nov 1994, 00:00:00",
-                                     &access_time));
-
   base::Time modification_time;
   // Note that this timestamp is divisible by two (seconds) - FAT stores
   // modification times with 2s resolution.
   ASSERT_TRUE(base::Time::FromString(L"Tue, 15 Nov 1994, 12:45:26 GMT",
               &modification_time));
-
-  ASSERT_TRUE(file_util::TouchFile(foobar, access_time, modification_time));
+  ASSERT_TRUE(file_util::SetLastModifiedTime(foobar, modification_time));
   base::PlatformFileInfo file_info;
   ASSERT_TRUE(file_util::GetFileInfo(foobar, &file_info));
-  EXPECT_EQ(file_info.last_accessed.ToInternalValue(),
-            access_time.ToInternalValue());
-  EXPECT_EQ(file_info.last_modified.ToInternalValue(),
-            modification_time.ToInternalValue());
+  ASSERT_TRUE(file_info.last_modified == modification_time);
 }
 
 TEST_F(FileUtilTest, IsDirectoryEmpty) {

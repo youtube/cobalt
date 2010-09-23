@@ -47,8 +47,6 @@ PlatformFile CreatePlatformFile(const FilePath& name,
   DWORD access = (flags & PLATFORM_FILE_READ) ? GENERIC_READ : 0;
   if (flags & PLATFORM_FILE_WRITE)
     access |= GENERIC_WRITE;
-  if (flags & PLATFORM_FILE_WRITE_ATTRIBUTES)
-    access |= FILE_WRITE_ATTRIBUTES;
 
   DWORD sharing = (flags & PLATFORM_FILE_EXCLUSIVE_READ) ? 0 : FILE_SHARE_READ;
   if (!(flags & PLATFORM_FILE_EXCLUSIVE_WRITE))
@@ -63,6 +61,8 @@ PlatformFile CreatePlatformFile(const FilePath& name,
     create_flags |= FILE_ATTRIBUTE_HIDDEN;
   if (flags & PLATFORM_FILE_DELETE_ON_CLOSE)
     create_flags |= FILE_FLAG_DELETE_ON_CLOSE;
+  if (flags & PLATFORM_FILE_WRITE_ATTRIBUTES)
+    create_flags |= FILE_WRITE_ATTRIBUTES;
 
   HANDLE file = CreateFile(name.value().c_str(), access, sharing, NULL,
                            disposition, create_flags, NULL);

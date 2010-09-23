@@ -696,6 +696,15 @@ bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
   return true;
 }
 
+bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified) {
+  FILETIME timestamp(last_modified.ToFileTime());
+  ScopedHandle file_handle(
+      CreateFile(file_path.value().c_str(), FILE_WRITE_ATTRIBUTES,
+                 kFileShareAll, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+  BOOL ret = SetFileTime(file_handle.Get(), NULL, &timestamp, &timestamp);
+  return ret != 0;
+}
+
 FILE* OpenFile(const FilePath& filename, const char* mode) {
   std::wstring w_mode = ASCIIToWide(std::string(mode));
   return _wfsopen(filename.value().c_str(), w_mode.c_str(), _SH_DENYNO);
