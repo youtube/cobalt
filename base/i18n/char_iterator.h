@@ -76,6 +76,7 @@ class UTF16CharIterator {
  public:
   // Requires |str| to live as long as the UTF16CharIterator does.
   UTF16CharIterator(const string16* str);
+  UTF16CharIterator(const char16* str, size_t str_len);
   ~UTF16CharIterator() {}
 
   // Return the starting array index of the current character within the
@@ -97,6 +98,10 @@ class UTF16CharIterator {
   bool Advance();
 
  private:
+  // Fills in the current character we found and advances to the next
+  // character, updating all flags as necessary.
+  void ReadChar();
+
   // The string we're iterating over.
   const char16* str_;
 
