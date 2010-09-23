@@ -52,7 +52,8 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
 
   if (flags & PLATFORM_FILE_WRITE && flags & PLATFORM_FILE_READ) {
     open_flags |= O_RDWR;
-  } else if (flags & PLATFORM_FILE_WRITE) {
+  } else if (flags & PLATFORM_FILE_WRITE ||
+             flags & PLATFORM_FILE_WRITE_ATTRIBUTES) {
     open_flags |= O_WRONLY;
   } else if (!(flags & PLATFORM_FILE_READ)) {
     NOTREACHED();
