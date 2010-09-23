@@ -36,7 +36,7 @@ TEST(ToolsSanityTest, MemoryLeak) {
 }
 
 void ReadUninitializedValue(char *ptr) {
-  if (*ptr == true) {
+  if (*ptr == '\0') {
     (*ptr)++;
   } else {
     (*ptr)--;
