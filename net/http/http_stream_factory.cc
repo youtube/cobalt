@@ -6,6 +6,7 @@
 
 #include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"

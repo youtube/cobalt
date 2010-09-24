@@ -139,6 +139,73 @@ TEST(SplitStringUsingSubstrTest, EmptyString) {
   EXPECT_THAT(results, ElementsAre(""));
 }
 
+// Test for SplitString
+TEST(StringUtilTest, SplitString) {
+  std::vector<std::wstring> r;
+
+  SplitString(L"", L',', &r);
+  ASSERT_EQ(1U, r.size());
+  EXPECT_EQ(r[0], L"");
+  r.clear();
+
+  SplitString(L"a,b,c", L',', &r);
+  ASSERT_EQ(3U, r.size());
+  EXPECT_EQ(r[0], L"a");
+  EXPECT_EQ(r[1], L"b");
+  EXPECT_EQ(r[2], L"c");
+  r.clear();
+
+  SplitString(L"a, b, c", L',', &r);
+  ASSERT_EQ(3U, r.size());
+  EXPECT_EQ(r[0], L"a");
+  EXPECT_EQ(r[1], L"b");
+  EXPECT_EQ(r[2], L"c");
+  r.clear();
+
+  SplitString(L"a,,c", L',', &r);
+  ASSERT_EQ(3U, r.size());
+  EXPECT_EQ(r[0], L"a");
+  EXPECT_EQ(r[1], L"");
+  EXPECT_EQ(r[2], L"c");
+  r.clear();
+
+  SplitString(L"", L'*', &r);
+  ASSERT_EQ(1U, r.size());
+  EXPECT_EQ(r[0], L"");
+  r.clear();
+
+  SplitString(L"foo", L'*', &r);
+  ASSERT_EQ(1U, r.size());
+  EXPECT_EQ(r[0], L"foo");
+  r.clear();
+
+  SplitString(L"foo ,", L',', &r);
+  ASSERT_EQ(2U, r.size());
+  EXPECT_EQ(r[0], L"foo");
+  EXPECT_EQ(r[1], L"");
+  r.clear();
+
+  SplitString(L",", L',', &r);
+  ASSERT_EQ(2U, r.size());
+  EXPECT_EQ(r[0], L"");
+  EXPECT_EQ(r[1], L"");
+  r.clear();
+
+  SplitString(L"\t\ta\t", L'\t', &r);
+  ASSERT_EQ(4U, r.size());
+  EXPECT_EQ(r[0], L"");
+  EXPECT_EQ(r[1], L"");
+  EXPECT_EQ(r[2], L"a");
+  EXPECT_EQ(r[3], L"");
+  r.clear();
+
+  SplitString(L"\ta\t\nb\tcc", L'\n', &r);
+  ASSERT_EQ(2U, r.size());
+  EXPECT_EQ(r[0], L"a");
+  EXPECT_EQ(r[1], L"b\tcc");
+  r.clear();
+}
+
 TEST(SplitStringUsingSubstrTest, StringWithNoDelimiter) {
   std::vector<std::string> results;
   SplitStringUsingSubstr("alongwordwithnodelimiter", "DELIMITER", &results);
