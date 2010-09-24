@@ -6,6 +6,7 @@
 
 #include "base/field_trial.h"
 #include "base/logging.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"

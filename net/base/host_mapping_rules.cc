@@ -5,6 +5,7 @@
 #include "net/base/host_mapping_rules.h"
 
 #include "base/logging.h"
+#include "base/string_split.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "net/base/host_port_pair.h"
