@@ -567,9 +567,16 @@ void ProxyService::SetReady() {
 void ProxyService::ApplyProxyConfigIfAvailable() {
   DCHECK_EQ(STATE_NONE, current_state_);
 
-  current_state_ = STATE_WAITING_FOR_PROXY_CONFIG;
-
   config_service_->OnLazyPoll();
+
+  // If we have already fetched the configuration, start applying it.
+  if (fetched_config_.is_valid()) {
+    InitializeUsingLastFetchedConfig();
+    return;
+  }
+
+  // Otherwise we need to first fetch the configuration.
+  current_state_ = STATE_WAITING_FOR_PROXY_CONFIG;
 
   // Retrieve the current proxy configuration from the ProxyConfigService.
   // If a configuration is not available yet, we will get called back later
@@ -680,7 +687,7 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
 
 void ProxyService::SetProxyScriptFetcher(
     ProxyScriptFetcher* proxy_script_fetcher) {
-  State previous_state = ResetProxyConfig();
+  State previous_state = ResetProxyConfig(false);
   proxy_script_fetcher_.reset(proxy_script_fetcher);
   if (previous_state != STATE_NONE)
     ApplyProxyConfigIfAvailable();
@@ -690,13 +697,15 @@ ProxyScriptFetcher* ProxyService::GetProxyScriptFetcher() const {
   return proxy_script_fetcher_.get();
 }
 
-ProxyService::State ProxyService::ResetProxyConfig() {
+ProxyService::State ProxyService::ResetProxyConfig(bool reset_fetched_config) {
   State previous_state = current_state_;
 
   proxy_retry_info_.clear();
   init_proxy_resolver_.reset();
   SuspendAllPendingRequests();
   config_ = ProxyConfig();
+  if (reset_fetched_config)
+    fetched_config_ = ProxyConfig();
   current_state_ = STATE_NONE;
 
   return previous_state;
@@ -704,7 +713,7 @@ ProxyService::State ProxyService::ResetProxyConfig() {
 
 void ProxyService::ResetConfigService(
     ProxyConfigService* new_proxy_config_service) {
-  State previous_state = ResetProxyConfig();
+  State previous_state = ResetProxyConfig(true);
 
   // Release the old configuration service.
   if (config_service_.get())
@@ -724,7 +733,7 @@ void ProxyService::PurgeMemory() {
 }
 
 void ProxyService::ForceReloadProxyConfig() {
-  ResetProxyConfig();
+  ResetProxyConfig(false);
   ApplyProxyConfigIfAvailable();
 }
 
@@ -767,23 +776,31 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 }
 
 void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
-  ProxyConfig old_fetched_config = fetched_config_;
-  ResetProxyConfig();
-
-  // Increment the ID to reflect that the config has changed.
-  fetched_config_ = config;
-  fetched_config_.set_id(next_config_id_++);
-
   // Emit the proxy settings change to the NetLog stream.
   if (net_log_) {
     scoped_refptr<NetLog::EventParameters> params =
-        new ProxyConfigChangedNetLogParam(old_fetched_config, fetched_config_);
+        new ProxyConfigChangedNetLogParam(fetched_config_, config);
     net_log_->AddEntry(net::NetLog::TYPE_PROXY_CONFIG_CHANGED,
                        base::TimeTicks::Now(),
                        NetLog::Source(),
                        NetLog::PHASE_NONE,
                        params);
   }
+
+  // Set the new configuration as the most recently fetched one.
+  fetched_config_ = config;
+  fetched_config_.set_id(1);  // Needed for a later DCHECK of is_valid().
+
+  InitializeUsingLastFetchedConfig();
+}
+
+void ProxyService::InitializeUsingLastFetchedConfig() {
+  ResetProxyConfig(false);
+
+  DCHECK(fetched_config_.is_valid());
+
+  // Increment the ID to reflect that the config has changed.
+  fetched_config_.set_id(next_config_id_++);
 
   if (!fetched_config_.HasAutomaticSettings()) {
     config_ = fetched_config_;
@@ -814,7 +831,7 @@ void ProxyService::OnIPAddressChanged() {
   stall_proxy_autoconfig_until_ =
       base::TimeTicks::Now() + stall_proxy_auto_config_delay_;
 
-  State previous_state = ResetProxyConfig();
+  State previous_state = ResetProxyConfig(false);
   if (previous_state != STATE_NONE)
     ApplyProxyConfigIfAvailable();
 }
