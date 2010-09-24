@@ -23,6 +23,12 @@
 // and then remove this.
 #include "base/stringprintf.h"
 
+#ifdef RLZ_WIN_LIB_RLZ_LIB_H_
+// TODO(tfarina): Fix the rlz library to include this instead and remove
+// this include.
+#include "base/string_split.h"
+#endif  // RLZ_WIN_LIB_RLZ_LIB_H_
+
 // Safe standard library wrappers for all platforms.
 
 namespace base {
@@ -503,25 +509,6 @@ template<typename Char> struct CaseInsensitiveCompareASCII {
     return ToLowerASCII(x) == ToLowerASCII(y);
   }
 };
-
-// TODO(timsteele): Move these split string functions into their own API on
-// string_split.cc/.h files.
-//-----------------------------------------------------------------------------
-
-// Splits |str| into a vector of strings delimited by |s|. Append the results
-// into |r| as they appear. If several instances of |s| are contiguous, or if
-// |str| begins with or ends with |s|, then an empty string is inserted.
-//
-// Every substring is trimmed of any leading or trailing white space.
-void SplitString(const std::wstring& str,
-                 wchar_t s,
-                 std::vector<std::wstring>* r);
-void SplitString(const string16& str,
-                 char16 s,
-                 std::vector<string16>* r);
-void SplitString(const std::string& str,
-                 char s,
-                 std::vector<std::string>* r);
 
 // Splits a string into its fields delimited by any of the characters in
 // |delimiters|.  Each field is added to the |tokens| vector.  Returns the
