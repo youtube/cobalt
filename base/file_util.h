@@ -281,14 +281,6 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
 // already exists.  The directory is only readable by the current user.
 bool CreateDirectory(const FilePath& full_path);
 
-#if defined(OS_WIN)
-// Added for debugging an issue where CreateDirectory() fails.  LOG(*) does
-// not work, because the failure happens in a sandboxed process.
-// TODO(skerner): Remove once crbug/35198 is resolved.
-bool CreateDirectoryExtraLogging(const FilePath& full_path,
-                                 std::ostream& error);
-#endif  // defined (OS_WIN)
-
 // Returns the file size. Returns true on success.
 bool GetFileSize(const FilePath& file_path, int64* file_size);
 
