@@ -12,6 +12,33 @@
 
 #include "base/string16.h"
 
+// TODO(tfarina): Move the following functions into the namespace and update the
+// callers.
+//-----------------------------------------------------------------------------
+
+// Splits |str| into a vector of strings delimited by |s|. Append the results
+// into |r| as they appear. If several instances of |s| are contiguous, or if
+// |str| begins with or ends with |s|, then an empty string is inserted.
+//
+// Every substring is trimmed of any leading or trailing white space.
+// Where wchar_t is char16 (i.e. Windows), |c| must be in BMP
+// (Basic Multilingual Plane). Elsewhere (Linux/Mac), wchar_t
+// should be a valid Unicode code point (32-bit).
+void SplitString(const std::wstring& str,
+                 wchar_t c,
+                 std::vector<std::wstring>* r);
+// NOTE: |c| must be in BMP (Basic Multilingual Plane)
+void SplitString(const string16& str,
+                 char16 c,
+                 std::vector<string16>* r);
+// |str| should not be in a multi-byte encoding like Shift-JIS or GBK in which
+// the trailing byte of a multi-byte character can be in the ASCII range.
+// UTF-8, and other single/multi-byte ASCII-compatible encodings are OK.
+// Note: |c| must be in the ASCII range.
+void SplitString(const std::string& str,
+                 char c,
+                 std::vector<std::string>* r);
+
 namespace base {
 
 bool SplitStringIntoKeyValues(

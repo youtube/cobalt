@@ -21,6 +21,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/singleton.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/utf_string_conversions.h"
