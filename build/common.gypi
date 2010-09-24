@@ -93,14 +93,6 @@
         }, {
           'use_gnome_keyring%': 1,
         }],
-
-        # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
-        # libraries on linux x86-64 and arm.
-        ['host_arch=="ia32"', {
-          'linux_fpic%': 0,
-        }, {
-          'linux_fpic%': 1,
-        }],
       ],
 
       'host_arch%': '<(host_arch)',
@@ -121,6 +113,10 @@
       # Set to 1 to enable fast builds. It disables debug info for fastest
       # compilation.
       'fastbuild%': 0,
+
+      # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
+      # libraries on linux x86-64 and arm.
+      'linux_fpic%': 0,
 
       # Python version.
       'python_ver%': '2.5',
@@ -158,7 +154,6 @@
     'host_arch%': '<(host_arch)',
     'toolkit_views%': '<(toolkit_views)',
     'use_gnome_keyring%': '<(use_gnome_keyring)',
-    'linux_fpic%': '<(linux_fpic)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
     'inside_chromium_build%': '<(inside_chromium_build)',
