@@ -1584,8 +1584,10 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
+  CapturingNetLog log(CapturingNetLog::kUnbounded);
+
   scoped_refptr<ProxyService> service(
-      new ProxyService(config_service, resolver, NULL));
+      new ProxyService(config_service, resolver, &log));
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service->SetProxyScriptFetcher(fetcher);
@@ -1672,6 +1674,16 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // Wait for completion callback, and verify that the request ran as expected.
   EXPECT_EQ(OK, callback2.WaitForResult());
   EXPECT_EQ("request2:80", info2.proxy_server().ToURI());
+
+  // Check that the expected events were outputted to the log stream.
+  // In particular, PROXY_CONFIG_CHANGED should have only been emitted once
+  // (for the initial setup), and NOT a second time when the IP address
+  // changed.
+  EXPECT_TRUE(LogContainsEntryWithType(log.entries(), 0,
+                                       NetLog::TYPE_PROXY_CONFIG_CHANGED));
+  ASSERT_EQ(13u, log.entries().size());
+  for (size_t i = 1; i < log.entries().size(); ++i)
+    EXPECT_NE(NetLog::TYPE_PROXY_CONFIG_CHANGED, log.entries()[i].type);
 }
 
 }  // namespace net
