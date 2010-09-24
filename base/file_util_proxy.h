@@ -155,6 +155,14 @@ class FileUtilProxy {
       const base::Time& last_modified_time,
       StatusCallback* callback);
 
+  // Touches a file. The callback can be NULL.
+  static bool Touch(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const FilePath& file_path,
+      const base::Time& last_access_time,
+      const base::Time& last_modified_time,
+      StatusCallback* callback);
+
   // Truncates a file to the given length. If |length| is greater than the
   // current length of the file, the file will be extended with zeroes.
   // The callback can be NULL.
