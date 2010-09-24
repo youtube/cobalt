@@ -557,6 +557,31 @@ class RelayTouch : public RelayWithStatusCallback {
   base::Time last_modified_time_;
 };
 
+class RelayTouchFilePath : public RelayWithStatusCallback {
+ public:
+  RelayTouchFilePath(const FilePath& file_path,
+                     const base::Time& last_access_time,
+                     const base::Time& last_modified_time,
+                     base::FileUtilProxy::StatusCallback* callback)
+      : RelayWithStatusCallback(callback),
+        file_path_(file_path_),
+        last_access_time_(last_access_time),
+        last_modified_time_(last_modified_time) {
+  }
+
+ protected:
+  virtual void RunWork() {
+    if (!file_util::TouchFile(
+            file_path_, last_access_time_, last_modified_time_))
+      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
+  }
+
+ private:
+  FilePath file_path_;
+  base::Time last_access_time_;
+  base::Time last_modified_time_;
+};
+
 class RelayTruncate : public RelayWithStatusCallback {
  public:
   RelayTruncate(base::PlatformFile file,
@@ -739,6 +764,18 @@ bool FileUtilProxy::Touch(
   return Start(FROM_HERE, message_loop_proxy,
                new RelayTouch(file, last_access_time, last_modified_time,
                               callback));
+}
+
+// static
+bool FileUtilProxy::Touch(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    const base::Time& last_access_time,
+    const base::Time& last_modified_time,
+    StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayTouchFilePath(file_path, last_access_time,
+                                      last_modified_time, callback));
 }
 
 // static
