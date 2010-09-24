@@ -221,8 +221,11 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
   // Resets all the variables associated with the current proxy configuration,
   // and rewinds the current state to |STATE_NONE|. Returns the previous value
-  // of |current_state_|.
-  State ResetProxyConfig();
+  // of |current_state_|.  If |reset_fetched_config| is true then
+  // |fetched_config_| will also be reset, otherwise it will be left as-is.
+  // Resetting it means that we will have to re-fetch the configuration from
+  // the ProxyConfigService later.
+  State ResetProxyConfig(bool reset_fetched_config);
 
   // Retrieves the current proxy configuration from the ProxyConfigService, and
   // starts initializing for it.
@@ -264,6 +267,9 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
   // ProxyConfigService::Observer
   virtual void OnProxyConfigChanged(const ProxyConfig& config);
+
+  // Start initialization using |fetched_config_|.
+  void InitializeUsingLastFetchedConfig();
 
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
