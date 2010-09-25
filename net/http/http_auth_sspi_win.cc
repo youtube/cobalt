@@ -21,14 +21,13 @@ namespace {
 
 int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
                                        const SEC_WCHAR* package) {
-  LOG(INFO) << "AcquireCredentialsHandle returned " << status;
+  LOG(INFO) << "AcquireCredentialsHandle returned 0x" << std::hex << status;
   switch (status) {
     case SEC_E_OK:
       return OK;
     case SEC_E_INSUFFICIENT_MEMORY:
       return ERR_OUT_OF_MEMORY;
     case SEC_E_INTERNAL_ERROR:
-      LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
       return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
     case SEC_E_NO_CREDENTIALS:
     case SEC_E_NOT_OWNER:
@@ -36,10 +35,11 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
       return ERR_INVALID_AUTH_CREDENTIALS;
     case SEC_E_SECPKG_NOT_FOUND:
       // This indicates that the SSPI configuration does not match expectations
-      LOG(ERROR) << "Received SEC_E_SECPKG_NOT_FOUND for " << package;
       return ERR_UNSUPPORTED_AUTH_SCHEME;
     default:
-      LOG(ERROR) << "Undocumented SECURITY_STATUS " << status;
+      LOG(WARNING)
+          << "AcquireSecurityCredentials returned undocumented status 0x"
+          << std::hex << status;
       return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
   }
 }
@@ -99,6 +99,85 @@ int AcquireDefaultCredentials(SSPILibrary* library, const SEC_WCHAR* package,
       &expiry);  // ptsExpiry
 
   return MapAcquireCredentialsStatusToError(status, package);
+}
+
+int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
+  LOG(INFO) << "InitializeSecurityContext returned 0x" << std::hex << status;
+  switch (status) {
+    case SEC_E_OK:
+    case SEC_I_CONTINUE_NEEDED:
+      return OK;
+    case SEC_I_COMPLETE_AND_CONTINUE:
+    case SEC_I_COMPLETE_NEEDED:
+    case SEC_I_INCOMPLETE_CREDENTIALS:
+    case SEC_E_INCOMPLETE_MESSAGE:
+    case SEC_E_INTERNAL_ERROR:
+      // These are return codes reported by InitializeSecurityContext
+      // but not expected by Chrome (for example, INCOMPLETE_CREDENTIALS
+      // and INCOMPLETE_MESSAGE are intended for schannel).
+      LOG(WARNING)
+          << "InitializeSecurityContext returned unexpected status 0x"
+          << std::hex << status;
+      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
+    case SEC_E_INSUFFICIENT_MEMORY:
+      return ERR_OUT_OF_MEMORY;
+    case SEC_E_UNSUPPORTED_FUNCTION:
+      NOTREACHED();
+      return ERR_UNEXPECTED;
+    case SEC_E_INVALID_HANDLE:
+      NOTREACHED();
+      return ERR_INVALID_HANDLE;
+    case SEC_E_INVALID_TOKEN:
+      return ERR_INVALID_RESPONSE;
+    case SEC_E_LOGON_DENIED:
+      return ERR_ACCESS_DENIED;
+    case SEC_E_NO_CREDENTIALS:
+    case SEC_E_WRONG_PRINCIPAL:
+      return ERR_INVALID_AUTH_CREDENTIALS;
+    case SEC_E_NO_AUTHENTICATING_AUTHORITY:
+    case SEC_E_TARGET_UNKNOWN:
+      return ERR_MISCONFIGURED_AUTH_ENVIRONMENT;
+    default:
+      LOG(WARNING)
+          << "InitializeSecurityContext returned undocumented status 0x"
+          << std::hex << status;
+      return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
+  }
+}
+
+int MapQuerySecurityPackageInfoStatusToError(SECURITY_STATUS status) {
+  LOG(INFO) << "QuerySecurityPackageInfo returned 0x" << std::hex << status;
+  switch (status) {
+    case SEC_E_OK:
+      return OK;
+    case SEC_E_SECPKG_NOT_FOUND:
+      // This isn't a documented return code, but has been encountered
+      // during testing.
+      return ERR_UNSUPPORTED_AUTH_SCHEME;
+    default:
+      LOG(WARNING)
+          << "QuerySecurityPackageInfo returned undocumented status 0x"
+          << std::hex << status;
+      return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
+  }
+}
+
+int MapFreeContextBufferStatusToError(SECURITY_STATUS status) {
+  LOG(INFO) << "FreeContextBuffer returned 0x" << std::hex << status;
+  switch (status) {
+    case SEC_E_OK:
+      return OK;
+    default:
+      // The documentation at
+      // http://msdn.microsoft.com/en-us/library/aa375416(VS.85).aspx
+      // only mentions that a non-zero (or non-SEC_E_OK) value is returned
+      // if the function fails, and does not indicate what the failure
+      // conditions are.
+      LOG(WARNING)
+          << "FreeContextBuffer returned undocumented status 0x"
+          << std::hex << status;
+      return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
+  }
 }
 
 }  // anonymous namespace
@@ -233,50 +312,6 @@ int HttpAuthSSPI::OnFirstRound(const string16* username,
   return rv;
 }
 
-namespace {
-
-int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
-  LOG(INFO) << "InitializeSecurityContext returned " << status;
-  switch (status) {
-    case SEC_E_OK:
-    case SEC_I_CONTINUE_NEEDED:
-      return OK;
-    case SEC_I_COMPLETE_AND_CONTINUE:
-    case SEC_I_COMPLETE_NEEDED:
-    case SEC_I_INCOMPLETE_CREDENTIALS:
-    case SEC_E_INCOMPLETE_MESSAGE:
-    case SEC_E_INTERNAL_ERROR:
-      // These are return codes reported by InitializeSecurityContext
-      // but not expected by Chrome (for example, INCOMPLETE_CREDENTIALS
-      // and INCOMPLETE_MESSAGE are intended for schannel).
-      LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
-      return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
-    case SEC_E_INSUFFICIENT_MEMORY:
-      return ERR_OUT_OF_MEMORY;
-    case SEC_E_UNSUPPORTED_FUNCTION:
-      NOTREACHED();
-      return ERR_UNEXPECTED;
-    case SEC_E_INVALID_HANDLE:
-      NOTREACHED();
-      return ERR_INVALID_HANDLE;
-    case SEC_E_INVALID_TOKEN:
-      return ERR_INVALID_RESPONSE;
-    case SEC_E_LOGON_DENIED:
-      return ERR_ACCESS_DENIED;
-    case SEC_E_NO_CREDENTIALS:
-    case SEC_E_WRONG_PRINCIPAL:
-      return ERR_INVALID_AUTH_CREDENTIALS;
-    case SEC_E_NO_AUTHENTICATING_AUTHORITY:
-    case SEC_E_TARGET_UNKNOWN:
-      return ERR_MISCONFIGURED_AUTH_ENVIRONMENT;
-    default:
-      LOG(ERROR) << "Undocumented SECURITY_STATUS " << status;
-      return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
-  }
-}
-
-}
-
 int HttpAuthSSPI::GetNextSecurityToken(
     const std::wstring& spn,
     const void* in_token,
@@ -380,31 +415,14 @@ int DetermineMaxTokenLength(SSPILibrary* library,
   PSecPkgInfo pkg_info = NULL;
   SECURITY_STATUS status = library->QuerySecurityPackageInfo(
       const_cast<wchar_t *>(package.c_str()), &pkg_info);
-  if (status != SEC_E_OK) {
-    // The documentation at
-    // http://msdn.microsoft.com/en-us/library/aa379359(VS.85).aspx
-    // only mentions that a non-zero (or non-SEC_E_OK) value is returned
-    // if the function fails. In practice, it appears to return
-    // SEC_E_SECPKG_NOT_FOUND for invalid/unknown packages.
-    LOG(ERROR) << "Security package " << package << " not found."
-               << " Status code: " << status;
-    if (status == SEC_E_SECPKG_NOT_FOUND)
-      return ERR_UNSUPPORTED_AUTH_SCHEME;
-    else
-      return ERR_UNEXPECTED;
-  }
+  int rv = MapQuerySecurityPackageInfoStatusToError(status);
+  if (rv != OK)
+    return rv;
   int token_length = pkg_info->cbMaxToken;
   status = library->FreeContextBuffer(pkg_info);
-  if (status != SEC_E_OK) {
-    // The documentation at
-    // http://msdn.microsoft.com/en-us/library/aa375416(VS.85).aspx
-    // only mentions that a non-zero (or non-SEC_E_OK) value is returned
-    // if the function fails, and does not indicate what the failure conditions
-    // are.
-    LOG(ERROR) << "Unexpected problem freeing context buffer. Status code: "
-               << status;
-    return ERR_UNEXPECTED;
-  }
+  rv = MapFreeContextBufferStatusToError(status);
+  if (rv != OK)
+    return rv;
   *max_token_length = token_length;
   return OK;
 }
