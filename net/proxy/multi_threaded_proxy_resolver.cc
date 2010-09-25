@@ -6,6 +6,7 @@
 
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/thread.h"
 #include "net/base/capturing_net_log.h"
 #include "net/base/net_errors.h"
@@ -315,7 +316,7 @@ MultiThreadedProxyResolver::Executor::Executor(
   // Note that it is safe to pass a temporary C-String to Thread(), as it will
   // make a copy.
   std::string thread_name =
-      StringPrintf("PAC thread #%d", thread_number);
+      base::StringPrintf("PAC thread #%d", thread_number);
   thread_.reset(new base::Thread(thread_name.c_str()));
   thread_->Start();
 }

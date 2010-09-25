@@ -13,6 +13,7 @@
 #include "base/logging.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
@@ -96,7 +97,7 @@ std::string DisplayStatus(OM_uint32 major_status,
                           OM_uint32 minor_status) {
   if (major_status == GSS_S_COMPLETE)
     return "OK";
-  return StringPrintf("0x%08X 0x%08X", major_status, minor_status);
+  return base::StringPrintf("0x%08X 0x%08X", major_status, minor_status);
 }
 
 std::string DisplayCode(GSSAPILibrary* gssapi_lib,
@@ -106,7 +107,7 @@ std::string DisplayCode(GSSAPILibrary* gssapi_lib,
   const size_t kMaxMsgLength = 4096;
   // msg_ctx needs to be outside the loop because it is invoked multiple times.
   OM_uint32 msg_ctx = 0;
-  std::string rv = StringPrintf("(0x%08X)", status);
+  std::string rv = base::StringPrintf("(0x%08X)", status);
 
   // This loop should continue iterating until msg_ctx is 0 after the first
   // iteration. To be cautious and prevent an infinite loop, it stops after
@@ -125,8 +126,8 @@ std::string DisplayCode(GSSAPILibrary* gssapi_lib,
           static_cast<int>(kMaxMsgLength) :
           static_cast<int>(msg.length);
       if (msg_len > 0 && msg.value != NULL) {
-        rv += StringPrintf(" %.*s", msg_len,
-                           static_cast<char*>(msg.value));
+        rv += base::StringPrintf(" %.*s", msg_len,
+                                 static_cast<char*>(msg.value));
       }
     }
     gssapi_lib->release_buffer(&min_stat, &msg);
@@ -143,7 +144,8 @@ std::string DisplayExtendedStatus(GSSAPILibrary* gssapi_lib,
     return "OK";
   std::string major = DisplayCode(gssapi_lib, major_status, GSS_C_GSS_CODE);
   std::string minor = DisplayCode(gssapi_lib, minor_status, GSS_C_MECH_CODE);
-  return StringPrintf("Major: %s | Minor: %s", major.c_str(), minor.c_str());
+  return base::StringPrintf("Major: %s | Minor: %s", major.c_str(),
+                            minor.c_str());
 }
 
 // ScopedName releases a gss_name_t when it goes out of scope.
@@ -253,11 +255,11 @@ std::string DescribeOid(GSSAPILibrary* gssapi_lib, const gss_OID oid) {
       }
     }
     if (!str[str_length]) {
-      output += StringPrintf("\"%s\"", str);
+      output += base::StringPrintf("\"%s\"", str);
       return output;
     }
   }
-  output = StringPrintf("(%u) \"", byte_length);
+  output = base::StringPrintf("(%u) \"", byte_length);
   if (!oid->elements) {
     output += "<NULL>";
     return output;
@@ -267,7 +269,7 @@ std::string DescribeOid(GSSAPILibrary* gssapi_lib, const gss_OID oid) {
   // Don't print more than |kMaxCharsToPrint| characters.
   size_t i = 0;
   for ( ; (i < byte_length) && (i < kMaxCharsToPrint); ++i) {
-    output += StringPrintf("\\x%02X", elements[i]);
+    output += base::StringPrintf("\\x%02X", elements[i]);
   }
   if (i >= kMaxCharsToPrint)
     output += "...";
@@ -312,19 +314,19 @@ std::string DescribeName(GSSAPILibrary* gssapi_lib, const gss_name_t name) {
   ScopedBuffer scoped_output_name(&output_name_buffer, gssapi_lib);
   if (major_status != GSS_S_COMPLETE) {
     std::string error =
-        StringPrintf("Unable to describe name 0x%p, %s",
-                     name,
-                     DisplayExtendedStatus(gssapi_lib,
-                                           major_status,
-                                           minor_status).c_str());
+        base::StringPrintf("Unable to describe name 0x%p, %s",
+                           name,
+                           DisplayExtendedStatus(gssapi_lib,
+                                                 major_status,
+                                                 minor_status).c_str());
     return error;
   }
   int len = output_name_buffer.length;
-  std::string description =
-      StringPrintf("%*s (Type %s)",
-                   len,
-                   reinterpret_cast<const char*>(output_name_buffer.value),
-                   DescribeOid(gssapi_lib, output_name_type).c_str());
+  std::string description = base::StringPrintf(
+      "%*s (Type %s)",
+      len,
+      reinterpret_cast<const char*>(output_name_buffer.value),
+      DescribeOid(gssapi_lib, output_name_type).c_str());
   return description;
 }
 
@@ -352,32 +354,32 @@ std::string DescribeContext(GSSAPILibrary* gssapi_lib,
   ScopedName(targ_name, gssapi_lib);
   if (major_status != GSS_S_COMPLETE) {
     std::string error =
-        StringPrintf("Unable to describe context 0x%p, %s",
-                     context_handle,
-                     DisplayExtendedStatus(gssapi_lib,
-                                           major_status,
-                                           minor_status).c_str());
+        base::StringPrintf("Unable to describe context 0x%p, %s",
+                           context_handle,
+                           DisplayExtendedStatus(gssapi_lib,
+                                                 major_status,
+                                                 minor_status).c_str());
     return error;
   }
   std::string source(DescribeName(gssapi_lib, src_name));
   std::string target(DescribeName(gssapi_lib, targ_name));
-  std::string description = StringPrintf("Context 0x%p: "
-                                         "Source \"%s\", "
-                                         "Target \"%s\", "
-                                         "lifetime %d, "
-                                         "mechanism %s, "
-                                         "flags 0x%08X, "
-                                         "local %d, "
-                                         "open %d",
-                                         context_handle,
-                                         source.c_str(),
-                                         target.c_str(),
-                                         lifetime_rec,
-                                         DescribeOid(gssapi_lib,
-                                                     mech_type).c_str(),
-                                         ctx_flags,
-                                         locally_initiated,
-                                         open);
+  std::string description = base::StringPrintf("Context 0x%p: "
+                                               "Source \"%s\", "
+                                               "Target \"%s\", "
+                                                "lifetime %d, "
+                                                "mechanism %s, "
+                                                "flags 0x%08X, "
+                                                "local %d, "
+                                                "open %d",
+                                                context_handle,
+                                                source.c_str(),
+                                                target.c_str(),
+                                                lifetime_rec,
+                                                DescribeOid(gssapi_lib,
+                                                            mech_type).c_str(),
+                                                ctx_flags,
+                                                locally_initiated,
+                                                open);
   return description;
 }
 

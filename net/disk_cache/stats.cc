@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/disk_cache/backend_impl.h"
 
 namespace {
@@ -260,14 +261,14 @@ int64 Stats::GetCounter(Counters counter) const {
 void Stats::GetItems(StatsItems* items) {
   std::pair<std::string, std::string> item;
   for (int i = 0; i < kDataSizesLength; i++) {
-    item.first = StringPrintf("Size%02d", i);
-    item.second = StringPrintf("0x%08x", data_sizes_[i]);
+    item.first = base::StringPrintf("Size%02d", i);
+    item.second = base::StringPrintf("0x%08x", data_sizes_[i]);
     items->push_back(item);
   }
 
   for (int i = MIN_COUNTER + 1; i < MAX_COUNTER; i++) {
     item.first = kCounterNames[i];
-    item.second = StringPrintf("0x%" PRIx64, counters_[i]);
+    item.second = base::StringPrintf("0x%" PRIx64, counters_[i]);
     items->push_back(item);
   }
 }

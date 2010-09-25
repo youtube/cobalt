@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/third_party/gssapi/gssapi.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -312,9 +313,9 @@ OM_uint32 MockGSSAPILibrary::display_status(
       gss_buffer_t status_string) {
   if (minor_status)
     *minor_status = 0;
-  std::string msg = StringPrintf("Value: %u, Type %u",
-                                 status_value,
-                                 status_type);
+  std::string msg = base::StringPrintf("Value: %u, Type %u",
+                                       status_value,
+                                       status_type);
   if (message_context)
     *message_context = 0;
   BufferFromString(msg, status_string);

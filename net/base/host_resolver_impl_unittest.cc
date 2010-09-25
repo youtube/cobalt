@@ -10,6 +10,7 @@
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
@@ -137,7 +138,7 @@ class EchoingHostResolverProc : public HostResolverProc {
                       AddressList* addrlist,
                       int* os_error) {
     // Encode the request's hostname and address_family in the output address.
-    std::string ip_literal = StringPrintf("192.%d.%d.%d",
+    std::string ip_literal = base::StringPrintf("192.%d.%d.%d",
         static_cast<int>(hostname.size()),
         static_cast<int>(hostname[0]),
         static_cast<int>(address_family));

@@ -6,8 +6,10 @@
 
 #include <string>
 #include <vector>
+
 #include "base/string_piece.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::StringPiece;
@@ -211,7 +213,7 @@ TEST_F(UrlToFilenameEncoderTest, EncodeUrlCorrectly) {
 TEST_F(UrlToFilenameEncoderTest, UnescapeUrlsBeforeEncode) {
   for (int i = 0; i < 128; ++i) {
     string unescaped(1, static_cast<char>(i));
-    string escaped = StringPrintf("%%%02X", i);
+    string escaped = base::StringPrintf("%%%02X", i);
     ValidateEncodeSame(unescaped, escaped);
   }
 

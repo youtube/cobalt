@@ -7,6 +7,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -15,11 +16,11 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_request_info.h"
+#include "net/socket/client_socket_handle.h"
+#include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/socket/client_socket_handle.h"
-#include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
@@ -450,7 +451,7 @@ int HttpStreamRequest::DoInitConnection() {
   DCHECK(!connection_group.empty());
 
   if (using_ssl_)
-    connection_group = StringPrintf("ssl/%s", connection_group.c_str());
+    connection_group = base::StringPrintf("ssl/%s", connection_group.c_str());
 
   // If the user is refreshing the page, bypass the host cache.
   bool disable_resolver_cache =
@@ -518,8 +519,8 @@ int HttpStreamRequest::DoInitConnection() {
         socks_version = '5';
       else
         socks_version = '4';
-      connection_group =
-          StringPrintf("socks%c/%s", socks_version, connection_group.c_str());
+      connection_group = base::StringPrintf(
+          "socks%c/%s", socks_version, connection_group.c_str());
 
       socks_params = new SOCKSSocketParams(proxy_tcp_params,
                                            socks_version == '5',

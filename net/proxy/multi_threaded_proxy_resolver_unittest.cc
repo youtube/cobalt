@@ -6,12 +6,13 @@
 
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "base/waitable_event.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
-#include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/proxy/proxy_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -619,8 +620,8 @@ TEST(MultiThreadedProxyResolverTest, ThreeThreads_Basic) {
 
   for (int i = 1; i < kNumRequests; ++i) {
     rv = resolver.GetProxyForURL(
-        GURL(StringPrintf("http://request%d", i)), &results[i], &callback[i],
-        &request[i], BoundNetLog());
+        GURL(base::StringPrintf("http://request%d", i)), &results[i],
+        &callback[i], &request[i], BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
   }
 
@@ -725,7 +726,7 @@ TEST(MultiThreadedProxyResolverTest, OneThreadBlocked) {
 
   for (int i = 1; i < kNumRequests; ++i) {
     rv = resolver.GetProxyForURL(
-        GURL(StringPrintf("http://request%d", i)),
+        GURL(base::StringPrintf("http://request%d", i)),
         &results[i], &callback[i], &request[i], BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
   }

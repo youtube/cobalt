@@ -7,6 +7,7 @@
 #include "base/format_macros.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/net_errors.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -178,14 +179,14 @@ TEST(HostCacheTest, Compact) {
 
   // Add five valid entries at t=10.
   for (int i = 0; i < 5; ++i) {
-    std::string hostname = StringPrintf("valid%d", i);
+    std::string hostname = base::StringPrintf("valid%d", i);
     cache.Set(Key(hostname), OK, AddressList(), now);
   }
   EXPECT_EQ(5U, cache.size());
 
   // Add 3 expired entries at t=0.
   for (int i = 0; i < 3; ++i) {
-    std::string hostname = StringPrintf("expired%d", i);
+    std::string hostname = base::StringPrintf("expired%d", i);
     base::TimeTicks t = now - base::TimeDelta::FromSeconds(10);
     cache.Set(Key(hostname), OK, AddressList(), t);
   }
@@ -193,7 +194,7 @@ TEST(HostCacheTest, Compact) {
 
   // Add 2 negative entries at t=10
   for (int i = 0; i < 2; ++i) {
-    std::string hostname = StringPrintf("negative%d", i);
+    std::string hostname = base::StringPrintf("negative%d", i);
     cache.Set(Key(hostname), ERR_NAME_NOT_RESOLVED, AddressList(), now);
   }
   EXPECT_EQ(10U, cache.size());
@@ -452,7 +453,7 @@ TEST(HostCacheTest, KeyComparators) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]", i));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]", i));
 
     const HostCache::Key& key1 = tests[i].key1;
     const HostCache::Key& key2 = tests[i].key2;
