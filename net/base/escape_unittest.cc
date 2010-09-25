@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -95,7 +96,7 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
       EXPECT_EQ(out, std::string("+"));
     } else if (no_escape.find(in) == std::string::npos) {
       // Check %hex escaping
-      std::string expected = StringPrintf("%%%02X", i);
+      std::string expected = base::StringPrintf("%%%02X", i);
       EXPECT_EQ(expected, out);
     } else {
       // No change for things in the no_escape list.

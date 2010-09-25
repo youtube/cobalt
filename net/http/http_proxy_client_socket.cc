@@ -5,6 +5,7 @@
 #include "net/http/http_proxy_client_socket.h"
 
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/auth.h"
 #include "net/base/host_port_pair.h"
@@ -32,7 +33,7 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
   // RFC 2616 Section 9 says the Host request-header field MUST accompany all
   // HTTP/1.1 requests.  Add "Proxy-Connection: keep-alive" for compat with
   // HTTP/1.0 proxies such as Squid (required for NTLM authentication).
-  *request_line = StringPrintf(
+  *request_line = base::StringPrintf(
       "CONNECT %s HTTP/1.1\r\n", endpoint.ToString().c_str());
   request_headers->SetHeader(HttpRequestHeaders::kHost,
                              GetHostAndOptionalPort(request_info->url));

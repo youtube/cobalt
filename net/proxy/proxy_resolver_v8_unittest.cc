@@ -5,6 +5,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
@@ -276,7 +277,7 @@ TEST(ProxyResolverV8Test, SideEffects) {
     result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
                                      BoundNetLog());
     EXPECT_EQ(OK, result);
-    EXPECT_EQ(StringPrintf("sideffect_%d:80", i),
+    EXPECT_EQ(base::StringPrintf("sideffect_%d:80", i),
               proxy_info.proxy_server().ToURI());
   }
 
@@ -290,7 +291,7 @@ TEST(ProxyResolverV8Test, SideEffects) {
     result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
                                      BoundNetLog());
     EXPECT_EQ(OK, result);
-    EXPECT_EQ(StringPrintf("sideffect_%d:80", i),
+    EXPECT_EQ(base::StringPrintf("sideffect_%d:80", i),
               proxy_info.proxy_server().ToURI());
   }
 }

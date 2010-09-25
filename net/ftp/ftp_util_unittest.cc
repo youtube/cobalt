@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,9 @@
 #include "base/basictypes.h"
 #include "base/format_macros.h"
 #include "base/string_util.h"
-#include "base/utf_string_conversions.h"
+#include "base/stringprintf.h"
 #include "base/time.h"
+#include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -140,9 +141,9 @@ TEST(FtpUtilTest, LsDateListingToTime) {
     { "Dec", "06", "21:00", 1993, 12, 6, 21, 0 },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kTestCases); i++) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s %s %s", i,
-                              kTestCases[i].month, kTestCases[i].day,
-                              kTestCases[i].rest));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s %s %s", i,
+                                    kTestCases[i].month, kTestCases[i].day,
+                                    kTestCases[i].rest));
 
     base::Time time;
     ASSERT_TRUE(net::FtpUtil::LsDateListingToTime(
@@ -179,8 +180,8 @@ TEST(FtpUtilTest, GetStringPartAfterColumns) {
     { "  foo   abc ", 2, "" },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kTestCases); i++) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s %d",
-                              i, kTestCases[i].text, kTestCases[i].column));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s %d", i,
+                                    kTestCases[i].text, kTestCases[i].column));
 
     EXPECT_EQ(ASCIIToUTF16(kTestCases[i].expected_result),
               net::FtpUtil::GetStringPartAfterColumns(

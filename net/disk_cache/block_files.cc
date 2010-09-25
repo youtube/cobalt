@@ -7,6 +7,7 @@
 #include "base/file_util.h"
 #include "base/histogram.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/thread_checker.h"
 #include "base/time.h"
 #include "net/disk_cache/cache_util.h"
@@ -602,7 +603,7 @@ void BlockFiles::GetFileStats(int index, int* used_count, int* load) {
 FilePath BlockFiles::Name(int index) {
   // The file format allows for 256 files.
   DCHECK(index < 256 || index >= 0);
-  std::string tmp = StringPrintf("%s%d", kBlockName, index);
+  std::string tmp = base::StringPrintf("%s%d", kBlockName, index);
   return path_.AppendASCII(tmp);
 }
 

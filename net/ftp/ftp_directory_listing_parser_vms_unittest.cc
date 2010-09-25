@@ -7,6 +7,7 @@
 #include "base/format_macros.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "net/ftp/ftp_directory_listing_parser_vms.h"
 
@@ -45,7 +46,8 @@ TEST_F(FtpDirectoryListingParserVmsTest, Good) {
       2005, 3, 12, 8, 44 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, good_cases[i].input));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
+                                    good_cases[i].input));
 
     net::FtpDirectoryListingParserVms parser;
     ASSERT_TRUE(
@@ -101,7 +103,7 @@ TEST_F(FtpDirectoryListingParserVmsTest, Bad) {
     "Directory ROOT|X.TXT;2 1 12-MAR-2005 08:44:57 [X] (RWED,RRWWEEDD,RE,RE)",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, bad_cases[i]));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i, bad_cases[i]));
 
     std::vector<std::string> lines;
     SplitString(bad_cases[i], '|', &lines);

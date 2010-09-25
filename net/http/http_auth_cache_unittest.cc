@@ -6,6 +6,7 @@
 
 #include "base/string16.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_cache.h"
@@ -379,11 +380,11 @@ class HttpAuthCacheEvictionTest : public testing::Test {
   HttpAuthCacheEvictionTest() : origin_("http://www.google.com") { }
 
   std::string GenerateRealm(int realm_i) {
-    return StringPrintf("Realm %d", realm_i);
+    return base::StringPrintf("Realm %d", realm_i);
   }
 
   std::string GeneratePath(int realm_i, int path_i) {
-    return StringPrintf("/%d/%d/x/y", realm_i, path_i);
+    return base::StringPrintf("/%d/%d/x/y", realm_i, path_i);
   }
 
   void AddRealm(int realm_i) {

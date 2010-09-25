@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
 #include "net/base/host_resolver.h"
@@ -25,9 +26,9 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
-#include "net/socket/ssl_client_socket.h"
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
+#include "net/socket/ssl_client_socket.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/socket_stream/socket_stream_metrics.h"
 #include "net/url_request/url_request.h"
@@ -625,7 +626,7 @@ int SocketStream::DoWriteTunnelHeaders() {
           ": " + auth_token + "\r\n");
     }
 
-    tunnel_request_headers_->headers_ = StringPrintf(
+    tunnel_request_headers_->headers_ = base::StringPrintf(
         "CONNECT %s HTTP/1.1\r\n"
         "Host: %s\r\n"
         "Proxy-Connection: keep-alive\r\n",
