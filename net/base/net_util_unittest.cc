@@ -8,9 +8,10 @@
 #include "base/format_macros.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/sys_string_conversions.h"
-#include "base/utf_string_conversions.h"
 #include "base/time.h"
+#include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/sys_addrinfo.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -616,7 +617,8 @@ TEST(NetUtilTest, GetIdentityFromURL) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, tests[i].input_url));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
+                                    tests[i].input_url));
     GURL url(tests[i].input_url);
 
     string16 username, password;
@@ -1866,7 +1868,8 @@ TEST(NetUtilTest, SimplifyUrlForRequest) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, tests[i].input_url));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
+                                    tests[i].input_url));
     GURL input_url(GURL(tests[i].input_url));
     GURL expected_url(GURL(tests[i].expected_simplified_url));
     EXPECT_EQ(expected_url, net::SimplifyUrlForRequest(input_url));
@@ -2037,9 +2040,9 @@ TEST(NetUtilTest, IPNumberMatchesPrefix) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s, %s", i,
-                              tests[i].cidr_literal,
-                              tests[i].ip_literal));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s, %s", i,
+                                    tests[i].cidr_literal,
+                                    tests[i].ip_literal));
 
     net::IPAddressNumber ip_number;
     EXPECT_TRUE(net::ParseIPLiteralToNumber(tests[i].ip_literal, &ip_number));

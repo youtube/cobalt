@@ -5,6 +5,7 @@
 #include "net/proxy/proxy_bypass_rules.h"
 
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/proxy/proxy_config_service_common_unittest.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -275,7 +276,7 @@ TEST(ProxyBypassRulesTest, BypassLocalNames) {
   rules.ParseFromString("<local>");
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf(
+    SCOPED_TRACE(base::StringPrintf(
         "Test[%d]: %s", static_cast<int>(i), tests[i].url));
     EXPECT_EQ(tests[i].expected_is_local, rules.Matches(GURL(tests[i].url)));
   }

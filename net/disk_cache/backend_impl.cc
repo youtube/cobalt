@@ -11,6 +11,7 @@
 #include "base/message_loop.h"
 #include "base/rand_util.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/sys_info.h"
 #include "base/time.h"
 #include "base/timer.h"
@@ -20,8 +21,8 @@
 #include "net/disk_cache/entry_impl.h"
 #include "net/disk_cache/errors.h"
 #include "net/disk_cache/experiments.h"
-#include "net/disk_cache/hash.h"
 #include "net/disk_cache/file.h"
+#include "net/disk_cache/hash.h"
 #include "net/disk_cache/mem_backend_impl.h"
 
 // This has to be defined before including histogram_macros.h from this file.
@@ -74,7 +75,8 @@ size_t GetIndexSize(int table_len) {
 // will return "/foo/old_bar_005".
 FilePath GetPrefixedName(const FilePath& path, const std::string& name,
                          int index) {
-  std::string tmp = StringPrintf("%s%s_%03d", "old_", name.c_str(), index);
+  std::string tmp = base::StringPrintf("%s%s_%03d", "old_",
+                                       name.c_str(), index);
   return path.AppendASCII(tmp);
 }
 
@@ -191,7 +193,7 @@ bool SetFieldTrialInfo(int size_group) {
   // Field trials involve static objects so we have to do this only once.
   first = false;
   scoped_refptr<FieldTrial> trial1 = new FieldTrial("CacheSize", 10);
-  std::string group1 = StringPrintf("CacheSizeGroup_%d", size_group);
+  std::string group1 = base::StringPrintf("CacheSizeGroup_%d", size_group);
   trial1->AppendGroup(group1, FieldTrial::kAllRemainingProbability);
 
   scoped_refptr<FieldTrial> trial2 = new FieldTrial("CacheThrottle", 100);
@@ -517,19 +519,19 @@ void BackendImpl::GetStats(StatsItems* stats) {
   std::pair<std::string, std::string> item;
 
   item.first = "Entries";
-  item.second = StringPrintf("%d", data_->header.num_entries);
+  item.second = base::StringPrintf("%d", data_->header.num_entries);
   stats->push_back(item);
 
   item.first = "Pending IO";
-  item.second = StringPrintf("%d", num_pending_io_);
+  item.second = base::StringPrintf("%d", num_pending_io_);
   stats->push_back(item);
 
   item.first = "Max size";
-  item.second = StringPrintf("%d", max_size_);
+  item.second = base::StringPrintf("%d", max_size_);
   stats->push_back(item);
 
   item.first = "Current size";
-  item.second = StringPrintf("%d", data_->header.num_bytes);
+  item.second = base::StringPrintf("%d", data_->header.num_bytes);
   stats->push_back(item);
 
   stats_.GetItems(stats);
@@ -918,7 +920,7 @@ FilePath BackendImpl::GetFileName(Addr address) const {
     return FilePath();
   }
 
-  std::string tmp = StringPrintf("f_%06x", address.FileNumber());
+  std::string tmp = base::StringPrintf("f_%06x", address.FileNumber());
   return path_.AppendASCII(tmp);
 }
 
@@ -1108,8 +1110,9 @@ bool BackendImpl::IsLoaded() const {
 
 std::string BackendImpl::HistogramName(const char* name, int experiment) const {
   if (!experiment)
-    return StringPrintf("DiskCache.%d.%s", cache_type_, name);
-  return StringPrintf("DiskCache.%d.%s_%d", cache_type_, name, experiment);
+    return base::StringPrintf("DiskCache.%d.%s", cache_type_, name);
+  return base::StringPrintf("DiskCache.%d.%s_%d", cache_type_,
+                            name, experiment);
 }
 
 base::WeakPtr<BackendImpl> BackendImpl::GetWeakPtr() {

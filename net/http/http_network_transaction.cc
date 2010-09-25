@@ -14,8 +14,9 @@
 #include "base/scoped_ptr.h"
 #include "base/stats_counters.h"
 #include "base/stl_util-inl.h"
-#include "base/string_util.h"
 #include "base/string_number_conversions.h"
+#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/auth.h"
@@ -67,7 +68,7 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
   const std::string path = using_proxy ?
                            HttpUtil::SpecForRequest(request_info->url) :
                            HttpUtil::PathForRequest(request_info->url);
-  *request_line = StringPrintf(
+  *request_line = base::StringPrintf(
       "%s %s HTTP/1.1\r\n", request_info->method.c_str(), path.c_str());
   request_headers->SetHeader(HttpRequestHeaders::kHost,
                              GetHostAndOptionalPort(request_info->url));
@@ -1210,9 +1211,10 @@ GURL HttpNetworkTransaction::AuthURL(HttpAuth::Target target) const {
   }
 }
 
-#define STATE_CASE(s)  case s: \
-                         description = StringPrintf("%s (0x%08X)", #s, s); \
-                         break
+#define STATE_CASE(s) \
+  case s: \
+    description = base::StringPrintf("%s (0x%08X)", #s, s); \
+    break
 
 std::string HttpNetworkTransaction::DescribeState(State state) {
   std::string description;
@@ -1229,7 +1231,8 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
     STATE_CASE(STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE);
     STATE_CASE(STATE_NONE);
     default:
-      description = StringPrintf("Unknown state 0x%08X (%u)", state, state);
+      description = base::StringPrintf("Unknown state 0x%08X (%u)", state,
+                                       state);
       break;
   }
   return description;

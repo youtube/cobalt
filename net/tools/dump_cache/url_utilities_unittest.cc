@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -76,10 +77,10 @@ TEST(UrlUtilitiesTest, Unescape) {
                                    "%3E%2E%3F%2F"));
   for (int c = 0; c < 256; ++c) {
     std::string unescaped_char(1, implicit_cast<unsigned char>(c));
-    std::string escaped_char = StringPrintf("%%%02X", c);
+    std::string escaped_char = base::StringPrintf("%%%02X", c);
     EXPECT_EQ(unescaped_char, UrlUtilities::Unescape(escaped_char))
         << "escaped_char = " << escaped_char;
-    escaped_char = StringPrintf("%%%02x", c);
+    escaped_char = base::StringPrintf("%%%02x", c);
     EXPECT_EQ(unescaped_char, UrlUtilities::Unescape(escaped_char))
         << "escaped_char = " << escaped_char;
   }

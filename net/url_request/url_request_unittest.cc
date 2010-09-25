@@ -7,8 +7,8 @@
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
-#include <windows.h>
 #include <shlobj.h>
+#include <windows.h>
 #elif defined(USE_NSS)
 #include "base/nss_util.h"
 #endif
@@ -21,15 +21,16 @@
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
-#include "base/string_piece.h"
 #include "base/string_number_conversions.h"
+#include "base/string_piece.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/cookie_monster.h"
 #include "net/base/cookie_policy.h"
 #include "net/base/load_flags.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
-#include "net/base/net_errors.h"
 #include "net/base/net_module.h"
 #include "net/base/net_util.h"
 #include "net/base/ssl_connection_status_flags.h"
@@ -341,7 +342,7 @@ TEST_F(URLRequestTest, QuitTest) {
 
   // Append the time to avoid problems where the kill page
   // is being cached rather than being executed on the server
-  std::string page_name = StringPrintf("kill?%u",
+  std::string page_name = base::StringPrintf("kill?%u",
       static_cast<int>(base::Time::Now().ToInternalValue()));
   int retry_count = 5;
   while (retry_count > 0) {
@@ -804,8 +805,9 @@ TEST_F(URLRequestTest, FileTestFullSpecifiedRange) {
 
     net::HttpRequestHeaders headers;
     headers.SetHeader(net::HttpRequestHeaders::kRange,
-                      StringPrintf("bytes=%" PRIuS "-%" PRIuS,
-                                   first_byte_position, last_byte_position));
+                      base::StringPrintf(
+                           "bytes=%" PRIuS "-%" PRIuS,
+                           first_byte_position, last_byte_position));
     r.SetExtraRequestHeaders(headers);
     r.Start();
     EXPECT_TRUE(r.is_pending());
@@ -847,8 +849,8 @@ TEST_F(URLRequestTest, FileTestHalfSpecifiedRange) {
 
     net::HttpRequestHeaders headers;
     headers.SetHeader(net::HttpRequestHeaders::kRange,
-                      StringPrintf("bytes=%" PRIuS "-",
-                                   first_byte_position));
+                      base::StringPrintf("bytes=%" PRIuS "-",
+                                         first_byte_position));
     r.SetExtraRequestHeaders(headers);
     r.Start();
     EXPECT_TRUE(r.is_pending());

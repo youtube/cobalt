@@ -55,11 +55,11 @@
 #include <keyhi.h>
 #include <nspr.h>
 #include <nss.h>
+#include <pk11pub.h>
 #include <secerr.h>
 #include <sechash.h>
 #include <ssl.h>
 #include <sslerr.h>
-#include <pk11pub.h>
 
 #include "base/compiler_specific.h"
 #include "base/histogram.h"
@@ -68,12 +68,13 @@
 #include "base/singleton.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
+#include "net/base/dns_util.h"
 #include "net/base/dnsrr_resolver.h"
 #include "net/base/dnssec_chain_verifier.h"
-#include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -575,8 +576,8 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // rather than the destination server's address in that case.
   // TODO(wtc): port in |peer_address| is not the server's port when a proxy is
   // used.
-  std::string peer_id = StringPrintf("%s:%d", hostname_.c_str(),
-                                     peer_address.GetPort());
+  std::string peer_id = base::StringPrintf("%s:%d", hostname_.c_str(),
+                                           peer_address.GetPort());
   rv = SSL_SetSockPeerID(nss_fd_, const_cast<char*>(peer_id.c_str()));
   if (rv != SECSuccess)
     LOG(INFO) << "SSL_SetSockPeerID failed: peer_id=" << peer_id;
