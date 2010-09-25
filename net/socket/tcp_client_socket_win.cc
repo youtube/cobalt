@@ -84,7 +84,7 @@ int MapWinsockError(int os_error) {
       // connection shutdown.  We should not ever see this error code for TCP
       // sockets, which are byte stream oriented.
       NOTREACHED();
-      return ERR_CONNECTION_CLOSED;
+      return ERR_UNEXPECTED;
     case WSAEHOSTUNREACH:
     case WSAENETUNREACH:
       return ERR_ADDRESS_UNREACHABLE;
