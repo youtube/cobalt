@@ -310,6 +310,31 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
   bool use_crl = check_revocation;
   bool use_ocsp = check_revocation;
 
+  // These CAs have multiple keys, which trigger two bugs in NSS's CRL code.
+  // 1. NSS may use one key to verify a CRL signed with another key,
+  //    incorrectly concluding that the CRL's signature is invalid.
+  //    Hopefully this bug will be fixed in NSS 3.12.9.
+  // 2. NSS considers all certificates issued by the CA as revoked when it
+  //    receives a CRL with an invalid signature.  This overly strict policy
+  //    has been relaxed in NSS 3.12.7.  See
+  //    https://bugzilla.mozilla.org/show_bug.cgi?id=562542.
+  // So we have to turn off CRL checking for these CAs.  See
+  // http://crbug.com/55695.
+  static const char* const kMultipleKeyCA[] = {
+    "CN=Microsoft Secure Server Authority,"
+    "DC=redmond,DC=corp,DC=microsoft,DC=com",
+    "CN=Microsoft Secure Server Authority",
+  };
+
+  if (!NSS_VersionCheck("3.12.7")) {
+    for (size_t i = 0; i < arraysize(kMultipleKeyCA); ++i) {
+      if (strcmp(cert_handle->issuerName, kMultipleKeyCA[i]) == 0) {
+        use_crl = false;
+        break;
+      }
+    }
+  }
+
   PRUint64 revocation_method_flags =
       CERT_REV_M_DO_NOT_TEST_USING_THIS_METHOD |
       CERT_REV_M_ALLOW_NETWORK_FETCHING |
