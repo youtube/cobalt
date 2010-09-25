@@ -30,7 +30,7 @@ class SpdyHttpStreamTest : public testing::Test {
     session_deps_.socket_factory->AddSocketDataProvider(data_.get());
     http_session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps_);
     session_ = http_session_->spdy_session_pool()->
-      Get(pair, http_session_.get(), BoundNetLog());
+      Get(pair, http_session_->mutable_spdy_settings(), BoundNetLog());
     tcp_params_ = new TCPSocketParams(host_port_pair.host(),
                                       host_port_pair.port(),
                                       MEDIUM, GURL(), false);
