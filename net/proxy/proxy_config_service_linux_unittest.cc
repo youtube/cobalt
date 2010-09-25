@@ -13,6 +13,7 @@
 #include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/task.h"
 #include "base/thread.h"
 #include "base/waitable_event.h"
@@ -376,7 +377,7 @@ class ProxyConfigServiceLinuxTest : public PlatformTest {
 };
 
 // Builds an identifier for each test in an array.
-#define TEST_DESC(desc) StringPrintf("at line %d <%s>", __LINE__, desc)
+#define TEST_DESC(desc) base::StringPrintf("at line %d <%s>", __LINE__, desc)
 
 TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
   std::vector<std::string> empty_ignores;
@@ -605,8 +606,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
-                              tests[i].description.c_str()));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "] %s", i,
+                                    tests[i].description.c_str()));
     MockEnvironment* env = new MockEnvironment;
     MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
     SynchConfigGetter sync_config_getter(
@@ -895,8 +896,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
-                              tests[i].description.c_str()));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "] %s", i,
+                                    tests[i].description.c_str()));
     MockEnvironment* env = new MockEnvironment;
     MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
     SynchConfigGetter sync_config_getter(
@@ -1292,8 +1293,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
-                              tests[i].description.c_str()));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "] %s", i,
+                                    tests[i].description.c_str()));
     MockEnvironment* env = new MockEnvironment;
     env->values = tests[i].env_values;
     // Force the KDE getter to be used and tell it where the test is.

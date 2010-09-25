@@ -12,9 +12,9 @@
 #include "base/scoped_vector.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
-#include "net/base/net_errors.h"
 #include "net/base/request_priority.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_response_headers.h"
@@ -987,9 +987,9 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
     ClientSocketHandle handles[kDefaultMaxSockets];
     for (int i = 0; i < kDefaultMaxSockets; ++i) {
       TestCompletionCallback callback;
-      EXPECT_EQ(OK, handles[i].Init(StringPrintf("Take 2: %d", i), params_,
-                                    kDefaultPriority, &callback, pool_,
-                                    BoundNetLog()));
+      EXPECT_EQ(OK, handles[i].Init(base::StringPrintf("Take 2: %d", i),
+                                    params_, kDefaultPriority, &callback,
+                                    pool_, BoundNetLog()));
     }
 
     EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());

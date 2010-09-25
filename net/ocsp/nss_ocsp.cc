@@ -4,11 +4,11 @@
 
 #include "net/ocsp/nss_ocsp.h"
 
-#include <certt.h>
 #include <certdb.h>
-#include <ocsp.h>
+#include <certt.h>
 #include <nspr.h>
 #include <nss.h>
+#include <ocsp.h>
 #include <secerr.h>
 
 #include <string>
@@ -20,6 +20,7 @@
 #include "base/message_loop.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/thread.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
@@ -448,11 +449,11 @@ class OCSPServerSession {
 
     // TODO(ukai): If |host| is an IPv6 literal, we need to quote it with
     //  square brackets [].
-    std::string url_string(StringPrintf("%s://%s:%d%s",
-                                        http_protocol_variant,
-                                        host_.c_str(),
-                                        port_,
-                                        path_and_query_string));
+    std::string url_string(base::StringPrintf("%s://%s:%d%s",
+                                              http_protocol_variant,
+                                              host_.c_str(),
+                                              port_,
+                                              path_and_query_string));
     LOG(INFO) << "URL [" << url_string << "]";
     GURL url(url_string);
     return new OCSPRequestSession(

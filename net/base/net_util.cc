@@ -50,15 +50,16 @@
 #include "base/string_split.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/sys_string_conversions.h"
 #include "base/time.h"
 #include "base/utf_offset_string_conversions.h"
 #include "base/utf_string_conversions.h"
-#include "grit/net_resources.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
 #include "googleurl/src/url_canon_ip.h"
 #include "googleurl/src/url_parse.h"
+#include "grit/net_resources.h"
 #include "net/base/dns_util.h"
 #include "net/base/escape.h"
 #include "net/base/net_module.h"
@@ -1509,14 +1510,15 @@ bool ParseHostAndPort(const std::string& host_and_port,
 std::string GetHostAndPort(const GURL& url) {
   // For IPv6 literals, GURL::host() already includes the brackets so it is
   // safe to just append a colon.
-  return StringPrintf("%s:%d", url.host().c_str(), url.EffectiveIntPort());
+  return base::StringPrintf("%s:%d", url.host().c_str(),
+                            url.EffectiveIntPort());
 }
 
 std::string GetHostAndOptionalPort(const GURL& url) {
   // For IPv6 literals, GURL::host() already includes the brackets
   // so it is safe to just append a colon.
   if (url.has_port())
-    return StringPrintf("%s:%s", url.host().c_str(), url.port().c_str());
+    return base::StringPrintf("%s:%s", url.host().c_str(), url.port().c_str());
   return url.host();
 }
 
@@ -1547,10 +1549,10 @@ std::string NetAddressToStringWithPort(const struct addrinfo* net_address) {
 
   if (ip_address_string.find(':') != std::string::npos) {
     // Surround with square brackets to avoid ambiguity.
-    return StringPrintf("[%s]:%d", ip_address_string.c_str(), port);
+    return base::StringPrintf("[%s]:%d", ip_address_string.c_str(), port);
   }
 
-  return StringPrintf("%s:%d", ip_address_string.c_str(), port);
+  return base::StringPrintf("%s:%d", ip_address_string.c_str(), port);
 }
 
 std::string GetHostName() {

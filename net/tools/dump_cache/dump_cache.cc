@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include "base/process_util.h"
 #include "base/scoped_handle.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 
 #include "net/disk_cache/disk_format.h"
 
@@ -84,9 +85,9 @@ int LaunchSlave(const CommandLine& command_line,
 
   std::wstring new_program;
   if (do_upgrade)
-    new_program = StringPrintf(L"%ls%d", L"dump_cache_", version);
+    new_program = base::StringPrintf(L"%ls%d", L"dump_cache_", version);
   else
-    new_program = StringPrintf(L"dump_cache");
+    new_program = base::StringPrintf(L"dump_cache");
 
   hacked_command_line.insert(to_remove, new_program);
 
