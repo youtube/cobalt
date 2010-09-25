@@ -4,11 +4,11 @@
 
 #include "net/ocsp/nss_ocsp.h"
 
-#include <certdb.h>
 #include <certt.h>
+#include <certdb.h>
+#include <ocsp.h>
 #include <nspr.h>
 #include <nss.h>
-#include <ocsp.h>
 #include <secerr.h>
 
 #include <string>
