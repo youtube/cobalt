@@ -39,9 +39,9 @@ namespace net {
 const int kMss = 1430;
 const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::size();
 
-class SpdyStream;
-class HttpNetworkSession;
 class BoundNetLog;
+class SpdySettingsStorage;
+class SpdyStream;
 class SSLInfo;
 
 class SpdySession : public base::RefCounted<SpdySession>,
@@ -53,7 +53,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // |session| is the HttpNetworkSession.  |net_log| is the NetLog that we log
   // network events to.
   SpdySession(const HostPortProxyPair& host_port_proxy_pair,
-              HttpNetworkSession* session,
+              SpdySessionPool* spdy_session_pool,
+              SpdySettingsStorage* spdy_settings,
               NetLog* net_log);
 
   const HostPortPair& host_port_pair() const {
@@ -286,7 +287,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // The domain this session is connected to.
   const HostPortProxyPair host_port_proxy_pair_;
 
-  scoped_refptr<HttpNetworkSession> session_;
+  scoped_refptr<SpdySessionPool> spdy_session_pool_;
+  SpdySettingsStorage* spdy_settings_;
 
   // The socket handle for this session.
   scoped_ptr<ClientSocketHandle> connection_;

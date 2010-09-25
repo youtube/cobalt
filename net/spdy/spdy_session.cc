@@ -216,14 +216,16 @@ bool SpdySession::use_ssl_ = true;
 bool SpdySession::use_flow_control_ = false;
 
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
-                         HttpNetworkSession* session,
+                         SpdySessionPool* spdy_session_pool,
+                         SpdySettingsStorage* spdy_settings,
                          NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           read_callback_(this, &SpdySession::OnReadComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           write_callback_(this, &SpdySession::OnWriteComplete)),
       host_port_proxy_pair_(host_port_proxy_pair),
-      session_(session),
+      spdy_session_pool_(spdy_session_pool),
+      spdy_settings_(spdy_settings),
       connection_(new ClientSocketHandle),
       read_buffer_(new IOBuffer(kReadBufferSize)),
       read_pending_(false),
@@ -867,7 +869,7 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
 
 void SpdySession::RemoveFromPool() {
   if (in_session_pool_) {
-    session_->spdy_session_pool()->Remove(this);
+    spdy_session_pool_->Remove(this);
     in_session_pool_ = false;
   }
 }
@@ -1158,8 +1160,7 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
   spdy::SpdySettings settings;
   if (spdy_framer_.ParseSettings(&frame, &settings)) {
     HandleSettings(settings);
-    SpdySettingsStorage* settings_storage = session_->mutable_spdy_settings();
-    settings_storage->Set(host_port_pair(), settings);
+    spdy_settings_->Set(host_port_pair(), settings);
   }
 
   received_settings_ = true;
@@ -1217,8 +1218,7 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
 }
 
 void SpdySession::SendSettings() {
-  const SpdySettingsStorage& settings_storage = session_->spdy_settings();
-  const spdy::SpdySettings& settings = settings_storage.Get(host_port_pair());
+  const spdy::SpdySettings& settings = spdy_settings_->Get(host_port_pair());
   if (settings.empty())
     return;
   HandleSettings(settings);
@@ -1268,8 +1268,7 @@ void SpdySession::RecordHistograms() {
 
   if (received_settings_) {
     // Enumerate the saved settings, and set histograms for it.
-    const SpdySettingsStorage& settings_storage = session_->spdy_settings();
-    const spdy::SpdySettings& settings = settings_storage.Get(host_port_pair());
+    const spdy::SpdySettings& settings = spdy_settings_->Get(host_port_pair());
 
     spdy::SpdySettings::const_iterator it;
     for (it = settings.begin(); it != settings.end(); ++it) {
