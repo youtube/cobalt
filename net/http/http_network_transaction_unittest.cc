@@ -6240,13 +6240,32 @@ TEST_F(HttpNetworkTransactionTest,
   EXPECT_EQ("hello world", response_data);
 
   // Set up an initial SpdySession in the pool to reuse.
-  HostPortProxyPair pair(HostPortPair("www.google.com", 443),
-                         ProxyServer::Direct());
+  HostPortPair host_port_pair("www.google.com", 443);
+  HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, session, BoundNetLog());
   scoped_refptr<TCPSocketParams> tcp_params =
       new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false);
-  spdy_session->Connect("www.google.com:443", tcp_params, MEDIUM);
+
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(ERR_IO_PENDING,
+            connection->Init(host_port_pair.ToString(),tcp_params, LOWEST,
+                             &callback, session->tcp_socket_pool(),
+                             BoundNetLog()));
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  SSLConfig ssl_config;
+  session->ssl_config_service()->GetSSLConfig(&ssl_config);
+  ClientSocket* socket = connection->release_socket();
+  socket = session->socket_factory()->CreateSSLClientSocket(
+        socket, "" /* request_->url.HostNoBrackets() */ , ssl_config);
+  connection->set_socket(socket);
+  EXPECT_EQ(ERR_IO_PENDING, socket->Connect(&callback));
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  EXPECT_EQ(OK, spdy_session->InitializeWithSocket(connection.release(),
+                                                   true, OK));
+
   trans.reset(new HttpNetworkTransaction(session));
 
   rv = trans->Start(&request, &callback, BoundNetLog());
@@ -7396,13 +7415,21 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   // Set up an initial SpdySession in the pool to reuse.
-  HostPortProxyPair pair(HostPortPair("www.google.com", 443),
-                         ProxyServer::Direct());
+  HostPortPair host_port_pair("www.google.com", 443);
+  HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, session, BoundNetLog());
   scoped_refptr<TCPSocketParams> tcp_params =
       new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false);
-  spdy_session->Connect("www.google.com:443", tcp_params, MEDIUM);
+  TestCompletionCallback callback;
+
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(ERR_IO_PENDING,
+            connection->Init(host_port_pair.ToString(), tcp_params, LOWEST,
+                             &callback, session->tcp_socket_pool(),
+                             BoundNetLog()));
+  EXPECT_EQ(OK, callback.WaitForResult());
+  spdy_session->InitializeWithSocket(connection.release(), false, OK);
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -7414,7 +7441,6 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
 
   scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
 
-  TestCompletionCallback callback;
   int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());

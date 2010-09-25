@@ -63,14 +63,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
     return host_port_proxy_pair_;
   }
 
-  // Connect the Spdy Socket.
-  // Returns net::Error::OK on success.
-  // Note that this call does not wait for the connect to complete. Callers can
-  // immediately start using the SpdySession while it connects.
-  net::Error Connect(const std::string& group_name,
-                     const scoped_refptr<TCPSocketParams>& destination,
-                     RequestPriority priority);
-
   // Get a pushed stream for a given |url|.
   // If the server initiates a stream, it might already exist for a given path.
   // The server might also not have initiated the stream yet, but indicated it
@@ -237,8 +229,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
   void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame);
 
   // IO Callbacks
-  void OnTCPConnect(int result);
-  void OnSSLConnect(int result);
   void OnReadComplete(int result);
   void OnWriteComplete(int result);
 
@@ -290,15 +280,11 @@ class SpdySession : public base::RefCounted<SpdySession>,
   void CloseAllStreams(net::Error status);
 
   // Callbacks for the Spdy session.
-  CompletionCallbackImpl<SpdySession> connect_callback_;
-  CompletionCallbackImpl<SpdySession> ssl_connect_callback_;
   CompletionCallbackImpl<SpdySession> read_callback_;
   CompletionCallbackImpl<SpdySession> write_callback_;
 
   // The domain this session is connected to.
   const HostPortProxyPair host_port_proxy_pair_;
-
-  SSLConfig ssl_config_;
 
   scoped_refptr<HttpNetworkSession> session_;
 
