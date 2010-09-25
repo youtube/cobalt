@@ -17,13 +17,9 @@
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
 #include "net/base/connection_type_histograms.h"
-#include "net/base/load_flags.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_network_session.h"
-#include "net/socket/client_socket.h"
-#include "net/socket/client_socket_factory.h"
-#include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_settings_storage.h"
@@ -223,10 +219,6 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          HttpNetworkSession* session,
                          NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
-          connect_callback_(this, &SpdySession::OnTCPConnect)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          ssl_connect_callback_(this, &SpdySession::OnSSLConnect)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
           read_callback_(this, &SpdySession::OnReadComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           write_callback_(this, &SpdySession::OnWriteComplete)),
@@ -261,8 +253,6 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 
   spdy_framer_.set_visitor(this);
-
-  session_->ssl_config_service()->GetSSLConfig(&ssl_config_);
 
   SendSettings();
 }
@@ -308,34 +298,6 @@ net::Error SpdySession::InitializeWithSocket(
   if (error == ERR_IO_PENDING)
     return OK;
   return error;
-}
-
-net::Error SpdySession::Connect(
-    const std::string& group_name,
-    const scoped_refptr<TCPSocketParams>& destination,
-    RequestPriority priority) {
-  DCHECK(priority >= net::HIGHEST && priority < net::NUM_PRIORITIES);
-
-  // If the connect process is started, let the caller continue.
-  if (state_ > IDLE)
-    return net::OK;
-
-  state_ = CONNECTING;
-
-  static StatsCounter spdy_sessions("spdy.sessions");
-  spdy_sessions.Increment();
-
-  int rv = connection_->Init(group_name, destination, priority,
-                             &connect_callback_, session_->tcp_socket_pool(),
-                             net_log_);
-  DCHECK(rv <= 0);
-
-  // If the connect is pending, we still return ok.  The APIs enqueue
-  // work until after the connect completes asynchronously later.
-  if (rv == net::ERR_IO_PENDING)
-    return net::OK;
-  OnTCPConnect(rv);
-  return static_cast<net::Error>(rv);
 }
 
 int SpdySession::GetPushStream(
@@ -589,65 +551,6 @@ LoadState SpdySession::GetLoadState() const {
   // Just report that we're idle since the session could be doing
   // many things concurrently.
   return LOAD_STATE_IDLE;
-}
-
-void SpdySession::OnTCPConnect(int result) {
-  // We shouldn't be coming through this path if we didn't just open a fresh
-  // socket (or have an error trying to do so).
-  DCHECK(!connection_->socket() || !connection_->is_reused());
-
-  if (result != net::OK) {
-    DCHECK_LT(result, 0);
-    CloseSessionOnError(static_cast<net::Error>(result), true);
-    return;
-  } else {
-    UpdateConnectionTypeHistograms(CONNECTION_SPDY);
-  }
-
-  AdjustSocketBufferSizes(connection_->socket());
-
-  if (use_ssl_) {
-    // Add a SSL socket on top of our existing transport socket.
-    ClientSocket* socket = connection_->release_socket();
-    // TODO(mbelshe): Fix the hostname.  This is BROKEN without having
-    //                a real hostname.
-    socket = session_->socket_factory()->CreateSSLClientSocket(
-        socket, "" /* request_->url.HostNoBrackets() */ , ssl_config_);
-    connection_->set_socket(socket);
-    is_secure_ = true;
-    int status = connection_->socket()->Connect(&ssl_connect_callback_);
-    if (status != ERR_IO_PENDING)
-      OnSSLConnect(status);
-  } else {
-    DCHECK_EQ(state_, CONNECTING);
-    state_ = CONNECTED;
-
-    // Make sure we get any pending data sent.
-    WriteSocketLater();
-    // Start reading
-    ReadSocket();
-  }
-}
-
-void SpdySession::OnSSLConnect(int result) {
-  // TODO(mbelshe): We need to replicate the functionality of
-  //   HttpNetworkTransaction::DoSSLConnectComplete here, where it calls
-  //   HandleCertificateError() and such.
-  if (IsCertificateError(result))
-    result = OK;   // TODO(mbelshe): pretend we're happy anyway.
-
-  if (result == OK) {
-    DCHECK_EQ(state_, CONNECTING);
-    state_ = CONNECTED;
-
-    // After we've connected, send any data to the server, and then issue
-    // our read.
-    WriteSocketLater();
-    ReadSocket();
-  } else {
-    DCHECK_LT(result, 0);  // It should be an error, not a byte count.
-    CloseSessionOnError(static_cast<net::Error>(result), true);
-  }
 }
 
 void SpdySession::OnReadComplete(int bytes_read) {
