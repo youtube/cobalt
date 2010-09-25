@@ -528,7 +528,7 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
 int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
-  if (!current_ai_)
+  if (!IsConnected())
     return ERR_UNEXPECTED;
   address->Copy(current_ai_, false);
   return OK;

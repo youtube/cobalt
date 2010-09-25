@@ -511,8 +511,8 @@ bool TCPClientSocketWin::IsConnectedAndIdle() const {
 int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
-  if (!current_ai_)
-    return ERR_FAILED;
+  if (!IsConnected())
+    return ERR_UNEXPECTED;
   address->Copy(current_ai_, false);
   return OK;
 }
