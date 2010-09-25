@@ -86,7 +86,8 @@ TEST_F(SpdySessionTest, GoAway) {
       http_session->spdy_session_pool());
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(pair, http_session.get(), BoundNetLog());
+      spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),
+                             BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params =
@@ -104,7 +105,8 @@ TEST_F(SpdySessionTest, GoAway) {
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<SpdySession> session2 =
-      spdy_session_pool->Get(pair, http_session.get(), BoundNetLog());
+      spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),
+                             BoundNetLog());
 
   // Delete the first session.
   session = NULL;
