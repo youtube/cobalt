@@ -17,25 +17,29 @@ class Socket {
  public:
   virtual ~Socket() {}
 
-  // Reads data, up to buf_len bytes, from the socket.  The number of bytes
-  // read is returned, or an error is returned upon failure.  Zero is returned
-  // to indicate end-of-file.  ERR_IO_PENDING is returned if the operation
-  // could not be completed synchronously, in which case the result will be
-  // passed to the callback when available. If the operation is not completed
-  // immediately, the socket acquires a reference to the provided buffer until
-  // the callback is invoked or the socket is destroyed.
+  // Reads data, up to buf_len bytes, from the socket.  The number of bytes read
+  // is returned, or an error is returned upon failure.  Zero is returned once
+  // to indicate end-of-file; subsequent calls return ERR_CONNECTION_CLOSED.
+  // ERR_IO_PENDING is returned if the operation could not be completed
+  // synchronously, in which case the result will be passed to the callback when
+  // available. If the operation is not completed immediately, the socket
+  // acquires a reference to the provided buffer until the callback is invoked
+  // or the socket is destroyed.  If the socket is closed before the read
+  // completes, the callback will not be invoked.
   virtual int Read(IOBuffer* buf, int buf_len,
                    CompletionCallback* callback) = 0;
 
   // Writes data, up to buf_len bytes, to the socket.  Note: only part of the
   // data may be written!  The number of bytes written is returned, or an error
-  // is returned upon failure.  ERR_IO_PENDING is returned if the operation
-  // could not be completed synchronously, in which case the result will be
-  // passed to the callback when available. If the operation is not completed
-  // immediately, the socket acquires a reference to the provided buffer until
-  // the callback is invoked or the socket is destroyed.
+  // is returned upon failure.  ERR_CONNECTION_CLOSED is returned if the
+  // operation is attempted on a closed socket.  ERR_IO_PENDING is returned if
+  // the operation could not be completed synchronously, in which case the
+  // result will be passed to the callback when available. If the operation is
+  // not completed immediately, the socket acquires a reference to the provided
+  // buffer until the callback is invoked or the socket is destroyed.
   // Implementations of this method should not modify the contents of the actual
-  // buffer that is written to the socket.
+  // buffer that is written to the socket.  If the socket is closed before the
+  // write completes, the callback will not be invoked.
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback) = 0;
 
