@@ -13,6 +13,7 @@
 #include "base/ref_counted.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/values.h"
 #include "net/base/net_log.h"
 
@@ -37,7 +38,7 @@ class NetLogWebSocketHandshakeParameter : public NetLog::EventParameters {
         i = i + 1;
         for (; i < lines.size(); ++i) {
           for (size_t j = 0; j < lines[i].length(); ++j) {
-            key += StringPrintf("\\x%02x", lines[i][j] & 0xff);
+            key += base::StringPrintf("\\x%02x", lines[i][j] & 0xff);
           }
           key += "\\x0a";
         }

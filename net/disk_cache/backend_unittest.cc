@@ -6,6 +6,7 @@
 #include "base/file_util.h"
 #include "base/platform_thread.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -752,7 +753,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
 
   // Writing 32 entries to this cache chains most of them.
   for (int i = 0; i < 32; i++) {
-    std::string key(StringPrintf("some key %d", i));
+    std::string key(base::StringPrintf("some key %d", i));
     ASSERT_EQ(net::OK, CreateEntry(key, &entry));
     EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer, kSize, false));
     entry->Close();

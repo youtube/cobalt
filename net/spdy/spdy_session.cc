@@ -12,8 +12,9 @@
 #include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
-#include "base/utf_string_conversions.h"
+#include "base/stringprintf.h"
 #include "base/time.h"
+#include "base/utf_string_conversions.h"
 #include "base/values.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/load_flags.h"
@@ -72,9 +73,8 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
     ListValue* headers_list = new ListValue();
     for (spdy::SpdyHeaderBlock::const_iterator it = headers_->begin();
          it != headers_->end(); ++it) {
-      headers_list->Append(new StringValue(StringPrintf("%s: %s",
-                                                        it->first.c_str(),
-                                                        it->second.c_str())));
+      headers_list->Append(new StringValue(base::StringPrintf(
+          "%s: %s", it->first.c_str(), it->second.c_str())));
     }
     dict->SetInteger("flags", flags_);
     dict->Set("headers", headers_list);
@@ -103,7 +103,7 @@ class NetLogSpdySettingsParameter : public NetLog::EventParameters {
     for (spdy::SpdySettings::const_iterator it = settings_.begin();
          it != settings_.end(); ++it) {
       settings->Append(new StringValue(
-          StringPrintf("[%u:%u]", it->first.id(), it->second)));
+          base::StringPrintf("[%u:%u]", it->first.id(), it->second)));
     }
     dict->Set("settings", settings);
     return dict;

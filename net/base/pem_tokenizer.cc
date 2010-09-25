@@ -6,6 +6,7 @@
 
 #include "base/base64.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 
 namespace {
 
@@ -95,8 +96,8 @@ void PEMTokenizer::Init(
        allowed_block_types.begin(); it != allowed_block_types.end(); ++it) {
     PEMType allowed_type;
     allowed_type.type = *it;
-    allowed_type.header = StringPrintf(kPEMBeginBlock, it->c_str());
-    allowed_type.footer = StringPrintf(kPEMEndBlock, it->c_str());
+    allowed_type.header = base::StringPrintf(kPEMBeginBlock, it->c_str());
+    allowed_type.footer = base::StringPrintf(kPEMEndBlock, it->c_str());
     block_types_.push_back(allowed_type);
   }
 }

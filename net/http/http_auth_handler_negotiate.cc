@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/address_family.h"
 #include "net/base/host_resolver.h"
@@ -168,10 +169,11 @@ std::wstring HttpAuthHandlerNegotiate::CreateSPN(
   static const char kSpnSeparator = '@';
 #endif
   if (port != 80 && port != 443 && use_port_) {
-    return ASCIIToWide(StringPrintf("HTTP%c%s:%d", kSpnSeparator,
-                                    server.c_str(), port));
+    return ASCIIToWide(base::StringPrintf("HTTP%c%s:%d", kSpnSeparator,
+                                          server.c_str(), port));
   } else {
-    return ASCIIToWide(StringPrintf("HTTP%c%s", kSpnSeparator, server.c_str()));
+    return ASCIIToWide(base::StringPrintf("HTTP%c%s", kSpnSeparator,
+                                          server.c_str()));
   }
 }
 

@@ -10,6 +10,7 @@
 #include "base/md5.h"
 #include "base/rand_util.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
@@ -170,7 +171,7 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
     const std::string& cnonce,
     int nonce_count) const {
   // the nonce-count is an 8 digit hex string.
-  std::string nc = StringPrintf("%08x", nonce_count);
+  std::string nc = base::StringPrintf("%08x", nonce_count);
 
   // TODO(eroman): is this the right encoding?
   std::string authorization = (std::string("Digest username=") +

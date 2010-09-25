@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,11 @@
 #include "base/message_loop.h"
 #include "base/scoped_vector.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/cache_type.h"
 #include "net/base/cert_status_flags.h"
-#include "net/base/net_errors.h"
 #include "net/base/load_flags.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/disk_cache/disk_cache.h"
@@ -893,8 +894,8 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
 
   EXPECT_LT(end, 80);
 
-  std::string content_range = StringPrintf("Content-Range: bytes %d-%d/80\n",
-                                           start, end);
+  std::string content_range = base::StringPrintf(
+      "Content-Range: bytes %d-%d/80\n", start, end);
   response_headers->append(content_range);
 
   if (!request->extra_headers.HasHeader("If-None-Match") || modified_) {
@@ -908,7 +909,8 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
       // We also have to fix content-length.
       int len = end - start + 1;
       EXPECT_EQ(0, len % 10);
-      std::string content_length = StringPrintf("Content-Length: %d\n", len);
+      std::string content_length = base::StringPrintf("Content-Length: %d\n",
+                                                      len);
       response_headers->replace(response_headers->find("Content-Length:"),
                                 content_length.size(), content_length);
     }

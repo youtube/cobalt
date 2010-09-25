@@ -18,8 +18,9 @@
 #include "base/pickle.h"
 #include "base/ref_counted.h"
 #include "base/stl_util-inl.h"
-#include "base/string_util.h"
 #include "base/string_number_conversions.h"
+#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -458,8 +459,8 @@ std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
     // No valid URL can begin with numerals, so we should not have to worry
     // about collisions with normal URLs.
     if (request->upload_data && request->upload_data->identifier()) {
-      url.insert(0, StringPrintf("%" PRId64 "/",
-                                 request->upload_data->identifier()));
+      url.insert(0, base::StringPrintf("%" PRId64 "/",
+                                       request->upload_data->identifier()));
     }
     return url;
   }

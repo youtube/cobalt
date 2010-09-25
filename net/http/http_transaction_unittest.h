@@ -16,9 +16,10 @@
 #include "base/message_loop.h"
 #include "base/string16.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/io_buffer.h"
-#include "net/base/net_errors.h"
 #include "net/base/load_flags.h"
+#include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
@@ -226,8 +227,8 @@ class MockNetworkTransaction : public net::HttpTransaction {
     if (t->handler)
       (t->handler)(request, &resp_status, &resp_headers, &resp_data);
 
-    std::string header_data =
-        StringPrintf("%s\n%s\n", resp_status.c_str(), resp_headers.c_str());
+    std::string header_data = base::StringPrintf(
+        "%s\n%s\n", resp_status.c_str(), resp_headers.c_str());
     std::replace(header_data.begin(), header_data.end(), '\n', '\0');
 
     response_.request_time = base::Time::Now();
