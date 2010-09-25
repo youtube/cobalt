@@ -698,13 +698,14 @@ int HttpStreamRequest::DoCreateStream() {
     // We have a SPDY session to the origin server.  This might be a direct
     // connection, or it might be a SPDY session through an HTTP or HTTPS proxy.
     spdy_session =
-        spdy_pool->Get(pair, session_, net_log_);
+        spdy_pool->Get(pair, session_->mutable_spdy_settings(), net_log_);
   } else if (proxy_info()->is_https()) {
     // If we don't have a direct SPDY session, and we're using an HTTPS
     // proxy, then we might have a SPDY session to the proxy
     pair = HostPortProxyPair(proxy_server.host_port_pair(), proxy_server);
     if (spdy_pool->HasSession(pair)) {
-      spdy_session = spdy_pool->Get(pair, session_, net_log_);
+      spdy_session =
+          spdy_pool->Get(pair, session_->mutable_spdy_settings(), net_log_);
     }
     direct = false;
   }
@@ -715,8 +716,8 @@ int HttpStreamRequest::DoCreateStream() {
     // contain an SSLClientSocket.
     CHECK(connection_->socket());
     int error = spdy_pool->GetSpdySessionFromSocket(
-        pair, session_, connection_.release(), net_log_,
-        spdy_certificate_error_, &spdy_session, using_ssl_);
+        pair, session_->mutable_spdy_settings(), connection_.release(),
+        net_log_, spdy_certificate_error_, &spdy_session, using_ssl_);
     if (error != OK)
       return error;
   }

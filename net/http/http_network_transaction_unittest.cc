@@ -6243,7 +6243,8 @@ TEST_F(HttpNetworkTransactionTest,
   HostPortPair host_port_pair("www.google.com", 443);
   HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
   scoped_refptr<SpdySession> spdy_session =
-      session->spdy_session_pool()->Get(pair, session, BoundNetLog());
+      session->spdy_session_pool()->Get(pair, session->mutable_spdy_settings(),
+                                        BoundNetLog());
   scoped_refptr<TCPSocketParams> tcp_params =
       new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false);
 
@@ -7418,7 +7419,8 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   HostPortPair host_port_pair("www.google.com", 443);
   HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
   scoped_refptr<SpdySession> spdy_session =
-      session->spdy_session_pool()->Get(pair, session, BoundNetLog());
+      session->spdy_session_pool()->Get(pair, session->mutable_spdy_settings(),
+                                        BoundNetLog());
   scoped_refptr<TCPSocketParams> tcp_params =
       new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false);
   TestCompletionCallback callback;

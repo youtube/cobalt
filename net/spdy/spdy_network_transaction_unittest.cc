@@ -365,7 +365,8 @@ class SpdyNetworkTransactionTest
     const scoped_refptr<HttpNetworkSession>& session = helper.session();
     scoped_refptr<SpdySessionPool> pool(session->spdy_session_pool());
     EXPECT_TRUE(pool->HasSession(pair));
-    scoped_refptr<SpdySession> spdy_session(pool->Get(pair, session, log));
+    scoped_refptr<SpdySession> spdy_session(
+        pool->Get(pair, session->mutable_spdy_settings(), log));
     ASSERT_TRUE(spdy_session.get() != NULL);
     EXPECT_EQ(0u, spdy_session->num_active_streams());
     EXPECT_EQ(0u, spdy_session->num_unclaimed_pushed_streams());
