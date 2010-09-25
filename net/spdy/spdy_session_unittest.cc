@@ -91,8 +91,12 @@ TEST_F(SpdySessionTest, GoAway) {
 
   scoped_refptr<TCPSocketParams> tcp_params =
       new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false);
-  int rv = session->Connect(kTestHost, tcp_params, MEDIUM);
-  ASSERT_EQ(OK, rv);
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK,
+            connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
+                              NULL, http_session->tcp_socket_pool(),
+                              BoundNetLog()));
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();
