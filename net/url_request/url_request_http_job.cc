@@ -793,8 +793,10 @@ void URLRequestHttpJob::FetchResponseCookies(
   std::string value;
 
   void* iter = NULL;
-  while (response_info->headers->EnumerateHeader(&iter, name, &value))
-    cookies->push_back(value);
+  while (response_info->headers->EnumerateHeader(&iter, name, &value)) {
+    if (!value.empty())
+      cookies->push_back(value);
+  }
 }
 
 class HTTPSProberDelegate : public net::HTTPSProberDelegate {
