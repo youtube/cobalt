@@ -780,6 +780,7 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
 
   TimeTicks start = TimeTicks::Now();
   uint32 hash = Hash(key);
+  Trace("Open hash 0x%x", hash);
 
   EntryImpl* cache_entry = MatchEntry(key, hash, false);
   if (!cache_entry) {
@@ -808,6 +809,7 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
 
   TimeTicks start = TimeTicks::Now();
   uint32 hash = Hash(key);
+  Trace("Create hash 0x%x", hash);
 
   scoped_refptr<EntryImpl> parent;
   Addr entry_address(data_->table[hash & mask_]);
@@ -1585,6 +1587,7 @@ EntryImpl* BackendImpl::MatchEntry(const std::string& key, uint32 hash,
       continue;
     }
 
+    DCHECK_EQ(hash & mask_, cache_entry->entry()->Data()->hash & mask_);
     if (cache_entry->IsSameEntry(key, hash)) {
       if (!cache_entry->Update())
         cache_entry = NULL;
