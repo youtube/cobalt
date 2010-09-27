@@ -72,6 +72,7 @@ class ProxyServer {
   //
   // Examples (for |default_scheme| = SCHEME_HTTP ):
   //   "foopy"            {scheme=HTTP, host="foopy", port=80}
+  //   "socks://foopy"    {scheme=SOCKS5, host="foopy", port=1080}
   //   "socks4://foopy"   {scheme=SOCKS4, host="foopy", port=1080}
   //   "socks5://foopy"   {scheme=SOCKS5, host="foopy", port=1080}
   //   "http://foopy:17"  {scheme=HTTP, host="foopy", port=17}
