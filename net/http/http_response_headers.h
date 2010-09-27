@@ -138,9 +138,10 @@ class HttpResponseHeaders
   // method returns the un-coalesced response header lines, so if a response
   // header appears on multiple lines, then it will appear multiple times in
   // this enumeration (in the order the header lines were received from the
-  // server).  Initialize a 'void*' variable to NULL and pass it by address to
-  // EnumerateHeaderLines.  Call EnumerateHeaderLines repeatedly until it
-  // returns false.  The out-params 'name' and 'value' are set upon success.
+  // server).  Also, a given header might have an empty value.  Initialize a
+  // 'void*' variable to NULL and pass it by address to EnumerateHeaderLines.
+  // Call EnumerateHeaderLines repeatedly until it returns false.  The
+  // out-params 'name' and 'value' are set upon success.
   bool EnumerateHeaderLines(void** iter,
                             std::string* name,
                             std::string* value) const;
@@ -149,7 +150,8 @@ class HttpResponseHeaders
   // in the first header, then you can pass NULL for the 'iter' parameter.
   // Otherwise, to iterate across all values for the specified header,
   // initialize a 'void*' variable to NULL and pass it by address to
-  // EnumerateHeader.  Call EnumerateHeader repeatedly until it returns false.
+  // EnumerateHeader. Note that a header might have an empty value. Call
+  // EnumerateHeader repeatedly until it returns false.
   bool EnumerateHeader(void** iter,
                        const std::string& name,
                        std::string* value) const;
