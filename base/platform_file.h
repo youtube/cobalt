@@ -97,7 +97,7 @@ PlatformFile CreatePlatformFile(const std::wstring& name,
                                 int flags,
                                 bool* created);
 
-// Closes a file handle
+// Closes a file handle. Returns |true| on success and |false| otherwise.
 bool ClosePlatformFile(PlatformFile file);
 
 // Reads the given number of bytes (or until EOF is reached) starting with the
