@@ -211,7 +211,7 @@ int HttpAuthHandlerNegotiate::DoLoop(int result) {
 
 int HttpAuthHandlerNegotiate::DoResolveCanonicalName() {
   next_state_ = STATE_RESOLVE_CANONICAL_NAME_COMPLETE;
-  if (disable_cname_lookup_)
+  if (disable_cname_lookup_ || !resolver_)
     return OK;
 
   // TODO(cbentzel): Add reverse DNS lookup for numeric addresses.
