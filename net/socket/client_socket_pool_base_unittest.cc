@@ -2032,7 +2032,7 @@ TEST_F(ClientSocketPoolBaseTest, BackupSocketCancelAtMaxSockets) {
   EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
 }
 
-TEST_F(ClientSocketPoolBaseTest, CancelBackupSocketWhenThereAreNoRequests) {
+TEST_F(ClientSocketPoolBaseTest, CancelBackupSocketAfterCancelingAllRequests) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
   pool_->EnableConnectBackupJobs();
 
@@ -2054,6 +2054,34 @@ TEST_F(ClientSocketPoolBaseTest, CancelBackupSocketWhenThereAreNoRequests) {
   MessageLoop::current()->RunAllPending();
   ASSERT_TRUE(pool_->HasGroup("bar"));
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("bar"));
+}
+
+TEST_F(ClientSocketPoolBaseTest, CancelBackupSocketAfterFinishingAllRequests) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
+  pool_->EnableConnectBackupJobs();
+
+  // Create the first socket and set to ERR_IO_PENDING.  This starts the backup
+  // timer.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING, handle.Init("bar", params_, kDefaultPriority,
+                                        &callback, pool_, BoundNetLog()));
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+  ClientSocketHandle handle2;
+  TestCompletionCallback callback2;
+  EXPECT_EQ(ERR_IO_PENDING, handle2.Init("bar", params_, kDefaultPriority,
+                                         &callback2, pool_, BoundNetLog()));
+  ASSERT_TRUE(pool_->HasGroup("bar"));
+  EXPECT_EQ(2, pool_->NumConnectJobsInGroup("bar"));
+
+  // Cancel request 1 and then complete request 2.  With the requests finished,
+  // the backup timer should be cancelled.
+  handle.Reset();
+  EXPECT_EQ(OK, callback2.WaitForResult());
+  // Wait for the backup timer to fire (add some slop to ensure it fires)
+  PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3);
+  MessageLoop::current()->RunAllPending();
 }
 
 // Test delayed socket binding for the case where we have two connects,
