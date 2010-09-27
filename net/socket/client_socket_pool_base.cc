@@ -180,9 +180,12 @@ void ClientSocketPoolBaseHelper::InsertRequestIntoQueue(
 // static
 const ClientSocketPoolBaseHelper::Request*
 ClientSocketPoolBaseHelper::RemoveRequestFromQueue(
-    RequestQueue::iterator it, RequestQueue* pending_requests) {
+    RequestQueue::iterator it, Group* group) {
   const Request* req = *it;
-  pending_requests->erase(it);
+  group->mutable_pending_requests()->erase(it);
+  // If there are no more requests, we kill the backup timer.
+  if (group->pending_requests().empty())
+    group->CleanupBackupJob();
   return req;
 }
 
@@ -324,8 +327,7 @@ void ClientSocketPoolBaseHelper::CancelRequest(
   RequestQueue::iterator it = group->mutable_pending_requests()->begin();
   for (; it != group->pending_requests().end(); ++it) {
     if ((*it)->handle() == handle) {
-      const Request* req =
-          RemoveRequestFromQueue(it, group->mutable_pending_requests());
+      const Request* req = RemoveRequestFromQueue(it, group);
       req->net_log().AddEvent(NetLog::TYPE_CANCELLED, NULL);
       req->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL, NULL);
       delete req;
@@ -335,10 +337,6 @@ void ClientSocketPoolBaseHelper::CancelRequest(
         RemoveConnectJob(*group->jobs().begin(), group);
         CheckForStalledSocketGroups();
       }
-
-      // If there are no more requests, we kill the backup timer.
-      if (group->pending_requests().empty())
-        group->CleanupBackupJob();
       break;
     }
   }
@@ -636,8 +634,7 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
     RemoveConnectJob(job, group);
     if (!group->pending_requests().empty()) {
       scoped_ptr<const Request> r(RemoveRequestFromQueue(
-          group->mutable_pending_requests()->begin(),
-          group->mutable_pending_requests()));
+          group->mutable_pending_requests()->begin(), group));
       LogBoundConnectJobToRequest(job_log.source(), r.get());
       HandOutSocket(
           socket.release(), false /* unused socket */, r->handle(),
@@ -655,8 +652,7 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
     bool handed_out_socket = false;
     if (!group->pending_requests().empty()) {
       scoped_ptr<const Request> r(RemoveRequestFromQueue(
-          group->mutable_pending_requests()->begin(),
-          group->mutable_pending_requests()));
+          group->mutable_pending_requests()->begin(), group));
       LogBoundConnectJobToRequest(job_log.source(), r.get());
       job->GetAdditionalErrorState(r->handle());
       RemoveConnectJob(job, group);
@@ -722,8 +718,7 @@ void ClientSocketPoolBaseHelper::ProcessPendingRequest(
                                  *group->pending_requests().begin());
   if (rv != ERR_IO_PENDING) {
     scoped_ptr<const Request> request(RemoveRequestFromQueue(
-          group->mutable_pending_requests()->begin(),
-          group->mutable_pending_requests()));
+          group->mutable_pending_requests()->begin(), group));
     if (group->IsEmpty())
       RemoveGroup(group_name);
 
