@@ -50,7 +50,7 @@ ProxyServer::Scheme GetSchemeFromURI(std::string::const_iterator begin,
   if (LowerCaseEqualsASCII(begin, end, "socks4"))
     return ProxyServer::SCHEME_SOCKS4;
   if (LowerCaseEqualsASCII(begin, end, "socks"))
-    return ProxyServer::SCHEME_SOCKS4;
+    return ProxyServer::SCHEME_SOCKS5;
   if (LowerCaseEqualsASCII(begin, end, "socks5"))
     return ProxyServer::SCHEME_SOCKS5;
   if (LowerCaseEqualsASCII(begin, end, "direct"))
