@@ -243,23 +243,6 @@ bool ContainsOnlyChars(const std::string& input, const std::string& characters);
 std::string WideToASCII(const std::wstring& wide);
 std::string UTF16ToASCII(const string16& utf16);
 
-#ifdef RLZ_WIN_LIB_RLZ_LIB_H_
-// Forward-declares for functions in utf_string_conversions.h. They used to
-// be here and they were moved. We keep these here temporarily until all
-// callers are converted.
-//
-// Currently, the only user is the RLZ project which needs to be updated
-// asynchronously. It's needed in only one file, so we key off of the ifdef
-// for that particular file to allow this case yet prevent other users from
-// adding dependencies on this file.
-//
-// TODO(brettw) delete these when we fix RLZ to use the right header.
-std::wstring ASCIIToWide(const char* ascii);
-std::wstring ASCIIToWide(const std::string& ascii);
-string16 ASCIIToUTF16(const char* ascii);
-string16 ASCIIToUTF16(const std::string& ascii);
-#endif  // RLZ_WIN_LIB_RLZ_LIB_H_
-
 // Converts the given wide string to the corresponding Latin1. This will fail
 // (return false) if any characters are more than 255.
 bool WideToLatin1(const std::wstring& wide, std::string* latin1);
