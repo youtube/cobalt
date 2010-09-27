@@ -1560,6 +1560,26 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
   }
 }
 
+TEST_F(URLRequestTest, DoNotSaveEmptyCookies) {
+  net::TestServer test_server(net::TestServer::TYPE_HTTP, FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
+
+  // Set up an empty cookie.
+  {
+    TestDelegate d;
+    URLRequest req(test_server.GetURL("set-cookie"), &d);
+    req.set_context(context);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, d.set_cookie_count());
+  }
+}
+
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
   net::TestServer test_server(net::TestServer::TYPE_HTTP, FilePath());
   ASSERT_TRUE(test_server.Start());
