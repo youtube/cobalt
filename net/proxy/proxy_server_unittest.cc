@@ -114,22 +114,22 @@ TEST(ProxyServerTest, FromURI) {
        "SOCKS5 foopy:10"
     },
 
-    // SOCKS proxy URIs (should default to SOCKS4)
+    // SOCKS proxy URIs (should default to SOCKS5)
     {
        "socks://foopy",  // No port.
-       "socks4://foopy:1080",
-       net::ProxyServer::SCHEME_SOCKS4,
+       "socks5://foopy:1080",
+       net::ProxyServer::SCHEME_SOCKS5,
        "foopy",
        1080,
-       "SOCKS foopy:1080"
+       "SOCKS5 foopy:1080"
     },
     {
        "socks://foopy:10",
-       "socks4://foopy:10",
-       net::ProxyServer::SCHEME_SOCKS4,
+       "socks5://foopy:10",
+       net::ProxyServer::SCHEME_SOCKS5,
        "foopy",
        10,
-       "SOCKS foopy:10"
+       "SOCKS5 foopy:10"
     },
 
     // HTTPS proxy URIs:
