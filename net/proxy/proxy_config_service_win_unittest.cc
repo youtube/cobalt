@@ -103,7 +103,7 @@ TEST(ProxyConfigServiceWinTest, SetFromIEConfig) {
           ""),                 // bypass rules
     },
 
-    // SOCKS proxy configuration
+    // SOCKS proxy configuration.
     {
       { // Input.
         FALSE,                                            // fAutoDetect
@@ -114,6 +114,10 @@ TEST(ProxyConfigServiceWinTest, SetFromIEConfig) {
       },
 
       // Expected result.
+      // Note that "socks" is interprted as meaning "socks4", since that is how
+      // Internet Explorer applies the settings. For more details on this
+      // policy, see:
+      // http://code.google.com/p/chromium/issues/detail?id=55912#c2
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerSchemeWithSocks(
