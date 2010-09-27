@@ -604,6 +604,7 @@ bool CreateDirectory(const FilePath& full_path) {
     } else {
       LOG(WARNING) << "CreateDirectory(" << full_path_str << "), "
                    << "conflicts with existing file.";
+      return false;
     }
   }
 
