@@ -11,6 +11,7 @@
 #include "base/string_util.h"
 #include "base/values.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/http_response_body_drainer.h"
 #include "net/http/url_security_manager.h"
 #include "net/spdy/spdy_session_pool.h"
 
@@ -91,6 +92,18 @@ HttpNetworkSession::HttpNetworkSession(
 }
 
 HttpNetworkSession::~HttpNetworkSession() {
+  STLDeleteElements(&response_drainers_);
+}
+
+void HttpNetworkSession::AddResponseDrainer(HttpResponseBodyDrainer* drainer) {
+  DCHECK(!ContainsKey(response_drainers_, drainer));
+  response_drainers_.insert(drainer);
+}
+
+void HttpNetworkSession::RemoveResponseDrainer(
+    HttpResponseBodyDrainer* drainer) {
+  DCHECK(ContainsKey(response_drainers_, drainer));
+  response_drainers_.erase(drainer);
 }
 
 const scoped_refptr<HttpProxyClientSocketPool>&

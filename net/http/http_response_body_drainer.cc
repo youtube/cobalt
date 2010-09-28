@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_stream.h"
 
 namespace net {
@@ -18,11 +19,12 @@ HttpResponseBodyDrainer::HttpResponseBodyDrainer(HttpStream* stream)
       total_read_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpResponseBodyDrainer::OnIOComplete)),
-      user_callback_(NULL) {}
+      user_callback_(NULL),
+      session_(NULL) {}
 
 HttpResponseBodyDrainer::~HttpResponseBodyDrainer() {}
 
-void HttpResponseBodyDrainer::Start() {
+void HttpResponseBodyDrainer::Start(HttpNetworkSession* session) {
   read_buf_ = new IOBuffer(kDrainBodyBufferSize);
   next_state_ = STATE_DRAIN_RESPONSE_BODY;
   int rv = DoLoop(OK);
@@ -31,6 +33,8 @@ void HttpResponseBodyDrainer::Start() {
     timer_.Start(base::TimeDelta::FromSeconds(kTimeoutInSeconds),
                  this,
                  &HttpResponseBodyDrainer::OnTimerFired);
+    session_ = session;
+    session->AddResponseDrainer(this);
     return;
   }
 
@@ -105,6 +109,9 @@ void HttpResponseBodyDrainer::OnTimerFired() {
 
 void HttpResponseBodyDrainer::Finish(int result) {
   DCHECK_NE(ERR_IO_PENDING, result);
+
+  if (session_)
+    session_->RemoveResponseDrainer(this);
 
   if (result < 0) {
     stream_->Close(true /* no keep-alive */);
