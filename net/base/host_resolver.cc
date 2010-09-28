@@ -19,6 +19,12 @@ HostResolver::RequestInfo::RequestInfo(const HostPortPair& host_port_pair)
       priority_(MEDIUM) {
 }
 
+HostResolver::HostResolver() {
+}
+
+HostResolver::~HostResolver() {
+}
+
 SingleRequestHostResolver::SingleRequestHostResolver(HostResolver* resolver)
     : resolver_(resolver),
       cur_request_(NULL),

@@ -42,8 +42,7 @@ struct SHA1Fingerprint {
   unsigned char data[20];
 };
 
-class SHA1FingerprintLessThan
-    : public std::binary_function<SHA1Fingerprint, SHA1Fingerprint, bool> {
+class SHA1FingerprintLessThan {
  public:
   bool operator() (const SHA1Fingerprint& lhs,
                    const SHA1Fingerprint& rhs) const {
