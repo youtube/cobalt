@@ -23,8 +23,7 @@ namespace disk_cache {
 // This class handles the set of block-files open by the disk cache.
 class BlockFiles {
  public:
-  explicit BlockFiles(const FilePath& path)
-      : init_(false), zero_buffer_(NULL), path_(path) {}
+  explicit BlockFiles(const FilePath& path);
   ~BlockFiles();
 
   // Performs the object initialization. create_files indicates if the backing

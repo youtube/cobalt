@@ -10,4 +10,11 @@ namespace media {
 const base::TimeDelta StreamSample::kInvalidTimestamp =
     base::TimeDelta::FromMicroseconds(kint64min);
 
+StreamSample::StreamSample()
+    : discontinuous_(false) {
+}
+
+StreamSample::~StreamSample() {
+}
+
 }  // namespace media

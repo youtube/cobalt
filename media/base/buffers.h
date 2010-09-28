@@ -76,10 +76,8 @@ class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
 
  protected:
   friend class base::RefCountedThreadSafe<StreamSample>;
-  StreamSample()
-      : discontinuous_(false) {
-  }
-  virtual ~StreamSample() {}
+  StreamSample();
+  virtual ~StreamSample();
 
   base::TimeDelta timestamp_;
   base::TimeDelta duration_;
