@@ -40,7 +40,7 @@ bool GetPythonRunTime(FilePath* dir) {
 #if defined(OS_WIN)
   if (!PathService::Get(base::DIR_SOURCE_ROOT, dir))
     return false;
-  *dir = FilePath(FILE_PATH_LITERAL("third_party"))
+  *dir = dir->Append(FILE_PATH_LITERAL("third_party"))
       .Append(FILE_PATH_LITERAL("python_24"))
       .Append(FILE_PATH_LITERAL("python.exe"));
 #elif defined(OS_POSIX)
