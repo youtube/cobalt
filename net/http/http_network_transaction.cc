@@ -192,7 +192,7 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
         // their solutions.
         HttpResponseBodyDrainer* drainer =
           new HttpResponseBodyDrainer(stream_.release());
-        drainer->Start();
+        drainer->Start(session_);
         // |drainer| will delete itself.
       }
     }

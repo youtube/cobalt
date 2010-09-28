@@ -11,8 +11,11 @@
 #include "base/task.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_stream.h"
+#include "net/proxy/proxy_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -165,10 +168,20 @@ void MockHttpStream::CompleteRead() {
 class HttpResponseBodyDrainerTest : public testing::Test {
  protected:
   HttpResponseBodyDrainerTest()
-      : mock_stream_(new MockHttpStream(&result_waiter_)),
+      : session_(new HttpNetworkSession(
+          NULL,
+          ProxyService::CreateDirect(),
+          NULL,
+          new SSLConfigServiceDefaults,
+          NULL,
+          NULL,
+          NULL,
+          NULL)),
+        mock_stream_(new MockHttpStream(&result_waiter_)),
         drainer_(new HttpResponseBodyDrainer(mock_stream_)) {}
   ~HttpResponseBodyDrainerTest() {}
 
+  const scoped_refptr<HttpNetworkSession> session_;
   CloseResultWaiter result_waiter_;
   MockHttpStream* const mock_stream_;  // Owned by |drainer_|.
   HttpResponseBodyDrainer* const drainer_;  // Deletes itself.
@@ -176,28 +189,35 @@ class HttpResponseBodyDrainerTest : public testing::Test {
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodySyncOK) {
   mock_stream_->set_num_chunks(1);
-  drainer_->Start();
+  drainer_->Start(session_);
   EXPECT_FALSE(result_waiter_.WaitForResult());
 }
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodyAsyncOK) {
   mock_stream_->set_num_chunks(3);
-  drainer_->Start();
+  drainer_->Start(session_);
   EXPECT_FALSE(result_waiter_.WaitForResult());
 }
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodySizeEqualsDrainBuffer) {
   mock_stream_->set_num_chunks(
       HttpResponseBodyDrainer::kDrainBodyBufferSize / kMagicChunkSize);
-  drainer_->Start();
+  drainer_->Start(session_);
   EXPECT_FALSE(result_waiter_.WaitForResult());
 }
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodyTimeOut) {
   mock_stream_->set_num_chunks(2);
   mock_stream_->StallReadsForever();
-  drainer_->Start();
+  drainer_->Start(session_);
   EXPECT_TRUE(result_waiter_.WaitForResult());
+}
+
+TEST_F(HttpResponseBodyDrainerTest, CancelledBySession) {
+  mock_stream_->set_num_chunks(2);
+  mock_stream_->StallReadsForever();
+  drainer_->Start(session_);
+  // HttpNetworkSession should delete |drainer_|.
 }
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodyTooLarge) {
@@ -207,7 +227,7 @@ TEST_F(HttpResponseBodyDrainerTest, DrainBodyTooLarge) {
   too_many_chunks += 1;  // Now it's too large.
 
   mock_stream_->set_num_chunks(too_many_chunks);
-  drainer_->Start();
+  drainer_->Start(session_);
   EXPECT_TRUE(result_waiter_.WaitForResult());
 }
 
