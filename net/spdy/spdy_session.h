@@ -158,12 +158,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
     return frames_received_ > 0;
   }
 
-  // Returns true if the underlying transport socket ever had any reads or
-  // writes.
-  bool WasEverUsed() const {
-    return connection_->socket()->WasEverUsed();
-  }
-
   void set_in_session_pool(bool val) { in_session_pool_ = val; }
 
   // Access to the number of active and pending streams.  These are primarily
@@ -174,10 +168,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
   }
 
   const BoundNetLog& net_log() const { return net_log_; }
-
-  int GetPeerAddress(AddressList* address) const {
-    return connection_->socket()->GetPeerAddress(address);
-  }
 
  private:
   friend class base::RefCounted<SpdySession>;
