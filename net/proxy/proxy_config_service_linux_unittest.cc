@@ -582,7 +582,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       false,                                          // auto_detect
       GURL(),                                         // pac_url
       ProxyRulesExpectation::Single(
-          "socks4://socks.com:99",  // single proxy
+          "socks5://socks.com:99",  // single proxy
           "")                       // bypass rules
     },
 
@@ -825,12 +825,12 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
-          "socks4://socks.com:888",  // single proxy
+          "socks5://socks.com:888",  // single proxy
           ""),                       // bypass rules
     },
 
     {
-      TEST_DESC("socks5"),
+      TEST_DESC("socks4"),
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
@@ -839,7 +839,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
         NULL,  // auto_proxy
         "",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
-        "socks.com:888", "5",  // SOCKS
+        "socks.com:888", "4",  // SOCKS
         NULL,  // no_proxy
       },
 
@@ -847,7 +847,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
-          "socks5://socks.com:888",  // single proxy
+          "socks4://socks.com:888",  // single proxy
           ""),                       // bypass rules
     },
 
@@ -869,7 +869,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
-          "socks4://socks.com:1080",  // single proxy
+          "socks5://socks.com:1080",  // single proxy
           ""),                        // bypass rules
     },
 

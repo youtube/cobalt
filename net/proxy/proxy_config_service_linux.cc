@@ -43,11 +43,11 @@ namespace {
 // TODO(arindam): Remove URI string manipulation by using MapUrlSchemeToProxy.
 std::string FixupProxyHostScheme(ProxyServer::Scheme scheme,
                                  std::string host) {
-  if (scheme == ProxyServer::SCHEME_SOCKS4 &&
-      StartsWithASCII(host, "socks5://", false)) {
-    // We default to socks 4, but if the user specifically set it to
-    // socks5://, then use that.
-    scheme = ProxyServer::SCHEME_SOCKS5;
+  if (scheme == ProxyServer::SCHEME_SOCKS5 &&
+      StartsWithASCII(host, "socks4://", false)) {
+    // We default to socks 5, but if the user specifically set it to
+    // socks4://, then use that.
+    scheme = ProxyServer::SCHEME_SOCKS4;
   }
   // Strip the scheme if any.
   std::string::size_type colon = host.find("://");
@@ -152,11 +152,13 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
   }
   if (config->proxy_rules().empty()) {
     // If the above were not defined, try for socks.
-    ProxyServer::Scheme scheme = ProxyServer::SCHEME_SOCKS4;
+    // For environment variables, we default to version 5, per the gnome
+    // documentation: http://library.gnome.org/devel/gnet/stable/gnet-socks.html
+    ProxyServer::Scheme scheme = ProxyServer::SCHEME_SOCKS5;
     std::string env_version;
     if (env_var_getter_->GetVar("SOCKS_VERSION", &env_version)
-        && env_version == "5")
-      scheme = ProxyServer::SCHEME_SOCKS5;
+        && env_version == "4")
+      scheme = ProxyServer::SCHEME_SOCKS4;
     if (GetProxyFromEnvVarForScheme("SOCKS_SERVER", scheme, &proxy_server)) {
       config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
       config->proxy_rules().single_proxy = proxy_server;
@@ -915,7 +917,7 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromGConf(
     host += ":" + base::IntToString(port);
   }
   host = FixupProxyHostScheme(
-      is_socks ? ProxyServer::SCHEME_SOCKS4 : ProxyServer::SCHEME_HTTP,
+      is_socks ? ProxyServer::SCHEME_SOCKS5 : ProxyServer::SCHEME_HTTP,
       host);
   ProxyServer proxy_server = ProxyServer::FromURI(host,
                                                   ProxyServer::SCHEME_HTTP);
@@ -982,7 +984,9 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
     // Try socks.
     if (GetProxyFromGConf("/system/proxy/socks_", true, &proxy_server)) {
       // gconf settings do not appear to distinguish between socks
-      // version. We default to version 4.
+      // version. We default to version 5. For more information on this policy
+      // decisions, see:
+      // http://code.google.com/p/chromium/issues/detail?id=55912#c2
       config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
       config->proxy_rules().single_proxy = proxy_server;
     }
