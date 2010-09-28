@@ -8,6 +8,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/native_library.h"
 #include "base/path_service.h"
 #include "base/scoped_ptr.h"
 
@@ -47,6 +48,9 @@ FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
 
 }  // namespace
 
+// Address of vpx_codec_vp8_cx_algo.
+static void* vp8_cx_algo_address = NULL;
+
 // Attempts to initialize the media library (loading DLLs, DSOs, etc.).
 // Returns true if everything was successfully initialized, false otherwise.
 bool InitializeMediaLibrary(const FilePath& base_path) {
@@ -78,6 +82,16 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
 #endif
   }
 
+  // TODO(hclam): This is temporary to obtain address of
+  // vpx_codec_vp8_cx_algo. This should be removed once libvpx has a
+  // getter method for it.
+  base::NativeLibrary avcodec_lib =
+      base::LoadNativeLibrary(FilePath(GetDLLName(media::FILE_LIBAVCODEC)));
+  if (avcodec_lib) {
+    vp8_cx_algo_address = base::GetFunctionPointerFromNativeLibrary(
+        avcodec_lib, "vpx_codec_vp8_cx_algo");
+  }
+
   // Check that we loaded all libraries successfully.  We only need to check the
   // last array element because the loop above will break without initializing
   // it on any prior error.
@@ -95,6 +109,10 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
 bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
   NOTIMPLEMENTED() << "OpenMAX is not used in Windows.";
   return false;
+}
+
+void* GetVp8CxAlgoAddress() {
+  return vp8_cx_algo_address;
 }
 
 }  // namespace media
