@@ -10,6 +10,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/native_library.h"
 #include "base/path_service.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "third_party/ffmpeg/ffmpeg_stubs.h"
@@ -69,6 +70,9 @@ std::string GetDSOName(tp_ffmpeg::StubModules stub_key) {
 
 }  // namespace
 
+// Address of vpx_codec_vp8_cx_algo.
+static void* vp8_cx_algo_address = NULL;
+
 // Attempts to initialize the media library (loading DSOs, etc.).
 // Returns true if everything was successfully initialized, false otherwise.
 bool InitializeMediaLibrary(const FilePath& module_dir) {
@@ -85,7 +89,18 @@ bool InitializeMediaLibrary(const FilePath& module_dir) {
     paths[module].push_back(path.value());
   }
 
-  return tp_ffmpeg::InitializeStubs(paths);
+  bool ret = tp_ffmpeg::InitializeStubs(paths);
+
+  // TODO(hclam): This is temporary to obtain address of
+  // vpx_codec_vp8_cx_algo. This should be removed once libvpx has a
+  // getter method for it.
+  base::NativeLibrary sumo_lib =
+      base::LoadNativeLibrary(module_dir.Append(sumo_name));
+  if (sumo_lib) {
+    vp8_cx_algo_address = base::GetFunctionPointerFromNativeLibrary(
+        sumo_lib, "vpx_codec_vp8_cx_algo");
+  }
+  return ret;
 }
 
 #if defined(OS_LINUX)
@@ -113,5 +128,9 @@ bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
   return false;
 }
 #endif
+
+void* GetVp8CxAlgoAddress() {
+  return vp8_cx_algo_address;
+}
 
 }  // namespace media
