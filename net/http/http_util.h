@@ -167,6 +167,7 @@ class HttpUtil {
     HeadersIterator(std::string::const_iterator headers_begin,
                     std::string::const_iterator headers_end,
                     const std::string& line_delimiter);
+    ~HeadersIterator();
 
     // Advances the iterator to the next header, if any.  Returns true if there
     // is a next header.  Use name* and values* methods to access the resultant
@@ -229,6 +230,7 @@ class HttpUtil {
     ValuesIterator(std::string::const_iterator values_begin,
                    std::string::const_iterator values_end,
                    char delimiter);
+    ~ValuesIterator();
 
     // Advances the iterator to the next value, if any.  Returns true if there
     // is a next value.  Use value* methods to access the resultant value.
