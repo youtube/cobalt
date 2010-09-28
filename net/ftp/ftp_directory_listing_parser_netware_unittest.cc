@@ -44,6 +44,7 @@ TEST_F(FtpDirectoryListingParserNetwareTest, Bad) {
                                      &mock_current_time));
 
   const char* bad_cases[] = {
+    " foo",
     "garbage",
     "d [] ftpadmin 512 Jan 29  2004 pub",
     "d [XGARBAGE] ftpadmin 512 Jan 29  2004 pub",
