@@ -8,7 +8,6 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/string_util.h"
-#include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_filter.h"
@@ -98,9 +97,8 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
   GURL origin("http://www.example.com");
   std::set<std::string> disabled_schemes;
   URLSecurityManagerAllow url_security_manager;
-  scoped_refptr<HostResolver> host_resolver(new MockHostResolver());
   scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
-      HttpAuthHandlerFactory::CreateDefault(host_resolver));
+      HttpAuthHandlerFactory::CreateDefault());
   http_auth_handler_factory->SetURLSecurityManager(
       "negotiate", &url_security_manager);
 
