@@ -50,10 +50,8 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
             kMaxSocketsPerGroup, tcp_histograms_, &tcp_client_socket_factory_)),
         ssl_socket_pool_(new MockSSLClientSocketPool(kMaxSockets,
             kMaxSocketsPerGroup, tcp_histograms_, &tcp_client_socket_factory_)),
-        host_resolver_(new MockHostResolver),
-        http_auth_handler_factory_(
-            HttpAuthHandlerFactory::CreateDefault(host_resolver_)),
-        session_(new HttpNetworkSession(host_resolver_,
+        http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault()),
+        session_(new HttpNetworkSession(new MockHostResolver,
                                         ProxyService::CreateDirect(),
                                         &socket_factory_,
                                         new SSLConfigServiceDefaults,
@@ -120,7 +118,6 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   scoped_refptr<MockSSLClientSocketPool> ssl_socket_pool_;
 
   MockClientSocketFactory socket_factory_;
-  scoped_refptr<HostResolver> host_resolver_;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
   scoped_refptr<HttpNetworkSession> session_;
   scoped_refptr<ClientSocketPoolHistograms> http_proxy_histograms_;
