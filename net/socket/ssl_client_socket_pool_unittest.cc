@@ -35,10 +35,8 @@ const int kMaxSocketsPerGroup = 6;
 class SSLClientSocketPoolTest : public ClientSocketPoolTest {
  protected:
   SSLClientSocketPoolTest()
-      : host_resolver_(new MockHostResolver),
-        http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault(
-            host_resolver_)),
-        session_(new HttpNetworkSession(host_resolver_,
+      : http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault()),
+        session_(new HttpNetworkSession(new MockHostResolver,
                                         ProxyService::CreateDirect(),
                                         &socket_factory_,
                                         new SSLConfigServiceDefaults,
@@ -118,7 +116,6 @@ class SSLClientSocketPoolTest : public ClientSocketPoolTest {
   }
 
   MockClientSocketFactory socket_factory_;
-  scoped_refptr<HostResolver> host_resolver_;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
   scoped_refptr<HttpNetworkSession> session_;
 

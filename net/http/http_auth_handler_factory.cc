@@ -39,19 +39,15 @@ int HttpAuthHandlerFactory::CreatePreemptiveAuthHandlerFromString(
 }
 
 // static
-HttpAuthHandlerRegistryFactory* HttpAuthHandlerFactory::CreateDefault(
-    HostResolver* host_resolver) {
-  DCHECK(host_resolver);
+HttpAuthHandlerRegistryFactory* HttpAuthHandlerFactory::CreateDefault() {
   HttpAuthHandlerRegistryFactory* registry_factory =
       new HttpAuthHandlerRegistryFactory();
   registry_factory->RegisterSchemeFactory(
       "basic", new HttpAuthHandlerBasic::Factory());
   registry_factory->RegisterSchemeFactory(
       "digest", new HttpAuthHandlerDigest::Factory());
-  HttpAuthHandlerNegotiate::Factory* negotiate_factory =
-      new HttpAuthHandlerNegotiate::Factory();
-  negotiate_factory->set_host_resolver(host_resolver);
-  registry_factory->RegisterSchemeFactory("negotiate", negotiate_factory);
+  registry_factory->RegisterSchemeFactory(
+      "negotiate", new HttpAuthHandlerNegotiate::Factory());
   registry_factory->RegisterSchemeFactory(
       "ntlm", new HttpAuthHandlerNTLM::Factory());
   return registry_factory;
@@ -93,7 +89,7 @@ HttpAuthHandlerRegistryFactory* HttpAuthHandlerRegistryFactory::Create(
     HttpAuthHandlerNegotiate::Factory* negotiate_factory =
         new HttpAuthHandlerNegotiate::Factory();
     negotiate_factory->set_url_security_manager(security_manager);
-    DCHECK(host_resolver || negotiate_disable_cname_lookup);
+    DCHECK(host_resolver != NULL || negotiate_disable_cname_lookup);
     negotiate_factory->set_host_resolver(host_resolver);
     negotiate_factory->set_disable_cname_lookup(negotiate_disable_cname_lookup);
     negotiate_factory->set_use_port(negotiate_enable_port);
