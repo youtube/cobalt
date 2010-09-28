@@ -43,7 +43,7 @@ TEST(PythonUtils, PythonRunTime) {
   EXPECT_TRUE(GetPythonRunTime(&dir));
 #if defined(OS_WIN)
   EXPECT_NE(std::wstring::npos,
-            dir.value().find(L"third_party\\python_24\\python.exe"));
+            dir.value().find(L"\\third_party\\python_24\\python.exe"));
 #elif defined(OS_POSIX)
   EXPECT_NE(std::string::npos, dir.value().find("python"));
 #endif
