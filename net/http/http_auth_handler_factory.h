@@ -106,11 +106,7 @@ class HttpAuthHandlerFactory {
   // Creates a standard HttpAuthHandlerRegistryFactory. The caller is
   // responsible for deleting the factory.
   // The default factory supports Basic, Digest, NTLM, and Negotiate schemes.
-  //
-  // |host_resolver| is used by the Negotiate authentication handler to perform
-  // CNAME lookups to generate a Kerberos SPN for the server. It must be
-  // non-NULL.
-  static HttpAuthHandlerRegistryFactory* CreateDefault(HostResolver* resolver);
+  static HttpAuthHandlerRegistryFactory* CreateDefault();
 
  private:
   // The URL security manager

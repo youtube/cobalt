@@ -112,8 +112,7 @@ struct SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(ProxyService::CreateDirect()),
         ssl_config_service(new SSLConfigServiceDefaults),
-        http_auth_handler_factory(
-            HttpAuthHandlerFactory::CreateDefault(host_resolver)),
+        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
         spdy_session_pool(new SpdySessionPool(NULL)),
         net_log(NULL) {}
 
@@ -122,8 +121,7 @@ struct SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
-        http_auth_handler_factory(
-            HttpAuthHandlerFactory::CreateDefault(host_resolver)),
+        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
         spdy_session_pool(new SpdySessionPool(NULL)),
         net_log(NULL) {}
 
