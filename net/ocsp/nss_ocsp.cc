@@ -9,19 +9,16 @@
 #include <ocsp.h>
 #include <nspr.h>
 #include <nss.h>
-#include <pthread.h>
 #include <secerr.h>
 
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/condition_variable.h"
 #include "base/histogram.h"
-#include "base/lazy_instance.h"
-#include "base/lock.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/singleton.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/thread.h"
@@ -35,93 +32,6 @@
 #include "net/url_request/url_request_context.h"
 
 namespace {
-
-// Protects |g_request_context|.
-pthread_mutex_t g_request_context_lock = PTHREAD_MUTEX_INITIALIZER;
-static URLRequestContext* g_request_context = NULL;
-
-class OCSPIOLoop : public MessageLoop::DestructionObserver {
- public:
-  // MessageLoop::DestructionObserver:
-  virtual void WillDestroyCurrentMessageLoop();
-
-  void StartUsing() {
-    AutoLock autolock(lock_);
-    used_ = true;
-  }
-
-  bool used() const {
-    AutoLock autolock(lock_);
-    return used_;
-  }
-
-  // Called from worker thread.
-  void PostTaskToIOLoop(const tracked_objects::Location& from_here, Task* task);
-
-  void EnsureIOLoop();
-
- private:
-  friend struct base::DefaultLazyInstanceTraits<OCSPIOLoop>;
-
-  OCSPIOLoop();
-  ~OCSPIOLoop();
-
-  mutable Lock lock_;
-  bool used_;  // Protected by |lock_|.
-  // This should not be modified after |used_|.
-  MessageLoopForIO* io_loop_;  // Protected by |lock_|.
-
-  DISALLOW_COPY_AND_ASSIGN(OCSPIOLoop);
-};
-
-OCSPIOLoop::OCSPIOLoop()
-    : used_(false),
-      io_loop_(MessageLoopForIO::current()) {
-  DCHECK(io_loop_);
-  io_loop_->AddDestructionObserver(this);
-}
-
-OCSPIOLoop::~OCSPIOLoop() {
-  // IO thread was already deleted before the singleton is deleted
-  // in AtExitManager.
-  {
-    AutoLock autolock(lock_);
-    DCHECK(!io_loop_);
-    DCHECK(!used_);
-  }
-
-  pthread_mutex_lock(&g_request_context_lock);
-  DCHECK(!g_request_context);
-  pthread_mutex_unlock(&g_request_context_lock);
-}
-
-void OCSPIOLoop::WillDestroyCurrentMessageLoop() {
-  // Prevent the worker thread from trying to access |io_loop_|.
-  {
-    AutoLock autolock(lock_);
-    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
-    io_loop_ = NULL;
-    used_ = false;
-  }
-
-  pthread_mutex_lock(&g_request_context_lock);
-  g_request_context = NULL;
-  pthread_mutex_unlock(&g_request_context_lock);
-}
-
-void OCSPIOLoop::PostTaskToIOLoop(
-    const tracked_objects::Location& from_here, Task* task) {
-  AutoLock autolock(lock_);
-  if (io_loop_)
-    io_loop_->PostTask(from_here, task);
-}
-
-void OCSPIOLoop::EnsureIOLoop() {
-  AutoLock autolock(lock_);
-  DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
-}
-
-base::LazyInstance<OCSPIOLoop> g_ocsp_io_loop(base::LINKER_INITIALIZED);
 
 const int kRecvBufferSize = 4096;
 
@@ -159,58 +69,97 @@ SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request);
 
 char* GetAlternateOCSPAIAInfo(CERTCertificate *cert);
 
-class OCSPNSSInitialization {
- private:
-  friend struct base::DefaultLazyInstanceTraits<OCSPNSSInitialization>;
+class OCSPInitSingleton : public MessageLoop::DestructionObserver {
+ public:
+  // Called on IO thread.
+  virtual void WillDestroyCurrentMessageLoop() {
+    AutoLock autolock(lock_);
+    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
+    io_loop_ = NULL;
+    request_context_ = NULL;
+  };
 
-  OCSPNSSInitialization();
-  ~OCSPNSSInitialization();
+  // Called from worker thread.
+  void PostTaskToIOLoop(
+      const tracked_objects::Location& from_here, Task* task) {
+    AutoLock autolock(lock_);
+    if (io_loop_)
+      io_loop_->PostTask(from_here, task);
+  }
+
+  // This is static method because it is called before NSS initialization,
+  // that is, before OCSPInitSingleton is initialized.
+  static void set_url_request_context(URLRequestContext* request_context) {
+    request_context_ = request_context;
+  }
+  static URLRequestContext* url_request_context() {
+    return request_context_;
+  }
+
+ private:
+  friend struct DefaultSingletonTraits<OCSPInitSingleton>;
+
+  OCSPInitSingleton()
+      : io_loop_(MessageLoopForIO::current()) {
+    DCHECK(io_loop_);
+    io_loop_->AddDestructionObserver(this);
+
+    // NSS calls the functions in the function table to download certificates
+    // or CRLs or talk to OCSP responders over HTTP.  These functions must
+    // set an NSS/NSPR error code when they fail.  Otherwise NSS will get the
+    // residual error code from an earlier failed function call.
+    client_fcn_.version = 1;
+    SEC_HttpClientFcnV1Struct *ft = &client_fcn_.fcnTable.ftable1;
+    ft->createSessionFcn = OCSPCreateSession;
+    ft->keepAliveSessionFcn = OCSPKeepAliveSession;
+    ft->freeSessionFcn = OCSPFreeSession;
+    ft->createFcn = OCSPCreate;
+    ft->setPostDataFcn = OCSPSetPostData;
+    ft->addHeaderFcn = OCSPAddHeader;
+    ft->trySendAndReceiveFcn = OCSPTrySendAndReceive;
+    ft->cancelFcn = NULL;
+    ft->freeFcn = OCSPFree;
+    SECStatus status = SEC_RegisterDefaultHttpClient(&client_fcn_);
+    if (status != SECSuccess) {
+      NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
+    }
+
+    // Work around NSS bugs 524013 and 564334.  NSS incorrectly thinks the
+    // CRLs for Network Solutions Certificate Authority have bad signatures,
+    // which causes certificates issued by that CA to be reported as revoked.
+    // By using OCSP for those certificates, which don't have AIA extensions,
+    // we can work around these bugs.  See http://crbug.com/41730.
+    CERT_StringFromCertFcn old_callback = NULL;
+    status = CERT_RegisterAlternateOCSPAIAInfoCallBack(
+        GetAlternateOCSPAIAInfo, &old_callback);
+    if (status == SECSuccess) {
+      DCHECK(!old_callback);
+    } else {
+      NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
+    }
+  }
+
+  virtual ~OCSPInitSingleton() {
+    // IO thread was already deleted before the singleton is deleted
+    // in AtExitManager.
+    AutoLock autolock(lock_);
+    DCHECK(!io_loop_);
+    DCHECK(!request_context_);
+  }
 
   SEC_HttpClientFcn client_fcn_;
 
-  DISALLOW_COPY_AND_ASSIGN(OCSPNSSInitialization);
+  // |lock_| protects |io_loop_|.
+  Lock lock_;
+  // I/O thread.
+  MessageLoop* io_loop_;  // I/O thread
+  // URLRequestContext for OCSP handlers.
+  static URLRequestContext* request_context_;
+
+  DISALLOW_COPY_AND_ASSIGN(OCSPInitSingleton);
 };
 
-OCSPNSSInitialization::OCSPNSSInitialization() {
-  // NSS calls the functions in the function table to download certificates
-  // or CRLs or talk to OCSP responders over HTTP.  These functions must
-  // set an NSS/NSPR error code when they fail.  Otherwise NSS will get the
-  // residual error code from an earlier failed function call.
-  client_fcn_.version = 1;
-  SEC_HttpClientFcnV1Struct *ft = &client_fcn_.fcnTable.ftable1;
-  ft->createSessionFcn = OCSPCreateSession;
-  ft->keepAliveSessionFcn = OCSPKeepAliveSession;
-  ft->freeSessionFcn = OCSPFreeSession;
-  ft->createFcn = OCSPCreate;
-  ft->setPostDataFcn = OCSPSetPostData;
-  ft->addHeaderFcn = OCSPAddHeader;
-  ft->trySendAndReceiveFcn = OCSPTrySendAndReceive;
-  ft->cancelFcn = NULL;
-  ft->freeFcn = OCSPFree;
-  SECStatus status = SEC_RegisterDefaultHttpClient(&client_fcn_);
-  if (status != SECSuccess) {
-    NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
-  }
-
-  // Work around NSS bugs 524013 and 564334.  NSS incorrectly thinks the
-  // CRLs for Network Solutions Certificate Authority have bad signatures,
-  // which causes certificates issued by that CA to be reported as revoked.
-  // By using OCSP for those certificates, which don't have AIA extensions,
-  // we can work around these bugs.  See http://crbug.com/41730.
-  CERT_StringFromCertFcn old_callback = NULL;
-  status = CERT_RegisterAlternateOCSPAIAInfoCallBack(
-      GetAlternateOCSPAIAInfo, &old_callback);
-  if (status == SECSuccess) {
-    DCHECK(!old_callback);
-  } else {
-    NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
-  }
-}
-
-OCSPNSSInitialization::~OCSPNSSInitialization() {}
-
-base::LazyInstance<OCSPNSSInitialization> g_ocsp_nss_initialization(
-    base::LINKER_INITIALIZED);
+URLRequestContext* OCSPInitSingleton::request_context_ = NULL;
 
 // Concrete class for SEC_HTTP_REQUEST_SESSION.
 // Public methods except virtual methods of URLRequest::Delegate (On* methods)
@@ -251,7 +200,7 @@ class OCSPRequestSession
     // |io_loop_| was initialized to be NULL in constructor, and
     // set only in StartURLRequest, so no need to lock |lock_| here.
     DCHECK(!io_loop_);
-    g_ocsp_io_loop.Get().PostTaskToIOLoop(
+    Singleton<OCSPInitSingleton>()->PostTaskToIOLoop(
         FROM_HERE,
         NewRunnableMethod(this, &OCSPRequestSession::StartURLRequest));
   }
@@ -390,14 +339,11 @@ class OCSPRequestSession
     }
   }
 
-  // Runs on |g_ocsp_io_loop|'s IO loop.
   void StartURLRequest() {
     DCHECK(!request_);
 
-    pthread_mutex_lock(&g_request_context_lock);
-    URLRequestContext* url_request_context = g_request_context;
-    pthread_mutex_unlock(&g_request_context_lock);
-
+    URLRequestContext* url_request_context =
+        OCSPInitSingleton::url_request_context();
     if (url_request_context == NULL)
       return;
 
@@ -530,10 +476,7 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
                             SEC_HTTP_SERVER_SESSION* pSession) {
   LOG(INFO) << "OCSP create session: host=" << host << " port=" << portnum;
   DCHECK(!MessageLoop::current());
-  pthread_mutex_lock(&g_request_context_lock);
-  URLRequestContext* request_context = g_request_context;
-  pthread_mutex_unlock(&g_request_context_lock);
-  if (request_context == NULL) {
+  if (OCSPInitSingleton::url_request_context() == NULL) {
     LOG(ERROR) << "No URLRequestContext for OCSP handler.";
     // The application failed to call SetURLRequestContextForOCSP, so we
     // can't create and use URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an
@@ -840,40 +783,17 @@ char* GetAlternateOCSPAIAInfo(CERTCertificate *cert) {
 
 namespace net {
 
-void SetMessageLoopForOCSP() {
-  // Must have a MessageLoopForIO.
-  DCHECK(MessageLoopForIO::current());
-
-  bool used = g_ocsp_io_loop.Get().used();
-
-  // Should not be called when g_ocsp_io_loop has already been used.
-  DCHECK(!used);
-}
-
 void EnsureOCSPInit() {
-  g_ocsp_io_loop.Get().StartUsing();
-  g_ocsp_nss_initialization.Get();
+  Singleton<OCSPInitSingleton>::get();
 }
 
 // This function would be called before NSS initialization.
 void SetURLRequestContextForOCSP(URLRequestContext* request_context) {
-  pthread_mutex_lock(&g_request_context_lock);
-  if (request_context) {
-    DCHECK(request_context->is_main());
-    DCHECK(!g_request_context);
-  } else {
-    DCHECK(g_request_context);
-  }
-  g_request_context = request_context;
-  pthread_mutex_unlock(&g_request_context_lock);
+  OCSPInitSingleton::set_url_request_context(request_context);
 }
 
 URLRequestContext* GetURLRequestContextForOCSP() {
-  pthread_mutex_lock(&g_request_context_lock);
-  URLRequestContext* request_context = g_request_context;
-  pthread_mutex_unlock(&g_request_context_lock);
-  DCHECK(request_context->is_main());
-  return request_context;
+  return OCSPInitSingleton::url_request_context();
 }
 
 }  // namespace net
