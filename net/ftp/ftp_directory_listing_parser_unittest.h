@@ -40,13 +40,13 @@ class FtpDirectoryListingParserTest : public testing::Test {
 
     base::Time::Exploded time_exploded;
     entry.last_modified.LocalExplode(&time_exploded);
+
+    // Only test members displayed on the directory listing.
     EXPECT_EQ(test_case.year, time_exploded.year);
     EXPECT_EQ(test_case.month, time_exploded.month);
     EXPECT_EQ(test_case.day_of_month, time_exploded.day_of_month);
     EXPECT_EQ(test_case.hour, time_exploded.hour);
     EXPECT_EQ(test_case.minute, time_exploded.minute);
-    EXPECT_EQ(0, time_exploded.second);
-    EXPECT_EQ(0, time_exploded.millisecond);
   }
 
  private:
