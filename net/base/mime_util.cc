@@ -209,6 +209,7 @@ static const char* const supported_media_types[] = {
   "video/webm",
   "audio/webm",
   "audio/wav",
+  "audio/x-wav",
 
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
   // MPEG-4.
