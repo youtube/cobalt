@@ -95,7 +95,6 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
                                      &mock_current_time));
 
   const char* bad_cases[] = {
-    " foo",
     "garbage",
     "-rw-r--r-- ftp ftp",
     "-rw-r--rgb ftp ftp 528 Nov 01 2007 README",
