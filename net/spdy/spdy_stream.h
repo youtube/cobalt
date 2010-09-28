@@ -21,7 +21,6 @@
 
 namespace net {
 
-class AddressList;
 class SpdySession;
 class SSLCertRequestInfo;
 class SSLInfo;
@@ -129,12 +128,6 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
 
   // Decreases |send_window_size_| by the given number of bytes.
   void DecreaseSendWindowSize(int delta_window_size);
-
-  int GetPeerAddress(AddressList* address) const;
-
-  // Returns true if the underlying transport socket ever had any reads or
-  // writes.
-  bool WasEverUsed() const;
 
   // Increases |recv_window_size_| by the given number of bytes, also sends
   // a WINDOW_UPDATE frame.
