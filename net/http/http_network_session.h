@@ -7,6 +7,7 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
@@ -33,6 +34,7 @@ class ClientSocketFactory;
 class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
 class HttpNetworkSessionPeer;
+class HttpResponseBodyDrainer;
 class SpdySessionPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
@@ -53,6 +55,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   SSLClientAuthCache* ssl_client_auth_cache() {
     return &ssl_client_auth_cache_;
   }
+
+  void AddResponseDrainer(HttpResponseBodyDrainer* drainer);
+
+  void RemoveResponseDrainer(HttpResponseBodyDrainer* drainer);
 
   const HttpAlternateProtocols& alternate_protocols() const {
     return alternate_protocols_;
@@ -182,6 +188,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   HttpNetworkDelegate* const network_delegate_;
   NetLog* net_log_;
   SpdySettingsStorage spdy_settings_;
+  std::set<HttpResponseBodyDrainer*> response_drainers_;
 };
 
 }  // namespace net

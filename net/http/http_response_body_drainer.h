@@ -11,6 +11,7 @@
 #include "base/scoped_ptr.h"
 #include "base/timer.h"
 #include "net/base/completion_callback.h"
+#include "net/http/http_network_session.h"
 
 namespace net {
 
@@ -27,10 +28,12 @@ class HttpResponseBodyDrainer {
   static const int kTimeoutInSeconds = 5;
 
   explicit HttpResponseBodyDrainer(HttpStream* stream);
+  ~HttpResponseBodyDrainer();
 
   // Starts reading the body until completion, or we hit the buffer limit, or we
-  // timeout.  After Start(), |this| will eventually delete itself.
-  void Start();
+  // timeout.  After Start(), |this| will eventually delete itself.  If it
+  // doesn't complete immediately, it will add itself to |session|.
+  void Start(HttpNetworkSession* session);
 
  private:
   enum State {
@@ -38,8 +41,6 @@ class HttpResponseBodyDrainer {
     STATE_DRAIN_RESPONSE_BODY_COMPLETE,
     STATE_NONE,
   };
-
-  ~HttpResponseBodyDrainer();
 
   int DoLoop(int result);
 
@@ -50,13 +51,14 @@ class HttpResponseBodyDrainer {
   void OnTimerFired();
   void Finish(int result);
 
+  scoped_refptr<IOBuffer> read_buf_;
   const scoped_ptr<HttpStream> stream_;
   State next_state_;
-  scoped_refptr<IOBuffer> read_buf_;
   int total_read_;
   CompletionCallbackImpl<HttpResponseBodyDrainer> io_callback_;
   CompletionCallback* user_callback_;
   base::OneShotTimer<HttpResponseBodyDrainer> timer_;
+  HttpNetworkSession* session_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpResponseBodyDrainer);
 };
