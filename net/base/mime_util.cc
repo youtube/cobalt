@@ -90,6 +90,7 @@ static const MimeInfo primary_mappings[] = {
   { "audio/ogg", "ogg,oga" },
   { "video/webm", "webm" },
   { "audio/webm", "webm" },
+  { "audio/wav", "wav" },
   { "application/xhtml+xml", "xhtml,xht" },
   { "application/x-chrome-extension", "crx" }
 };
@@ -207,6 +208,7 @@ static const char* const supported_media_types[] = {
   "application/ogg",
   "video/webm",
   "audio/webm",
+  "audio/wav",
 
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
   // MPEG-4.
@@ -233,7 +235,8 @@ static const char* const supported_media_codecs[] = {
 #endif
   "theora",
   "vorbis",
-  "vp8"
+  "vp8",
+  "1"  // PCM for WAV.
 };
 
 // Note: does not include javascript types list (see supported_javascript_types)
@@ -304,7 +307,8 @@ struct MediaFormatStrict {
 
 static const MediaFormatStrict format_codec_mappings[] = {
   { "video/webm", "vorbis,vp8,vp8.0" },
-  { "audio/webm", "vorbis" }
+  { "audio/webm", "vorbis" },
+  { "audio/wav", "1" }
 };
 
 void MimeUtil::InitializeMimeTypeMaps() {
