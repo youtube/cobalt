@@ -96,18 +96,12 @@ class Rankings {
     List list;                     // Which entry was returned to the user.
     CacheRankingsBlock* nodes[3];  // Nodes on the first three lists.
     Rankings* my_rankings;
-    explicit Iterator(Rankings* rankings) {
-      memset(this, 0, sizeof(Iterator));
-      my_rankings = rankings;
-    }
-    ~Iterator() {
-      for (int i = 0; i < 3; i++)
-        ScopedRankingsBlock(my_rankings, nodes[i]);
-    }
+    explicit Iterator(Rankings* rankings);
+    ~Iterator();
   };
 
-  Rankings() : init_(false) {}
-  ~Rankings() {}
+  Rankings();
+  ~Rankings();
 
   bool Init(BackendImpl* backend, bool count_lists);
 

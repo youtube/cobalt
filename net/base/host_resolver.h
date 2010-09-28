@@ -176,12 +176,12 @@ class HostResolver : public base::RefCounted<HostResolver> {
  protected:
   friend class base::RefCounted<HostResolver>;
 
-  HostResolver() { }
+  HostResolver();
 
   // If any completion callbacks are pending when the resolver is destroyed,
   // the host resolutions are cancelled, and the completion callbacks will not
   // be called.
-  virtual ~HostResolver() {}
+  virtual ~HostResolver();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HostResolver);

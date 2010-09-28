@@ -176,6 +176,20 @@ void GenerateCrash(CrashLocation location) {
 
 namespace disk_cache {
 
+Rankings::Iterator::Iterator(Rankings* rankings) {
+  memset(this, 0, sizeof(Iterator));
+  my_rankings = rankings;
+}
+
+Rankings::Iterator::~Iterator() {
+  for (int i = 0; i < 3; i++)
+    ScopedRankingsBlock(my_rankings, nodes[i]);
+}
+
+Rankings::Rankings() : init_(false) {}
+
+Rankings::~Rankings() {}
+
 bool Rankings::Init(BackendImpl* backend, bool count_lists) {
   DCHECK(!init_);
   if (init_)

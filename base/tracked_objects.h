@@ -293,6 +293,7 @@ class DataCollector {
   // Construct with a list of how many threads should contribute.  This helps us
   // determine (in the async case) when we are done with all contributions.
   DataCollector();
+  ~DataCollector();
 
   // Add all stats from the indicated thread into our arrays.  This function is
   // mutex protected, and *could* be called from any threads (although current
@@ -333,7 +334,8 @@ class DataCollector {
 
 class Aggregation: public DeathData {
  public:
-  Aggregation() : birth_count_(0) {}
+  Aggregation();
+  ~Aggregation();
 
   void AddDeathSnapshot(const Snapshot& snapshot);
   void AddBirths(const Births& births);
@@ -469,6 +471,7 @@ class ThreadData {
   typedef std::map<const Births*, DeathData> DeathMap;
 
   ThreadData();
+  ~ThreadData();
 
   // Using Thread Local Store, find the current instance for collecting data.
   // If an instance does not exist, construct one (and remember it for use on

@@ -8,6 +8,10 @@
 
 namespace disk_cache {
 
+BackgroundIO::BackgroundIO(InFlightIO* controller)
+    : controller_(controller), result_(-1), io_completed_(true, false) {
+}
+
 // Runs on the primary thread.
 void BackgroundIO::OnIOSignalled() {
   if (controller_)
@@ -19,12 +23,22 @@ void BackgroundIO::Cancel() {
   controller_ = NULL;
 }
 
+BackgroundIO::~BackgroundIO() {}
+
 // Runs on the background thread.
 void BackgroundIO::NotifyController() {
   controller_->OnIOComplete(this);
 }
 
 // ---------------------------------------------------------------------------
+
+InFlightIO::InFlightIO()
+    : callback_thread_(base::MessageLoopProxy::CreateForCurrentThread()),
+      running_(false), single_thread_(false) {
+}
+
+InFlightIO::~InFlightIO() {
+}
 
 void InFlightIO::WaitForPendingIO() {
   while (!io_list_.empty()) {
