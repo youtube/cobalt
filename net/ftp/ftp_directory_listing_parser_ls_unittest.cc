@@ -49,6 +49,9 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "drwxrwxrwx   1 owner    group               0 Sep 13  0:30 audio",
       net::FtpDirectoryListingEntry::DIRECTORY, "audio", -1,
       1994, 9, 13, 0, 30 },
+    { "lrwxrwxrwx 1 0  0 26 Sep 18 2008 pub",
+      net::FtpDirectoryListingEntry::SYMLINK, "pub", -1,
+      2008, 9, 18, 0, 0 },
 
     // Tests for the wu-ftpd variant:
     { "drwxr-xr-x   2 sys          512 Mar 27  2009 pub",
