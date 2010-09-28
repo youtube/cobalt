@@ -104,11 +104,6 @@ class URLRequestContext
     referrer_charset_ = charset;
   }
 
-  // Controls whether or not the URLRequestContext considers itself to be the
-  // "main" URLRequestContext.
-  bool is_main() const { return is_main_; }
-  void set_is_main(bool is_main) { is_main_ = is_main; }
-
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContext>;
 
@@ -136,9 +131,6 @@ class URLRequestContext
   std::string referrer_charset_;
 
  private:
-  // Indicates whether or not this is the main URLRequestContext.
-  bool is_main_;
-
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };
 
