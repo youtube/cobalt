@@ -91,6 +91,8 @@ ThreadData::Status ThreadData::status_ = ThreadData::UNINITIALIZED;
 
 ThreadData::ThreadData() : next_(NULL), message_loop_(MessageLoop::current()) {}
 
+ThreadData::~ThreadData() {}
+
 // static
 ThreadData* ThreadData::current() {
   if (!tls_index_.initialized())
@@ -584,6 +586,9 @@ DataCollector::DataCollector() {
   }
 }
 
+DataCollector::~DataCollector() {
+}
+
 void DataCollector::Append(const ThreadData& thread_data) {
   // Get copy of data (which is done under ThreadData's lock).
   ThreadData::BirthMap birth_map;
@@ -626,6 +631,13 @@ void DataCollector::AddListOfLivingObjects() {
 
 //------------------------------------------------------------------------------
 // Aggregation
+
+Aggregation::Aggregation()
+    : birth_count_(0) {
+}
+
+Aggregation::~Aggregation() {
+}
 
 void Aggregation::AddDeathSnapshot(const Snapshot& snapshot) {
   AddBirth(snapshot.birth());

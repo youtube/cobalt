@@ -184,6 +184,10 @@ bool NeedToGrowBlockFile(const disk_cache::BlockFileHeader* header,
 
 namespace disk_cache {
 
+BlockFiles::BlockFiles(const FilePath& path)
+    : init_(false), zero_buffer_(NULL), path_(path) {
+}
+
 BlockFiles::~BlockFiles() {
   if (zero_buffer_)
     delete[] zero_buffer_;

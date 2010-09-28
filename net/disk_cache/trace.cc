@@ -57,6 +57,14 @@ TraceObject* TraceObject::GetTraceObject() {
   return s_trace_object;
 }
 
+TraceObject::TraceObject() {
+  InitTrace();
+}
+
+TraceObject::~TraceObject() {
+  DestroyTrace();
+}
+
 #if ENABLE_TRACING
 
 static TraceBuffer* s_trace_buffer = NULL;

@@ -631,6 +631,9 @@ HttpUtil::HeadersIterator::HeadersIterator(string::const_iterator headers_begin,
     : lines_(headers_begin, headers_end, line_delimiter) {
 }
 
+HttpUtil::HeadersIterator::~HeadersIterator() {
+}
+
 bool HttpUtil::HeadersIterator::GetNext() {
   while (lines_.GetNext()) {
     name_begin_ = lines_.token_begin();
@@ -681,6 +684,9 @@ HttpUtil::ValuesIterator::ValuesIterator(
     char delimiter)
     : values_(values_begin, values_end, string(1, delimiter)) {
   values_.set_quote_chars("\'\"");
+}
+
+HttpUtil::ValuesIterator::~ValuesIterator() {
 }
 
 bool HttpUtil::ValuesIterator::GetNext() {

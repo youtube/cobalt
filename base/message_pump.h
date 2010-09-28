@@ -40,7 +40,8 @@ class MessagePump : public RefCountedThreadSafe<MessagePump> {
     virtual bool DoIdleWork() = 0;
   };
 
-  virtual ~MessagePump() {}
+  MessagePump();
+  virtual ~MessagePump();
 
   // The Run method is called to enter the message pump's run loop.
   //
