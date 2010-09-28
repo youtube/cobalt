@@ -572,7 +572,7 @@ int SSLClientSocketWin::InitializeSSLContext() {
       &out_flags,
       &expiry);
   if (status != SEC_I_CONTINUE_NEEDED) {
-    DLOG(ERROR) << "InitializeSecurityContext failed: " << status;
+    LOG(ERROR) << "InitializeSecurityContext failed: " << status;
     return MapSecurityError(status);
   }
 
@@ -950,6 +950,7 @@ int SSLClientSocketWin::DidCallInitializeSecurityContext() {
   }
 
   if (FAILED(isc_status_)) {
+    LOG(ERROR) << "InitializeSecurityContext failed: " << isc_status_;
     int result = MapSecurityError(isc_status_);
     // We told Schannel to not verify the server certificate
     // (SCH_CRED_MANUAL_CRED_VALIDATION), so any certificate error returned by
@@ -1188,6 +1189,7 @@ int SSLClientSocketWin::DoPayloadDecrypt() {
 
     if (status != SEC_E_OK && status != SEC_I_RENEGOTIATE) {
       DCHECK(status != SEC_E_MESSAGE_ALTERED);
+      LOG(ERROR) << "DecryptMessage failed: " << status;
       return MapSecurityError(status);
     }
 
@@ -1315,8 +1317,10 @@ int SSLClientSocketWin::DoPayloadEncrypt() {
 
   SECURITY_STATUS status = EncryptMessage(&ctxt_, 0, &buffer_desc, 0);
 
-  if (FAILED(status))
+  if (FAILED(status)) {
+    LOG(ERROR) << "EncryptMessage failed: " << status;
     return MapSecurityError(status);
+  }
 
   payload_send_buffer_len_ = buffers[0].cbBuffer +
                              buffers[1].cbBuffer +
@@ -1386,7 +1390,7 @@ int SSLClientSocketWin::DidCompleteHandshake() {
   SECURITY_STATUS status = QueryContextAttributes(
       &ctxt_, SECPKG_ATTR_STREAM_SIZES, &stream_sizes_);
   if (status != SEC_E_OK) {
-    DLOG(ERROR) << "QueryContextAttributes (stream sizes) failed: " << status;
+    LOG(ERROR) << "QueryContextAttributes (stream sizes) failed: " << status;
     return MapSecurityError(status);
   }
   DCHECK(!server_cert_ || renegotiating_);
@@ -1394,7 +1398,7 @@ int SSLClientSocketWin::DidCompleteHandshake() {
   status = QueryContextAttributes(
       &ctxt_, SECPKG_ATTR_REMOTE_CERT_CONTEXT, &server_cert_handle);
   if (status != SEC_E_OK) {
-    DLOG(ERROR) << "QueryContextAttributes (remote cert) failed: " << status;
+    LOG(ERROR) << "QueryContextAttributes (remote cert) failed: " << status;
     return MapSecurityError(status);
   }
   if (renegotiating_ &&
