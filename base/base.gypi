@@ -291,6 +291,8 @@
           'utf_string_conversions.h',
           'values.cc',
           'values.h',
+          'vlog.cc',
+          'vlog.h',
           'waitable_event.h',
           'waitable_event_posix.cc',
           'waitable_event_watcher.h',

@@ -161,6 +161,7 @@
         'utf_string_conversions_unittest.cc',
         'values_unittest.cc',
         'version_unittest.cc',
+        'vlog_unittest.cc',
         'waitable_event_unittest.cc',
         'waitable_event_watcher_unittest.cc',
         'watchdog_unittest.cc',

@@ -31,6 +31,16 @@ const char kNoMessageBox[]                  = "no-message-box";
 // to the test framework that the current process is a child process.
 const char kTestChildProcess[]              = "test-child-process";
 
+// Gives the default maximal active V-logging level; 0 is the default.
+// Normally positive values are used for V-logging levels.
+const char kV[]                             = "v";
+
+// Gives the per-module maximal V-logging levels to override the value
+// given by --v.  E.g. "my_module=2,foo*=3" would change the logging
+// level for all code in source files "my_module.*" and "foo*.*"
+// ("-inl" suffixes are also disregarded for this matching).
+const char kVModule[]                       = "vmodule";
+
 // Will wait for 60 seconds for a debugger to come to attach to the process.
 const char kWaitForDebugger[]               = "wait-for-debugger";
 

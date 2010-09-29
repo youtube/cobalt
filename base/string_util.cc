@@ -1113,9 +1113,10 @@ struct NextCharUTF16 {
   }
 };
 
-bool MatchPattern(const std::string& eval, const std::string& pattern) {
-  return MatchPatternT(eval.c_str(), eval.c_str() + eval.size(),
-                       pattern.c_str(), pattern.c_str() + pattern.size(),
+bool MatchPattern(const base::StringPiece& eval,
+                  const base::StringPiece& pattern) {
+  return MatchPatternT(eval.data(), eval.data() + eval.size(),
+                       pattern.data(), pattern.data() + pattern.size(),
                        0, NextCharUTF8());
 }
 
