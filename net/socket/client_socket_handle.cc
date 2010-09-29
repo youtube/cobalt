@@ -92,7 +92,7 @@ void ClientSocketHandle::HandleInitCompletion(int result) {
   CHECK_NE(-1, pool_id_) << "Pool should have set |pool_id_| to a valid value.";
   setup_time_ = base::TimeTicks::Now() - init_time_;
 
-  scoped_refptr<ClientSocketPoolHistograms> histograms = pool_->histograms();
+  ClientSocketPoolHistograms* histograms = pool_->histograms();
   histograms->AddSocketType(reuse_type());
   switch (reuse_type()) {
     case ClientSocketHandle::UNUSED:

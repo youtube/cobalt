@@ -16,8 +16,9 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_base.h"
-#include "net/socket/tcp_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/socket/ssl_client_socket_pool.h"
+#include "net/socket/tcp_client_socket_pool.h"
 
 namespace net {
 
@@ -59,8 +60,8 @@ HttpProxyConnectJob::HttpProxyConnectJob(
     const std::string& group_name,
     const scoped_refptr<HttpProxySocketParams>& params,
     const base::TimeDelta& timeout_duration,
-    const scoped_refptr<TCPClientSocketPool>& tcp_pool,
-    const scoped_refptr<SSLClientSocketPool>& ssl_pool,
+    TCPClientSocketPool* tcp_pool,
+    SSLClientSocketPool* ssl_pool,
     const scoped_refptr<HostResolver>& host_resolver,
     Delegate* delegate,
     NetLog* net_log)
@@ -237,8 +238,8 @@ int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
 
 HttpProxyClientSocketPool::
 HttpProxyConnectJobFactory::HttpProxyConnectJobFactory(
-    const scoped_refptr<TCPClientSocketPool>& tcp_pool,
-    const scoped_refptr<SSLClientSocketPool>& ssl_pool,
+    TCPClientSocketPool* tcp_pool,
+    SSLClientSocketPool* ssl_pool,
     HostResolver* host_resolver,
     NetLog* net_log)
     : tcp_pool_(tcp_pool),
@@ -269,10 +270,10 @@ HttpProxyClientSocketPool::HttpProxyConnectJobFactory::NewConnectJob(
 HttpProxyClientSocketPool::HttpProxyClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
-    const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+    ClientSocketPoolHistograms* histograms,
     const scoped_refptr<HostResolver>& host_resolver,
-    const scoped_refptr<TCPClientSocketPool>& tcp_pool,
-    const scoped_refptr<SSLClientSocketPool>& ssl_pool,
+    TCPClientSocketPool* tcp_pool,
+    SSLClientSocketPool* ssl_pool,
     NetLog* net_log)
     : tcp_pool_(tcp_pool),
       ssl_pool_(ssl_pool),
@@ -311,10 +312,6 @@ void HttpProxyClientSocketPool::ReleaseSocket(const std::string& group_name,
 
 void HttpProxyClientSocketPool::Flush() {
   base_.Flush();
-  if (ssl_pool_)
-    ssl_pool_->Flush();
-  if (tcp_pool_)
-    tcp_pool_->Flush();
 }
 
 void HttpProxyClientSocketPool::CloseIdleSockets() {
@@ -338,12 +335,12 @@ DictionaryValue* HttpProxyClientSocketPool::GetInfoAsValue(
   DictionaryValue* dict = base_.GetInfoAsValue(name, type);
   if (include_nested_pools) {
     ListValue* list = new ListValue();
-    if (tcp_pool_.get()) {
+    if (tcp_pool_) {
       list->Append(tcp_pool_->GetInfoAsValue("tcp_socket_pool",
                                              "tcp_socket_pool",
                                              true));
     }
-    if (ssl_pool_.get()) {
+    if (ssl_pool_) {
       list->Append(ssl_pool_->GetInfoAsValue("ssl_socket_pool",
                                              "ssl_socket_pool",
                                              true));

@@ -2328,10 +2328,10 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
   HttpStreamFactory::set_force_spdy_always(true);
   TestDelegate d;
   TestDelegate d2;
+  scoped_refptr<SpdyURLRequestContext> spdy_url_request_context(
+      new SpdyURLRequestContext());
   {
     URLRequest r(GURL("http://www.google.com/"), &d);
-    SpdyURLRequestContext* spdy_url_request_context =
-        new SpdyURLRequestContext();
     r.set_context(spdy_url_request_context);
     spdy_url_request_context->socket_factory().
         AddSocketDataProvider(data.get());

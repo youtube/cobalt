@@ -45,6 +45,9 @@ ClientSocketPoolHistograms::ClientSocketPoolHistograms(
     is_socks_connection_ = true;
 }
 
+ClientSocketPoolHistograms::~ClientSocketPoolHistograms() {
+}
+
 void ClientSocketPoolHistograms::AddSocketType(int type) const {
   socket_type_->Add(type);
 }

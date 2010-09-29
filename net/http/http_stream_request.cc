@@ -15,9 +15,15 @@
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
+#include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_info.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/client_socket_handle.h"
+#include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/socket/ssl_client_socket.h"
+#include "net/socket/ssl_client_socket_pool.h"
+#include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -536,7 +542,7 @@ int HttpStreamRequest::DoInitConnection() {
         GenerateSslParams(tcp_params, http_proxy_params, socks_params,
                           proxy_info()->proxy_server().scheme(),
                           want_spdy_over_npn);
-    scoped_refptr<SSLClientSocketPool> ssl_pool;
+    SSLClientSocketPool* ssl_pool = NULL;
     if (proxy_info()->is_direct())
       ssl_pool = session_->ssl_socket_pool();
     else
@@ -803,7 +809,7 @@ scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSslParams(
     }
 
   scoped_refptr<SSLSocketParams> ssl_params =
-      new SSLSocketParams(tcp_params, http_proxy_params, socks_params,
+      new SSLSocketParams(tcp_params, socks_params, http_proxy_params,
                           proxy_scheme, request_info().url.HostNoBrackets(),
                           *ssl_config(), load_flags,
                           force_spdy_always_ && force_spdy_over_ssl_,
