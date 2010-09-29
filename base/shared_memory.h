@@ -72,18 +72,18 @@ class SharedMemory {
   // opens the existing shared memory and ignores the size parameter.
   // If name is the empty string, use a unique name.
   // Returns true on success, false on failure.
-  bool Create(const std::wstring& name, bool read_only, bool open_existing,
+  bool Create(const std::string& name, bool read_only, bool open_existing,
               uint32 size);
 
   // Deletes resources associated with a shared memory segment based on name.
   // Not all platforms require this call.
-  bool Delete(const std::wstring& name);
+  bool Delete(const std::string& name);
 
   // Opens a shared memory segment based on a name.
   // If read_only is true, opens for read-only access.
   // If name is the empty string, use a unique name.
   // Returns true on success, false on failure.
-  bool Open(const std::wstring& name, bool read_only);
+  bool Open(const std::string& name, bool read_only);
 
   // Maps the shared memory into the caller's address space.
   // Returns true on success, false otherwise.  The memory address
@@ -161,10 +161,9 @@ class SharedMemory {
 
  private:
 #if defined(OS_POSIX)
-  bool CreateOrOpen(const std::wstring &name, int posix_flags, uint32 size);
-  bool FilePathForMemoryName(const std::wstring& memname, FilePath* path);
+  bool CreateOrOpen(const std::string& name, int posix_flags, uint32 size);
+  bool FilePathForMemoryName(const std::string& mem_name, FilePath* path);
   void LockOrUnlockCommon(int function);
-
 #endif
   bool ShareToProcessCommon(ProcessHandle process,
                             SharedMemoryHandle* new_handle,
