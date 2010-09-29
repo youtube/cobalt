@@ -51,6 +51,9 @@ FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
 // Address of vpx_codec_vp8_cx_algo.
 static void* vp8_cx_algo_address = NULL;
 
+// Address of vpx_codec_vp8_dx_algo.
+static void* vp8_dx_algo_address = NULL;
+
 // Attempts to initialize the media library (loading DLLs, DSOs, etc.).
 // Returns true if everything was successfully initialized, false otherwise.
 bool InitializeMediaLibrary(const FilePath& base_path) {
@@ -90,6 +93,8 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
   if (avcodec_lib) {
     vp8_cx_algo_address = base::GetFunctionPointerFromNativeLibrary(
         avcodec_lib, "vpx_codec_vp8_cx_algo");
+    vp8_dx_algo_address = base::GetFunctionPointerFromNativeLibrary(
+        avcodec_lib, "vpx_codec_vp8_dx_algo");
   }
 
   // Check that we loaded all libraries successfully.  We only need to check the
@@ -113,6 +118,10 @@ bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
 
 void* GetVp8CxAlgoAddress() {
   return vp8_cx_algo_address;
+}
+
+void* GetVp8DxAlgoAddress() {
+  return vp8_dx_algo_address;
 }
 
 }  // namespace media
