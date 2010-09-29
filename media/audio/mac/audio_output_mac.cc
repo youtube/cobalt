@@ -216,8 +216,10 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
   if (!static_cast<AudioQueueUserData*>(buffer->mUserData)->empty_buffer)
     audio_stream->pending_bytes_ -= buffer->mAudioDataByteSize;
   uint32 capacity = buffer->mAudioDataBytesCapacity;
-  uint32 filled = source->OnMoreData(audio_stream, buffer->mAudioData,
-                                     capacity, audio_stream->pending_bytes_);
+  // TODO(sergeyu): Specify correct hardware delay for AudioBuffersState.
+  uint32 filled = source->OnMoreData(
+      audio_stream, reinterpret_cast<uint8*>(buffer->mAudioData), capacity,
+      AudioBuffersState(audio_stream->pending_bytes_, 0));
 
   // In order to keep the callback running, we need to provide a positive amount
   // of data to the audio queue. To simulate the behavior of Windows, we write

@@ -236,8 +236,10 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   // scale up the amount of pending bytes.
   // TODO(fbarchard): Handle used 0 by queueing more.
   uint32 scaled_pending_bytes = pending_bytes_ * channels_ / format_.nChannels;
-  uint32 used = callback_->OnMoreData(this, buffer->lpData, buffer_size_,
-                                      scaled_pending_bytes);
+  // TODO(sergeyu): Specify correct hardware delay for AudioBuffersState.
+  uint32 used = callback_->OnMoreData(
+      this, reinterpret_cast<uint8*>(buffer->lpData), buffer_size_,
+      AudioBuffersState(scaled_pending_bytes, 0));
   if (used <= buffer_size_) {
     buffer->dwBufferLength = used * format_.nChannels / channels_;
     if (channels_ > 2 && format_.nChannels == 2) {

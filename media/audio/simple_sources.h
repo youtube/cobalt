@@ -26,8 +26,9 @@ class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
   virtual ~SineWaveAudioSource() {}
 
   // Implementation of AudioSourceCallback.
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            void* dest, uint32 max_size, uint32 pending_bytes);
+  virtual uint32 OnMoreData(
+      AudioOutputStream* stream, uint8* dest, uint32 max_size,
+      AudioBuffersState audio_buffers);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
@@ -70,8 +71,8 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
   virtual uint32 UnProcessedBytes();
 
   // Implementation of AudioSourceCallback.
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            void* dest, uint32 max_size, uint32 pending_bytes);
+  virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
+                            uint32 max_size, AudioBuffersState buffers_state);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 

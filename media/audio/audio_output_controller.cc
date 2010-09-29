@@ -37,8 +37,8 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
       stream_(NULL),
       volume_(1.0),
       state_(kEmpty),
-      hardware_pending_bytes_(0),
-      buffer_capacity_(capacity),
+      buffer_(0, capacity),
+      pending_request_(false),
       sync_reader_(sync_reader) {
 }
 
@@ -133,7 +133,8 @@ void AudioOutputController::SetVolume(double volume) {
 void AudioOutputController::EnqueueData(const uint8* data, uint32 size) {
   // Write data to the push source and ask for more data if needed.
   AutoLock auto_lock(lock_);
-  push_source_.Write(data, size);
+  buffer_.Append(data, size);
+  pending_request_ = false;
   SubmitOnMoreData_Locked();
 }
 
@@ -222,7 +223,7 @@ void AudioOutputController::DoFlush() {
   if (!sync_reader_) {
     if (state_ != kPaused)
       return;
-    push_source_.ClearAll();
+    buffer_.Clear();
   }
 }
 
@@ -265,34 +266,30 @@ void AudioOutputController::DoReportError(int code) {
     handler_->OnError(this, code);
 }
 
-uint32 AudioOutputController::OnMoreData(AudioOutputStream* stream,
-                                         void* dest,
-                                         uint32 max_size,
-                                         uint32 pending_bytes) {
+uint32 AudioOutputController::OnMoreData(
+    AudioOutputStream* stream, uint8* dest,
+    uint32 max_size, AudioBuffersState buffers_state) {
   // If regular latency mode is used.
   if (!sync_reader_) {
     AutoLock auto_lock(lock_);
 
-    // Record the callback time.
-    last_callback_time_ = base::Time::Now();
+    // Save current buffers state.
+    buffers_state_ = buffers_state;
 
     if (state_ != kPlaying) {
       // Don't read anything. Save the number of bytes in the hardware buffer.
-      hardware_pending_bytes_ = pending_bytes;
       return 0;
     }
 
-    // Push source doesn't need to know the stream and number of pending
-    // bytes. So just pass in NULL and 0.
-    uint32 size = push_source_.OnMoreData(NULL, dest, max_size, 0);
-    hardware_pending_bytes_ = pending_bytes + size;
+    uint32 size = buffer_.Read(dest, max_size);
+    buffers_state_.pending_bytes += size;
     SubmitOnMoreData_Locked();
     return size;
   }
 
   // Low latency mode.
   uint32 size =  sync_reader_->Read(dest, max_size);
-  sync_reader_->UpdatePendingBytes(pending_bytes + size);
+  sync_reader_->UpdatePendingBytes(buffers_state.total_bytes() + size);
   return size;
 }
 
@@ -302,9 +299,6 @@ void AudioOutputController::OnClose(AudioOutputStream* stream) {
   // Push source doesn't need to know the stream so just pass in NULL.
   if (LowLatencyMode()) {
     sync_reader_->Close();
-  } else {
-    AutoLock auto_lock(lock_);
-    push_source_.OnClose(NULL);
   }
 }
 
@@ -318,18 +312,21 @@ void AudioOutputController::OnError(AudioOutputStream* stream, int code) {
 void AudioOutputController::SubmitOnMoreData_Locked() {
   lock_.AssertAcquired();
 
-  if (push_source_.UnProcessedBytes() > buffer_capacity_)
+  if (buffer_.forward_bytes() > buffer_.forward_capacity())
     return;
 
-  base::Time timestamp = last_callback_time_;
-  uint32 pending_bytes = hardware_pending_bytes_ +
-      push_source_.UnProcessedBytes();
+  if (pending_request_)
+    return;
+  pending_request_ = true;
+
+  AudioBuffersState buffers_state = buffers_state_;
+  buffers_state.pending_bytes += buffer_.forward_bytes();
 
   // If we need more data then call the event handler to ask for more data.
   // It is okay that we don't lock in this block because the parameters are
   // correct and in the worst case we are just asking more data than needed.
   AutoUnlock auto_unlock(lock_);
-  handler_->OnMoreData(this, timestamp, pending_bytes);
+  handler_->OnMoreData(this, buffers_state);
 }
 
 }  // namespace media
