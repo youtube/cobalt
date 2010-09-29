@@ -15,6 +15,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/linked_ptr.h"
 #include "base/ref_counted.h"
+#include "base/task.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
@@ -283,6 +284,12 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Callbacks for the Spdy session.
   CompletionCallbackImpl<SpdySession> read_callback_;
   CompletionCallbackImpl<SpdySession> write_callback_;
+
+  // Used for posting asynchronous IO tasks.  We use this even though
+  // SpdySession is refcounted because we don't need to keep the SpdySession
+  // alive if the last reference is within a RunnableMethod.  Just revoke the
+  // method.
+  ScopedRunnableMethodFactory<SpdySession> method_factory_;
 
   // The domain this session is connected to.
   const HostPortProxyPair host_port_proxy_pair_;
