@@ -9,6 +9,8 @@
 #include "net/socket/client_socket_handle.h"
 #if defined(OS_WIN)
 #include "net/socket/ssl_client_socket_win.h"
+#elif defined(USE_OPENSSL)
+#include "net/socket/ssl_client_socket_openssl.h"
 #elif defined(USE_NSS)
 #include "net/socket/ssl_client_socket_nss.h"
 #elif defined(OS_MACOSX)
@@ -27,6 +29,8 @@ SSLClientSocket* DefaultSSLClientSocketFactory(
     const SSLConfig& ssl_config) {
 #if defined(OS_WIN)
   return new SSLClientSocketWin(transport_socket, hostname, ssl_config);
+#elif defined(USE_OPENSSL)
+  return new SSLClientSocketOpenSSL(transport_socket, hostname, ssl_config);
 #elif defined(USE_NSS)
   return new SSLClientSocketNSS(transport_socket, hostname, ssl_config);
 #elif defined(OS_MACOSX)
