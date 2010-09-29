@@ -161,7 +161,8 @@ bool SharedMemory::CreateOrOpen(const std::string& name,
     // Deleting the file prevents anyone else from mapping it in
     // (making it private), and prevents the need for cleanup (once
     // the last fd is closed, it is truly freed).
-    file_util::Delete(path, false);
+    if (fp)
+      file_util::Delete(path, false);
   } else {
     if (!FilePathForMemoryName(name, &path))
       return false;
@@ -189,9 +190,15 @@ bool SharedMemory::CreateOrOpen(const std::string& name,
   if (fp == NULL) {
     if (posix_flags & O_CREAT) {
 #if !defined(OS_MACOSX)
-      PLOG(FATAL) << "Creating shared memory in " << path.value() << " failed. "
-                  << "This is frequently caused by incorrect permissions on "
-                  << "/dev/shm.  Try 'sudo chmod 777 /dev/shm' to fix.";
+      PLOG(ERROR) << "Creating shared memory in " << path.value() << " failed";
+      FilePath dir = path.DirName();
+      if (access(dir.value().c_str(), W_OK | X_OK) < 0) {
+        PLOG(ERROR) << "Unable to access(W_OK|X_OK) " << dir.value();
+        if (dir.value() == "/dev/shm") {
+          LOG(FATAL) << "This is frequently caused by incorrect permissions on "
+                     << "/dev/shm.  Try 'sudo chmod 777 /dev/shm' to fix.";
+        }
+      }
 #else
       PLOG(ERROR) << "Creating shared memory in " << path.value() << " failed";
 #endif
