@@ -9,6 +9,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
+#include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 #include "net/disk_cache/entry_impl.h"
@@ -37,6 +38,8 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void GrowData();
   void TruncateData();
   void ZeroLengthIO();
+  void Buffering();
+  void SizeChanges();
   void ReuseEntry(int size);
   void InvalidData();
   void DoomNormalEntry();
@@ -343,6 +346,13 @@ TEST_F(DiskCacheEntryTest, ExternalSyncIO) {
   ExternalSyncIO();
 }
 
+TEST_F(DiskCacheEntryTest, ExternalSyncIONoBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
+  ExternalSyncIO();
+}
+
 TEST_F(DiskCacheEntryTest, MemoryOnlyExternalSyncIO) {
   SetMemoryOnlyMode();
   InitCache();
@@ -449,6 +459,13 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
 TEST_F(DiskCacheEntryTest, ExternalAsyncIO) {
   SetDirectMode();
   InitCache();
+  ExternalAsyncIO();
+}
+
+TEST_F(DiskCacheEntryTest, ExternalAsyncIONoBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
   ExternalAsyncIO();
 }
 
@@ -662,6 +679,13 @@ TEST_F(DiskCacheEntryTest, GrowData) {
   GrowData();
 }
 
+TEST_F(DiskCacheEntryTest, GrowDataNoBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
+  GrowData();
+}
+
 TEST_F(DiskCacheEntryTest, MemoryOnlyGrowData) {
   SetMemoryOnlyMode();
   InitCache();
@@ -738,6 +762,18 @@ TEST_F(DiskCacheEntryTest, TruncateData) {
   helper.WaitUntilCacheIoFinished(1);
 }
 
+TEST_F(DiskCacheEntryTest, TruncateDataNoBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
+  TruncateData();
+
+  // We generate asynchronous IO that is not really tracked until completion
+  // so we just wait here before running the next test.
+  MessageLoopHelper helper;
+  helper.WaitUntilCacheIoFinished(1);
+}
+
 TEST_F(DiskCacheEntryTest, MemoryOnlyTruncateData) {
   SetMemoryOnlyMode();
   InitCache();
@@ -787,6 +823,13 @@ TEST_F(DiskCacheEntryTest, ZeroLengthIO) {
   ZeroLengthIO();
 }
 
+TEST_F(DiskCacheEntryTest, ZeroLengthIONoBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
+  ZeroLengthIO();
+}
+
 TEST_F(DiskCacheEntryTest, MemoryOnlyZeroLengthIO) {
   SetMemoryOnlyMode();
   InitCache();
@@ -794,8 +837,7 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyZeroLengthIO) {
 }
 
 // Tests that we handle the content correctly when buffering.
-TEST_F(DiskCacheEntryTest, Buffering) {
-  InitCache();
+void DiskCacheEntryTest::Buffering() {
   std::string key("the first key");
   disk_cache::Entry* entry;
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
@@ -861,10 +903,21 @@ TEST_F(DiskCacheEntryTest, Buffering) {
   entry->Close();
 }
 
+TEST_F(DiskCacheEntryTest, Buffering) {
+  InitCache();
+  Buffering();
+}
+
+TEST_F(DiskCacheEntryTest, BufferingNoBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
+  Buffering();
+}
+
 // Some extra tests to make sure that buffering works properly when changing
 // the entry size.
-TEST_F(DiskCacheEntryTest, SizeChanges) {
-  InitCache();
+void DiskCacheEntryTest::SizeChanges() {
   std::string key("the first key");
   disk_cache::Entry* entry;
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
@@ -935,6 +988,18 @@ TEST_F(DiskCacheEntryTest, SizeChanges) {
   EXPECT_EQ(19000 + kSize, entry->GetDataSize(1));
 
   entry->Close();
+}
+
+TEST_F(DiskCacheEntryTest, SizeChanges) {
+  InitCache();
+  SizeChanges();
+}
+
+TEST_F(DiskCacheEntryTest, SizeChangesNoBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
+  SizeChanges();
 }
 
 // Write more than the total cache capacity but to a single entry. |size| is the
@@ -1060,6 +1125,13 @@ void DiskCacheEntryTest::InvalidData() {
 
 TEST_F(DiskCacheEntryTest, InvalidData) {
   InitCache();
+  InvalidData();
+}
+
+TEST_F(DiskCacheEntryTest, InvalidDataNoBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
   InvalidData();
 }
 
