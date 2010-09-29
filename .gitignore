@@ -92,6 +92,7 @@
 /third_party/pthreads-win32
 /third_party/python_24
 /third_party/pywebsocket
+/third_party/safe_browsing/testing
 /third_party/skia
 /third_party/speex
 /third_party/swig
