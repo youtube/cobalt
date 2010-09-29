@@ -179,8 +179,9 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   // bytes to |offset|.
   bool PrepareBuffer(int index, int offset, int buf_len);
 
-  // Flushes the in-memory data to the backing storage.
-  bool Flush(int index);
+  // Flushes the in-memory data to the backing storage. The data destination
+  // is determined based on the current data length and |min_len|.
+  bool Flush(int index, int min_len);
 
   // Updates the size of a given data stream.
   void UpdateSize(int index, int old_size, int new_size);

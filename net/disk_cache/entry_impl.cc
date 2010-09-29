@@ -242,6 +242,7 @@ void EntryImpl::UserBuffer::Reset() {
     grow_allowed_ = true;
     std::vector<char> tmp;
     buffer_.swap(tmp);
+    buffer_.reserve(kMaxBlockSize);
   }
   offset_ = 0;
   buffer_.clear();
@@ -302,7 +303,7 @@ EntryImpl::~EntryImpl() {
     bool ret = true;
     for (int index = 0; index < kNumStreams; index++) {
       if (user_buffers_[index].get()) {
-        if (!(ret = Flush(index)))
+        if (!(ret = Flush(index, 0)))
           LOG(ERROR) << "Failed to save user data";
       }
       if (unreported_size_[index]) {
@@ -519,9 +520,11 @@ int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
     return net::ERR_FAILED;
 
   size_t file_offset = offset;
-  if (address.is_block_file())
+  if (address.is_block_file()) {
+    DCHECK_LE(offset + buf_len, kMaxBlockSize);
     file_offset += address.start_block() * address.BlockSize() +
                    kBlockHeaderSize;
+  }
 
   SyncCallback* io_callback = NULL;
   if (callback)
@@ -601,6 +604,7 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
 
   size_t file_offset = offset;
   if (address.is_block_file()) {
+    DCHECK_LE(offset + buf_len, kMaxBlockSize);
     file_offset += address.start_block() * address.BlockSize() +
                    kBlockHeaderSize;
   } else if (truncate || (extending && !buf_len)) {
@@ -1070,7 +1074,7 @@ bool EntryImpl::HandleTruncation(int index, int offset, int buf_len) {
     if (offset > user_buffers_[index]->Start())
       user_buffers_[index]->Truncate(new_size);
     UpdateSize(index, current_size, new_size);
-    if (!Flush(index))
+    if (!Flush(index, 0))
       return false;
     user_buffers_[index].reset();
   }
@@ -1139,13 +1143,13 @@ bool EntryImpl::PrepareBuffer(int index, int offset, int buf_len) {
     Addr address(entry_.Data()->data_addr[index]);
     if (address.is_initialized() && address.is_separate_file()) {
       int eof = entry_.Data()->data_size[index];
-      if (eof > user_buffers_[index]->Start() && !Flush(index))
+      if (eof > user_buffers_[index]->Start() && !Flush(index, 0))
         return false;
     }
   }
 
   if (!user_buffers_[index]->PreWrite(offset, buf_len)) {
-    if (!Flush(index))
+    if (!Flush(index, offset + buf_len))
       return false;
 
     // Lets try again.
@@ -1159,30 +1163,34 @@ bool EntryImpl::PrepareBuffer(int index, int offset, int buf_len) {
   return true;
 }
 
-bool EntryImpl::Flush(int index) {
+bool EntryImpl::Flush(int index, int min_len) {
   Addr address(entry_.Data()->data_addr[index]);
   DCHECK(user_buffers_[index].get());
+  DCHECK(!address.is_initialized() || address.is_separate_file());
+
+  int size = std::max(entry_.Data()->data_size[index], min_len);
+  if (!address.is_initialized() && !CreateDataBlock(index, size))
+    return false;
 
   if (!entry_.Data()->data_size[index]) {
     DCHECK(!user_buffers_[index]->Size());
     return true;
   }
 
-  if (!address.is_initialized() &&
-      !CreateDataBlock(index, entry_.Data()->data_size[index]))
-    return false;
-
   address.set_value(entry_.Data()->data_addr[index]);
 
-  File* file = GetBackingFile(address, index);
   int len = user_buffers_[index]->Size();
   int offset = user_buffers_[index]->Start();
+  if (!len && !offset)
+    return true;
+
   if (address.is_block_file()) {
     DCHECK_EQ(len, entry_.Data()->data_size[index]);
     DCHECK(!offset);
     offset = address.start_block() * address.BlockSize() + kBlockHeaderSize;
   }
 
+  File* file = GetBackingFile(address, index);
   if (!file)
     return false;
 
