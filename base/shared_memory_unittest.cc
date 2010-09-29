@@ -55,13 +55,13 @@ class MultipleThreadMain : public PlatformThread::Delegate {
  private:
   int16 id_;
 
-  static const wchar_t* const s_test_name_;
+  static const char* const s_test_name_;
 
   DISALLOW_COPY_AND_ASSIGN(MultipleThreadMain);
 };
 
-const wchar_t* const MultipleThreadMain::s_test_name_ =
-    L"SharedMemoryOpenThreadTest";
+const char* const MultipleThreadMain::s_test_name_ =
+    "SharedMemoryOpenThreadTest";
 
 // TODO(port):
 // This test requires the ability to pass file descriptors between processes.
@@ -82,7 +82,7 @@ class MultipleLockThread : public PlatformThread::Delegate {
     SharedMemoryHandle handle = NULL;
     {
       SharedMemory memory1;
-      EXPECT_TRUE(memory1.Create(L"SharedMemoryMultipleLockThreadTest",
+      EXPECT_TRUE(memory1.Create("SharedMemoryMultipleLockThreadTest",
                                  false, true, kDataSize));
       EXPECT_TRUE(memory1.ShareToProcess(GetCurrentProcess(), &handle));
       // TODO(paulg): Implement this once we have a posix version of
@@ -117,7 +117,7 @@ class MultipleLockThread : public PlatformThread::Delegate {
 
 TEST(SharedMemoryTest, OpenClose) {
   const uint32 kDataSize = 1024;
-  std::wstring test_name = L"SharedMemoryOpenCloseTest";
+  std::string test_name = "SharedMemoryOpenCloseTest";
 
   // Open two handles to a memory segment, confirm that they are mapped
   // separately yet point to the same space.
@@ -243,7 +243,7 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
   ASSERT_TRUE(pointers.get());
 
   for (i = 0; i < count; i++) {
-    rv = memories[i].Create(L"", false, true, kDataSize);
+    rv = memories[i].Create("", false, true, kDataSize);
     EXPECT_TRUE(rv);
     rv = memories[i].Map(kDataSize);
     EXPECT_TRUE(rv);
@@ -314,10 +314,10 @@ class SharedMemoryProcessTest : public base::MultiProcessTest {
   }
 
  private:
-  static const wchar_t* const s_test_name_;
+  static const char* const s_test_name_;
 };
 
-const wchar_t* const SharedMemoryProcessTest::s_test_name_ = L"MPMem";
+const char* const SharedMemoryProcessTest::s_test_name_ = "MPMem";
 
 
 TEST_F(SharedMemoryProcessTest, Tasks) {
