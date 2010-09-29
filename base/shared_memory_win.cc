@@ -5,6 +5,7 @@
 #include "base/shared_memory.h"
 
 #include "base/logging.h"
+#include "base/utf_string_conversions.h"
 
 namespace base {
 
@@ -60,7 +61,7 @@ void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
   ::CloseHandle(handle);
 }
 
-bool SharedMemory::Create(const std::wstring &name, bool read_only,
+bool SharedMemory::Create(const std::string& name, bool read_only,
                           bool open_existing, uint32 size) {
   DCHECK(mapped_file_ == NULL);
 
@@ -70,12 +71,12 @@ bool SharedMemory::Create(const std::wstring &name, bool read_only,
   // To avoid client impact, we continue to retain the size as the
   // actual requested size.
   uint32 rounded_size = (size + 0xffff) & ~0xffff;
-  name_ = name;
+  name_ = ASCIIToWide(name);
   read_only_ = read_only;
   mapped_file_ = CreateFileMapping(INVALID_HANDLE_VALUE, NULL,
       read_only_ ? PAGE_READONLY : PAGE_READWRITE, 0,
       static_cast<DWORD>(rounded_size),
-      name.empty() ? NULL : name.c_str());
+      name_.empty() ? NULL : name_.c_str());
   if (!mapped_file_)
     return false;
 
@@ -88,19 +89,19 @@ bool SharedMemory::Create(const std::wstring &name, bool read_only,
   return true;
 }
 
-bool SharedMemory::Delete(const std::wstring& name) {
+bool SharedMemory::Delete(const std::string& name) {
   // intentionally empty -- there is nothing for us to do on Windows.
   return true;
 }
 
-bool SharedMemory::Open(const std::wstring &name, bool read_only) {
+bool SharedMemory::Open(const std::string& name, bool read_only) {
   DCHECK(mapped_file_ == NULL);
 
-  name_ = name;
+  name_ = ASCIIToWide(name);
   read_only_ = read_only;
   mapped_file_ = OpenFileMapping(
       read_only_ ? FILE_MAP_READ : FILE_MAP_ALL_ACCESS, false,
-      name.empty() ? NULL : name.c_str());
+      name_.empty() ? NULL : name_.c_str());
   if (mapped_file_ != NULL) {
     // Note: size_ is not set in this case.
     return true;
