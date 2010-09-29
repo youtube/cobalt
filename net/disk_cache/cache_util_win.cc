@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -58,7 +58,21 @@ void DeleteCache(const FilePath& path, bool remove_folder) {
 bool DeleteCacheFile(const FilePath& name) {
   // We do a simple delete, without ever falling back to SHFileOperation, as the
   // version from base does.
-  return DeleteFile(name.value().c_str()) ? true : false;
+  if (!DeleteFile(name.value().c_str())) {
+    // There is an error, but we share delete access so let's see if there is a
+    // file to open. Note that this code assumes that we have a handle to the
+    // file at all times (even now), so nobody can have a handle that prevents
+    // us from opening the file again (unless it was deleted).
+    DWORD sharing = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+    DWORD access = SYNCHRONIZE;
+    ScopedHandle file(CreateFile(name.value().c_str(), access, sharing, NULL,
+                                 OPEN_EXISTING, 0, NULL));
+    if (file.IsValid())
+      return false;
+
+    // Most likely there is no file to open... and that's what we wanted.
+  }
+  return true;
 }
 
 }  // namespace disk_cache

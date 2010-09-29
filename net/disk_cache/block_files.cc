@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -466,10 +466,15 @@ void BlockFiles::RemoveEmptyFile(FileType block_type) {
       int file_index = header->next_file;
       header->next_file = next_header->next_file;
       DCHECK(block_files_.size() >= static_cast<unsigned int>(file_index));
+
+      // We get a new handle to the file and release the old one so that the
+      // file gets unmmaped... so we can delete it.
+      FilePath name = Name(file_index);
+      scoped_refptr<File> this_file(new File(false));
+      this_file->Init(name);
       block_files_[file_index]->Release();
       block_files_[file_index] = NULL;
 
-      FilePath name = Name(file_index);
       int failure = DeleteCacheFile(name) ? 0 : 1;
       UMA_HISTOGRAM_COUNTS("DiskCache.DeleteFailed2", failure);
       if (failure)
