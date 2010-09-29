@@ -15,7 +15,7 @@
     }],
     [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
       'variables': {
-        # We use our own copy of libssl, although we still need to link against
+        # We use our own copy of libssl3, although we still need to link against
         # the rest of NSS.
         'use_system_ssl%': 0,
       },
@@ -81,7 +81,7 @@
               ],
               'direct_dependent_settings': {
                 'cflags': [
-                  # We need for our local copies of the libssl headers to come
+                  # We need for our local copies of the libssl3 headers to come
                   # first, otherwise the code will build, but will fallback to
                   # the set of features advertised in the system headers.
                   # Unfortunately, there's no include path that we can filter
@@ -102,7 +102,7 @@
                   '<!@(<(pkg-config) --libs-only-l nss | sed -e "s/-lssl3//")',
                 ],
               },
-          }, {
+            }, {
               'direct_dependent_settings': {
                 'cflags': [
                   '<!@(<(pkg-config) --cflags nss)',
@@ -119,7 +119,8 @@
                   '<!@(<(pkg-config) --libs-only-l nss)',
                 ],
               },
-          }]]
+            }
+          ]]
         }],
       ],
     },
@@ -319,6 +320,32 @@
           '-lresolv',
         ],
       },
+    },
+    {
+      'target_name': 'openssl',
+      'type': 'settings',
+      'conditions': [
+        ['use_openssl==1', {
+          'direct_dependent_settings': {
+            'defines': [
+              # OpenSSL support is in development.
+              # eventually USE_OPENSSL and USE_NSS will be mutually exclusive.
+              # During the transitional period, a use_openssl=1 build still
+              # needs to define USE_NSS, so it is necessary to test the
+              # USE_OPENSSL macro before testing USE_NSS.
+              'USE_OPENSSL',
+            ],
+            'include_dirs': [
+              '<!@(<(pkg-config) --cflags openssl)',
+            ],
+          },
+          'link_settings': {
+            'libraries': [
+              '<!@(<(pkg-config) --libs-only-l openssl)',
+            ],
+          },
+        },],
+      ],
     },
   ],
 }

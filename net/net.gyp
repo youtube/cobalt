@@ -539,6 +539,8 @@
         'socket/ssl_client_socket_nss.h',
         'socket/ssl_client_socket_nss_factory.cc',
         'socket/ssl_client_socket_nss_factory.h',
+        'socket/ssl_client_socket_openssl.cc',
+        'socket/ssl_client_socket_openssl.h',
         'socket/ssl_client_socket_pool.cc',
         'socket/ssl_client_socket_pool.h',
         'socket/ssl_client_socket_win.cc',
@@ -650,6 +652,18 @@
              'proxy/proxy_config_service_linux.h',
           ],
         }],
+        ['use_openssl==1 and OS == "linux"', {
+            'dependencies': [
+              '../build/linux/system.gyp:openssl',
+            ]
+          },
+          {  # else !use_openssl: remove the unneeded files
+            'sources!': [
+              'socket/ssl_client_socket_openssl.cc',
+              'socket/ssl_client_socket_openssl.h',
+            ],
+          },
+        ],
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
             'dependencies': [
               '../build/linux/system.gyp:gconf',
