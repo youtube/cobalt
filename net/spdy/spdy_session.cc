@@ -224,6 +224,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
           read_callback_(this, &SpdySession::OnReadComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           write_callback_(this, &SpdySession::OnWriteComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
       host_port_proxy_pair_(host_port_proxy_pair),
       spdy_session_pool_(spdy_session_pool),
       spdy_settings_(spdy_settings),
@@ -670,8 +671,10 @@ net::Error SpdySession::ReadSocket() {
       // Schedule the work through the message loop to avoid recursive
       // callbacks.
       read_pending_ = true;
-      MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-          this, &SpdySession::OnReadComplete, bytes_read));
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          method_factory_.NewRunnableMethod(
+              &SpdySession::OnReadComplete, bytes_read));
       break;
   }
   return OK;
@@ -685,8 +688,9 @@ void SpdySession::WriteSocketLater() {
     return;
 
   delayed_write_pending_ = true;
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &SpdySession::WriteSocket));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(&SpdySession::WriteSocket));
 }
 
 void SpdySession::WriteSocket() {
