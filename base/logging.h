@@ -212,13 +212,14 @@ int GetMinLogLevel();
 
 // Gets the current vlog level for the given file (usually taken from
 // __FILE__).
+
+// Note that |N| is the size *with* the null terminator.
+int GetVlogLevelHelper(const char* file_start, size_t N);
+
 template <size_t N>
 int GetVlogLevel(const char (&file)[N]) {
   return GetVlogLevelHelper(file, N);
 }
-// Note that |N| is the size *with* the null terminator.
-int GetVlogLevelHelper(const char* file_start, size_t N);
-
 // Sets the log filter prefix.  Any log message below LOG_ERROR severity that
 // doesn't start with this prefix with be silently ignored.  The filter defaults
 // to NULL (everything is logged) if this function is not called.  Messages
