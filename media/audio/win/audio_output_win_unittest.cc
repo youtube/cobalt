@@ -19,6 +19,7 @@
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::DoAll;
+using ::testing::Field;
 using ::testing::InSequence;
 using ::testing::NiceMock;
 using ::testing::NotNull;
@@ -39,8 +40,8 @@ class TestSourceBasic : public AudioOutputStream::AudioSourceCallback {
         was_closed_(0) {
   }
   // AudioSourceCallback::OnMoreData implementation:
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            void* dest, uint32 max_size, uint32 pending_bytes) {
+  virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
+                            uint32 max_size, AudioBuffersState buffers_state) {
     ++callback_count_;
     // Touch the first byte to make sure memory is good.
     if (max_size)
@@ -96,9 +97,10 @@ class TestSourceTripleBuffer : public TestSourceBasic {
   }
   // Override of TestSourceBasic::OnMoreData.
   virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            void* dest, uint32 max_size, uint32 pending_bytes) {
+                            uint8* dest, uint32 max_size,
+                            AudioBuffersState buffers_state) {
     // Call the base, which increments the callback_count_.
-    TestSourceBasic::OnMoreData(stream, dest, max_size, 0);
+    TestSourceBasic::OnMoreData(stream, dest, max_size, buffers_state);
     if (callback_count() % kNumBuffers == 2) {
       set_error(!CompareExistingIfNotNULL(2, dest));
     } else if (callback_count() % kNumBuffers == 1) {
@@ -132,9 +134,10 @@ class TestSourceLaggy : public TestSourceBasic {
       : laggy_after_buffer_(laggy_after_buffer), lag_in_ms_(lag_in_ms) {
   }
   virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            void* dest, uint32 max_size, uint32 pending_bytes) {
+                            uint8* dest, uint32 max_size,
+                            AudioBuffersState buffers_state) {
     // Call the base, which increments the callback_count_.
-    TestSourceBasic::OnMoreData(stream, dest, max_size, 0);
+    TestSourceBasic::OnMoreData(stream, dest, max_size, buffers_state);
     if (callback_count() > kNumBuffers) {
       ::Sleep(lag_in_ms_);
     }
@@ -147,8 +150,9 @@ class TestSourceLaggy : public TestSourceBasic {
 
 class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, void* dest,
-                                  uint32 max_size, uint32 pending_bytes));
+  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, uint8* dest,
+                                  uint32 max_size,
+                                  AudioBuffersState buffers_state));
   MOCK_METHOD1(OnClose, void(AudioOutputStream* stream));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
@@ -583,19 +587,27 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
   // And then we will try to provide zero data so the amount of pending bytes
   // will go down and eventually read zero.
   InSequence s;
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, 0))
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes, 0)))
       .WillOnce(Return(bytes_100_ms));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, bytes_100_ms))
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes,
+                                       bytes_100_ms)))
       .WillOnce(Return(bytes_100_ms));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(),
-                                 bytes_100_ms, 2 * bytes_100_ms))
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes,
+                                       2 * bytes_100_ms)))
       .WillOnce(Return(bytes_100_ms));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(),
-                                 bytes_100_ms, 2 * bytes_100_ms))
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes,
+                                       2 * bytes_100_ms)))
       .WillOnce(Return(0));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, bytes_100_ms))
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes,
+                                       bytes_100_ms)))
       .WillOnce(Return(0));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, 0))
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes, 0)))
       .Times(AnyNumber())
       .WillRepeatedly(Return(0));
 
@@ -619,8 +631,9 @@ class SyncSocketSource : public AudioOutputStream::AudioSourceCallback {
 
   // AudioSourceCallback::OnMoreData implementation:
   virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            void* dest, uint32 max_size, uint32 pending_bytes) {
-    socket_->Send(&pending_bytes, sizeof(pending_bytes));
+                            uint8* dest, uint32 max_size,
+                            AudioBuffersState buffers_state) {
+    socket_->Send(&buffers_state, sizeof(buffers_state));
     uint32 got = socket_->Receive(dest, max_size);
     return got;
   }
@@ -653,17 +666,17 @@ DWORD __stdcall SyncSocketThread(void* context) {
 
   const int kTwoSecBytes =
       AudioParameters::kAudioCDSampleRate * 2 * sizeof(uint16);
-  char* buffer = new char[kTwoSecBytes];
+  uint8* buffer = new uint8[kTwoSecBytes];
   SineWaveAudioSource sine(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM,
                            1, ctx.sine_freq, ctx.sample_rate);
-  sine.OnMoreData(NULL, buffer, kTwoSecBytes, 0);
+  sine.OnMoreData(NULL, buffer, kTwoSecBytes, AudioBuffersState());
 
-  int pending_bytes = -1;
+  AudioBuffersState buffers_state;
   int times = 0;
   for (int ix = 0; ix < kTwoSecBytes; ix += ctx.packet_size) {
-    if (ctx.socket->Receive(&pending_bytes, sizeof(pending_bytes)) == 0)
+    if (ctx.socket->Receive(&buffers_state, sizeof(buffers_state)) == 0)
       break;
-    if ((times > 0) && (pending_bytes < 1000)) __debugbreak();
+    if ((times > 0) && (buffers_state.pending_bytes < 1000)) __debugbreak();
     ctx.socket->Send(&buffer[ix], ctx.packet_size);
     ++times;
   }

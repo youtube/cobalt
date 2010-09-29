@@ -52,19 +52,22 @@ void AudioRendererImpl::SetVolume(float volume) {
     stream_->SetVolume(volume);
 }
 
-uint32 AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
-                                     uint32 len, uint32 pending_bytes) {
+uint32 AudioRendererImpl::OnMoreData(
+    AudioOutputStream* stream, uint8* dest, uint32 len,
+    AudioBuffersState buffers_state) {
   // TODO(scherkus): handle end of stream.
   if (!stream_)
     return 0;
 
-  // TODO(scherkus): Maybe change OnMoreData to pass in char/uint8 or similar.
   // TODO(fbarchard): Waveout_output_win.h should handle zero length buffers
   //                  without clicking.
-  pending_bytes = static_cast<uint32>(ceil(pending_bytes * GetPlaybackRate()));
-  base::TimeDelta delay =  base::TimeDelta::FromMicroseconds(
-      base::Time::kMicrosecondsPerSecond * pending_bytes / bytes_per_second_);
-  return FillBuffer(static_cast<uint8*>(dest_void), len, delay);
+  uint32 pending_bytes = static_cast<uint32>(ceil(buffers_state.total_bytes() *
+                                                  GetPlaybackRate()));
+  base::TimeDelta delay = base::TimeDelta::FromMicroseconds(
+      base::Time::kMicrosecondsPerSecond * pending_bytes /
+      bytes_per_second_);
+  bool buffers_empty = buffers_state.pending_bytes == 0;
+  return FillBuffer(dest, len, delay, buffers_empty);
 }
 
 void AudioRendererImpl::OnClose(AudioOutputStream* stream) {

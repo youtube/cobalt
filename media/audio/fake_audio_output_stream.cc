@@ -36,14 +36,15 @@ bool FakeAudioOutputStream::Open(uint32 packet_size) {
   if (packet_size < sizeof(int16))
     return false;
   packet_size_ = packet_size;
-  buffer_.reset(new char[packet_size_]);
+  buffer_.reset(new uint8[packet_size_]);
   return true;
 }
 
 void FakeAudioOutputStream::Start(AudioSourceCallback* callback)  {
   callback_ = callback;
   memset(buffer_.get(), 0, packet_size_);
-  callback_->OnMoreData(this, buffer_.get(), packet_size_, 0);
+  callback_->OnMoreData(this, buffer_.get(), packet_size_,
+                        AudioBuffersState(0, 0));
 }
 
 void FakeAudioOutputStream::Stop() {

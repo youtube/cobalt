@@ -26,7 +26,7 @@ class FakeAudioOutputStream : public AudioOutputStream {
   virtual void GetVolume(double* volume);
   virtual void Close();
 
-  char* buffer() { return buffer_.get(); }
+  uint8* buffer() { return buffer_.get(); }
   double volume() { return volume_; }
 
  private:
@@ -39,7 +39,7 @@ class FakeAudioOutputStream : public AudioOutputStream {
 
   double volume_;
   AudioSourceCallback* callback_;
-  scoped_array<char> buffer_;
+  scoped_array<uint8> buffer_;
   uint32 packet_size_;
   bool closed_;
 

@@ -143,6 +143,7 @@ class AlsaPcmOutputStream :
   static uint32 FramesToMillis(uint32 frames, uint32 sample_rate);
   std::string FindDeviceForChannels(uint32 channels);
   snd_pcm_sframes_t GetAvailableFrames();
+  snd_pcm_sframes_t GetCurrentDelay();
 
   // Attempts to find the best matching linux audio device for the given number
   // of channels.  This function will set |device_name_| and |should_downmix_|.
@@ -176,8 +177,8 @@ class AlsaPcmOutputStream :
     // is passed into the output stream, but ownership is not transfered which
     // requires a synchronization on access of the |source_callback_| to avoid
     // using a deleted callback.
-    uint32 OnMoreData(AudioOutputStream* stream, void* dest,
-                      uint32 max_size, uint32 pending_bytes);
+    uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
+                      uint32 max_size, AudioBuffersState buffers_state);
     void OnClose(AudioOutputStream* stream);
     void OnError(AudioOutputStream* stream, int code);
 
