@@ -51,10 +51,12 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/process_util.h"
 #include "base/string_piece.h"
 #include "base/utf_string_conversions.h"
+#include "base/vlog.h"
 
 namespace logging {
 
 bool g_enable_dcheck = false;
+VlogInfo* g_vlog_info = NULL;
 
 const char* const log_severity_names[LOG_NUM_SEVERITIES] = {
   "INFO", "WARNING", "ERROR", "ERROR_REPORT", "FATAL" };
@@ -329,8 +331,20 @@ void BaseInitLoggingImpl(const PathChar* new_log_file,
                          LoggingDestination logging_dest,
                          LogLockingState lock_log,
                          OldFileDeletionState delete_old) {
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
   g_enable_dcheck =
-      CommandLine::ForCurrentProcess()->HasSwitch(switches::kEnableDCHECK);
+      command_line->HasSwitch(switches::kEnableDCHECK);
+  delete g_vlog_info;
+  g_vlog_info = NULL;
+  // Don't bother initializing g_vlog_info unless we use one of the
+  // vlog switches.
+  if (command_line->HasSwitch(switches::kV) ||
+      command_line->HasSwitch(switches::kVModule)) {
+    g_vlog_info =
+        new VlogInfo(command_line->GetSwitchValueASCII(switches::kV),
+                     command_line->GetSwitchValueASCII(switches::kVModule));
+  }
+
   LoggingLock::Init(lock_log, new_log_file);
 
   LoggingLock logging_lock;
@@ -365,6 +379,13 @@ void SetMinLogLevel(int level) {
 
 int GetMinLogLevel() {
   return min_log_level;
+}
+
+int GetVlogLevelHelper(const char* file, size_t N) {
+  DCHECK_GT(N, 0U);
+  return g_vlog_info ?
+      g_vlog_info->GetVlogLevel(base::StringPiece(file, N - 1)) :
+      VlogInfo::kDefaultVlogLevel;
 }
 
 void SetLogFilterPrefix(const char* filter)  {

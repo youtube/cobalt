@@ -17,6 +17,8 @@ extern const char kFullMemoryCrashReport[];
 extern const char kNoErrorDialogs[];
 extern const char kNoMessageBox[];
 extern const char kTestChildProcess[];
+extern const char kV[];
+extern const char kVModule[];
 extern const char kWaitForDebugger[];
 
 }  // namespace switches
