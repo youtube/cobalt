@@ -945,14 +945,14 @@ void EntryImpl::DeleteData(Addr address, int index) {
   if (!address.is_initialized())
     return;
   if (address.is_separate_file()) {
-    if (files_[index])
-      files_[index] = NULL;  // Releases the object.
-
-    int failure = DeleteCacheFile(backend_->GetFileName(address)) ? 0 : 1;
+    int failure = !DeleteCacheFile(backend_->GetFileName(address));
     CACHE_UMA(COUNTS, "DeleteFailed", 0, failure);
-    if (failure)
+    if (failure) {
       LOG(ERROR) << "Failed to delete " <<
           backend_->GetFileName(address).value() << " from the cache.";
+    }
+    if (files_[index])
+      files_[index] = NULL;  // Releases the object.
   } else {
     backend_->DeleteBlock(address, true);
   }

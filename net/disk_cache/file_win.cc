@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -72,9 +72,9 @@ bool File::Init(const FilePath& name) {
   if (init_)
     return false;
 
-  platform_file_ = CreateFile(name.value().c_str(),
-                              GENERIC_READ | GENERIC_WRITE,
-                              FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+  DWORD sharing = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+  DWORD access = GENERIC_READ | GENERIC_WRITE | DELETE;
+  platform_file_ = CreateFile(name.value().c_str(), access, sharing, NULL,
                               OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 
   if (INVALID_HANDLE_VALUE == platform_file_)
@@ -84,9 +84,7 @@ bool File::Init(const FilePath& name) {
       platform_file_, Singleton<CompletionHandler>::get());
 
   init_ = true;
-  sync_platform_file_  = CreateFile(name.value().c_str(),
-                                    GENERIC_READ | GENERIC_WRITE,
-                                    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+  sync_platform_file_  = CreateFile(name.value().c_str(), access, sharing, NULL,
                                     OPEN_EXISTING, 0, NULL);
 
   if (INVALID_HANDLE_VALUE == sync_platform_file_)
