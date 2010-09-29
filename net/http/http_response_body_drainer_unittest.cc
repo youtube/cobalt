@@ -16,6 +16,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_stream.h"
 #include "net/proxy/proxy_service.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -173,7 +174,7 @@ class HttpResponseBodyDrainerTest : public testing::Test {
           ProxyService::CreateDirect(),
           NULL,
           new SSLConfigServiceDefaults,
-          NULL,
+          new SpdySessionPool(NULL),
           NULL,
           NULL,
           NULL)),

@@ -1005,26 +1005,10 @@ const int ClientSocketPoolTest::kIndexOutOfBounds = -1;
 // static
 const int ClientSocketPoolTest::kRequestNotFound = -2;
 
-void ClientSocketPoolTest::SetUp() {
-  completion_count_ = 0;
-}
+ClientSocketPoolTest::ClientSocketPoolTest() : completion_count_(0) {}
+ClientSocketPoolTest::~ClientSocketPoolTest() {}
 
-void ClientSocketPoolTest::TearDown() {
-  // The tests often call Reset() on handles at the end which may post
-  // DoReleaseSocket() tasks.
-  // Pending tasks created by client_socket_pool_base_unittest.cc are
-  // posted two milliseconds into the future and thus won't become
-  // scheduled until that time.
-  // We wait a few milliseconds to make sure that all such future tasks
-  // are ready to run, before calling RunAllPending(). This will work
-  // correctly even if Sleep() finishes late (and it should never finish
-  // early), as all we have to ensure is that actual wall-time has progressed
-  // past the scheduled starting time of the pending task.
-  PlatformThread::Sleep(10);
-  MessageLoop::current()->RunAllPending();
-}
-
-int ClientSocketPoolTest::GetOrderOfRequest(size_t index) {
+int ClientSocketPoolTest::GetOrderOfRequest(size_t index) const {
   index--;
   if (index >= requests_.size())
     return kIndexOutOfBounds;
@@ -1108,7 +1092,7 @@ void MockTCPClientSocketPool::MockConnectJob::OnConnect(int rv) {
 MockTCPClientSocketPool::MockTCPClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
-    const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+    ClientSocketPoolHistograms* histograms,
     ClientSocketFactory* socket_factory)
     : TCPClientSocketPool(max_sockets, max_sockets_per_group, histograms,
                           NULL, NULL, NULL),
@@ -1154,8 +1138,8 @@ MockTCPClientSocketPool::~MockTCPClientSocketPool() {}
 MockSOCKSClientSocketPool::MockSOCKSClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
-    const scoped_refptr<ClientSocketPoolHistograms>& histograms,
-    const scoped_refptr<TCPClientSocketPool>& tcp_pool)
+    ClientSocketPoolHistograms* histograms,
+    TCPClientSocketPool* tcp_pool)
     : SOCKSClientSocketPool(max_sockets, max_sockets_per_group, histograms,
                             NULL, tcp_pool, NULL),
       tcp_pool_(tcp_pool) {
@@ -1201,14 +1185,12 @@ const int kSOCKS5OkResponseLength = arraysize(kSOCKS5OkResponse);
 MockSSLClientSocketPool::MockSSLClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
-    const scoped_refptr<ClientSocketPoolHistograms>& histograms,
-    ClientSocketFactory* socket_factory)
+    ClientSocketPoolHistograms* histograms,
+    ClientSocketFactory* socket_factory,
+    TCPClientSocketPool* tcp_pool)
     : SSLClientSocketPool(max_sockets, max_sockets_per_group, histograms,
                           NULL, socket_factory,
-                          new MockTCPClientSocketPool(max_sockets,
-                                                      max_sockets_per_group,
-                                                      histograms,
-                                                      socket_factory),
+                          tcp_pool,
                           NULL, NULL, NULL, NULL),
       client_socket_factory_(socket_factory),
       release_count_(0),

@@ -43,7 +43,7 @@ SOCKSConnectJob::SOCKSConnectJob(
     const std::string& group_name,
     const scoped_refptr<SOCKSSocketParams>& socks_params,
     const base::TimeDelta& timeout_duration,
-    const scoped_refptr<TCPClientSocketPool>& tcp_pool,
+    TCPClientSocketPool* tcp_pool,
     const scoped_refptr<HostResolver>& host_resolver,
     Delegate* delegate,
     NetLog* net_log)
@@ -180,9 +180,9 @@ SOCKSClientSocketPool::SOCKSConnectJobFactory::ConnectionTimeout() const {
 SOCKSClientSocketPool::SOCKSClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
-    const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+    ClientSocketPoolHistograms* histograms,
     const scoped_refptr<HostResolver>& host_resolver,
-    const scoped_refptr<TCPClientSocketPool>& tcp_pool,
+    TCPClientSocketPool* tcp_pool,
     NetLog* net_log)
     : tcp_pool_(tcp_pool),
       base_(max_sockets, max_sockets_per_group, histograms,
@@ -219,7 +219,6 @@ void SOCKSClientSocketPool::ReleaseSocket(const std::string& group_name,
 
 void SOCKSClientSocketPool::Flush() {
   base_.Flush();
-  tcp_pool_->Flush();
 }
 
 void SOCKSClientSocketPool::CloseIdleSockets() {
