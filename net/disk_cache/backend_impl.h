@@ -29,7 +29,8 @@ enum BackendFlags {
   kUpgradeMode = 1 << 3,        // This is the upgrade tool (dump).
   kNewEviction = 1 << 4,        // Use of new eviction was specified.
   kNoRandom = 1 << 5,           // Don't add randomness to the behavior.
-  kNoLoadProtection = 1 << 6    // Don't act conservatively under load.
+  kNoLoadProtection = 1 << 6,   // Don't act conservatively under load.
+  kNoBuffering = 1 << 7         // Disable extended IO buffering.
 };
 
 // This class implements the Backend interface. An object of this
