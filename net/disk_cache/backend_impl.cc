@@ -1088,6 +1088,9 @@ void BackendImpl::TooMuchStorageRequested(int32 size) {
 
 bool BackendImpl::IsAllocAllowed(int current_size, int new_size) {
   DCHECK_GT(new_size, current_size);
+  if (user_flags_ & kNoBuffering)
+    return false;
+
   int to_add = new_size - current_size;
   if (buffer_bytes_ + to_add > MaxBuffersSize())
     return false;
