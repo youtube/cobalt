@@ -12,6 +12,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
+#include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 #include "net/disk_cache/histogram_macros.h"
@@ -1888,4 +1889,45 @@ TEST_F(DiskCacheBackendTest, TotalBuffersSize2) {
     cache_impl_->IsAllocAllowed(0, kOneMB);  // Ignore the result.
 
   EXPECT_FALSE(cache_impl_->IsAllocAllowed(0, kOneMB));
+}
+
+// Tests that sharing of external files works and we are able to delete the
+// files when we need to.
+TEST_F(DiskCacheBackendTest, FileSharing) {
+  SetDirectMode();
+  InitCache();
+
+  disk_cache::Addr address(0x80000001);
+  ASSERT_TRUE(cache_impl_->CreateExternalFile(&address));
+  FilePath name = cache_impl_->GetFileName(address);
+
+  scoped_refptr<disk_cache::File> file(new disk_cache::File(false));
+  file->Init(name);
+
+#if defined(OS_WIN)
+  DWORD sharing = FILE_SHARE_READ | FILE_SHARE_WRITE;
+  DWORD access = GENERIC_READ | GENERIC_WRITE;
+  ScopedHandle file2(CreateFile(name.value().c_str(), access, sharing, NULL,
+                                OPEN_EXISTING, 0, NULL));
+  EXPECT_FALSE(file2.IsValid());
+
+  sharing |= FILE_SHARE_DELETE;
+  file2.Set(CreateFile(name.value().c_str(), access, sharing, NULL,
+                       OPEN_EXISTING, 0, NULL));
+  EXPECT_TRUE(file2.IsValid());
+#endif
+
+  EXPECT_TRUE(file_util::Delete(name, false));
+
+  // We should be able to use the file.
+  const int kSize = 200;
+  char buffer1[kSize];
+  char buffer2[kSize];
+  memset(buffer1, 't', kSize);
+  memset(buffer2, 0, kSize);
+  EXPECT_TRUE(file->Write(buffer1, kSize, 0));
+  EXPECT_TRUE(file->Read(buffer2, kSize, 0));
+  EXPECT_EQ(0, memcmp(buffer1, buffer2, kSize));
+
+  EXPECT_TRUE(disk_cache::DeleteCacheFile(name));
 }
