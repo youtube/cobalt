@@ -20,6 +20,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_network_session.h"
+#include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_settings_storage.h"

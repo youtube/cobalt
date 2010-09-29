@@ -74,7 +74,7 @@ class ClientSocketHandle {
            const scoped_refptr<SocketParams>& socket_params,
            RequestPriority priority,
            CompletionCallback* callback,
-           const scoped_refptr<PoolType>& pool,
+           PoolType* pool,
            const BoundNetLog& net_log);
 
   // An initialized handle can be reset, which causes it to return to the
@@ -162,7 +162,7 @@ class ClientSocketHandle {
   void ResetErrorState();
 
   bool is_initialized_;
-  scoped_refptr<ClientSocketPool> pool_;
+  ClientSocketPool* pool_;
   scoped_ptr<ClientSocket> socket_;
   std::string group_name_;
   bool is_reused_;
@@ -187,7 +187,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
                              const scoped_refptr<SocketParams>& socket_params,
                              RequestPriority priority,
                              CompletionCallback* callback,
-                             const scoped_refptr<PoolType>& pool,
+                             PoolType* pool,
                              const BoundNetLog& net_log) {
   requesting_source_ = net_log.source();
 

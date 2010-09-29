@@ -702,8 +702,8 @@ class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
   TestCompletionCallback callback_;
 };
 
-class ClientSocketPoolTest : public testing::Test {
- protected:
+class ClientSocketPoolTest {
+ public:
   enum KeepAlive {
     KEEP_ALIVE,
 
@@ -714,15 +714,15 @@ class ClientSocketPoolTest : public testing::Test {
   static const int kIndexOutOfBounds;
   static const int kRequestNotFound;
 
-  virtual void SetUp();
-  virtual void TearDown();
+  ClientSocketPoolTest();
+  ~ClientSocketPoolTest();
 
   template <typename PoolType, typename SocketParams>
-  int StartRequestUsingPool(const scoped_refptr<PoolType>& socket_pool,
+  int StartRequestUsingPool(PoolType* socket_pool,
                             const std::string& group_name,
                             RequestPriority priority,
                             const scoped_refptr<SocketParams>& socket_params) {
-    DCHECK(socket_pool.get());
+    DCHECK(socket_pool);
     TestSocketRequest* request = new TestSocketRequest(&request_order_,
                                                        &completion_count_);
     requests_.push_back(request);
@@ -738,7 +738,7 @@ class ClientSocketPoolTest : public testing::Test {
   // and returns order in which that request completed, in range 1..n,
   // or kIndexOutOfBounds if |index| is out of bounds, or kRequestNotFound
   // if that request did not complete (for example was canceled).
-  int GetOrderOfRequest(size_t index);
+  int GetOrderOfRequest(size_t index) const;
 
   // Resets first initialized socket handle from |requests_|. If found such
   // a handle, returns true.
@@ -747,6 +747,12 @@ class ClientSocketPoolTest : public testing::Test {
   // Releases connections until there is nothing to release.
   void ReleaseAllConnections(KeepAlive keep_alive);
 
+  TestSocketRequest* request(int i) { return requests_[i]; }
+  size_t requests_size() const { return requests_.size(); }
+  ScopedVector<TestSocketRequest>* requests() { return &requests_; }
+  size_t completion_count() const { return completion_count_; }
+
+ private:
   ScopedVector<TestSocketRequest> requests_;
   std::vector<TestSocketRequest*> request_order_;
   size_t completion_count_;
@@ -776,8 +782,10 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
   MockTCPClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
-      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+      ClientSocketPoolHistograms* histograms,
       ClientSocketFactory* socket_factory);
+
+  virtual ~MockTCPClientSocketPool();
 
   int release_count() const { return release_count_; }
   int cancel_count() const { return cancel_count_; }
@@ -794,9 +802,6 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
                              ClientSocketHandle* handle);
   virtual void ReleaseSocket(const std::string& group_name,
                              ClientSocket* socket, int id);
-
- protected:
-  virtual ~MockTCPClientSocketPool();
 
  private:
   ClientSocketFactory* client_socket_factory_;
@@ -847,8 +852,10 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
   MockSOCKSClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
-      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
-      const scoped_refptr<TCPClientSocketPool>& tcp_pool);
+      ClientSocketPoolHistograms* histograms,
+      TCPClientSocketPool* tcp_pool);
+
+  virtual ~MockSOCKSClientSocketPool();
 
   // SOCKSClientSocketPool methods.
   virtual int RequestSocket(const std::string& group_name,
@@ -863,11 +870,8 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
   virtual void ReleaseSocket(const std::string& group_name,
                              ClientSocket* socket, int id);
 
- protected:
-  virtual ~MockSOCKSClientSocketPool();
-
  private:
-  const scoped_refptr<TCPClientSocketPool> tcp_pool_;
+  TCPClientSocketPool* const tcp_pool_;
 
   DISALLOW_COPY_AND_ASSIGN(MockSOCKSClientSocketPool);
 };
@@ -909,8 +913,11 @@ class MockSSLClientSocketPool : public SSLClientSocketPool {
   MockSSLClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
-      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
-      ClientSocketFactory* socket_factory);
+      ClientSocketPoolHistograms* histograms,
+      ClientSocketFactory* socket_factory,
+      TCPClientSocketPool* tcp_pool);
+
+  virtual ~MockSSLClientSocketPool();
 
   int release_count() const { return release_count_; }
   int cancel_count() const { return cancel_count_; }
@@ -927,9 +934,6 @@ class MockSSLClientSocketPool : public SSLClientSocketPool {
                              ClientSocketHandle* handle);
   virtual void ReleaseSocket(const std::string& group_name,
                              ClientSocket* socket, int id);
-
- protected:
-  virtual ~MockSSLClientSocketPool();
 
  private:
   ClientSocketFactory* client_socket_factory_;

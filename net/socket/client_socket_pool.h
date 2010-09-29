@@ -29,7 +29,7 @@ class ClientSocketPoolHistograms;
 // A ClientSocketPool is used to restrict the number of sockets open at a time.
 // It also maintains a list of idle persistent sockets.
 //
-class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
+class ClientSocketPool {
  public:
   // Requests a connected socket for a group_name.
   //
@@ -89,7 +89,7 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // This flushes all state from the ClientSocketPool.  This means that all
   // idle and connecting sockets are discarded.  Active sockets being
   // held by ClientSocketPool clients will be discarded when released back to
-  // the pool.
+  // the pool.  Does not flush any pools wrapped by |this|.
   virtual void Flush() = 0;
 
   // Called to close any idle connections held by the connection manager.
@@ -118,7 +118,7 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
 
   // The set of histograms specific to this pool.  We can't use the standard
   // UMA_HISTOGRAM_* macros because they are callsite static.
-  virtual scoped_refptr<ClientSocketPoolHistograms> histograms() const = 0;
+  virtual ClientSocketPoolHistograms* histograms() const = 0;
 
   static int unused_idle_socket_timeout();
   static void set_unused_idle_socket_timeout(int timeout);
@@ -131,8 +131,6 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   virtual base::TimeDelta ConnectionTimeout() const = 0;
 
  private:
-  friend class base::RefCounted<ClientSocketPool>;
-
   DISALLOW_COPY_AND_ASSIGN(ClientSocketPool);
 };
 

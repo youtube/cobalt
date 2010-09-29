@@ -72,30 +72,48 @@ class HttpNetworkSessionPeer {
       const scoped_refptr<HttpNetworkSession>& session)
       : session_(session) {}
 
-  void SetTCPSocketPool(const scoped_refptr<TCPClientSocketPool>& pool) {
-    session_->tcp_socket_pool_ = pool;
+  void SetTCPSocketPool(TCPClientSocketPool* pool) {
+    session_->socket_pool_manager_.tcp_socket_pool_.reset(pool);
   }
 
   void SetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy,
-      const scoped_refptr<SOCKSClientSocketPool>& pool) {
-    session_->socks_socket_pools_[socks_proxy] = pool;
+      SOCKSClientSocketPool* pool) {
+    ClientSocketPoolManager* socket_pool_manager =
+        &session_->socket_pool_manager_;
+
+    // Call through the public interface to force initialization of the
+    // wrapped socket pools.
+    delete socket_pool_manager->GetSocketPoolForSOCKSProxy(socks_proxy);
+    socket_pool_manager->socks_socket_pools_[socks_proxy] = pool;
   }
 
   void SetSocketPoolForHTTPProxy(
       const HostPortPair& http_proxy,
-      const scoped_refptr<HttpProxyClientSocketPool>& pool) {
-    session_->http_proxy_socket_pools_[http_proxy] = pool;
+      HttpProxyClientSocketPool* pool) {
+    ClientSocketPoolManager* socket_pool_manager =
+        &session_->socket_pool_manager_;
+
+    // Call through the public interface to force initialization of the
+    // wrapped socket pools.
+    delete socket_pool_manager->GetSocketPoolForHTTPProxy(http_proxy);
+    socket_pool_manager->http_proxy_socket_pools_[http_proxy] = pool;
   }
 
-  void SetSSLSocketPool(const scoped_refptr<SSLClientSocketPool>& pool) {
-    session_->ssl_socket_pool_ = pool;
+  void SetSSLSocketPool(SSLClientSocketPool* pool) {
+    session_->socket_pool_manager_.ssl_socket_pool_.reset(pool);
   }
 
   void SetSocketPoolForSSLWithProxy(
       const HostPortPair& proxy_host,
-      const scoped_refptr<SSLClientSocketPool>& pool) {
-    session_->ssl_socket_pools_for_proxies_[proxy_host] = pool;
+      SSLClientSocketPool* pool) {
+    ClientSocketPoolManager* socket_pool_manager =
+        &session_->socket_pool_manager_;
+
+    // Call through the public interface to force initialization of the
+    // wrapped socket pools.
+    delete socket_pool_manager->GetSocketPoolForSSLWithProxy(proxy_host);
+    socket_pool_manager->ssl_socket_pools_for_proxies_[proxy_host] = pool;
   }
 
  private:
@@ -4837,11 +4855,11 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
         SetupSessionForGroupNameTests(tests[i].proxy_server));
 
     HttpNetworkSessionPeer peer(session);
-    scoped_refptr<CaptureGroupNameTCPSocketPool> tcp_conn_pool(
-        new CaptureGroupNameTCPSocketPool(session.get()));
+    CaptureGroupNameTCPSocketPool* tcp_conn_pool =
+        new CaptureGroupNameTCPSocketPool(session);
     peer.SetTCPSocketPool(tcp_conn_pool);
-    scoped_refptr<CaptureGroupNameSSLSocketPool> ssl_conn_pool(
-        new CaptureGroupNameSSLSocketPool(session.get()));
+    CaptureGroupNameSSLSocketPool* ssl_conn_pool =
+        new CaptureGroupNameSSLSocketPool(session.get());
     peer.SetSSLSocketPool(ssl_conn_pool);
 
     EXPECT_EQ(ERR_IO_PENDING,
@@ -4891,11 +4909,11 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
     HttpNetworkSessionPeer peer(session);
 
     HostPortPair proxy_host("http_proxy", 80);
-    scoped_refptr<CaptureGroupNameHttpProxySocketPool> http_proxy_pool(
-        new CaptureGroupNameHttpProxySocketPool(session.get()));
+    CaptureGroupNameHttpProxySocketPool* http_proxy_pool =
+        new CaptureGroupNameHttpProxySocketPool(session);
     peer.SetSocketPoolForHTTPProxy(proxy_host, http_proxy_pool);
-    scoped_refptr<CaptureGroupNameSSLSocketPool> ssl_conn_pool(
-        new CaptureGroupNameSSLSocketPool(session.get()));
+    CaptureGroupNameSSLSocketPool* ssl_conn_pool =
+        new CaptureGroupNameSSLSocketPool(session);
     peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
 
     EXPECT_EQ(ERR_IO_PENDING,
@@ -4956,11 +4974,11 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
     HttpNetworkSessionPeer peer(session);
 
     HostPortPair proxy_host("socks_proxy", 1080);
-    scoped_refptr<CaptureGroupNameSOCKSSocketPool> socks_conn_pool(
-        new CaptureGroupNameSOCKSSocketPool(session.get()));
+    CaptureGroupNameSOCKSSocketPool* socks_conn_pool =
+        new CaptureGroupNameSOCKSSocketPool(session);
     peer.SetSocketPoolForSOCKSProxy(proxy_host, socks_conn_pool);
-    scoped_refptr<CaptureGroupNameSSLSocketPool> ssl_conn_pool(
-        new CaptureGroupNameSSLSocketPool(session.get()));
+    CaptureGroupNameSSLSocketPool* ssl_conn_pool =
+        new CaptureGroupNameSSLSocketPool(session);
     peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
 
     scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));

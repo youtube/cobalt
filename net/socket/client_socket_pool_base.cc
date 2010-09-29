@@ -123,7 +123,9 @@ ClientSocketPoolBaseHelper::Request::Request(
     CompletionCallback* callback,
     RequestPriority priority,
     const BoundNetLog& net_log)
-    : handle_(handle), callback_(callback), priority_(priority),
+    : handle_(handle),
+      callback_(callback),
+      priority_(priority),
       net_log_(net_log) {}
 
 ClientSocketPoolBaseHelper::Request::~Request() {}
@@ -143,7 +145,8 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
       used_idle_socket_timeout_(used_idle_socket_timeout),
       connect_job_factory_(connect_job_factory),
       connect_backup_jobs_enabled_(false),
-      pool_generation_number_(0) {
+      pool_generation_number_(0),
+      method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
   DCHECK_LE(0, max_sockets_per_group);
   DCHECK_LE(max_sockets_per_group, max_sockets);
 
@@ -151,13 +154,11 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
 }
 
 ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
-  CancelAllConnectJobs();
-
-  // Clean up any idle sockets.  Assert that we have no remaining active
-  // sockets or pending requests.  They should have all been cleaned up prior
-  // to the manager being destroyed.
-  CloseIdleSockets();
-  CHECK(group_map_.empty());
+  // Clean up any idle sockets and pending connect jobs.  Assert that we have no
+  // remaining active sockets or pending requests.  They should have all been
+  // cleaned up prior to |this| being destroyed.
+  Flush();
+  DCHECK(group_map_.empty());
   DCHECK(pending_callback_map_.empty());
   DCHECK_EQ(0, connecting_socket_count_);
 
@@ -623,12 +624,6 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
 
   BoundNetLog job_log = job->net_log();
 
-  // ConnectJobs may hold references to pools which may hold references back to
-  // this pool, so RemoveConnectJob() may eventually lead to something calling
-  // Release() on |this| which deletes it in the middle of this function.  Hold
-  // a self-reference to prevent deletion of |this|.
-  const scoped_refptr<ClientSocketPoolBaseHelper> self(this);
-
   if (result == OK) {
     DCHECK(socket.get());
     RemoveConnectJob(job, group);
@@ -854,8 +849,7 @@ void ClientSocketPoolBaseHelper::InvokeUserCallbackLater(
   pending_callback_map_[handle] = CallbackResultPair(callback, rv);
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(
-          this,
+      method_factory_.NewRunnableMethod(
           &ClientSocketPoolBaseHelper::InvokeUserCallback,
           handle));
 }
