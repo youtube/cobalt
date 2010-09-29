@@ -38,7 +38,7 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
   // Choose two prime numbers for read and write sizes.
   const uint32 kWriteSize = 283;
   const uint32 kReadSize = 293;
-  scoped_array<char> read_data(new char[kReadSize]);
+  scoped_array<uint8> read_data(new uint8[kReadSize]);
 
   // Create a PushSource.
   PushSource push_source;
@@ -54,7 +54,8 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
   // Read everything from the push source.
   for (uint32 i = 0; i < kDataSize; i += kReadSize) {
     uint32 size = std::min(kDataSize - i , kReadSize);
-    EXPECT_EQ(size, push_source.OnMoreData(NULL, read_data.get(), size, 0));
+    EXPECT_EQ(size, push_source.OnMoreData(NULL, read_data.get(), size,
+                                           AudioBuffersState()));
     EXPECT_EQ(0, memcmp(data.get() + i, read_data.get(), size));
   }
   EXPECT_EQ(0u, push_source.UnProcessedBytes());

@@ -13,8 +13,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using testing::_;
+using testing::AllOf;
+using testing::AtLeast;
 using testing::DoAll;
 using testing::Eq;
+using testing::Field;
 using testing::InSequence;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
@@ -64,8 +67,9 @@ class MockAlsaWrapper : public AlsaWrapper {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, void* dest,
-                                  uint32 max_size, uint32 pending_bytes));
+  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream,
+                                  uint8* dest, uint32 max_size,
+                                  AudioBuffersState buffers_state));
   MOCK_METHOD1(OnClose, void(AudioOutputStream* stream));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
@@ -438,8 +442,14 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
 
   // Expect the pre-roll.
   MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(kFakeHandle))
+      .Times(2)
+      .WillRepeatedly(Return(SND_PCM_STATE_RUNNING));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(kFakeHandle, _))
+      .Times(2)
+      .WillRepeatedly(DoAll(SetArgumentPointee<1>(0), Return(0)));
   EXPECT_CALL(mock_callback,
-              OnMoreData(test_stream_.get(), _, kTestPacketSize, 0))
+              OnMoreData(test_stream_.get(), _, kTestPacketSize, _))
       .Times(2)
       .WillOnce(Return(kTestPacketSize))
       .WillOnce(Return(0));
@@ -448,12 +458,14 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
 
   // Expect scheduling.
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
-      .Times(3)
+      .Times(AtLeast(5))
       .WillOnce(Return(kTestFramesPerPacket))  // Buffer is empty.
-      .WillOnce(Return(kTestFramesPerPacket))  // Buffer is empty.
-      .WillOnce(DoAll(InvokeWithoutArgs(&message_loop_,
-                                        &MessageLoop::QuitNow),
-                      Return(0)));  // Buffer is full.
+      .WillOnce(Return(kTestFramesPerPacket))
+      .WillOnce(Return(kTestFramesPerPacket))
+      .WillOnce(Return(kTestFramesPerPacket))
+      .WillRepeatedly(DoAll(InvokeWithoutArgs(&message_loop_,
+                                              &MessageLoop::QuitNow),
+                             Return(0)));  // Buffer is full.
 
   test_stream_->Start(&mock_callback);
   message_loop_.RunAllPending();
@@ -542,10 +554,17 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
   InitBuffer();
   test_stream_->buffer_->Clear();
 
-  // Return a partially filled packet.
   MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(_))
+      .WillOnce(Return(SND_PCM_STATE_RUNNING));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(_, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(1), Return(0)));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))
+      .WillRepeatedly(Return(0));  // Buffer is full.
+
+  // Return a partially filled packet.
   EXPECT_CALL(mock_callback,
-              OnMoreData(test_stream_.get(), _, _, 0))
+              OnMoreData(test_stream_.get(), _, _, _))
       .WillOnce(Return(10));
 
   bool source_exhausted;
@@ -563,8 +582,14 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Negative) {
 
   // Simulate where the underrun has occurred right after checking the delay.
   MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(_))
+      .WillOnce(Return(SND_PCM_STATE_RUNNING));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(_, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(-1), Return(0)));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))
+      .WillRepeatedly(Return(0));  // Buffer is full.
   EXPECT_CALL(mock_callback,
-              OnMoreData(test_stream_.get(), _, _, 0))
+              OnMoreData(test_stream_.get(), _, _, _))
       .WillOnce(Return(10));
 
   bool source_exhausted;
@@ -582,8 +607,14 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Underrun) {
 
   // If ALSA has underrun then we should assume a delay of zero.
   MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(_))
+     .WillOnce(Return(SND_PCM_STATE_XRUN));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))
+      .WillRepeatedly(Return(0));  // Buffer is full.
   EXPECT_CALL(mock_callback,
-              OnMoreData(test_stream_.get(), _, _, 0))
+              OnMoreData(test_stream_.get(), _, _, AllOf(
+                  Field(&AudioBuffersState::pending_bytes, 0),
+                  Field(&AudioBuffersState::hardware_delay_bytes, 0))))
       .WillOnce(Return(10));
 
   bool source_exhausted;

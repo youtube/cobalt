@@ -9,6 +9,7 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
+#include "media/audio/audio_buffers_state.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/simple_sources.h"
@@ -76,8 +77,7 @@ class AudioOutputController
     // |pending_bytes| is the number of bytes still on the controller.
     // |timestamp| is then time when |pending_bytes| is recorded.
     virtual void OnMoreData(AudioOutputController* controller,
-                            base::Time timestamp,
-                            uint32 pending_bytes) = 0;
+                            AudioBuffersState buffers_state) = 0;
   };
 
   // A synchronous reader interface used by AudioOutputController for
@@ -156,8 +156,8 @@ class AudioOutputController
 
   ///////////////////////////////////////////////////////////////////////////
   // AudioSourceCallback methods.
-  virtual uint32 OnMoreData(AudioOutputStream* stream, void* dest,
-                            uint32 max_size, uint32 pending_bytes);
+  virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
+                            uint32 max_size, AudioBuffersState buffers_state);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
@@ -189,15 +189,14 @@ class AudioOutputController
   // is not required for reading on the audio controller thread.
   State state_;
 
-  uint32 hardware_pending_bytes_;
-  base::Time last_callback_time_;
+  AudioBuffersState buffers_state_;
 
-  // The |lock_| must be acquired whenever we access |push_source_|.
+  // The |lock_| must be acquired whenever we access |buffer_|.
   Lock lock_;
 
-  // PushSource role is to buffer and it's only used in regular latency mode.
-  PushSource push_source_;
-  uint32 buffer_capacity_;
+  media::SeekableBuffer buffer_;
+
+  bool pending_request_;
 
   // SyncReader is used only in low latency mode for synchronous reading.
   SyncReader* sync_reader_;

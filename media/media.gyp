@@ -20,6 +20,8 @@
       ],
       'msvs_guid': '6AE76406-B03B-11DD-94B1-80B556D89593',
       'sources': [
+        'audio/audio_buffers_state.cc',
+        'audio/audio_buffers_state.h',
         'audio/audio_io.h',
         'audio/audio_input_controller.cc',
         'audio/audio_input_controller.h',

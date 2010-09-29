@@ -6,6 +6,7 @@
 #define MEDIA_AUDIO_AUDIO_IO_H_
 
 #include "base/basictypes.h"
+#include "media/audio/audio_buffers_state.h"
 
 // Low-level audio output support. To make sound there are 3 objects involved:
 // - AudioSource : produces audio samples on a pull model. Implements
@@ -55,8 +56,9 @@ class AudioOutputStream {
     // |dest| is platform and format specific.
     // |pending_bytes| is the number of bytes will be played before the
     // requested data is played.
-    virtual uint32 OnMoreData(AudioOutputStream* stream, void* dest,
-                              uint32 max_size, uint32 pending_bytes) = 0;
+    virtual uint32 OnMoreData(
+        AudioOutputStream* stream, uint8* dest, uint32 max_size,
+        AudioBuffersState buffers_state) = 0;
 
     // The stream is done with this callback. After this call the audio source
     // can go away or be destroyed.
