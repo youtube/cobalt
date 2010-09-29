@@ -310,6 +310,9 @@
     # whether to compile in the sources for the GPU plugin / process.
     'enable_gpu%': 1,
 
+    # Use OpenSSL instead of NSS. Currently in developement.
+    'use_openssl%': 0,
+
     'conditions': [
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
