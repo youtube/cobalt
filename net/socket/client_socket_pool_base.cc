@@ -427,8 +427,24 @@ DictionaryValue* ClientSocketPoolBaseHelper::GetInfoAsValue(
     }
 
     group_dict->SetInteger("active_socket_count", group->active_socket_count());
-    group_dict->SetInteger("idle_socket_count", group->idle_sockets().size());
-    group_dict->SetInteger("connect_job_count", group->jobs().size());
+
+    ListValue* idle_socket_list = new ListValue();
+    std::deque<IdleSocket>::const_iterator idle_socket;
+    for (idle_socket = group->idle_sockets().begin();
+         idle_socket != group->idle_sockets().end();
+         idle_socket++) {
+      int source_id = idle_socket->socket->NetLog().source().id;
+      idle_socket_list->Append(Value::CreateIntegerValue(source_id));
+    }
+    group_dict->Set("idle_sockets", idle_socket_list);
+
+    ListValue* connect_jobs_list = new ListValue();
+    std::set<const ConnectJob*>::const_iterator job = group->jobs().begin();
+    for (job = group->jobs().begin(); job != group->jobs().end(); job++) {
+      int source_id = (*job)->net_log().source().id;
+      connect_jobs_list->Append(Value::CreateIntegerValue(source_id));
+    }
+    group_dict->Set("connect_jobs", connect_jobs_list);
 
     group_dict->SetBoolean("is_stalled",
                            group->IsStalled(max_sockets_per_group_));
