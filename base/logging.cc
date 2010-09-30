@@ -409,6 +409,20 @@ void SetLogMessageHandler(LogMessageHandlerFunction handler) {
   log_message_handler = handler;
 }
 
+// MSVC doesn't like complex extern templates and DLLs.
+#if !defined(COMPILER_MSVC)
+// Explicit instantiations for commonly used comparisons.
+template std::string* MakeCheckOpString<int, int>(
+    const int&, const int&, const char* names);
+template std::string* MakeCheckOpString<unsigned long, unsigned long>(
+    const unsigned long&, const unsigned long&, const char* names);
+template std::string* MakeCheckOpString<unsigned long, unsigned int>(
+    const unsigned long&, const unsigned int&, const char* names);
+template std::string* MakeCheckOpString<unsigned int, unsigned long>(
+    const unsigned int&, const unsigned long&, const char* names);
+template std::string* MakeCheckOpString<std::string, std::string>(
+    const std::string&, const std::string&, const char* name);
+#endif
 
 // Displays a message box to the user with the error message in it.
 // Used for fatal messages, where we close the app simultaneously.
