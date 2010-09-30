@@ -561,9 +561,8 @@ void LogMessage::Init(const char* file, int line) {
 }
 
 LogMessage::~LogMessage() {
-  // The macros in logging.h should already avoid creating LogMessages
-  // when this holds, but it's possible that users create LogMessages
-  // directly (e.g., using LOG_STREAM() directly).
+  // TODO(brettw) modify the macros so that nothing is executed when the log
+  // level is too high.
   if (severity_ < min_log_level)
     return;
 
