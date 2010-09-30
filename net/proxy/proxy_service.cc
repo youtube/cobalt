@@ -877,6 +877,8 @@ int SyncProxyServiceHelper::ReconsiderProxyAfterError(
   return result_;
 }
 
+SyncProxyServiceHelper::~SyncProxyServiceHelper() {}
+
 void SyncProxyServiceHelper::StartAsyncResolve(const GURL& url,
                                                const BoundNetLog& net_log) {
   result_ = proxy_service_->ResolveProxy(

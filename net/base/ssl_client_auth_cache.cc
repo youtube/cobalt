@@ -6,6 +6,10 @@
 
 namespace net {
 
+SSLClientAuthCache::SSLClientAuthCache() {}
+
+SSLClientAuthCache::~SSLClientAuthCache() {}
+
 X509Certificate* SSLClientAuthCache::Lookup(const std::string& server) {
   AuthCacheMap::iterator iter = cache_.find(server);
   return (iter == cache_.end()) ? NULL : iter->second;

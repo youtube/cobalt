@@ -12,6 +12,20 @@ namespace net {
 // static
 const size_t FtpAuthCache::kMaxEntries = 10;
 
+FtpAuthCache::Entry::Entry(const GURL& origin,
+                           const string16& username,
+                           const string16& password)
+    : origin(origin),
+      username(username),
+      password(password) {
+}
+
+FtpAuthCache::Entry::~Entry() {}
+
+FtpAuthCache::FtpAuthCache() {}
+
+FtpAuthCache::~FtpAuthCache() {}
+
 FtpAuthCache::Entry* FtpAuthCache::Lookup(const GURL& origin) {
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
     if (it->origin == origin)

@@ -28,6 +28,9 @@ class HttpAuthCache {
  public:
   class Entry;
 
+  HttpAuthCache();
+  ~HttpAuthCache();
+
   // Find the realm entry on server |origin| for realm |realm| and
   // scheme |scheme|.
   //   |origin| - the {scheme, host, port} of the server.
@@ -139,6 +142,8 @@ class HttpAuthCache::Entry {
   }
 
   void UpdateStaleChallenge(const std::string& auth_challenge);
+
+  ~Entry();
 
  private:
   friend class HttpAuthCache;
