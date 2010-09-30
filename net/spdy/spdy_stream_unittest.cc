@@ -13,7 +13,7 @@ namespace net {
 // TODO(ukai): factor out common part with spdy_http_stream_unittest.cc
 class SpdySessionPoolPeer {
  public:
-  explicit SpdySessionPoolPeer(const scoped_refptr<SpdySessionPool>& pool)
+  explicit SpdySessionPoolPeer(SpdySessionPool* pool)
       : pool_(pool) {}
 
   void RemoveSpdySession(const scoped_refptr<SpdySession>& session) {
@@ -21,7 +21,7 @@ class SpdySessionPoolPeer {
   }
 
  private:
-  const scoped_refptr<SpdySessionPool> pool_;
+  SpdySessionPool* const pool_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPoolPeer);
 };

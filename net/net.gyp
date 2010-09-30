@@ -425,6 +425,7 @@
         'http/http_network_layer.h',
         'http/http_network_session.cc',
         'http/http_network_session.h',
+        'http/http_network_session_peer.h',
         'http/http_network_transaction.cc',
         'http/http_network_transaction.h',
         'http/http_request_headers.cc',
