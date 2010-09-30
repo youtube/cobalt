@@ -593,8 +593,10 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
   }
 
   Addr address(entry_.Data()->data_addr[index]);
-  if (truncate && offset + buf_len == 0) {
-    DCHECK(!address.is_initialized());
+  if (offset + buf_len == 0) {
+    if (truncate) {
+      DCHECK(!address.is_initialized());
+    }
     return 0;
   }
 
@@ -1010,6 +1012,9 @@ bool EntryImpl::PrepareTarget(int index, int offset, int buf_len,
   if (truncate)
     return HandleTruncation(index, offset, buf_len);
 
+  if (!offset && !buf_len)
+    return true;
+
   Addr address(entry_.Data()->data_addr[index]);
   if (address.is_initialized()) {
     if (address.is_block_file() && !MoveToLocalBuffer(index))
@@ -1169,7 +1174,7 @@ bool EntryImpl::Flush(int index, int min_len) {
   DCHECK(!address.is_initialized() || address.is_separate_file());
 
   int size = std::max(entry_.Data()->data_size[index], min_len);
-  if (!address.is_initialized() && !CreateDataBlock(index, size))
+  if (size && !address.is_initialized() && !CreateDataBlock(index, size))
     return false;
 
   if (!entry_.Data()->data_size[index]) {
