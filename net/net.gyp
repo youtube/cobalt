@@ -1203,6 +1203,11 @@
     #         ],
     #       },
     #       'sources': [
+    #         'tools/dump_cache/url_to_filename_encoder.cc',
+    #         'tools/dump_cache/url_to_filename_encoder.h',
+    #         'tools/dump_cache/url_utilities.h',
+    #         'tools/dump_cache/url_utilities.cc',
+
     #         'tools/flip_server/balsa_enums.h',
     #         'tools/flip_server/balsa_frame.cc',
     #         'tools/flip_server/balsa_frame.h',
