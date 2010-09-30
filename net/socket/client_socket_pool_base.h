@@ -95,6 +95,8 @@ class ConnectJob {
   // additional error state to the ClientSocketHandle (post late-binding).
   virtual void GetAdditionalErrorState(ClientSocketHandle* handle) {}
 
+  const BoundNetLog& net_log() const { return net_log_; }
+
  protected:
   void set_socket(ClientSocket* socket);
   ClientSocket* socket() { return socket_.get(); }
