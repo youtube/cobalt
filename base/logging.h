@@ -395,14 +395,21 @@ std::string* MakeCheckOpString(const t1& v1, const t2& v2, const char* names) {
   return msg;
 }
 
-extern std::string* MakeCheckOpStringIntInt(int v1, int v2, const char* names);
-
-template<int, int>
-std::string* MakeCheckOpString(const int& v1,
-                               const int& v2,
-                               const char* names) {
-  return MakeCheckOpStringIntInt(v1, v2, names);
-}
+// MSVC doesn't like complex extern templates and DLLs.
+#if !defined(COMPILER_MSVC)
+// Commonly used instantiations of MakeCheckOpString<>. Explicitly instantiated
+// in logging.cc.
+extern template std::string* MakeCheckOpString<int, int>(
+    const int&, const int&, const char* names);
+extern template std::string* MakeCheckOpString<unsigned long, unsigned long>(
+    const unsigned long&, const unsigned long&, const char* names);
+extern template std::string* MakeCheckOpString<unsigned long, unsigned int>(
+    const unsigned long&, const unsigned int&, const char* names);
+extern template std::string* MakeCheckOpString<unsigned int, unsigned long>(
+    const unsigned int&, const unsigned long&, const char* names);
+extern template std::string* MakeCheckOpString<std::string, std::string>(
+    const std::string&, const std::string&, const char* name);
+#endif
 
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use CHECK_EQ et al below.
