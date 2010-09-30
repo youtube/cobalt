@@ -29,6 +29,7 @@
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_network_session_peer.h"
 #include "net/http/http_stream.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_transaction_unittest.h"
@@ -66,62 +67,6 @@ const string16 kWrongPassword(ASCIIToUTF16("wrongpassword"));
 
 namespace net {
 
-class HttpNetworkSessionPeer {
- public:
-  explicit HttpNetworkSessionPeer(
-      const scoped_refptr<HttpNetworkSession>& session)
-      : session_(session) {}
-
-  void SetTCPSocketPool(TCPClientSocketPool* pool) {
-    session_->socket_pool_manager_.tcp_socket_pool_.reset(pool);
-  }
-
-  void SetSocketPoolForSOCKSProxy(
-      const HostPortPair& socks_proxy,
-      SOCKSClientSocketPool* pool) {
-    ClientSocketPoolManager* socket_pool_manager =
-        &session_->socket_pool_manager_;
-
-    // Call through the public interface to force initialization of the
-    // wrapped socket pools.
-    delete socket_pool_manager->GetSocketPoolForSOCKSProxy(socks_proxy);
-    socket_pool_manager->socks_socket_pools_[socks_proxy] = pool;
-  }
-
-  void SetSocketPoolForHTTPProxy(
-      const HostPortPair& http_proxy,
-      HttpProxyClientSocketPool* pool) {
-    ClientSocketPoolManager* socket_pool_manager =
-        &session_->socket_pool_manager_;
-
-    // Call through the public interface to force initialization of the
-    // wrapped socket pools.
-    delete socket_pool_manager->GetSocketPoolForHTTPProxy(http_proxy);
-    socket_pool_manager->http_proxy_socket_pools_[http_proxy] = pool;
-  }
-
-  void SetSSLSocketPool(SSLClientSocketPool* pool) {
-    session_->socket_pool_manager_.ssl_socket_pool_.reset(pool);
-  }
-
-  void SetSocketPoolForSSLWithProxy(
-      const HostPortPair& proxy_host,
-      SSLClientSocketPool* pool) {
-    ClientSocketPoolManager* socket_pool_manager =
-        &session_->socket_pool_manager_;
-
-    // Call through the public interface to force initialization of the
-    // wrapped socket pools.
-    delete socket_pool_manager->GetSocketPoolForSSLWithProxy(proxy_host);
-    socket_pool_manager->ssl_socket_pools_for_proxies_[proxy_host] = pool;
-  }
-
- private:
-  const scoped_refptr<HttpNetworkSession> session_;
-
-  DISALLOW_COPY_AND_ASSIGN(HttpNetworkSessionPeer);
-};
-
 // Helper to manage the lifetimes of the dependencies for a
 // HttpNetworkTransaction.
 struct SessionDependencies {
@@ -132,7 +77,6 @@ struct SessionDependencies {
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
             HttpAuthHandlerFactory::CreateDefault(host_resolver)),
-        spdy_session_pool(new SpdySessionPool(NULL)),
         net_log(NULL) {}
 
   // Custom proxy service dependency.
@@ -142,7 +86,6 @@ struct SessionDependencies {
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
             HttpAuthHandlerFactory::CreateDefault(host_resolver)),
-        spdy_session_pool(new SpdySessionPool(NULL)),
         net_log(NULL) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
@@ -150,7 +93,6 @@ struct SessionDependencies {
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
-  scoped_refptr<SpdySessionPool> spdy_session_pool;
   NetLog* net_log;
 };
 
@@ -165,7 +107,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
-                                session_deps->spdy_session_pool,
+                                new SpdySessionPool(NULL),
                                 session_deps->http_auth_handler_factory.get(),
                                 NULL,
                                 session_deps->net_log);

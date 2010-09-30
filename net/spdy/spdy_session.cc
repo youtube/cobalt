@@ -246,7 +246,6 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       frames_received_(0),
       sent_settings_(false),
       received_settings_(false),
-      in_session_pool_(true),
       initial_send_window_size_(spdy::kInitialWindowSize),
       initial_recv_window_size_(spdy::kInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
@@ -873,9 +872,9 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
 }
 
 void SpdySession::RemoveFromPool() {
-  if (in_session_pool_) {
+  if (spdy_session_pool_) {
     spdy_session_pool_->Remove(this);
-    in_session_pool_ = false;
+    spdy_session_pool_ = NULL;
   }
 }
 
