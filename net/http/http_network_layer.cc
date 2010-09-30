@@ -94,7 +94,7 @@ HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
     : socket_factory_(ClientSocketFactory::GetDefaultFactory()),
       ssl_config_service_(NULL),
       session_(session),
-      spdy_session_pool_(NULL),
+      spdy_session_pool_(session->spdy_session_pool()),
       http_auth_handler_factory_(NULL),
       network_delegate_(NULL),
       net_log_(NULL),
@@ -127,17 +127,10 @@ void HttpNetworkLayer::Suspend(bool suspend) {
 HttpNetworkSession* HttpNetworkLayer::GetSession() {
   if (!session_) {
     DCHECK(proxy_service_);
-    if (!spdy_session_pool_.get())
-      spdy_session_pool_.reset(new SpdySessionPool(ssl_config_service_));
-    session_ = new HttpNetworkSession(
-        host_resolver_,
-        proxy_service_,
-        socket_factory_,
-        ssl_config_service_,
-        spdy_session_pool_.release(),
-        http_auth_handler_factory_,
-        network_delegate_,
-        net_log_);
+    SpdySessionPool* spdy_pool = new SpdySessionPool(ssl_config_service_);
+    session_ = new HttpNetworkSession(host_resolver_, proxy_service_,
+        socket_factory_, ssl_config_service_, spdy_pool,
+        http_auth_handler_factory_, network_delegate_, net_log_);
     // These were just temps for lazy-initializing HttpNetworkSession.
     host_resolver_ = NULL;
     proxy_service_ = NULL;

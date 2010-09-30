@@ -105,7 +105,9 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   HostResolver* host_resolver() { return host_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
-  SpdySessionPool* spdy_session_pool() { return spdy_session_pool_.get(); }
+  const scoped_refptr<SpdySessionPool>& spdy_session_pool() {
+    return spdy_session_pool_;
+  }
   HttpAuthHandlerFactory* http_auth_handler_factory() {
     return http_auth_handler_factory_;
   }
@@ -141,9 +143,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   ClientSocketPoolManager socket_pool_manager_;
-  // TODO(willchan): Move this out to IOThread so it can be shared across
-  // URLRequestContexts.
-  scoped_ptr<SpdySessionPool> spdy_session_pool_;
+  scoped_refptr<SpdySessionPool> spdy_session_pool_;
   scoped_refptr<HttpStreamFactory> http_stream_factory_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   HttpNetworkDelegate* const network_delegate_;
