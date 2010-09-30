@@ -9,6 +9,7 @@
 #include "base/lock.h"
 #include "net/base/dns_util.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -19,49 +20,79 @@ class DnsRRResolverTest : public testing::Test {
 
 #if defined(OS_LINUX)
 
-class Rendezvous : public CallbackRunner<Tuple1<int> > {
+class ExplodingCallback : public CallbackRunner<Tuple1<int> > {
  public:
-  Rendezvous()
-      : have_result_(false),
-        cv_(&lock_) {
-  }
-
-  int WaitForResult() {
-    lock_.Acquire();
-    while (!have_result_)
-      cv_.Wait();
-    lock_.Release();
-    return result_;
-  }
-
   virtual void RunWithParams(const Tuple1<int>& params) {
-    lock_.Acquire();
-    result_ = params.a;
-    have_result_ = true;
-    lock_.Release();
-    cv_.Broadcast();
+    FAIL();
   }
-
- private:
-  bool have_result_;
-  int result_;
-  Lock lock_;
-  ConditionVariable cv_;
 };
 
 // This test is disabled because it depends on the external network to pass.
 // However, it may be useful when chaging the code.
-TEST_F(DnsRRResolverTest, DISABLED_NetworkResolve) {
+TEST_F(DnsRRResolverTest, Resolve) {
   RRResponse response;
-  Rendezvous callback;
-  ASSERT_TRUE(DnsRRResolver::Resolve(
-        "agl._pka.imperialviolet.org", kDNS_TXT, 0, &callback, &response));
+  TestCompletionCallback callback;
+  DnsRRResolver resolver;
+  DnsRRResolver::Handle handle;
+
+  handle = resolver.Resolve("www.testing.notatld", kDNS_TESTING, 0,
+                            &callback, &response, 0, BoundNetLog());
+  ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   ASSERT_EQ(OK, callback.WaitForResult());
   ASSERT_EQ(1u, response.rrdatas.size());
-  ASSERT_EQ(1u, response.signatures.size());
-  ASSERT_STREQ("]v=pka1;fpr=2AF0032B48E856CE06157A1AD43C670DE04AAA74;"
-               "uri=http://www.imperialviolet.org/key.asc",
-               response.rrdatas[0].c_str());
+  ASSERT_STREQ("goats!", response.rrdatas[0].c_str());
+  ASSERT_EQ(1u, resolver.requests());
+  ASSERT_EQ(0u, resolver.cache_hits());
+  ASSERT_EQ(0u, resolver.inflight_joins());
+
+  // Test a cache hit.
+  handle = resolver.Resolve("www.testing.notatld", kDNS_TESTING, 0,
+                            &callback, &response, 0, BoundNetLog());
+  ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
+  ASSERT_EQ(OK, callback.WaitForResult());
+  ASSERT_EQ(1u, response.rrdatas.size());
+  ASSERT_STREQ("goats!", response.rrdatas[0].c_str());
+  ASSERT_EQ(2u, resolver.requests());
+  ASSERT_EQ(1u, resolver.cache_hits());
+  ASSERT_EQ(0u, resolver.inflight_joins());
+
+  // Test that a callback is never made. This depends on there before another
+  // test after this one which will pump the MessageLoop.
+  ExplodingCallback callback3;
+  handle = resolver.Resolve("www.testing.notatld", kDNS_TESTING, 0,
+                            &callback3, &response, 0, BoundNetLog());
+  ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
+  resolver.CancelResolve(handle);
+  ASSERT_EQ(3u, resolver.requests());
+  ASSERT_EQ(2u, resolver.cache_hits());
+  ASSERT_EQ(0u, resolver.inflight_joins());
+
+  // Test what happens in the event of a network config change.
+  handle = resolver.Resolve("nx.testing.notatld", kDNS_TESTING, 0,
+                            &callback, &response, 0, BoundNetLog());
+  ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
+  resolver.OnIPAddressChanged();
+  ASSERT_TRUE(callback.have_result());
+  ASSERT_EQ(ERR_ABORTED, callback.WaitForResult());
+  ASSERT_EQ(4u, resolver.requests());
+  ASSERT_EQ(2u, resolver.cache_hits());
+  ASSERT_EQ(0u, resolver.inflight_joins());
+
+  // Test an inflight join. (Note that this depends on the cache being flushed
+  // by OnIPAddressChanged.)
+  TestCompletionCallback callback2;
+  DnsRRResolver::Handle handle2;
+  handle = resolver.Resolve("nx.testing.notatld", kDNS_TESTING, 0,
+                            &callback, &response, 0, BoundNetLog());
+  ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
+  handle2 = resolver.Resolve("nx.testing.notatld", kDNS_TESTING, 0,
+                             &callback2, &response, 0, BoundNetLog());
+  ASSERT_TRUE(handle2 != DnsRRResolver::kInvalidHandle);
+  ASSERT_EQ(ERR_NAME_NOT_RESOLVED, callback.WaitForResult());
+  ASSERT_EQ(ERR_NAME_NOT_RESOLVED, callback2.WaitForResult());
+  ASSERT_EQ(6u, resolver.requests());
+  ASSERT_EQ(2u, resolver.cache_hits());
+  ASSERT_EQ(1u, resolver.inflight_joins());
 }
 
 // This is a DNS packet resulting from querying a recursive resolver for a TXT
