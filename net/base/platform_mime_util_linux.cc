@@ -44,16 +44,17 @@ struct MimeToExt {
 };
 
 const struct MimeToExt mime_type_ext_map[] = {
+  {"application/pdf", "pdf"},
+  {"application/x-tar", "tar"},
+  {"audio/mpeg", "mp3"},
+  {"image/gif", "gif"},
   {"image/jpeg", "jpg"},
   {"image/png", "png"},
-  {"image/gif", "gif"},
   {"text/html", "html"},
   {"video/mp4", "mp4"},
   {"video/mpeg", "mpg"},
-  {"audio/mpeg", "mp3"},
   {"text/plain", "txt"},
-  {"application/pdf", "pdf"},
-  {"application/x-tar", "tar"}
+  {"text/x-sh", "sh"},
 };
 
 bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
