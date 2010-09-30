@@ -460,15 +460,6 @@ DECLARE_CHECK_STROP_IMPL(_stricmp, false)
 #define CHECK_GE(val1, val2) CHECK_OP(GE, >=, val1, val2)
 #define CHECK_GT(val1, val2) CHECK_OP(GT, > , val1, val2)
 
-// Plus some debug-logging macros that get compiled to nothing for production
-//
-// DEBUG_MODE is for uses like
-//   if (DEBUG_MODE) foo.CheckThatFoo();
-// instead of
-//   #ifndef NDEBUG
-//     foo.CheckThatFoo();
-//   #endif
-
 // http://crbug.com/16512 is open for a real fix for this.  For now, Windows
 // uses OFFICIAL_BUILD and other platforms use the branding flag when NDEBUG is
 // defined.
@@ -476,10 +467,40 @@ DECLARE_CHECK_STROP_IMPL(_stricmp, false)
     (!defined(OS_WIN) && defined(NDEBUG) && defined(GOOGLE_CHROME_BUILD))
 // In order to have optimized code for official builds, remove DLOGs and
 // DCHECKs.
-#define OMIT_DLOG_AND_DCHECK 1
+#define ENABLE_DLOG 0
+#define ENABLE_DCHECK 0
+
+#elif defined(NDEBUG)
+// Otherwise, if we're a release build, remove DLOGs but not DCHECKs
+// (since those can still be turned on via a command-line flag).
+#define ENABLE_DLOG 0
+#define ENABLE_DCHECK 1
+
+#else
+// Otherwise, we're a debug build so enable DLOGs and DCHECKs.
+#define ENABLE_DLOG 1
+#define ENABLE_DCHECK 1
 #endif
 
-#ifdef OMIT_DLOG_AND_DCHECK
+// Definitions for DLOG et al.
+
+#if ENABLE_DLOG
+
+#define DLOG(severity) LOG(severity)
+#define DLOG_IF(severity, condition) LOG_IF(severity, condition)
+#define DLOG_ASSERT(condition) LOG_ASSERT(condition)
+
+#if defined(OS_WIN)
+#define DLOG_GETLASTERROR(severity) LOG_GETLASTERROR(severity)
+#define DLOG_GETLASTERROR_MODULE(severity, module) \
+  LOG_GETLASTERROR_MODULE(severity, module)
+#elif defined(OS_POSIX)
+#define DLOG_ERRNO(severity) LOG_ERRNO(severity)
+#endif
+
+#define DPLOG_IF(severity, condition) PLOG_IF(severity, condition)
+
+#else  // ENABLE_DLOG
 
 #define DLOG(severity) \
   true ? (void) 0 : logging::LogMessageVoidify() & LOG(severity)
@@ -504,74 +525,34 @@ DECLARE_CHECK_STROP_IMPL(_stricmp, false)
 #define DPLOG_IF(severity, condition) \
   true ? (void) 0 : logging::LogMessageVoidify() & PLOG(severity)
 
-enum { DEBUG_MODE = 0 };
+#endif  // ENABLE_DLOG
+
+// DEBUG_MODE is for uses like
+//   if (DEBUG_MODE) foo.CheckThatFoo();
+// instead of
+//   #ifndef NDEBUG
+//     foo.CheckThatFoo();
+//   #endif
+//
+// We tie its state to ENABLE_DLOG.
+enum { DEBUG_MODE = ENABLE_DLOG };
+
+#undef ENABLE_DLOG
+
+// Definitions for DCHECK et al.
 
 // This macro can be followed by a sequence of stream parameters in
 // non-debug mode. The DCHECK and friends macros use this so that
 // the expanded expression DCHECK(foo) << "asdf" is still syntactically
 // valid, even though the expression will get optimized away.
-// In order to avoid variable unused warnings for code that only uses a
-// variable in a CHECK, we make sure to use the macro arguments.
-#define NDEBUG_EAT_STREAM_PARAMETERS \
+#define DCHECK_EAT_STREAM_PARAMETERS \
   logging::LogMessage(__FILE__, __LINE__).stream()
 
-#define DCHECK(condition) \
-  while (false && (condition)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DPCHECK(condition) \
-  while (false && (condition)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_EQ(val1, val2) \
-  while (false && (val1) == (val2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_NE(val1, val2) \
-  while (false && (val1) == (val2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_LE(val1, val2) \
-  while (false && (val1) == (val2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_LT(val1, val2) \
-  while (false && (val1) == (val2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_GE(val1, val2) \
-  while (false && (val1) == (val2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_GT(val1, val2) \
-  while (false && (val1) == (val2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_STREQ(str1, str2) \
-  while (false && (str1) == (str2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_STRCASEEQ(str1, str2) \
-  while (false && (str1) == (str2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_STRNE(str1, str2) \
-  while (false && (str1) == (str2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#define DCHECK_STRCASENE(str1, str2) \
-  while (false && (str1) == (str2)) NDEBUG_EAT_STREAM_PARAMETERS
-
-#else  // OMIT_DLOG_AND_DCHECK
+#if ENABLE_DCHECK
 
 #ifndef NDEBUG
-// On a regular debug build, we want to have DCHECKS and DLOGS enabled.
+// On a regular debug build, we want to have DCHECKS enabled.
 
-#define DLOG(severity) LOG(severity)
-#define DLOG_IF(severity, condition) LOG_IF(severity, condition)
-#define DLOG_ASSERT(condition) LOG_ASSERT(condition)
-
-#if defined(OS_WIN)
-#define DLOG_GETLASTERROR(severity) LOG_GETLASTERROR(severity)
-#define DLOG_GETLASTERROR_MODULE(severity, module) \
-  LOG_GETLASTERROR_MODULE(severity, module)
-#elif defined(OS_POSIX)
-#define DLOG_ERRNO(severity) LOG_ERRNO(severity)
-#endif
-
-#define DPLOG_IF(severity, condition) PLOG_IF(severity, condition)
-
-// debug-only checking.  not executed in NDEBUG mode.
-enum { DEBUG_MODE = 1 };
 #define DCHECK(condition) CHECK(condition)
 #define DPCHECK(condition) PCHECK(condition)
 
@@ -608,37 +589,6 @@ enum { DEBUG_MODE = 1 };
 #else  // NDEBUG
 // On a regular release build we want to be able to enable DCHECKS through the
 // command line.
-#define DLOG(severity) \
-  true ? (void) 0 : logging::LogMessageVoidify() & LOG(severity)
-
-#define DLOG_IF(severity, condition) \
-  true ? (void) 0 : logging::LogMessageVoidify() & LOG(severity)
-
-#define DLOG_ASSERT(condition) \
-  true ? (void) 0 : LOG_ASSERT(condition)
-
-#if defined(OS_WIN)
-#define DLOG_GETLASTERROR(severity) \
-  true ? (void) 0 : logging::LogMessageVoidify() & LOG_GETLASTERROR(severity)
-#define DLOG_GETLASTERROR_MODULE(severity, module) \
-  true ? (void) 0 : logging::LogMessageVoidify() & \
-      LOG_GETLASTERROR_MODULE(severity, module)
-#elif defined(OS_POSIX)
-#define DLOG_ERRNO(severity) \
-  true ? (void) 0 : logging::LogMessageVoidify() & LOG_ERRNO(severity)
-#endif
-
-#define DPLOG_IF(severity, condition) \
-  true ? (void) 0 : logging::LogMessageVoidify() & PLOG(severity)
-
-enum { DEBUG_MODE = 0 };
-
-// This macro can be followed by a sequence of stream parameters in
-// non-debug mode. The DCHECK and friends macros use this so that
-// the expanded expression DCHECK(foo) << "asdf" is still syntactically
-// valid, even though the expression will get optimized away.
-#define NDEBUG_EAT_STREAM_PARAMETERS \
-  logging::LogMessage(__FILE__, __LINE__).stream()
 
 // Set to true in InitLogging when we want to enable the dchecks in release.
 extern bool g_enable_dcheck;
@@ -660,16 +610,16 @@ extern bool g_enable_dcheck;
                           _result).stream()
 
 #define DCHECK_STREQ(str1, str2) \
-  while (false) NDEBUG_EAT_STREAM_PARAMETERS
+  while (false) DCHECK_EAT_STREAM_PARAMETERS
 
 #define DCHECK_STRCASEEQ(str1, str2) \
-  while (false) NDEBUG_EAT_STREAM_PARAMETERS
+  while (false) DCHECK_EAT_STREAM_PARAMETERS
 
 #define DCHECK_STRNE(str1, str2) \
-  while (false) NDEBUG_EAT_STREAM_PARAMETERS
+  while (false) DCHECK_EAT_STREAM_PARAMETERS
 
 #define DCHECK_STRCASENE(str1, str2) \
-  while (false) NDEBUG_EAT_STREAM_PARAMETERS
+  while (false) DCHECK_EAT_STREAM_PARAMETERS
 
 #endif  // NDEBUG
 
@@ -698,9 +648,51 @@ extern bool g_enable_dcheck;
 #define DCHECK_GE(val1, val2) DCHECK_OP(GE, >=, val1, val2)
 #define DCHECK_GT(val1, val2) DCHECK_OP(GT, > , val1, val2)
 
-#endif  // OMIT_DLOG_AND_DCHECK
-#undef OMIT_DLOG_AND_DCHECK
+#else  // ENABLE_DCHECK
 
+// In order to avoid variable unused warnings for code that only uses a
+// variable in a CHECK, we make sure to use the macro arguments.
+
+#define DCHECK(condition) \
+  while (false && (condition)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DPCHECK(condition) \
+  while (false && (condition)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_EQ(val1, val2) \
+  while (false && (val1) == (val2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_NE(val1, val2) \
+  while (false && (val1) == (val2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_LE(val1, val2) \
+  while (false && (val1) == (val2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_LT(val1, val2) \
+  while (false && (val1) == (val2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_GE(val1, val2) \
+  while (false && (val1) == (val2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_GT(val1, val2) \
+  while (false && (val1) == (val2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_STREQ(str1, str2) \
+  while (false && (str1) == (str2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_STRCASEEQ(str1, str2) \
+  while (false && (str1) == (str2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_STRNE(str1, str2) \
+  while (false && (str1) == (str2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#define DCHECK_STRCASENE(str1, str2) \
+  while (false && (str1) == (str2)) DCHECK_EAT_STREAM_PARAMETERS
+
+#endif  // ENABLE_DCHECK
+#undef ENABLE_DCHECK
+
+#undef DCHECK_EAT_STREAM_PARAMETERS
 
 // Helper functions for CHECK_OP macro.
 // The (int, int) specialization works around the issue that the compiler
