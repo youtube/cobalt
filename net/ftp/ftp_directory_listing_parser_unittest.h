@@ -40,13 +40,23 @@ class FtpDirectoryListingParserTest : public testing::Test {
 
     base::Time::Exploded time_exploded;
     entry.last_modified.LocalExplode(&time_exploded);
+
+    // Only test members displayed on the directory listing.
     EXPECT_EQ(test_case.year, time_exploded.year);
     EXPECT_EQ(test_case.month, time_exploded.month);
     EXPECT_EQ(test_case.day_of_month, time_exploded.day_of_month);
     EXPECT_EQ(test_case.hour, time_exploded.hour);
     EXPECT_EQ(test_case.minute, time_exploded.minute);
-    EXPECT_EQ(0, time_exploded.second);
-    EXPECT_EQ(0, time_exploded.millisecond);
+  }
+
+  base::Time GetMockCurrentTime() {
+    base::Time::Exploded mock_current_time_exploded = { 0 };
+    mock_current_time_exploded.year = 1994;
+    mock_current_time_exploded.month = 11;
+    mock_current_time_exploded.day_of_month = 15;
+    mock_current_time_exploded.hour = 12;
+    mock_current_time_exploded.minute = 45;
+    return base::Time::FromLocalExploded(mock_current_time_exploded);
   }
 
  private:
