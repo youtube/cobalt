@@ -141,11 +141,12 @@ int HttpAuthHandlerRegistryFactory::CreateAuthHandler(
     int digest_nonce_count,
     const BoundNetLog& net_log,
     scoped_ptr<HttpAuthHandler>* handler) {
-  if (!challenge->valid()) {
+  std::string scheme = challenge->scheme();
+  if (scheme.empty()) {
     handler->reset();
     return ERR_INVALID_RESPONSE;
   }
-  std::string lower_scheme = StringToLowerASCII(challenge->scheme());
+  std::string lower_scheme = StringToLowerASCII(scheme);
   FactoryMap::iterator it = factory_map_.find(lower_scheme);
   if (it == factory_map_.end()) {
     handler->reset();

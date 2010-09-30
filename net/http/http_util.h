@@ -6,6 +6,7 @@
 #define NET_HTTP_HTTP_UTIL_H_
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "base/string_tokenizer.h"
@@ -214,10 +215,10 @@ class HttpUtil {
     std::string::const_iterator values_end_;
   };
 
-  // Used to iterate over deliminated values in a HTTP header.  HTTP LWS is
+  // Iterates over delimited values in an HTTP header.  HTTP LWS is
   // automatically trimmed from the resulting values.
   //
-  // When using this class to iterate over response header values, beware that
+  // When using this class to iterate over response header values, be aware that
   // for some headers (e.g., Last-Modified), commas are not used as delimiters.
   // This iterator should be avoided for headers like that which are considered
   // non-coalescing (see IsNonCoalescingHeader).
@@ -250,6 +251,56 @@ class HttpUtil {
     StringTokenizer values_;
     std::string::const_iterator value_begin_;
     std::string::const_iterator value_end_;
+  };
+
+  // Iterates over a delimited sequence of name-value pairs in an HTTP header.
+  // Each pair consists of a token (the name), an equals sign, and either a
+  // token or quoted-string (the value). Arbitrary HTTP LWS is permitted outside
+  // of and between names, values, and delimiters.
+  class NameValuePairsIterator {
+   public:
+    NameValuePairsIterator(std::string::const_iterator begin,
+                           std::string::const_iterator end,
+                           char delimiter);
+
+    // Advances the iterator to the next pair, if any.  Returns true if there
+    // is a next pair.  Use name* and value* methods to access the resultant
+    // value.
+    bool GetNext();
+
+    // Returns false if there was a parse error.
+    bool valid() const { return valid_; }
+
+    // The name of the current name-value pair.
+    std::string::const_iterator name_begin() const { return name_begin_; }
+    std::string::const_iterator name_end() const { return name_end_; }
+    std::string name() const { return std::string(name_begin_, name_end_); }
+
+    // The value of the current name-value pair.
+    std::string::const_iterator value_begin() const { return value_begin_; }
+    std::string::const_iterator value_end() const { return value_end_; }
+    std::string value() const { return std::string(value_begin_, value_end_); }
+
+    // If value() has quotemarks, unquote it.
+    std::string unquoted_value() const;
+
+    // True if the name-value pair's value has quote marks.
+    bool value_is_quoted() const { return value_is_quoted_; }
+
+   private:
+    HttpUtil::ValuesIterator props_;
+    bool valid_;
+
+    std::string::const_iterator begin_;
+    std::string::const_iterator end_;
+
+    std::string::const_iterator name_begin_;
+    std::string::const_iterator name_end_;
+
+    std::string::const_iterator value_begin_;
+    std::string::const_iterator value_end_;
+
+    bool value_is_quoted_;
   };
 };
 
