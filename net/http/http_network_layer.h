@@ -97,7 +97,7 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   scoped_refptr<SSLConfigService> ssl_config_service_;
 
   scoped_refptr<HttpNetworkSession> session_;
-  scoped_ptr<SpdySessionPool> spdy_session_pool_;
+  scoped_refptr<SpdySessionPool> spdy_session_pool_;
 
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   HttpNetworkDelegate* network_delegate_;
