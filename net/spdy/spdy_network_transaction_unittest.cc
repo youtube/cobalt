@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "net/base/net_log_unittest.h"
+#include "net/http/http_network_session_peer.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
@@ -363,7 +364,7 @@ class SpdyNetworkTransactionTest
     HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
     BoundNetLog log;
     const scoped_refptr<HttpNetworkSession>& session = helper.session();
-    scoped_refptr<SpdySessionPool> pool(session->spdy_session_pool());
+    SpdySessionPool* pool(session->spdy_session_pool());
     EXPECT_TRUE(pool->HasSession(pair));
     scoped_refptr<SpdySession> spdy_session(
         pool->Get(pair, session->mutable_spdy_settings(), log));
@@ -4243,8 +4244,7 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   helper.SetSession(SpdySessionDependencies::SpdyCreateSession(
       helper.session_deps().get()));
 
-  scoped_refptr<SpdySessionPool> spdy_session_pool =
-      helper.session_deps()->spdy_session_pool;
+  SpdySessionPool* spdy_session_pool = helper.session()->spdy_session_pool();
   helper.RunPreTestSetup();
 
   // Construct and send a simple GET request.
@@ -4367,15 +4367,15 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   request_proxy.method = "GET";
   request_proxy.url = GURL("http://www.google.com/foo.dat");
   request_proxy.load_flags = 0;
-  scoped_ptr<SpdySessionDependencies> ssd_proxy(
-      new SpdySessionDependencies(
-          ProxyService::CreateFixedFromPacResult("PROXY myproxy:70")));
+  scoped_ptr<SpdySessionDependencies> ssd_proxy(new SpdySessionDependencies());
   // Ensure that this transaction uses the same SpdySessionPool.
-  ssd_proxy->spdy_session_pool = spdy_session_pool;
   scoped_refptr<HttpNetworkSession> session_proxy =
       SpdySessionDependencies::SpdyCreateSession(ssd_proxy.get());
   NormalSpdyTransactionHelper helper_proxy(request_proxy,
                                            BoundNetLog(), GetParam());
+  HttpNetworkSessionPeer session_peer(session_proxy);
+  session_peer.SetProxyService(
+          ProxyService::CreateFixedFromPacResult("PROXY myproxy:70"));
   helper_proxy.session_deps().swap(ssd_proxy);
   helper_proxy.SetSession(session_proxy);
   helper_proxy.RunPreTestSetup();

@@ -176,7 +176,7 @@ void SpdySessionPool::CloseCurrentSessions() {
     CHECK(list);
     const scoped_refptr<SpdySession>& session = list->front();
     CHECK(session);
-    session->set_in_session_pool(false);
+    session->set_spdy_session_pool(NULL);
   }
 
   while (!old_map.empty()) {

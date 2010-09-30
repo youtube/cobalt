@@ -82,8 +82,7 @@ TEST_F(SpdySessionTest, GoAway) {
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
-  scoped_refptr<SpdySessionPool> spdy_session_pool(
-      http_session->spdy_session_pool());
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
       spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),

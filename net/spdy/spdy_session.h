@@ -51,6 +51,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and
   // the proxy configuration settings that it's using.
+  // |spdy_session_pool| is the SpdySessionPool that owns us.  Its lifetime must
+  // strictly be greater than |this|.
   // |session| is the HttpNetworkSession.  |net_log| is the NetLog that we log
   // network events to.
   SpdySession(const HostPortProxyPair& host_port_proxy_pair,
@@ -159,7 +161,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
     return frames_received_ > 0;
   }
 
-  void set_in_session_pool(bool val) { in_session_pool_ = val; }
+  void set_spdy_session_pool(SpdySessionPool* pool) {
+    spdy_session_pool_ = NULL;
+  }
 
   // Access to the number of active and pending streams.  These are primarily
   // available for testing and diagnostics.
@@ -294,7 +298,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // The domain this session is connected to.
   const HostPortProxyPair host_port_proxy_pair_;
 
-  scoped_refptr<SpdySessionPool> spdy_session_pool_;
+  // |spdy_session_pool_| owns us, therefore its lifetime must exceed ours.  We
+  // set this to NULL after we are removed from the pool.
+  SpdySessionPool* spdy_session_pool_;
   SpdySettingsStorage* spdy_settings_;
 
   // The socket handle for this session.
@@ -360,8 +366,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
   bool sent_settings_;      // Did this session send settings when it started.
   bool received_settings_;  // Did this session receive at least one settings
                             // frame.
-
-  bool in_session_pool_;  // True if the session is currently in the pool.
 
   // Initial send window size for the session; can be changed by an
   // arriving SETTINGS frame; newly created streams use this value for the
