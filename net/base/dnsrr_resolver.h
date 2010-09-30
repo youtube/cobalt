@@ -6,17 +6,27 @@
 #define NET_BASE_DNSRR_RESOLVER_H_
 #pragma once
 
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/non_thread_safe.h"
+#include "base/ref_counted.h"
+#include "base/time.h"
 #include "build/build_config.h"
 #include "net/base/completion_callback.h"
+#include "net/base/network_change_notifier.h"
+
+class MessageLoop;
 
 namespace net {
 
 // RRResponse contains the result of a successful request for a resource record.
 struct RRResponse {
+  RRResponse();
+
   // name contains the canonical name of the resulting domain. If the queried
   // name was a CNAME then this can differ.
   std::string name;
@@ -27,11 +37,26 @@ struct RRResponse {
   std::vector<std::string> rrdatas;
   // sigs contains the RRSIG records returned.
   std::vector<std::string> signatures;
+  // fetch_time is the time at which the response was received from the
+  // network.
+  base::Time fetch_time;
+  // negative is true if this is a negative cache entry, i.e. is a placeholder
+  // to remember that a given RR doesn't exist.
+  bool negative;
+
+  // HasExpired returns true if |fetch_time| + |ttl| is less than
+  // |current_time|.
+  bool HasExpired(base::Time current_time) const;
 
   // For testing only
   bool ParseFromResponse(const uint8* data, unsigned len,
                          uint16 rrtype_requested);
 };
+
+class BoundNetLog;
+class RRResolverWorker;
+class RRResolverJob;
+class RRResolverHandle;
 
 // DnsRRResolver resolves arbitary DNS resource record types. It should not be
 // confused with HostResolver and should not be used to resolve A/AAAA records.
@@ -41,23 +66,70 @@ struct RRResponse {
 //
 // DnsRRResolver should only be used when the data is specifically DNS data and
 // the name is a fully qualified DNS domain.
-class DnsRRResolver {
+//
+// A DnsRRResolver must be used from the MessageLoop which created it.
+class DnsRRResolver : public NonThreadSafe,
+                      public NetworkChangeNotifier::Observer {
  public:
+  enum {
+    kInvalidHandle = 0,
+  };
+
   enum {
     // Try harder to get a DNSSEC signed response. This doesn't mean that the
     // RRResponse will always have the dnssec bit set.
     FLAG_WANT_DNSSEC = 1,
   };
 
+  typedef intptr_t Handle;
+
+  DnsRRResolver();
+  ~DnsRRResolver();
+
+  uint64 requests() const { return requests_; }
+  uint64 cache_hits() const { return cache_hits_; }
+  uint64 inflight_joins() const { return inflight_joins_; }
+
   // Resolve starts the resolution process. When complete, |callback| is called
   // with a result. If the result is |OK| then |response| is filled with the
-  // result of the resolution. Note the |callback| is called on the current
+  // result of the resolution. Note that |callback| is called via the current
   // MessageLoop.
-  static bool Resolve(const std::string& name, uint16 rrtype,
-                      uint16 flags, CompletionCallback* callback,
-                      RRResponse* response);
+  //
+  // This returns a handle value which can be passed to |CancelResolve|. If
+  // this function returns kInvalidHandle then the resolution failed
+  // immediately because it was improperly formed.
+  Handle Resolve(const std::string& name, uint16 rrtype,
+                 uint16 flags, CompletionCallback* callback,
+                 RRResponse* response, int priority,
+                 const BoundNetLog& netlog);
+
+  // CancelResolve cancels an inflight lookup. The callback for this lookup
+  // must not have already been called.
+  void CancelResolve(Handle handle);
+
+  // Implementation of NetworkChangeNotifier::Observer
+  virtual void OnIPAddressChanged();
 
  private:
+  friend class RRResolverWorker;
+
+  void HandleResult(const std::string& name, uint16 rrtype, int result,
+                    const RRResponse& response);
+
+  // cache maps from a request to a cached response. The cached answer may have
+  // expired and the size of |cache| must be <= kMaxCacheEntries.
+  //                < name      , rrtype>
+  std::map<std::pair<std::string, uint16>, RRResponse> cache_;
+  // inflight maps from a request to an active resolution which is taking
+  // place.
+  std::map<std::pair<std::string, uint16>, RRResolverJob*> inflight_;
+
+  uint64 requests_;
+  uint64 cache_hits_;
+  uint64 inflight_joins_;
+
+  bool in_destructor_;
+
   DISALLOW_COPY_AND_ASSIGN(DnsRRResolver);
 };
 

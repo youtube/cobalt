@@ -8,8 +8,11 @@
 #include <resolv.h>
 #endif
 
+#include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/scoped_ptr.h"
+#include "base/singleton.h"
+#include "base/stl_util-inl.h"
 #include "base/string_piece.h"
 #include "base/task.h"
 #include "base/worker_pool.h"
@@ -17,80 +20,151 @@
 #include "net/base/dns_util.h"
 #include "net/base/net_errors.h"
 
+DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverWorker);
+DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverHandle);
+
+// Life of a query:
+//
+// DnsRRResolver RRResolverJob RRResolverWorker       ...         Handle
+//      |                       (origin loop)    (worker loop)
+//      |
+//   Resolve()
+//      |---->----<creates>
+//      |
+//      |---->-------------------<creates>
+//      |
+//      |---->---------------------------------------------------<creates>
+//      |
+//      |---->--------------------Start
+//      |                           |
+//      |                        PostTask
+//      |
+//      |                                     <starts resolving>
+//      |---->-----AddHandle                          |
+//                                                    |
+//                                                    |
+//                                                    |
+//                                                  Finish
+//                                                    |
+//                                                 PostTask
+//
+//                                   |
+//                                DoReply
+//      |----<-----------------------|
+//  HandleResult
+//      |
+//      |---->-----HandleResult
+//                      |
+//                      |------>-----------------------------------Post
+//
+//
+//
+// A cache hit:
+//
+// DnsRRResolver CacheHitCallbackTask  Handle
+//      |
+//   Resolve()
+//      |---->----<creates>
+//      |
+//      |---->------------------------<creates>
+//      |
+//      |
+//   PostTask
+//
+// (MessageLoop cycles)
+//
+//                   Run
+//                    |
+//                    |----->-----------Post
+
+
+
 namespace net {
 
 static const uint16 kClassIN = 1;
+// kMaxCacheEntries is the number of RRResponse object that we'll cache.
+static const unsigned kMaxCacheEntries = 32;
+// kNegativeTTLSecs is the number of seconds for which we'll cache a negative
+// cache entry.
+static const unsigned kNegativeTTLSecs = 60;
 
-namespace {
+RRResponse::RRResponse()
+    : ttl(0), dnssec(false), negative(false) {
+}
 
-class CompletionCallbackTask : public Task,
-                               public MessageLoop::DestructionObserver {
+class RRResolverHandle {
  public:
-  explicit CompletionCallbackTask(CompletionCallback* callback,
-                                  MessageLoop* ml)
+  RRResolverHandle(CompletionCallback* callback, RRResponse* response)
       : callback_(callback),
-        rv_(OK),
-        posted_(false),
-        message_loop_(ml) {
-    ml->AddDestructionObserver(this);
-  }
-
-  void set_rv(int rv) {
-    rv_ = rv;
-  }
-
-  void Post() {
-    AutoLock locked(lock_);
-    DCHECK(!posted_);
-
-    if (!message_loop_) {
-      // MessageLoop got deleted, nothing to do.
-      delete this;
-      return;
-    }
-    posted_ = true;
-    message_loop_->PostTask(FROM_HERE, this);
-  }
-
-  // Task interface
-  void Run() {
-    message_loop_->RemoveDestructionObserver(this);
-    callback_->Run(rv_);
-    // We will be deleted by the message loop.
-  }
-
-  // DestructionObserver interface
-  virtual void WillDestroyCurrentMessageLoop() {
-    AutoLock locked(lock_);
-    message_loop_ = NULL;
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CompletionCallbackTask);
-
-  CompletionCallback* callback_;
-  int rv_;
-  bool posted_;
-
-  Lock lock_;  // covers |message_loop_|
-  MessageLoop* message_loop_;
-};
-
-#if defined(OS_POSIX)
-class ResolveTask : public Task {
- public:
-  ResolveTask(const std::string& name, uint16 rrtype,
-              uint16 flags, CompletionCallback* callback,
-              RRResponse* response, MessageLoop* ml)
-      : name_(name),
-        rrtype_(rrtype),
-        flags_(flags),
-        subtask_(new CompletionCallbackTask(callback, ml)),
         response_(response) {
   }
 
+  // Cancel ensures that the result callback will never be made.
+  void Cancel() {
+    callback_ = NULL;
+  }
+
+  // Post copies the contents of |response| to the caller's RRResponse and
+  // calls the callback.
+  void Post(int rv, const RRResponse* response) {
+    if (!callback_)
+      return;  // we were canceled.
+
+    if (response_ && response)
+      *response_ = *response;
+    callback_->Run(rv);
+  }
+
+ private:
+  friend class RRResolverWorker;
+  friend class DnsRRResolver;
+
+  CompletionCallback* callback_;
+  RRResponse* const response_;
+};
+
+
+// RRResolverWorker runs on a worker thread and takes care of the blocking
+// process of performing the DNS resolution.
+class RRResolverWorker {
+ public:
+  RRResolverWorker(const std::string& name, uint16 rrtype, uint16 flags,
+                   DnsRRResolver* dnsrr_resolver)
+      : name_(name),
+        rrtype_(rrtype),
+        flags_(flags),
+        origin_loop_(MessageLoop::current()),
+        dnsrr_resolver_(dnsrr_resolver),
+        canceled_(false) {
+  }
+
+  bool Start() {
+    DCHECK_EQ(MessageLoop::current(), origin_loop_);
+
+    return WorkerPool::PostTask(
+               FROM_HERE, NewRunnableMethod(this, &RRResolverWorker::Run),
+               true /* task is slow */);
+  }
+
+  // Cancel is called from the origin loop when the DnsRRResolver is getting
+  // deleted.
+  void Cancel() {
+    DCHECK_EQ(MessageLoop::current(), origin_loop_);
+    AutoLock locked(lock_);
+    canceled_ = true;
+  }
+
+ private:
+
+#if defined(OS_POSIX)
+
   virtual void Run() {
     // Runs on a worker thread.
+
+    if (HandleTestCases()) {
+      Finish();
+      return;
+    }
 
     bool r = true;
     if ((_res.options & RES_INIT) == 0) {
@@ -111,10 +185,18 @@ class ResolveTask : public Task {
 #endif
       _res.options = saved_options;
     }
-    int error = r ? OK : ERR_NAME_NOT_RESOLVED;
 
-    subtask_->set_rv(error);
-    subtask_.release()->Post();
+    response_.fetch_time = base::Time::Now();
+
+    if (r) {
+      result_ = OK;
+    } else {
+      result_ = ERR_NAME_NOT_RESOLVED;
+      response_.negative = true;
+      response_.ttl = kNegativeTTLSecs;
+    }
+
+    Finish();
   }
 
   bool Do() {
@@ -142,38 +224,97 @@ class ResolveTask : public Task {
     if (len == -1)
       return false;
 
-    return response_->ParseFromResponse(answer, len, rrtype_);
+    return response_.ParseFromResponse(answer, len, rrtype_);
   }
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(ResolveTask);
+#else  // OS_WIN
+
+  virtual void Run() {
+    if (HandleTestCases()) {
+      Finish();
+      return;
+    }
+
+    response_.fetch_time = base::Time::Now();
+    response_.negative = true;
+    result_ = ERR_NAME_NOT_RESOLVED;
+    Finish();
+  }
+
+#endif // OS_WIN
+
+  // HandleTestCases stuffs in magic test values in the event that the query is
+  // from a unittest.
+  bool HandleTestCases() {
+    if (rrtype_ == kDNS_TESTING) {
+      response_.fetch_time = base::Time::Now();
+
+      if (name_ == "www.testing.notatld") {
+        response_.ttl = 86400;
+        response_.negative = false;
+        response_.rrdatas.push_back("goats!");
+        result_ = OK;
+        return true;
+      } else if (name_ == "nx.testing.notatld") {
+        response_.negative = true;
+        result_ = ERR_NAME_NOT_RESOLVED;
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // DoReply runs on the origin thread.
+  void DoReply() {
+    DCHECK_EQ(MessageLoop::current(), origin_loop_);
+    // No locking here because, since the worker thread part of the lookup is
+    // complete, only one thread can access this object now.
+    if (!canceled_)
+      dnsrr_resolver_->HandleResult(name_, rrtype_, result_, response_);
+    delete this;
+  }
+
+  void Finish() {
+    // Runs on the worker thread.
+    // We assume that the origin loop outlives the DnsRRResolver. If the
+    // DnsRRResolver is deleted, it will call Cancel on us. If it does so
+    // before the Acquire, we'll delete ourselves and return. If it's trying to
+    // do so concurrently, then it'll block on the lock and we'll call PostTask
+    // while the DnsRRResolver (and therefore the MessageLoop) is still alive.
+    // If it does so after this function, we assume that the MessageLoop will
+    // process pending tasks. In which case we'll notice the |canceled_| flag
+    // in DoReply.
+
+    bool canceled;
+    {
+      AutoLock locked(lock_);
+      canceled = canceled_;
+      if (!canceled) {
+        origin_loop_->PostTask(
+            FROM_HERE, NewRunnableMethod(this, &RRResolverWorker::DoReply));
+      }
+    }
+
+    if (canceled)
+      delete this;
+  }
 
   const std::string name_;
   const uint16 rrtype_;
   const uint16 flags_;
-  scoped_ptr<CompletionCallbackTask> subtask_;
-  RRResponse* const response_;
-};
-#else  // OS_POSIX
-// On non-Linux platforms we fail everything for now.
-class ResolveTask : public Task {
- public:
-  ResolveTask(const std::string& name, uint16 rrtype,
-              uint16 flags, CompletionCallback* callback,
-              RRResponse* response, MessageLoop* ml)
-      : subtask_(new CompletionCallbackTask(callback, ml)) {
-  }
+  MessageLoop* const origin_loop_;
+  DnsRRResolver* const dnsrr_resolver_;
 
-  virtual void Run() {
-    subtask_->set_rv(ERR_NAME_NOT_RESOLVED);
-    subtask_->Post();
-  }
+  Lock lock_;
+  bool canceled_;
 
- private:
-  CompletionCallbackTask* const subtask_;
-  DISALLOW_COPY_AND_ASSIGN(ResolveTask);
+  int result_;
+  RRResponse response_;
+
+  DISALLOW_COPY_AND_ASSIGN(RRResolverWorker);
 };
-#endif
+
 
 // A Buffer is used for walking over a DNS packet.
 class Buffer {
@@ -309,7 +450,11 @@ class Buffer {
   const unsigned packet_len_;
 };
 
-}  // anonymous namespace
+bool RRResponse::HasExpired(const base::Time current_time) const {
+  const base::TimeDelta delta(base::TimeDelta::FromSeconds(ttl));
+  const base::Time expiry = fetch_time + delta;
+  return current_time >= expiry;
+}
 
 bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
                                    uint16 rrtype_requested) {
@@ -317,6 +462,7 @@ bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
   name.clear();
   ttl = 0;
   dnssec = false;
+  negative = false;
   rrdatas.clear();
   signatures.clear();
 
@@ -397,21 +543,197 @@ bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
 }
 
 
-// static
-bool DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
-                            uint16 flags, CompletionCallback* callback,
-                            RRResponse* response) {
+// An RRResolverJob is a one-to-one counterpart of an RRResolverWorker. It
+// lives only on the DnsRRResolver's origin message loop.
+class RRResolverJob {
+ public:
+  RRResolverJob(RRResolverWorker* worker)
+      : worker_(worker) {
+  }
+
+  ~RRResolverJob() {
+    Cancel(ERR_NAME_NOT_RESOLVED);
+  }
+
+  void AddHandle(RRResolverHandle* handle) {
+    handles_.push_back(handle);
+  }
+
+  void HandleResult(int result, const RRResponse& response) {
+    worker_ = NULL;
+    PostAll(result, &response);
+  }
+
+  void Cancel(int error) {
+    if (worker_) {
+      worker_->Cancel();
+      worker_ = NULL;
+    }
+
+    PostAll(error, NULL);
+  }
+
+ private:
+  void PostAll(int result, const RRResponse* response) {
+    std::vector<RRResolverHandle*> handles;
+    handles_.swap(handles);
+
+    for (std::vector<RRResolverHandle*>::iterator
+         i = handles.begin(); i != handles.end(); i++) {
+      (*i)->Post(result, response);
+      delete *i;
+    }
+  }
+
+  std::vector<RRResolverHandle*> handles_;
+  RRResolverWorker* worker_;
+};
+
+
+DnsRRResolver::DnsRRResolver()
+    : requests_(0),
+      cache_hits_(0),
+      inflight_joins_(0),
+      in_destructor_(false) {
+}
+
+DnsRRResolver::~DnsRRResolver() {
+  DCHECK(!in_destructor_);
+  in_destructor_ = true;
+  STLDeleteValues(&inflight_);
+}
+
+intptr_t DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
+                                uint16 flags, CompletionCallback* callback,
+                                RRResponse* response,
+                                int priority /* ignored */,
+                                const BoundNetLog& netlog /* ignored */) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!in_destructor_);
+
   if (!callback || !response || name.empty())
-    return false;
+    return kInvalidHandle;
 
   // Don't allow queries of type ANY
   if (rrtype == kDNS_ANY)
-    return false;
+    return kInvalidHandle;
 
-  ResolveTask* task = new ResolveTask(name, rrtype, flags, callback, response,
-                                      MessageLoop::current());
+  requests_++;
 
-  return WorkerPool::PostTask(FROM_HERE, task, true /* task is slow */);
+  const std::pair<std::string, uint16> key(make_pair(name, rrtype));
+  // First check the cache.
+  std::map<std::pair<std::string, uint16>, RRResponse>::iterator i;
+  i = cache_.find(key);
+  if (i != cache_.end()) {
+    if (!i->second.HasExpired(base::Time::Now())) {
+      int error;
+      if (i->second.negative) {
+        error = ERR_NAME_NOT_RESOLVED;
+      } else {
+        error = OK;
+        *response = i->second;
+      }
+      RRResolverHandle* handle = new RRResolverHandle(
+          callback, NULL /* no response pointer because we've already filled */
+                         /* it in */);
+      cache_hits_++;
+      // We need a typed NULL pointer in order to make the templates work out.
+      static const RRResponse* kNoResponse = NULL;
+      MessageLoop::current()->PostTask(
+          FROM_HERE, NewRunnableMethod(handle, &RRResolverHandle::Post, error,
+                                       kNoResponse));
+      return reinterpret_cast<intptr_t>(handle);
+    } else {
+      // entry has expired.
+      cache_.erase(i);
+    }
+  }
+
+  // No cache hit. See if a request is currently in flight.
+  RRResolverJob* job;
+  std::map<std::pair<std::string, uint16>, RRResolverJob*>::const_iterator j;
+  j = inflight_.find(key);
+  if (j != inflight_.end()) {
+    // The request is in flight already. We'll just attach our callback.
+    inflight_joins_++;
+    job = j->second;
+  } else {
+    // Need to make a new request.
+    RRResolverWorker* worker = new RRResolverWorker(name, rrtype, flags, this);
+    job = new RRResolverJob(worker);
+    inflight_.insert(make_pair(key, job));
+    if (!worker->Start()) {
+      delete job;
+      delete worker;
+      return kInvalidHandle;
+    }
+  }
+
+  RRResolverHandle* handle = new RRResolverHandle(callback, response);
+  job->AddHandle(handle);
+  return reinterpret_cast<intptr_t>(handle);
+}
+
+void DnsRRResolver::CancelResolve(intptr_t h) {
+  DCHECK(CalledOnValidThread());
+  RRResolverHandle* handle = reinterpret_cast<RRResolverHandle*>(h);
+  handle->Cancel();
+}
+
+void DnsRRResolver::OnIPAddressChanged() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!in_destructor_);
+
+  std::map<std::pair<std::string, uint16>, RRResolverJob*> inflight;
+  inflight.swap(inflight_);
+  cache_.clear();
+
+  for (std::map<std::pair<std::string, uint16>, RRResolverJob*>::iterator
+       i = inflight.begin(); i != inflight.end(); i++) {
+    i->second->Cancel(ERR_ABORTED);
+    delete i->second;
+  }
+}
+
+// HandleResult is called on the origin message loop.
+void DnsRRResolver::HandleResult(const std::string& name, uint16 rrtype,
+                                 int result, const RRResponse& response) {
+  DCHECK(CalledOnValidThread());
+
+  const std::pair<std::string, uint16> key(std::make_pair(name, rrtype));
+
+  DCHECK_GE(kMaxCacheEntries, 1u);
+  DCHECK_LE(cache_.size(), kMaxCacheEntries);
+  if (cache_.size() == kMaxCacheEntries) {
+    // need to remove an element of the cache.
+    const base::Time current_time(base::Time::Now());
+    for (std::map<std::pair<std::string, uint16>, RRResponse>::iterator
+         i = cache_.begin(); i != cache_.end(); ++i) {
+      if (i->second.HasExpired(current_time)) {
+        cache_.erase(i);
+        break;
+      }
+    }
+  }
+  if (cache_.size() == kMaxCacheEntries) {
+    // if we didn't clear out any expired entries, we just remove the first
+    // element. Crummy but simple.
+    cache_.erase(cache_.begin());
+  }
+
+  cache_.insert(std::make_pair(key, response));
+
+  std::map<std::pair<std::string, uint16>, RRResolverJob*>::iterator j;
+  j = inflight_.find(key);
+  if (j == inflight_.end()) {
+    NOTREACHED();
+    return;
+  }
+  RRResolverJob* job = j->second;
+  inflight_.erase(j);
+
+  job->HandleResult(result, response);
+  delete job;
 }
 
 }  // namespace net

@@ -5,8 +5,6 @@
 #include "net/socket/ssl_client_socket_pool.h"
 
 #include "base/values.h"
-#include "net/base/dnsrr_resolver.h"
-#include "net/base/dns_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_proxy_client_socket.h"
@@ -37,10 +35,7 @@ SSLSocketParams::SSLSocketParams(
       ssl_config_(ssl_config),
       load_flags_(load_flags),
       force_spdy_over_ssl_(force_spdy_over_ssl),
-      want_spdy_over_npn_(want_spdy_over_npn),
-      dnssec_resolution_attempted_(false),
-      dnssec_resolution_complete_(false),
-      dnssec_resolution_callback_(NULL) {
+      want_spdy_over_npn_(want_spdy_over_npn) {
   switch (proxy_) {
     case ProxyServer::SCHEME_DIRECT:
       DCHECK(tcp_params_.get() != NULL);
@@ -66,61 +61,6 @@ SSLSocketParams::SSLSocketParams(
 }
 
 SSLSocketParams::~SSLSocketParams() {}
-
-void SSLSocketParams::StartDNSSECResolution() {
-  dnssec_response_.reset(new RRResponse);
-  // We keep a reference to ourselves while the DNS resolution is underway.
-  // When it completes (in DNSSECResolutionComplete), we balance it out.
-  AddRef();
-
-  dnssec_resolution_attempted_ = true;
-  bool r = DnsRRResolver::Resolve(
-      hostname(), kDNS_TXT, DnsRRResolver::FLAG_WANT_DNSSEC,
-      NewCallback(this, &SSLSocketParams::DNSSECResolutionComplete),
-      dnssec_response_.get());
-  if (!r) {
-    dnssec_response_.reset();
-    dnssec_resolution_attempted_ = false;
-  }
-}
-
-void SSLSocketParams::DNSSECResolutionComplete(int rv) {
-  CompletionCallback* callback = NULL;
-  {
-    DCHECK(dnssec_resolution_attempted_);
-    DCHECK(!dnssec_resolution_complete_);
-
-    if (rv != OK)
-      dnssec_response_.reset();
-
-    dnssec_resolution_complete_ = true;
-    if (dnssec_resolution_callback_)
-      callback = dnssec_resolution_callback_;
-  }
-
-  if (callback)
-    callback->Run(OK);
-
-  Release();
-}
-
-int SSLSocketParams::GetDNSSECRecords(RRResponse** out,
-                                      CompletionCallback* callback) {
-  if (!dnssec_resolution_attempted_) {
-    *out = NULL;
-    return OK;
-  }
-
-  if (dnssec_resolution_complete_) {
-    *out = dnssec_response_.get();
-    return OK;
-  }
-
-  DCHECK(dnssec_resolution_callback_ == NULL);
-
-  dnssec_resolution_callback_ = callback;
-  return ERR_IO_PENDING;
-}
 
 // Timeout for the SSL handshake portion of the connect.
 static const int kSSLHandshakeTimeoutInSeconds = 30;
@@ -245,9 +185,6 @@ int SSLConnectJob::DoLoop(int result) {
 int SSLConnectJob::DoTCPConnect() {
   DCHECK(tcp_pool_);
 
-  if (SSLConfigService::dnssec_enabled())
-    params_->StartDNSSECResolution();
-
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   scoped_refptr<TCPSocketParams> tcp_params = params_->tcp_params();
@@ -332,8 +269,6 @@ int SSLConnectJob::DoSSLConnect() {
   ssl_socket_.reset(client_socket_factory_->CreateSSLClientSocket(
         transport_socket_handle_.release(), params_->hostname(),
         params_->ssl_config()));
-  if (SSLConfigService::dnssec_enabled())
-    ssl_socket_->UseDNSSEC(params_.get());
   return ssl_socket_->Connect(&callback_);
 }
 
