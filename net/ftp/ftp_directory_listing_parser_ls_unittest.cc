@@ -14,10 +14,6 @@ namespace {
 typedef net::FtpDirectoryListingParserTest FtpDirectoryListingParserLsTest;
 
 TEST_F(FtpDirectoryListingParserLsTest, Good) {
-  base::Time mock_current_time;
-  ASSERT_TRUE(base::Time::FromString(L"Tue, 15 Nov 1994 12:45:26 GMT",
-                                     &mock_current_time));
-
   const struct SingleLineTestData good_cases[] = {
     { "-rw-r--r--    1 ftp      ftp           528 Nov 01  2007 README",
       net::FtpDirectoryListingEntry::FILE, "README", 528,
@@ -84,17 +80,14 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
                                     good_cases[i].input));
 
-    net::FtpDirectoryListingParserLs parser(mock_current_time);
+    net::FtpDirectoryListingParserLs parser(GetMockCurrentTime());
     RunSingleLineTestCase(&parser, good_cases[i]);
   }
 }
 
 TEST_F(FtpDirectoryListingParserLsTest, Bad) {
-  base::Time mock_current_time;
-  ASSERT_TRUE(base::Time::FromString(L"Tue, 15 Nov 1994 12:45:26 GMT",
-                                     &mock_current_time));
-
   const char* bad_cases[] = {
+    " foo",
     "garbage",
     "-rw-r--r-- ftp ftp",
     "-rw-r--rgb ftp ftp 528 Nov 01 2007 README",
@@ -121,7 +114,7 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "drwxr-xr-x   folder     0 May 15 18:11",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
-    net::FtpDirectoryListingParserLs parser(mock_current_time);
+    net::FtpDirectoryListingParserLs parser(GetMockCurrentTime());
     EXPECT_FALSE(parser.ConsumeLine(UTF8ToUTF16(bad_cases[i]))) << bad_cases[i];
   }
 }
