@@ -35,8 +35,7 @@ struct RRResponse;
 
 // SSLSocketParams only needs the socket params for the transport socket
 // that will be used (denoted by |proxy|).
-class SSLSocketParams : public base::RefCounted<SSLSocketParams>,
-                        public DNSSECProvider {
+class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
  public:
   SSLSocketParams(const scoped_refptr<TCPSocketParams>& tcp_params,
                   const scoped_refptr<SOCKSSocketParams>& socks_params,
@@ -61,16 +60,10 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams>,
   int load_flags() const { return load_flags_; }
   bool force_spdy_over_ssl() const { return force_spdy_over_ssl_; }
   bool want_spdy_over_npn() const { return want_spdy_over_npn_; }
-  // Start to resolve DNSSEC records for the given hostname.
-  void StartDNSSECResolution();
-
-  // DNSSECProvider implementation.
-  virtual int GetDNSSECRecords(RRResponse** out, CompletionCallback* callback);
 
  private:
   friend class base::RefCounted<SSLSocketParams>;
   ~SSLSocketParams();
-  void DNSSECResolutionComplete(int rv);
 
   const scoped_refptr<TCPSocketParams> tcp_params_;
   const scoped_refptr<HttpProxySocketParams> http_proxy_params_;
@@ -81,13 +74,6 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams>,
   const int load_flags_;
   const bool force_spdy_over_ssl_;
   const bool want_spdy_over_npn_;
-
-  // This is true if we have started a DNSSEC resolution.
-  bool dnssec_resolution_attempted_;
-  // This is true if |dnssec_response_| is valid.
-  bool dnssec_resolution_complete_;
-  scoped_ptr<RRResponse> dnssec_response_;
-  CompletionCallback* dnssec_resolution_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(SSLSocketParams);
 };
