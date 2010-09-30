@@ -615,9 +615,6 @@ int HttpNetworkTransaction::DoInitStream() {
 int HttpNetworkTransaction::DoInitStreamComplete(int result) {
   if (result == OK) {
     next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
-
-    if (is_https_request())
-      stream_->GetSSLInfo(&response_.ssl_info);
   } else {
     if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
       result = HandleCertificateRequest(result);
@@ -854,6 +851,9 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   int rv = HandleAuthChallenge();
   if (rv != OK)
     return rv;
+
+  if (is_https_request())
+    stream_->GetSSLInfo(&response_.ssl_info);
 
   headers_valid_ = true;
   return OK;
