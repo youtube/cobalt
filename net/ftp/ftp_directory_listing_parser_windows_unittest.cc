@@ -14,9 +14,6 @@ namespace {
 typedef net::FtpDirectoryListingParserTest FtpDirectoryListingParserWindowsTest;
 
 TEST_F(FtpDirectoryListingParserWindowsTest, Good) {
-  base::Time::Exploded now_exploded;
-  base::Time::Now().LocalExplode(&now_exploded);
-
   const struct SingleLineTestData good_cases[] = {
     { "11-02-09  05:32PM       <DIR>          NT",
       net::FtpDirectoryListingEntry::DIRECTORY, "NT", -1,
