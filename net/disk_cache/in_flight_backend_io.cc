@@ -181,6 +181,8 @@ void BackendIO::ReadyForSparseIO(EntryImpl* entry) {
   entry_ = entry;
 }
 
+BackendIO::~BackendIO() {}
+
 // Runs on the background thread.
 void BackendIO::ExecuteBackendOperation() {
   switch (operation_) {

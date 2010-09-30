@@ -49,6 +49,26 @@ std::string FlattenProxyBypass(const ProxyBypassRules& bypass_rules) {
 
 }  // namespace
 
+ProxyRulesExpectation::ProxyRulesExpectation(
+    ProxyConfig::ProxyRules::Type type,
+    const char* single_proxy,
+    const char* proxy_for_http,
+    const char* proxy_for_https,
+    const char* proxy_for_ftp,
+    const char* fallback_proxy,
+    const char* flattened_bypass_rules,
+    bool reverse_bypass)
+    : type(type),
+      single_proxy(single_proxy),
+      proxy_for_http(proxy_for_http),
+      proxy_for_https(proxy_for_https),
+      proxy_for_ftp(proxy_for_ftp),
+      fallback_proxy(fallback_proxy),
+      flattened_bypass_rules(flattened_bypass_rules),
+      reverse_bypass(reverse_bypass) {
+}
+
+
 ::testing::AssertionResult ProxyRulesExpectation::Matches(
     const ProxyConfig::ProxyRules& rules) const {
   ::testing::AssertionResult failure_details = ::testing::AssertionFailure();
