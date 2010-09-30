@@ -82,8 +82,7 @@ HttpAuth::AuthorizationResult HttpAuthHandlerMock::HandleAnotherChallenge(
     HttpAuth::ChallengeTokenizer* challenge) {
   if (!is_connection_based())
     return HttpAuth::AUTHORIZATION_RESULT_REJECT;
-  if (!challenge->valid() ||
-      !LowerCaseEqualsASCII(challenge->scheme(), "mock"))
+  if (!LowerCaseEqualsASCII(challenge->scheme(), "mock"))
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
   return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
 }

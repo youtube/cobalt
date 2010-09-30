@@ -668,12 +668,12 @@ void HttpAuthGSSAPI::Delegate() {
 HttpAuth::AuthorizationResult HttpAuthGSSAPI::ParseChallenge(
     HttpAuth::ChallengeTokenizer* tok) {
   // Verify the challenge's auth-scheme.
-  if (!tok->valid() ||
-      !LowerCaseEqualsASCII(tok->scheme(), StringToLowerASCII(scheme_).c_str()))
+  if (!LowerCaseEqualsASCII(tok->scheme(), StringToLowerASCII(scheme_).c_str()))
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
-  tok->set_expect_base64_token(true);
-  if (!tok->GetNext()) {
+  std::string encoded_auth_token = tok->base64_param();
+
+  if (encoded_auth_token.empty()) {
     // If a context has already been established, an empty Negotiate challenge
     // should be treated as a rejection of the current attempt.
     if (scoped_sec_context_.get() != GSS_C_NO_CONTEXT)
@@ -688,7 +688,6 @@ HttpAuth::AuthorizationResult HttpAuthGSSAPI::ParseChallenge(
   }
 
   // Make sure the additional token is base64 encoded.
-  std::string encoded_auth_token = tok->value();
   std::string decoded_auth_token;
   bool base64_rv = base::Base64Decode(encoded_auth_token, &decoded_auth_token);
   if (!base64_rv)

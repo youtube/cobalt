@@ -32,18 +32,19 @@ bool HttpAuthHandlerBasic::Init(HttpAuth::ChallengeTokenizer* challenge) {
 bool HttpAuthHandlerBasic::ParseChallenge(
     HttpAuth::ChallengeTokenizer* challenge) {
   // Verify the challenge's auth-scheme.
-  if (!challenge->valid() ||
-      !LowerCaseEqualsASCII(challenge->scheme(), "basic"))
+  if (!LowerCaseEqualsASCII(challenge->scheme(), "basic"))
     return false;
+
+  HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
 
   // Extract the realm (may be missing).
   std::string realm;
-  while (challenge->GetNext()) {
-    if (LowerCaseEqualsASCII(challenge->name(), "realm"))
-      realm = challenge->unquoted_value();
+  while (parameters.GetNext()) {
+    if (LowerCaseEqualsASCII(parameters.name(), "realm"))
+      realm = parameters.unquoted_value();
   }
 
-  if (!challenge->valid())
+  if (!parameters.valid())
     return false;
 
   realm_ = realm;

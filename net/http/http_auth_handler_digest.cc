@@ -212,15 +212,16 @@ HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
   // to differentiate between stale and rejected responses.
   // Note that the state of the current handler is not mutated - this way if
   // there is a rejection the realm hasn't changed.
-  if (!challenge->valid() ||
-      !LowerCaseEqualsASCII(challenge->scheme(), "digest"))
+  if (!LowerCaseEqualsASCII(challenge->scheme(), "digest"))
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
+  HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
+
   // Try to find the "stale" value.
-  while (challenge->GetNext()) {
-    if (!LowerCaseEqualsASCII(challenge->name(), "stale"))
+  while (parameters.GetNext()) {
+    if (!LowerCaseEqualsASCII(parameters.name(), "stale"))
       continue;
-    if (LowerCaseEqualsASCII(challenge->unquoted_value(), "true"))
+    if (LowerCaseEqualsASCII(parameters.unquoted_value(), "true"))
       return HttpAuth::AUTHORIZATION_RESULT_STALE;
   }
 
@@ -258,24 +259,26 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   realm_ = nonce_ = domain_ = opaque_ = std::string();
 
   // FAIL -- Couldn't match auth-scheme.
-  if (!challenge->valid() ||
-      !LowerCaseEqualsASCII(challenge->scheme(), "digest"))
+  if (!LowerCaseEqualsASCII(challenge->scheme(), "digest"))
     return false;
 
+  HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
+
   // Loop through all the properties.
-  while (challenge->GetNext()) {
-    if (challenge->value().empty()) {
+  while (parameters.GetNext()) {
+    if (parameters.value().empty()) {
       DLOG(INFO) << "Invalid digest property";
       return false;
     }
 
     // FAIL -- couldn't parse a property.
-    if (!ParseChallengeProperty(challenge->name(), challenge->unquoted_value()))
+    if (!ParseChallengeProperty(parameters.name(),
+                                parameters.unquoted_value()))
       return false;
   }
 
   // Check if tokenizer failed.
-  if (!challenge->valid())
+  if (!parameters.valid())
     return false;
 
   // Check that a minimum set of properties were provided.
