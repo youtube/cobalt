@@ -104,7 +104,7 @@ class BackendIO : public BackgroundIO {
     OP_IS_READY
   };
 
-  ~BackendIO() {}
+  ~BackendIO();
 
   void ExecuteBackendOperation();
   void ExecuteEntryOperation();

@@ -124,8 +124,8 @@ class ClientSocketPool {
   static void set_unused_idle_socket_timeout(int timeout);
 
  protected:
-  ClientSocketPool() {}
-  virtual ~ClientSocketPool() {}
+  ClientSocketPool();
+  virtual ~ClientSocketPool();
 
   // Return the connection timeout for this pool.
   virtual base::TimeDelta ConnectionTimeout() const = 0;

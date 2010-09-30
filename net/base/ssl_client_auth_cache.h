@@ -23,8 +23,8 @@ namespace net {
 // code to a template class.
 class SSLClientAuthCache {
  public:
-  SSLClientAuthCache() {}
-  ~SSLClientAuthCache() {}
+  SSLClientAuthCache();
+  ~SSLClientAuthCache();
 
   // Check if we have a client certificate for SSL server at |server|.
   // Returns the client certificate (if found) or NULL (if not found).
