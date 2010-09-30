@@ -4,6 +4,7 @@
 
 #include "net/socket/ssl_client_socket_pool.h"
 
+#include "base/histogram.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"

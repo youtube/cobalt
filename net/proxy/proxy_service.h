@@ -217,7 +217,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
     STATE_READY,
   };
 
-  ~ProxyService();
+  virtual ~ProxyService();
 
   // Resets all the variables associated with the current proxy configuration,
   // and rewinds the current state to |STATE_NONE|. Returns the previous value
@@ -341,7 +341,7 @@ class SyncProxyServiceHelper
  private:
   friend class base::RefCountedThreadSafe<SyncProxyServiceHelper>;
 
-  ~SyncProxyServiceHelper() {}
+  virtual ~SyncProxyServiceHelper();
 
   void StartAsyncResolve(const GURL& url, const BoundNetLog& net_log);
   void StartAsyncReconsider(const GURL& url, const BoundNetLog& net_log);

@@ -28,19 +28,16 @@ class FtpAuthCache {
 
   struct Entry {
     Entry(const GURL& origin, const string16& username,
-          const string16& password)
-        : origin(origin),
-          username(username),
-          password(password) {
-    }
+          const string16& password);
+    ~Entry();
 
     const GURL origin;
     string16 username;
     string16 password;
   };
 
-  FtpAuthCache() {}
-  ~FtpAuthCache() {}
+  FtpAuthCache();
+  ~FtpAuthCache();
 
   // Return Entry corresponding to given |origin| or NULL if not found.
   Entry* Lookup(const GURL& origin);
