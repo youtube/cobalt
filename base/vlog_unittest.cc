@@ -6,6 +6,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -68,11 +69,12 @@ TEST_F(VlogTest, Perf) {
     "/path/to/another-not-matched.mm",
   };
   const int kVlogCount = arraysize(kVlogs);
+  const int kBenchmarkIterations = RunningOnValgrind() ? 30000 : 10000000;
 
   base::TimeDelta null_elapsed;
   {
     VlogInfo null_vlog_info("", "");
-    BENCHMARK(10000000, null_elapsed, {
+    BENCHMARK(kBenchmarkIterations, null_elapsed, {
       EXPECT_NE(-1, null_vlog_info.GetVlogLevel(kVlogs[i % kVlogCount]));
     });
   }
@@ -80,7 +82,7 @@ TEST_F(VlogTest, Perf) {
   {
     VlogInfo small_vlog_info("0", "foo=1,bar=2,baz=3,qux=4,quux=5");
     base::TimeDelta elapsed;
-    BENCHMARK(10000000, elapsed, {
+    BENCHMARK(kBenchmarkIterations, elapsed, {
       EXPECT_NE(-1, small_vlog_info.GetVlogLevel(kVlogs[i % kVlogCount]));
     });
     LOG(INFO) << "slowdown = " << GetSlowdown(null_elapsed, elapsed)
@@ -90,7 +92,7 @@ TEST_F(VlogTest, Perf) {
   {
     VlogInfo pattern_vlog_info("0", "fo*=1,ba?=2,b*?z=3,*ux=4,?uux=5");
     base::TimeDelta elapsed;
-    BENCHMARK(10000000, elapsed, {
+    BENCHMARK(kBenchmarkIterations, elapsed, {
       EXPECT_NE(-1, pattern_vlog_info.GetVlogLevel(kVlogs[i % kVlogCount]));
     });
     LOG(INFO) << "slowdown = " << GetSlowdown(null_elapsed, elapsed)
