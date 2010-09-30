@@ -694,7 +694,8 @@ int HttpStreamRequest::DoCreateStream() {
   CHECK(!stream_.get());
 
   bool direct = true;
-  SpdySessionPool* spdy_pool = session_->spdy_session_pool();
+  const scoped_refptr<SpdySessionPool> spdy_pool =
+      session_->spdy_session_pool();
   scoped_refptr<SpdySession> spdy_session;
 
   const ProxyServer& proxy_server = proxy_info()->proxy_server();
