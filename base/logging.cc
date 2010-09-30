@@ -73,9 +73,6 @@ LoggingDestination logging_destination = LOG_ONLY_TO_FILE;
 LoggingDestination logging_destination = LOG_ONLY_TO_SYSTEM_DEBUG_LOG;
 #endif
 
-const int kMaxFilteredLogLevel = LOG_WARNING;
-std::string* log_filter_prefix;
-
 // For LOG_ERROR and above, always print to stderr.
 const int kAlwaysPrintErrorLevel = LOG_ERROR;
 
@@ -388,16 +385,6 @@ int GetVlogLevelHelper(const char* file, size_t N) {
       VlogInfo::kDefaultVlogLevel;
 }
 
-void SetLogFilterPrefix(const char* filter)  {
-  if (log_filter_prefix) {
-    delete log_filter_prefix;
-    log_filter_prefix = NULL;
-  }
-
-  if (filter)
-    log_filter_prefix = new std::string(filter);
-}
-
 void SetLogItems(bool enable_process_id, bool enable_thread_id,
                  bool enable_timestamp, bool enable_tickcount) {
   log_process_id = enable_process_id;
@@ -579,12 +566,6 @@ LogMessage::~LogMessage() {
   // Give any log message handler first dibs on the message.
   if (log_message_handler && log_message_handler(severity_, str_newline))
     return;
-
-  if (log_filter_prefix && severity_ <= kMaxFilteredLogLevel &&
-      str_newline.compare(message_start_, log_filter_prefix->size(),
-                          log_filter_prefix->data()) != 0) {
-    return;
-  }
 
   if (logging_destination == LOG_ONLY_TO_SYSTEM_DEBUG_LOG ||
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {

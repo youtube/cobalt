@@ -220,11 +220,6 @@ template <size_t N>
 int GetVlogLevel(const char (&file)[N]) {
   return GetVlogLevelHelper(file, N);
 }
-// Sets the log filter prefix.  Any log message below LOG_ERROR severity that
-// doesn't start with this prefix with be silently ignored.  The filter defaults
-// to NULL (everything is logged) if this function is not called.  Messages
-// with severity of LOG_ERROR or higher will not be filtered.
-void SetLogFilterPrefix(const char* filter);
 
 // Sets the common items you want to be prepended to each log message.
 // process and thread IDs default to off, the timestamp defaults to on.
