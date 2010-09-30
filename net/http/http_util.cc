@@ -702,4 +702,77 @@ bool HttpUtil::ValuesIterator::GetNext() {
   return false;
 }
 
+HttpUtil::NameValuePairsIterator::NameValuePairsIterator(
+    string::const_iterator begin,
+    string::const_iterator end,
+    char delimiter)
+    : props_(begin, end, delimiter),
+      valid_(true),
+      begin_(begin),
+      end_(end),
+      name_begin_(end),
+      name_end_(end),
+      value_begin_(end),
+      value_end_(end),
+      value_is_quoted_(false) {
+}
+
+// We expect properties to be formatted as one of:
+//   name="value"
+//   name='value'
+//   name='\'value\''
+//   name=value
+//   name = value
+//   name=
+// Due to buggy implementations found in some embedded devices, we also
+// accept values with missing close quotemark (http://crbug.com/39836):
+//   name="value
+bool HttpUtil::NameValuePairsIterator::GetNext() {
+  if (!props_.GetNext())
+    return false;
+
+  // Set the value as everything. Next we will split out the name.
+  value_begin_ = props_.value_begin();
+  value_end_ = props_.value_end();
+  name_begin_ = name_end_ = value_end_;
+
+  // Scan for the equals sign.
+  std::string::const_iterator equals = std::find(value_begin_, value_end_, '=');
+  if (equals == value_end_ || equals == value_begin_)
+    return valid_ = false;  // Malformed
+
+  // Verify that the equals sign we found wasn't inside of quote marks.
+  for (std::string::const_iterator it = value_begin_; it != equals; ++it) {
+    if (HttpUtil::IsQuote(*it))
+      return valid_ = false;  // Malformed
+  }
+
+  name_begin_ = value_begin_;
+  name_end_ = equals;
+  value_begin_ = equals + 1;
+
+  TrimLWS(&name_begin_, &name_end_);
+  TrimLWS(&value_begin_, &value_end_);
+  value_is_quoted_ = false;
+  if (value_begin_ != value_end_ && HttpUtil::IsQuote(*value_begin_)) {
+    // Trim surrounding quotemarks off the value
+    if (*value_begin_ != *(value_end_ - 1) || value_begin_ + 1 == value_end_)
+      // NOTE: This is not as graceful as it sounds:
+      // * quoted-pairs will no longer be unquoted
+      //   (["\"hello] should give ["hello]).
+      // * Does not detect when the final quote is escaped
+      //   (["value\"] should give [value"])
+      ++value_begin_;  // Gracefully recover from mismatching quotes.
+    else
+      value_is_quoted_ = true;
+  }
+
+  return true;
+}
+
+// If value() has quotemarks, unquote it.
+std::string HttpUtil::NameValuePairsIterator::unquoted_value() const {
+  return HttpUtil::Unquote(value_begin_, value_end_);
+}
+
 }  // namespace net
