@@ -989,6 +989,18 @@ SSLClientSocket* DeterministicMockClientSocketFactory::CreateSSLClientSocket(
   return socket;
 }
 
+TestSocketRequest::TestSocketRequest(
+    std::vector<TestSocketRequest*>* request_order,
+    size_t* completion_count)
+    : request_order_(request_order),
+      completion_count_(completion_count) {
+  DCHECK(request_order);
+  DCHECK(completion_count);
+}
+
+TestSocketRequest::~TestSocketRequest() {
+}
+
 int TestSocketRequest::WaitForResult() {
   return callback_.WaitForResult();
 }

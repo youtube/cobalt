@@ -7,11 +7,18 @@
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 #include "base/time.h"
+#include "net/proxy/proxy_server.h"
 
 using base::TimeDelta;
 using base::TimeTicks;
 
 namespace net {
+
+ProxyList::ProxyList() {
+}
+
+ProxyList::~ProxyList() {
+}
 
 void ProxyList::Set(const std::string& proxy_uri_list) {
   proxies_.clear();

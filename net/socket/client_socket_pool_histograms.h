@@ -8,8 +8,10 @@
 
 #include <string>
 
-#include "base/histogram.h"
 #include "base/ref_counted.h"
+#include "base/time.h"
+
+class Histogram;
 
 namespace net {
 

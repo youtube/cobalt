@@ -683,12 +683,8 @@ class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
  public:
   TestSocketRequest(
       std::vector<TestSocketRequest*>* request_order,
-      size_t* completion_count)
-      : request_order_(request_order),
-        completion_count_(completion_count) {
-    DCHECK(request_order);
-    DCHECK(completion_count);
-  }
+      size_t* completion_count);
+  virtual ~TestSocketRequest();
 
   ClientSocketHandle* handle() { return &handle_; }
 

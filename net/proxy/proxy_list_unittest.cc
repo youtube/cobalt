@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/proxy/proxy_list.h"
+
+#include "net/proxy/proxy_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

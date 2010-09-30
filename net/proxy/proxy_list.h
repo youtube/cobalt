@@ -10,15 +10,19 @@
 #include <vector>
 
 #include "net/proxy/proxy_retry_info.h"
-#include "net/proxy/proxy_server.h"
 
 namespace net {
+
+class ProxyServer;
 
 // This class is used to hold a list of proxies returned by GetProxyForUrl or
 // manually configured. It handles proxy fallback if multiple servers are
 // specified.
 class ProxyList {
  public:
+  ProxyList();
+  ~ProxyList();
+
   // Initializes the proxy list to a string containing one or more proxy servers
   // delimited by a semicolon.
   void Set(const std::string& proxy_uri_list);

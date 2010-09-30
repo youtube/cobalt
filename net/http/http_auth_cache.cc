@@ -59,6 +59,12 @@ struct IsEnclosedBy {
 
 namespace net {
 
+HttpAuthCache::HttpAuthCache() {
+}
+
+HttpAuthCache::~HttpAuthCache() {
+}
+
 // Performance: O(n), where n is the number of realm entries.
 HttpAuthCache::Entry* HttpAuthCache::Lookup(const GURL& origin,
                                             const std::string& realm,
@@ -132,6 +138,9 @@ HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
   entry->AddPath(path);
 
   return entry;
+}
+
+HttpAuthCache::Entry::~Entry() {
 }
 
 HttpAuthCache::Entry::Entry()

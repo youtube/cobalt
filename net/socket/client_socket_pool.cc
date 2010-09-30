@@ -26,4 +26,8 @@ void ClientSocketPool::set_unused_idle_socket_timeout(int timeout) {
   g_unused_idle_socket_timeout = timeout;
 }
 
+ClientSocketPool::ClientSocketPool() {}
+
+ClientSocketPool::~ClientSocketPool() {}
+
 }  // namespace net
