@@ -117,19 +117,26 @@ TEST(TimeTicks, Deltas) {
   }
 }
 
-TEST(TimeTicks, FLAKY_HighResNow) {
+TEST(TimeTicks, HighResNow) {
 #if defined(OS_WIN)
-  Time::ActivateHighResolutionTimer(true);
+  // HighResNow doesn't work on some systems.  Since the product still works
+  // even if it doesn't work, it makes this entire test questionable.
+  if (!TimeTicks::IsHighResClockWorking())
+    return;
 #endif
 
   TimeTicks ticks_start = TimeTicks::HighResNow();
-  PlatformThread::Sleep(10);
-  TimeTicks ticks_stop = TimeTicks::HighResNow();
-  TimeDelta delta = ticks_stop - ticks_start;
+  TimeDelta delta;
+  // Loop until we can detect that the clock has changed.  Non-HighRes timers
+  // will increment in chunks, e.g. 15ms.  By spinning until we see a clock
+  // change, we detect the minimum time between measurements.
+  do {
+    delta = TimeTicks::HighResNow() - ticks_start;
+  } while (delta.InMilliseconds() == 0);
 
-  // In high res mode, we should be accurate to within 1.5x our
-  // best granularity.  On windows, that is 1ms, so use 1.5ms.
-  EXPECT_GE(delta.InMicroseconds(), 8500);
+  // In high resolution mode, we expect to see the clock increment
+  // in intervals less than 15ms.
+  EXPECT_LT(delta.InMicroseconds(), 15000);
 }
 
 TEST(TimeDelta, FromAndIn) {
