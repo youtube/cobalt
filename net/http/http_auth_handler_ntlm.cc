@@ -116,14 +116,16 @@ HttpAuth::AuthorizationResult HttpAuthHandlerNTLM::ParseChallenge(
   // TODO(cbentzel): Most of the logic between SSPI, GSSAPI, and portable NTLM
   // authentication parsing could probably be shared - just need to know if
   // there was previously a challenge round.
+  // TODO(cbentzel): Write a test case to validate that auth_data_ is left empty
+  // in all failure conditions.
   auth_data_.clear();
 
   // Verify the challenge's auth-scheme.
-  if (!tok->valid() || !LowerCaseEqualsASCII(tok->scheme(), "ntlm"))
+  if (!LowerCaseEqualsASCII(tok->scheme(), "ntlm"))
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
-  tok->set_expect_base64_token(true);
-  if (!tok->GetNext()) {
+  std::string base64_param = tok->base64_param();
+  if (base64_param.empty()) {
     if (!initial_challenge)
       return HttpAuth::AUTHORIZATION_RESULT_REJECT;
     return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
@@ -132,7 +134,7 @@ HttpAuth::AuthorizationResult HttpAuthHandlerNTLM::ParseChallenge(
       return HttpAuth::AUTHORIZATION_RESULT_INVALID;
   }
 
-  auth_data_.assign(tok->value_begin(), tok->value_end());
+  auth_data_ = base64_param;
   return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
 #endif  // defined(NTLM_SSPI)
 }
