@@ -36,6 +36,7 @@ static const uint16 kDNS_DS = 43;
 static const uint16 kDNS_RRSIG = 46;
 static const uint16 kDNS_DNSKEY = 48;
 static const uint16 kDNS_ANY = 0xff;
+static const uint16 kDNS_TESTING = 0xfffe;  // in private use area.
 
 // http://www.iana.org/assignments/dns-sec-alg-numbers/dns-sec-alg-numbers.xhtml
 static const uint8 kDNSSEC_RSA_SHA1 = 5;
