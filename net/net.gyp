@@ -1045,7 +1045,7 @@
         ['inside_chromium_build==1', {
           'dependencies': [
             '../chrome/browser/sync/protocol/sync_proto.gyp:sync_proto',
-            '../third_party/protobuf2/protobuf.gyp:py_proto',
+            '../third_party/protobuf/protobuf.gyp:py_proto',
           ],
         }],
         ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
