@@ -24,38 +24,4 @@ SocketStreamJob* SocketStreamJob::CreateSocketStreamJob(
   return GetJobManager()->CreateJob(url, delegate);
 }
 
-SocketStreamJob::SocketStreamJob() {}
-
-SocketStream::UserData* SocketStreamJob::GetUserData(const void* key) const {
-  return socket_->GetUserData(key);
-}
-
-void SocketStreamJob::SetUserData(const void* key,
-                                  SocketStream::UserData* data) {
-  socket_->SetUserData(key, data);
-}
-
-void SocketStreamJob::Connect() {
-  socket_->Connect();
-}
-
-bool SocketStreamJob::SendData(const char* data, int len) {
-  return socket_->SendData(data, len);
-}
-
-void SocketStreamJob::Close() {
-  socket_->Close();
-}
-
-void SocketStreamJob::RestartWithAuth(const string16& username,
-                                      const string16& password) {
-  socket_->RestartWithAuth(username, password);
-}
-
-void SocketStreamJob::DetachDelegate() {
-  socket_->DetachDelegate();
-}
-
-SocketStreamJob::~SocketStreamJob() {}
-
 }  // namespace net

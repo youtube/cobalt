@@ -6,22 +6,9 @@
 
 namespace net {
 
-CapturingNetLog::Entry::Entry(EventType type,
-                              const base::TimeTicks& time,
-                              Source source,
-                              EventPhase phase,
-                              EventParameters* extra_parameters)
-    : type(type), time(time), source(source), phase(phase),
-      extra_parameters(extra_parameters) {
-}
-
-CapturingNetLog::Entry::~Entry() {}
-
 CapturingNetLog::CapturingNetLog(size_t max_num_entries)
     : next_id_(0), max_num_entries_(max_num_entries) {
 }
-
-CapturingNetLog::~CapturingNetLog() {}
 
 void CapturingNetLog::AddEntry(EventType type,
                                const base::TimeTicks& time,
@@ -40,16 +27,6 @@ uint32 CapturingNetLog::NextID() {
 void CapturingNetLog::Clear() {
   entries_.clear();
 }
-
-CapturingBoundNetLog::CapturingBoundNetLog(const NetLog::Source& source,
-                                           CapturingNetLog* net_log)
-    : source_(source), capturing_net_log_(net_log) {
-}
-
-CapturingBoundNetLog::CapturingBoundNetLog(size_t max_num_entries)
-    : capturing_net_log_(new CapturingNetLog(max_num_entries)) {}
-
-CapturingBoundNetLog::~CapturingBoundNetLog() {}
 
 void CapturingBoundNetLog::Clear() {
   capturing_net_log_->Clear();
