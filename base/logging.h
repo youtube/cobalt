@@ -692,8 +692,6 @@ extern bool g_enable_dcheck;
 #endif  // ENABLE_DCHECK
 #undef ENABLE_DCHECK
 
-#undef DCHECK_EAT_STREAM_PARAMETERS
-
 // Helper functions for CHECK_OP macro.
 // The (int, int) specialization works around the issue that the compiler
 // will not instantiate the template version of the function on values of
