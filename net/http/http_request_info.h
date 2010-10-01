@@ -16,6 +16,7 @@
 namespace net {
 
 struct HttpRequestInfo {
+ public:
   enum RequestMotivation{
     // TODO(mbelshe): move these into Client Socket.
     PRECONNECT_MOTIVATED,  // This request was motivated by a prefetch.
@@ -23,8 +24,11 @@ struct HttpRequestInfo {
     NORMAL_MOTIVATION    // No special motivation associated with the request.
   };
 
-  HttpRequestInfo();
-  ~HttpRequestInfo();
+  HttpRequestInfo()
+      : load_flags(0),
+        priority(LOWEST),
+        motivation(NORMAL_MOTIVATION) {
+  }
 
   // The requested URL.
   GURL url;
