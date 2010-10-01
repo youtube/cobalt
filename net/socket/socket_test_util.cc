@@ -846,6 +846,8 @@ MockWriteResult DeterministicSocketData::OnWrite(const std::string& data) {
     DumpMockRead(next_write);
   ++sequence_number_;
   current_write_ = next_write;
+  if (stopping_sequence_number_ == sequence_number_)
+    SetStopped(true);
   return StaticSocketDataProvider::OnWrite(data);
 }
 
