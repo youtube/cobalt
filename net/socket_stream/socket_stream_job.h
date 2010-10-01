@@ -34,13 +34,17 @@ class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
   static SocketStreamJob* CreateSocketStreamJob(
       const GURL& url, SocketStream::Delegate* delegate);
 
-  SocketStreamJob();
+  SocketStreamJob() {}
   void InitSocketStream(SocketStream* socket) {
     socket_ = socket;
   }
 
-  virtual SocketStream::UserData* GetUserData(const void* key) const;
-  virtual void SetUserData(const void* key, SocketStream::UserData* data);
+  virtual SocketStream::UserData *GetUserData(const void* key) const {
+    return socket_->GetUserData(key);
+  }
+  virtual void SetUserData(const void* key, SocketStream::UserData* data) {
+    socket_->SetUserData(key, data);
+  }
 
   URLRequestContext* context() const {
     return socket_->context();
@@ -49,20 +53,31 @@ class SocketStreamJob : public base::RefCountedThreadSafe<SocketStreamJob> {
     socket_->set_context(context);
   }
 
-  virtual void Connect();
+  virtual void Connect() {
+    socket_->Connect();
+  }
 
-  virtual bool SendData(const char* data, int len);
+  virtual bool SendData(const char* data, int len) {
+    return socket_->SendData(data, len);
+  }
 
-  virtual void Close();
+  virtual void Close() {
+    socket_->Close();
+  }
 
-  virtual void RestartWithAuth(const string16& username,
-                               const string16& password);
+  virtual void RestartWithAuth(
+      const string16& username,
+      const string16& password) {
+    socket_->RestartWithAuth(username, password);
+  }
 
-  virtual void DetachDelegate();
+  virtual void DetachDelegate() {
+    socket_->DetachDelegate();
+  }
 
  protected:
   friend class base::RefCountedThreadSafe<SocketStreamJob>;
-  virtual ~SocketStreamJob();
+  virtual ~SocketStreamJob() {}
 
   scoped_refptr<SocketStream> socket_;
 

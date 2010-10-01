@@ -25,8 +25,10 @@ class CapturingNetLog : public NetLog {
           const base::TimeTicks& time,
           Source source,
           EventPhase phase,
-          EventParameters* extra_parameters);
-    ~Entry();
+          EventParameters* extra_parameters)
+        : type(type), time(time), source(source), phase(phase),
+          extra_parameters(extra_parameters) {
+    }
 
     EventType type;
     base::TimeTicks time;
@@ -43,7 +45,6 @@ class CapturingNetLog : public NetLog {
   // Creates a CapturingNetLog that logs a maximum of |max_num_entries|
   // messages.
   explicit CapturingNetLog(size_t max_num_entries);
-  virtual ~CapturingNetLog();
 
   // NetLog implementation:
   virtual void AddEntry(EventType type,
@@ -74,11 +75,12 @@ class CapturingNetLog : public NetLog {
 // bound() method.
 class CapturingBoundNetLog {
  public:
-  CapturingBoundNetLog(const NetLog::Source& source, CapturingNetLog* net_log);
+  CapturingBoundNetLog(const NetLog::Source& source, CapturingNetLog* net_log)
+      : source_(source), capturing_net_log_(net_log) {
+  }
 
-  explicit CapturingBoundNetLog(size_t max_num_entries);
-
-  ~CapturingBoundNetLog();
+  explicit CapturingBoundNetLog(size_t max_num_entries)
+      : capturing_net_log_(new CapturingNetLog(max_num_entries)) {}
 
   // The returned BoundNetLog is only valid while |this| is alive.
   BoundNetLog bound() const {
