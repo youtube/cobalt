@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/ref_counted.h"
+#include "base/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
@@ -31,7 +31,7 @@ class NetLog;
 // request at a time is to create a SingleRequestHostResolver wrapper around
 // HostResolver (which will automatically cancel the single request when it
 // goes out of scope).
-class HostResolver : public base::RefCounted<HostResolver> {
+class HostResolver {
  public:
   // The parameters for doing a Resolve(). A hostname and port are required,
   // the rest are optional (and have reasonable defaults).
@@ -124,6 +124,11 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // concurrency.
   static const size_t kDefaultParallelism = 0;
 
+  // If any completion callbacks are pending when the resolver is destroyed,
+  // the host resolutions are cancelled, and the completion callbacks will not
+  // be called.
+  virtual ~HostResolver();
+
   // Resolves the given hostname (or IP address literal), filling out the
   // |addresses| object upon success.  The |info.port| parameter will be set as
   // the sin(6)_port field of the sockaddr_in{6} struct.  Returns OK if
@@ -174,14 +179,7 @@ class HostResolver : public base::RefCounted<HostResolver> {
   virtual void Shutdown() {}
 
  protected:
-  friend class base::RefCounted<HostResolver>;
-
   HostResolver();
-
-  // If any completion callbacks are pending when the resolver is destroyed,
-  // the host resolutions are cancelled, and the completion callbacks will not
-  // be called.
-  virtual ~HostResolver();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HostResolver);
@@ -192,6 +190,7 @@ class HostResolver : public base::RefCounted<HostResolver> {
 // single hostname at a time and cancels this request when going out of scope.
 class SingleRequestHostResolver {
  public:
+  // |resolver| must remain valid for the lifetime of |this|.
   explicit SingleRequestHostResolver(HostResolver* resolver);
 
   // If a completion callback is pending when the resolver is destroyed, the
@@ -216,7 +215,7 @@ class SingleRequestHostResolver {
   void OnResolveCompletion(int result);
 
   // The actual host resolver that will handle the request.
-  scoped_refptr<HostResolver> resolver_;
+  HostResolver* const resolver_;
 
   // The current request (if any).
   HostResolver::RequestHandle cur_request_;

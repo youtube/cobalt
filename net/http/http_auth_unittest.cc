@@ -98,9 +98,9 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
   GURL origin("http://www.example.com");
   std::set<std::string> disabled_schemes;
   URLSecurityManagerAllow url_security_manager;
-  scoped_refptr<HostResolver> host_resolver(new MockHostResolver());
+  scoped_ptr<HostResolver> host_resolver(new MockHostResolver());
   scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
-      HttpAuthHandlerFactory::CreateDefault(host_resolver));
+      HttpAuthHandlerFactory::CreateDefault(host_resolver.get()));
   http_auth_handler_factory->SetURLSecurityManager(
       "negotiate", &url_security_manager);
 

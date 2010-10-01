@@ -32,7 +32,7 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
  public:
   virtual void SetUp() {
     auth_library_.reset(new MockAuthLibrary());
-    resolver_ = new MockHostResolver();
+    resolver_.reset(new MockHostResolver());
     resolver_->rules()->AddIPLiteralRule("alias", "10.0.0.2",
                                            "canonical.example.com");
 
@@ -40,7 +40,7 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
     factory_.reset(new HttpAuthHandlerNegotiate::Factory());
     factory_->set_url_security_manager(url_security_manager_.get());
     factory_->set_library(auth_library_.get());
-    factory_->set_host_resolver(resolver_);
+    factory_->set_host_resolver(resolver_.get());
   }
 
   void SetupMocks(MockAuthLibrary* mock_library) {
@@ -212,7 +212,7 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
   scoped_ptr<SecPkgInfoW> security_package_;
 #endif
   scoped_ptr<MockAuthLibrary> auth_library_;
-  scoped_refptr<MockHostResolver> resolver_;
+  scoped_ptr<MockHostResolver> resolver_;
   scoped_ptr<URLSecurityManager> url_security_manager_;
   scoped_ptr<HttpAuthHandlerNegotiate::Factory> factory_;
 };

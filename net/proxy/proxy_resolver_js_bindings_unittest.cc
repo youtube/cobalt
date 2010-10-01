@@ -111,11 +111,11 @@ class MockFailingHostResolver : public HostResolver {
 };
 
 TEST(ProxyResolverJSBindingsTest, DnsResolve) {
-  scoped_refptr<MockHostResolver> host_resolver(new MockHostResolver);
+  scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver);
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
 
   std::string ip_address;
 
@@ -138,9 +138,11 @@ TEST(ProxyResolverJSBindingsTest, DnsResolve) {
 }
 
 TEST(ProxyResolverJSBindingsTest, MyIpAddress) {
+  scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver);
+
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(new MockHostResolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
 
   // Our IP address is always going to be 127.0.0.1, since we are using a
   // mock host resolver.
@@ -163,11 +165,11 @@ TEST(ProxyResolverJSBindingsTest, MyIpAddress) {
 //     myIpAddressEx()
 //     dnsResolveEx()
 TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
-  scoped_refptr<MockHostResolver> host_resolver(new MockHostResolver);
+  scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver);
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
 
   // Make it so requests resolve to particular address patterns based on family:
   //  IPV4_ONLY --> 192.168.1.*
@@ -219,12 +221,12 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
 // separated list of addresses (as opposed to the non-Ex versions which
 // just return the first result).
 TEST(ProxyResolverJSBindingsTest, ExFunctionsReturnList) {
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       new MockHostResolverWithMultipleResults);
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
 
   std::string ip_addresses;
 
@@ -236,12 +238,12 @@ TEST(ProxyResolverJSBindingsTest, ExFunctionsReturnList) {
 }
 
 TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
-  scoped_refptr<MockFailingHostResolver> host_resolver(
+  scoped_ptr<MockFailingHostResolver> host_resolver(
       new MockFailingHostResolver);
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), NULL));
 
   std::string ip_address;
 
@@ -286,14 +288,14 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
 
 // Test that when a binding is called, it logs to the per-request NetLog.
 TEST(ProxyResolverJSBindingsTest, NetLog) {
-  scoped_refptr<MockFailingHostResolver> host_resolver(
+  scoped_ptr<MockFailingHostResolver> host_resolver(
       new MockFailingHostResolver);
 
   CapturingNetLog global_log(CapturingNetLog::kUnbounded);
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver, &global_log));
+      ProxyResolverJSBindings::CreateDefault(host_resolver.get(), &global_log));
 
   // Attach a capturing NetLog as the current request's log stream.
   CapturingNetLog log(CapturingNetLog::kUnbounded);

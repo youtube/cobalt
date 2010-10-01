@@ -185,7 +185,7 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
   }
 
  private:
-  scoped_refptr<HostResolver> async_host_resolver_;
+  HostResolver* const async_host_resolver_;
   MessageLoop* io_loop_;
 
   // Thread-safe wrapper around a non-threadsafe NetLog implementation. This

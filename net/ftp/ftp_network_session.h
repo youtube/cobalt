@@ -27,7 +27,7 @@ class FtpNetworkSession : public base::RefCounted<FtpNetworkSession> {
 
   ~FtpNetworkSession() {}
 
-  scoped_refptr<HostResolver> host_resolver_;
+  HostResolver* const host_resolver_;
   FtpAuthCache auth_cache_;
 };
 
