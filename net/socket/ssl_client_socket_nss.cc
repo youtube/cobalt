@@ -195,6 +195,8 @@ int MapNSPRError(PRErrorCode err) {
       return ERR_ADDRESS_INVALID;
     case PR_INVALID_ARGUMENT_ERROR:
       return ERR_INVALID_ARGUMENT;
+    case PR_END_OF_FILE_ERROR:
+      return ERR_CONNECTION_CLOSED;
 
     case SEC_ERROR_INVALID_ARGS:
       return ERR_INVALID_ARGUMENT;
