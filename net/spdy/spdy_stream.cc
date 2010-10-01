@@ -205,6 +205,13 @@ void SpdyStream::DecreaseRecvWindowSize(int delta_window_size) {
     session_->ResetStream(stream_id_, spdy::FLOW_CONTROL_ERROR);
 }
 
+int SpdyStream::GetPeerAddress(AddressList* address) const {
+  return session_->GetPeerAddress(address);
+}
+
+bool SpdyStream::WasEverUsed() const {
+  return session_->WasEverUsed();
+}
 
 base::Time SpdyStream::GetRequestTime() const {
   return request_time_;

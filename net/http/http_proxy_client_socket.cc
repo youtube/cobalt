@@ -14,41 +14,12 @@
 #include "net/base/net_util.h"
 #include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_proxy_utils.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_stream_parser.h"
 #include "net/socket/client_socket_handle.h"
 
 namespace net {
-
-namespace {
-
-// The HTTP CONNECT method for establishing a tunnel connection is documented
-// in draft-luotonen-web-proxy-tunneling-01.txt and RFC 2817, Sections 5.2 and
-// 5.3.
-void BuildTunnelRequest(const HttpRequestInfo* request_info,
-                        const HttpRequestHeaders& authorization_headers,
-                        const HostPortPair& endpoint,
-                        std::string* request_line,
-                        HttpRequestHeaders* request_headers) {
-  // RFC 2616 Section 9 says the Host request-header field MUST accompany all
-  // HTTP/1.1 requests.  Add "Proxy-Connection: keep-alive" for compat with
-  // HTTP/1.0 proxies such as Squid (required for NTLM authentication).
-  *request_line = base::StringPrintf(
-      "CONNECT %s HTTP/1.1\r\n", endpoint.ToString().c_str());
-  request_headers->SetHeader(HttpRequestHeaders::kHost,
-                             GetHostAndOptionalPort(request_info->url));
-  request_headers->SetHeader(HttpRequestHeaders::kProxyConnection,
-                             "keep-alive");
-
-  std::string user_agent;
-  if (request_info->extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
-                                            &user_agent))
-    request_headers->SetHeader(HttpRequestHeaders::kUserAgent, user_agent);
-
-  request_headers->MergeFrom(authorization_headers);
-}
-
-}  // namespace
 
 HttpProxyClientSocket::HttpProxyClientSocket(
     ClientSocketHandle* transport_socket,
@@ -358,7 +329,7 @@ int HttpProxyClientSocket::DoSendRequest() {
       auth_->AddAuthorizationHeader(&authorization_headers);
     std::string request_line;
     HttpRequestHeaders request_headers;
-    BuildTunnelRequest(&request_, authorization_headers, endpoint_,
+    BuildTunnelRequest(request_, authorization_headers, endpoint_,
                        &request_line, &request_headers);
     if (net_log_.IsLoggingAll()) {
       net_log_.AddEvent(
