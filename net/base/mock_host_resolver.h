@@ -39,6 +39,8 @@ class RuleBasedHostResolverProc;
 // Base class shared by MockHostResolver and MockCachingHostResolver.
 class MockHostResolverBase : public HostResolver {
  public:
+  virtual ~MockHostResolverBase() {}
+
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
@@ -68,19 +70,19 @@ class MockHostResolverBase : public HostResolver {
 
  protected:
   MockHostResolverBase(bool use_caching);
-  virtual ~MockHostResolverBase() {}
 
-  scoped_refptr<HostResolverImpl> impl_;
+  scoped_ptr<HostResolverImpl> impl_;
   scoped_refptr<RuleBasedHostResolverProc> rules_;
   bool synchronous_mode_;
   bool use_caching_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockHostResolverBase);
 };
 
 class MockHostResolver : public MockHostResolverBase {
  public:
   MockHostResolver() : MockHostResolverBase(false /*use_caching*/) {}
-
- private:
   virtual ~MockHostResolver() {}
 };
 
@@ -92,8 +94,6 @@ class MockHostResolver : public MockHostResolverBase {
 class MockCachingHostResolver : public MockHostResolverBase {
  public:
   MockCachingHostResolver() : MockHostResolverBase(true /*use_caching*/) {}
-
- private:
   ~MockCachingHostResolver() {}
 };
 

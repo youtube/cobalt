@@ -91,7 +91,7 @@ void TCPClientSocketTest::SetUp() {
   listen_port_ = port;
 
   AddressList addr;
-  scoped_refptr<HostResolver> resolver(
+  scoped_ptr<HostResolver> resolver(
       CreateSystemHostResolver(HostResolver::kDefaultParallelism,
                                NULL));
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));

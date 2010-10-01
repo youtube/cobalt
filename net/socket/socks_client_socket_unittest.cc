@@ -41,11 +41,8 @@ class SOCKSClientSocketTest : public PlatformTest {
   AddressList address_list_;
   ClientSocket* tcp_sock_;
   TestCompletionCallback callback_;
-  scoped_refptr<MockHostResolver> host_resolver_;
+  scoped_ptr<MockHostResolver> host_resolver_;
   scoped_ptr<SocketDataProvider> data_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SOCKSClientSocketTest);
 };
 
 SOCKSClientSocketTest::SOCKSClientSocketTest()
@@ -135,7 +132,9 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
-                                   host_resolver_, "localhost", 80, &log));
+                                   host_resolver_.get(),
+                                   "localhost", 80,
+                                   &log));
 
   // At this state the TCP connection is completed but not the SOCKS handshake.
   EXPECT_TRUE(tcp_sock_->IsConnected());
@@ -203,7 +202,9 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
 
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
-                                     host_resolver_, "localhost", 80, &log));
+                                     host_resolver_.get(),
+                                     "localhost", 80,
+                                     &log));
 
     int rv = user_sock_->Connect(&callback_);
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -233,7 +234,9 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
-                                   host_resolver_, "localhost", 80, &log));
+                                   host_resolver_.get(),
+                                   "localhost", 80,
+                                   &log));
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -265,7 +268,9 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
-                                   host_resolver_, "localhost", 80, &log));
+                                   host_resolver_.get(),
+                                   "localhost", 80,
+                                   &log));
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -291,7 +296,9 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
-                                   host_resolver_, "localhost", 80, &log));
+                                   host_resolver_.get(),
+                                   "localhost", 80,
+                                   &log));
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -322,7 +329,9 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
-                                   host_resolver_, hostname, 80, &log));
+                                   host_resolver_.get(),
+                                   hostname, 80,
+                                   &log));
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -356,7 +365,9 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
-                                   host_resolver_, hostname, 80, &log));
+                                   host_resolver_.get(),
+                                   hostname, 80,
+                                   &log));
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -373,8 +384,7 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
 // Calls Disconnect() while a host resolve is in progress. The outstanding host
 // resolve should be cancelled.
 TEST_F(SOCKSClientSocketTest, DisconnectWhileHostResolveInProgress) {
-  scoped_refptr<HangingHostResolver> hanging_resolver =
-      new HangingHostResolver();
+  scoped_ptr<HangingHostResolver> hanging_resolver(new HangingHostResolver());
 
   // Doesn't matter what the socket data is, we will never use it -- garbage.
   MockWrite data_writes[] = { MockWrite(false, "", 0) };
@@ -382,7 +392,9 @@ TEST_F(SOCKSClientSocketTest, DisconnectWhileHostResolveInProgress) {
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
-                                   hanging_resolver, "foo", 80, NULL));
+                                   hanging_resolver.get(),
+                                   "foo", 80,
+                                   NULL));
 
   // Start connecting (will get stuck waiting for the host to resolve).
   int rv = user_sock_->Connect(&callback_);

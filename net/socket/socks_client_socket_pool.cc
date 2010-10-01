@@ -44,7 +44,7 @@ SOCKSConnectJob::SOCKSConnectJob(
     const scoped_refptr<SOCKSSocketParams>& socks_params,
     const base::TimeDelta& timeout_duration,
     TCPClientSocketPool* tcp_pool,
-    const scoped_refptr<HostResolver>& host_resolver,
+    HostResolver* host_resolver,
     Delegate* delegate,
     NetLog* net_log)
     : ConnectJob(group_name, timeout_duration, delegate,
@@ -181,7 +181,7 @@ SOCKSClientSocketPool::SOCKSClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
     ClientSocketPoolHistograms* histograms,
-    const scoped_refptr<HostResolver>& host_resolver,
+    HostResolver* host_resolver,
     TCPClientSocketPool* tcp_pool,
     NetLog* net_log)
     : tcp_pool_(tcp_pool),

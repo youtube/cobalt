@@ -116,22 +116,23 @@ class SyncProxyResolver : public ProxyResolver {
   }
 
  private:
-  scoped_refptr<SyncHostResolverBridge> host_resolver_;
+  SyncHostResolverBridge* const host_resolver_;
 };
 
 class SyncProxyResolverFactory : public ProxyResolverFactory {
  public:
+  // Takes ownership of |sync_host_resolver|.
   explicit SyncProxyResolverFactory(SyncHostResolverBridge* sync_host_resolver)
       : ProxyResolverFactory(false),
         sync_host_resolver_(sync_host_resolver) {
   }
 
   virtual ProxyResolver* CreateProxyResolver() {
-    return new SyncProxyResolver(sync_host_resolver_);
+    return new SyncProxyResolver(sync_host_resolver_.get());
   }
 
  private:
-  scoped_refptr<SyncHostResolverBridge> sync_host_resolver_;
+  const scoped_ptr<SyncHostResolverBridge> sync_host_resolver_;
 };
 
 // This helper thread is used to create the circumstances for the deadlock.
@@ -145,18 +146,18 @@ class IOThread : public base::Thread {
     Stop();
   }
 
-  const scoped_refptr<BlockableHostResolver>& async_resolver() {
-    return async_resolver_;
+  BlockableHostResolver* async_resolver() {
+    return async_resolver_.get();
   }
 
  protected:
   virtual void Init() {
-    async_resolver_ = new BlockableHostResolver();
+    async_resolver_.reset(new BlockableHostResolver());
 
     // Create a synchronous host resolver that operates the async host
     // resolver on THIS thread.
-    scoped_refptr<SyncHostResolverBridge> sync_resolver =
-        new SyncHostResolverBridge(async_resolver_, message_loop());
+    SyncHostResolverBridge* sync_resolver =
+        new SyncHostResolverBridge(async_resolver_.get(), message_loop());
 
     proxy_resolver_.reset(
         new MultiThreadedProxyResolver(
@@ -190,14 +191,12 @@ class IOThread : public base::Thread {
     // During the teardown sequence of the single threaded proxy resolver,
     // the outstanding host resolve should have been cancelled.
     EXPECT_TRUE(async_resolver_->was_request_cancelled());
-
-    async_resolver_ = NULL;
   }
 
  private:
   // This (async) host resolver will outlive the thread that is operating it
   // synchronously.
-  scoped_refptr<BlockableHostResolver> async_resolver_;
+  scoped_ptr<BlockableHostResolver> async_resolver_;
 
   scoped_ptr<ProxyResolver> proxy_resolver_;
 

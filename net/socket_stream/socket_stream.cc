@@ -519,8 +519,8 @@ int SocketStream::DoResolveHost() {
 
   HostResolver::RequestInfo resolve_info(host_port_pair);
 
-  DCHECK(host_resolver_.get());
-  resolver_.reset(new SingleRequestHostResolver(host_resolver_.get()));
+  DCHECK(host_resolver_);
+  resolver_.reset(new SingleRequestHostResolver(host_resolver_));
   return resolver_->Resolve(resolve_info, &addresses_, &io_callback_,
                             net_log_);
 }
@@ -771,7 +771,7 @@ int SocketStream::DoSOCKSConnect() {
   if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5)
     s = new SOCKS5ClientSocket(s, req_info);
   else
-    s = new SOCKSClientSocket(s, req_info, host_resolver_.get());
+    s = new SOCKSClientSocket(s, req_info, host_resolver_);
   socket_.reset(s);
   metrics_->OnSOCKSProxy();
   return socket_->Connect(&io_callback_);
