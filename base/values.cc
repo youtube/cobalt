@@ -561,6 +561,15 @@ bool DictionaryValue::GetIntegerWithoutPathExpansion(const std::string& key,
   return value->GetAsInteger(out_value);
 }
 
+bool DictionaryValue::GetRealWithoutPathExpansion(const std::string& key,
+                                                  double* out_value) const {
+  Value* value;
+  if (!GetWithoutPathExpansion(key, &value))
+    return false;
+
+  return value->GetAsReal(out_value);
+}
+
 bool DictionaryValue::GetStringWithoutPathExpansion(
     const std::string& key,
     std::string* out_value) const {
