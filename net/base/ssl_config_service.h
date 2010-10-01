@@ -44,6 +44,9 @@ struct SSLConfig {
   // are not SSL configuration settings.
 
   struct CertAndStatus {
+    CertAndStatus();
+    ~CertAndStatus();
+
     scoped_refptr<X509Certificate> cert;
     int cert_status;
   };
