@@ -76,7 +76,7 @@ struct SessionDependencies {
         proxy_service(ProxyService::CreateDirect()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
-            HttpAuthHandlerFactory::CreateDefault(host_resolver)),
+            HttpAuthHandlerFactory::CreateDefault(host_resolver.get())),
         net_log(NULL) {}
 
   // Custom proxy service dependency.
@@ -85,10 +85,10 @@ struct SessionDependencies {
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
-            HttpAuthHandlerFactory::CreateDefault(host_resolver)),
+            HttpAuthHandlerFactory::CreateDefault(host_resolver.get())),
         net_log(NULL) {}
 
-  scoped_refptr<MockHostResolverBase> host_resolver;
+  scoped_ptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
@@ -103,7 +103,7 @@ ProxyService* CreateFixedProxyService(const std::string& proxy) {
 }
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
-  return new HttpNetworkSession(session_deps->host_resolver,
+  return new HttpNetworkSession(session_deps->host_resolver.get(),
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
@@ -5046,7 +5046,7 @@ void BypassHostCacheOnRefreshHelper(int load_flags) {
   SessionDependencies session_deps;
 
   // Select a host resolver that does caching.
-  session_deps.host_resolver = new MockCachingHostResolver;
+  session_deps.host_resolver.reset(new MockCachingHostResolver);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
       CreateSession(&session_deps)));

@@ -90,7 +90,7 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
 
   // The host resolver and proxy service that will be used when lazily
   // creating |session_|.
-  scoped_refptr<HostResolver> host_resolver_;
+  HostResolver* host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
 
   // The SSL config service being used for the session.

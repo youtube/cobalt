@@ -285,7 +285,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     }
   }
 
-  scoped_refptr<HostResolver> host_resolver_;
+  HostResolver* const host_resolver_;
   NetLog* net_log_;
 };
 

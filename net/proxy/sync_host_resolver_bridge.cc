@@ -50,7 +50,7 @@ class SyncHostResolverBridge::Core
   // Not called on |host_resolver_loop_|.
   int WaitForResolveCompletion();
 
-  const scoped_refptr<HostResolver> host_resolver_;
+  HostResolver* const host_resolver_;
   MessageLoop* const host_resolver_loop_;
   net::CompletionCallbackImpl<Core> callback_;
   // The result from the current request (set on |host_resolver_loop_|).

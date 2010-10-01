@@ -85,7 +85,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
    private:
     bool disable_cname_lookup_;
     bool use_port_;
-    scoped_refptr<HostResolver> resolver_;
+    HostResolver* resolver_;
 #if defined(OS_WIN)
     ULONG max_token_length_;
     bool first_creation_;
@@ -148,7 +148,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   bool disable_cname_lookup_;
   bool use_port_;
   CompletionCallbackImpl<HttpAuthHandlerNegotiate> io_callback_;
-  scoped_refptr<HostResolver> resolver_;
+  HostResolver* const resolver_;
 
   // Members which are needed for DNS lookup + SPN.
   AddressList address_list_;
