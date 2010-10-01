@@ -273,7 +273,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   UserDataMap user_data_;
 
   State next_state_;
-  scoped_refptr<HostResolver> host_resolver_;
+  HostResolver* host_resolver_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   ClientSocketFactory* factory_;
 

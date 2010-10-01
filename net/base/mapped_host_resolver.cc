@@ -15,6 +15,9 @@ MappedHostResolver::MappedHostResolver(HostResolver* impl)
     : impl_(impl) {
 }
 
+MappedHostResolver::~MappedHostResolver() {
+}
+
 int MappedHostResolver::Resolve(const RequestInfo& info,
                                 AddressList* addresses,
                                 CompletionCallback* callback,
@@ -42,9 +45,6 @@ void MappedHostResolver::RemoveObserver(Observer* observer) {
 
 HostResolverImpl* MappedHostResolver::GetAsHostResolverImpl() {
   return impl_->GetAsHostResolverImpl();
-}
-
-MappedHostResolver::~MappedHostResolver() {
 }
 
 }  // namespace net

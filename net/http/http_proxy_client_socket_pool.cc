@@ -62,7 +62,7 @@ HttpProxyConnectJob::HttpProxyConnectJob(
     const base::TimeDelta& timeout_duration,
     TCPClientSocketPool* tcp_pool,
     SSLClientSocketPool* ssl_pool,
-    const scoped_refptr<HostResolver>& host_resolver,
+    HostResolver* host_resolver,
     Delegate* delegate,
     NetLog* net_log)
     : ConnectJob(group_name, timeout_duration, delegate,
@@ -271,7 +271,7 @@ HttpProxyClientSocketPool::HttpProxyClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
     ClientSocketPoolHistograms* histograms,
-    const scoped_refptr<HostResolver>& host_resolver,
+    HostResolver* host_resolver,
     TCPClientSocketPool* tcp_pool,
     SSLClientSocketPool* ssl_pool,
     NetLog* net_log)

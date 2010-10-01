@@ -16,15 +16,15 @@ namespace {
 
 TEST(MappedHostResolverTest, Inclusion) {
   // Create a mock host resolver, with specific hostname to IP mappings.
-  scoped_refptr<MockHostResolver> resolver_impl = new MockHostResolver();
+  MockHostResolver* resolver_impl(new MockHostResolver());
   resolver_impl->rules()->AddSimulatedFailure("*google.com");
   resolver_impl->rules()->AddRule("baz.com", "192.168.1.5");
   resolver_impl->rules()->AddRule("foo.com", "192.168.1.8");
   resolver_impl->rules()->AddRule("proxy", "192.168.1.11");
 
   // Create a remapped resolver that uses |resolver_impl|.
-  scoped_refptr<MappedHostResolver> resolver =
-      new MappedHostResolver(resolver_impl);
+  scoped_ptr<MappedHostResolver> resolver(
+      new MappedHostResolver(resolver_impl));
 
   int rv;
   AddressList address_list;
@@ -70,13 +70,13 @@ TEST(MappedHostResolverTest, Inclusion) {
 // Tests that exclusions are respected.
 TEST(MappedHostResolverTest, Exclusion) {
   // Create a mock host resolver, with specific hostname to IP mappings.
-  scoped_refptr<MockHostResolver> resolver_impl = new MockHostResolver();
+  MockHostResolver* resolver_impl(new MockHostResolver());
   resolver_impl->rules()->AddRule("baz", "192.168.1.5");
   resolver_impl->rules()->AddRule("www.google.com", "192.168.1.3");
 
   // Create a remapped resolver that uses |resolver_impl|.
-  scoped_refptr<MappedHostResolver> resolver =
-      new MappedHostResolver(resolver_impl);
+  scoped_ptr<MappedHostResolver> resolver(
+      new MappedHostResolver(resolver_impl));
 
   int rv;
   AddressList address_list;
@@ -106,13 +106,13 @@ TEST(MappedHostResolverTest, Exclusion) {
 
 TEST(MappedHostResolverTest, SetRulesFromString) {
   // Create a mock host resolver, with specific hostname to IP mappings.
-  scoped_refptr<MockHostResolver> resolver_impl = new MockHostResolver();
+  MockHostResolver* resolver_impl(new MockHostResolver());
   resolver_impl->rules()->AddRule("baz", "192.168.1.7");
   resolver_impl->rules()->AddRule("bar", "192.168.1.9");
 
   // Create a remapped resolver that uses |resolver_impl|.
-  scoped_refptr<MappedHostResolver> resolver =
-      new MappedHostResolver(resolver_impl);
+  scoped_ptr<MappedHostResolver> resolver(
+      new MappedHostResolver(resolver_impl));
 
   int rv;
   AddressList address_list;
@@ -139,7 +139,7 @@ TEST(MappedHostResolverTest, SetRulesFromString) {
 
 // Parsing bad rules should silently discard the rule (and never crash).
 TEST(MappedHostResolverTest, ParseInvalidRules) {
-  scoped_refptr<MappedHostResolver> resolver = new MappedHostResolver(NULL);
+  scoped_ptr<MappedHostResolver> resolver(new MappedHostResolver(NULL));
 
   EXPECT_FALSE(resolver->AddRuleFromString("xyz"));
   EXPECT_FALSE(resolver->AddRuleFromString(""));

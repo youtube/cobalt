@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/ref_counted.h"
+#include "base/scoped_ptr.h"
 #include "net/base/host_mapping_rules.h"
 #include "net/base/host_resolver.h"
 
@@ -21,8 +21,9 @@ namespace net {
 class MappedHostResolver : public HostResolver {
  public:
   // Creates a MappedHostResolver that forwards all of its requests through
-  // |impl|.
+  // |impl|.  It takes ownership of |impl|.
   explicit MappedHostResolver(HostResolver* impl);
+  virtual ~MappedHostResolver();
 
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
@@ -53,9 +54,7 @@ class MappedHostResolver : public HostResolver {
   }
 
  private:
-  virtual ~MappedHostResolver();
-
-  scoped_refptr<HostResolver> impl_;
+  scoped_ptr<HostResolver> impl_;
 
   HostMappingRules rules_;
 };
