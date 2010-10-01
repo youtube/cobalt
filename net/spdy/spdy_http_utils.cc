@@ -4,6 +4,8 @@
 
 #include "net/spdy/spdy_http_utils.h"
 
+#include <string>
+
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/time.h"
