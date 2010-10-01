@@ -61,6 +61,8 @@
 #include <ssl.h>
 #include <sslerr.h>
 
+#include <limits>
+
 #include "base/compiler_specific.h"
 #include "base/histogram.h"
 #include "base/logging.h"
@@ -81,6 +83,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
+#include "net/base/ssl_non_sensitive_host_info.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
@@ -353,11 +356,14 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       client_auth_cert_needed_(false),
       handshake_callback_called_(false),
       completed_handshake_(false),
+      pseudo_connected_(false),
       dnssec_provider_(NULL),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
       nss_bufs_(NULL),
-      net_log_(transport_socket->socket()->NetLog()) {
+      net_log_(transport_socket->socket()->NetLog()),
+      predicted_npn_status_(kNextProtoUnsupported),
+      predicted_npn_proto_used_(false) {
   EnterFunction("");
 }
 
@@ -385,6 +391,248 @@ int SSLClientSocketNSS::Init() {
   return OK;
 }
 
+// This is a version number of the Snap Start information saved by
+// |SaveSnapStartInfo| and loaded by |LoadSnapStartInfo|. Since the information
+// can be saved on disk we might have version skew in the future. Any data with
+// a different version is ignored by |LoadSnapStartInfo|.
+static const uint8 kSnapStartInfoVersion = 0;
+
+// SaveSnapStartInfo serialises the information needed to perform a Snap Start
+// with this server in the future (if any) and tells
+// |ssl_config_.ssl_host_info| to preserve it.
+void SSLClientSocketNSS::SaveSnapStartInfo() {
+  if (!ssl_config_.ssl_host_info.get())
+    return;
+
+  SECStatus rv;
+  SSLSnapStartResult snap_start_type;
+  rv = SSL_GetSnapStartResult(nss_fd_, &snap_start_type);
+  if (rv != SECSuccess) {
+    NOTREACHED();
+    return;
+  }
+  if (snap_start_type == SSL_SNAP_START_FULL ||
+      snap_start_type == SSL_SNAP_START_RESUME) {
+    // If we did a successful Snap Start then our information was correct and
+    // there's no point saving it again.
+    return;
+  }
+
+  const unsigned char* hello_data;
+  unsigned hello_data_len;
+  rv = SSL_GetPredictedServerHelloData(nss_fd_, &hello_data, &hello_data_len);
+  if (rv != SECSuccess) {
+    NOTREACHED();
+    return;
+  }
+  // If the server doesn't support Snap Start then |hello_data_len| is zero.
+  if (!hello_data_len)
+    return;
+  if (hello_data_len > std::numeric_limits<uint16>::max())
+    return;
+
+  // The format of the saved info looks like:
+  //   struct Cert {
+  //     uint16 length
+  //     opaque certificate[length];
+  //   }
+  //
+  //   uint8 version (kSnapStartInfoVersion)
+  //   uint8 npn_status
+  //   uint8 npn_proto_len
+  //   uint8 npn_proto[npn_proto_len]
+  //   uint16 hello_data_len
+  //   opaque hello_data[hello_data_len]
+  //   uint8 num_certs;
+  //   Cert[num_certs];
+
+  std::string npn_proto;
+  NextProtoStatus npn_status = GetNextProto(&npn_proto);
+
+  unsigned num_certs = 0;
+  unsigned len = 3;
+  DCHECK_LT(npn_proto.size(), 256u);
+  len += npn_proto.size();
+  len += 2;  // for hello_data_len
+  len += hello_data_len;
+  len++;  // for |num_certs|
+
+  // TODO(wtc): CERT_GetCertChainFromCert might not return the same cert chain
+  // that the Certificate message actually contained. http://crbug.com/48854
+  CERTCertList* cert_list = CERT_GetCertChainFromCert(
+      server_cert_nss_, PR_Now(), certUsageSSLCA);
+  if (!cert_list)
+    return;
+
+  unsigned last_cert_len = 0;
+  bool last_cert_is_root = false;
+  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+       !CERT_LIST_END(node, cert_list);
+       node = CERT_LIST_NEXT(node)) {
+    num_certs++;
+    if (node->cert->derCert.len > std::numeric_limits<uint16>::max()) {
+      CERT_DestroyCertList(cert_list);
+      return;
+    }
+    last_cert_len = node->cert->derCert.len;
+    len += 2 + last_cert_len;
+    last_cert_is_root = node->cert->isRoot == PR_TRUE;
+  }
+
+  if (num_certs == 0 || num_certs > std::numeric_limits<uint8>::max()) {
+    CERT_DestroyCertList(cert_list);
+    return;
+  }
+
+  if (num_certs > 1 && last_cert_is_root) {
+    // The cert list included the root certificate, which we don't want to
+    // save. (Since we need to predict the server's certificates we don't want
+    // to predict the root cert because the server won't send it to us. We
+    // could implement this logic either here, or in the code which loads the
+    // certificates. But, by doing it here, we save a little disk space).
+    //
+    // Note that, when the TODO above (http://crbug.com/48854) is handled, this
+    // point will be moot.
+    len -= 2 + last_cert_len;
+    num_certs--;
+  }
+
+  std::vector<uint8> data(len);
+  unsigned j = 0;
+  data[j++] = kSnapStartInfoVersion;
+  data[j++] = static_cast<uint8>(npn_status);
+  data[j++] = static_cast<uint8>(npn_proto.size());
+  memcpy(&data[j], npn_proto.data(), npn_proto.size());
+  j += npn_proto.size();
+  data[j++] = hello_data_len >> 8;
+  data[j++] = hello_data_len;
+  memcpy(&data[j], hello_data, hello_data_len);
+  j += hello_data_len;
+  data[j++] = num_certs;
+
+  unsigned i = 0;
+  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+       i < num_certs;
+       node = CERT_LIST_NEXT(node), i++) {
+    data[j++] = node->cert->derCert.len >> 8;
+    data[j++] = node->cert->derCert.len;
+    memcpy(&data[j], node->cert->derCert.data, node->cert->derCert.len);
+    j += node->cert->derCert.len;
+  }
+
+  DCHECK_EQ(j, len);
+
+  ssl_config_.ssl_host_info->Set(std::string(
+        reinterpret_cast<const char *>(&data[0]), len));
+
+  CERT_DestroyCertList(cert_list);
+}
+
+static void DestroyCertificates(CERTCertificate** certs, unsigned len) {
+  for (unsigned i = 0; i < len; i++)
+    CERT_DestroyCertificate(certs[i]);
+}
+
+// LoadSnapStartInfo parses |info|, which contains data previously serialised
+// by |SaveSnapStartInfo|, and sets the predicted certificates and ServerHello
+// data on the NSS socket. Returns true on success. If this function returns
+// false, the caller should try a normal TLS handshake.
+bool SSLClientSocketNSS::LoadSnapStartInfo(const std::string& info) {
+  const unsigned char* data =
+      reinterpret_cast<const unsigned char*>(info.data());
+  SECStatus rv;
+
+  // See the comment in |SaveSnapStartInfo| for the format of the data.
+  if (info.size() < 3 ||
+      data[0] != kSnapStartInfoVersion) {
+    return false;
+  }
+
+  unsigned j = 1;
+  const uint8 npn_status = data[j++];
+  const uint8 npn_proto_len = data[j++];
+  if (static_cast<unsigned>(npn_proto_len) + j > info.size()) {
+    NOTREACHED();
+    return false;
+  }
+  const std::string npn_proto(info.substr(j, npn_proto_len));
+  j += npn_proto_len;
+
+  if (j + 2 > info.size()) {
+    NOTREACHED();
+    return false;
+  }
+  uint16 hello_data_len = static_cast<uint16>(data[j]) << 8 |
+                          static_cast<uint16>(data[j+1]);
+  j += 2;
+  if (static_cast<unsigned>(hello_data_len) + j > info.size()) {
+    NOTREACHED();
+    return false;
+  }
+
+  rv = SSL_SetPredictedServerHelloData(nss_fd_, &data[j], hello_data_len);
+  DCHECK_EQ(SECSuccess, rv);
+  j += hello_data_len;
+
+  if (j + 1 > info.size()) {
+    NOTREACHED();
+    return false;
+  }
+  unsigned num_certs = data[j++];
+  scoped_array<CERTCertificate*> certs(new CERTCertificate*[num_certs]);
+
+  for (unsigned i = 0; i < num_certs; i++) {
+    if (j + 2 > info.size()) {
+      DestroyCertificates(&certs[0], i);
+      NOTREACHED();
+      // It's harmless to call only SSL_SetPredictedServerHelloData.
+      return false;
+    }
+    uint16 cert_len = static_cast<uint16>(data[j]) << 8 |
+                      static_cast<uint16>(data[j+1]);
+    j += 2;
+    if (static_cast<unsigned>(cert_len) + j > info.size()) {
+      DestroyCertificates(&certs[0], i);
+      NOTREACHED();
+      return false;
+    }
+    SECItem derCert;
+    derCert.data = const_cast<uint8*>(data + j);
+    derCert.len = cert_len;
+    j += cert_len;
+    certs[i] = CERT_NewTempCertificate(
+        CERT_GetDefaultCertDB(), &derCert, NULL /* no nickname given */,
+        PR_FALSE /* not permanent */, PR_TRUE /* copy DER data */);
+    if (!certs[i]) {
+      DestroyCertificates(&certs[0], i);
+      NOTREACHED();
+      return false;
+    }
+  }
+
+  rv = SSL_SetPredictedPeerCertificates(nss_fd_, certs.get(), num_certs);
+  DestroyCertificates(&certs[0], num_certs);
+  DCHECK_EQ(SECSuccess, rv);
+
+  predicted_npn_status_ = static_cast<NextProtoStatus>(npn_status);
+  predicted_npn_proto_ = npn_proto;
+
+  // We ignore any trailing data that might be in |info|.
+  if (j != info.size())
+    LOG(WARNING) << "Trailing data found in SSLNonSensitiveHostInfo";
+
+  return true;
+}
+
+bool SSLClientSocketNSS::IsNPNProtocolMispredicted() {
+  DCHECK(handshake_callback_called_);
+  if (!predicted_npn_proto_used_)
+    return false;
+  std::string npn_proto;
+  GetNextProto(&npn_proto);
+  return predicted_npn_proto_ != npn_proto;
+}
+
 int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   EnterFunction("");
   DCHECK(transport_.get());
@@ -394,6 +642,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   DCHECK(!user_connect_callback_);
   DCHECK(!user_read_buf_);
   DCHECK(!user_write_buf_);
+  DCHECK(!pseudo_connected_);
 
   net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
 
@@ -409,10 +658,20 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
     return rv;
   }
 
-  GotoState(STATE_HANDSHAKE);
+  if (ssl_config_.snap_start_enabled && ssl_config_.ssl_host_info.get()) {
+    GotoState(STATE_SNAP_START_LOAD_INFO);
+  } else {
+    GotoState(STATE_HANDSHAKE);
+  }
+
   rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
-    user_connect_callback_ = callback;
+    if (pseudo_connected_) {
+      net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+      rv = OK;
+    } else {
+      user_connect_callback_ = callback;
+    }
   } else {
     net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
   }
@@ -516,6 +775,14 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
       !SSLConfigService::IsKnownFalseStartIncompatibleServer(hostname_));
   if (rv != SECSuccess)
     LOG(INFO) << "SSL_ENABLE_FALSE_START failed.  Old system nss?";
+#endif
+
+#ifdef SSL_ENABLE_SNAP_START
+  // TODO(agl): check that SSL_ENABLE_SNAP_START actually does something in the
+  // current NSS code.
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SNAP_START, PR_TRUE);
+  if (rv != SECSuccess)
+    LOG(INFO) << "SSL_ENABLE_SNAP_START failed.  Old system nss?";
 #endif
 
 #ifdef SSL_ENABLE_RENEGOTIATION
@@ -627,6 +894,7 @@ void SSLClientSocketNSS::Disconnect() {
   }
   server_cert_verify_result_.Reset();
   completed_handshake_   = false;
+  pseudo_connected_      = false;
   nss_bufs_              = NULL;
   client_certs_.clear();
   client_auth_cert_needed_ = false;
@@ -642,7 +910,8 @@ bool SSLClientSocketNSS::IsConnected() const {
   // closed by the server when we send a request anyway, a false positive in
   // exchange for simpler code is a good trade-off.
   EnterFunction("");
-  bool ret = completed_handshake_ && transport_->socket()->IsConnected();
+  bool ret = (pseudo_connected_ || completed_handshake_) &&
+             transport_->socket()->IsConnected();
   LeaveFunction("");
   return ret;
 }
@@ -657,7 +926,8 @@ bool SSLClientSocketNSS::IsConnectedAndIdle() const {
   // transport_->socket()->IsConnectedAndIdle() returns the desired false
   // when we receive close_notify.
   EnterFunction("");
-  bool ret = completed_handshake_ && transport_->socket()->IsConnectedAndIdle();
+  bool ret = (pseudo_connected_ || completed_handshake_) &&
+             transport_->socket()->IsConnectedAndIdle();
   LeaveFunction("");
   return ret;
 }
@@ -693,8 +963,6 @@ bool SSLClientSocketNSS::WasEverUsed() const {
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   EnterFunction(buf_len);
-  DCHECK(completed_handshake_);
-  DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_read_callback_);
   DCHECK(!user_connect_callback_);
   DCHECK(!user_read_buf_);
@@ -702,6 +970,17 @@ int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
 
   user_read_buf_ = buf;
   user_read_buf_len_ = buf_len;
+
+  if (!completed_handshake_) {
+    // In this case we have lied about being connected in order to merge the
+    // first Write into a Snap Start handshake. We'll leave the read hanging
+    // until the handshake has completed.
+    DCHECK(pseudo_connected_);
+
+    user_read_callback_ = callback;
+    LeaveFunction(ERR_IO_PENDING);
+    return ERR_IO_PENDING;
+  }
 
   int rv = DoReadLoop(OK);
 
@@ -718,15 +997,33 @@ int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
 int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
                               CompletionCallback* callback) {
   EnterFunction(buf_len);
-  DCHECK(completed_handshake_);
-  DCHECK(next_handshake_state_ == STATE_NONE);
+  if (!pseudo_connected_) {
+    DCHECK(completed_handshake_);
+    DCHECK(next_handshake_state_ == STATE_NONE);
+    DCHECK(!user_connect_callback_);
+  }
   DCHECK(!user_write_callback_);
-  DCHECK(!user_connect_callback_);
   DCHECK(!user_write_buf_);
   DCHECK(nss_bufs_);
 
   user_write_buf_ = buf;
   user_write_buf_len_ = buf_len;
+
+  if (next_handshake_state_ == STATE_SNAP_START_WAIT_FOR_WRITE) {
+    // We lied about being connected and we have been waiting for this write in
+    // order to merge it into the Snap Start handshake. We'll leave the write
+    // pending until the handshake completes.
+    DCHECK(pseudo_connected_);
+    int rv = DoHandshakeLoop(OK);
+    if (rv == ERR_IO_PENDING) {
+      user_write_callback_ = callback;
+    } else {
+      user_write_buf_ = NULL;
+      user_write_buf_len_ = 0;
+    }
+    if (rv != OK)
+      return rv;
+  }
 
   corked_ = false;
   int rv = DoWriteLoop(OK);
@@ -773,7 +1070,7 @@ X509Certificate::OSCertHandle SSLClientSocketNSS::CreateOSCert(
 #endif
 
 X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
-  // We set the server_cert_ from OwnAuthCertHandler(), but this handler
+  // We set the server_cert_ from HandshakeCallback(), but this handler
   // does not necessarily get called if we are continuing a cached SSL
   // session.
   if (server_cert_ == NULL) {
@@ -850,8 +1147,11 @@ void SSLClientSocketNSS::CheckSecureRenegotiation() const {
 void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   EnterFunction("");
   ssl_info->Reset();
-  if (!server_cert_)
+
+  if (!server_cert_) {
+    LOG(DFATAL) << "!server_cert_";
     return;
+  }
 
   SSLChannelInfo channel_info;
   SECStatus ok = SSL_GetChannelInfo(nss_fd_,
@@ -911,6 +1211,13 @@ void SSLClientSocketNSS::GetSSLCertRequestInfo(
 SSLClientSocket::NextProtoStatus
 SSLClientSocketNSS::GetNextProto(std::string* proto) {
 #if defined(SSL_NEXT_PROTO_NEGOTIATED)
+  if (!handshake_callback_called_) {
+    DCHECK(pseudo_connected_);
+    predicted_npn_proto_used_ = true;
+    *proto = predicted_npn_proto_;
+    return predicted_npn_status_;
+  }
+
   unsigned char buf[255];
   int state;
   unsigned len;
@@ -988,7 +1295,6 @@ void SSLClientSocketNSS::DoWriteCallback(int rv) {
 void SSLClientSocketNSS::DoConnectCallback(int rv) {
   EnterFunction(rv);
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(user_connect_callback_);
 
   CompletionCallback* c = user_connect_callback_;
   user_connect_callback_ = NULL;
@@ -1001,7 +1307,10 @@ void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
     net_log_.EndEvent(net::NetLog::TYPE_SSL_CONNECT, NULL);
-    DoConnectCallback(rv);
+    // If we pseudo connected for Snap Start, then we won't have a connect
+    // callback.
+    if (user_connect_callback_)
+      DoConnectCallback(rv);
   }
   LeaveFunction("");
 }
@@ -1048,8 +1357,8 @@ void SSLClientSocketNSS::OnRecvComplete(int result) {
   }
 
   // Network layer received some data, check if client requested to read
-  // decrypted data.
-  if (!user_read_buf_) {
+  // decrypted data or if we're waiting for the first write for Snap Start.
+  if (!user_read_buf_ || !completed_handshake_) {
     LeaveFunction("");
     return;
   }
@@ -1211,6 +1520,12 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
       case STATE_NONE:
         // we're just pumping data between the buffer and the network
         break;
+      case STATE_SNAP_START_LOAD_INFO:
+        rv = DoSnapStartLoadInfo();
+        break;
+      case STATE_SNAP_START_WAIT_FOR_WRITE:
+        rv = DoSnapStartWaitForWrite();
+        break;
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
@@ -1236,7 +1551,7 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
     // Do the actual network I/O
     network_moved = DoTransportIO();
   } while ((rv != ERR_IO_PENDING || network_moved) &&
-            next_handshake_state_ != STATE_NONE);
+           next_handshake_state_ != STATE_NONE);
   LeaveFunction("");
   return rv;
 }
@@ -1510,11 +1825,71 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
                                            void* arg) {
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
-  that->set_handshake_callback_called();
+  that->handshake_callback_called_ = true;
 
   that->UpdateServerCert();
 
   that->CheckSecureRenegotiation();
+}
+
+int SSLClientSocketNSS::DoSnapStartLoadInfo() {
+  EnterFunction("");
+  int rv = ssl_config_.ssl_host_info->WaitForDataReady(&handshake_io_callback_);
+
+  if (rv == OK) {
+    if (LoadSnapStartInfo(ssl_config_.ssl_host_info->data())) {
+      pseudo_connected_ = true;
+      GotoState(STATE_SNAP_START_WAIT_FOR_WRITE);
+      if (user_connect_callback_)
+        DoConnectCallback(OK);
+    } else {
+      GotoState(STATE_HANDSHAKE);
+    }
+  } else {
+    DCHECK_EQ(ERR_IO_PENDING, rv);
+    GotoState(STATE_SNAP_START_LOAD_INFO);
+  }
+
+  LeaveFunction("");
+  return rv;
+}
+
+int SSLClientSocketNSS::DoSnapStartWaitForWrite() {
+  EnterFunction("");
+  // In this state, we're waiting for the first Write call so that we can merge
+  // it into the Snap Start handshake.
+  if (!user_write_buf_) {
+    // We'll lie and say that we're connected in order that someone will call
+    // Write.
+    GotoState(STATE_SNAP_START_WAIT_FOR_WRITE);
+    DCHECK(!user_connect_callback_);
+    LeaveFunction("");
+    return ERR_IO_PENDING;
+  }
+
+  // This is the largest Snap Start application data payload that we'll try to
+  // use. A TCP client can only send three frames of data without an ACK and,
+  // at 2048 bytes, this leaves some space for the rest of the ClientHello
+  // (including possible session ticket).
+  static const int kMaxSnapStartPayloadSize = 2048;
+
+  if (user_write_buf_len_ > kMaxSnapStartPayloadSize) {
+    user_write_buf_len_ = kMaxSnapStartPayloadSize;
+    // When we complete the handshake and call user_write_callback_ we'll say
+    // that we only wrote |kMaxSnapStartPayloadSize| bytes. That way the rest
+    // of the payload will be presented to |Write| again and transmitted as
+    // normal application data.
+  }
+
+  SECStatus rv = SSL_SetSnapStartApplicationData(
+      nss_fd_, reinterpret_cast<const unsigned char*>(user_write_buf_->data()),
+      user_write_buf_len_);
+  DCHECK_EQ(SECSuccess, rv);
+  user_write_buf_ = NULL;
+
+  GotoState(STATE_HANDSHAKE);
+  LeaveFunction("");
+  return OK;
 }
 
 int SSLClientSocketNSS::DoHandshake() {
@@ -1534,8 +1909,19 @@ int SSLClientSocketNSS::DoHandshake() {
     }
   } else if (rv == SECSuccess) {
     if (handshake_callback_called_) {
-      // SSL handshake is completed.  Let's verify the certificate.
-      GotoState(STATE_VERIFY_DNSSEC);
+      SaveSnapStartInfo();
+      // SSL handshake is completed. It's possible that we mispredicted the NPN
+      // agreed protocol. In this case, we've just sent a request in the wrong
+      // protocol! The higher levels of this network stack aren't prepared for
+      // switching the protocol like that so we make up an error and rely on
+      // the fact that the request will be retried.
+      if (IsNPNProtocolMispredicted()) {
+        LOG(WARNING) << "Mispredicted NPN protocol for " << hostname_;
+        net_error = ERR_SSL_SNAP_START_NPN_MISPREDICTION;
+      } else {
+        // Let's verify the certificate.
+        GotoState(STATE_VERIFY_DNSSEC);
+      }
       // Done!
     } else {
       // SSL_ForceHandshake returned SECSuccess prematurely.
@@ -1848,6 +2234,14 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   // TODO(ukai): we may not need this call because it is now harmless to have a
   // session with a bad cert.
   InvalidateSessionIfBadCertificate();
+
+  // Likewise, if we merged a Write call into the handshake we need to make the
+  // callback now.
+  if (user_write_callback_) {
+    corked_ = false;
+    DoWriteCallback(user_write_buf_len_);
+  }
+
   // Exit DoHandshakeLoop and return the result to the caller to Connect.
   DCHECK(next_handshake_state_ == STATE_NONE);
   return result;
