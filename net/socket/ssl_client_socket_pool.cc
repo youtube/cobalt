@@ -74,7 +74,7 @@ SSLConnectJob::SSLConnectJob(
     SOCKSClientSocketPool* socks_pool,
     HttpProxyClientSocketPool* http_proxy_pool,
     ClientSocketFactory* client_socket_factory,
-    const scoped_refptr<HostResolver>& host_resolver,
+    HostResolver* host_resolver,
     Delegate* delegate,
     NetLog* net_log)
     : ConnectJob(group_name, timeout_duration, delegate,
@@ -377,7 +377,7 @@ SSLClientSocketPool::SSLClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
     ClientSocketPoolHistograms* histograms,
-    const scoped_refptr<HostResolver>& host_resolver,
+    HostResolver* host_resolver,
     ClientSocketFactory* client_socket_factory,
     TCPClientSocketPool* tcp_pool,
     SOCKSClientSocketPool* socks_pool,

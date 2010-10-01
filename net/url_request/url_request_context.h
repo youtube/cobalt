@@ -112,7 +112,7 @@ class URLRequestContext
   // The following members are expected to be initialized and owned by
   // subclasses.
   net::NetLog* net_log_;
-  scoped_refptr<net::HostResolver> host_resolver_;
+  net::HostResolver* host_resolver_;
   scoped_refptr<net::ProxyService> proxy_service_;
   scoped_refptr<net::SSLConfigService> ssl_config_service_;
   net::HttpTransactionFactory* http_transaction_factory_;

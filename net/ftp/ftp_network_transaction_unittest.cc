@@ -634,7 +634,7 @@ class FtpNetworkTransactionTest : public PlatformTest {
  public:
   FtpNetworkTransactionTest()
       : host_resolver_(new MockHostResolver),
-        session_(new FtpNetworkSession(host_resolver_)),
+        session_(new FtpNetworkSession(host_resolver_.get())),
         transaction_(session_.get(), &mock_socket_factory_) {
   }
 
@@ -696,7 +696,7 @@ class FtpNetworkTransactionTest : public PlatformTest {
     ExecuteTransaction(ctrl_socket, request, expected_result);
   }
 
-  scoped_refptr<MockHostResolver> host_resolver_;
+  scoped_ptr<MockHostResolver> host_resolver_;
   scoped_refptr<FtpNetworkSession> session_;
   MockClientSocketFactory mock_socket_factory_;
   FtpNetworkTransaction transaction_;

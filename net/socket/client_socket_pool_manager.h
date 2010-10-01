@@ -99,7 +99,7 @@ class ClientSocketPoolManager : public NonThreadSafe {
 
   NetLog* const net_log_;
   ClientSocketFactory* const socket_factory_;
-  const scoped_refptr<HostResolver> host_resolver_;
+  HostResolver* const host_resolver_;
   const scoped_refptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
 

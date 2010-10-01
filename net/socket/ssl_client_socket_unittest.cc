@@ -26,14 +26,10 @@ const net::SSLConfig kDefaultSSLConfig;
 class SSLClientSocketTest : public PlatformTest {
  public:
   SSLClientSocketTest()
-      : resolver_(net::CreateSystemHostResolver(
-            net::HostResolver::kDefaultParallelism,
-            NULL)),
-        socket_factory_(net::ClientSocketFactory::GetDefaultFactory()) {
+      : socket_factory_(net::ClientSocketFactory::GetDefaultFactory()) {
   }
 
  protected:
-  scoped_refptr<net::HostResolver> resolver_;
   net::ClientSocketFactory* socket_factory_;
 };
 
@@ -292,9 +288,10 @@ TEST_F(SSLClientSocketTest, Read) {
   EXPECT_EQ(net::OK, rv);
 
   scoped_ptr<net::SSLClientSocket> sock(
-      socket_factory_->CreateSSLClientSocket(transport,
-                                             test_server.host_port_pair().host(),
-                                             kDefaultSSLConfig));
+      socket_factory_->CreateSSLClientSocket(
+          transport,
+          test_server.host_port_pair().host(),
+          kDefaultSSLConfig));
 
   rv = sock->Connect(&callback);
   if (rv != net::OK) {
@@ -351,9 +348,10 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
   EXPECT_EQ(net::OK, rv);
 
   scoped_ptr<net::SSLClientSocket> sock(
-      socket_factory_->CreateSSLClientSocket(transport,
-                                             test_server.host_port_pair().host(),
-                                             kDefaultSSLConfig));
+      socket_factory_->CreateSSLClientSocket(
+          transport,
+          test_server.host_port_pair().host(),
+          kDefaultSSLConfig));
 
   rv = sock->Connect(&callback);
   if (rv != net::OK) {

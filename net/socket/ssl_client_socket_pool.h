@@ -90,7 +90,7 @@ class SSLConnectJob : public ConnectJob {
       SOCKSClientSocketPool* socks_pool,
       HttpProxyClientSocketPool* http_proxy_pool,
       ClientSocketFactory* client_socket_factory,
-      const scoped_refptr<HostResolver>& host_resolver,
+      HostResolver* host_resolver,
       Delegate* delegate,
       NetLog* net_log);
   virtual ~SSLConnectJob();
@@ -137,7 +137,7 @@ class SSLConnectJob : public ConnectJob {
   SOCKSClientSocketPool* const socks_pool_;
   HttpProxyClientSocketPool* const http_proxy_pool_;
   ClientSocketFactory* const client_socket_factory_;
-  const scoped_refptr<HostResolver> resolver_;
+  HostResolver* const resolver_;
 
   State next_state_;
   CompletionCallbackImpl<SSLConnectJob> callback_;
@@ -161,7 +161,7 @@ class SSLClientSocketPool : public ClientSocketPool,
       int max_sockets,
       int max_sockets_per_group,
       ClientSocketPoolHistograms* histograms,
-      const scoped_refptr<HostResolver>& host_resolver,
+      HostResolver* host_resolver,
       ClientSocketFactory* client_socket_factory,
       TCPClientSocketPool* tcp_pool,
       SOCKSClientSocketPool* socks_pool,
@@ -245,7 +245,7 @@ class SSLClientSocketPool : public ClientSocketPool,
     SOCKSClientSocketPool* const socks_pool_;
     HttpProxyClientSocketPool* const http_proxy_pool_;
     ClientSocketFactory* const client_socket_factory_;
-    const scoped_refptr<HostResolver> host_resolver_;
+    HostResolver* const host_resolver_;
     base::TimeDelta timeout_;
     NetLog* net_log_;
 

@@ -96,10 +96,10 @@ TEST(HttpAuthHandlerFactoryTest, RegistryFactory) {
 }
 
 TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
-  scoped_refptr<HostResolver> host_resolver(new MockHostResolver());
+  scoped_ptr<HostResolver> host_resolver(new MockHostResolver());
   URLSecurityManagerAllow url_security_manager;
   scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
-      HttpAuthHandlerFactory::CreateDefault(host_resolver));
+      HttpAuthHandlerFactory::CreateDefault(host_resolver.get()));
   http_auth_handler_factory->SetURLSecurityManager(
       "negotiate", &url_security_manager);
   GURL server_origin("http://www.example.com");

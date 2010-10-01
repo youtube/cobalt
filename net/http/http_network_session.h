@@ -137,7 +137,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   HttpAuthCache auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
-  scoped_refptr<HostResolver> host_resolver_;
+  HostResolver* const host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   ClientSocketPoolManager socket_pool_manager_;

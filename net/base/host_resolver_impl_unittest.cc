@@ -226,8 +226,6 @@ class ResolveRequest {
   int result_;
   AddressList addrlist_;
 
-  // We don't use a scoped_refptr, to simplify deleting shared resolver in
-  // DeleteWithinCallback test.
   HostResolver* resolver_;
 
   Delegate* delegate_;
@@ -265,7 +263,7 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
   HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
@@ -297,7 +295,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
   HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
@@ -336,7 +334,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   CapturingNetLog net_log(CapturingNetLog::kUnbounded);
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   {
-    scoped_refptr<HostResolver> host_resolver(
+    scoped_ptr<HostResolver> host_resolver(
         new HostResolverImpl(resolver_proc,
                              CreateDefaultCache(),
                              kMaxJobs,
@@ -396,7 +394,7 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AllowDirectLookup("*");
 
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
@@ -421,7 +419,7 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
 
   // Resolve a plain IPv6 address.  Don't worry about [brackets], because
   // the caller should have removed them.
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
@@ -451,7 +449,7 @@ TEST_F(HostResolverImplTest, EmptyHost) {
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AllowDirectLookup("*");
 
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
@@ -465,7 +463,7 @@ TEST_F(HostResolverImplTest, LongHost) {
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AllowDirectLookup("*");
 
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
   const int kPortnum = 5555;
@@ -528,7 +526,7 @@ TEST_F(HostResolverImplTest, DeDupeRequests) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc =
       new CapturingHostResolverProc(NULL);
 
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -538,11 +536,11 @@ TEST_F(HostResolverImplTest, DeDupeRequests) {
   // Start 5 requests, duplicating hosts "a" and "b". Since the resolver_proc is
   // blocked, these should all pile up until we signal it.
 
-  ResolveRequest req1(host_resolver, "a", 80, &verifier);
-  ResolveRequest req2(host_resolver, "b", 80, &verifier);
-  ResolveRequest req3(host_resolver, "b", 81, &verifier);
-  ResolveRequest req4(host_resolver, "a", 82, &verifier);
-  ResolveRequest req5(host_resolver, "b", 83, &verifier);
+  ResolveRequest req1(host_resolver.get(), "a", 80, &verifier);
+  ResolveRequest req2(host_resolver.get(), "b", 80, &verifier);
+  ResolveRequest req3(host_resolver.get(), "b", 81, &verifier);
+  ResolveRequest req4(host_resolver.get(), "a", 82, &verifier);
+  ResolveRequest req5(host_resolver.get(), "b", 83, &verifier);
 
   // Ready, Set, GO!!!
   resolver_proc->Signal();
@@ -579,7 +577,7 @@ TEST_F(HostResolverImplTest, CancelMultipleRequests) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc =
       new CapturingHostResolverProc(NULL);
 
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -589,11 +587,11 @@ TEST_F(HostResolverImplTest, CancelMultipleRequests) {
   // Start 5 requests, duplicating hosts "a" and "b". Since the resolver_proc is
   // blocked, these should all pile up until we signal it.
 
-  ResolveRequest req1(host_resolver, "a", 80, &verifier);
-  ResolveRequest req2(host_resolver, "b", 80, &verifier);
-  ResolveRequest req3(host_resolver, "b", 81, &verifier);
-  ResolveRequest req4(host_resolver, "a", 82, &verifier);
-  ResolveRequest req5(host_resolver, "b", 83, &verifier);
+  ResolveRequest req1(host_resolver.get(), "a", 80, &verifier);
+  ResolveRequest req2(host_resolver.get(), "b", 80, &verifier);
+  ResolveRequest req3(host_resolver.get(), "b", 81, &verifier);
+  ResolveRequest req4(host_resolver.get(), "a", 82, &verifier);
+  ResolveRequest req5(host_resolver.get(), "b", 83, &verifier);
 
   // Cancel everything except request 4.
   req1.Cancel();
@@ -666,7 +664,7 @@ TEST_F(HostResolverImplTest, CancelWithinCallback) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc =
       new CapturingHostResolverProc(NULL);
 
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -676,10 +674,10 @@ TEST_F(HostResolverImplTest, CancelWithinCallback) {
   // Start 4 requests, duplicating hosts "a". Since the resolver_proc is
   // blocked, these should all pile up until we signal it.
 
-  ResolveRequest req1(host_resolver, "a", 80, &verifier);
-  ResolveRequest req2(host_resolver, "a", 81, &verifier);
-  ResolveRequest req3(host_resolver, "a", 82, &verifier);
-  ResolveRequest req4(host_resolver, "a", 83, &verifier);
+  ResolveRequest req1(host_resolver.get(), "a", 80, &verifier);
+  ResolveRequest req2(host_resolver.get(), "a", 81, &verifier);
+  ResolveRequest req3(host_resolver.get(), "a", 82, &verifier);
+  ResolveRequest req4(host_resolver.get(), "a", 83, &verifier);
 
   // Once "a:80" completes, it will cancel "a:81" and "a:82".
   verifier.SetRequestsToCancel(&req2, &req3);
@@ -696,16 +694,15 @@ class DeleteWithinCallbackVerifier : public ResolveRequest::Delegate {
  public:
   // |host_resolver| is the resolver that the the resolve requests were started
   // with.
-  DeleteWithinCallbackVerifier(HostResolver* host_resolver)
+  explicit DeleteWithinCallbackVerifier(HostResolver* host_resolver)
       : host_resolver_(host_resolver) {}
 
   virtual void OnCompleted(ResolveRequest* resolve) {
     EXPECT_EQ("a", resolve->hostname());
     EXPECT_EQ(80, resolve->port());
 
-    // Release the last reference to the host resolver that started the
-    // requests.
-    host_resolver_ = NULL;
+    // Deletes the host resolver.
+    host_resolver_.reset();
 
     // Quit after returning from OnCompleted (to give it a chance at
     // incorrectly running the cancelled tasks).
@@ -713,7 +710,7 @@ class DeleteWithinCallbackVerifier : public ResolveRequest::Delegate {
   }
 
  private:
-  scoped_refptr<HostResolver> host_resolver_;
+  scoped_ptr<HostResolver> host_resolver_;
   DISALLOW_COPY_AND_ASSIGN(DeleteWithinCallbackVerifier);
 };
 
@@ -780,7 +777,7 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
       new CapturingHostResolverProc(NULL);
 
   // Turn off caching for this host resolver.
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, NULL, kMaxJobs, NULL));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -790,10 +787,10 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
   // Start 4 requests, duplicating hosts "a". Since the resolver_proc is
   // blocked, these should all pile up until we signal it.
 
-  ResolveRequest req1(host_resolver, "a", 80, &verifier);
-  ResolveRequest req2(host_resolver, "a", 81, &verifier);
-  ResolveRequest req3(host_resolver, "a", 82, &verifier);
-  ResolveRequest req4(host_resolver, "a", 83, &verifier);
+  ResolveRequest req1(host_resolver.get(), "a", 80, &verifier);
+  ResolveRequest req2(host_resolver.get(), "a", 81, &verifier);
+  ResolveRequest req3(host_resolver.get(), "a", 82, &verifier);
+  ResolveRequest req4(host_resolver.get(), "a", 83, &verifier);
 
   // Ready, Set, GO!!!
   resolver_proc->Signal();
@@ -846,7 +843,7 @@ class BypassCacheVerifier : public ResolveRequest::Delegate {
 };
 
 TEST_F(HostResolverImplTest, BypassCache) {
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(NULL));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -854,7 +851,7 @@ TEST_F(HostResolverImplTest, BypassCache) {
   BypassCacheVerifier verifier;
 
   // Start a request.
-  ResolveRequest req1(host_resolver, "a", 80, &verifier);
+  ResolveRequest req1(host_resolver.get(), "a", 80, &verifier);
 
   // |verifier| will send quit message once all the requests have finished.
   MessageLoop::current()->Run();
@@ -931,7 +928,7 @@ class CapturingObserver : public HostResolver::Observer {
 // Does not test the cancellation notification since all resolves are
 // synchronous.
 TEST_F(HostResolverImplTest, Observers) {
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(NULL));
 
   CapturingObserver observer;
@@ -1009,7 +1006,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
   CapturingObserver observer;
   {
     // Create a host resolver and attach an observer.
-    scoped_refptr<HostResolver> host_resolver(
+    scoped_ptr<HostResolver> host_resolver(
         CreateHostResolverImpl(NULL));
     host_resolver->AddObserver(&observer);
 
@@ -1077,7 +1074,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
 
 // Test that IP address changes flush the cache.
 TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs, NULL));
 
   AddressList addrlist;
@@ -1111,7 +1108,7 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc =
       new WaitingHostResolverProc(NULL);
   HostCache* cache = CreateDefaultCache();
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, cache, kMaxJobs, NULL));
 
   // Resolve "host1".
@@ -1135,7 +1132,7 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
 TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc =
       new WaitingHostResolverProc(NULL);
-  scoped_refptr<MockHostResolver> host_resolver(new MockHostResolver());
+  scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver());
   host_resolver->Reset(resolver_proc);
 
   const size_t kMaxOutstandingJobs = 1u;
@@ -1171,11 +1168,11 @@ TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
 class ResolveWithinCallback : public CallbackRunner< Tuple1<int> > {
  public:
   ResolveWithinCallback(
-      const scoped_refptr<MockHostResolver>& host_resolver,
+      MockHostResolver* host_resolver,
       const HostResolver::RequestInfo& info)
       : host_resolver_(host_resolver),
         info_(info) {
-    DCHECK(host_resolver.get());
+    DCHECK(host_resolver);
   }
 
   virtual void RunWithParams(const Tuple1<int>& params) {
@@ -1197,7 +1194,7 @@ class ResolveWithinCallback : public CallbackRunner< Tuple1<int> > {
   }
 
  private:
-  const scoped_refptr<MockHostResolver> host_resolver_;
+  MockHostResolver* const host_resolver_;
   const HostResolver::RequestInfo info_;
   AddressList addrlist_;
   TestCompletionCallback callback_;
@@ -1207,12 +1204,12 @@ class ResolveWithinCallback : public CallbackRunner< Tuple1<int> > {
 TEST_F(HostResolverImplTest, OnlyAbortExistingRequestsOnIPAddressChange) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc =
       new WaitingHostResolverProc(NULL);
-  scoped_refptr<MockHostResolver> host_resolver(new MockHostResolver());
+  scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver());
   host_resolver->Reset(resolver_proc);
 
   // Resolve "host1".
   HostResolver::RequestInfo info(HostPortPair("host1", 70));
-  ResolveWithinCallback callback(host_resolver, info);
+  ResolveWithinCallback callback(host_resolver.get(), info);
   AddressList addrlist;
   int rv = host_resolver->Resolve(info, &addrlist, &callback, NULL,
                                   BoundNetLog());
@@ -1235,7 +1232,7 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   size_t kMaxJobs = 1u;
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs,
                            NULL));
 
@@ -1320,7 +1317,7 @@ TEST_F(HostResolverImplTest, CancelPendingRequest) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxJobs = 1u;
-  scoped_refptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs,
                            NULL));
 
@@ -1383,7 +1380,7 @@ TEST_F(HostResolverImplTest, QueueOverflow) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
-  scoped_refptr<HostResolverImpl> host_resolver(new HostResolverImpl(
+  scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
       resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
 
   // Only allow up to 3 requests to be enqueued at a time.
@@ -1461,7 +1458,7 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
-  scoped_refptr<HostResolverImpl> host_resolver(new HostResolverImpl(
+  scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
       resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
@@ -1529,7 +1526,7 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
-  scoped_refptr<HostResolverImpl> host_resolver(new HostResolverImpl(
+  scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
       resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV6);
@@ -1595,7 +1592,7 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
       new CapturingHostResolverProc(new EchoingHostResolverProc);
 
   const size_t kMaxOutstandingJobs = 10u;
-  scoped_refptr<HostResolverImpl> host_resolver(new HostResolverImpl(
+  scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
       resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs, NULL));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
