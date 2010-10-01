@@ -17,6 +17,7 @@ namespace net {
 
 class SSLCertRequestInfo;
 class SSLInfo;
+class SSLNonSensitiveHostInfo;
 struct RRResponse;
 
 // DNSSECProvider is an interface to an object that can return DNSSEC data.
