@@ -113,6 +113,7 @@ class RRResolverHandle {
     if (response_ && response)
       *response_ = *response;
     callback_->Run(rv);
+    delete this;
   }
 
  private:
@@ -268,10 +269,14 @@ class RRResolverWorker {
   // DoReply runs on the origin thread.
   void DoReply() {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
-    // No locking here because, since the worker thread part of the lookup is
-    // complete, only one thread can access this object now.
-    if (!canceled_)
-      dnsrr_resolver_->HandleResult(name_, rrtype_, result_, response_);
+    {
+      // We lock here because the worker thread could still be in Finished,
+      // after the PostTask, but before unlocking |lock_|. In this case, we end
+      // up deleting a locked Lock, which can lead to memory leaks.
+      AutoLock locked(lock_);
+      if (!canceled_)
+        dnsrr_resolver_->HandleResult(name_, rrtype_, result_, response_);
+    }
     delete this;
   }
 
@@ -581,7 +586,7 @@ class RRResolverJob {
     for (std::vector<RRResolverHandle*>::iterator
          i = handles.begin(); i != handles.end(); i++) {
       (*i)->Post(result, response);
-      delete *i;
+      // Post() causes the RRResolverHandle to delete itself.
     }
   }
 
