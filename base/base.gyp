@@ -103,6 +103,7 @@
         'linked_list_unittest.cc',
         'linked_ptr_unittest.cc',
         'lock_unittest.cc',
+        'logging_unittest.cc',
         'mac_util_unittest.mm',
         'message_loop_proxy_impl_unittest.cc',
         'message_loop_unittest.cc',
