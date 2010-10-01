@@ -163,20 +163,22 @@ void DeleteFilePath(const PathString& log_name) {
 #endif
 }
 
-void GetDefaultLogFile(PathString default_log_file) {
+PathString GetDefaultLogFile() {
 #if defined(OS_WIN)
   // On Windows we use the same path as the exe.
   wchar_t module_name[MAX_PATH];
   GetModuleFileName(NULL, module_name, MAX_PATH);
-  default_log_file = module_name;
-  std::wstring::size_type last_backslash =
-      default_log_file.rfind('\\', default_log_file.size());
-  if (last_backslash != std::wstring::npos)
-    default_log_file.erase(last_backslash + 1);
-  default_log_file += L"debug.log";
+
+  PathString log_file = module_name;
+  PathString::size_type last_backslash =
+      log_file.rfind('\\', log_file.size());
+  if (last_backslash != PathString::npos)
+    log_file.erase(last_backslash + 1);
+  log_file += L"debug.log";
+  return log_file;
 #elif defined(OS_POSIX)
   // On other platforms we just use the current directory.
-  default_log_file = "debug.log";
+  return PathString("debug.log");
 #endif
 }
 
@@ -207,12 +209,22 @@ class LoggingLock {
         if (new_log_file)
           safe_name = new_log_file;
         else
-          GetDefaultLogFile(safe_name);
+          safe_name = GetDefaultLogFile();
         // \ is not a legal character in mutex names so we replace \ with /
         std::replace(safe_name.begin(), safe_name.end(), '\\', '/');
         std::wstring t(L"Global\\");
         t.append(safe_name);
         log_mutex = ::CreateMutex(NULL, FALSE, t.c_str());
+
+        if (log_mutex == NULL) {
+#if DEBUG
+          // Keep the error code for debugging
+          int error = GetLastError();  // NOLINT
+          DebugUtil::BreakDebugger();
+#endif
+          // Return nicely without putting initialized to true.
+          return;
+        }
       }
 #endif
     } else {
@@ -293,8 +305,7 @@ bool InitializeLogFileHandle() {
   if (!log_file_name) {
     // Nobody has called InitLogging to specify a debug log file, so here we
     // initialize the log file name to a default.
-    log_file_name = new PathString();
-    GetDefaultLogFile(*log_file_name);
+    log_file_name = new PathString(GetDefaultLogFile());
   }
 
   if (logging_destination == LOG_ONLY_TO_FILE ||
@@ -367,7 +378,6 @@ void BaseInitLoggingImpl(const PathChar* new_log_file,
     DeleteFilePath(*log_file_name);
 
   InitializeLogFileHandle();
-
 }
 
 void SetMinLogLevel(int level) {
