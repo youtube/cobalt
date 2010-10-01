@@ -270,6 +270,8 @@ class DictionaryValue : public Value {
                                Value** out_value) const;
   bool GetIntegerWithoutPathExpansion(const std::string& key,
                                       int* out_value) const;
+  bool GetRealWithoutPathExpansion(const std::string& key,
+                                   double* out_value) const;
   bool GetStringWithoutPathExpansion(const std::string& key,
                                      std::string* out_value) const;
   bool GetStringWithoutPathExpansion(const std::string& key,
