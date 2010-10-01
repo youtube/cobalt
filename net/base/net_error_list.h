@@ -177,6 +177,12 @@ NET_ERROR(SSL_WEAK_SERVER_EPHEMERAL_DH_KEY, -129)
 // of an HTTP proxy.
 NET_ERROR(PROXY_CONNECTION_FAILED, -130)
 
+// This means that we tried a Snap Start connection and sent a request,
+// predicting the server's NPN protocol support. However, after doing the
+// actual handshake, our prediction turned out to be incorrect so we sent a
+// request in the wrong protocol.
+NET_ERROR(SSL_SNAP_START_NPN_MISPREDICTION, -131)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
