@@ -68,7 +68,7 @@ class MockHostResolverBase : public HostResolver {
 
  protected:
   MockHostResolverBase(bool use_caching);
-  virtual ~MockHostResolverBase() {}
+  virtual ~MockHostResolverBase();
 
   scoped_refptr<HostResolverImpl> impl_;
   scoped_refptr<RuleBasedHostResolverProc> rules_;
@@ -154,26 +154,19 @@ class RuleBasedHostResolverProc : public HostResolverProc {
 // Using WaitingHostResolverProc you can simulate very long lookups.
 class WaitingHostResolverProc : public HostResolverProc {
  public:
-  explicit WaitingHostResolverProc(HostResolverProc* previous)
-      : HostResolverProc(previous), event_(false, false) {}
+  explicit WaitingHostResolverProc(HostResolverProc* previous);
 
-  void Signal() {
-    event_.Signal();
-  }
+  void Signal();
 
   // HostResolverProc methods:
   virtual int Resolve(const std::string& host,
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
                       AddressList* addrlist,
-                      int* os_error) {
-    event_.Wait();
-    return ResolveUsingPrevious(host, address_family, host_resolver_flags,
-                                addrlist, os_error);
-  }
+                      int* os_error);
 
  private:
-  ~WaitingHostResolverProc() {}
+  virtual ~WaitingHostResolverProc();
 
   base::WaitableEvent event_;
 };
@@ -189,7 +182,7 @@ class WaitingHostResolverProc : public HostResolverProc {
 // MockHostResolver.
 class ScopedDefaultHostResolverProc {
  public:
-  ScopedDefaultHostResolverProc() {}
+  ScopedDefaultHostResolverProc();
   explicit ScopedDefaultHostResolverProc(HostResolverProc* proc);
 
   ~ScopedDefaultHostResolverProc();
