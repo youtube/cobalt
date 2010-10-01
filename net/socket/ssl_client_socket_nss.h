@@ -66,8 +66,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
-  void set_handshake_callback_called() { handshake_callback_called_ = true; }
-
  private:
   // Initializes NSS SSL options.  Returns a net error code.
   int InitializeSSLOptions();
@@ -90,6 +88,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoReadLoop(int result);
   int DoWriteLoop(int result);
 
+  int DoSnapStartLoadInfo();
+  int DoSnapStartWaitForWrite();
   int DoHandshake();
 
   int DoVerifyDNSSEC(int result);
@@ -99,6 +99,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoPayloadRead();
   int DoPayloadWrite();
   int Init();
+  void SaveSnapStartInfo();
+  bool LoadSnapStartInfo(const std::string& info);
+  bool IsNPNProtocolMispredicted();
 
   bool DoTransportIO();
   int BufferSend(void);
@@ -166,6 +169,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True if the SSL handshake has been completed.
   bool completed_handshake_;
 
+  // True if we are lying about being connected in order to merge the first
+  // Write call into a Snap Start handshake.
+  bool pseudo_connected_;
+
   // This pointer is owned by the caller of UseDNSSEC.
   DNSSECProvider* dnssec_provider_;
   // The time when we started waiting for DNSSEC records.
@@ -173,6 +180,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   enum State {
     STATE_NONE,
+    STATE_SNAP_START_LOAD_INFO,
+    STATE_SNAP_START_WAIT_FOR_WRITE,
     STATE_HANDSHAKE,
     STATE_VERIFY_DNSSEC,
     STATE_VERIFY_DNSSEC_COMPLETE,
@@ -188,6 +197,14 @@ class SSLClientSocketNSS : public SSLClientSocket {
   memio_Private* nss_bufs_;
 
   BoundNetLog net_log_;
+
+  // When performing Snap Start we need to predict the NPN protocol which the
+  // server is going to speak before we actually perform the handshake. Thus
+  // the last NPN protocol used is serialised in |ssl_config.ssl_host_info|
+  // and kept in these fields:
+  SSLClientSocket::NextProtoStatus predicted_npn_status_;
+  std::string predicted_npn_proto_;
+  bool predicted_npn_proto_used_;
 
 #if defined(OS_WIN)
   // A CryptoAPI in-memory certificate store.  We use it for two purposes:

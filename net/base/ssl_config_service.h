@@ -10,6 +10,7 @@
 
 #include "base/observer_list.h"
 #include "base/ref_counted.h"
+#include "net/base/ssl_non_sensitive_host_info.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
@@ -27,6 +28,7 @@ struct SSLConfig {
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
   bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
+  bool snap_start_enabled;  // True if we'll try Snap Start handshakes.
 
   // True if we allow this connection to be MITM attacked. This sounds a little
   // worse than it is: large networks sometimes MITM attack all SSL connections
@@ -72,6 +74,12 @@ struct SSLConfig {
   std::string next_protos;
 
   scoped_refptr<X509Certificate> client_cert;
+
+  // ssl_host_info contains an optional context that is needed for Snap Start.
+  // If provided, the SSL socket will assume that the application protocol is
+  // client-speaks-first. Also needs SSLConfigService::EnableSnapStart to
+  // have been called.
+  scoped_refptr<SSLNonSensitiveHostInfo> ssl_host_info;
 };
 
 // The interface for retrieving the SSL configuration.  This interface
@@ -124,6 +132,11 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   // embedded DNSSEC chain proving their validity.
   static void EnableDNSSEC();
   static bool dnssec_enabled();
+
+  // Enables Snap Start, an experiemental SSL/TLS extension for zero round
+  // trip handshakes.
+  static void EnableSnapStart();
+  static bool snap_start_enabled();
 
   // Sets a global flag which allows SSL connections to be MITM attacked. See
   // the comment about this flag in |SSLConfig|.
