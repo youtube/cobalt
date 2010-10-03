@@ -119,7 +119,7 @@ class Image {
   }
 
   // Returns the RGBA value of the pixel at the given location
-  const uint32 pixel_at(int x, int y) const {
+  uint32 pixel_at(int x, int y) const {
     DCHECK(x >= 0 && x < w_);
     DCHECK(y >= 0 && y < h_);
     return *reinterpret_cast<const uint32*>(&(data_[(y * w_ + x) * 4]));
