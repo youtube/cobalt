@@ -351,5 +351,5 @@ TEST(TimerTest, MessageLoopShutdown) {
     }  // MessageLoop destructs by falling out of scope.
   }  // OneShotTimers destruct.  SHOULD NOT CRASH, of course.
 
-  EXPECT_EQ(false, did_run);
+  EXPECT_FALSE(did_run);
 }
