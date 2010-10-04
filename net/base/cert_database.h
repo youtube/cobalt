@@ -65,6 +65,7 @@ class CertDatabase {
   struct ImportCertFailure {
    public:
     ImportCertFailure(X509Certificate* cert, int err);
+    ~ImportCertFailure();
 
     scoped_refptr<X509Certificate> certificate;
     int net_error;
