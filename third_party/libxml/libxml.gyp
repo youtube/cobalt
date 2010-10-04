@@ -19,7 +19,8 @@
     {
       'target_name': 'libxml',
       'conditions': [
-        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris") and use_system_libxml', {
+        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris") '
+         'and use_system_libxml', {
           'type': 'settings',
           'direct_dependent_settings': {
             'cflags': [
