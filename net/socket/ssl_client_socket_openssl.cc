@@ -21,7 +21,7 @@ namespace {
 
 // Enable this to see logging for state machine state transitions.
 #if 0
-#define GotoState(s) do { LOG(INFO) << (void *)this << " " << __FUNCTION__ << \
+#define GotoState(s) do { DVLOG(2) << (void *)this << " " << __FUNCTION__ << \
                            " jump to state " << s; \
                            next_handshake_state_ = s; } while (0)
 #else
@@ -29,13 +29,15 @@ namespace {
 #endif
 
 const size_t kMaxRecvBufferSize = 4096;
+static SSL_CTX* g_ctx = NULL;
+static int g_app_data_index = -1;
 
 void MaybeLogSSLError() {
   int error_num;
   while ((error_num = ERR_get_error()) != 0) {
     char buf[128];  // this buffer must be at least 120 chars long.
     ERR_error_string_n(error_num, buf, arraysize(buf));
-    LOG(INFO) << "SSL error " << error_num << ": " << buf;
+    DVLOG(1) << "SSL error " << error_num << ": " << buf;
   }
 }
 
@@ -52,10 +54,23 @@ int MapOpenSSLError(int err) {
   }
 }
 
-}  // namespace
+// Registered with |g_ctx| as global verify callback handler; we unpack the
+// SSLClientSocketOpenSSL instance associated with this callback and delegate
+// the handling to it.
+int VerifyCallback(int preverify_ok, X509_STORE_CTX* x509_ctx) {
+  DCHECK_GE(g_app_data_index, 0);
+  // Retrieve the pointer to the SSL of the connection currently treated
+  // and from there, the application specific data stored in the SSL object.
+  SSL* ssl = static_cast<SSL*>(X509_STORE_CTX_get_ex_data(
+      x509_ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
+  DCHECK(ssl);
+  SSLClientSocketOpenSSL* self = static_cast<SSLClientSocketOpenSSL*>(
+      SSL_get_ex_data(ssl, g_app_data_index));
+  DCHECK(self);
+  return self->SSLVerifyCallback(preverify_ok, ssl, x509_ctx);
+}
 
-// static
-SSL_CTX* SSLClientSocketOpenSSL::g_ctx = NULL;
+}  // namespace
 
 SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     ClientSocketHandle* transport_socket,
@@ -100,8 +115,16 @@ bool SSLClientSocketOpenSSL::InitOpenSSL() {
     MaybeLogSSLError();
     return false;
   }
+  g_app_data_index = SSL_get_ex_new_index(__LINE__, g_ctx, NULL, NULL, NULL);
+  DCHECK_GE(g_app_data_index, 0);
 
-  SSL_CTX_set_verify(g_ctx, SSL_VERIFY_NONE, NULL /*callback*/);
+  SSL_CTX_set_verify(g_ctx, SSL_VERIFY_PEER, VerifyCallback);
+
+  // For now, just let OpenSSL load CA certs directly from the filesystem.
+  if (!SSL_CTX_set_default_verify_paths(g_ctx)) {
+    MaybeLogSSLError();
+    return false;
+  }
 
   return true;
 }
@@ -110,6 +133,11 @@ bool SSLClientSocketOpenSSL::Init() {
   DCHECK(g_ctx);
   ssl_ = SSL_new(g_ctx);
   if (!ssl_) {
+    MaybeLogSSLError();
+    return false;
+  }
+
+  if (!SSL_set_ex_data(ssl_, g_app_data_index, this)) {
     MaybeLogSSLError();
     return false;
   }
@@ -131,6 +159,18 @@ bool SSLClientSocketOpenSSL::Init() {
   SSL_set_bio(ssl_, ssl_bio, ssl_bio);
 
   return true;
+}
+
+int SSLClientSocketOpenSSL::SSLVerifyCallback(int preverify_ok,
+                                              SSL* ssl,
+                                              X509_STORE_CTX* x509_ctx) {
+  DCHECK_EQ(ssl_, ssl);
+  if (!preverify_ok) {
+    int depth = X509_STORE_CTX_get_error_depth(x509_ctx);
+    DVLOG(2) << "SSLVerifyCallback " << preverify_ok << " depth " << depth;
+    MaybeLogSSLError();
+  }
+  return preverify_ok;
 }
 
 // SSLClientSocket methods
