@@ -16,6 +16,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 #include "net/third_party/mozilla_security_manager/nsNSSCertificateDB.h"
+#include "net/third_party/mozilla_security_manager/nsNSSCertTrust.h"
 #include "net/third_party/mozilla_security_manager/nsPKCS12Blob.h"
 
 // PSM = Mozilla's Personal Security Manager.
@@ -145,6 +146,30 @@ bool CertDatabase::ImportCACerts(const CertificateList& certificates,
                                  ImportCertFailureList* not_imported) {
   X509Certificate* root = FindRootInList(certificates);
   return psm::ImportCACerts(certificates, root, trust_bits, not_imported);
+}
+
+int CertDatabase::GetCertTrust(
+    const X509Certificate* cert, CertType type) const {
+  CERTCertTrust nsstrust;
+  SECStatus srv = CERT_GetCertTrust(cert->os_cert_handle(), &nsstrust);
+  if (srv != SECSuccess) {
+    LOG(ERROR) << "CERT_GetCertTrust failed with error " << PORT_GetError();
+    return UNTRUSTED;
+  }
+  psm::nsNSSCertTrust trust(&nsstrust);
+  switch (type) {
+    case CA_CERT:
+      return trust.HasTrustedCA(PR_TRUE, PR_FALSE, PR_FALSE) * TRUSTED_SSL +
+          trust.HasTrustedCA(PR_FALSE, PR_TRUE, PR_FALSE) * TRUSTED_EMAIL +
+          trust.HasTrustedCA(PR_FALSE, PR_FALSE, PR_TRUE) * TRUSTED_OBJ_SIGN;
+    case SERVER_CERT:
+    case EMAIL_CERT:
+      return trust.HasTrustedPeer(PR_TRUE, PR_FALSE, PR_FALSE) * TRUSTED_SSL +
+          trust.HasTrustedPeer(PR_FALSE, PR_TRUE, PR_FALSE) * TRUSTED_EMAIL +
+          trust.HasTrustedPeer(PR_FALSE, PR_FALSE, PR_TRUE) * TRUSTED_OBJ_SIGN;
+    default:
+      return UNTRUSTED;
+  }
 }
 
 bool CertDatabase::SetCertTrust(const X509Certificate* cert,

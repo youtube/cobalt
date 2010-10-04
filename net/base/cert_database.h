@@ -115,6 +115,9 @@ class CertDatabase {
                      unsigned int trust_bits,
                      ImportCertFailureList* not_imported);
 
+  // Get trust bits for certificate.
+  int GetCertTrust(const X509Certificate* cert, CertType type) const;
+
   // Set trust values for certificate.
   // Returns true on success or false on failure.
   bool SetCertTrust(const X509Certificate* cert,
