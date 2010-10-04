@@ -88,7 +88,7 @@ TEST(URLSecurityManager, CanDelegate_NoWhitelist) {
   for (size_t i = 0; i < arraysize(kTestDataList); ++i) {
     GURL gurl(kTestDataList[i].url);
     bool can_delegate = url_security_manager->CanDelegate(gurl);
-    EXPECT_EQ(false, can_delegate);
+    EXPECT_FALSE(can_delegate);
   }
 }
 

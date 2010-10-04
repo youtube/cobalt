@@ -17,6 +17,7 @@ namespace {
 class FileVersionInfoTest : public testing::Test {
 };
 
+#if defined(OS_WIN)
 FilePath GetTestDataPath() {
   FilePath path;
   PathService::Get(base::DIR_SOURCE_ROOT, &path);
@@ -25,6 +26,7 @@ FilePath GetTestDataPath() {
   path = path.AppendASCII("file_version_info_unittest");
   return path;
 }
+#endif
 
 }
 
