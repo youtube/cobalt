@@ -28,7 +28,9 @@ inline ::testing::AssertionResult LogContainsEventHelper(
     NetLog::EventType expected_event,
     NetLog::EventPhase expected_phase) {
   // Negative indices are reverse indices.
-  size_t j = (i < 0) ? entries.size() + i : i;
+  size_t j = (i < 0) ?
+      static_cast<size_t>(static_cast<int>(entries.size()) + i) :
+      static_cast<size_t>(i);
   if (j >= entries.size())
     return ::testing::AssertionFailure() << j << " is out of bounds.";
   const CapturingNetLog::Entry& entry = entries[j];
@@ -95,7 +97,9 @@ inline ::testing::AssertionResult LogContainsEntryWithType(
     int i, // Negative indices are reverse indices.
     NetLog::EventType type) {
   // Negative indices are reverse indices.
-  size_t j = (i < 0) ? entries.size() + i : i;
+  size_t j = (i < 0) ?
+      static_cast<size_t>(static_cast<int>(entries.size()) + i) :
+      static_cast<size_t>(i);
   if (j >= entries.size())
     return ::testing::AssertionFailure() << j << " is out of bounds.";
   const CapturingNetLog::Entry& entry = entries[j];
