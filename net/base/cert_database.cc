@@ -13,4 +13,7 @@ CertDatabase::ImportCertFailure::ImportCertFailure(
     : certificate(cert), net_error(err) {
 }
 
+CertDatabase::ImportCertFailure::~ImportCertFailure() {
+}
+
 }  // namespace net
