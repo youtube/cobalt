@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..78a4727
 --- /dev/null
 +++ b/third_party/libevent/event-config.h
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,16 @@
 +// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -15,6 +15,8 @@ index 0000000..78a4727
 +#include "mac/event-config.h"
 +#elif defined(__linux__)
 +#include "linux/event-config.h"
++#elif defined(__FreeBSD__)
++#include "freebsd/event-config.h"
 +#else
 +#error generate event-config.h for your platform
 +#endif
