@@ -902,7 +902,7 @@ OutStringType DoReplaceStringPlaceholders(const FormatStringType& format_string,
   size_t sub_length = 0;
   for (typename std::vector<OutStringType>::const_iterator iter = subst.begin();
        iter != subst.end(); ++iter) {
-    sub_length += (*iter).length();
+    sub_length += iter->length();
   }
 
   OutStringType formatted;
@@ -927,9 +927,10 @@ OutStringType DoReplaceStringPlaceholders(const FormatStringType& format_string,
             ReplacementOffset r_offset(index,
                 static_cast<int>(formatted.size()));
             r_offsets.insert(std::lower_bound(r_offsets.begin(),
-                r_offsets.end(), r_offset,
-                &CompareParameter),
-                r_offset);
+                                              r_offsets.end(),
+                                              r_offset,
+                                              &CompareParameter),
+                             r_offset);
           }
           if (index < substitutions)
             formatted.append(subst.at(index));
@@ -941,7 +942,7 @@ OutStringType DoReplaceStringPlaceholders(const FormatStringType& format_string,
   }
   if (offsets) {
     for (std::vector<ReplacementOffset>::const_iterator i = r_offsets.begin();
-        i != r_offsets.end(); ++i) {
+         i != r_offsets.end(); ++i) {
       offsets->push_back(i->offset);
     }
   }
