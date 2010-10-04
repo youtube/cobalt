@@ -13,27 +13,6 @@ namespace base {
 
 namespace {
 
-// Given a null-terminated string of wchar_t with each wchar_t representing
-// a UTF-16 code unit, returns a string16 made up of wchar_t's in the input.
-// Each wchar_t should be <= 0xFFFF and a non-BMP character (> U+FFFF)
-// should be represented as a surrogate pair (two UTF-16 units)
-// *even* where wchar_t is 32-bit (Linux and Mac).
-//
-// This is to help write tests for functions with string16 params until
-// the C++ 0x UTF-16 literal is well-supported by compilers.
-string16 BuildString16(const wchar_t* s) {
-#if defined(WCHAR_T_IS_UTF16)
-  return string16(s);
-#elif defined(WCHAR_T_IS_UTF32)
-  string16 u16;
-  while (*s != 0) {
-    DCHECK_LE(static_cast<unsigned int>(*s), 0xFFFFu);
-    u16.push_back(*s++);
-  }
-  return u16;
-#endif
-}
-
 const wchar_t* const kConvertRoundtripCases[] = {
   L"Google Video",
   // "网页 图片 资讯更多 »"

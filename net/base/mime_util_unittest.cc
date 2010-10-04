@@ -62,39 +62,35 @@ TEST(MimeUtilTest, FileTest) {
 }
 
 TEST(MimeUtilTest, LookupTypes) {
-  EXPECT_EQ(true, net::IsSupportedImageMimeType("image/jpeg"));
-  EXPECT_EQ(false, net::IsSupportedImageMimeType("image/lolcat"));
-  EXPECT_EQ(true, net::IsSupportedNonImageMimeType("text/html"));
-  EXPECT_EQ(false, net::IsSupportedNonImageMimeType("text/virus"));
+  EXPECT_TRUE(net::IsSupportedImageMimeType("image/jpeg"));
+  EXPECT_FALSE(net::IsSupportedImageMimeType("image/lolcat"));
+  EXPECT_TRUE(net::IsSupportedNonImageMimeType("text/html"));
+  EXPECT_FALSE(net::IsSupportedNonImageMimeType("text/virus"));
 
-  EXPECT_EQ(true, net::IsSupportedMimeType("image/jpeg"));
-  EXPECT_EQ(false, net::IsSupportedMimeType("image/lolcat"));
-  EXPECT_EQ(true, net::IsSupportedMimeType("text/html"));
-  EXPECT_EQ(false, net::IsSupportedMimeType("text/virus"));
+  EXPECT_TRUE(net::IsSupportedMimeType("image/jpeg"));
+  EXPECT_FALSE(net::IsSupportedMimeType("image/lolcat"));
+  EXPECT_TRUE(net::IsSupportedMimeType("text/html"));
+  EXPECT_FALSE(net::IsSupportedMimeType("text/virus"));
 }
 
 TEST(MimeUtilTest, MatchesMimeType) {
-  EXPECT_EQ(true, net::MatchesMimeType("*", "video/x-mpeg"));
-  EXPECT_EQ(true, net::MatchesMimeType("video/*", "video/x-mpeg"));
-  EXPECT_EQ(true, net::MatchesMimeType("video/x-mpeg", "video/x-mpeg"));
-  EXPECT_EQ(true, net::MatchesMimeType("application/*+xml",
-                                             "application/html+xml"));
-  EXPECT_EQ(true, net::MatchesMimeType("application/*+xml",
-                                             "application/+xml"));
-  EXPECT_EQ(true, net::MatchesMimeType("aaa*aaa",
-                                             "aaaaaa"));
-  EXPECT_EQ(false, net::MatchesMimeType("video/", "video/x-mpeg"));
-  EXPECT_EQ(false, net::MatchesMimeType("", "video/x-mpeg"));
-  EXPECT_EQ(false, net::MatchesMimeType("", ""));
-  EXPECT_EQ(false, net::MatchesMimeType("video/x-mpeg", ""));
-  EXPECT_EQ(false, net::MatchesMimeType("application/*+xml",
-                                              "application/xml"));
-  EXPECT_EQ(false, net::MatchesMimeType("application/*+xml",
-                                              "application/html+xmlz"));
-  EXPECT_EQ(false, net::MatchesMimeType("application/*+xml",
-                                              "applcation/html+xml"));
-  EXPECT_EQ(false, net::MatchesMimeType("aaa*aaa",
-                                              "aaaaa"));
+  EXPECT_TRUE(net::MatchesMimeType("*", "video/x-mpeg"));
+  EXPECT_TRUE(net::MatchesMimeType("video/*", "video/x-mpeg"));
+  EXPECT_TRUE(net::MatchesMimeType("video/x-mpeg", "video/x-mpeg"));
+  EXPECT_TRUE(net::MatchesMimeType("application/*+xml",
+                                   "application/html+xml"));
+  EXPECT_TRUE(net::MatchesMimeType("application/*+xml", "application/+xml"));
+  EXPECT_TRUE(net::MatchesMimeType("aaa*aaa", "aaaaaa"));
+  EXPECT_FALSE(net::MatchesMimeType("video/", "video/x-mpeg"));
+  EXPECT_FALSE(net::MatchesMimeType("", "video/x-mpeg"));
+  EXPECT_FALSE(net::MatchesMimeType("", ""));
+  EXPECT_FALSE(net::MatchesMimeType("video/x-mpeg", ""));
+  EXPECT_FALSE(net::MatchesMimeType("application/*+xml", "application/xml"));
+  EXPECT_FALSE(net::MatchesMimeType("application/*+xml",
+                                    "application/html+xmlz"));
+  EXPECT_FALSE(net::MatchesMimeType("application/*+xml",
+                                    "applcation/html+xml"));
+  EXPECT_FALSE(net::MatchesMimeType("aaa*aaa", "aaaaa"));
 }
 
 // Note: codecs should only be a list of 2 or fewer; hence the restriction of

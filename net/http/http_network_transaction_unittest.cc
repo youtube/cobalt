@@ -3814,7 +3814,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   EXPECT_EQ(0U, trans->request_headers_.size());
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_TRUE(response->headers.get() == NULL);
-  EXPECT_EQ(false, response->was_cached);
+  EXPECT_FALSE(response->was_cached);
   EXPECT_EQ(0, response->ssl_info.cert_status);
   EXPECT_FALSE(response->vary_data.is_valid());
 }
