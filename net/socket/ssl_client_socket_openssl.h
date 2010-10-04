@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/scoped_ptr.h"
+#include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ssl_config_service.h"
@@ -19,6 +20,7 @@ typedef struct x509_store_ctx_st X509_STORE_CTX;
 
 namespace net {
 
+class CertVerifier;
 class SSLCertRequestInfo;
 class SSLConfig;
 class SSLInfo;
@@ -68,7 +70,11 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
 
   bool DoTransportIO();
   int DoHandshake();
+  int DoVerifyCert(int result);
+  int DoVerifyCertComplete(int result);
   void DoConnectCallback(int result);
+  void InvalidateSessionIfBadCertificate();
+  X509Certificate* UpdateServerCert();
 
   void OnHandshakeIOComplete(int result);
   void OnSendComplete(int result);
@@ -106,10 +112,17 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   scoped_refptr<IOBuffer> user_write_buf_;
   int user_write_buf_len_;
 
+  // Set when handshake finishes.
+  scoped_refptr<X509Certificate> server_cert_;
+  CertVerifyResult server_cert_verify_result_;
+
   // Stores client authentication information between ClientAuthHandler and
   // GetSSLCertRequestInfo calls.
   std::vector<scoped_refptr<X509Certificate> > client_certs_;
   bool client_auth_cert_needed_;
+
+  scoped_ptr<CertVerifier> verifier_;
+  CompletionCallbackImpl<SSLClientSocketOpenSSL> handshake_io_callback_;
 
   // OpenSSL stuff
   SSL* ssl_;
