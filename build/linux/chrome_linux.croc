@@ -14,9 +14,9 @@
       'regexp' : '.*/(chromeos|views)/',
       'include' : 0,
     },
-    # Don't include windows or mac specific files
+    # Don't include chromeos, windows, or mac specific files
     {
-      'regexp' : '.*(_|/)(mac|win|views)(\\.|_)',
+      'regexp' : '.*(_|/)(chromeos|mac|win|views)(\\.|_)',
       'include' : 0,
     },
 
