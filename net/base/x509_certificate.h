@@ -55,8 +55,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   typedef std::vector<OSCertHandle> OSCertHandles;
 
   // Predicate functor used in maps when X509Certificate is used as the key.
-  class LessThan
-      : public std::binary_function<X509Certificate*, X509Certificate*, bool> {
+  class LessThan {
    public:
     bool operator() (X509Certificate* lhs,  X509Certificate* rhs) const;
   };

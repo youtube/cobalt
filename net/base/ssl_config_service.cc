@@ -15,6 +15,10 @@
 
 namespace net {
 
+SSLConfig::CertAndStatus::CertAndStatus() {}
+
+SSLConfig::CertAndStatus::~CertAndStatus() {}
+
 SSLConfig::SSLConfig()
     : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
       tls1_enabled(true), dnssec_enabled(false), snap_start_enabled(false),
