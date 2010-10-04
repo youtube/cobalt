@@ -72,13 +72,13 @@ TEST(SpdyProtocolTest, FrameStructs) {
   frame.set_flags(10);
   EXPECT_EQ(12345u, frame.length());
   EXPECT_EQ(10u, frame.flags());
-  EXPECT_EQ(false, frame.is_control_frame());
+  EXPECT_FALSE(frame.is_control_frame());
 
   frame.set_length(0);
   frame.set_flags(10);
   EXPECT_EQ(0u, frame.length());
   EXPECT_EQ(10u, frame.flags());
-  EXPECT_EQ(false, frame.is_control_frame());
+  EXPECT_FALSE(frame.is_control_frame());
 }
 
 TEST(SpdyProtocolTest, DataFrameStructs) {
