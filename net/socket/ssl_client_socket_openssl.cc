@@ -10,6 +10,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#include "net/base/cert_verifier.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
@@ -46,6 +47,10 @@ int MapOpenSSLError(int err) {
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
       return ERR_IO_PENDING;
+    case SSL_ERROR_SYSCALL:
+      DVLOG(1) << "OpenSSL SYSVCALL error, errno " << errno;
+      MaybeLogSSLError();
+      return ERR_SSL_PROTOCOL_ERROR;
     default:
       // TODO(joth): Implement full mapping.
       LOG(WARNING) << "Unknown OpenSSL error " << err;
@@ -86,6 +91,8 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       user_read_callback_(NULL),
       user_write_callback_(NULL),
       client_auth_cert_needed_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(handshake_io_callback_(
+          this, &SSLClientSocketOpenSSL::OnHandshakeIOComplete)),
       ssl_(NULL),
       transport_bio_(NULL),
       transport_(transport_socket),
@@ -165,36 +172,30 @@ int SSLClientSocketOpenSSL::SSLVerifyCallback(int preverify_ok,
                                               SSL* ssl,
                                               X509_STORE_CTX* x509_ctx) {
   DCHECK_EQ(ssl_, ssl);
-  if (!preverify_ok) {
-    int depth = X509_STORE_CTX_get_error_depth(x509_ctx);
-    DVLOG(2) << "SSLVerifyCallback " << preverify_ok << " depth " << depth;
-    MaybeLogSSLError();
-  }
+  int depth = X509_STORE_CTX_get_error_depth(x509_ctx);
+  DVLOG(preverify_ok ? 3 : 1) << "SSLVerifyCallback " << preverify_ok
+                              << " depth " << depth;
+  MaybeLogSSLError();
   return preverify_ok;
 }
 
 // SSLClientSocket methods
 
 void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
+  ssl_info->Reset();
+  if (!server_cert_)
+    return;
+
   // Chrome DCHECKs that https pages provide a valid cert. For now (whilst in
   // early dev) we just create a spoof cert.
   // TODO(joth): implement X509Certificate for OpenSSL and remove this hack.
   LOG(WARNING) << "Filling in certificate with bogus content";
-  ssl_info->Reset();
-  ssl_info->cert = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  DCHECK(ssl_info->cert);
-  ssl_info->cert_status = 0;
+  ssl_info->cert = server_cert_;
+  ssl_info->cert_status = server_cert_verify_result_.cert_status;
   ssl_info->security_bits = 56;
   ssl_info->connection_status =
       ((TLS1_CK_RSA_EXPORT1024_WITH_DES_CBC_SHA) &
           SSL_CONNECTION_CIPHERSUITE_MASK) << SSL_CONNECTION_CIPHERSUITE_SHIFT;
-
-  // Silence compiler about unused vars.
-  (void)google_der;
-  (void)webkit_der;
-  (void)thawte_der;
-  (void)paypal_null_der;
 }
 
 void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
@@ -259,6 +260,20 @@ int SSLClientSocketOpenSSL::Connect(CompletionCallback* callback) {
 }
 
 void SSLClientSocketOpenSSL::Disconnect() {
+  if (ssl_) {
+    SSL_free(ssl_);
+    ssl_ = NULL;
+  }
+  if (transport_bio_) {
+    BIO_free_all(transport_bio_);
+    transport_bio_ = NULL;
+  }
+
+  // Shut down anything that may call us back (through buffer_send_callback_,
+  // buffer_recv_callback, or handshake_io_callback_).
+  verifier_.reset();
+  transport_->socket()->Disconnect();
+
   // Null all callbacks, delete all buffers.
   transport_send_busy_ = false;
   send_buffer_ = NULL;
@@ -276,17 +291,8 @@ void SSLClientSocketOpenSSL::Disconnect() {
   client_certs_.clear();
   client_auth_cert_needed_ = false;
 
-  if (ssl_) {
-    SSL_free(ssl_);
-    ssl_ = NULL;
-  }
-  if (transport_bio_) {
-    BIO_free(transport_bio_);
-    transport_bio_ = NULL;
-  }
-
+  server_cert_verify_result_.Reset();
   completed_handshake_ = false;
-  transport_->socket()->Disconnect();
 }
 
 int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
@@ -307,7 +313,6 @@ int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
-#if 0  // TODO(joth): Implement cert verification.
       case STATE_VERIFY_CERT:
         DCHECK(rv == OK);
         rv = DoVerifyCert(rv);
@@ -315,7 +320,6 @@ int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
       case STATE_VERIFY_CERT_COMPLETE:
         rv = DoVerifyCertComplete(rv);
         break;
-#endif
       default:
         rv = ERR_UNEXPECTED;
         NOTREACHED() << "unexpected state" << state;
@@ -339,19 +343,111 @@ int SSLClientSocketOpenSSL::DoHandshake() {
 
   if (rv == 1) {
     // SSL handshake is completed.  Let's verify the certificate.
-    // For now we are done, certificates not implemented yet.
-    // TODO(joth): Implement certificates
-    GotoState(STATE_NONE);
-    completed_handshake_ = true;
+    if (UpdateServerCert() == NULL) {
+      net_error = ERR_SSL_PROTOCOL_ERROR;
+    } else {
+      GotoState(STATE_VERIFY_CERT);
+
+      // TODO(joth): Remove this check when X509Certificate::Verify is
+      // implemented for OpenSSL
+      long verify_result = SSL_get_verify_result(ssl_);
+      LOG_IF(WARNING, verify_result != X509_V_OK)
+          << "Built in verify failed: " << verify_result;
+    }
   } else {
     int ssl_error = SSL_get_error(ssl_, rv);
+    net_error = MapOpenSSLError(ssl_error);
 
     // If not done, stay in this state
-    GotoState(STATE_HANDSHAKE);
-    net_error = MapOpenSSLError(ssl_error);
+    if (net_error == ERR_IO_PENDING) {
+      GotoState(STATE_HANDSHAKE);
+    } else {
+      LOG(ERROR) << "handshake failed; returned " << rv
+                 << ", SSL error code " << ssl_error
+                 << ", net_error " << net_error;
+      MaybeLogSSLError();
+    }
+  }
+  return net_error;
+}
+
+int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
+  DCHECK(server_cert_);
+  GotoState(STATE_VERIFY_CERT_COMPLETE);
+  int flags = 0;
+
+  if (ssl_config_.rev_checking_enabled)
+    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+  if (ssl_config_.verify_ev_cert)
+    flags |= X509Certificate::VERIFY_EV_CERT;
+  verifier_.reset(new CertVerifier);
+  return verifier_->Verify(server_cert_, hostname_, flags,
+                           &server_cert_verify_result_,
+                           &handshake_io_callback_);
+}
+
+int SSLClientSocketOpenSSL::DoVerifyCertComplete(int result) {
+  verifier_.reset();
+
+  if (result == OK) {
+    // TODO(joth): Work out if we need to remember the intermediate CA certs
+    // when the server sends them to us, and do so here.
   }
 
-  return net_error;
+  // If we have been explicitly told to accept this certificate, override the
+  // result of verifier_.Verify.
+  // Eventually, we should cache the cert verification results so that we don't
+  // need to call verifier_.Verify repeatedly.  But for now we need to do this.
+  // Alternatively, we could use the cert's status that we stored along with
+  // the cert in the allowed_bad_certs vector.
+  if (IsCertificateError(result) &&
+      ssl_config_.IsAllowedBadCert(server_cert_)) {
+    LOG(INFO) << "accepting bad SSL certificate, as user told us to";
+    result = OK;
+  }
+
+  completed_handshake_ = true;
+  // The NSS version has a comment that we may not need this call because it is
+  // now harmless to have a session with a bad cert.
+  // This may or may not apply here, but let's invalidate it anyway.
+  InvalidateSessionIfBadCertificate();
+  // Exit DoHandshakeLoop and return the result to the caller to Connect.
+  DCHECK_EQ(STATE_NONE, next_handshake_state_);
+  return result;
+}
+
+void SSLClientSocketOpenSSL::InvalidateSessionIfBadCertificate() {
+  if (UpdateServerCert() != NULL &&
+      ssl_config_.IsAllowedBadCert(server_cert_)) {
+    // Remove from session cache but don't clear this connection.
+    // TODO(joth): This should be a no-op until we enable session caching,
+    // see SSL_CTX_set_session_cache_mode(SSL_SESS_CACHE_CLIENT).
+    SSL_SESSION* session = SSL_get_session(ssl_);
+    LOG_IF(ERROR, session) << "Connection has a session?? " << session;
+    int rv = SSL_CTX_remove_session(g_ctx, session);
+    LOG_IF(ERROR, rv) << "Session was cached?? " << rv;
+  }
+}
+
+X509Certificate* SSLClientSocketOpenSSL::UpdateServerCert() {
+  if (server_cert_)
+    return server_cert_;
+
+  X509* cert = SSL_get_peer_certificate(ssl_);
+  if (cert == NULL) {
+    LOG(WARNING) << "SSL_get_peer_certificate returned NULL";
+    return NULL;
+  }
+
+  // TODO(joth): Get |server_cert_| from |cert|.
+  server_cert_ = X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(google_der), sizeof(google_der));
+  X509_free(cert);
+  DCHECK(server_cert_);
+  // Silence compiler about unused vars.
+  (void)google_der; (void)webkit_der; (void)thawte_der; (void)paypal_null_der;
+
+  return server_cert_;
 }
 
 bool SSLClientSocketOpenSSL::DoTransportIO() {
