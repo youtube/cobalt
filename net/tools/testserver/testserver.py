@@ -9,7 +9,6 @@ It supports several test URLs, as specified by the handlers in TestPageHandler.
 It defaults to living on localhost:8888.
 It can use https if you specify the flag --https=CERT where CERT is the path
 to a pem file containing the certificate and private key that should be used.
-To shut it down properly, visit localhost:8888/kill.
 """
 
 import base64
@@ -108,7 +107,6 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.ServerAuthConnectHandler,
       self.DefaultConnectResponseHandler]
     self._get_handlers = [
-      self.KillHandler,
       self.NoCacheMaxAgeTimeHandler,
       self.NoCacheTimeHandler,
       self.CacheTimeHandler,
@@ -188,25 +186,6 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     # extension starts with a dot, so we need to remove it
     return self._mime_types.get(extension[1:], self._default_mime_type)
-
-  def KillHandler(self):
-    """This request handler kills the server, for use when we're done"
-    with the a particular test."""
-
-    if (self.path.find("kill") < 0):
-      return False
-
-    self.send_response(200)
-    self.send_header('Content-type', 'text/html')
-    self.send_header('Cache-Control', 'max-age=0')
-    self.end_headers()
-    if options.never_die:
-      self.wfile.write('I cannot die!! BWAHAHA')
-    else:
-      self.wfile.write('Goodbye cruel world!')
-      self.server.stop = True
-
-    return True
 
   def NoCacheMaxAgeTimeHandler(self):
     """This request handler yields a page with the title set to the current
@@ -1204,12 +1183,6 @@ def main(options, args):
   else:
     my_data_dir = MakeDataDir()
 
-    def line_logger(msg):
-      if (msg.find("kill") >= 0):
-        server.stop = True
-        print 'shutting down server'
-        sys.exit(0)
-
     # Instantiate a dummy authorizer for managing 'virtual' users
     authorizer = pyftpdlib.ftpserver.DummyAuthorizer()
 
@@ -1222,7 +1195,6 @@ def main(options, args):
     # Instantiate FTP handler class
     ftp_handler = pyftpdlib.ftpserver.FTPHandler
     ftp_handler.authorizer = authorizer
-    pyftpdlib.ftpserver.logline = line_logger
 
     # Define a customized banner (string returned when client connects)
     ftp_handler.banner = ("pyftpdlib %s based ftpd ready." %
@@ -1272,11 +1244,6 @@ if __name__ == '__main__':
                            'in the specified certificate file')
   option_parser.add_option('', '--file-root-url', default='/files/',
                            help='Specify a root URL for files served.')
-  option_parser.add_option('', '--never-die', default=False,
-                           action="store_true",
-                           help='Prevent the server from dying when visiting '
-                           'a /kill URL. Useful for manually running some '
-                           'tests.')
   option_parser.add_option('', '--startup-pipe', type='int',
                            dest='startup_pipe',
                            help='File handle of pipe to parent process')
