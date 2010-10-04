@@ -11,6 +11,7 @@
 #include <openssl/err.h>
 
 #include "net/base/cert_verifier.h"
+#include "base/histogram.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
@@ -116,7 +117,9 @@ bool SSLClientSocketOpenSSL::InitOpenSSL() {
   SSL_library_init();
   MaybeLogSSLError();
 
-  g_ctx = SSL_CTX_new(TLSv1_client_method());
+  // Allow all versions here; we disable the unneeded ones according to the
+  // SSL config options in Init().
+  g_ctx = SSL_CTX_new(SSLv23_client_method());
 
   if (!g_ctx) {
     MaybeLogSSLError();
@@ -138,6 +141,9 @@ bool SSLClientSocketOpenSSL::InitOpenSSL() {
 
 bool SSLClientSocketOpenSSL::Init() {
   DCHECK(g_ctx);
+  DCHECK(!ssl_);
+  DCHECK(!transport_bio_);
+
   ssl_ = SSL_new(g_ctx);
   if (!ssl_) {
     MaybeLogSSLError();
@@ -164,6 +170,27 @@ bool SSLClientSocketOpenSSL::Init() {
   DCHECK(transport_bio_);
 
   SSL_set_bio(ssl_, ssl_bio, ssl_bio);
+
+#define SET_SSL_CONFIG_OPTION(option, value)   \
+      (((value) ? set_mask : clear_mask) |= (option))
+
+  // OpenSSL defaults some options to on, others to off. To avoid ambiguity,
+  // set everything we care about to an absolute value.
+  long set_mask = 0;
+  long clear_mask = 0;
+  SET_SSL_CONFIG_OPTION(SSL_OP_NO_SSLv2, !ssl_config_.ssl2_enabled);
+  SET_SSL_CONFIG_OPTION(SSL_OP_NO_SSLv3, !ssl_config_.ssl3_enabled);
+  SET_SSL_CONFIG_OPTION(SSL_OP_NO_TLSv1, !ssl_config_.tls1_enabled);
+
+  // TODO(joth): Set this conditionally, see http://crbug.com/55410
+  SET_SSL_CONFIG_OPTION(SSL_OP_LEGACY_SERVER_CONNECT, true);
+
+  // Make sure we haven't got any intersection in the set & clear options.
+  DCHECK_EQ(0, set_mask & clear_mask);
+
+  SSL_set_options(ssl_, set_mask);
+  SSL_clear_options(ssl_, clear_mask);
+#undef SET_SSL_CONFIG_OPTION
 
   return true;
 }
@@ -196,6 +223,15 @@ void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->connection_status =
       ((TLS1_CK_RSA_EXPORT1024_WITH_DES_CBC_SHA) &
           SSL_CONNECTION_CIPHERSUITE_MASK) << SSL_CONNECTION_CIPHERSUITE_SHIFT;
+
+  bool peer_supports_renego_ext = !!SSL_get_secure_renegotiation_support(ssl_);
+  if (!peer_supports_renego_ext)
+    ssl_info->connection_status |= SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION;
+    UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
+                              (int)peer_supports_renego_ext, 2);
+
+  if (ssl_config_.ssl3_fallback)
+    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
 }
 
 void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
