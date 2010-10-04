@@ -52,21 +52,6 @@ void CopyOid(gss_OID dest, const gss_OID_desc* src) {
   SetOid(dest, src->elements, src->length);
 }
 
-std::string OidToString(const gss_OID src) {
-  std::string dest;
-  if (!src)
-    return dest;
-  const char* string = reinterpret_cast<char*>(src->elements);
-  dest.assign(string, src->length);
-  return dest;
-}
-
-void OidFromString(const std::string& src, gss_OID dest) {
-  if (!dest)
-    return;
-  SetOid(dest, src.c_str(), src.length());
-}
-
 // gss_buffer_t helpers.
 void ClearBuffer(gss_buffer_t dest) {
   if (!dest)
@@ -130,20 +115,6 @@ void SetName(gss_name_t dest, const void* src, size_t length) {
     return;
   test::GssNameMockImpl* name = reinterpret_cast<test::GssNameMockImpl*>(dest);
   name->name.assign(reinterpret_cast<const char*>(src), length);
-}
-
-void CopyName(gss_name_t dest, const gss_name_t src) {
-  if (!dest)
-    return;
-  ClearName(dest);
-  if (!src)
-    return;
-  test::GssNameMockImpl* name_dst =
-      reinterpret_cast<test::GssNameMockImpl*>(dest);
-  test::GssNameMockImpl* name_src =
-      reinterpret_cast<test::GssNameMockImpl*>(dest);
-  name_dst->name = name_src->name;
-  CopyOid(&name_dst->name_type, &name_src->name_type);
 }
 
 std::string NameToString(const gss_name_t& src) {

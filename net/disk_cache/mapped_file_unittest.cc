@@ -36,28 +36,6 @@ void FileCallbackTest::OnFileIOComplete(int bytes_copied) {
   g_cache_tests_received++;
 }
 
-// Wait up to 2 secs without callbacks, or until we receive expected callbacks.
-void WaitForCallbacks(int expected) {
-  if (!expected)
-    return;
-
-#if defined(OS_WIN)
-  int iterations = 0;
-  int last = 0;
-  while (iterations < 40) {
-    SleepEx(50, TRUE);
-    if (expected == g_cache_tests_received)
-      return;
-    if (last == g_cache_tests_received)
-      iterations++;
-    else
-      iterations = 0;
-  }
-#elif defined(OS_POSIX)
-  // TODO(rvargas): Do something when async IO is implemented.
-#endif
-}
-
 }  // namespace
 
 TEST_F(DiskCacheTest, MappedFile_SyncIO) {
