@@ -71,6 +71,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
@@ -247,6 +248,61 @@ int MapHandshakeError(PRErrorCode err) {
     default:
       return MapNSPRError(err);
   }
+}
+
+// Extra parameters to attach to the NetLog when we receive an SSL error.
+class SSLErrorParams : public NetLog::EventParameters {
+ public:
+  // If |ssl_lib_error| is 0, it will be ignored.
+  SSLErrorParams(int net_error, PRErrorCode ssl_lib_error)
+      : net_error_(net_error),
+        ssl_lib_error_(ssl_lib_error) {
+  }
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetInteger("net_error", net_error_);
+    if (ssl_lib_error_)
+      dict->SetInteger("ssl_lib_error", ssl_lib_error_);
+    return dict;
+  }
+
+ private:
+  const int net_error_;
+  const PRErrorCode ssl_lib_error_;
+};
+
+// Extra parameters to attach to the NetLog when we receive an error in response
+// to a call to an NSS function.  Used instead of SSLErrorParams with
+// events of type TYPE_SSL_NSS_ERROR.  Automatically looks up last PR error.
+class SSLFailedNSSFunctionParams : public NetLog::EventParameters {
+ public:
+  // |param| is ignored if it has a length of 0.
+  SSLFailedNSSFunctionParams(const std::string& function,
+                             const std::string& param)
+      : function_(function), param_(param), ssl_lib_error_(PR_GetError()) {
+  }
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetString("function", function_);
+    if (!param_.empty())
+      dict->SetString("param", param_);
+    dict->SetInteger("ssl_lib_error", ssl_lib_error_);
+    return dict;
+  }
+
+ private:
+  const std::string function_;
+  const std::string param_;
+  const PRErrorCode ssl_lib_error_;
+};
+
+void LogFailedNSSFunction(const BoundNetLog& net_log,
+                          const char* function,
+                          const char* param) {
+  net_log.AddEvent(NetLog::TYPE_SSL_NSS_ERROR,
+                   new SSLFailedNSSFunctionParams(function, param));
 }
 
 #if defined(OS_WIN)
@@ -719,6 +775,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   /* Push SSL onto our fake I/O socket */
   nss_fd_ = SSL_ImportFD(NULL, nss_fd_);
   if (nss_fd_ == NULL) {
+    LogFailedNSSFunction(net_log_, "SSL_ImportFD", "");
     return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR/NSS error code.
   }
   // TODO(port): set more ssl options!  Check errors!
@@ -726,12 +783,16 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   int rv;
 
   rv = SSL_OptionSet(nss_fd_, SSL_SECURITY, PR_TRUE);
-  if (rv != SECSuccess)
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_SECURITY");
     return ERR_UNEXPECTED;
+  }
 
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SSL2, ssl_config_.ssl2_enabled);
-  if (rv != SECSuccess)
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_SSL2");
     return ERR_UNEXPECTED;
+  }
 
   // SNI is enabled automatically if TLS is enabled -- as long as
   // SSL_V2_COMPATIBLE_HELLO isn't.
@@ -740,22 +801,30 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // "common name `mail.google.com' != requested host name `gmail.com'"
   rv = SSL_OptionSet(nss_fd_, SSL_V2_COMPATIBLE_HELLO,
                      ssl_config_.ssl2_enabled);
-  if (rv != SECSuccess)
-     return ERR_UNEXPECTED;
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_V2_COMPATIBLE_HELLO");
+    return ERR_UNEXPECTED;
+  }
 
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SSL3, ssl_config_.ssl3_enabled);
-  if (rv != SECSuccess)
-     return ERR_UNEXPECTED;
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_SSL3");
+    return ERR_UNEXPECTED;
+  }
 
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_TLS, ssl_config_.tls1_enabled);
-  if (rv != SECSuccess)
-     return ERR_UNEXPECTED;
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_TLS");
+    return ERR_UNEXPECTED;
+  }
 
 #ifdef SSL_ENABLE_SESSION_TICKETS
   // Support RFC 5077
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SESSION_TICKETS, PR_TRUE);
-  if (rv != SECSuccess)
-     LOG(INFO) << "SSL_ENABLE_SESSION_TICKETS failed.  Old system nss?";
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(
+        net_log_, "SSL_OptionSet", "SSL_ENABLE_SESSION_TICKETS");
+  }
 #else
   #error "You need to install NSS-3.12 or later to build chromium"
 #endif
@@ -767,7 +836,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // See http://crbug.com/31628
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE, ssl_config_.tls1_enabled);
   if (rv != SECSuccess)
-     LOG(INFO) << "SSL_ENABLE_DEFLATE failed.  Old system nss?";
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_DEFLATE");
 #endif
 
 #ifdef SSL_ENABLE_FALSE_START
@@ -776,7 +845,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
       ssl_config_.false_start_enabled &&
       !SSLConfigService::IsKnownFalseStartIncompatibleServer(hostname_));
   if (rv != SECSuccess)
-    LOG(INFO) << "SSL_ENABLE_FALSE_START failed.  Old system nss?";
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_FALSE_START");
 #endif
 
 #ifdef SSL_ENABLE_SNAP_START
@@ -793,8 +862,10 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
       SSLConfigService::IsKnownStrictTLSServer(hostname_) &&
       !ssl_config_.mitm_proxies_allowed) {
     rv = SSL_OptionSet(nss_fd_, SSL_REQUIRE_SAFE_NEGOTIATION, PR_TRUE);
-    if (rv != SECSuccess)
-       LOG(INFO) << "SSL_REQUIRE_SAFE_NEGOTIATION failed.";
+    if (rv != SECSuccess) {
+      LogFailedNSSFunction(
+          net_log_, "SSL_OptionSet", "SSL_REQUIRE_SAFE_NEGOTIATION");
+    }
     rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
                        SSL_RENEGOTIATE_REQUIRES_XTN);
   } else {
@@ -806,8 +877,10 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
                        SSL_RENEGOTIATE_TRANSITIONAL);
   }
-  if (rv != SECSuccess)
-     LOG(INFO) << "SSL_ENABLE_RENEGOTIATION failed.";
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(
+        net_log_, "SSL_OptionSet", "SSL_ENABLE_RENEGOTIATION");
+  }
 #endif  // SSL_ENABLE_RENEGOTIATION
 
 #ifdef SSL_NEXT_PROTO_NEGOTIATED
@@ -817,25 +890,33 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
        reinterpret_cast<const unsigned char *>(ssl_config_.next_protos.data()),
        ssl_config_.next_protos.size());
     if (rv != SECSuccess)
-       LOG(INFO) << "SSL_SetNextProtoNego failed.";
+      LogFailedNSSFunction(net_log_, "SSL_SetNextProtoNego", "");
   }
 #endif
 
   rv = SSL_OptionSet(nss_fd_, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE);
-  if (rv != SECSuccess)
-     return ERR_UNEXPECTED;
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_HANDSHAKE_AS_CLIENT");
+    return ERR_UNEXPECTED;
+  }
 
   rv = SSL_AuthCertificateHook(nss_fd_, OwnAuthCertHandler, this);
-  if (rv != SECSuccess)
-     return ERR_UNEXPECTED;
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_AuthCertificateHook", "");
+    return ERR_UNEXPECTED;
+  }
 
   rv = SSL_GetClientAuthDataHook(nss_fd_, ClientAuthHandler, this);
-  if (rv != SECSuccess)
-     return ERR_UNEXPECTED;
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_GetClientAuthDataHook", "");
+    return ERR_UNEXPECTED;
+  }
 
   rv = SSL_HandshakeCallback(nss_fd_, HandshakeCallback, this);
-  if (rv != SECSuccess)
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_HandshakeCallback", "");
     return ERR_UNEXPECTED;
+  }
 
   // Tell SSL the hostname we're trying to connect to.
   SSL_SetURL(nss_fd_, hostname_.c_str());
@@ -849,7 +930,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
                                            peer_address.GetPort());
   rv = SSL_SetSockPeerID(nss_fd_, const_cast<char*>(peer_id.c_str()));
   if (rv != SECSuccess)
-    LOG(INFO) << "SSL_SetSockPeerID failed: peer_id=" << peer_id;
+    LogFailedNSSFunction(net_log_, "SSL_SetSockPeerID", peer_id.c_str());
 
   // Tell SSL we're a client; needed if not letting NSPR do socket I/O
   SSL_ResetHandshake(nss_fd_, 0);
@@ -1568,7 +1649,9 @@ int SSLClientSocketNSS::DoReadLoop(int result) {
 
   if (!nss_bufs_) {
     LOG(DFATAL) << "!nss_bufs_";
-    return ERR_UNEXPECTED;
+    int rv = ERR_UNEXPECTED;
+    net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR, new SSLErrorParams(rv, 0));
+    return rv;
   }
 
   bool network_moved;
@@ -1592,7 +1675,9 @@ int SSLClientSocketNSS::DoWriteLoop(int result) {
 
   if (!nss_bufs_) {
     LOG(DFATAL) << "!nss_bufs_";
-    return ERR_UNEXPECTED;
+    int rv = ERR_UNEXPECTED;
+    net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR, new SSLErrorParams(rv, 0));
+    return rv;
   }
 
   bool network_moved;
@@ -1901,6 +1986,8 @@ int SSLClientSocketNSS::DoHandshake() {
 
   if (client_auth_cert_needed_) {
     net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+    net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+                      new SSLErrorParams(net_error, 0));
     // If the handshake already succeeded (because the server requests but
     // doesn't require a client cert), we need to invalidate the SSL session
     // so that we won't try to resume the non-client-authenticated session in
@@ -1929,6 +2016,8 @@ int SSLClientSocketNSS::DoHandshake() {
       // SSL_ForceHandshake returned SECSuccess prematurely.
       rv = SECFailure;
       net_error = ERR_SSL_PROTOCOL_ERROR;
+      net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+                        new SSLErrorParams(net_error, 0));
     }
   } else {
     PRErrorCode prerr = PR_GetError();
@@ -1940,6 +2029,8 @@ int SSLClientSocketNSS::DoHandshake() {
     } else {
       LOG(ERROR) << "handshake failed; NSS error code " << prerr
                  << ", net_error " << net_error;
+      net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+                        new SSLErrorParams(net_error, prerr));
     }
   }
 
@@ -2258,7 +2349,10 @@ int SSLClientSocketNSS::DoPayloadRead() {
     // We don't need to invalidate the non-client-authenticated SSL session
     // because the server will renegotiate anyway.
     LeaveFunction("");
-    return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+    rv = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+    net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
+                      new SSLErrorParams(rv, 0));
+    return rv;
   }
   if (rv >= 0) {
     LogData(user_read_buf_->data(), rv);
@@ -2271,7 +2365,9 @@ int SSLClientSocketNSS::DoPayloadRead() {
     return ERR_IO_PENDING;
   }
   LeaveFunction("");
-  return MapNSPRError(prerr);
+  rv = MapNSPRError(prerr);
+  net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR, new SSLErrorParams(rv, prerr));
+  return rv;
 }
 
 int SSLClientSocketNSS::DoPayloadWrite() {
@@ -2289,7 +2385,10 @@ int SSLClientSocketNSS::DoPayloadWrite() {
     return ERR_IO_PENDING;
   }
   LeaveFunction("");
-  return MapNSPRError(prerr);
+  rv = MapNSPRError(prerr);
+  net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
+                    new SSLErrorParams(rv, prerr));
+  return rv;
 }
 
 }  // namespace net
