@@ -833,7 +833,6 @@ bool ClientSocketPoolBaseHelper::ReachedMaxSocketsLimit() const {
   DCHECK_LE(total, max_sockets_);
   if (total < max_sockets_)
     return false;
-  LOG(WARNING) << "ReachedMaxSocketsLimit: " << total << "/" << max_sockets_;
   return true;
 }
 
