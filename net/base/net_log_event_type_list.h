@@ -324,6 +324,26 @@ EVENT_TYPE(SOCKS_UNKNOWN_ADDRESS_TYPE)
 // The start/end of a SSL connect().
 EVENT_TYPE(SSL_CONNECT)
 
+// An SSL error occurred while trying to do the indicated activity.
+// The following parameters are attached to the event:
+//   {
+//     "net_error": <Integer code for the specific error type>,
+//     "ssl_lib_error": <SSL library's integer code for the specific error type>
+//   }
+EVENT_TYPE(SSL_HANDSHAKE_ERROR)
+EVENT_TYPE(SSL_READ_ERROR)
+EVENT_TYPE(SSL_WRITE_ERROR)
+
+// An SSL error occurred while calling an NSS function not directly related to
+// one of the above activities.  Can also be used when more information than
+// is provided by just an error code is needed:
+//   {
+//     "function": <Name of the NSS function, as a string>,
+//     "param": <Most relevant parameter, if any>,
+//     "ssl_lib_error": <NSS library's integer code for the specific error type>
+//   }
+EVENT_TYPE(SSL_NSS_ERROR)
+
 // The specified number of bytes were sent on the socket.
 // The following parameters are attached:
 //   {
