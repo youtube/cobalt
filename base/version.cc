@@ -30,6 +30,8 @@ Version* Version::GetVersionFromString(const std::string& version_str) {
 
 Version::Version() : is_valid_(false) {}
 
+Version::~Version() {}
+
 bool Version::Equals(const Version& that) const {
   DCHECK(is_valid_);
   DCHECK(that.is_valid_);
