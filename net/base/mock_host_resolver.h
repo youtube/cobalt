@@ -16,9 +16,9 @@ namespace net {
 
 class RuleBasedHostResolverProc;
 
-// In most cases, it is important that unit tests avoid making actual DNS
-// queries since the resulting tests can be flaky, especially if the network is
-// unreliable for some reason.  To simplify writing tests that avoid making
+// In most cases, it is important that unit tests avoid relying on making actual
+// DNS queries since the resulting tests can be flaky, especially if the network
+// is unreliable for some reason.  To simplify writing tests that avoid making
 // actual DNS queries, pass a MockHostResolver as the HostResolver dependency.
 // The socket addresses returned can be configured using the
 // RuleBasedHostResolverProc:
