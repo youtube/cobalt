@@ -18,6 +18,8 @@
 
 namespace net {
 
+HttpAuth::Identity::Identity() : source(IDENT_SRC_NONE), invalid(true) {}
+
 // static
 void HttpAuth::ChooseBestChallenge(
     HttpAuthHandlerFactory* http_auth_handler_factory,
