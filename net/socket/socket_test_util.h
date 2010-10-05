@@ -347,41 +347,69 @@ class OrderedSocketData : public StaticSocketDataProvider,
 
 class DeterministicMockTCPClientSocket;
 
-// This class gives the user full control over the mock socket reads and writes,
-// including the timing of the callbacks. By default, synchronous reads and
-// writes will force the callback for that read or write to complete before
-// allowing another read or write to finish.
+// This class gives the user full control over the network activity,
+// specifically the timing of the COMPLETION of I/O operations.  Regardless of
+// the order in which I/O operations are initiated, this class ensures that they
+// complete in the correct order.
+//
+// Network activity is modeled as a sequence of numbered steps which is
+// incremented whenever an I/O operation completes.  This can happen under two
+// different circumstances:
+//
+// 1) Performing a synchronous I/O operation.  (Invoking Read() or Write()
+//    when the corresponding MockRead or MockWrite is marked !async).
+// 2) Running the Run() method of this class.  The run method will invoke
+//    the current MessageLoop, running all pending events, and will then
+//    invoke any pending IO callbacks.
+//
+// In addition, this class allows for I/O processing to "stop" at a specified
+// step, by calling SetStop(int) or StopAfter(int).  Initiating an I/O operation
+// by calling Read() or Write() while stopped is permitted if the operation is
+// asynchronous.  It is an error to perform synchronous I/O while stopped.
+//
+// When creating the MockReads and MockWrites, note that the sequence number
+// refers to the number of the step in which the I/O will complete.  In the
+// case of synchronous I/O, this will be the same step as the I/O is initiated.
+// However, in the case of asynchronous I/O, this I/O may be initiated in
+// a much earlier step. Furthermore, when the a Read() or Write() is separated
+// from its completion by other Read() or Writes()'s, it can not be marked
+// synchronous.  If it is, ERR_UNUEXPECTED will be returned indicating that a
+// synchronous Read() or Write() could not be completed synchronously because of
+// the specific ordering constraints.
 //
 // Sequence numbers are preserved across both reads and writes. There should be
 // no gaps in sequence numbers, and no repeated sequence numbers. i.e.
+//  MockRead reads[] = {
+//    MockRead(false, "first read", length, 0)   // sync
+//    MockRead(true, "second read", length, 2)   // async
+//  };
 //  MockWrite writes[] = {
-//    MockWrite(true, "first write", length, 0),
-//    MockWrite(false, "second write", length, 3),
+//    MockWrite(true, "first write", length, 1),    // async
+//    MockWrite(false, "second write", length, 3),  // sync
 //  };
 //
-//  MockRead reads[] = {
-//    MockRead(false, "first read", length, 1)
-//    MockRead(false, "second read", length, 2)
-//  };
 // Example control flow:
-// The first write completes. A call to read() returns ERR_IO_PENDING, since the
-// first write's callback has not happened yet. The first write's callback is
-// called. Now the first read's callback will be called. A call to write() will
-// succeed, because the write() API requires this, but the callback will not be
-// called until the second read has completed and its callback called.
+// Read() is called.  The current step is 0.  The first available read is
+// synchronous, so the call to Read() returns length.  The current step is
+// now 1.  Next, Read() is called again.  The next available read can
+// not be completed until step 2, so Read() returns ERR_IO_PENDING.  The current
+// step is still 1.  Write is called().  The first available write is able to
+// complete in this step, but is marked asynchronous.  Write() returns
+// ERR_IO_PENDING.  The current step is still 1.  At this point RunFor(1) is
+// called which will cause the write callback to be invoked, and will then
+// stop.  The current state is now 2.  RunFor(1) is called again, which
+// causes the read callback to be invoked, and will then stop.  Then current
+// step is 2.  Write() is called again.  Then next available write is
+// synchronous so the call to Write() returns length.
+//
+// For examples of how to use this class, see:
+//   deterministic_socket_data_unittests.cc
 class DeterministicSocketData : public StaticSocketDataProvider,
     public base::RefCounted<DeterministicSocketData> {
  public:
   // |reads| the list of MockRead completions.
   // |writes| the list of MockWrite completions.
   DeterministicSocketData(MockRead* reads, size_t reads_count,
-                          MockWrite* writes, size_t writes_count);
-
-  // |connect| the result for the connect phase.
-  // |reads| the list of MockRead completions.
-  // |writes| the list of MockWrite completions.
-  DeterministicSocketData(const MockConnect& connect,
-                          MockRead* reads, size_t reads_count,
                           MockWrite* writes, size_t writes_count);
 
   // When the socket calls Read(), that calls GetNextRead(), and expects either
@@ -398,16 +426,25 @@ class DeterministicSocketData : public StaticSocketDataProvider,
   // Consume all the data up to the give stop point (via SetStop()).
   void Run();
 
-  // Stop when Read() is about to consume a MockRead with sequence_number >=
-  // seq. Instead feed ERR_IO_PENDING to Read().
-  virtual void SetStop(int seq) { stopping_sequence_number_ = seq; }
+  // Set the stop point to be |steps| from now, and then invoke Run().
+  void RunFor(int steps);
 
+  // Stop at step |seq|, which must be in the future.
+  virtual void SetStop(int seq) {
+    DCHECK_LT(sequence_number_, seq);
+    stopping_sequence_number_ = seq;
+    stopped_ = false;
+  }
+
+  // Stop |seq| steps after the current step.
+  virtual void StopAfter(int seq) {
+    SetStop(sequence_number_ + seq);
+  }
   void CompleteRead();
   bool stopped() const { return stopped_; }
   void SetStopped(bool val) { stopped_ = val; }
   MockRead& current_read() { return current_read_; }
   MockRead& current_write() { return current_write_; }
-  int next_read_seq() const { return next_read_seq_; }
   int sequence_number() const { return sequence_number_; }
   void set_socket(base::WeakPtr<DeterministicMockTCPClientSocket> socket) {
     socket_ = socket;
@@ -417,10 +454,11 @@ class DeterministicSocketData : public StaticSocketDataProvider,
   // Invoke the read and write callbacks, if the timing is appropriate.
   void InvokeCallbacks();
 
+  void NextStep();
+
   int sequence_number_;
   MockRead current_read_;
   MockWrite current_write_;
-  int next_read_seq_;
   int stopping_sequence_number_;
   bool stopped_;
   base::WeakPtr<DeterministicMockTCPClientSocket> socket_;
