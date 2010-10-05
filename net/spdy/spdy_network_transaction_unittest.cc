@@ -1451,8 +1451,8 @@ TEST_P(SpdyNetworkTransactionTest, SocketWriteReturnsZero) {
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
-    CreateMockRead(*resp.get(), 1, false),
-    MockRead(false, 0, 0, 4)  // EOF
+    CreateMockRead(*resp.get(), 1, true),
+    MockRead(true, 0, 0, 4)  // EOF
   };
 
   scoped_refptr<DeterministicSocketData> data(
@@ -1952,8 +1952,8 @@ TEST_P(SpdyNetworkTransactionTest, CancelledTransactionSendRst) {
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
-    CreateMockRead(*resp, 1, false),
-    MockRead(false, 0, 0, 3)  // EOF
+    CreateMockRead(*resp, 1, true),
+    MockRead(true, 0, 0, 3)  // EOF
   };
 
   scoped_refptr<DeterministicSocketData> data(
