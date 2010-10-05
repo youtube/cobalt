@@ -138,7 +138,7 @@ class FileUtilProxy {
 
   // Writes to a file. If |offset| is greater than the length of the file,
   // |false| is returned. On success, the file pointer is moved to position
-  // |offset + bytes_to_write| in the file. The callback can be NULL.
+  // |offset + bytes_to_write| in the file. If The callback can be NULL.
   static bool Write(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       base::PlatformFile file,
@@ -169,16 +169,7 @@ class FileUtilProxy {
   static bool Truncate(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       base::PlatformFile file,
-      int64 length,
-      StatusCallback* callback);
-
-  // Truncates a file to the given length. If |length| is greater than the
-  // current length of the file, the file will be extended with zeroes.
-  // The callback can be NULL.
-  static bool Truncate(
-      scoped_refptr<MessageLoopProxy> message_loop_proxy,
-      const FilePath& path,
-      int64 length,
+      long long length,
       StatusCallback* callback);
 
   // Flushes a file. The callback can be NULL.
