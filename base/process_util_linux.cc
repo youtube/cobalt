@@ -31,15 +31,34 @@ enum ParsingState {
 };
 
 // Reads /proc/<pid>/stat and populates |proc_stats| with the values split by
-// spaces.
-void GetProcStats(pid_t pid, std::vector<std::string>* proc_stats) {
+// spaces. Returns true if successful.
+bool GetProcStats(pid_t pid, std::vector<std::string>* proc_stats) {
   FilePath stat_file("/proc");
   stat_file = stat_file.Append(base::IntToString(pid));
   stat_file = stat_file.Append("stat");
   std::string mem_stats;
   if (!file_util::ReadFileToString(stat_file, &mem_stats))
-    return;
+    return false;
   SplitString(mem_stats, ' ', proc_stats);
+  return true;
+}
+
+// Reads /proc/<pid>/cmdline and populates |proc_cmd_line_args| with the command
+// line arguments. Returns true if successful.
+// Note: /proc/<pid>/cmdline contains command line arguments separated by single
+// null characters. We tokenize it into a vector of strings using '\0' as a
+// delimiter.
+bool GetProcCmdline(pid_t pid, std::vector<std::string>* proc_cmd_line_args) {
+  FilePath cmd_line_file("/proc");
+  cmd_line_file = cmd_line_file.Append(base::IntToString(pid));
+  cmd_line_file = cmd_line_file.Append("cmdline");
+  std::string cmd_line;
+  if (!file_util::ReadFileToString(cmd_line_file, &cmd_line))
+    return false;
+  std::string delimiters;
+  delimiters.push_back('\0');
+  Tokenize(cmd_line, delimiters, proc_cmd_line_args);
+  return true;
 }
 
 }  // namespace
@@ -109,6 +128,7 @@ bool ProcessIterator::CheckForNextProcess() {
   dirent* slot = 0;
   const char* openparen;
   const char* closeparen;
+  std::vector<std::string> cmd_line_args;
 
   // Arbitrarily guess that there will never be more than 200 non-process
   // files in /proc.  Hardy has 53.
@@ -133,6 +153,12 @@ bool ProcessIterator::CheckForNextProcess() {
       skipped++;
       continue;
     }
+
+    // Read the process's command line.
+    std::string pid_string(slot->d_name);
+    int pid;
+    if (StringToInt(pid_string, &pid) && !GetProcCmdline(pid, &cmd_line_args))
+      return false;
 
     // Read the process's status.
     char buf[NAME_MAX + 12];
@@ -175,6 +201,8 @@ bool ProcessIterator::CheckForNextProcess() {
   entry_.ppid_ = atoi(closeparen + 3);
   entry_.gid_ = atoi(strchr(closeparen + 4, ' '));
 
+  entry_.cmd_line_args_.assign(cmd_line_args.begin(), cmd_line_args.end());
+
   // TODO(port): read pid's commandline's $0, like killall does.  Using the
   // short name between openparen and closeparen won't work for long names!
   int len = closeparen - openparen - 1;
@@ -206,7 +234,8 @@ ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
 // On linux, we return vsize.
 size_t ProcessMetrics::GetPagefileUsage() const {
   std::vector<std::string> proc_stats;
-  GetProcStats(process_, &proc_stats);
+  if (!GetProcStats(process_, &proc_stats))
+    LOG(WARNING) << "Failed to get process stats.";
   const size_t kVmSize = 22;
   if (proc_stats.size() > kVmSize) {
     int vm_size;
@@ -219,7 +248,8 @@ size_t ProcessMetrics::GetPagefileUsage() const {
 // On linux, we return the high water mark of vsize.
 size_t ProcessMetrics::GetPeakPagefileUsage() const {
   std::vector<std::string> proc_stats;
-  GetProcStats(process_, &proc_stats);
+  if (!GetProcStats(process_, &proc_stats))
+    LOG(WARNING) << "Failed to get process stats.";
   const size_t kVmPeak = 21;
   if (proc_stats.size() > kVmPeak) {
     int vm_peak;
@@ -232,7 +262,8 @@ size_t ProcessMetrics::GetPeakPagefileUsage() const {
 // On linux, we return RSS.
 size_t ProcessMetrics::GetWorkingSetSize() const {
   std::vector<std::string> proc_stats;
-  GetProcStats(process_, &proc_stats);
+  if (!GetProcStats(process_, &proc_stats))
+    LOG(WARNING) << "Failed to get process stats.";
   const size_t kVmRss = 23;
   if (proc_stats.size() > kVmRss) {
     int num_pages;
@@ -245,7 +276,8 @@ size_t ProcessMetrics::GetWorkingSetSize() const {
 // On linux, we return the high water mark of RSS.
 size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   std::vector<std::string> proc_stats;
-  GetProcStats(process_, &proc_stats);
+  if (!GetProcStats(process_, &proc_stats))
+    LOG(WARNING) << "Failed to get process stats.";
   const size_t kVmHwm = 23;
   if (proc_stats.size() > kVmHwm) {
     int num_pages;
