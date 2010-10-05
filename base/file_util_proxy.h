@@ -89,7 +89,6 @@ class FileUtilProxy {
   // If destination file doesn't exist or destination's parent
   // doesn't exists.
   // If source dir exists but destination path is an existing file.
-  // If source file exists but destination path is an existing directory.
   // If source is a parent of destination.
   // If source doesn't exists.
   static bool Copy(scoped_refptr<MessageLoopProxy> message_loop_proxy,
@@ -106,11 +105,9 @@ class FileUtilProxy {
       bool recursive,
       StatusCallback* callback);
 
-  // Deletes a file or a directory.
-  // It is an error to delete a non-empty directory with recursive=false.
+  // Deletes a file or empty directory.
   static bool Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                      const FilePath& file_path,
-                     bool recursive,
                      StatusCallback* callback);
 
   // Moves a file or a directory from src_file_path to dest_file_path.
