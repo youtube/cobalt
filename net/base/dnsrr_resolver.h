@@ -26,6 +26,7 @@ namespace net {
 // RRResponse contains the result of a successful request for a resource record.
 struct RRResponse {
   RRResponse();
+  ~RRResponse();
 
   // name contains the canonical name of the resulting domain. If the queried
   // name was a CNAME then this can differ.
