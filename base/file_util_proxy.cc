@@ -27,7 +27,7 @@ static base::PlatformFileError PerformCommonCheckAndPreparationForMoveAndCopy(
     return base::PLATFORM_FILE_ERROR_NOT_FOUND;
 
   // It is an error to try to copy/move an entry into its child.
-  if (file_util::ContainsPath(src_file_path, dest_file_path))
+  if (src_file_path.IsParent(dest_file_path))
     return base::PLATFORM_FILE_ERROR_INVALID_OPERATION;
 
   // Now it is ok to return if the |dest_file_path| does not exist.
