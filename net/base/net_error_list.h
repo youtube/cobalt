@@ -66,6 +66,9 @@ NET_ERROR(OUT_OF_MEMORY, -13)
 // from the expectation.
 NET_ERROR(UPLOAD_FILE_CHANGED, -14)
 
+// The socket is not connected
+NET_ERROR(SOCKET_NOT_CONNECTED, -15)
+
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
 
