@@ -25,7 +25,7 @@ class Version {
   // will DCHECK.
   Version();
 
-  ~Version() {}
+  ~Version();
 
   bool Equals(const Version& other) const;
 
