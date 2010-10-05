@@ -67,10 +67,15 @@ struct ProcessEntry {
   ProcessId ppid_;
   ProcessId gid_;
   std::string exe_file_;
+  std::vector<std::string> cmd_line_args_;
 
   ProcessId pid() const { return pid_; }
   ProcessId parent_pid() const { return ppid_; }
+  ProcessId gid() const { return gid_; }
   const char* exe_file() const { return exe_file_.c_str(); }
+  const std::vector<std::string>& cmd_line_args() const {
+    return cmd_line_args_;
+  }
 };
 
 struct IoCounters {
