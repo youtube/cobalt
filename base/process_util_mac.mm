@@ -129,14 +129,23 @@ bool ProcessIterator::CheckForNextProcess() {
       continue;
     }
 
-    // Data starts w/ the full path null termed, so we have to extract just the
-    // executable name from the path.
+    // |data| contains all the command line parameters of the process, separated
+    // by blocks of one or more null characters. We tokenize |data| into a
+    // vector of strings using '\0' as a delimiter and populate
+    // |entry_.cmd_line_args_|.
+    std::string delimiters;
+    delimiters.push_back('\0');
+    Tokenize(data, delimiters, &entry_.cmd_line_args_);
 
+    // |data| starts with the full executable path followed by a null character.
+    // We search for the first instance of '\0' and extract everything before it
+    // to populate |entry_.exe_file_|.
     size_t exec_name_end = data.find('\0');
     if (exec_name_end == std::string::npos) {
       LOG(ERROR) << "command line data didn't match expected format";
       continue;
     }
+
     entry_.pid_ = kinfo.kp_proc.p_pid;
     entry_.ppid_ = kinfo.kp_eproc.e_ppid;
     entry_.gid_ = kinfo.kp_eproc.e_pgid;
