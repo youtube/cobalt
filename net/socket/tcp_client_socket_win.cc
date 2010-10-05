@@ -78,21 +78,20 @@ int MapWinsockError(int os_error) {
       return ERR_CONNECTION_ABORTED;
     case WSAECONNREFUSED:
       return ERR_CONNECTION_REFUSED;
+    case WSA_IO_INCOMPLETE:
     case WSAEDISCON:
-      // Returned by WSARecv or WSARecvFrom for message-oriented sockets (where
-      // a return value of zero means a zero-byte message) to indicate graceful
-      // connection shutdown.  We should not ever see this error code for TCP
-      // sockets, which are byte stream oriented.
-      NOTREACHED();
+      // WSAEDISCON is returned by WSARecv or WSARecvFrom for message-oriented
+      // sockets (where a return value of zero means a zero-byte message) to
+      // indicate graceful connection shutdown.  We should not ever see this
+      // error code for TCP sockets, which are byte stream oriented.
+      LOG(DFATAL) << "Unexpected error " << os_error
+                  << " mapped to net::ERR_UNEXPECTED";
       return ERR_UNEXPECTED;
     case WSAEHOSTUNREACH:
     case WSAENETUNREACH:
       return ERR_ADDRESS_UNREACHABLE;
     case WSAEADDRNOTAVAIL:
       return ERR_ADDRESS_INVALID;
-    case WSA_IO_INCOMPLETE:
-      LOG(ERROR) << "Unexpected error " << os_error;
-      return ERR_UNEXPECTED;
     case ERROR_SUCCESS:
       return OK;
     default:
@@ -512,7 +511,7 @@ int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!IsConnected())
-    return ERR_UNEXPECTED;
+    return ERR_SOCKET_NOT_CONNECTED;
   address->Copy(current_ai_, false);
   return OK;
 }

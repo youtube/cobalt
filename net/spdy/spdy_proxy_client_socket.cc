@@ -209,7 +209,7 @@ bool SpdyProxyClientSocket::SetSendBufferSize(int32 size) {
 
 int SpdyProxyClientSocket::GetPeerAddress(AddressList* address) const {
   if (!IsConnected())
-    return ERR_UNEXPECTED;
+    return ERR_SOCKET_NOT_CONNECTED;
   return spdy_stream_->GetPeerAddress(address);
 }
 
