@@ -16,7 +16,6 @@
 
 #include "base/scoped_ptr.h"
 #include "base/time.h"
-#include "base/timer.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
@@ -103,7 +102,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   void SaveSnapStartInfo();
   bool LoadSnapStartInfo(const std::string& info);
   bool IsNPNProtocolMispredicted();
-  void UncorkAfterTimeout();
 
   bool DoTransportIO();
   int BufferSend(void);
@@ -132,9 +130,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // corked_ is true if we are currently suspending writes to the network. This
   // is named after the similar kernel flag, TCP_CORK.
   bool corked_;
-  // uncork_timer_ is used to limit the amount of time that we'll delay the
-  // Finished message while waiting for a Write.
-  base::OneShotTimer<SSLClientSocketNSS> uncork_timer_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
   CompletionCallbackImpl<SSLClientSocketNSS> handshake_io_callback_;
