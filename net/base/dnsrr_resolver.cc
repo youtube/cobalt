@@ -92,6 +92,8 @@ RRResponse::RRResponse()
     : ttl(0), dnssec(false), negative(false) {
 }
 
+RRResponse::~RRResponse() {}
+
 class RRResolverHandle {
  public:
   RRResolverHandle(CompletionCallback* callback, RRResponse* response)

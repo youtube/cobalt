@@ -83,7 +83,7 @@ class HttpAuth {
   // Helper structure used by HttpNetworkTransaction to track
   // the current identity being used for authorization.
   struct Identity {
-    Identity() : source(IDENT_SRC_NONE), invalid(true) { }
+    Identity();
 
     IdentitySource source;
     bool invalid;
