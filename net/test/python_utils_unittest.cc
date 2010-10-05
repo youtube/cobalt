@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
+
+#include "base/command_line.h"
 #include "base/environment.h"
 #include "base/file_path.h"
+#include "base/process_util.h"
 #include "base/scoped_ptr.h"
+#include "base/stringprintf.h"
+#include "base/string_util.h"
 #include "net/test/python_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,11 +47,16 @@ TEST(PythonUtils, Append) {
 TEST(PythonUtils, PythonRunTime) {
   FilePath dir;
   EXPECT_TRUE(GetPythonRunTime(&dir));
-#if defined(OS_WIN)
-  EXPECT_NE(std::wstring::npos,
-            dir.value().find(L"\\third_party\\python_24\\python.exe"));
-#elif defined(OS_POSIX)
-  EXPECT_NE(std::string::npos, dir.value().find("python"));
-#endif
-}
 
+  // Run a python command to print a string and make sure the output is what
+  // we want.
+  CommandLine cmd_line(dir);
+  cmd_line.AppendArg("-c");
+  std::string input("PythonUtilsTest");
+  std::string python_cmd = StringPrintf("print '%s';", input.c_str());
+  cmd_line.AppendArg(python_cmd);
+  std::string output;
+  EXPECT_TRUE(base::GetAppOutput(cmd_line, &output));
+  TrimWhitespace(output, TRIM_TRAILING, &output);
+  EXPECT_EQ(input, output);
+}
