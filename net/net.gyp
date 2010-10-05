@@ -858,6 +858,7 @@
         'proxy/proxy_service_unittest.cc',
         'proxy/sync_host_resolver_bridge_unittest.cc',
         'socket/client_socket_pool_base_unittest.cc',
+        'socket/deterministic_socket_data_unittest.cc',
         'socket/socks5_client_socket_unittest.cc',
         'socket/socks_client_socket_pool_unittest.cc',
         'socket/socks_client_socket_unittest.cc',
