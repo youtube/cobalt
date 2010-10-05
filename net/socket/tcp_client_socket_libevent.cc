@@ -529,7 +529,7 @@ int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!IsConnected())
-    return ERR_UNEXPECTED;
+    return ERR_SOCKET_NOT_CONNECTED;
   address->Copy(current_ai_, false);
   return OK;
 }
