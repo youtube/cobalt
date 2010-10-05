@@ -19,6 +19,7 @@
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/scoped_ptr.h"
 #include "base/test/multiprocess_test.h"
+#include "base/test/test_timeouts.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -208,6 +209,8 @@ void TestSuite::Initialize() {
 #endif  // defined(USE_NSS)
 
   CatchMaybeTests();
+
+  TestTimeouts::Initialize();
 }
 
 void TestSuite::Shutdown() {

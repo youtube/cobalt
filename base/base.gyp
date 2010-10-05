@@ -261,6 +261,10 @@
         'test/test_file_util_win.cc',
         'test/test_suite.cc',
         'test/test_suite.h',
+        'test/test_switches.cc',
+        'test/test_switches.h',
+        'test/test_timeouts.cc',
+        'test/test_timeouts.h',
       ],
     },
     {
