@@ -498,7 +498,7 @@ class RelayRead : public MessageLoopRelay {
 class RelayWrite : public MessageLoopRelay {
  public:
   RelayWrite(base::PlatformFile file,
-             int64 offset,
+             long long offset,
              const char* buffer,
              int bytes_to_write,
              base::FileUtilProxy::ReadWriteCallback* callback)
@@ -582,11 +582,11 @@ class RelayTouchFilePath : public RelayWithStatusCallback {
   base::Time last_modified_time_;
 };
 
-class RelayTruncatePlatformFile : public RelayWithStatusCallback {
+class RelayTruncate : public RelayWithStatusCallback {
  public:
-  RelayTruncatePlatformFile(base::PlatformFile file,
-                            int64 length,
-                            base::FileUtilProxy::StatusCallback* callback)
+  RelayTruncate(base::PlatformFile file,
+                int64 length,
+                base::FileUtilProxy::StatusCallback* callback)
       : RelayWithStatusCallback(callback),
         file_(file),
         length_(length) {
@@ -600,39 +600,6 @@ class RelayTruncatePlatformFile : public RelayWithStatusCallback {
 
  private:
   base::PlatformFile file_;
-  int64 length_;
-};
-
-class RelayTruncate : public RelayWithStatusCallback {
- public:
-  RelayTruncate(const FilePath& path,
-                int64 length,
-                base::FileUtilProxy::StatusCallback* callback)
-      : RelayWithStatusCallback(callback),
-        path_(path),
-        length_(length) {
-  }
-
- protected:
-  virtual void RunWork() {
-    base::PlatformFileError error_code(base::PLATFORM_FILE_ERROR_FAILED);
-    base::PlatformFile file =
-        base::CreatePlatformFile(
-            path_,
-            base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_WRITE,
-            NULL,
-            &error_code);
-    if (error_code != base::PLATFORM_FILE_OK) {
-      set_error_code(error_code);
-      return;
-    }
-    if (!base::TruncatePlatformFile(file, length_))
-      set_error_code(base::PLATFORM_FILE_ERROR_FAILED);
-    base::ClosePlatformFile(file);
-  }
-
- private:
-  FilePath path_;
   int64 length_;
 };
 
@@ -815,20 +782,10 @@ bool FileUtilProxy::Touch(
 bool FileUtilProxy::Truncate(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     PlatformFile file,
-    int64 length,
+    long long length,
     StatusCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy,
-               new RelayTruncatePlatformFile(file, length, callback));
-}
-
-// static
-bool FileUtilProxy::Truncate(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& path,
-    int64 length,
-    StatusCallback* callback) {
-  return Start(FROM_HERE, message_loop_proxy,
-               new RelayTruncate(path, length, callback));
+               new RelayTruncate(file, length, callback));
 }
 
 // static
