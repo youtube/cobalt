@@ -521,12 +521,14 @@ TEST_F(SpdyProxyClientSocketTest, GetPeerAddressReturnsCorrectValues) {
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
   net::AddressList addr;
-  EXPECT_EQ(ERR_UNEXPECTED, sock_->GetPeerAddress(&addr));
+  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->GetPeerAddress(&addr));
+
   AssertConnectSucceeds();
   EXPECT_TRUE(sock_->IsConnected());
   EXPECT_EQ(OK, sock_->GetPeerAddress(&addr));
+
   sock_->Disconnect();
-  EXPECT_EQ(ERR_UNEXPECTED, sock_->GetPeerAddress(&addr));
+  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->GetPeerAddress(&addr));
 }
 
 // ----------- Write
