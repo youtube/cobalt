@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2010 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -43,21 +43,23 @@ def git_fetch_id():
 
   Errors are swallowed.
   """
+  git_re = re.compile('^\s*git-svn-id:\s+(\S+)@(\d+)', re.M)
   try:
-    p = subprocess.Popen(['git', 'log', '-1'],
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         shell=(sys.platform=='win32'))
+    proc = subprocess.Popen(['git', 'log', '-999'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            shell=(sys.platform=='win32'))
+    for line in proc.stdout:
+      match = git_re.search(line)
+      if match:
+        id = match.group(2)
+        if id:
+          proc.stdout.close()  # Cut pipe.
+          return id
   except OSError:
     # 'git' is apparently either not installed or not executable.
-    return None
-  id = None
-  if p:
-    git_re = re.compile('^\s*git-svn-id:\s+(\S+)@(\d+)', re.M)
-    m = git_re.search(p.stdout.read())
-    if m:
-      id = m.group(2)
-  return id
+    pass
+  return None
 
 
 def fetch_change(default_lastchange):
