@@ -97,7 +97,7 @@ class CertDatabase {
   // storing into |output|.
   // Returns the number of certificates successfully exported.
   int ExportToPKCS12(const CertificateList& certs, const string16& password,
-                     std::string* output);
+                     std::string* output) const;
 
   // Uses similar logic to nsNSSCertificateDB::handleCACertDownload to find the
   // root.  Assumes the list is an ordered hierarchy with the root being either
@@ -127,6 +127,7 @@ class CertDatabase {
 
   // Delete certificate and associated private key (if one exists).
   // Returns true on success or false on failure.
+  // |cert| is still valid when this function returns.
   bool DeleteCertAndKey(const X509Certificate* cert);
 #endif
 
