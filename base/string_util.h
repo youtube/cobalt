@@ -558,6 +558,7 @@ bool ElideString(const std::wstring& input, int max_len, std::wstring* output);
 // string can contain wildcards like * and ?
 // The backslash character (\) is an escape character for * and ?
 // We limit the patterns to having a max of 16 * or ? characters.
+// ? matches 0 or 1 character, while * matches 0 or more characters.
 bool MatchPattern(const base::StringPiece& string,
                   const base::StringPiece& pattern);
 bool MatchPattern(const string16& string, const string16& pattern);
