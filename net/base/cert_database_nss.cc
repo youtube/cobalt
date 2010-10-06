@@ -114,7 +114,7 @@ int CertDatabase::ImportFromPKCS12(
 int CertDatabase::ExportToPKCS12(
     const CertificateList& certs,
     const string16& password,
-    std::string* output) {
+    std::string* output) const {
   return psm::nsPKCS12Blob_Export(output, certs, password);
 }
 
