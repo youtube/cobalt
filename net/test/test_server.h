@@ -52,12 +52,6 @@ class TestServer {
   // Stop the server started by Start().
   bool Stop();
 
-  // If you access the server's Kill url, it will exit by itself
-  // without a call to Stop().
-  // WaitToFinish is handy in that case.
-  // It returns true if the server exited cleanly.
-  bool WaitToFinish(int milliseconds) WARN_UNUSED_RESULT;
-
   const FilePath& document_root() const { return document_root_; }
   const HostPortPair& host_port_pair() const { return host_port_pair_; }
   std::string GetScheme() const;
