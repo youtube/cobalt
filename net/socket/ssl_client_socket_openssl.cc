@@ -49,7 +49,7 @@ int MapOpenSSLError(int err) {
     case SSL_ERROR_WANT_WRITE:
       return ERR_IO_PENDING;
     case SSL_ERROR_SYSCALL:
-      DVLOG(1) << "OpenSSL SYSVCALL error, errno " << errno;
+      DVLOG(1) << "OpenSSL SYSCALL error, errno " << errno;
       MaybeLogSSLError();
       return ERR_SSL_PROTOCOL_ERROR;
     default:
@@ -379,17 +379,9 @@ int SSLClientSocketOpenSSL::DoHandshake() {
 
   if (rv == 1) {
     // SSL handshake is completed.  Let's verify the certificate.
-    if (UpdateServerCert() == NULL) {
-      net_error = ERR_SSL_PROTOCOL_ERROR;
-    } else {
-      GotoState(STATE_VERIFY_CERT);
-
-      // TODO(joth): Remove this check when X509Certificate::Verify is
-      // implemented for OpenSSL
-      long verify_result = SSL_get_verify_result(ssl_);
-      LOG_IF(WARNING, verify_result != X509_V_OK)
-          << "Built in verify failed: " << verify_result;
-    }
+    const bool got_cert = !!UpdateServerCert();
+    DCHECK(got_cert);
+    GotoState(STATE_VERIFY_CERT);
   } else {
     int ssl_error = SSL_get_error(ssl_, rv);
     net_error = MapOpenSSLError(ssl_error);
@@ -530,8 +522,10 @@ void SSLClientSocketOpenSSL::BufferSendComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::TransportWriteComplete(int result) {
+  DCHECK(ERR_IO_PENDING != result);
   if (result < 0) {
     // Got a socket write error; close the BIO to indicate this upward.
+    DVLOG(1) << "TransportWriteComplete error " << result;
     (void)BIO_shutdown_wr(transport_bio_);
     send_buffer_ = NULL;
   } else {
@@ -571,14 +565,19 @@ void SSLClientSocketOpenSSL::BufferRecvComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::TransportReadComplete(int result) {
-  if (result > 0) {
+  DCHECK(ERR_IO_PENDING != result);
+  if (result <= 0) {
+    DVLOG(1) << "TransportReadComplete result " << result;
+    // Received 0 (end of file) or an error. Either way, bubble it up to the
+    // SSL layer via the BIO. TODO(joth): consider stashing the error code, to
+    // relay up to the SSL socket client (i.e. via DoReadCallback).
+    BIO_set_mem_eof_return(transport_bio_, 0);
+    (void)BIO_shutdown_wr(transport_bio_);
+  } else {
+    DCHECK(recv_buffer_);
     int ret = BIO_write(transport_bio_, recv_buffer_->data(), result);
     // A write into a memory BIO should always succeed.
     CHECK_EQ(result, ret);
-  } else {
-    // Received end of file: bubble it up to the SSL layer via the BIO.
-    BIO_set_mem_eof_return(transport_bio_, 0);
-    (void)BIO_shutdown_wr(transport_bio_);
   }
   recv_buffer_ = NULL;
   transport_recv_busy_ = false;
