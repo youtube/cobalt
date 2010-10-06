@@ -24,6 +24,7 @@
 
 namespace net {
 
+class ClientSocketHandle;
 class HttpAuthController;
 class HttpNetworkSession;
 class HttpStream;
@@ -207,6 +208,10 @@ class HttpNetworkTransaction : public HttpTransaction,
 
   scoped_refptr<StreamFactory::StreamRequestJob> stream_request_;
   scoped_ptr<HttpStream> stream_;
+
+  // Reuse the same connection for each round of a connection-based HTTP
+  // authentication scheme.
+  scoped_ptr<ClientSocketHandle> auth_connection_;
 
   // True if we've validated the headers that the stream parser has returned.
   bool headers_valid_;
