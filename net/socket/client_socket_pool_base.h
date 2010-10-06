@@ -24,6 +24,7 @@
 #pragma once
 
 #include <deque>
+#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -323,14 +324,14 @@ class ClientSocketPoolBaseHelper
     void DecrementActiveSocketCount() { active_socket_count_--; }
 
     const std::set<const ConnectJob*>& jobs() const { return jobs_; }
-    const std::deque<IdleSocket>& idle_sockets() const { return idle_sockets_; }
+    const std::list<IdleSocket>& idle_sockets() const { return idle_sockets_; }
     const RequestQueue& pending_requests() const { return pending_requests_; }
     int active_socket_count() const { return active_socket_count_; }
     RequestQueue* mutable_pending_requests() { return &pending_requests_; }
-    std::deque<IdleSocket>* mutable_idle_sockets() { return &idle_sockets_; }
+    std::list<IdleSocket>* mutable_idle_sockets() { return &idle_sockets_; }
 
    private:
-    std::deque<IdleSocket> idle_sockets_;
+    std::list<IdleSocket> idle_sockets_;
     std::set<const ConnectJob*> jobs_;
     RequestQueue pending_requests_;
     int active_socket_count_;  // number of active sockets used by clients
