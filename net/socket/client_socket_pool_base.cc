@@ -277,23 +277,52 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
 
 bool ClientSocketPoolBaseHelper::AssignIdleSocketToGroup(
     const Request* request, Group* group) {
-  // Iterate through the list of idle sockets until we find one or exhaust
-  // the list.
-  while (!group->idle_sockets().empty()) {
-    IdleSocket idle_socket = group->idle_sockets().back();
-    group->mutable_idle_sockets()->pop_back();
-    DecrementIdleCount();
-    if (idle_socket.socket->IsConnectedAndIdle()) {
-      // We found one we can reuse!
-      base::TimeDelta idle_time =
-          base::TimeTicks::Now() - idle_socket.start_time;
-      HandOutSocket(
-          idle_socket.socket, idle_socket.socket->WasEverUsed(),
-          request->handle(), idle_time, group, request->net_log());
-      return true;
+  std::list<IdleSocket>* idle_sockets = group->mutable_idle_sockets();
+  std::list<IdleSocket>::iterator idle_socket_it = idle_sockets->end();
+
+  // Iterate through the idle sockets forwards (oldest to newest)
+  //   * Delete any disconnected ones.
+  //   * If we find a used idle socket, assign to |idle_socket|.  At the end,
+  //   the |idle_socket_it| will be set to the newest used idle socket.
+  for (std::list<IdleSocket>::iterator it = idle_sockets->begin();
+       it != idle_sockets->end();) {
+    if (!it->socket->IsConnectedAndIdle()) {
+      DecrementIdleCount();
+      delete it->socket;
+      it = idle_sockets->erase(it);
+      continue;
     }
-    delete idle_socket.socket;
+
+    if (it->socket->WasEverUsed()) {
+      // We found one we can reuse!
+      idle_socket_it = it;
+    }
+
+    ++it;
   }
+
+  // If we haven't found an idle socket, that means there are no used idle
+  // sockets.  Pick the oldest (first) idle socket (FIFO).
+
+  if (idle_socket_it == idle_sockets->end() && !idle_sockets->empty())
+    idle_socket_it = idle_sockets->begin();
+
+  if (idle_socket_it != idle_sockets->end()) {
+    DecrementIdleCount();
+    base::TimeDelta idle_time =
+        base::TimeTicks::Now() - idle_socket_it->start_time;
+    IdleSocket idle_socket = *idle_socket_it;
+    idle_sockets->erase(idle_socket_it);
+    HandOutSocket(
+        idle_socket.socket,
+        idle_socket.socket->WasEverUsed(),
+        request->handle(),
+        idle_time,
+        group,
+        request->net_log());
+    return true;
+  }
+
   return false;
 }
 
@@ -429,7 +458,7 @@ DictionaryValue* ClientSocketPoolBaseHelper::GetInfoAsValue(
     group_dict->SetInteger("active_socket_count", group->active_socket_count());
 
     ListValue* idle_socket_list = new ListValue();
-    std::deque<IdleSocket>::const_iterator idle_socket;
+    std::list<IdleSocket>::const_iterator idle_socket;
     for (idle_socket = group->idle_sockets().begin();
          idle_socket != group->idle_sockets().end();
          idle_socket++) {
@@ -479,7 +508,7 @@ void ClientSocketPoolBaseHelper::CleanupIdleSockets(bool force) {
   while (i != group_map_.end()) {
     Group* group = i->second;
 
-    std::deque<IdleSocket>::iterator j = group->mutable_idle_sockets()->begin();
+    std::list<IdleSocket>::iterator j = group->mutable_idle_sockets()->begin();
     while (j != group->idle_sockets().end()) {
       base::TimeDelta timeout =
           j->socket->WasEverUsed() ?
@@ -841,12 +870,11 @@ void ClientSocketPoolBaseHelper::CloseOneIdleSocket() {
 
   for (GroupMap::iterator i = group_map_.begin(); i != group_map_.end(); ++i) {
     Group* group = i->second;
+    std::list<IdleSocket>* idle_sockets = group->mutable_idle_sockets();
 
-    if (!group->idle_sockets().empty()) {
-      std::deque<IdleSocket>::iterator j =
-          group->mutable_idle_sockets()->begin();
-      delete j->socket;
-      group->mutable_idle_sockets()->erase(j);
+    if (!idle_sockets->empty()) {
+      delete idle_sockets->front().socket;
+      idle_sockets->pop_front();
       DecrementIdleCount();
       if (group->IsEmpty())
         RemoveGroup(i);

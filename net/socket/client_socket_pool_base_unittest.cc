@@ -2563,6 +2563,73 @@ TEST_F(ClientSocketPoolBaseTest, SynchronouslyProcessOnePendingRequest) {
   EXPECT_FALSE(pool_->HasGroup("a"));
 }
 
+TEST_F(ClientSocketPoolBaseTest, PreferUsedSocketToUnusedSocket) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  ClientSocketHandle handle1;
+  TestCompletionCallback callback1;
+  EXPECT_EQ(ERR_IO_PENDING, handle1.Init("a",
+                                         params_,
+                                         kDefaultPriority,
+                                         &callback1,
+                                         pool_.get(),
+                                         BoundNetLog()));
+
+  ClientSocketHandle handle2;
+  TestCompletionCallback callback2;
+  EXPECT_EQ(ERR_IO_PENDING, handle2.Init("a",
+                                         params_,
+                                         kDefaultPriority,
+                                         &callback2,
+                                         pool_.get(),
+                                         BoundNetLog()));
+  ClientSocketHandle handle3;
+  TestCompletionCallback callback3;
+  EXPECT_EQ(ERR_IO_PENDING, handle3.Init("a",
+                                         params_,
+                                         kDefaultPriority,
+                                         &callback3,
+                                         pool_.get(),
+                                         BoundNetLog()));
+
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_EQ(OK, callback2.WaitForResult());
+  EXPECT_EQ(OK, callback3.WaitForResult());
+
+  // Use the socket.
+  EXPECT_EQ(1, handle1.socket()->Write(NULL, 1, NULL));
+  EXPECT_EQ(1, handle3.socket()->Write(NULL, 1, NULL));
+
+  handle1.Reset();
+  handle2.Reset();
+  handle3.Reset();
+
+  EXPECT_EQ(OK, handle1.Init("a",
+                             params_,
+                             kDefaultPriority,
+                             &callback1,
+                             pool_.get(),
+                             BoundNetLog()));
+  EXPECT_EQ(OK, handle2.Init("a",
+                             params_,
+                             kDefaultPriority,
+                             &callback2,
+                             pool_.get(),
+                             BoundNetLog()));
+  EXPECT_EQ(OK, handle3.Init("a",
+                             params_,
+                             kDefaultPriority,
+                             &callback3,
+                             pool_.get(),
+                             BoundNetLog()));
+
+  EXPECT_TRUE(handle1.socket()->WasEverUsed());
+  EXPECT_TRUE(handle2.socket()->WasEverUsed());
+  EXPECT_FALSE(handle3.socket()->WasEverUsed());
+}
+
 }  // namespace
 
 }  // namespace net
