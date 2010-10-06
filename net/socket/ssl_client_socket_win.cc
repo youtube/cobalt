@@ -89,12 +89,11 @@ enum {
 class CredHandleClass : public CredHandle {
  public:
   CredHandleClass() {
-    dwLower = 0;
-    dwUpper = 0;
+    SecInvalidateHandle(this);
   }
 
   ~CredHandleClass() {
-    if (dwLower || dwUpper) {
+    if (SecIsValidHandle(this)) {
       SECURITY_STATUS status = FreeCredentialsHandle(this);
       DCHECK(status == SEC_E_OK);
     }
@@ -128,7 +127,7 @@ class CredHandleTable {
     } else {
       handle = &anonymous_creds_[ssl_version_mask];
     }
-    if (!handle->dwLower && !handle->dwUpper)
+    if (!SecIsValidHandle(handle))
       InitializeHandle(handle, client_cert, ssl_version_mask);
     return handle;
   }
@@ -224,7 +223,7 @@ void CredHandleTable::InitializeHandle(CredHandle* handle,
       handle,
       &expiry);  // Optional
   if (status != SEC_E_OK) {
-    DLOG(ERROR) << "AcquireCredentialsHandle failed: " << status;
+    LOG(ERROR) << "AcquireCredentialsHandle failed: " << status;
     // GetHandle will return a pointer to an uninitialized CredHandle, which
     // will cause InitializeSecurityContext to fail with SEC_E_INVALID_HANDLE.
   }
@@ -564,7 +563,7 @@ int SSLClientSocketWin::InitializeSSLContext() {
       const_cast<wchar_t*>(ASCIIToWide(hostname_).c_str()),
       flags,
       0,  // Reserved
-      SECURITY_NATIVE_DREP,  // TODO(wtc): MSDN says this should be set to 0.
+      0,  // Not used with Schannel.
       NULL,  // NULL on the first call
       0,  // Reserved
       &ctxt_,  // Receives the new context handle
@@ -573,6 +572,16 @@ int SSLClientSocketWin::InitializeSSLContext() {
       &expiry);
   if (status != SEC_I_CONTINUE_NEEDED) {
     LOG(ERROR) << "InitializeSecurityContext failed: " << status;
+    if (status == SEC_E_INVALID_HANDLE) {
+      // The only handle we passed to this InitializeSecurityContext call is
+      // creds_, so print its contents to figure out why it's invalid.
+      if (creds_) {
+        LOG(ERROR) << "creds_->dwLower = " << creds_->dwLower
+                   << "; creds_->dwUpper = " << creds_->dwUpper;
+      } else {
+        LOG(ERROR) << "creds_ is NULL";
+      }
+    }
     return MapSecurityError(status);
   }
 
@@ -590,9 +599,9 @@ void SSLClientSocketWin::Disconnect() {
 
   if (send_buffer_.pvBuffer)
     FreeSendBuffer();
-  if (ctxt_.dwLower || ctxt_.dwUpper) {
+  if (SecIsValidHandle(&ctxt_)) {
     DeleteSecurityContext(&ctxt_);
-    memset(&ctxt_, 0, sizeof(ctxt_));
+    SecInvalidateHandle(&ctxt_);
   }
   if (server_cert_)
     server_cert_ = NULL;
@@ -906,7 +915,7 @@ int SSLClientSocketWin::DoHandshakeReadComplete(int result) {
       NULL,
       flags,
       0,
-      SECURITY_NATIVE_DREP,
+      0,
       &in_buffer_desc,
       0,
       NULL,
