@@ -2013,6 +2013,7 @@ int SSLClientSocketNSS::DoHandshake() {
       }
       // Done!
     } else {
+      // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=562434 -
       // SSL_ForceHandshake returned SECSuccess prematurely.
       rv = SECFailure;
       net_error = ERR_SSL_PROTOCOL_ERROR;
