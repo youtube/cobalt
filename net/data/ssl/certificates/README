@@ -31,3 +31,6 @@ unit tests.
 
 - client.p12 : A PKCS #12 file containing a client certificate and a private
      key created for testing.  The password is "12345".
+
+- punycodetest.der : A test self-signed server certificate with punycode name.
+     The common name is "xn--wgv71a119e.com" (日本語.com)
