@@ -91,3 +91,9 @@ LOAD_FLAG(MAIN_FRAME, 1 << 20)
 // Indicate that this is a sub frame, and hence it might have subresources that
 // should be speculatively resolved, or even speculatively preconnected.
 LOAD_FLAG(SUB_FRAME, 1 << 21)
+
+// If present, intercept actual request/response headers from network stack
+// and report them to renderer. This includes cookies, so the flag is only
+// respected if renderer has CanReadRawCookies capability in the security
+// policy.
+LOAD_FLAG(REPORT_RAW_HEADERS, 1 << 22)
