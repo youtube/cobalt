@@ -91,12 +91,6 @@
 
 static const int kRecvBufferSize = 4096;
 
-// kCorkTimeoutMs is the number of milliseconds for which we'll wait for a
-// Write to an SSL socket which we're False Starting. Since corking stops the
-// Finished message from being sent, the server sees an incomplete handshake
-// and some will time out such sockets quite aggressively.
-static const int kCorkTimeoutMs = 200;
-
 namespace net {
 
 // State machines are easier to debug if you log state transitions.
@@ -697,14 +691,6 @@ bool SSLClientSocketNSS::IsNPNProtocolMispredicted() {
   return predicted_npn_proto_ != npn_proto;
 }
 
-void SSLClientSocketNSS::UncorkAfterTimeout() {
-  corked_ = false;
-  int nsent;
-  do {
-    nsent = BufferSend();
-  } while (nsent > 0);
-}
-
 int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   EnterFunction("");
   DCHECK(transport_.get());
@@ -1122,10 +1108,7 @@ int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
       return rv;
   }
 
-  if (corked_) {
-    corked_ = false;
-    uncork_timer_.Reset();
-  }
+  corked_ = false;
   int rv = DoWriteLoop(OK);
 
   if (rv == ERR_IO_PENDING) {
@@ -1730,12 +1713,8 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
     NOTREACHED();
   if (false_start) {
     SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
-    if (!that->handshake_callback_called_) {
+    if (!that->handshake_callback_called_)
       that->corked_ = true;
-      that->uncork_timer_.Start(
-          base::TimeDelta::FromMilliseconds(kCorkTimeoutMs),
-          that, &SSLClientSocketNSS::UncorkAfterTimeout);
-    }
   }
 #endif
 
