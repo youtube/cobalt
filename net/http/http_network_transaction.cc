@@ -329,8 +329,11 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
       // We should call connection_->set_idle_time(), but this doesn't occur
       // often enough to be worth the trouble.
       stream_->SetConnectionReused();
+      DCHECK(!auth_connection_.get());
+      auth_connection_.reset(stream_->DetachConnection());
+    } else {
+      stream_->Close(true);
     }
-    stream_->Close(!keep_alive);
     next_state_ = STATE_CREATE_STREAM;
   }
 
@@ -585,13 +588,15 @@ int HttpNetworkTransaction::DoLoop(int result) {
 int HttpNetworkTransaction::DoCreateStream() {
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
-  session_->http_stream_factory()->RequestStream(request_,
-                                                 &ssl_config_,
-                                                 &proxy_info_,
-                                                 this,
-                                                 net_log_,
-                                                 session_,
-                                                 &stream_request_);
+  session_->http_stream_factory()->RequestStream(
+      request_,
+      &ssl_config_,
+      &proxy_info_,
+      auth_connection_.release(),
+      this,
+      net_log_,
+      session_,
+      &stream_request_);
   return ERR_IO_PENDING;
 }
 
