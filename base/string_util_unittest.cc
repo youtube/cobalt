@@ -988,6 +988,12 @@ TEST(StringUtilTest, MatchPatternTest) {
                            UTF8ToUTF16("*.com")));
   EXPECT_TRUE(MatchPattern(UTF8ToUTF16("Hello*1234"),
                            UTF8ToUTF16("He??o\\*1*")));
+
+  // This test verifies that consecutive wild cards are collapsed into 1
+  // wildcard (when this doesn't occur, MatchPattern reaches it's maximum
+  // recursion depth).
+  EXPECT_TRUE(MatchPattern(UTF8ToUTF16("Hello"),
+                           UTF8ToUTF16("He********************************o")));
 }
 
 TEST(StringUtilTest, LcpyTest) {

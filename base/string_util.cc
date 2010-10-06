@@ -1074,6 +1074,10 @@ static bool MatchPatternT(const CHAR* eval, const CHAR* eval_end,
   // This is a *, try to match all the possible substrings with the remainder
   // of the pattern.
   if (pattern[0] == '*') {
+    // Collapse duplicate wild cards (********** into *) so that the
+    // method does not recurse unnecessarily. http://crbug.com/52839
+    EatWildcard(&next_pattern, pattern_end, next);
+
     while (eval != eval_end) {
       if (MatchPatternT(eval, eval_end, next_pattern, pattern_end,
                         depth + 1, next))
