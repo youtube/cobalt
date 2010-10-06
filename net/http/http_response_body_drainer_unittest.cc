@@ -94,6 +94,8 @@ class MockHttpStream : public HttpStream {
   virtual bool IsMoreDataBuffered() const { return false; }
   virtual bool IsConnectionReused() const { return false; }
   virtual void SetConnectionReused() {}
+  virtual ClientSocketHandle* DetachConnection() { return NULL; }
+
   virtual void GetSSLInfo(SSLInfo* ssl_info) {}
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) {}
 

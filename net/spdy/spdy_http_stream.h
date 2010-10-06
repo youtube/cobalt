@@ -91,6 +91,8 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
     // SPDY doesn't need an indicator here.
   }
 
+  virtual ClientSocketHandle* DetachConnection();
+
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 

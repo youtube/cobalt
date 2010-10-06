@@ -22,6 +22,7 @@
 namespace net {
 
 class BoundNetLog;
+class ClientSocketHandle;
 class HttpResponseInfo;
 class IOBuffer;
 class SSLCertRequestInfo;
@@ -107,6 +108,17 @@ class HttpStream {
   // connection is reused or has been connected and idle for some time.
   virtual bool IsConnectionReused() const = 0;
   virtual void SetConnectionReused() = 0;
+
+  // Detach the connection from this HttpStream. The caller is responsible
+  // for deleting the handle. After this is called, none of the other HttpStream
+  // methods should be called.
+  //
+  // The return value may be NULL. In that case, the underlying connection
+  // is either unavailable, or can be consistently rediscoverable.
+  //
+  // TODO(cbentzel): Consider ResetForAuth() approach instead.
+  // http://crbug.com/58192
+  virtual ClientSocketHandle* DetachConnection() = 0;
 
   // Get the SSLInfo associated with this stream's connection.  This should
   // only be called for streams over SSL sockets, otherwise the behavior is
