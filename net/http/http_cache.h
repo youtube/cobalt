@@ -41,6 +41,7 @@ class Entry;
 
 namespace net {
 
+class DnsRRResolver;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
@@ -117,6 +118,7 @@ class HttpCache : public HttpTransactionFactory,
   // The disk cache is initialized lazily (by CreateTransaction) in this case.
   // The  HttpCache takes ownership of the |backend_factory|.
   HttpCache(HostResolver* host_resolver,
+            DnsRRResolver* dnsrr_resolver,
             ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
