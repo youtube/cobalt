@@ -1035,6 +1035,10 @@ void HostResolverImpl::SetDefaultAddressFamily(AddressFamily address_family) {
   default_address_family_ = address_family;
 }
 
+AddressFamily HostResolverImpl::GetDefaultAddressFamily() const {
+  return default_address_family_;
+}
+
 void HostResolverImpl::ProbeIPv6Support() {
   DCHECK(CalledOnValidThread());
   DCHECK(!ipv6_probe_monitoring_);
