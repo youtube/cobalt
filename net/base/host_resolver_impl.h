@@ -99,6 +99,7 @@ class HostResolverImpl : public HostResolver,
 
   // Set address family, and disable IPv6 probe support.
   virtual void SetDefaultAddressFamily(AddressFamily address_family);
+  virtual AddressFamily GetDefaultAddressFamily() const;
 
   // Continuously observe whether IPv6 is supported, and set the allowable
   // address family to IPv4 iff IPv6 is not supported.
