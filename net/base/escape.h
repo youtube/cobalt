@@ -121,18 +121,12 @@ string16 UnescapeForHTML(const string16& text);
 // This is basically the same as encodeURIComponent in javascript.
 // For the string16 version, we do a conversion to charset before encoding the
 // string.  If the charset doesn't exist, we return false.
-//
-// TODO(brettw) bug 1201094: This function should be removed. See the bug for
-// why and what callers should do instead.
 std::string EscapeQueryParamValue(const std::string& text, bool use_plus);
 bool EscapeQueryParamValue(const string16& text, const char* codepage,
                            bool use_plus, string16* escaped);
 
 // A specialized version of EscapeQueryParamValue for wide strings that
 // assumes the codepage is UTF8.  This is provided as a convenience.
-//
-// TODO(brettw) bug 1201094: This function should be removed. See the bug for
-// why and what callers should do instead.
 std::wstring EscapeQueryParamValueUTF8(const std::wstring& text, bool use_plus);
 
 #endif  // NET_BASE_ESCAPE_H_
