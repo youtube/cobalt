@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2010 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -33,6 +33,7 @@
         '../third_party/ffmpeg/ffmpeg.gyp:*',
         '../third_party/icu/icu.gyp:*',
         '../third_party/libjpeg/libjpeg.gyp:*',
+        '../third_party/libwebp/libwebp.gyp:*',
         '../third_party/libpng/libpng.gyp:*',
         '../third_party/libxml/libxml.gyp:*',
         '../third_party/libxslt/libxslt.gyp:*',
