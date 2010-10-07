@@ -115,6 +115,8 @@ void VideoFrame::CreateFrameGlTexture(Format format,
     frame->planes_ = GetNumberOfPlanes(format);
     for (size_t i = 0; i < kMaxPlanes; ++i) {
       frame->gl_textures_[i] = textures[i];
+      // TODO(hclam): Fix me for color format other than RGBA.
+      frame->strides_[i] = width;
     }
   }
   *frame_out = frame;
