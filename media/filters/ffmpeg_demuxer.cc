@@ -220,8 +220,6 @@ void FFmpegDemuxerStream::EnableBitstreamConverter() {
     filter_name = "vc1_asftorcv";
   } else if (stream_->codec->codec_id == CODEC_ID_VC1) {
     filter_name = "vc1_asftoannexg";
-  } else {
-    NOTREACHED();
   }
 
   if (filter_name) {
