@@ -46,17 +46,10 @@ class VideoFrame : public StreamSample {
 
     // Video frame is stored in GL texture(s).
     TYPE_GL_TEXTURE,
-
-    // Video frame is stored in Direct3D texture(s).
-    TYPE_D3D_TEXTURE,
   };
 
   // Defines a new type for GL texture so we don't include OpenGL headers.
   typedef unsigned int GlTexture;
-
-  // Defines a new type for D3D texture so we don't include D3D headers and
-  // don't need to bind to a specific version of D3D.
-  typedef void* D3dTexture;
 
   // Get the number of planes for a video frame format.
   static size_t GetNumberOfPlanes(VideoFrame::Format format);
@@ -86,24 +79,11 @@ class VideoFrame : public StreamSample {
                                   scoped_refptr<VideoFrame>* frame_out);
 
   // Creates a new frame with GL textures.
-  // TODO(hclam): Remove timestamp and duration.
   static void CreateFrameGlTexture(Format format,
                                    size_t width,
                                    size_t height,
                                    GlTexture const textures[kMaxPlanes],
-                                   base::TimeDelta timestamp,
-                                   base::TimeDelta duration,
                                    scoped_refptr<VideoFrame>* frame_out);
-
-  // Creates a new frame with D3d textures.
-  // TODO(hclam): Remove timestamp and duration.
-  static void CreateFrameD3dTexture(Format format,
-                                    size_t width,
-                                    size_t height,
-                                    D3dTexture const textures[kMaxPlanes],
-                                    base::TimeDelta timestamp,
-                                    base::TimeDelta duration,
-                                    scoped_refptr<VideoFrame>* frame_out);
 
   // Creates a frame with format equals to VideoFrame::EMPTY, width, height
   // timestamp and duration are all 0.
@@ -133,9 +113,6 @@ class VideoFrame : public StreamSample {
 
   // Returns the GL texture for a given plane.
   GlTexture gl_texture(size_t plane) const { return gl_textures_[plane]; }
-
-  // Returns the D3D texture for a given plane.
-  D3dTexture d3d_texture(size_t plane) const { return d3d_textures_[plane]; }
 
   void* private_buffer() const { return private_buffer_; }
 
@@ -179,9 +156,6 @@ class VideoFrame : public StreamSample {
 
   // Array fo GL textures.
   GlTexture gl_textures_[kMaxPlanes];
-
-  // Array for D3D textures.
-  D3dTexture d3d_textures_[kMaxPlanes];
 
   // True of memory referenced by |data_| is provided externally and shouldn't
   // be deleted.
