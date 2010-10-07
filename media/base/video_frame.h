@@ -58,6 +58,9 @@ class VideoFrame : public StreamSample {
   // don't need to bind to a specific version of D3D.
   typedef void* D3dTexture;
 
+  // Get the number of planes for a video frame format.
+  static size_t GetNumberOfPlanes(VideoFrame::Format format);
+
   // Creates a new frame in system memory with given parameters. Buffers for
   // the frame are allocated but not initialized.
   static void CreateFrame(Format format,

@@ -8,7 +8,8 @@
 
 namespace media {
 
-static size_t GetNumberOfPlanes(VideoFrame::Format format) {
+// static
+size_t VideoFrame::GetNumberOfPlanes(VideoFrame::Format format) {
   switch (format) {
     case VideoFrame::RGB555:
     case VideoFrame::RGB565:
