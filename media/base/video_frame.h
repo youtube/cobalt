@@ -83,6 +83,7 @@ class VideoFrame : public StreamSample {
                                   scoped_refptr<VideoFrame>* frame_out);
 
   // Creates a new frame with GL textures.
+  // TODO(hclam): Remove timestamp and duration.
   static void CreateFrameGlTexture(Format format,
                                    size_t width,
                                    size_t height,
@@ -92,6 +93,7 @@ class VideoFrame : public StreamSample {
                                    scoped_refptr<VideoFrame>* frame_out);
 
   // Creates a new frame with D3d textures.
+  // TODO(hclam): Remove timestamp and duration.
   static void CreateFrameD3dTexture(Format format,
                                     size_t width,
                                     size_t height,
