@@ -106,42 +106,15 @@ void VideoFrame::CreateFrameGlTexture(Format format,
                                       size_t width,
                                       size_t height,
                                       GlTexture const textures[kMaxPlanes],
-                                      base::TimeDelta timestamp,
-                                      base::TimeDelta duration,
                                       scoped_refptr<VideoFrame>* frame_out) {
   DCHECK(frame_out);
   scoped_refptr<VideoFrame> frame =
       new VideoFrame(TYPE_GL_TEXTURE, format, width, height);
   if (frame) {
-    frame->SetTimestamp(timestamp);
-    frame->SetDuration(duration);
     frame->external_memory_ = true;
     frame->planes_ = GetNumberOfPlanes(format);
     for (size_t i = 0; i < kMaxPlanes; ++i) {
       frame->gl_textures_[i] = textures[i];
-    }
-  }
-  *frame_out = frame;
-}
-
-// static
-void VideoFrame::CreateFrameD3dTexture(Format format,
-                                       size_t width,
-                                       size_t height,
-                                       D3dTexture const textures[kMaxPlanes],
-                                       base::TimeDelta timestamp,
-                                       base::TimeDelta duration,
-                                       scoped_refptr<VideoFrame>* frame_out) {
-  DCHECK(frame_out);
-  scoped_refptr<VideoFrame> frame =
-      new VideoFrame(TYPE_D3D_TEXTURE, format, width, height);
-  if (frame) {
-    frame->SetTimestamp(timestamp);
-    frame->SetDuration(duration);
-    frame->external_memory_ = true;
-    frame->planes_ = GetNumberOfPlanes(format);
-    for (size_t i = 0; i < kMaxPlanes; ++i) {
-      frame->d3d_textures_[i] = textures[i];
     }
   }
   *frame_out = frame;
@@ -260,7 +233,6 @@ VideoFrame::VideoFrame(VideoFrame::SurfaceType type,
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
   memset(&gl_textures_, 0, sizeof(gl_textures_));
-  memset(&d3d_textures_, 0, sizeof(d3d_textures_));
   external_memory_ = false;
   private_buffer_ = NULL;
 }
