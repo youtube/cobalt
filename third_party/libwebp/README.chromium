@@ -1,0 +1,8 @@
+Name: libwebpdecode
+URL: http://code.google.com/speed/webp
+
+This contains a copy of libwebp-decode-0.1
+
+The project files do not include from the distribution:
+  examples/
+
