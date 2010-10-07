@@ -104,6 +104,7 @@ ProxyService* CreateFixedProxyService(const std::string& proxy) {
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(session_deps->host_resolver.get(),
+                                NULL /* dnsrr_resolver */,
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
@@ -304,7 +305,7 @@ template<>
 CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
     HttpNetworkSession* session)
     : SSLClientSocketPool(0, 0, NULL, session->host_resolver(), NULL, NULL,
-                          NULL, NULL, NULL, NULL) {}
+                          NULL, NULL, NULL, NULL, NULL) {}
 
 //-----------------------------------------------------------------------------
 
