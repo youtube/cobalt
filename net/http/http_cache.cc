@@ -243,9 +243,7 @@ void HttpCache::MetadataWriter::OnIOComplete(int result) {
 
 //-----------------------------------------------------------------------------
 
-HttpCache::HttpCache(HostResolver* host_resolver,
-                     DnsRRResolver* dnsrr_resolver,
-                     ProxyService* proxy_service,
+HttpCache::HttpCache(HostResolver* host_resolver, ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
                      HttpAuthHandlerFactory* http_auth_handler_factory,
                      HttpNetworkDelegate* network_delegate,
@@ -255,8 +253,8 @@ HttpCache::HttpCache(HostResolver* host_resolver,
       building_backend_(false),
       mode_(NORMAL),
       network_layer_(HttpNetworkLayer::CreateFactory(host_resolver,
-          dnsrr_resolver, proxy_service, ssl_config_service,
-          http_auth_handler_factory, network_delegate, net_log)),
+          proxy_service, ssl_config_service, http_auth_handler_factory,
+          network_delegate, net_log)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       enable_range_support_(true) {
 }

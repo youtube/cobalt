@@ -16,7 +16,6 @@
 namespace net {
 
 class ClientSocketFactory;
-class DnsRRResolver;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
@@ -32,7 +31,6 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   // the lifetime of HttpNetworkLayer.
   HttpNetworkLayer(ClientSocketFactory* socket_factory,
                    HostResolver* host_resolver,
-                   DnsRRResolver* dnsrr_resolver,
                    ProxyService* proxy_service,
                    SSLConfigService* ssl_config_service,
                    HttpAuthHandlerFactory* http_auth_handler_factory,
@@ -43,7 +41,6 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   HttpNetworkLayer(
       ClientSocketFactory* socket_factory,
       HostResolver* host_resolver,
-      DnsRRResolver* dnsrr_resolver,
       ProxyService* proxy_service,
       SSLConfigService* ssl_config_service,
       SpdySessionPool* spdy_session_pool,
@@ -58,7 +55,6 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   // and allows other implementations to be substituted.
   static HttpTransactionFactory* CreateFactory(
       HostResolver* host_resolver,
-      DnsRRResolver* dnsrr_resolver,
       ProxyService* proxy_service,
       SSLConfigService* ssl_config_service,
       HttpAuthHandlerFactory* http_auth_handler_factory,
@@ -95,7 +91,6 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   // The host resolver and proxy service that will be used when lazily
   // creating |session_|.
   HostResolver* host_resolver_;
-  DnsRRResolver* dnsrr_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
 
   // The SSL config service being used for the session.
