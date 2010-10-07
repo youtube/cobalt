@@ -297,7 +297,16 @@ bool CommandLine::HasSwitch(const std::wstring& switch_string) const {
 
 std::string CommandLine::GetSwitchValueASCII(
     const std::string& switch_string) const {
-  return WideToASCII(GetSwitchValue(switch_string));
+  CommandLine::StringType value = GetSwitchValueNative(switch_string);
+  if (!IsStringASCII(value)) {
+    LOG(WARNING) << "Value of --" << switch_string << " must be ASCII.";
+    return "";
+  }
+#if defined(OS_WIN)
+  return WideToASCII(value);
+#else
+  return value;
+#endif
 }
 
 FilePath CommandLine::GetSwitchValuePath(
@@ -320,23 +329,6 @@ CommandLine::StringType CommandLine::GetSwitchValueNative(
   } else {
     return result->second;
   }
-}
-
-std::wstring CommandLine::GetSwitchValue(
-    const std::string& switch_string) const {
-  // TODO(evanm): deprecate.
-  CommandLine::StringType value = GetSwitchValueNative(switch_string);
-#if defined(OS_WIN)
-  return value;
-#else
-  return base::SysNativeMBToWide(value);
-#endif
-}
-
-std::wstring CommandLine::GetSwitchValue(
-    const std::wstring& switch_string) const {
-  // TODO(evanm): deprecate.
-  return GetSwitchValue(WideToASCII(switch_string));
 }
 
 FilePath CommandLine::GetProgram() const {
