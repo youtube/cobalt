@@ -24,6 +24,7 @@ TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
   net::HttpNetworkLayer factory(
       NULL,
       &host_resolver,
+      NULL /* dnsrr_resolver */,
       net::ProxyService::CreateDirect(),
       new net::SSLConfigServiceDefaults,
       NULL,
@@ -41,6 +42,7 @@ TEST_F(HttpNetworkLayerTest, Suspend) {
   net::HttpNetworkLayer factory(
       NULL,
       &host_resolver,
+      NULL /* dnsrr_resolver */,
       net::ProxyService::CreateDirect(),
       new net::SSLConfigServiceDefaults,
       NULL,
@@ -87,6 +89,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
   net::HttpNetworkLayer factory(
       &mock_socket_factory,
       &host_resolver,
+      NULL /* dnsrr_resolver */,
       net::ProxyService::CreateDirect(),
       new net::SSLConfigServiceDefaults,
       NULL,

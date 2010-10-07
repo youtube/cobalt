@@ -1242,7 +1242,7 @@ MockSSLClientSocketPool::MockSSLClientSocketPool(
     ClientSocketFactory* socket_factory,
     TCPClientSocketPool* tcp_pool)
     : SSLClientSocketPool(max_sockets, max_sockets_per_group, histograms,
-                          NULL, socket_factory,
+                          NULL, NULL, socket_factory,
                           tcp_pool,
                           NULL, NULL, NULL, NULL),
       client_socket_factory_(socket_factory),
