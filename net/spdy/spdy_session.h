@@ -295,6 +295,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Closes all streams.  Used as part of shutdown.
   void CloseAllStreams(net::Error status);
 
+  // Invokes a user callback for stream creation.  We provide this method so it
+  // can be deferred to the MessageLoop, so we avoid re-entrancy problems.
+  void InvokeUserStreamCreationCallback(CompletionCallback* callback, int rv);
+
   // Callbacks for the Spdy session.
   CompletionCallbackImpl<SpdySession> read_callback_;
   CompletionCallbackImpl<SpdySession> write_callback_;
@@ -311,7 +315,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // |spdy_session_pool_| owns us, therefore its lifetime must exceed ours.  We
   // set this to NULL after we are removed from the pool.
   SpdySessionPool* spdy_session_pool_;
-  SpdySettingsStorage* spdy_settings_;
+  SpdySettingsStorage* const spdy_settings_;
 
   // The socket handle for this session.
   scoped_ptr<ClientSocketHandle> connection_;

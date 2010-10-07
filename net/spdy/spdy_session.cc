@@ -362,7 +362,11 @@ void SpdySession::ProcessPendingCreateStreams() {
                                      pending_create.priority,
                                      pending_create.spdy_stream,
                                      *pending_create.stream_net_log);
-        pending_create.callback->Run(error);
+        MessageLoop::current()->PostTask(
+            FROM_HERE,
+            method_factory_.NewRunnableMethod(
+                &SpdySession::InvokeUserStreamCreationCallback,
+                pending_create.callback, error));
         break;
       }
     }
@@ -1296,6 +1300,11 @@ void SpdySession::RecordHistograms() {
       }
     }
   }
+}
+
+void SpdySession::InvokeUserStreamCreationCallback(
+    CompletionCallback* callback, int rv) {
+  callback->Run(rv);
 }
 
 }  // namespace net
