@@ -39,7 +39,6 @@ class SSLClientSocketPoolTest : public testing::Test {
         http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault(
             host_resolver_.get())),
         session_(new HttpNetworkSession(host_resolver_.get(),
-                                        NULL /* dnsrr_resolver */,
                                         ProxyService::CreateDirect(),
                                         &socket_factory_,
                                         new SSLConfigServiceDefaults,
@@ -93,7 +92,6 @@ class SSLClientSocketPoolTest : public testing::Test {
         kMaxSocketsPerGroup,
         ssl_histograms_.get(),
         NULL,
-        NULL /* dnsrr_resolver */,
         &socket_factory_,
         tcp_pool ? &tcp_socket_pool_ : NULL,
         socks_pool ? &socks_socket_pool_ : NULL,

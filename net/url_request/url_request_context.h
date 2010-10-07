@@ -22,7 +22,6 @@
 namespace net {
 class CookiePolicy;
 class CookieStore;
-class DnsRRResolver;
 class FtpTransactionFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
@@ -45,10 +44,6 @@ class URLRequestContext
 
   net::HostResolver* host_resolver() const {
     return host_resolver_;
-  }
-
-  net::DnsRRResolver* dnsrr_resolver() const {
-    return dnsrr_resolver_;
   }
 
   // Get the proxy service for this context.
@@ -118,7 +113,6 @@ class URLRequestContext
   // subclasses.
   net::NetLog* net_log_;
   net::HostResolver* host_resolver_;
-  net::DnsRRResolver* dnsrr_resolver_;
   scoped_refptr<net::ProxyService> proxy_service_;
   scoped_refptr<net::SSLConfigService> ssl_config_service_;
   net::HttpTransactionFactory* http_transaction_factory_;

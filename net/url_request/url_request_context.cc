@@ -10,7 +10,6 @@
 
 URLRequestContext::URLRequestContext()
     : net_log_(NULL),
-      dnsrr_resolver_(NULL),
       http_transaction_factory_(NULL),
       ftp_transaction_factory_(NULL),
       http_auth_handler_factory_(NULL),
