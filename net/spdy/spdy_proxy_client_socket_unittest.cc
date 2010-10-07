@@ -45,6 +45,8 @@ static const char kMsg3[] = "bye!";
 static const int kLen3 = 4;
 static const char kMsg33[] = "bye!bye!";
 static const int kLen33 = kLen3 + kLen3;
+static const char kMsg333[] = "bye!bye!bye!";
+static const int kLen333 = kLen3 + kLen3 + kLen3;
 
 }  // anonymous namespace
 
@@ -763,6 +765,38 @@ TEST_F(SpdyProxyClientSocketTest, ReadWillSplitDataFromLargeFrame) {
   AssertSyncReadEquals(kMsg3, kLen3);
   AssertSyncReadEquals(kMsg3, kLen3);
 }
+
+TEST_F(SpdyProxyClientSocketTest, MultipleReadsFromSameLargeFrame) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> msg333(ConstructBodyFrame(kMsg333, kLen333));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    CreateMockRead(*msg333, 2, true),
+    MockRead(true, 0, 3),  // EOF
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  Run(1);  // SpdySession consumes the next read and sends it to
+           // sock_ to be buffered.
+  // The payload from the single large data frame will be read across
+  // two different reads.
+  AssertSyncReadEquals(kMsg33, kLen33);
+
+  // Now attempt to do a read of more data than remains buffered
+  scoped_refptr<IOBuffer> buf(new IOBuffer(kLen33));
+  ASSERT_EQ(kLen3, sock_->Read(buf, kLen33, &read_callback_));
+  ASSERT_EQ(std::string(kMsg3, kLen3), std::string(buf->data(), kLen3));
+  ASSERT_TRUE(sock_->IsConnected());
+}
+
 TEST_F(SpdyProxyClientSocketTest, ReadAuthResponseBody) {
   scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
   MockWrite writes[] = {
