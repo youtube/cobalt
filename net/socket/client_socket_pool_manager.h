@@ -25,7 +25,6 @@ namespace net {
 
 class ClientSocketFactory;
 class ClientSocketPoolHistograms;
-class DnsRRResolver;
 class HostPortPair;
 class HttpProxyClientSocketPool;
 class HostResolver;
@@ -59,7 +58,6 @@ class ClientSocketPoolManager : public NonThreadSafe {
   ClientSocketPoolManager(NetLog* net_log,
                           ClientSocketFactory* socket_factory,
                           HostResolver* host_resolver,
-                          DnsRRResolver* dnsrr_resolver,
                           ProxyService* proxy_service,
                           SSLConfigService* ssl_config_service);
   ~ClientSocketPoolManager();
@@ -102,7 +100,6 @@ class ClientSocketPoolManager : public NonThreadSafe {
   NetLog* const net_log_;
   ClientSocketFactory* const socket_factory_;
   HostResolver* const host_resolver_;
-  DnsRRResolver* dnsrr_resolver_;
   const scoped_refptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
 

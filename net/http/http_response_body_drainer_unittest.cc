@@ -173,7 +173,6 @@ class HttpResponseBodyDrainerTest : public testing::Test {
   HttpResponseBodyDrainerTest()
       : session_(new HttpNetworkSession(
           NULL,
-          NULL,
           ProxyService::CreateDirect(),
           NULL,
           new SSLConfigServiceDefaults,
