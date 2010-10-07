@@ -24,7 +24,6 @@ namespace net {
 
 class ClientSocketFactory;
 class ConnectJobFactory;
-class DnsRRResolver;
 class HttpProxyClientSocketPool;
 class HttpProxySocketParams;
 class SOCKSClientSocketPool;
@@ -92,7 +91,6 @@ class SSLConnectJob : public ConnectJob {
       HttpProxyClientSocketPool* http_proxy_pool,
       ClientSocketFactory* client_socket_factory,
       HostResolver* host_resolver,
-      DnsRRResolver* dnsrr_resolver,
       Delegate* delegate,
       NetLog* net_log);
   virtual ~SSLConnectJob();
@@ -140,7 +138,6 @@ class SSLConnectJob : public ConnectJob {
   HttpProxyClientSocketPool* const http_proxy_pool_;
   ClientSocketFactory* const client_socket_factory_;
   HostResolver* const resolver_;
-  DnsRRResolver* dnsrr_resolver_;
 
   State next_state_;
   CompletionCallbackImpl<SSLConnectJob> callback_;
@@ -165,7 +162,6 @@ class SSLClientSocketPool : public ClientSocketPool,
       int max_sockets_per_group,
       ClientSocketPoolHistograms* histograms,
       HostResolver* host_resolver,
-      DnsRRResolver* dnsrr_resolver,
       ClientSocketFactory* client_socket_factory,
       TCPClientSocketPool* tcp_pool,
       SOCKSClientSocketPool* socks_pool,
@@ -232,7 +228,6 @@ class SSLClientSocketPool : public ClientSocketPool,
         HttpProxyClientSocketPool* http_proxy_pool,
         ClientSocketFactory* client_socket_factory,
         HostResolver* host_resolver,
-        DnsRRResolver* dnsrr_resolver,
         NetLog* net_log);
 
     virtual ~SSLConnectJobFactory() {}
@@ -251,7 +246,6 @@ class SSLClientSocketPool : public ClientSocketPool,
     HttpProxyClientSocketPool* const http_proxy_pool_;
     ClientSocketFactory* const client_socket_factory_;
     HostResolver* const host_resolver_;
-    DnsRRResolver* dnsrr_resolver_;
     base::TimeDelta timeout_;
     NetLog* net_log_;
 

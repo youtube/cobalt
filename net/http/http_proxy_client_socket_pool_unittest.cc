@@ -59,7 +59,6 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
         http_auth_handler_factory_(
             HttpAuthHandlerFactory::CreateDefault(host_resolver_.get())),
         session_(new HttpNetworkSession(host_resolver_.get(),
-                                        NULL /* dnsrr_resolver */,
                                         ProxyService::CreateDirect(),
                                         &socket_factory_,
                                         new SSLConfigServiceDefaults,
