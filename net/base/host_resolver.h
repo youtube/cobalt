@@ -169,6 +169,9 @@ class HostResolver {
   // results to AF_INET by passing in ADDRESS_FAMILY_IPV4, or to
   // AF_INET6 by passing in ADDRESS_FAMILY_IPV6.
   virtual void SetDefaultAddressFamily(AddressFamily address_family) {}
+  virtual AddressFamily GetDefaultAddressFamily() const {
+    return net::ADDRESS_FAMILY_UNSPECIFIED;
+  }
 
   // Returns |this| cast to a HostResolverImpl*, or NULL if the subclass
   // is not compatible with HostResolverImpl. Used primarily to expose
