@@ -75,6 +75,7 @@ SSLConnectJob::SSLConnectJob(
     HttpProxyClientSocketPool* http_proxy_pool,
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
+    DnsRRResolver* dnsrr_resolver,
     Delegate* delegate,
     NetLog* net_log)
     : ConnectJob(group_name, timeout_duration, delegate,
@@ -85,6 +86,7 @@ SSLConnectJob::SSLConnectJob(
       http_proxy_pool_(http_proxy_pool),
       client_socket_factory_(client_socket_factory),
       resolver_(host_resolver),
+      dnsrr_resolver_(dnsrr_resolver),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(this, &SSLConnectJob::OnIOComplete)) {}
 
@@ -338,8 +340,8 @@ ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
     ConnectJob::Delegate* delegate) const {
   return new SSLConnectJob(group_name, request.params(), ConnectionTimeout(),
                            tcp_pool_, socks_pool_, http_proxy_pool_,
-                           client_socket_factory_, host_resolver_, delegate,
-                           net_log_);
+                           client_socket_factory_, host_resolver_,
+                           dnsrr_resolver_, delegate, net_log_);
 }
 
 SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
@@ -348,12 +350,14 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
     HttpProxyClientSocketPool* http_proxy_pool,
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
+    DnsRRResolver* dnsrr_resolver,
     NetLog* net_log)
     : tcp_pool_(tcp_pool),
       socks_pool_(socks_pool),
       http_proxy_pool_(http_proxy_pool),
       client_socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
+      dnsrr_resolver_(dnsrr_resolver),
       net_log_(net_log) {
   base::TimeDelta max_transport_timeout = base::TimeDelta();
   base::TimeDelta pool_timeout;
@@ -378,6 +382,7 @@ SSLClientSocketPool::SSLClientSocketPool(
     int max_sockets_per_group,
     ClientSocketPoolHistograms* histograms,
     HostResolver* host_resolver,
+    DnsRRResolver* dnsrr_resolver,
     ClientSocketFactory* client_socket_factory,
     TCPClientSocketPool* tcp_pool,
     SOCKSClientSocketPool* socks_pool,
@@ -393,7 +398,7 @@ SSLClientSocketPool::SSLClientSocketPool(
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
             new SSLConnectJobFactory(tcp_pool, socks_pool, http_proxy_pool,
                                      client_socket_factory, host_resolver,
-                                     net_log)),
+                                     dnsrr_resolver, net_log)),
       ssl_config_service_(ssl_config_service) {
   if (ssl_config_service_)
     ssl_config_service_->AddObserver(this);
