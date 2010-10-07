@@ -119,6 +119,7 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
       scoped_refptr<HttpProxySocketParams> http_proxy_params,
       scoped_refptr<SOCKSSocketParams> socks_params,
       ProxyServer::Scheme proxy_scheme,
+      std::string hostname,
       bool want_spdy_over_npn);
 
   // AlternateProtocol API
