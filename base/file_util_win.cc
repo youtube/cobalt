@@ -13,6 +13,7 @@
 #include <string>
 
 #include "base/file_path.h"
+#include "base/histogram.h"
 #include "base/logging.h"
 #include "base/pe_image.h"
 #include "base/scoped_comptr_win.h"
@@ -897,11 +898,24 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
   // therefore the cast here is safe.
   file_mapping_ = ::CreateFileMapping(file_, NULL, PAGE_READONLY,
                                       0, static_cast<DWORD>(length_), NULL);
-  if (file_mapping_ == INVALID_HANDLE_VALUE)
+  if (file_mapping_ == INVALID_HANDLE_VALUE) {
+    // According to msdn, system error codes are only reserved up to 15999.
+    // http://msdn.microsoft.com/en-us/library/ms681381(v=VS.85).aspx.
+    UMA_HISTOGRAM_ENUMERATION("MemoryMappedFile.CreateFileMapping",
+        std::min(logging::GetLastSystemErrorCode(),
+                 static_cast<logging::SystemErrorCode>(15999)),
+        16000);
     return false;
+  }
 
   data_ = static_cast<uint8*>(
       ::MapViewOfFile(file_mapping_, FILE_MAP_READ, 0, 0, length_));
+  if (!data_) {
+    UMA_HISTOGRAM_ENUMERATION("MemoryMappedFile.MapViewOfFile",
+        std::min(logging::GetLastSystemErrorCode(),
+                 static_cast<logging::SystemErrorCode>(15999)),
+        16000);
+  }
   return data_ != NULL;
 }
 
