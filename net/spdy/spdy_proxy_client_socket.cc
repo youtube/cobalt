@@ -143,10 +143,10 @@ int SpdyProxyClientSocket::PopulateUserReadBuffer() {
   while (!read_buffer_.empty() && user_buffer_->BytesRemaining() > 0) {
     scoped_refptr<DrainableIOBuffer> data = read_buffer_.front();
     const int bytes_to_copy = std::min(user_buffer_->BytesRemaining(),
-                                       data->size());
+                                       data->BytesRemaining());
     memcpy(user_buffer_->data(), data->data(), bytes_to_copy);
     user_buffer_->DidConsume(bytes_to_copy);
-    if (bytes_to_copy == data->size()) {
+    if (data->BytesRemaining() == 0) {
       // Consumed all data from this buffer
       read_buffer_.pop_front();
     } else {
