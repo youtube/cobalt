@@ -728,6 +728,21 @@ bool X509Certificate::VerifyEV() const {
 }
 
 // static
+bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
+                                   X509Certificate::OSCertHandle b) {
+  DCHECK(a && b);
+  if (a == b)
+    return true;
+  if (CFEqual(a, b))
+    return true;
+  CSSM_DATA a_data, b_data;
+  return SecCertificateGetData(a, &a_data) == noErr &&
+      SecCertificateGetData(b, &b_data) == noErr &&
+      a_data.Length == b_data.Length &&
+      memcmp(a_data.Data, b_data.Data, a_data.Length) == 0;
+}
+
+// static
 X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   CSSM_DATA cert_data;
