@@ -6,7 +6,11 @@
 
 #include "build/build_config.h"
 
-#if defined(USE_NSS)
+#if defined(USE_OPENSSL)
+#include <openssl/err.h>
+#include <openssl/x509v3.h>
+#include "net/base/openssl_util.h"
+#elif defined(USE_NSS)
 #include <cert.h>
 #include "base/nss_util.h"
 #elif defined(OS_MACOSX)
@@ -21,7 +25,30 @@
 
 namespace net {
 
-#if defined(USE_NSS)
+#if defined(USE_OPENSSL)
+X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
+  OpenSSLInitSingleton* openssl_init = GetOpenSSLInitSingleton();
+
+  std::string rawcert;
+  if (!file_util::ReadFileToString(filename, &rawcert)) {
+    LOG(ERROR) << "Can't load certificate " << filename.value();
+    return NULL;
+  }
+
+  X509Certificate* certificate = X509Certificate::CreateFromBytes(
+      rawcert.c_str(), rawcert.length());
+
+  X509* x509_cert =
+      X509Certificate::DupOSCertHandle(certificate->os_cert_handle());
+  if (!X509_STORE_add_cert(openssl_init->x509_store(), x509_cert)) {
+    LOG(ERROR) << "X509_STORE_add_cert error: " << ERR_get_error();
+    X509_free(x509_cert);
+    return NULL;
+  }
+
+  return certificate;
+}
+#elif defined(USE_NSS)
 X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
   base::EnsureNSSInit();
 
