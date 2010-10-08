@@ -148,7 +148,7 @@ bool CertDatabase::ImportCACerts(const CertificateList& certificates,
   return psm::ImportCACerts(certificates, root, trust_bits, not_imported);
 }
 
-int CertDatabase::GetCertTrust(
+unsigned int CertDatabase::GetCertTrust(
     const X509Certificate* cert, CertType type) const {
   CERTCertTrust nsstrust;
   SECStatus srv = CERT_GetCertTrust(cert->os_cert_handle(), &nsstrust);
