@@ -49,4 +49,19 @@ bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
   return false;
 }
 
+unsigned int CertDatabase::GetCertTrust(const X509Certificate* cert,
+                                        CertType type) const {
+  // TODO(bulach): implement me.
+  // NOTE: This method is currently only declared for USE_NSS builds.
+  return 0;
+}
+
+bool CertDatabase::SetCertTrust(const X509Certificate* cert,
+                                CertType type,
+                                unsigned int trust_bits) {
+  // TODO(bulach): implement me.
+  // NOTE: This method is currently only declared for USE_NSS builds.
+  return false;
+}
+
 }  // namespace net

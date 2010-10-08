@@ -16,7 +16,6 @@
 
 typedef struct bio_st BIO;
 typedef struct ssl_st SSL;
-typedef struct x509_store_ctx_st X509_STORE_CTX;
 
 namespace net {
 
@@ -36,9 +35,6 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
                          const std::string& hostname,
                          const SSLConfig& ssl_config);
   ~SSLClientSocketOpenSSL();
-
-  // Called back from OpenSSL during cert verification (see SSL_CTX_set_verify).
-  int SSLVerifyCallback(int preverify_ok, SSL* ssl, X509_STORE_CTX* ctx);
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
@@ -63,7 +59,6 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   virtual bool SetSendBufferSize(int32 size);
 
  private:
-  bool InitOpenSSL();
   bool Init();
   void DoReadCallback(int result);
   void DoWriteCallback(int result);

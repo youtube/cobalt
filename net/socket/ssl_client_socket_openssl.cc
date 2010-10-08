@@ -13,9 +13,9 @@
 #include "net/base/cert_verifier.h"
 #include "base/histogram.h"
 #include "net/base/net_errors.h"
+#include "net/base/openssl_util.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
-#include "net/base/test_certificate_data.h"  // TODO(joth): Remove!!
 
 namespace net {
 
@@ -31,8 +31,6 @@ namespace {
 #endif
 
 const size_t kMaxRecvBufferSize = 4096;
-static SSL_CTX* g_ctx = NULL;
-static int g_app_data_index = -1;
 
 void MaybeLogSSLError() {
   int error_num;
@@ -58,22 +56,6 @@ int MapOpenSSLError(int err) {
       MaybeLogSSLError();
       return ERR_SSL_PROTOCOL_ERROR;
   }
-}
-
-// Registered with |g_ctx| as global verify callback handler; we unpack the
-// SSLClientSocketOpenSSL instance associated with this callback and delegate
-// the handling to it.
-int VerifyCallback(int preverify_ok, X509_STORE_CTX* x509_ctx) {
-  DCHECK_GE(g_app_data_index, 0);
-  // Retrieve the pointer to the SSL of the connection currently treated
-  // and from there, the application specific data stored in the SSL object.
-  SSL* ssl = static_cast<SSL*>(X509_STORE_CTX_get_ex_data(
-      x509_ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
-  DCHECK(ssl);
-  SSLClientSocketOpenSSL* self = static_cast<SSLClientSocketOpenSSL*>(
-      SSL_get_ex_data(ssl, g_app_data_index));
-  DCHECK(self);
-  return self->SSLVerifyCallback(preverify_ok, ssl, x509_ctx);
 }
 
 }  // namespace
@@ -107,50 +89,12 @@ SSLClientSocketOpenSSL::~SSLClientSocketOpenSSL() {
   Disconnect();
 }
 
-// TODO(joth): This method needs to be thread-safe.
-bool SSLClientSocketOpenSSL::InitOpenSSL() {
-  if (g_ctx)
-    return true;
-
-  SSL_load_error_strings();
-  MaybeLogSSLError();
-  SSL_library_init();
-  MaybeLogSSLError();
-
-  // Allow all versions here; we disable the unneeded ones according to the
-  // SSL config options in Init().
-  g_ctx = SSL_CTX_new(SSLv23_client_method());
-
-  if (!g_ctx) {
-    MaybeLogSSLError();
-    return false;
-  }
-  g_app_data_index = SSL_get_ex_new_index(__LINE__, g_ctx, NULL, NULL, NULL);
-  DCHECK_GE(g_app_data_index, 0);
-
-  SSL_CTX_set_verify(g_ctx, SSL_VERIFY_PEER, VerifyCallback);
-
-  // For now, just let OpenSSL load CA certs directly from the filesystem.
-  if (!SSL_CTX_set_default_verify_paths(g_ctx)) {
-    MaybeLogSSLError();
-    return false;
-  }
-
-  return true;
-}
-
 bool SSLClientSocketOpenSSL::Init() {
-  DCHECK(g_ctx);
   DCHECK(!ssl_);
   DCHECK(!transport_bio_);
 
-  ssl_ = SSL_new(g_ctx);
+  ssl_ = SSL_new(GetOpenSSLInitSingleton()->ssl_ctx());
   if (!ssl_) {
-    MaybeLogSSLError();
-    return false;
-  }
-
-  if (!SSL_set_ex_data(ssl_, g_app_data_index, this)) {
     MaybeLogSSLError();
     return false;
   }
@@ -195,17 +139,6 @@ bool SSLClientSocketOpenSSL::Init() {
   return true;
 }
 
-int SSLClientSocketOpenSSL::SSLVerifyCallback(int preverify_ok,
-                                              SSL* ssl,
-                                              X509_STORE_CTX* x509_ctx) {
-  DCHECK_EQ(ssl_, ssl);
-  int depth = X509_STORE_CTX_get_error_depth(x509_ctx);
-  DVLOG(preverify_ok ? 3 : 1) << "SSLVerifyCallback " << preverify_ok
-                              << " depth " << depth;
-  MaybeLogSSLError();
-  return preverify_ok;
-}
-
 // SSLClientSocket methods
 
 void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
@@ -213,16 +146,27 @@ void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
   if (!server_cert_)
     return;
 
-  // Chrome DCHECKs that https pages provide a valid cert. For now (whilst in
-  // early dev) we just create a spoof cert.
-  // TODO(joth): implement X509Certificate for OpenSSL and remove this hack.
-  LOG(WARNING) << "Filling in certificate with bogus content";
   ssl_info->cert = server_cert_;
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
-  ssl_info->security_bits = 56;
-  ssl_info->connection_status =
-      ((TLS1_CK_RSA_EXPORT1024_WITH_DES_CBC_SHA) &
-          SSL_CONNECTION_CIPHERSUITE_MASK) << SSL_CONNECTION_CIPHERSUITE_SHIFT;
+
+  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl_);
+  CHECK(cipher);
+  ssl_info->security_bits = SSL_CIPHER_get_bits(cipher, NULL);
+  ssl_info->connection_status |= (cipher->id & SSL_CONNECTION_CIPHERSUITE_MASK)
+      << SSL_CONNECTION_CIPHERSUITE_SHIFT;
+  DVLOG(2) << SSL_CIPHER_get_name(cipher) << ": cipher ID " << cipher->id
+           << " security bits " << ssl_info->security_bits;
+
+  // Experimenting suggests the compression object is optional, whereas the
+  // cipher (above) is always present.
+  const COMP_METHOD* compression = SSL_get_current_compression(ssl_);
+  if (compression) {
+    ssl_info->connection_status |=
+        (compression->type & SSL_CONNECTION_COMPRESSION_MASK)
+        << SSL_CONNECTION_COMPRESSION_SHIFT;
+    DVLOG(2) << SSL_COMP_get_name(compression)
+             << ": compression ID " << compression->type;
+  }
 
   bool peer_supports_renego_ext = !!SSL_get_secure_renegotiation_support(ssl_);
   if (!peer_supports_renego_ext)
@@ -269,11 +213,6 @@ void SSLClientSocketOpenSSL::DoWriteCallback(int rv) {
 
 int SSLClientSocketOpenSSL::Connect(CompletionCallback* callback) {
   net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
-
-  if (!InitOpenSSL()) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
-    return ERR_UNEXPECTED;
-  }
 
   // Set up new ssl object.
   if (!Init()) {
@@ -420,6 +359,9 @@ int SSLClientSocketOpenSSL::DoVerifyCertComplete(int result) {
   if (result == OK) {
     // TODO(joth): Work out if we need to remember the intermediate CA certs
     // when the server sends them to us, and do so here.
+  } else {
+    DVLOG(1) << "DoVerifyCertComplete error " << ErrorToString(result)
+             << " (" << result << ")";
   }
 
   // If we have been explicitly told to accept this certificate, override the
@@ -452,7 +394,8 @@ void SSLClientSocketOpenSSL::InvalidateSessionIfBadCertificate() {
     // see SSL_CTX_set_session_cache_mode(SSL_SESS_CACHE_CLIENT).
     SSL_SESSION* session = SSL_get_session(ssl_);
     LOG_IF(ERROR, session) << "Connection has a session?? " << session;
-    int rv = SSL_CTX_remove_session(g_ctx, session);
+    int rv = SSL_CTX_remove_session(GetOpenSSLInitSingleton()->ssl_ctx(),
+                                    session);
     LOG_IF(ERROR, rv) << "Session was cached?? " << rv;
   }
 }
@@ -461,19 +404,23 @@ X509Certificate* SSLClientSocketOpenSSL::UpdateServerCert() {
   if (server_cert_)
     return server_cert_;
 
-  X509* cert = SSL_get_peer_certificate(ssl_);
-  if (cert == NULL) {
+  ScopedSSL<X509, X509_free> cert(SSL_get_peer_certificate(ssl_));
+  if (!cert.get()) {
     LOG(WARNING) << "SSL_get_peer_certificate returned NULL";
     return NULL;
   }
 
-  // TODO(joth): Get |server_cert_| from |cert|.
-  server_cert_ = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  X509_free(cert);
+  // Unlike SSL_get_peer_certificate, SSL_get_peer_cert_chain does not
+  // increment the reference so sk_X509_free does not need to be called.
+  STACK_OF(X509)* chain = SSL_get_peer_cert_chain(ssl_);
+  X509Certificate::OSCertHandles intermediates;
+  if (chain) {
+    for (int i = 0; i < sk_X509_num(chain); ++i)
+      intermediates.push_back(sk_X509_value(chain, i));
+  }
+  server_cert_ = X509Certificate::CreateFromHandle(
+      cert.get(), X509Certificate::SOURCE_FROM_NETWORK, intermediates);
   DCHECK(server_cert_);
-  // Silence compiler about unused vars.
-  (void)google_der; (void)webkit_der; (void)thawte_der; (void)paypal_null_der;
 
   return server_cert_;
 }
