@@ -67,33 +67,53 @@
 #endif  // COMPILER_MSVC
 
 
+// Annotate a variable indicating it's ok if the variable is not used.
+// (Typically used to silence a compiler warning when the assignment
+// is important for some other reason.)
+// Use like:
+//   int x ALLOW_UNUSED = ...;
 #if defined(COMPILER_GCC)
-
 #define ALLOW_UNUSED __attribute__((unused))
+#else
+#define ALLOW_UNUSED
+#endif
+
+// Annotate a virtual method indicating it must be overriding a virtual
+// method in the parent class.
+// Use like:
+//   virtual void foo() OVERRIDE;
+#if defined(COMPILER_MSVC)
+#define OVERRIDE override
+#else
+#define OVERRIDE
+#endif
+
+// Annotate a function indicating the caller must examine the return value.
+// Use like:
+//   int foo() WARN_UNUSED_RESULT;
+#if defined(COMPILER_GCC)
 #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define WARN_UNUSED_RESULT
+#endif
 
 // Tell the compiler a function is using a printf-style format string.
 // |format_param| is the one-based index of the format string parameter;
 // |dots_param| is the one-based index of the "..." parameter.
 // For v*printf functions (which take a va_list), pass 0 for dots_param.
 // (This is undocumented but matches what the system C headers do.)
+#if defined(COMPILER_GCC)
 #define PRINTF_FORMAT(format_param, dots_param) \
     __attribute__((format(printf, format_param, dots_param)))
+#else
+#define PRINTF_FORMAT(format_param, dots_param)
+#endif
 
 // WPRINTF_FORMAT is the same, but for wide format strings.
-// This doesn't appear to yet be implemented.
+// This doesn't appear to yet be implemented in any compiler.
 // See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=38308 .
 #define WPRINTF_FORMAT(format_param, dots_param)
 // If available, it would look like:
 //   __attribute__((format(wprintf, format_param, dots_param)))
-
-#else  // Not GCC
-
-#define ALLOW_UNUSED
-#define WARN_UNUSED_RESULT
-#define PRINTF_FORMAT(x, y)
-#define WPRINTF_FORMAT(x, y)
-
-#endif
 
 #endif  // BASE_COMPILER_SPECIFIC_H_
