@@ -117,7 +117,7 @@ class CertDatabase {
                      ImportCertFailureList* not_imported);
 
   // Get trust bits for certificate.
-  int GetCertTrust(const X509Certificate* cert, CertType type) const;
+  unsigned int GetCertTrust(const X509Certificate* cert, CertType type) const;
 
   // Set trust values for certificate.
   // Returns true on success or false on failure.
