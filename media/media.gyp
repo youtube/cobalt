@@ -150,6 +150,12 @@
         ],
       },
       'conditions': [
+        ['OS=="win"', {
+          'sources': [
+            'video/mft_h264_decode_engine.cc',
+            'video/mft_h264_decode_engine.h',
+          ],
+        }],
         ['OS=="linux" or OS=="freebsd"', {
           'link_settings': {
             'libraries': [
@@ -445,76 +451,6 @@
               'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
             },
           },
-        },
-        {
-          'target_name': 'mft_h264_decoder',
-          'type': '<(library)',
-          'dependencies': [
-            'media',
-            '../base/base.gyp:base',
-            '../base/base.gyp:test_support_base',
-          ],
-          'include_dirs': [
-            '..',
-          ],
-          'sources': [
-            'mf/mft_h264_decoder.cc',
-            'mf/mft_h264_decoder.h',
-          ],
-          'msvs_settings': {
-            'VCLinkerTool': {
-              'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
-            },
-          },          
-        },
-        {
-          'target_name': 'mft_h264_decoder_example',
-          'type': 'executable',
-          'dependencies': [
-            'media',
-            'mft_h264_decoder',
-            '../base/base.gyp:base',
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-          ],
-          'include_dirs': [
-            '..',
-          ],
-          'sources': [
-            'mf/file_reader_util.cc',
-            'mf/file_reader_util.h',
-            'mf/mft_h264_decoder_example.cc',
-          ],
-          'msvs_settings': {
-            'VCLinkerTool': {
-              'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
-            },
-          },          
-        },
-        {
-          'target_name': 'mft_h264_decoder_unittests',
-          'type': 'executable',
-          'dependencies': [
-            'media',
-            'mft_h264_decoder',
-            '../base/base.gyp:base',
-            '../base/base.gyp:base_i18n',
-            '../testing/gtest.gyp:gtest',
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-          ],
-          'include_dirs': [
-            '..',
-          ],
-          'sources': [
-            'mf/file_reader_util.cc',
-            'mf/file_reader_util.h',
-            'mf/test/mft_h264_decoder_unittest.cc',
-            'mf/test/run_all_unittests.cc',
-          ],
-          'msvs_settings': {
-            'VCLinkerTool': {
-              'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
-            },
-          },          
         },
       ],
     }],
