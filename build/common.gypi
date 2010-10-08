@@ -314,7 +314,7 @@
     # whether to compile in the sources for the GPU plugin / process.
     'enable_gpu%': 1,
 
-    # Use OpenSSL instead of NSS. Currently in developement.
+    # Use OpenSSL instead of NSS. Currently in development.
     'use_openssl%': 0,
 
     'conditions': [
@@ -499,6 +499,11 @@
       ['enable_gpu==1', {
         'defines': [
           'ENABLE_GPU=1',
+        ],
+      }],
+      ['use_openssl==1', {
+        'defines': [
+          'USE_OPENSSL=1',
         ],
       }],
       ['enable_eglimage==1', {

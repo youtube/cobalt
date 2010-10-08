@@ -666,7 +666,13 @@
         ['use_openssl==1 and OS == "linux"', {
             'dependencies': [
               '../build/linux/system.gyp:openssl',
-            ]
+            ],
+            'sources!': [
+              'socket/ssl_client_socket_nss.cc',
+              'socket/ssl_client_socket_nss.h',
+              'socket/ssl_client_socket_nss_factory.cc',
+              'socket/ssl_client_socket_nss_factory.h',
+            ],
           },
           {  # else !use_openssl: remove the unneeded files
             'sources!': [
@@ -917,7 +923,7 @@
             ],
           }
         ],
-        ['OS == "linux"', {
+        [ 'OS == "linux"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -926,6 +932,14 @@
             }],
           ],
         }],
+        [ 'use_openssl == 1 and OS == "linux"', {
+            # When building for OpenSSL, we need to exclude some NSS files.
+            # TODO(bulach): remove once we fully support OpenSSL.
+            'sources!': [
+              'base/cert_database_nss_unittest.cc',
+            ],
+          },
+        ],
         [ 'OS == "win"', {
             'sources!': [
               'http/http_auth_gssapi_posix_unittest.cc',
@@ -1064,6 +1078,11 @@
               ],
             }],
           ],
+        }],
+        ['use_openssl==1 and OS == "linux"', {
+            'dependencies': [
+              '../build/linux/system.gyp:openssl',
+            ]
         }],
       ],
     },
