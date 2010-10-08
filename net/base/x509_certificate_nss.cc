@@ -725,6 +725,16 @@ bool X509Certificate::VerifyEV() const {
 }
 
 // static
+bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
+                                   X509Certificate::OSCertHandle b) {
+  DCHECK(a && b);
+  if (a == b)
+    return true;
+  return a->derCert.len == b->derCert.len &&
+      memcmp(a->derCert.data, b->derCert.data, a->derCert.len) == 0;
+}
+
+// static
 X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   if (length < 0)

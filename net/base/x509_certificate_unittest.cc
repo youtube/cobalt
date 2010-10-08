@@ -399,7 +399,7 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
   // Either the system crypto library should correctly report a certificate
   // name mismatch, or our certificate blacklist should cause us to report an
   // invalid certificate.
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(USE_OPENSSL)
   EXPECT_NE(0, verify_result.cert_status &
             (CERT_STATUS_COMMON_NAME_INVALID | CERT_STATUS_INVALID));
 #endif
@@ -427,7 +427,7 @@ TEST(X509CertificateTest, UnoSoftCertParsing) {
   EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
 }
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(USE_OPENSSL)
 // A regression test for http://crbug.com/31497.
 // This certificate will expire on 2012-04-08.
 // TODO(wtc): we can't run this test on Mac because MacTrustedCertificates
@@ -452,9 +452,16 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
       LoadTemporaryRootCert(root_cert_path);
   ASSERT_NE(static_cast<X509Certificate*>(NULL), root_cert);
 
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
+                                        X509Certificate::SOURCE_FROM_NETWORK,
+                                        intermediates);
+
   int flags = 0;
   CertVerifyResult verify_result;
-  int error = server_cert->Verify("www.us.army.mil", flags, &verify_result);
+  int error = cert_chain->Verify("www.us.army.mil", flags, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0, verify_result.cert_status);
 }

@@ -36,6 +36,7 @@
         'base/cert_database.h',
         'base/cert_database_mac.cc',
         'base/cert_database_nss.cc',
+        'base/cert_database_openssl.cc',
         'base/cert_database_win.cc',
         'base/cert_status_flags.cc',
         'base/cert_status_flags.h',
@@ -98,6 +99,7 @@
         'base/keygen_handler.h',
         'base/keygen_handler_mac.cc',
         'base/keygen_handler_nss.cc',
+        'base/keygen_handler_openssl.cc',
         'base/keygen_handler_win.cc',
         'base/listen_socket.cc',
         'base/listen_socket.h',
@@ -140,6 +142,8 @@
         'base/network_config_watcher_mac.h',
         'base/nss_memio.c',
         'base/nss_memio.h',
+        'base/openssl_util.cc',
+        'base/openssl_util.h',
         'base/pem_tokenizer.cc',
         'base/pem_tokenizer.h',
         'base/platform_mime_util.h',
@@ -187,6 +191,7 @@
         'base/x509_certificate.h',
         'base/x509_certificate_mac.cc',
         'base/x509_certificate_nss.cc',
+        'base/x509_certificate_openssl.cc',
         'base/x509_certificate_win.cc',
         'base/x509_cert_types.cc',
         'base/x509_cert_types.h',
@@ -245,6 +250,33 @@
               'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
               'third_party/mozilla_security_manager/nsPKCS12Blob.h',
             ],
+          },
+        ],
+        [ 'use_openssl == 1 and OS == "linux"', {
+            # When building for OpenSSL, we need to exclude some NSS files.
+            # TODO(bulach): remove once we fully support OpenSSL.
+            'sources!': [
+              'base/cert_database_nss.cc',
+              'base/keygen_handler_nss.cc',
+              'base/x509_certificate_nss.cc',
+              'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
+              'third_party/mozilla_security_manager/nsKeygenHandler.h',
+              'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
+              'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
+              'third_party/mozilla_security_manager/nsNSSCertTrust.cpp',
+              'third_party/mozilla_security_manager/nsNSSCertTrust.h',
+              'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
+              'third_party/mozilla_security_manager/nsPKCS12Blob.h',
+            ],
+          },
+          { # else: not using openssl.
+            'sources!': [
+              'base/cert_database_openssl.cc',
+              'base/keygen_handler_openssl.cc',
+              'base/openssl_util.cc',
+              'base/openssl_util.h',
+              'base/x509_certificate_openssl.cc',
+             ],
           },
         ],
         [ 'OS == "win"', {
@@ -1079,7 +1111,7 @@
             }],
           ],
         }],
-        ['use_openssl==1 and OS == "linux"', {
+        ['use_openssl == 1 and OS == "linux"', {
             'dependencies': [
               '../build/linux/system.gyp:openssl',
             ]
