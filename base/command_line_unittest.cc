@@ -50,7 +50,8 @@ TEST(CommandLineTest, CommandLineConstructor) {
   EXPECT_FALSE(cl.HasSwitch("not-a-switch"));
   EXPECT_FALSE(cl.HasSwitch("--"));
 
-  EXPECT_EQ(L"program", cl.program());
+  EXPECT_EQ(FilePath(FILE_PATH_LITERAL("program")).value(),
+            cl.GetProgram().value());
 
   EXPECT_TRUE(cl.HasSwitch("foo"));
   EXPECT_TRUE(cl.HasSwitch("bar"));

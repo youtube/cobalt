@@ -332,17 +332,17 @@ CommandLine::StringType CommandLine::GetSwitchValueNative(
 }
 
 FilePath CommandLine::GetProgram() const {
-  return FilePath::FromWStringHack(program());
+#if defined(OS_WIN)
+  return FilePath(program_);
+#else
+  DCHECK_GT(argv_.size(), 0U);
+  return FilePath(argv_[0]);
+#endif
 }
 
 #if defined(OS_WIN)
 std::wstring CommandLine::program() const {
   return program_;
-}
-#else
-std::wstring CommandLine::program() const {
-  DCHECK_GT(argv_.size(), 0U);
-  return base::SysNativeMBToWide(argv_[0]);
 }
 #endif
 
