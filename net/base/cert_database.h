@@ -12,29 +12,13 @@
 #include "base/basictypes.h"
 #include "base/string16.h"
 #include "base/ref_counted.h"
+#include "net/base/cert_type.h"
 
 namespace net {
 
 class X509Certificate;
 typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 
-// Constants to classify the type of a certificate.
-// This is only used in the context of CertDatabase, but is defined outside to
-// avoid an awkwardly long type name.
-// The type is a combination of intrinsic properties, such as the presense of an
-// email address or Certificate Authority Basic Constraint, and assigned trust
-// values.  For example, a cert with no email address, basic constraints, or
-// trust, would be classified as UNKNOWN_CERT.  If that cert is then trusted
-// with SetCertTrust(cert, SERVER_CERT, TRUSTED_SSL), it would become a
-// SERVER_CERT.
-enum CertType {
-  UNKNOWN_CERT,
-  CA_CERT,
-  USER_CERT,
-  EMAIL_CERT,
-  SERVER_CERT,
-  NUM_CERT_TYPES
-};
 
 // This class provides functions to manipulate the local
 // certificate store.
