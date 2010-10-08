@@ -89,6 +89,14 @@ class HttpStreamFactory : public StreamFactory,
     return ignore_certificate_errors_;
   }
 
+  static void set_create_new_spdy_session_for_http(bool value) {
+    g_create_new_spdy_session_for_http_ = value;
+  }
+
+  static bool create_new_spdy_session_for_http() {
+    return g_create_new_spdy_session_for_http_;
+  }
+
   static void SetHostMappingRules(const std::string& rules);
 
  private:
@@ -100,6 +108,7 @@ class HttpStreamFactory : public StreamFactory,
   static bool force_spdy_over_ssl_;
   static bool force_spdy_always_;
   static bool ignore_certificate_errors_;
+  static bool g_create_new_spdy_session_for_http_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamFactory);
 };
@@ -107,4 +116,3 @@ class HttpStreamFactory : public StreamFactory,
 }  // namespace net
 
 #endif  // NET_HTTP_HTTP_STREAM_FACTORY_H_
-
