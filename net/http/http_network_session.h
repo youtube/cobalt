@@ -29,6 +29,7 @@ class Value;
 namespace net {
 
 class ClientSocketFactory;
+class DnsRRResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
 class HttpNetworkSessionPeer;
@@ -45,6 +46,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
  public:
   HttpNetworkSession(
       HostResolver* host_resolver,
+      DnsRRResolver* dnsrr_resolver,
       ProxyService* proxy_service,
       ClientSocketFactory* client_socket_factory,
       SSLConfigService* ssl_config_service,
@@ -103,6 +105,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   // SSL sockets come from the socket_factory().
   ClientSocketFactory* socket_factory() { return socket_factory_; }
   HostResolver* host_resolver() { return host_resolver_; }
+  DnsRRResolver* dnsrr_resolver() { return dnsrr_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
   SpdySessionPool* spdy_session_pool() { return spdy_session_pool_.get(); }
@@ -138,6 +141,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
   HostResolver* const host_resolver_;
+  DnsRRResolver* dnsrr_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   ClientSocketPoolManager socket_pool_manager_;
