@@ -58,10 +58,11 @@ class SSLClientSocketMac : public SSLClientSocket {
   virtual bool SetSendBufferSize(int32 size);
 
  private:
+  bool completed_handshake() const {
+    return next_handshake_state_ == STATE_COMPLETED_HANDSHAKE;
+  }
   // Initializes the SSLContext.  Returns a net error code.
   int InitializeSSLContext();
-
-  OSStatus EnableBreakOnAuth(bool enabled);
 
   void DoConnectCallback(int result);
   void DoReadCallback(int result);
@@ -74,11 +75,13 @@ class SSLClientSocketMac : public SSLClientSocket {
 
   int DoPayloadRead();
   int DoPayloadWrite();
-  int DoHandshakeStart();
+  int DoHandshake();
   int DoVerifyCert();
   int DoVerifyCertComplete(int result);
-  int DoHandshakeFinish();
-  void HandshakeFinished();
+  int DoCompletedRenegotiation(int result);
+
+  void DidCompleteRenegotiation();
+  int DidCompleteHandshake();
 
   int SetClientCert();
 
@@ -111,10 +114,21 @@ class SSLClientSocketMac : public SSLClientSocket {
 
   enum State {
     STATE_NONE,
-    STATE_HANDSHAKE_START,
+    STATE_HANDSHAKE,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
-    STATE_HANDSHAKE_FINISH,
+    STATE_COMPLETED_RENEGOTIATION,
+    STATE_COMPLETED_HANDSHAKE,
+    // After the handshake, the socket remains in the
+    // STATE_COMPLETED_HANDSHAKE state until renegotiation is requested by
+    // the server. When renegotiation is requested, the state machine
+    // restarts at STATE_HANDSHAKE, advances through to
+    // STATE_VERIFY_CERT_COMPLETE, and then continues to
+    // STATE_COMPLETED_RENEGOTIATION. After STATE_COMPLETED_RENEGOTIATION
+    // has been processed, it goes back to STATE_COMPLETED_HANDSHAKE and
+    // will remain there until the server requests renegotiation again.
+    // During the initial handshake, STATE_COMPLETED_RENEGOTIATION is
+    // skipped.
   };
   State next_handshake_state_;
 
@@ -122,8 +136,9 @@ class SSLClientSocketMac : public SSLClientSocket {
   scoped_ptr<CertVerifier> verifier_;
   CertVerifyResult server_cert_verify_result_;
 
-  bool completed_handshake_;
-  bool handshake_interrupted_;
+  // The initial handshake has already completed, and the current handshake
+  // is server-initiated renegotiation.
+  bool renegotiating_;
   bool client_cert_requested_;
   SSLContextRef ssl_context_;
 
