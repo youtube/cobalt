@@ -162,9 +162,9 @@ class CommandLine {
 
   // APIs that work with wstrings are deprecated.
   // TODO(evanm): remove all of these.
-  std::wstring program() const;
 #if defined(OS_WIN)
   // Deprecated on non-Windows.
+  std::wstring program() const;
   bool HasSwitch(const std::wstring& switch_string) const;
 #endif
 
