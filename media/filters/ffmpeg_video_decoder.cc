@@ -36,12 +36,11 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
                                     FilterCallback* callback) {
   if (MessageLoop::current() != message_loop()) {
-    message_loop()->PostTask(
-        FROM_HERE,
-        NewRunnableMethod(this,
-                          &FFmpegVideoDecoder::Initialize,
-                          make_scoped_refptr(demuxer_stream),
-                          callback));
+    message_loop()->PostTask(FROM_HERE,
+                             NewRunnableMethod(this,
+                                               &FFmpegVideoDecoder::Initialize,
+                                               demuxer_stream,
+                                               callback));
     return;
   }
 

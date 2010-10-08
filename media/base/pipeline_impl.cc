@@ -93,12 +93,8 @@ bool PipelineImpl::Start(FilterFactory* factory,
 
   // Kick off initialization!
   running_ = true;
-  message_loop_->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this,
-                        &PipelineImpl::StartTask,
-                        make_scoped_refptr(factory),
-                        url,
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::StartTask, factory, url,
                         callback.release()));
   return true;
 }

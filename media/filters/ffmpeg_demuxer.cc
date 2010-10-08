@@ -310,11 +310,8 @@ void FFmpegDemuxer::OnAudioRendererDisabled() {
 
 void FFmpegDemuxer::Initialize(DataSource* data_source,
                                FilterCallback* callback) {
-  message_loop()->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this,
-                        &FFmpegDemuxer::InitializeTask,
-                        make_scoped_refptr(data_source),
+  message_loop()->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &FFmpegDemuxer::InitializeTask, data_source,
                         callback));
 }
 
