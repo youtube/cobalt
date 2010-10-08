@@ -27,6 +27,8 @@ bool HttpStreamFactory::force_spdy_over_ssl_ = true;
 bool HttpStreamFactory::force_spdy_always_ = false;
 // static
 bool HttpStreamFactory::ignore_certificate_errors_ = false;
+// static
+bool HttpStreamFactory::g_create_new_spdy_session_for_http_ = false;
 
 // static
 void HttpStreamFactory::SetHostMappingRules(const std::string& rules) {
@@ -138,4 +140,3 @@ GURL HttpStreamFactory::ApplyHostMappingRules(const GURL& url,
 }
 
 }  // namespace net
-
