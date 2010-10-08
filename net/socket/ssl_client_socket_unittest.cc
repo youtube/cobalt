@@ -35,6 +35,19 @@ class SSLClientSocketTest : public PlatformTest {
 
 //-----------------------------------------------------------------------------
 
+// LogContainsSSLConnectEndEvent returns true if the given index in the given
+// log is an SSL connect end event. The NSS sockets will cork in an attempt to
+// merge the first application data record with the Finished message when false
+// starting. However, in order to avoid the server timing out the handshake,
+// they'll give up waiting for application data and send the Finished after a
+// timeout. This means that an SSL connect end event may appear as a socket
+// write.
+static bool LogContainsSSLConnectEndEvent(
+    const net::CapturingNetLog::EntryList& log, int i) {
+  return net::LogContainsEndEvent(log, -1, net::NetLog::TYPE_SSL_CONNECT) ||
+         net::LogContainsEndEvent(log, -1, net::NetLog::TYPE_SOCKET_BYTES_SENT);
+};
+
 TEST_F(SSLClientSocketTest, Connect) {
   net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
   ASSERT_TRUE(test_server.Start());
@@ -71,8 +84,7 @@ TEST_F(SSLClientSocketTest, Connect) {
   }
 
   EXPECT_TRUE(sock->IsConnected());
-  EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
 
   sock->Disconnect();
   EXPECT_FALSE(sock->IsConnected());
@@ -117,9 +129,7 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
   // We cannot test sock->IsConnected(), as the NSS implementation disconnects
   // the socket when it encounters an error, whereas other implementations
   // leave it connected.
-
-  EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
 }
 
 TEST_F(SSLClientSocketTest, ConnectMismatched) {
@@ -162,9 +172,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
   // We cannot test sock->IsConnected(), as the NSS implementation disconnects
   // the socket when it encounters an error, whereas other implementations
   // leave it connected.
-
-  EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
 }
 
 // Attempt to connect to a page which requests a client certificate. It should
@@ -208,9 +216,7 @@ TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
   // We cannot test sock->IsConnected(), as the NSS implementation disconnects
   // the socket when it encounters an error, whereas other implementations
   // leave it connected.
-
-  EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
 }
 
 // Connect to a server requesting optional client authentication. Send it a
@@ -260,8 +266,7 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
   }
 
   EXPECT_TRUE(sock->IsConnected());
-  EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
 
   sock->Disconnect();
   EXPECT_FALSE(sock->IsConnected());
