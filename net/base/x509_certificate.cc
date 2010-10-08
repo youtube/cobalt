@@ -4,12 +4,6 @@
 
 #include "net/base/x509_certificate.h"
 
-#if defined(OS_MACOSX)
-#include <Security/Security.h>
-#elif defined(USE_NSS)
-#include <cert.h>
-#endif
-
 #include <map>
 
 #include "base/histogram.h"
@@ -46,33 +40,6 @@ const char kCertificateHeader[] = "CERTIFICATE";
 const char kPKCS7Header[] = "PKCS7";
 
 }  // namespace
-
-// static
-bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
-                                   X509Certificate::OSCertHandle b) {
-  DCHECK(a && b);
-  if (a == b)
-    return true;
-#if defined(OS_WIN)
-  return a->cbCertEncoded == b->cbCertEncoded &&
-      memcmp(a->pbCertEncoded, b->pbCertEncoded, a->cbCertEncoded) == 0;
-#elif defined(OS_MACOSX)
-  if (CFEqual(a, b))
-    return true;
-  CSSM_DATA a_data, b_data;
-  return SecCertificateGetData(a, &a_data) == noErr &&
-      SecCertificateGetData(b, &b_data) == noErr &&
-      a_data.Length == b_data.Length &&
-      memcmp(a_data.Data, b_data.Data, a_data.Length) == 0;
-#elif defined(USE_NSS)
-  return a->derCert.len == b->derCert.len &&
-      memcmp(a->derCert.data, b->derCert.data, a->derCert.len) == 0;
-#else
-  // TODO(snej): not implemented
-  UNREACHED();
-  return false;
-#endif
-}
 
 bool X509Certificate::LessThan::operator()(X509Certificate* lhs,
                                            X509Certificate* rhs) const {
@@ -282,7 +249,7 @@ X509Certificate::X509Certificate(OSCertHandle cert_handle,
                                  const OSCertHandles& intermediates)
     : cert_handle_(DupOSCertHandle(cert_handle)),
       source_(source) {
-#if defined(OS_MACOSX) || defined(OS_WIN)
+#if defined(OS_MACOSX) || defined(OS_WIN) || defined(USE_OPENSSL)
   // Copy/retain the intermediate cert handles.
   for (size_t i = 0; i < intermediates.size(); ++i)
     intermediate_ca_certs_.push_back(DupOSCertHandle(intermediates[i]));
@@ -320,7 +287,7 @@ bool X509Certificate::HasExpired() const {
 }
 
 bool X509Certificate::HasIntermediateCertificate(OSCertHandle cert) {
-#if defined(OS_MACOSX) || defined(OS_WIN)
+#if defined(OS_MACOSX) || defined(OS_WIN) || defined(USE_OPENSSL)
   for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
     if (IsSameOSCert(cert, intermediate_ca_certs_[i]))
       return true;
