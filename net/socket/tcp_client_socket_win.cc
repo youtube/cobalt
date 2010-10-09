@@ -16,6 +16,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/base/network_change_notifier.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/winsock_init.h"
 
@@ -109,6 +110,13 @@ int MapConnectError(int os_error) {
       int net_error = MapWinsockError(os_error);
       if (net_error == ERR_FAILED)
         return ERR_CONNECTION_FAILED;  // More specific than ERR_FAILED.
+
+      // Give a more specific error when the user is offline.
+      if (net_error == ERR_ADDRESS_UNREACHABLE &&
+          NetworkChangeNotifier::IsOffline()) {
+        return ERR_INTERNET_DISCONNECTED;
+      }
+
       return net_error;
     }
   }

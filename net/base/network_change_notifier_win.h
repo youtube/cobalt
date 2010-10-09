@@ -22,6 +22,9 @@ class NetworkChangeNotifierWin : public NetworkChangeNotifier,
  private:
   virtual ~NetworkChangeNotifierWin();
 
+  // NetworkChangeNotifier methods:
+  virtual bool IsCurrentlyOffline() const;
+
   // ObjectWatcher::Delegate methods:
   virtual void OnObjectSignaled(HANDLE object);
 
