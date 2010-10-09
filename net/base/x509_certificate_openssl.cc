@@ -5,6 +5,7 @@
 #include "net/base/x509_certificate.h"
 
 #include <openssl/asn1.h>
+#include <openssl/crypto.h>
 #include <openssl/obj_mac.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs7.h>
@@ -249,7 +250,9 @@ void sk_X509_free_fn(STACK_OF(X509)* st) {
 // static
 X509Certificate::OSCertHandle X509Certificate::DupOSCertHandle(
     OSCertHandle cert_handle) {
-  return X509_dup(cert_handle);
+  DCHECK(cert_handle);
+  CRYPTO_add(&cert_handle->references, 1, CRYPTO_LOCK_X509);
+  return cert_handle;
 }
 
 // static
