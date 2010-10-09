@@ -44,25 +44,9 @@ class SSLClientSocketTest : public PlatformTest {
 // write.
 static bool LogContainsSSLConnectEndEvent(
     const net::CapturingNetLog::EntryList& log, int i) {
-  if (log.size() == 0) {
-    LOG(INFO) << "LogContainsSSLConnectEndEvent: |log| empty";
-    return false;
-  }
-
-  // This logging is temporary in order to debug a failure on Windows tsan
-  // bots.
-  bool r = net::LogContainsEndEvent(log, -1, net::NetLog::TYPE_SSL_CONNECT) ||
-           net::LogContainsEvent(log, -1, net::NetLog::TYPE_SOCKET_BYTES_SENT,
-                                 net::NetLog::PHASE_NONE);
-  if (!r) {
-    const int index = i + log.size();
-    const net::CapturingNetLog::Entry& entry = log[index];
-    LOG(INFO) << "LogContainsSSLConnectEndEvent failing: "
-              << net::NetLog::EventTypeToString(entry.type)
-              << " " << entry.phase;
-  }
-
-  return r;
+  return  net::LogContainsEndEvent(log, -1, net::NetLog::TYPE_SSL_CONNECT) ||
+          net::LogContainsEvent(log, -1, net::NetLog::TYPE_SOCKET_BYTES_SENT,
+                                net::NetLog::PHASE_NONE);
 };
 
 TEST_F(SSLClientSocketTest, Connect) {
@@ -107,7 +91,7 @@ TEST_F(SSLClientSocketTest, Connect) {
   EXPECT_FALSE(sock->IsConnected());
 }
 
-TEST_F(SSLClientSocketTest, FAILS_ConnectExpired) {
+TEST_F(SSLClientSocketTest, ConnectExpired) {
   net::TestServer test_server(net::TestServer::TYPE_HTTPS_EXPIRED_CERTIFICATE,
                               FilePath());
   ASSERT_TRUE(test_server.Start());
@@ -149,7 +133,7 @@ TEST_F(SSLClientSocketTest, FAILS_ConnectExpired) {
   EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
 }
 
-TEST_F(SSLClientSocketTest, FAILS_ConnectMismatched) {
+TEST_F(SSLClientSocketTest, ConnectMismatched) {
   net::TestServer test_server(net::TestServer::TYPE_HTTPS_MISMATCHED_HOSTNAME,
                               FilePath());
   ASSERT_TRUE(test_server.Start());
