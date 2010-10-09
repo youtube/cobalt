@@ -23,6 +23,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/base/network_change_notifier.h"
 #if defined(USE_SYSTEM_LIBEVENT)
 #include <event.h>
 #else
@@ -91,6 +92,12 @@ int MapConnectError(int os_error) {
       int net_error = MapPosixError(os_error);
       if (net_error == ERR_FAILED)
         return ERR_CONNECTION_FAILED;  // More specific than ERR_FAILED.
+
+      // Give a more specific error when the user is offline.
+      if (net_error == ERR_ADDRESS_UNREACHABLE &&
+          NetworkChangeNotifier::IsOffline()) {
+        return ERR_INTERNET_DISCONNECTED;
+      }
       return net_error;
     }
   }

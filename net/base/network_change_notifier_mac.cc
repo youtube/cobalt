@@ -14,6 +14,11 @@ NetworkChangeNotifierMac::NetworkChangeNotifierMac()
       config_watcher_(&forwarder_) {}
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {}
 
+bool NetworkChangeNotifierMac::IsCurrentlyOffline() const {
+  // TODO(eroman): http://crbug.com/53473
+  return false;
+}
+
 void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
     SCDynamicStoreRef store) {
   // Called on notifier thread.

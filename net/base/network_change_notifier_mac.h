@@ -19,6 +19,9 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   NetworkChangeNotifierMac();
   virtual ~NetworkChangeNotifierMac();
 
+  // NetworkChangeNotifier implementation:
+  virtual bool IsCurrentlyOffline() const;
+
  private:
   // Forwarder just exists to keep the NetworkConfigWatcherMac API out of
   // NetworkChangeNotifierMac's public API.

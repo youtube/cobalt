@@ -43,6 +43,11 @@ NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
   DCHECK_EQ(kInvalidSocket, netlink_fd_);
 }
 
+bool NetworkChangeNotifierLinux::IsCurrentlyOffline() const {
+  // TODO(eroman): http://crbug.com/53473
+  return false;
+}
+
 void NetworkChangeNotifierLinux::WillDestroyCurrentMessageLoop() {
   DCHECK(notifier_thread_ != NULL);
   // We can't check the notifier_thread_'s message_loop(), as it's now 0.

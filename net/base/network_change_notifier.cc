@@ -22,6 +22,11 @@ namespace {
 // anyway.)
 NetworkChangeNotifier* g_network_change_notifier = NULL;
 
+class MockNetworkChangeNotifier : public NetworkChangeNotifier {
+ public:
+  virtual bool IsCurrentlyOffline() const { return false; }
+};
+
 }  // namespace
 
 NetworkChangeNotifier::~NetworkChangeNotifier() {
@@ -40,6 +45,17 @@ NetworkChangeNotifier* NetworkChangeNotifier::Create() {
   NOTIMPLEMENTED();
   return NULL;
 #endif
+}
+
+// static
+bool NetworkChangeNotifier::IsOffline() {
+  return g_network_change_notifier &&
+         g_network_change_notifier->IsCurrentlyOffline();
+}
+
+// static
+NetworkChangeNotifier* NetworkChangeNotifier::CreateMock() {
+  return new MockNetworkChangeNotifier();
 }
 
 void NetworkChangeNotifier::AddObserver(Observer* observer) {
