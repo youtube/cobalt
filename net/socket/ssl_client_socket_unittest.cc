@@ -52,8 +52,8 @@ static bool LogContainsSSLConnectEndEvent(
   // This logging is temporary in order to debug a failure on Windows tsan
   // bots.
   bool r = net::LogContainsEndEvent(log, -1, net::NetLog::TYPE_SSL_CONNECT) ||
-           net::LogContainsEndEvent(
-               log, -1, net::NetLog::TYPE_SOCKET_BYTES_SENT);
+           net::LogContainsEvent(log, -1, net::NetLog::TYPE_SOCKET_BYTES_SENT,
+                                 net::NetLog::PHASE_NONE);
   if (!r) {
     const int index = i + log.size();
     const net::CapturingNetLog::Entry& entry = log[index];
