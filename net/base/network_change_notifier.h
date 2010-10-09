@@ -33,6 +33,11 @@ class NetworkChangeNotifier {
 
   virtual ~NetworkChangeNotifier();
 
+  // See the description of NetworkChangeNotifier::IsOffline().
+  // Implementations must be thread-safe. Implementations must also be
+  // cheap as this could be called (repeatedly) from the IO thread.
+  virtual bool IsCurrentlyOffline() const = 0;
+
   // Creates the process-wide, platform-specific NetworkChangeNotifier.  The
   // caller owns the returned pointer.  You may call this on any thread.  You
   // may also avoid creating this entirely (in which case nothing will be
@@ -41,13 +46,18 @@ class NetworkChangeNotifier {
   // which might try to use it.
   static NetworkChangeNotifier* Create();
 
-#ifdef UNIT_TEST
+  // Returns true if there is currently no internet connection.
+  //
+  // A return value of |true| is a pretty strong indicator that the user
+  // won't be able to connect to remote sites. However, a return value of
+  // |false| is inconclusive; even if some link is up, it is uncertain
+  // whether a particular connection attempt to a particular remote site
+  // will be successfully.
+  static bool IsOffline();
+
   // Like Create(), but for use in tests.  The mock object doesn't monitor any
   // events, it merely rebroadcasts notifications when requested.
-  static NetworkChangeNotifier* CreateMock() {
-    return new NetworkChangeNotifier();
-  }
-#endif
+  static NetworkChangeNotifier* CreateMock();
 
   // Registers |observer| to receive notifications of network changes.  The
   // thread on which this is called is the thread on which |observer| will be

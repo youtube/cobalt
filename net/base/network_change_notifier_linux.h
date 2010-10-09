@@ -26,6 +26,9 @@ class NetworkChangeNotifierLinux : public MessageLoop::DestructionObserver,
  private:
   virtual ~NetworkChangeNotifierLinux();
 
+  // NetworkChangeNotifier:
+  virtual bool IsCurrentlyOffline() const;
+
   // MessageLoop::DestructionObserver:
   virtual void WillDestroyCurrentMessageLoop();
 

@@ -470,6 +470,12 @@ class HostResolverImpl::Job
     //DCHECK_EQ(origin_loop_, MessageLoop::current());
     DCHECK(error_ || results_.head());
 
+    // Ideally the following code would be part of host_resolver_proc.cc,
+    // however it isn't safe to call NetworkChangeNotifier from worker
+    // threads. So we do it here on the IO thread instead.
+    if (error_ == ERR_NAME_NOT_RESOLVED && NetworkChangeNotifier::IsOffline())
+      error_ = ERR_INTERNET_DISCONNECTED;
+
     base::TimeDelta job_duration = base::TimeTicks::Now() - start_time_;
 
     if (had_non_speculative_request_) {
