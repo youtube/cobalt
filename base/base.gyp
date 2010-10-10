@@ -253,6 +253,7 @@
       'sources': [
         'test/multiprocess_test.cc',
         'test/multiprocess_test.h',
+        'test/perf_test_suite.cc',
         'test/perf_test_suite.h',
         'test/test_file_util.h',
         'test/test_file_util_linux.cc',
