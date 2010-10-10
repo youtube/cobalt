@@ -31,6 +31,7 @@ struct TraceBuffer {
   char buffer[kNumberOfEntries][kEntrySize];
 };
 
+#if ENABLE_TRACING
 void DebugOutput(const char* msg) {
 #if defined(OS_WIN)
   OutputDebugStringA(msg);
@@ -38,6 +39,7 @@ void DebugOutput(const char* msg) {
   NOTIMPLEMENTED();
 #endif
 }
+#endif  // ENABLE_TRACING
 
 }  // namespace
 
