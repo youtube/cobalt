@@ -168,7 +168,6 @@
         'watchdog_unittest.cc',
         'weak_ptr_unittest.cc',
         'win_util_unittest.cc',
-        'wmi_util_unittest.cc',
         'worker_pool_unittest.cc',
       ],
       'include_dirs': [
@@ -228,7 +227,6 @@
             'time_win_unittest.cc',
             'trace_event_win_unittest.cc',
             'win_util_unittest.cc',
-            'wmi_util_unittest.cc',
           ],
         }],
       ],
