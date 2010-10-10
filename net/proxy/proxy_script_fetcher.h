@@ -68,8 +68,6 @@ class ProxyScriptFetcher {
   static size_t SetSizeConstraintForUnittest(size_t size_bytes);
 };
 
-void EnsureNoProxyScriptFetches();
-
 }  // namespace net
 
 #endif  // NET_PROXY_PROXY_SCRIPT_FETCHER_H_
