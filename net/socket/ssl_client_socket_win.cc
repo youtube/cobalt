@@ -38,29 +38,61 @@ static int MapSecurityError(SECURITY_STATUS err) {
     case SEC_E_WRONG_PRINCIPAL:  // Schannel
     case CERT_E_CN_NO_MATCH:  // CryptoAPI
       return ERR_CERT_COMMON_NAME_INVALID;
-    case SEC_E_UNTRUSTED_ROOT:  // Schannel
+    case SEC_E_UNTRUSTED_ROOT:  // Schannel - unknown_ca alert
     case CERT_E_UNTRUSTEDROOT:  // CryptoAPI
       return ERR_CERT_AUTHORITY_INVALID;
-    case SEC_E_CERT_EXPIRED:  // Schannel
+    case SEC_E_CERT_EXPIRED:  // Schannel - certificate_expired alert
     case CERT_E_EXPIRED:  // CryptoAPI
       return ERR_CERT_DATE_INVALID;
     case CRYPT_E_NO_REVOCATION_CHECK:
       return ERR_CERT_NO_REVOCATION_MECHANISM;
     case CRYPT_E_REVOCATION_OFFLINE:
       return ERR_CERT_UNABLE_TO_CHECK_REVOCATION;
-    case CRYPT_E_REVOKED:  // Schannel and CryptoAPI
+    case CRYPT_E_REVOKED:  // CryptoAPI and Schannel certificate_revoked alert
       return ERR_CERT_REVOKED;
+
+    // We received one of the following alert messages from the server:
+    //   bad_certificate
+    //   unsupported_certificate
+    //   certificate_unknown
     case SEC_E_CERT_UNKNOWN:
     case CERT_E_ROLE:
       return ERR_CERT_INVALID;
+
     // We received one of the following alert messages from the server:
+    //   decode_error
+    //   export_restriction
     //   handshake_failure
     //   illegal_parameter
+    //   record_overflow
     //   unexpected_message
+    // and all other TLS alerts not explicitly specified elsewhere.
     case SEC_E_ILLEGAL_MESSAGE:
+    // We received one of the following alert messages from the server:
+    //   decrypt_error
+    //   decryption_failed
+    case SEC_E_DECRYPT_FAILURE:
+    // We received one of the following alert messages from the server:
+    //   bad_record_mac
+    //   decompression_failure
+    case SEC_E_MESSAGE_ALTERED:
+    // TODO(rsleevi): Add SEC_E_INTERNAL_ERROR, which corresponds to an
+    // internal_error alert message being received. However, it is also used
+    // by Schannel for authentication errors that happen locally, so it has
+    // been omitted to prevent masking them as protocol errors.
       return ERR_SSL_PROTOCOL_ERROR;
-    case SEC_E_ALGORITHM_MISMATCH:
+
+    // TODO(rsleevi): Add a new error code for access_denied - the peer has
+    // accepted the certificate as valid, but denied access to the requested
+    // resource. Returning ERR_BAD_SSL_CLIENT_AUTH simply gives the user a
+    // chance to select a new certificate, if they have one, and try again.
+    case SEC_E_LOGON_DENIED:  // Received a access_denied alert.
+      return ERR_BAD_SSL_CLIENT_AUTH_CERT;
+
+    case SEC_E_UNSUPPORTED_FUNCTION:  // Received a protocol_version alert.
+    case SEC_E_ALGORITHM_MISMATCH:  // Received an insufficient_security alert.
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
+
     case SEC_E_INVALID_HANDLE:
     case SEC_E_INVALID_TOKEN:
       LOG(ERROR) << "Unexpected error " << err;

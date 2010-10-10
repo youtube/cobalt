@@ -155,13 +155,21 @@ int NetErrorFromOSStatus(OSStatus status) {
       return ERR_CONNECTION_ABORTED;
     case errSSLInternal:
       return ERR_UNEXPECTED;
+    case errSSLBadRecordMac:
     case errSSLCrypto:
+    case errSSLConnectionRefused:
+    case errSSLDecryptionFail:
     case errSSLFatalAlert:
     case errSSLIllegalParam:  // Received an illegal_parameter alert.
-    case errSSLPeerUnexpectedMsg:  // Received an unexpected_message alert.
-    case errSSLProtocol:
+    case errSSLPeerDecodeError:  // Received a decode_error alert.
+    case errSSLPeerDecryptError:  // Received a decrypt_error alert.
+    case errSSLPeerExportRestriction:  // Received an export_restriction alert.
     case errSSLPeerHandshakeFail:  // Received a handshake_failure alert.
-    case errSSLConnectionRefused:
+    case errSSLPeerNoRenegotiation:  // Received a no_renegotiation alert
+    case errSSLPeerUnexpectedMsg:  // Received an unexpected_message alert.
+    case errSSLPeerUserCancelled:  // Received a user_cancelled alert.
+    case errSSLProtocol:
+    case errSSLRecordOverflow:
       return ERR_SSL_PROTOCOL_ERROR;
     case errSSLHostNameMismatch:
       return ERR_CERT_COMMON_NAME_INVALID;
@@ -179,19 +187,25 @@ int NetErrorFromOSStatus(OSStatus status) {
     case noErr:
       return OK;
 
+    // (Note that all errSSLPeer* codes indicate errors reported by the peer,
+    // so the cert-related ones refer to my _client_ cert.)
     case errSSLPeerCertUnknown...errSSLPeerBadCert:
-    case errSSLPeerInsufficientSecurity...errSSLPeerUnknownCA:
-      // (Note that all errSSLPeer* codes indicate errors reported by the
-      // peer, so the cert-related ones refer to my _client_ cert.)
+    case errSSLPeerUnknownCA:
+    // TODO(rsleevi): Add a new error code for access_denied - the peer has
+    // accepted the certificate as valid, but denied access to the requested
+    // resource. Returning ERR_BAD_SSL_CLIENT_AUTH simply gives the user a
+    // chance to select a new certificate, if they have one, and try again.
+    case errSSLPeerAccessDenied:
       LOG(WARNING) << "Server rejected client cert (OSStatus=" << status << ")";
       return ERR_BAD_SSL_CLIENT_AUTH_CERT;
 
-    case errSSLBadRecordMac:
+    case errSSLPeerInsufficientSecurity:
+    case errSSLPeerProtocolVersion:
+      return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
+
     case errSSLBufferOverflow:
-    case errSSLDecryptionFail:
     case errSSLModuleAttach:
     case errSSLNegotiation:
-    case errSSLRecordOverflow:
     case errSSLSessionNotFound:
     default:
       LOG(WARNING) << "Unknown error " << status <<
