@@ -251,6 +251,7 @@
         }],
       ],
       'sources': [
+        'perftimer.cc',
         'test/multiprocess_test.cc',
         'test/multiprocess_test.h',
         'test/perf_test_suite.cc',
