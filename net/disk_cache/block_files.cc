@@ -122,6 +122,7 @@ void DeleteMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
   HISTOGRAM_TIMES("DiskCache.DeleteBlock", TimeTicks::Now() - start);
 }
 
+#ifndef NDEBUG
 // Returns true if the specified block is used. Note that this is a simplified
 // version of DeleteMapBlock().
 bool UsedMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
@@ -140,6 +141,7 @@ bool UsedMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
   uint8  to_clear = ((1 << size) - 1) << (index % 8);
   return ((byte_map[byte_index] & to_clear) == to_clear);
 }
+#endif  // NDEBUG
 
 // Restores the "empty counters" and allocation hints.
 void FixAllocationCounters(disk_cache::BlockFileHeader* header) {
