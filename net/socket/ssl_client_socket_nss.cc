@@ -475,6 +475,7 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
     NOTREACHED();
     return;
   }
+  LOG(ERROR) << "Snap Start: " << snap_start_type << " " << hostname_;
   if (snap_start_type == SSL_SNAP_START_FULL ||
       snap_start_type == SSL_SNAP_START_RESUME) {
     // If we did a successful Snap Start then our information was correct and
@@ -586,6 +587,7 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
 
   DCHECK_EQ(j, len);
 
+  LOG(ERROR) << "Setting Snap Start info " << hostname_ << " " << len;
   ssl_config_.ssl_host_info->Set(std::string(
         reinterpret_cast<const char *>(&data[0]), len));
 
@@ -865,7 +867,8 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #ifdef SSL_ENABLE_SNAP_START
   // TODO(agl): check that SSL_ENABLE_SNAP_START actually does something in the
   // current NSS code.
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SNAP_START, PR_TRUE);
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SNAP_START,
+                     SSLConfigService::snap_start_enabled());
   if (rv != SECSuccess)
     LOG(INFO) << "SSL_ENABLE_SNAP_START failed.  Old system nss?";
 #endif
@@ -1945,6 +1948,8 @@ int SSLClientSocketNSS::DoSnapStartLoadInfo() {
   int rv = ssl_config_.ssl_host_info->WaitForDataReady(&handshake_io_callback_);
 
   if (rv == OK) {
+    LOG(ERROR) << "SSL host info size " << hostname_ << " "
+               << ssl_config_.ssl_host_info->data().size();
     if (LoadSnapStartInfo(ssl_config_.ssl_host_info->data())) {
       pseudo_connected_ = true;
       GotoState(STATE_SNAP_START_WAIT_FOR_WRITE);
@@ -2296,6 +2301,10 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
 // mozilla/source/security/manager/ssl/src/nsNSSCallbacks.cpp.
 int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   verifier_.reset();
+
+  // Using Snap Start disables certificate verification for now.
+  if (SSLConfigService::snap_start_enabled())
+    result = OK;
 
   if (result == OK) {
     // Remember the intermediate CA certs if the server sends them to us.
