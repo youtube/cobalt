@@ -22,6 +22,7 @@ enum {
   CERT_STATUS_INVALID                    = 1 << 7,
   CERT_STATUS_WEAK_SIGNATURE_ALGORITHM   = 1 << 8,
   CERT_STATUS_NOT_IN_DNS                 = 1 << 9,
+  CERT_STATUS_NON_UNIQUE_NAME            = 1 << 10,
 
   // Bits 16 to 30 are for non-error statuses.
   CERT_STATUS_IS_EV                      = 1 << 16,
