@@ -15,13 +15,15 @@ namespace base {
 struct MessageLoopProxyTraits;
 
 // This class provides a thread-safe refcounted interface to the Post* methods
-// of a message loop. This class can outlive the target message loop.
+// of a message loop. This class can outlive the target message loop. You can
+// obtain a MessageLoopProxy via Thread::message_loop_proxy().
 class MessageLoopProxy
     : public base::RefCountedThreadSafe<MessageLoopProxy,
                                         MessageLoopProxyTraits> {
  public:
-  // These are the same methods in message_loop.h, but are guaranteed to either
-  // get posted to the MessageLoop if it's still alive, or be deleted otherwise.
+  // These methods are the same as in message_loop.h, but are guaranteed to
+  // either post the Task to the MessageLoop (if it's still alive), or to
+  // delete the Task otherwise.
   // They return true iff the thread existed and the task was posted.  Note that
   // even if the task is posted, there's no guarantee that it will run, since
   // the target thread may already have a Quit message in its queue.
@@ -74,4 +76,3 @@ struct MessageLoopProxyTraits {
 }  // namespace base
 
 #endif  // BASE_MESSAGE_LOOP_PROXY_H_
-
