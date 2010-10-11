@@ -25,7 +25,7 @@
 // finally completed.
 NET_ERROR(IO_PENDING, -1)
 
-// A generic failure occured.
+// A generic failure occurred.
 NET_ERROR(FAILED, -2)
 
 // An operation was aborted (due to user action).
@@ -157,7 +157,7 @@ NET_ERROR(SSL_NO_RENEGOTIATION, -123)
 NET_ERROR(WINSOCK_UNEXPECTED_WRITTEN_BYTES, -124)
 
 // An SSL peer sent us a fatal decompression_failure alert. This typically
-// occurs when a peer selects DEFLATE compression in the mismaken belief that
+// occurs when a peer selects DEFLATE compression in the mistaken belief that
 // it supports it.
 NET_ERROR(SSL_DECOMPRESSION_FAILURE_ALERT, -125)
 
@@ -278,13 +278,16 @@ NET_ERROR(CERT_WEAK_SIGNATURE_ALGORITHM, -208)
 // valid fingerprints. But the certificate presented was not in this list.
 NET_ERROR(CERT_NOT_IN_DNS, -209)
 
+// The host name specified in the certificate is not unique.
+NET_ERROR(CERT_NON_UNIQUE_NAME, -210)
+
 // Add new certificate error codes here.
 //
 // Update the value of CERT_END whenever you add a new certificate error
 // code.
 
 // The value immediately past the last certificate error code.
-NET_ERROR(CERT_END, -210)
+NET_ERROR(CERT_END, -211)
 
 // The URL is invalid.
 NET_ERROR(INVALID_URL, -300)
@@ -365,7 +368,7 @@ NET_ERROR(NO_SUPPORTED_PROXIES, -336)
 // There is a SPDY protocol framing error.
 NET_ERROR(SPDY_PROTOCOL_ERROR, -337)
 
-// Credentials could not be estalished during HTTP Authentication.
+// Credentials could not be established during HTTP Authentication.
 NET_ERROR(INVALID_AUTH_CREDENTIALS, -338)
 
 // An HTTP Authentication scheme was tried which is not supported on this
@@ -471,7 +474,7 @@ NET_ERROR(IMPORT_CA_CERT_NOT_CA, -703)
 
 // Import failed - certificate already exists in database.
 // Note it's a little weird this is an error but reimporting a PKCS12 is ok
-// (no-op).  That's how mozilla does it, though.
+// (no-op).  That's how Mozilla does it, though.
 NET_ERROR(IMPORT_CERT_ALREADY_EXISTS, -704)
 
 // CA import failed due to some other error.
