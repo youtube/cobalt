@@ -26,6 +26,7 @@
 #include "net/base/net_util.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
+#include "net/base/ssl_non_sensitive_host_info.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_handler.h"
@@ -413,6 +414,11 @@ uint64 HttpNetworkTransaction::GetUploadProgress() const {
     return 0;
 
   return stream_->GetUploadProgress();
+}
+
+void HttpNetworkTransaction::SetSSLNonSensitiveHostInfo(
+    SSLNonSensitiveHostInfo* host_info) {
+  ssl_config_.ssl_host_info = host_info;
 }
 
 void HttpNetworkTransaction::OnStreamReady(HttpStream* stream) {

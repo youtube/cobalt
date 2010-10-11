@@ -17,6 +17,7 @@ struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class X509Certificate;
+class SSLNonSensitiveHostInfo;
 
 // Represents a single HTTP transaction (i.e., a single request/response pair).
 // HTTP redirects are not followed and authentication challenges are not
@@ -104,6 +105,11 @@ class HttpTransaction {
   // Returns the upload progress in bytes.  If there is no upload data,
   // zero will be returned.  This does not include the request headers.
   virtual uint64 GetUploadProgress() const = 0;
+
+  // SetSSLNonSensitiveHostInfo sets a object which reads and writes public
+  // information about an SSL server. It's used to implement Snap Start.
+  // TODO(agl): remove this.
+  virtual void SetSSLNonSensitiveHostInfo(SSLNonSensitiveHostInfo*) { };
 };
 
 }  // namespace net
