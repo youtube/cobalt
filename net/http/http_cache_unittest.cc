@@ -863,6 +863,7 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
                                           std::string* response_data) {
   if (request->extra_headers.IsEmpty()) {
     response_status->assign("HTTP/1.1 416 Requested Range Not Satisfiable");
+    response_data->clear();
     return;
   }
 
@@ -871,6 +872,7 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
 
   if (not_modified_) {
     response_status->assign("HTTP/1.1 304 Not Modified");
+    response_data->clear();
     return;
   }
 
@@ -885,6 +887,7 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
   net::HttpByteRange byte_range = ranges[0];
   if (byte_range.first_byte_position() > 79) {
     response_status->assign("HTTP/1.1 416 Requested Range Not Satisfiable");
+    response_data->clear();
     return;
   }
 
@@ -3164,7 +3167,7 @@ TEST(HttpCache, UnknownRangeGET_304) {
 
   // Ask for the end of the file, without knowing the length.
   transaction.request_headers = "Range: bytes = 70-\r\n" EXTRA_HEADER;
-  transaction.data = "rg: 70-79 ";
+  transaction.data = "";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   // We just bypass the cache.
@@ -3409,13 +3412,34 @@ TEST(HttpCache, RangeGET_Previous200) {
   // The last transaction has finished so make sure the entry is deactivated.
   MessageLoop::current()->RunAllPending();
 
+  // Make a request for an invalid range.
+  MockTransaction transaction3(kRangeGET_TransactionOK);
+  transaction3.request_headers = "Range: bytes = 80-90\r\n" EXTRA_HEADER;
+  transaction3.data = "";
+  transaction3.load_flags = net::LOAD_PREFERRING_CACHE;
+  RunTransactionTestWithResponse(cache.http_cache(), transaction3, &headers);
+  EXPECT_EQ(2, cache.disk_cache()->open_count());
+  EXPECT_EQ(0U, headers.find("HTTP/1.1 416 "));
+  EXPECT_NE(std::string::npos, headers.find("Content-Range: bytes 0-0/80"));
+  EXPECT_NE(std::string::npos, headers.find("Content-Length: 0"));
+
+  // Make sure the entry is deactivated.
+  MessageLoop::current()->RunAllPending();
+
+  // Even though the request was invalid, we should have the entry.
+  RunTransactionTest(cache.http_cache(), transaction2);
+  EXPECT_EQ(3, cache.disk_cache()->open_count());
+
+  // Make sure the entry is deactivated.
+  MessageLoop::current()->RunAllPending();
+
   // Now we should receive a range from the server and drop the stored entry.
   handler.set_not_modified(false);
   transaction2.request_headers = kRangeGET_TransactionOK.request_headers;
   RunTransactionTestWithResponse(cache.http_cache(), transaction2, &headers);
   Verify206Response(headers, 40, 49);
-  EXPECT_EQ(3, cache.network_layer()->transaction_count());
-  EXPECT_EQ(2, cache.disk_cache()->open_count());
+  EXPECT_EQ(5, cache.network_layer()->transaction_count());
+  EXPECT_EQ(4, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   RunTransactionTest(cache.http_cache(), transaction2);
@@ -3484,6 +3508,7 @@ TEST(HttpCache, RangeGET_MoreThanCurrentSize) {
   // A weird request should not delete this entry. Ask for bytes 120-.
   MockTransaction transaction(kRangeGET_TransactionOK);
   transaction.request_headers = "Range: bytes = 120-\r\n" EXTRA_HEADER;
+  transaction.data = "";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   EXPECT_EQ(0U, headers.find("HTTP/1.1 416 "));

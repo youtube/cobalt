@@ -267,11 +267,14 @@ class HttpCache::Transaction : public HttpTransaction {
   // Makes sure that a 206 response is expected.  Returns true on success.
   // On success, |partial_content| will be set to true if we are processing a
   // partial entry.
-  bool ValidatePartialResponse(const HttpResponseHeaders* headers,
-                               bool* partial_content);
+  bool ValidatePartialResponse(bool* partial_content);
 
   // Handles a response validation error by bypassing the cache.
   void IgnoreRangeRequest();
+
+  // Changes the response code of a range request to be 416 (Requested range not
+  // satisfiable).
+  void FailRangeRequest();
 
   // Reads data from the network.
   int ReadFromNetwork(IOBuffer* data, int data_len);

@@ -672,7 +672,8 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     return OK;
   }
 
-  if (!ValidatePartialResponse(new_response->headers, &server_responded_206_) &&
+  new_response_ = new_response;
+  if (!ValidatePartialResponse(&server_responded_206_) &&
       !auth_response_.headers) {
     // Something went wrong with this request and we have to restart it.
     // If we have an authentication response, we are exposed to weird things
@@ -680,6 +681,7 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     // the new response.
     response_ = HttpResponseInfo();
     network_trans_.reset();
+    new_response_ = NULL;
     next_state_ = STATE_SEND_REQUEST;
     return OK;
   }
@@ -690,9 +692,14 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     DoneWritingToEntry(false);
   }
 
+  if (enable_range_support_ && new_response_->headers->response_code() == 416) {
+    DCHECK_EQ(NONE, mode_);
+    response_ = *new_response_;
+    return OK;
+  }
+
   HistogramHeaders(new_response->headers);
 
-  new_response_ = new_response;
   // Are we expecting a response to a conditional query?
   if (mode_ == READ_WRITE || mode_ == UPDATE) {
     if (new_response->headers->response_code() == 304 ||
@@ -1044,7 +1051,7 @@ int HttpCache::Transaction::DoPartialHeadersReceived() {
   } else if (mode_ != NONE) {
     // We are about to return the headers for a byte-range request to the user,
     // so let's fix them.
-    partial_->FixResponseHeaders(response_.headers);
+    partial_->FixResponseHeaders(response_.headers, true);
   }
   return OK;
 }
@@ -1396,7 +1403,7 @@ int HttpCache::Transaction::BeginCacheValidation() {
   bool skip_validation = effective_load_flags_ & LOAD_PREFERRING_CACHE ||
                          !RequiresValidation();
 
-  if (partial_.get() && !partial_->IsCurrentRangeCached())
+  if (partial_.get() && !partial_->IsCurrentRangeCached() || invalid_range_)
     skip_validation = false;
 
   if (skip_validation) {
@@ -1597,8 +1604,11 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
   }
   DCHECK(custom_request_.get());
 
+  bool use_if_range = partial_.get() && !partial_->IsCurrentRangeCached() &&
+                      !invalid_range_;
+
   if (!etag_value.empty()) {
-    if (partial_.get() && !partial_->IsCurrentRangeCached()) {
+    if (use_if_range) {
       // We don't want to switch to WRITE mode if we don't have this block of a
       // byte-range request because we may have other parts cached.
       custom_request_->extra_headers.SetHeader(
@@ -1614,7 +1624,7 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
   }
 
   if (!last_modified_value.empty()) {
-    if (partial_.get() && !partial_->IsCurrentRangeCached()) {
+    if (use_if_range) {
       custom_request_->extra_headers.SetHeader(
           HttpRequestHeaders::kIfRange, last_modified_value);
     } else {
@@ -1644,8 +1654,8 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
 // WARNING: Whenever this code returns false, it has to make sure that the next
 // time it is called it will return true so that we don't keep retrying the
 // request.
-bool HttpCache::Transaction::ValidatePartialResponse(
-    const HttpResponseHeaders* headers, bool* partial_content) {
+bool HttpCache::Transaction::ValidatePartialResponse(bool* partial_content) {
+  const HttpResponseHeaders* headers = new_response_->headers;
   int response_code = headers->response_code();
   bool partial_response = enable_range_support_ ? response_code == 206 : false;
   *partial_content = false;
@@ -1657,10 +1667,13 @@ bool HttpCache::Transaction::ValidatePartialResponse(
     // We gave up trying to match this request with the stored data. If the
     // server is ok with the request, delete the entry, otherwise just ignore
     // this request
-    if (partial_response || response_code == 200 || response_code == 304) {
+    DCHECK(!reading_);
+    if (partial_response || response_code == 200) {
       DoomPartialEntry(true);
       mode_ = NONE;
     } else {
+      if (response_code == 304)
+        FailRangeRequest();
       IgnoreRangeRequest();
     }
     return true;
@@ -1732,6 +1745,11 @@ void HttpCache::Transaction::IgnoreRangeRequest() {
   partial_.reset(NULL);
   entry_ = NULL;
   mode_ = NONE;
+}
+
+void HttpCache::Transaction::FailRangeRequest() {
+  response_ = *new_response_;
+  partial_->FixResponseHeaders(response_.headers, false);
 }
 
 int HttpCache::Transaction::ReadFromNetwork(IOBuffer* data, int data_len) {
@@ -1829,6 +1847,7 @@ void HttpCache::Transaction::DoneWritingToEntry(bool success) {
 }
 
 void HttpCache::Transaction::DoomPartialEntry(bool delete_object) {
+  DVLOG(2) << "DoomPartialEntry";
   int rv = cache_->DoomEntry(cache_key_, NULL);
   DCHECK_EQ(OK, rv);
   cache_->DoneWithEntry(entry_, this, false);
