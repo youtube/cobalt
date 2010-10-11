@@ -421,6 +421,8 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       handshake_callback_called_(false),
       completed_handshake_(false),
       pseudo_connected_(false),
+      eset_mitm_detected_(false),
+      netnanny_mitm_detected_(false),
       dnssec_provider_(NULL),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
@@ -995,6 +997,8 @@ void SSLClientSocketNSS::Disconnect() {
   server_cert_verify_result_.Reset();
   completed_handshake_   = false;
   pseudo_connected_      = false;
+  eset_mitm_detected_    = false;
+  netnanny_mitm_detected_= false;
   nss_bufs_              = NULL;
   client_certs_.clear();
   client_auth_cert_needed_ = false;
@@ -1739,6 +1743,24 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
           base::TimeDelta::FromMilliseconds(kCorkTimeoutMs),
           that, &SSLClientSocketNSS::UncorkAfterTimeout);
     }
+
+    // ESET anti-virus is capable of intercepting HTTPS connections on Windows.
+    // However, it is False Start intolerant and causes the connections to hang
+    // forever. We detect ESET by the issuer of the leaf certificate and set a
+    // flag to return a specific error, giving the user instructions for
+    // reconfiguring ESET.
+    CERTCertificate* cert = SSL_PeerCertificate(that->nss_fd_);
+    if (cert) {
+      char* common_name = CERT_GetCommonName(&cert->issuer);
+      if (common_name) {
+        if (strcmp(common_name, "ESET_RootSslCert") == 0)
+          that->eset_mitm_detected_ = true;
+        if (strcmp(common_name, "ContentWatch Root Certificate Authority") == 0)
+          that->netnanny_mitm_detected_ = true;
+        PORT_Free(common_name);
+      }
+      CERT_DestroyCertificate(cert);
+    }
   }
 #endif
 
@@ -2024,18 +2046,24 @@ int SSLClientSocketNSS::DoHandshake() {
     }
   } else if (rv == SECSuccess) {
     if (handshake_callback_called_) {
-      SaveSnapStartInfo();
-      // SSL handshake is completed. It's possible that we mispredicted the NPN
-      // agreed protocol. In this case, we've just sent a request in the wrong
-      // protocol! The higher levels of this network stack aren't prepared for
-      // switching the protocol like that so we make up an error and rely on
-      // the fact that the request will be retried.
-      if (IsNPNProtocolMispredicted()) {
-        LOG(WARNING) << "Mispredicted NPN protocol for " << hostname_;
-        net_error = ERR_SSL_SNAP_START_NPN_MISPREDICTION;
+      if (eset_mitm_detected_) {
+        net_error = ERR_ESET_ANTI_VIRUS_SSL_INTERCEPTION;
+      } else if (netnanny_mitm_detected_) {
+        net_error = ERR_NETNANNY_SSL_INTERCEPTION;
       } else {
-        // Let's verify the certificate.
-        GotoState(STATE_VERIFY_DNSSEC);
+        SaveSnapStartInfo();
+        // SSL handshake is completed. It's possible that we mispredicted the NPN
+        // agreed protocol. In this case, we've just sent a request in the wrong
+        // protocol! The higher levels of this network stack aren't prepared for
+        // switching the protocol like that so we make up an error and rely on
+        // the fact that the request will be retried.
+        if (IsNPNProtocolMispredicted()) {
+          LOG(WARNING) << "Mispredicted NPN protocol for " << hostname_;
+          net_error = ERR_SSL_SNAP_START_NPN_MISPREDICTION;
+        } else {
+          // Let's verify the certificate.
+          GotoState(STATE_VERIFY_DNSSEC);
+        }
       }
       // Done!
     } else {
