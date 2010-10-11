@@ -188,6 +188,12 @@ int SSLConnectJob::DoLoop(int result) {
 int SSLConnectJob::DoTCPConnect() {
   DCHECK(tcp_pool_);
 
+  if (params_->ssl_config().ssl_host_info.get()) {
+    // This starts fetching the SSL host info from the disk cache for Snap
+    // Start.
+    params_->ssl_config().ssl_host_info->Start();
+  }
+
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   scoped_refptr<TCPSocketParams> tcp_params = params_->tcp_params();
