@@ -127,6 +127,9 @@ bool PartialData::Init(const HttpRequestHeaders& headers) {
 
   resource_size_ = 0;
   current_range_start_ = byte_range_.first_byte_position();
+
+  DVLOG(1) << "Range start: " << current_range_start_ << " end: " <<
+               byte_range_.last_byte_position();
   return true;
 }
 
@@ -154,6 +157,8 @@ int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
   if (!len)
     return 0;
 
+  DVLOG(3) << "ShouldValidateCache len: " << len;
+
   if (sparse_entry_) {
     DCHECK(!callback_);
     Core* core = Core::CreateCore(this);
@@ -171,6 +176,12 @@ int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
       cached_start_ = 0;
     }
   } else {
+    if (byte_range_.HasFirstBytePosition() &&
+        byte_range_.first_byte_position() >= resource_size_) {
+      // The caller should take care of this condition because we should have
+      // failed IsRequestedRangeOK(), but it's better to be consistent here.
+      len = 0;
+    }
     cached_min_len_ = len;
     cached_start_ = current_range_start_;
   }
@@ -250,6 +261,7 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     DCHECK(byte_range_.IsValid());
     sparse_entry_ = false;
     resource_size_ = entry->GetDataSize(kDataStream);
+    DVLOG(2) << "UpdateFromStoredHeaders size: " << resource_size_;
     return true;
   }
 
@@ -335,28 +347,36 @@ bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
 // We are making multiple requests to complete the range requested by the user.
 // Just assume that everything is fine and say that we are returning what was
 // requested.
-void PartialData::FixResponseHeaders(HttpResponseHeaders* headers) {
+void PartialData::FixResponseHeaders(HttpResponseHeaders* headers,
+                                     bool success) {
   if (truncated_)
     return;
 
   headers->RemoveHeader(kLengthHeader);
   headers->RemoveHeader(kRangeHeader);
 
-  int64 range_len;
+  int64 range_len, start, end;
   if (byte_range_.IsValid()) {
-    if (!sparse_entry_)
-      headers->ReplaceStatusLine("HTTP/1.1 206 Partial Content");
+    if (success) {
+      if (!sparse_entry_)
+        headers->ReplaceStatusLine("HTTP/1.1 206 Partial Content");
 
-    DCHECK(byte_range_.HasFirstBytePosition());
-    DCHECK(byte_range_.HasLastBytePosition());
+      DCHECK(byte_range_.HasFirstBytePosition());
+      DCHECK(byte_range_.HasLastBytePosition());
+      start = byte_range_.first_byte_position();
+      end = byte_range_.last_byte_position();
+      range_len = end - start + 1;
+    } else {
+      headers->ReplaceStatusLine(
+          "HTTP/1.1 416 Requested Range Not Satisfiable");
+      start = 0;
+      end = 0;
+      range_len = 0;
+    }
+
     headers->AddHeader(
         base::StringPrintf("%s: bytes %" PRId64 "-%" PRId64 "/%" PRId64,
-                           kRangeHeader,
-                           byte_range_.first_byte_position(),
-                           byte_range_.last_byte_position(),
-                           resource_size_));
-    range_len = byte_range_.last_byte_position() -
-                byte_range_.first_byte_position() + 1;
+                           kRangeHeader, start, end, resource_size_));
   } else {
     // TODO(rvargas): Is it safe to change the protocol version?
     headers->ReplaceStatusLine("HTTP/1.1 200 OK");
@@ -396,6 +416,7 @@ int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
 
 int PartialData::CacheWrite(disk_cache::Entry* entry, IOBuffer* data,
                             int data_len, CompletionCallback* callback) {
+  DVLOG(3) << "To write: " << data_len;
   if (sparse_entry_) {
     return entry->WriteSparseData(current_range_start_, data, data_len,
                                   callback);
@@ -409,6 +430,7 @@ int PartialData::CacheWrite(disk_cache::Entry* entry, IOBuffer* data,
 }
 
 void PartialData::OnCacheReadCompleted(int result) {
+  DVLOG(3) << "Read: " << result;
   if (result > 0) {
     current_range_start_ += result;
     cached_min_len_ -= result;
