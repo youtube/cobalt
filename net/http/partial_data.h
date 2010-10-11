@@ -84,7 +84,9 @@ class PartialData {
   bool ResponseHeadersOK(const HttpResponseHeaders* headers);
 
   // Fixes the response headers to include the right content length and range.
-  void FixResponseHeaders(HttpResponseHeaders* headers);
+  // |success| is the result of the whole request so if it's false, we'll change
+  // the result code to be 416.
+  void FixResponseHeaders(HttpResponseHeaders* headers, bool success);
 
   // Fixes the content length that we want to store in the cache.
   void FixContentLength(HttpResponseHeaders* headers);
