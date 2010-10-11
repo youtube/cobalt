@@ -180,11 +180,21 @@ NET_ERROR(SSL_WEAK_SERVER_EPHEMERAL_DH_KEY, -129)
 // of an HTTP proxy.
 NET_ERROR(PROXY_CONNECTION_FAILED, -130)
 
-// This means that we tried a Snap Start connection and sent a request,
-// predicting the server's NPN protocol support. However, after doing the
-// actual handshake, our prediction turned out to be incorrect so we sent a
-// request in the wrong protocol.
+// We tried a Snap Start connection and sent a request, predicting the server's
+// NPN protocol support. However, after doing the actual handshake, our
+// prediction turned out to be incorrect so we sent a request in the wrong
+// protocol.
 NET_ERROR(SSL_SNAP_START_NPN_MISPREDICTION, -131)
+
+// We detected an ESET product intercepting our HTTPS connections. Since these
+// products are False Start intolerant, we return this error so that we can
+// give the user a helpful error message rather than have the connection hang.
+NET_ERROR(ESET_ANTI_VIRUS_SSL_INTERCEPTION, -132)
+
+// We detected NetNanny intercepting our HTTPS connections. Since this product
+// is False Start intolerant, we return this error so that we can give the user
+// a helpful error message rather than have the connection hang.
+NET_ERROR(NETNANNY_SSL_INTERCEPTION, -133)
 
 // Certificate error codes
 //
