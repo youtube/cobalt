@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/string16.h"
@@ -27,7 +28,8 @@ class HttpAuthCache;
 class HttpRequestHeaders;
 struct HttpRequestInfo;
 
-class HttpAuthController : public base::RefCounted<HttpAuthController> {
+class HttpAuthController : public base::RefCounted<HttpAuthController>,
+                           public NonThreadSafe {
  public:
   // The arguments are self explanatory except possibly for |auth_url|, which
   // should be both the auth target and auth path in a single url argument.
