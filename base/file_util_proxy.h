@@ -48,6 +48,13 @@ class FileUtilProxy {
                            int file_flags,
                            CreateOrOpenCallback* callback);
 
+  // Creates a file with the given flags.  This one is a variation of
+  // CreateOrOpen but it doesn't return a file handle.
+  static bool Create(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+                     const FilePath& file_path,
+                     int file_flags,
+                     CreateOrOpenCallback* callback);
+
   // Creates a temporary file for writing.  The path and an open file handle
   // are returned.  It is invalid to pass NULL for the callback.
   typedef Callback3<base::PlatformFileError /* error code */,
