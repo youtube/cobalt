@@ -178,6 +178,14 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Write call into a Snap Start handshake.
   bool pseudo_connected_;
 
+  // True iff we believe that the user has an ESET product intercepting our
+  // HTTPS connections.
+  bool eset_mitm_detected_;
+
+  // True iff we believe that the user has NetNanny intercepting our HTTPS
+  // connections.
+  bool netnanny_mitm_detected_;
+
   // This pointer is owned by the caller of UseDNSSEC.
   DNSSECProvider* dnssec_provider_;
   // The time when we started waiting for DNSSEC records.
