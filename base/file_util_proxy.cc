@@ -119,12 +119,14 @@ class RelayCreateOrOpen : public MessageLoopRelay {
       scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
       int file_flags,
+      bool return_no_handle,
       base::FileUtilProxy::CreateOrOpenCallback* callback)
       : message_loop_proxy_(message_loop_proxy),
         file_path_(file_path),
         file_flags_(file_flags),
         callback_(callback),
         file_handle_(base::kInvalidPlatformFileValue),
+        return_no_handle_(return_no_handle),
         created_(false) {
     DCHECK(callback);
   }
@@ -139,6 +141,13 @@ class RelayCreateOrOpen : public MessageLoopRelay {
     base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
     file_handle_ = base::CreatePlatformFile(file_path_, file_flags_,
                                             &created_, &error_code);
+    // If the return_no_handle is true the caller is not interested
+    // in the file_handle_.  Close it right now.
+    if (return_no_handle_ && file_handle_ != base::kInvalidPlatformFileValue) {
+      // We don't check the return value here.
+      base::ClosePlatformFile(file_handle_);
+      file_handle_ = base::kInvalidPlatformFileValue;
+    }
     set_error_code(error_code);
   }
 
@@ -154,6 +163,7 @@ class RelayCreateOrOpen : public MessageLoopRelay {
   int file_flags_;
   base::FileUtilProxy::CreateOrOpenCallback* callback_;
   base::PlatformFile file_handle_;
+  bool return_no_handle_;
   bool created_;
 };
 
@@ -680,7 +690,18 @@ bool FileUtilProxy::CreateOrOpen(
     const FilePath& file_path, int file_flags,
     CreateOrOpenCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy, new RelayCreateOrOpen(
-      message_loop_proxy, file_path, file_flags, callback));
+      message_loop_proxy, file_path, file_flags, false /* return_no_handle */,
+      callback));
+}
+
+// static
+bool FileUtilProxy::Create(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path, int file_flags,
+    CreateOrOpenCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayCreateOrOpen(
+      message_loop_proxy, file_path, file_flags, true /* return_no_handle */,
+      callback));
 }
 
 // static
