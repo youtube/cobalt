@@ -42,6 +42,11 @@ cd sqlite
 # Run the google_generate_preprocessed.sh script:
 ./google_generate_preprocessed.sh
 
+# If there are any updates to os_unix.c, remember to keep
+# WebCore/platform/sql/chromium/SQLiteFileSystemChromiumPosix.cpp in sync.
+# This means preparing a separate patch for WebKit.
+# If you have questions about this part, ask phajdan.jr and dumi.
+
 # Find a sucker.  Send review.
 # TODO(shess) Describe an appropriate comment style.  Seems like it
 # should at least include the SQLite version number.
