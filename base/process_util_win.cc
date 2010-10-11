@@ -196,8 +196,10 @@ bool LaunchAppImpl(const std::wstring& cmdline,
                    ProcessHandle* process_handle) {
   STARTUPINFO startup_info = {0};
   startup_info.cb = sizeof(startup_info);
-  startup_info.dwFlags = STARTF_USESHOWWINDOW;
+  startup_info.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
   startup_info.wShowWindow = start_hidden ? SW_HIDE : SW_SHOW;
+  startup_info.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+  startup_info.hStdError = GetStdHandle(STD_ERROR_HANDLE);
   PROCESS_INFORMATION process_info;
   if (!CreateProcess(NULL,
                      const_cast<wchar_t*>(cmdline.c_str()), NULL, NULL,
