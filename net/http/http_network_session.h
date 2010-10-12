@@ -126,6 +126,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     return socket_pool_manager_.SocketPoolInfoToValue();
   }
 
+  // Creates a Value summary of the state of the SPDY sessions. The caller is
+  // responsible for deleting the returned value.
+  Value* SpdySessionPoolInfoToValue() const;
+
   void FlushSocketPools() {
     socket_pool_manager_.FlushSocketPools();
   }
