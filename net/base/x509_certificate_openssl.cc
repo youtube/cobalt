@@ -251,12 +251,20 @@ void sk_X509_free_fn(STACK_OF(X509)* st) {
 X509Certificate::OSCertHandle X509Certificate::DupOSCertHandle(
     OSCertHandle cert_handle) {
   DCHECK(cert_handle);
+  // Using X509_dup causes the entire certificate to be reparsed. This
+  // conversion, besides being non-trivial, drops any associated
+  // application-specific data set by X509_set_ex_data. Using CRYPTO_add
+  // just bumps up the ref-count for the cert, without causing any allocations
+  // or deallocations.
   CRYPTO_add(&cert_handle->references, 1, CRYPTO_LOCK_X509);
   return cert_handle;
 }
 
 // static
 void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
+  // Decrement the ref-count for the cert and, if all references are gone,
+  // free the memory and any application-specific data associated with the
+  // certificate.
   X509_free(cert_handle);
 }
 
