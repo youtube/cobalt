@@ -133,7 +133,7 @@ bool DelayedCacheCleanup(const FilePath& full_path) {
   }
 
   if (!disk_cache::MoveCache(full_path, to_delete)) {
-    LOG(ERROR) << "Unable to rename cache folder";
+    LOG(ERROR) << "Unable to move cache folder";
     return false;
   }
 
