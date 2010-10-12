@@ -10,7 +10,7 @@
 
 #include "base/observer_list.h"
 #include "base/ref_counted.h"
-#include "net/base/ssl_non_sensitive_host_info.h"
+#include "net/base/ssl_host_info.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
@@ -82,7 +82,7 @@ struct SSLConfig {
   // If provided, the SSL socket will assume that the application protocol is
   // client-speaks-first. Also needs SSLConfigService::EnableSnapStart to
   // have been called.
-  scoped_refptr<SSLNonSensitiveHostInfo> ssl_host_info;
+  scoped_refptr<SSLHostInfo> ssl_host_info;
 };
 
 // The interface for retrieving the SSL configuration.  This interface
