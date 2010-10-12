@@ -83,8 +83,8 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
+#include "net/base/ssl_host_info.h"
 #include "net/base/ssl_info.h"
-#include "net/base/ssl_non_sensitive_host_info.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
@@ -687,7 +687,7 @@ bool SSLClientSocketNSS::LoadSnapStartInfo(const std::string& info) {
 
   // We ignore any trailing data that might be in |info|.
   if (j != info.size())
-    LOG(WARNING) << "Trailing data found in SSLNonSensitiveHostInfo";
+    LOG(WARNING) << "Trailing data found in SSLHostInfo";
 
   return true;
 }
