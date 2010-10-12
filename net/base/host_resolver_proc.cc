@@ -202,7 +202,11 @@ int SystemHostResolverProc(const std::string& host,
   // If we fail, re-initialise the resolver just in case there have been any
   // changes to /etc/resolv.conf and retry. See http://crbug.com/11380 for info.
   if (err && DnsReloadTimerHasExpired()) {
-    res_nclose(&_res);
+    // When there's no network connection, _res may not be initialized by
+    // getaddrinfo. Therefore, we call res_nclose only when there are ns
+    // entries.
+    if (_res.nscount > 0)
+      res_nclose(&_res);
     if (!res_ninit(&_res))
       should_retry = true;
   }
