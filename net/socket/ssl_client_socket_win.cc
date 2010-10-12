@@ -93,6 +93,8 @@ static int MapSecurityError(SECURITY_STATUS err) {
     case SEC_E_ALGORITHM_MISMATCH:  // Received an insufficient_security alert.
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
 
+    case SEC_E_NO_CREDENTIALS:
+      return ERR_SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY;
     case SEC_E_INVALID_HANDLE:
     case SEC_E_INVALID_TOKEN:
       LOG(ERROR) << "Unexpected error " << err;
@@ -142,7 +144,9 @@ class CredHandleTable {
                                          client_cert_creds_.end());
   }
 
-  CredHandle* GetHandle(PCCERT_CONTEXT client_cert, int ssl_version_mask) {
+  int GetHandle(PCCERT_CONTEXT client_cert,
+                int ssl_version_mask,
+                CredHandle** handle_ptr) {
     DCHECK(0 < ssl_version_mask &&
            ssl_version_mask < arraysize(anonymous_creds_));
     CredHandleClass* handle;
@@ -159,9 +163,13 @@ class CredHandleTable {
     } else {
       handle = &anonymous_creds_[ssl_version_mask];
     }
-    if (!SecIsValidHandle(handle))
-      InitializeHandle(handle, client_cert, ssl_version_mask);
-    return handle;
+    if (!SecIsValidHandle(handle)) {
+      int result = InitializeHandle(handle, client_cert, ssl_version_mask);
+      if (result != OK)
+        return result;
+    }
+    *handle_ptr = handle;
+    return OK;
   }
 
  private:
@@ -172,9 +180,10 @@ class CredHandleTable {
 
   typedef std::map<CredHandleMapKey, CredHandleClass*> CredHandleMap;
 
-  static void InitializeHandle(CredHandle* handle,
-                               PCCERT_CONTEXT client_cert,
-                               int ssl_version_mask);
+  // Returns OK on success or a network error code on failure.
+  static int InitializeHandle(CredHandle* handle,
+                              PCCERT_CONTEXT client_cert,
+                              int ssl_version_mask);
 
   Lock lock_;
 
@@ -187,9 +196,9 @@ class CredHandleTable {
 };
 
 // static
-void CredHandleTable::InitializeHandle(CredHandle* handle,
-                                       PCCERT_CONTEXT client_cert,
-                                       int ssl_version_mask) {
+int CredHandleTable::InitializeHandle(CredHandle* handle,
+                                      PCCERT_CONTEXT client_cert,
+                                      int ssl_version_mask) {
   SCHANNEL_CRED schannel_cred = {0};
   schannel_cred.dwVersion = SCHANNEL_CRED_VERSION;
   if (client_cert) {
@@ -254,16 +263,16 @@ void CredHandleTable::InitializeHandle(CredHandle* handle,
       NULL,  // Not used
       handle,
       &expiry);  // Optional
-  if (status != SEC_E_OK) {
+  if (status != SEC_E_OK)
     LOG(ERROR) << "AcquireCredentialsHandle failed: " << status;
-    // GetHandle will return a pointer to an uninitialized CredHandle, which
-    // will cause InitializeSecurityContext to fail with SEC_E_INVALID_HANDLE.
-  }
+  return MapSecurityError(status);
 }
 
 // For the SSL sockets to share SSL sessions by session resumption handshakes,
 // they need to use the same CredHandle.  The GetCredHandle function creates
-// and returns a shared CredHandle.
+// and stores a shared CredHandle in *handle_ptr.  On success, GetCredHandle
+// returns OK.  On failure, GetCredHandle returns a network error code and
+// leaves *handle_ptr unchanged.
 //
 // The versions of the SSL protocol enabled are a property of the CredHandle.
 // So we need a separate CredHandle for each combination of SSL versions.
@@ -272,17 +281,16 @@ void CredHandleTable::InitializeHandle(CredHandle* handle,
 // TLS-intolerant servers).  These CredHandles are initialized only when
 // needed.
 
-static CredHandle* GetCredHandle(PCCERT_CONTEXT client_cert,
-                                 int ssl_version_mask) {
-  // It doesn't matter whether GetCredHandle returns NULL or a pointer to an
-  // uninitialized CredHandle on failure.  Both of them cause
-  // InitializeSecurityContext to fail with SEC_E_INVALID_HANDLE.
+static int GetCredHandle(PCCERT_CONTEXT client_cert,
+                         int ssl_version_mask,
+                         CredHandle** handle_ptr) {
   if (ssl_version_mask <= 0 || ssl_version_mask >= SSL_VERSION_MASKS) {
     NOTREACHED();
-    return NULL;
+    return ERR_UNEXPECTED;
   }
   return Singleton<CredHandleTable>::get()->GetHandle(client_cert,
-                                                      ssl_version_mask);
+                                                      ssl_version_mask,
+                                                      handle_ptr);
 }
 
 //-----------------------------------------------------------------------------
@@ -565,7 +573,9 @@ int SSLClientSocketWin::InitializeSSLContext() {
   PCCERT_CONTEXT cert_context = NULL;
   if (ssl_config_.client_cert)
     cert_context = ssl_config_.client_cert->os_cert_handle();
-  creds_ = GetCredHandle(cert_context, ssl_version_mask);
+  int result = GetCredHandle(cert_context, ssl_version_mask, &creds_);
+  if (result != OK)
+    return result;
 
   memset(&ctxt_, 0, sizeof(ctxt_));
 
@@ -958,6 +968,7 @@ int SSLClientSocketWin::DoHandshakeReadComplete(int result) {
   if (isc_status_ == SEC_E_INVALID_TOKEN) {
     // Peer sent us an SSL record type that's invalid during SSL handshake.
     // TODO(wtc): move this to MapSecurityError after sufficient testing.
+    LOG(ERROR) << "InitializeSecurityContext failed: " << isc_status_;
     return ERR_SSL_PROTOCOL_ERROR;
   }
 
@@ -992,6 +1003,11 @@ int SSLClientSocketWin::DidCallInitializeSecurityContext() {
 
   if (FAILED(isc_status_)) {
     LOG(ERROR) << "InitializeSecurityContext failed: " << isc_status_;
+    if (isc_status_ == SEC_E_INTERNAL_ERROR) {
+      // "The Local Security Authority cannot be contacted".  This happens
+      // when the user denies access to the private key for SSL client auth.
+      return ERR_SSL_CLIENT_AUTH_PRIVATE_KEY_ACCESS_DENIED;
+    }
     int result = MapSecurityError(isc_status_);
     // We told Schannel to not verify the server certificate
     // (SCH_CRED_MANUAL_CRED_VALIDATION), so any certificate error returned by
