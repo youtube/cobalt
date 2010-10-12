@@ -119,7 +119,7 @@ int CertDatabase::ExportToPKCS12(
 }
 
 X509Certificate* CertDatabase::FindRootInList(
-    const CertificateList& certificates) {
+    const CertificateList& certificates) const {
   DCHECK_GT(certificates.size(), 0U);
 
   if (certificates.size() == 1)
