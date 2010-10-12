@@ -109,12 +109,11 @@ class RRResolverHandle {
   // Post copies the contents of |response| to the caller's RRResponse and
   // calls the callback.
   void Post(int rv, const RRResponse* response) {
-    if (!callback_)
-      return;  // we were canceled.
-
-    if (response_ && response)
-      *response_ = *response;
-    callback_->Run(rv);
+    if (callback_) {
+      if (response_ && response)
+        *response_ = *response;
+      callback_->Run(rv);
+    }
     delete this;
   }
 
