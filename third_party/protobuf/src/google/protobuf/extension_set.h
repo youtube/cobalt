@@ -324,10 +324,11 @@ class LIBPROTOBUF_EXPORT ExtensionSet {
   // Specific versions for lite or full messages (constructs the appropriate
   // FieldSkipper automatically).
   bool ParseField(uint32 tag, io::CodedInputStream* input,
-                  const MessageLite* containing_type);
-  bool ParseField(uint32 tag, io::CodedInputStream* input,
-                  const Message* containing_type,
+                  const MessageLite* containing_type,
                   UnknownFieldSet* unknown_fields);
+  bool ParseFieldHeavy(uint32 tag, io::CodedInputStream* input,
+                       const Message* containing_type,
+                       UnknownFieldSet* unknown_fields);
 
   // Parse an entire message in MessageSet format.  Such messages have no
   // fields, only extensions.
@@ -338,10 +339,11 @@ class LIBPROTOBUF_EXPORT ExtensionSet {
   // Specific versions for lite or full messages (constructs the appropriate
   // FieldSkipper automatically).
   bool ParseMessageSet(io::CodedInputStream* input,
-                       const MessageLite* containing_type);
-  bool ParseMessageSet(io::CodedInputStream* input,
-                       const Message* containing_type,
+                       const MessageLite* containing_type,
                        UnknownFieldSet* unknown_fields);
+  bool ParseMessageSetHeavy(io::CodedInputStream* input,
+                            const Message* containing_type,
+                            UnknownFieldSet* unknown_fields);
 
   // Write all extension fields with field numbers in the range
   //   [start_field_number, end_field_number)

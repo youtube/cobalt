@@ -245,6 +245,12 @@ message FileOptions {
   // top-level extensions defined in the file.
   optional bool java_multiple_files = 10 [default=false];
 
+  // If set true, then code generators will store unknown fields so that
+  // reserializing a message will retain them. This is the default behaviour
+  // unless LITE_RUNTIME is specified. Therefore, this option only makes sense
+  // when LITE_RUNTIME is in use.
+  optional bool retain_unknown_fields = 11 [default=false];
+
   // Generated classes can be optimized for speed or code size.
   enum OptimizeMode {
     SPEED = 1;        // Generate complete code for parsing, serialization,

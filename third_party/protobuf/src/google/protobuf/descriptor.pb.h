@@ -1484,6 +1484,13 @@ class LIBPROTOBUF_EXPORT FileOptions : public ::google::protobuf::Message {
   inline bool java_multiple_files() const;
   inline void set_java_multiple_files(bool value);
   
+  // optional bool retain_unknown_fields = 11 [default = false];
+  inline bool has_retain_unknown_fields() const;
+  inline void clear_retain_unknown_fields();
+  static const int kRetainUnknownFieldsFieldNumber = 11;
+  inline bool retain_unknown_fields() const;
+  inline void set_retain_unknown_fields(bool value);
+  
   // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = SPEED];
   inline bool has_optimize_for() const;
   inline void clear_optimize_for();
@@ -1536,6 +1543,7 @@ class LIBPROTOBUF_EXPORT FileOptions : public ::google::protobuf::Message {
   ::std::string* java_outer_classname_;
   static const ::std::string _default_java_outer_classname_;
   bool java_multiple_files_;
+  bool retain_unknown_fields_;
   int optimize_for_;
   bool cc_generic_services_;
   bool java_generic_services_;
@@ -1545,7 +1553,7 @@ class LIBPROTOBUF_EXPORT FileOptions : public ::google::protobuf::Message {
   friend void protobuf_AssignDesc_google_2fprotobuf_2fdescriptor_2eproto();
   friend void protobuf_ShutdownFile_google_2fprotobuf_2fdescriptor_2eproto();
   
-  ::google::protobuf::uint32 _has_bits_[(8 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(9 + 31) / 32];
   
   // WHY DOES & HAVE LOWER PRECEDENCE THAN != !?
   inline bool _has_bit(int index) const {
@@ -3709,68 +3717,84 @@ inline void FileOptions::set_java_multiple_files(bool value) {
   java_multiple_files_ = value;
 }
 
+// optional bool retain_unknown_fields = 11 [default = false];
+inline bool FileOptions::has_retain_unknown_fields() const {
+  return _has_bit(3);
+}
+inline void FileOptions::clear_retain_unknown_fields() {
+  retain_unknown_fields_ = false;
+  _clear_bit(3);
+}
+inline bool FileOptions::retain_unknown_fields() const {
+  return retain_unknown_fields_;
+}
+inline void FileOptions::set_retain_unknown_fields(bool value) {
+  _set_bit(3);
+  retain_unknown_fields_ = value;
+}
+
 // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = SPEED];
 inline bool FileOptions::has_optimize_for() const {
-  return _has_bit(3);
+  return _has_bit(4);
 }
 inline void FileOptions::clear_optimize_for() {
   optimize_for_ = 1;
-  _clear_bit(3);
+  _clear_bit(4);
 }
 inline ::google::protobuf::FileOptions_OptimizeMode FileOptions::optimize_for() const {
   return static_cast< ::google::protobuf::FileOptions_OptimizeMode >(optimize_for_);
 }
 inline void FileOptions::set_optimize_for(::google::protobuf::FileOptions_OptimizeMode value) {
   GOOGLE_DCHECK(::google::protobuf::FileOptions_OptimizeMode_IsValid(value));
-  _set_bit(3);
+  _set_bit(4);
   optimize_for_ = value;
 }
 
 // optional bool cc_generic_services = 16 [default = true];
 inline bool FileOptions::has_cc_generic_services() const {
-  return _has_bit(4);
+  return _has_bit(5);
 }
 inline void FileOptions::clear_cc_generic_services() {
   cc_generic_services_ = true;
-  _clear_bit(4);
+  _clear_bit(5);
 }
 inline bool FileOptions::cc_generic_services() const {
   return cc_generic_services_;
 }
 inline void FileOptions::set_cc_generic_services(bool value) {
-  _set_bit(4);
+  _set_bit(5);
   cc_generic_services_ = value;
 }
 
 // optional bool java_generic_services = 17 [default = true];
 inline bool FileOptions::has_java_generic_services() const {
-  return _has_bit(5);
+  return _has_bit(6);
 }
 inline void FileOptions::clear_java_generic_services() {
   java_generic_services_ = true;
-  _clear_bit(5);
+  _clear_bit(6);
 }
 inline bool FileOptions::java_generic_services() const {
   return java_generic_services_;
 }
 inline void FileOptions::set_java_generic_services(bool value) {
-  _set_bit(5);
+  _set_bit(6);
   java_generic_services_ = value;
 }
 
 // optional bool py_generic_services = 18 [default = true];
 inline bool FileOptions::has_py_generic_services() const {
-  return _has_bit(6);
+  return _has_bit(7);
 }
 inline void FileOptions::clear_py_generic_services() {
   py_generic_services_ = true;
-  _clear_bit(6);
+  _clear_bit(7);
 }
 inline bool FileOptions::py_generic_services() const {
   return py_generic_services_;
 }
 inline void FileOptions::set_py_generic_services(bool value) {
-  _set_bit(6);
+  _set_bit(7);
   py_generic_services_ = value;
 }
 

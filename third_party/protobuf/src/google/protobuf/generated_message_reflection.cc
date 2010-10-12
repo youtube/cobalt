@@ -47,18 +47,6 @@ namespace internal {
 
 namespace { const string kEmptyString; }
 
-int StringSpaceUsedExcludingSelf(const string& str) {
-  const void* start = &str;
-  const void* end = &str + 1;
-
-  if (start <= str.data() && str.data() <= end) {
-    // The string's data is stored inside the string object itself.
-    return 0;
-  } else {
-    return str.capacity();
-  }
-}
-
 bool ParseNamedEnum(const EnumDescriptor* descriptor,
                     const string& name,
                     int* value) {

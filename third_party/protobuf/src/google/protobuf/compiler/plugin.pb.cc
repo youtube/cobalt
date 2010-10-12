@@ -293,8 +293,7 @@ bool CodeGeneratorRequest::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           return true;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag, mutable_unknown_fields()));
         break;
       }
     }
@@ -330,7 +329,7 @@ void CodeGeneratorRequest::SerializeWithCachedSizes(
   }
   
   if (!unknown_fields().empty()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+    ::google::protobuf::internal::WireFormatLite::SerializeUnknownFields(
         unknown_fields(), output);
   }
 }
@@ -364,7 +363,7 @@ void CodeGeneratorRequest::SerializeWithCachedSizes(
   }
   
   if (!unknown_fields().empty()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+    target = ::google::protobuf::internal::WireFormatLite::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
   return target;
@@ -399,7 +398,7 @@ int CodeGeneratorRequest::ByteSize() const {
   
   if (!unknown_fields().empty()) {
     total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+      ::google::protobuf::internal::WireFormatLite::ComputeUnknownFieldsSize(
         unknown_fields());
   }
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
@@ -627,8 +626,7 @@ bool CodeGeneratorResponse_File::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           return true;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag, mutable_unknown_fields()));
         break;
       }
     }
@@ -667,7 +665,7 @@ void CodeGeneratorResponse_File::SerializeWithCachedSizes(
   }
   
   if (!unknown_fields().empty()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+    ::google::protobuf::internal::WireFormatLite::SerializeUnknownFields(
         unknown_fields(), output);
   }
 }
@@ -705,7 +703,7 @@ void CodeGeneratorResponse_File::SerializeWithCachedSizes(
   }
   
   if (!unknown_fields().empty()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+    target = ::google::protobuf::internal::WireFormatLite::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
   return target;
@@ -739,7 +737,7 @@ int CodeGeneratorResponse_File::ByteSize() const {
   }
   if (!unknown_fields().empty()) {
     total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+      ::google::protobuf::internal::WireFormatLite::ComputeUnknownFieldsSize(
         unknown_fields());
   }
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
@@ -929,8 +927,7 @@ bool CodeGeneratorResponse::MergePartialFromCodedStream(
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
           return true;
         }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
+        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag, mutable_unknown_fields()));
         break;
       }
     }
@@ -957,7 +954,7 @@ void CodeGeneratorResponse::SerializeWithCachedSizes(
   }
   
   if (!unknown_fields().empty()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+    ::google::protobuf::internal::WireFormatLite::SerializeUnknownFields(
         unknown_fields(), output);
   }
 }
@@ -982,7 +979,7 @@ void CodeGeneratorResponse::SerializeWithCachedSizes(
   }
   
   if (!unknown_fields().empty()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+    target = ::google::protobuf::internal::WireFormatLite::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
   return target;
@@ -1010,7 +1007,7 @@ int CodeGeneratorResponse::ByteSize() const {
   
   if (!unknown_fields().empty()) {
     total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+      ::google::protobuf::internal::WireFormatLite::ComputeUnknownFieldsSize(
         unknown_fields());
   }
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
