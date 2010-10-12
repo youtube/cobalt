@@ -4014,7 +4014,7 @@ bool DescriptorBuilder::OptionInterpreter::InterpretSingleOption(
         io::StringOutputStream outstr(
             parent_unknown_fields->AddLengthDelimited((*iter)->number()));
         io::CodedOutputStream out(&outstr);
-        internal::WireFormat::SerializeUnknownFields(*unknown_fields, &out);
+        internal::WireFormatLite::SerializeUnknownFields(*unknown_fields, &out);
         GOOGLE_CHECK(!out.HadError())
             << "Unexpected failure while serializing option submessage "
             << debug_msg_name << "\".";

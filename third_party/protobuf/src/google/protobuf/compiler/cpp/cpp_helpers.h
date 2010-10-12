@@ -114,7 +114,8 @@ string GlobalShutdownFileName(const string& filename);
 
 // Do message classes in this file keep track of unknown fields?
 inline bool HasUnknownFields(const FileDescriptor *file) {
-  return file->options().optimize_for() != FileOptions::LITE_RUNTIME;
+  return file->options().optimize_for() != FileOptions::LITE_RUNTIME ||
+         file->options().retain_unknown_fields();
 }
 
 // Does this file have generated parsing, serialization, and other
