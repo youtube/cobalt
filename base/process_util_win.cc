@@ -119,6 +119,18 @@ bool OpenPrivilegedProcessHandle(ProcessId pid, ProcessHandle* handle) {
   return true;
 }
 
+bool OpenProcessHandleWithAccess(ProcessId pid,
+                                 uint32 access_flags,
+                                 ProcessHandle* handle) {
+  ProcessHandle result = OpenProcess(access_flags, FALSE, pid);
+
+  if (result == INVALID_HANDLE_VALUE)
+    return false;
+
+  *handle = result;
+  return true;
+}
+
 void CloseProcessHandle(ProcessHandle process) {
   CloseHandle(process);
 }
