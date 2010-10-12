@@ -130,6 +130,10 @@ class NetLog {
   // and saving expensive log entries.
   virtual LogLevel GetLogLevel() const = 0;
 
+  // Converts a time to the string format that the NetLog uses to represent
+  // times.  Strings are used since integers may overflow.
+  static std::string TickCountToString(const base::TimeTicks& time);
+
   // Returns a C-String symbolic name for |event_type|.
   static const char* EventTypeToString(EventType event_type);
 
