@@ -33,7 +33,7 @@
 #if defined(OS_WIN)
 
 // Enable to build with exception handler
-//#define ENABLE_WINDOWS_EXCEPTIONS 1
+// #define ENABLE_WINDOWS_EXCEPTIONS 1
 
 #ifdef ENABLE_WINDOWS_EXCEPTIONS
 // warning: disable warning about exception handler.
@@ -219,13 +219,6 @@ int main(int argc, const char** argv) {
     std::cerr << "Error: Could not find codec for "
               << in_path.value() << std::endl;
     return 1;
-  }
-
-  // TODO(fbarchard): On next ffmpeg roll, retest if this work around is needed.
-  if (codec_context->codec_id == CODEC_ID_THEORA) {
-    std::cerr << "Warning: Disabling threads to avoid Theora bug "
-              << in_path.value() << std::endl;
-    video_threads = 1;
   }
 
   codec_context->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
