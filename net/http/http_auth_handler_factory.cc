@@ -66,7 +66,7 @@ bool IsSupportedScheme(const std::vector<std::string>& supported_schemes,
   return it != supported_schemes.end();
 }
 
-}
+}  // namespace
 
 // static
 HttpAuthHandlerRegistryFactory* HttpAuthHandlerRegistryFactory::Create(
