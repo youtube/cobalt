@@ -174,9 +174,6 @@ bool Delete(const FilePath& path, bool recursive) {
     directories.pop();
     success = (rmdir(dir.value().c_str()) == 0);
   }
-#if defined(OS_CHROMEOS)
-  sync();
-#endif
   return success;
 }
 
