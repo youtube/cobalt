@@ -87,7 +87,7 @@ class CertDatabase {
   // root.  Assumes the list is an ordered hierarchy with the root being either
   // the first or last element.
   // TODO(mattm): improve this to handle any order.
-  X509Certificate* FindRootInList(const CertificateList& certificates);
+  X509Certificate* FindRootInList(const CertificateList& certificates) const;
 
   // Import CA certificates.
   // Tries to import all the certificates given.  The root will be trusted
