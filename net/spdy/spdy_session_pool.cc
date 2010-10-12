@@ -5,6 +5,7 @@
 #include "net/spdy/spdy_session_pool.h"
 
 #include "base/logging.h"
+#include "base/values.h"
 #include "net/http/http_network_session.h"
 #include "net/spdy/spdy_session.h"
 
@@ -107,6 +108,21 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
                                   session->net_log().source()));
   if (list->empty())
     RemoveSessionList(session->host_port_proxy_pair());
+}
+
+Value* SpdySessionPool::SpdySessionPoolInfoToValue() {
+  ListValue* list = new ListValue();
+
+  SpdySessionsMap::const_iterator spdy_session_pool_it = sessions_.begin();
+  for (SpdySessionsMap::const_iterator it = sessions_.begin();
+       it != sessions_.end(); it++) {
+    SpdySessionList* sessions = it->second;
+    for (SpdySessionList::const_iterator session = sessions->begin();
+         session != sessions->end(); session++) {
+      list->Append(session->get()->GetInfoAsValue());
+    }
+  }
+  return list;
 }
 
 void SpdySessionPool::OnIPAddressChanged() {

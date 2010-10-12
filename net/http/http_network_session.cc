@@ -64,4 +64,8 @@ void HttpNetworkSession::RemoveResponseDrainer(
   response_drainers_.erase(drainer);
 }
 
+Value* HttpNetworkSession::SpdySessionPoolInfoToValue() const {
+  return spdy_session_pool_->SpdySessionPoolInfoToValue();
+}
+
 }  //  namespace net

@@ -88,6 +88,10 @@ class SpdySessionPool
   // by SpdySession, because otherwise session->state_ is not set to CLOSED.
   void Remove(const scoped_refptr<SpdySession>& session);
 
+  // Creates a Value summary of the state of the spdy session pool. The caller
+  // responsible for deleting the returned value.
+  Value* SpdySessionPoolInfoToValue();
+
   // NetworkChangeNotifier::Observer methods:
 
   // We flush all idle sessions and release references to the active ones so

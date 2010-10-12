@@ -41,7 +41,6 @@ static void AddSocketPoolsToList(ListValue* list,
                                  const MapType& socket_pools,
                                  const std::string& type,
                                  bool include_nested_pools) {
-  typename MapType::const_iterator socket_pool_it = socket_pools.begin();
   for (typename MapType::const_iterator it = socket_pools.begin();
        it != socket_pools.end(); it++) {
     list->Append(it->second->GetInfoAsValue(it->first.ToString(),

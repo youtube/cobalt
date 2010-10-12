@@ -155,6 +155,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // session pool.
   void CloseSessionOnError(net::Error err, bool remove_from_pool);
 
+  // Retrieves information on the current state of the SPDY session as a
+  // Value.  Caller takes possession of the returned value.
+  Value* GetInfoAsValue() const;
+
   // Indicates whether the session is being reused after having successfully
   // used to send/receive data in the past.
   bool IsReused() const {

@@ -19,6 +19,12 @@ Value* NetLog::Source::ToValue() const {
 }
 
 // static
+std::string NetLog::TickCountToString(const base::TimeTicks& time) {
+  int64 delta_time = (time - base::TimeTicks()).InMilliseconds();
+  return base::Int64ToString(delta_time);
+}
+
+// static
 const char* NetLog::EventTypeToString(EventType event) {
   switch (event) {
 #define EVENT_TYPE(label) case TYPE_ ## label: return #label;
@@ -71,10 +77,7 @@ Value* NetLog::EntryToDictionaryValue(net::NetLog::EventType type,
                                       bool use_strings) {
   DictionaryValue* entry_dict = new DictionaryValue();
 
-  // Set the entry time. (Note that we send it as a string since integers
-  // might overflow).
-  int64 delta_time = (time - base::TimeTicks()).InMilliseconds();
-  entry_dict->SetString("time", base::Int64ToString(delta_time));
+  entry_dict->SetString("time", TickCountToString(time));
 
   // Set the entry source.
   DictionaryValue* source_dict = new DictionaryValue();
