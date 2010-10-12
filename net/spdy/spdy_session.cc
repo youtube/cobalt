@@ -839,6 +839,36 @@ void SpdySession::CloseSessionOnError(net::Error err, bool remove_from_pool) {
   }
 }
 
+Value* SpdySession::GetInfoAsValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+
+  dict->SetInteger("source_id", net_log_.source().id);
+
+  dict->SetString("host_port_pair", host_port_proxy_pair_.first.ToString());
+  dict->SetString("proxy", host_port_proxy_pair_.second.ToURI());
+
+  dict->SetInteger("active_streams", active_streams_.size());
+
+  dict->SetInteger("unclaimed_pushed_streams",
+      unclaimed_pushed_streams_.size());
+
+  dict->SetBoolean("is_secure", is_secure_);
+
+  dict->SetInteger("error", error_);
+  dict->SetInteger("max_concurrent_streams", max_concurrent_streams_);
+
+  dict->SetInteger("streams_initiated_count", streams_initiated_count_);
+  dict->SetInteger("streams_pushed_count", streams_pushed_count_);
+  dict->SetInteger("streams_pushed_and_claimed_count",
+      streams_pushed_and_claimed_count_);
+  dict->SetInteger("streams_abandoned_count", streams_abandoned_count_);
+  dict->SetInteger("frames_received", frames_received_);
+
+  dict->SetBoolean("sent_settings", sent_settings_);
+  dict->SetBoolean("received_settings", received_settings_);
+  return dict;
+}
+
 void SpdySession::ActivateStream(SpdyStream* stream) {
   const spdy::SpdyStreamId id = stream->stream_id();
   DCHECK(!IsStreamActive(id));
