@@ -51,6 +51,7 @@ namespace protobuf {
     class CodedInputStream;             // coded_stream.h
     class CodedOutputStream;            // coded_stream.h
   }
+  class UnknownFieldSet;
 }
 
 namespace protobuf {
@@ -159,15 +160,24 @@ class LIBPROTOBUF_EXPORT WireFormatLite {
   // and end tags.
   static inline int TagSize(int field_number, WireFormatLite::FieldType type);
 
+  // -----------------------------------------------------------------
+  // Helpers for dealing with unknown fields
+
   // Skips a field value with the given tag.  The input should start
   // positioned immediately after the tag.  Skipped values are simply discarded,
   // not recorded anywhere.  See WireFormat::SkipField() for a version that
   // records to an UnknownFieldSet.
-  static bool SkipField(io::CodedInputStream* input, uint32 tag);
+  static bool SkipField(io::CodedInputStream* input, uint32 tag,
+                        UnknownFieldSet *unknown_fields);
 
-  // Reads and ignores a message from the input.  Skipped values are simply
-  // discarded, not recorded anywhere.  See WireFormat::SkipMessage() for a
-  // version that records to an UnknownFieldSet.
+  // Reads and ignores a message from the input.  If unknown_fields is non-NULL,
+  // the contents will be added to it.
+  static bool SkipMessage(io::CodedInputStream* input,
+                          UnknownFieldSet* unknown_fields);
+
+
+  // Reads and ignores a message from the input.  Skipped values may be stored
+  // in the UnknownFieldSet if it exists.
   static bool SkipMessage(io::CodedInputStream* input);
 
 // This macro does the same thing as WireFormatLite::MakeTag(), but the
@@ -223,6 +233,40 @@ class LIBPROTOBUF_EXPORT WireFormatLite {
   static int32  ZigZagDecode32(uint32 n);
   static uint64 ZigZagEncode64(int64 n);
   static int64  ZigZagDecode64(uint64 n);
+
+  // Write the contents of an UnknownFieldSet to the output.
+  static void SerializeUnknownFields(const UnknownFieldSet& unknown_fields,
+                                     io::CodedOutputStream* output);
+  // Same as above, except writing directly to the provided buffer.
+  // Requires that the buffer have sufficient capacity for
+  // ComputeUnknownFieldsSize(unknown_fields).
+  //
+  // Returns a pointer past the last written byte.
+  static uint8* SerializeUnknownFieldsToArray(
+      const UnknownFieldSet& unknown_fields,
+      uint8* target);
+
+  // Same thing except for messages that have the message_set_wire_format
+  // option.
+  static void SerializeUnknownMessageSetItems(
+      const UnknownFieldSet& unknown_fields,
+      io::CodedOutputStream* output);
+  // Same as above, except writing directly to the provided buffer.
+  // Requires that the buffer have sufficient capacity for
+  // ComputeUnknownMessageSetItemsSize(unknown_fields).
+  //
+  // Returns a pointer past the last written byte.
+  static uint8* SerializeUnknownMessageSetItemsToArray(
+      const UnknownFieldSet& unknown_fields,
+      uint8* target);
+
+  // Compute the size of the UnknownFieldSet on the wire.
+  static int ComputeUnknownFieldsSize(const UnknownFieldSet& unknown_fields);
+
+  // Same thing except for messages that have the message_set_wire_format
+  // option.
+  static int ComputeUnknownMessageSetItemsSize(
+      const UnknownFieldSet& unknown_fields);
 
   // =================================================================
   // Methods for reading/writing individual field.  The implementations
@@ -494,26 +538,26 @@ class LIBPROTOBUF_EXPORT WireFormatLite {
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(WireFormatLite);
 };
 
-// A class which deals with unknown values.  The default implementation just
-// discards them.  WireFormat defines a subclass which writes to an
-// UnknownFieldSet.  This class is used by ExtensionSet::ParseField(), since
-// ExtensionSet is part of the lite library but UnknownFieldSet is not.
+// A class which deals with unknown values by saving them to an UnknownFieldSet.
 class LIBPROTOBUF_EXPORT FieldSkipper {
  public:
-  FieldSkipper() {}
-  virtual ~FieldSkipper() {}
+  FieldSkipper(UnknownFieldSet* unknown_fields)
+      : unknown_fields_(unknown_fields) {}
 
   // Skip a field whose tag has already been consumed.
-  virtual bool SkipField(io::CodedInputStream* input, uint32 tag);
+  bool SkipField(io::CodedInputStream* input, uint32 tag);
 
   // Skip an entire message or group, up to an end-group tag (which is consumed)
   // or end-of-stream.
-  virtual bool SkipMessage(io::CodedInputStream* input);
+  bool SkipMessage(io::CodedInputStream* input);
 
   // Deal with an already-parsed unrecognized enum value.  The default
   // implementation does nothing, but the UnknownFieldSet-based implementation
   // saves it as an unknown varint.
-  virtual void SkipUnknownEnum(int field_number, int value);
+  void SkipUnknownEnum(int field_number, int value);
+
+ private:
+  UnknownFieldSet* unknown_fields_;
 };
 
 // inline methods ====================================================
