@@ -100,6 +100,17 @@ class CertDatabase {
                      unsigned int trust_bits,
                      ImportCertFailureList* not_imported);
 
+  // Import server certificate.  The first cert should be the server cert.  Any
+  // additional certs should be intermediate/CA certs and will be imported but
+  // not given any trust.
+  // Any certificates that could not be imported will be listed in
+  // |not_imported|.
+  // Returns false if there is an internal error, otherwise true is returned and
+  // |not_imported| should be checked for any certificates that were not
+  // imported.
+  bool ImportServerCert(const CertificateList& certificates,
+                        ImportCertFailureList* not_imported);
+
   // Get trust bits for certificate.
   unsigned int GetCertTrust(const X509Certificate* cert, CertType type) const;
 
