@@ -13,7 +13,11 @@ class FilePath;
 namespace disk_cache {
 
 // Moves the cache files from the given path to another location.
-// Returns true if successful, false otherwise.
+// Fails if the destination exists already, or if it doesn't have
+// permission for the operation.  This is basically a rename operation
+// for the cache directory.  Returns true if successful.  On ChromeOS,
+// this moves the cache contents, and leaves the empty cache
+// directory.
 bool MoveCache(const FilePath& from_path, const FilePath& to_path);
 
 // Deletes the cache files stored on |path|, and optionally also attempts to

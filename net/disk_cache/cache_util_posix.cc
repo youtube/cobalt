@@ -11,8 +11,34 @@
 namespace disk_cache {
 
 bool MoveCache(const FilePath& from_path, const FilePath& to_path) {
-  // Just use the version from base.
+#if defined(OS_CHROMEOS)
+  // For ChromeOS, we don't actually want to rename the cache
+  // directory, because if we do, then it'll get recreated through the
+  // encrypted filesystem (with encrypted names), and we won't be able
+  // to see these directories anymore in an unmounted encrypted
+  // filesystem, so we just move each item in the cache to a new
+  // directory.
+  if (!file_util::CreateDirectory(to_path)) {
+    LOG(ERROR) << "Unable to create destination cache directory.";
+    return false;
+  }
+  file_util::FileEnumerator iter(
+      from_path,
+      /* recursive */ false,
+      static_cast<file_util::FileEnumerator::FILE_TYPE>(
+          file_util::FileEnumerator::DIRECTORIES |
+          file_util::FileEnumerator::FILES));
+  for (FilePath name = iter.Next(); !name.value().empty(); name = iter.Next()) {
+    FilePath destination = to_path.Append(name.BaseName());
+    if (!file_util::Move(name, destination)) {
+      LOG(ERROR) << "Unable to move cache item.";
+      return false;
+    }
+  }
+  return true;
+#else
   return file_util::Move(from_path, to_path);
+#endif
 }
 
 void DeleteCache(const FilePath& path, bool remove_folder) {

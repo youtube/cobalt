@@ -833,6 +833,7 @@
         'disk_cache/backend_unittest.cc',
         'disk_cache/bitmap_unittest.cc',
         'disk_cache/block_files_unittest.cc',
+        'disk_cache/cache_util_unittest.cc',
         'disk_cache/disk_cache_test_base.cc',
         'disk_cache/disk_cache_test_base.h',
         'disk_cache/entry_unittest.cc',
