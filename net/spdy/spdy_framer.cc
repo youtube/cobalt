@@ -74,7 +74,7 @@ void SpdyFramer::Reset() {
   current_frame_len_ = 0;
   if (current_frame_capacity_ != kControlFrameBufferInitialSize) {
     delete [] current_frame_buffer_;
-    current_frame_buffer_ = 0;
+    current_frame_buffer_ = NULL;
     current_frame_capacity_ = 0;
     ExpandControlFrameBuffer(kControlFrameBufferInitialSize);
   }
