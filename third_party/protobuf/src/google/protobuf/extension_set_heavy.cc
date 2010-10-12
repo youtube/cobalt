@@ -202,10 +202,10 @@ bool DescriptorPoolExtensionFinder::Find(int number, ExtensionInfo* output) {
   }
 }
 
-bool ExtensionSet::ParseField(uint32 tag, io::CodedInputStream* input,
-                              const Message* containing_type,
-                              UnknownFieldSet* unknown_fields) {
-  UnknownFieldSetFieldSkipper skipper(unknown_fields);
+bool ExtensionSet::ParseFieldHeavy(uint32 tag, io::CodedInputStream* input,
+                                   const Message* containing_type,
+                                   UnknownFieldSet* unknown_fields) {
+  FieldSkipper skipper(unknown_fields);
   if (input->GetExtensionPool() == NULL) {
     GeneratedExtensionFinder finder(containing_type);
     return ParseField(tag, input, &finder, &skipper);
@@ -217,10 +217,10 @@ bool ExtensionSet::ParseField(uint32 tag, io::CodedInputStream* input,
   }
 }
 
-bool ExtensionSet::ParseMessageSet(io::CodedInputStream* input,
-                                   const Message* containing_type,
-                                   UnknownFieldSet* unknown_fields) {
-  UnknownFieldSetFieldSkipper skipper(unknown_fields);
+bool ExtensionSet::ParseMessageSetHeavy(io::CodedInputStream* input,
+                                        const Message* containing_type,
+                                        UnknownFieldSet* unknown_fields) {
+  FieldSkipper skipper(unknown_fields);
   if (input->GetExtensionPool() == NULL) {
     GeneratedExtensionFinder finder(containing_type);
     return ParseMessageSet(input, &finder, &skipper);

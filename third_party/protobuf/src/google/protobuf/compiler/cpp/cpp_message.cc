@@ -1383,7 +1383,7 @@ GenerateMergeFromCodedStream(io::Printer* printer) {
         "                              mutable_unknown_fields()));\n");
     } else {
       printer->Print(
-        "  DO_(_extensions_.ParseField(tag, input, default_instance_));\n");
+        "  DO_(_extensions_.ParseField(tag, input, default_instance_, NULL));\n");
     }
     printer->Print(
       "  continue;\n"
@@ -1393,11 +1393,10 @@ GenerateMergeFromCodedStream(io::Printer* printer) {
   // We really don't recognize this tag.  Skip it.
   if (HasUnknownFields(descriptor_->file())) {
     printer->Print(
-      "DO_(::google::protobuf::internal::WireFormat::SkipField(\n"
-      "      input, tag, mutable_unknown_fields()));\n");
+      "DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag, mutable_unknown_fields()));\n");
   } else {
     printer->Print(
-      "DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));\n");
+      "DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag, NULL));\n");
   }
 
   if (descriptor_->field_count() > 0) {
@@ -1472,7 +1471,7 @@ GenerateSerializeWithCachedSizes(io::Printer* printer) {
       "classname", classname_);
     if (HasUnknownFields(descriptor_->file())) {
       printer->Print(
-        "  ::google::protobuf::internal::WireFormat::SerializeUnknownMessageSetItems(\n"
+        "  ::google::protobuf::internal::WireFormatLite::SerializeUnknownMessageSetItems(\n"
         "      unknown_fields(), output);\n");
     }
     printer->Print(
@@ -1505,7 +1504,7 @@ GenerateSerializeWithCachedSizesToArray(io::Printer* printer) {
       "classname", classname_);
     if (HasUnknownFields(descriptor_->file())) {
       printer->Print(
-        "  target = ::google::protobuf::internal::WireFormat::\n"
+        "  target = ::google::protobuf::internal::WireFormatLite::\n"
         "             SerializeUnknownMessageSetItemsToArray(\n"
         "               unknown_fields(), target);\n");
     }
@@ -1567,11 +1566,11 @@ GenerateSerializeWithCachedSizesBody(io::Printer* printer, bool to_array) {
     if (to_array) {
       printer->Print(
         "target = "
-            "::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(\n"
+            "::google::protobuf::internal::WireFormatLite::SerializeUnknownFieldsToArray(\n"
         "    unknown_fields(), target);\n");
     } else {
       printer->Print(
-        "::google::protobuf::internal::WireFormat::SerializeUnknownFields(\n"
+        "::google::protobuf::internal::WireFormatLite::SerializeUnknownFields(\n"
         "    unknown_fields(), output);\n");
     }
     printer->Outdent();
@@ -1591,7 +1590,7 @@ GenerateByteSize(io::Printer* printer) {
       "classname", classname_);
     if (HasUnknownFields(descriptor_->file())) {
       printer->Print(
-        "  total_size += ::google::protobuf::internal::WireFormat::\n"
+        "  total_size += ::google::protobuf::internal::WireFormatLite::\n"
         "      ComputeUnknownMessageSetItemsSize(unknown_fields());\n");
     }
     printer->Print(
@@ -1677,7 +1676,7 @@ GenerateByteSize(io::Printer* printer) {
     printer->Indent();
     printer->Print(
       "total_size +=\n"
-      "  ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(\n"
+      "  ::google::protobuf::internal::WireFormatLite::ComputeUnknownFieldsSize(\n"
       "    unknown_fields());\n");
     printer->Outdent();
     printer->Print("}\n");

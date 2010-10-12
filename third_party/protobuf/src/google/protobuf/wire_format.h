@@ -123,54 +123,6 @@ class LIBPROTOBUF_EXPORT WireFormat {
   // WireFormat::SerializeWithCachedSizes() on the same object.
   static int ByteSize(const Message& message);
 
-  // -----------------------------------------------------------------
-  // Helpers for dealing with unknown fields
-
-  // Skips a field value of the given WireType.  The input should start
-  // positioned immediately after the tag.  If unknown_fields is non-NULL,
-  // the contents of the field will be added to it.
-  static bool SkipField(io::CodedInputStream* input, uint32 tag,
-                        UnknownFieldSet* unknown_fields);
-
-  // Reads and ignores a message from the input.  If unknown_fields is non-NULL,
-  // the contents will be added to it.
-  static bool SkipMessage(io::CodedInputStream* input,
-                          UnknownFieldSet* unknown_fields);
-
-  // Write the contents of an UnknownFieldSet to the output.
-  static void SerializeUnknownFields(const UnknownFieldSet& unknown_fields,
-                                     io::CodedOutputStream* output);
-  // Same as above, except writing directly to the provided buffer.
-  // Requires that the buffer have sufficient capacity for
-  // ComputeUnknownFieldsSize(unknown_fields).
-  //
-  // Returns a pointer past the last written byte.
-  static uint8* SerializeUnknownFieldsToArray(
-      const UnknownFieldSet& unknown_fields,
-      uint8* target);
-
-  // Same thing except for messages that have the message_set_wire_format
-  // option.
-  static void SerializeUnknownMessageSetItems(
-      const UnknownFieldSet& unknown_fields,
-      io::CodedOutputStream* output);
-  // Same as above, except writing directly to the provided buffer.
-  // Requires that the buffer have sufficient capacity for
-  // ComputeUnknownMessageSetItemsSize(unknown_fields).
-  //
-  // Returns a pointer past the last written byte.
-  static uint8* SerializeUnknownMessageSetItemsToArray(
-      const UnknownFieldSet& unknown_fields,
-      uint8* target);
-
-  // Compute the size of the UnknownFieldSet on the wire.
-  static int ComputeUnknownFieldsSize(const UnknownFieldSet& unknown_fields);
-
-  // Same thing except for messages that have the message_set_wire_format
-  // option.
-  static int ComputeUnknownMessageSetItemsSize(
-      const UnknownFieldSet& unknown_fields);
-
 
   // Helper functions for encoding and decoding tags.  (Inlined below and in
   // _inl.h)
@@ -239,22 +191,6 @@ class LIBPROTOBUF_EXPORT WireFormat {
 
 
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(WireFormat);
-};
-
-// Subclass of FieldSkipper which saves skipped fields to an UnknownFieldSet.
-class LIBPROTOBUF_EXPORT UnknownFieldSetFieldSkipper : public FieldSkipper {
- public:
-  UnknownFieldSetFieldSkipper(UnknownFieldSet* unknown_fields)
-      : unknown_fields_(unknown_fields) {}
-  virtual ~UnknownFieldSetFieldSkipper() {}
-
-  // implements FieldSkipper -----------------------------------------
-  virtual bool SkipField(io::CodedInputStream* input, uint32 tag);
-  virtual bool SkipMessage(io::CodedInputStream* input);
-  virtual void SkipUnknownEnum(int field_number, int value);
-
- private:
-  UnknownFieldSet* unknown_fields_;
 };
 
 // inline methods ====================================================
