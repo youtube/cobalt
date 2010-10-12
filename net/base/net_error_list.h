@@ -489,3 +489,6 @@ NET_ERROR(IMPORT_CERT_ALREADY_EXISTS, -704)
 
 // CA import failed due to some other error.
 NET_ERROR(IMPORT_CA_CERT_FAILED, -705)
+
+// Server certificate import failed due to some internal error.
+NET_ERROR(IMPORT_SERVER_CERT_FAILED, -706)
