@@ -633,7 +633,7 @@ int HttpCache::Transaction::DoSendRequest() {
     // ssl_config_service.h
     scoped_refptr<DiskCacheBasedSSLHostInfo> hostinfo =
         new DiskCacheBasedSSLHostInfo(request_->url.host(), cache_);
-    network_trans_->SetSSLNonSensitiveHostInfo(hostinfo.get());
+    network_trans_->SetSSLHostInfo(hostinfo.get());
   }
   rv = network_trans_->Start(request_, &io_callback_, net_log_);
   return rv;
