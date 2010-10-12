@@ -181,7 +181,11 @@ class RRResolverWorker {
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
       if (!r && DnsReloadTimerHasExpired()) {
-        res_nclose(&_res);
+        // When there's no network connection, _res may not be initialized by
+        // getaddrinfo. Therefore, we call res_nclose only when there are ns
+        // entries.
+        if (_res.nscount > 0)
+          res_nclose(&_res);
         if (res_ninit(&_res) == 0)
           r = Do();
       }
