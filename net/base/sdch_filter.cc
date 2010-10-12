@@ -125,6 +125,7 @@ bool SdchFilter::InitDecoding(Filter::FilterType filter_type) {
   return true;
 }
 
+#ifndef NDEBUG
 static const char* kDecompressionErrorHtml =
   "<head><META HTTP-EQUIV=\"Refresh\" CONTENT=\"0\"></head>"
   "<div style=\"position:fixed;top:0;left:0;width:100%;border-width:thin;"
@@ -133,7 +134,10 @@ static const char* kDecompressionErrorHtml =
   "An error occurred. This page will be reloaded shortly. "
   "Or press the \"reload\" button now to reload it immediately."
   "</div>";
-
+#else
+static const char* kDecompressionErrorHtml =
+  "<head><META HTTP-EQUIV=\"Refresh\" CONTENT=\"0\"></head>";
+#endif
 
 Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
                                                   int* dest_len) {
