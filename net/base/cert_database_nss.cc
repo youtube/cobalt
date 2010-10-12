@@ -148,6 +148,11 @@ bool CertDatabase::ImportCACerts(const CertificateList& certificates,
   return psm::ImportCACerts(certificates, root, trust_bits, not_imported);
 }
 
+bool CertDatabase::ImportServerCert(const CertificateList& certificates,
+                                    ImportCertFailureList* not_imported) {
+  return psm::ImportServerCert(certificates, not_imported);
+}
+
 unsigned int CertDatabase::GetCertTrust(
     const X509Certificate* cert, CertType type) const {
   CERTCertTrust nsstrust;
