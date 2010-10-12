@@ -196,6 +196,12 @@ NET_ERROR(ESET_ANTI_VIRUS_SSL_INTERCEPTION, -132)
 // a helpful error message rather than have the connection hang.
 NET_ERROR(NETNANNY_SSL_INTERCEPTION, -133)
 
+// The permission to use the SSL client certificate's private key was denied.
+NET_ERROR(SSL_CLIENT_AUTH_PRIVATE_KEY_ACCESS_DENIED, -134)
+
+// The SSL client certificate has no private key.
+NET_ERROR(SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY, -135)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
