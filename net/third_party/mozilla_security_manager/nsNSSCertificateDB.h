@@ -57,6 +57,9 @@ bool ImportCACerts(const net::CertificateList& certificates,
                    unsigned int trustBits,
                    net::CertDatabase::ImportCertFailureList* not_imported);
 
+bool ImportServerCert(const net::CertificateList& certificates,
+                      net::CertDatabase::ImportCertFailureList* not_imported);
+
 bool SetCertTrust(const net::X509Certificate* cert,
                   net::CertType type,
                   unsigned int trusted);
