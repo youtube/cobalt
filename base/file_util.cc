@@ -360,6 +360,7 @@ bool MemoryMappedFile::IsValid() {
 
 // Deprecated functions ----------------------------------------------------
 
+#if defined(OS_WIN)
 bool AbsolutePath(std::wstring* path_str) {
   FilePath path(FilePath::FromWStringHack(*path_str));
   if (!AbsolutePath(&path))
@@ -368,8 +369,6 @@ bool AbsolutePath(std::wstring* path_str) {
   return true;
 }
 
-#if defined(OS_WIN)
-// This function is deprecated; see file_util_deprecated.h for details.
 void AppendToPath(std::wstring* path, const std::wstring& new_ending) {
   if (!path) {
     NOTREACHED();
@@ -380,7 +379,6 @@ void AppendToPath(std::wstring* path, const std::wstring& new_ending) {
     path->push_back(FilePath::kSeparators[0]);
   path->append(new_ending);
 }
-#endif
 
 bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
                    bool recursive) {
@@ -394,11 +392,7 @@ bool Delete(const std::wstring& path, bool recursive) {
 std::wstring GetFileExtensionFromPath(const std::wstring& path) {
   FilePath::StringType extension =
       GetFileExtensionFromPath(FilePath::FromWStringHack(path));
-#if defined(OS_WIN)
   return extension;
-#elif defined(OS_POSIX)
-  return UTF8ToWide(extension);
-#endif
 }
 std::wstring GetFilenameFromPath(const std::wstring& path) {
   if (path.empty() || EndsWithSeparator(FilePath::FromWStringHack(path)))
@@ -415,6 +409,7 @@ int ReadFile(const std::wstring& filename, char* data, int size) {
 int WriteFile(const std::wstring& filename, const char* data, int size) {
   return WriteFile(FilePath::FromWStringHack(filename), data, size);
 }
+#endif  // OS_WIN
 
 ///////////////////////////////////////////////
 // FileEnumerator
