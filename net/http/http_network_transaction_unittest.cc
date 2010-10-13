@@ -1829,6 +1829,218 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGet) {
   EXPECT_EQ(net::kUploadData, response_data);
 }
 
+// Test a SPDY CONNECT through an HTTPS Proxy to an HTTPS (non-SPDY) Server.
+TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectHttps) {
+  // Configure against https proxy server "proxy:70".
+  SessionDependencies session_deps(CreateFixedProxyService("https://proxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.load_flags = 0;
+
+  // CONNECT to www.google.com:443 via SPDY
+  scoped_ptr<spdy::SpdyFrame> connect(ConstructSpdyConnect(NULL, 0, 1));
+  // fetch https://www.google.com/ via HTTP
+
+  const char get[] = "GET / HTTP/1.1\r\n"
+    "Host: www.google.com\r\n"
+    "Connection: keep-alive\r\n\r\n";
+  scoped_ptr<spdy::SpdyFrame> wrapped_get(
+      ConstructSpdyBodyFrame(1, get, strlen(get), false));
+  MockWrite spdy_writes[] = {
+      CreateMockWrite(*connect, 1),
+      CreateMockWrite(*wrapped_get, 3)
+  };
+
+  scoped_ptr<spdy::SpdyFrame> conn_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  const char resp[] = "HTTP/1.1 200 OK\r\n"
+      "Content-Length: 10\r\n\r\n";
+
+  scoped_ptr<spdy::SpdyFrame> wrapped_get_resp(
+      ConstructSpdyBodyFrame(1, resp, strlen(resp), false));
+  scoped_ptr<spdy::SpdyFrame> wrapped_body(
+      ConstructSpdyBodyFrame(1, "1234567890", 10, false));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*conn_resp, 2, true),
+    CreateMockRead(*wrapped_get_resp, 4, true),
+    CreateMockRead(*wrapped_body, 5, true),
+    CreateMockRead(*wrapped_body, 6, true),
+    MockRead(true, 0, 7),
+  };
+
+  scoped_refptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  SSLSocketDataProvider ssl2(true, OK);
+  ssl2.was_npn_negotiated = false;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl2);
+
+  TestCompletionCallback callback1;
+
+  int rv = trans->Start(&request, &callback1, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("1234567890", response_data);
+}
+
+// Test a SPDY CONNECT through an HTTPS Proxy to a SPDY server.
+TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectSpdy) {
+  // Configure against https proxy server "proxy:70".
+  SessionDependencies session_deps(CreateFixedProxyService("https://proxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.load_flags = 0;
+
+  // CONNECT to www.google.com:443 via SPDY
+  scoped_ptr<spdy::SpdyFrame> connect(ConstructSpdyConnect(NULL, 0, 1));
+  // fetch https://www.google.com/ via SPDY
+  const char* const kMyUrl = "https://www.google.com/";
+  scoped_ptr<spdy::SpdyFrame> get(ConstructSpdyGet(kMyUrl, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame> wrapped_get(ConstructWrappedSpdyFrame(get, 1));
+  MockWrite spdy_writes[] = {
+      CreateMockWrite(*connect, 1),
+      CreateMockWrite(*wrapped_get, 3)
+  };
+
+  scoped_ptr<spdy::SpdyFrame> conn_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> get_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> wrapped_get_resp(
+      ConstructWrappedSpdyFrame(get_resp, 1));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame> wrapped_body(ConstructWrappedSpdyFrame(body, 1));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*conn_resp, 2, true),
+    CreateMockRead(*wrapped_get_resp, 4, true),
+    CreateMockRead(*wrapped_body, 5, true),
+    MockRead(true, 0, 1),
+  };
+
+  scoped_refptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  SSLSocketDataProvider ssl2(true, OK);
+  ssl2.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl2.next_proto = "spdy/2";
+  ssl2.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl2);
+
+  TestCompletionCallback callback1;
+
+  int rv = trans->Start(&request, &callback1, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ(net::kUploadData, response_data);
+}
+
+// Test a SPDY CONNECT failure through an HTTPS Proxy.
+TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectFailure) {
+  // Configure against https proxy server "proxy:70".
+  SessionDependencies session_deps(CreateFixedProxyService("https://proxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.load_flags = 0;
+
+  // CONNECT to www.google.com:443 via SPDY
+  scoped_ptr<spdy::SpdyFrame> connect(ConstructSpdyConnect(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> get(ConstructSpdyRstStream(1, spdy::CANCEL));
+
+  MockWrite spdy_writes[] = {
+      CreateMockWrite(*connect, 1),
+      CreateMockWrite(*get, 3),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdySynReplyError(1));
+  scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame(1, true));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*resp, 2, true),
+    MockRead(true, 0, 4),
+  };
+
+  scoped_refptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  SSLSocketDataProvider ssl2(true, OK);
+  ssl2.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl2.next_proto = "spdy/2";
+  ssl2.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl2);
+
+  TestCompletionCallback callback1;
+
+  int rv = trans->Start(&request, &callback1, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response == NULL);
+}
+
 // Test the challenge-response-retry sequence through an HTTPS Proxy
 TEST_F(HttpNetworkTransactionTest, HttpsProxyAuthRetry) {
   // Configure against https proxy server "proxy:70".

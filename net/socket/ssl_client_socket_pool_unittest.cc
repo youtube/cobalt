@@ -71,6 +71,8 @@ class SSLClientSocketPoolTest : public testing::Test {
             HostPortPair("host", 80),
             session_->auth_cache(),
             session_->http_auth_handler_factory(),
+            session_->spdy_session_pool(),
+            session_->mutable_spdy_settings(),
             true)),
         http_proxy_histograms_("MockHttpProxy"),
         http_proxy_socket_pool_(
