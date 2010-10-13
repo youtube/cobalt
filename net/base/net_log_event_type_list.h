@@ -412,6 +412,13 @@ EVENT_TYPE(SOCKET_POOL_REUSED_AN_EXISTING_SOCKET)
 //   }
 EVENT_TYPE(TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKET)
 
+// This event simply describes the host:port that were requested from the
+// socket pool. Its parameters are:
+//   {
+//     "host_and_port": <String encoding the host and port>
+//   }
+EVENT_TYPE(TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKETS)
+
 
 // A backup socket is created due to slow connect
 EVENT_TYPE(SOCKET_BACKUP_CREATED)
@@ -433,6 +440,13 @@ EVENT_TYPE(SOCKET_POOL_BOUND_TO_CONNECT_JOB)
 //      "source_dependency": <Source identifier for the socket we acquired>
 //   }
 EVENT_TYPE(SOCKET_POOL_BOUND_TO_SOCKET)
+
+// The start/end of a client socket pool request for multiple sockets.
+// The event parameters are:
+//   {
+//      "num_sockets": <Number of sockets we're trying to ensure are connected>
+//   }
+EVENT_TYPE(SOCKET_POOL_CONNECTING_N_SOCKETS)
 
 // ------------------------------------------------------------------------
 // URLRequest

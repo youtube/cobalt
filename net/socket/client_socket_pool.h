@@ -67,6 +67,21 @@ class ClientSocketPool {
                             CompletionCallback* callback,
                             const BoundNetLog& net_log) = 0;
 
+  // RequestSockets is used to request that |num_sockets| be connected in the
+  // connection group for |group_name|.  If the connection group already has
+  // |num_sockets| idle sockets / active sockets / currently connecting sockets,
+  // then this function doesn't do anything.  Otherwise, it will start up as
+  // many connections as necessary to reach |num_sockets| total sockets for the
+  // group.  It uses |params| to control how to connect the sockets.   The
+  // ClientSocketPool will assign a priority to the new connections, if any.
+  // This priority will probably be lower than all others, since this method
+  // is intended to make sure ahead of time that |num_sockets| sockets are
+  // available to talk to a host.
+  virtual void RequestSockets(const std::string& group_name,
+                              const void* params,
+                              int num_sockets,
+                              const BoundNetLog& net_log) = 0;
+
   // Called to cancel a RequestSocket call that returned ERR_IO_PENDING.  The
   // same handle parameter must be passed to this method as was passed to the
   // RequestSocket call being cancelled.  The associated CompletionCallback is
