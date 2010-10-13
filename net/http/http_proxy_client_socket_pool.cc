@@ -299,6 +299,17 @@ int HttpProxyClientSocketPool::RequestSocket(const std::string& group_name,
                              handle, callback, net_log);
 }
 
+void HttpProxyClientSocketPool::RequestSockets(
+    const std::string& group_name,
+    const void* params,
+    int num_sockets,
+    const BoundNetLog& net_log) {
+  const scoped_refptr<HttpProxySocketParams>* casted_params =
+      static_cast<const scoped_refptr<HttpProxySocketParams>*>(params);
+
+  base_.RequestSockets(group_name, *casted_params, num_sockets, net_log);
+}
+
 void HttpProxyClientSocketPool::CancelRequest(
     const std::string& group_name,
     ClientSocketHandle* handle) {
