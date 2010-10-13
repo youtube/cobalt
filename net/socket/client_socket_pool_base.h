@@ -179,7 +179,7 @@ class ClientSocketPoolBaseHelper
     ClientSocketHandle* handle() const { return handle_; }
     CompletionCallback* callback() const { return callback_; }
     RequestPriority priority() const { return priority_; }
-    const Flags flags() const { return flags_; }
+    Flags flags() const { return flags_; }
     const BoundNetLog& net_log() const { return net_log_; }
 
    private:
