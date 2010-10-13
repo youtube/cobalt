@@ -47,7 +47,6 @@ long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
 }
 
 // Connects back to a console if available.
-// Only necessary on Windows, no-op on other platforms.
 void AttachToConsole() {
   if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
     unsigned int result = GetLastError();
