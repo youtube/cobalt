@@ -6,6 +6,11 @@
 
 namespace base {
 
+#if defined(OS_POSIX)
+ProcessEntry::ProcessEntry() {}
+ProcessEntry::~ProcessEntry() {}
+#endif
+
 int GetProcessCount(const std::wstring& executable_name,
                     const ProcessFilter* filter) {
   int count = 0;
