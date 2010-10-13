@@ -92,6 +92,11 @@ struct MockRead {
       result(0), data(data), data_len(data_len), sequence_number(0),
       time_stamp(base::Time::Now()) { }
 
+  // Read success (inferred data length) with sequence information.
+  MockRead(bool async, int seq, const char* data) : async(async),
+      result(0), data(data), data_len(strlen(data)), sequence_number(seq),
+      time_stamp(base::Time::Now()) { }
+
   // Read success with sequence information.
   MockRead(bool async, const char* data, int data_len, int seq) : async(async),
       result(0), data(data), data_len(data_len), sequence_number(seq),
@@ -922,62 +927,6 @@ extern const int kSOCKS5OkRequestLength;
 
 extern const char kSOCKS5OkResponse[];
 extern const int kSOCKS5OkResponseLength;
-
-class MockSSLClientSocketPool : public SSLClientSocketPool {
- public:
-  class MockConnectJob {
-   public:
-    MockConnectJob(ClientSocket* socket, ClientSocketHandle* handle,
-                   CompletionCallback* callback);
-
-    int Connect();
-    bool CancelHandle(const ClientSocketHandle* handle);
-
-   private:
-    void OnConnect(int rv);
-
-    scoped_ptr<ClientSocket> socket_;
-    ClientSocketHandle* handle_;
-    CompletionCallback* user_callback_;
-    CompletionCallbackImpl<MockConnectJob> connect_callback_;
-
-    DISALLOW_COPY_AND_ASSIGN(MockConnectJob);
-  };
-
-  MockSSLClientSocketPool(
-      int max_sockets,
-      int max_sockets_per_group,
-      ClientSocketPoolHistograms* histograms,
-      ClientSocketFactory* socket_factory,
-      TCPClientSocketPool* tcp_pool);
-
-  virtual ~MockSSLClientSocketPool();
-
-  int release_count() const { return release_count_; }
-  int cancel_count() const { return cancel_count_; }
-
-  // SSLClientSocketPool methods.
-  virtual int RequestSocket(const std::string& group_name,
-                            const void* socket_params,
-                            RequestPriority priority,
-                            ClientSocketHandle* handle,
-                            CompletionCallback* callback,
-                            const BoundNetLog& net_log);
-
-  virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle);
-  virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket, int id);
-
- private:
-  ClientSocketFactory* client_socket_factory_;
-  int release_count_;
-  int cancel_count_;
-  ScopedVector<MockConnectJob> job_list_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockSSLClientSocketPool);
-};
-
 
 }  // namespace net
 

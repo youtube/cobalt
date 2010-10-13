@@ -174,7 +174,7 @@ NET_ERROR(SSL_UNSAFE_NEGOTIATION, -128)
 // The SSL server attempted to use a weak ephemeral Diffie-Hellman key.
 NET_ERROR(SSL_WEAK_SERVER_EPHEMERAL_DH_KEY, -129)
 
-// Could not create a TCP connection to the proxy server. An error occurred
+// Could not create a connection to the proxy server. An error occurred
 // either in resolving its name, or in connecting a socket to it.
 // Note that this does NOT include failures during the actual "CONNECT" method
 // of an HTTP proxy.
@@ -201,6 +201,9 @@ NET_ERROR(SSL_CLIENT_AUTH_PRIVATE_KEY_ACCESS_DENIED, -134)
 
 // The SSL client certificate has no private key.
 NET_ERROR(SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY, -135)
+
+// The certificate presented by the HTTPS Proxy was invalid.
+NET_ERROR(PROXY_CERTIFICATE_INVALID, -136)
 
 // Certificate error codes
 //

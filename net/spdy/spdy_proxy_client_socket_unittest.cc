@@ -942,10 +942,85 @@ TEST_F(SpdyProxyClientSocketTest, ReadOnClosedSocketReturnsZero) {
 
   AssertConnectSucceeds();
 
-  sock_->Disconnect();
+  Run(1);
 
   ASSERT_EQ(0, sock_->Read(NULL, 1, NULL));
   ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
+  ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
+}
+
+// Read pending when socket is closed should return 0
+TEST_F(SpdyProxyClientSocketTest, PendingReadOnCloseReturnsZero) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    MockRead(true, 0, 2),  // EOF
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  AssertReadStarts(kMsg1, kLen1);
+
+  Run(1);
+
+  ASSERT_EQ(0, read_callback_.WaitForResult());
+}
+
+// Reading from a disconnected socket is an error
+TEST_F(SpdyProxyClientSocketTest, ReadOnDisconnectSocketReturnsNotConnected) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    MockRead(true, 0, 2),  // EOF
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  sock_->Disconnect();
+
+  ASSERT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->Read(NULL, 1, NULL));
+}
+
+// Reading buffered data from an already closed socket should return
+// buffered data, then 0.
+TEST_F(SpdyProxyClientSocketTest, ReadOnClosedSocketReturnsBufferedData) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> msg1(ConstructBodyFrame(kMsg1, kLen1));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    CreateMockRead(*msg1, 2, true),
+    MockRead(true, 0, 3),  // EOF
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  Run(2);
+
+  AssertSyncReadEquals(kMsg1, kLen1);
+  ASSERT_EQ(0, sock_->Read(NULL, 1, NULL));
+  ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
+  // Verify that read *still* returns ERR_CONNECTION_CLOSED
   ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
 }
 
@@ -972,9 +1047,60 @@ TEST_F(SpdyProxyClientSocketTest, WriteOnClosedStream) {
   EXPECT_EQ(ERR_CONNECTION_CLOSED, sock_->Write(buf, buf->size(), NULL));
 }
 
-// ----------- Pending read/write when closed
+// Calling Write() on a disconnected socket is an error
+TEST_F(SpdyProxyClientSocketTest, WriteOnDisconnectedSocket) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> msg1(ConstructBodyFrame(kMsg1, kLen1));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    MockRead(true, 0, 2),  // EOF
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  sock_->Disconnect();
+
+  scoped_refptr<IOBufferWithSize> buf(CreateBuffer(kMsg1, kLen1));
+  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->Write(buf, buf->size(), NULL));
+}
 
 // If the socket is closed with a pending Write(), the callback
+// should be called with ERR_CONNECTION_CLOSED.
+TEST_F(SpdyProxyClientSocketTest, WritePendingOnClose) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+    MockWrite(true, ERR_IO_PENDING, 2),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    MockRead(true, 0, 3),  // EOF
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  EXPECT_TRUE(sock_->IsConnected());
+
+  scoped_refptr<IOBufferWithSize> buf(CreateBuffer(kMsg1, kLen1));
+  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(buf, buf->size(), &write_callback_));
+
+  Run(1);
+
+  EXPECT_EQ(ERR_CONNECTION_CLOSED, write_callback_.WaitForResult());
+}
+
+// If the socket is Disconnected with a pending Write(), the callback
 // should not be called.
 TEST_F(SpdyProxyClientSocketTest, DisconnectWithWritePending) {
   scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
@@ -1004,7 +1130,7 @@ TEST_F(SpdyProxyClientSocketTest, DisconnectWithWritePending) {
   EXPECT_FALSE(write_callback_.have_result());
 }
 
-// If the socket is closed with a pending Read(), the callback
+// If the socket is Disconnected with a pending Read(), the callback
 // should not be called.
 TEST_F(SpdyProxyClientSocketTest, DisconnectWithReadPending) {
   scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
