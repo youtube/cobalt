@@ -114,13 +114,14 @@ class SpdyProxyClientSocket : public ClientSocket, public SpdyStream::Delegate {
 
  private:
   enum State {
-    STATE_NONE,
+    STATE_DISCONNECTED,
     STATE_GENERATE_AUTH_TOKEN,
     STATE_GENERATE_AUTH_TOKEN_COMPLETE,
     STATE_SEND_REQUEST,
     STATE_SEND_REQUEST_COMPLETE,
     STATE_READ_REPLY_COMPLETE,
-    STATE_DONE,
+    STATE_OPEN,
+    STATE_CLOSED
   };
 
   void OnIOComplete(int result);

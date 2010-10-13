@@ -460,9 +460,9 @@ int HttpStreamRequest::DoInitConnection() {
   }
   // Check next if we have a spdy session for this proxy.  If so, then go
   // straight to using that.
-  if (proxy_info()->is_https()) {
+  if (IsHttpsProxyAndHttpUrl()) {
     HostPortProxyPair proxy(proxy_info()->proxy_server().host_port_pair(),
-                            proxy_info()->proxy_server());
+                            ProxyServer::Direct());
     if (session_->spdy_session_pool()->HasSession(proxy)) {
       using_spdy_ = true;
       next_state_ = STATE_CREATE_STREAM;
@@ -537,6 +537,8 @@ int HttpStreamRequest::DoInitConnection() {
                                     endpoint_,
                                     session_->auth_cache(),
                                     session_->http_auth_handler_factory(),
+                                    session_->spdy_session_pool(),
+                                    session_->mutable_spdy_settings(),
                                     using_ssl_);
     } else {
       DCHECK(proxy_info()->is_socks());
@@ -725,10 +727,11 @@ int HttpStreamRequest::DoCreateStream() {
     // connection, or it might be a SPDY session through an HTTP or HTTPS proxy.
     spdy_session =
         spdy_pool->Get(pair, session_->mutable_spdy_settings(), net_log_);
-  } else if (proxy_info()->is_https()) {
+  } else if (IsHttpsProxyAndHttpUrl()) {
     // If we don't have a direct SPDY session, and we're using an HTTPS
     // proxy, then we might have a SPDY session to the proxy
-    pair = HostPortProxyPair(proxy_server.host_port_pair(), proxy_server);
+    pair = HostPortProxyPair(proxy_server.host_port_pair(),
+                             ProxyServer::Direct());
     if (spdy_pool->HasSession(pair)) {
       spdy_session =
           spdy_pool->Get(pair, session_->mutable_spdy_settings(), net_log_);
@@ -751,7 +754,8 @@ int HttpStreamRequest::DoCreateStream() {
   if (spdy_session->IsClosed())
     return ERR_CONNECTION_CLOSED;
 
-  stream_.reset(new SpdyHttpStream(spdy_session, direct));
+  bool useRelativeUrl = direct || request_info().url.SchemeIs("https");
+  stream_.reset(new SpdyHttpStream(spdy_session, useRelativeUrl));
   return OK;
 }
 
@@ -796,6 +800,10 @@ void HttpStreamRequest::SetSocketMotivation() {
   else if (request_info_->motivation == HttpRequestInfo::OMNIBOX_MOTIVATED)
     connection_->socket()->SetOmniboxSpeculation();
   // TODO(mbelshe): Add other motivations (like EARLY_LOAD_MOTIVATED).
+}
+
+bool HttpStreamRequest::IsHttpsProxyAndHttpUrl() {
+  return proxy_info()->is_https() && request_info().url.SchemeIs("http");
 }
 
 // Returns a newly create SSLSocketParams, and sets several
