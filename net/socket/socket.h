@@ -26,8 +26,8 @@ class Socket {
   // case the result will be passed to the callback when available. If the
   // operation is not completed immediately, the socket acquires a reference to
   // the provided buffer until the callback is invoked or the socket is
-  // destroyed.  If the socket is closed before the read completes, the callback
-  // will not be invoked.
+  // closed.  If the socket is Disconnected before the read completes, the
+  // callback will not be invoked.
   virtual int Read(IOBuffer* buf, int buf_len,
                    CompletionCallback* callback) = 0;
 
@@ -40,9 +40,9 @@ class Socket {
   // case the result will be passed to the callback when available.  If the
   // operation is not completed immediately, the socket acquires a reference to
   // the provided buffer until the callback is invoked or the socket is
-  // destroyed.  Implementations of this method should not modify the contents
+  // closed.  Implementations of this method should not modify the contents
   // of the actual buffer that is written to the socket.  If the socket is
-  // closed before the write completes, the callback will not be invoked.
+  // Disconnected before the write completes, the callback will not be invoked.
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback) = 0;
 

@@ -24,6 +24,7 @@
 typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
 
 namespace net {
+class HttpProxyClientSocketPoolTest;
 class HttpNetworkLayer;
 class HttpNetworkTransactionTest;
 class SpdyHttpStreamTest;
@@ -251,6 +252,7 @@ class SpdyFramer {
   FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, UnclosedStreamDataCompressors);
   friend class net::HttpNetworkLayer;  // This is temporary for the server.
   friend class net::HttpNetworkTransactionTest;
+  friend class net::HttpProxyClientSocketPoolTest;
   friend class net::SpdyHttpStreamTest;
   friend class net::SpdyNetworkTransactionTest;
   friend class net::SpdyProxyClientSocketTest;

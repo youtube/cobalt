@@ -30,7 +30,7 @@ SpdyProxyClientSocket::SpdyProxyClientSocket(
     HttpAuthHandlerFactory* auth_handler_factory)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &SpdyProxyClientSocket::OnIOComplete)),
-      next_state_(STATE_NONE),
+      next_state_(STATE_DISCONNECTED),
       spdy_stream_(spdy_stream),
       read_callback_(NULL),
       write_callback_(NULL),
@@ -70,10 +70,10 @@ SpdyProxyClientSocket::~SpdyProxyClientSocket() {
 // the HTTPS Proxy tunnel failure from an HTTP Proxy tunnel failure.
 int SpdyProxyClientSocket::Connect(CompletionCallback* callback) {
   DCHECK(!read_callback_);
-  if (next_state_ == STATE_DONE)
+  if (next_state_ == STATE_OPEN)
     return OK;
 
-  DCHECK_EQ(STATE_NONE, next_state_);
+  DCHECK_EQ(STATE_DISCONNECTED, next_state_);
   next_state_ = STATE_GENERATE_AUTH_TOKEN;
 
   int rv = DoLoop(OK);
@@ -83,7 +83,16 @@ int SpdyProxyClientSocket::Connect(CompletionCallback* callback) {
 }
 
 void SpdyProxyClientSocket::Disconnect() {
-  next_state_ = STATE_NONE;
+  read_buffer_.clear();
+  user_buffer_ = NULL;
+  read_callback_ = NULL;
+
+  write_buffer_len_ = 0;
+  write_bytes_outstanding_ = 0;
+  write_callback_ = NULL;
+
+  next_state_ = STATE_DISCONNECTED;
+
   if (spdy_stream_)
     // This will cause OnClose to be invoked, which takes care of
     // cleaning up all the internal state.
@@ -91,8 +100,7 @@ void SpdyProxyClientSocket::Disconnect() {
 }
 
 bool SpdyProxyClientSocket::IsConnected() const {
-  return next_state_ == STATE_DONE && spdy_stream_ != NULL &&
-      !spdy_stream_->closed();
+  return next_state_ == STATE_OPEN || next_state_ == STATE_CLOSED;
 }
 
 bool SpdyProxyClientSocket::IsConnectedAndIdle() const {
@@ -116,14 +124,17 @@ int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
   DCHECK(!read_callback_);
   DCHECK(!user_buffer_);
 
-  if (!spdy_stream_) {
+  if (next_state_ == STATE_DISCONNECTED)
+    return ERR_SOCKET_NOT_CONNECTED;
+
+  if (!spdy_stream_ && read_buffer_.empty()) {
     if (eof_has_been_read_)
       return ERR_CONNECTION_CLOSED;
     eof_has_been_read_ = true;
     return 0;
   }
 
-  DCHECK(next_state_ == STATE_DONE);
+  DCHECK(next_state_ == STATE_OPEN || next_state_ == STATE_CLOSED);
   DCHECK(buf);
   user_buffer_ = new DrainableIOBuffer(buf, buf_len);
   int result = PopulateUserReadBuffer();
@@ -146,7 +157,7 @@ int SpdyProxyClientSocket::PopulateUserReadBuffer() {
                                        data->BytesRemaining());
     memcpy(user_buffer_->data(), data->data(), bytes_to_copy);
     user_buffer_->DidConsume(bytes_to_copy);
-    if (data->BytesRemaining() == 0) {
+    if (data->BytesRemaining() == bytes_to_copy) {
       // Consumed all data from this buffer
       read_buffer_.pop_front();
     } else {
@@ -160,6 +171,9 @@ int SpdyProxyClientSocket::PopulateUserReadBuffer() {
 int SpdyProxyClientSocket::Write(IOBuffer* buf, int buf_len,
                                  CompletionCallback* callback) {
   DCHECK(!write_callback_);
+  if (next_state_ == STATE_DISCONNECTED)
+    return ERR_SOCKET_NOT_CONNECTED;
+
   if (!spdy_stream_)
     return ERR_CONNECTION_CLOSED;
 
@@ -214,7 +228,7 @@ int SpdyProxyClientSocket::GetPeerAddress(AddressList* address) const {
 }
 
 void SpdyProxyClientSocket::OnIOComplete(int result) {
-  DCHECK_NE(STATE_NONE, next_state_);
+  DCHECK_NE(STATE_DISCONNECTED, next_state_);
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING) {
     CompletionCallback* c = read_callback_;
@@ -224,11 +238,11 @@ void SpdyProxyClientSocket::OnIOComplete(int result) {
 }
 
 int SpdyProxyClientSocket::DoLoop(int last_io_result) {
-  DCHECK_NE(next_state_, STATE_NONE);
+  DCHECK_NE(next_state_, STATE_DISCONNECTED);
   int rv = last_io_result;
   do {
     State state = next_state_;
-    next_state_ = STATE_NONE;
+    next_state_ = STATE_DISCONNECTED;
     switch (state) {
       case STATE_GENERATE_AUTH_TOKEN:
         DCHECK_EQ(OK, rv);
@@ -258,8 +272,8 @@ int SpdyProxyClientSocket::DoLoop(int last_io_result) {
         rv = ERR_UNEXPECTED;
         break;
     }
-  } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE &&
-           next_state_ != STATE_DONE);
+  } while (rv != ERR_IO_PENDING && next_state_ != STATE_DISCONNECTED &&
+           next_state_ != STATE_OPEN);
   return rv;
 }
 
@@ -322,11 +336,11 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
   if (result < 0)
     return result;
 
-  next_state_ = STATE_DONE;
   // Require the "HTTP/1.x" status line for SSL CONNECT.
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0))
     return ERR_TUNNEL_CONNECTION_FAILED;
 
+  next_state_ = STATE_OPEN;
   if (net_log_.IsLoggingAll()) {
     net_log_.AddEvent(
         NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
@@ -417,21 +431,34 @@ void SpdyProxyClientSocket::OnDataSent(int length)  {
 
 void SpdyProxyClientSocket::OnClose(int status)  {
   DCHECK(spdy_stream_);
-  // If we're in the middle of connecting, we need to make sure
-  // we invoke the connect callback.
-  CompletionCallback* connect_callback = NULL;
-  if (next_state_ != STATE_NONE && next_state_ != STATE_DONE) {
-    DCHECK(read_callback_);
-    connect_callback = read_callback_;
-  }
   was_ever_used_ = spdy_stream_->WasEverUsed();
   spdy_stream_ = NULL;
-  read_callback_ = NULL;
+
+  bool connecting = next_state_ != STATE_DISCONNECTED &&
+      next_state_ < STATE_OPEN;
+  if (next_state_ == STATE_OPEN)
+    next_state_ = STATE_CLOSED;
+  else
+    next_state_ = STATE_DISCONNECTED;
+
+  CompletionCallback* write_callback = write_callback_;
   write_callback_ = NULL;
-  user_buffer_ = NULL;
-  read_buffer_.empty();
-  if (connect_callback)
-    connect_callback->Run(status);
+  write_buffer_len_ = 0;
+  write_bytes_outstanding_ = 0;
+
+  // If we're in the middle of connecting, we need to make sure
+  // we invoke the connect callback.
+  if (connecting) {
+    DCHECK(read_callback_);
+    CompletionCallback* read_callback = read_callback_;
+    read_callback_ = NULL;
+    read_callback->Run(status);
+  } else if (read_callback_) {
+    // If we have a read_callback, the we need to make sure we call it back
+    OnDataReceived(NULL, 0);
+  }
+  if (write_callback)
+    write_callback->Run(ERR_CONNECTION_CLOSED);
 }
 
 }  // namespace net
