@@ -17,16 +17,19 @@
 #include "media/ffmpeg/ffmpeg_util.h"
 #include "media/filters/ffmpeg_interfaces.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
+#include "media/video/video_decode_context.h"
 #include "media/video/video_decode_engine.h"
 
 namespace media {
 
-FFmpegVideoDecoder::FFmpegVideoDecoder(VideoDecodeEngine* engine)
+FFmpegVideoDecoder::FFmpegVideoDecoder(VideoDecodeEngine* decode_engine,
+                                       VideoDecodeContext* decode_context)
     : width_(0),
       height_(0),
       time_base_(new AVRational()),
       state_(kUnInitialized),
-      decode_engine_(engine) {
+      decode_engine_(decode_engine),
+      decode_context_(decode_context) {
   memset(&info_, 0, sizeof(info_));
 }
 
@@ -146,6 +149,8 @@ void FFmpegVideoDecoder::OnUninitializeComplete() {
 
   AutoCallbackRunner done_runner(uninitialize_callback_.release());
   state_ = kStopped;
+
+  // TODO(jiesun): Destroy the decoder context.
 }
 
 void FFmpegVideoDecoder::Pause(FilterCallback* callback) {
@@ -435,9 +440,12 @@ void FFmpegVideoDecoder::SetVideoDecodeEngineForTest(
 }
 
 // static
-FilterFactory* FFmpegVideoDecoder::CreateFactory() {
-  return new FilterFactoryImpl1<FFmpegVideoDecoder, FFmpegVideoDecodeEngine*>(
-      new FFmpegVideoDecodeEngine());
+FilterFactory* FFmpegVideoDecoder::CreateFactory(
+    VideoDecodeContext* decode_context) {
+  return new FilterFactoryImpl2<FFmpegVideoDecoder,
+                                VideoDecodeEngine*,
+                                VideoDecodeContext*>(
+      new FFmpegVideoDecodeEngine(), decode_context);
 }
 
 // static
