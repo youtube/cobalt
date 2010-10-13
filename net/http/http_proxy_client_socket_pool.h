@@ -162,6 +162,11 @@ class HttpProxyClientSocketPool : public ClientSocketPool {
                             CompletionCallback* callback,
                             const BoundNetLog& net_log);
 
+  virtual void RequestSockets(const std::string& group_name,
+                              const void* params,
+                              int num_sockets,
+                              const BoundNetLog& net_log);
+
   virtual void CancelRequest(const std::string& group_name,
                              ClientSocketHandle* handle);
 
