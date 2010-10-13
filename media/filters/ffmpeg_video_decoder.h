@@ -26,10 +26,11 @@ class VideoDecodeEngine;
 class FFmpegVideoDecoder : public VideoDecoder,
                            public VideoDecodeEngine::EventHandler {
  public:
-  explicit FFmpegVideoDecoder(VideoDecodeEngine* engine);
+  FFmpegVideoDecoder(VideoDecodeEngine* decode_engine,
+                     VideoDecodeContext* decode_context);
   virtual ~FFmpegVideoDecoder();
 
-  static FilterFactory* CreateFactory();
+  static FilterFactory* CreateFactory(VideoDecodeContext* decode_context);
   static bool IsMediaFormatSupported(const MediaFormat& media_format);
 
   // MediaFilter implementation.
@@ -122,6 +123,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   scoped_ptr<AVRational> time_base_;  // Pointer to avoid needing full type.
   DecoderState state_;
   scoped_ptr<VideoDecodeEngine> decode_engine_;
+  scoped_ptr<VideoDecodeContext> decode_context_;
 
   scoped_ptr<FilterCallback> initialize_callback_;
   scoped_ptr<FilterCallback> uninitialize_callback_;

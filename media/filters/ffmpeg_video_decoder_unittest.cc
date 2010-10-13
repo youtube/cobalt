@@ -71,8 +71,8 @@ class MockVideoDecodeEngine : public VideoDecodeEngine {
 // Class that just mocks the private functions.
 class DecoderPrivateMock : public FFmpegVideoDecoder {
  public:
-  DecoderPrivateMock(VideoDecodeEngine* engine)
-      : FFmpegVideoDecoder(engine) {
+  DecoderPrivateMock(VideoDecodeEngine* engine, VideoDecodeContext* context)
+      : FFmpegVideoDecoder(engine, context) {
   }
 
   // change access qualifier for test: used in actions.
@@ -125,7 +125,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     // Create an FFmpegVideoDecoder, and MockVideoDecodeEngine.
     //
     // TODO(ajwong): Break the test's dependency on FFmpegVideoDecoder.
-    factory_ = FFmpegVideoDecoder::CreateFactory();
+    factory_ = FFmpegVideoDecoder::CreateFactory(NULL);
     decoder_ = factory_->Create<DecoderPrivateMock>(media_format);
     renderer_ = new MockVideoRenderer();
     engine_ = new StrictMock<MockVideoDecodeEngine>();
@@ -231,7 +231,8 @@ const FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoderTest::kTestPts3 =
 
 TEST(FFmpegVideoDecoderFactoryTest, Create) {
   // Should only accept video/x-ffmpeg mime type.
-  scoped_refptr<FilterFactory> factory = FFmpegVideoDecoder::CreateFactory();
+  scoped_refptr<FilterFactory> factory =
+      FFmpegVideoDecoder::CreateFactory(NULL);
   MediaFormat media_format;
   media_format.SetAsString(MediaFormat::kMimeType, "foo/x-bar");
   scoped_refptr<VideoDecoder> decoder =
