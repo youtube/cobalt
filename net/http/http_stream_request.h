@@ -112,6 +112,8 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   // Set the motivation for this request onto the underlying socket.
   void SetSocketMotivation();
 
+  bool IsHttpsProxyAndHttpUrl();
+
   // Returns a newly create SSLSocketParams, and sets several
   // fields of ssl_config_.
   scoped_refptr<SSLSocketParams> GenerateSslParams(
