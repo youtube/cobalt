@@ -81,6 +81,9 @@ const uint32 kProcessAccessWaitForTermination     = SYNCHRONIZE;
 #elif defined(OS_POSIX)
 
 struct ProcessEntry {
+  ProcessEntry();
+  ~ProcessEntry();
+
   ProcessId pid_;
   ProcessId ppid_;
   ProcessId gid_;
