@@ -581,11 +581,6 @@ bool EnableInProcessStackDumping() {
   return success;
 }
 
-void AttachToConsole() {
-  // On POSIX, there nothing to do AFAIK. Maybe create a new console if none
-  // exist?
-}
-
 void RaiseProcessToHighPriority() {
   // On POSIX, we don't actually do anything here.  We could try to nice() or
   // setpriority() or sched_getscheduler, but these all require extra rights.
