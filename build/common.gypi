@@ -991,6 +991,11 @@
                   '-Wl,--gc-sections',
                 ],
               }],
+              ['clang==1', {
+                'cflags!': [
+                  '-fno-ident',
+                ],
+              }],
             ]
           },
         },
