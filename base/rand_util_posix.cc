@@ -12,6 +12,7 @@
 #include "base/file_util.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/stringprintf.h"
 
 namespace {
 
@@ -52,6 +53,22 @@ uint64 RandUint64() {
   CHECK(success);
 
   return number;
+}
+
+// TODO(cmasone): Once we're comfortable this works, migrate Windows code to
+// use this as well.
+std::string RandomBytesToGUIDString(const uint64 bytes[2]) {
+  return StringPrintf("%08X-%04X-%04X-%04X-%012llX",
+                      static_cast<unsigned int>(bytes[0] >> 32),
+                      static_cast<unsigned int>((bytes[0] >> 16) & 0x0000ffff),
+                      static_cast<unsigned int>(bytes[0] & 0x0000ffff),
+                      static_cast<unsigned int>(bytes[1] >> 48),
+                      bytes[1] & 0x0000ffffffffffffULL);
+}
+
+std::string GenerateGUID() {
+  uint64 sixteen_bytes[2] = { base::RandUint64(), base::RandUint64() };
+  return RandomBytesToGUIDString(sixteen_bytes);
 }
 
 }  // namespace base
