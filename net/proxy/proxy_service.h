@@ -137,8 +137,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
   // Creates a proxy service that polls |proxy_config_service| to notice when
   // the proxy settings change. We take ownership of |proxy_config_service|.
-  // Iff |use_v8_resolver| is true, then the V8 implementation is
-  // used.
   //
   // |num_pac_threads| specifies the maximum number of threads to use for
   // executing PAC scripts. Threads are created lazily on demand.
@@ -155,23 +153,33 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   //   (b) increases the memory used by proxy resolving, as each thread will
   //       duplicate its own script context.
 
-  // |url_request_context| is only used when use_v8_resolver is true:
-  // it specifies the URL request context that will be used if a PAC
-  // script needs to be fetched.
-  // |io_loop| points to the IO thread's message loop. It is only used
-  // when pc is NULL.
+  // |url_request_context| specifies the URL request context that will
+  // be used if a PAC script needs to be fetched.
+  // |io_loop| points to the IO thread's message loop.
   // ##########################################################################
   // # See the warnings in net/proxy/proxy_resolver_v8.h describing the
   // # multi-threading model. In order for this to be safe to use, *ALL* the
   // # other V8's running in the process must use v8::Locker.
   // ##########################################################################
-  static ProxyService* Create(
+  static ProxyService* CreateUsingV8ProxyResolver(
       ProxyConfigService* proxy_config_service,
-      bool use_v8_resolver,
       size_t num_pac_threads,
       URLRequestContext* url_request_context,
       NetLog* net_log,
       MessageLoop* io_loop);
+
+  // Same as CreateUsingV8ProxyResolver, except it uses system libraries
+  // for evaluating the PAC script if available, otherwise skips
+  // proxy autoconfig.
+  static ProxyService* CreateUsingSystemProxyResolver(
+      ProxyConfigService* proxy_config_service,
+      size_t num_pac_threads,
+      NetLog* net_log);
+
+  // Creates a ProxyService without support for proxy autoconfig.
+  static ProxyService* CreateWithoutProxyResolver(
+      ProxyConfigService* proxy_config_service,
+      NetLog* net_log);
 
   // Convenience method that creates a proxy service using the
   // specified fixed settings. |pc| must not be NULL.
