@@ -5,7 +5,7 @@
 #include "net/socket/client_socket_handle.h"
 
 #include "base/compiler_specific.h"
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/logging.h"
 #include "net/base/net_errors.h"
 #include "net/socket/client_socket_pool.h"

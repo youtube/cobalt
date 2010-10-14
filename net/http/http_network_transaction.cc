@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/field_trial.h"
 #include "base/format_macros.h"
-#include "base/histogram.h"
+#include "base/metrics/field_trial.h"
+#include "base/metrics/histogram.h"
+#include "base/metrics/stats_counters.h"
 #include "base/scoped_ptr.h"
-#include "base/stats_counters.h"
 #include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
@@ -976,11 +976,11 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
         100);
 
   static bool use_conn_impact_histogram(
-      FieldTrialList::Find("ConnCountImpact") &&
-      !FieldTrialList::Find("ConnCountImpact")->group_name().empty());
+      base::FieldTrialList::Find("ConnCountImpact") &&
+      !base::FieldTrialList::Find("ConnCountImpact")->group_name().empty());
   if (use_conn_impact_histogram) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
-        FieldTrial::MakeName("Net.Transaction_Connected_New",
+        base::FieldTrial::MakeName("Net.Transaction_Connected_New",
             "ConnCountImpact"),
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
@@ -988,17 +988,19 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
     }
   }
 
-  static bool use_spdy_histogram(FieldTrialList::Find("SpdyImpact") &&
-      !FieldTrialList::Find("SpdyImpact")->group_name().empty());
+  static bool use_spdy_histogram(base::FieldTrialList::Find("SpdyImpact") &&
+      !base::FieldTrialList::Find("SpdyImpact")->group_name().empty());
   if (use_spdy_histogram && response_.was_npn_negotiated) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
-      FieldTrial::MakeName("Net.Transaction_Connected_Under_10", "SpdyImpact"),
+      base::FieldTrial::MakeName("Net.Transaction_Connected_Under_10",
+                                 "SpdyImpact"),
         total_duration, base::TimeDelta::FromMilliseconds(1),
         base::TimeDelta::FromMinutes(10), 100);
 
     if (!reused_socket) {
       UMA_HISTOGRAM_CLIPPED_TIMES(
-          FieldTrial::MakeName("Net.Transaction_Connected_New", "SpdyImpact"),
+          base::FieldTrial::MakeName("Net.Transaction_Connected_New",
+                                     "SpdyImpact"),
           total_duration, base::TimeDelta::FromMilliseconds(1),
           base::TimeDelta::FromMinutes(10), 100);
     }

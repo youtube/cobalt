@@ -7,7 +7,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory_debug.h"
-#include "base/stats_counters.h"
+#include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
 #include "net/base/address_list_net_log_param.h"
@@ -311,7 +311,7 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   if (socket_ != INVALID_SOCKET)
     return OK;
 
-  static StatsCounter connects("tcp.connect");
+  static base::StatsCounter connects("tcp.connect");
   connects.Increment();
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
@@ -564,7 +564,7 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       // false error reports.
       // See bug 5297.
       base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
-      static StatsCounter read_bytes("tcp.read_bytes");
+      static base::StatsCounter read_bytes("tcp.read_bytes");
       read_bytes.Add(num);
       if (num > 0)
         use_history_.set_was_used_to_convey_data();
@@ -594,7 +594,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   DCHECK_GT(buf_len, 0);
   DCHECK(!core_->write_iobuffer_);
 
-  static StatsCounter writes("tcp.writes");
+  static base::StatsCounter writes("tcp.writes");
   writes.Increment();
 
   core_->write_buffer_.len = buf_len;
@@ -616,7 +616,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
                    << " bytes, but " << rv << " bytes reported.";
         return ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
       }
-      static StatsCounter write_bytes("tcp.write_bytes");
+      static base::StatsCounter write_bytes("tcp.write_bytes");
       write_bytes.Add(rv);
       if (rv > 0)
         use_history_.set_was_used_to_convey_data();
@@ -777,7 +777,7 @@ void TCPClientSocketWin::DidCompleteRead() {
   waiting_read_ = false;
   core_->read_iobuffer_ = NULL;
   if (ok) {
-    static StatsCounter read_bytes("tcp.read_bytes");
+    static base::StatsCounter read_bytes("tcp.read_bytes");
     read_bytes.Add(num_bytes);
     if (num_bytes > 0)
       use_history_.set_was_used_to_convey_data();
@@ -808,7 +808,7 @@ void TCPClientSocketWin::DidCompleteWrite() {
                  << " bytes reported.";
       rv = ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
     } else {
-      static StatsCounter write_bytes("tcp.write_bytes");
+      static base::StatsCounter write_bytes("tcp.write_bytes");
       write_bytes.Add(num_bytes);
       if (num_bytes > 0)
         use_history_.set_was_used_to_convey_data();
