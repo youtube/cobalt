@@ -21,7 +21,7 @@ bool WindowsDateListingToTime(const std::vector<string16>& columns,
 
   // Date should be in format MM-DD-YY[YY].
   std::vector<string16> date_parts;
-  SplitString(columns[0], '-', &date_parts);
+  base::SplitString(columns[0], '-', &date_parts);
   if (date_parts.size() != 3)
     return false;
   if (!base::StringToInt(date_parts[0], &time_exploded.month))
@@ -43,7 +43,7 @@ bool WindowsDateListingToTime(const std::vector<string16>& columns,
   if (columns[1].length() != 7)
     return false;
   std::vector<string16> time_parts;
-  SplitString(columns[1].substr(0, 5), ':', &time_parts);
+  base::SplitString(columns[1].substr(0, 5), ':', &time_parts);
   if (time_parts.size() != 2)
     return false;
   if (!base::StringToInt(time_parts[0], &time_exploded.hour))
@@ -77,7 +77,7 @@ FtpDirectoryListingParserWindows::FtpDirectoryListingParserWindows() {
 
 bool FtpDirectoryListingParserWindows::ConsumeLine(const string16& line) {
   std::vector<string16> columns;
-  SplitString(CollapseWhitespace(line, false), ' ', &columns);
+  base::SplitString(CollapseWhitespace(line, false), ' ', &columns);
 
   // We may receive file names containing spaces, which can make the number of
   // columns arbitrarily large. We will handle that later. For now just make

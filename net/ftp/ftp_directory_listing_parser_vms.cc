@@ -21,7 +21,7 @@ bool ParseVmsFilename(const string16& raw_filename, string16* parsed_filename,
   // On VMS, the files and directories are versioned. The version number is
   // separated from the file name by a semicolon. Example: ANNOUNCE.TXT;2.
   std::vector<string16> listing_parts;
-  SplitString(raw_filename, ';', &listing_parts);
+  base::SplitString(raw_filename, ';', &listing_parts);
   if (listing_parts.size() != 2)
     return false;
   int version_number;
@@ -35,7 +35,7 @@ bool ParseVmsFilename(const string16& raw_filename, string16* parsed_filename,
   // case-insensitive, but generally uses uppercase characters. This may look
   // awkward, so we convert them to lower case.
   std::vector<string16> filename_parts;
-  SplitString(listing_parts[0], '.', &filename_parts);
+  base::SplitString(listing_parts[0], '.', &filename_parts);
   if (filename_parts.size() != 2)
     return false;
   if (EqualsASCII(filename_parts[1], "DIR")) {
@@ -60,7 +60,7 @@ bool ParseVmsFilesize(const string16& input, int64* size) {
   }
 
   std::vector<string16> parts;
-  SplitString(input, '/', &parts);
+  base::SplitString(input, '/', &parts);
   if (parts.size() != 2)
     return false;
 
@@ -101,7 +101,7 @@ bool LooksLikeVmsFileProtectionListing(const string16& input) {
   // We expect four parts of the file protection listing: for System, Owner,
   // Group, and World.
   std::vector<string16> parts;
-  SplitString(input.substr(1, input.length() - 2), ',', &parts);
+  base::SplitString(input.substr(1, input.length() - 2), ',', &parts);
   if (parts.size() != 4)
     return false;
 
@@ -125,7 +125,7 @@ bool VmsDateListingToTime(const std::vector<string16>& columns,
 
   // Date should be in format DD-MMM-YYYY.
   std::vector<string16> date_parts;
-  SplitString(columns[1], '-', &date_parts);
+  base::SplitString(columns[1], '-', &date_parts);
   if (date_parts.size() != 3)
     return false;
   if (!base::StringToInt(date_parts[0], &time_exploded.day_of_month))
@@ -146,7 +146,7 @@ bool VmsDateListingToTime(const std::vector<string16>& columns,
   if (time_column.length() != 5)
     return false;
   std::vector<string16> time_parts;
-  SplitString(time_column, ':', &time_parts);
+  base::SplitString(time_column, ':', &time_parts);
   if (time_parts.size() != 2)
     return false;
   if (!base::StringToInt(time_parts[0], &time_exploded.hour))
@@ -229,7 +229,7 @@ FtpDirectoryListingEntry FtpDirectoryListingParserVms::PopEntry() {
 
 bool FtpDirectoryListingParserVms::ConsumeEntryLine(const string16& line) {
   std::vector<string16> columns;
-  SplitString(CollapseWhitespace(line, false), ' ', &columns);
+  base::SplitString(CollapseWhitespace(line, false), ' ', &columns);
 
   if (columns.size() == 1) {
     if (!last_filename_.empty())

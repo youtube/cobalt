@@ -69,7 +69,7 @@ bool HostMappingRules::AddRuleFromString(const std::string& rule_string) {
   std::string trimmed;
   TrimWhitespaceASCII(rule_string, TRIM_ALL, &trimmed);
   std::vector<std::string> parts;
-  SplitString(trimmed, ' ', &parts);
+  base::SplitString(trimmed, ' ', &parts);
 
   // Test for EXCLUSION rule.
   if (parts.size() == 2 && LowerCaseEqualsASCII(parts[0], "exclude")) {

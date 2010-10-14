@@ -39,7 +39,7 @@ bool GetProcStats(pid_t pid, std::vector<std::string>* proc_stats) {
   std::string mem_stats;
   if (!file_util::ReadFileToString(stat_file, &mem_stats))
     return false;
-  SplitString(mem_stats, ' ', proc_stats);
+  base::SplitString(mem_stats, ' ', proc_stats);
   return true;
 }
 
@@ -358,7 +358,7 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
       return false;
 
     std::vector<std::string> statm_vec;
-    SplitString(statm, ' ', &statm_vec);
+    base::SplitString(statm, ' ', &statm_vec);
     if (statm_vec.size() != 7)
       return false;  // Not the format we expect.
 
@@ -434,7 +434,7 @@ int ParseProcStatCPU(const std::string& input) {
   // 0-indexed 11th and 12th are utime and stime.  On two different machines
   // I found 42 and 39 fields, so let's just expect the ones we need.
   std::vector<std::string> fields;
-  SplitString(input.substr(rparen + 2), ' ', &fields);
+  base::SplitString(input.substr(rparen + 2), ' ', &fields);
   if (fields.size() < 13)
     return -1;  // Output not in the format we expect.
 
