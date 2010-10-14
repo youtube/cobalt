@@ -772,7 +772,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
                                FileEnumerator::FILE_TYPE file_type)
     : recursive_(recursive),
       file_type_(file_type),
-      is_in_find_op_(false),
+      has_find_data_(false),
       find_handle_(INVALID_HANDLE_VALUE) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
@@ -785,7 +785,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
                                const FilePath::StringType& pattern)
     : recursive_(recursive),
       file_type_(file_type),
-      is_in_find_op_(false),
+      has_find_data_(false),
       pattern_(pattern),
       find_handle_(INVALID_HANDLE_VALUE) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
@@ -801,7 +801,7 @@ FileEnumerator::~FileEnumerator() {
 void FileEnumerator::GetFindInfo(FindInfo* info) {
   DCHECK(info);
 
-  if (!is_in_find_op_)
+  if (!has_find_data_)
     return;
 
   memcpy(info, &find_data_, sizeof(*info));
@@ -817,63 +817,64 @@ FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
 }
 
 FilePath FileEnumerator::Next() {
-  if (!is_in_find_op_) {
-    if (pending_paths_.empty())
-      return FilePath();
+  while (has_find_data_ || !pending_paths_.empty()) {
+    if (!has_find_data_) {
+      // The last find FindFirstFile operation is done, prepare a new one.
+      root_path_ = pending_paths_.top();
+      pending_paths_.pop();
 
-    // The last find FindFirstFile operation is done, prepare a new one.
-    root_path_ = pending_paths_.top();
-    pending_paths_.pop();
+      // Start a new find operation.
+      FilePath src = root_path_;
 
-    // Start a new find operation.
-    FilePath src = root_path_;
+      if (pattern_.empty())
+        src = src.Append(L"*");  // No pattern = match everything.
+      else
+        src = src.Append(pattern_);
 
-    if (pattern_.empty())
-      src = src.Append(L"*");  // No pattern = match everything.
-    else
-      src = src.Append(pattern_);
-
-    find_handle_ = FindFirstFile(src.value().c_str(), &find_data_);
-    is_in_find_op_ = true;
-
-  } else {
-    // Search for the next file/directory.
-    if (!FindNextFile(find_handle_, &find_data_)) {
-      FindClose(find_handle_);
-      find_handle_ = INVALID_HANDLE_VALUE;
+      find_handle_ = FindFirstFile(src.value().c_str(), &find_data_);
+      has_find_data_ = true;
+    } else {
+      // Search for the next file/directory.
+      if (!FindNextFile(find_handle_, &find_data_)) {
+        FindClose(find_handle_);
+        find_handle_ = INVALID_HANDLE_VALUE;
+      }
     }
-  }
 
-  if (INVALID_HANDLE_VALUE == find_handle_) {
-    is_in_find_op_ = false;
+    if (INVALID_HANDLE_VALUE == find_handle_) {
+      has_find_data_ = false;
 
-    // This is reached when we have finished a directory and are advancing to
-    // the next one in the queue. We applied the pattern (if any) to the files
-    // in the root search directory, but for those directories which were
-    // matched, we want to enumerate all files inside them. This will happen
-    // when the handle is empty.
-    pattern_ = FilePath::StringType();
+      // This is reached when we have finished a directory and are advancing to
+      // the next one in the queue. We applied the pattern (if any) to the files
+      // in the root search directory, but for those directories which were
+      // matched, we want to enumerate all files inside them. This will happen
+      // when the handle is empty.
+      pattern_ = FilePath::StringType();
 
-    return Next();
-  }
-
-  FilePath cur_file(find_data_.cFileName);
-  if (ShouldSkip(cur_file))
-    return Next();
-
-  // Construct the absolute filename.
-  cur_file = root_path_.Append(cur_file);
-
-  if (find_data_.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-    if (recursive_) {
-      // If |cur_file| is a directory, and we are doing recursive searching, add
-      // it to pending_paths_ so we scan it after we finish scanning this
-      // directory.
-      pending_paths_.push(cur_file);
+      continue;
     }
-    return (file_type_ & FileEnumerator::DIRECTORIES) ? cur_file : Next();
+
+    FilePath cur_file(find_data_.cFileName);
+    if (ShouldSkip(cur_file))
+      continue;
+
+    // Construct the absolute filename.
+    cur_file = root_path_.Append(find_data_.cFileName);
+
+    if (find_data_.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      if (recursive_) {
+        // If |cur_file| is a directory, and we are doing recursive searching,
+        // add it to pending_paths_ so we scan it after we finish scanning this
+        // directory.
+        pending_paths_.push(cur_file);
+      }
+      if (file_type_ & FileEnumerator::DIRECTORIES)
+        return cur_file;
+    } else if (file_type_ & FileEnumerator::FILES)
+      return cur_file;
   }
-  return (file_type_ & FileEnumerator::FILES) ? cur_file : Next();
+
+  return FilePath();
 }
 
 ///////////////////////////////////////////////
