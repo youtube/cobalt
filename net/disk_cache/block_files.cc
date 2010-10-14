@@ -5,7 +5,7 @@
 #include "net/disk_cache/block_files.h"
 
 #include "base/file_util.h"
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/thread_checker.h"

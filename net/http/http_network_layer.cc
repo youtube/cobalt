@@ -4,7 +4,6 @@
 
 #include "net/http/http_network_layer.h"
 
-#include "base/field_trial.h"
 #include "base/logging.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
