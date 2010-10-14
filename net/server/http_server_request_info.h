@@ -15,7 +15,8 @@
 // does).
 class HttpServerRequestInfo {
  public:
-  HttpServerRequestInfo() {}
+  HttpServerRequestInfo();
+  ~HttpServerRequestInfo();
 
   // Request method.
   std::string method;

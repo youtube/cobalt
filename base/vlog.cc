@@ -39,6 +39,8 @@ VlogInfo::VlogInfo(const std::string& v_switch,
   }
 }
 
+VlogInfo::~VlogInfo() {}
+
 int VlogInfo::GetVlogLevel(const base::StringPiece& file) {
   if (!vmodule_levels_.empty()) {
     base::StringPiece module(file);
