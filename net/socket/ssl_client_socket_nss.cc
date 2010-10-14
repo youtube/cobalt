@@ -2202,9 +2202,10 @@ static DNSValidationResult CheckDNSSECChain(
   if (!dnssec_chain_tag_valid) {
     // It's harmless if multiple threads enter this block concurrently.
     static const uint8 kDNSSECChainOID[] =
-        // 1.3.6.1.4.1.11129.13172
-        // (iso.org.dod.internet.private.enterprises.google.13172)
-        {0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0xe6, 0x74};
+        // 1.3.6.1.4.1.11129.2.1.4
+        // (iso.org.dod.internet.private.enterprises.google.googleSecurity.
+        //  certificateExtensions.dnssecEmbeddedChain)
+        {0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0x02, 0x01, 0x04};
     SECOidData oid_data;
     memset(&oid_data, 0, sizeof(oid_data));
     oid_data.oid.data = const_cast<uint8*>(kDNSSECChainOID);
