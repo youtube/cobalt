@@ -874,6 +874,7 @@
           # Make inline functions have hidden visiblity by default.
           # Surprisingly, not covered by -fvisibility=hidden.
           '-fvisibility-inlines-hidden',
+          '-Wno-non-virtual-dtor',
         ],
         'ldflags': [
           '-pthread', '-Wl,-z,noexecstack',
@@ -1237,6 +1238,11 @@
           'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': '4.2',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
+          # TODO(cbentzel): http://crbug.com/45135
+          # Enable non virtual destructor warning on OSX.
+          # It's gcc implementation currently warns about more violations
+          # than Linux's gcc implementation.
+          #'GCC_WARN_NON_VIRTUAL_DESTRUCTOR': 'YES', # -Wno-non-virtual-dtor
           # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
           'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
           'PREBINDING': 'NO',                       # No -Wl,-prebind
