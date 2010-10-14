@@ -723,7 +723,7 @@ int HttpNetworkTransaction::DoSendRequest() {
     if (session_->network_delegate())
       session_->network_delegate()->OnSendHttpRequest(&request_headers);
 
-    if (net_log_.IsLoggingAll()) {
+    if (net_log_.IsLoggingAllEvents()) {
       net_log_.AddEvent(
           NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
           new NetLogHttpRequestParameter(request_line, request_headers));
@@ -731,7 +731,7 @@ int HttpNetworkTransaction::DoSendRequest() {
 
     request_headers_ = request_line + request_headers.ToString();
   } else {
-    if (net_log_.IsLoggingAll()) {
+    if (net_log_.IsLoggingAllEvents()) {
       net_log_.AddEvent(
           NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
           new NetLogHttpRequestParameter(request_->url.spec(),
@@ -826,7 +826,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
       return rv;
   }
 
-  if (net_log_.IsLoggingAll()) {
+  if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
         new NetLogHttpResponseParameter(response_.headers));

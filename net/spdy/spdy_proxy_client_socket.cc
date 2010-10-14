@@ -302,7 +302,7 @@ int SpdyProxyClientSocket::DoSendRequest() {
   HttpRequestHeaders request_headers;
   BuildTunnelRequest(request_, authorization_headers, endpoint_, &request_line,
                      &request_headers);
-  if (net_log_.IsLoggingAll()) {
+  if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
         new NetLogHttpRequestParameter(
@@ -341,7 +341,7 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
     return ERR_TUNNEL_CONNECTION_FAILED;
 
   next_state_ = STATE_OPEN;
-  if (net_log_.IsLoggingAll()) {
+  if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
         new NetLogHttpResponseParameter(response_.headers));
