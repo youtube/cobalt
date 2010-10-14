@@ -6,8 +6,6 @@
 #define BASE_RAND_UTIL_H_
 #pragma once
 
-#include <string>
-
 #include "base/basictypes.h"
 
 namespace base {
@@ -27,9 +25,6 @@ uint64 RandGenerator(uint64 max);
 
 // Returns a random double in range [0, 1). Thread-safe.
 double RandDouble();
-
-// Generate a 128-bit random GUID of the form: "%08X-%04X-%04X-%04X-%012llX".
-std::string GenerateGUID();
 
 }  // namespace base
 
