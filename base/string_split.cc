@@ -153,20 +153,12 @@ void SplitStringUsingSubstr(const std::string& str,
   SplitStringUsingSubstrT(str, s, r);
 }
 
-void SplitStringDontTrim(const std::wstring& str,
-                         wchar_t c,
-                         std::vector<std::wstring>* r) {
-  SplitStringT(str, c, false, r);
-}
-
-#if !defined(WCHAR_T_IS_UTF16)
 void SplitStringDontTrim(const string16& str,
                          char16 c,
                          std::vector<string16>* r) {
   DCHECK(CBU16_IS_SINGLE(c));
   SplitStringT(str, c, false, r);
 }
-#endif
 
 void SplitStringDontTrim(const std::string& str,
                          char c,
