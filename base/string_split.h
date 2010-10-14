@@ -57,12 +57,6 @@ void SplitStringUsingSubstr(const std::string& str,
                             std::vector<std::string>* r);
 
 // The same as SplitString, but don't trim white space.
-// Where wchar_t is char16 (i.e. Windows), |c| must be in BMP
-// (Basic Multilingual Plane). Elsewhere (Linux/Mac), wchar_t
-// should be a valid Unicode code point (32-bit).
-void SplitStringDontTrim(const std::wstring& str,
-                         wchar_t c,
-                         std::vector<std::wstring>* r);
 // NOTE: |c| must be in BMP (Basic Multilingual Plane)
 void SplitStringDontTrim(const string16& str,
                          char16 c,

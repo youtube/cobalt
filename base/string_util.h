@@ -259,7 +259,6 @@ bool WideToLatin1(const std::wstring& wide, std::string* latin1);
 // to have the maximum 'discriminating' power from other encodings. If
 // there's a use case for just checking the structural validity, we have to
 // add a new function for that.
-bool IsString8Bit(const std::wstring& str);
 bool IsStringUTF8(const std::string& str);
 bool IsStringASCII(const std::wstring& str);
 bool IsStringASCII(const base::StringPiece& str);
@@ -511,7 +510,6 @@ size_t Tokenize(const base::StringPiece& str,
                 std::vector<base::StringPiece>* tokens);
 
 // Does the opposite of SplitString().
-std::wstring JoinString(const std::vector<std::wstring>& parts, wchar_t s);
 string16 JoinString(const std::vector<string16>& parts, char16 s);
 std::string JoinString(const std::vector<std::string>& parts, char s);
 
