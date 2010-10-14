@@ -4,8 +4,8 @@
 
 #include "net/url_request/url_request_job.h"
 
-#include "base/histogram.h"
 #include "base/message_loop.h"
+#include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/base/auth.h"

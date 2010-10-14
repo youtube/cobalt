@@ -4,7 +4,7 @@
 
 #include "net/base/connection_type_histograms.h"
 
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 
 namespace net {
 

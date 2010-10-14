@@ -11,7 +11,7 @@
 #include <openssl/err.h>
 
 #include "net/base/cert_verifier.h"
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "net/base/net_errors.h"
 #include "net/base/openssl_util.h"
 #include "net/base/ssl_connection_status_flags.h"

@@ -13,8 +13,8 @@
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/field_trial.h"
-#include "base/histogram.h"
+#include "base/metrics/field_trial.h"
+#include "base/metrics/histogram.h"
 #include "base/ref_counted.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -856,11 +856,11 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
       base::TimeTicks::Now() - entry_lock_waiting_since_;
   UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait", entry_lock_wait);
   static const bool prefetching_fieldtrial =
-      FieldTrialList::Find("Prefetch") &&
-      !FieldTrialList::Find("Prefetch")->group_name().empty();
+      base::FieldTrialList::Find("Prefetch") &&
+      !base::FieldTrialList::Find("Prefetch")->group_name().empty();
   if (prefetching_fieldtrial) {
     UMA_HISTOGRAM_TIMES(
-        FieldTrial::MakeName("HttpCache.EntryLockWait", "Prefetch"),
+        base::FieldTrial::MakeName("HttpCache.EntryLockWait", "Prefetch"),
         entry_lock_wait);
   }
 

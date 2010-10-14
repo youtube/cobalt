@@ -4,8 +4,8 @@
 
 #include "net/disk_cache/entry_impl.h"
 
-#include "base/histogram.h"
 #include "base/message_loop.h"
+#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"

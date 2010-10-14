@@ -7,10 +7,10 @@
 #include <algorithm>
 
 #include "base/compiler_specific.h"
-#include "base/histogram.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/message_pump_default.h"
+#include "base/metrics/histogram.h"
 #include "base/thread_local.h"
 
 #if defined(OS_MACOSX)
@@ -60,7 +60,7 @@ const int kNumberOfDistinctMessagesDisplayed = 1100;
 // in the pair (i.e., the quoted string) when printing out a histogram.
 #define VALUE_TO_NUMBER_AND_NAME(name) {name, #name},
 
-const LinearHistogram::DescriptionPair event_descriptions_[] = {
+const base::LinearHistogram::DescriptionPair event_descriptions_[] = {
   // Provide some pretty print capability in our histogram for our internal
   // messages.
 
@@ -617,9 +617,10 @@ void MessageLoop::EnableHistogrammer(bool enable) {
 
 void MessageLoop::StartHistogrammer() {
   if (enable_histogrammer_ && !message_histogram_.get()
-      && StatisticsRecorder::WasStarted()) {
+      && base::StatisticsRecorder::WasStarted()) {
     DCHECK(!thread_name_.empty());
-    message_histogram_ = LinearHistogram::FactoryGet("MsgLoop:" + thread_name_,
+    message_histogram_ = base::LinearHistogram::FactoryGet(
+        "MsgLoop:" + thread_name_,
         kLeastNonZeroMessageId, kMaxMessageId,
         kNumberOfDistinctMessagesDisplayed,
         message_histogram_->kHexRangePrintingFlag);

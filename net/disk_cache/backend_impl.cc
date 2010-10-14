@@ -4,11 +4,11 @@
 
 #include "net/disk_cache/backend_impl.h"
 
-#include "base/field_trial.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/histogram.h"
 #include "base/message_loop.h"
+#include "base/metrics/field_trial.h"
+#include "base/metrics/histogram.h"
 #include "base/rand_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -192,11 +192,12 @@ bool SetFieldTrialInfo(int size_group) {
 
   // Field trials involve static objects so we have to do this only once.
   first = false;
-  scoped_refptr<FieldTrial> trial1 = new FieldTrial("CacheSize", 10);
+  scoped_refptr<base::FieldTrial> trial1 =
+      new base::FieldTrial("CacheSize", 10);
   std::string group1 = base::StringPrintf("CacheSizeGroup_%d", size_group);
-  trial1->AppendGroup(group1, FieldTrial::kAllRemainingProbability);
+  trial1->AppendGroup(group1, base::FieldTrial::kAllRemainingProbability);
 
-  scoped_refptr<FieldTrial> trial2 = new FieldTrial("CacheThrottle", 100);
+  scoped_refptr<base::FieldTrial> trial2 = new base::FieldTrial("CacheThrottle", 100);
   int group2a = trial2->AppendGroup("CacheThrottle_On", 10);  // 10 % in.
   trial2->AppendGroup("CacheThrottle_Off", 10);  // 10 % control.
 
@@ -1235,9 +1236,9 @@ void BackendImpl::OnOperationCompleted(base::TimeDelta elapsed_time) {
   if (cache_type() != net::DISK_CACHE)
     return;
 
-  UMA_HISTOGRAM_TIMES(
-      FieldTrial::MakeName("DiskCache.TotalIOTime", "CacheThrottle").data(),
-      elapsed_time);
+  UMA_HISTOGRAM_TIMES(base::FieldTrial::MakeName("DiskCache.TotalIOTime",
+                                                 "CacheThrottle").data(),
+                      elapsed_time);
 
   if (!throttle_requests_)
     return;

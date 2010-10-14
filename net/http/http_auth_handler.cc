@@ -4,8 +4,8 @@
 
 #include "net/http/http_auth_handler.h"
 
-#include "base/histogram.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/base/net_errors.h"
@@ -52,11 +52,11 @@ bool HttpAuthHandler::InitFromChallenge(
   DCHECK(!ok || properties_ != -1);
 
   if (ok)
-    histogram_ = Histogram::FactoryTimeGet(
+    histogram_ = base::Histogram::FactoryTimeGet(
         GenerateHistogramNameFromScheme(scheme()),
         base::TimeDelta::FromMilliseconds(1),
         base::TimeDelta::FromSeconds(10), 50,
-        Histogram::kUmaTargetedHistogramFlag);
+        base::Histogram::kUmaTargetedHistogramFlag);
 
   return ok;
 }

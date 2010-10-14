@@ -659,7 +659,7 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
           NewRunnableMethod(this, &AlsaPcmOutputStream::WriteTask));
     } else {
       // TODO(ajwong): Measure the reliability of the delay interval.  Use
-      // base/histogram.h.
+      // base/metrics/histogram.h.
       message_loop_->PostDelayedTask(
           FROM_HERE,
           NewRunnableMethod(this, &AlsaPcmOutputStream::WriteTask),

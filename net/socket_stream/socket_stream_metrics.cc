@@ -6,7 +6,7 @@
 
 #include <string.h>
 
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 

@@ -6,8 +6,8 @@
 
 #include <map>
 
-#include "base/histogram.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/singleton.h"
 #include "base/string_piece.h"
 #include "base/time.h"
