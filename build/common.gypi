@@ -874,7 +874,7 @@
           # Make inline functions have hidden visiblity by default.
           # Surprisingly, not covered by -fvisibility=hidden.
           '-fvisibility-inlines-hidden',
-          '-Wnon-virtual-dtor',
+          '-Wno-non-virtual-dtor',
         ],
         'ldflags': [
           '-pthread', '-Wl,-z,noexecstack',
