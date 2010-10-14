@@ -1208,6 +1208,7 @@
       'sources': [
         'server/http_listen_socket.cc',
         'server/http_listen_socket.h',
+        'server/http_server_request_info.cc',
         'server/http_server_request_info.h',
       ],
     },
