@@ -470,7 +470,7 @@ bool MessageLoop::DeletePendingTasks() {
       // TODO(darin): Delete all tasks once it is safe to do so.
       // Until it is totally safe, just do it when running Purify or
       // Valgrind.
-#if defined(PURIFY)
+#if defined(PURIFY) || defined(USE_HEAPCHECKER)
       delete pending_task.task;
 #elif defined(OS_POSIX)
       if (RUNNING_ON_VALGRIND)
@@ -483,7 +483,7 @@ bool MessageLoop::DeletePendingTasks() {
     // TODO(darin): Delete all tasks once it is safe to do so.
     // Until it is totaly safe, only delete them under Purify and Valgrind.
     Task* task = NULL;
-#if defined(PURIFY)
+#if defined(PURIFY) || defined(USE_HEAPCHECKER)
     task = deferred_non_nestable_work_queue_.front().task;
 #elif defined(OS_POSIX)
     if (RUNNING_ON_VALGRIND)
