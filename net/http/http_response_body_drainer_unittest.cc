@@ -94,8 +94,6 @@ class MockHttpStream : public HttpStream {
   virtual bool IsMoreDataBuffered() const { return false; }
   virtual bool IsConnectionReused() const { return false; }
   virtual void SetConnectionReused() {}
-  virtual ClientSocketHandle* DetachConnection() { return NULL; }
-
   virtual void GetSSLInfo(SSLInfo* ssl_info) {}
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) {}
 
@@ -107,6 +105,11 @@ class MockHttpStream : public HttpStream {
     closed_ = true;
     result_waiter_->set_result(not_reusable);
   }
+
+  virtual HttpStream* RenewStreamForAuth() {
+    return NULL;
+  }
+
   virtual bool IsResponseBodyComplete() const { return is_complete_; }
 
   // Methods to tweak/observer mock behavior:

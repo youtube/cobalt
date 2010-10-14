@@ -326,20 +326,25 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
   DCHECK(!stream_request_.get());
 
   if (stream_.get()) {
+    HttpStream* new_stream = NULL;
     if (keep_alive) {
       // We should call connection_->set_idle_time(), but this doesn't occur
       // often enough to be worth the trouble.
       stream_->SetConnectionReused();
-      DCHECK(!auth_connection_.get());
-      auth_connection_.reset(stream_->DetachConnection());
-    } else {
-      stream_->Close(true);
+      new_stream = stream_->RenewStreamForAuth();
     }
-    next_state_ = STATE_CREATE_STREAM;
+
+    if (!new_stream) {
+      stream_->Close(!keep_alive);
+      next_state_ = STATE_CREATE_STREAM;
+    } else {
+      next_state_ = STATE_INIT_STREAM;
+    }
+    stream_.reset(new_stream);
   }
 
   // Reset the other member variables.
-  ResetStateForRestart();
+  ResetStateForAuthRestart();
 }
 
 bool HttpNetworkTransaction::IsReadyToRestartForAuth() {
@@ -593,15 +598,13 @@ int HttpNetworkTransaction::DoLoop(int result) {
 int HttpNetworkTransaction::DoCreateStream() {
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
-  session_->http_stream_factory()->RequestStream(
-      request_,
-      &ssl_config_,
-      &proxy_info_,
-      auth_connection_.release(),
-      this,
-      net_log_,
-      session_,
-      &stream_request_);
+  session_->http_stream_factory()->RequestStream(request_,
+                                                 &ssl_config_,
+                                                 &proxy_info_,
+                                                 this,
+                                                 net_log_,
+                                                 session_,
+                                                 &stream_request_);
   return ERR_IO_PENDING;
 }
 
@@ -1125,10 +1128,14 @@ int HttpNetworkTransaction::HandleIOError(int error) {
 }
 
 void HttpNetworkTransaction::ResetStateForRestart() {
+  ResetStateForAuthRestart();
+  stream_.reset();
+}
+
+void HttpNetworkTransaction::ResetStateForAuthRestart() {
   pending_auth_target_ = HttpAuth::AUTH_NONE;
   read_buf_ = NULL;
   read_buf_len_ = 0;
-  stream_.reset();
   headers_valid_ = false;
   request_headers_.clear();
   response_ = HttpResponseInfo();
