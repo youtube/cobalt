@@ -33,7 +33,7 @@ class SSLHostInfo;
 struct HttpRequestInfo;
 
 class HttpNetworkTransaction : public HttpTransaction,
-                               public StreamFactory::StreamRequestDelegate {
+                               public StreamRequest::Delegate {
  public:
   explicit HttpNetworkTransaction(HttpNetworkSession* session);
 
@@ -58,7 +58,7 @@ class HttpNetworkTransaction : public HttpTransaction,
   virtual uint64 GetUploadProgress() const;
   virtual void SetSSLHostInfo(SSLHostInfo* host_info);
 
-  // StreamRequestDelegate methods:
+  // StreamRequest::Delegate methods:
   virtual void OnStreamReady(HttpStream* stream);
   virtual void OnStreamFailed(int status);
   virtual void OnCertificateError(int status, const SSLInfo& ssl_info);
@@ -211,7 +211,7 @@ class HttpNetworkTransaction : public HttpTransaction,
 
   ProxyInfo proxy_info_;
 
-  scoped_refptr<StreamFactory::StreamRequestJob> stream_request_;
+  scoped_ptr<StreamRequest> stream_request_;
   scoped_ptr<HttpStream> stream_;
 
   // True if we've validated the headers that the stream parser has returned.
