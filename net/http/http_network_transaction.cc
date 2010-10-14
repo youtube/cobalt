@@ -198,11 +198,6 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
       }
     }
   }
-
-  if (stream_request_.get()) {
-    stream_request_->Cancel();
-    stream_request_ = NULL;
-  }
 }
 
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
@@ -598,13 +593,15 @@ int HttpNetworkTransaction::DoLoop(int result) {
 int HttpNetworkTransaction::DoCreateStream() {
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
-  session_->http_stream_factory()->RequestStream(request_,
-                                                 &ssl_config_,
-                                                 &proxy_info_,
-                                                 this,
-                                                 net_log_,
-                                                 session_,
-                                                 &stream_request_);
+  stream_request_.reset(
+      session_->http_stream_factory()->RequestStream(
+          request_,
+          &ssl_config_,
+          &proxy_info_,
+          session_,
+          this,
+          net_log_));
+  DCHECK(stream_request_.get());
   return ERR_IO_PENDING;
 }
 
@@ -615,7 +612,7 @@ int HttpNetworkTransaction::DoCreateStreamComplete(int result) {
   }
 
   // At this point we are done with the stream_request_.
-  stream_request_ = NULL;
+  stream_request_.reset();
   return result;
 }
 
@@ -1073,12 +1070,9 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
     stream_.reset();
   }
 
-  if (stream_request_.get()) {
-    // The server is asking for a client certificate during the initial
-    // handshake.
-    stream_request_->Cancel();
-    stream_request_ = NULL;
-  }
+  // The server is asking for a client certificate during the initial
+  // handshake.
+  stream_request_.reset();
 
   // If the user selected one of the certificate in client_certs for this
   // server before, use it automatically.
