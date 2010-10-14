@@ -42,7 +42,6 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   virtual void Start(const HttpRequestInfo* request_info,
                      SSLConfig* ssl_config,
                      ProxyInfo* proxy_info,
-                     ClientSocketHandle* connection,
                      StreamFactory::StreamRequestDelegate* delegate,
                      const BoundNetLog& net_log);
   virtual void Cancel();

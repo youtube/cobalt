@@ -70,6 +70,8 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   // Closes the stream.
   virtual void Close(bool not_reusable);
 
+  virtual HttpStream* RenewStreamForAuth() { return NULL; }
+
   // Indicates if the response body has been completely read.
   virtual bool IsResponseBodyComplete() const {
     if (!stream_)
@@ -90,8 +92,6 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   virtual void SetConnectionReused() {
     // SPDY doesn't need an indicator here.
   }
-
-  virtual ClientSocketHandle* DetachConnection();
 
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
