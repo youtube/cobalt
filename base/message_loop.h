@@ -27,7 +27,9 @@
 #endif
 #endif
 
+namespace base {
 class Histogram;
+}
 
 // A MessageLoop is used to process events for a particular thread.  There is
 // at most one MessageLoop instance per thread.
@@ -457,7 +459,7 @@ class MessageLoop : public base::MessagePump::Delegate {
 
   std::string thread_name_;
   // A profiling histogram showing the counts of various messages and events.
-  scoped_refptr<Histogram> message_histogram_;
+  scoped_refptr<base::Histogram> message_histogram_;
 
   // A null terminated list which creates an incoming_queue of tasks that are
   // aquired under a mutex for processing on this instance's thread. These tasks

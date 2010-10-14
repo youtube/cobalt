@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "build/build_config.h"
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/nss_util.h"
 #include "net/base/net_test_suite.h"
 #include "net/http/http_stream_factory.h"
@@ -13,7 +13,7 @@
 
 int main(int argc, char** argv) {
   // Record histograms, so we can get histograms data in tests.
-  StatisticsRecorder recorder;
+  base::StatisticsRecorder recorder;
   NetTestSuite test_suite(argc, argv);
 
 #if defined(OS_WIN)

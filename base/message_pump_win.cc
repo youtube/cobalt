@@ -6,9 +6,7 @@
 
 #include <math.h>
 
-#include "base/histogram.h"
-
-using base::Time;
+#include "base/metrics/histogram.h"
 
 namespace base {
 

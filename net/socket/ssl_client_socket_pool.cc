@@ -4,7 +4,7 @@
 
 #include "net/socket/ssl_client_socket_pool.h"
 
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
@@ -316,18 +316,19 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
     DCHECK(ssl_connect_start_time_ != base::TimeTicks());
     base::TimeDelta connect_duration =
         base::TimeTicks::Now() - ssl_connect_start_time_;
-    if (using_spdy)
+    if (using_spdy) {
       UMA_HISTOGRAM_CUSTOM_TIMES("Net.SpdyConnectionLatency",
                                  connect_duration,
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
-    else
+    } else {
       UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
                                  connect_duration,
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
+    }
   }
 
   if (result == OK || IsCertificateError(result)) {

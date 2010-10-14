@@ -7,7 +7,7 @@
 #include <windows.h>
 #include <winhttp.h>
 
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"

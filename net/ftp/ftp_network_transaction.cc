@@ -5,7 +5,7 @@
 #include "net/ftp/ftp_network_transaction.h"
 
 #include "base/compiler_specific.h"
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"

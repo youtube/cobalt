@@ -5,7 +5,7 @@
 #include "net/http/http_stream_parser.h"
 
 #include "base/compiler_specific.h"
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ssl_cert_request_info.h"

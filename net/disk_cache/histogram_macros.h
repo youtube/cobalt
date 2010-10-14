@@ -20,10 +20,11 @@
 
 #define CACHE_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
     do { \
-      static scoped_refptr<Histogram> counter; \
+      static scoped_refptr<base::Histogram> counter; \
       if (!counter || name != counter->histogram_name()) \
-        counter = Histogram::FactoryGet(name, min, max, bucket_count, \
-                                        Histogram::kUmaTargetedHistogramFlag); \
+        counter = base::Histogram::FactoryGet( \
+            name, min, max, bucket_count, \
+            base::Histogram::kUmaTargetedHistogramFlag); \
       counter->Add(sample); \
     } while (0)
 
@@ -38,10 +39,11 @@
 
 #define CACHE_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
     do { \
-      static scoped_refptr<Histogram> counter; \
+      static scoped_refptr<base::Histogram> counter; \
       if (!counter || name != counter->histogram_name()) \
-        counter = Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-                      Histogram::kUmaTargetedHistogramFlag); \
+        counter = base::Histogram::FactoryTimeGet( \
+            name, min, max, bucket_count, \
+            base::Histogram::kUmaTargetedHistogramFlag); \
       counter->AddTime(sample); \
     } while (0)
 
@@ -50,11 +52,11 @@
     base::TimeDelta::FromSeconds(10), 50)
 
 #define CACHE_HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    static scoped_refptr<Histogram> counter; \
+    static scoped_refptr<base::Histogram> counter; \
     if (!counter || name != counter->histogram_name()) \
-      counter = LinearHistogram::FactoryGet( \
+      counter = base::LinearHistogram::FactoryGet( \
                     name, 1, boundary_value, boundary_value + 1, \
-                    Histogram::kUmaTargetedHistogramFlag); \
+                    base::Histogram::kUmaTargetedHistogramFlag); \
     counter->Add(sample); \
   } while (0)
 
@@ -70,12 +72,13 @@
 // HISTOGRAM_AGE will collect time elapsed since |initial_time|, with a
 // granularity of hours and normal values of a few months.
 #define CACHE_HISTOGRAM_AGE(name, initial_time) \
-    CACHE_HISTOGRAM_COUNTS_10000(name, (Time::Now() - initial_time).InHours())
+    CACHE_HISTOGRAM_COUNTS_10000(name, \
+                                 (base::Time::Now() - initial_time).InHours())
 
 // HISTOGRAM_AGE_MS will collect time elapsed since |initial_time|, with the
 // normal resolution of the UMA_HISTOGRAM_TIMES.
 #define CACHE_HISTOGRAM_AGE_MS(name, initial_time)\
-    CACHE_HISTOGRAM_TIMES(name, TimeTicks::Now() - initial_time)
+    CACHE_HISTOGRAM_TIMES(name, base::TimeTicks::Now() - initial_time)
 
 #define CACHE_HISTOGRAM_CACHE_ERROR(name, sample) \
     CACHE_HISTOGRAM_ENUMERATION(name, sample, 50)

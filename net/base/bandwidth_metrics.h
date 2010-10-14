@@ -8,7 +8,7 @@
 
 #include <list>
 
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/logging.h"
 #include "base/time.h"
 
