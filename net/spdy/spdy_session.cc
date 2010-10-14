@@ -456,7 +456,7 @@ int SpdySession::WriteSynStream(
   spdy_requests.Increment();
   streams_initiated_count_++;
 
-  if (net_log().IsLoggingAll()) {
+  if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_SYN_STREAM,
         new NetLogSpdySynParameter(headers, flags, stream_id));
@@ -502,7 +502,7 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
     stream->DecreaseSendWindowSize(len);
   }
 
-  if (net_log().IsLoggingAll())
+  if (net_log().IsLoggingAllEvents())
     net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_SEND_DATA,
                        new NetLogSpdyDataParameter(stream_id, len, flags));
 
@@ -959,7 +959,7 @@ void SpdySession::OnError(spdy::SpdyFramer* framer) {
 void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                     const char* data,
                                     size_t len) {
-  if (net_log().IsLoggingAll())
+  if (net_log().IsLoggingAllEvents())
     net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_RECV_DATA,
         new NetLogSpdyDataParameter(stream_id, len, spdy::SpdyDataFlags()));
 
@@ -992,7 +992,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   spdy::SpdyStreamId stream_id = frame.stream_id();
   spdy::SpdyStreamId associated_stream_id = frame.associated_stream_id();
 
-  if (net_log_.IsLoggingAll()) {
+  if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
         new NetLogSpdySynParameter(
@@ -1090,7 +1090,7 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   }
   stream->set_response_received();
 
-  if (net_log().IsLoggingAll()) {
+  if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_SYN_REPLY,
         new NetLogSpdySynParameter(

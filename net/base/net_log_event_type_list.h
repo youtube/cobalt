@@ -347,14 +347,18 @@ EVENT_TYPE(SSL_NSS_ERROR)
 // The specified number of bytes were sent on the socket.
 // The following parameters are attached:
 //   {
-//     "num_bytes": <Number of bytes that were just sent>
+//     "byte_count": <Number of bytes that were just sent>,
+//     "hex_encoded_bytes": <The exact bytes sent, as a hexadecimal string.
+//                           Only present when byte logging is enabled>
 //   }
 EVENT_TYPE(SOCKET_BYTES_SENT)
 
 // The specified number of bytes were received on the socket.
 // The following parameters are attached:
 //   {
-//     "num_bytes": <Number of bytes that were just sent>
+//     "byte_count": <Number of bytes that were just received>,
+//     "hex_encoded_bytes": <The exact bytes received, as a hexadecimal string.
+//                           Only present when byte logging is enabled>
 //   }
 EVENT_TYPE(SOCKET_BYTES_RECEIVED)
 
