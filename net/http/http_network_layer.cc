@@ -195,7 +195,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kNpnProtosHttpOnly[] = "\x08http/1.1\x07http1.1";
 
   std::vector<std::string> spdy_options;
-  SplitString(mode, ',', &spdy_options);
+  base::SplitString(mode, ',', &spdy_options);
 
   bool use_alt_protocols = true;
 

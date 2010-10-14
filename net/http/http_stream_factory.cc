@@ -77,7 +77,7 @@ void HttpStreamFactory::ProcessAlternateProtocol(
     const std::string& alternate_protocol_str,
     const HostPortPair& http_host_port_pair) {
   std::vector<std::string> port_protocol_vector;
-  SplitString(alternate_protocol_str, ':', &port_protocol_vector);
+  base::SplitString(alternate_protocol_str, ':', &port_protocol_vector);
   if (port_protocol_vector.size() != 2) {
     DLOG(WARNING) << HttpAlternateProtocols::kHeader
                   << " header has too many tokens: "

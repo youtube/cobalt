@@ -27,6 +27,7 @@
 // TODO(tfarina): Fix the rlz library to include this instead and remove
 // this include.
 #include "base/string_split.h"
+using base::SplitString;
 #endif  // RLZ_WIN_LIB_RLZ_LIB_H_
 
 // Safe standard library wrappers for all platforms.
