@@ -13,9 +13,11 @@
 .*.sw?
 .DS_Store
 .cproject
+.gdb_history
 .gdbinit
 .metadata
 .project
+tags
 /Makefile
 /_out
 /breakpad/src/
@@ -66,6 +68,7 @@
 /third_party/chromeos_text_input
 /third_party/cros
 /third_party/cygwin
+/third_party/directxsdk
 /third_party/ffmpeg
 /third_party/forge
 /third_party/gles2_conform
@@ -87,6 +90,7 @@
 /third_party/pefile
 /third_party/personalization
 /third_party/platformsdk_win2008_6_1
+/third_party/platformsdk_win7
 /third_party/ppapi
 /third_party/pthreads-win32
 /third_party/python_24
