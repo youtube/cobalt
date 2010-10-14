@@ -13,8 +13,8 @@
 #include <string>
 
 #include "base/file_path.h"
-#include "base/histogram.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/pe_image.h"
 #include "base/scoped_comptr_win.h"
 #include "base/scoped_handle.h"

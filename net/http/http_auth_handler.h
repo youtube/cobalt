@@ -14,7 +14,9 @@
 #include "net/base/net_log.h"
 #include "net/http/http_auth.h"
 
+namespace base {
 class Histogram;
+}
 
 namespace net {
 
@@ -187,7 +189,7 @@ class HttpAuthHandler {
   CompletionCallbackImpl<HttpAuthHandler> wrapper_callback_;
   // When GenerateAuthToken was called.
   base::TimeTicks generate_auth_token_start_;
-  scoped_refptr<Histogram> histogram_;
+  scoped_refptr<base::Histogram> histogram_;
 };
 
 }  // namespace net

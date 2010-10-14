@@ -8,7 +8,7 @@
 #include "base/linked_ptr.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/stats_counters.h"
+#include "base/metrics/stats_counters.h"
 #include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
@@ -284,7 +284,7 @@ net::Error SpdySession::InitializeWithSocket(
     ClientSocketHandle* connection,
     bool is_secure,
     int certificate_error_code) {
-  static StatsCounter spdy_sessions("spdy.sessions");
+  static base::StatsCounter spdy_sessions("spdy.sessions");
   spdy_sessions.Increment();
 
   AdjustSocketBufferSizes(connection->socket());
@@ -452,7 +452,7 @@ int SpdySession::WriteSynStream(
           flags, false, headers.get()));
   QueueFrame(syn_frame.get(), priority, stream);
 
-  static StatsCounter spdy_requests("spdy.requests");
+  static base::StatsCounter spdy_requests("spdy.requests");
   spdy_requests.Increment();
   streams_initiated_count_++;
 
@@ -766,8 +766,9 @@ void SpdySession::WriteSocket() {
 }
 
 void SpdySession::CloseAllStreams(net::Error status) {
-  static StatsCounter abandoned_streams("spdy.abandoned_streams");
-  static StatsCounter abandoned_push_streams("spdy.abandoned_push_streams");
+  static base::StatsCounter abandoned_streams("spdy.abandoned_streams");
+  static base::StatsCounter abandoned_push_streams(
+      "spdy.abandoned_push_streams");
 
   if (!active_streams_.empty())
     abandoned_streams.Add(active_streams_.size());
@@ -914,7 +915,7 @@ void SpdySession::RemoveFromPool() {
 
 scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
     const std::string& path) {
-  static StatsCounter used_push_streams("spdy.claimed_push_streams");
+  static base::StatsCounter used_push_streams("spdy.claimed_push_streams");
 
   PushedStreamMap::iterator it = unclaimed_pushed_streams_.find(path);
   if (it != unclaimed_pushed_streams_.end()) {
@@ -1063,7 +1064,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   if (!Respond(*headers, stream))
     return;
 
-  static StatsCounter push_requests("spdy.pushed_streams");
+  static base::StatsCounter push_requests("spdy.pushed_streams");
   push_requests.Increment();
 }
 

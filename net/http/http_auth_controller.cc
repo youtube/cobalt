@@ -4,7 +4,7 @@
 
 #include "net/http/http_auth_controller.h"
 
-#include "base/histogram.h"
+#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"

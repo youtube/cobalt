@@ -9,6 +9,9 @@
 
 namespace disk_cache {
 
+using base::Histogram;
+using base::StatisticsRecorder;
+
 // Static.
 const Stats* StatsHistogram::stats_ = NULL;
 

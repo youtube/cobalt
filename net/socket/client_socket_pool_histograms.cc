@@ -6,11 +6,14 @@
 
 #include <string>
 
-#include "base/field_trial.h"
-#include "base/histogram.h"
+#include "base/metrics/field_trial.h"
+#include "base/metrics/histogram.h"
 #include "net/socket/client_socket_handle.h"
 
 namespace net {
+
+using base::Histogram;
+using base::LinearHistogram;
 
 ClientSocketPoolHistograms::ClientSocketPoolHistograms(
     const std::string& pool_name)
@@ -56,11 +59,12 @@ void ClientSocketPoolHistograms::AddRequestTime(base::TimeDelta time) const {
   request_time_->AddTime(time);
 
   static bool proxy_connection_impact_trial_exists(
-      FieldTrialList::Find("ProxyConnectionImpact") &&
-      !FieldTrialList::Find("ProxyConnectionImpact")->group_name().empty());
+      base::FieldTrialList::Find("ProxyConnectionImpact") &&
+      !base::FieldTrialList::Find("ProxyConnectionImpact")->
+          group_name().empty());
   if (proxy_connection_impact_trial_exists && is_http_proxy_connection_) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
-        FieldTrial::MakeName("Net.HttpProxySocketRequestTime",
+        base::FieldTrial::MakeName("Net.HttpProxySocketRequestTime",
                              "ProxyConnectionImpact"),
         time,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
@@ -68,7 +72,7 @@ void ClientSocketPoolHistograms::AddRequestTime(base::TimeDelta time) const {
   }
   if (proxy_connection_impact_trial_exists && is_socks_connection_) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
-        FieldTrial::MakeName("Net.SocksSocketRequestTime",
+        base::FieldTrial::MakeName("Net.SocksSocketRequestTime",
                              "ProxyConnectionImpact"),
         time,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
