@@ -75,6 +75,12 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "drwxr-xr-x               folder        0 Jul 17  2006 online",
       net::FtpDirectoryListingEntry::DIRECTORY, "online", -1,
       2006, 7, 17, 0, 0 },
+
+    // Tests for "ls -l" style listing with owning group name
+    // not separated from file size (http://crbug.com/58963).
+    { "-rw-r--r-- 1 ftpadmin ftpadmin125435904 Apr  9  2008 .pureftpd-upload",
+      net::FtpDirectoryListingEntry::FILE, ".pureftpd-upload", 0,
+      2008, 4, 9, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
