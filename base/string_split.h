@@ -12,9 +12,7 @@
 
 #include "base/string16.h"
 
-// TODO(tfarina): Move the following functions into the namespace and update the
-// callers.
-//-----------------------------------------------------------------------------
+namespace base {
 
 // Splits |str| into a vector of strings delimited by |s|. Append the results
 // into |r| as they appear. If several instances of |s| are contiguous, or if
@@ -38,8 +36,6 @@ void SplitString(const string16& str,
 void SplitString(const std::string& str,
                  char c,
                  std::vector<std::string>* r);
-
-namespace base {
 
 bool SplitStringIntoKeyValues(
     const std::string& line,

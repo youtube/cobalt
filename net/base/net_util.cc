@@ -1904,7 +1904,7 @@ bool ParseCIDRBlock(const std::string& cidr_literal,
   //   <IPv6-literal> "/" <number of bits>
 
   std::vector<std::string> parts;
-  SplitString(cidr_literal, '/', &parts);
+  base::SplitString(cidr_literal, '/', &parts);
   if (parts.size() != 2)
     return false;
 
