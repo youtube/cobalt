@@ -381,12 +381,4 @@ void SpdyHttpStream::GetSSLCertRequestInfo(
   stream_->GetSSLCertRequestInfo(cert_request_info);
 }
 
-ClientSocketHandle* SpdyHttpStream::DetachConnection() {
-  // DetachConnection is currently used to ensure that multi-round HTTP
-  // authentication takes place on the same connection. Since SpdyHttpStream's
-  // for the same domain will always map to the same SpdySession, NULL can
-  // be returned.
-  return NULL;
-}
-
 }  // namespace net
