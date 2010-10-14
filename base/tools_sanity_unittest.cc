@@ -27,14 +27,6 @@ class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
   bool *value_;
 };
 
-}
-
-// A memory leak detector should report an error in this test.
-TEST(ToolsSanityTest, MemoryLeak) {
-  int *leak = new int[256];  // Leak some memory intentionally.
-  leak[4] = 1;  // Make sure the allocated memory is used.
-}
-
 void ReadUninitializedValue(char *ptr) {
   if (*ptr == '\0') {
     (*ptr)++;
@@ -75,6 +67,14 @@ void MakeSomeErrors(char *ptr, size_t size) {
   WriteValueOutOfArrayBoundsLeft(ptr);
   WriteValueOutOfArrayBoundsRight(ptr, size);
 #endif
+}
+
+}  // namespace
+
+// A memory leak detector should report an error in this test.
+TEST(ToolsSanityTest, MemoryLeak) {
+  int *leak = new int[256];  // Leak some memory intentionally.
+  leak[4] = 1;  // Make sure the allocated memory is used.
 }
 
 TEST(ToolsSanityTest, AccessesToNewMemory) {
