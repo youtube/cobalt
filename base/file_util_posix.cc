@@ -564,8 +564,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
     : current_directory_entry_(0),
       root_path_(root_path),
       recursive_(recursive),
-      file_type_(file_type),
-      is_in_find_op_(false) {
+      file_type_(file_type) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
   pending_paths_.push(root_path);
@@ -579,8 +578,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
       root_path_(root_path),
       recursive_(recursive),
       file_type_(file_type),
-      pattern_(root_path.Append(pattern).value()),
-      is_in_find_op_(false) {
+      pattern_(root_path.Append(pattern).value()) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
   // The Windows version of this code appends the pattern to the root_path,
