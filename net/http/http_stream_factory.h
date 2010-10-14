@@ -30,13 +30,12 @@ class HttpStreamFactory : public StreamFactory,
   virtual ~HttpStreamFactory();
 
   // StreamFactory Interface
-  virtual void RequestStream(const HttpRequestInfo* info,
-                             SSLConfig* ssl_config,
-                             ProxyInfo* proxy_info,
-                             StreamRequestDelegate* delegate,
-                             const BoundNetLog& net_log,
-                             const scoped_refptr<HttpNetworkSession>& session,
-                             scoped_refptr<StreamRequestJob>* stream);
+  virtual StreamRequest* RequestStream(const HttpRequestInfo* info,
+                                       SSLConfig* ssl_config,
+                                       ProxyInfo* proxy_info,
+                                       HttpNetworkSession* session,
+                                       StreamRequest::Delegate* delegate,
+                                       const BoundNetLog& net_log);
 
   // TLS Intolerant Server API
   void AddTLSIntolerantServer(const GURL& url);
