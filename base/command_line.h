@@ -164,7 +164,6 @@ class CommandLine {
   // TODO(evanm): remove all of these.
 #if defined(OS_WIN)
   // Deprecated on non-Windows.
-  std::wstring program() const;
   bool HasSwitch(const std::wstring& switch_string) const;
 #endif
 
