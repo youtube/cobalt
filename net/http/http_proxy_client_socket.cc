@@ -331,7 +331,7 @@ int HttpProxyClientSocket::DoSendRequest() {
     HttpRequestHeaders request_headers;
     BuildTunnelRequest(request_, authorization_headers, endpoint_,
                        &request_line, &request_headers);
-    if (net_log_.IsLoggingAll()) {
+    if (net_log_.IsLoggingAllEvents()) {
       net_log_.AddEvent(
           NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
           new NetLogHttpRequestParameter(
@@ -369,7 +369,7 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0))
     return ERR_TUNNEL_CONNECTION_FAILED;
 
-  if (net_log_.IsLoggingAll()) {
+  if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
         new NetLogHttpResponseParameter(response_.headers));

@@ -52,7 +52,7 @@ class CapturingNetLog : public NetLog {
                         EventPhase phase,
                         EventParameters* extra_parameters);
   virtual uint32 NextID();
-  virtual LogLevel GetLogLevel() const { return LOG_ALL; }
+  virtual LogLevel GetLogLevel() const { return LOG_ALL_BUT_BYTES; }
 
   // Returns the list of all entries in the log.
   const EntryList& entries() const { return entries_; }

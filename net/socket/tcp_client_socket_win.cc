@@ -568,8 +568,8 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       read_bytes.Add(num);
       if (num > 0)
         use_history_.set_was_used_to_convey_data();
-      net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
-                        new NetLogIntegerParameter("num_bytes", num));
+      LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_RECEIVED, num,
+                      core_->read_buffer_.buf);
       return static_cast<int>(num);
     }
   } else {
@@ -620,8 +620,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
       write_bytes.Add(rv);
       if (rv > 0)
         use_history_.set_was_used_to_convey_data();
-      net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_SENT,
-                        new NetLogIntegerParameter("num_bytes", rv));
+      LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_SENT, rv,
+                      core_->write_buffer_.buf);
       return rv;
     }
   } else {
@@ -781,8 +781,8 @@ void TCPClientSocketWin::DidCompleteRead() {
     read_bytes.Add(num_bytes);
     if (num_bytes > 0)
       use_history_.set_was_used_to_convey_data();
-    net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
-                      new NetLogIntegerParameter("num_bytes", num_bytes));
+    LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_RECEIVED, num_bytes,
+                    core_->read_buffer_.buf);
   }
   DoReadCallback(ok ? num_bytes : MapWinsockError(WSAGetLastError()));
 }
@@ -812,8 +812,8 @@ void TCPClientSocketWin::DidCompleteWrite() {
       write_bytes.Add(num_bytes);
       if (num_bytes > 0)
         use_history_.set_was_used_to_convey_data();
-      net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_SENT,
-                        new NetLogIntegerParameter("num_bytes", rv));
+      LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_SENT, num_bytes,
+                      core_->write_buffer_.buf);
     }
   }
   core_->write_iobuffer_ = NULL;
