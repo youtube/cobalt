@@ -30,6 +30,7 @@ class VlogInfo {
   // are also disregarded for this matching).
   VlogInfo(const std::string& v_switch,
            const std::string& vmodule_switch);
+  ~VlogInfo();
 
   // Returns the vlog level for a given file (usually taken from
   // __FILE__).
