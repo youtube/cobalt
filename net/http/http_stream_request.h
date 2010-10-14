@@ -6,6 +6,7 @@
 #define NET_HTTP_HTTP_STREAM_REQUEST_H_
 
 #include "base/scoped_ptr.h"
+#include "base/task.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_mapping_rules.h"
 #include "net/base/ssl_config_service.h"
@@ -32,19 +33,24 @@ struct HttpRequestInfo;
 
 // An HttpStreamRequest exists for each stream which is in progress of being
 // created for the StreamFactory.
-class HttpStreamRequest : public StreamFactory::StreamRequestJob {
+class HttpStreamRequest : public StreamRequest {
  public:
   HttpStreamRequest(HttpStreamFactory* factory,
-                    const scoped_refptr<HttpNetworkSession>& session);
+                    HttpNetworkSession* session);
   virtual ~HttpStreamRequest();
 
+  // Start initiates the process of creating a new HttpStream.
+  // 3 parameters are passed in by reference.  The caller asserts that the
+  // lifecycle of these parameters will remain valid until the stream is
+  // created, failed, or destroyed.  In the first two cases, the delegate will
+  // be called to notify completion of the request.
+  void Start(const HttpRequestInfo* request_info,
+             SSLConfig* ssl_config,
+             ProxyInfo* proxy_info,
+             Delegate* delegate,
+             const BoundNetLog& net_log);
+
   // StreamRequest interface
-  virtual void Start(const HttpRequestInfo* request_info,
-                     SSLConfig* ssl_config,
-                     ProxyInfo* proxy_info,
-                     StreamFactory::StreamRequestDelegate* delegate,
-                     const BoundNetLog& net_log);
-  virtual void Cancel();
   virtual int RestartWithCertificate(X509Certificate* client_cert);
   virtual int RestartTunnelWithProxyAuth(const string16& username,
                                          const string16& password);
@@ -75,6 +81,7 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
     STATE_CREATE_STREAM_COMPLETE,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE,
+    STATE_DONE,
     STATE_NONE
   };
 
@@ -83,7 +90,7 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   SSLConfig* ssl_config() const;
 
   // Callbacks to the delegate.
-  void OnStreamReadyCallback(HttpStream* stream);
+  void OnStreamReadyCallback();
   void OnStreamFailedCallback(int result);
   void OnCertificateErrorCallback(int result, const SSLInfo& ssl_info);
   void OnNeedsProxyAuthCallback(const HttpResponseInfo& response_info,
@@ -163,7 +170,7 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   CompletionCallbackImpl<HttpStreamRequest> io_callback_;
   scoped_ptr<ClientSocketHandle> connection_;
   scoped_refptr<HttpStreamFactory> factory_;
-  StreamFactory::StreamRequestDelegate* delegate_;
+  Delegate* delegate_;
   BoundNetLog net_log_;
   State next_state_;
   ProxyService::PacRequest* pac_request_;
@@ -208,10 +215,7 @@ class HttpStreamRequest : public StreamFactory::StreamRequestJob {
   // True if we negotiated NPN.
   bool was_npn_negotiated_;
 
-  // Indicates that this StreamRequest has been cancelled.  Note that once
-  // this has been cancelled, input parameters passed into the StreamRequest
-  // can no longer be touched (as they belong to the requestor).
-  bool cancelled_;
+  ScopedRunnableMethodFactory<HttpStreamRequest> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamRequest);
 };

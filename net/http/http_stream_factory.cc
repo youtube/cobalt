@@ -44,17 +44,16 @@ HttpStreamFactory::HttpStreamFactory() {
 HttpStreamFactory::~HttpStreamFactory() {
 }
 
-void HttpStreamFactory::RequestStream(
+StreamRequest* HttpStreamFactory::RequestStream(
     const HttpRequestInfo* request_info,
     SSLConfig* ssl_config,
     ProxyInfo* proxy_info,
-    StreamFactory::StreamRequestDelegate* delegate,
-    const BoundNetLog& net_log,
-    const scoped_refptr<HttpNetworkSession>& session,
-    scoped_refptr<StreamRequestJob>* stream) {
-  DCHECK(stream != NULL);
-  *stream = new HttpStreamRequest(this, session);
-  (*stream)->Start(request_info, ssl_config, proxy_info, delegate, net_log);
+    HttpNetworkSession* session,
+    StreamRequest::Delegate* delegate,
+    const BoundNetLog& net_log) {
+  HttpStreamRequest* stream = new HttpStreamRequest(this, session);
+  stream->Start(request_info, ssl_config, proxy_info, delegate, net_log);
+  return stream;
 }
 
 void HttpStreamFactory::AddTLSIntolerantServer(const GURL& url) {
