@@ -99,7 +99,7 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
   received_nonempty_line_ = true;
 
   std::vector<string16> columns;
-  SplitString(CollapseWhitespace(line, false), ' ', &columns);
+  base::SplitString(CollapseWhitespace(line, false), ' ', &columns);
 
   // Some FTP servers put a "total n" line at the beginning of the listing
   // (n is an integer). Allow such a line, but only once, and only if it's

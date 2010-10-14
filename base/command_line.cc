@@ -449,7 +449,7 @@ void CommandLine::PrependWrapper(const std::wstring& wrapper) {
   // The wrapper may have embedded arguments (like "gdb --args"). In this case,
   // we don't pretend to do anything fancy, we just split on spaces.
   std::vector<std::wstring> wrapper_and_args;
-  SplitString(wrapper, ' ', &wrapper_and_args);
+  base::SplitString(wrapper, ' ', &wrapper_and_args);
   program_ = wrapper_and_args[0];
   command_line_string_ = wrapper + L" " + command_line_string_;
 }
@@ -500,7 +500,7 @@ void CommandLine::PrependWrapper(const std::string& wrapper) {
   // The wrapper may have embedded arguments (like "gdb --args"). In this case,
   // we don't pretend to do anything fancy, we just split on spaces.
   std::vector<std::string> wrapper_and_args;
-  SplitString(wrapper, ' ', &wrapper_and_args);
+  base::SplitString(wrapper, ' ', &wrapper_and_args);
   argv_.insert(argv_.begin(), wrapper_and_args.begin(), wrapper_and_args.end());
 }
 

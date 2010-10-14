@@ -106,7 +106,7 @@ TEST_F(FtpDirectoryListingParserVmsTest, Bad) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i, bad_cases[i]));
 
     std::vector<std::string> lines;
-    SplitString(bad_cases[i], '|', &lines);
+    base::SplitString(bad_cases[i], '|', &lines);
     net::FtpDirectoryListingParserVms parser;
     bool failed = false;
     for (std::vector<std::string>::const_iterator i = lines.begin();

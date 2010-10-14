@@ -9,6 +9,8 @@
 #include "base/third_party/icu/icu_utf.h"
 #include "base/utf_string_conversions.h"
 
+namespace base {
+
 template<typename STR>
 static void SplitStringT(const STR& str,
                          const typename STR::value_type s,
@@ -54,8 +56,6 @@ void SplitString(const std::string& str,
   DCHECK(c >= 0 && c < 0x7F);
   SplitStringT(str, c, true, r);
 }
-
-namespace base {
 
 bool SplitStringIntoKeyValues(
     const std::string& line,

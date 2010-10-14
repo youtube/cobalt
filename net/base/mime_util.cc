@@ -430,7 +430,7 @@ void MimeUtil::ParseCodecString(const std::string& codecs,
                                 bool strip) {
   std::string no_quote_codecs;
   TrimString(codecs, "\"", &no_quote_codecs);
-  SplitString(no_quote_codecs, ',', codecs_out);
+  base::SplitString(no_quote_codecs, ',', codecs_out);
 
   if (!strip)
     return;
