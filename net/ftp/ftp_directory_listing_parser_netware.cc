@@ -48,7 +48,7 @@ bool FtpDirectoryListingParserNetware::ConsumeLine(const string16& line) {
   }
 
   std::vector<string16> columns;
-  SplitString(CollapseWhitespace(line, false), ' ', &columns);
+  base::SplitString(CollapseWhitespace(line, false), ' ', &columns);
 
   if (columns.size() != 8)
     return false;
