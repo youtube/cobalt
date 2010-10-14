@@ -54,6 +54,7 @@ HttpStreamRequest::HttpStreamRequest(
       session_(session),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpStreamRequest::OnIOComplete)),
+      connection_(new ClientSocketHandle),
       factory_(factory),
       delegate_(NULL),
       next_state_(STATE_NONE),
@@ -90,7 +91,6 @@ HttpStreamRequest::~HttpStreamRequest() {
 void HttpStreamRequest::Start(const HttpRequestInfo* request_info,
                               SSLConfig* ssl_config,
                               ProxyInfo* proxy_info,
-                              ClientSocketHandle* connection,
                               StreamFactory::StreamRequestDelegate* delegate,
                               const BoundNetLog& net_log) {
   CHECK_EQ(STATE_NONE, next_state_);
@@ -101,15 +101,7 @@ void HttpStreamRequest::Start(const HttpRequestInfo* request_info,
   proxy_info_ = proxy_info;
   delegate_ = delegate;
   net_log_ = net_log;
-  if (connection) {
-    DCHECK(!using_spdy_);
-    DCHECK(connection->is_initialized());
-    connection_.reset(connection);
-    next_state_ = STATE_CREATE_STREAM;
-  } else {
-    connection_.reset(new ClientSocketHandle);
-    next_state_ = STATE_RESOLVE_PROXY;
-  }
+  next_state_ = STATE_RESOLVE_PROXY;
   int rv = RunLoop(OK);
   DCHECK_EQ(ERR_IO_PENDING, rv);
 }
