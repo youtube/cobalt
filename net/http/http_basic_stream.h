@@ -53,6 +53,8 @@ class HttpBasicStream : public HttpStream {
 
   virtual void Close(bool not_reusable);
 
+  virtual HttpStream* RenewStreamForAuth();
+
   virtual bool IsResponseBodyComplete() const;
 
   virtual bool CanFindEndOfResponse() const;
@@ -63,15 +65,11 @@ class HttpBasicStream : public HttpStream {
 
   virtual void SetConnectionReused();
 
-  virtual ClientSocketHandle* DetachConnection();
-
   virtual void GetSSLInfo(SSLInfo* ssl_info);
 
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
  private:
-  bool IsDetached() const;
-
   scoped_refptr<GrowableIOBuffer> read_buf_;
 
   scoped_ptr<HttpStreamParser> parser_;
