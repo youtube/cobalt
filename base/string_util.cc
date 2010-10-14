@@ -441,14 +441,6 @@ bool WideToLatin1(const std::wstring& wide, std::string* latin1) {
   return true;
 }
 
-bool IsString8Bit(const std::wstring& str) {
-  for (size_t i = 0; i < str.length(); i++) {
-    if (str[i] > 255)
-      return false;
-  }
-  return true;
-}
-
 template<class STR>
 static bool DoIsStringASCII(const STR& str) {
   for (size_t i = 0; i < str.length(); i++) {
@@ -826,13 +818,7 @@ std::string JoinString(const std::vector<std::string>& parts, char sep) {
   return JoinStringT(parts, sep);
 }
 
-#if !defined(WCHAR_T_IS_UTF16)
 string16 JoinString(const std::vector<string16>& parts, char16 sep) {
-  return JoinStringT(parts, sep);
-}
-#endif
-
-std::wstring JoinString(const std::vector<std::wstring>& parts, wchar_t sep) {
   return JoinStringT(parts, sep);
 }
 
