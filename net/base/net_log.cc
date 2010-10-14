@@ -131,8 +131,12 @@ NetLog::LogLevel BoundNetLog::GetLogLevel() const {
   return NetLog::LOG_BASIC;
 }
 
-bool BoundNetLog::IsLoggingAll() const {
+bool BoundNetLog::IsLoggingBytes() const {
   return GetLogLevel() == NetLog::LOG_ALL;
+}
+
+bool BoundNetLog::IsLoggingAllEvents() const {
+  return GetLogLevel() <= NetLog::LOG_ALL_BUT_BYTES;
 }
 
 void BoundNetLog::AddEvent(

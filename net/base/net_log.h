@@ -98,7 +98,12 @@ class NetLog {
   // Specifies the granularity of events that should be emitted to the log.
   enum LogLevel {
     // Log everything possible, even if it is slow and memory expensive.
+    // Includes logging of transferred bytes.
     LOG_ALL,
+
+    // Log all events, but do not include the actual transferred bytes as
+    // parameters for bytes sent/received events.
+    LOG_ALL_BUT_BYTES,
 
     // Only log events which are cheap, and don't consume much memory.
     LOG_BASIC,
@@ -194,7 +199,10 @@ class BoundNetLog {
   NetLog::LogLevel GetLogLevel() const;
 
   // Returns true if the log level is LOG_ALL.
-  bool IsLoggingAll() const;
+  bool IsLoggingBytes() const;
+
+  // Returns true if the log level is LOG_ALL or LOG_ALL_BUT_BYTES.
+  bool IsLoggingAllEvents() const;
 
   // Helper to create a BoundNetLog given a NetLog and a SourceType. Takes care
   // of creating a unique source ID, and handles the case of NULL net_log.

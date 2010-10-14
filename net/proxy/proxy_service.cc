@@ -692,8 +692,8 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
                                           const BoundNetLog& net_log) {
   // Log the result of the proxy resolution.
   if (result_code == OK) {
-    // When full logging is enabled, dump the proxy list.
-    if (net_log.IsLoggingAll()) {
+    // When logging all events is enabled, dump the proxy list.
+    if (net_log.IsLoggingAllEvents()) {
       net_log.AddEvent(
           NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
           new NetLogStringParameter("pac_string", result->ToPacString()));
