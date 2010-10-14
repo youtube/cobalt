@@ -47,7 +47,7 @@ GURL UpgradeUrlToHttps(const GURL& original_url) {
 
 HttpStreamRequest::HttpStreamRequest(
     HttpStreamFactory* factory,
-    const scoped_refptr<HttpNetworkSession>& session)
+    HttpNetworkSession* session)
     : request_info_(NULL),
       proxy_info_(NULL),
       ssl_config_(NULL),
@@ -67,7 +67,7 @@ HttpStreamRequest::HttpStreamRequest(
       establishing_tunnel_(false),
       was_alternate_protocol_available_(false),
       was_npn_negotiated_(false),
-      cancelled_(false) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   if (factory->use_alternate_protocols())
     alternate_protocol_mode_ = kUnspecified;
   else
@@ -80,21 +80,24 @@ HttpStreamRequest::~HttpStreamRequest() {
   // this stream at all.
   if (next_state_ == STATE_WAITING_USER_ACTION) {
     connection_->socket()->Disconnect();
-    connection_->Reset();
     connection_.reset();
   }
 
   if (pac_request_)
     session_->proxy_service()->CancelPacRequest(pac_request_);
+
+  // The stream could be in a partial state.  It is not reusable.
+  if (stream_.get() && next_state_ != STATE_DONE) {
+    stream_->Close(true /* not reusable */);
+  }
 }
 
 void HttpStreamRequest::Start(const HttpRequestInfo* request_info,
                               SSLConfig* ssl_config,
                               ProxyInfo* proxy_info,
-                              StreamFactory::StreamRequestDelegate* delegate,
+                              Delegate* delegate,
                               const BoundNetLog& net_log) {
   CHECK_EQ(STATE_NONE, next_state_);
-  CHECK(!cancelled_);
 
   request_info_ = request_info;
   ssl_config_ = ssl_config;
@@ -104,29 +107,6 @@ void HttpStreamRequest::Start(const HttpRequestInfo* request_info,
   next_state_ = STATE_RESOLVE_PROXY;
   int rv = RunLoop(OK);
   DCHECK_EQ(ERR_IO_PENDING, rv);
-}
-
-void HttpStreamRequest::Cancel() {
-  cancelled_ = true;
-
-  // If we were waiting for the user to take action, then the connection
-  // is in a partially connected state.  All we can do is close it at this
-  // point.
-  if (next_state_ == STATE_WAITING_USER_ACTION) {
-    connection_->socket()->Disconnect();
-    connection_->Reset();
-    connection_.reset();
-  }
-
-  // The stream could be in a partial state.  It is not reusable.
-  if (stream_.get()) {
-    stream_->Close(true);
-    stream_.reset();
-  }
-
-  delegate_ = NULL;
-
-  next_state_ = STATE_NONE;
 }
 
 int HttpStreamRequest::RestartWithCertificate(X509Certificate* client_cert) {
@@ -170,54 +150,39 @@ void HttpStreamRequest::GetSSLInfo() {
 }
 
 const HttpRequestInfo& HttpStreamRequest::request_info() const {
-  DCHECK(!cancelled_);  // Can't access this after cancellation.
   return *request_info_;
 }
 
 ProxyInfo* HttpStreamRequest::proxy_info() const {
-  DCHECK(!cancelled_);  // Can't access this after cancellation.
   return proxy_info_;
 }
 
 SSLConfig* HttpStreamRequest::ssl_config() const {
-  DCHECK(!cancelled_);  // Can't access this after cancellation.
   return ssl_config_;
 }
 
-void HttpStreamRequest::OnStreamReadyCallback(HttpStream* stream) {
-  if (cancelled_) {
-    // The delegate is gone.  We need to cleanup the stream.
-    delete stream;
-    return;
-  }
-  delegate_->OnStreamReady(stream);
+void HttpStreamRequest::OnStreamReadyCallback() {
+  DCHECK(stream_.get());
+  delegate_->OnStreamReady(stream_.release());
 }
 
 void HttpStreamRequest::OnStreamFailedCallback(int result) {
-  if (cancelled_)
-    return;
   delegate_->OnStreamFailed(result);
 }
 
 void HttpStreamRequest::OnCertificateErrorCallback(int result,
                                                    const SSLInfo& ssl_info) {
-  if (cancelled_)
-    return;
   delegate_->OnCertificateError(result, ssl_info);
 }
 
 void HttpStreamRequest::OnNeedsProxyAuthCallback(
     const HttpResponseInfo& response,
     HttpAuthController* auth_controller) {
-  if (cancelled_)
-    return;
   delegate_->OnNeedsProxyAuth(response, auth_controller);
 }
 
 void HttpStreamRequest::OnNeedsClientAuthCallback(
     SSLCertRequestInfo* cert_info) {
-  if (cancelled_)
-    return;
   delegate_->OnNeedsClientAuth(cert_info);
 }
 
@@ -226,9 +191,6 @@ void HttpStreamRequest::OnIOComplete(int result) {
 }
 
 int HttpStreamRequest::RunLoop(int result) {
-  if (cancelled_)
-    return ERR_ABORTED;
-
   result = DoLoop(result);
 
   DCHECK(delegate_);
@@ -240,9 +202,9 @@ int HttpStreamRequest::RunLoop(int result) {
     next_state_ = STATE_WAITING_USER_ACTION;
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this,
-        &HttpStreamRequest::OnCertificateErrorCallback,
-        result, ssl_info_));
+        method_factory_.NewRunnableMethod(
+            &HttpStreamRequest::OnCertificateErrorCallback,
+            result, ssl_info_));
     return ERR_IO_PENDING;
   }
 
@@ -261,7 +223,7 @@ int HttpStreamRequest::RunLoop(int result) {
         next_state_ = STATE_WAITING_USER_ACTION;
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            NewRunnableMethod(this,
+            method_factory_.NewRunnableMethod(
                 &HttpStreamRequest::OnNeedsProxyAuthCallback,
                 *tunnel_auth_response,
                 http_proxy_socket->auth_controller()));
@@ -271,28 +233,28 @@ int HttpStreamRequest::RunLoop(int result) {
     case ERR_SSL_CLIENT_AUTH_CERT_NEEDED:
       MessageLoop::current()->PostTask(
           FROM_HERE,
-          NewRunnableMethod(this,
-          &HttpStreamRequest::OnNeedsClientAuthCallback,
-          connection_->ssl_error_response_info().cert_request_info));
+          method_factory_.NewRunnableMethod(
+              &HttpStreamRequest::OnNeedsClientAuthCallback,
+              connection_->ssl_error_response_info().cert_request_info));
       return ERR_IO_PENDING;
 
     case ERR_IO_PENDING:
       break;
 
     case OK:
+      next_state_ = STATE_DONE;
       MessageLoop::current()->PostTask(
           FROM_HERE,
-          NewRunnableMethod(this,
-          &HttpStreamRequest::OnStreamReadyCallback,
-          stream_.release()));
+          method_factory_.NewRunnableMethod(
+              &HttpStreamRequest::OnStreamReadyCallback));
       return ERR_IO_PENDING;
 
     default:
       MessageLoop::current()->PostTask(
           FROM_HERE,
-          NewRunnableMethod(this,
-          &HttpStreamRequest::OnStreamFailedCallback,
-          result));
+          method_factory_.NewRunnableMethod(
+              &HttpStreamRequest::OnStreamFailedCallback,
+              result));
       return ERR_IO_PENDING;
   }
   return result;
