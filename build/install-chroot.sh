@@ -256,8 +256,10 @@ sudo schroot -c "${target%bit}" -p -- apt-get -y install                       \
 # If running a 32bit environment on a 64bit machine, install a few binaries
 # as 64bit.
 if [ "${arch}" = 32bit ] && file /bin/bash 2>/dev/null | grep -q x86-64; then
+  readlinepkg=$(sudo schroot -c "${target%bit}" -p -- sh -c \
+    'apt-cache search "lib64readline.\$" | sort | tail -n 1 | cut -d " " -f 1')
   sudo schroot -c "${target%bit}" -p -- apt-get -y install                     \
-    lib64expat1 lib64ncurses5 lib64readline6 lib64z1
+    lib64expat1 lib64ncurses5 ${readlinepkg} lib64z1
   dep=
   for i in binutils gdb strace; do
     [ -d /usr/share/doc/"$i" ] || dep="$dep $i"
