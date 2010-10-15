@@ -18,7 +18,7 @@
 #include "base/metrics/histogram.h"
 #include "base/scoped_handle_win.h"
 #include "base/scoped_ptr.h"
-#include "base/win_util.h"
+#include "base/win/windows_version.h"
 
 // userenv.dll is required for CreateEnvironmentBlock().
 #pragma comment(lib, "userenv.lib")
@@ -155,7 +155,7 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level) {
   if (!level)
     return false;
 
-  if (win_util::GetWinVersion() < win_util::WINVERSION_VISTA)
+  if (base::win::GetVersion() < base::win::VERSION_VISTA)
     return false;
 
   HANDLE process_token;
