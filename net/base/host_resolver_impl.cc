@@ -42,6 +42,20 @@ namespace net {
 
 namespace {
 
+// We use a separate histogram name for each platform to facilitate the
+// display of error codes by their symbolic name (since each platform has
+// different mappings).
+const char kOSErrorsForGetAddrinfoHistogramName[] =
+#if defined(OS_WIN)
+    "Net.OSErrorsForGetAddrinfo_Win";
+#elif defined(OS_MACOSX)
+    "Net.OSErrorsForGetAddrinfo_Mac";
+#elif defined(OS_LINUX)
+    "Net.OSErrorsForGetAddrinfo_Linux";
+#else
+    "Net.OSErrorsForGetAddrinfo";
+#endif
+
 HostCache* CreateDefaultCache() {
   static const size_t kMaxHostCacheEntries = 100;
 
@@ -484,7 +498,7 @@ class HostResolverImpl::Job
     }
 
     if (error_ != OK) {
-      UMA_HISTOGRAM_CUSTOM_ENUMERATION("Net.OSErrorsForGetAddrinfo",
+      UMA_HISTOGRAM_CUSTOM_ENUMERATION(kOSErrorsForGetAddrinfoHistogramName,
                                        std::abs(os_error_),
                                        GetAllGetAddrinfoOSErrors());
     }
