@@ -978,6 +978,7 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
       if (size < 0)
         return Stop(ERR_INVALID_RESPONSE);
       response_.expected_content_size = size;
+      resource_type_ = RESOURCE_TYPE_FILE;
       break;
     case ERROR_CLASS_INFO_NEEDED:
       break;
@@ -985,10 +986,8 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
       break;
     case ERROR_CLASS_PERMANENT_ERROR:
       // It's possible that SIZE failed because the path is a directory.
-      if (response.status_code == 550 &&
-          resource_type_ == RESOURCE_TYPE_UNKNOWN) {
-        resource_type_ = RESOURCE_TYPE_DIRECTORY;
-      } else if (resource_type_ != RESOURCE_TYPE_DIRECTORY) {
+      if (resource_type_ == RESOURCE_TYPE_UNKNOWN &&
+          response.status_code != 550) {
         return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
       }
       break;
@@ -997,10 +996,10 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
       return Stop(ERR_UNEXPECTED);
   }
 
-  if (resource_type_ == RESOURCE_TYPE_DIRECTORY)
-    next_state_ = STATE_CTRL_WRITE_CWD;
-  else
+  if (resource_type_ == RESOURCE_TYPE_FILE)
     next_state_ = STATE_CTRL_WRITE_RETR;
+  else
+    next_state_ = STATE_CTRL_WRITE_CWD;
 
   return OK;
 }
@@ -1020,8 +1019,10 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       // It got here either through Start or RestartWithAuth. We want that
       // method to complete. Not setting next state here will make DoLoop exit
       // and in turn make Start/RestartWithAuth complete.
+      resource_type_ = RESOURCE_TYPE_FILE;
       break;
     case ERROR_CLASS_OK:
+      resource_type_ = RESOURCE_TYPE_FILE;
       next_state_ = STATE_CTRL_WRITE_QUIT;
       break;
     case ERROR_CLASS_INFO_NEEDED:
@@ -1031,7 +1032,7 @@ int FtpNetworkTransaction::ProcessResponseRETR(
     case ERROR_CLASS_PERMANENT_ERROR:
       // Code 550 means "Failed to open file". Other codes are unrelated,
       // like "Not logged in" etc.
-      if (response.status_code != 550)
+      if (response.status_code != 550 || resource_type_ == RESOURCE_TYPE_FILE)
         return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
 
       // It's possible that RETR failed because the path is a directory.
@@ -1046,6 +1047,11 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
   }
+
+  // We should be sure about our resource type now. Otherwise we risk
+  // an infinite loop (RETR can later send CWD, and CWD can later send RETR).
+  DCHECK_NE(RESOURCE_TYPE_UNKNOWN, resource_type_);
+
   return OK;
 }
 
@@ -1057,6 +1063,9 @@ int FtpNetworkTransaction::DoCtrlWriteCWD() {
 }
 
 int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
+  // We should never issue CWD if we know the target resource is a file.
+  DCHECK_NE(RESOURCE_TYPE_FILE, resource_type_);
+
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_INVALID_RESPONSE);
@@ -1068,13 +1077,22 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     case ERROR_CLASS_PERMANENT_ERROR:
-      if (resource_type_ == RESOURCE_TYPE_DIRECTORY &&
-          response.status_code == 550) {
-        // We're assuming that the resource is a directory, but the server says
-        // it's not true. The most probable interpretation is that it doesn't
-        // exist (with FTP we can't be sure).
-        return Stop(ERR_FILE_NOT_FOUND);
+      if (response.status_code == 550) {
+        if (resource_type_ == RESOURCE_TYPE_DIRECTORY) {
+          // We're assuming that the resource is a directory, but the server
+          // says it's not true. The most probable interpretation is that it
+          // doesn't exist (with FTP we can't be sure).
+          return Stop(ERR_FILE_NOT_FOUND);
+        }
+
+        // We are here because SIZE failed and we are not sure what the resource
+        // type is. It could still be file, and SIZE could fail because of
+        // an access error (http://crbug.com/56734). Try RETR just to be sure.
+        resource_type_ = RESOURCE_TYPE_FILE;
+        next_state_ = STATE_CTRL_WRITE_RETR;
+        return OK;
       }
+
       return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
     default:
       NOTREACHED();
@@ -1182,8 +1200,9 @@ int FtpNetworkTransaction::DoDataConnect() {
 }
 
 int FtpNetworkTransaction::DoDataConnectComplete(int result) {
-  if (result == ERR_CONNECTION_TIMED_OUT && use_epsv_) {
-    // It's possible we hit a broken server, sadly. Fall back to PASV.
+  if (result != OK && use_epsv_) {
+    // It's possible we hit a broken server, sadly. They can break in different
+    // ways. Some time out, some reset a connection. Fall back to PASV.
     // TODO(phajdan.jr): remember it for future transactions with this server.
     // TODO(phajdan.jr): write a test for this code path.
     use_epsv_ = false;
