@@ -96,10 +96,14 @@ scoped_refptr<net::UploadData> CreateSimpleUploadData(const char* data) {
 
 // Verify that the SSLInfo of a successful SSL connection has valid values.
 void CheckSSLInfo(const net::SSLInfo& ssl_info) {
-  // Allow ChromeFrame fake certificates to get through.
+  // Allow ChromeFrame fake SSLInfo to get through.
   if (ssl_info.cert.get() &&
-      ssl_info.cert.get()->issuer().GetDisplayName() == "Chrome Internal")
+      ssl_info.cert.get()->issuer().GetDisplayName() == "Chrome Internal") {
+    // -1 means unknown.
+    EXPECT_EQ(ssl_info.security_bits, -1);
     return;
+  }
+
   // -1 means unknown.  0 means no encryption.
   EXPECT_GT(ssl_info.security_bits, 0);
 
