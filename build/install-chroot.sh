@@ -10,6 +10,49 @@
 # N. B. it is unlikely that this script will ever work on anything other than a
 # Debian-derived system.
 
+usage() {
+  echo "usage: ${0##*/} [-m mirror]"
+  echo "-m mirror  an alternate repository mirror for package downloads"
+  echo "-h         this help message"
+}
+
+process_opts() {
+  local OPTNAME OPTIND OPTERR OPTARG
+  while getopts ":m:h" OPTNAME; do
+    case "$OPTNAME" in
+      m)
+        if [ -n "${mirror}" ]; then
+          echo "You can only specify exactly one mirror location"
+          usage
+          exit 1
+        fi
+        mirror="$OPTARG"
+        ;;
+      h)
+        usage
+        exit 0
+        ;;
+      \:)
+        echo "'-$OPTARG' needs an argument."
+        usage
+        exit 1
+        ;;
+      *)
+        echo "invalid command-line option: $OPTARG"
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
+  if [ $# -ge ${OPTIND} ]; then
+    eval echo "Unexpected command line argument: \${${OPTIND}}"
+    usage
+    exit 1
+  fi
+}
+
+
 # Check that we are running as a regular user
 [ "$(id -nu)" = root ] && {
   echo "Run this script as a regular user and provide your \"sudo\""           \
@@ -17,6 +60,8 @@
   exit 1
 }
 mkdir -p "$HOME/chroot/"
+
+process_opts "$@"
 
 # Error handler
 trap 'exit 1' INT TERM QUIT
@@ -81,6 +126,25 @@ target="${distname}${arch}"
 }
 sudo mkdir -p /var/lib/chroot/"${target}"
 
+# Offer to include additional standard repositories for Ubuntu-based chroots.
+alt_repos=
+grep ubuntu.com /usr/share/debootstrap/scripts/"${distname}" >&/dev/null && {
+  while :; do
+    echo "Would you like to add ${distname}-updates and ${distname}-security "
+    echo -n "to the chroot's sources.list (y/n)? "
+    read alt_repos
+    case "${alt_repos}" in
+      y|Y)
+        alt_repos="y"
+        break
+      ;;
+      n|N)
+        break
+      ;;
+    esac
+  done
+}
+
 # Remove stale entry from /etc/schroot/schroot.conf. Entries start
 # with the target name in square brackets, followed by an arbitrary
 # number of lines. The entry stops when either the end of file has
@@ -92,9 +156,11 @@ sudo sed -ni '/^[[]'"${target%bit}"']$/,${:1;n;/^[[]/b2;b1;:2;p;n;b2};p'       \
          /etc/schroot/schroot.conf
 
 # Download base system. This takes some time
-grep ubuntu.com /usr/share/debootstrap/scripts/"${distname}" >&/dev/null &&
- mirror="http://archive.ubuntu.com/ubuntu" ||
- mirror="http://ftp.us.debian.org/debian"
+if [ -z "${mirror}" ]; then
+ grep ubuntu.com /usr/share/debootstrap/scripts/"${distname}" >&/dev/null &&
+   mirror="http://archive.ubuntu.com/ubuntu" ||
+   mirror="http://ftp.us.debian.org/debian"
+fi
  sudo debootstrap ${archflag} "${distname}" /var/lib/chroot/"${target}"        \
                   "$mirror"
 
@@ -139,15 +205,26 @@ EOF
 sudo chown root:root /usr/local/bin/"${target%bit}"
 sudo chmod 755 /usr/local/bin/"${target%bit}"
 
+# Add the standard Ubuntu update repositories if requested.
+[ "${alt_repos}" = "y" -a -r "/var/lib/chroot/${target}/etc/apt/sources.list" ] &&
+sudo sed -i '/^deb .* [^ -]\+ main$/p
+             s/^\(deb .* [^ -]\+\) main/\1-security main/
+             p
+             t1
+             d
+             :1;s/-security main/-updates main/
+             t
+             d' "/var/lib/chroot/${target}/etc/apt/sources.list"
+
 # Add a few more repositories to the chroot
-[ -r /var/lib/chroot/${target}/etc/apt/sources.list ] &&
+[ -r "/var/lib/chroot/${target}/etc/apt/sources.list" ] &&
 sudo sed -i 's/ main$/ main restricted universe multiverse/
              p
              t1
              d
           :1;s/^deb/deb-src/
              t
-             d' /var/lib/chroot/${target}/etc/apt/sources.list
+             d' "/var/lib/chroot/${target}/etc/apt/sources.list"
 
 # Update packages
 sudo schroot -c "${target%bit}" -p -- /bin/sh -c '
@@ -186,17 +263,17 @@ if [ "${arch}" = 32bit ] && file /bin/bash 2>/dev/null | grep -q x86-64; then
     [ -d /usr/share/doc/"$i" ] || dep="$dep $i"
   done
   [ -n "$dep" ] && sudo apt-get -y install $dep
-  sudo cp /usr/bin/gdb /var/lib/chroot/${target}/usr/local/bin/
-  sudo cp /usr/bin/ld /var/lib/chroot/${target}/usr/local/bin/
+  sudo cp /usr/bin/gdb "/var/lib/chroot/${target}/usr/local/bin/"
+  sudo cp /usr/bin/ld "/var/lib/chroot/${target}/usr/local/bin/"
   for i in libbfd libpython; do
     lib="$({ ldd /usr/bin/ld; ldd /usr/bin/gdb; } |
            grep "$i" | awk '{ print $3 }')"
     if [ -n "$lib" -a -r "$lib" ]; then
-      sudo cp "$lib" /var/lib/chroot/${target}/usr/lib64/
+      sudo cp "$lib" "/var/lib/chroot/${target}/usr/lib64/"
     fi
   done
   for lib in libssl libcrypt; do
-    sudo cp /usr/lib/$lib* /var/lib/chroot/${target}/usr/lib64/ || :
+    sudo cp /usr/lib/$lib* "/var/lib/chroot/${target}/usr/lib64/" || :
   done
 fi
 
