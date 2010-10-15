@@ -63,7 +63,9 @@ class MultiProcessTest : public PlatformTest {
                            bool debug_on_start);
 #endif
 
-  CommandLine MakeCmdLine(const std::string& procname, bool debug_on_start);
+  // Set up the command line used to spawn the child process.
+  virtual CommandLine MakeCmdLine(const std::string& procname,
+                                  bool debug_on_start);
 
  private:
 #if defined(OS_WIN)
@@ -78,7 +80,7 @@ class MultiProcessTest : public PlatformTest {
                                bool debug_on_start);
 #endif
 
- DISALLOW_COPY_AND_ASSIGN(MultiProcessTest);
+  DISALLOW_COPY_AND_ASSIGN(MultiProcessTest);
 };
 
 }  // namespace base
