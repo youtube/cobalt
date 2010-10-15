@@ -487,7 +487,7 @@ class HostResolverImpl::Job
     // Ideally the following code would be part of host_resolver_proc.cc,
     // however it isn't safe to call NetworkChangeNotifier from worker
     // threads. So we do it here on the IO thread instead.
-    if (error_ == ERR_NAME_NOT_RESOLVED && NetworkChangeNotifier::IsOffline())
+    if (error_ != OK && NetworkChangeNotifier::IsOffline())
       error_ = ERR_INTERNET_DISCONNECTED;
 
     base::TimeDelta job_duration = base::TimeTicks::Now() - start_time_;

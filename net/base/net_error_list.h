@@ -205,6 +205,9 @@ NET_ERROR(SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY, -135)
 // The certificate presented by the HTTPS Proxy was invalid.
 NET_ERROR(PROXY_CERTIFICATE_INVALID, -136)
 
+// An error occurred when trying to do a name resolution (DNS).
+NET_ERROR(NAME_RESOLUTION_FAILED, -137)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
