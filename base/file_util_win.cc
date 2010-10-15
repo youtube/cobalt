@@ -904,9 +904,7 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
     // According to msdn, system error codes are only reserved up to 15999.
     // http://msdn.microsoft.com/en-us/library/ms681381(v=VS.85).aspx.
     UMA_HISTOGRAM_ENUMERATION("MemoryMappedFile.CreateFileMapping",
-        std::min(logging::GetLastSystemErrorCode(),
-                 static_cast<logging::SystemErrorCode>(15999)),
-        16000);
+                              logging::GetLastSystemErrorCode(), 16000);
     return false;
   }
 
@@ -914,9 +912,7 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
       ::MapViewOfFile(file_mapping_, FILE_MAP_READ, 0, 0, length_));
   if (!data_) {
     UMA_HISTOGRAM_ENUMERATION("MemoryMappedFile.MapViewOfFile",
-        std::min(logging::GetLastSystemErrorCode(),
-                 static_cast<logging::SystemErrorCode>(15999)),
-        16000);
+                              logging::GetLastSystemErrorCode(), 16000);
   }
   return data_ != NULL;
 }
