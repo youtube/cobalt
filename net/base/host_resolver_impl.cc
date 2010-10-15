@@ -19,6 +19,7 @@
 #include "base/debug_util.h"
 #include "base/lock.h"
 #include "base/message_loop.h"
+#include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
@@ -217,6 +218,8 @@ std::vector<int> GetAllGetAddrinfoOSErrors() {
     WSANOTINITIALISED,
     WSATRY_AGAIN,
     WSATYPE_NOT_FOUND,
+    // The following are not in doc, but might be to appearing in results :-(.
+    WSA_INVALID_HANDLE,
 #endif
   };
 
@@ -322,7 +325,12 @@ class HostResolverImpl::Request {
   DISALLOW_COPY_AND_ASSIGN(Request);
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
+// Provide a common macro to simplify code and readability. We must use a
+// macros as the underlying HISTOGRAM macro creates static varibles.
+#define DNS_HISTOGRAM(name, time) UMA_HISTOGRAM_CUSTOM_TIMES(name, time, \
+    base::TimeDelta::FromMicroseconds(1), base::TimeDelta::FromHours(1), 100)
 
 // This class represents a request to the worker pool for a "getaddrinfo()"
 // call.
@@ -490,18 +498,7 @@ class HostResolverImpl::Job
     if (error_ != OK && NetworkChangeNotifier::IsOffline())
       error_ = ERR_INTERNET_DISCONNECTED;
 
-    base::TimeDelta job_duration = base::TimeTicks::Now() - start_time_;
-
-    if (had_non_speculative_request_) {
-      // TODO(eroman): Add histogram for job times of non-speculative
-      // requests.
-    }
-
-    if (error_ != OK) {
-      UMA_HISTOGRAM_CUSTOM_ENUMERATION(kOSErrorsForGetAddrinfoHistogramName,
-                                       std::abs(os_error_),
-                                       GetAllGetAddrinfoOSErrors());
-    }
+    RecordPerformanceHistograms();
 
     if (was_cancelled())
       return;
@@ -525,6 +522,57 @@ class HostResolverImpl::Job
 
     resolver_->OnJobComplete(this, error_, os_error_, results_);
   }
+
+  void RecordPerformanceHistograms() const {
+    enum Category {  // Used in HISTOGRAM_ENUMERATION.
+      RESOLVE_SUCCESS,
+      RESOLVE_FAIL,
+      RESOLVE_SPECULATIVE_SUCCESS,
+      RESOLVE_SPECULATIVE_FAIL,
+      RESOLVE_MAX,  // Bounding value.
+    };
+    int category = RESOLVE_MAX;  // Illegal value for later DCHECK only.
+
+    base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
+    if (error_ == OK) {
+      if (had_non_speculative_request_) {
+        category = RESOLVE_SUCCESS;
+        DNS_HISTOGRAM("DNS.ResolveSuccess", duration);
+      } else {
+        category = RESOLVE_SPECULATIVE_SUCCESS;
+        DNS_HISTOGRAM("DNS.ResolveSpeculativeSuccess", duration);
+      }
+    } else {
+      if (had_non_speculative_request_) {
+        category = RESOLVE_FAIL;
+        DNS_HISTOGRAM("DNS.ResolveFail", duration);
+      } else {
+        category = RESOLVE_SPECULATIVE_FAIL;
+        DNS_HISTOGRAM("DNS.ResolveSpeculativeFail", duration);
+      }
+      UMA_HISTOGRAM_CUSTOM_ENUMERATION("Net.OSErrorsForGetAddrinfo",
+                                       std::abs(os_error_),
+                                       GetAllGetAddrinfoOSErrors());
+    }
+    DCHECK_LT(category, RESOLVE_MAX);  // Be sure it was set.
+
+    UMA_HISTOGRAM_ENUMERATION("DNS.ResolveCategory", category, RESOLVE_MAX);
+
+    static bool show_experiment_histograms =
+        base::FieldTrialList::Find("DnsImpact") &&
+        !base::FieldTrialList::Find("DnsImpact")->group_name().empty();
+    if (show_experiment_histograms) {
+      UMA_HISTOGRAM_ENUMERATION(
+          base::FieldTrial::MakeName("DNS.ResolveCategory", "DnsImpact"),
+          category, RESOLVE_MAX);
+      if (RESOLVE_SUCCESS == category) {
+        DNS_HISTOGRAM(base::FieldTrial::MakeName("DNS.ResolveSuccess",
+                                                 "DnsImpact"), duration);
+      }
+    }
+  }
+
+
 
   // Immutable. Can be read from either thread,
   const int id_;
