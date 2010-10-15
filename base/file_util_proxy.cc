@@ -14,7 +14,8 @@ namespace {
 
 // Performs common checks for move and copy.
 // This also removes the destination directory if it's non-empty and all other
-// checks are passed (so that the copy/move correctly overwrites the destination).
+// checks are passed (so that the copy/move correctly overwrites the
+// destination).
 static base::PlatformFileError PerformCommonCheckAndPreparationForMoveAndCopy(
     const FilePath& src_file_path,
     const FilePath& dest_file_path) {
@@ -119,14 +120,12 @@ class RelayCreateOrOpen : public MessageLoopRelay {
       scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
       int file_flags,
-      bool return_no_handle,
       base::FileUtilProxy::CreateOrOpenCallback* callback)
       : message_loop_proxy_(message_loop_proxy),
         file_path_(file_path),
         file_flags_(file_flags),
         callback_(callback),
         file_handle_(base::kInvalidPlatformFileValue),
-        return_no_handle_(return_no_handle),
         created_(false) {
     DCHECK(callback);
   }
@@ -146,13 +145,6 @@ class RelayCreateOrOpen : public MessageLoopRelay {
     base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
     file_handle_ = base::CreatePlatformFile(file_path_, file_flags_,
                                             &created_, &error_code);
-    // If the return_no_handle is true the caller is not interested
-    // in the file_handle_.  Close it right now.
-    if (return_no_handle_ && file_handle_ != base::kInvalidPlatformFileValue) {
-      // We don't check the return value here.
-      base::ClosePlatformFile(file_handle_);
-      file_handle_ = base::kInvalidPlatformFileValue;
-    }
     set_error_code(error_code);
   }
 
@@ -168,7 +160,6 @@ class RelayCreateOrOpen : public MessageLoopRelay {
   int file_flags_;
   base::FileUtilProxy::CreateOrOpenCallback* callback_;
   base::PlatformFile file_handle_;
-  bool return_no_handle_;
   bool created_;
 };
 
@@ -257,6 +248,55 @@ class RelayClose : public RelayWithStatusCallback {
 
  private:
   base::PlatformFile file_handle_;
+};
+
+class RelayEnsureFileExists : public MessageLoopRelay {
+ public:
+  RelayEnsureFileExists(
+      scoped_refptr<base::MessageLoopProxy> message_loop_proxy,
+      const FilePath& file_path,
+      base::FileUtilProxy::EnsureFileExistsCallback* callback)
+      : message_loop_proxy_(message_loop_proxy),
+        file_path_(file_path),
+        callback_(callback),
+        created_(false) {
+    DCHECK(callback);
+  }
+
+ protected:
+  virtual void RunWork() {
+    if (!file_util::DirectoryExists(file_path_.DirName())) {
+      // If its parent does not exist, should return NOT_FOUND error.
+      set_error_code(base::PLATFORM_FILE_ERROR_NOT_FOUND);
+      return;
+    }
+    base::PlatformFileError error_code = base::PLATFORM_FILE_OK;
+    // Tries to create the |file_path_| exclusively.  This should fail
+    // with PLATFORM_FILE_ERROR_EXISTS if the path already exists.
+    base::PlatformFile handle = base::CreatePlatformFile(
+        file_path_,
+        base::PLATFORM_FILE_CREATE | base::PLATFORM_FILE_READ,
+        &created_, &error_code);
+    if (error_code == base::PLATFORM_FILE_ERROR_EXISTS) {
+      // Make sure created_ is false.
+      created_ = false;
+      error_code = base::PLATFORM_FILE_OK;
+    }
+    if (handle != base::kInvalidPlatformFileValue)
+      base::ClosePlatformFile(handle);
+    set_error_code(error_code);
+  }
+
+  virtual void RunCallback() {
+    callback_->Run(error_code(), created_);
+    delete callback_;
+  }
+
+ private:
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  FilePath file_path_;
+  base::FileUtilProxy::EnsureFileExistsCallback* callback_;
+  bool created_;
 };
 
 class RelayDelete : public RelayWithStatusCallback {
@@ -695,18 +735,7 @@ bool FileUtilProxy::CreateOrOpen(
     const FilePath& file_path, int file_flags,
     CreateOrOpenCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy, new RelayCreateOrOpen(
-      message_loop_proxy, file_path, file_flags, false /* return_no_handle */,
-      callback));
-}
-
-// static
-bool FileUtilProxy::Create(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& file_path, int file_flags,
-    CreateOrOpenCallback* callback) {
-  return Start(FROM_HERE, message_loop_proxy, new RelayCreateOrOpen(
-      message_loop_proxy, file_path, file_flags, true /* return_no_handle */,
-      callback));
+      message_loop_proxy, file_path, file_flags, callback));
 }
 
 // static
@@ -734,6 +763,15 @@ bool FileUtilProxy::Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                           StatusCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayClose(file_handle, callback));
+}
+
+// static
+bool FileUtilProxy::EnsureFileExists(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    EnsureFileExistsCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayEnsureFileExists(
+      message_loop_proxy, file_path, callback));
 }
 
 // static

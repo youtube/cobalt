@@ -84,7 +84,8 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     }
   }
 
-  if (created && (descriptor > 0) && (flags & PLATFORM_FILE_CREATE_ALWAYS))
+  if (created && (descriptor > 0) &&
+      (flags & (PLATFORM_FILE_CREATE_ALWAYS | PLATFORM_FILE_CREATE)))
     *created = true;
 
   if ((descriptor > 0) && (flags & PLATFORM_FILE_DELETE_ON_CLOSE)) {
