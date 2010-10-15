@@ -40,6 +40,9 @@ class FileUtilProxy {
 
   // Creates or opens a file with the given flags.  It is invalid to pass NULL
   // for the callback.
+  // If PLATFORM_FILE_CREATE is set in |file_flags| it always tries to create
+  // a new file at the given |file_path| and calls back with
+  // PLATFORM_FILE_ERROR_FILE_EXISTS if the |file_path| already exists.
   typedef Callback3<base::PlatformFileError /* error code */,
                     base::PassPlatformFile,
                     bool /* created */>::Type CreateOrOpenCallback;
@@ -47,13 +50,6 @@ class FileUtilProxy {
                            const FilePath& file_path,
                            int file_flags,
                            CreateOrOpenCallback* callback);
-
-  // Creates a file with the given flags.  This one is a variation of
-  // CreateOrOpen but it doesn't return a file handle.
-  static bool Create(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                     const FilePath& file_path,
-                     int file_flags,
-                     CreateOrOpenCallback* callback);
 
   // Creates a temporary file for writing.  The path and an open file handle
   // are returned.  It is invalid to pass NULL for the callback.
@@ -68,6 +64,22 @@ class FileUtilProxy {
   static bool Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                     base::PlatformFile,
                     StatusCallback* callback);
+
+  // Ensures that the given |file_path| exist.  This creates a empty new file
+  // at |file_path| if the |file_path| does not exist.
+  // If a new file han not existed and is created at the |file_path|,
+  // |created| of the callback argument is set true and |error code|
+  // is set PLATFORM_FILE_OK.
+  // If the file already exists, |created| is set false and |error code|
+  // is set PLATFORM_FILE_OK.
+  // If the file hasn't existed but it couldn't be created for some other
+  // reasons, |created| is set false and |error code| indicates the error.
+  typedef Callback2<base::PlatformFileError /* error code */,
+                    bool /* created */>::Type EnsureFileExistsCallback;
+  static bool EnsureFileExists(
+      scoped_refptr<MessageLoopProxy> message_loop_proxy,
+      const FilePath& file_path,
+      EnsureFileExistsCallback* callback);
 
   // Retrieves the information about a file. It is invalid to pass NULL for the
   // callback.
