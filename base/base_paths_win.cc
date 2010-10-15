@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
-#include "base/win_util.h"
+#include "base/win/windows_version.h"
 
 // http://blogs.msdn.com/oldnewthing/archive/2004/10/25/247180.aspx
 extern "C" IMAGE_DOS_HEADER __ImageBase;
@@ -86,7 +86,7 @@ bool PathProviderWin(int key, FilePath* result) {
       cur = FilePath(system_buffer);
       break;
     case base::DIR_LOCAL_APP_DATA_LOW:
-      if (win_util::GetWinVersion() < win_util::WINVERSION_VISTA) {
+      if (win::GetVersion() < win::VERSION_VISTA) {
         return false;
       }
       // TODO(nsylvain): We should use SHGetKnownFolderPath instead. Bug 1281128
