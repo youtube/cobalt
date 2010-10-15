@@ -23,6 +23,7 @@
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "base/win_util.h"
+#include "base/win/windows_version.h"
 
 namespace file_util {
 
@@ -261,7 +262,7 @@ bool CopyDirectory(const FilePath& from_path, const FilePath& to_path,
   if (!PathExists(to_path)) {
     // Except that Vista fails to do that, and instead do a recursive copy if
     // the target directory doesn't exist.
-    if (win_util::GetWinVersion() >= win_util::WINVERSION_VISTA)
+    if (base::win::GetVersion() >= base::win::VERSION_VISTA)
       CreateDirectory(to_path);
     else
       ShellCopy(from_path, to_path, false);
@@ -402,7 +403,7 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
   if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index)))
     return false;
 
-  if (app_id && (win_util::GetWinVersion() >= win_util::WINVERSION_WIN7)) {
+  if (app_id && (base::win::GetVersion() >= base::win::VERSION_WIN7)) {
     ScopedComPtr<IPropertyStore> property_store;
     if (FAILED(property_store.QueryFrom(i_shell_link)))
       return false;
@@ -452,7 +453,7 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
   if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index)))
     return false;
 
-  if (app_id && win_util::GetWinVersion() >= win_util::WINVERSION_WIN7) {
+  if (app_id && base::win::GetVersion() >= base::win::VERSION_WIN7) {
     ScopedComPtr<IPropertyStore> property_store;
     if (FAILED(property_store.QueryFrom(i_shell_link)))
       return false;
@@ -467,7 +468,7 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
 
 bool TaskbarPinShortcutLink(const wchar_t* shortcut) {
   // "Pin to taskbar" is only supported after Win7.
-  if (win_util::GetWinVersion() < win_util::WINVERSION_WIN7)
+  if (base::win::GetVersion() < base::win::VERSION_WIN7)
     return false;
 
   int result = reinterpret_cast<int>(ShellExecute(NULL, L"taskbarpin", shortcut,
@@ -477,7 +478,7 @@ bool TaskbarPinShortcutLink(const wchar_t* shortcut) {
 
 bool TaskbarUnpinShortcutLink(const wchar_t* shortcut) {
   // "Unpin from taskbar" is only supported after Win7.
-  if (win_util::GetWinVersion() < win_util::WINVERSION_WIN7)
+  if (base::win::GetVersion() < base::win::VERSION_WIN7)
     return false;
 
   int result = reinterpret_cast<int>(ShellExecute(NULL, L"taskbarunpin",
@@ -1007,7 +1008,7 @@ bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
 
 bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
                   size_t step_size) {
-  if (win_util::GetWinVersion() > win_util::WINVERSION_XP) {
+  if (base::win::GetVersion() > base::win::VERSION_XP) {
     // Vista+ branch. On these OSes, the forced reads through the DLL actually
     // slows warm starts. The solution is to sequentially read file contents
     // with an optional cap on total amount to read.

@@ -301,6 +301,8 @@
           'watchdog.h',
           'weak_ptr.cc',
           'weak_ptr.h',
+          'win/windows_version.cc',
+          'win/windows_version.h',
           'win_util.cc',
           'win_util.h',
           'windows_message_list.h',
@@ -362,19 +364,23 @@
             },
           ],
           [ 'OS == "win"', {
-              'include_dirs': [
-                '<(DEPTH)/third_party/wtl/include',
-              ],
-              'sources!': [
-                'event_recorder_stubs.cc',
-                'file_descriptor_shuffle.cc',
-                'message_pump_libevent.cc',
-                # Not using sha1_win.cc because it may have caused a
-                # regression to page cycler moz.
-                'sha1_win.cc',
-                'string16.cc',
-                'trace_event.cc',
-              ],
+            'include_dirs': [
+              '<(DEPTH)/third_party/wtl/include',
+            ],
+            'sources!': [
+              'event_recorder_stubs.cc',
+              'file_descriptor_shuffle.cc',
+              'message_pump_libevent.cc',
+              # Not using sha1_win.cc because it may have caused a
+              # regression to page cycler moz.
+              'sha1_win.cc',
+              'string16.cc',
+              'trace_event.cc',
+            ],
+          }, {  # OS != "win"
+            'sources/': [
+              ['exclude', '/win/*'],
+            ],
           },],
         ],
       }],

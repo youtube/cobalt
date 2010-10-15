@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include "base/file_util.h"
 #include "base/file_path.h"
 #if defined(OS_WIN)
-#include "base/win_util.h"
+#include "base/win/windows_version.h"
 #endif
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gtest/include/gtest/gtest-spi.h"
@@ -50,7 +50,7 @@ TEST_F(PathServiceTest, Get) {
 #if defined(OS_WIN)
   for (int key = base::PATH_WIN_START + 1; key < base::PATH_WIN_END; ++key) {
     if (key == base::DIR_LOCAL_APP_DATA_LOW &&
-        win_util::GetWinVersion() < win_util::WINVERSION_VISTA) {
+        base::win::GetVersion() < base::win::VERSION_VISTA) {
       // DIR_LOCAL_APP_DATA_LOW is not supported prior Vista and is expected to
       // fail.
       EXPECT_TRUE(ReturnsInvalidPath(key)) << key;
