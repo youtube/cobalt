@@ -11,15 +11,21 @@
 # Debian-derived system.
 
 usage() {
-  echo "usage: ${0##*/} [-m mirror]"
-  echo "-m mirror  an alternate repository mirror for package downloads"
-  echo "-h         this help message"
+  echo "usage: ${0##*/} [-m mirror] [-g group,...]"
+  echo "-g group,... groups that can use the chroot unauthenticated"
+  echo "             Default: 'admin' and current user's group ('$(id -gn)')"
+  echo "-m mirror    an alternate repository mirror for package downloads"
+  echo "-h           this help message"
 }
 
 process_opts() {
   local OPTNAME OPTIND OPTERR OPTARG
-  while getopts ":m:h" OPTNAME; do
+  while getopts ":g:m:h" OPTNAME; do
     case "$OPTNAME" in
+      g)
+        [ -n "${OPTARG}" ] &&
+          chroot_groups="${chroot_groups}${chroot_groups:+,}${OPTARG}"
+        ;;
       m)
         if [ -n "${mirror}" ]; then
           echo "You can only specify exactly one mirror location"
@@ -167,6 +173,9 @@ fi
 # Add new entry to /etc/schroot/schroot.conf
 grep ubuntu.com /usr/share/debootstrap/scripts/"${distname}" >&/dev/null &&
   brand="Ubuntu" || brand="Debian"
+if [ -z "${chroot_groups}" ]; then
+  chroot_groups="admin,$(id -gn)"
+fi
 sudo sh -c 'cat >>/etc/schroot/schroot.conf' <<EOF
 [${target%bit}]
 description=${brand} ${distname} ${arch}
@@ -174,8 +183,8 @@ type=directory
 directory=/var/lib/chroot/${target}
 priority=3
 users=root
-groups=admin
-root-groups=admin
+groups=${chroot_groups}
+root-groups=${chroot_groups}
 personality=linux$([ "${arch}" != 64bit ] && echo 32)
 script-config=script-${target}
 
