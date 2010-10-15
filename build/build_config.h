@@ -66,7 +66,7 @@
 #endif
 
 // Use heapchecker.
-#if (defined(OS_WIN) || defined(OS_LINUX)) && !defined(NO_HEAPCHECKER)
+#if defined(OS_LINUX) && !defined(NO_HEAPCHECKER)
 #define USE_HEAPCHECKER 1
 #endif
 
