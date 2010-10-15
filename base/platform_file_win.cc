@@ -68,9 +68,9 @@ PlatformFile CreatePlatformFile(const FilePath& name,
                            disposition, create_flags, NULL);
 
   if (created && (INVALID_HANDLE_VALUE != file)) {
-    if (flags & PLATFORM_FILE_OPEN_ALWAYS)
+    if (flags & (PLATFORM_FILE_OPEN_ALWAYS))
       *created = (ERROR_ALREADY_EXISTS != GetLastError());
-    else if (flags & PLATFORM_FILE_CREATE_ALWAYS)
+    else if (flags & (PLATFORM_FILE_CREATE_ALWAYS | PLATFORM_FILE_CREATE))
       *created = true;
   }
 
