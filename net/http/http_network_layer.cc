@@ -158,6 +158,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 
 // static
 void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
+  static const char kOff[] = "off";
   static const char kSSL[] = "ssl";
   static const char kDisableSSL[] = "no-ssl";
   static const char kDisableCompression[] = "no-compress";
@@ -201,7 +202,9 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   for (std::vector<std::string>::iterator it = spdy_options.begin();
        it != spdy_options.end(); ++it) {
     const std::string& option = *it;
-    if (option == kDisableSSL) {
+    if (option == kOff) {
+      HttpStreamFactory::set_spdy_enabled(false);
+    } else if (option == kDisableSSL) {
       SpdySession::SetSSLMode(false);  // Disable SSL
       HttpStreamFactory::set_force_spdy_over_ssl(false);
       HttpStreamFactory::set_force_spdy_always(true);

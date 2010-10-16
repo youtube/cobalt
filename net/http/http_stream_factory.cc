@@ -20,6 +20,8 @@ const HostMappingRules* HttpStreamFactory::host_mapping_rules_ = NULL;
 // static
 const std::string* HttpStreamFactory::next_protos_ = NULL;
 // static
+bool HttpStreamFactory::spdy_enabled_ = true;
+// static
 bool HttpStreamFactory::use_alternate_protocols_ = false;
 // static
 bool HttpStreamFactory::force_spdy_over_ssl_ = true;

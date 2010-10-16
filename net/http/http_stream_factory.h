@@ -63,6 +63,12 @@ class HttpStreamFactory : public StreamFactory,
 
   // Static settings
 
+  // Turns spdy on or off.
+  static void set_spdy_enabled(bool value) {
+    spdy_enabled_ = value;
+  }
+  static bool spdy_enabled() { return spdy_enabled_; }
+
   // Controls whether or not we use the Alternate-Protocol header.
   static void set_use_alternate_protocols(bool value) {
     use_alternate_protocols_ = value;
@@ -116,6 +122,7 @@ class HttpStreamFactory : public StreamFactory,
 
   static const HostMappingRules* host_mapping_rules_;
   static const std::string* next_protos_;
+  static bool spdy_enabled_;
   static bool use_alternate_protocols_;
   static bool force_spdy_over_ssl_;
   static bool force_spdy_always_;
