@@ -8,6 +8,9 @@ See the files in that directory for discussion of their effects.
 
 Current version: 2.7.7.
 
+Modifications:
+- Import XPath fix http://git.gnome.org/browse/libxml2/commit/?id=91d19754d46acd4a639a8b9e31f50f31c78f8c9c
+
 To import a new snapshot of libxml:
 
 - Visit http://xmlsoft.org/downloads.html and download the latest source
