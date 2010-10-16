@@ -21,7 +21,7 @@ namespace {
 
 int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
                                        const SEC_WCHAR* package) {
-  LOG(INFO) << "AcquireCredentialsHandle returned 0x" << std::hex << status;
+  VLOG(1) << "AcquireCredentialsHandle returned 0x" << std::hex << status;
   switch (status) {
     case SEC_E_OK:
       return OK;
@@ -102,7 +102,7 @@ int AcquireDefaultCredentials(SSPILibrary* library, const SEC_WCHAR* package,
 }
 
 int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
-  LOG(INFO) << "InitializeSecurityContext returned 0x" << std::hex << status;
+  VLOG(1) << "InitializeSecurityContext returned 0x" << std::hex << status;
   switch (status) {
     case SEC_E_OK:
     case SEC_I_CONTINUE_NEEDED:
@@ -146,7 +146,7 @@ int MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
 }
 
 int MapQuerySecurityPackageInfoStatusToError(SECURITY_STATUS status) {
-  LOG(INFO) << "QuerySecurityPackageInfo returned 0x" << std::hex << status;
+  VLOG(1) << "QuerySecurityPackageInfo returned 0x" << std::hex << status;
   switch (status) {
     case SEC_E_OK:
       return OK;
@@ -163,7 +163,7 @@ int MapQuerySecurityPackageInfoStatusToError(SECURITY_STATUS status) {
 }
 
 int MapFreeContextBufferStatusToError(SECURITY_STATUS status) {
-  LOG(INFO) << "FreeContextBuffer returned 0x" << std::hex << status;
+  VLOG(1) << "FreeContextBuffer returned 0x" << std::hex << status;
   switch (status) {
     case SEC_E_OK:
       return OK;

@@ -48,54 +48,54 @@ inline char Asciify(char x) {
 void DumpData(const char* data, int data_len) {
   if (logging::LOG_INFO < logging::GetMinLogLevel())
     return;
-  DLOG(INFO) << "Length:  " << data_len;
+  DVLOG(1) << "Length:  " << data_len;
   const char* pfx = "Data:    ";
   if (!data || (data_len <= 0)) {
-    DLOG(INFO) << pfx << "<None>";
+    DVLOG(1) << pfx << "<None>";
   } else {
     int i;
     for (i = 0; i <= (data_len - 4); i += 4) {
-      DLOG(INFO) << pfx
-                 << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
-                 << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
-                 << AsciifyHigh(data[i + 2]) << AsciifyLow(data[i + 2])
-                 << AsciifyHigh(data[i + 3]) << AsciifyLow(data[i + 3])
-                 << "  '"
-                 << Asciify(data[i + 0])
-                 << Asciify(data[i + 1])
-                 << Asciify(data[i + 2])
-                 << Asciify(data[i + 3])
-                 << "'";
+      DVLOG(1) << pfx
+               << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
+               << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
+               << AsciifyHigh(data[i + 2]) << AsciifyLow(data[i + 2])
+               << AsciifyHigh(data[i + 3]) << AsciifyLow(data[i + 3])
+               << "  '"
+               << Asciify(data[i + 0])
+               << Asciify(data[i + 1])
+               << Asciify(data[i + 2])
+               << Asciify(data[i + 3])
+               << "'";
       pfx = "         ";
     }
     // Take care of any 'trailing' bytes, if data_len was not a multiple of 4.
     switch (data_len - i) {
       case 3:
-        DLOG(INFO) << pfx
-                   << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
-                   << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
-                   << AsciifyHigh(data[i + 2]) << AsciifyLow(data[i + 2])
-                   << "    '"
-                   << Asciify(data[i + 0])
-                   << Asciify(data[i + 1])
-                   << Asciify(data[i + 2])
-                   << " '";
+        DVLOG(1) << pfx
+                 << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
+                 << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
+                 << AsciifyHigh(data[i + 2]) << AsciifyLow(data[i + 2])
+                 << "    '"
+                 << Asciify(data[i + 0])
+                 << Asciify(data[i + 1])
+                 << Asciify(data[i + 2])
+                 << " '";
         break;
       case 2:
-        DLOG(INFO) << pfx
-                   << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
-                   << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
-                   << "      '"
-                   << Asciify(data[i + 0])
-                   << Asciify(data[i + 1])
-                   << "  '";
+        DVLOG(1) << pfx
+                 << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
+                 << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
+                 << "      '"
+                 << Asciify(data[i + 0])
+                 << Asciify(data[i + 1])
+                 << "  '";
         break;
       case 1:
-        DLOG(INFO) << pfx
-                   << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
-                   << "        '"
-                   << Asciify(data[i + 0])
-                   << "   '";
+        DVLOG(1) << pfx
+                 << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
+                 << "        '"
+                 << Asciify(data[i + 0])
+                 << "   '";
         break;
     }
   }
@@ -104,13 +104,12 @@ void DumpData(const char* data, int data_len) {
 void DumpMockRead(const MockRead& r) {
   if (logging::LOG_INFO < logging::GetMinLogLevel())
     return;
-  DLOG(INFO) << "Async:   " << r.async;
-  DLOG(INFO) << "Result:  " << r.result;
+  DVLOG(1) << "Async:   " << r.async
+           << "\nResult:  " << r.result;
   DumpData(r.data, r.data_len);
   const char* stop = (r.sequence_number & MockRead::STOPLOOP) ? " (STOP)" : "";
-  DLOG(INFO) << "Stage:   " << (r.sequence_number & ~MockRead::STOPLOOP)
-             << stop;
-  DLOG(INFO) << "Time:    " << r.time_stamp.ToInternalValue();
+  DVLOG(1) << "Stage:   " << (r.sequence_number & ~MockRead::STOPLOOP) << stop
+           << "\nTime:    " << r.time_stamp.ToInternalValue();
 }
 
 }  // namespace

@@ -115,14 +115,14 @@ bool ImportCACerts(const net::CertificateList& certificates,
     if (!CERT_IsCACert(cert->os_cert_handle(), NULL)) {
       not_imported->push_back(net::CertDatabase::ImportCertFailure(
           cert, net::ERR_IMPORT_CA_CERT_NOT_CA));
-      LOG(INFO) << "skipping cert (non-ca)";
+      VLOG(1) << "skipping cert (non-ca)";
       continue;
     }
 
     if (cert->os_cert_handle()->isperm) {
       not_imported->push_back(net::CertDatabase::ImportCertFailure(
           cert, net::ERR_IMPORT_CERT_ALREADY_EXISTS));
-      LOG(INFO) << "skipping cert (perm)";
+      VLOG(1) << "skipping cert (perm)";
       continue;
     }
 
@@ -133,7 +133,7 @@ bool ImportCACerts(const net::CertificateList& certificates,
       // public.)
       not_imported->push_back(net::CertDatabase::ImportCertFailure(
           cert, net::ERR_FAILED));
-      LOG(INFO) << "skipping cert (verify) " << PORT_GetError();
+      VLOG(1) << "skipping cert (verify) " << PORT_GetError();
       continue;
     }
 

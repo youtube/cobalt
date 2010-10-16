@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -129,7 +129,7 @@ URLRequestJob* URLRequestFilter::FindRequestHandler(URLRequest* request,
     }
   }
   if (job) {
-    DLOG(INFO) << "URLRequestFilter hit for " << request->url().spec();
+    DVLOG(1) << "URLRequestFilter hit for " << request->url().spec();
     hit_count_++;
   }
   return job;

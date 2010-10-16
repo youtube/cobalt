@@ -71,7 +71,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   // Handler for "alert(message)".
   virtual void Alert(const string16& message) {
-    LOG(INFO) << "PAC-alert: " << message;
+    VLOG(1) << "PAC-alert: " << message;
 
     // Send to the NetLog.
     LogEventToCurrentRequestAndGlobally(NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
@@ -142,9 +142,9 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   virtual void OnError(int line_number, const string16& message) {
     // Send to the chrome log.
     if (line_number == -1)
-      LOG(INFO) << "PAC-error: " << message;
+      VLOG(1) << "PAC-error: " << message;
     else
-      LOG(INFO) << "PAC-error: " << "line: " << line_number << ": " << message;
+      VLOG(1) << "PAC-error: " << "line: " << line_number << ": " << message;
 
     // Send the error to the NetLog.
     LogEventToCurrentRequestAndGlobally(
