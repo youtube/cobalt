@@ -16,8 +16,8 @@
 #include "base/debug_util.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
-#include "base/scoped_handle_win.h"
 #include "base/scoped_ptr.h"
+#include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
 
 // userenv.dll is required for CreateEnvironmentBlock().
@@ -163,7 +163,7 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level) {
       &process_token))
     return false;
 
-  ScopedHandle scoped_process_token(process_token);
+  base::win::ScopedHandle scoped_process_token(process_token);
 
   DWORD token_info_length = 0;
   if (GetTokenInformation(process_token, TokenIntegrityLevel, NULL, 0,
@@ -326,8 +326,8 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
   }
 
   // Ensure we don't leak the handles.
-  ScopedHandle scoped_out_read(out_read);
-  ScopedHandle scoped_out_write(out_write);
+  base::win::ScopedHandle scoped_out_read(out_read);
+  base::win::ScopedHandle scoped_out_write(out_write);
 
   // Ensure the read handle to the pipe for STDOUT is not inherited.
   if (!SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0)) {

@@ -8,7 +8,6 @@
 
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/scoped_handle.h"
 #include "base/file_util.h"
 
 namespace {
@@ -19,8 +18,8 @@ void DeleteFiles(const wchar_t* path, const wchar_t* search_name) {
   file_util::AppendToPath(&name, search_name);
 
   WIN32_FIND_DATA data;
-  ScopedFindFileHandle handle(FindFirstFile(name.c_str(), &data));
-  if (!handle.IsValid())
+  HANDLE handle = FindFirstFile(name.c_str(), &data);
+  if (handle == INVALID_HANDLE_VALUE)
     return;
 
   std::wstring adjusted_path(path);
@@ -33,6 +32,8 @@ void DeleteFiles(const wchar_t* path, const wchar_t* search_name) {
     current += data.cFileName;
     DeleteFile(current.c_str());
   } while (FindNextFile(handle, &data));
+
+  FindClose(handle);
 }
 
 }  // namespace
