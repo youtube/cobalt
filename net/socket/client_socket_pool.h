@@ -149,12 +149,13 @@ class ClientSocketPool {
   DISALLOW_COPY_AND_ASSIGN(ClientSocketPool);
 };
 
-// Declaration, but no definition.  ClientSocketPool subclasses should indicate
-// valid SocketParams via the REGISTER_SOCKET_PARAMS_FOR_POOL macro below, which
-// will provide a definition of CheckIsValidSocketParamsForPool for the
-// ClientSocketPool subtype and SocketParams pair.  Trying to use a SocketParams
-// type that has not been registered with the corresponding ClientSocketPool
-// subtype will result in a compile-time error.
+// ClientSocketPool subclasses should indicate valid SocketParams via the
+// REGISTER_SOCKET_PARAMS_FOR_POOL macro below.  By default, any given
+// <PoolType,SocketParams> pair will have its SocketParamsTrait inherit from
+// base::false_type, but REGISTER_SOCKET_PARAMS_FOR_POOL will specialize that
+// pairing to inherit from base::true_type.  This provides compile time
+// verification that the correct SocketParams type is used with the appropriate
+// PoolType.
 template <typename PoolType, typename SocketParams>
 struct SocketParamTraits : public base::false_type {
 };
@@ -174,6 +175,16 @@ void CheckIsValidSocketParamsForPool() {
 template<>                                                                    \
 struct SocketParamTraits<pool_type, scoped_refptr<socket_params> >            \
     : public base::true_type {                                                \
+}
+
+template <typename PoolType, typename SocketParams>
+void RequestSocketsForPool(PoolType* pool,
+                           const std::string& group_name,
+                           const scoped_refptr<SocketParams>& params,
+                           int num_sockets,
+                           const BoundNetLog& net_log) {
+  CheckIsValidSocketParamsForPool<PoolType, SocketParams>();
+  pool->RequestSockets(group_name, &params, num_sockets, net_log);
 }
 
 }  // namespace net

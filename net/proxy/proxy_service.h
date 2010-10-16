@@ -181,9 +181,10 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
       ProxyConfigService* proxy_config_service,
       NetLog* net_log);
 
-  // Convenience method that creates a proxy service using the
-  // specified fixed settings. |pc| must not be NULL.
+  // Convenience methods that creates a proxy service using the
+  // specified fixed settings.
   static ProxyService* CreateFixed(const ProxyConfig& pc);
+  static ProxyService* CreateFixed(const std::string& proxy);
 
   // Creates a proxy service that uses a DIRECT connection for all requests.
   static ProxyService* CreateDirect();

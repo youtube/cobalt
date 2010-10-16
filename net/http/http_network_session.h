@@ -116,8 +116,8 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     return network_delegate_;
   }
 
-  const scoped_refptr<HttpStreamFactory>& http_stream_factory() {
-    return http_stream_factory_;
+  HttpStreamFactory* http_stream_factory() {
+    return &http_stream_factory_;
   }
 
   // Creates a Value summary of the state of the socket pools. The caller is
@@ -152,7 +152,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   // TODO(willchan): Move this out to IOThread so it can be shared across
   // URLRequestContexts.
   scoped_ptr<SpdySessionPool> spdy_session_pool_;
-  scoped_refptr<HttpStreamFactory> http_stream_factory_;
+  HttpStreamFactory http_stream_factory_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   HttpNetworkDelegate* const network_delegate_;
   NetLog* net_log_;
