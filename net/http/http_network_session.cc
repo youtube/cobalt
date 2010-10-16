@@ -40,7 +40,6 @@ HttpNetworkSession::HttpNetworkSession(
                            proxy_service,
                            ssl_config_service),
       spdy_session_pool_(spdy_session_pool),
-      http_stream_factory_(new HttpStreamFactory()),
       http_auth_handler_factory_(http_auth_handler_factory),
       network_delegate_(network_delegate),
       net_log_(net_log) {

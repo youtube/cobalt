@@ -42,6 +42,13 @@ HttpStreamFactory::HttpStreamFactory() {
 }
 
 HttpStreamFactory::~HttpStreamFactory() {
+  RequestCallbackMap request_callback_map;
+  request_callback_map.swap(request_callback_map_);
+  for (RequestCallbackMap::iterator it = request_callback_map.begin();
+       it != request_callback_map.end(); ++it) {
+    delete it->first;
+    // We don't invoke the callback in the destructor.
+  }
 }
 
 StreamRequest* HttpStreamFactory::RequestStream(
@@ -54,6 +61,22 @@ StreamRequest* HttpStreamFactory::RequestStream(
   HttpStreamRequest* stream = new HttpStreamRequest(this, session);
   stream->Start(request_info, ssl_config, proxy_info, delegate, net_log);
   return stream;
+}
+
+int HttpStreamFactory::PreconnectStreams(
+    int num_streams,
+    const HttpRequestInfo* request_info,
+    SSLConfig* ssl_config,
+    ProxyInfo* proxy_info,
+    HttpNetworkSession* session,
+    const BoundNetLog& net_log,
+    CompletionCallback* callback) {
+  HttpStreamRequest* stream = new HttpStreamRequest(this, session);
+  int rv = stream->Preconnect(num_streams, request_info, ssl_config,
+                              proxy_info, this, net_log);
+  DCHECK_EQ(ERR_IO_PENDING, rv);
+  request_callback_map_[stream] = callback;
+  return rv;
 }
 
 void HttpStreamFactory::AddTLSIntolerantServer(const GURL& url) {
@@ -129,6 +152,16 @@ GURL HttpStreamFactory::ApplyHostMappingRules(const GURL& url,
     return url.ReplaceComponents(replacements);
   }
   return url;
+}
+
+void HttpStreamFactory::OnPreconnectsComplete(
+    HttpStreamRequest* request, int result) {
+  RequestCallbackMap::iterator it = request_callback_map_.find(request);
+  DCHECK(it != request_callback_map_.end());
+  CompletionCallback* callback = it->second;
+  request_callback_map_.erase(it);
+  delete request;
+  callback->Run(result);
 }
 
 }  // namespace net
