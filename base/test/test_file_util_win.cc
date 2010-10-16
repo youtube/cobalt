@@ -64,7 +64,7 @@ bool EvictFileFromSystemCache(const FilePath& file) {
   DWORD bytes_read, bytes_written;
   for (;;) {
     bytes_read = 0;
-    ReadFile(file_handle, buffer, kOneMB, &bytes_read, NULL);
+    ::ReadFile(file_handle, buffer, kOneMB, &bytes_read, NULL);
     if (bytes_read == 0)
       break;
 
@@ -82,7 +82,7 @@ bool EvictFileFromSystemCache(const FilePath& file) {
     // aligned, but that shouldn't happen here.
     DCHECK((total_bytes % kOneMB) == 0);
     SetFilePointer(file_handle, total_bytes, NULL, FILE_BEGIN);
-    if (!WriteFile(file_handle, buffer, kOneMB, &bytes_written, NULL) ||
+    if (!::WriteFile(file_handle, buffer, kOneMB, &bytes_written, NULL) ||
         bytes_written != kOneMB) {
       BOOL freed = VirtualFree(buffer, 0, MEM_RELEASE);
       DCHECK(freed);

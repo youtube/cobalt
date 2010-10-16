@@ -16,13 +16,13 @@
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/pe_image.h"
-#include "base/scoped_comptr_win.h"
-#include "base/scoped_handle.h"
+#include "base/win/scoped_handle.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "base/win_util.h"
+#include "base/win/scoped_comptr.h"
 #include "base/win/windows_version.h"
 
 namespace file_util {
@@ -328,7 +328,7 @@ bool GetFileCreationLocalTimeFromHandle(HANDLE file_handle,
 
 bool GetFileCreationLocalTime(const std::wstring& filename,
                               LPSYSTEMTIME creation_time) {
-  ScopedHandle file_handle(
+  base::win::ScopedHandle file_handle(
       CreateFile(filename.c_str(), GENERIC_READ, kFileShareAll, NULL,
                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
   return GetFileCreationLocalTimeFromHandle(file_handle.Get(), creation_time);
@@ -336,14 +336,14 @@ bool GetFileCreationLocalTime(const std::wstring& filename,
 
 bool ResolveShortcut(FilePath* path) {
   HRESULT result;
-  ScopedComPtr<IShellLink> i_shell_link;
+  base::win::ScopedComPtr<IShellLink> i_shell_link;
   bool is_resolved = false;
 
   // Get pointer to the IShellLink interface
   result = i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
                                        CLSCTX_INPROC_SERVER);
   if (SUCCEEDED(result)) {
-    ScopedComPtr<IPersistFile> persist;
+    base::win::ScopedComPtr<IPersistFile> persist;
     // Query IShellLink for the IPersistFile interface
     result = persist.QueryFrom(i_shell_link);
     if (SUCCEEDED(result)) {
@@ -374,8 +374,8 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
   DCHECK(lstrlen(arguments) < MAX_PATH);
   DCHECK(lstrlen(description) < MAX_PATH);
 
-  ScopedComPtr<IShellLink> i_shell_link;
-  ScopedComPtr<IPersistFile> i_persist_file;
+  base::win::ScopedComPtr<IShellLink> i_shell_link;
+  base::win::ScopedComPtr<IPersistFile> i_persist_file;
 
   // Get pointer to the IShellLink interface
   HRESULT result = i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
@@ -404,7 +404,7 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
     return false;
 
   if (app_id && (base::win::GetVersion() >= base::win::VERSION_WIN7)) {
-    ScopedComPtr<IPropertyStore> property_store;
+    base::win::ScopedComPtr<IPropertyStore> property_store;
     if (FAILED(property_store.QueryFrom(i_shell_link)))
       return false;
 
@@ -426,12 +426,12 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
   DCHECK(lstrlen(description) < MAX_PATH);
 
   // Get pointer to the IPersistFile interface and load existing link
-  ScopedComPtr<IShellLink> i_shell_link;
+  base::win::ScopedComPtr<IShellLink> i_shell_link;
   if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
                                          CLSCTX_INPROC_SERVER)))
     return false;
 
-  ScopedComPtr<IPersistFile> i_persist_file;
+  base::win::ScopedComPtr<IPersistFile> i_persist_file;
   if (FAILED(i_persist_file.QueryFrom(i_shell_link)))
     return false;
 
@@ -454,7 +454,7 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
     return false;
 
   if (app_id && base::win::GetVersion() >= base::win::VERSION_WIN7) {
-    ScopedComPtr<IPropertyStore> property_store;
+    base::win::ScopedComPtr<IPropertyStore> property_store;
     if (FAILED(property_store.QueryFrom(i_shell_link)))
       return false;
 
@@ -672,13 +672,13 @@ FILE* OpenFile(const std::string& filename, const char* mode) {
 }
 
 int ReadFile(const FilePath& filename, char* data, int size) {
-  ScopedHandle file(CreateFile(filename.value().c_str(),
-                               GENERIC_READ,
-                               FILE_SHARE_READ | FILE_SHARE_WRITE,
-                               NULL,
-                               OPEN_EXISTING,
-                               FILE_FLAG_SEQUENTIAL_SCAN,
-                               NULL));
+  base::win::ScopedHandle file(CreateFile(filename.value().c_str(),
+                                          GENERIC_READ,
+                                          FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                          NULL,
+                                          OPEN_EXISTING,
+                                          FILE_FLAG_SEQUENTIAL_SCAN,
+                                          NULL));
   if (!file)
     return -1;
 
@@ -690,13 +690,13 @@ int ReadFile(const FilePath& filename, char* data, int size) {
 }
 
 int WriteFile(const FilePath& filename, const char* data, int size) {
-  ScopedHandle file(CreateFile(filename.value().c_str(),
-                               GENERIC_WRITE,
-                               0,
-                               NULL,
-                               CREATE_ALWAYS,
-                               0,
-                               NULL));
+  base::win::ScopedHandle file(CreateFile(filename.value().c_str(),
+                                          GENERIC_WRITE,
+                                          0,
+                                          NULL,
+                                          CREATE_ALWAYS,
+                                          0,
+                                          NULL));
   if (!file) {
     LOG(WARNING) << "CreateFile failed for path " << filename.value() <<
         " error code=" << GetLastError() <<
@@ -954,7 +954,7 @@ bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
   // code below to a call to GetFinalPathNameByHandle().  The method this
   // function uses is explained in the following msdn article:
   // http://msdn.microsoft.com/en-us/library/aa366789(VS.85).aspx
-  ScopedHandle file_handle(
+  base::win::ScopedHandle file_handle(
       ::CreateFile(path.value().c_str(),
                    GENERIC_READ,
                    kFileShareAll,
@@ -968,7 +968,7 @@ bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
   // Create a file mapping object.  Can't easily use MemoryMappedFile, because
   // we only map the first byte, and need direct access to the handle. You can
   // not map an empty file, this call fails in that case.
-  ScopedHandle file_map_handle(
+  base::win::ScopedHandle file_map_handle(
       ::CreateFileMapping(file_handle.Get(),
                           NULL,
                           PAGE_READONLY,
@@ -1008,7 +1008,7 @@ bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
     // Vista+ branch. On these OSes, the forced reads through the DLL actually
     // slows warm starts. The solution is to sequentially read file contents
     // with an optional cap on total amount to read.
-    ScopedHandle file(
+    base::win::ScopedHandle file(
         CreateFile(file_path,
                    GENERIC_READ,
                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
