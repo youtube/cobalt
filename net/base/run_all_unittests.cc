@@ -6,7 +6,6 @@
 #include "base/metrics/histogram.h"
 #include "base/nss_util.h"
 #include "net/base/net_test_suite.h"
-#include "net/http/http_stream_factory.h"
 #if defined(OS_WIN)
 #include "net/socket/ssl_client_socket_nss_factory.h"
 #endif
@@ -24,8 +23,6 @@ int main(int argc, char** argv) {
   // We want to be sure to init NSPR on the main thread.
   base::EnsureNSPRInit();
 #endif
-
-  net::HttpStreamFactory::set_create_new_spdy_session_for_http(true);
 
   return test_suite.Run();
 }
