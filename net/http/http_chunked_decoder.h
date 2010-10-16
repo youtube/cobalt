@@ -1,3 +1,10 @@
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Derived from:
+//   mozilla/netwerk/protocol/http/src/nsHttpChunkedDecoder.h
+// The license block is:
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -34,9 +41,6 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-
-// Derived from:
-// mozilla/netwerk/protocol/http/src/nsHttpChunkedDecoder.h
 
 #ifndef NET_HTTP_HTTP_CHUNKED_DECODER_H_
 #define NET_HTTP_HTTP_CHUNKED_DECODER_H_

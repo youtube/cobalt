@@ -223,7 +223,7 @@ int TCPClientSocketLibevent::DoConnect() {
           socket_, true, MessageLoopForIO::WATCH_WRITE, &write_socket_watcher_,
           &write_watcher_)) {
     connect_os_error_ = errno;
-    DLOG(INFO) << "WatchFileDescriptor failed: " << connect_os_error_;
+    DVLOG(1) << "WatchFileDescriptor failed: " << connect_os_error_;
     return MapPosixError(connect_os_error_);
   }
 
@@ -337,14 +337,14 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
     return nread;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK) {
-    DLOG(INFO) << "read failed, errno " << errno;
+    DVLOG(1) << "read failed, errno " << errno;
     return MapPosixError(errno);
   }
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_READ,
           &read_socket_watcher_, &read_watcher_)) {
-    DLOG(INFO) << "WatchFileDescriptor failed on read, errno " << errno;
+    DVLOG(1) << "WatchFileDescriptor failed on read, errno " << errno;
     return MapPosixError(errno);
   }
 
@@ -381,7 +381,7 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_WRITE,
           &write_socket_watcher_, &write_watcher_)) {
-    DLOG(INFO) << "WatchFileDescriptor failed on write, errno " << errno;
+    DVLOG(1) << "WatchFileDescriptor failed on write, errno " << errno;
     return MapPosixError(errno);
   }
 

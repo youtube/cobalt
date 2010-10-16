@@ -107,18 +107,20 @@ namespace net {
 #define GotoState(s) next_handshake_state_ = s
 #define LogData(s, len)
 #else
-#define EnterFunction(x)  LOG(INFO) << (void *)this << " " << __FUNCTION__ << \
-                           " enter " << x << \
-                           "; next_handshake_state " << next_handshake_state_
-#define LeaveFunction(x)  LOG(INFO) << (void *)this << " " << __FUNCTION__ << \
-                           " leave " << x << \
-                           "; next_handshake_state " << next_handshake_state_
-#define GotoState(s) do { LOG(INFO) << (void *)this << " " << __FUNCTION__ << \
-                           " jump to state " << s; \
-                           next_handshake_state_ = s; } while (0)
-#define LogData(s, len)   LOG(INFO) << (void *)this << " " << __FUNCTION__ << \
-                           " data [" << std::string(s, len) << "]";
-
+#define EnterFunction(x)\
+    VLOG(1) << (void *)this << " " << __FUNCTION__ << " enter " << x\
+            << "; next_handshake_state " << next_handshake_state_
+#define LeaveFunction(x)\
+    VLOG(1) << (void *)this << " " << __FUNCTION__ << " leave " << x\
+            << "; next_handshake_state " << next_handshake_state_
+#define GotoState(s)\
+    do {\
+      VLOG(1) << (void *)this << " " << __FUNCTION__ << " jump to state " << s;\
+      next_handshake_state_ = s;\
+    } while (0)
+#define LogData(s, len)\
+    VLOG(1) << (void *)this << " " << __FUNCTION__\
+            << " data [" << std::string(s, len) << "]"
 #endif
 
 namespace {
@@ -363,7 +365,7 @@ bool IsProblematicComodoEVCACert(const CERTCertificate& cert) {
 // http://blogs.msdn.com/b/askie/archive/2009/06/09/my-expired-client-certificates-no-longer-display-when-connecting-to-my-web-server-using-ie8.aspx
 BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
                                    void* find_arg) {
-  LOG(INFO) << "Calling ClientCertFindCallback from _nss";
+  VLOG(1) << "Calling ClientCertFindCallback from _nss";
   // Verify the certificate's KU is good.
   BYTE key_usage;
   if (CertGetIntendedKeyUsage(X509_ASN_ENCODING, cert_context->pCertInfo,
@@ -872,7 +874,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SNAP_START,
                      SSLConfigService::snap_start_enabled());
   if (rv != SECSuccess)
-    LOG(INFO) << "SSL_ENABLE_SNAP_START failed.  Old system nss?";
+    VLOG(1) << "SSL_ENABLE_SNAP_START failed.  Old system nss?";
 #endif
 
 #ifdef SSL_ENABLE_RENEGOTIATION
@@ -1245,8 +1247,8 @@ void SSLClientSocketNSS::CheckSecureRenegotiation() const {
   if (SSL_HandshakeNegotiatedExtension(nss_fd_, ssl_renegotiation_info_xtn,
                                        &received_renego_info) == SECSuccess &&
       !received_renego_info) {
-    LOG(INFO) << "The server " << hostname_
-              << " does not support the TLS renegotiation_info extension.";
+    VLOG(1) << "The server " << hostname_
+            << " does not support the TLS renegotiation_info extension.";
   }
 #endif
 }
@@ -2052,11 +2054,11 @@ int SSLClientSocketNSS::DoHandshake() {
         net_error = ERR_NETNANNY_SSL_INTERCEPTION;
       } else {
         SaveSnapStartInfo();
-        // SSL handshake is completed. It's possible that we mispredicted the NPN
-        // agreed protocol. In this case, we've just sent a request in the wrong
-        // protocol! The higher levels of this network stack aren't prepared for
-        // switching the protocol like that so we make up an error and rely on
-        // the fact that the request will be retried.
+        // SSL handshake is completed. It's possible that we mispredicted the
+        // NPN agreed protocol. In this case, we've just sent a request in the
+        // wrong protocol! The higher levels of this network stack aren't
+        // prepared for switching the protocol like that so we make up an error
+        // and rely on the fact that the request will be retried.
         if (IsNPNProtocolMispredicted()) {
           LOG(WARNING) << "Mispredicted NPN protocol for " << hostname_;
           net_error = ERR_SSL_SNAP_START_NPN_MISPREDICTION;
@@ -2379,7 +2381,7 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   // the cert in the allowed_bad_certs vector.
   if (IsCertificateError(result) &&
       ssl_config_.IsAllowedBadCert(server_cert_)) {
-    LOG(INFO) << "accepting bad SSL certificate, as user told us to";
+    VLOG(1) << "accepting bad SSL certificate, as user told us to";
     result = OK;
   }
 

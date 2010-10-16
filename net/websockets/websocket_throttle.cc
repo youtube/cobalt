@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -76,7 +76,7 @@ void WebSocketThrottle::PutInQueue(WebSocketJob* job) {
     } else {
       iter->second->push_back(job);
       job->SetWaiting();
-      DLOG(INFO) << "Waiting on " << addrkey;
+      DVLOG(1) << "Waiting on " << addrkey;
     }
   }
 }

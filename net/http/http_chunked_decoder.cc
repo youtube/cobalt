@@ -1,3 +1,10 @@
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Derived from:
+//   mozilla/netwerk/protocol/http/src/nsHttpChunkedDecoder.cpp
+// The license block is:
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -34,9 +41,6 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-
-// Derived from:
-// mozilla/netwerk/protocol/http/src/nsHttpChunkedDecoder.cpp
 
 #include "net/http/http_chunked_decoder.h"
 
@@ -111,11 +115,10 @@ int HttpChunkedDecoder::ScanForChunkRemaining(const char* buf, int buf_len) {
     }
 
     if (reached_last_chunk_) {
-      if (buf_len) {
-        DLOG(INFO) << "ignoring http trailer";
-      } else {
+      if (buf_len)
+        DVLOG(1) << "ignoring http trailer";
+      else
         reached_eof_ = true;
-      }
     } else if (chunk_terminator_remaining_) {
       if (buf_len) {
         DLOG(ERROR) << "chunk data not terminated properly";

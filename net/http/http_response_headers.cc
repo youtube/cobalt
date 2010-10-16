@@ -513,20 +513,20 @@ HttpVersion HttpResponseHeaders::ParseVersion(
   // TODO: handle leading zeros, which is allowed by the rfc1616 sec 3.1.
 
   if ((line_end - p < 4) || !LowerCaseEqualsASCII(p, p + 4, "http")) {
-    DLOG(INFO) << "missing status line";
+    DVLOG(1) << "missing status line";
     return HttpVersion();
   }
 
   p += 4;
 
   if (p >= line_end || *p != '/') {
-    DLOG(INFO) << "missing version";
+    DVLOG(1) << "missing version";
     return HttpVersion();
   }
 
   std::string::const_iterator dot = find(p, line_end, '.');
   if (dot == line_end) {
-    DLOG(INFO) << "malformed version";
+    DVLOG(1) << "malformed version";
     return HttpVersion();
   }
 
@@ -534,7 +534,7 @@ HttpVersion HttpResponseHeaders::ParseVersion(
   ++dot;  // from . to second digit.
 
   if (!(*p >= '0' && *p <= '9' && *dot >= '0' && *dot <= '9')) {
-    DLOG(INFO) << "malformed version number";
+    DVLOG(1) << "malformed version number";
     return HttpVersion();
   }
 
@@ -566,15 +566,15 @@ void HttpResponseHeaders::ParseStatusLine(
     raw_headers_ = "HTTP/1.0";
   }
   if (parsed_http_version_ != http_version_) {
-    DLOG(INFO) << "assuming HTTP/" << http_version_.major_value() << "."
-               << http_version_.minor_value();
+    DVLOG(1) << "assuming HTTP/" << http_version_.major_value() << "."
+             << http_version_.minor_value();
   }
 
   // TODO(eroman): this doesn't make sense if ParseVersion failed.
   std::string::const_iterator p = find(line_begin, line_end, ' ');
 
   if (p == line_end) {
-    DLOG(INFO) << "missing response status; assuming 200 OK";
+    DVLOG(1) << "missing response status; assuming 200 OK";
     raw_headers_.append(" 200 OK");
     raw_headers_.push_back('\0');
     response_code_ = 200;
@@ -590,7 +590,7 @@ void HttpResponseHeaders::ParseStatusLine(
     ++p;
 
   if (p == code) {
-    DLOG(INFO) << "missing response status number; assuming 200";
+    DVLOG(1) << "missing response status number; assuming 200";
     raw_headers_.append(" 200 OK");
     response_code_ = 200;
     return;
@@ -609,7 +609,7 @@ void HttpResponseHeaders::ParseStatusLine(
     --line_end;
 
   if (p == line_end) {
-    DLOG(INFO) << "missing response status text; assuming OK";
+    DVLOG(1) << "missing response status text; assuming OK";
     // Not super critical what we put here. Just use "OK"
     // even if it isn't descriptive of response_code_.
     raw_headers_.append("OK");

@@ -32,9 +32,8 @@ int SpdyFramer::spdy_version_ = kSpdyProtocolVersion;
 #define CHANGE_STATE(newstate) \
 { \
   do { \
-    LOG(INFO) << "Changing state from: " \
-      << StateToString(state_) \
-      << " to " << StateToString(newstate) << "\n"; \
+    VLOG(1) << "Changing state from: " << StateToString(state_) \
+            << " to " << StateToString(newstate); \
     state_ = newstate; \
   } while (false); \
 }

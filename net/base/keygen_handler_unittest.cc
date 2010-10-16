@@ -76,7 +76,7 @@ TEST_F(KeygenHandlerTest, SmokeTest) {
   KeygenHandler handler(768, "some challenge", GURL("http://www.example.com"));
   handler.set_stores_key(false);  // Don't leave the key-pair behind
   std::string result = handler.GenKeyAndSignChallenge();
-  LOG(INFO) << "KeygenHandler produced: " << result;
+  VLOG(1) << "KeygenHandler produced: " << result;
   AssertValidSignedPublicKeyAndChallenge(result, "some challenge");
 }
 
@@ -134,7 +134,7 @@ TEST_F(KeygenHandlerTest, ConcurrencyTest) {
     delete events[i];
     events[i] = NULL;
 
-    LOG(INFO) << "KeygenHandler " << i << " produced: " << results[i];
+    VLOG(1) << "KeygenHandler " << i << " produced: " << results[i];
     AssertValidSignedPublicKeyAndChallenge(results[i], "some challenge");
   }
 }
