@@ -25,7 +25,7 @@
 #include "base/string_util.h"
 #include "base/task.h"
 #include "base/timer.h"
-#include "base/xdg_util.h"
+#include "base/nix/xdg_util.h"
 #include "googleurl/src/url_canon.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_util.h"
@@ -442,8 +442,8 @@ class GConfSettingGetterImplKDE
       if (!env_var_getter->GetVar(base::env_vars::kHome, &home))
         // User has no $HOME? Give up. Later we'll report the failure.
         return;
-      if (base::GetDesktopEnvironment(env_var_getter) ==
-          base::DESKTOP_ENVIRONMENT_KDE3) {
+      if (base::nix::GetDesktopEnvironment(env_var_getter) ==
+          base::nix::DESKTOP_ENVIRONMENT_KDE3) {
         // KDE3 always uses .kde for its configuration.
         FilePath kde_path = FilePath(home).Append(".kde");
         kde_config_dir_ = KDEHomeToConfigPath(kde_path);
@@ -1062,16 +1062,16 @@ ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter)
     : env_var_getter_(env_var_getter),
       glib_default_loop_(NULL), io_loop_(NULL) {
   // Figure out which GConfSettingGetterImpl to use, if any.
-  switch (base::GetDesktopEnvironment(env_var_getter)) {
-    case base::DESKTOP_ENVIRONMENT_GNOME:
+  switch (base::nix::GetDesktopEnvironment(env_var_getter)) {
+    case base::nix::DESKTOP_ENVIRONMENT_GNOME:
       gconf_getter_.reset(new GConfSettingGetterImplGConf());
       break;
-    case base::DESKTOP_ENVIRONMENT_KDE3:
-    case base::DESKTOP_ENVIRONMENT_KDE4:
+    case base::nix::DESKTOP_ENVIRONMENT_KDE3:
+    case base::nix::DESKTOP_ENVIRONMENT_KDE4:
       gconf_getter_.reset(new GConfSettingGetterImplKDE(env_var_getter));
       break;
-    case base::DESKTOP_ENVIRONMENT_XFCE:
-    case base::DESKTOP_ENVIRONMENT_OTHER:
+    case base::nix::DESKTOP_ENVIRONMENT_XFCE:
+    case base::nix::DESKTOP_ENVIRONMENT_OTHER:
       break;
   }
 }
