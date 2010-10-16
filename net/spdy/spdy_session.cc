@@ -249,6 +249,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       initial_send_window_size_(spdy::kInitialWindowSize),
       initial_recv_window_size_(spdy::kInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
+  DCHECK(HttpStreamFactory::spdy_enabled());
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
       new NetLogSpdySessionParameter(host_port_proxy_pair_));

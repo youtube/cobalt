@@ -26,7 +26,7 @@ static const char kExpectedNPNString[] = "\x08http/1.1\x06spdy/2";
 enum SpdyNetworkTransactionTestTypes {
   SPDYNPN,
   SPDYNOSSL,
-  SPDYSSL
+  SPDYSSL,
 };
 class SpdyNetworkTransactionTest
     : public ::testing::TestWithParam<SpdyNetworkTransactionTestTypes> {
@@ -69,7 +69,8 @@ class SpdyNetworkTransactionTest
               session_deps_.get())),
           log_(log),
           test_type_(test_type),
-          deterministic_(false) {
+          deterministic_(false),
+          spdy_enabled_(true) {
             switch (test_type_) {
               case SPDYNOSSL:
               case SPDYSSL:
@@ -99,6 +100,10 @@ class SpdyNetworkTransactionTest
       session_ = SpdySessionDependencies::SpdyCreateSessionDeterministic(
           session_deps_.get());
       deterministic_ = true;
+    }
+
+    void SetSpdyDisabled() {
+      spdy_enabled_ = false;
     }
 
     void RunPreTestSetup() {
@@ -154,13 +159,19 @@ class SpdyNetworkTransactionTest
       ASSERT_TRUE(response != NULL);
       ASSERT_TRUE(response->headers != NULL);
       EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
-      EXPECT_TRUE(response->was_fetched_via_spdy);
-      if (test_type_ == SPDYNPN) {
+      EXPECT_EQ(spdy_enabled_, response->was_fetched_via_spdy);
+      if (test_type_ == SPDYNPN && spdy_enabled_) {
         EXPECT_TRUE(response->was_npn_negotiated);
         EXPECT_TRUE(response->was_alternate_protocol_available);
       } else {
         EXPECT_TRUE(!response->was_npn_negotiated);
         EXPECT_TRUE(!response->was_alternate_protocol_available);
+      }
+      // If SPDY is not enabled, a HTTP request should not be diverted
+      // over a SSL session.
+      if (!spdy_enabled_) {
+        EXPECT_EQ(request_.url.SchemeIs("https"),
+                  response->was_npn_negotiated);
       }
       output_.status_line = response->headers->GetStatusLine();
       output_.response_info = *response;  // Make a copy so we can verify.
@@ -287,6 +298,7 @@ class SpdyNetworkTransactionTest
     SpdyNetworkTransactionTestTypes test_type_;
     int port_;
     bool deterministic_;
+    bool spdy_enabled_;
   };
 
   void ConnectStatusHelperWithExpectedStatus(const MockRead& status,
@@ -4482,5 +4494,51 @@ TEST_P(SpdyNetworkTransactionTest, VerifyRetryOnConnectionReset) {
 
     helper.VerifyDataConsumed();
   }
+}
+
+// Test that turning SPDY on and off works properly.
+TEST_P(SpdyNetworkTransactionTest, SpdyOnOffToggle) {
+  net::HttpStreamFactory::set_spdy_enabled(true);
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  MockWrite spdy_writes[] = { CreateMockWrite(*req) };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, spdy_reads, arraysize(spdy_reads),
+                            spdy_writes, arraysize(spdy_writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!", out.response_data);
+
+  net::HttpStreamFactory::set_spdy_enabled(false);
+  MockRead http_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead("hello from http"),
+    MockRead(false, OK),
+  };
+  scoped_refptr<DelayedSocketData> data2(
+      new DelayedSocketData(1, http_reads, arraysize(http_reads),
+                            NULL, 0));
+  NormalSpdyTransactionHelper helper2(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper2.SetSpdyDisabled();
+  helper2.RunToCompletion(data2.get());
+  TransactionHelperResult out2 = helper2.output();
+  EXPECT_EQ(OK, out2.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out2.status_line);
+  EXPECT_EQ("hello from http", out2.response_data);
+
+  net::HttpStreamFactory::set_spdy_enabled(true);
 }
 }  // namespace net
