@@ -25,6 +25,7 @@ class URLRequestContext;
 
 namespace net {
 
+class HostResolver;
 class InitProxyResolver;
 class ProxyResolver;
 class ProxyScriptFetcher;
@@ -153,9 +154,13 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   //   (b) increases the memory used by proxy resolving, as each thread will
   //       duplicate its own script context.
 
-  // |url_request_context| specifies the URL request context that will
-  // be used if a PAC script needs to be fetched.
-  // |io_loop| points to the IO thread's message loop.
+  // |proxy_script_fetcher| specifies the dependency to use for downloading
+  // any PAC scripts. The resulting ProxyService will take ownership of it.
+  //
+  // |host_resolver| points to the host resolving dependency the PAC script
+  // should use for any DNS queries. It must remain valid throughout the
+  // lifetime of the ProxyService.
+  //
   // ##########################################################################
   // # See the warnings in net/proxy/proxy_resolver_v8.h describing the
   // # multi-threading model. In order for this to be safe to use, *ALL* the
@@ -164,9 +169,9 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   static ProxyService* CreateUsingV8ProxyResolver(
       ProxyConfigService* proxy_config_service,
       size_t num_pac_threads,
-      URLRequestContext* url_request_context,
-      NetLog* net_log,
-      MessageLoop* io_loop);
+      ProxyScriptFetcher* proxy_script_fetcher,
+      HostResolver* host_resolver,
+      NetLog* net_log);
 
   // Same as CreateUsingV8ProxyResolver, except it uses system libraries
   // for evaluating the PAC script if available, otherwise skips
