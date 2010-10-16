@@ -873,6 +873,7 @@
         'http/http_request_headers_unittest.cc',
         'http/http_response_body_drainer_unittest.cc',
         'http/http_response_headers_unittest.cc',
+        'http/http_stream_factory_unittest.cc',
         'http/http_transaction_unittest.cc',
         'http/http_transaction_unittest.h',
         'http/http_util_unittest.cc',
