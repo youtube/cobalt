@@ -177,6 +177,9 @@ class HttpStreamRequest : public StreamRequest {
   // code is returned.
   int HandleSSLHandshakeError(int error);
 
+  // Moves this stream request into SPDY mode.
+  void SwitchToSpdyMode();
+
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
 

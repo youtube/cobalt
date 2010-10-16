@@ -362,7 +362,8 @@ int HttpStreamRequest::DoResolveProxy() {
 
   const HttpAlternateProtocols& alternate_protocols =
       session_->alternate_protocols();
-  if (alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
+  if (HttpStreamFactory::spdy_enabled() &&
+      alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
     was_alternate_protocol_available_ = true;
     if (alternate_protocol_mode_ == kUnspecified) {
       HttpAlternateProtocols::PortProtocolPair alternate =
@@ -439,24 +440,28 @@ int HttpStreamRequest::DoInitConnection() {
       want_spdy_over_npn;
   using_spdy_ = false;
 
-  // Check first if we have a spdy session for this group.  If so, then go
-  // straight to using that.  Unless we are preconnecting.
-  HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
-  if (!preconnect_delegate_ &&
-      session_->spdy_session_pool()->HasSession(pair)) {
-    using_spdy_ = true;
-    next_state_ = STATE_CREATE_STREAM;
-    return OK;
-  }
-  // Check next if we have a spdy session for this proxy.  If so, then go
-  // straight to using that.
-  if (IsHttpsProxyAndHttpUrl()) {
-    HostPortProxyPair proxy(proxy_info()->proxy_server().host_port_pair(),
-                            ProxyServer::Direct());
-    if (session_->spdy_session_pool()->HasSession(proxy)) {
+  // If spdy has been turned off on-the-fly, then there may be SpdySessions
+  // still active.  But don't use them unless spdy is currently on.
+  if (HttpStreamFactory::spdy_enabled()) {
+    // Check first if we have a spdy session for this group.  If so, then go
+    // straight to using that.
+    HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
+    if (!preconnect_delegate_ &&
+        session_->spdy_session_pool()->HasSession(pair)) {
       using_spdy_ = true;
       next_state_ = STATE_CREATE_STREAM;
       return OK;
+    }
+    // Check next if we have a spdy session for this proxy.  If so, then go
+    // straight to using that.
+    if (IsHttpsProxyAndHttpUrl()) {
+      HostPortProxyPair proxy(proxy_info()->proxy_server().host_port_pair(),
+                              ProxyServer::Direct());
+      if (session_->spdy_session_pool()->HasSession(proxy)) {
+        using_spdy_ = true;
+        next_state_ = STATE_CREATE_STREAM;
+        return OK;
+      }
     }
   }
 
@@ -638,23 +643,23 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
     if (ssl_socket->was_npn_negotiated()) {
       was_npn_negotiated_ = true;
       if (ssl_socket->was_spdy_negotiated())
-        using_spdy_ = true;
+        SwitchToSpdyMode();
     }
     if (force_spdy_over_ssl_ && force_spdy_always_)
-      using_spdy_ = true;
+      SwitchToSpdyMode();
   } else if (proxy_info()->is_https() && connection_->socket() &&
         result == OK) {
     HttpProxyClientSocket* proxy_socket =
       static_cast<HttpProxyClientSocket*>(connection_->socket());
     if (proxy_socket->using_spdy()) {
       was_npn_negotiated_ = true;
-      using_spdy_ = true;
+      SwitchToSpdyMode();
     }
   }
 
   // We may be using spdy without SSL
   if (!force_spdy_over_ssl_ && force_spdy_always_)
-    using_spdy_ = true;
+    SwitchToSpdyMode();
 
   if (result == ERR_PROXY_AUTH_REQUESTED) {
     DCHECK(!ssl_started);
@@ -1008,6 +1013,11 @@ int HttpStreamRequest::HandleSSLHandshakeError(int error) {
       break;
   }
   return error;
+}
+
+void HttpStreamRequest::SwitchToSpdyMode() {
+  if (HttpStreamFactory::spdy_enabled())
+    using_spdy_ = true;
 }
 
 // static
