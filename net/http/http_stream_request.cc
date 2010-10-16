@@ -412,18 +412,7 @@ int HttpStreamRequest::DoResolveProxyComplete(int result) {
     return ERR_NO_SUPPORTED_PROXIES;
   }
 
-  HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
-  if (!HttpStreamFactory::create_new_spdy_session_for_http() &&
-      alternate_protocol_mode_ == kUsingAlternateProtocol &&
-      !session_->spdy_session_pool()->HasSession(pair)) {
-    // If we don't already have a SpdySession, then don't pay the SSL handshake
-    // cost of setup.  Just use HTTP.
-    next_state_ = STATE_RESOLVE_PROXY;
-    alternate_protocol_mode_ = kDoNotUseAlternateProtocol;
-  } else {
-    next_state_ = STATE_INIT_CONNECTION;
-  }
-
+  next_state_ = STATE_INIT_CONNECTION;
   return OK;
 }
 
