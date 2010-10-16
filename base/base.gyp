@@ -124,12 +124,9 @@
         'rand_util_unittest.cc',
         'ref_counted_unittest.cc',
         'registry_unittest.cc',
-        'scoped_bstr_win_unittest.cc',
-        'scoped_comptr_win_unittest.cc',
         'scoped_native_library_unittest.cc',
         'scoped_ptr_unittest.cc',
         'scoped_temp_dir_unittest.cc',
-        'scoped_variant_win_unittest.cc',
         'sha1_unittest.cc',
         'sha2_unittest.cc',
         'shared_memory_unittest.cc',
@@ -168,6 +165,9 @@
         'watchdog_unittest.cc',
         'weak_ptr_unittest.cc',
         'win_util_unittest.cc',
+        'win/scoped_bstr_unittest.cc',
+        'win/scoped_comptr_unittest.cc',
+        'win/scoped_variant_unittest.cc',
         'worker_pool_unittest.cc',
       ],
       'include_dirs': [
@@ -213,6 +213,9 @@
             'file_descriptor_shuffle_unittest.cc',
           ],
         }, {  # OS != "win"
+          'sources/': [
+            ['exclude', '^win/'],
+          ],
           'sources!': [
             'event_trace_consumer_win_unittest.cc',
             'event_trace_controller_win_unittest.cc',
