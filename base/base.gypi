@@ -31,7 +31,7 @@
           'base_paths.h',
           'base_paths_mac.h',
           'base_paths_mac.mm',
-          'base_paths_posix.cc',
+          'base_paths_linux.cc',
           'base_paths_win.cc',
           'base_paths_win.h',
           'base_switches.cc',
@@ -315,8 +315,8 @@
           'worker_pool_mac.h',
           'worker_pool_mac.mm',
           'worker_pool_win.cc',
-          'xdg_util.h',
-          'xdg_util.cc',
+          'nix/xdg_util.h',
+          'nix/xdg_util.cc',
         ],
         'include_dirs': [
           '..',
@@ -331,13 +331,11 @@
         'conditions': [
           [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"', {
               'sources/': [
-                ['exclude', '/xdg_[^/]*\\.cc$'],
+                ['exclude', '^nix/'],
               ],
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
-                'base_paths_posix.cc',
                 'message_pump_glib.cc',
-                'xdg_util.cc',
               ],
           }],
           [ 'OS != "linux"', {
