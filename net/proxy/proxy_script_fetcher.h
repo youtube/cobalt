@@ -10,7 +10,6 @@
 #define NET_PROXY_PROXY_SCRIPT_FETCHER_H_
 #pragma once
 
-#include "base/gtest_prod_util.h"
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
 
@@ -19,6 +18,8 @@ class URLRequestContext;
 
 namespace net {
 
+// Interface for downloading a PAC script. Implementations can enforce
+// timeouts, maximum size constraints, content encoding, etc..
 class ProxyScriptFetcher {
  public:
   // Destruction should cancel any outstanding requests.
@@ -48,28 +49,7 @@ class ProxyScriptFetcher {
   // Returns the request context that this fetcher uses to issue downloads,
   // or NULL.
   virtual URLRequestContext* GetRequestContext() { return NULL; }
-
-  // Create a ProxyScriptFetcher that uses |url_request_context|.
-  static ProxyScriptFetcher* Create(URLRequestContext* url_request_context);
-
-  // --------------------------------------------------------------------------
-  // Testing helpers (only available to unit-tests).
-  // --------------------------------------------------------------------------
- private:
-  FRIEND_TEST_ALL_PREFIXES(ProxyScriptFetcherTest, Hang);
-  FRIEND_TEST_ALL_PREFIXES(ProxyScriptFetcherTest, TooLarge);
-
-  // Sets the maximum duration for a fetch to |timeout_ms|. Returns the previous
-  // bound.
-  static int SetTimeoutConstraintForUnittest(int timeout_ms);
-
-  // Sets the maximum response size for a fetch to |size_bytes|. Returns the
-  // previous bound.
-  static size_t SetSizeConstraintForUnittest(size_t size_bytes);
 };
-
-// Cancels all current proxy script fetches.
-void EnsureNoProxyScriptFetches();
 
 }  // namespace net
 
