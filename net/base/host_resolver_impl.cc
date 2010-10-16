@@ -550,7 +550,7 @@ class HostResolverImpl::Job
         category = RESOLVE_SPECULATIVE_FAIL;
         DNS_HISTOGRAM("DNS.ResolveSpeculativeFail", duration);
       }
-      UMA_HISTOGRAM_CUSTOM_ENUMERATION("Net.OSErrorsForGetAddrinfo",
+      UMA_HISTOGRAM_CUSTOM_ENUMERATION(kOSErrorsForGetAddrinfoHistogramName,
                                        std::abs(os_error_),
                                        GetAllGetAddrinfoOSErrors());
     }
