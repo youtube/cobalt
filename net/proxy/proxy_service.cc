@@ -391,20 +391,20 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
 ProxyService* ProxyService::CreateUsingV8ProxyResolver(
     ProxyConfigService* proxy_config_service,
     size_t num_pac_threads,
-    URLRequestContext* url_request_context,
-    NetLog* net_log,
-    MessageLoop* io_loop) {
+    ProxyScriptFetcher* proxy_script_fetcher,
+    HostResolver* host_resolver,
+    NetLog* net_log) {
   DCHECK(proxy_config_service);
-  DCHECK(url_request_context);
-  DCHECK(io_loop);
+  DCHECK(proxy_script_fetcher);
+  DCHECK(host_resolver);
 
   if (num_pac_threads == 0)
     num_pac_threads = kDefaultNumPacThreads;
 
   ProxyResolverFactory* sync_resolver_factory =
       new ProxyResolverFactoryForV8(
-          url_request_context->host_resolver(),
-          io_loop,
+          host_resolver,
+          MessageLoop::current(),
           net_log);
 
   ProxyResolver* proxy_resolver =
@@ -413,9 +413,8 @@ ProxyService* ProxyService::CreateUsingV8ProxyResolver(
   ProxyService* proxy_service =
       new ProxyService(proxy_config_service, proxy_resolver, net_log);
 
-  // Configure PAC script downloads to be issued using |url_request_context|.
-  proxy_service->SetProxyScriptFetcher(
-      ProxyScriptFetcher::Create(url_request_context));
+  // Configure PAC script downloads to be issued using |proxy_script_fetcher|.
+  proxy_service->SetProxyScriptFetcher(proxy_script_fetcher);
 
   return proxy_service;
 }
