@@ -900,7 +900,7 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
   // therefore the cast here is safe.
   file_mapping_ = ::CreateFileMapping(file_, NULL, PAGE_READONLY,
                                       0, static_cast<DWORD>(length_), NULL);
-  if (file_mapping_ == INVALID_HANDLE_VALUE) {
+  if (!file_mapping_) {
     // According to msdn, system error codes are only reserved up to 15999.
     // http://msdn.microsoft.com/en-us/library/ms681381(v=VS.85).aspx.
     UMA_HISTOGRAM_ENUMERATION("MemoryMappedFile.CreateFileMapping",
