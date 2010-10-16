@@ -22,7 +22,6 @@ class ScopedComPtr : public scoped_refptr<Interface> {
  public:
   // Utility template to prevent users of ScopedComPtr from calling AddRef
   // and/or Release() without going through the ScopedComPtr class.
-  template <class Interface>
   class BlockIUnknownMethods : public Interface {
    private:
     STDMETHOD(QueryInterface)(REFIID iid, void** object) = 0;
@@ -144,9 +143,9 @@ class ScopedComPtr : public scoped_refptr<Interface> {
   // There's still a way to call these methods if you absolutely must
   // by statically casting the ScopedComPtr instance to the wrapped interface
   // and then making the call... but generally that shouldn't be necessary.
-  BlockIUnknownMethods<Interface>* operator->() const {
+  BlockIUnknownMethods* operator->() const {
     DCHECK(ptr_ != NULL);
-    return reinterpret_cast<BlockIUnknownMethods<Interface>*>(ptr_);
+    return reinterpret_cast<BlockIUnknownMethods*>(ptr_);
   }
 
   // Pull in operator=() from the parent class.
