@@ -736,7 +736,7 @@ namespace {
 // This means a simple switch on the return codes is not sufficient.
 
 int MapImportNameStatusToError(OM_uint32 major_status) {
-  LOG(INFO) << "import_name returned 0x" << std::hex << major_status;
+  VLOG(1) << "import_name returned 0x" << std::hex << major_status;
   if (major_status == GSS_S_COMPLETE)
     return OK;
   if (GSS_CALLING_ERROR(major_status) != 0)
@@ -763,7 +763,7 @@ int MapImportNameStatusToError(OM_uint32 major_status) {
 }
 
 int MapInitSecContextStatusToError(OM_uint32 major_status) {
-  LOG(INFO) << "init_sec_context returned 0x" << std::hex << major_status;
+  VLOG(1) << "init_sec_context returned 0x" << std::hex << major_status;
   // Although GSS_S_CONTINUE_NEEDED is an additional bit, it seems like
   // other code just checks if major_status is equivalent to it to indicate
   // that there are no other errors included.
@@ -840,11 +840,8 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
   int rv = MapImportNameStatusToError(major_status);
   if (rv != OK) {
     LOG(ERROR) << "Problem importing name from "
-               << "spn \"" << spn_principal << "\""
-               << std::endl
-               << DisplayExtendedStatus(library_,
-                                        major_status,
-                                        minor_status);
+               << "spn \"" << spn_principal << "\"\n"
+               << DisplayExtendedStatus(library_, major_status, minor_status);
     return rv;
   }
   ScopedName scoped_name(principal_name, library_);
@@ -869,17 +866,12 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
       NULL);
   rv = MapInitSecContextStatusToError(major_status);
   if (rv != OK) {
-    LOG(ERROR) << "Problem initializing context. "
-               << std::endl
-               << DisplayExtendedStatus(library_,
-                                        major_status,
-                                        minor_status)
-               << std::endl
+    LOG(ERROR) << "Problem initializing context. \n"
+               << DisplayExtendedStatus(library_, major_status, minor_status)
+               << '\n'
                << DescribeContext(library_, scoped_sec_context_.get());
-    return rv;
   }
-
-  return OK;
+  return rv;
 }
 
 }  // namespace net

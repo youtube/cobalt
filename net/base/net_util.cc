@@ -1534,7 +1534,7 @@ std::string NetAddressToString(const struct addrinfo* net_address) {
       net_address->ai_addrlen, buffer, sizeof(buffer), NULL, 0, NI_NUMERICHOST);
 
   if (result != 0) {
-    DLOG(INFO) << "getnameinfo() failed with " << result;
+    DVLOG(1) << "getnameinfo() failed with " << result;
     buffer[0] = '\0';
   }
   return std::string(buffer);
@@ -1564,7 +1564,7 @@ std::string GetHostName() {
   char buffer[256];
   int result = gethostname(buffer, sizeof(buffer));
   if (result != 0) {
-    DLOG(INFO) << "gethostname() failed with " << result;
+    DVLOG(1) << "gethostname() failed with " << result;
     buffer[0] = '\0';
   }
   return std::string(buffer);
@@ -1819,7 +1819,7 @@ bool HaveOnlyLoopbackAddresses() {
   struct ifaddrs* interface_addr = NULL;
   int rv = getifaddrs(&interface_addr);
   if (rv != 0) {
-    DLOG(INFO) << "getifaddrs() failed with errno = " << errno;
+    DVLOG(1) << "getifaddrs() failed with errno = " << errno;
     return false;
   }
 

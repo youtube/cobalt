@@ -59,8 +59,8 @@ class ProxyResolverJSBindings {
   virtual void Shutdown() = 0;
 
   // Creates a default javascript bindings implementation that will:
-  //   - Send script error messages to both LOG(INFO), and the NetLog.
-  //   - Send script alert()s to both LOG(INFO), and the NetLog.
+  //   - Send script error messages to both VLOG(1) and the NetLog.
+  //   - Send script alert()s to both VLOG(1) and the NetLog.
   //   - Use the provided host resolver to service dnsResolve().
   //
   // Note that |host_resolver| will be used in sync mode mode.

@@ -267,7 +267,7 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   // Loop through all the properties.
   while (parameters.GetNext()) {
     if (parameters.value().empty()) {
-      DLOG(INFO) << "Invalid digest property";
+      DVLOG(1) << "Invalid digest property";
       return false;
     }
 
@@ -308,7 +308,7 @@ bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
     } else if (LowerCaseEqualsASCII(value, "md5-sess")) {
       algorithm_ = ALGORITHM_MD5_SESS;
     } else {
-      DLOG(INFO) << "Unknown value of algorithm";
+      DVLOG(1) << "Unknown value of algorithm";
       return false;  // FAIL -- unsupported value of algorithm.
     }
   } else if (LowerCaseEqualsASCII(name, "qop")) {
@@ -322,7 +322,7 @@ bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
       }
     }
   } else {
-    DLOG(INFO) << "Skipping unrecognized digest property";
+    DVLOG(1) << "Skipping unrecognized digest property";
     // TODO(eroman): perhaps we should fail instead of silently skipping?
   }
   return true;

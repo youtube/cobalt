@@ -780,7 +780,7 @@ int HttpCache::Transaction::DoOpenEntryComplete(int result) {
     return OK;
   }
   if (cache_->mode() == PLAYBACK)
-    DLOG(INFO) << "Playback Cache Miss: " << request_->url;
+    DVLOG(1) << "Playback Cache Miss: " << request_->url;
 
   // The entry does not exist, and we are not permitted to create a new entry,
   // so we must fail.
@@ -1348,7 +1348,7 @@ void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
       partial_->SetHeaders(custom_request_->extra_headers);
     } else {
       // The range is invalid or we cannot handle it properly.
-      LOG(INFO) << "Invalid byte range found.";
+      VLOG(1) << "Invalid byte range found.";
       effective_load_flags_ |= LOAD_DISABLE_CACHE;
       partial_.reset(NULL);
     }
@@ -1838,8 +1838,8 @@ void HttpCache::Transaction::DoneWritingToEntry(bool success) {
     return;
 
   if (cache_->mode() == RECORD)
-    DLOG(INFO) << "Recorded: " << request_->method << request_->url
-               << " status: " << response_.headers->response_code();
+    DVLOG(1) << "Recorded: " << request_->method << request_->url
+             << " status: " << response_.headers->response_code();
 
   cache_->DoneWritingToEntry(entry_, success);
   entry_ = NULL;

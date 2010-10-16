@@ -104,9 +104,6 @@ namespace {
 const unsigned int kWriteSizePauseLimit = 2 * 1024 * 1024;
 const unsigned int kWriteSizeResumeLimit = 1 * 1024 * 1024;
 
-// You can change this to LOG(WARNING) during development.
-#define SSL_LOG LOG(INFO) << "SSL: "
-
 #if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5
 // When compiled against the Mac OS X 10.5 SDK, define symbolic constants for
 // cipher suites added in Mac OS X 10.6.
@@ -555,7 +552,7 @@ void SSLClientSocketMac::Disconnect() {
     SSLClose(ssl_context_);
     SSLDisposeContext(ssl_context_);
     ssl_context_ = NULL;
-    SSL_LOG << "----- Disposed SSLContext";
+    VLOG(1) << "----- Disposed SSLContext";
   }
 
   // Shut down anything that may call us back.
@@ -694,7 +691,7 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
   CFArrayRef valid_issuer_names = NULL;
   if (SSLCopyDistinguishedNames(ssl_context_, &valid_issuer_names) == noErr &&
       valid_issuer_names != NULL) {
-    SSL_LOG << "Server has " << CFArrayGetCount(valid_issuer_names)
+    VLOG(1) << "Server has " << CFArrayGetCount(valid_issuer_names)
             << " valid issuer names";
     int n = CFArrayGetCount(valid_issuer_names);
     for (int i = 0; i < n; i++) {
@@ -716,7 +713,7 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
   X509Certificate::GetSSLClientCertificates(hostname_,
                                             valid_issuers,
                                             &cert_request_info->client_certs);
-  SSL_LOG << "Asking user to choose between "
+  VLOG(1) << "Asking user to choose between "
           << cert_request_info->client_certs.size() << " client certs...";
 }
 
@@ -727,7 +724,7 @@ SSLClientSocketMac::GetNextProto(std::string* proto) {
 }
 
 int SSLClientSocketMac::InitializeSSLContext() {
-  SSL_LOG << "----- InitializeSSLContext";
+  VLOG(1) << "----- InitializeSSLContext";
   OSStatus status = noErr;
 
   status = SSLNewContext(false, &ssl_context_);
@@ -975,7 +972,7 @@ int SSLClientSocketMac::DoHandshake() {
       if (client_cert_requested_) {
         // See if the server aborted due to client cert checking.
         if (!ssl_config_.send_client_cert) {
-          SSL_LOG << "Server requested SSL cert during handshake";
+          VLOG(1) << "Server requested SSL cert during handshake";
           return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
         }
         LOG(WARNING) << "Server aborted SSL handshake";
@@ -1002,7 +999,7 @@ int SSLClientSocketMac::DoVerifyCert() {
 
   DCHECK(server_cert_);
 
-  SSL_LOG << "DoVerifyCert...";
+  VLOG(1) << "DoVerifyCert...";
   int flags = 0;
   if (ssl_config_.rev_checking_enabled)
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
@@ -1018,7 +1015,7 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
   DCHECK(verifier_.get());
   verifier_.reset();
 
-  SSL_LOG << "...DoVerifyCertComplete (result=" << result << ")";
+  VLOG(1) << "...DoVerifyCertComplete (result=" << result << ")";
   if (IsCertificateError(result) && ssl_config_.IsAllowedBadCert(server_cert_))
     result = OK;
 
@@ -1028,7 +1025,7 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
     // asking for one, and abort the connection.
     return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
   }
-  SSL_LOG << "Handshake finished! (DoVerifyCertComplete)";
+  VLOG(1) << "Handshake finished! (DoVerifyCertComplete)";
 
   if (renegotiating_) {
     DidCompleteRenegotiation();
@@ -1047,7 +1044,7 @@ int SSLClientSocketMac::SetClientCert() {
 
   scoped_cftyperef<CFArrayRef> cert_refs(
       ssl_config_.client_cert->CreateClientCertificateChain());
-  SSL_LOG << "SSLSetCertificate(" << CFArrayGetCount(cert_refs) << " certs)";
+  VLOG(1) << "SSLSetCertificate(" << CFArrayGetCount(cert_refs) << " certs)";
   OSStatus result = SSLSetCertificate(ssl_context_, cert_refs);
   if (result)
     LOG(ERROR) << "SSLSetCertificate returned OSStatus " << result;
@@ -1121,7 +1118,7 @@ void SSLClientSocketMac::DidCompleteRenegotiation() {
 
 int SSLClientSocketMac::DidCompleteHandshake() {
   DCHECK(!server_cert_ || renegotiating_);
-  SSL_LOG << "Handshake completed, next verify cert";
+  VLOG(1) << "Handshake completed, next verify cert";
 
   scoped_refptr<X509Certificate> new_server_cert =
       GetServerCert(ssl_context_);
