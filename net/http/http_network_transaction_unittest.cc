@@ -5037,6 +5037,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
       "ssl/www.google.com:443",
       true,
     },
+
     {
       "http_proxy",
       "http://host.with.alternate/direct",
@@ -5102,6 +5103,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
       "socks5/ssl/www.google.com:443",
       true,
     },
+
     {
       "socks4://socks_proxy:1080",
       "http://host.with.alternate/direct",
@@ -7610,58 +7612,6 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
-}
-
-
-TEST_F(HttpNetworkTransactionTest, DoNotCreateSpdySessionForHttp) {
-  HttpStreamFactory::set_create_new_spdy_session_for_http(false);
-  HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(kExpectedNPNString);
-
-  SessionDependencies session_deps;
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
-
-  MockRead data_reads[] = {
-    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
-    MockRead("hello world"),
-    MockRead(true, OK),
-  };
-  StaticSocketDataProvider data(
-      data_reads, arraysize(data_reads), NULL, 0);
-  session_deps.socket_factory.AddSocketDataProvider(&data);
-
-  TestCompletionCallback callback;
-
-  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-
-  HostPortPair http_host_port_pair("www.google.com", 80);
-  HttpAlternateProtocols* alternate_protocols =
-      session->mutable_alternate_protocols();
-  alternate_protocols->SetAlternateProtocolFor(
-      http_host_port_pair, 443 /* port is ignored */,
-      HttpAlternateProtocols::NPN_SPDY_2);
-
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
-
-  int rv = trans->Start(&request, &callback, BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
-
-  const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_TRUE(response != NULL);
-  ASSERT_TRUE(response->headers != NULL);
-  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
-
-  std::string response_data;
-  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
-  EXPECT_EQ("hello world", response_data);
-
-  HttpStreamFactory::set_next_protos("");
-  HttpStreamFactory::set_use_alternate_protocols(false);
-  HttpStreamFactory::set_create_new_spdy_session_for_http(true);
 }
 
 }  // namespace net
