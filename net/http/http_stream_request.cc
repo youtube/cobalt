@@ -18,7 +18,7 @@
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_info.h"
 #include "net/socket/client_socket_handle.h"
-#include "net/socket/client_socket_handle.h"
+#include "net/socket/client_socket_pool.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket.h"
@@ -46,7 +46,7 @@ GURL UpgradeUrlToHttps(const GURL& original_url) {
 }  // namespace
 
 HttpStreamRequest::HttpStreamRequest(
-    HttpStreamFactory* factory,
+    StreamFactory* factory,
     HttpNetworkSession* session)
     : request_info_(NULL),
       proxy_info_(NULL),
@@ -61,14 +61,16 @@ HttpStreamRequest::HttpStreamRequest(
       pac_request_(NULL),
       using_ssl_(false),
       using_spdy_(false),
-      force_spdy_always_(factory->force_spdy_always()),
-      force_spdy_over_ssl_(factory->force_spdy_over_ssl()),
+      force_spdy_always_(HttpStreamFactory::force_spdy_always()),
+      force_spdy_over_ssl_(HttpStreamFactory::force_spdy_over_ssl()),
       spdy_certificate_error_(OK),
       establishing_tunnel_(false),
       was_alternate_protocol_available_(false),
       was_npn_negotiated_(false),
+      preconnect_delegate_(NULL),
+      num_streams_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
-  if (factory->use_alternate_protocols())
+  if (HttpStreamFactory::use_alternate_protocols())
     alternate_protocol_mode_ = kUnspecified;
   else
     alternate_protocol_mode_ = kDoNotUseAlternateProtocol;
@@ -87,9 +89,8 @@ HttpStreamRequest::~HttpStreamRequest() {
     session_->proxy_service()->CancelPacRequest(pac_request_);
 
   // The stream could be in a partial state.  It is not reusable.
-  if (stream_.get() && next_state_ != STATE_DONE) {
+  if (stream_.get() && next_state_ != STATE_DONE)
     stream_->Close(true /* not reusable */);
-  }
 }
 
 void HttpStreamRequest::Start(const HttpRequestInfo* request_info,
@@ -97,16 +98,23 @@ void HttpStreamRequest::Start(const HttpRequestInfo* request_info,
                               ProxyInfo* proxy_info,
                               Delegate* delegate,
                               const BoundNetLog& net_log) {
-  CHECK_EQ(STATE_NONE, next_state_);
-
-  request_info_ = request_info;
-  ssl_config_ = ssl_config;
-  proxy_info_ = proxy_info;
+  DCHECK(preconnect_delegate_ == NULL && delegate_ == NULL);
+  DCHECK(delegate);
   delegate_ = delegate;
-  net_log_ = net_log;
-  next_state_ = STATE_RESOLVE_PROXY;
-  int rv = RunLoop(OK);
-  DCHECK_EQ(ERR_IO_PENDING, rv);
+  StartInternal(request_info, ssl_config, proxy_info, net_log);
+}
+
+int HttpStreamRequest::Preconnect(int num_streams,
+                                  const HttpRequestInfo* request_info,
+                                  SSLConfig* ssl_config,
+                                  ProxyInfo* proxy_info,
+                                  PreconnectDelegate* delegate,
+                                  const BoundNetLog& net_log) {
+  DCHECK(preconnect_delegate_ == NULL && delegate_ == NULL);
+  DCHECK(delegate);
+  num_streams_ = num_streams;
+  preconnect_delegate_ = delegate;
+  return StartInternal(request_info, ssl_config, proxy_info, net_log);
 }
 
 int HttpStreamRequest::RestartWithCertificate(X509Certificate* client_cert) {
@@ -186,6 +194,10 @@ void HttpStreamRequest::OnNeedsClientAuthCallback(
   delegate_->OnNeedsClientAuth(cert_info);
 }
 
+void HttpStreamRequest::OnPreconnectsComplete(int result) {
+  preconnect_delegate_->OnPreconnectsComplete(this, result);
+}
+
 void HttpStreamRequest::OnIOComplete(int result) {
   RunLoop(result);
 }
@@ -193,7 +205,18 @@ void HttpStreamRequest::OnIOComplete(int result) {
 int HttpStreamRequest::RunLoop(int result) {
   result = DoLoop(result);
 
-  DCHECK(delegate_);
+  DCHECK(delegate_ || preconnect_delegate_);
+
+  if (result == ERR_IO_PENDING)
+    return result;
+
+  if (preconnect_delegate_) {
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        method_factory_.NewRunnableMethod(
+            &HttpStreamRequest::OnPreconnectsComplete, result));
+    return ERR_IO_PENDING;
+  }
 
   if (IsCertificateError(result)) {
     // Retrieve SSL information from the socket.
@@ -238,9 +261,6 @@ int HttpStreamRequest::RunLoop(int result) {
               connection_->ssl_error_response_info().cert_request_info));
       return ERR_IO_PENDING;
 
-    case ERR_IO_PENDING:
-      break;
-
     case OK:
       next_state_ = STATE_DONE;
       MessageLoop::current()->PostTask(
@@ -261,7 +281,7 @@ int HttpStreamRequest::RunLoop(int result) {
 }
 
 int HttpStreamRequest::DoLoop(int result) {
-  DCHECK(next_state_ != STATE_NONE);
+  DCHECK_NE(next_state_, STATE_NONE);
   int rv = result;
   do {
     State state = next_state_;
@@ -304,6 +324,21 @@ int HttpStreamRequest::DoLoop(int result) {
         break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
+  return rv;
+}
+
+int HttpStreamRequest::StartInternal(const HttpRequestInfo* request_info,
+                                     SSLConfig* ssl_config,
+                                     ProxyInfo* proxy_info,
+                                     const BoundNetLog& net_log) {
+  CHECK_EQ(STATE_NONE, next_state_);
+  request_info_ = request_info;
+  ssl_config_ = ssl_config;
+  proxy_info_ = proxy_info;
+  net_log_ = net_log;
+  next_state_ = STATE_RESOLVE_PROXY;
+  int rv = RunLoop(OK);
+  DCHECK_EQ(ERR_IO_PENDING, rv);
   return rv;
 }
 
@@ -377,7 +412,7 @@ int HttpStreamRequest::DoResolveProxyComplete(int result) {
   }
 
   HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
-  if (!factory_->create_new_spdy_session_for_http() &&
+  if (!HttpStreamFactory::create_new_spdy_session_for_http() &&
       alternate_protocol_mode_ == kUsingAlternateProtocol &&
       !session_->spdy_session_pool()->HasSession(pair)) {
     // If we don't already have a SpdySession, then don't pay the SSL handshake
@@ -405,9 +440,10 @@ int HttpStreamRequest::DoInitConnection() {
   using_spdy_ = false;
 
   // Check first if we have a spdy session for this group.  If so, then go
-  // straight to using that.
+  // straight to using that.  Unless we are preconnecting.
   HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
-  if (session_->spdy_session_pool()->HasSession(pair)) {
+  if (!preconnect_delegate_ &&
+      session_->spdy_session_pool()->HasSession(pair)) {
     using_spdy_ = true;
     next_state_ = STATE_CREATE_STREAM;
     return OK;
@@ -525,6 +561,12 @@ int HttpStreamRequest::DoInitConnection() {
     else
       ssl_pool = session_->GetSocketPoolForSSLWithProxy(*proxy_host_port);
 
+    if (preconnect_delegate_) {
+      RequestSocketsForPool(ssl_pool, connection_group, ssl_params,
+                            num_streams_, net_log_);
+      return OK;
+    }
+
     return connection_->Init(connection_group, ssl_params,
                              request_info().priority, &io_callback_, ssl_pool,
                              net_log_);
@@ -532,25 +574,53 @@ int HttpStreamRequest::DoInitConnection() {
 
   // Finally, get the connection started.
   if (proxy_info()->is_http() || proxy_info()->is_https()) {
-    return connection_->Init(
-        connection_group, http_proxy_params, request_info().priority,
-        &io_callback_, session_->GetSocketPoolForHTTPProxy(*proxy_host_port),
-        net_log_);
+    HttpProxyClientSocketPool* pool =
+        session_->GetSocketPoolForHTTPProxy(*proxy_host_port);
+    if (preconnect_delegate_) {
+      RequestSocketsForPool(pool, connection_group, http_proxy_params,
+                            num_streams_, net_log_);
+      return OK;
+    }
+
+    return connection_->Init(connection_group, http_proxy_params,
+                             request_info().priority, &io_callback_,
+                             pool, net_log_);
   }
 
   if (proxy_info()->is_socks()) {
-    return connection_->Init(
-        connection_group, socks_params, request_info().priority, &io_callback_,
-        session_->GetSocketPoolForSOCKSProxy(*proxy_host_port), net_log_);
+    SOCKSClientSocketPool* pool =
+        session_->GetSocketPoolForSOCKSProxy(*proxy_host_port);
+    if (preconnect_delegate_) {
+      RequestSocketsForPool(pool, connection_group, socks_params,
+                            num_streams_, net_log_);
+      return OK;
+    }
+
+    return connection_->Init(connection_group, socks_params,
+                             request_info().priority, &io_callback_, pool,
+                             net_log_);
   }
 
   DCHECK(proxy_info()->is_direct());
+
+  TCPClientSocketPool* pool = session_->tcp_socket_pool();
+  if (preconnect_delegate_) {
+    RequestSocketsForPool(pool, connection_group, tcp_params,
+                          num_streams_, net_log_);
+    return OK;
+  }
+
   return connection_->Init(connection_group, tcp_params,
                            request_info().priority, &io_callback_,
-                           session_->tcp_socket_pool(), net_log_);
+                           pool, net_log_);
 }
 
 int HttpStreamRequest::DoInitConnectionComplete(int result) {
+  if (preconnect_delegate_) {
+    DCHECK_EQ(OK, result);
+    return OK;
+  }
+
   // |result| may be the result of any of the stacked pools. The following
   // logic is used when determining how to interpret an error.
   // If |result| < 0:
@@ -781,7 +851,7 @@ scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSslParams(
                             static_cast<int>(ssl_config()->ssl3_fallback), 2);
 
   int load_flags = request_info().load_flags;
-  if (factory_->ignore_certificate_errors())
+  if (HttpStreamFactory::ignore_certificate_errors())
     load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
   if (request_info().load_flags & LOAD_VERIFY_EV_CERT)
     ssl_config()->verify_ev_cert = true;
@@ -904,7 +974,7 @@ int HttpStreamRequest::HandleCertificateError(int error) {
   ssl_config()->allowed_bad_certs.push_back(bad_cert);
 
   int load_flags = request_info().load_flags;
-  if (factory_->ignore_certificate_errors())
+  if (HttpStreamFactory::ignore_certificate_errors())
     load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
   if (ssl_socket->IgnoreCertError(error, load_flags))
     return OK;

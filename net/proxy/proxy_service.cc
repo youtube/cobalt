@@ -460,6 +460,13 @@ ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
 }
 
 // static
+ProxyService* ProxyService::CreateFixed(const std::string& proxy) {
+  net::ProxyConfig proxy_config;
+  proxy_config.proxy_rules().ParseFromString(proxy);
+  return ProxyService::CreateFixed(proxy_config);
+}
+
+// static
 ProxyService* ProxyService::CreateDirect() {
   // Use direct connections.
   return new ProxyService(new ProxyConfigServiceDirect, new ProxyResolverNull,

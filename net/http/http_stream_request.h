@@ -13,7 +13,6 @@
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_controller.h"
 #include "net/http/http_alternate_protocols.h"
-#include "net/http/http_stream_factory.h"
 #include "net/http/stream_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
@@ -24,7 +23,6 @@ class ClientSocketHandle;
 class HttpAuthController;
 class HttpNetworkSession;
 class HttpProxySocketParams;
-class HttpStreamFactory;
 class SOCKSSocketParams;
 class SSLSocketParams;
 class StreamRequestDelegate;
@@ -35,7 +33,15 @@ struct HttpRequestInfo;
 // created for the StreamFactory.
 class HttpStreamRequest : public StreamRequest {
  public:
-  HttpStreamRequest(HttpStreamFactory* factory,
+  class PreconnectDelegate {
+   public:
+    virtual ~PreconnectDelegate() {}
+
+    virtual void OnPreconnectsComplete(HttpStreamRequest* request,
+                                       int result) = 0;
+  };
+
+  HttpStreamRequest(StreamFactory* factory,
                     HttpNetworkSession* session);
   virtual ~HttpStreamRequest();
 
@@ -49,6 +55,13 @@ class HttpStreamRequest : public StreamRequest {
              ProxyInfo* proxy_info,
              Delegate* delegate,
              const BoundNetLog& net_log);
+
+  int Preconnect(int num_streams,
+                 const HttpRequestInfo* request_info,
+                 SSLConfig* ssl_config,
+                 ProxyInfo* proxy_info,
+                 PreconnectDelegate* delegate,
+                 const BoundNetLog& net_log);
 
   // StreamRequest interface
   virtual int RestartWithCertificate(X509Certificate* client_cert);
@@ -96,10 +109,15 @@ class HttpStreamRequest : public StreamRequest {
   void OnNeedsProxyAuthCallback(const HttpResponseInfo& response_info,
                                 HttpAuthController* auth_controller);
   void OnNeedsClientAuthCallback(SSLCertRequestInfo* cert_info);
+  void OnPreconnectsComplete(int result);
 
   void OnIOComplete(int result);
   int RunLoop(int result);
   int DoLoop(int result);
+  int StartInternal(const HttpRequestInfo* request_info,
+                    SSLConfig* ssl_config,
+                    ProxyInfo* proxy_info,
+                    const BoundNetLog& net_log);
 
   // Each of these methods corresponds to a State value.  Those with an input
   // argument receive the result from the previous state.  If a method returns
@@ -169,7 +187,7 @@ class HttpStreamRequest : public StreamRequest {
   scoped_refptr<HttpNetworkSession> session_;
   CompletionCallbackImpl<HttpStreamRequest> io_callback_;
   scoped_ptr<ClientSocketHandle> connection_;
-  scoped_refptr<HttpStreamFactory> factory_;
+  StreamFactory* const factory_;
   Delegate* delegate_;
   BoundNetLog net_log_;
   State next_state_;
@@ -214,6 +232,11 @@ class HttpStreamRequest : public StreamRequest {
 
   // True if we negotiated NPN.
   bool was_npn_negotiated_;
+
+  PreconnectDelegate* preconnect_delegate_;
+
+  // Only used if |preconnect_delegate_| is non-NULL.
+  int num_streams_;
 
   ScopedRunnableMethodFactory<HttpStreamRequest> method_factory_;
 
