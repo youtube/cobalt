@@ -497,7 +497,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
             "location", location.possibly_invalid_spec()));
   }
   if (redirect_limit_ <= 0) {
-    DLOG(INFO) << "disallowing redirect: exceeds limit";
+    DVLOG(1) << "disallowing redirect: exceeds limit";
     return net::ERR_TOO_MANY_REDIRECTS;
   }
 
@@ -505,7 +505,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     return net::ERR_INVALID_URL;
 
   if (!job_->IsSafeRedirect(location)) {
-    DLOG(INFO) << "disallowing redirect: unsafe protocol";
+    DVLOG(1) << "disallowing redirect: unsafe protocol";
     return net::ERR_UNSAFE_REDIRECT;
   }
 

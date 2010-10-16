@@ -259,7 +259,7 @@ void SocketStream::Finish(int result) {
   if (result == OK)
     result = ERR_CONNECTION_CLOSED;
   DCHECK_EQ(next_state_, STATE_NONE);
-  DLOG(INFO) << "Finish result=" << net::ErrorToString(result);
+  DVLOG(1) << "Finish result=" << net::ErrorToString(result);
   if (delegate_)
     delegate_->OnError(this, result);
 
@@ -482,7 +482,7 @@ int SocketStream::DoResolveProxyComplete(int result) {
       GURL::Replacements repl;
       repl.SetSchemeStr(scheme);
       proxy_url_ = url_.ReplaceComponents(repl);
-      DLOG(INFO) << "Try https proxy: " << proxy_url_;
+      DVLOG(1) << "Try https proxy: " << proxy_url_;
       next_state_ = STATE_RESOLVE_PROXY;
       return OK;
     }
@@ -924,7 +924,7 @@ GURL SocketStream::ProxyAuthOrigin() const {
 int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
   GURL auth_origin(ProxyAuthOrigin());
 
-  LOG(INFO) << "The proxy " << auth_origin << " requested auth";
+  VLOG(1) << "The proxy " << auth_origin << " requested auth";
 
   // TODO(cbentzel): Since SocketStream only suppports basic authentication
   // right now, another challenge is always treated as a rejection.

@@ -81,7 +81,7 @@ int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
 bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
 #if defined(OS_POSIX)
   if (!auth_system_.Init()) {
-    LOG(INFO) << "can't initialize GSSAPI library";
+    VLOG(1) << "can't initialize GSSAPI library";
     return false;
   }
   // GSSAPI does not provide a way to enter username/password to
@@ -228,8 +228,8 @@ int HttpAuthHandlerNegotiate::DoResolveCanonicalNameComplete(int rv) {
   if (rv != OK) {
     // Even in the error case, try to use origin_.host instead of
     // passing the failure on to the caller.
-    LOG(INFO) << "Problem finding canonical name for SPN for host "
-              << origin_.host() << ": " << ErrorToString(rv);
+    VLOG(1) << "Problem finding canonical name for SPN for host "
+            << origin_.host() << ": " << ErrorToString(rv);
     rv = OK;
   }
 

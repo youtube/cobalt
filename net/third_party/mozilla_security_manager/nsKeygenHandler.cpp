@@ -155,7 +155,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
     goto failure;
   }
 
-  LOG(INFO) << "Creating key pair...";
+  VLOG(1) << "Creating key pair...";
   {
     base::AutoNSSWriteLock lock;
     privateKey = PK11_GenerateKeyPair(slot,
@@ -166,10 +166,10 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
                                       PR_TRUE,  // isSensitive?
                                       NULL);
   }
-  LOG(INFO) << "done.";
+  VLOG(1) << "done.";
 
   if (!privateKey) {
-    LOG(INFO) << "Generation of Keypair failed!";
+    VLOG(1) << "Generation of Keypair failed!";
     isSuccess = false;
     goto failure;
   }
@@ -248,7 +248,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
   if (!isSuccess) {
     LOG(ERROR) << "SSL Keygen failed! (NSS error code " << PR_GetError() << ")";
   } else {
-    LOG(INFO) << "SSL Keygen succeeded!";
+    VLOG(1) << "SSL Keygen succeeded!";
   }
 
   // Do cleanups

@@ -117,8 +117,8 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
     event->socket->Close();
   }
   void DoRestartWithAuth(SocketStreamEvent* event) {
-    LOG(INFO) << "RestartWithAuth username=" << username_
-              << " password=" << password_;
+    VLOG(1) << "RestartWithAuth username=" << username_
+            << " password=" << password_;
     event->socket->RestartWithAuth(username_, password_);
   }
   void SetAuthInfo(const string16& username,

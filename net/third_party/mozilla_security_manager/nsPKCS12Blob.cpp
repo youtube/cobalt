@@ -97,7 +97,7 @@ nickname_collision(SECItem *old_nick, PRBool *cancel, void *wincx)
   }
 
   if (!old_nick)
-    LOG(INFO) << "no nickname for cert in PKCS12 file.";
+    VLOG(1) << "no nickname for cert in PKCS12 file.";
 
   nick = CERT_MakeCANickname(cert);
   if (!nick) {
@@ -112,7 +112,7 @@ nickname_collision(SECItem *old_nick, PRBool *cancel, void *wincx)
     return NULL;
   }
 
-  LOG(INFO) << "using nickname " << nick;
+  VLOG(1) << "using nickname " << nick;
   ret_nick = PORT_ZNew(SECItem);
   if(ret_nick == NULL) {
     PORT_Free(nick);

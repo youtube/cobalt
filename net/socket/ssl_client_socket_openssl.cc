@@ -372,7 +372,7 @@ int SSLClientSocketOpenSSL::DoVerifyCertComplete(int result) {
   // the cert in the allowed_bad_certs vector.
   if (IsCertificateError(result) &&
       ssl_config_.IsAllowedBadCert(server_cert_)) {
-    LOG(INFO) << "accepting bad SSL certificate, as user told us to";
+    VLOG(1) << "accepting bad SSL certificate, as user told us to";
     result = OK;
   }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -90,7 +90,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   WebSocketThrottleTest::MockSocketStreamConnect(s1, addr);
   DeleteAddrInfo(addr);
 
-  DLOG(INFO) << "socket1";
+  DVLOG(1) << "socket1";
   TestCompletionCallback callback_s1;
   // Trying to open connection to host1 will start without wait.
   EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, &callback_s1));
@@ -110,7 +110,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   WebSocketThrottleTest::MockSocketStreamConnect(s2, addr);
   DeleteAddrInfo(addr);
 
-  DLOG(INFO) << "socket2";
+  DVLOG(1) << "socket2";
   TestCompletionCallback callback_s2;
   // Trying to open connection to host2 will wait for w1.
   EXPECT_EQ(ERR_IO_PENDING, w2->OnStartOpenConnection(s2, &callback_s2));
@@ -129,7 +129,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   WebSocketThrottleTest::MockSocketStreamConnect(s3, addr);
   DeleteAddrInfo(addr);
 
-  DLOG(INFO) << "socket3";
+  DVLOG(1) << "socket3";
   TestCompletionCallback callback_s3;
   // Trying to open connection to host3 will wait for w1.
   EXPECT_EQ(ERR_IO_PENDING, w3->OnStartOpenConnection(s3, &callback_s3));
@@ -148,7 +148,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   WebSocketThrottleTest::MockSocketStreamConnect(s4, addr);
   DeleteAddrInfo(addr);
 
-  DLOG(INFO) << "socket4";
+  DVLOG(1) << "socket4";
   TestCompletionCallback callback_s4;
   // Trying to open connection to host4 will wait for w1, w2.
   EXPECT_EQ(ERR_IO_PENDING, w4->OnStartOpenConnection(s4, &callback_s4));
@@ -166,7 +166,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   WebSocketThrottleTest::MockSocketStreamConnect(s5, addr);
   DeleteAddrInfo(addr);
 
-  DLOG(INFO) << "socket5";
+  DVLOG(1) << "socket5";
   TestCompletionCallback callback_s5;
   // Trying to open connection to host5 will wait for w1, w4
   EXPECT_EQ(ERR_IO_PENDING, w5->OnStartOpenConnection(s5, &callback_s5));
@@ -184,7 +184,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   WebSocketThrottleTest::MockSocketStreamConnect(s6, addr);
   DeleteAddrInfo(addr);
 
-  DLOG(INFO) << "socket6";
+  DVLOG(1) << "socket6";
   TestCompletionCallback callback_s6;
   // Trying to open connection to host6 will wait for w1, w4, w5
   EXPECT_EQ(ERR_IO_PENDING, w6->OnStartOpenConnection(s6, &callback_s6));
@@ -194,7 +194,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   // 1.2.3.6 | w1       w4 w5 w6
 
   // Receive partial response on w1, still connecting.
-  DLOG(INFO) << "socket1 1";
+  DVLOG(1) << "socket1 1";
   static const char kHeader[] = "HTTP/1.1 101 WebSocket Protocol\r\n";
   w1->OnReceivedData(s1.get(), kHeader, sizeof(kHeader) - 1);
   EXPECT_FALSE(callback_s2.have_result());
@@ -204,7 +204,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   EXPECT_FALSE(callback_s6.have_result());
 
   // Receive rest of handshake response on w1.
-  DLOG(INFO) << "socket1 2";
+  DVLOG(1) << "socket1 2";
   static const char kHeader2[] =
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
@@ -226,7 +226,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   // 1.2.3.6 |          w4 w5 w6
 
   // Closing s1 doesn't change waiting queue.
-  DLOG(INFO) << "socket1 close";
+  DVLOG(1) << "socket1 close";
   w1->OnClose(s1.get());
   MessageLoopForIO::current()->RunAllPending();
   EXPECT_FALSE(callback_s4.have_result());
@@ -237,7 +237,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   // 1.2.3.6 |          w4 w5 w6
 
   // w5 can close while waiting in queue.
-  DLOG(INFO) << "socket5 close";
+  DVLOG(1) << "socket5 close";
   // w5 close() closes SocketStream that change state to STATE_CLOSE, calls
   // DoLoop(), so OnClose() callback will be called.
   w5->OnClose(s5.get());
@@ -250,7 +250,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   s5->DetachDelegate();
 
   // w6 close abnormally (e.g. renderer finishes) while waiting in queue.
-  DLOG(INFO) << "socket6 close abnormally";
+  DVLOG(1) << "socket6 close abnormally";
   w6->DetachDelegate();
   MessageLoopForIO::current()->RunAllPending();
   EXPECT_FALSE(callback_s4.have_result());
@@ -260,7 +260,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   // 1.2.3.6 |          w4
 
   // Closing s2 kicks w4 to start connecting.
-  DLOG(INFO) << "socket2 close";
+  DVLOG(1) << "socket2 close";
   w2->OnClose(s2.get());
   MessageLoopForIO::current()->RunAllPending();
   EXPECT_TRUE(callback_s4.have_result());
@@ -270,13 +270,13 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   // 1.2.3.6 |          w4
   s2->DetachDelegate();
 
-  DLOG(INFO) << "socket3 close";
+  DVLOG(1) << "socket3 close";
   w3->OnClose(s3.get());
   MessageLoopForIO::current()->RunAllPending();
   s3->DetachDelegate();
   w4->OnClose(s4.get());
   s4->DetachDelegate();
-  DLOG(INFO) << "Done";
+  DVLOG(1) << "Done";
   MessageLoopForIO::current()->RunAllPending();
 }
 
@@ -293,15 +293,15 @@ TEST_F(WebSocketThrottleTest, NoThrottleForDuplicateAddress) {
   WebSocketThrottleTest::MockSocketStreamConnect(s1, addr);
   DeleteAddrInfo(addr);
 
-  DLOG(INFO) << "socket1";
+  DVLOG(1) << "socket1";
   TestCompletionCallback callback_s1;
   // Trying to open connection to localhost will start without wait.
   EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, &callback_s1));
 
-  DLOG(INFO) << "socket1 close";
+  DVLOG(1) << "socket1 close";
   w1->OnClose(s1.get());
   s1->DetachDelegate();
-  DLOG(INFO) << "Done";
+  DVLOG(1) << "Done";
   MessageLoopForIO::current()->RunAllPending();
 }
 

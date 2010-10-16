@@ -191,11 +191,10 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
   }
 
  failure:
-  if (!is_success) {
+  if (!is_success)
     LOG(ERROR) << "SSL Keygen failed";
-  } else {
-    LOG(INFO) << "SSL Key succeeded";
-  }
+  else
+    VLOG(1) << "SSL Key succeeded";
   if (key) {
     // Securely destroys the handle, but leaves the underlying key alone. The
     // key can be obtained again by resolving the key location. If

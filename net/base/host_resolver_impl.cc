@@ -1315,10 +1315,9 @@ void HostResolverImpl::IPv6ProbeSetDefaultAddressFamily(
   DCHECK(address_family == ADDRESS_FAMILY_UNSPECIFIED ||
          address_family == ADDRESS_FAMILY_IPV4);
   if (default_address_family_ != address_family) {
-    LOG(INFO) << "IPv6Probe forced AddressFamily setting to "
-              << ((address_family == ADDRESS_FAMILY_UNSPECIFIED)
-                  ? "ADDRESS_FAMILY_UNSPECIFIED"
-                  : "ADDRESS_FAMILY_IPV4");
+    VLOG(1) << "IPv6Probe forced AddressFamily setting to "
+            << ((address_family == ADDRESS_FAMILY_UNSPECIFIED) ?
+                "ADDRESS_FAMILY_UNSPECIFIED" : "ADDRESS_FAMILY_IPV4");
   }
   default_address_family_ = address_family;
   // Drop reference since the job has called us back.
