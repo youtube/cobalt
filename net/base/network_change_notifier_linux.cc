@@ -97,7 +97,7 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
   int rv = ReadNotificationMessage(buf, arraysize(buf));
   while (rv > 0) {
     if (HandleNetlinkMessage(buf, rv)) {
-      LOG(INFO) << "Detected IP address changes.";
+      VLOG(1) << "Detected IP address changes.";
 #if defined(OS_CHROMEOS)
       // TODO(zelidrag): chromium-os:3996 - introduced artificial delay to
       // work around the issue of proxy initialization before name resolving

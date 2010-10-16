@@ -61,7 +61,7 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     virtual MessageLoop* GetNotificationLoop() = 0;
 
     // Returns the data source's name (e.g. "gconf", "KDE", "test").
-    // Used only for diagnostic purposes (e.g. LOG(INFO) etc.).
+    // Used only for diagnostic purposes (e.g. VLOG(1) etc.).
     virtual const char* GetDataSource() = 0;
 
     // Gets a string type value from gconf and stores it in

@@ -35,7 +35,7 @@ void AssertEventNotSignaled(WSAEVENT hEvent) {
     // This LOG statement is unreachable since we have already crashed, but it
     // should prevent the compiler from optimizing away the |wait_rv| and
     // |err| variables so they appear nicely on the stack in crash dumps.
-    LOG(INFO) << "wait_rv=" << wait_rv << ", err=" << err;
+    VLOG(1) << "wait_rv=" << wait_rv << ", err=" << err;
   }
 }
 

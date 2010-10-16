@@ -190,11 +190,10 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
   }
 
  failure:
-  if (err) {
+  if (err)
     LOG(ERROR) << "SSL Keygen failed! OSStatus = " << err;
-  } else {
-    LOG(INFO) << "SSL Keygen succeeded! Output is: " << result;
-  }
+  else
+    VLOG(1) << "SSL Keygen succeeded! Output is: " << result;
 
   // Remove keys from keychain if asked to during unit testing:
   if (!stores_key_) {

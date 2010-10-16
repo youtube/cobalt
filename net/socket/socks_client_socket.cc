@@ -203,7 +203,7 @@ void SOCKSClientSocket::DoCallback(int result) {
   // clear user_callback_ up front.
   CompletionCallback* c = user_callback_;
   user_callback_ = NULL;
-  DLOG(INFO) << "Finished setting up SOCKS handshake";
+  DVLOG(1) << "Finished setting up SOCKS handshake";
   c->Run(result);
 }
 
@@ -273,14 +273,14 @@ int SOCKSClientSocket::DoResolveHostComplete(int result) {
     // since IPv6 is unsupported by SOCKS4/4a protocol.
     struct sockaddr *host_info = addresses_.head()->ai_addr;
     if (host_info->sa_family == AF_INET) {
-      DLOG(INFO) << "Resolved host. Using SOCKS4 to communicate";
+      DVLOG(1) << "Resolved host. Using SOCKS4 to communicate";
       socks_version_ = kSOCKS4;
     } else {
-      DLOG(INFO) << "Resolved host but to IPv6. Using SOCKS4a to communicate";
+      DVLOG(1) << "Resolved host but to IPv6. Using SOCKS4a to communicate";
       socks_version_ = kSOCKS4a;
     }
   } else {
-    DLOG(INFO) << "Could not resolve host. Using SOCKS4a to communicate";
+    DVLOG(1) << "Could not resolve host. Using SOCKS4a to communicate";
     socks_version_ = kSOCKS4a;
   }
 
@@ -309,7 +309,7 @@ const std::string SOCKSClientSocket::BuildHandshakeWriteBuffer() const {
         reinterpret_cast<struct sockaddr_in*>(ai->ai_addr);
     memcpy(&request.ip, &(ipv4_host->sin_addr), sizeof(ipv4_host->sin_addr));
 
-    DLOG(INFO) << "Resolved Host is : " << NetAddressToString(ai);
+    DVLOG(1) << "Resolved Host is : " << NetAddressToString(ai);
   } else if (socks_version_ == kSOCKS4a) {
     // invalid IP of the form 0.0.0.127
     memcpy(&request.ip, kInvalidIp, arraysize(kInvalidIp));

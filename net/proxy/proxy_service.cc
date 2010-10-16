@@ -635,8 +635,8 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
   init_proxy_resolver_.reset();
 
   if (result != OK) {
-    LOG(INFO) << "Failed configuring with PAC script, falling-back to manual "
-                 "proxy servers.";
+    VLOG(1) << "Failed configuring with PAC script, falling-back to manual "
+               "proxy servers.";
     config_ = fetched_config_;
     config_.ClearAutomaticSettings();
   }

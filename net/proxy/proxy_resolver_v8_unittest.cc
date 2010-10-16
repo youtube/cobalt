@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,7 +26,7 @@ class MockJSBindings : public ProxyResolverJSBindings {
   MockJSBindings() : my_ip_address_count(0), my_ip_address_ex_count(0) {}
 
   virtual void Alert(const string16& message) {
-    LOG(INFO) << "PAC-alert: " << message;  // Helpful when debugging.
+    VLOG(1) << "PAC-alert: " << message;  // Helpful when debugging.
     alerts.push_back(UTF16ToUTF8(message));
   }
 
@@ -57,7 +57,7 @@ class MockJSBindings : public ProxyResolverJSBindings {
 
   virtual void OnError(int line_number, const string16& message) {
     // Helpful when debugging.
-    LOG(INFO) << "PAC-error: [" << line_number << "] " << message;
+    VLOG(1) << "PAC-error: [" << line_number << "] " << message;
 
     errors.push_back(UTF16ToUTF8(message));
     errors_line_number.push_back(line_number);

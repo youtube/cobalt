@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1835,9 +1835,8 @@ void BackendImpl::LogStats() {
   StatsItems stats;
   GetStats(&stats);
 
-  for (size_t index = 0; index < stats.size(); index++) {
-    LOG(INFO) << stats[index].first << ": " << stats[index].second;
-  }
+  for (size_t index = 0; index < stats.size(); index++)
+    VLOG(1) << stats[index].first << ": " << stats[index].second;
 }
 
 void BackendImpl::ReportStats() {

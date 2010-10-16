@@ -137,7 +137,7 @@ X509Certificate* CertDatabase::FindRootInList(
                        &certn_1->os_cert_handle()->subject) == SECEqual)
     return certn_1;
 
-  LOG(INFO) << "certificate list is not a hierarchy";
+  VLOG(1) << "certificate list is not a hierarchy";
   return cert0;
 }
 
