@@ -189,7 +189,7 @@
             'worker_pool_linux_unittest.cc',
           ],
           'sources': [
-            'xdg_util_unittest.cc',
+            'nix/xdg_util_unittest.cc',
           ],
           'dependencies': [
             '../build/linux/system.gyp:gtk',
