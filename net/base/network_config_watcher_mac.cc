@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "base/thread.h"
+#include "base/mac/scoped_cftyperef.h"
 
 // We only post tasks to a child thread we own, so we don't need refcounting.
 DISABLE_RUNNABLE_METHOD_REFCOUNT(net::NetworkConfigWatcherMac);
@@ -76,7 +77,7 @@ void NetworkConfigWatcherMac::Init() {
     NULL,       // This is not reference counted.  No release function.
     NULL,       // No description for this.
   };
-  scoped_cftyperef<SCDynamicStoreRef> store(SCDynamicStoreCreate(
+  base::mac::ScopedCFTypeRef<SCDynamicStoreRef> store(SCDynamicStoreCreate(
       NULL, CFSTR("org.chromium"), DynamicStoreCallback, &context));
   run_loop_source_.reset(SCDynamicStoreCreateRunLoopSource(
       NULL, store.get(), 0));
