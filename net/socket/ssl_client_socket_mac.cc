@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
@@ -413,7 +413,7 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
   // before the certificate message has arrived and been parsed).
   if (status != noErr || !certs)
     return NULL;
-  scoped_cftyperef<CFArrayRef> scoped_certs(certs);
+  base::mac::ScopedCFTypeRef<CFArrayRef> scoped_certs(certs);
 
   DCHECK_GT(CFArrayGetCount(certs), 0);
 
@@ -1042,7 +1042,7 @@ int SSLClientSocketMac::SetClientCert() {
   if (!ssl_config_.send_client_cert || !ssl_config_.client_cert)
     return noErr;
 
-  scoped_cftyperef<CFArrayRef> cert_refs(
+  base::mac::ScopedCFTypeRef<CFArrayRef> cert_refs(
       ssl_config_.client_cert->CreateClientCertificateChain());
   VLOG(1) << "SSLSetCertificate(" << CFArrayGetCount(cert_refs) << " certs)";
   OSStatus result = SSLSetCertificate(ssl_context_, cert_refs);

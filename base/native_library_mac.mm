@@ -9,7 +9,7 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 
@@ -27,11 +27,12 @@ NativeLibrary LoadNativeLibrary(const FilePath& library_path) {
     native_lib->dylib = dylib;
     return native_lib;
   }
-  scoped_cftyperef<CFURLRef> url(CFURLCreateFromFileSystemRepresentation(
-      kCFAllocatorDefault,
-      (const UInt8*)library_path.value().c_str(),
-      library_path.value().length(),
-      true));
+  base::mac::ScopedCFTypeRef<CFURLRef> url(
+      CFURLCreateFromFileSystemRepresentation(
+          kCFAllocatorDefault,
+          (const UInt8*)library_path.value().c_str(),
+          library_path.value().length(),
+          true));
   if (!url)
     return NULL;
   CFBundleRef bundle = CFBundleCreate(kCFAllocatorDefault, url.get());
@@ -61,7 +62,7 @@ void UnloadNativeLibrary(NativeLibrary library) {
 void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
                                           const char* name) {
   if (library->type == BUNDLE) {
-    scoped_cftyperef<CFStringRef> symbol_name(
+    base::mac::ScopedCFTypeRef<CFStringRef> symbol_name(
         CFStringCreateWithCString(kCFAllocatorDefault, name,
                                   kCFStringEncodingUTF8));
     return CFBundleGetFunctionPointerForName(library->bundle, symbol_name);
