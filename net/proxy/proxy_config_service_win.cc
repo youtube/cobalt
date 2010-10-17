@@ -8,11 +8,11 @@
 #include <winhttp.h>
 
 #include "base/logging.h"
-#include "base/registry.h"
 #include "base/scoped_ptr.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/stl_util-inl.h"
+#include "base/win/registry.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_config.h"
 
@@ -61,7 +61,7 @@ class ProxyConfigServiceWin::KeyEntry {
   }
 
  private:
-  RegKey key_;
+  base::win::RegKey key_;
   base::ObjectWatcher watcher_;
 };
 
