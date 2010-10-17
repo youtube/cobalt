@@ -8,7 +8,7 @@
 
 #include "base/logging.h"
 #include "base/mac_util.h"
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "net/base/net_errors.h"
@@ -60,19 +60,19 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
                                      CompletionCallback* /*callback*/,
                                      RequestHandle* /*request*/,
                                      const BoundNetLog& net_log) {
-  scoped_cftyperef<CFStringRef> query_ref(
+  base::mac::ScopedCFTypeRef<CFStringRef> query_ref(
       base::SysUTF8ToCFStringRef(query_url.spec()));
-  scoped_cftyperef<CFURLRef> query_url_ref(
+  base::mac::ScopedCFTypeRef<CFURLRef> query_url_ref(
       CFURLCreateWithString(kCFAllocatorDefault,
                             query_ref.get(),
                             NULL));
   if (!query_url_ref.get())
     return ERR_FAILED;
-  scoped_cftyperef<CFStringRef> pac_ref(
+  base::mac::ScopedCFTypeRef<CFStringRef> pac_ref(
       base::SysUTF8ToCFStringRef(
           script_data_->type() == ProxyResolverScriptData::TYPE_AUTO_DETECT ?
               std::string() : script_data_->url().spec()));
-  scoped_cftyperef<CFURLRef> pac_url_ref(
+  base::mac::ScopedCFTypeRef<CFURLRef> pac_url_ref(
       CFURLCreateWithString(kCFAllocatorDefault,
                             pac_ref.get(),
                             NULL));
@@ -95,7 +95,7 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
 
   CFTypeRef result = NULL;
   CFStreamClientContext context = { 0, &result, NULL, NULL, NULL };
-  scoped_cftyperef<CFRunLoopSourceRef> runloop_source(
+  base::mac::ScopedCFTypeRef<CFRunLoopSourceRef> runloop_source(
       CFNetworkExecuteProxyAutoConfigurationURL(pac_url_ref.get(),
                                                 query_url_ref.get(),
                                                 ResultCallback,
@@ -119,7 +119,7 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
     return ERR_FAILED;
   }
   DCHECK(CFGetTypeID(result) == CFArrayGetTypeID());
-  scoped_cftyperef<CFArrayRef> proxy_array_ref((CFArrayRef)result);
+  base::mac::ScopedCFTypeRef<CFArrayRef> proxy_array_ref((CFArrayRef)result);
 
   // This string will be an ordered list of <proxy-uri> entries, separated by
   // semi-colons. It is the format that ProxyInfo::UseNamedProxy() expects.

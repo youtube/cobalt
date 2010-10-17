@@ -7,6 +7,8 @@
 #include <SystemConfiguration/SCDynamicStoreKey.h>
 #include <SystemConfiguration/SCSchemaDefinitions.h>
 
+#include "base/mac/scoped_cftyperef.h"
+
 namespace net {
 
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
@@ -22,10 +24,11 @@ bool NetworkChangeNotifierMac::IsCurrentlyOffline() const {
 void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
     SCDynamicStoreRef store) {
   // Called on notifier thread.
-  scoped_cftyperef<CFMutableArrayRef> notification_keys(
+  base::mac::ScopedCFTypeRef<CFMutableArrayRef> notification_keys(
       CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
-  scoped_cftyperef<CFStringRef> key(SCDynamicStoreKeyCreateNetworkGlobalEntity(
-      NULL, kSCDynamicStoreDomainState, kSCEntNetInterface));
+  base::mac::ScopedCFTypeRef<CFStringRef> key(
+      SCDynamicStoreKeyCreateNetworkGlobalEntity(
+          NULL, kSCDynamicStoreDomainState, kSCEntNetInterface));
   CFArrayAppendValue(notification_keys.get(), key.get());
   key.reset(SCDynamicStoreKeyCreateNetworkGlobalEntity(
       NULL, kSCDynamicStoreDomainState, kSCEntNetIPv4));

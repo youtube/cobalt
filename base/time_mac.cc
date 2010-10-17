@@ -12,7 +12,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 
 namespace base {
 
@@ -70,7 +70,7 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
   date.month = exploded.month;
   date.year = exploded.year;
 
-  scoped_cftyperef<CFTimeZoneRef>
+  base::mac::ScopedCFTypeRef<CFTimeZoneRef>
       time_zone(is_local ? CFTimeZoneCopySystem() : NULL);
   CFAbsoluteTime seconds = CFGregorianDateGetAbsoluteTime(date, time_zone) +
       kCFAbsoluteTimeIntervalSince1970;
@@ -83,7 +83,7 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
       (static_cast<double>((us_ - kWindowsEpochDeltaMicroseconds) /
       kMicrosecondsPerSecond) - kCFAbsoluteTimeIntervalSince1970);
 
-  scoped_cftyperef<CFTimeZoneRef>
+  base::mac::ScopedCFTypeRef<CFTimeZoneRef>
       time_zone(is_local ? CFTimeZoneCopySystem() : NULL);
   CFGregorianDate date = CFAbsoluteTimeGetGregorianDate(seconds, time_zone);
 

@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/foundation_utils_mac.h"
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/string_piece.h"
 
 namespace base {
@@ -78,7 +78,7 @@ static OutStringType STLStringToSTLStringWithEncodingsT(
   if (in_length == 0)
     return OutStringType();
 
-  scoped_cftyperef<CFStringRef> cfstring(
+  base::mac::ScopedCFTypeRef<CFStringRef> cfstring(
       CFStringCreateWithBytesNoCopy(NULL,
                                     reinterpret_cast<const UInt8*>(in.data()),
                                     in_length *
