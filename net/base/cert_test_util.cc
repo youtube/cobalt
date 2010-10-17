@@ -15,7 +15,7 @@
 #include "base/nss_util.h"
 #elif defined(OS_MACOSX)
 #include <Security/Security.h>
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 #endif
 
 #include "base/file_util.h"
@@ -104,7 +104,7 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
                                static_cast<CFIndex>(rawcert.size()));
   if (!pem)
     return NULL;
-  scoped_cftyperef<CFDataRef> scoped_pem(pem);
+  base::mac::ScopedCFTypeRef<CFDataRef> scoped_pem(pem);
 
   SecExternalFormat input_format = kSecFormatUnknown;
   SecExternalItemType item_type = kSecItemTypeUnknown;
@@ -112,7 +112,7 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
   if (SecKeychainItemImport(pem, NULL, &input_format, &item_type, 0, NULL, NULL,
                             &cert_array))
     return NULL;
-  scoped_cftyperef<CFArrayRef> scoped_cert_array(cert_array);
+  base::mac::ScopedCFTypeRef<CFArrayRef> scoped_cert_array(cert_array);
 
   if (!CFArrayGetCount(cert_array))
     return NULL;

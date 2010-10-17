@@ -9,7 +9,7 @@
 
 #include "base/logging.h"
 #include "base/mac_util.h"
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_config.h"
@@ -40,7 +40,7 @@ bool GetBoolFromDictionary(CFDictionaryRef dict,
 }
 
 void GetCurrentProxyConfig(ProxyConfig* config) {
-  scoped_cftyperef<CFDictionaryRef> config_dict(
+  base::mac::ScopedCFTypeRef<CFDictionaryRef> config_dict(
       SCDynamicStoreCopyProxies(NULL));
   DCHECK(config_dict);
 

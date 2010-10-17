@@ -21,7 +21,7 @@
 #include "base/utf_string_conversions.h"
 
 #if defined(OS_MACOSX)
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/third_party/icu/icu_utf.h"
 #endif
 
@@ -991,7 +991,7 @@ int FilePath::HFSFastUnicodeCompare(const StringType& string1,
 }
 
 StringType FilePath::GetHFSDecomposedForm(const StringType& string) {
-  scoped_cftyperef<CFStringRef> cfstring(
+  base::mac::ScopedCFTypeRef<CFStringRef> cfstring(
       CFStringCreateWithBytesNoCopy(
           NULL,
           reinterpret_cast<const UInt8*>(string.c_str()),
@@ -1038,7 +1038,7 @@ int FilePath::CompareIgnoreCase(const StringType& string1,
   // GetHFSDecomposedForm() returns an empty string in an error case.
   if (hfs1.empty() || hfs2.empty()) {
     NOTREACHED();
-    scoped_cftyperef<CFStringRef> cfstring1(
+    base::mac::ScopedCFTypeRef<CFStringRef> cfstring1(
         CFStringCreateWithBytesNoCopy(
             NULL,
             reinterpret_cast<const UInt8*>(string1.c_str()),
@@ -1046,7 +1046,7 @@ int FilePath::CompareIgnoreCase(const StringType& string1,
             kCFStringEncodingUTF8,
             false,
             kCFAllocatorNull));
-    scoped_cftyperef<CFStringRef> cfstring2(
+    base::mac::ScopedCFTypeRef<CFStringRef> cfstring2(
         CFStringCreateWithBytesNoCopy(
             NULL,
             reinterpret_cast<const UInt8*>(string2.c_str()),

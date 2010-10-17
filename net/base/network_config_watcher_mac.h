@@ -9,7 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/message_loop.h"
-#include "base/scoped_cftyperef.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/scoped_ptr.h"
 
 namespace base {
@@ -55,7 +55,7 @@ class NetworkConfigWatcherMac : public MessageLoop::DestructionObserver {
   // was created on.
   scoped_ptr<base::Thread> notifier_thread_;
 
-  scoped_cftyperef<CFRunLoopSourceRef> run_loop_source_;
+  base::mac::ScopedCFTypeRef<CFRunLoopSourceRef> run_loop_source_;
 
   Delegate* const delegate_;
 
