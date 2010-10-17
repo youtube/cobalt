@@ -15,7 +15,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
-#include "base/pe_image.h"
+#include "base/win/pe_image.h"
 #include "base/win/scoped_handle.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
@@ -1051,7 +1051,7 @@ bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
     if (!dll_module)
       return false;
 
-    PEImage pe_image(dll_module);
+    base::win::PEImage pe_image(dll_module);
     PIMAGE_NT_HEADERS nt_headers = pe_image.GetNTHeaders();
     size_t actual_size_to_read = size_to_read ? size_to_read :
                                  nt_headers->OptionalHeader.SizeOfImage;
