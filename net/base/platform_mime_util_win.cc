@@ -6,8 +6,8 @@
 
 #include "net/base/platform_mime_util.h"
 
-#include "base/registry.h"
 #include "base/utf_string_conversions.h"
+#include "base/win/registry.h"
 
 namespace net {
 
@@ -16,8 +16,8 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
   // check windows registry for file extension's mime type (registry key
   // names are not case-sensitive).
   std::wstring value, key = L"." + ext;
-  RegKey(HKEY_CLASSES_ROOT, key.c_str(), KEY_READ).ReadValue(L"Content Type",
-                                                             &value);
+  base::win::RegKey(HKEY_CLASSES_ROOT, key.c_str(), KEY_READ).ReadValue(
+      L"Content Type", &value);
   if (!value.empty()) {
     *result = WideToUTF8(value);
     return true;
@@ -28,8 +28,8 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
 bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
     const std::string& mime_type, FilePath::StringType* ext) const {
   std::wstring key(L"MIME\\Database\\Content Type\\" + UTF8ToWide(mime_type));
-  if (!RegKey(HKEY_CLASSES_ROOT, key.c_str(), KEY_READ).ReadValue(L"Extension",
-                                                                  ext)) {
+  if (!base::win::RegKey(HKEY_CLASSES_ROOT, key.c_str(), KEY_READ).ReadValue(
+          L"Extension", ext)) {
     return false;
   }
   // Strip off the leading dot, this should always be the case.
