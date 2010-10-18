@@ -21,6 +21,7 @@ namespace net {
 HttpNetworkSession::HttpNetworkSession(
     HostResolver* host_resolver,
     DnsRRResolver* dnsrr_resolver,
+    SSLHostInfoFactory* ssl_host_info_factory,
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory,
     SSLConfigService* ssl_config_service,
@@ -37,6 +38,7 @@ HttpNetworkSession::HttpNetworkSession(
                            client_socket_factory,
                            host_resolver,
                            dnsrr_resolver,
+                           ssl_host_info_factory,
                            proxy_service,
                            ssl_config_service),
       spdy_session_pool_(spdy_session_pool),
