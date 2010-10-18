@@ -81,7 +81,7 @@ Histogram::~Histogram() {
   if (StatisticsRecorder::dump_on_exit()) {
     std::string output;
     WriteAscii(true, "\n", &output);
-    VLOG(1) << output;
+    LOG(INFO) << output;
   }
 
   // Just to make sure most derived class did this properly...
@@ -474,8 +474,8 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   } else if (histogram_type == BOOLEAN_HISTOGRAM) {
     render_histogram = BooleanHistogram::FactoryGet(histogram_name, flags);
   } else {
-    LOG(ERROR) << "Error Deserializing Histogram Unknown histogram_type: "
-               << histogram_type;
+    LOG(ERROR) << "Error Deserializing Histogram Unknown histogram_type: " <<
+        histogram_type;
     return false;
   }
 
@@ -485,8 +485,8 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   DCHECK(histogram_type == render_histogram->histogram_type());
 
   if (render_histogram->flags() & kIPCSerializationSourceFlag) {
-    DVLOG(1) << "Single process mode, histogram observed and not copied: "
-             << histogram_name;
+    DLOG(INFO) << "Single process mode, histogram observed and not copied: " <<
+        histogram_name;
   } else {
     DCHECK(flags == (flags & render_histogram->flags()));
     render_histogram->AddSampleSet(sample);
@@ -814,7 +814,7 @@ StatisticsRecorder::~StatisticsRecorder() {
   if (dump_on_exit_) {
     std::string output;
     WriteGraph("", &output);
-    VLOG(1) << output;
+    LOG(INFO) << output;
   }
   // Clean up.
   delete histograms_;
