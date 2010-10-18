@@ -27,6 +27,7 @@
 class URLRequestJobManager {
  public:
   URLRequestJobManager();
+  ~URLRequestJobManager();
 
   // Instantiate an URLRequestJob implementation based on the registered
   // interceptors and protocol factories.  This will always succeed in

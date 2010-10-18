@@ -22,14 +22,7 @@ namespace net {
 
 class ViewCacheHelper {
  public:
-  ViewCacheHelper()
-      : disk_cache_(NULL), entry_(NULL), iter_(NULL), buf_len_(0), index_(0),
-        data_(NULL), callback_(NULL), next_state_(STATE_NONE),
-        ALLOW_THIS_IN_INITIALIZER_LIST(
-            cache_callback_(this, &ViewCacheHelper::OnIOComplete)),
-        ALLOW_THIS_IN_INITIALIZER_LIST(
-            entry_callback_(new CancelableCompletionCallback<ViewCacheHelper>(
-                this, &ViewCacheHelper::OnIOComplete))) {}
+  ViewCacheHelper();
   ~ViewCacheHelper();
 
   // Formats the cache information for |key| as HTML. Returns a net error code.

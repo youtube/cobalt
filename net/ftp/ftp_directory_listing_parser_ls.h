@@ -20,6 +20,7 @@ class FtpDirectoryListingParserLs : public FtpDirectoryListingParser {
   // date strings, |current_time| will be used. This allows passing a specific
   // date during testing.
   explicit FtpDirectoryListingParserLs(const base::Time& current_time);
+  virtual ~FtpDirectoryListingParserLs();
 
   // FtpDirectoryListingParser methods:
   virtual FtpServerType GetServerType() const { return SERVER_LS; }

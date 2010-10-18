@@ -54,13 +54,12 @@ class ProxyResolverScriptData
   const GURL& url() const;
 
  private:
+  friend class base::RefCountedThreadSafe<ProxyResolverScriptData>;
   ProxyResolverScriptData(Type type,
                           const GURL& url,
-                          const string16& utf16)
-      : type_(type),
-        url_(url),
-        utf16_(utf16) {
-  }
+                          const string16& utf16);
+  virtual ~ProxyResolverScriptData();
+
 
   const Type type_;
   const GURL url_;

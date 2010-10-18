@@ -21,7 +21,7 @@ class MemEntryImpl;
 // the operations of the cache without writing to disk.
 class MemBackendImpl : public Backend {
  public:
-  MemBackendImpl() : max_size_(0), current_size_(0) {}
+  MemBackendImpl();
   ~MemBackendImpl();
 
   // Returns an instance of a Backend implemented only in memory. The returned
