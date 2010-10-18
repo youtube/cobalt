@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,11 +36,11 @@ void ReadUninitializedValue(char *ptr) {
 }
 
 void ReadValueOutOfArrayBoundsLeft(char *ptr) {
-  LOG(INFO) << "Reading a byte out of bounds: " << ptr[-2];
+  VLOG(1) << "Reading a byte out of bounds: " << ptr[-2];
 }
 
 void ReadValueOutOfArrayBoundsRight(char *ptr, size_t size) {
-  LOG(INFO) << "Reading a byte out of bounds: " << ptr[size + 1];
+  VLOG(1) << "Reading a byte out of bounds: " << ptr[size + 1];
 }
 
 // This is harmless if you run it under Valgrind thanks to redzones.
