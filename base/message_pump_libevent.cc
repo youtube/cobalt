@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,8 +10,8 @@
 #include "base/auto_reset.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
+#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/observer_list.h"
-#include "base/scoped_nsautorelease_pool.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
 #if defined(USE_SYSTEM_LIBEVENT)
@@ -265,7 +265,7 @@ void MessagePumpLibevent::Run(Delegate* delegate) {
   scoped_ptr<event> timer_event(new event);
 
   for (;;) {
-    ScopedNSAutoreleasePool autorelease_pool;
+    mac::ScopedNSAutoreleasePool autorelease_pool;
 
     bool did_work = delegate->DoWork();
     if (!keep_running_)
