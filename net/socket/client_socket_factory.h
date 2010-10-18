@@ -17,12 +17,14 @@ class ClientSocket;
 class ClientSocketHandle;
 class SSLClientSocket;
 struct SSLConfig;
+class SSLHostInfo;
 
 // Callback function to create new SSLClientSocket objects.
 typedef SSLClientSocket* (*SSLClientSocketFactory)(
     ClientSocketHandle* transport_socket,
     const std::string& hostname,
-    const SSLConfig& ssl_config);
+    const SSLConfig& ssl_config,
+    SSLHostInfo* ssl_host_info);
 
 // An interface used to instantiate ClientSocket objects.  Used to facilitate
 // testing code with mock socket implementations.
@@ -40,13 +42,14 @@ class ClientSocketFactory {
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
-      const SSLConfig& ssl_config) = 0;
-
+      const SSLConfig& ssl_config,
+      SSLHostInfo* ssl_host_info) = 0;
 
   // Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
   virtual SSLClientSocket* CreateSSLClientSocket(ClientSocket* transport_socket,
                                                  const std::string& hostname,
-                                                 const SSLConfig& ssl_config);
+                                                 const SSLConfig& ssl_config,
+                                                 SSLHostInfo* ssl_host_info);
 
   // Returns the default ClientSocketFactory.
   static ClientSocketFactory* GetDefaultFactory();

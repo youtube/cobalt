@@ -30,6 +30,7 @@ class HttpProxySocketParams;
 class SOCKSClientSocketPool;
 class SOCKSSocketParams;
 class SSLClientSocket;
+class SSLHostInfoFactory;
 class TCPClientSocketPool;
 class TCPSocketParams;
 struct RRResponse;
@@ -93,6 +94,7 @@ class SSLConnectJob : public ConnectJob {
       ClientSocketFactory* client_socket_factory,
       HostResolver* host_resolver,
       DnsRRResolver* dnsrr_resolver,
+      SSLHostInfoFactory* ssl_host_info_factory,
       Delegate* delegate,
       NetLog* net_log);
   virtual ~SSLConnectJob();
@@ -140,12 +142,14 @@ class SSLConnectJob : public ConnectJob {
   HttpProxyClientSocketPool* const http_proxy_pool_;
   ClientSocketFactory* const client_socket_factory_;
   HostResolver* const resolver_;
-  DnsRRResolver* dnsrr_resolver_;
+  DnsRRResolver* const dnsrr_resolver_;
+  SSLHostInfoFactory* const ssl_host_info_factory_;
 
   State next_state_;
   CompletionCallbackImpl<SSLConnectJob> callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<SSLClientSocket> ssl_socket_;
+  scoped_ptr<SSLHostInfo> ssl_host_info_;
 
   // The time the DoSSLConnect() method was called.
   base::TimeTicks ssl_connect_start_time_;
@@ -166,6 +170,7 @@ class SSLClientSocketPool : public ClientSocketPool,
       ClientSocketPoolHistograms* histograms,
       HostResolver* host_resolver,
       DnsRRResolver* dnsrr_resolver,
+      SSLHostInfoFactory* ssl_host_info_factory,
       ClientSocketFactory* client_socket_factory,
       TCPClientSocketPool* tcp_pool,
       SOCKSClientSocketPool* socks_pool,
@@ -238,6 +243,7 @@ class SSLClientSocketPool : public ClientSocketPool,
         ClientSocketFactory* client_socket_factory,
         HostResolver* host_resolver,
         DnsRRResolver* dnsrr_resolver,
+        SSLHostInfoFactory* ssl_host_info_factory,
         NetLog* net_log);
 
     virtual ~SSLConnectJobFactory() {}
@@ -256,7 +262,8 @@ class SSLClientSocketPool : public ClientSocketPool,
     HttpProxyClientSocketPool* const http_proxy_pool_;
     ClientSocketFactory* const client_socket_factory_;
     HostResolver* const host_resolver_;
-    DnsRRResolver* dnsrr_resolver_;
+    DnsRRResolver* const dnsrr_resolver_;
+    SSLHostInfoFactory* const ssl_host_info_factory_;
     base::TimeDelta timeout_;
     NetLog* net_log_;
 
