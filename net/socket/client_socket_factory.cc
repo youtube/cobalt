@@ -6,6 +6,7 @@
 
 #include "base/singleton.h"
 #include "build/build_config.h"
+#include "net/base/ssl_host_info.h"
 #include "net/socket/client_socket_handle.h"
 #if defined(OS_WIN)
 #include "net/socket/ssl_client_socket_win.h"
@@ -26,13 +27,16 @@ namespace {
 SSLClientSocket* DefaultSSLClientSocketFactory(
     ClientSocketHandle* transport_socket,
     const std::string& hostname,
-    const SSLConfig& ssl_config) {
+    const SSLConfig& ssl_config,
+    SSLHostInfo* ssl_host_info) {
+  scoped_ptr<SSLHostInfo> shi(ssl_host_info);
 #if defined(OS_WIN)
   return new SSLClientSocketWin(transport_socket, hostname, ssl_config);
 #elif defined(USE_OPENSSL)
   return new SSLClientSocketOpenSSL(transport_socket, hostname, ssl_config);
 #elif defined(USE_NSS)
-  return new SSLClientSocketNSS(transport_socket, hostname, ssl_config);
+  return new SSLClientSocketNSS(transport_socket, hostname, ssl_config,
+                                shi.release());
 #elif defined(OS_MACOSX)
   // TODO(wtc): SSLClientSocketNSS can't do SSL client authentication using
   // Mac OS X CDSA/CSSM yet (http://crbug.com/45369), so fall back on
@@ -40,7 +44,8 @@ SSLClientSocket* DefaultSSLClientSocketFactory(
   if (ssl_config.send_client_cert)
     return new SSLClientSocketMac(transport_socket, hostname, ssl_config);
 
-  return new SSLClientSocketNSS(transport_socket, hostname, ssl_config);
+  return new SSLClientSocketNSS(transport_socket, hostname, ssl_config,
+                                shi.release());
 #else
   NOTIMPLEMENTED();
   return NULL;
@@ -61,8 +66,9 @@ class DefaultClientSocketFactory : public ClientSocketFactory {
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
-      const SSLConfig& ssl_config) {
-    return g_ssl_factory(transport_socket, hostname, ssl_config);
+      const SSLConfig& ssl_config,
+      SSLHostInfo* ssl_host_info) {
+    return g_ssl_factory(transport_socket, hostname, ssl_config, ssl_host_info);
   }
 };
 
@@ -83,10 +89,12 @@ void ClientSocketFactory::SetSSLClientSocketFactory(
 SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
     ClientSocket* transport_socket,
     const std::string& hostname,
-    const SSLConfig& ssl_config) {
+    const SSLConfig& ssl_config,
+    SSLHostInfo* ssl_host_info) {
   ClientSocketHandle* socket_handle = new ClientSocketHandle();
   socket_handle->set_socket(transport_socket);
-  return CreateSSLClientSocket(socket_handle, hostname, ssl_config);
+  return CreateSSLClientSocket(socket_handle, hostname, ssl_config,
+                               ssl_host_info);
 }
 
 }  // namespace net
