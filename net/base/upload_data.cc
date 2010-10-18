@@ -17,6 +17,7 @@ UploadData::Element::Element()
       file_range_length_(kuint64max),
       override_content_length_(false),
       content_length_computed_(false),
+      content_length_(-1),
       file_stream_(NULL) {
 }
 

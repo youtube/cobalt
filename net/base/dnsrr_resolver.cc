@@ -137,7 +137,8 @@ class RRResolverWorker {
         flags_(flags),
         origin_loop_(MessageLoop::current()),
         dnsrr_resolver_(dnsrr_resolver),
-        canceled_(false) {
+        canceled_(false),
+        result_(ERR_UNEXPECTED) {
   }
 
   bool Start() {
