@@ -168,6 +168,8 @@ FtpDirectoryListingParserVms::FtpDirectoryListingParserVms()
       last_is_directory_(false) {
 }
 
+FtpDirectoryListingParserVms::~FtpDirectoryListingParserVms() {}
+
 bool FtpDirectoryListingParserVms::ConsumeLine(const string16& line) {
   switch (state_) {
     case STATE_INITIAL:

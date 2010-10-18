@@ -67,6 +67,7 @@
         'audio/win/waveout_output_win.h',
         'base/buffers.cc',
         'base/buffers.h',
+        'base/callback.cc',
         'base/callback.h',
         'base/clock.h',
         'base/clock_impl.cc',

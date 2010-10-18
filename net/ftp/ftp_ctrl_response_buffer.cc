@@ -14,6 +14,14 @@ namespace net {
 // static
 const int FtpCtrlResponse::kInvalidStatusCode = -1;
 
+FtpCtrlResponse::FtpCtrlResponse() : status_code(kInvalidStatusCode) {}
+
+FtpCtrlResponse::~FtpCtrlResponse() {}
+
+FtpCtrlResponseBuffer::FtpCtrlResponseBuffer() : multiline_(false) {}
+
+FtpCtrlResponseBuffer::~FtpCtrlResponseBuffer() {}
+
 int FtpCtrlResponseBuffer::ConsumeData(const char* data, int data_length) {
   buffer_.append(data, data_length);
   ExtractFullLinesFromBuffer();
@@ -62,6 +70,19 @@ int FtpCtrlResponseBuffer::ConsumeData(const char* data, int data_length) {
   }
 
   return OK;
+}
+
+FtpCtrlResponse FtpCtrlResponseBuffer::PopResponse() {
+  FtpCtrlResponse result = responses_.front();
+  responses_.pop();
+  return result;
+}
+
+FtpCtrlResponseBuffer::ParsedLine::ParsedLine()
+    : has_status_code(false),
+      is_multiline(false),
+      is_complete(false),
+      status_code(FtpCtrlResponse::kInvalidStatusCode) {
 }
 
 // static

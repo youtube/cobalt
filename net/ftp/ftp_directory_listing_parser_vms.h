@@ -16,6 +16,7 @@ namespace net {
 class FtpDirectoryListingParserVms : public FtpDirectoryListingParser {
  public:
   FtpDirectoryListingParserVms();
+  virtual ~FtpDirectoryListingParserVms();
 
   // FtpDirectoryListingParser methods:
   virtual FtpServerType GetServerType() const { return SERVER_VMS; }

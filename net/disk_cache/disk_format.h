@@ -80,6 +80,8 @@ struct LruData {
 
 // Header for the master index file.
 struct IndexHeader {
+  IndexHeader();
+
   uint32      magic;
   uint32      version;
   int32       num_entries;   // Number of entries currently stored.
@@ -93,11 +95,6 @@ struct IndexHeader {
   uint64      create_time;   // Creation time for this set of files.
   int32       pad[52];
   LruData     lru;           // Eviction control data.
-  IndexHeader() {
-    memset(this, 0, sizeof(*this));
-    magic = kIndexMagic;
-    version = kCurrentVersion;
-  };
 };
 
 // The structure of the whole index file.
@@ -177,6 +174,8 @@ typedef uint32 AllocBitmap[kMaxBlocks / 32];
 // from the beginning every time).
 // This Structure is the header of a block-file:
 struct BlockFileHeader {
+  BlockFileHeader();
+
   uint32          magic;
   uint32          version;
   int16           this_file;    // Index of this file.
@@ -189,11 +188,6 @@ struct BlockFileHeader {
   volatile int32  updating;     // Keep track of updates to the header.
   int32           user[5];
   AllocBitmap     allocation_map;
-  BlockFileHeader() {
-    memset(this, 0, sizeof(BlockFileHeader));
-    magic = kBlockMagic;
-    version = kCurrentVersion;
-  };
 };
 
 COMPILE_ASSERT(sizeof(BlockFileHeader) == kBlockHeaderSize, bad_header);

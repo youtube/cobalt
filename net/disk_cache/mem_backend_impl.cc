@@ -62,6 +62,8 @@ bool MemBackendImpl::Init() {
   return true;
 }
 
+MemBackendImpl::MemBackendImpl() : max_size_(0), current_size_(0) {}
+
 MemBackendImpl::~MemBackendImpl() {
   EntryMap::iterator it = entries_.begin();
   while (it != entries_.end()) {
