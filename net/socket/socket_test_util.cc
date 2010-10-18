@@ -466,7 +466,6 @@ MockSSLClientSocket::MockSSLClientSocket(
     net::ClientSocketHandle* transport_socket,
     const std::string& hostname,
     const net::SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
     net::SSLSocketDataProvider* data)
     : MockClientSocket(transport_socket->socket()->NetLog().net_log()),
       transport_(transport_socket),
@@ -474,7 +473,6 @@ MockSSLClientSocket::MockSSLClientSocket(
       is_npn_state_set_(false),
       new_npn_value_(false) {
   DCHECK(data_);
-  delete ssl_host_info;  // we take ownership but don't use it.
 }
 
 MockSSLClientSocket::~MockSSLClientSocket() {
@@ -978,11 +976,10 @@ ClientSocket* MockClientSocketFactory::CreateTCPClientSocket(
 SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
     ClientSocketHandle* transport_socket,
     const std::string& hostname,
-    const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info) {
+    const SSLConfig& ssl_config) {
   MockSSLClientSocket* socket =
       new MockSSLClientSocket(transport_socket, hostname, ssl_config,
-                              ssl_host_info, mock_ssl_data_.GetNext());
+                              mock_ssl_data_.GetNext());
   ssl_client_sockets_.push_back(socket);
   return socket;
 }
@@ -1023,11 +1020,10 @@ ClientSocket* DeterministicMockClientSocketFactory::CreateTCPClientSocket(
 SSLClientSocket* DeterministicMockClientSocketFactory::CreateSSLClientSocket(
     ClientSocketHandle* transport_socket,
     const std::string& hostname,
-    const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info) {
+    const SSLConfig& ssl_config) {
   MockSSLClientSocket* socket =
       new MockSSLClientSocket(transport_socket, hostname, ssl_config,
-                              ssl_host_info, mock_ssl_data_.GetNext());
+                              mock_ssl_data_.GetNext());
   ssl_client_sockets_.push_back(socket);
   return socket;
 }

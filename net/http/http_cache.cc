@@ -24,9 +24,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
-#include "net/base/ssl_host_info.h"
 #include "net/disk_cache/disk_cache.h"
-#include "net/http/disk_cache_based_ssl_host_info.h"
 #include "net/http/http_cache_transaction.h"
 #include "net/http/http_network_layer.h"
 #include "net/http/http_network_session.h"
@@ -244,22 +242,6 @@ void HttpCache::MetadataWriter::OnIOComplete(int result) {
 
 //-----------------------------------------------------------------------------
 
-class HttpCache::SSLHostInfoFactoryAdaptor : public SSLHostInfoFactory {
- public:
-  SSLHostInfoFactoryAdaptor(HttpCache* http_cache)
-      : http_cache_(http_cache) {
-  }
-
-  SSLHostInfo* GetForHost(const std::string& hostname) {
-    return new DiskCacheBasedSSLHostInfo(hostname, http_cache_);
-  }
-
- private:
-  HttpCache* const http_cache_;
-};
-
-//-----------------------------------------------------------------------------
-
 HttpCache::HttpCache(HostResolver* host_resolver,
                      DnsRRResolver* dnsrr_resolver,
                      ProxyService* proxy_service,
@@ -271,11 +253,8 @@ HttpCache::HttpCache(HostResolver* host_resolver,
     : backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
-      ssl_host_info_factory_(new SSLHostInfoFactoryAdaptor(
-            ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       network_layer_(HttpNetworkLayer::CreateFactory(host_resolver,
-          dnsrr_resolver, ssl_host_info_factory_.get(),
-          proxy_service, ssl_config_service,
+          dnsrr_resolver, proxy_service, ssl_config_service,
           http_auth_handler_factory, network_delegate, net_log)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       enable_range_support_(true) {

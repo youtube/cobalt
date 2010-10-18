@@ -99,7 +99,6 @@ struct SessionDependencies {
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(session_deps->host_resolver.get(),
                                 NULL /* dnsrr_resolver */,
-                                NULL /* ssl_host_info_factory */,
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
@@ -297,7 +296,7 @@ template<>
 CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
     HttpNetworkSession* session)
     : SSLClientSocketPool(0, 0, NULL, session->host_resolver(), NULL, NULL,
-                          NULL, NULL, NULL, NULL, NULL, NULL) {}
+                          NULL, NULL, NULL, NULL, NULL) {}
 
 //-----------------------------------------------------------------------------
 
@@ -6425,8 +6424,8 @@ TEST_F(HttpNetworkTransactionTest,
   SSLConfig ssl_config;
   session->ssl_config_service()->GetSSLConfig(&ssl_config);
   ClientSocket* socket = connection->release_socket();
-  socket = session->socket_factory()->CreateSSLClientSocket(
-      socket, "" , ssl_config, NULL /* ssl_host_info */);
+  socket = session->socket_factory()->CreateSSLClientSocket(socket, "" ,
+                                                            ssl_config);
   connection->set_socket(socket);
   EXPECT_EQ(ERR_IO_PENDING, socket->Connect(&callback));
   EXPECT_EQ(OK, callback.WaitForResult());
