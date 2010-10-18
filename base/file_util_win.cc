@@ -561,7 +561,8 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
   FilePath path_to_create;
   srand(static_cast<uint32>(time(NULL)));
 
-  for (int count = 0; count < 50; ++count) {
+  int count = 0;
+  while (count < 50) {
     // Try create a new temporary directory with random generated name. If
     // the one exists, keep trying another path name until we reach some limit.
     path_to_create = base_dir;
@@ -571,13 +572,17 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
     new_dir_name.append(base::IntToString16(rand() % kint16max));
 
     path_to_create = path_to_create.Append(new_dir_name);
-    if (::CreateDirectory(path_to_create.value().c_str(), NULL)) {
-      *new_dir = path_to_create;
-      return true;
-    }
+    if (::CreateDirectory(path_to_create.value().c_str(), NULL))
+      break;
+    count++;
   }
 
-  return false;
+  if (count == 50) {
+    return false;
+  }
+
+  *new_dir = path_to_create;
+  return true;
 }
 
 bool CreateNewTempDirectory(const FilePath::StringType& prefix,
@@ -595,13 +600,14 @@ bool CreateDirectory(const FilePath& full_path) {
   DWORD fileattr = ::GetFileAttributes(full_path_str);
   if (fileattr != INVALID_FILE_ATTRIBUTES) {
     if ((fileattr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-      DVLOG(1) << "CreateDirectory(" << full_path_str << "), "
-               << "directory already exists.";
+      DLOG(INFO) << "CreateDirectory(" << full_path_str << "), "
+                 << "directory already exists.";
       return true;
+    } else {
+      LOG(WARNING) << "CreateDirectory(" << full_path_str << "), "
+                   << "conflicts with existing file.";
+      return false;
     }
-    LOG(WARNING) << "CreateDirectory(" << full_path_str << "), "
-                 << "conflicts with existing file.";
-    return false;
   }
 
   // Invariant:  Path does not exist as file or directory.
