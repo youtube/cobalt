@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -126,7 +126,7 @@ class AddRemoveThread : public PlatformThread::Delegate,
     count_addtask_++;
 
     if ((Time::Now() - start_).InMilliseconds() > kThreadRunTime) {
-      LOG(INFO) << "DONE!";
+      VLOG(1) << "DONE!";
       return;
     }
 
