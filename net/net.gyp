@@ -173,6 +173,8 @@
         'base/ssl_config_service_win.cc',
         'base/ssl_config_service_win.h',
         'base/ssl_false_start_blacklist.cc',
+        'base/ssl_host_info.cc',
+        'base/ssl_host_info.h',
         'base/ssl_info.cc',
         'base/ssl_info.h',
         'base/static_cookie_policy.cc',
