@@ -36,11 +36,13 @@ void ReadUninitializedValue(char *ptr) {
 }
 
 void ReadValueOutOfArrayBoundsLeft(char *ptr) {
-  LOG(INFO) << "Reading a byte out of bounds: " << ptr[-2];
+  char c = ptr[-2];
+  VLOG(1) << "Reading a byte out of bounds: " << c;
 }
 
 void ReadValueOutOfArrayBoundsRight(char *ptr, size_t size) {
-  LOG(INFO) << "Reading a byte out of bounds: " << ptr[size + 1];
+  char c = ptr[size + 1];
+  VLOG(1) << "Reading a byte out of bounds: " << c;
 }
 
 // This is harmless if you run it under Valgrind thanks to redzones.
