@@ -1,10 +1,10 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/platform_thread.h"
-#include "base/scoped_nsautorelease_pool.h"
 #include "base/shared_memory.h"
 #include "base/scoped_ptr.h"
 #include "base/test/multiprocess_test.h"
@@ -33,7 +33,7 @@ class MultipleThreadMain : public PlatformThread::Delegate {
 
   // PlatformThread::Delegate interface.
   void ThreadMain() {
-    ScopedNSAutoreleasePool pool;  // noop if not OSX
+    mac::ScopedNSAutoreleasePool pool;  // noop if not OSX
     const uint32 kDataSize = 1024;
     SharedMemory memory;
     bool rv = memory.Create(s_test_name_, false, true, kDataSize);
@@ -286,7 +286,7 @@ class SharedMemoryProcessTest : public base::MultiProcessTest {
 
   static int TaskTestMain() {
     int errors = 0;
-    ScopedNSAutoreleasePool pool;  // noop if not OSX
+    mac::ScopedNSAutoreleasePool pool;  // noop if not OSX
     const uint32 kDataSize = 1024;
     SharedMemory memory;
     bool rv = memory.Create(s_test_name_, false, true, kDataSize);
