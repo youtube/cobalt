@@ -160,7 +160,7 @@ class RRResolverWorker {
 
 #if defined(OS_POSIX)
 
-  virtual void Run() {
+  void Run() {
     // Runs on a worker thread.
 
     if (HandleTestCases()) {
@@ -235,7 +235,7 @@ class RRResolverWorker {
 
 #else  // OS_WIN
 
-  virtual void Run() {
+  void Run() {
     if (HandleTestCases()) {
       Finish();
       return;
