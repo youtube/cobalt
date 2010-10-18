@@ -106,6 +106,15 @@ void PartialData::Core::OnIOComplete(int result) {
 
 // -----------------------------------------------------------------------------
 
+PartialData::PartialData()
+    : range_present_(false),
+      final_range_(false),
+      sparse_entry_(true),
+      truncated_(false),
+      core_(NULL),
+      callback_(NULL) {
+}
+
 PartialData::~PartialData() {
   if (core_)
     core_->Cancel();

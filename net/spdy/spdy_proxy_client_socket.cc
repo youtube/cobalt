@@ -16,6 +16,7 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_net_log_params.h"
 #include "net/http/http_proxy_utils.h"
+#include "net/http/http_response_headers.h"
 #include "net/spdy/spdy_http_utils.h"
 
 namespace net {

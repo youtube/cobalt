@@ -72,8 +72,9 @@ bool WindowsDateListingToTime(const std::vector<string16>& columns,
 
 namespace net {
 
-FtpDirectoryListingParserWindows::FtpDirectoryListingParserWindows() {
-}
+FtpDirectoryListingParserWindows::FtpDirectoryListingParserWindows() {}
+
+FtpDirectoryListingParserWindows::~FtpDirectoryListingParserWindows() {}
 
 bool FtpDirectoryListingParserWindows::ConsumeLine(const string16& line) {
   std::vector<string16> columns;

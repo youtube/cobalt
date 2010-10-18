@@ -96,13 +96,11 @@ class HttpCache : public HttpTransactionFactory,
     // |cache_thread| is the thread where disk operations should take place. If
     // |max_bytes| is  zero, a default value will be calculated automatically.
     DefaultBackend(CacheType type, const FilePath& path, int max_bytes,
-                   base::MessageLoopProxy* thread)
-        : type_(type), path_(path), max_bytes_(max_bytes), thread_(thread) {}
+                   base::MessageLoopProxy* thread);
+    virtual ~DefaultBackend();
 
     // Returns a factory for an in-memory cache.
-    static BackendFactory* InMemory(int max_bytes)  {
-      return new DefaultBackend(MEMORY_CACHE, FilePath(), max_bytes, NULL);
-    }
+    static BackendFactory* InMemory(int max_bytes);
 
     // BackendFactory implementation.
     virtual int CreateBackend(disk_cache::Backend** backend,

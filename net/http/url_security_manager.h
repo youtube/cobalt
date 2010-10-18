@@ -61,6 +61,7 @@ class URLSecurityManagerWhitelist : public URLSecurityManager {
   // The URLSecurityManagerWhitelist takes ownership of the whitelists.
   URLSecurityManagerWhitelist(const HttpAuthFilter* whitelist_default,
                               const HttpAuthFilter* whitelist_delegation);
+  virtual ~URLSecurityManagerWhitelist();
 
   // URLSecurityManager methods.
   virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const;

@@ -43,6 +43,8 @@ URLRequestJobManager::URLRequestJobManager() {
 #endif
 }
 
+URLRequestJobManager::~URLRequestJobManager() {}
+
 URLRequestJob* URLRequestJobManager::CreateJob(URLRequest* request) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());

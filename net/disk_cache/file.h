@@ -29,9 +29,9 @@ class FileIOCallback {
 class File : public base::RefCounted<File> {
   friend class base::RefCounted<File>;
  public:
-  File() : init_(false), mixed_(false) {}
+  File();
   // mixed_mode set to true enables regular synchronous operations for the file.
-  explicit File(bool mixed_mode) : init_(false), mixed_(mixed_mode) {}
+  explicit File(bool mixed_mode);
 
   // Initializes the object to use the passed in file instead of opening it with
   // the Init() call. No asynchronous operations can be performed with this
