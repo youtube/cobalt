@@ -14,6 +14,7 @@
 #include <openssl/x509v3.h>
 
 #include "base/pickle.h"
+#include "base/singleton.h"
 #include "base/string_number_conversions.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
@@ -245,6 +246,84 @@ void sk_X509_free_fn(STACK_OF(X509)* st) {
   sk_X509_free(st);
 }
 
+struct DERCache {
+  unsigned char* data;
+  int data_length;
+};
+
+void DERCache_free(void* parent, void* ptr, CRYPTO_EX_DATA* ad, int idx,
+                   long argl, void* argp) {
+  DERCache* der_cache = static_cast<DERCache*>(ptr);
+  if (!der_cache)
+      return;
+  if (der_cache->data)
+      OPENSSL_free(der_cache->data);
+  OPENSSL_free(der_cache);
+}
+
+class X509InitSingleton {
+ public:
+  int der_cache_ex_index() const { return der_cache_ex_index_; }
+
+ private:
+  friend struct DefaultSingletonTraits<X509InitSingleton>;
+  X509InitSingleton() {
+    der_cache_ex_index_ = X509_get_ex_new_index(0, 0, 0, 0, DERCache_free);
+    DCHECK_NE(der_cache_ex_index_, -1);
+  }
+  ~X509InitSingleton() {}
+
+  int der_cache_ex_index_;
+
+  DISALLOW_COPY_AND_ASSIGN(X509InitSingleton);
+};
+
+// Takes ownership of |data| (which must have been allocated by OpenSSL).
+DERCache* SetDERCache(X509Certificate::OSCertHandle cert,
+                      int x509_der_cache_index,
+                      unsigned char* data,
+                      int data_length) {
+  DERCache* internal_cache = static_cast<DERCache*>(
+      OPENSSL_malloc(sizeof(*internal_cache)));
+  if (!internal_cache) {
+    // We took ownership of |data|, so we must free if we can't add it to
+    // |cert|.
+    OPENSSL_free(data);
+    return NULL;
+  }
+
+  internal_cache->data = data;
+  internal_cache->data_length = data_length;
+  X509_set_ex_data(cert, x509_der_cache_index, internal_cache);
+  return internal_cache;
+}
+
+// Returns true if |der_cache| points to valid data, false otherwise.
+// (note: the DER-encoded data in |der_cache| is owned by |cert|, callers should
+// not free it).
+bool GetDERAndCacheIfNeeded(X509Certificate::OSCertHandle cert,
+                            DERCache* der_cache) {
+  int x509_der_cache_index =
+      Singleton<X509InitSingleton>::get()->der_cache_ex_index();
+
+  // Re-encoding the DER data via i2d_X509 is an expensive operation, but it's
+  // necessary for comparing two certificates. We re-encode at most once per
+  // certificate and cache the data within the X509 cert using X509_set_ex_data.
+  DERCache* internal_cache = static_cast<DERCache*>(
+      X509_get_ex_data(cert, x509_der_cache_index));
+  if (!internal_cache) {
+    unsigned char* data = NULL;
+    int data_length = i2d_X509(cert, &data);
+    if (data_length <= 0 || !data)
+      return false;
+    internal_cache = SetDERCache(cert, x509_der_cache_index, data, data_length);
+    if (!internal_cache)
+      return false;
+  }
+  *der_cache = *internal_cache;
+  return true;
+}
+
 }  // namespace
 
 // static
@@ -292,6 +371,8 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     return NULL;
   const unsigned char* d2i_data =
       reinterpret_cast<const unsigned char*>(data);
+  // Don't cache this data via SetDERCache as this wire format may be not be
+  // identical from the i2d_X509 roundtrip.
   X509* cert = d2i_X509(NULL, &d2i_data, length);
   return cert;
 }
@@ -334,13 +415,12 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
 }
 
 void X509Certificate::Persist(Pickle* pickle) {
-  unsigned char* data = NULL;
-  int data_length = i2d_X509(cert_handle_, &data);
-  if (data_length <= 0 || !data)
-     return;
+  DERCache der_cache;
+  if (!GetDERAndCacheIfNeeded(cert_handle_, &der_cache))
+      return;
 
-  pickle->WriteData(reinterpret_cast<const char*>(data), data_length);
-  OPENSSL_free(data);
+  pickle->WriteData(reinterpret_cast<const char*>(der_cache.data),
+                    der_cache.data_length);
 }
 
 void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
@@ -395,27 +475,15 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
   if (a == b)
     return true;
 
-  // TODO(bulach): re-encoding the certificate is an expensive operation.
-  // Consider 'tagging' each X509* we create using X509_set_ex_data, storing the
-  // original DER data in an index. Then, when comparing two handles, see if
-  // X509_get_ex_data() returns the DER form.
-  unsigned char* data_a = NULL;
-  int data_length_a = i2d_X509(a, &data_a);
-  if (data_length_a <= 0 || !data_a)
-    return false;
+  // X509_cmp only checks the fingerprint, but we want to compare the whole
+  // DER data. Encoding it from OSCertHandle is an expensive operation, so we
+  // cache the DER (if not already cached via X509_set_ex_data).
+  DERCache der_cache_a, der_cache_b;
 
-  bool ret = true;
-  unsigned char* data_b = NULL;
-  int data_length_b = i2d_X509(b, &data_b);
-  if (data_length_b <= 0 || !data_b)
-     ret = false;
-
-  ret = ret && data_length_a == data_length_b;
-  ret = ret && memcmp(data_a, data_b, data_length_a) == 0;
-
-  OPENSSL_free(data_a);
-  OPENSSL_free(data_b);
-  return ret;
+  return GetDERAndCacheIfNeeded(a, &der_cache_a) &&
+      GetDERAndCacheIfNeeded(b, &der_cache_b) &&
+      der_cache_a.data_length == der_cache_b.data_length &&
+      memcmp(der_cache_a.data, der_cache_b.data, der_cache_a.data_length) == 0;
 }
 
 } // namespace net
