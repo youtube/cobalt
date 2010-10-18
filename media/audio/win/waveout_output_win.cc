@@ -55,14 +55,28 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       volume_(1),
       channels_(params.channels),
       pending_bytes_(0) {
-  format_.wFormatTag = WAVE_FORMAT_PCM;
-  format_.nChannels = params.channels > 2 ? 2 : params.channels;
-  format_.nSamplesPerSec = params.sample_rate;
-  format_.wBitsPerSample = params.bits_per_sample;
-  format_.cbSize = 0;
+  format_.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+  format_.Format.nChannels = params.channels;
+  format_.Format.nSamplesPerSec = params.sample_rate;
+  format_.Format.wBitsPerSample = params.bits_per_sample;
+  format_.Format.cbSize = sizeof(format_) - sizeof(WAVEFORMATEX);
   // The next are computed from above.
-  format_.nBlockAlign = (format_.nChannels * format_.wBitsPerSample) / 8;
-  format_.nAvgBytesPerSec = format_.nBlockAlign * format_.nSamplesPerSec;
+  format_.Format.nBlockAlign = (format_.Format.nChannels *
+                                format_.Format.wBitsPerSample) / 8;
+  format_.Format.nAvgBytesPerSec = format_.Format.nBlockAlign *
+                                   format_.Format.nSamplesPerSec;
+  // This mask handles Stereo, 5.1 and 7.1.
+  // TODO(fbarchard): Support masks for other channel layouts.
+  format_.dwChannelMask = SPEAKER_FRONT_LEFT  |
+                          SPEAKER_FRONT_RIGHT |
+                          SPEAKER_FRONT_CENTER |
+                          SPEAKER_LOW_FREQUENCY |
+                          SPEAKER_BACK_LEFT |
+                          SPEAKER_BACK_RIGHT |
+                          SPEAKER_SIDE_LEFT |
+                          SPEAKER_SIDE_RIGHT;
+  format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+  format_.Samples.wValidBitsPerSample = params.bits_per_sample;
   // The event is auto-reset.
   stopped_event_.Set(::CreateEventW(NULL, FALSE, FALSE, NULL));
 }
@@ -78,9 +92,10 @@ bool PCMWaveOutAudioOutputStream::Open(uint32 buffer_size) {
     return false;
   if (num_buffers_ < 2 || num_buffers_ > 5)
     return false;
-  // Open the device. We'll be getting callback in WaveCallback function. They
-  // occur in a magic, time-critical thread that windows creates.
-  MMRESULT result = ::waveOutOpen(&waveout_, device_id_, &format_,
+  // Open the device. We'll be getting callback in WaveCallback function.
+  // They occur in a magic, time-critical thread that windows creates.
+  MMRESULT result = ::waveOutOpen(&waveout_, device_id_,
+                                  reinterpret_cast<LPCWAVEFORMATEX>(&format_),
                                   reinterpret_cast<DWORD_PTR>(WaveCallback),
                                   reinterpret_cast<DWORD_PTR>(this),
                                   CALLBACK_FUNCTION);
@@ -88,7 +103,7 @@ bool PCMWaveOutAudioOutputStream::Open(uint32 buffer_size) {
     return false;
   // If we don't have a packet size we use 100ms.
   if (!buffer_size)
-    buffer_size = format_.nAvgBytesPerSec / 10;
+    buffer_size = format_.Format.nAvgBytesPerSec / 10;
 
   SetupBuffers(buffer_size);
   buffer_size_ = buffer_size;
@@ -235,20 +250,22 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   // If we are down sampling to a smaller number of channels, we need to
   // scale up the amount of pending bytes.
   // TODO(fbarchard): Handle used 0 by queueing more.
-  uint32 scaled_pending_bytes = pending_bytes_ * channels_ / format_.nChannels;
+  uint32 scaled_pending_bytes = pending_bytes_ * channels_ /
+                                format_.Format.nChannels;
   // TODO(sergeyu): Specify correct hardware delay for AudioBuffersState.
   uint32 used = callback_->OnMoreData(
       this, reinterpret_cast<uint8*>(buffer->lpData), buffer_size_,
       AudioBuffersState(scaled_pending_bytes, 0));
   if (used <= buffer_size_) {
-    buffer->dwBufferLength = used * format_.nChannels / channels_;
-    if (channels_ > 2 && format_.nChannels == 2) {
+    buffer->dwBufferLength = used * format_.Format.nChannels / channels_;
+    if (channels_ > 2 && format_.Format.nChannels == 2) {
       media::FoldChannels(buffer->lpData, used,
-                          channels_, format_.wBitsPerSample >> 3,
+                          channels_, format_.Format.wBitsPerSample >> 3,
                           volume_);
     } else {
       media::AdjustVolume(buffer->lpData, used,
-                          format_.nChannels, format_.wBitsPerSample >> 3,
+                          format_.Format.nChannels,
+                          format_.Format.wBitsPerSample >> 3,
                           volume_);
     }
   } else {
