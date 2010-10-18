@@ -45,4 +45,14 @@ const GURL& ProxyResolverScriptData::url() const {
   return url_;
 }
 
+ProxyResolverScriptData::ProxyResolverScriptData(Type type,
+                                                 const GURL& url,
+                                                 const string16& utf16)
+    : type_(type),
+      url_(url),
+      utf16_(utf16) {
+}
+
+ProxyResolverScriptData::~ProxyResolverScriptData() {}
+
 }  // namespace net

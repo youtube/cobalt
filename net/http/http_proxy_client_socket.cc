@@ -16,6 +16,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_utils.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_stream_parser.h"
 #include "net/socket/client_socket_handle.h"
 

@@ -15,6 +15,8 @@ URLSecurityManagerWhitelist::URLSecurityManagerWhitelist(
       whitelist_delegate_(whitelist_delegate) {
 }
 
+URLSecurityManagerWhitelist::~URLSecurityManagerWhitelist() {}
+
 bool URLSecurityManagerWhitelist::CanUseDefaultCredentials(
     const GURL& auth_origin) const  {
   if (whitelist_default_.get())

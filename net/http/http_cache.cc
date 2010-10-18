@@ -36,6 +36,23 @@
 
 namespace net {
 
+HttpCache::DefaultBackend::DefaultBackend(CacheType type,
+                                          const FilePath& path,
+                                          int max_bytes,
+                                          base::MessageLoopProxy* thread)
+    : type_(type),
+      path_(path),
+      max_bytes_(max_bytes),
+      thread_(thread) {
+}
+
+HttpCache::DefaultBackend::~DefaultBackend() {}
+
+// static
+HttpCache::BackendFactory* HttpCache::DefaultBackend::InMemory(int max_bytes) {
+  return new DefaultBackend(MEMORY_CACHE, FilePath(), max_bytes, NULL);
+}
+
 int HttpCache::DefaultBackend::CreateBackend(disk_cache::Backend** backend,
                                              CompletionCallback* callback) {
   DCHECK_GE(max_bytes_, 0);
