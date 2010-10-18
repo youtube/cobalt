@@ -116,7 +116,7 @@ class HttpCache : public HttpTransactionFactory,
   };
 
   // The disk cache is initialized lazily (by CreateTransaction) in this case.
-  // The HttpCache takes ownership of the |backend_factory|.
+  // The  HttpCache takes ownership of the |backend_factory|.
   HttpCache(HostResolver* host_resolver,
             DnsRRResolver* dnsrr_resolver,
             ProxyService* proxy_service,
@@ -200,7 +200,6 @@ class HttpCache : public HttpTransactionFactory,
 
   class BackendCallback;
   class MetadataWriter;
-  class SSLHostInfoFactoryAdaptor;
   class Transaction;
   class WorkItem;
   friend class Transaction;
@@ -353,8 +352,6 @@ class HttpCache : public HttpTransactionFactory,
   bool building_backend_;
 
   Mode mode_;
-
-  scoped_ptr<SSLHostInfoFactoryAdaptor> ssl_host_info_factory_;
 
   scoped_ptr<HttpTransactionFactory> network_layer_;
   scoped_ptr<disk_cache::Backend> disk_cache_;
