@@ -177,7 +177,6 @@ class HttpResponseBodyDrainerTest : public testing::Test {
       : session_(new HttpNetworkSession(
           NULL,
           NULL,
-          NULL /* ssl_host_info_factory */,
           ProxyService::CreateDirect(),
           NULL,
           new SSLConfigServiceDefaults,

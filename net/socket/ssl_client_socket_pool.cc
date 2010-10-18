@@ -8,7 +8,6 @@
 #include "base/values.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
-#include "net/base/ssl_host_info.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/socket/client_socket_factory.h"
@@ -77,7 +76,6 @@ SSLConnectJob::SSLConnectJob(
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
     DnsRRResolver* dnsrr_resolver,
-    SSLHostInfoFactory* ssl_host_info_factory,
     Delegate* delegate,
     NetLog* net_log)
     : ConnectJob(group_name, timeout_duration, delegate,
@@ -89,7 +87,6 @@ SSLConnectJob::SSLConnectJob(
       client_socket_factory_(client_socket_factory),
       resolver_(host_resolver),
       dnsrr_resolver_(dnsrr_resolver),
-      ssl_host_info_factory_(ssl_host_info_factory),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(this, &SSLConnectJob::OnIOComplete)) {}
 
@@ -191,14 +188,10 @@ int SSLConnectJob::DoLoop(int result) {
 int SSLConnectJob::DoTCPConnect() {
   DCHECK(tcp_pool_);
 
-  if (ssl_host_info_factory_ && SSLConfigService::snap_start_enabled()) {
-      ssl_host_info_.reset(
-          ssl_host_info_factory_->GetForHost(params_->hostname()));
-  }
-  if (ssl_host_info_.get()) {
+  if (params_->ssl_config().ssl_host_info.get()) {
     // This starts fetching the SSL host info from the disk cache for Snap
     // Start.
-    ssl_host_info_->Start();
+    params_->ssl_config().ssl_host_info->Start();
   }
 
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
@@ -284,7 +277,7 @@ int SSLConnectJob::DoSSLConnect() {
 
   ssl_socket_.reset(client_socket_factory_->CreateSSLClientSocket(
         transport_socket_handle_.release(), params_->hostname(),
-        params_->ssl_config(), ssl_host_info_.release()));
+        params_->ssl_config()));
   return ssl_socket_->Connect(&callback_);
 }
 
@@ -355,8 +348,7 @@ ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
   return new SSLConnectJob(group_name, request.params(), ConnectionTimeout(),
                            tcp_pool_, socks_pool_, http_proxy_pool_,
                            client_socket_factory_, host_resolver_,
-                           dnsrr_resolver_, ssl_host_info_factory_, delegate,
-                           net_log_);
+                           dnsrr_resolver_, delegate, net_log_);
 }
 
 SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
@@ -366,7 +358,6 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
     DnsRRResolver* dnsrr_resolver,
-    SSLHostInfoFactory* ssl_host_info_factory,
     NetLog* net_log)
     : tcp_pool_(tcp_pool),
       socks_pool_(socks_pool),
@@ -374,7 +365,6 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
       client_socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
       dnsrr_resolver_(dnsrr_resolver),
-      ssl_host_info_factory_(ssl_host_info_factory),
       net_log_(net_log) {
   base::TimeDelta max_transport_timeout = base::TimeDelta();
   base::TimeDelta pool_timeout;
@@ -400,7 +390,6 @@ SSLClientSocketPool::SSLClientSocketPool(
     ClientSocketPoolHistograms* histograms,
     HostResolver* host_resolver,
     DnsRRResolver* dnsrr_resolver,
-    SSLHostInfoFactory* ssl_host_info_factory,
     ClientSocketFactory* client_socket_factory,
     TCPClientSocketPool* tcp_pool,
     SOCKSClientSocketPool* socks_pool,
@@ -416,8 +405,7 @@ SSLClientSocketPool::SSLClientSocketPool(
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
             new SSLConnectJobFactory(tcp_pool, socks_pool, http_proxy_pool,
                                      client_socket_factory, host_resolver,
-                                     dnsrr_resolver, ssl_host_info_factory,
-                                     net_log)),
+                                     dnsrr_resolver, net_log)),
       ssl_config_service_(ssl_config_service) {
   if (ssl_config_service_)
     ssl_config_service_->AddObserver(this);

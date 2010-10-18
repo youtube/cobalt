@@ -48,7 +48,6 @@ enum {
 class ClientSocket;
 class MockClientSocket;
 class SSLClientSocket;
-class SSLHostInfo;
 
 struct MockConnect {
   // Asynchronous connection success.
@@ -534,8 +533,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
-      const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info);
+      const SSLConfig& ssl_config);
   SocketDataProviderArray<SocketDataProvider>& mock_data() {
     return mock_data_;
   }
@@ -690,7 +688,6 @@ class MockSSLClientSocket : public MockClientSocket {
       net::ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const net::SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info,
       net::SSLSocketDataProvider* socket);
   ~MockSSLClientSocket();
 
@@ -871,8 +868,7 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
-      const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info);
+      const SSLConfig& ssl_config);
 
   SocketDataProviderArray<DeterministicSocketData>& mock_data() {
     return mock_data_;
