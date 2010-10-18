@@ -30,7 +30,6 @@ namespace net {
 class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
-class SSLHostInfo;
 class X509Certificate;
 
 // An SSL client socket implemented with Mozilla NSS.
@@ -42,8 +41,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // settings.
   SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                      const std::string& hostname,
-                     const SSLConfig& ssl_config,
-                     SSLHostInfo* ssl_host_info);
+                     const SSLConfig& ssl_config);
   ~SSLClientSocketNSS();
 
   // SSLClientSocket methods:
@@ -215,13 +213,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   // When performing Snap Start we need to predict the NPN protocol which the
   // server is going to speak before we actually perform the handshake. Thus
-  // the last NPN protocol used is serialised in |ssl_host_info_|
+  // the last NPN protocol used is serialised in |ssl_config.ssl_host_info|
   // and kept in these fields:
   SSLClientSocket::NextProtoStatus predicted_npn_status_;
   std::string predicted_npn_proto_;
   bool predicted_npn_proto_used_;
-
-  scoped_ptr<SSLHostInfo> ssl_host_info_;
 
 #if defined(OS_WIN)
   // A CryptoAPI in-memory certificate store.  We use it for two purposes:

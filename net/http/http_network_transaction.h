@@ -29,6 +29,7 @@ class HttpNetworkSession;
 class HttpStream;
 class HttpStreamRequest;
 class IOBuffer;
+class SSLHostInfo;
 struct HttpRequestInfo;
 
 class HttpNetworkTransaction : public HttpTransaction,
@@ -55,6 +56,7 @@ class HttpNetworkTransaction : public HttpTransaction,
   virtual const HttpResponseInfo* GetResponseInfo() const;
   virtual LoadState GetLoadState() const;
   virtual uint64 GetUploadProgress() const;
+  virtual void SetSSLHostInfo(SSLHostInfo* host_info);
 
   // StreamRequest::Delegate methods:
   virtual void OnStreamReady(HttpStream* stream);
