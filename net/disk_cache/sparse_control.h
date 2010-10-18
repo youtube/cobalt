@@ -40,12 +40,7 @@ class SparseControl {
     kGetRangeOperation
   };
 
-  explicit SparseControl(EntryImpl* entry)
-      : entry_(entry), child_(NULL), operation_(kNoOperation), init_(false),
-        child_map_(child_data_.bitmap, kNumSparseBits, kNumSparseBits / 32),
-        ALLOW_THIS_IN_INITIALIZER_LIST(
-            child_callback_(this, &SparseControl::OnChildIOCompleted)),
-        user_callback_(NULL) {}
+  explicit SparseControl(EntryImpl* entry);
   ~SparseControl();
 
   // Initializes the object for the current entry. If this entry already stores

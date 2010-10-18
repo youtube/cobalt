@@ -89,6 +89,8 @@ FtpDirectoryListingParserLs::FtpDirectoryListingParserLs(
       current_time_(current_time) {
 }
 
+FtpDirectoryListingParserLs::~FtpDirectoryListingParserLs() {}
+
 bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
   if (line.empty() && !received_nonempty_line_) {
     // Allow empty lines only at the beginning of the listing. For example VMS
