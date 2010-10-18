@@ -39,7 +39,8 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
       state_(kEmpty),
       buffer_(0, capacity),
       pending_request_(false),
-      sync_reader_(sync_reader) {
+      sync_reader_(sync_reader),
+      message_loop_(NULL) {
 }
 
 AudioOutputController::~AudioOutputController() {

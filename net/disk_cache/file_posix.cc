@@ -250,7 +250,10 @@ void InFlightIO::InvokeCallback(BackgroundIO* operation, bool cancel_task) {
 namespace disk_cache {
 
 File::File(base::PlatformFile file)
-    : init_(true), mixed_(true), platform_file_(file) {
+    : init_(true),
+      mixed_(true),
+      platform_file_(file),
+      sync_platform_file_(base::kInvalidPlatformFileValue) {
 }
 
 bool File::Init(const FilePath& name) {
