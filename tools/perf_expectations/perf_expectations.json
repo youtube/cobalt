@@ -48,7 +48,7 @@
  "vista-release-dual-core/dhtml/times/t": {"improve": -22, "regress": 45},
  "vista-release-dual-core/intl1/times/t": {"improve": 180, "regress": 370},
  "vista-release-dual-core/intl2/times/t": {"improve": -180, "regress": 215},
- "vista-release-dual-core/morejs/times/t": {"improve": -160, "regress": -75},
+ "vista-release-dual-core/morejs/times/t": {"improve": -130, "regress": -60},
  "vista-release-dual-core/moz/times/t": {"improve": -3, "regress": 133},
  "vista-release-dual-core/startup/times/t": {"improve": -15, "regress": 15},
  "vista-release-dual-core/v8_benchmark/score/score": {"improve": 1650, "regress": 1070},
