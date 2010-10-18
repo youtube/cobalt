@@ -16,7 +16,7 @@
 //
 //   UTF8CharIterator iter(&str);
 //   while (!iter.End()) {
-//     VLOG(1) << iter.get();
+//     LOG(INFO) << iter.get();
 //     iter.Advance();
 //   }
 
