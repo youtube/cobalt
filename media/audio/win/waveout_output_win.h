@@ -7,6 +7,7 @@
 
 #include <windows.h>
 #include <mmsystem.h>
+#include <mmreg.h>
 
 #include "base/basictypes.h"
 #include "base/scoped_handle_win.h"
@@ -100,13 +101,13 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   UINT device_id_;
 
   // Windows native structure to encode the format parameters.
-  WAVEFORMATEX format_;
+  WAVEFORMATPCMEX format_;
 
   // Handle to the instance of the wave device.
   HWAVEOUT waveout_;
 
   // Pointer to the first allocated audio buffer. This object owns it.
-  WAVEHDR*  buffer_;
+  WAVEHDR* buffer_;
 
   // An event that is signaled when the callback thread is ready to stop.
   ScopedHandle stopped_event_;
