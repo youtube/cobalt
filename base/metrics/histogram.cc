@@ -28,9 +28,9 @@ scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
   scoped_refptr<Histogram> histogram(NULL);
 
   // Defensive code.
-  if (minimum <= 0)
+  if (minimum < 1)
     minimum = 1;
-  if (maximum >= kSampleType_MAX)
+  if (maximum > kSampleType_MAX - 1)
     maximum = kSampleType_MAX - 1;
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
@@ -38,7 +38,7 @@ scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
     StatisticsRecorder::FindHistogram(name, &histogram);
   }
 
-  DCHECK(HISTOGRAM == histogram->histogram_type());
+  DCHECK_EQ(HISTOGRAM, histogram->histogram_type());
   DCHECK(histogram->HasConstructorArguments(minimum, maximum, bucket_count));
   histogram->SetFlags(flags);
   return histogram;
@@ -93,13 +93,13 @@ bool Histogram::PrintEmptyBucket(size_t index) const {
 }
 
 void Histogram::Add(int value) {
-  if (value >= kSampleType_MAX)
+  if (value > kSampleType_MAX - 1)
     value = kSampleType_MAX - 1;
   if (value < 0)
     value = 0;
   size_t index = BucketIndex(value);
-  DCHECK(value >= ranges(index));
-  DCHECK(value < ranges(index + 1));
+  DCHECK_GE(value, ranges(index));
+  DCHECK_LT(value, ranges(index + 1));
   Accumulate(value, 1, index);
 }
 
@@ -184,30 +184,30 @@ void Histogram::WriteAscii(bool graph_it, const std::string& newline,
     output->append(newline);
     past += current;
   }
-  DCHECK(past == sample_count);
+  DCHECK_EQ(sample_count, past);
 }
 
 bool Histogram::ValidateBucketRanges() const {
   // Standard assertions that all bucket ranges should satisfy.
-  DCHECK(ranges_.size() == bucket_count_ + 1);
-  DCHECK_EQ(ranges_[0], 0);
-  DCHECK(declared_min() == ranges_[1]);
-  DCHECK(declared_max() == ranges_[bucket_count_ - 1]);
-  DCHECK(kSampleType_MAX == ranges_[bucket_count_]);
+  DCHECK_EQ(bucket_count_ + 1, ranges_.size());
+  DCHECK_EQ(0, ranges_[0]);
+  DCHECK_EQ(declared_min(), ranges_[1]);
+  DCHECK_EQ(declared_max(), ranges_[bucket_count_ - 1]);
+  DCHECK_EQ(kSampleType_MAX, ranges_[bucket_count_]);
   return true;
 }
 
 void Histogram::Initialize() {
   sample_.Resize(*this);
-  if (declared_min_ <= 0)
+  if (declared_min_ < 1)
     declared_min_ = 1;
-  if (declared_max_ >= kSampleType_MAX)
+  if (declared_max_ > kSampleType_MAX - 1)
     declared_max_ = kSampleType_MAX - 1;
-  DCHECK(declared_min_ <= declared_max_);
+  DCHECK_LE(declared_min_, declared_max_);
   DCHECK_GT(bucket_count_, 1u);
   size_t maximal_bucket_count = declared_max_ - declared_min_ + 2;
-  DCHECK(bucket_count_ <= maximal_bucket_count);
-  DCHECK_EQ(ranges_[0], 0);
+  DCHECK_LE(bucket_count_, maximal_bucket_count);
+  DCHECK_EQ(0, ranges_[0]);
   ranges_[bucket_count_] = kSampleType_MAX;
   InitializeBucketRange();
   DCHECK(ValidateBucketRanges());
@@ -245,20 +245,20 @@ void Histogram::InitializeBucketRange() {
     SetBucketRange(bucket_index, current);
   }
 
-  DCHECK(bucket_count() == bucket_index);
+  DCHECK_EQ(bucket_count(), bucket_index);
 }
 
 size_t Histogram::BucketIndex(Sample value) const {
   // Use simple binary search.  This is very general, but there are better
   // approaches if we knew that the buckets were linearly distributed.
-  DCHECK(ranges(0) <= value);
-  DCHECK(ranges(bucket_count()) > value);
+  DCHECK_LE(ranges(0), value);
+  DCHECK_GT(ranges(bucket_count()), value);
   size_t under = 0;
   size_t over = bucket_count();
   size_t mid;
 
   do {
-    DCHECK(over >= under);
+    DCHECK_GE(over, under);
     mid = (over + under)/2;
     if (mid == under)
       break;
@@ -268,7 +268,8 @@ size_t Histogram::BucketIndex(Sample value) const {
       over = mid;
   } while (true);
 
-  DCHECK(ranges(mid) <= value && ranges(mid+1) > value);
+  DCHECK_LE(ranges(mid), value);
+  DCHECK_GT(ranges(mid+1), value);
   return mid;
 }
 
@@ -278,7 +279,7 @@ size_t Histogram::BucketIndex(Sample value) const {
 // buckets), so we need this to make it possible to see what is going on and
 // not have 0-graphical-height buckets.
 double Histogram::GetBucketSize(Count current, size_t i) const {
-  DCHECK(ranges(i + 1) > ranges(i));
+  DCHECK_GT(ranges(i + 1), ranges(i));
   static const double kTransitionWidth = 5;
   double denominator = ranges(i + 1) - ranges(i);
   if (denominator > kTransitionWidth)
@@ -325,7 +326,7 @@ bool Histogram::HasConstructorTimeDeltaArguments(TimeDelta minimum,
 // Accessor methods
 
 void Histogram::SetBucketRange(size_t i, Sample value) {
-  DCHECK(bucket_count_ > i);
+  DCHECK_GT(bucket_count_, i);
   ranges_[i] = value;
 }
 
@@ -409,7 +410,7 @@ void Histogram::WriteAsciiBucketGraph(double current_size, double max_size,
 // static
 std::string Histogram::SerializeHistogramInfo(const Histogram& histogram,
                                               const SampleSet& snapshot) {
-  DCHECK(histogram.histogram_type() != NOT_VALID_IN_RENDERER);
+  DCHECK_NE(NOT_VALID_IN_RENDERER, histogram.histogram_type());
 
   Pickle pickle;
   pickle.WriteString(histogram.histogram_name());
@@ -461,7 +462,7 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
 
   Flags flags = static_cast<Flags>(pickle_flags & ~kIPCSerializationSourceFlag);
 
-  DCHECK(histogram_type != NOT_VALID_IN_RENDERER);
+  DCHECK_NE(NOT_VALID_IN_RENDERER, histogram_type);
 
   scoped_refptr<Histogram> render_histogram(NULL);
 
@@ -474,21 +475,21 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   } else if (histogram_type == BOOLEAN_HISTOGRAM) {
     render_histogram = BooleanHistogram::FactoryGet(histogram_name, flags);
   } else {
-    LOG(ERROR) << "Error Deserializing Histogram Unknown histogram_type: " <<
-        histogram_type;
+    LOG(ERROR) << "Error Deserializing Histogram Unknown histogram_type: "
+               << histogram_type;
     return false;
   }
 
-  DCHECK(declared_min == render_histogram->declared_min());
-  DCHECK(declared_max == render_histogram->declared_max());
-  DCHECK(bucket_count == render_histogram->bucket_count());
-  DCHECK(histogram_type == render_histogram->histogram_type());
+  DCHECK_EQ(render_histogram->declared_min(), declared_min);
+  DCHECK_EQ(render_histogram->declared_max(), declared_max);
+  DCHECK_EQ(render_histogram->bucket_count(), bucket_count);
+  DCHECK_EQ(render_histogram->histogram_type(), histogram_type);
 
   if (render_histogram->flags() & kIPCSerializationSourceFlag) {
-    DLOG(INFO) << "Single process mode, histogram observed and not copied: " <<
-        histogram_name;
+    DVLOG(1) << "Single process mode, histogram observed and not copied: "
+             << histogram_name;
   } else {
-    DCHECK(flags == (flags & render_histogram->flags()));
+    DCHECK_EQ(flags & render_histogram->flags(), flags);
     render_histogram->AddSampleSet(sample);
   }
 
@@ -513,7 +514,7 @@ void Histogram::SampleSet::Resize(const Histogram& histogram) {
 }
 
 void Histogram::SampleSet::CheckSize(const Histogram& histogram) const {
-  DCHECK(counts_.size() == histogram.bucket_count());
+  DCHECK_EQ(histogram.bucket_count(), counts_.size());
 }
 
 
@@ -539,7 +540,7 @@ Count Histogram::SampleSet::TotalCount() const {
 }
 
 void Histogram::SampleSet::Add(const SampleSet& other) {
-  DCHECK(counts_.size() == other.counts_.size());
+  DCHECK_EQ(counts_.size(), other.counts_.size());
   sum_ += other.sum_;
   square_sum_ += other.square_sum_;
   for (size_t index = 0; index < counts_.size(); ++index)
@@ -547,7 +548,7 @@ void Histogram::SampleSet::Add(const SampleSet& other) {
 }
 
 void Histogram::SampleSet::Subtract(const SampleSet& other) {
-  DCHECK(counts_.size() == other.counts_.size());
+  DCHECK_EQ(counts_.size(), other.counts_.size());
   // Note: Race conditions in snapshotting a sum or square_sum may lead to
   // (temporary) negative values when snapshots are later combined (and deltas
   // calculated).  As a result, we don't currently CHCEK() for positive values.
@@ -609,9 +610,9 @@ scoped_refptr<Histogram> LinearHistogram::FactoryGet(const std::string& name,
                                                      Flags flags) {
   scoped_refptr<Histogram> histogram(NULL);
 
-  if (minimum <= 0)
+  if (minimum < 1)
     minimum = 1;
-  if (maximum >= kSampleType_MAX)
+  if (maximum > kSampleType_MAX - 1)
     maximum = kSampleType_MAX - 1;
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
@@ -619,7 +620,7 @@ scoped_refptr<Histogram> LinearHistogram::FactoryGet(const std::string& name,
     StatisticsRecorder::FindHistogram(name, &histogram);
   }
 
-  DCHECK(LINEAR_HISTOGRAM == histogram->histogram_type());
+  DCHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
   DCHECK(histogram->HasConstructorArguments(minimum, maximum, bucket_count));
   histogram->SetFlags(flags);
   return histogram;
@@ -696,7 +697,7 @@ void LinearHistogram::InitializeBucketRange() {
 }
 
 double LinearHistogram::GetBucketSize(Count current, size_t i) const {
-  DCHECK(ranges(i + 1) > ranges(i));
+  DCHECK_GT(ranges(i + 1), ranges(i));
   // Adjacent buckets with different widths would have "surprisingly" many (few)
   // samples in a histogram if we didn't normalize this way.
   double denominator = ranges(i + 1) - ranges(i);
@@ -716,7 +717,7 @@ scoped_refptr<Histogram> BooleanHistogram::FactoryGet(const std::string& name,
     StatisticsRecorder::FindHistogram(name, &histogram);
   }
 
-  DCHECK(BOOLEAN_HISTOGRAM == histogram->histogram_type());
+  DCHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
   histogram->SetFlags(flags);
   return histogram;
 }
@@ -785,7 +786,7 @@ CustomHistogram::CustomHistogram(const std::string& name,
 }
 
 void CustomHistogram::InitializeBucketRange() {
-  DCHECK(ranges_vector_->size() <= bucket_count());
+  DCHECK_LE(ranges_vector_->size(), bucket_count());
   for (size_t index = 0; index < ranges_vector_->size(); ++index)
     SetBucketRange(index, (*ranges_vector_)[index]);
 }
@@ -896,7 +897,7 @@ void StatisticsRecorder::GetHistograms(Histograms* output) {
   for (HistogramMap::iterator it = histograms_->begin();
        histograms_->end() != it;
        ++it) {
-    DCHECK(it->second->histogram_name() == it->first);
+    DCHECK_EQ(it->first, it->second->histogram_name());
     output->push_back(it->second);
   }
 }
