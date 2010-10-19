@@ -471,15 +471,10 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
     // Before making a request to source for data we need to determine the
     // delay (in bytes) for the requested data to be played.
 
-    // Amount of data currently in the ALSA's buffer.
-    uint32 alsa_buffered_frames = (alsa_buffer_frames_ - GetAvailableFrames());
+    uint32 buffer_delay = buffer_->forward_bytes() * bytes_per_frame_ /
+        bytes_per_output_frame_;
 
-    // |buffer_delay| includes our buffer and ALSA's buffer.
-    uint32 buffer_delay = alsa_buffered_frames * bytes_per_frame_ +
-        buffer_->forward_bytes() * bytes_per_frame_ / bytes_per_output_frame_;
-
-    uint32 hardware_delay = (GetCurrentDelay() - alsa_buffered_frames) *
-        bytes_per_frame_;
+    uint32 hardware_delay = GetCurrentDelay() * bytes_per_frame_;
 
     scoped_refptr<media::DataBuffer> packet =
         new media::DataBuffer(packet_size_);
