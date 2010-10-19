@@ -460,6 +460,8 @@
           'sync_socket.h',
           'sync_socket_win.cc',
           'sync_socket_posix.cc',
+          'thread_restrictions.h',
+          'thread_restrictions.cc',
           'time_mac.cc',
           'time_posix.cc',
           'version.cc',
