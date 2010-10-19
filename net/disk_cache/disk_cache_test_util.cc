@@ -125,6 +125,10 @@ ScopedTestCache::~ScopedTestCache() {
 volatile int g_cache_tests_received = 0;
 volatile bool g_cache_tests_error = 0;
 
+CallbackTest::CallbackTest(bool reuse) : result_(-1), reuse_(reuse ? 0 : 1) {}
+
+CallbackTest::~CallbackTest() {}
+
 // On the actual callback, increase the number of tests received and check for
 // errors (an unexpected test received)
 void CallbackTest::RunWithParams(const Tuple1<int>& params) {

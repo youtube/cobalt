@@ -24,6 +24,8 @@ URLRequestJob* URLRequestFilter::Factory(URLRequest* request,
   return GetInstance()->FindRequestHandler(request, scheme);
 }
 
+URLRequestFilter::~URLRequestFilter() {}
+
 void URLRequestFilter::AddHostnameHandler(const std::string& scheme,
     const std::string& hostname, URLRequest::ProtocolFactory* factory) {
   hostname_handler_map_[make_pair(scheme, hostname)] = factory;
@@ -107,6 +109,8 @@ void URLRequestFilter::ClearHandlers() {
   hostname_handler_map_.clear();
   hit_count_ = 0;
 }
+
+URLRequestFilter::URLRequestFilter() : hit_count_(0) { }
 
 URLRequestJob* URLRequestFilter::FindRequestHandler(URLRequest* request,
                                                     const std::string& scheme) {
