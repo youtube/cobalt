@@ -131,8 +131,18 @@ const uint32 kProcessAccessWaitForTermination     = 0;
 // installers.
 enum {
   PROCESS_END_NORMAL_TERMINATION = 0,
-  PROCESS_END_KILLED_BY_USER     = 1,
-  PROCESS_END_PROCESS_WAS_HUNG   = 2
+  PROCESS_END_PROCESS_WAS_KILLED = 1,
+  PROCESS_END_PROCESS_WAS_HUNG = 2,
+};
+
+// Return status values from GetTerminationStatus
+enum TerminationStatus {
+  TERMINATION_STATUS_NORMAL_TERMINATION = 0,  // zero exit status
+  TERMINATION_STATUS_PROCESS_WAS_KILLED = 1,  // e.g. SIGKILL or task manager
+  TERMINATION_STATUS_PROCESS_WAS_HUNG = 2,
+  TERMINATION_STATUS_PROCESS_CRASHED = 3,  // e.g. Segmentation fault
+  TERMINATION_STATUS_ABNORMAL_TERMINATION = 4,  // non-zero exit status
+  TERMINATION_STATUS_STILL_RUNNING = 5  // child hasn't exited yet
 };
 
 // Returns the id of the current process.
@@ -188,7 +198,7 @@ bool AdjustOOMScore(ProcessId process, int score);
 #endif
 
 #if defined(OS_POSIX)
-// Close all file descriptors, expect those which are a destination in the
+// Close all file descriptors, except those which are a destination in the
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
 void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
@@ -355,10 +365,12 @@ bool KillProcessGroup(ProcessHandle process_group_id);
 bool KillProcessById(ProcessId process_id, int exit_code, bool wait);
 #endif
 
-// Get the termination status (exit code) of the process and return true if the
-// status indicates the process crashed. |child_exited| is set to true iff the
-// child process has terminated. (|child_exited| may be NULL.)
-bool DidProcessCrash(bool* child_exited, ProcessHandle handle);
+// Get the termination status (exit code) of the process and return an
+// appropriate interpretation of the result. |exit_code| is set to
+// the status returned by waitpid() on Posix, and from
+// GetExitCodeProcess() on Windows.  |exit_code| may be NULL if the
+// caller is not interested in it.
+TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code);
 
 // Waits for process to exit. In POSIX systems, if the process hasn't been
 // signaled then puts the exit code in |exit_code|; otherwise it's considered

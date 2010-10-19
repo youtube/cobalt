@@ -394,22 +394,33 @@ bool KillProcess(ProcessHandle process, int exit_code, bool wait) {
   return result;
 }
 
-bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
-  DWORD exitcode = 0;
+TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
+  DWORD tmp_exit_code = 0;
 
-  if (!::GetExitCodeProcess(handle, &exitcode)) {
+  if (!::GetExitCodeProcess(handle, &tmp_exit_code)) {
     NOTREACHED();
-    // Assume the child has exited.
-    if (child_exited)
-      *child_exited = true;
-    return false;
+    if (exit_code) {
+      // This really is a random number.  We haven't received any
+      // information about the exit code, presumably because this
+      // process doesn't have permission to get the exit code, or
+      // because of some other cause for GetExitCodeProcess to fail
+      // (MSDN docs don't give the possible failure error codes for
+      // this function, so it could be anything).  But we don't want
+      // to leave exit_code uninitialized, since that could cause
+      // random interpretations of the exit code.  So we assume it
+      // terminated "normally" in this case.
+      *exit_code = TERMINATION_STATUS_NORMAL_TERMINATION;
+    }
+    // Assume the child has exited normally if we can't get the exit
+    // code.
+    return TERMINATION_STATUS_NORMAL_TERMINATION;
   }
-  if (exitcode == STILL_ACTIVE) {
+  if (tmp_exit_code == STILL_ACTIVE) {
     DWORD wait_result = WaitForSingleObject(handle, 0);
     if (wait_result == WAIT_TIMEOUT) {
-      if (child_exited)
-        *child_exited = false;
-      return false;
+      if (exit_code)
+        *exit_code = wait_result;
+      return TERMINATION_STATUS_STILL_RUNNING;
     }
 
     DCHECK_EQ(WAIT_OBJECT_0, wait_result);
@@ -417,27 +428,29 @@ bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
     // Strange, the process used 0x103 (STILL_ACTIVE) as exit code.
     NOTREACHED();
 
-    return false;
+    return TERMINATION_STATUS_ABNORMAL_TERMINATION;
   }
 
-  // We're sure the child has exited.
-  if (child_exited)
-    *child_exited = true;
+  if (exit_code)
+    *exit_code = tmp_exit_code;
 
   // Warning, this is not generic code; it heavily depends on the way
   // the rest of the code kills a process.
 
-  if (exitcode == PROCESS_END_NORMAL_TERMINATION ||
-      exitcode == PROCESS_END_KILLED_BY_USER ||
-      exitcode == PROCESS_END_PROCESS_WAS_HUNG ||
-      exitcode == 0xC0000354 ||     // STATUS_DEBUGGER_INACTIVE.
-      exitcode == 0xC000013A ||     // Control-C/end session.
-      exitcode == 0x40010004) {     // Debugger terminated process/end session.
-    return false;
+  switch (tmp_exit_code) {
+    case PROCESS_END_NORMAL_TERMINATION:
+      return TERMINATION_STATUS_NORMAL_TERMINATION;
+    case 0xC0000354:  // STATUS_DEBUGGER_INACTIVE.
+    case 0xC000013A:  // Control-C/end session.
+    case 0x40010004:  // Debugger terminated process/end session.
+    case PROCESS_END_PROCESS_WAS_KILLED:  // Task manager kill.
+      return TERMINATION_STATUS_PROCESS_WAS_KILLED;
+    case PROCESS_END_PROCESS_WAS_HUNG:
+      return TERMINATION_STATUS_PROCESS_WAS_HUNG;
+    default:
+      // All other exit codes indicate crashes.
+      return TERMINATION_STATUS_PROCESS_CRASHED;
   }
-
-  // All other exit codes indicate crashes.
-  return true;
 }
 
 bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
