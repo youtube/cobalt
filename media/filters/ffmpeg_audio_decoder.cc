@@ -186,12 +186,10 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
   if (result < 0 ||
       output_buffer_size < 0 ||
       static_cast<size_t>(output_buffer_size) > kOutputBufferSize) {
-    LOG(INFO) << "Error decoding an audio frame with timestamp: "
-              << input->GetTimestamp().InMicroseconds() << " us"
-              << " , duration: "
-              << input->GetDuration().InMicroseconds() << " us"
-              << " , packet size: "
-              << input->GetDataSize() << " bytes";
+    VLOG(1) << "Error decoding an audio frame with timestamp: "
+            << input->GetTimestamp().InMicroseconds() << " us, duration: "
+            << input->GetDuration().InMicroseconds() << " us, packet size: "
+            << input->GetDataSize() << " bytes";
     DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
     return;
   }

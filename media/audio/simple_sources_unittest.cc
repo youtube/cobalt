@@ -19,12 +19,11 @@ void GenerateRandomData(char* buffer, uint32 len) {
     called = true;
     int seed = static_cast<int>(base::Time::Now().ToInternalValue());
     srand(seed);
-    LOG(INFO) << "Random seed: " << seed;
+    VLOG(1) << "Random seed: " << seed;
   }
 
-  for (uint32 i = 0; i < len; i++) {
+  for (uint32 i = 0; i < len; i++)
     buffer[i] = static_cast<char>(rand());
-  }
 }
 
 }  // namespace

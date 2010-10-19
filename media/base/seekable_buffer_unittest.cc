@@ -25,7 +25,7 @@ class SeekableBufferTest : public testing::Test {
     // Setup seed.
     size_t seed = static_cast<int32>(base::Time::Now().ToInternalValue());
     srand(seed);
-    LOG(INFO) << "Random seed: " << seed;
+    VLOG(1) << "Random seed: " << seed;
 
     // Creates a test data.
     for (size_t i = 0; i < kDataSize; i++)

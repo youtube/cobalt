@@ -495,10 +495,10 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
   // will attempt to use the lowest-index video stream, if present, followed by
   // the lowest-index audio stream.
   if (av_seek_frame(format_context_, -1, time.InMicroseconds(), flags) < 0) {
-    // Use LOG(INFO) instead of NOTIMPLEMENTED() to prevent the message being
+    // Use VLOG(1) instead of NOTIMPLEMENTED() to prevent the message being
     // captured from stdout and contaminates testing.
     // TODO(scherkus): Implement this properly and signal error (BUG=23447).
-    LOG(INFO) << "Not implemented";
+    VLOG(1) << "Not implemented";
   }
 
   // Notify we're finished seeking.
