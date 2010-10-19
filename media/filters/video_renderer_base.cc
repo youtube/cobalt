@@ -273,7 +273,7 @@ void VideoRendererBase::ThreadMain() {
     scoped_refptr<VideoFrame> next_frame = frames_queue_ready_.front();
     if (next_frame->IsEndOfStream()) {
       state_ = kEnded;
-      DLOG(INFO) << "Video render gets EOS";
+      DVLOG(1) << "Video render gets EOS";
       host()->NotifyEnded();
       continue;
     }

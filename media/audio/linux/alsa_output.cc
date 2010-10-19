@@ -369,9 +369,8 @@ void AlsaPcmOutputStream::OpenTask(uint32 packet_size) {
                              micros_per_packet_ * 2);
   if (requested_device_name_ == kAutoSelectDevice) {
     playback_handle_ = AutoSelectDevice(latency_micros_);
-    if (playback_handle_) {
-      LOG(INFO) << "Auto-selected device: " << device_name_;
-    }
+    if (playback_handle_)
+      VLOG(1) << "Auto-selected device: " << device_name_;
   } else {
     device_name_ = requested_device_name_;
     playback_handle_ = alsa_util::OpenPlaybackDevice(wrapper_,
