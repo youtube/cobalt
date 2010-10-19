@@ -38,6 +38,7 @@ class HttpResponseBodyDrainer;
 class SpdySessionPool;
 class SOCKSClientSocketPool;
 class SSLClientSocketPool;
+class SSLHostInfoFactory;
 class TCPClientSocketPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
@@ -47,6 +48,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   HttpNetworkSession(
       HostResolver* host_resolver,
       DnsRRResolver* dnsrr_resolver,
+      SSLHostInfoFactory* ssl_host_info_factory,
       ProxyService* proxy_service,
       ClientSocketFactory* client_socket_factory,
       SSLConfigService* ssl_config_service,

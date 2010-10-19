@@ -416,10 +416,6 @@ uint64 HttpNetworkTransaction::GetUploadProgress() const {
   return stream_->GetUploadProgress();
 }
 
-void HttpNetworkTransaction::SetSSLHostInfo(SSLHostInfo* host_info) {
-  ssl_config_.ssl_host_info = host_info;
-}
-
 void HttpNetworkTransaction::OnStreamReady(HttpStream* stream) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK(stream_request_.get());

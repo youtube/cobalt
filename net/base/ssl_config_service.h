@@ -77,12 +77,6 @@ struct SSLConfig {
   std::string next_protos;
 
   scoped_refptr<X509Certificate> client_cert;
-
-  // ssl_host_info contains an optional context that is needed for Snap Start.
-  // If provided, the SSL socket will assume that the application protocol is
-  // client-speaks-first. Also needs SSLConfigService::EnableSnapStart to
-  // have been called.
-  scoped_refptr<SSLHostInfo> ssl_host_info;
 };
 
 // The interface for retrieving the SSL configuration.  This interface

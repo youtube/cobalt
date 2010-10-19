@@ -67,7 +67,8 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(transport,
-          test_server.host_port_pair().host(), kDefaultSSLConfig));
+          test_server.host_port_pair().host(), kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -110,7 +111,8 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(transport,
-          test_server.host_port_pair().host(), kDefaultSSLConfig));
+          test_server.host_port_pair().host(), kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -152,7 +154,8 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(transport,
-          test_server.host_port_pair().host(), kDefaultSSLConfig));
+          test_server.host_port_pair().host(), kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -197,7 +200,8 @@ TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(transport,
-          test_server.host_port_pair().host(), kDefaultSSLConfig));
+          test_server.host_port_pair().host(), kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -247,7 +251,8 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(transport,
-          test_server.host_port_pair().host(), ssl_config));
+          test_server.host_port_pair().host(), ssl_config,
+          NULL /* ssl_host_info */));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -297,7 +302,8 @@ TEST_F(SSLClientSocketTest, Read) {
       socket_factory_->CreateSSLClientSocket(
           transport,
           test_server.host_port_pair().host(),
-          kDefaultSSLConfig));
+          kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   rv = sock->Connect(&callback);
   if (rv != net::OK) {
@@ -357,7 +363,8 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
       socket_factory_->CreateSSLClientSocket(
           transport,
           test_server.host_port_pair().host(),
-          kDefaultSSLConfig));
+          kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   rv = sock->Connect(&callback);
   if (rv != net::OK) {
@@ -414,7 +421,8 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(transport,
-          test_server.host_port_pair().host(), kDefaultSSLConfig));
+          test_server.host_port_pair().host(), kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   rv = sock->Connect(&callback);
   if (rv != net::OK) {
@@ -467,7 +475,8 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(transport,
-          test_server.host_port_pair().host(), kDefaultSSLConfig));
+          test_server.host_port_pair().host(), kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   rv = sock->Connect(&callback);
   if (rv != net::OK) {
@@ -540,7 +549,8 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig));
+          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
+          NULL /* ssl_host_info */));
 
   rv = sock->Connect(&callback);
   EXPECT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
