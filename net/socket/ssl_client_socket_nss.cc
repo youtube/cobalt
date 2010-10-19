@@ -400,7 +400,8 @@ HCERTSTORE SSLClientSocketNSS::cert_store_ = NULL;
 
 SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                                        const std::string& hostname,
-                                       const SSLConfig& ssl_config)
+                                       const SSLConfig& ssl_config,
+                                       SSLHostInfo* ssl_host_info)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketNSS::BufferSendComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
@@ -431,7 +432,8 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       nss_bufs_(NULL),
       net_log_(transport_socket->socket()->NetLog()),
       predicted_npn_status_(kNextProtoUnsupported),
-      predicted_npn_proto_used_(false) {
+      predicted_npn_proto_used_(false),
+      ssl_host_info_(ssl_host_info) {
   EnterFunction("");
 }
 
@@ -467,9 +469,9 @@ static const uint8 kSnapStartInfoVersion = 0;
 
 // SaveSnapStartInfo serialises the information needed to perform a Snap Start
 // with this server in the future (if any) and tells
-// |ssl_config_.ssl_host_info| to preserve it.
+// |ssl_host_info_| to preserve it.
 void SSLClientSocketNSS::SaveSnapStartInfo() {
-  if (!ssl_config_.ssl_host_info.get())
+  if (!ssl_host_info_.get())
     return;
 
   SECStatus rv;
@@ -592,7 +594,7 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
   DCHECK_EQ(j, len);
 
   LOG(ERROR) << "Setting Snap Start info " << hostname_ << " " << len;
-  ssl_config_.ssl_host_info->Set(std::string(
+  ssl_host_info_->Set(std::string(
         reinterpret_cast<const char *>(&data[0]), len));
 
   CERT_DestroyCertList(cert_list);
@@ -736,7 +738,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
     return rv;
   }
 
-  if (ssl_config_.snap_start_enabled && ssl_config_.ssl_host_info.get()) {
+  if (ssl_config_.snap_start_enabled && ssl_host_info_.get()) {
     GotoState(STATE_SNAP_START_LOAD_INFO);
   } else {
     GotoState(STATE_HANDSHAKE);
@@ -1969,12 +1971,12 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
 
 int SSLClientSocketNSS::DoSnapStartLoadInfo() {
   EnterFunction("");
-  int rv = ssl_config_.ssl_host_info->WaitForDataReady(&handshake_io_callback_);
+  int rv = ssl_host_info_->WaitForDataReady(&handshake_io_callback_);
 
   if (rv == OK) {
     LOG(ERROR) << "SSL host info size " << hostname_ << " "
-               << ssl_config_.ssl_host_info->data().size();
-    if (LoadSnapStartInfo(ssl_config_.ssl_host_info->data())) {
+               << ssl_host_info_->data().size();
+    if (LoadSnapStartInfo(ssl_host_info_->data())) {
       pseudo_connected_ = true;
       GotoState(STATE_SNAP_START_WAIT_FOR_WRITE);
       if (user_connect_callback_)

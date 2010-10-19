@@ -793,8 +793,10 @@ int SocketStream::DoSOCKSConnectComplete(int result) {
 
 int SocketStream::DoSSLConnect() {
   DCHECK(factory_);
+  // TODO(agl): look into plumbing SSLHostInfo here.
   socket_.reset(factory_->CreateSSLClientSocket(
-      socket_.release(), url_.HostNoBrackets(), ssl_config_));
+      socket_.release(), url_.HostNoBrackets(), ssl_config_,
+      NULL /* ssl_host_info */));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   metrics_->OnSSLConnection();
   return socket_->Connect(&io_callback_);
