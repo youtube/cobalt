@@ -84,12 +84,11 @@ bool PipelineImpl::Start(FilterFactory* factory,
   DCHECK(factory);
   scoped_ptr<PipelineCallback> callback(start_callback);
   if (running_) {
-    LOG(INFO) << "Media pipeline is already running";
+    VLOG(1) << "Media pipeline is already running";
     return false;
   }
-  if (!factory) {
+  if (!factory)
     return false;
-  }
 
   // Kick off initialization!
   running_ = true;
@@ -107,7 +106,7 @@ void PipelineImpl::Stop(PipelineCallback* stop_callback) {
   AutoLock auto_lock(lock_);
   scoped_ptr<PipelineCallback> callback(stop_callback);
   if (!running_) {
-    LOG(INFO) << "Media pipeline has already stopped";
+    VLOG(1) << "Media pipeline has already stopped";
     return;
   }
 
@@ -121,7 +120,7 @@ void PipelineImpl::Seek(base::TimeDelta time,
   AutoLock auto_lock(lock_);
   scoped_ptr<PipelineCallback> callback(seek_callback);
   if (!running_) {
-    LOG(INFO) << "Media pipeline must be running";
+    VLOG(1) << "Media pipeline must be running";
     return;
   }
 
@@ -438,7 +437,7 @@ PipelineImpl::State PipelineImpl::FindNextState(State current) {
 void PipelineImpl::SetError(PipelineError error) {
   DCHECK(IsRunning());
   DCHECK(error != PIPELINE_OK) << "PIPELINE_OK isn't an error!";
-  LOG(INFO) << "Media pipeline error: " << error;
+  VLOG(1) << "Media pipeline error: " << error;
 
   message_loop_->PostTask(FROM_HERE,
      NewRunnableMethod(this, &PipelineImpl::ErrorChangedTask, error));
@@ -764,7 +763,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
   if (state_ != kStarted && state_ != kEnded) {
     // TODO(scherkus): should we run the callback?  I'm tempted to say the API
     // will only execute the first Seek() request.
-    LOG(INFO) << "Media pipeline has not started, ignoring seek to "
+    VLOG(1) << "Media pipeline has not started, ignoring seek to "
               << time.InMicroseconds();
     delete seek_callback;
     return;

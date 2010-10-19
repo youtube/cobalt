@@ -636,17 +636,17 @@ TEST_F(FFmpegTest, VideoPlayedCollapse) {
   SeekTo(0.5);
   ReadRemainingFile();
   EXPECT_TRUE(StepDecodeVideo());
-  LOG(INFO) << decoded_video_time();
+  VLOG(1) << decoded_video_time();
 
   SeekTo(2.83);
   ReadRemainingFile();
   EXPECT_TRUE(StepDecodeVideo());
-  LOG(INFO) << decoded_video_time();
+  VLOG(1) << decoded_video_time();
 
   SeekTo(0.4);
   ReadRemainingFile();
   EXPECT_TRUE(StepDecodeVideo());
-  LOG(INFO) << decoded_video_time();
+  VLOG(1) << decoded_video_time();
 
   CloseCodecs();
   CloseFile();
