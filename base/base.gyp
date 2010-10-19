@@ -191,6 +191,14 @@
           'sources': [
             'nix/xdg_util_unittest.cc',
           ],
+          'conditions': [
+            [ 'linux_use_tcmalloc==1', {
+                'dependencies': [
+                  'allocator/allocator.gyp:allocator',
+                ],
+              },
+            ],
+          ],
           'dependencies': [
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:nss',

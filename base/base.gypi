@@ -179,8 +179,6 @@
           'process_util_posix.cc',
           'process_util_win.cc',
           'process_win.cc',
-          'profiler.cc',
-          'profiler.h',
           'rand_util.cc',
           'rand_util.h',
           'rand_util_posix.cc',
@@ -548,12 +546,6 @@
                     'NO_TCMALLOC',
                   ],
                 },
-              },
-            ],
-            [ 'linux_use_tcmalloc==1', {
-                'dependencies': [
-                  'allocator/allocator.gyp:allocator',
-                ],
               },
             ],
           ],
