@@ -193,8 +193,6 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
         sleep_ms *= 2;
     }
 
-    // If we're waiting and the child hasn't died by now, force it
-    // with a SIGKILL.
     if (!exited)
       result = kill(process_id, SIGKILL) == 0;
   }
@@ -588,45 +586,40 @@ void RaiseProcessToHighPriority() {
   // setpriority() or sched_getscheduler, but these all require extra rights.
 }
 
-TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
-  int status = 0;
+bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
+  int status;
   const pid_t result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
   if (result == -1) {
     PLOG(ERROR) << "waitpid(" << handle << ")";
-    if (exit_code)
-      *exit_code = 0;
-    return TERMINATION_STATUS_NORMAL_TERMINATION;
+    if (child_exited)
+      *child_exited = false;
+    return false;
   } else if (result == 0) {
     // the child hasn't exited yet.
-    if (exit_code)
-      *exit_code = 0;
-    return TERMINATION_STATUS_STILL_RUNNING;
+    if (child_exited)
+      *child_exited = false;
+    return false;
   }
 
-  if (exit_code)
-    *exit_code = status;
+  if (child_exited)
+    *child_exited = true;
 
   if (WIFSIGNALED(status)) {
     switch (WTERMSIG(status)) {
-      case SIGABRT:
-      case SIGBUS:
-      case SIGFPE:
-      case SIGILL:
       case SIGSEGV:
-        return TERMINATION_STATUS_PROCESS_CRASHED;
-      case SIGINT:
-      case SIGKILL:
-      case SIGTERM:
-        return TERMINATION_STATUS_PROCESS_WAS_KILLED;
+      case SIGILL:
+      case SIGABRT:
+      case SIGFPE:
+        return true;
       default:
-        break;
+        return false;
     }
   }
 
-  if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
-    return TERMINATION_STATUS_ABNORMAL_TERMINATION;
+  if (WIFEXITED(status))
+    return WEXITSTATUS(status) != 0;
 
-  return TERMINATION_STATUS_NORMAL_TERMINATION;
+  return false;
 }
 
 bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
