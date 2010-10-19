@@ -458,10 +458,8 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
 
   // Expect scheduling.
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
-      .Times(AtLeast(5))
+      .Times(AtLeast(3))
       .WillOnce(Return(kTestFramesPerPacket))  // Buffer is empty.
-      .WillOnce(Return(kTestFramesPerPacket))
-      .WillOnce(Return(kTestFramesPerPacket))
       .WillOnce(Return(kTestFramesPerPacket))
       .WillRepeatedly(DoAll(InvokeWithoutArgs(&message_loop_,
                                               &MessageLoop::QuitNow),
