@@ -543,6 +543,29 @@ bool MockSSLClientSocket::set_was_npn_negotiated(bool negotiated) {
   return new_npn_value_ = negotiated;
 }
 
+StaticSocketDataProvider::StaticSocketDataProvider()
+    : reads_(NULL),
+      read_index_(0),
+      read_count_(0),
+      writes_(NULL),
+      write_index_(0),
+      write_count_(0) {
+}
+
+StaticSocketDataProvider::StaticSocketDataProvider(MockRead* reads,
+                                                   size_t reads_count,
+                                                   MockWrite* writes,
+                                                   size_t writes_count)
+    : reads_(reads),
+      read_index_(0),
+      read_count_(reads_count),
+      writes_(writes),
+      write_index_(0),
+      write_count_(writes_count) {
+}
+
+StaticSocketDataProvider::~StaticSocketDataProvider() {}
+
 MockRead StaticSocketDataProvider::GetNextRead() {
   DCHECK(!at_read_eof());
   reads_[read_index_].time_stamp = base::Time::Now();
@@ -610,6 +633,8 @@ DynamicSocketDataProvider::DynamicSocketDataProvider()
     : short_read_limit_(0),
       allow_unconsumed_reads_(false) {
 }
+
+DynamicSocketDataProvider::~DynamicSocketDataProvider() {}
 
 MockRead DynamicSocketDataProvider::GetNextRead() {
   if (reads_.empty())
@@ -786,6 +811,8 @@ void OrderedSocketData::CompleteRead() {
   }
 }
 
+OrderedSocketData::~OrderedSocketData() {}
+
 DeterministicSocketData::DeterministicSocketData(MockRead* reads,
     size_t reads_count, MockWrite* writes, size_t writes_count)
     : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
@@ -936,6 +963,10 @@ void DeterministicSocketData::NextStep() {
 }
 
 
+MockClientSocketFactory::MockClientSocketFactory() {}
+
+MockClientSocketFactory::~MockClientSocketFactory() {}
+
 void MockClientSocketFactory::AddSocketDataProvider(
     SocketDataProvider* data) {
   mock_data_.Add(data);
@@ -986,6 +1017,10 @@ SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
   ssl_client_sockets_.push_back(socket);
   return socket;
 }
+
+DeterministicMockClientSocketFactory::DeterministicMockClientSocketFactory() {}
+
+DeterministicMockClientSocketFactory::~DeterministicMockClientSocketFactory() {}
 
 void DeterministicMockClientSocketFactory::AddSocketDataProvider(
     DeterministicSocketData* data) {
@@ -1106,6 +1141,8 @@ MockTCPClientSocketPool::MockConnectJob::MockConnectJob(
       ALLOW_THIS_IN_INITIALIZER_LIST(
           connect_callback_(this, &MockConnectJob::OnConnect)) {
 }
+
+MockTCPClientSocketPool::MockConnectJob::~MockConnectJob() {}
 
 int MockTCPClientSocketPool::MockConnectJob::Connect() {
   int rv = socket_->Connect(&connect_callback_);

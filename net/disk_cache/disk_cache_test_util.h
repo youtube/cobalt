@@ -58,8 +58,8 @@ class ScopedTestCache {
 // with multiple simultaneous IO operations.
 class CallbackTest : public CallbackRunner< Tuple1<int> >  {
  public:
-  explicit CallbackTest(bool reuse) : result_(-1), reuse_(reuse ? 0 : 1) {}
-  ~CallbackTest() {}
+  explicit CallbackTest(bool reuse);
+  virtual ~CallbackTest();
 
   virtual void RunWithParams(const Tuple1<int>& params);
   int result() const { return result_; }

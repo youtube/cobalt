@@ -163,18 +163,10 @@ class SocketDataProvider {
 // writes.
 class StaticSocketDataProvider : public SocketDataProvider {
  public:
-  StaticSocketDataProvider() : reads_(NULL), read_index_(0), read_count_(0),
-      writes_(NULL), write_index_(0), write_count_(0) {}
+  StaticSocketDataProvider();
   StaticSocketDataProvider(MockRead* reads, size_t reads_count,
-                           MockWrite* writes, size_t writes_count)
-      : reads_(reads),
-        read_index_(0),
-        read_count_(reads_count),
-        writes_(writes),
-        write_index_(0),
-        write_count_(writes_count) {
-  }
-  virtual ~StaticSocketDataProvider() {}
+                           MockWrite* writes, size_t writes_count);
+  virtual ~StaticSocketDataProvider();
 
   // SocketDataProvider methods:
   virtual MockRead GetNextRead();
@@ -213,6 +205,7 @@ class StaticSocketDataProvider : public SocketDataProvider {
 class DynamicSocketDataProvider : public SocketDataProvider {
  public:
   DynamicSocketDataProvider();
+  virtual ~DynamicSocketDataProvider();
 
   // SocketDataProvider methods:
   virtual MockRead GetNextRead();
@@ -344,6 +337,9 @@ class OrderedSocketData : public StaticSocketDataProvider,
   void CompleteRead();
 
  private:
+  friend class base::RefCounted<OrderedSocketData>;
+  virtual ~OrderedSocketData();
+
   int sequence_number_;
   int loop_stop_stage_;
   CompletionCallback* callback_;
@@ -514,6 +510,9 @@ class MockSSLClientSocket;
 // socket types.
 class MockClientSocketFactory : public ClientSocketFactory {
  public:
+  MockClientSocketFactory();
+  virtual ~MockClientSocketFactory();
+
   void AddSocketDataProvider(SocketDataProvider* socket);
   void AddSSLSocketDataProvider(SSLSocketDataProvider* socket);
   void ResetNextMockIndexes();
@@ -806,6 +805,7 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
    public:
     MockConnectJob(ClientSocket* socket, ClientSocketHandle* handle,
                    CompletionCallback* callback);
+    ~MockConnectJob();
 
     int Connect();
     bool CancelHandle(const ClientSocketHandle* handle);
@@ -856,6 +856,9 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
 
 class DeterministicMockClientSocketFactory : public ClientSocketFactory {
  public:
+  DeterministicMockClientSocketFactory();
+  virtual ~DeterministicMockClientSocketFactory();
+
   void AddSocketDataProvider(DeterministicSocketData* socket);
   void AddSSLSocketDataProvider(SSLSocketDataProvider* socket);
   void ResetNextMockIndexes();

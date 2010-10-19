@@ -91,6 +91,7 @@
         'base/pipeline.h',
         'base/pipeline_impl.cc',
         'base/pipeline_impl.h',
+        'base/pts_heap.cc',
         'base/pts_heap.h',
         'base/seekable_buffer.cc',
         'base/seekable_buffer.h',
