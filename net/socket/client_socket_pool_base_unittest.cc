@@ -106,8 +106,10 @@ class MockClientSocketFactory : public ClientSocketFactory {
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
-      const SSLConfig& ssl_config) {
+      const SSLConfig& ssl_config,
+      SSLHostInfo* ssl_host_info) {
     NOTIMPLEMENTED();
+    delete ssl_host_info;
     return NULL;
   }
 
