@@ -42,6 +42,8 @@ class URLRequestFilter {
 
   static URLRequest::ProtocolFactory Factory;
 
+  ~URLRequestFilter();
+
   void AddHostnameHandler(const std::string& scheme,
                           const std::string& hostname,
                           URLRequest::ProtocolFactory* factory);
@@ -62,7 +64,7 @@ class URLRequestFilter {
   int hit_count() const { return hit_count_; }
 
  protected:
-  URLRequestFilter() : hit_count_(0) { }
+  URLRequestFilter();
 
   // Helper method that looks up the request in the url_handler_map_.
   URLRequestJob* FindRequestHandler(URLRequest* request,
