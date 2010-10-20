@@ -164,7 +164,6 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLPeerHandshakeFail:  // Received a handshake_failure alert.
     case errSSLPeerNoRenegotiation:  // Received a no_renegotiation alert
     case errSSLPeerUnexpectedMsg:  // Received an unexpected_message alert.
-    case errSSLPeerUserCancelled:  // Received a user_cancelled alert.
     case errSSLProtocol:
     case errSSLRecordOverflow:
       return ERR_SSL_PROTOCOL_ERROR;
@@ -186,12 +185,17 @@ int NetErrorFromOSStatus(OSStatus status) {
 
     // (Note that all errSSLPeer* codes indicate errors reported by the peer,
     // so the cert-related ones refer to my _client_ cert.)
+    // TODO(wtc): Add fine-grained error codes for client certificate errors
+    // reported by the server using the following SSL/TLS alert messages:
+    //   access_denied
+    //   bad_certificate
+    //   unsupported_certificate
+    //   certificate_expired
+    //   certificate_revoked
+    //   certificate_unknown
+    //   unknown_ca
     case errSSLPeerCertUnknown...errSSLPeerBadCert:
     case errSSLPeerUnknownCA:
-    // TODO(rsleevi): Add a new error code for access_denied - the peer has
-    // accepted the certificate as valid, but denied access to the requested
-    // resource. Returning ERR_BAD_SSL_CLIENT_AUTH simply gives the user a
-    // chance to select a new certificate, if they have one, and try again.
     case errSSLPeerAccessDenied:
       LOG(WARNING) << "Server rejected client cert (OSStatus=" << status << ")";
       return ERR_BAD_SSL_CLIENT_AUTH_CERT;
