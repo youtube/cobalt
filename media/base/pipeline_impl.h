@@ -309,6 +309,10 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // This will remove the race condition during stop between filters.
   void TearDownPipeline();
 
+  // Compute the current time. Assumes that the lock has been acquired by the
+  // caller.
+  base::TimeDelta GetCurrentTime_Locked() const;
+
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;
 
