@@ -10,7 +10,6 @@
 
 #include "base/observer_list.h"
 #include "base/ref_counted.h"
-#include "net/base/ssl_host_info.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
