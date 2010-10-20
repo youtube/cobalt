@@ -221,6 +221,43 @@ class PipelineImplTest : public ::testing::Test {
     return video_stream_;
   }
 
+  void ExpectSeek(const base::TimeDelta& seek_time) {
+    // Every filter should receive a call to Seek().
+    EXPECT_CALL(*mocks_->data_source(), Seek(seek_time, NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback));
+    EXPECT_CALL(*mocks_->demuxer(), Seek(seek_time, NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback));
+
+    if (audio_stream_) {
+      EXPECT_CALL(*mocks_->audio_decoder(), Seek(seek_time, NotNull()))
+          .WillOnce(Invoke(&RunFilterCallback));
+      EXPECT_CALL(*mocks_->audio_renderer(), Seek(seek_time, NotNull()))
+          .WillOnce(Invoke(&RunFilterCallback));
+    }
+
+    if (video_stream_) {
+      EXPECT_CALL(*mocks_->video_decoder(), Seek(seek_time, NotNull()))
+          .WillOnce(Invoke(&RunFilterCallback));
+      EXPECT_CALL(*mocks_->video_renderer(), Seek(seek_time, NotNull()))
+          .WillOnce(Invoke(&RunFilterCallback));
+    }
+
+    // We expect a successful seek callback.
+    EXPECT_CALL(callbacks_, OnSeek());
+
+  }
+
+  void DoSeek(const base::TimeDelta& seek_time) {
+    pipeline_->Seek(seek_time,
+                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                                &CallbackHelper::OnSeek));
+
+    // We expect the time to be updated only after the seek has completed.
+    EXPECT_TRUE(seek_time != pipeline_->GetCurrentTime());
+    message_loop_.RunAllPending();
+    EXPECT_TRUE(seek_time == pipeline_->GetCurrentTime());
+  }
+
   // Fixture members.
   StrictMock<CallbackHelper> callbacks_;
   MessageLoop message_loop_;
@@ -432,32 +469,11 @@ TEST_F(PipelineImplTest, Seek) {
 
   // Every filter should receive a call to Seek().
   base::TimeDelta expected = base::TimeDelta::FromSeconds(2000);
-  EXPECT_CALL(*mocks_->data_source(), Seek(expected, NotNull()))
-      .WillOnce(Invoke(&RunFilterCallback));
-  EXPECT_CALL(*mocks_->demuxer(), Seek(expected, NotNull()))
-      .WillOnce(Invoke(&RunFilterCallback));
-  EXPECT_CALL(*mocks_->audio_decoder(), Seek(expected, NotNull()))
-      .WillOnce(Invoke(&RunFilterCallback));
-  EXPECT_CALL(*mocks_->audio_renderer(), Seek(expected, NotNull()))
-      .WillOnce(Invoke(&RunFilterCallback));
-  EXPECT_CALL(*mocks_->video_decoder(), Seek(expected, NotNull()))
-      .WillOnce(Invoke(&RunFilterCallback));
-  EXPECT_CALL(*mocks_->video_renderer(), Seek(expected, NotNull()))
-      .WillOnce(Invoke(&RunFilterCallback));
-
-  // We expect a successful seek callback.
-  EXPECT_CALL(callbacks_, OnSeek());
+  ExpectSeek(expected);
 
   // Initialize then seek!
   InitializePipeline();
-  pipeline_->Seek(expected,
-                  NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                              &CallbackHelper::OnSeek));
-
-  // We expect the time to be updated only after the seek has completed.
-  EXPECT_TRUE(expected != pipeline_->GetCurrentTime());
-  message_loop_.RunAllPending();
-  EXPECT_TRUE(expected == pipeline_->GetCurrentTime());
+  DoSeek(expected);
 }
 
 TEST_F(PipelineImplTest, SetVolume) {
@@ -526,11 +542,39 @@ TEST_F(PipelineImplTest, GetBufferedTime) {
   pipeline_->SetBufferedBytes(0);
   EXPECT_EQ(0, pipeline_->GetBufferedTime().ToInternalValue());
 
-  // We should return buffered_time_ if it is set and valid.
+  // We should return buffered_time_ if it is set, valid and less than
+  // the current time.
   const base::TimeDelta buffered = base::TimeDelta::FromSeconds(10);
   pipeline_->SetBufferedTime(buffered);
   EXPECT_EQ(buffered.ToInternalValue(),
             pipeline_->GetBufferedTime().ToInternalValue());
+
+  // Test the case where the current time is beyond the buffered time.
+  base::TimeDelta kSeekTime = buffered + base::TimeDelta::FromSeconds(5);
+  ExpectSeek(kSeekTime);
+  DoSeek(kSeekTime);
+
+  // Verify that buffered time is equal to the current time.
+  EXPECT_EQ(kSeekTime, pipeline_->GetCurrentTime());
+  EXPECT_EQ(kSeekTime, pipeline_->GetBufferedTime());
+
+  // Clear buffered time.
+  pipeline_->SetBufferedTime(base::TimeDelta());
+
+  double time_percent =
+      static_cast<double>(pipeline_->GetCurrentTime().ToInternalValue()) /
+      kDuration.ToInternalValue();
+
+  int estimated_bytes = static_cast<int>(time_percent * kTotalBytes);
+
+  // Test VBR case where bytes have been consumed slower than the average rate.
+  pipeline_->SetBufferedBytes(estimated_bytes - 10);
+  EXPECT_EQ(pipeline_->GetCurrentTime(), pipeline_->GetBufferedTime());
+
+  // Test VBR case where the bytes have been consumed faster than the average
+  // rate.
+  pipeline_->SetBufferedBytes(estimated_bytes + 10);
+  EXPECT_LT(pipeline_->GetCurrentTime(), pipeline_->GetBufferedTime());
 
   // If media has been fully received, we should return the duration
   // of the media.
