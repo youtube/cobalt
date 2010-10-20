@@ -60,7 +60,10 @@ HttpAuth::AuthorizationResult HttpAuth::HandleChallengeResponse(
     Target target,
     const std::set<std::string>& disabled_schemes,
     std::string* challenge_used) {
+  DCHECK(handler);
+  DCHECK(headers);
   DCHECK(challenge_used);
+  challenge_used->clear();
   const std::string& current_scheme = handler->scheme();
   if (disabled_schemes.find(current_scheme) != disabled_schemes.end())
     return HttpAuth::AUTHORIZATION_RESULT_REJECT;
