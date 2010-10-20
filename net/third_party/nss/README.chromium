@@ -36,5 +36,9 @@ Patches:
     http://crbug.com/51694
     https://bugzilla.mozilla.org/show_bug.cgi?id=587234
 
+  * Add Snap Start support
+    patches/snapstart.patch
+    http://tools.ietf.org/html/draft-agl-tls-snapstart-00
+
 The ssl/bodge directory contains files taken from the NSS repo that we required
 for building libssl outside of its usual build environment.
