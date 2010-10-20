@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/ref_counted.h"
 #include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_byte_range.h"
@@ -19,7 +20,11 @@
 
 namespace net {
 
+class HttpAuthController;
+struct HttpRequestInfo;
+class HttpRequestHeaders;
 class HttpStream;
+class UploadDataStream;
 
 class HttpUtil {
  public:
@@ -158,6 +163,19 @@ class HttpUtil {
   static void AppendHeaderIfMissing(const char* header_name,
                                     const std::string& header_value,
                                     std::string* headers);
+
+  // Constructs |request_headers| from the information contained in
+  // |request_info|.  The correct server and proxy auth headers will
+  // be populated from |auth_controllers| if |enable_server_auth| or
+  // |enable_proxy_auth| is true.
+  static void BuildRequestHeaders(const HttpRequestInfo* request_info,
+                                  const UploadDataStream* upload_data_stream,
+                                  const scoped_refptr<HttpAuthController>
+                                      auth_controllers[],
+                                  bool enable_server_auth,
+                                  bool enable_proxy_auth,
+                                  bool enable_full_url,
+                                  HttpRequestHeaders* request_headers);
 
   // Used to iterate over the name/value pairs of HTTP headers.  To iterate
   // over the values in a multi-value header, use ValuesIterator.

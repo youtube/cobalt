@@ -148,8 +148,12 @@ int SpdyHttpStream::SendRequest(const std::string& /*headers_string*/,
 
   stream_->SetDelegate(this);
 
+  HttpRequestHeaders request_headers;
+  HttpUtil::BuildRequestHeaders(request_info_, request_body, NULL, false, false,
+                                !direct_, &request_headers);
   linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
-  CreateSpdyHeadersFromHttpRequest(*request_info_, headers.get(), direct_);
+  CreateSpdyHeadersFromHttpRequest(*request_info_, request_headers,
+                                   headers.get(), direct_);
   stream_->set_spdy_headers(headers);
 
   stream_->SetRequestTime(request_time);

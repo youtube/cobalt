@@ -79,18 +79,16 @@ bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
   return true;
 }
 
-void CreateSpdyHeadersFromHttpRequest(
-    const HttpRequestInfo& info, spdy::SpdyHeaderBlock* headers,
-    bool direct) {
-  // TODO(willchan): It's not really necessary to convert from
-  // HttpRequestHeaders to spdy::SpdyHeaderBlock.
+void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
+                                      const HttpRequestHeaders& request_headers,
+                                      spdy::SpdyHeaderBlock* headers,
+                                      bool direct) {
 
-  static const char kHttpProtocolVersion[] = "HTTP/1.1";
-
-  HttpRequestHeaders::Iterator it(info.extra_headers);
-
+  HttpRequestHeaders::Iterator it(request_headers);
   while (it.GetNext()) {
     std::string name = StringToLowerASCII(it.name());
+    if (name == "connection" || name == "proxy-connection")
+      continue;
     if (headers->find(name) == headers->end()) {
       (*headers)[name] = it.value();
     } else {
@@ -100,44 +98,17 @@ void CreateSpdyHeadersFromHttpRequest(
       (*headers)[name] = new_value;
     }
   }
+  static const char kHttpProtocolVersion[] = "HTTP/1.1";
 
-  // TODO(rch): Add Proxy headers here. (See http_network_transaction.cc)
-  // TODO(rch): Add authentication headers here.
-
+  (*headers)["version"] = kHttpProtocolVersion;
   (*headers)["method"] = info.method;
-
-  // Handle content-length. This is the same as BuildRequestHeader in
-  // http_network_transaction.cc.
-  // TODO(lzheng): reduce the code duplication between spdy and http here.
-  if (info.upload_data) {
-    (*headers)["content-length"] =
-        base::Int64ToString(info.upload_data->GetContentLength());
-  } else if (info.method == "POST" || info.method == "PUT" ||
-             info.method == "HEAD") {
-    // An empty POST/PUT request still needs a content length.  As for HEAD,
-    // IE and Safari also add a content length header.  Presumably it is to
-    // support sending a HEAD request to an URL that only expects to be sent a
-    // POST or some other method that normally would have a message body.
-    (*headers)["content-length"] = "0";
-  }
-
+  (*headers)["host"] = GetHostAndOptionalPort(info.url);
+  (*headers)["scheme"] = info.url.scheme();
   if (direct)
     (*headers)["url"] = HttpUtil::PathForRequest(info.url);
   else
     (*headers)["url"] = HttpUtil::SpecForRequest(info.url);
-  (*headers)["host"] = GetHostAndOptionalPort(info.url);
-  (*headers)["scheme"] = info.url.scheme();
-  (*headers)["version"] = kHttpProtocolVersion;
-  if (!info.referrer.is_empty())
-    (*headers)["referer"] = info.referrer.spec();
 
-  // Honor load flags that impact proxy caches.
-  if (info.load_flags & LOAD_BYPASS_CACHE) {
-    (*headers)["pragma"] = "no-cache";
-    (*headers)["cache-control"] = "no-cache";
-  } else if (info.load_flags & LOAD_VALIDATE_CACHE) {
-    (*headers)["cache-control"] = "max-age=0";
-  }
 }
 
 }  // namespace net
