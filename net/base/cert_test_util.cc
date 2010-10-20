@@ -35,18 +35,35 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
     return NULL;
   }
 
-  X509Certificate* certificate = X509Certificate::CreateFromBytes(
-      rawcert.c_str(), rawcert.length());
-
-  X509* x509_cert =
-      X509Certificate::DupOSCertHandle(certificate->os_cert_handle());
-  if (!X509_STORE_add_cert(openssl_init->x509_store(), x509_cert)) {
-    LOG(ERROR) << "X509_STORE_add_cert error: " << ERR_get_error();
-    X509_free(x509_cert);
+  ScopedSSL<BIO, BIO_free_all> cert_bio(
+      BIO_new_mem_buf(const_cast<char*>(rawcert.c_str()),
+                      rawcert.length()));
+  if (!cert_bio.get()) {
+    LOG(ERROR) << "Can't create read-only BIO " << filename.value();
     return NULL;
   }
 
-  return certificate;
+  ScopedSSL<X509, X509_free> x509_cert(PEM_read_bio_X509(cert_bio.get(),
+                                                         NULL, NULL, NULL));
+  if (!x509_cert.get()) {
+    LOG(ERROR) << "Can't parse certificate " << filename.value();
+    return NULL;
+  }
+
+  if (!X509_STORE_add_cert(openssl_init->x509_store(), x509_cert.get())) {
+    unsigned long error_code = ERR_get_error();
+    if (ERR_GET_LIB(error_code) != ERR_LIB_X509 ||
+        ERR_GET_REASON(error_code) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
+      do {
+        LOG(ERROR) << "X509_STORE_add_cert error: " << error_code;
+      } while ((error_code = ERR_get_error()) != 0);
+      return NULL;
+    }
+  }
+
+  return X509Certificate::CreateFromHandle(
+      x509_cert.get(), X509Certificate::SOURCE_LONE_CERT_IMPORT,
+      X509Certificate::OSCertHandles());
 }
 #elif defined(USE_NSS)
 X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
