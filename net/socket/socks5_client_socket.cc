@@ -8,7 +8,6 @@
 #include "base/compiler_specific.h"
 #include "base/format_macros.h"
 #include "base/string_util.h"
-#include "base/trace_event.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
