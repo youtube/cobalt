@@ -558,16 +558,28 @@ class HostResolverImpl::Job
 
     UMA_HISTOGRAM_ENUMERATION("DNS.ResolveCategory", category, RESOLVE_MAX);
 
-    static bool show_experiment_histograms =
+    static bool show_speculative_experiment_histograms =
         base::FieldTrialList::Find("DnsImpact") &&
         !base::FieldTrialList::Find("DnsImpact")->group_name().empty();
-    if (show_experiment_histograms) {
+    if (show_speculative_experiment_histograms) {
       UMA_HISTOGRAM_ENUMERATION(
           base::FieldTrial::MakeName("DNS.ResolveCategory", "DnsImpact"),
           category, RESOLVE_MAX);
       if (RESOLVE_SUCCESS == category) {
         DNS_HISTOGRAM(base::FieldTrial::MakeName("DNS.ResolveSuccess",
                                                  "DnsImpact"), duration);
+      }
+    }
+    static bool show_parallelism_experiment_histograms =
+        base::FieldTrialList::Find("DnsParallelism") &&
+        !base::FieldTrialList::Find("DnsParallelism")->group_name().empty();
+    if (show_parallelism_experiment_histograms) {
+      UMA_HISTOGRAM_ENUMERATION(
+          base::FieldTrial::MakeName("DNS.ResolveCategory", "DnsParallelism"),
+          category, RESOLVE_MAX);
+      if (RESOLVE_SUCCESS == category) {
+        DNS_HISTOGRAM(base::FieldTrial::MakeName("DNS.ResolveSuccess",
+                                                 "DnsParallelism"), duration);
       }
     }
   }
