@@ -1001,6 +1001,7 @@
       'dependencies': [
         '../base/base.gyp:base',
         '../third_party/protobuf/protobuf.gyp:protobuf_lite',
+        '../third_party/protobuf/protobuf.gyp:protoc#host',
       ],
       'sources': [
         'socket/ssl_host_info.proto',
