@@ -35,20 +35,23 @@ static int MapSecurityError(SECURITY_STATUS err) {
   // There are numerous security error codes, but these are the ones we thus
   // far find interesting.
   switch (err) {
-    case SEC_E_WRONG_PRINCIPAL:  // Schannel
+    case SEC_E_WRONG_PRINCIPAL:  // Schannel - server certificate error.
     case CERT_E_CN_NO_MATCH:  // CryptoAPI
       return ERR_CERT_COMMON_NAME_INVALID;
-    case SEC_E_UNTRUSTED_ROOT:  // Schannel - unknown_ca alert
+    case SEC_E_UNTRUSTED_ROOT:  // Schannel - server certificate error or
+                                // unknown_ca alert.
     case CERT_E_UNTRUSTEDROOT:  // CryptoAPI
       return ERR_CERT_AUTHORITY_INVALID;
-    case SEC_E_CERT_EXPIRED:  // Schannel - certificate_expired alert
+    case SEC_E_CERT_EXPIRED:  // Schannel - server certificate error or
+                              // certificate_expired alert.
     case CERT_E_EXPIRED:  // CryptoAPI
       return ERR_CERT_DATE_INVALID;
     case CRYPT_E_NO_REVOCATION_CHECK:
       return ERR_CERT_NO_REVOCATION_MECHANISM;
     case CRYPT_E_REVOCATION_OFFLINE:
       return ERR_CERT_UNABLE_TO_CHECK_REVOCATION;
-    case CRYPT_E_REVOKED:  // CryptoAPI and Schannel certificate_revoked alert
+    case CRYPT_E_REVOKED:  // CryptoAPI and Schannel server certificate error,
+                           // or certificate_revoked alert.
       return ERR_CERT_REVOKED;
 
     // We received one of the following alert messages from the server:
@@ -82,10 +85,6 @@ static int MapSecurityError(SECURITY_STATUS err) {
     // been omitted to prevent masking them as protocol errors.
       return ERR_SSL_PROTOCOL_ERROR;
 
-    // TODO(rsleevi): Add a new error code for access_denied - the peer has
-    // accepted the certificate as valid, but denied access to the requested
-    // resource. Returning ERR_BAD_SSL_CLIENT_AUTH simply gives the user a
-    // chance to select a new certificate, if they have one, and try again.
     case SEC_E_LOGON_DENIED:  // Received a access_denied alert.
       return ERR_BAD_SSL_CLIENT_AUTH_CERT;
 
@@ -1014,11 +1013,15 @@ int SSLClientSocketWin::DidCallInitializeSecurityContext() {
     // InitializeSecurityContext must be referring to the bad or missing
     // client certificate.
     if (IsCertificateError(result)) {
-      // TODO(wtc): Add new error codes for client certificate errors reported
-      // by the server using SSL/TLS alert messages.  See the MSDN page
-      // "Schannel Error Codes for TLS and SSL Alerts", which maps TLS alert
-      // messages to Windows error codes:
-      // http://msdn.microsoft.com/en-us/library/dd721886%28VS.85%29.aspx
+      // TODO(wtc): Add fine-grained error codes for client certificate errors
+      // reported by the server using the following SSL/TLS alert messages:
+      //   access_denied
+      //   bad_certificate
+      //   unsupported_certificate
+      //   certificate_expired
+      //   certificate_revoked
+      //   certificate_unknown
+      //   unknown_ca
       return ERR_BAD_SSL_CLIENT_AUTH_CERT;
     }
     return result;
