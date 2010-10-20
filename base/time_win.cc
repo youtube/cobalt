@@ -99,6 +99,7 @@ void InitializeClock() {
 const int64 Time::kTimeTToMicrosecondsOffset = GG_INT64_C(11644473600000000);
 
 bool Time::high_resolution_timer_enabled_ = false;
+int Time::high_resolution_timer_activated_ = 0;
 
 // static
 Time Time::Now() {
@@ -162,19 +163,33 @@ void Time::EnableHighResolutionTimer(bool enable) {
 }
 
 // static
-bool Time::ActivateHighResolutionTimer(bool activate) {
-  if (!high_resolution_timer_enabled_)
+bool Time::ActivateHighResolutionTimer(bool activating) {
+  if (!high_resolution_timer_enabled_ && activating)
     return false;
 
   // Using anything other than 1ms makes timers granular
   // to that interval.
   const int kMinTimerIntervalMs = 1;
   MMRESULT result;
-  if (activate)
+  if (activating) {
     result = timeBeginPeriod(kMinTimerIntervalMs);
-  else
+    high_resolution_timer_activated_++;
+  } else {
     result = timeEndPeriod(kMinTimerIntervalMs);
+    high_resolution_timer_activated_--;
+  }
   return result == TIMERR_NOERROR;
+}
+
+// static
+bool Time::IsHighResolutionTimerInUse() {
+  // Note:  we should track the high_resolution_timer_activated_ value
+  // under a lock if we want it to be accurate in a system with multiple
+  // message loops.  We don't do that - because we don't want to take the
+  // expense of a lock for this.  We *only* track this value so that unit
+  // tests can see if the high resolution timer is on or off.
+  return high_resolution_timer_enabled_ &&
+      high_resolution_timer_activated_ > 0;
 }
 
 // static
