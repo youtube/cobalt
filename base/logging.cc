@@ -706,7 +706,7 @@ Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
 Win32ErrorLogMessage::~Win32ErrorLogMessage() {
   const int error_message_buffer_size = 256;
   char msgbuf[error_message_buffer_size];
-  DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM;
+  DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
   HMODULE hmod;
   if (module_) {
     hmod = GetModuleHandleA(module_);
@@ -725,7 +725,7 @@ Win32ErrorLogMessage::~Win32ErrorLogMessage() {
   DWORD len = FormatMessageA(flags,
                              hmod,
                              err_,
-                             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                             0,
                              msgbuf,
                              sizeof(msgbuf) / sizeof(msgbuf[0]),
                              NULL);
