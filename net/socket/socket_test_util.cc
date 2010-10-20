@@ -21,6 +21,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket.h"
+#include "net/socket/ssl_host_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #define NET_TRACE(level, s)   DLOG(level) << s << __FUNCTION__ << "() "
