@@ -179,16 +179,6 @@ MessageLoop::~MessageLoop() {
 
   // OK, now make it so that no one can find us.
   lazy_tls_ptr.Pointer()->Set(NULL);
-
-#if defined(OS_WIN)
-  // If we left the high-resolution timer activated, deactivate it now.
-  // Doing this is not-critical, it is mainly to make sure we track
-  // the high resolution timer activations properly in our unit tests.
-  if (!high_resolution_timer_expiration_.is_null()) {
-    Time::ActivateHighResolutionTimer(false);
-    high_resolution_timer_expiration_ = base::TimeTicks();
-  }
-#endif
 }
 
 void MessageLoop::AddDestructionObserver(
@@ -347,10 +337,9 @@ void MessageLoop::PostTask_Helper(
       bool needs_high_res_timers =
           delay_ms < (2 * Time::kMinLowResolutionThresholdMs);
       if (needs_high_res_timers) {
-        if (Time::ActivateHighResolutionTimer(true)) {
-          high_resolution_timer_expiration_ = base::TimeTicks::Now() +
-              TimeDelta::FromMilliseconds(kHighResolutionTimerModeLeaseTimeMs);
-        }
+        Time::ActivateHighResolutionTimer(true);
+        high_resolution_timer_expiration_ = base::TimeTicks::Now() +
+            TimeDelta::FromMilliseconds(kHighResolutionTimerModeLeaseTimeMs);
       }
     }
 #endif
