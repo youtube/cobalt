@@ -207,6 +207,10 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
   // is set/get under the lock, because this is breaching the contract that
   // |state_| is only accessed on |message_loop_|.
   AutoLock auto_lock(lock_);
+  return GetCurrentTime_Locked();
+}
+
+base::TimeDelta PipelineImpl::GetCurrentTime_Locked() const {
   base::TimeDelta elapsed = clock_.Elapsed();
   if (state_ == kEnded || elapsed > duration_) {
     return duration_;
@@ -223,32 +227,30 @@ base::TimeDelta PipelineImpl::GetBufferedTime() {
     return duration_;
   }
 
+  base::TimeDelta current_time = GetCurrentTime_Locked();
+
   // If buffered time was set, we report that value directly.
-  if (buffered_time_.ToInternalValue() > 0)
-    return buffered_time_;
+  if (buffered_time_.ToInternalValue() > 0) {
+    return std::max(buffered_time_, current_time);
+  }
 
   if (total_bytes_ == 0)
     return base::TimeDelta();
 
   // If buffered time was not set, we use current time, current bytes, and
   // buffered bytes to estimate the buffered time.
-  double current_time = static_cast<double>(current_bytes_) / total_bytes_ *
-                        duration_.InMilliseconds();
-  double rate = 0.0;
-  if (current_bytes_ == 0) {
-    // If we haven't read any bytes, use the length/size of entire video to
-    // estimate rate.
-    rate = static_cast<double>(duration_.InMilliseconds()) / total_bytes_;
-  } else {
-    rate = current_time / current_bytes_;
-  }
+  double estimated_rate = duration_.InMillisecondsF() / total_bytes_;
+  double estimated_current_time = estimated_rate * current_bytes_;
   DCHECK_GE(buffered_bytes_, current_bytes_);
   base::TimeDelta buffered_time = base::TimeDelta::FromMilliseconds(
-      static_cast<int64>(rate * (buffered_bytes_ - current_bytes_) +
-                         current_time));
+      static_cast<int64>(estimated_rate * (buffered_bytes_ - current_bytes_) +
+                         estimated_current_time));
 
   // Cap approximated buffered time at the length of the video.
   buffered_time = std::min(buffered_time, duration_);
+
+  // Make sure buffered_time is at least the current time
+  buffered_time = std::max(buffered_time, current_time);
 
   // Only print the max buffered time for smooth buffering.
   max_buffered_time_ = std::max(buffered_time, max_buffered_time_);
