@@ -11,16 +11,18 @@
 # Debian-derived system.
 
 usage() {
-  echo "usage: ${0##*/} [-m mirror] [-g group,...]"
+  echo "usage: ${0##*/} [-m mirror] [-g group,...] [-s] [-c]"
   echo "-g group,... groups that can use the chroot unauthenticated"
   echo "             Default: 'admin' and current user's group ('$(id -gn)')"
   echo "-m mirror    an alternate repository mirror for package downloads"
+  echo "-s           configure default deb-srcs"
+  echo "-c           always copy 64bit helper binaries to 32bit chroot"
   echo "-h           this help message"
 }
 
 process_opts() {
   local OPTNAME OPTIND OPTERR OPTARG
-  while getopts ":g:m:h" OPTNAME; do
+  while getopts ":g:m:sch" OPTNAME; do
     case "$OPTNAME" in
       g)
         [ -n "${OPTARG}" ] &&
@@ -33,6 +35,12 @@ process_opts() {
           exit 1
         fi
         mirror="$OPTARG"
+        ;;
+      s)
+        add_srcs="y"
+        ;;
+      c)
+        copy_64="y"
         ;;
       h)
         usage
@@ -215,7 +223,8 @@ sudo chown root:root /usr/local/bin/"${target%bit}"
 sudo chmod 755 /usr/local/bin/"${target%bit}"
 
 # Add the standard Ubuntu update repositories if requested.
-[ "${alt_repos}" = "y" -a -r "/var/lib/chroot/${target}/etc/apt/sources.list" ] &&
+[ "${alt_repos}" = "y" -a \
+  -r "/var/lib/chroot/${target}/etc/apt/sources.list" ] &&
 sudo sed -i '/^deb .* [^ -]\+ main$/p
              s/^\(deb .* [^ -]\+\) main/\1-security main/
              p
@@ -226,7 +235,8 @@ sudo sed -i '/^deb .* [^ -]\+ main$/p
              d' "/var/lib/chroot/${target}/etc/apt/sources.list"
 
 # Add a few more repositories to the chroot
-[ -r "/var/lib/chroot/${target}/etc/apt/sources.list" ] &&
+[ "${add_srcs}" = "y" -a \
+  -r "/var/lib/chroot/${target}/etc/apt/sources.list" ] &&
 sudo sed -i 's/ main$/ main restricted universe multiverse/
              p
              t1
@@ -263,8 +273,14 @@ sudo schroot -c "${target%bit}" -p -- apt-get -y install                       \
   strace
 
 # If running a 32bit environment on a 64bit machine, install a few binaries
-# as 64bit.
-if [ "${arch}" = 32bit ] && file /bin/bash 2>/dev/null | grep -q x86-64; then
+# as 64bit. This is only done automatically if the chroot distro is the same as
+# the host, otherwise there might be incompatibilities in build settings or
+# runtime dependencies. The user can force it with the '-c' flag.
+host_distro=$(grep DISTRIB_CODENAME /etc/lsb-release 2>/dev/null | \
+  cut -d "=" -f 2)
+if [ "${copy_64}" = "y" -o \
+    "${host_distro}" = "${distname}" -a "${arch}" = 32bit ] && \
+    file /bin/bash 2>/dev/null | grep -q x86-64; then
   readlinepkg=$(sudo schroot -c "${target%bit}" -p -- sh -c \
     'apt-cache search "lib64readline.\$" | sort | tail -n 1 | cut -d " " -f 1')
   sudo schroot -c "${target%bit}" -p -- apt-get -y install                     \
