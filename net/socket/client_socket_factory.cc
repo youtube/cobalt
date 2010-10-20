@@ -6,7 +6,6 @@
 
 #include "base/singleton.h"
 #include "build/build_config.h"
-#include "net/base/ssl_host_info.h"
 #include "net/socket/client_socket_handle.h"
 #if defined(OS_WIN)
 #include "net/socket/ssl_client_socket_win.h"
@@ -18,6 +17,7 @@
 #include "net/socket/ssl_client_socket_mac.h"
 #include "net/socket/ssl_client_socket_nss.h"
 #endif
+#include "net/socket/ssl_host_info.h"
 #include "net/socket/tcp_client_socket.h"
 
 namespace net {

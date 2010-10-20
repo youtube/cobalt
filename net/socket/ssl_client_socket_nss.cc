@@ -83,11 +83,11 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
-#include "net/base/ssl_host_info.h"
 #include "net/base/ssl_info.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/ssl_host_info.h"
 
 static const int kRecvBufferSize = 4096;
 
@@ -461,15 +461,9 @@ int SSLClientSocketNSS::Init() {
   return OK;
 }
 
-// This is a version number of the Snap Start information saved by
-// |SaveSnapStartInfo| and loaded by |LoadSnapStartInfo|. Since the information
-// can be saved on disk we might have version skew in the future. Any data with
-// a different version is ignored by |LoadSnapStartInfo|.
-static const uint8 kSnapStartInfoVersion = 0;
-
-// SaveSnapStartInfo serialises the information needed to perform a Snap Start
-// with this server in the future (if any) and tells
-// |ssl_host_info_| to preserve it.
+// SaveSnapStartInfo extracts the information needed to perform a Snap Start
+// with this server in the future (if any) and tells |ssl_host_info_| to
+// preserve it.
 void SSLClientSocketNSS::SaveSnapStartInfo() {
   if (!ssl_host_info_.get())
     return;
@@ -501,32 +495,12 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
     return;
   if (hello_data_len > std::numeric_limits<uint16>::max())
     return;
+  SSLHostInfo::State* state = ssl_host_info_->mutable_state();
+  state->server_hello =
+      std::string(reinterpret_cast<const char *>(hello_data), hello_data_len);
 
-  // The format of the saved info looks like:
-  //   struct Cert {
-  //     uint16 length
-  //     opaque certificate[length];
-  //   }
-  //
-  //   uint8 version (kSnapStartInfoVersion)
-  //   uint8 npn_status
-  //   uint8 npn_proto_len
-  //   uint8 npn_proto[npn_proto_len]
-  //   uint16 hello_data_len
-  //   opaque hello_data[hello_data_len]
-  //   uint8 num_certs;
-  //   Cert[num_certs];
-
-  std::string npn_proto;
-  NextProtoStatus npn_status = GetNextProto(&npn_proto);
-
-  unsigned num_certs = 0;
-  unsigned len = 3;
-  DCHECK_LT(npn_proto.size(), 256u);
-  len += npn_proto.size();
-  len += 2;  // for hello_data_len
-  len += hello_data_len;
-  len++;  // for |num_certs|
+  state->npn_valid = true;
+  state->npn_status = GetNextProto(&state->npn_protocol);
 
   // TODO(wtc): CERT_GetCertChainFromCert might not return the same cert chain
   // that the Certificate message actually contained. http://crbug.com/48854
@@ -535,67 +509,22 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
   if (!cert_list)
     return;
 
-  unsigned last_cert_len = 0;
-  bool last_cert_is_root = false;
   for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
        !CERT_LIST_END(node, cert_list);
        node = CERT_LIST_NEXT(node)) {
-    num_certs++;
     if (node->cert->derCert.len > std::numeric_limits<uint16>::max()) {
       CERT_DestroyCertList(cert_list);
       return;
     }
-    last_cert_len = node->cert->derCert.len;
-    len += 2 + last_cert_len;
-    last_cert_is_root = node->cert->isRoot == PR_TRUE;
+    if (node->cert->isRoot == PR_TRUE)
+      continue;
+    state->certs.push_back(std::string(
+          reinterpret_cast<char*>(node->cert->derCert.data),
+          node->cert->derCert.len));
   }
 
-  if (num_certs == 0 || num_certs > std::numeric_limits<uint8>::max()) {
-    CERT_DestroyCertList(cert_list);
-    return;
-  }
-
-  if (num_certs > 1 && last_cert_is_root) {
-    // The cert list included the root certificate, which we don't want to
-    // save. (Since we need to predict the server's certificates we don't want
-    // to predict the root cert because the server won't send it to us. We
-    // could implement this logic either here, or in the code which loads the
-    // certificates. But, by doing it here, we save a little disk space).
-    //
-    // Note that, when the TODO above (http://crbug.com/48854) is handled, this
-    // point will be moot.
-    len -= 2 + last_cert_len;
-    num_certs--;
-  }
-
-  std::vector<uint8> data(len);
-  unsigned j = 0;
-  data[j++] = kSnapStartInfoVersion;
-  data[j++] = static_cast<uint8>(npn_status);
-  data[j++] = static_cast<uint8>(npn_proto.size());
-  memcpy(&data[j], npn_proto.data(), npn_proto.size());
-  j += npn_proto.size();
-  data[j++] = hello_data_len >> 8;
-  data[j++] = hello_data_len;
-  memcpy(&data[j], hello_data, hello_data_len);
-  j += hello_data_len;
-  data[j++] = num_certs;
-
-  unsigned i = 0;
-  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
-       i < num_certs;
-       node = CERT_LIST_NEXT(node), i++) {
-    data[j++] = node->cert->derCert.len >> 8;
-    data[j++] = node->cert->derCert.len;
-    memcpy(&data[j], node->cert->derCert.data, node->cert->derCert.len);
-    j += node->cert->derCert.len;
-  }
-
-  DCHECK_EQ(j, len);
-
-  LOG(ERROR) << "Setting Snap Start info " << hostname_ << " " << len;
-  ssl_host_info_->Set(std::string(
-        reinterpret_cast<const char *>(&data[0]), len));
+  LOG(ERROR) << "Setting Snap Start info " << hostname_;
+  ssl_host_info_->Persist();
 
   CERT_DestroyCertList(cert_list);
 }
@@ -609,69 +538,29 @@ static void DestroyCertificates(CERTCertificate** certs, unsigned len) {
 // by |SaveSnapStartInfo|, and sets the predicted certificates and ServerHello
 // data on the NSS socket. Returns true on success. If this function returns
 // false, the caller should try a normal TLS handshake.
-bool SSLClientSocketNSS::LoadSnapStartInfo(const std::string& info) {
-  const unsigned char* data =
-      reinterpret_cast<const unsigned char*>(info.data());
+bool SSLClientSocketNSS::LoadSnapStartInfo() {
+  const SSLHostInfo::State& state(ssl_host_info_->state());
+
+  if (state.server_hello.empty() ||
+      state.certs.empty() ||
+      !state.npn_valid) {
+    return false;
+  }
+
   SECStatus rv;
-
-  // See the comment in |SaveSnapStartInfo| for the format of the data.
-  if (info.size() < 3 ||
-      data[0] != kSnapStartInfoVersion) {
-    return false;
-  }
-
-  unsigned j = 1;
-  const uint8 npn_status = data[j++];
-  const uint8 npn_proto_len = data[j++];
-  if (static_cast<unsigned>(npn_proto_len) + j > info.size()) {
-    NOTREACHED();
-    return false;
-  }
-  const std::string npn_proto(info.substr(j, npn_proto_len));
-  j += npn_proto_len;
-
-  if (j + 2 > info.size()) {
-    NOTREACHED();
-    return false;
-  }
-  uint16 hello_data_len = static_cast<uint16>(data[j]) << 8 |
-                          static_cast<uint16>(data[j+1]);
-  j += 2;
-  if (static_cast<unsigned>(hello_data_len) + j > info.size()) {
-    NOTREACHED();
-    return false;
-  }
-
-  rv = SSL_SetPredictedServerHelloData(nss_fd_, &data[j], hello_data_len);
+  rv = SSL_SetPredictedServerHelloData(
+      nss_fd_,
+      reinterpret_cast<const uint8*>(state.server_hello.data()),
+      state.server_hello.size());
   DCHECK_EQ(SECSuccess, rv);
-  j += hello_data_len;
 
-  if (j + 1 > info.size()) {
-    NOTREACHED();
-    return false;
-  }
-  unsigned num_certs = data[j++];
-  scoped_array<CERTCertificate*> certs(new CERTCertificate*[num_certs]);
-
-  for (unsigned i = 0; i < num_certs; i++) {
-    if (j + 2 > info.size()) {
-      DestroyCertificates(&certs[0], i);
-      NOTREACHED();
-      // It's harmless to call only SSL_SetPredictedServerHelloData.
-      return false;
-    }
-    uint16 cert_len = static_cast<uint16>(data[j]) << 8 |
-                      static_cast<uint16>(data[j+1]);
-    j += 2;
-    if (static_cast<unsigned>(cert_len) + j > info.size()) {
-      DestroyCertificates(&certs[0], i);
-      NOTREACHED();
-      return false;
-    }
+  const std::vector<std::string>& certs_in = state.certs;
+  scoped_array<CERTCertificate*> certs(new CERTCertificate*[certs_in.size()]);
+  for (size_t i = 0; i < certs_in.size(); i++) {
     SECItem derCert;
-    derCert.data = const_cast<uint8*>(data + j);
-    derCert.len = cert_len;
-    j += cert_len;
+    derCert.data =
+        const_cast<uint8*>(reinterpret_cast<const uint8*>(certs_in[i].data()));
+    derCert.len = certs_in[i].size();
     certs[i] = CERT_NewTempCertificate(
         CERT_GetDefaultCertDB(), &derCert, NULL /* no nickname given */,
         PR_FALSE /* not permanent */, PR_TRUE /* copy DER data */);
@@ -682,16 +571,14 @@ bool SSLClientSocketNSS::LoadSnapStartInfo(const std::string& info) {
     }
   }
 
-  rv = SSL_SetPredictedPeerCertificates(nss_fd_, certs.get(), num_certs);
-  DestroyCertificates(&certs[0], num_certs);
+  rv = SSL_SetPredictedPeerCertificates(nss_fd_, certs.get(), certs_in.size());
+  DestroyCertificates(&certs[0], certs_in.size());
   DCHECK_EQ(SECSuccess, rv);
 
-  predicted_npn_status_ = static_cast<NextProtoStatus>(npn_status);
-  predicted_npn_proto_ = npn_proto;
-
-  // We ignore any trailing data that might be in |info|.
-  if (j != info.size())
-    LOG(WARNING) << "Trailing data found in SSLHostInfo";
+  if (state.npn_valid) {
+    predicted_npn_status_ = state.npn_status;
+    predicted_npn_proto_ = state.npn_protocol;
+  }
 
   return true;
 }
@@ -1974,9 +1861,7 @@ int SSLClientSocketNSS::DoSnapStartLoadInfo() {
   int rv = ssl_host_info_->WaitForDataReady(&handshake_io_callback_);
 
   if (rv == OK) {
-    LOG(ERROR) << "SSL host info size " << hostname_ << " "
-               << ssl_host_info_->data().size();
-    if (LoadSnapStartInfo(ssl_host_info_->data())) {
+    if (LoadSnapStartInfo()) {
       pseudo_connected_ = true;
       GotoState(STATE_SNAP_START_WAIT_FOR_WRITE);
       if (user_connect_callback_)

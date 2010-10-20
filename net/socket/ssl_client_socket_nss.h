@@ -103,7 +103,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoPayloadWrite();
   int Init();
   void SaveSnapStartInfo();
-  bool LoadSnapStartInfo(const std::string& info);
+  bool LoadSnapStartInfo();
   bool IsNPNProtocolMispredicted();
   void UncorkAfterTimeout();
 

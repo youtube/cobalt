@@ -24,7 +24,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
-#include "net/base/ssl_host_info.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/disk_cache_based_ssl_host_info.h"
 #include "net/http/http_cache_transaction.h"
@@ -34,6 +33,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_util.h"
+#include "net/socket/ssl_host_info.h"
 #include "net/spdy/spdy_session_pool.h"
 
 namespace net {
