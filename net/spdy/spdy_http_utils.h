@@ -12,6 +12,7 @@ namespace net {
 
 class HttpResponseInfo;
 struct HttpRequestInfo;
+class HttpRequestHeaders;
 
 // Convert a SpdyHeaderBlock into an HttpResponseInfo.
 // |headers| input parameter with the SpdyHeaderBlock.
@@ -22,8 +23,9 @@ bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
                                HttpResponseInfo* response);
 
 // Create a SpdyHeaderBlock for a Spdy SYN_STREAM Frame from
-// a HttpRequestInfo block.
+// HttpRequestInfo and HttpRequestHeaders.
 void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
+                                      const HttpRequestHeaders& request_headers,
                                       spdy::SpdyHeaderBlock* headers,
                                       bool direct);
 
