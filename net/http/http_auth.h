@@ -121,7 +121,26 @@ class HttpAuth {
       const BoundNetLog& net_log,
       scoped_ptr<HttpAuthHandler>* handler);
 
-  // Handle a response to a previous authentication attempt.
+  // Handle a 401/407 response from a server/proxy after a previous
+  // authentication attempt. For connection-based authentication schemes, the
+  // new response may be another round in a multi-round authentication sequence.
+  // For request-based schemes, a 401/407 response is typically treated like a
+  // rejection of the previous challenge, except in the Digest case when a
+  // "stale" attribute is present.
+  //
+  // |handler| must be non-NULL, and is the HttpAuthHandler from the previous
+  // authentication round.
+  //
+  // |headers| must be non-NULL and contain the new HTTP response.
+  //
+  // |target| specifies whether the headers came from a server or proxy.
+  //
+  // |disabled_schemes| are the authentication schemes to ignore.
+  //
+  // |challenge_used| is the text of the authentication challenge used in
+  // support of the returned AuthorizationResult. If no headers were used for
+  // the result (for example, all headers have unknown authentication schemes),
+  // the value is cleared.
   static AuthorizationResult HandleChallengeResponse(
       HttpAuthHandler* handler,
       const HttpResponseHeaders* headers,
