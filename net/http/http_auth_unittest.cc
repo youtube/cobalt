@@ -42,6 +42,23 @@ HttpResponseHeaders* HeadersFromResponseText(const std::string& response) {
       HttpUtil::AssembleRawHeaders(response.c_str(), response.length()));
 }
 
+HttpAuth::AuthorizationResult HandleChallengeResponse(
+    bool connection_based,
+    const std::string& headers_text,
+    std::string* challenge_used) {
+  scoped_ptr<HttpAuthHandlerMock> mock_handler(
+      CreateMockHandler(connection_based));
+  std::set<std::string> disabled_schemes;
+  scoped_refptr<HttpResponseHeaders> headers(
+      HeadersFromResponseText(headers_text));
+  return HttpAuth::HandleChallengeResponse(
+      mock_handler.get(),
+      headers.get(),
+      HttpAuth::AUTH_SERVER,
+      disabled_schemes,
+      challenge_used);
+}
+
 }  // namespace
 
 TEST(HttpAuthTest, ChooseBestChallenge) {
@@ -130,58 +147,95 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
   }
 }
 
-TEST(HttpAuthTest, HandleChallengeResponse_RequestBased) {
-  scoped_ptr<HttpAuthHandlerMock> mock_handler(CreateMockHandler(false));
-  std::set<std::string> disabled_schemes;
-  scoped_refptr<HttpResponseHeaders> headers(
-      HeadersFromResponseText(
-          "HTTP/1.1 401 Unauthorized\n"
-          "WWW-Authenticate: Mock token_here\n"));
+TEST(HttpAuthTest, HandleChallengeResponse) {
   std::string challenge_used;
-  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
-            HttpAuth::HandleChallengeResponse(
-                mock_handler.get(),
-                headers.get(),
-                HttpAuth::AUTH_SERVER,
-                disabled_schemes,
-                &challenge_used));
-  EXPECT_EQ("Mock token_here", challenge_used);
-}
+  const char* kMockChallenge =
+      "HTTP/1.1 401 Unauthorized\n"
+      "WWW-Authenticate: Mock token_here\n";
+  const char* kBasicChallenge =
+      "HTTP/1.1 401 Unauthorized\n"
+      "WWW-Authenticate: Basic realm=\"happy\"\n";
+  const char* kMissingChallenge =
+      "HTTP/1.1 401 Unauthorized\n";
+  const char* kEmptyChallenge =
+      "HTTP/1.1 401 Unauthorized\n"
+      "WWW-Authenticate: \n";
+  const char* kBasicAndMockChallenges =
+      "HTTP/1.1 401 Unauthorized\n"
+      "WWW-Authenticate: Basic realm=\"happy\"\n"
+      "WWW-Authenticate: Mock token_here\n";
+  const char* kTwoMockChallenges =
+      "HTTP/1.1 401 Unauthorized\n"
+      "WWW-Authenticate: Mock token_a\n"
+      "WWW-Authenticate: Mock token_b\n";
 
-TEST(HttpAuthTest, HandleChallengeResponse_ConnectionBased) {
-  scoped_ptr<HttpAuthHandlerMock> mock_handler(CreateMockHandler(true));
-  std::set<std::string> disabled_schemes;
-  scoped_refptr<HttpResponseHeaders> headers(
-      HeadersFromResponseText(
-          "HTTP/1.1 401 Unauthorized\n"
-          "WWW-Authenticate: Mock token_here\n"));
-  std::string challenge_used;
-  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
-            HttpAuth::HandleChallengeResponse(
-                mock_handler.get(),
-                headers.get(),
-                HttpAuth::AUTH_SERVER,
-                disabled_schemes,
-                &challenge_used));
+  // Request based schemes should treat any new challenges as rejections of the
+  // previous authentication attempt. (There is a slight exception for digest
+  // authentication and the stale parameter, but that is covered in the
+  // http_auth_handler_digest_unittests).
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(false, kMockChallenge, &challenge_used));
   EXPECT_EQ("Mock token_here", challenge_used);
-}
 
-TEST(HttpAuthTest, HandleChallengeResponse_ConnectionBasedNoMatch) {
-  scoped_ptr<HttpAuthHandlerMock> mock_handler(CreateMockHandler(true));
-  std::set<std::string> disabled_schemes;
-  scoped_refptr<HttpResponseHeaders> headers(
-      HeadersFromResponseText(
-          "HTTP/1.1 401 Unauthorized\n"
-          "WWW-Authenticate: Basic realm=\"happy\"\n"));
-  std::string challenge_used;
-  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
-            HttpAuth::HandleChallengeResponse(
-                mock_handler.get(),
-                headers.get(),
-                HttpAuth::AUTH_SERVER,
-                disabled_schemes,
-                &challenge_used));
-  EXPECT_TRUE(challenge_used.empty());
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(false, kBasicChallenge, &challenge_used));
+  EXPECT_EQ("", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(false, kMissingChallenge, &challenge_used));
+  EXPECT_EQ("", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(false, kEmptyChallenge, &challenge_used));
+  EXPECT_EQ("", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(false, kBasicAndMockChallenges, &challenge_used));
+  EXPECT_EQ("Mock token_here", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(false, kTwoMockChallenges, &challenge_used));
+  EXPECT_EQ("Mock token_a", challenge_used);
+
+  // Connection based schemes will treat new auth challenges for the same scheme
+  // as acceptance (and continuance) of the current approach. If there are
+  // no auth challenges for the same scheme, the response will be treated as
+  // a rejection.
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
+      HandleChallengeResponse(true, kMockChallenge, &challenge_used));
+  EXPECT_EQ("Mock token_here", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(true, kBasicChallenge, &challenge_used));
+  EXPECT_EQ("", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(true, kMissingChallenge, &challenge_used));
+  EXPECT_EQ("", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_REJECT,
+      HandleChallengeResponse(true, kEmptyChallenge, &challenge_used));
+  EXPECT_EQ("", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
+      HandleChallengeResponse(true, kBasicAndMockChallenges, &challenge_used));
+  EXPECT_EQ("Mock token_here", challenge_used);
+
+  EXPECT_EQ(
+      HttpAuth::AUTHORIZATION_RESULT_ACCEPT,
+      HandleChallengeResponse(true, kTwoMockChallenges, &challenge_used));
+  EXPECT_EQ("Mock token_a", challenge_used);
 }
 
 TEST(HttpAuthTest, ChallengeTokenizer) {
