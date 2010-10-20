@@ -14,8 +14,8 @@
           'type': '<(library)',
           'sources': [
             'bits.c',
-            'frame.c',
             'dsp.c',
+            'frame.c',
             'quant.c',
             'tree.c',
             'vp8.c',
@@ -28,19 +28,7 @@
             ],
           },
           'conditions': [
-            ['OS!="win"', {
-	      'product_name': 'webp',
-              'cflags': [
-                '-std=c99',
-              ],},
-            ],
-            ['OS=="win"', {
-              'msvs_settings': {
-                'VCCLCompilerTool': {
-                  'AdditionalOptions': ['/TP'],  # compile as C++ to get C99
-                },
-              },
-            }],
+            ['OS!="win"', {'product_name': 'webp'}],
           ],
         },
       ],
