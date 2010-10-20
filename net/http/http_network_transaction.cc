@@ -60,75 +60,6 @@ namespace net {
 
 namespace {
 
-void BuildRequestHeaders(const HttpRequestInfo* request_info,
-                         const HttpRequestHeaders& authorization_headers,
-                         const UploadDataStream* upload_data_stream,
-                         bool using_proxy,
-                         std::string* request_line,
-                         HttpRequestHeaders* request_headers) {
-  const std::string path = using_proxy ?
-                           HttpUtil::SpecForRequest(request_info->url) :
-                           HttpUtil::PathForRequest(request_info->url);
-  *request_line = base::StringPrintf(
-      "%s %s HTTP/1.1\r\n", request_info->method.c_str(), path.c_str());
-  request_headers->SetHeader(HttpRequestHeaders::kHost,
-                             GetHostAndOptionalPort(request_info->url));
-
-  // For compat with HTTP/1.0 servers and proxies:
-  if (using_proxy) {
-    request_headers->SetHeader(HttpRequestHeaders::kProxyConnection,
-                               "keep-alive");
-  } else {
-    request_headers->SetHeader(HttpRequestHeaders::kConnection, "keep-alive");
-  }
-
-  // Our consumer should have made sure that this is a safe referrer.  See for
-  // instance WebCore::FrameLoader::HideReferrer.
-  if (request_info->referrer.is_valid()) {
-    request_headers->SetHeader(HttpRequestHeaders::kReferer,
-                               request_info->referrer.spec());
-  }
-
-  // Add a content length header?
-  if (upload_data_stream) {
-    request_headers->SetHeader(
-        HttpRequestHeaders::kContentLength,
-        base::Uint64ToString(upload_data_stream->size()));
-  } else if (request_info->method == "POST" || request_info->method == "PUT" ||
-             request_info->method == "HEAD") {
-    // An empty POST/PUT request still needs a content length.  As for HEAD,
-    // IE and Safari also add a content length header.  Presumably it is to
-    // support sending a HEAD request to an URL that only expects to be sent a
-    // POST or some other method that normally would have a message body.
-    request_headers->SetHeader(HttpRequestHeaders::kContentLength, "0");
-  }
-
-  // Honor load flags that impact proxy caches.
-  if (request_info->load_flags & LOAD_BYPASS_CACHE) {
-    request_headers->SetHeader(HttpRequestHeaders::kPragma, "no-cache");
-    request_headers->SetHeader(HttpRequestHeaders::kCacheControl, "no-cache");
-  } else if (request_info->load_flags & LOAD_VALIDATE_CACHE) {
-    request_headers->SetHeader(HttpRequestHeaders::kCacheControl, "max-age=0");
-  }
-
-  request_headers->MergeFrom(authorization_headers);
-
-  // Headers that will be stripped from request_info->extra_headers to prevent,
-  // e.g., plugins from overriding headers that are controlled using other
-  // means. Otherwise a plugin could set a referrer although sending the
-  // referrer is inhibited.
-  // TODO(jochen): check whether also other headers should be stripped.
-  static const char* const kExtraHeadersToBeStripped[] = {
-    "Referer"
-  };
-
-  HttpRequestHeaders stripped_extra_headers;
-  stripped_extra_headers.CopyFrom(request_info->extra_headers);
-  for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
-    stripped_extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
-  request_headers->MergeFrom(stripped_extra_headers);
-}
-
 void ProcessAlternateProtocol(HttpStreamFactory* factory,
                               HttpAlternateProtocols* alternate_protocols,
                               const HttpResponseHeaders& headers,
@@ -695,26 +626,19 @@ int HttpNetworkTransaction::DoSendRequest() {
   // This is constructed lazily (instead of within our Start method), so that
   // we have proxy info available.
   if (request_headers_.empty() && !response_.was_fetched_via_spdy) {
-    // Figure out if we can/should add Proxy-Authentication & Authentication
-    // headers.
-    HttpRequestHeaders authorization_headers;
-    bool have_proxy_auth = (ShouldApplyProxyAuth() &&
-                            HaveAuth(HttpAuth::AUTH_PROXY));
-    bool have_server_auth = (ShouldApplyServerAuth() &&
-                             HaveAuth(HttpAuth::AUTH_SERVER));
-    if (have_proxy_auth)
-      auth_controllers_[HttpAuth::AUTH_PROXY]->AddAuthorizationHeader(
-          &authorization_headers);
-    if (have_server_auth)
-      auth_controllers_[HttpAuth::AUTH_SERVER]->AddAuthorizationHeader(
-          &authorization_headers);
-    std::string request_line;
-    HttpRequestHeaders request_headers;
+    bool using_proxy = (proxy_info_.is_http()|| proxy_info_.is_https()) &&
+                        !is_https_request();
+    const std::string path = using_proxy ?
+                             HttpUtil::SpecForRequest(request_->url) :
+                             HttpUtil::PathForRequest(request_->url);
+    std::string request_line = base::StringPrintf(
+        "%s %s HTTP/1.1\r\n", request_->method.c_str(), path.c_str());
 
-    BuildRequestHeaders(request_, authorization_headers, request_body,
-                        !is_https_request() && (proxy_info_.is_http() ||
-                                        proxy_info_.is_https()),
-                        &request_line, &request_headers);
+    HttpRequestHeaders request_headers;
+    HttpUtil::BuildRequestHeaders(request_, request_body, auth_controllers_,
+                                  ShouldApplyServerAuth(),
+                                  ShouldApplyProxyAuth(), using_proxy,
+                                  &request_headers);
 
     if (session_->network_delegate())
       session_->network_delegate()->OnSendHttpRequest(&request_headers);
