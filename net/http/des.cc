@@ -1,22 +1,21 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/des.h"
 
+#include "base/logging.h"
+
 #if defined(USE_NSS)
 #include <nss.h>
 #include <pk11pub.h>
+#include "base/nss_util.h"
 #elif defined(OS_MACOSX)
 #include <CommonCrypto/CommonCryptor.h>
 #elif defined(OS_WIN)
 #include <windows.h>
 #include <wincrypt.h>
-#endif
-
-#include "base/logging.h"
-#if defined(USE_NSS)
-#include "base/nss_util.h"
+#include "base/crypto/scoped_capi_types.h"
 #endif
 
 // The Mac and Windows (CryptoAPI) versions of DESEncrypt are our own code.
@@ -156,63 +155,48 @@ void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
 #elif defined(OS_WIN)
 
 void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
-  HCRYPTPROV provider;
-  HCRYPTKEY hkey = NULL;
+  base::ScopedHCRYPTPROV provider;
+  if (!CryptAcquireContext(provider.receive(), NULL, NULL, PROV_RSA_FULL,
+                           CRYPT_VERIFYCONTEXT))
+    return;
 
-  if (!CryptAcquireContext(&provider, NULL, NULL,
-                           PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-    provider = NULL;
-    goto done;
+  {
+    // Import the DES key.
+    struct KeyBlob {
+      BLOBHEADER header;
+      DWORD key_size;
+      BYTE key_data[8];
+    };
+    KeyBlob key_blob;
+    key_blob.header.bType = PLAINTEXTKEYBLOB;
+    key_blob.header.bVersion = CUR_BLOB_VERSION;
+    key_blob.header.reserved = 0;
+    key_blob.header.aiKeyAlg = CALG_DES;
+    key_blob.key_size = 8;  // 64 bits
+    memcpy(key_blob.key_data, key, 8);
+
+    base::ScopedHCRYPTKEY key;
+    BOOL import_ok = CryptImportKey(provider,
+                                    reinterpret_cast<BYTE*>(&key_blob),
+                                    sizeof key_blob, 0, 0, key.receive());
+    // Destroy the copy of the key.
+    SecureZeroMemory(key_blob.key_data, sizeof key_blob.key_data);
+    if (!import_ok)
+      return;
+
+    // No initialization vector required.
+    DWORD cipher_mode = CRYPT_MODE_ECB;
+    if (!CryptSetKeyParam(key, KP_MODE, reinterpret_cast<BYTE*>(&cipher_mode),
+                          0))
+      return;
+
+    // CryptoAPI requires us to copy the plaintext to the output buffer first.
+    CopyMemory(hash, src, 8);
+    // Pass a 'Final' of FALSE, otherwise CryptEncrypt appends one additional
+    // block of padding to the data.
+    DWORD hash_len = 8;
+    CryptEncrypt(key, 0, FALSE, 0, hash, &hash_len, 8);
   }
-
-  // Import the DES key.
-  // This code doesn't work on Win2k because PLAINTEXTKEYBLOB is not supported
-  // on Windows 2000.  PLAINTEXTKEYBLOB allows the import of an unencrypted
-  // key.  For Win2k support, a cubmbersome exponent-of-one key procedure must
-  // be used:
-  //     http://support.microsoft.com/kb/228786/en-us
-
-  struct KeyBlob {
-    BLOBHEADER header;
-    DWORD key_size;
-    BYTE key_data[8];
-  };
-  KeyBlob key_blob;
-  key_blob.header.bType = PLAINTEXTKEYBLOB;
-  key_blob.header.bVersion = CUR_BLOB_VERSION;
-  key_blob.header.reserved = 0;
-  key_blob.header.aiKeyAlg = CALG_DES;
-  key_blob.key_size = 8;  // 64 bits
-  memcpy(key_blob.key_data, key, 8);
-
-  if (!CryptImportKey(provider, reinterpret_cast<BYTE*>(&key_blob),
-                      sizeof(key_blob), 0, 0, &hkey)) {
-    hkey = NULL;
-    goto done;
-  }
-
-  // Destroy the copy of the key.
-  SecureZeroMemory(key_blob.key_data, sizeof(key_blob.key_data));
-
-  // No initialization vector required.
-  DWORD cipher_mode = CRYPT_MODE_ECB;
-  if (!CryptSetKeyParam(hkey, KP_MODE,
-                        reinterpret_cast<BYTE*>(&cipher_mode), 0))
-    goto done;
-
-  // CryptoAPI requires us to copy the plaintext to the output buffer first.
-  CopyMemory(hash, src, 8);
-  // Pass a 'Final' of FALSE, otherwise CryptEncrypt appends one additional
-  // block of padding to the data.
-  DWORD hash_len = 8;
-  if (!CryptEncrypt(hkey, NULL, FALSE, 0, hash, &hash_len, 8))
-    goto done;
-
- done:
-  if (hkey)
-    CryptDestroyKey(hkey);
-  if (provider)
-    CryptReleaseContext(provider, 0);
 }
 
 #endif
