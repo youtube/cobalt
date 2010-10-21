@@ -442,6 +442,11 @@ class MessageLoop : public base::MessagePump::Delegate {
   // Contains delayed tasks, sorted by their 'delayed_run_time' property.
   DelayedTaskQueue delayed_work_queue_;
 
+  // Contains delayed tasks (popped from delayed_work_queue_) that have already
+  // passed their expiration time, and can be run.  They are ordered exactly as
+  // they were on the delayed_work_queue_ when popped.
+  TaskQueue ripe_work_queue_;
+
   // A queue of non-nestable tasks that we had to defer because when it came
   // time to execute them we were in a nested message loop.  They will execute
   // once we're out of nested message loops.
