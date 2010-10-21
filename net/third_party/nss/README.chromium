@@ -27,8 +27,10 @@ Patches:
     https://bugzilla.mozilla.org/show_bug.cgi?id=549042
 
   * Cache the peer's intermediate CA certificates in session ID, so that
-    they're available when we resume a session.
+    they're available when we resume a session.  Add certificates to
+    ss->ssl3.peerCertChain in the right order.
     patches/cachecerts.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=606049
 
   * Add the SSL_ERROR_WEAK_SERVER_KEY error code for a weak server key in 
     the Server Key Exchange handshake message.
