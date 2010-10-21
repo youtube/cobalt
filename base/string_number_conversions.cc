@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include <limits>
+
 #include "base/logging.h"
 #include "base/third_party/dmg_fp/dmg_fp.h"
 #include "base/utf_string_conversions.h"
@@ -94,209 +96,244 @@ struct IntToStringT {
   }
 };
 
-// Generalized string-to-number conversion.
-//
-// StringToNumberTraits should provide:
-//  - a typedef for string_type, the STL string type used as input.
-//  - a typedef for value_type, the target numeric type.
-//  - a static function, convert_func, which dispatches to an appropriate
-//    strtol-like function and returns type value_type.
-//  - a static function, valid_func, which validates |input| and returns a bool
-//    indicating whether it is in proper form.  This is used to check for
-//    conditions that convert_func tolerates but should result in
-//    StringToNumber returning false.  For strtol-like funtions, valid_func
-//    should check for leading whitespace.
-template<typename StringToNumberTraits>
-bool StringToNumber(const typename StringToNumberTraits::string_type& input,
-                    typename StringToNumberTraits::value_type* output) {
-  typedef StringToNumberTraits traits;
-
-  errno = 0;  // Thread-safe?  It is on at least Mac, Linux, and Windows.
-  typename traits::string_type::value_type* endptr = NULL;
-  typename traits::value_type value = traits::convert_func(input.c_str(),
-                                                           &endptr);
-  *output = value;
-
-  // Cases to return false:
-  //  - If errno is ERANGE, there was an overflow or underflow.
-  //  - If the input string is empty, there was nothing to parse.
-  //  - If endptr does not point to the end of the string, there are either
-  //    characters remaining in the string after a parsed number, or the string
-  //    does not begin with a parseable number.  endptr is compared to the
-  //    expected end given the string's stated length to correctly catch cases
-  //    where the string contains embedded NUL characters.
-  //  - valid_func determines that the input is not in preferred form.
-  return errno == 0 &&
-         !input.empty() &&
-         input.c_str() + input.length() == endptr &&
-         traits::valid_func(input);
-}
-
-static int strtoi(const char *nptr, char **endptr, int base) {
-  long res = strtol(nptr, endptr, base);
-#if __LP64__
-  // Long is 64-bits, we have to handle under/overflow ourselves.
-  if (res > kint32max) {
-    res = kint32max;
-    errno = ERANGE;
-  } else if (res < kint32min) {
-    res = kint32min;
-    errno = ERANGE;
-  }
-#endif
-  return static_cast<int>(res);
-}
-
-static unsigned int strtoui(const char *nptr, char **endptr, int base) {
-  unsigned long res = strtoul(nptr, endptr, base);
-#if __LP64__
-  // Long is 64-bits, we have to handle under/overflow ourselves.  Test to see
-  // if the result can fit into 32-bits (as signed or unsigned).
-  if (static_cast<int>(static_cast<long>(res)) != static_cast<long>(res) &&
-      static_cast<unsigned int>(res) != res) {
-    res = kuint32max;
-    errno = ERANGE;
-  }
-#endif
-  return static_cast<unsigned int>(res);
-}
-
-class StringToIntTraits {
- public:
-  typedef std::string string_type;
-  typedef int value_type;
-  static const int kBase = 10;
-  static inline value_type convert_func(const string_type::value_type* str,
-                                        string_type::value_type** endptr) {
-    return strtoi(str, endptr, kBase);
-  }
-  static inline bool valid_func(const string_type& str) {
-    return !str.empty() && !isspace(str[0]);
-  }
+// Utility to convert a character to a digit in a given base
+template<typename CHAR, int BASE, bool BASE_LTE_10> class BaseCharToDigit {
 };
 
-class String16ToIntTraits {
+// Faster specialization for bases <= 10
+template<typename CHAR, int BASE> class BaseCharToDigit<CHAR, BASE, true> {
  public:
-  typedef string16 string_type;
-  typedef int value_type;
-  static const int kBase = 10;
-  static inline value_type convert_func(const string_type::value_type* str,
-                                        string_type::value_type** endptr) {
-#if defined(WCHAR_T_IS_UTF16)
-    return wcstol(str, endptr, kBase);
-#elif defined(WCHAR_T_IS_UTF32)
-    std::string ascii_string = UTF16ToUTF8(string16(str));
-    char* ascii_end = NULL;
-    value_type ret = strtoi(ascii_string.c_str(), &ascii_end, kBase);
-    if (ascii_string.c_str() + ascii_string.length() == ascii_end) {
-      *endptr =
-          const_cast<string_type::value_type*>(str) + ascii_string.length();
+  static bool Convert(CHAR c, uint8* digit) {
+    if (c >= '0' && c < '0' + BASE) {
+      *digit = c - '0';
+      return true;
     }
-    return ret;
-#endif
-  }
-  static inline bool valid_func(const string_type& str) {
-    return !str.empty() && !iswspace(str[0]);
-  }
-};
-
-class StringToInt64Traits {
- public:
-  typedef std::string string_type;
-  typedef int64 value_type;
-  static const int kBase = 10;
-  static inline value_type convert_func(const string_type::value_type* str,
-                                        string_type::value_type** endptr) {
-#ifdef OS_WIN
-    return _strtoi64(str, endptr, kBase);
-#else  // assume OS_POSIX
-    return strtoll(str, endptr, kBase);
-#endif
-  }
-  static inline bool valid_func(const string_type& str) {
-    return !str.empty() && !isspace(str[0]);
-  }
-};
-
-class String16ToInt64Traits {
- public:
-  typedef string16 string_type;
-  typedef int64 value_type;
-  static const int kBase = 10;
-  static inline value_type convert_func(const string_type::value_type* str,
-                                        string_type::value_type** endptr) {
-#ifdef OS_WIN
-    return _wcstoi64(str, endptr, kBase);
-#else  // assume OS_POSIX
-    std::string ascii_string = UTF16ToUTF8(string16(str));
-    char* ascii_end = NULL;
-    value_type ret = strtoll(ascii_string.c_str(), &ascii_end, kBase);
-    if (ascii_string.c_str() + ascii_string.length() == ascii_end) {
-      *endptr =
-          const_cast<string_type::value_type*>(str) + ascii_string.length();
-    }
-    return ret;
-#endif
-  }
-  static inline bool valid_func(const string_type& str) {
-    return !str.empty() && !iswspace(str[0]);
-  }
-};
-
-// For the HexString variants, use the unsigned variants like strtoul for
-// convert_func so that input like "0x80000000" doesn't result in an overflow.
-
-class HexStringToIntTraits {
- public:
-  typedef std::string string_type;
-  typedef int value_type;
-  static const int kBase = 16;
-  static inline value_type convert_func(const string_type::value_type* str,
-                                        string_type::value_type** endptr) {
-    return strtoui(str, endptr, kBase);
-  }
-  static inline bool valid_func(const string_type& str) {
-    return !str.empty() && !isspace(str[0]);
-  }
-};
-
-class StringToDoubleTraits {
- public:
-  typedef std::string string_type;
-  typedef double value_type;
-  static inline value_type convert_func(const string_type::value_type* str,
-                                        string_type::value_type** endptr) {
-    return dmg_fp::strtod(str, endptr);
-  }
-  static inline bool valid_func(const string_type& str) {
-    return !str.empty() && !isspace(str[0]);
-  }
-};
-
-template<class CHAR>
-bool HexDigitToIntT(const CHAR digit, uint8* val) {
-  if (digit >= '0' && digit <= '9')
-    *val = digit - '0';
-  else if (digit >= 'a' && digit <= 'f')
-    *val = 10 + digit - 'a';
-  else if (digit >= 'A' && digit <= 'F')
-    *val = 10 + digit - 'A';
-  else
     return false;
-  return true;
+  }
+};
+
+// Specialization for bases where 10 < base <= 36
+template<typename CHAR, int BASE> class BaseCharToDigit<CHAR, BASE, false> {
+ public:
+  static bool Convert(CHAR c, uint8* digit) {
+    if (c >= '0' && c <= '9') {
+      *digit = c - '0';
+    } else if (c >= 'a' && c < 'a' + BASE - 10) {
+      *digit = c - 'a' + 10;
+    } else if (c >= 'A' && c < 'A' + BASE - 10) {
+      *digit = c - 'A' + 10;
+    } else {
+      return false;
+    }
+    return true;
+  }
+};
+
+template<int BASE, typename CHAR> bool CharToDigit(CHAR c, uint8* digit) {
+  return BaseCharToDigit<CHAR, BASE, BASE <= 10>::Convert(c, digit);
 }
+
+// There is an IsWhitespace for wchars defined in string_util.h, but it is
+// locale independent, whereas the functions we are replacing were
+// locale-dependent. TBD what is desired, but for the moment let's not introduce
+// a change in behaviour.
+template<typename CHAR> class WhitespaceHelper {
+};
+
+template<> class WhitespaceHelper<char> {
+ public:
+  static bool Invoke(char c) {
+    return 0 != isspace(c);
+  }
+};
+
+template<> class WhitespaceHelper<char16> {
+ public:
+  static bool Invoke(char16 c) {
+    return 0 != iswspace(c);
+  }
+};
+
+template<typename CHAR> bool LocalIsWhitespace(CHAR c) {
+  return WhitespaceHelper<CHAR>::Invoke(c);
+}
+
+// IteratorRangeToNumberTraits should provide:
+//  - a typedef for iterator_type, the iterator type used as input.
+//  - a typedef for value_type, the target numeric type.
+//  - static functions min, max (returning the minimum and maximum permitted
+//    values)
+//  - constant kBase, the base in which to interpret the input
+template<typename IteratorRangeToNumberTraits>
+class IteratorRangeToNumber {
+ public:
+  typedef IteratorRangeToNumberTraits traits;
+  typedef typename traits::iterator_type const_iterator;
+  typedef typename traits::value_type value_type;
+
+  // Generalized iterator-range-to-number conversion.
+  //
+  static bool Invoke(const_iterator begin,
+                     const_iterator end,
+                     value_type* output) {
+    bool valid = true;
+
+    while (begin != end && LocalIsWhitespace(*begin)) {
+      valid = false;
+      ++begin;
+    }
+
+    if (begin != end && *begin == '-') {
+      if (!Negative::Invoke(begin + 1, end, output)) {
+        valid = false;
+      }
+    } else {
+      if (begin != end && *begin == '+') {
+        ++begin;
+      }
+      if (!Positive::Invoke(begin, end, output)) {
+        valid = false;
+      }
+    }
+
+    return valid;
+  }
+
+ private:
+  // Sign provides:
+  //  - a static function, CheckBounds, that determines whether the next digit
+  //    causes an overflow/underflow
+  //  - a static function, Increment, that appends the next digit appropriately
+  //    according to the sign of the number being parsed.
+  template<typename Sign>
+  class Base {
+   public:
+    static bool Invoke(const_iterator begin, const_iterator end,
+                       typename traits::value_type* output) {
+      *output = 0;
+
+      if (begin == end) {
+        return false;
+      }
+
+      // Note: no performance difference was found when using template
+      // specialization to remove this check in bases other than 16
+      if (traits::kBase == 16 && end - begin >= 2 && *begin == '0' &&
+          (*(begin + 1) == 'x' || *(begin + 1) == 'X')) {
+        begin += 2;
+      }
+
+      for (const_iterator current = begin; current != end; ++current) {
+        uint8 new_digit = 0;
+
+        if (!CharToDigit<traits::kBase>(*current, &new_digit)) {
+          return false;
+        }
+
+        if (current != begin) {
+          if (!Sign::CheckBounds(output, new_digit)) {
+            return false;
+          }
+          *output *= traits::kBase;
+        }
+
+        Sign::Increment(new_digit, output);
+      }
+      return true;
+    }
+  };
+
+  class Positive : public Base<Positive> {
+   public:
+    static bool CheckBounds(value_type* output, uint8 new_digit) {
+      if (*output > static_cast<value_type>(traits::max() / traits::kBase) ||
+          (*output == static_cast<value_type>(traits::max() / traits::kBase) &&
+           new_digit > traits::max() % traits::kBase)) {
+        *output = traits::max();
+        return false;
+      }
+      return true;
+    }
+    static void Increment(uint8 increment, value_type* output) {
+      *output += increment;
+    }
+  };
+
+  class Negative : public Base<Negative> {
+   public:
+    static bool CheckBounds(value_type* output, uint8 new_digit) {
+      if (*output < traits::min() / traits::kBase ||
+          (*output == traits::min() / traits::kBase &&
+           new_digit > 0 - traits::min() % traits::kBase)) {
+        *output = traits::min();
+        return false;
+      }
+      return true;
+    }
+    static void Increment(uint8 increment, value_type* output) {
+      *output -= increment;
+    }
+  };
+};
+
+template<typename ITERATOR, typename VALUE, int BASE>
+class BaseIteratorRangeToNumberTraits {
+ public:
+  typedef ITERATOR iterator_type;
+  typedef VALUE value_type;
+  static value_type min() {
+    return std::numeric_limits<value_type>::min();
+  }
+  static value_type max() {
+    return std::numeric_limits<value_type>::max();
+  }
+  static const int kBase = BASE;
+};
+
+typedef BaseIteratorRangeToNumberTraits<std::string::const_iterator, int, 10>
+    IteratorRangeToIntTraits;
+typedef BaseIteratorRangeToNumberTraits<string16::const_iterator, int, 10>
+    WideIteratorRangeToIntTraits;
+typedef BaseIteratorRangeToNumberTraits<std::string::const_iterator, int64, 10>
+    IteratorRangeToInt64Traits;
+typedef BaseIteratorRangeToNumberTraits<string16::const_iterator, int64, 10>
+    WideIteratorRangeToInt64Traits;
+
+typedef BaseIteratorRangeToNumberTraits<const char*, int, 10>
+    CharBufferToIntTraits;
+typedef BaseIteratorRangeToNumberTraits<const char16*, int, 10>
+    WideCharBufferToIntTraits;
+typedef BaseIteratorRangeToNumberTraits<const char*, int64, 10>
+    CharBufferToInt64Traits;
+typedef BaseIteratorRangeToNumberTraits<const char16*, int64, 10>
+    WideCharBufferToInt64Traits;
+
+template<typename ITERATOR>
+class BaseHexIteratorRangeToIntTraits
+    : public BaseIteratorRangeToNumberTraits<ITERATOR, int, 16> {
+ public:
+  // Allow parsing of 0xFFFFFFFF, which is technically an overflow
+  static unsigned int max() {
+    return std::numeric_limits<unsigned int>::max();
+  }
+};
+
+typedef BaseHexIteratorRangeToIntTraits<std::string::const_iterator>
+    HexIteratorRangeToIntTraits;
+typedef BaseHexIteratorRangeToIntTraits<const char*>
+    HexCharBufferToIntTraits;
 
 template<typename STR>
 bool HexStringToBytesT(const STR& input, std::vector<uint8>* output) {
-  DCHECK(output->size() == 0);
+  DCHECK_EQ(output->size(), 0u);
   size_t count = input.size();
   if (count == 0 || (count % 2) != 0)
     return false;
   for (uintptr_t i = 0; i < count / 2; ++i) {
     uint8 msb = 0;  // most significant 4 bits
     uint8 lsb = 0;  // least significant 4 bits
-    if (!HexDigitToIntT(input[i * 2], &msb) ||
-        !HexDigitToIntT(input[i * 2 + 1], &lsb))
+    if (!CharToDigit<16>(input[i * 2], &msb) ||
+        !CharToDigit<16>(input[i * 2 + 1], &lsb))
       return false;
     output->push_back((msb << 4) | lsb);
   }
@@ -352,28 +389,109 @@ std::string DoubleToString(double value) {
 }
 
 bool StringToInt(const std::string& input, int* output) {
-  return StringToNumber<StringToIntTraits>(input, output);
+  return IteratorRangeToNumber<IteratorRangeToIntTraits>::Invoke(input.begin(),
+                                                                 input.end(),
+                                                                 output);
+}
+
+bool StringToInt(std::string::const_iterator begin,
+                 std::string::const_iterator end,
+                 int* output) {
+  return IteratorRangeToNumber<IteratorRangeToIntTraits>::Invoke(begin,
+                                                                 end,
+                                                                 output);
+}
+
+bool StringToInt(const char* begin, const char* end, int* output) {
+  return IteratorRangeToNumber<CharBufferToIntTraits>::Invoke(begin,
+                                                              end,
+                                                              output);
 }
 
 bool StringToInt(const string16& input, int* output) {
-  return StringToNumber<String16ToIntTraits>(input, output);
+  return IteratorRangeToNumber<WideIteratorRangeToIntTraits>::Invoke(
+    input.begin(), input.end(), output);
+}
+
+bool StringToInt(string16::const_iterator begin,
+                 string16::const_iterator end,
+                 int* output) {
+  return IteratorRangeToNumber<WideIteratorRangeToIntTraits>::Invoke(begin,
+                                                                     end,
+                                                                     output);
+}
+
+bool StringToInt(const char16* begin, const char16* end, int* output) {
+  return IteratorRangeToNumber<WideCharBufferToIntTraits>::Invoke(begin,
+                                                                  end,
+                                                                  output);
 }
 
 bool StringToInt64(const std::string& input, int64* output) {
-  return StringToNumber<StringToInt64Traits>(input, output);
+  return IteratorRangeToNumber<IteratorRangeToInt64Traits>::Invoke(
+    input.begin(), input.end(), output);
+}
+
+bool StringToInt64(std::string::const_iterator begin,
+                 std::string::const_iterator end,
+                 int64* output) {
+  return IteratorRangeToNumber<IteratorRangeToInt64Traits>::Invoke(begin,
+                                                                 end,
+                                                                 output);
+}
+
+bool StringToInt64(const char* begin, const char* end, int64* output) {
+  return IteratorRangeToNumber<CharBufferToInt64Traits>::Invoke(begin,
+                                                              end,
+                                                              output);
 }
 
 bool StringToInt64(const string16& input, int64* output) {
-  return StringToNumber<String16ToInt64Traits>(input, output);
+  return IteratorRangeToNumber<WideIteratorRangeToInt64Traits>::Invoke(
+    input.begin(), input.end(), output);
+}
+
+bool StringToInt64(string16::const_iterator begin,
+                 string16::const_iterator end,
+                 int64* output) {
+  return IteratorRangeToNumber<WideIteratorRangeToInt64Traits>::Invoke(begin,
+                                                                     end,
+                                                                     output);
+}
+
+bool StringToInt64(const char16* begin, const char16* end, int64* output) {
+  return IteratorRangeToNumber<WideCharBufferToInt64Traits>::Invoke(begin,
+                                                                  end,
+                                                                  output);
 }
 
 bool StringToDouble(const std::string& input, double* output) {
-  return StringToNumber<StringToDoubleTraits>(input, output);
+  errno = 0;  // Thread-safe?  It is on at least Mac, Linux, and Windows.
+  char* endptr = NULL;
+  *output = dmg_fp::strtod(input.c_str(), &endptr);
+
+  // Cases to return false:
+  //  - If errno is ERANGE, there was an overflow or underflow.
+  //  - If the input string is empty, there was nothing to parse.
+  //  - If endptr does not point to the end of the string, there are either
+  //    characters remaining in the string after a parsed number, or the string
+  //    does not begin with a parseable number.  endptr is compared to the
+  //    expected end given the string's stated length to correctly catch cases
+  //    where the string contains embedded NUL characters.
+  //  - If the first character is a space, there was leading whitespace
+  return errno == 0 &&
+         !input.empty() &&
+         input.c_str() + input.length() == endptr &&
+         !isspace(input[0]);
 }
 
 // Note: if you need to add String16ToDouble, first ask yourself if it's
 // really necessary. If it is, probably the best implementation here is to
 // convert to 8-bit and then use the 8-bit version.
+
+// Note: if you need to add an iterator range version of StringToDouble, first
+// ask yourself if it's really necessary. If it is, probably the best
+// implementation here is to instantiate a string and use the string version.
 
 std::string HexEncode(const void* bytes, size_t size) {
   static const char kHexChars[] = "0123456789ABCDEF";
@@ -390,7 +508,22 @@ std::string HexEncode(const void* bytes, size_t size) {
 }
 
 bool HexStringToInt(const std::string& input, int* output) {
-  return StringToNumber<HexStringToIntTraits>(input, output);
+  return IteratorRangeToNumber<HexIteratorRangeToIntTraits>::Invoke(
+    input.begin(), input.end(), output);
+}
+
+bool HexStringToInt(std::string::const_iterator begin,
+                    std::string::const_iterator end,
+                    int* output) {
+  return IteratorRangeToNumber<HexIteratorRangeToIntTraits>::Invoke(begin,
+                                                                    end,
+                                                                    output);
+}
+
+bool HexStringToInt(const char* begin, const char* end, int* output) {
+  return IteratorRangeToNumber<HexCharBufferToIntTraits>::Invoke(begin,
+                                                                    end,
+                                                                    output);
 }
 
 bool HexStringToBytes(const std::string& input, std::vector<uint8>* output) {
