@@ -255,7 +255,7 @@ TEST(WinAudioTest, SanityOnMakeParams) {
     return;
   AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
   EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
-      AudioParameters(fmt, 8, 8000, 16)));
+      AudioParameters(fmt, 9, 8000, 16)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
       AudioParameters(fmt, 1, 1024 * 1024, 16)));
   EXPECT_TRUE(NULL == audio_man->MakeAudioOutputStream(
