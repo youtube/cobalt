@@ -23,9 +23,6 @@
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
 #include "base/message_pump_glib.h"
 #endif
-#if defined(TOUCH_UI)
-#include "base/message_pump_glib_x.h"
-#endif
 
 using base::Time;
 using base::TimeDelta;
@@ -136,9 +133,6 @@ MessageLoop::MessageLoop(Type type)
 #define MESSAGE_PUMP_IO new base::MessagePumpForIO()
 #elif defined(OS_MACOSX)
 #define MESSAGE_PUMP_UI base::MessagePumpMac::Create()
-#define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
-#elif defined(TOUCH_UI)
-#define MESSAGE_PUMP_UI new base::MessagePumpGlibX()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #elif defined(OS_POSIX)  // POSIX but not MACOSX.
 #define MESSAGE_PUMP_UI new base::MessagePumpForUI()
@@ -539,9 +533,9 @@ bool MessageLoop::DoWork() {
   return false;
 }
 
-bool MessageLoop::DoDelayedWork(base::Time* next_delayed_work_time) {
+bool MessageLoop::DoDelayedWork(Time* next_delayed_work_time) {
   if (!nestable_tasks_allowed_ || delayed_work_queue_.empty()) {
-    *next_delayed_work_time = base::Time();
+    *next_delayed_work_time = Time();
     return false;
   }
 
