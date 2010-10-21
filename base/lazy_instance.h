@@ -55,6 +55,22 @@ struct DefaultLazyInstanceTraits {
   }
 };
 
+template <typename Type>
+struct LeakyLazyInstanceTraits {
+  static Type* New(void* instance) {
+    return DefaultLazyInstanceTraits<Type>::New(instance);
+  }
+  // Rather than define an empty Delete function, we make Delete itself
+  // a null pointer.  This allows us to completely sidestep registering
+  // this object with an AtExitManager, which allows you to use
+  // LeakyLazyInstanceTraits in contexts where you don't have an
+  // AtExitManager.
+  static void (*Delete)(void* instance);
+};
+
+template <typename Type>
+void (*LeakyLazyInstanceTraits<Type>::Delete)(void* instance) = NULL;
+
 // We pull out some of the functionality into a non-templated base, so that we
 // can implement the more complicated pieces out of line in the .cc file.
 class LazyInstanceHelper {
