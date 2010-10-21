@@ -17,6 +17,7 @@
 #include "base/base64.h"
 #include "base/basictypes.h"
 #include "base/crypto/capi_util.h"
+#include "base/crypto/scoped_capi_types.h"
 #include "base/logging.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
@@ -130,90 +131,93 @@ std::wstring GetNewKeyContainerId() {
   return result;
 }
 
+// This is a helper struct designed to optionally delete a key after releasing
+// the associated provider.
+struct KeyContainer {
+ public:
+  explicit KeyContainer(bool delete_keyset)
+      : delete_keyset_(delete_keyset) {}
+
+  ~KeyContainer() {
+    if (provider_) {
+      provider_.reset();
+      if (delete_keyset_ && !key_id_.empty()) {
+        HCRYPTPROV provider;
+        base::CryptAcquireContextLocked(&provider, key_id_.c_str(), NULL,
+            PROV_RSA_FULL, CRYPT_SILENT | CRYPT_DELETEKEYSET);
+      }
+    }
+  }
+
+  base::ScopedHCRYPTPROV provider_;
+  std::wstring key_id_;
+
+ private:
+  bool delete_keyset_;
+};
+
 std::string KeygenHandler::GenKeyAndSignChallenge() {
-  std::string result;
-
-  bool is_success = true;
-  HCRYPTPROV prov = NULL;
-  HCRYPTKEY key = NULL;
-  DWORD flags = (key_size_in_bits_ << 16) | CRYPT_EXPORTABLE;
-  std::string spkac;
-
-  std::wstring new_key_id;
+  KeyContainer key_container(!stores_key_);
 
   // TODO(rsleevi): Have the user choose which provider they should use, which
   // needs to be filtered by those providers which can provide the key type
   // requested or the key size requested. This is especially important for
   // generating certificates that will be stored on smart cards.
   const int kMaxAttempts = 5;
-  BOOL ok = FALSE;
-  for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
+  int attempt;
+  for (attempt = 0; attempt < kMaxAttempts; ++attempt) {
     // Per MSDN documentation for CryptAcquireContext, if applications will be
     // creating their own keys, they should ensure unique naming schemes to
     // prevent overlap with any other applications or consumers of CSPs, and
     // *should not* store new keys within the default, NULL key container.
-    new_key_id = GetNewKeyContainerId();
-    if (new_key_id.empty())
-      return result;
+    key_container.key_id_ = GetNewKeyContainerId();
+    if (key_container.key_id_.empty())
+      return std::string();
 
     // Only create new key containers, so that existing key containers are not
     // overwritten.
-    ok = base::CryptAcquireContextLocked(&prov, new_key_id.c_str(), NULL,
-                                         PROV_RSA_FULL,
-                                         CRYPT_SILENT | CRYPT_NEWKEYSET);
-
-    if (ok || GetLastError() != NTE_BAD_KEYSET)
+    if (base::CryptAcquireContextLocked(key_container.provider_.receive(),
+        key_container.key_id_.c_str(), NULL, PROV_RSA_FULL,
+        CRYPT_SILENT | CRYPT_NEWKEYSET))
       break;
-  }
-  if (!ok) {
-    LOG(ERROR) << "Couldn't acquire a CryptoAPI provider context: "
-               << GetLastError();
-    is_success = false;
-    goto failure;
-  }
 
-  if (!CryptGenKey(prov, CALG_RSA_KEYX, flags, &key)) {
-    LOG(ERROR) << "Couldn't generate an RSA key";
-    is_success = false;
-    goto failure;
-  }
-
-  if (!GetSignedPublicKeyAndChallenge(prov, challenge_, &spkac)) {
-    LOG(ERROR) << "Couldn't generate the signed public key and challenge";
-    is_success = false;
-    goto failure;
-  }
-
-  if (!base::Base64Encode(spkac, &result)) {
-    LOG(ERROR) << "Couldn't convert signed key into base64";
-    is_success = false;
-    goto failure;
-  }
-
- failure:
-  if (!is_success)
-    LOG(ERROR) << "SSL Keygen failed";
-  else
-    VLOG(1) << "SSL Key succeeded";
-  if (key) {
-    // Securely destroys the handle, but leaves the underlying key alone. The
-    // key can be obtained again by resolving the key location. If
-    // |stores_key_| is false, the underlying key will be destroyed below.
-    CryptDestroyKey(key);
-  }
-
-  if (prov) {
-    CryptReleaseContext(prov, 0);
-    prov = NULL;
-    if (!stores_key_) {
-      // Fully destroys any of the keys that were created and releases prov.
-      base::CryptAcquireContextLocked(&prov, new_key_id.c_str(), NULL,
-                                      PROV_RSA_FULL,
-                                      CRYPT_SILENT | CRYPT_DELETEKEYSET);
+    if (GetLastError() != NTE_BAD_KEYSET) {
+      LOG(ERROR) << "Keygen failed: Couldn't acquire a CryptoAPI provider "
+                    "context: " << GetLastError();
+      return std::string();
     }
   }
+  if (attempt == kMaxAttempts) {
+    LOG(ERROR) << "Keygen failed: Couldn't acquire a CryptoAPI provider "
+                  "context: Max retries exceeded";
+    return std::string();
+  }
 
-  return result;
+  {
+    base::ScopedHCRYPTKEY key;
+    if (!CryptGenKey(key_container.provider_, CALG_RSA_KEYX,
+        (key_size_in_bits_ << 16) | CRYPT_EXPORTABLE, key.receive())) {
+      LOG(ERROR) << "Keygen failed: Couldn't generate an RSA key";
+      return std::string();
+    }
+
+    std::string spkac;
+    if (!GetSignedPublicKeyAndChallenge(key_container.provider_, challenge_,
+                                        &spkac)) {
+      LOG(ERROR) << "Keygen failed: Couldn't generate the signed public key "
+                    "and challenge";
+      return std::string();
+    }
+
+    std::string result;
+    if (!base::Base64Encode(spkac, &result)) {
+      LOG(ERROR) << "Keygen failed: Couldn't convert signed key into base64";
+      return std::string();
+    }
+
+    VLOG(1) << "Keygen succeeded";
+    return result;
+  }
 }
 
 }  // namespace net
