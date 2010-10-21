@@ -58,14 +58,15 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
   // Grab the AVStream's codec context and make sure we have sensible values.
   codec_context_ = av_stream->codec;
   int bps = av_get_bits_per_sample_format(codec_context_->sample_fmt);
-  DCHECK_GT(codec_context_->channels, 0);
-  DCHECK_GT(bps, 0);
-  DCHECK_GT(codec_context_->sample_rate, 0);
   if (codec_context_->channels <= 0 ||
       codec_context_->channels > Limits::kMaxChannels ||
       bps <= 0 || bps > Limits::kMaxBitsPerSample ||
       codec_context_->sample_rate <= 0 ||
       codec_context_->sample_rate > Limits::kMaxSampleRate) {
+    DLOG(WARNING) << "Invalid audio stream -"
+        << " channels: " << codec_context_->channels
+        << " bps: " << bps
+        << " sample rate: " << codec_context_->sample_rate;
     return;
   }
 
