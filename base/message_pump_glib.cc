@@ -207,7 +207,8 @@ void MessagePumpForUI::RunWithDispatcher(Delegate* delegate,
     // Don't block if we think we have more work to do.
     bool block = !more_work_is_plausible;
 
-    more_work_is_plausible = RunOnce(context_, block);
+    // g_main_context_iteration returns true if events have been dispatched.
+    more_work_is_plausible = g_main_context_iteration(context_, block);
     if (state_->should_quit)
       break;
 
@@ -229,11 +230,6 @@ void MessagePumpForUI::RunWithDispatcher(Delegate* delegate,
   }
 
   state_ = previous_state;
-}
-
-bool MessagePumpForUI::RunOnce(GMainContext* context, bool block) {
-  // g_main_context_iteration returns true if events have been dispatched.
-  return g_main_context_iteration(context, block);
 }
 
 // Return the timeout we want passed to poll.
@@ -336,21 +332,19 @@ void MessagePumpForUI::ScheduleDelayedWork(const Time& delayed_work_time) {
   ScheduleWork();
 }
 
-void MessagePumpForUI::DispatchEvents(GdkEvent* event) {
-  WillProcessEvent(event);
-  if (state_ && state_->dispatcher) { // state_ may be null during tests.
-    if (!state_->dispatcher->Dispatch(event))
-      state_->should_quit = true;
-  } else {
-    gtk_main_do_event(event);
-  }
-  DidProcessEvent(event);
-}
-
 // static
 void MessagePumpForUI::EventDispatcher(GdkEvent* event, gpointer data) {
   MessagePumpForUI* message_pump = reinterpret_cast<MessagePumpForUI*>(data);
-  message_pump->DispatchEvents(event);
+
+  message_pump->WillProcessEvent(event);
+  if (message_pump->state_ &&  // state_ may be null during tests.
+      message_pump->state_->dispatcher) {
+    if (!message_pump->state_->dispatcher->Dispatch(event))
+      message_pump->state_->should_quit = true;
+  } else {
+    gtk_main_do_event(event);
+  }
+  message_pump->DidProcessEvent(event);
 }
 
 }  // namespace base

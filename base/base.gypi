@@ -333,7 +333,6 @@
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
                 'message_pump_glib.cc',
-                'message_pump_glib_x.cc',
               ],
           }],
           [ 'OS != "linux"', {
@@ -442,8 +441,6 @@
           'md5.h',
           'message_pump_glib.cc',
           'message_pump_glib.h',
-          'message_pump_glib_x.cc',
-          'message_pump_glib_x.h',
           'message_pump_libevent.cc',
           'message_pump_libevent.h',
           'message_pump_mac.h',
