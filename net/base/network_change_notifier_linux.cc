@@ -7,14 +7,12 @@
 #include <errno.h>
 #include <sys/socket.h>
 
+#include "base/compiler_specific.h"
 #include "base/eintr_wrapper.h"
 #include "base/task.h"
 #include "base/thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier_netlink_linux.h"
-
-// We only post tasks to a child thread we own, so we don't need refcounting.
-DISABLE_RUNNABLE_METHOD_REFCOUNT(net::NetworkChangeNotifierLinux);
 
 namespace net {
 
@@ -24,35 +22,62 @@ const int kInvalidSocket = -1;
 
 }  // namespace
 
-NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
-    : notifier_thread_(new base::Thread("NetworkChangeNotifier")),
-      netlink_fd_(kInvalidSocket) {
-  // We create this notifier thread because the notification implementation
-  // needs a MessageLoopForIO, and there's no guarantee that
-  // MessageLoop::current() meets that criterion.
-  base::Thread::Options thread_options(MessageLoop::TYPE_IO, 0);
-  notifier_thread_->StartWithOptions(thread_options);
-  notifier_thread_->message_loop()->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &NetworkChangeNotifierLinux::Init));
+class NetworkChangeNotifierLinux::Thread
+    : public base::Thread, public MessageLoopForIO::Watcher {
+ public:
+  Thread();
+  virtual ~Thread();
+
+  // MessageLoopForIO::Watcher:
+  virtual void OnFileCanReadWithoutBlocking(int fd);
+  virtual void OnFileCanWriteWithoutBlocking(int /* fd */);
+
+ protected:
+  // base::Thread
+  virtual void Init();
+  virtual void CleanUp();
+
+ private:
+  void NotifyObserversOfIPAddressChange() {
+    NetworkChangeNotifier::NotifyObserversOfIPAddressChange();
+  }
+
+  // Starts listening for netlink messages.  Also handles the messages if there
+  // are any available on the netlink socket.
+  void ListenForNotifications();
+
+  // Attempts to read from the netlink socket into |buf| of length |len|.
+  // Returns the bytes read on synchronous success and ERR_IO_PENDING if the
+  // recv() would block.  Otherwise, it returns a net error code.
+  int ReadNotificationMessage(char* buf, size_t len);
+
+  // The netlink socket descriptor.
+  int netlink_fd_;
+  MessageLoopForIO::FileDescriptorWatcher netlink_watcher_;
+
+  // Technically only needed for ChromeOS, but it's ugly to #ifdef out.
+  ScopedRunnableMethodFactory<Thread> method_factory_;
+
+  DISALLOW_COPY_AND_ASSIGN(Thread);
+};
+
+NetworkChangeNotifierLinux::Thread::Thread()
+    : base::Thread("NetworkChangeNotifier"),
+      netlink_fd_(kInvalidSocket),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
+
+NetworkChangeNotifierLinux::Thread::~Thread() {}
+
+void NetworkChangeNotifierLinux::Thread::Init() {
+  netlink_fd_ = InitializeNetlinkSocket();
+  if (netlink_fd_ < 0) {
+    netlink_fd_ = kInvalidSocket;
+    return;
+  }
+  ListenForNotifications();
 }
 
-NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
-  // We don't need to explicitly Stop(), but doing so allows us to sanity-
-  // check that the notifier thread shut down properly.
-  notifier_thread_->Stop();
-  DCHECK_EQ(kInvalidSocket, netlink_fd_);
-}
-
-bool NetworkChangeNotifierLinux::IsCurrentlyOffline() const {
-  // TODO(eroman): http://crbug.com/53473
-  return false;
-}
-
-void NetworkChangeNotifierLinux::WillDestroyCurrentMessageLoop() {
-  DCHECK(notifier_thread_ != NULL);
-  // We can't check the notifier_thread_'s message_loop(), as it's now 0.
-  // DCHECK_EQ(notifier_thread_->message_loop(), MessageLoop::current());
-
+void NetworkChangeNotifierLinux::Thread::CleanUp() {
   if (netlink_fd_ != kInvalidSocket) {
     if (HANDLE_EINTR(close(netlink_fd_)) != 0)
       PLOG(ERROR) << "Failed to close socket";
@@ -61,38 +86,16 @@ void NetworkChangeNotifierLinux::WillDestroyCurrentMessageLoop() {
   }
 }
 
-void NetworkChangeNotifierLinux::OnFileCanReadWithoutBlocking(int fd) {
-  DCHECK(notifier_thread_ != NULL);
-  DCHECK_EQ(notifier_thread_->message_loop(), MessageLoop::current());
-
+void NetworkChangeNotifierLinux::Thread::OnFileCanReadWithoutBlocking(int fd) {
   DCHECK_EQ(fd, netlink_fd_);
   ListenForNotifications();
 }
 
-void NetworkChangeNotifierLinux::OnFileCanWriteWithoutBlocking(int /* fd */) {
-  DCHECK(notifier_thread_ != NULL);
-  DCHECK_EQ(notifier_thread_->message_loop(), MessageLoop::current());
-
+void NetworkChangeNotifierLinux::Thread::OnFileCanWriteWithoutBlocking(int /* fd */) {
   NOTREACHED();
 }
 
-void NetworkChangeNotifierLinux::Init() {
-  DCHECK(notifier_thread_ != NULL);
-  DCHECK_EQ(notifier_thread_->message_loop(), MessageLoop::current());
-
-  netlink_fd_ = InitializeNetlinkSocket();
-  if (netlink_fd_ < 0) {
-    netlink_fd_ = kInvalidSocket;
-    return;
-  }
-  MessageLoop::current()->AddDestructionObserver(this);
-  ListenForNotifications();
-}
-
-void NetworkChangeNotifierLinux::ListenForNotifications() {
-  DCHECK(notifier_thread_ != NULL);
-  DCHECK_EQ(notifier_thread_->message_loop(), MessageLoop::current());
-
+void NetworkChangeNotifierLinux::Thread::ListenForNotifications() {
   char buf[4096];
   int rv = ReadNotificationMessage(buf, arraysize(buf));
   while (rv > 0) {
@@ -104,8 +107,10 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
       // is functional in ChromeOS. This should be removed once this bug
       // is properly fixed.
       const int kObserverNotificationDelayMS = 500;
-      MessageLoop::current()->PostDelayedTask(FROM_HERE, NewRunnableFunction(
-          &NetworkChangeNotifier::NotifyObserversOfIPAddressChange),
+      message_loop()->PostDelayedTask(
+          FROM_HERE,
+          method_factory_.NewRunnableMethod(
+              &Thread::NotifyObserversOfIPAddressChange),
           kObserverNotificationDelayMS);
 #else
       NotifyObserversOfIPAddressChange();
@@ -121,10 +126,9 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
   }
 }
 
-int NetworkChangeNotifierLinux::ReadNotificationMessage(char* buf, size_t len) {
-  DCHECK(notifier_thread_ != NULL);
-  DCHECK_EQ(notifier_thread_->message_loop(), MessageLoop::current());
-
+int NetworkChangeNotifierLinux::Thread::ReadNotificationMessage(
+    char* buf,
+    size_t len) {
   DCHECK_NE(len, 0u);
   DCHECK(buf);
   memset(buf, 0, sizeof(buf));
@@ -139,6 +143,26 @@ int NetworkChangeNotifierLinux::ReadNotificationMessage(char* buf, size_t len) {
   }
 
   return ERR_IO_PENDING;
+}
+
+NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
+    : notifier_thread_(new Thread) {
+  // We create this notifier thread because the notification implementation
+  // needs a MessageLoopForIO, and there's no guarantee that
+  // MessageLoop::current() meets that criterion.
+  base::Thread::Options thread_options(MessageLoop::TYPE_IO, 0);
+  notifier_thread_->StartWithOptions(thread_options);
+}
+
+NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
+  // We don't need to explicitly Stop(), but doing so allows us to sanity-
+  // check that the notifier thread shut down properly.
+  notifier_thread_->Stop();
+}
+
+bool NetworkChangeNotifierLinux::IsCurrentlyOffline() const {
+  // TODO(eroman): http://crbug.com/53473
+  return false;
 }
 
 }  // namespace net
