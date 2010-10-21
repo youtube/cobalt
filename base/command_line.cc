@@ -60,7 +60,7 @@ CommandLine::~CommandLine() {
 }
 
 #if defined(OS_WIN)
-CommandLine::CommandLine(ArgumentsOnly args_only) {
+CommandLine::CommandLine(NoProgram no_program) {
 }
 
 void CommandLine::ParseFromString(const std::wstring& command_line) {
@@ -121,7 +121,7 @@ CommandLine::CommandLine(const FilePath& program) {
 }
 
 #elif defined(OS_POSIX)
-CommandLine::CommandLine(ArgumentsOnly args_only) {
+CommandLine::CommandLine(NoProgram no_program) {
   // Push an empty argument, because we always assume argv_[0] is a program.
   argv_.push_back("");
 }
