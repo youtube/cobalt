@@ -37,7 +37,8 @@ void LazyInstanceHelper::CompleteInstance(void* instance, void (*dtor)(void*)) {
   base::subtle::Release_Store(&state_, STATE_CREATED);
 
   // Make sure that the lazily instantiated object will get destroyed at exit.
-  base::AtExitManager::RegisterCallback(dtor, instance);
+  if (dtor)
+    base::AtExitManager::RegisterCallback(dtor, instance);
 }
 
 }  // namespace base
