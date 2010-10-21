@@ -95,3 +95,46 @@ TEST(LazyInstanceTest, ConstructorThreadSafety) {
     EXPECT_EQ(1, SlowConstructor::constructed);
   }
 }
+
+namespace {
+
+// DeleteLogger is an object which sets a flag when it's destroyed.
+// It accepts a bool* and sets the bool to true when the dtor runs.
+class DeleteLogger {
+ public:
+  DeleteLogger() : deleted_(NULL) {}
+  ~DeleteLogger() { *deleted_ = true; }
+
+  void SetDeletedPtr(bool* deleted) {
+    deleted_ = deleted;
+  }
+
+ private:
+  bool* deleted_;
+};
+
+}  // anonymous namespace
+
+TEST(LazyInstanceTest, LeakyLazyInstance) {
+  // Check that using a plain LazyInstance causes the dtor to run
+  // when the AtExitManager finishes.
+  bool deleted1 = false;
+  {
+    base::ShadowingAtExitManager shadow;
+    static base::LazyInstance<DeleteLogger> test(base::LINKER_INITIALIZED);
+    test.Get().SetDeletedPtr(&deleted1);
+  }
+  EXPECT_TRUE(deleted1);
+
+  // Check that using a *leaky* LazyInstance makes the dtor not run
+  // when the AtExitManager finishes.
+  bool deleted2 = false;
+  {
+    base::ShadowingAtExitManager shadow;
+    static base::LazyInstance<DeleteLogger,
+                              base::LeakyLazyInstanceTraits<DeleteLogger> >
+        test(base::LINKER_INITIALIZED);
+    test.Get().SetDeletedPtr(&deleted2);
+  }
+  EXPECT_FALSE(deleted2);
+}
