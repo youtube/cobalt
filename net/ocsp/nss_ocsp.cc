@@ -43,12 +43,14 @@ static URLRequestContext* g_request_context = NULL;
 class OCSPIOLoop : public MessageLoop::DestructionObserver {
  public:
   // MessageLoop::DestructionObserver:
-  virtual void WillDestroyCurrentMessageLoop();
+  virtual void WillDestroyCurrentMessageLoop() { Shutdown(); }
 
   void StartUsing() {
     AutoLock autolock(lock_);
     used_ = true;
   }
+
+  void Shutdown();
 
   bool used() const {
     AutoLock autolock(lock_);
@@ -95,7 +97,9 @@ OCSPIOLoop::~OCSPIOLoop() {
   pthread_mutex_unlock(&g_request_context_lock);
 }
 
-void OCSPIOLoop::WillDestroyCurrentMessageLoop() {
+void OCSPIOLoop::Shutdown() {
+  MessageLoopForIO::current()->RemoveDestructionObserver(this);
+
   // Prevent the worker thread from trying to access |io_loop_|.
   {
     AutoLock autolock(lock_);
@@ -855,14 +859,16 @@ void EnsureOCSPInit() {
   g_ocsp_nss_initialization.Get();
 }
 
+void ShutdownOCSP() {
+  g_ocsp_io_loop.Get().Shutdown();
+}
+
 // This function would be called before NSS initialization.
 void SetURLRequestContextForOCSP(URLRequestContext* request_context) {
   pthread_mutex_lock(&g_request_context_lock);
   if (request_context) {
     DCHECK(request_context->is_main());
     DCHECK(!g_request_context);
-  } else {
-    DCHECK(g_request_context);
   }
   g_request_context = request_context;
   pthread_mutex_unlock(&g_request_context_lock);
