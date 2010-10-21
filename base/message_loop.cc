@@ -494,11 +494,6 @@ bool MessageLoop::DeletePendingTasks() {
       delete task;
   }
   did_work |= !delayed_work_queue_.empty();
-  while (!ripe_work_queue_.empty()) {
-    Task* task = ripe_work_queue_.front().task;
-    delayed_work_queue_.pop();
-    delete task;
-  }
   while (!delayed_work_queue_.empty()) {
     Task* task = delayed_work_queue_.top().task;
     delayed_work_queue_.pop();
@@ -525,8 +520,7 @@ bool MessageLoop::DoWork() {
       if (!pending_task.delayed_run_time.is_null()) {
         AddToDelayedWorkQueue(pending_task);
         // If we changed the topmost task, then it is time to re-schedule.
-        if (ripe_work_queue_.empty() &&
-            delayed_work_queue_.top().task == pending_task.task)
+        if (delayed_work_queue_.top().task == pending_task.task)
           pump_->ScheduleDelayedWork(pending_task.delayed_run_time);
       } else {
         if (DeferOrRunPendingTask(pending_task))
@@ -540,46 +534,21 @@ bool MessageLoop::DoWork() {
 }
 
 bool MessageLoop::DoDelayedWork(Time* next_delayed_work_time) {
-  if (!nestable_tasks_allowed_ ||
-      (delayed_work_queue_.empty() && ripe_work_queue_.empty())) {
+  if (!nestable_tasks_allowed_ || delayed_work_queue_.empty()) {
     *next_delayed_work_time = Time();
     return false;
   }
 
-  // When we "fall behind," there will be a lot of tasks in the delayed work
-  // queue that are ready to run.  To increase efficiency when we fall behind,
-  // we will only call Time::Now() once, and then move all ready-to-run tasks
-  // (i.e., tasks that are "ripe") into ripe_work_queue_.   As a result, the
-  // more we fall behind (and have a lot of ready-to-run delayed tasks), the
-  // more efficient we'll be at handling the tasks.
-
-  if (ripe_work_queue_.empty()) {
-    base::Time now(Time::Now());
-
-    if (delayed_work_queue_.top().delayed_run_time > now) {
-      *next_delayed_work_time = delayed_work_queue_.top().delayed_run_time;
-      return false;
-    }
-
-    do {
-      ripe_work_queue_.push(delayed_work_queue_.top());
-      delayed_work_queue_.pop();
-    } while (!delayed_work_queue_.empty() &&
-             (delayed_work_queue_.top().delayed_run_time <= now));
-    /* DHISTOGRAM_COUNTS("Chrome.RipeSize",
-                         static_cast<int>(ripe_work_queue_.size()));
-    */
+  if (delayed_work_queue_.top().delayed_run_time > Time::Now()) {
+    *next_delayed_work_time = delayed_work_queue_.top().delayed_run_time;
+    return false;
   }
 
-  PendingTask pending_task = ripe_work_queue_.front();
-  ripe_work_queue_.pop();
+  PendingTask pending_task = delayed_work_queue_.top();
+  delayed_work_queue_.pop();
 
-  if (!ripe_work_queue_.empty())
-    *next_delayed_work_time = ripe_work_queue_.front().delayed_run_time;
-  else if (!delayed_work_queue_.empty())
+  if (!delayed_work_queue_.empty())
     *next_delayed_work_time = delayed_work_queue_.top().delayed_run_time;
-  else
-    *next_delayed_work_time = Time();
 
   return DeferOrRunPendingTask(pending_task);
 }
