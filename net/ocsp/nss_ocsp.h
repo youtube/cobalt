@@ -17,8 +17,12 @@ void SetMessageLoopForOCSP();
 
 // Initializes OCSP handlers for NSS.  This must be called before any
 // certificate verification functions.  This function is thread-safe, and OCSP
-// handlers will only ever be initialized once.
+// handlers will only ever be initialized once.  ShutdownOCSP() must be called
+// on shutdown.
 void EnsureOCSPInit();
+
+// This should be called once on shutdown to stop issuing URLRequests for OCSP.
+void ShutdownOCSP();
 
 // Set URLRequestContext for OCSP handlers.
 void SetURLRequestContextForOCSP(URLRequestContext* request_context);
