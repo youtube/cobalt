@@ -146,7 +146,7 @@ class MessageLoop : public base::MessagePump::Delegate {
   // as the thread that calls PostDelayedTask(FROM_HERE, ), then T MUST inherit
   // from RefCountedThreadSafe<T>!
   template <class T>
-  void DeleteSoon(const tracked_objects::Location& from_here, T* object) {
+  void DeleteSoon(const tracked_objects::Location& from_here, const T* object) {
     PostNonNestableTask(from_here, new DeleteTask<T>(object));
   }
 
@@ -161,7 +161,8 @@ class MessageLoop : public base::MessagePump::Delegate {
   // PostDelayedTask(FROM_HERE, ), then T MUST inherit from
   // RefCountedThreadSafe<T>!
   template <class T>
-  void ReleaseSoon(const tracked_objects::Location& from_here, T* object) {
+  void ReleaseSoon(const tracked_objects::Location& from_here,
+                   const T* object) {
     PostNonNestableTask(from_here, new ReleaseTask<T>(object));
   }
 
