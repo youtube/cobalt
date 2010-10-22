@@ -235,6 +235,11 @@
             'win_util_unittest.cc',
           ],
         }],
+        [ 'use_openssl==1', {
+          'sources!': [
+            'crypto/rsa_private_key_nss_unittest.cc',
+          ],
+        }],
       ],
     },
     {
