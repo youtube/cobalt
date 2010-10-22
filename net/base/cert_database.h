@@ -67,7 +67,7 @@ class CertDatabase {
   // the platform cert database, or possibly other network error codes.
   int AddUserCert(X509Certificate* cert);
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(USE_OPENSSL)
   // Get a list of unique certificates in the certificate database.  (One
   // instance of all certificates.)
   void ListCerts(CertificateList* certs);

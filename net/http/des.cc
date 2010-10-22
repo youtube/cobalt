@@ -84,7 +84,14 @@ void DESMakeKey(const uint8* raw, uint8* key) {
   key[7] = DESSetKeyParity((raw[6] << 1));
 }
 
-#if defined(USE_NSS)
+#if defined(USE_OPENSSL)
+
+void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
+  // TODO(joth): When implementing consider splitting up this file by platform.
+  NOTIMPLEMENTED();
+}
+
+#elif defined(USE_NSS)
 
 void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
   CK_MECHANISM_TYPE cipher_mech = CKM_DES_ECB;

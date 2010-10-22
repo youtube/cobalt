@@ -20,7 +20,6 @@
         '../jingle/jingle.gyp:*',
         '../media/media.gyp:*',
         '../net/net.gyp:*',
-        '../net/third_party/nss/ssl.gyp:*',
         '../printing/printing.gyp:*',
         '../sdch/sdch.gyp:*',
         '../skia/skia.gyp:*',
@@ -132,6 +131,11 @@
         ['remoting==1', {
           'dependencies': [
             '../remoting/remoting.gyp:*',
+          ],
+        }],
+        ['use_openssl!=1', {
+          'dependencies': [
+            '../net/third_party/nss/ssl.gyp:*',
           ],
         }],
       ],
