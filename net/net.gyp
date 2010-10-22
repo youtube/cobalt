@@ -232,8 +232,18 @@
             'dependencies': [
               '../build/linux/system.gyp:gconf',
               '../build/linux/system.gyp:gdk',
-              '../build/linux/system.gyp:nss',
               '../build/linux/system.gyp:libresolv',
+            ],
+            'conditions': [
+              ['use_openssl==1', {
+                'dependencies': [
+                  '../build/linux/system.gyp:openssl',
+                ],
+              }, {  # else: not using openssl. Use NSS.
+                'dependencies': [
+                  '../build/linux/system.gyp:nss',
+                ],
+              }],
             ],
           },
           {  # else: OS is not in the above list
@@ -252,12 +262,14 @@
             ],
           },
         ],
-        [ 'use_openssl == 1 and OS == "linux"', {
-            # When building for OpenSSL, we need to exclude some NSS files.
-            # TODO(bulach): remove once we fully support OpenSSL.
+        [ 'use_openssl==1', {
             'sources!': [
               'base/cert_database_nss.cc',
+              'base/dnssec_keyset.cc',
+              'base/dnssec_keyset.h',
               'base/keygen_handler_nss.cc',
+              'base/nss_memio.c',
+              'base/nss_memio.h',
               'base/x509_certificate_nss.cc',
               'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
               'third_party/mozilla_security_manager/nsKeygenHandler.h',
@@ -269,7 +281,7 @@
               'third_party/mozilla_security_manager/nsPKCS12Blob.h',
             ],
           },
-          { # else: not using openssl.
+          {  # else: not using openssl.
             'sources!': [
               'base/cert_database_openssl.cc',
               'base/keygen_handler_openssl.cc',
@@ -701,7 +713,7 @@
              'proxy/proxy_config_service_linux.h',
           ],
         }],
-        ['use_openssl==1 and OS == "linux"', {
+        ['use_openssl==1', {
             'dependencies': [
               '../build/linux/system.gyp:openssl',
             ],
@@ -972,11 +984,13 @@
             }],
           ],
         }],
-        [ 'use_openssl == 1 and OS == "linux"', {
-            # When building for OpenSSL, we need to exclude some NSS files.
-            # TODO(bulach): remove once we fully support OpenSSL.
+        [ 'use_openssl==1', {
+            # When building for OpenSSL, we need to exclude NSS specific tests.
+            # TODO(bulach): Add equivalent tests when the underlying
+            #               functionality is ported to OpenSSL.
             'sources!': [
               'base/cert_database_nss_unittest.cc',
+              'base/dnssec_unittest.cc',
             ],
           },
         ],
@@ -1146,8 +1160,16 @@
           ],
         }],
         ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
-          'dependencies': [
-            '../build/linux/system.gyp:nss',
+          'conditions': [
+            ['use_openssl==1', {
+              'dependencies': [
+                '../build/linux/system.gyp:openssl',
+              ]
+            }, {
+              'dependencies': [
+                '../build/linux/system.gyp:nss',
+              ],
+            }],
           ],
         }],
         ['OS == "linux"', {
@@ -1158,11 +1180,6 @@
               ],
             }],
           ],
-        }],
-        ['use_openssl == 1 and OS == "linux"', {
-            'dependencies': [
-              '../build/linux/system.gyp:openssl',
-            ]
         }],
       ],
     },
