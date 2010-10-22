@@ -128,20 +128,26 @@ void ParseDate(ASN1_TIME* x509_time, base::Time* time) {
     return;
 
   base::Time::Exploded exploded = {0};
-  bool valid = base::StringToInt(str_date.substr(0, year_length),
+  bool valid = base::StringToInt(str_date.begin(),
+                                 str_date.begin() + year_length,
                                  &exploded.year);
   if (valid && year_length == 2)
     exploded.year += exploded.year < 50 ? 2000 : 1900;
 
-  valid &= base::StringToInt(str_date.substr(2 + fields_offset, 2),
+  valid &= base::StringToInt(str_date.begin() + fields_offset + 2,
+                             str_date.begin() + fields_offset + 4,
                              &exploded.month);
-  valid &= base::StringToInt(str_date.substr(4 + fields_offset, 2),
+  valid &= base::StringToInt(str_date.begin() + fields_offset + 4,
+                             str_date.begin() + fields_offset + 6),
                              &exploded.day_of_month);
-  valid &= base::StringToInt(str_date.substr(6 + fields_offset, 2),
+  valid &= base::StringToInt(str_date.begin() + fields_offset + 6,
+                             str_date.begin() + fields_offset + 8),
                              &exploded.hour);
-  valid &= base::StringToInt(str_date.substr(8 + fields_offset, 2),
+  valid &= base::StringToInt(str_date.begin() + fields_offset + 8,
+                             str_date.begin() + fields_offset + 10),
                              &exploded.minute);
-  valid &= base::StringToInt(str_date.substr(10 + fields_offset, 2),
+  valid &= base::StringToInt(str_date.begin() + fields_offset + 10,
+                             str_date.begin() + fields_offset + 12,
                              &exploded.second);
 
   DCHECK(valid);
