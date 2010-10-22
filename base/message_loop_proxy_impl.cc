@@ -71,7 +71,7 @@ bool MessageLoopProxyImpl::PostTaskHelper(
   return ret;
 }
 
-void MessageLoopProxyImpl::OnDestruct() {
+void MessageLoopProxyImpl::OnDestruct() const {
   bool delete_later = false;
   {
     AutoLock lock(message_loop_lock_);
