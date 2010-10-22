@@ -14,7 +14,6 @@
 #include "base/logging.h"
 #include "base/platform_thread.h"
 #include "base/safe_strerror_posix.h"
-#include "base/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
 namespace base {
@@ -146,11 +145,6 @@ bool SharedMemory::FilePathForMemoryName(const std::string& mem_name,
 bool SharedMemory::CreateOrOpen(const std::string& name,
                                 int posix_flags, uint32 size) {
   DCHECK(mapped_file_ == -1);
-
-  // This function theoretically can block on the disk, but realistically
-  // the temporary files we create will just go into the buffer cache
-  // and be deleted before they ever make it out to disk.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
 
   file_util::ScopedFILE file_closer;
   FILE *fp;
