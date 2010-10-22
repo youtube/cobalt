@@ -32,6 +32,7 @@ class AlsaPcmInputStream : public AudioInputStream {
                      const AudioParameters& params,
                      int samples_per_packet,
                      AlsaWrapper* wrapper);
+  virtual ~AlsaPcmInputStream();
 
   // Implementation of AudioOutputStream.
   virtual bool Open();

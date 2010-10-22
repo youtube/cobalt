@@ -25,6 +25,8 @@ FakeAudioInputStream::FakeAudioInputStream(AudioParameters params,
   AddRef();
 }
 
+FakeAudioInputStream::~FakeAudioInputStream() {}
+
 bool FakeAudioInputStream::Open() {
   buffer_.reset(new uint8[buffer_size_]);
   memset(buffer_.get(), 0, buffer_size_);

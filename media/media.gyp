@@ -144,6 +144,7 @@
         'video/ffmpeg_video_allocator.h',
         'video/ffmpeg_video_decode_engine.cc',
         'video/ffmpeg_video_decode_engine.h',
+        'video/video_decode_engine.cc',
         'video/video_decode_engine.h',
       ],
       'direct_dependent_settings': {
