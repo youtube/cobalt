@@ -64,11 +64,11 @@ class MessageLoopProxy
 
   // Called when the proxy is about to be deleted. Subclasses can override this
   // to provide deletion on specific threads.
-  virtual void OnDestruct() const;
+  virtual void OnDestruct();
 };
 
 struct MessageLoopProxyTraits {
-  static void Destruct(const MessageLoopProxy* proxy) {
+  static void Destruct(MessageLoopProxy* proxy) {
     proxy->OnDestruct();
   }
 };
