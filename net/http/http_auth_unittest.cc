@@ -249,9 +249,7 @@ TEST(HttpAuthTest, ChallengeTokenizer) {
   EXPECT_TRUE(parameters.GetNext());
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string("foobar"), parameters.unquoted_value());
-  EXPECT_EQ(std::string("\"foobar\""), parameters.value());
-  EXPECT_TRUE(parameters.value_is_quoted());
+  EXPECT_EQ(std::string("foobar"), parameters.value());
   EXPECT_FALSE(parameters.GetNext());
 }
 
@@ -268,8 +266,6 @@ TEST(HttpAuthTest, ChallengeTokenizerNoQuotes) {
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("realm"), parameters.name());
   EXPECT_EQ(std::string("foobar@baz.com"), parameters.value());
-  EXPECT_EQ(std::string("foobar@baz.com"), parameters.unquoted_value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_FALSE(parameters.GetNext());
 }
 
@@ -286,8 +282,6 @@ TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotes) {
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("realm"), parameters.name());
   EXPECT_EQ(std::string("foobar@baz.com"), parameters.value());
-  EXPECT_EQ(std::string("foobar@baz.com"), parameters.unquoted_value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_FALSE(parameters.GetNext());
 }
 
@@ -304,7 +298,6 @@ TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesNoValue) {
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("realm"), parameters.name());
   EXPECT_EQ(std::string(""), parameters.value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_FALSE(parameters.GetNext());
 }
 
@@ -322,15 +315,13 @@ TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesSpaces) {
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("realm"), parameters.name());
   EXPECT_EQ(std::string("foo bar"), parameters.value());
-  EXPECT_EQ(std::string("foo bar"), parameters.unquoted_value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_FALSE(parameters.GetNext());
 }
 
 // Use multiple name=value properties with mismatching quote marks in the last
 // value.
 TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesMultiple) {
-  std::string challenge_str = "Digest qop=, algorithm=md5, realm=\"foo";
+  std::string challenge_str = "Digest qop=auth-int, algorithm=md5, realm=\"foo";
   HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
                                          challenge_str.end());
   HttpUtil::NameValuePairsIterator parameters = challenge.param_pairs();
@@ -340,20 +331,15 @@ TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesMultiple) {
   EXPECT_TRUE(parameters.GetNext());
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("qop"), parameters.name());
-  EXPECT_EQ(std::string(""), parameters.value());
-  EXPECT_FALSE(parameters.value_is_quoted());
+  EXPECT_EQ(std::string("auth-int"), parameters.value());
   EXPECT_TRUE(parameters.GetNext());
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("algorithm"), parameters.name());
   EXPECT_EQ(std::string("md5"), parameters.value());
-  EXPECT_EQ(std::string("md5"), parameters.unquoted_value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_TRUE(parameters.GetNext());
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("realm"), parameters.name());
   EXPECT_EQ(std::string("foo"), parameters.value());
-  EXPECT_EQ(std::string("foo"), parameters.unquoted_value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_FALSE(parameters.GetNext());
 }
 
@@ -366,12 +352,8 @@ TEST(HttpAuthTest, ChallengeTokenizerNoValue) {
 
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("Digest"), challenge.scheme());
-  EXPECT_TRUE(parameters.GetNext());
-  EXPECT_TRUE(parameters.valid());
-  EXPECT_EQ(std::string("qop"), parameters.name());
-  EXPECT_EQ(std::string(""), parameters.value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_FALSE(parameters.GetNext());
+  EXPECT_FALSE(parameters.valid());
 }
 
 // Specify multiple properties, comma separated.
@@ -388,18 +370,16 @@ TEST(HttpAuthTest, ChallengeTokenizerMultiple) {
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("algorithm"), parameters.name());
   EXPECT_EQ(std::string("md5"), parameters.value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_TRUE(parameters.GetNext());
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("realm"), parameters.name());
-  EXPECT_EQ(std::string("Oblivion"), parameters.unquoted_value());
-  EXPECT_TRUE(parameters.value_is_quoted());
+  EXPECT_EQ(std::string("Oblivion"), parameters.value());
   EXPECT_TRUE(parameters.GetNext());
   EXPECT_TRUE(parameters.valid());
   EXPECT_EQ(std::string("qop"), parameters.name());
   EXPECT_EQ(std::string("auth-int"), parameters.value());
-  EXPECT_FALSE(parameters.value_is_quoted());
   EXPECT_FALSE(parameters.GetNext());
+  EXPECT_TRUE(parameters.valid());
 }
 
 // Use a challenge which has no property.
