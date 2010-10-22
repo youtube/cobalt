@@ -65,16 +65,27 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
                                 format_.Format.wBitsPerSample) / 8;
   format_.Format.nAvgBytesPerSec = format_.Format.nBlockAlign *
                                    format_.Format.nSamplesPerSec;
-  // This mask handles Stereo, 5.1 and 7.1.
-  // TODO(fbarchard): Support masks for other channel layouts.
-  format_.dwChannelMask = SPEAKER_FRONT_LEFT  |
-                          SPEAKER_FRONT_RIGHT |
-                          SPEAKER_FRONT_CENTER |
-                          SPEAKER_LOW_FREQUENCY |
-                          SPEAKER_BACK_LEFT |
-                          SPEAKER_BACK_RIGHT |
-                          SPEAKER_SIDE_LEFT |
-                          SPEAKER_SIDE_RIGHT;
+  // This mask handles 6.1
+  if (params.channels == 7) {
+    format_.dwChannelMask = SPEAKER_FRONT_LEFT  |
+                            SPEAKER_FRONT_RIGHT |
+                            SPEAKER_FRONT_CENTER |
+                            SPEAKER_LOW_FREQUENCY |
+                            SPEAKER_BACK_LEFT |
+                            SPEAKER_BACK_RIGHT |
+                            SPEAKER_BACK_CENTER;
+  } else {
+    // This mask handles mono, stereo, 5.1, 7.1
+    // TODO(fbarchard): Support masks for other channel layouts.
+    format_.dwChannelMask = SPEAKER_FRONT_LEFT  |
+                            SPEAKER_FRONT_RIGHT |
+                            SPEAKER_FRONT_CENTER |
+                            SPEAKER_LOW_FREQUENCY |
+                            SPEAKER_BACK_LEFT |
+                            SPEAKER_BACK_RIGHT |
+                            SPEAKER_SIDE_LEFT |
+                            SPEAKER_SIDE_RIGHT;
+  }
   format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
   format_.Samples.wValidBitsPerSample = params.bits_per_sample;
   // The event is auto-reset.
