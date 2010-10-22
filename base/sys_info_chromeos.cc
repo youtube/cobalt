@@ -54,12 +54,18 @@ void SysInfo::ParseLsbRelease(const std::string& lsb_release,
   StringTokenizer tokenizer(version, ".");
   for (int i = 0; i < 3 && tokenizer.GetNext(); i++) {
     if (0 == i) {
-      StringToInt(tokenizer.token(), major_version);
+      StringToInt(tokenizer.token_begin(),
+                  tokenizer.token_end(),
+                  major_version);
       *minor_version = *bugfix_version = 0;
     } else if (1 == i) {
-      StringToInt(tokenizer.token(), minor_version);
+      StringToInt(tokenizer.token_begin(),
+                  tokenizer.token_end(),
+                  minor_version);
     } else {  // 2 == i
-      StringToInt(tokenizer.token(), bugfix_version);
+      StringToInt(tokenizer.token_begin(),
+                  tokenizer.token_end(),
+                  bugfix_version);
     }
   }
 }

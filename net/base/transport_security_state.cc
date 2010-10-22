@@ -142,7 +142,9 @@ bool TransportSecurityState::ParseHeader(const std::string& value,
       case AFTER_MAX_AGE_EQUALS:
         if (IsAsciiWhitespace(*tokenizer.token_begin()))
           continue;
-        if (!base::StringToInt(tokenizer.token(), &max_age_candidate))
+        if (!base::StringToInt(tokenizer.token_begin(),
+                               tokenizer.token_end(),
+                               &max_age_candidate))
           return false;
         if (max_age_candidate < 0)
           return false;
