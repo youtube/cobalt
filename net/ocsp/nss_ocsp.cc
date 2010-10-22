@@ -878,7 +878,7 @@ URLRequestContext* GetURLRequestContextForOCSP() {
   pthread_mutex_lock(&g_request_context_lock);
   URLRequestContext* request_context = g_request_context;
   pthread_mutex_unlock(&g_request_context_lock);
-  DCHECK(request_context->is_main());
+  DCHECK(!request_context || request_context->is_main());
   return request_context;
 }
 
