@@ -12,20 +12,20 @@
 
 class MessageLoopProxyImplTest : public testing::Test {
  public:
-  void Release() {
+  void Release() const {
     AssertOnIOThread();
     Quit();
   }
 
-  void Quit() {
+  void Quit() const {
     loop_.PostTask(FROM_HERE, new MessageLoop::QuitTask);
   }
 
-  void AssertOnIOThread() {
+  void AssertOnIOThread() const {
     ASSERT_TRUE(io_thread_->message_loop_proxy()->BelongsToCurrentThread());
   }
 
-  void AssertOnFileThread() {
+  void AssertOnFileThread() const {
     ASSERT_TRUE(file_thread_->message_loop_proxy()->BelongsToCurrentThread());
   }
 
@@ -79,7 +79,7 @@ class MessageLoopProxyImplTest : public testing::Test {
   scoped_ptr<base::Thread> file_thread_;
 
  private:
-  MessageLoop loop_;
+  mutable MessageLoop loop_;
 };
 
 

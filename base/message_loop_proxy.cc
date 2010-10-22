@@ -12,7 +12,7 @@ MessageLoopProxy::MessageLoopProxy() {
 MessageLoopProxy::~MessageLoopProxy() {
 }
 
-void MessageLoopProxy::OnDestruct() {
+void MessageLoopProxy::OnDestruct() const {
   delete this;
 }
 
