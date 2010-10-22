@@ -1676,10 +1676,11 @@ void SetExplicitlyAllowedPorts(const std::string& allowed_ports) {
         (allowed_ports[i] != kComma))
       return;
     if (i == size || allowed_ports[i] == kComma) {
-      size_t length = i - last;
-      if (length > 0) {
+      if (i > last) {
         int port;
-        base::StringToInt(allowed_ports.substr(last, length), &port);
+        base::StringToInt(allowed_ports.begin() + last,
+                          allowed_ports.begin() + i,
+                          &port);
         ports.insert(port);
       }
       last = i + 1;
