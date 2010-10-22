@@ -221,7 +221,7 @@ HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
   while (parameters.GetNext()) {
     if (!LowerCaseEqualsASCII(parameters.name(), "stale"))
       continue;
-    if (LowerCaseEqualsASCII(parameters.unquoted_value(), "true"))
+    if (LowerCaseEqualsASCII(parameters.value(), "true"))
       return HttpAuth::AUTHORIZATION_RESULT_STALE;
   }
 
@@ -266,14 +266,9 @@ bool HttpAuthHandlerDigest::ParseChallenge(
 
   // Loop through all the properties.
   while (parameters.GetNext()) {
-    if (parameters.value().empty()) {
-      DVLOG(1) << "Invalid digest property";
-      return false;
-    }
-
     // FAIL -- couldn't parse a property.
     if (!ParseChallengeProperty(parameters.name(),
-                                parameters.unquoted_value()))
+                                parameters.value()))
       return false;
   }
 
