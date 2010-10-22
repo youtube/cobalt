@@ -391,23 +391,28 @@
           'crypto/encryptor.h',
           'crypto/encryptor_mac.cc',
           'crypto/encryptor_nss.cc',
+          'crypto/encryptor_openssl.cc',
           'crypto/encryptor_win.cc',
           'crypto/rsa_private_key.h',
           'crypto/rsa_private_key.cc',
           'crypto/rsa_private_key_mac.cc',
           'crypto/rsa_private_key_nss.cc',
+          'crypto/rsa_private_key_openssl.cc',
           'crypto/rsa_private_key_win.cc',
           'crypto/signature_creator.h',
           'crypto/signature_creator_mac.cc',
           'crypto/signature_creator_nss.cc',
+          'crypto/signature_creator_openssl.cc',
           'crypto/signature_creator_win.cc',
           'crypto/signature_verifier.h',
           'crypto/signature_verifier_mac.cc',
           'crypto/signature_verifier_nss.cc',
+          'crypto/signature_verifier_openssl.cc',
           'crypto/signature_verifier_win.cc',
           'crypto/symmetric_key.h',
           'crypto/symmetric_key_mac.cc',
           'crypto/symmetric_key_nss.cc',
+          'crypto/symmetric_key_openssl.cc',
           'crypto/symmetric_key_win.cc',
           'third_party/nspr/prcpucfg.h',
           'third_party/nspr/prcpucfg_win.h',
@@ -432,6 +437,7 @@
           'hmac.h',
           'hmac_mac.cc',
           'hmac_nss.cc',
+          'hmac_openssl.cc',
           'hmac_win.cc',
           'image_util.cc',
           'image_util.h',
@@ -455,6 +461,7 @@
           'setproctitle_linux.h',
           'sha2.cc',
           'sha2.h',
+          'sha2_openssl.cc',
           'string16.cc',
           'string16.h',
           'sync_socket.h',
@@ -512,6 +519,38 @@
                 'win_util.cc',
               ],
           },],
+          [ 'use_openssl==1', {
+              # TODO(joth): Use a glob to match exclude patterns once the
+              #             OpenSSL file set is complete.
+              'sources!': [
+                'crypto/encryptor_nss.cc',
+                'crypto/rsa_private_key_nss.cc',
+                'crypto/signature_creator_nss.cc',
+                'crypto/signature_verifier_nss.cc',
+                'crypto/symmetric_key_nss.cc',
+                'hmac_nss.cc',
+                'nss_util.cc',
+                'nss_util.h',
+                # Note that sha2.cc depends on the NSS files bundled into
+                # chromium; it does not have the _nss postfix as it is required
+                # on platforms besides linux and *bsd.
+                'sha2.cc',
+                'third_party/nss/blapi.h',
+                'third_party/nss/blapit.h',
+                'third_party/nss/sha256.h',
+                'third_party/nss/sha512.cc',
+              ],
+            }, {
+              'sources!': [
+                'crypto/encryptor_openssl.cc',
+                'crypto/rsa_private_key_openssl.cc',
+                'crypto/signature_creator_openssl.cc',
+                'crypto/signature_verifier_openssl.cc',
+                'crypto/symmetric_key_openssl.cc',
+                'hmac_openssl.cc',
+                'sha2_openssl.cc',
+              ],
+          },],
         ],
       }],
     ],
@@ -550,12 +589,21 @@
                 },
               },
             ],
+            [ 'use_openssl==1', {
+                'dependencies': [
+                  '../build/linux/system.gyp:openssl',
+                ],
+              }, {  # use_openssl==0
+                'dependencies': [
+                  '../build/linux/system.gyp:nss',
+                ],
+              }
+            ],
           ],
           'dependencies': [
             'symbolize',
             '../build/util/build_util.gyp:lastchange',
             '../build/linux/system.gyp:gtk',
-            '../build/linux/system.gyp:nss',
             'xdg_mime',
           ],
           'export_dependent_settings': [
