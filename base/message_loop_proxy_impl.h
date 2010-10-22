@@ -39,7 +39,7 @@ class MessageLoopProxyImpl : public MessageLoopProxy,
  protected:
   // Override OnDestruct so that we can delete the object on the target message
   // loop if it still exists.
-  virtual void OnDestruct() const;
+  virtual void OnDestruct();
 
  private:
   MessageLoopProxyImpl();
@@ -50,7 +50,7 @@ class MessageLoopProxyImpl : public MessageLoopProxy,
   friend class MessageLoopProxy;
 
   // The lock that protects access to target_message_loop_.
-  mutable Lock message_loop_lock_;
+  Lock message_loop_lock_;
   MessageLoop* target_message_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(MessageLoopProxyImpl);
