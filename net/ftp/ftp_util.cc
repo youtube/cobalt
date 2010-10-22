@@ -162,17 +162,25 @@ bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
   if (!base::StringToInt(rest, &time_exploded.year)) {
     // Maybe it's time. Does it look like time (HH:MM)?
     if (rest.length() == 5 && rest[2] == ':') {
-      if (!base::StringToInt(rest.substr(0, 2), &time_exploded.hour))
+      if (!base::StringToInt(rest.begin(),
+                             rest.begin() + 2,
+                             &time_exploded.hour))
         return false;
 
-      if (!base::StringToInt(rest.substr(3, 2), &time_exploded.minute))
+      if (!base::StringToInt(rest.begin() + 3,
+                             rest.begin() + 5,
+                             &time_exploded.minute))
         return false;
     } else if (rest.length() == 4 && rest[1] == ':') {
       // Sometimes it's just H:MM.
-      if (!base::StringToInt(rest.substr(0, 1), &time_exploded.hour))
+      if (!base::StringToInt(rest.begin(),
+                             rest.begin() + 1,
+                             &time_exploded.hour))
         return false;
 
-      if (!base::StringToInt(rest.substr(2, 2), &time_exploded.minute))
+      if (!base::StringToInt(rest.begin() + 2,
+                             rest.begin() + 4,
+                             &time_exploded.minute))
         return false;
     } else {
       return false;

@@ -91,7 +91,7 @@ FtpCtrlResponseBuffer::ParsedLine FtpCtrlResponseBuffer::ParseLine(
   ParsedLine result;
 
   if (line.length() >= 3) {
-    if (base::StringToInt(line.substr(0, 3), &result.status_code))
+    if (base::StringToInt(line.begin(), line.begin() + 3, &result.status_code))
       result.has_status_code = (100 <= result.status_code &&
                                 result.status_code <= 599);
     if (result.has_status_code && line.length() >= 4 && line[3] == ' ') {

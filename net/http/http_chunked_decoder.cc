@@ -192,7 +192,7 @@ bool HttpChunkedDecoder::ParseChunkSize(const char* start, int len, int* out) {
     return false;
 
   int parsed_number;
-  bool ok = base::HexStringToInt(std::string(start, len), &parsed_number);
+  bool ok = base::HexStringToInt(start, start + len, &parsed_number);
   if (ok && parsed_number >= 0) {
     *out = parsed_number;
     return true;

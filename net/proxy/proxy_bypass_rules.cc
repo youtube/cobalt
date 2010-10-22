@@ -264,7 +264,7 @@ bool ProxyBypassRules::AddRuleFromStringInternal(
   host = raw;
   port = -1;
   if (pos_colon != std::string::npos) {
-    if (!base::StringToInt(raw.substr(pos_colon + 1), &port) ||
+    if (!base::StringToInt(raw.begin() + pos_colon + 1, raw.end(), &port) ||
         (port < 0 || port > 0xFFFF)) {
       return false;  // Port was invalid.
     }
