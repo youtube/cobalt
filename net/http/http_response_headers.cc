@@ -598,7 +598,7 @@ void HttpResponseHeaders::ParseStatusLine(
   raw_headers_.push_back(' ');
   raw_headers_.append(code, p);
   raw_headers_.push_back(' ');
-  base::StringToInt(std::string(code, p), &response_code_);
+  base::StringToInt(code, p, &response_code_);
 
   // Skip whitespace.
   while (*p == ' ')
@@ -973,7 +973,9 @@ bool HttpResponseHeaders::GetMaxAgeValue(TimeDelta* result) const {
                                value.begin() + kMaxAgePrefixLen,
                                kMaxAgePrefix)) {
         int64 seconds;
-        base::StringToInt64(value.substr(kMaxAgePrefixLen), &seconds);
+        base::StringToInt64(value.begin() + kMaxAgePrefixLen,
+                            value.end(),
+                            &seconds);
         *result = TimeDelta::FromSeconds(seconds);
         return true;
       }
@@ -1148,9 +1150,9 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
           byte_range_resp_spec.begin() + minus_position;
       HttpUtil::TrimLWS(&first_byte_pos_begin, &first_byte_pos_end);
 
-      bool ok = base::StringToInt64(
-          std::string(first_byte_pos_begin, first_byte_pos_end),
-          first_byte_position);
+      bool ok = base::StringToInt64(first_byte_pos_begin,
+                                    first_byte_pos_end,
+                                    first_byte_position);
 
       // Obtain last-byte-pos.
       std::string::const_iterator last_byte_pos_begin =
@@ -1159,9 +1161,9 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
           byte_range_resp_spec.end();
       HttpUtil::TrimLWS(&last_byte_pos_begin, &last_byte_pos_end);
 
-      ok &= base::StringToInt64(
-          std::string(last_byte_pos_begin, last_byte_pos_end),
-          last_byte_position);
+      ok &= base::StringToInt64(last_byte_pos_begin,
+                                last_byte_pos_end,
+                                last_byte_position);
       if (!ok) {
         *first_byte_position = *last_byte_position = -1;
         return false;
@@ -1184,9 +1186,9 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
 
   if (LowerCaseEqualsASCII(instance_length_begin, instance_length_end, "*")) {
     return false;
-  } else if (!base::StringToInt64(
-      std::string(instance_length_begin, instance_length_end),
-      instance_length)) {
+  } else if (!base::StringToInt64(instance_length_begin,
+                                  instance_length_end,
+                                  instance_length)) {
     *instance_length = -1;
     return false;
   }
