@@ -275,6 +275,9 @@ class HttpUtil {
   // Each pair consists of a token (the name), an equals sign, and either a
   // token or quoted-string (the value). Arbitrary HTTP LWS is permitted outside
   // of and between names, values, and delimiters.
+  //
+  // String iterators returned from this class' methods may be invalidated upon
+  // calls to GetNext() or after the NameValuePairsIterator is destroyed.
   class NameValuePairsIterator {
    public:
     NameValuePairsIterator(std::string::const_iterator begin,
@@ -295,15 +298,16 @@ class HttpUtil {
     std::string name() const { return std::string(name_begin_, name_end_); }
 
     // The value of the current name-value pair.
-    std::string::const_iterator value_begin() const { return value_begin_; }
-    std::string::const_iterator value_end() const { return value_end_; }
-    std::string value() const { return std::string(value_begin_, value_end_); }
-
-    // If value() has quotemarks, unquote it.
-    std::string unquoted_value() const;
-
-    // True if the name-value pair's value has quote marks.
-    bool value_is_quoted() const { return value_is_quoted_; }
+    std::string::const_iterator value_begin() const {
+      return value_is_quoted_ ? unquoted_value_.begin() : value_begin_;
+    }
+    std::string::const_iterator value_end() const {
+      return value_is_quoted_ ? unquoted_value_.end() : value_end_;
+    }
+    std::string value() const {
+      return value_is_quoted_ ? unquoted_value_ : std::string(value_begin_,
+                                                               value_end_);
+    }
 
    private:
     HttpUtil::ValuesIterator props_;
@@ -317,6 +321,11 @@ class HttpUtil {
 
     std::string::const_iterator value_begin_;
     std::string::const_iterator value_end_;
+
+    // Do not store iterators into this string. The NameValuePairsIterator
+    // is copyable/assignable, and if copied the copy's iterators would point
+    // into the original's unquoted_value_ member.
+    std::string unquoted_value_;
 
     bool value_is_quoted_;
   };

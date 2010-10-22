@@ -828,12 +828,12 @@ bool HttpUtil::NameValuePairsIterator::GetNext() {
   // Scan for the equals sign.
   std::string::const_iterator equals = std::find(value_begin_, value_end_, '=');
   if (equals == value_end_ || equals == value_begin_)
-    return valid_ = false;  // Malformed
+    return valid_ = false;  // Malformed, no equals sign
 
   // Verify that the equals sign we found wasn't inside of quote marks.
   for (std::string::const_iterator it = value_begin_; it != equals; ++it) {
     if (HttpUtil::IsQuote(*it))
-      return valid_ = false;  // Malformed
+      return valid_ = false;  // Malformed, quote appears before equals sign
   }
 
   name_begin_ = value_begin_;
@@ -843,25 +843,28 @@ bool HttpUtil::NameValuePairsIterator::GetNext() {
   TrimLWS(&name_begin_, &name_end_);
   TrimLWS(&value_begin_, &value_end_);
   value_is_quoted_ = false;
-  if (value_begin_ != value_end_ && HttpUtil::IsQuote(*value_begin_)) {
+  unquoted_value_.clear();
+
+  if (value_begin_ == value_end_)
+    return valid_ = false;  // Malformed, value is empty
+
+  if (HttpUtil::IsQuote(*value_begin_)) {
     // Trim surrounding quotemarks off the value
-    if (*value_begin_ != *(value_end_ - 1) || value_begin_ + 1 == value_end_)
+    if (*value_begin_ != *(value_end_ - 1) || value_begin_ + 1 == value_end_) {
       // NOTE: This is not as graceful as it sounds:
       // * quoted-pairs will no longer be unquoted
       //   (["\"hello] should give ["hello]).
       // * Does not detect when the final quote is escaped
       //   (["value\"] should give [value"])
       ++value_begin_;  // Gracefully recover from mismatching quotes.
-    else
+    } else {
       value_is_quoted_ = true;
+      // Do not store iterators into this. See declaration of unquoted_value_.
+      unquoted_value_ = HttpUtil::Unquote(value_begin_, value_end_);
+    }
   }
 
   return true;
-}
-
-// If value() has quotemarks, unquote it.
-std::string HttpUtil::NameValuePairsIterator::unquoted_value() const {
-  return HttpUtil::Unquote(value_begin_, value_end_);
 }
 
 }  // namespace net
