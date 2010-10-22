@@ -33,7 +33,7 @@ class FakeAudioInputStream :
   friend class base::RefCountedThreadSafe<FakeAudioInputStream>;
 
   FakeAudioInputStream(AudioParameters params, int samples_per_packet);
-  virtual ~FakeAudioInputStream() {}
+  virtual ~FakeAudioInputStream();
 
   void DoCallback();
 

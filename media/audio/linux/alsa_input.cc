@@ -44,6 +44,8 @@ AlsaPcmInputStream::AlsaPcmInputStream(const std::string& device_name,
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
 }
 
+AlsaPcmInputStream::~AlsaPcmInputStream() {}
+
 bool AlsaPcmInputStream::Open() {
   if (device_handle_)
     return false;  // Already open.
