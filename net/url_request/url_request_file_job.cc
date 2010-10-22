@@ -23,7 +23,6 @@
 #include "base/message_loop.h"
 #include "base/platform_file.h"
 #include "base/string_util.h"
-#include "base/thread_restrictions.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/io_buffer.h"
@@ -129,15 +128,8 @@ void URLRequestFileJob::Start() {
     return;
   }
 #endif
-
-  // URL requests should not block on the disk!
-  //   http://code.google.com/p/chromium/issues/detail?id=59849
-  bool exists;
   base::PlatformFileInfo file_info;
-  {
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    exists = file_util::GetFileInfo(file_path_, &file_info);
-  }
+  bool exists = file_util::GetFileInfo(file_path_, &file_info);
 
   // Continue asynchronously.
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
