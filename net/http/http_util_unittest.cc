@@ -673,27 +673,48 @@ TEST(HttpUtilTest, ParseRanges) {
 }
 
 namespace {
-
-void CheckNameValuePair(HttpUtil::NameValuePairsIterator* parser,
-                        bool expect_next,
-                        bool expect_valid,
-                        std::string expected_name,
-                        std::string expected_value,
-                        std::string expected_unquoted_value) {
-  ASSERT_EQ(expect_next, parser->GetNext());
+void CheckCurrentNameValuePair(HttpUtil::NameValuePairsIterator* parser,
+                               bool expect_valid,
+                               std::string expected_name,
+                               std::string expected_value) {
   ASSERT_EQ(expect_valid, parser->valid());
-  if (!expect_next || !expect_valid) {
+  if (!expect_valid) {
     return;
   }
+
+  // Let's make sure that these never change (i.e., when a quoted value is
+  // unquoted, it should be cached on the first calls and not regenerated
+  // later).
+  std::string::const_iterator first_value_begin = parser->value_begin();
+  std::string::const_iterator first_value_end = parser->value_end();
+
   ASSERT_EQ(expected_name, std::string(parser->name_begin(),
                                        parser->name_end()));
   ASSERT_EQ(expected_name, parser->name());
   ASSERT_EQ(expected_value, std::string(parser->value_begin(),
                                         parser->value_end()));
   ASSERT_EQ(expected_value, parser->value());
-  ASSERT_EQ(expected_unquoted_value, parser->unquoted_value());
-  ASSERT_EQ(expected_value != expected_unquoted_value,
-            parser->value_is_quoted());
+
+  // Make sure they didn't/don't change.
+  ASSERT_TRUE(first_value_begin == parser->value_begin());
+  ASSERT_TRUE(first_value_end == parser->value_end());
+}
+
+void CheckNextNameValuePair(HttpUtil::NameValuePairsIterator* parser,
+                            bool expect_next,
+                            bool expect_valid,
+                            std::string expected_name,
+                            std::string expected_value) {
+  ASSERT_EQ(expect_next, parser->GetNext());
+  ASSERT_EQ(expect_valid, parser->valid());
+  if (!expect_next || !expect_valid) {
+    return;
+  }
+
+  CheckCurrentNameValuePair(parser,
+                            expect_valid,
+                            expected_name,
+                            expected_value);
 }
 
 void CheckInvalidNameValuePair(std::string valid_part,
@@ -731,35 +752,78 @@ void CheckInvalidNameValuePair(std::string valid_part,
 
 }  // anonymous namespace
 
+TEST(HttpUtilTest, NameValuePairsIteratorCopyAndAssign) {
+  std::string data = "alpha='\\'a\\''; beta=\" b \"; cappa='c;'; delta=\"d\"";
+  HttpUtil::NameValuePairsIterator parser_a(data.begin(), data.end(), ';');
+
+  EXPECT_TRUE(parser_a.valid());
+  ASSERT_NO_FATAL_FAILURE(
+      CheckNextNameValuePair(&parser_a, true, true, "alpha", "'a'"));
+
+  HttpUtil::NameValuePairsIterator parser_b(parser_a);
+  // a and b now point to same location
+  ASSERT_NO_FATAL_FAILURE(
+      CheckCurrentNameValuePair(&parser_b, true, "alpha", "'a'"));
+  ASSERT_NO_FATAL_FAILURE(
+      CheckCurrentNameValuePair(&parser_a, true, "alpha", "'a'"));
+
+  // advance a, no effect on b
+  ASSERT_NO_FATAL_FAILURE(
+      CheckNextNameValuePair(&parser_a, true, true, "beta", " b "));
+  ASSERT_NO_FATAL_FAILURE(
+      CheckCurrentNameValuePair(&parser_b, true, "alpha", "'a'"));
+
+  // assign b the current state of a, no effect on a
+  parser_b = parser_a;
+  ASSERT_NO_FATAL_FAILURE(
+      CheckCurrentNameValuePair(&parser_b, true, "beta", " b "));
+  ASSERT_NO_FATAL_FAILURE(
+      CheckCurrentNameValuePair(&parser_a, true, "beta", " b "));
+
+  // advance b, no effect on a
+  ASSERT_NO_FATAL_FAILURE(
+      CheckNextNameValuePair(&parser_b, true, true, "cappa", "c;"));
+  ASSERT_NO_FATAL_FAILURE(
+      CheckCurrentNameValuePair(&parser_a, true, "beta", " b "));
+}
+
 TEST(HttpUtilTest, NameValuePairsIteratorEmptyInput) {
   std::string data = "";
   HttpUtil::NameValuePairsIterator parser(data.begin(), data.end(), ';');
 
   EXPECT_TRUE(parser.valid());
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, false, true, "", "", ""));
+      CheckNextNameValuePair(&parser, false, true, "", ""));
 }
 
 TEST(HttpUtilTest, NameValuePairsIterator) {
-  std::string data = "alpha=1; beta= 2 ;cappa =' 3 ';"
-                     "delta= \" 4 \"; e= \" '5'\"; e=6";
+  std::string data = "alpha=1; beta= 2 ;cappa =' 3; ';"
+                     "delta= \" \\\"4\\\" \"; e= \" '5'\"; e=6;"
+                     "f='\\'\\h\\e\\l\\l\\o\\ \\w\\o\\r\\l\\d\\'';"
+                     "g=''; h='hello'";
   HttpUtil::NameValuePairsIterator parser(data.begin(), data.end(), ';');
   EXPECT_TRUE(parser.valid());
 
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "alpha", "1", "1"));
+      CheckNextNameValuePair(&parser, true, true, "alpha", "1"));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "beta", "2", "2"));
+      CheckNextNameValuePair(&parser, true, true, "beta", "2"));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "cappa", "' 3 '", " 3 "));
+      CheckNextNameValuePair(&parser, true, true, "cappa", " 3; "));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "delta", "\" 4 \"", " 4 "));
+      CheckNextNameValuePair(&parser, true, true, "delta", " \"4\" "));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "e", "\" '5'\"", " '5'"));
+      CheckNextNameValuePair(&parser, true, true, "e", " '5'"));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "e", "6", "6"));
+      CheckNextNameValuePair(&parser, true, true, "e", "6"));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, false, true, "", "", ""));
+      CheckNextNameValuePair(&parser, true, true, "f", "'hello world'"));
+  ASSERT_NO_FATAL_FAILURE(
+      CheckNextNameValuePair(&parser, true, true, "g", ""));
+  ASSERT_NO_FATAL_FAILURE(
+      CheckNextNameValuePair(&parser, true, true, "h", "hello"));
+  ASSERT_NO_FATAL_FAILURE(
+      CheckNextNameValuePair(&parser, false, true, "", ""));
 }
 
 TEST(HttpUtilTest, NameValuePairsIteratorIllegalInputs) {
@@ -768,6 +832,9 @@ TEST(HttpUtilTest, NameValuePairsIteratorIllegalInputs) {
 
   ASSERT_NO_FATAL_FAILURE(CheckInvalidNameValuePair("alpha=1", "; 'beta'=2"));
   ASSERT_NO_FATAL_FAILURE(CheckInvalidNameValuePair("", "'beta'=2"));
+  ASSERT_NO_FATAL_FAILURE(CheckInvalidNameValuePair("alpha=1", ";beta="));
+  ASSERT_NO_FATAL_FAILURE(CheckInvalidNameValuePair("alpha=1",
+                                                    ";beta=;cappa=2"));
 
   // According to the spec this is an error, but it doesn't seem appropriate to
   // change our behaviour to be less permissive at this time.
@@ -783,13 +850,13 @@ TEST(HttpUtilTest, NameValuePairsIteratorExtraSeparators) {
   EXPECT_TRUE(parser.valid());
 
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "alpha", "1", "1"));
+      CheckNextNameValuePair(&parser, true, true, "alpha", "1"));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "beta", "2", "2"));
+      CheckNextNameValuePair(&parser, true, true, "beta", "2"));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "cappa", "3", "3"));
+      CheckNextNameValuePair(&parser, true, true, "cappa", "3"));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, false, true, "", "", ""));
+      CheckNextNameValuePair(&parser, false, true, "", ""));
 }
 
 // See comments on the implementation of NameValuePairsIterator::GetNext
@@ -800,7 +867,7 @@ TEST(HttpUtilTest, NameValuePairsIteratorMissingEndQuote) {
   EXPECT_TRUE(parser.valid());
 
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, true, true, "name", "value", "value"));
+      CheckNextNameValuePair(&parser, true, true, "name", "value"));
   ASSERT_NO_FATAL_FAILURE(
-    CheckNameValuePair(&parser, false, true, "", "", ""));
+      CheckNextNameValuePair(&parser, false, true, "", ""));
 }

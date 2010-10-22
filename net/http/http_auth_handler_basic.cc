@@ -41,7 +41,7 @@ bool HttpAuthHandlerBasic::ParseChallenge(
   std::string realm;
   while (parameters.GetNext()) {
     if (LowerCaseEqualsASCII(parameters.name(), "realm"))
-      realm = parameters.unquoted_value();
+      realm = parameters.value();
   }
 
   if (!parameters.valid())
