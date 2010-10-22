@@ -71,7 +71,6 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "base/thread_restrictions.h"
 #include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_status_flags.h"
@@ -177,11 +176,6 @@ class NSSSSLInitSingleton {
 // thread-safe, and the NSS SSL library will only ever be initialized once.
 // The NSS SSL library will be properly shut down on program exit.
 void EnsureNSSSSLInit() {
-  // Initializing SSL causes us to do blocking IO.
-  // Temporarily allow it until we fix
-  //   http://code.google.com/p/chromium/issues/detail?id=59847
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
-
   Singleton<NSSSSLInitSingleton>::get();
 }
 
