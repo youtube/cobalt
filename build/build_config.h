@@ -47,8 +47,14 @@
 
 #if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD) || \
     defined(OS_SOLARIS)
-#define USE_NSS 1  // Use NSS for crypto.
+#if !defined(USE_OPENSSL)
+#define USE_NSS 1  // Default to use NSS for crypto, unless OpenSSL is chosen.
+#endif
 #define USE_X11 1  // Use X for graphics.
+#endif
+
+#if defined(USE_OPENSSL) && defined(USE_NSS)
+#error Cannot use both OpenSSL and NSS
 #endif
 
 // For access to standard POSIXish features, use OS_POSIX instead of a

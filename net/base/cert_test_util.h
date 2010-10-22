@@ -14,7 +14,7 @@ namespace net {
 
 class X509Certificate;
 
-#if defined(USE_NSS) || defined(OS_MACOSX)
+#if defined(USE_NSS) || defined(OS_MACOSX) || defined(USE_OPENSSL)
 // Loads and trusts a root CA certificate (stored in a file) temporarily.
 // TODO(wtc): Implement this function on Windows (http://crbug.com/8470).
 X509Certificate* LoadTemporaryRootCert(const FilePath& filename);
