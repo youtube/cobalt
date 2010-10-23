@@ -66,7 +66,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   explicit PipelineImpl(MessageLoop* message_loop);
 
   // Pipeline implementation.
-  virtual bool Start(FilterFactory* filter_factory,
+  virtual bool Start(const MediaFilterCollection& filter_collection,
                      const std::string& uri,
                      PipelineCallback* start_callback);
   virtual void Stop(PipelineCallback* stop_callback);
@@ -147,7 +147,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   bool IsPipelineSeeking();
 
   // Helper method to execute callback from Start() and reset
-  // |filter_factory_|. Called when initialization completes
+  // |filter_collection_|. Called when initialization completes
   // normally or when pipeline is stopped or error occurs during
   // initialization.
   void FinishInitialization();
@@ -194,7 +194,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
   // message loop.
-  void StartTask(FilterFactory* filter_factory,
+  void StartTask(const MediaFilterCollection& filter_collection,
                  const std::string& url,
                  PipelineCallback* start_callback);
 
@@ -241,64 +241,47 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Internal methods used in the implementation of the pipeline thread.  All
   // of these methods are only called on the pipeline thread.
 
-  // The following template functions make use of the fact that media filter
-  // derived interfaces are self-describing in the sense that they all contain
-  // the static method filter_type() which returns a FilterType enum that
-  // uniquely identifies the filter's interface.  In addition, filters that are
-  // specific to audio or video also support a static method major_mime_type()
-  // which returns a string of "audio/" or "video/".
-  //
-  // Uses the FilterFactory to create a new filter of the Filter class, and
-  // initializes it using the Source object.  The source may be another filter
-  // or it could be a string in the case of a DataSource.
-  //
-  // The CreateFilter() method actually does much more than simply creating the
-  // filter.  It also creates the filter's thread and injects a FilterHost and
-  // MessageLoop.  Finally, it calls the filter's type-specific Initialize()
-  // method to initialize the filter.  If the required filter cannot be created,
-  // PIPELINE_ERROR_REQUIRED_FILTER_MISSING is raised, initialization is halted
-  // and this object will remain in the "Error" state.
-  template <class Filter, class Source>
-  void CreateFilter(FilterFactory* filter_factory,
-                    Source source,
-                    const MediaFormat& source_media_format);
+  // Uses the MediaFilterCollection to return a filter of |filter_type|.
+  // If the required filter cannot be found, NULL is returned.
+  template <class Filter>
+  void SelectFilter(FilterType filter_type,
+                    scoped_refptr<Filter>* filter_out) const;
 
-  // Creates a Filter and initializes it with the given |source|.  If a Filter
-  // could not be created or an error occurred, this method returns NULL and the
-  // pipeline's |error_| member will contain a specific error code.  Note that
-  // the Source could be a filter or a DemuxerStream, but it must support the
-  // GetMediaFormat() method.
-  template <class Filter, class Source>
-  void CreateFilter(FilterFactory* filter_factory, Source* source) {
-    CreateFilter<Filter, Source*>(filter_factory,
-                                  source,
-                                  source->media_format());
-  }
+  // Remove a filer from MediaFilterCollection.
+  void RemoveFilter(scoped_refptr<MediaFilter> filter);
 
-  // Creates a DataSource (the first filter in a pipeline).
-  void CreateDataSource();
+  // PrepareFilter() creates the filter's thread and injects a FilterHost and
+  // MessageLoop.
+  void PrepareFilter(scoped_refptr<MediaFilter> filter);
 
-  // Creates a Demuxer.
-  void CreateDemuxer();
+  // The following initialize methods are used to select a specific type of
+  // MediaFilter object from MediaFilterCollection and initialize it
+  // asynchronously.
+  void InitializeDataSource();
+  void InitializeDemuxer();
 
-  // Creates a decoder of type Decoder. Returns true if the asynchronous action
-  // of creating decoder has started. Returns false if this method did nothing
-  // because the corresponding audio/video stream does not exist.
-  template <class Decoder>
-  bool CreateDecoder();
+  // Returns true if the asynchronous action of creating decoder has started.
+  // Returns false if this method did nothing because the corresponding
+  // audio/video stream does not exist.
+  bool InitializeAudioDecoder();
+  bool InitializeVideoDecoder();
 
-  // Creates a renderer of type Renderer and connects it with Decoder. Returns
-  // true if the asynchronous action of creating renderer has started. Returns
+  // Initializes a renderer and connects it with decoder. Returns true if the
+  // asynchronous action of creating renderer has started. Returns
   // false if this method did nothing because the corresponding audio/video
   // stream does not exist.
-  template <class Decoder, class Renderer>
-  bool CreateRenderer();
+  bool InitializeAudioRenderer();
+  bool InitializeVideoRenderer();
 
-  // Examine the list of existing filters to find one that supports the
-  // specified Filter interface. If one exists, the |filter_out| will contain
+  // Helper to find the demuxer of |major_mime_type| from Demuxer.
+  scoped_refptr<DemuxerStream> FindDemuxerStream(std::string major_mime_type);
+
+  // Examine the list of initialized filters to find one that matches the
+  // specified filter type. If one exists, the |filter_out| will contain
   // the filter, |*filter_out| will be NULL.
   template <class Filter>
-  void GetFilter(scoped_refptr<Filter>* filter_out) const;
+  void GetInitializedFilter(FilterType filter_type,
+                            scoped_refptr<Filter>* filter_out) const;
 
   // Kicks off destroying filters. Called by StopTask() and ErrorChangedTask().
   // When we start to tear down the pipeline, we will consider two cases:
@@ -416,8 +399,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // TODO(vrk): This is a hack.
   base::TimeDelta max_buffered_time_;
 
-  // Filter factory as passed in by Start().
-  scoped_refptr<FilterFactory> filter_factory_;
+  // Filter collection as passed in by Start().
+  MediaFilterCollection filter_collection_;
 
   // URL for the data source as passed in by Start().
   std::string url_;

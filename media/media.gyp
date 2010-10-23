@@ -76,8 +76,6 @@
         'base/data_buffer.h',
         'base/djb2.cc',
         'base/djb2.h',
-        'base/factory.cc',
-        'base/factory.h',
         'base/filter_host.h',
         'base/filters.cc',
         'base/filters.h',

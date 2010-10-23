@@ -29,15 +29,6 @@ AudioRendererImpl::~AudioRendererImpl() {
   }
 }
 
-bool AudioRendererImpl::IsMediaFormatSupported(
-    const MediaFormat& media_format) {
-  int channels;
-  int sample_rate;
-  int sample_bits;
-  return AudioManager::GetAudioManager()->HasAudioOutputDevices() &&
-      ParseMediaFormat(media_format, &channels, &sample_rate, &sample_bits);
-}
-
 void AudioRendererImpl::SetPlaybackRate(float rate) {
   // TODO(fbarchard): limit rate to reasonable values
   AudioRendererBase::SetPlaybackRate(rate);

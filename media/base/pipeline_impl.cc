@@ -19,9 +19,8 @@ namespace {
 // Small helper function to help us transition over to injected message loops.
 //
 // TODO(scherkus): have every filter support injected message loops.
-template <class Filter>
-bool SupportsSetMessageLoop() {
-  switch (Filter::filter_type()) {
+bool SupportsSetMessageLoop(FilterType type) {
+  switch (type) {
     case FILTER_DEMUXER:
     case FILTER_AUDIO_DECODER:
     case FILTER_VIDEO_DECODER:
@@ -35,17 +34,16 @@ bool SupportsSetMessageLoop() {
     // Skipping default case so compiler will warn on a missed enumeration.
   }
 
-  NOTREACHED() << "Unexpected filter type " << Filter::filter_type();
+  NOTREACHED() << "Unexpected filter type " << type;
   return false;
 }
 
 // Small helper function to help us name filter threads for debugging.
 //
 // TODO(scherkus): figure out a cleaner way to derive the filter thread name.
-template <class Filter>
-const char* GetThreadName() {
-  DCHECK(SupportsSetMessageLoop<Filter>());
-  switch (Filter::filter_type()) {
+const char* GetThreadName(FilterType type) {
+  DCHECK(SupportsSetMessageLoop(type));
+  switch (type) {
     case FILTER_DEMUXER:
       return "DemuxerThread";
     case FILTER_AUDIO_DECODER:
@@ -77,17 +75,17 @@ PipelineImpl::~PipelineImpl() {
 }
 
 // Creates the PipelineInternal and calls it's start method.
-bool PipelineImpl::Start(FilterFactory* factory,
+bool PipelineImpl::Start(const MediaFilterCollection& collection,
                          const std::string& url,
                          PipelineCallback* start_callback) {
   AutoLock auto_lock(lock_);
-  DCHECK(factory);
   scoped_ptr<PipelineCallback> callback(start_callback);
   if (running_) {
     VLOG(1) << "Media pipeline is already running";
     return false;
   }
-  if (!factory)
+
+  if (collection.empty())
     return false;
 
   // Kick off initialization!
@@ -96,7 +94,7 @@ bool PipelineImpl::Start(FilterFactory* factory,
       FROM_HERE,
       NewRunnableMethod(this,
                         &PipelineImpl::StartTask,
-                        make_scoped_refptr(factory),
+                        collection,
                         url,
                         callback.release()));
   return true;
@@ -403,7 +401,6 @@ void PipelineImpl::FinishInitialization() {
     seek_callback_->Run();
     seek_callback_.reset();
   }
-  filter_factory_ = NULL;
 }
 
 // static
@@ -569,12 +566,12 @@ void PipelineImpl::OnFilterStateTransition() {
       NewRunnableMethod(this, &PipelineImpl::FilterStateTransitionTask));
 }
 
-void PipelineImpl::StartTask(FilterFactory* filter_factory,
+void PipelineImpl::StartTask(const MediaFilterCollection& filter_collection,
                              const std::string& url,
                              PipelineCallback* start_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_EQ(kCreated, state_);
-  filter_factory_ = filter_factory;
+  filter_collection_ = filter_collection;
   url_ = url;
   seek_callback_.reset(start_callback);
 
@@ -614,14 +611,14 @@ void PipelineImpl::InitializeTask() {
   // Just created, create data source.
   if (state_ == kCreated) {
     state_ = kInitDataSource;
-    CreateDataSource();
+    InitializeDataSource();
     return;
   }
 
   // Data source created, create demuxer.
   if (state_ == kInitDataSource) {
     state_ = kInitDemuxer;
-    CreateDemuxer();
+    InitializeDemuxer();
     return;
   }
 
@@ -629,7 +626,7 @@ void PipelineImpl::InitializeTask() {
   if (state_ == kInitDemuxer) {
     state_ = kInitAudioDecoder;
     // If this method returns false, then there's no audio stream.
-    if (CreateDecoder<AudioDecoder>())
+    if (InitializeAudioDecoder())
       return;
   }
 
@@ -637,8 +634,8 @@ void PipelineImpl::InitializeTask() {
   if (state_ == kInitAudioDecoder) {
     state_ = kInitAudioRenderer;
     // Returns false if there's no audio stream.
-    if (CreateRenderer<AudioDecoder, AudioRenderer>()) {
-      InsertRenderedMimeType(AudioDecoder::major_mime_type());
+    if (InitializeAudioRenderer()) {
+      InsertRenderedMimeType(mime_type::kMajorTypeAudio);
       return;
     }
   }
@@ -647,15 +644,15 @@ void PipelineImpl::InitializeTask() {
   if (state_ == kInitAudioRenderer) {
     // Then perform the stage of initialization, i.e. initialize video decoder.
     state_ = kInitVideoDecoder;
-    if (CreateDecoder<VideoDecoder>())
+    if (InitializeVideoDecoder())
       return;
   }
 
   // Assuming video decoder was created, create video renderer.
   if (state_ == kInitVideoDecoder) {
     state_ = kInitVideoRenderer;
-    if (CreateRenderer<VideoDecoder, VideoRenderer>()) {
-      InsertRenderedMimeType(VideoDecoder::major_mime_type());
+    if (InitializeVideoRenderer()) {
+      InsertRenderedMimeType(mime_type::kMajorTypeVideo);
       return;
     }
   }
@@ -665,6 +662,9 @@ void PipelineImpl::InitializeTask() {
       SetError(PIPELINE_ERROR_COULD_NOT_RENDER);
       return;
     }
+
+    // Clear the collection of filters.
+    filter_collection_.clear();
 
     // Initialization was successful, we are now considered paused, so it's safe
     // to set the initial playback rate and volume.
@@ -750,7 +750,7 @@ void PipelineImpl::VolumeChangedTask(float volume) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   scoped_refptr<AudioRenderer> audio_renderer;
-  GetFilter(&audio_renderer);
+  GetInitializedFilter(FILTER_AUDIO_RENDERER, &audio_renderer);
   if (audio_renderer) {
     audio_renderer->SetVolume(volume);
   }
@@ -808,8 +808,8 @@ void PipelineImpl::NotifyEndedTask() {
   // Grab the renderers, if they exist.
   scoped_refptr<AudioRenderer> audio_renderer;
   scoped_refptr<VideoRenderer> video_renderer;
-  GetFilter(&audio_renderer);
-  GetFilter(&video_renderer);
+  GetInitializedFilter(FILTER_AUDIO_RENDERER, &audio_renderer);
+  GetInitializedFilter(FILTER_VIDEO_RENDERER, &video_renderer);
   DCHECK(audio_renderer || video_renderer);
 
   // Make sure every extant renderer has ended.
@@ -972,23 +972,46 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
   }
 }
 
-template <class Filter, class Source>
-void PipelineImpl::CreateFilter(FilterFactory* filter_factory,
-                                Source source,
-                                const MediaFormat& media_format) {
+template <class Filter>
+void PipelineImpl::SelectFilter(
+    FilterType filter_type, scoped_refptr<Filter>* filter_out) const {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  MediaFilterCollection::const_iterator it = filter_collection_.begin();
+  while (it != filter_collection_.end()) {
+    if ((*it)->filter_type() == filter_type)
+      break;
+    ++it;
+  }
+
+  if (it == filter_collection_.end())
+    *filter_out = NULL;
+  else
+    *filter_out = reinterpret_cast<Filter*>(it->get());
+}
+
+void PipelineImpl::RemoveFilter(scoped_refptr<MediaFilter> filter) {
+  MediaFilterCollection::iterator it = filter_collection_.begin();
+  while (it != filter_collection_.end()) {
+    if (*it == filter)
+      break;
+    ++it;
+  }
+  if (it == filter_collection_.end()) {
+    NOTREACHED() << "Removing a filter that doesn't exist";
+    return;
+  }
+  filter_collection_.erase(it);
+}
+
+void PipelineImpl::PrepareFilter(scoped_refptr<MediaFilter> filter) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
-  // Create the filter.
-  scoped_refptr<Filter> filter = filter_factory->Create<Filter>(media_format);
-  if (!filter) {
-    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
-    return;
-  }
-
   // Create a dedicated thread for this filter if applicable.
-  if (SupportsSetMessageLoop<Filter>()) {
-    scoped_ptr<base::Thread> thread(new base::Thread(GetThreadName<Filter>()));
+  if (SupportsSetMessageLoop(filter->filter_type())) {
+    scoped_ptr<base::Thread> thread(
+        new base::Thread(GetThreadName(filter->filter_type())));
     if (!thread.get() || !thread->Start()) {
       NOTREACHED() << "Could not start filter thread";
       SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
@@ -1001,82 +1024,172 @@ void PipelineImpl::CreateFilter(FilterFactory* filter_factory,
 
   // Register ourselves as the filter's host.
   DCHECK(IsPipelineOk());
-  DCHECK(filter_types_.find(Filter::filter_type()) == filter_types_.end())
-      << "Filter type " << Filter::filter_type() << " already exists";
+  DCHECK(filter_types_.find(filter->filter_type()) == filter_types_.end())
+      << "Filter type " << filter->filter_type() << " already exists";
   filter->set_host(this);
   filters_.push_back(filter.get());
-  filter_types_[Filter::filter_type()] = filter.get();
-
-  // Now initialize the filter.
-  filter->Initialize(source,
-      NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  filter_types_[filter->filter_type()] = filter.get();
 }
 
-void PipelineImpl::CreateDataSource() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(IsPipelineOk());
-
-  MediaFormat url_format;
-  url_format.SetAsString(MediaFormat::kMimeType, mime_type::kURL);
-  url_format.SetAsString(MediaFormat::kURL, url_);
-  CreateFilter<DataSource>(filter_factory_, url_, url_format);
-}
-
-void PipelineImpl::CreateDemuxer() {
+void PipelineImpl::InitializeDataSource() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
   scoped_refptr<DataSource> data_source;
-  GetFilter(&data_source);
-  DCHECK(data_source);
-  CreateFilter<Demuxer, DataSource>(filter_factory_, data_source);
+  while (true) {
+    SelectFilter(FILTER_DATA_SOURCE, &data_source);
+    if (!data_source || data_source->IsUrlSupported(url_))
+      break;
+    RemoveFilter(data_source);
+  }
+
+  if (!data_source) {
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+    return;
+  }
+
+  RemoveFilter(data_source);
+  PrepareFilter(data_source);
+  data_source->Initialize(
+      url_, NewCallback(this, &PipelineImpl::OnFilterInitialize));
 }
 
-template <class Decoder>
-bool PipelineImpl::CreateDecoder() {
+void PipelineImpl::InitializeDemuxer() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
+  scoped_refptr<DataSource> data_source;
   scoped_refptr<Demuxer> demuxer;
-  GetFilter(&demuxer);
+
+  GetInitializedFilter(FILTER_DATA_SOURCE, &data_source);
+  CHECK(data_source);
+
+  SelectFilter(FILTER_DEMUXER, &demuxer);
+  if (!demuxer) {
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+    return;
+  }
+
+  RemoveFilter(demuxer);
+  PrepareFilter(demuxer);
+  demuxer->Initialize(data_source,
+                      NewCallback(this, &PipelineImpl::OnFilterInitialize));
+}
+
+bool PipelineImpl::InitializeAudioDecoder() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(IsPipelineOk());
+
+  scoped_refptr<DemuxerStream> stream =
+      FindDemuxerStream(mime_type::kMajorTypeAudio);
+  scoped_refptr<AudioDecoder> audio_decoder;
+  SelectFilter(FILTER_AUDIO_DECODER, &audio_decoder);
+
+  // If there is such stream but audio decoder is not found.
+  if (stream && !audio_decoder)
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+  if (!stream || !audio_decoder)
+    return false;
+
+  RemoveFilter(audio_decoder);
+  PrepareFilter(audio_decoder);
+  audio_decoder->Initialize(
+      stream,
+      NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  return true;
+}
+
+bool PipelineImpl::InitializeVideoDecoder() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(IsPipelineOk());
+
+  scoped_refptr<DemuxerStream> stream =
+      FindDemuxerStream(mime_type::kMajorTypeVideo);
+  scoped_refptr<VideoDecoder> video_decoder;
+  SelectFilter(FILTER_VIDEO_DECODER, &video_decoder);
+
+  // If there is such stream but video decoder is not found.
+  if (stream && !video_decoder)
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+  if (!stream || !video_decoder)
+    return false;
+
+  RemoveFilter(video_decoder);
+  PrepareFilter(video_decoder);
+  video_decoder->Initialize(
+      stream,
+      NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  return true;
+}
+
+bool PipelineImpl::InitializeAudioRenderer() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(IsPipelineOk());
+
+  scoped_refptr<AudioDecoder> decoder;
+  GetInitializedFilter(FILTER_AUDIO_DECODER, &decoder);
+  scoped_refptr<AudioRenderer> audio_renderer;
+  SelectFilter(FILTER_AUDIO_RENDERER, &audio_renderer);
+
+  // If there is such decoder but renderer is not found.
+  if (decoder && !audio_renderer)
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+  if (!decoder || !audio_renderer)
+    return false;
+
+  RemoveFilter(audio_renderer);
+  PrepareFilter(audio_renderer);
+  audio_renderer->Initialize(
+      decoder, NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  return true;
+}
+
+bool PipelineImpl::InitializeVideoRenderer() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(IsPipelineOk());
+
+  scoped_refptr<VideoDecoder> decoder;
+  GetInitializedFilter(FILTER_VIDEO_DECODER, &decoder);
+  scoped_refptr<VideoRenderer> video_renderer;
+  SelectFilter(FILTER_VIDEO_RENDERER, &video_renderer);
+
+  // If there is such decoder but renderer is not found.
+  if (decoder && !video_renderer)
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+  if (!decoder || !video_renderer)
+    return false;
+
+  RemoveFilter(video_renderer);
+  PrepareFilter(video_renderer);
+  video_renderer->Initialize(
+      decoder, NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  return true;
+}
+
+scoped_refptr<DemuxerStream> PipelineImpl::FindDemuxerStream(
+    std::string major_mime_type) {
+  scoped_refptr<Demuxer> demuxer;
+  GetInitializedFilter(FILTER_DEMUXER, &demuxer);
   DCHECK(demuxer);
 
-  const std::string major_mime_type = Decoder::major_mime_type();
   const int num_outputs = demuxer->GetNumberOfStreams();
   for (int i = 0; i < num_outputs; ++i) {
-    scoped_refptr<DemuxerStream> stream = demuxer->GetStream(i);
     std::string value;
-    if (stream->media_format().GetAsString(MediaFormat::kMimeType, &value) &&
-        0 == value.compare(0, major_mime_type.length(), major_mime_type)) {
-      CreateFilter<Decoder, DemuxerStream>(filter_factory_, stream);
-      return true;
+    if (demuxer->GetStream(i)->media_format().GetAsString(
+        MediaFormat::kMimeType, &value) &&
+        !value.compare(0, major_mime_type.length(), major_mime_type)) {
+      return demuxer->GetStream(i);
     }
   }
-  return false;
-}
-
-template <class Decoder, class Renderer>
-bool PipelineImpl::CreateRenderer() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(IsPipelineOk());
-
-  scoped_refptr<Decoder> decoder;
-  GetFilter(&decoder);
-
-  if (decoder) {
-    // If the decoder was created.
-    const std::string major_mime_type = Decoder::major_mime_type();
-    CreateFilter<Renderer, Decoder>(filter_factory_, decoder);
-    return true;
-  }
-  return false;
+  return NULL;
 }
 
 template <class Filter>
-void PipelineImpl::GetFilter(scoped_refptr<Filter>* filter_out) const {
+void PipelineImpl::GetInitializedFilter(
+    FilterType filter_type, scoped_refptr<Filter>* filter_out) const {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  FilterTypeMap::const_iterator ft = filter_types_.find(Filter::filter_type());
+  FilterTypeMap::const_iterator ft = filter_types_.find(filter_type);
   if (ft == filter_types_.end()) {
     *filter_out = NULL;
   } else {

@@ -9,12 +9,11 @@
 #include "media/base/pipeline_impl.h"
 #include "media/base/media_format.h"
 #include "media/base/filters.h"
-#include "media/base/factory.h"
 #include "media/base/filter_host.h"
 #include "media/base/mock_filters.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::DoAll;
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Mock;
@@ -61,11 +60,11 @@ class CallbackHelper {
 class PipelineImplTest : public ::testing::Test {
  public:
   PipelineImplTest()
-      : pipeline_(new PipelineImpl(&message_loop_)),
-        mocks_(new MockFilterFactory()) {
+      : pipeline_(new PipelineImpl(&message_loop_)) {
     pipeline_->SetPipelineErrorCallback(NewCallback(
         reinterpret_cast<CallbackHelper*>(&callbacks_),
         &CallbackHelper::OnError));
+    mocks_.reset(new MockFilterCollection());
   }
 
   virtual ~PipelineImplTest() {
@@ -82,9 +81,7 @@ class PipelineImplTest : public ::testing::Test {
     // Free allocated media formats (if any).
     STLDeleteElements(&stream_media_formats_);
 
-    // Release the filter factory to workaround a gMock bug.
-    // See: http://code.google.com/p/googlemock/issues/detail?id=79
-    mocks_ = NULL;
+    mocks_.reset();
   }
 
  protected:
@@ -95,12 +92,12 @@ class PipelineImplTest : public ::testing::Test {
                         SetBufferedBytes(mocks_->data_source(), kBufferedBytes),
                         Invoke(&RunFilterCallback)));
     EXPECT_CALL(*mocks_->data_source(), SetPlaybackRate(0.0f));
+    EXPECT_CALL(*mocks_->data_source(), IsUrlSupported(_))
+        .WillOnce(Return(true));
     EXPECT_CALL(*mocks_->data_source(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->data_source(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
-    EXPECT_CALL(*mocks_->data_source(), media_format())
-        .WillOnce(ReturnRef(data_source_media_format_));
   }
 
   // Sets up expectations to allow the demuxer to initialize.
@@ -152,8 +149,6 @@ class PipelineImplTest : public ::testing::Test {
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->video_decoder(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
-    EXPECT_CALL(*mocks_->video_decoder(), media_format())
-        .WillOnce(ReturnRef(video_decoder_media_format_));
   }
 
   // Sets up expectations to allow the audio decoder to initialize.
@@ -165,8 +160,6 @@ class PipelineImplTest : public ::testing::Test {
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->audio_decoder(), Stop(NotNull()))
         .WillOnce(Invoke(&RunStopFilterCallback));
-    EXPECT_CALL(*mocks_->audio_decoder(), media_format())
-        .WillOnce(ReturnRef(audio_decoder_media_format_));
   }
 
   // Sets up expectations to allow the video renderer to initialize.
@@ -199,7 +192,7 @@ class PipelineImplTest : public ::testing::Test {
   void InitializePipeline() {
     // Expect an initialization callback.
     EXPECT_CALL(callbacks_, OnStart());
-    pipeline_->Start(mocks_, "",
+    pipeline_->Start(mocks_->filter_collection(), "",
                      NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                  &CallbackHelper::OnStart));
     message_loop_.RunAllPending();
@@ -262,13 +255,9 @@ class PipelineImplTest : public ::testing::Test {
   StrictMock<CallbackHelper> callbacks_;
   MessageLoop message_loop_;
   scoped_refptr<PipelineImpl> pipeline_;
-  scoped_refptr<media::MockFilterFactory> mocks_;
+  scoped_ptr<media::MockFilterCollection> mocks_;
   scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream_;
   scoped_refptr<StrictMock<MockDemuxerStream> > video_stream_;
-
-  MediaFormat data_source_media_format_;
-  MediaFormat audio_decoder_media_format_;
-  MediaFormat video_decoder_media_format_;
 
   typedef std::vector<MediaFormat*> MediaFormatVector;
   MediaFormatVector stream_media_formats_;
@@ -293,8 +282,8 @@ TEST_F(PipelineImplTest, NotStarted) {
   EXPECT_FALSE(pipeline_->IsRunning());
   EXPECT_FALSE(pipeline_->IsInitialized());
   EXPECT_FALSE(pipeline_->IsRendered(""));
-  EXPECT_FALSE(pipeline_->IsRendered(AudioDecoder::major_mime_type()));
-  EXPECT_FALSE(pipeline_->IsRendered(VideoDecoder::major_mime_type()));
+  EXPECT_FALSE(pipeline_->IsRendered(mime_type::kMajorTypeAudio));
+  EXPECT_FALSE(pipeline_->IsRendered(mime_type::kMajorTypeVideo));
 
   // Setting should still work.
   EXPECT_EQ(0.0f, pipeline_->GetPlaybackRate());
@@ -330,13 +319,15 @@ TEST_F(PipelineImplTest, NotStarted) {
 TEST_F(PipelineImplTest, NeverInitializes) {
   EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
       .WillOnce(Invoke(&DestroyFilterCallback));
+  EXPECT_CALL(*mocks_->data_source(), IsUrlSupported(_))
+      .WillOnce(Return(true));
   EXPECT_CALL(*mocks_->data_source(), Stop(NotNull()))
       .WillOnce(Invoke(&RunStopFilterCallback));
 
   // This test hangs during initialization by never calling
   // InitializationComplete().  StrictMock<> will ensure that the callback is
   // never executed.
-  pipeline_->Start(mocks_, "",
+  pipeline_->Start(mocks_->filter_collection(), "",
                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                &CallbackHelper::OnStart));
   message_loop_.RunAllPending();
@@ -353,9 +344,20 @@ TEST_F(PipelineImplTest, NeverInitializes) {
 
 TEST_F(PipelineImplTest, RequiredFilterMissing) {
   EXPECT_CALL(callbacks_, OnError());
-  mocks_->set_creation_successful(false);
 
-  InitializePipeline();
+  // Sets up expectations on the callback and initializes the pipeline.  Called
+  // after tests have set expectations any filters they wish to use.
+  // Expect an initialization callback.
+  EXPECT_CALL(callbacks_, OnStart());
+
+  // Create a filter collection with missing filter.
+  MediaFilterCollection collection = mocks_->filter_collection();
+  collection.pop_front();
+  pipeline_->Start(collection, "",
+                   NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                               &CallbackHelper::OnStart));
+  message_loop_.RunAllPending();
+
   EXPECT_FALSE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
             pipeline_->GetError());
@@ -366,6 +368,8 @@ TEST_F(PipelineImplTest, URLNotFound) {
       .WillOnce(DoAll(SetError(mocks_->data_source(),
                                PIPELINE_ERROR_URL_NOT_FOUND),
                       Invoke(&RunFilterCallback)));
+  EXPECT_CALL(*mocks_->data_source(), IsUrlSupported(_))
+      .WillOnce(Return(true));
   EXPECT_CALL(callbacks_, OnError());
   EXPECT_CALL(*mocks_->data_source(), Stop(NotNull()))
       .WillOnce(Invoke(&RunStopFilterCallback));
@@ -380,10 +384,10 @@ TEST_F(PipelineImplTest, NoStreams) {
   // we cannot fully initialize the pipeline.
   EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
       .WillOnce(Invoke(&RunFilterCallback));
+  EXPECT_CALL(*mocks_->data_source(), IsUrlSupported(_))
+      .WillOnce(Return(true));
   EXPECT_CALL(*mocks_->data_source(), Stop(NotNull()))
       .WillOnce(Invoke(&RunStopFilterCallback));
-  EXPECT_CALL(*mocks_->data_source(), media_format())
-      .WillOnce(ReturnRef(data_source_media_format_));
 
   EXPECT_CALL(*mocks_->demuxer(), Initialize(mocks_->data_source(), NotNull()))
       .WillOnce(Invoke(&RunFilterCallback));

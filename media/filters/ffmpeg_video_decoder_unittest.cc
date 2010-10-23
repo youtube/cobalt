@@ -71,8 +71,8 @@ class MockVideoDecodeEngine : public VideoDecodeEngine {
 // Class that just mocks the private functions.
 class DecoderPrivateMock : public FFmpegVideoDecoder {
  public:
-  DecoderPrivateMock(VideoDecodeEngine* engine, VideoDecodeContext* context)
-      : FFmpegVideoDecoder(engine, context) {
+  explicit DecoderPrivateMock(VideoDecodeContext* context)
+      : FFmpegVideoDecoder(context) {
   }
 
   // change access qualifier for test: used in actions.
@@ -125,8 +125,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     // Create an FFmpegVideoDecoder, and MockVideoDecodeEngine.
     //
     // TODO(ajwong): Break the test's dependency on FFmpegVideoDecoder.
-    factory_ = FFmpegVideoDecoder::CreateFactory(NULL);
-    decoder_ = factory_->Create<DecoderPrivateMock>(media_format);
+    decoder_ = new DecoderPrivateMock(NULL);
     renderer_ = new MockVideoRenderer();
     engine_ = new StrictMock<MockVideoDecodeEngine>();
 
@@ -194,7 +193,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
     message_loop_.RunAllPending();
   }
   // Fixture members.
-  scoped_refptr<FilterFactory> factory_;
   MockVideoDecodeEngine* engine_;  // Owned by |decoder_|.
   scoped_refptr<DecoderPrivateMock> decoder_;
   scoped_refptr<MockVideoRenderer> renderer_;
@@ -228,24 +226,6 @@ const FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoderTest::kTestPts2 =
 const FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoderTest::kTestPts3 =
     { base::TimeDelta::FromMicroseconds(789),
       base::TimeDelta::FromMicroseconds(60) };
-
-TEST(FFmpegVideoDecoderFactoryTest, Create) {
-  // Should only accept video/x-ffmpeg mime type.
-  scoped_refptr<FilterFactory> factory =
-      FFmpegVideoDecoder::CreateFactory(NULL);
-  MediaFormat media_format;
-  media_format.SetAsString(MediaFormat::kMimeType, "foo/x-bar");
-  scoped_refptr<VideoDecoder> decoder =
-      factory->Create<VideoDecoder>(media_format);
-  ASSERT_FALSE(decoder);
-
-  // Try again with video/x-ffmpeg mime type.
-  media_format.Clear();
-  media_format.SetAsString(MediaFormat::kMimeType,
-                           mime_type::kFFmpegVideo);
-  decoder = factory->Create<VideoDecoder>(media_format);
-  ASSERT_TRUE(decoder);
-}
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_QueryInterfaceFails) {
   // Test QueryInterface returning NULL.
