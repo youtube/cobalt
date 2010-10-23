@@ -9,6 +9,7 @@
 #include "base/file_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
+#include "base/thread_restrictions.h"
 
 namespace base {
 
@@ -24,6 +25,12 @@ const char kLinuxStandardBaseReleaseFile[] = "/etc/lsb-release";
 void SysInfo::OperatingSystemVersionNumbers(int32 *major_version,
                                             int32 *minor_version,
                                             int32 *bugfix_version) {
+  // The other implementations of SysInfo don't block on the disk.
+  // See http://code.google.com/p/chromium/issues/detail?id=60394
+  // Perhaps the caller ought to cache this?
+  // Temporary allowing while we work the bug out.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   // TODO(cmasone): If this gets called a lot, it may kill performance.
   // consider using static variables to cache these values?
   FilePath path(kLinuxStandardBaseReleaseFile);
