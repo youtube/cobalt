@@ -117,9 +117,6 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
 
   BoundNetLog net_log_;
 
-  // This socket was previously disconnected and has not been re-connected.
-  bool previously_disconnected_;
-
   // Record of connectivity and transmissions, for use in speculative connection
   // histograms.
   UseHistory use_history_;
