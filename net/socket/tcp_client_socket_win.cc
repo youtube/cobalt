@@ -290,8 +290,8 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       write_callback_(NULL),
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
-      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
-
+      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
+      previously_disconnected_(false) {
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
     params = new NetLogSourceParameter("source_dependency", source);
@@ -363,6 +363,11 @@ int TCPClientSocketWin::DoConnect() {
   const struct addrinfo* ai = current_ai_;
   DCHECK(ai);
   DCHECK_EQ(0, connect_os_error_);
+
+  if (previously_disconnected_) {
+    use_history_.Reset();
+    previously_disconnected_ = false;
+  }
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
                       new NetLogStringParameter(
@@ -478,6 +483,8 @@ void TCPClientSocketWin::DoDisconnect() {
 
   core_->Detach();
   core_ = NULL;
+
+  previously_disconnected_ = true;
 }
 
 bool TCPClientSocketWin::IsConnected() const {
