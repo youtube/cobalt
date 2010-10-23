@@ -257,10 +257,8 @@ class HttpCache : public HttpTransactionFactory,
   ActiveEntry* FindActiveEntry(const std::string& key);
 
   // Creates a new ActiveEntry and starts tracking it. |disk_entry| is the disk
-  // cache entry that corresponds to the desired |key|.
-  // TODO(rvargas): remove the |key| argument.
-  ActiveEntry* ActivateEntry(const std::string& key,
-                             disk_cache::Entry* disk_entry);
+  // cache entry.
+  ActiveEntry* ActivateEntry(disk_cache::Entry* disk_entry);
 
   // Deletes an ActiveEntry.
   void DeactivateEntry(ActiveEntry* entry);
