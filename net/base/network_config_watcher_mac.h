@@ -19,7 +19,7 @@ class Thread;
 namespace net {
 
 // Base class for watching the Mac OS system network settings.
-class NetworkConfigWatcherMac : public MessageLoop::DestructionObserver {
+class NetworkConfigWatcherMac {
  public:
   // NOTE: The lifetime of Delegate is expected to exceed the lifetime of
   // NetworkConfigWatcherMac.
@@ -41,23 +41,10 @@ class NetworkConfigWatcherMac : public MessageLoop::DestructionObserver {
   virtual ~NetworkConfigWatcherMac();
 
  private:
-  // MessageLoop::DestructionObserver:
-  virtual void WillDestroyCurrentMessageLoop();
-
-  // Called on the notifier thread to initialize the notification
-  // implementation.  The SystemConfiguration calls in this function can lead to
-  // contention early on, so we invoke this function later on in startup to keep
-  // it fast.
-  void Init();
-
   // The thread used to listen for notifications.  This relays the notification
   // to the registered observers without posting back to the thread the object
   // was created on.
   scoped_ptr<base::Thread> notifier_thread_;
-
-  base::mac::ScopedCFTypeRef<CFRunLoopSourceRef> run_loop_source_;
-
-  Delegate* const delegate_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkConfigWatcherMac);
 };
