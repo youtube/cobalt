@@ -29,7 +29,6 @@
 #include "base/gtest_prod_util.h"
 #include "base/waitable_event.h"
 #include "media/base/buffers.h"
-#include "media/base/factory.h"
 #include "media/base/filters.h"
 #include "media/base/media_format.h"
 #include "media/filters/ffmpeg_glue.h"
@@ -122,10 +121,8 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
 class FFmpegDemuxer : public Demuxer,
                       public FFmpegURLProtocol {
  public:
-  // FilterFactory provider.
-  static FilterFactory* CreateFilterFactory() {
-    return new FilterFactoryImpl0<FFmpegDemuxer>();
-  }
+  FFmpegDemuxer();
+  virtual ~FFmpegDemuxer();
 
   // Posts a task to perform additional demuxing.
   virtual void PostDemuxTask();
@@ -149,12 +146,8 @@ class FFmpegDemuxer : public Demuxer,
 
  private:
   // Only allow a factory to create this class.
-  friend class FilterFactoryImpl0<FFmpegDemuxer>;
   friend class MockFFmpegDemuxer;
   FRIEND_TEST_ALL_PREFIXES(FFmpegDemuxerTest, ProtocolRead);
-
-  FFmpegDemuxer();
-  virtual ~FFmpegDemuxer();
 
   // Carries out initialization on the demuxer thread.
   void InitializeTask(DataSource* data_source, FilterCallback* callback);

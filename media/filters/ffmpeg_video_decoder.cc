@@ -18,17 +18,15 @@
 #include "media/filters/ffmpeg_interfaces.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
 #include "media/video/video_decode_context.h"
-#include "media/video/video_decode_engine.h"
 
 namespace media {
 
-FFmpegVideoDecoder::FFmpegVideoDecoder(VideoDecodeEngine* decode_engine,
-                                       VideoDecodeContext* decode_context)
+FFmpegVideoDecoder::FFmpegVideoDecoder(VideoDecodeContext* decode_context)
     : width_(0),
       height_(0),
       time_base_(new AVRational()),
       state_(kUnInitialized),
-      decode_engine_(decode_engine),
+      decode_engine_(new FFmpegVideoDecodeEngine()),
       decode_context_(decode_context) {
   memset(&info_, 0, sizeof(info_));
 }
@@ -438,22 +436,6 @@ void FFmpegVideoDecoder::FlushBuffers() {
 void FFmpegVideoDecoder::SetVideoDecodeEngineForTest(
     VideoDecodeEngine* engine) {
   decode_engine_.reset(engine);
-}
-
-// static
-FilterFactory* FFmpegVideoDecoder::CreateFactory(
-    VideoDecodeContext* decode_context) {
-  return new FilterFactoryImpl2<FFmpegVideoDecoder,
-                                VideoDecodeEngine*,
-                                VideoDecodeContext*>(
-      new FFmpegVideoDecodeEngine(), decode_context);
-}
-
-// static
-bool FFmpegVideoDecoder::IsMediaFormatSupported(const MediaFormat& format) {
-  std::string mime_type;
-  return format.GetAsString(MediaFormat::kMimeType, &mime_type) &&
-      mime_type::kFFmpegVideo == mime_type;
 }
 
 }  // namespace media

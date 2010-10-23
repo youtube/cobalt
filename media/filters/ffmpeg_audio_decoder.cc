@@ -35,13 +35,6 @@ FFmpegAudioDecoder::FFmpegAudioDecoder()
 FFmpegAudioDecoder::~FFmpegAudioDecoder() {
 }
 
-// static
-bool FFmpegAudioDecoder::IsMediaFormatSupported(const MediaFormat& format) {
-  std::string mime_type;
-  return format.GetAsString(MediaFormat::kMimeType, &mime_type) &&
-      mime_type::kFFmpegAudio == mime_type;
-}
-
 void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
                                       bool* success,
                                       Task* done_cb) {

@@ -5,7 +5,6 @@
 #ifndef MEDIA_FILTERS_FFMPEG_AUDIO_DECODER_H_
 #define MEDIA_FILTERS_FFMPEG_AUDIO_DECODER_H_
 
-#include "media/base/factory.h"
 #include "media/filters/decoder_base.h"
 
 struct AVCodecContext;
@@ -17,11 +16,8 @@ class ScopedPtrAVFree;
 
 class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
  public:
-  static FilterFactory* CreateFactory() {
-    return new FilterFactoryImpl0<FFmpegAudioDecoder>();
-  }
-
-  static bool IsMediaFormatSupported(const MediaFormat& media_format);
+  FFmpegAudioDecoder();
+  virtual ~FFmpegAudioDecoder();
 
  protected:
   virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
@@ -32,10 +28,6 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
   virtual void DoDecode(Buffer* input);
 
  private:
-  friend class FilterFactoryImpl0<FFmpegAudioDecoder>;
-  FFmpegAudioDecoder();
-  virtual ~FFmpegAudioDecoder();
-
   // Calculates the duration of an audio buffer based on the sample rate,
   // channels and bits per sample given the size in bytes.
   base::TimeDelta CalculateDuration(size_t size);

@@ -65,11 +65,7 @@ class FFmpegDemuxerTest : public testing::Test {
 
   FFmpegDemuxerTest() {
     // Create an FFmpegDemuxer.
-    factory_ = FFmpegDemuxer::CreateFilterFactory();
-    MediaFormat media_format;
-    media_format.SetAsString(MediaFormat::kMimeType,
-                             mime_type::kApplicationOctetStream);
-    demuxer_ = factory_->Create<FFmpegDemuxer>(media_format);
+    demuxer_ = new FFmpegDemuxer();
     DCHECK(demuxer_);
 
     // Inject a filter host and message loop and prepare a data source.
@@ -159,7 +155,6 @@ class FFmpegDemuxerTest : public testing::Test {
   }
 
   // Fixture members.
-  scoped_refptr<FilterFactory> factory_;
   scoped_refptr<FFmpegDemuxer> demuxer_;
   scoped_refptr<StrictMock<MockDataSource> > data_source_;
   StrictMock<MockFilterHost> host_;
@@ -189,22 +184,6 @@ const size_t FFmpegDemuxerTest::kDataSize = 4;
 const uint8 FFmpegDemuxerTest::kAudioData[kDataSize] = {0, 1, 2, 3};
 const uint8 FFmpegDemuxerTest::kVideoData[kDataSize] = {4, 5, 6, 7};
 const uint8* FFmpegDemuxerTest::kNullData = NULL;
-
-TEST(FFmpegDemuxerFactoryTest, Create) {
-  // Should only accept application/octet-stream type.
-  scoped_refptr<FilterFactory> factory = FFmpegDemuxer::CreateFilterFactory();
-  MediaFormat media_format;
-  media_format.SetAsString(MediaFormat::kMimeType, "foo/x-bar");
-  scoped_refptr<Demuxer> demuxer(factory->Create<Demuxer>(media_format));
-  ASSERT_FALSE(demuxer);
-
-  // Try again with application/octet-stream mime type.
-  media_format.Clear();
-  media_format.SetAsString(MediaFormat::kMimeType,
-                           mime_type::kApplicationOctetStream);
-  demuxer = factory->Create<Demuxer>(media_format);
-  ASSERT_TRUE(demuxer);
-}
 
 TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   // Simulate av_open_input_file() failing.
