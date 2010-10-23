@@ -17,10 +17,8 @@ namespace media {
 // system to read data for a media pipeline.
 class FileDataSource : public DataSource {
  public:
-  // Public method to get a filter factory for the FileDataSource.
-  static FilterFactory* CreateFactory() {
-    return new FilterFactoryImpl0<FileDataSource>();
-  }
+  FileDataSource();
+  virtual ~FileDataSource();
 
   // Implementation of MediaFilter.
   virtual void Stop(FilterCallback* callback);
@@ -41,9 +39,6 @@ class FileDataSource : public DataSource {
   FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, OpenFile);
   FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, ReadData);
   FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, Seek);
-  friend class FilterFactoryImpl0<FileDataSource>;
-  FileDataSource();
-  virtual ~FileDataSource();
 
   // File handle.  NULL if not initialized or an error occurs.
   FILE* file_;

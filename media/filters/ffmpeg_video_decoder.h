@@ -9,7 +9,6 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/time.h"
-#include "media/base/factory.h"
 #include "media/base/filters.h"
 #include "media/base/pts_heap.h"
 #include "media/base/video_frame.h"
@@ -26,12 +25,8 @@ class VideoDecodeEngine;
 class FFmpegVideoDecoder : public VideoDecoder,
                            public VideoDecodeEngine::EventHandler {
  public:
-  FFmpegVideoDecoder(VideoDecodeEngine* decode_engine,
-                     VideoDecodeContext* decode_context);
+  explicit FFmpegVideoDecoder(VideoDecodeContext* decode_context);
   virtual ~FFmpegVideoDecoder();
-
-  static FilterFactory* CreateFactory(VideoDecodeContext* decode_context);
-  static bool IsMediaFormatSupported(const MediaFormat& media_format);
 
   // MediaFilter implementation.
   virtual void Stop(FilterCallback* callback);
@@ -57,7 +52,6 @@ class FFmpegVideoDecoder : public VideoDecoder,
   virtual void ProduceVideoSample(scoped_refptr<Buffer> buffer);
   virtual void ConsumeVideoFrame(scoped_refptr<VideoFrame> frame);
 
-  friend class FilterFactoryImpl1<FFmpegVideoDecoder, VideoDecodeEngine*>;
   friend class DecoderPrivateMock;
   friend class FFmpegVideoDecoderTest;
   FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest, FindPtsAndDuration);

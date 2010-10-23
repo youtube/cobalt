@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // The pipeline is the public API clients use for playing back media.  Clients
-// provide a filter factory containing the filters they want the pipeline to
+// provide a filter collection containing the filters they want the pipeline to
 // use to render media.
 
 #ifndef MEDIA_BASE_PIPELINE_H_
@@ -12,7 +12,7 @@
 #include <string>
 
 #include "base/callback.h"
-#include "media/base/factory.h"
+#include "media/base/filters.h"
 
 namespace base {
 class TimeDelta;
@@ -47,8 +47,8 @@ typedef Callback0::Type PipelineCallback;
 
 class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
-  // Build a pipeline to render the given URL using the given filter factory to
-  // construct a filter chain.  Returns true if successful, false otherwise
+  // Build a pipeline to render the given URL using the given filter collection
+  // to construct a filter chain.  Returns true if successful, false otherwise
   // (i.e., pipeline already started).  Note that a return value of true
   // only indicates that the initialization process has started successfully.
   // Pipeline initialization is an inherently asynchronous process.  Clients can
@@ -59,7 +59,7 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // If the caller provides a |start_callback|, it will be called when the
   // pipeline initialization completes.  Clients are expected to call GetError()
   // to check whether initialization succeeded.
-  virtual bool Start(FilterFactory* filter_factory,
+  virtual bool Start(const MediaFilterCollection& filter_collection,
                      const std::string& url,
                      PipelineCallback* start_callback) = 0;
 
