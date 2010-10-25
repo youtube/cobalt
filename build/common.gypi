@@ -392,6 +392,11 @@
           'NACL_WIN64',
         ],
       }],
+      ['OS=="linux" and chromeos==0 and target_arch!="arm"', {
+        'use_cups%': 1,
+      }, {
+        'use_cups%': 0,
+      }],
     ],
 
     # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
