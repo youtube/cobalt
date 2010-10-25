@@ -20,8 +20,11 @@
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
 #include "net/base/openssl_util.h"
+#include "net/base/x509_openssl_util.h"
 
 namespace net {
+
+namespace nxou = net::x509_openssl_util;
 
 namespace {
 
@@ -51,39 +54,13 @@ void CreateOSCertHandlesFromPKCS7Bytes(
   }
 }
 
-bool ParsePrincipalFieldInternal(X509_NAME* name,
-                                 int index,
-                                 std::string* field) {
-  ASN1_STRING* data =
-      X509_NAME_ENTRY_get_data(X509_NAME_get_entry(name, index));
-  if (!data)
-    return false;
-
-  unsigned char* buf = NULL;
-  int len = ASN1_STRING_to_UTF8(&buf, data);
-  if (len <= 0)
-    return false;
-
-  field->assign(reinterpret_cast<const char*>(buf), len);
-  OPENSSL_free(buf);
-  return true;
-}
-
-void ParsePrincipalField(X509_NAME* name, int nid, std::string* field) {
-  int index = X509_NAME_get_index_by_NID(name, nid, -1);
-  if (index < 0)
-    return;
-
-  ParsePrincipalFieldInternal(name, index, field);
-}
-
-void ParsePrincipalFields(X509_NAME* name,
+void ParsePrincipalValues(X509_NAME* name,
                           int nid,
                           std::vector<std::string>* fields) {
   for (int index = -1;
        (index = X509_NAME_get_index_by_NID(name, nid, index)) != -1;) {
     std::string field;
-    if (!ParsePrincipalFieldInternal(name, index, &field))
+    if (!nxou::ParsePrincipalValueByIndex(name, index, &field))
       break;
     fields->push_back(field);
   }
@@ -95,64 +72,24 @@ void ParsePrincipal(X509Certificate::OSCertHandle cert,
   if (!x509_name)
     return;
 
-  ParsePrincipalFields(x509_name, NID_streetAddress,
+  ParsePrincipalValues(x509_name, NID_streetAddress,
                        &principal->street_addresses);
-  ParsePrincipalFields(x509_name, NID_organizationName,
+  ParsePrincipalValues(x509_name, NID_organizationName,
                        &principal->organization_names);
-  ParsePrincipalFields(x509_name, NID_organizationalUnitName,
+  ParsePrincipalValues(x509_name, NID_organizationalUnitName,
                        &principal->organization_unit_names);
-  ParsePrincipalFields(x509_name, NID_domainComponent,
+  ParsePrincipalValues(x509_name, NID_domainComponent,
                        &principal->domain_components);
 
-  ParsePrincipalField(x509_name, NID_commonName, &principal->common_name);
-  ParsePrincipalField(x509_name, NID_localityName, &principal->locality_name);
-  ParsePrincipalField(x509_name, NID_stateOrProvinceName,
-                      &principal->state_or_province_name);
-  ParsePrincipalField(x509_name, NID_countryName, &principal->country_name);
-}
+  nxou::ParsePrincipalValueByNID(x509_name, NID_commonName,
+                                 &principal->common_name);
+  nxou::ParsePrincipalValueByNID(x509_name, NID_localityName,
+                                 &principal->locality_name);
+  nxou::ParsePrincipalValueByNID(x509_name, NID_stateOrProvinceName,
+                                 &principal->state_or_province_name);
+  nxou::ParsePrincipalValueByNID(x509_name, NID_countryName,
+                                 &principal->country_name);
 
-void ParseDate(ASN1_TIME* x509_time, base::Time* time) {
-  if (!x509_time ||
-      (x509_time->type != V_ASN1_UTCTIME &&
-       x509_time->type != V_ASN1_GENERALIZEDTIME))
-    return;
-
-  std::string str_date(reinterpret_cast<char*>(x509_time->data),
-                       x509_time->length);
-  // UTCTime: YYMMDDHHMMSSZ
-  // GeneralizedTime: YYYYMMDDHHMMSSZ
-  size_t year_length = x509_time->type == V_ASN1_UTCTIME ? 2 : 4;
-  size_t fields_offset = x509_time->type == V_ASN1_UTCTIME ? 0 : 2;
-
-  if (str_date.length() < 11 + year_length)
-    return;
-
-  base::Time::Exploded exploded = {0};
-  bool valid = base::StringToInt(str_date.begin(),
-                                 str_date.begin() + year_length,
-                                 &exploded.year);
-  if (valid && year_length == 2)
-    exploded.year += exploded.year < 50 ? 2000 : 1900;
-
-  valid &= base::StringToInt(str_date.begin() + fields_offset + 2,
-                             str_date.begin() + fields_offset + 4,
-                             &exploded.month);
-  valid &= base::StringToInt(str_date.begin() + fields_offset + 4,
-                             str_date.begin() + fields_offset + 6),
-                             &exploded.day_of_month);
-  valid &= base::StringToInt(str_date.begin() + fields_offset + 6,
-                             str_date.begin() + fields_offset + 8),
-                             &exploded.hour);
-  valid &= base::StringToInt(str_date.begin() + fields_offset + 8,
-                             str_date.begin() + fields_offset + 10),
-                             &exploded.minute);
-  valid &= base::StringToInt(str_date.begin() + fields_offset + 10,
-                             str_date.begin() + fields_offset + 12,
-                             &exploded.second);
-
-  DCHECK(valid);
-
-  *time = base::Time::FromUTCExploded(exploded);
 }
 
 void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
@@ -357,8 +294,8 @@ void X509Certificate::Initialize() {
   fingerprint_ = CalculateFingerprint(cert_handle_);
   ParsePrincipal(cert_handle_, X509_get_subject_name(cert_handle_), &subject_);
   ParsePrincipal(cert_handle_, X509_get_issuer_name(cert_handle_), &issuer_);
-  ParseDate(X509_get_notBefore(cert_handle_), &valid_start_);
-  ParseDate(X509_get_notAfter(cert_handle_), &valid_expiry_);
+  nxou::ParseDate(X509_get_notBefore(cert_handle_), &valid_start_);
+  nxou::ParseDate(X509_get_notAfter(cert_handle_), &valid_expiry_);
 }
 
 SHA1Fingerprint X509Certificate::CalculateFingerprint(OSCertHandle cert) {
