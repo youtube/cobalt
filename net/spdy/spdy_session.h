@@ -140,6 +140,14 @@ class SpdySession : public base::RefCounted<SpdySession>,
   static void set_flow_control(bool enable) { use_flow_control_ = enable; }
   static bool flow_control() { return use_flow_control_; }
 
+  // Sets the max concurrent streams per session.
+  static void set_max_concurrent_streams(size_t value) {
+    max_concurrent_stream_limit_ = value;
+  }
+  static size_t max_concurrent_streams() {
+      return max_concurrent_stream_limit_;
+  }
+
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
   void SendWindowUpdate(spdy::SpdyStreamId stream_id, int delta_window_size);
@@ -199,7 +207,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
     CLOSED
   };
 
-  enum { kDefaultMaxConcurrentStreams = 100 };  // TODO(mbelshe) remove this
+  enum { kDefaultMaxConcurrentStreams = 6 };  // TODO(mbelshe) remove this
 
   struct PendingCreateStream {
     const GURL* url;
@@ -400,6 +408,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   static bool use_ssl_;
   static bool use_flow_control_;
+  static size_t max_concurrent_stream_limit_;
 };
 
 }  // namespace net
