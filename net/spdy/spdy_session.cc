@@ -216,6 +216,9 @@ bool SpdySession::use_ssl_ = true;
 // static
 bool SpdySession::use_flow_control_ = false;
 
+// static
+size_t SpdySession::max_concurrent_stream_limit_ = 256;
+
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
                          SpdySettingsStorage* spdy_settings,
@@ -1281,7 +1284,8 @@ void SpdySession::HandleSettings(const spdy::SpdySettings& settings) {
     const uint32 val = i->second;
     switch (id) {
       case spdy::SETTINGS_MAX_CONCURRENT_STREAMS:
-        max_concurrent_streams_ = val;
+        max_concurrent_streams_ = std::min(static_cast<size_t>(val),
+                                           max_concurrent_stream_limit_);
         ProcessPendingCreateStreams();
         break;
     }
