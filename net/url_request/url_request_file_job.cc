@@ -33,6 +33,7 @@
 #include "net/base/net_util.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request.h"
+#include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
 
 #if defined(OS_WIN)
@@ -40,8 +41,8 @@
 #endif
 
 #if defined(OS_WIN)
-class URLRequestFileJob::AsyncResolver :
-    public base::RefCountedThreadSafe<URLRequestFileJob::AsyncResolver> {
+class URLRequestFileJob::AsyncResolver
+    : public base::RefCountedThreadSafe<URLRequestFileJob::AsyncResolver> {
  public:
   explicit AsyncResolver(URLRequestFileJob* owner)
       : owner_(owner), owner_loop_(MessageLoop::current()) {
@@ -84,7 +85,13 @@ class URLRequestFileJob::AsyncResolver :
 // static
 URLRequestJob* URLRequestFileJob::Factory(
     URLRequest* request, const std::string& scheme) {
+
   FilePath file_path;
+  net::FileURLToFilePath(request->url(), &file_path);
+
+  // Check file access.
+  if (AccessDisabled(file_path))
+    return new URLRequestErrorJob(request, net::ERR_ACCESS_DENIED);
 
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
@@ -92,8 +99,7 @@ URLRequestJob* URLRequestFileJob::Factory(
   // The code in the URLRequestFileJob::Start() method discovers that a path,
   // which doesn't end with a slash, should really be treated as a directory,
   // and it then redirects to the URLRequestFileDirJob.
-  if (net::FileURLToFilePath(request->url(), &file_path) &&
-      file_util::EndsWithSeparator(file_path) &&
+  if (file_util::EndsWithSeparator(file_path) &&
       file_path.IsAbsolute())
     return new URLRequestFileDirJob(request, file_path);
 
@@ -338,3 +344,34 @@ bool URLRequestFileJob::IsRedirectResponse(GURL* location,
   return false;
 #endif
 }
+
+#if defined(OS_CHROMEOS)
+static const char* const kLocalAccessWhiteList[] = {
+  "/home/chronos/user/Downloads",
+  "/mnt/partner_partition",
+  "/usr/share/chromeos-assets",
+  "/tmp",
+  "/var/log",
+};
+#endif
+
+// static
+bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
+  bool disable = false;
+
+#if defined(OS_CHROMEOS)
+  disable = true;
+  for (size_t i = 0; i < arraysize(kLocalAccessWhiteList); ++i) {
+    const FilePath white_listed_path(kLocalAccessWhiteList[i]);
+    // FilePath::operator== should probably handle trailing seperators.
+    if (white_listed_path == file_path.StripTrailingSeparators() ||
+        white_listed_path.IsParent(file_path)) {
+      disable = false;
+      break;
+    }
+  }
+#endif
+
+  return disable;
+}
+
