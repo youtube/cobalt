@@ -273,6 +273,17 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(PRFileDesc *fd, int *on, char **cipher,
 SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
 
 /*
+** Return references to the certificates presented by the SSL peer. On entry,
+** |*certs_size| must contain the size of the |certs| array. On successful
+** return, |*certs_size| contains the number of certificates available and
+** |certs| will contain references to as many certificates as would fit.
+** Therefore if, on exit, |*certs_size| contains a value less than, or equal to,
+** the entry value then all certificates were returned.
+*/
+SSL_IMPORT SECStatus SSL_PeerCertificateChain(
+	PRFileDesc *fd, CERTCertificate **certs, unsigned int *certs_size);
+
+/*
 ** Authenticate certificate hook. Called when a certificate comes in
 ** (because of SSL_REQUIRE_CERTIFICATE in SSL_Enable) to authenticate the
 ** certificate.
