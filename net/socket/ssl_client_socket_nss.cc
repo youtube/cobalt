@@ -387,6 +387,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       pseudo_connected_(false),
       eset_mitm_detected_(false),
       netnanny_mitm_detected_(false),
+      peername_initialized_(false),
       dnssec_provider_(NULL),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
@@ -589,6 +590,16 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
     return rv;
   }
 
+  // Attempt to initialize the peer name.  In the case of TCP FastOpen,
+  // we don't have the peer yet.
+  if (!UsingTCPFastOpen()) {
+    rv = InitializeSSLPeerName();
+    if (rv != OK) {
+      net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+      return rv;
+    }
+  }
+
   if (ssl_config_.snap_start_enabled && ssl_host_info_.get()) {
     GotoState(STATE_SNAP_START_LOAD_INFO);
   } else {
@@ -618,28 +629,6 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   if (nss_fd_ == NULL) {
     return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR error code.
   }
-
-  // Tell NSS who we're connected to
-  AddressList peer_address;
-  int err = transport_->socket()->GetPeerAddress(&peer_address);
-  if (err != OK)
-    return err;
-
-  const struct addrinfo* ai = peer_address.head();
-
-  PRNetAddr peername;
-  memset(&peername, 0, sizeof(peername));
-  DCHECK_LE(ai->ai_addrlen, sizeof(peername));
-  size_t len = std::min(static_cast<size_t>(ai->ai_addrlen), sizeof(peername));
-  memcpy(&peername, ai->ai_addr, len);
-
-  // Adjust the address family field for BSD, whose sockaddr
-  // structure has a one-byte length and one-byte address family
-  // field at the beginning.  PRNetAddr has a two-byte address
-  // family field at the beginning.
-  peername.raw.family = ai->ai_addr->sa_family;
-
-  memio_SetPeerName(nss_fd_, &peername);
 
   // Grab pointer to buffers
   nss_bufs_ = memio_GetSecret(nss_fd_);
@@ -795,6 +784,36 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // Tell SSL the hostname we're trying to connect to.
   SSL_SetURL(nss_fd_, hostname_.c_str());
 
+  // Tell SSL we're a client; needed if not letting NSPR do socket I/O
+  SSL_ResetHandshake(nss_fd_, 0);
+
+  return OK;
+}
+
+int SSLClientSocketNSS::InitializeSSLPeerName() {
+  // Tell NSS who we're connected to
+  AddressList peer_address;
+  int err = transport_->socket()->GetPeerAddress(&peer_address);
+  if (err != OK)
+    return err;
+
+  const struct addrinfo* ai = peer_address.head();
+
+  PRNetAddr peername;
+  memset(&peername, 0, sizeof(peername));
+  DCHECK_LE(ai->ai_addrlen, sizeof(peername));
+  size_t len = std::min(static_cast<size_t>(ai->ai_addrlen),
+                        sizeof(peername));
+  memcpy(&peername, ai->ai_addr, len);
+
+  // Adjust the address family field for BSD, whose sockaddr
+  // structure has a one-byte length and one-byte address family
+  // field at the beginning.  PRNetAddr has a two-byte address
+  // family field at the beginning.
+  peername.raw.family = ai->ai_addr->sa_family;
+
+  memio_SetPeerName(nss_fd_, &peername);
+
   // Set the peer ID for session reuse.  This is necessary when we create an
   // SSL tunnel through a proxy -- GetPeerName returns the proxy's address
   // rather than the destination server's address in that case.
@@ -802,13 +821,11 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // used.
   std::string peer_id = base::StringPrintf("%s:%d", hostname_.c_str(),
                                            peer_address.GetPort());
-  rv = SSL_SetSockPeerID(nss_fd_, const_cast<char*>(peer_id.c_str()));
+  SECStatus rv = SSL_SetSockPeerID(nss_fd_, const_cast<char*>(peer_id.c_str()));
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_SetSockPeerID", peer_id.c_str());
 
-  // Tell SSL we're a client; needed if not letting NSPR do socket I/O
-  SSL_ResetHandshake(nss_fd_, 0);
-
+  peername_initialized_ = true;
   return OK;
 }
 
@@ -854,6 +871,7 @@ void SSLClientSocketNSS::Disconnect() {
   pseudo_connected_      = false;
   eset_mitm_detected_    = false;
   netnanny_mitm_detected_= false;
+  peername_initialized_  = false;
   nss_bufs_              = NULL;
   client_certs_.clear();
   client_auth_cert_needed_ = false;
@@ -914,6 +932,14 @@ void SSLClientSocketNSS::SetOmniboxSpeculation() {
 bool SSLClientSocketNSS::WasEverUsed() const {
   if (transport_.get() && transport_->socket()) {
     return transport_->socket()->WasEverUsed();
+  }
+  NOTREACHED();
+  return false;
+}
+
+bool SSLClientSocketNSS::UsingTCPFastOpen() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->UsingTCPFastOpen();
   }
   NOTREACHED();
   return false;
@@ -1373,6 +1399,11 @@ int SSLClientSocketNSS::BufferSend(void) {
 
 void SSLClientSocketNSS::BufferSendComplete(int result) {
   EnterFunction(result);
+
+  // In the case of TCP FastOpen, connect is now finished.
+  if (!peername_initialized_ && UsingTCPFastOpen())
+    InitializeSSLPeerName();
+
   memio_PutWriteResult(nss_bufs_, MapErrorToNSS(result));
   transport_send_busy_ = false;
   OnSendComplete(result);

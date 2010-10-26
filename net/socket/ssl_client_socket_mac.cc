@@ -614,6 +614,14 @@ bool SSLClientSocketMac::WasEverUsed() const {
   return false;
 }
 
+bool SSLClientSocketMac::UsingTCPFastOpen() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->UsingTCPFastOpen();
+  }
+  NOTREACHED();
+  return false;
+}
+
 int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(completed_handshake());
