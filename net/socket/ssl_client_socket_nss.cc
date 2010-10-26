@@ -451,17 +451,18 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
     NOTREACHED();
     return;
   }
-  // If the server doesn't support Snap Start then |hello_data_len| is zero.
-  if (!hello_data_len)
-    return;
   if (hello_data_len > std::numeric_limits<uint16>::max())
     return;
   SSLHostInfo::State* state = ssl_host_info_->mutable_state();
   state->server_hello =
       std::string(reinterpret_cast<const char *>(hello_data), hello_data_len);
 
-  state->npn_valid = true;
-  state->npn_status = GetNextProto(&state->npn_protocol);
+  if (hello_data_len > 0) {
+    state->npn_valid = true;
+    state->npn_status = GetNextProto(&state->npn_protocol);
+  } else {
+    state->npn_valid = false;
+  }
 
   // TODO(wtc): CERT_GetCertChainFromCert might not return the same cert chain
   // that the Certificate message actually contained. http://crbug.com/48854
@@ -470,6 +471,7 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
   if (!cert_list)
     return;
 
+  state->certs.clear();
   for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
        !CERT_LIST_END(node, cert_list);
        node = CERT_LIST_NEXT(node)) {
@@ -479,6 +481,7 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
     }
     if (node->cert->isRoot == PR_TRUE)
       continue;
+
     state->certs.push_back(std::string(
           reinterpret_cast<char*>(node->cert->derCert.data),
           node->cert->derCert.len));
