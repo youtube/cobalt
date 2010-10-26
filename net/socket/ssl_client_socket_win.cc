@@ -705,6 +705,14 @@ bool SSLClientSocketWin::WasEverUsed() const {
   return false;
 }
 
+bool SSLClientSocketWin::UsingTCPFastOpen() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->UsingTCPFastOpen();
+  }
+  NOTREACHED();
+  return false;
+}
+
 int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(completed_handshake());

@@ -50,6 +50,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
+  virtual bool UsingTCPFastOpen() const;
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);

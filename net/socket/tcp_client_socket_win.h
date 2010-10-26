@@ -40,6 +40,7 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
+  virtual bool UsingTCPFastOpen() const;
 
   // Socket methods:
   // Multiple outstanding requests are not supported.
