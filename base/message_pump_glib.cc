@@ -303,6 +303,10 @@ void MessagePumpForUI::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
+MessagePumpForUI::Dispatcher* MessagePumpForUI::GetDispatcher() {
+  return state_ ? state_->dispatcher : NULL;
+}
+
 void MessagePumpForUI::WillProcessEvent(GdkEvent* event) {
   FOR_EACH_OBSERVER(Observer, observers_, WillProcessEvent(event));
 }
