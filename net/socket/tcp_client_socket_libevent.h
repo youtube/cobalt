@@ -43,6 +43,7 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
+  virtual bool UsingTCPFastOpen() const;
 
   // Socket methods:
   // Multiple outstanding requests are not supported.
@@ -127,6 +128,9 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
   // Helper to add a TCP_CONNECT (end) event to the NetLog.
   void LogConnectCompletion(int net_error);
 
+  // Internal function to write to a socket.
+  int InternalWrite(IOBuffer* buf, int buf_len);
+
   int socket_;
 
   // The list of addresses we should try in order to establish a connection.
@@ -171,6 +175,12 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
   // Record of connectivity and transmissions, for use in speculative connection
   // histograms.
   UseHistory use_history_;
+
+  // Enables experimental TCP FastOpen option.
+  bool use_tcp_fastopen_;
+
+  // True when TCP FastOpen is in use and we have done the connect.
+  bool tcp_fastopen_connected_;
 
   DISALLOW_COPY_AND_ASSIGN(TCPClientSocketLibevent);
 };

@@ -631,6 +631,14 @@ bool SSLClientSocketOpenSSL::WasEverUsed() const {
   return false;
 }
 
+bool SSLClientSocketOpenSSL::UsingTCPFastOpen() const {
+  if (transport_.get() && transport_->socket())
+    return transport_->socket()->UsingTCPFastOpen();
+
+  NOTREACHED();
+  return false;
+}
+
 // Socket methods
 
 int SSLClientSocketOpenSSL::Read(IOBuffer* buf,

@@ -81,6 +81,7 @@ class MockClientSocket : public ClientSocket {
   virtual void SetSubresourceSpeculation() {}
   virtual void SetOmniboxSpeculation() {}
   virtual bool WasEverUsed() const { return was_used_to_convey_data_; }
+  virtual bool UsingTCPFastOpen() const { return false; }
 
  private:
   bool connected_;

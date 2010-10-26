@@ -62,6 +62,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
+  virtual bool UsingTCPFastOpen() const;
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
@@ -72,6 +73,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
  private:
   // Initializes NSS SSL options.  Returns a net error code.
   int InitializeSSLOptions();
+
+  // Initializes the socket peer name in SSL.  Returns a net error code.
+  int InitializeSSLPeerName();
 
   void InvalidateSessionIfBadCertificate();
 #if defined(OS_MACOSX) || defined(OS_WIN)
@@ -187,6 +191,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True iff we believe that the user has NetNanny intercepting our HTTPS
   // connections.
   bool netnanny_mitm_detected_;
+
+  // True if the peer name has been initialized.
+  bool peername_initialized_;
 
   // This pointer is owned by the caller of UseDNSSEC.
   DNSSECProvider* dnssec_provider_;
