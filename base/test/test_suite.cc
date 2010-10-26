@@ -10,6 +10,8 @@
 #include "base/command_line.h"
 #include "base/debug_on_start.h"
 #include "base/debug_util.h"
+#include "base/debug/debugger.h"
+#include "base/debug/debugger.h"
 #include "base/file_path.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
@@ -191,7 +193,7 @@ void TestSuite::Initialize() {
 #endif  // defined(OS_WIN)
 
   // In some cases, we do not want to see standard error dialogs.
-  if (!DebugUtil::BeingDebugged() &&
+  if (!base::debug::BeingDebugged() &&
       !CommandLine::ForCurrentProcess()->HasSwitch("show-error-dialogs")) {
     SuppressErrorDialogs();
     DebugUtil::SuppressDialogs();
