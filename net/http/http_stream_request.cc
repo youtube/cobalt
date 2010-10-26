@@ -21,7 +21,6 @@
 #include "net/socket/client_socket_pool.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
-#include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_http_stream.h"
@@ -850,10 +849,10 @@ scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSslParams(
   if (request_info().load_flags & LOAD_VERIFY_EV_CERT)
     ssl_config()->verify_ev_cert = true;
 
-    if (proxy_info()->proxy_server().scheme() == ProxyServer::SCHEME_HTTP ||
-        proxy_info()->proxy_server().scheme() == ProxyServer::SCHEME_HTTPS) {
-      ssl_config()->mitm_proxies_allowed = true;
-    }
+  if (proxy_info()->proxy_server().scheme() == ProxyServer::SCHEME_HTTP ||
+      proxy_info()->proxy_server().scheme() == ProxyServer::SCHEME_HTTPS) {
+    ssl_config()->mitm_proxies_allowed = true;
+  }
 
   scoped_refptr<SSLSocketParams> ssl_params =
       new SSLSocketParams(tcp_params, socks_params, http_proxy_params,
