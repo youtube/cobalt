@@ -1,0 +1,116 @@
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "base/debug/trace_event_win.h"
+
+#include "base/logging.h"
+#include "base/singleton.h"
+#include <initguid.h>  // NOLINT
+
+namespace base {
+namespace debug {
+
+// {3DADA31D-19EF-4dc1-B345-037927193422}
+const GUID kChromeTraceProviderName = {
+    0x3dada31d, 0x19ef, 0x4dc1, 0xb3, 0x45, 0x3, 0x79, 0x27, 0x19, 0x34, 0x22 };
+
+// {B967AE67-BB22-49d7-9406-55D91EE1D560}
+const GUID kTraceEventClass32 = {
+    0xb967ae67, 0xbb22, 0x49d7, 0x94, 0x6, 0x55, 0xd9, 0x1e, 0xe1, 0xd5, 0x60 };
+
+// {97BE602D-2930-4ac3-8046-B6763B631DFE}
+const GUID kTraceEventClass64 = {
+    0x97be602d, 0x2930, 0x4ac3, 0x80, 0x46, 0xb6, 0x76, 0x3b, 0x63, 0x1d, 0xfe};
+
+
+TraceLog::TraceLog() : EtwTraceProvider(kChromeTraceProviderName) {
+  Register();
+}
+
+TraceLog* TraceLog::Get() {
+  return Singleton<TraceLog, StaticMemorySingletonTraits<TraceLog>>::get();
+}
+
+bool TraceLog::StartTracing() {
+  return true;
+}
+
+void TraceLog::TraceEvent(const char* name,
+                          size_t name_len,
+                          EventType type,
+                          const void* id,
+                          const char* extra,
+                          size_t extra_len) {
+  // Make sure we don't touch NULL.
+  if (name == NULL)
+    name = "";
+  if (extra == NULL)
+    extra = "";
+
+  EtwEventType etw_type = 0;
+  switch (type) {
+    case TraceLog::EVENT_BEGIN:
+      etw_type = kTraceEventTypeBegin;
+      break;
+    case TraceLog::EVENT_END:
+      etw_type = kTraceEventTypeEnd;
+      break;
+
+    case TraceLog::EVENT_INSTANT:
+      etw_type = kTraceEventTypeInstant;
+      break;
+
+    default:
+      NOTREACHED() << "Unknown event type";
+      etw_type = kTraceEventTypeInstant;
+      break;
+  }
+
+  EtwMofEvent<5> event(kTraceEventClass32,
+                       etw_type,
+                       TRACE_LEVEL_INFORMATION);
+  event.SetField(0, name_len + 1, name);
+  event.SetField(1, sizeof(id), &id);
+  event.SetField(2, extra_len + 1, extra);
+
+  // See whether we're to capture a backtrace.
+  void* backtrace[32];
+  if (enable_flags() & CAPTURE_STACK_TRACE) {
+    DWORD hash = 0;
+    DWORD depth = CaptureStackBackTrace(0,
+                                        arraysize(backtrace),
+                                        backtrace,
+                                        &hash);
+    event.SetField(3, sizeof(depth), &depth);
+    event.SetField(4, sizeof(backtrace[0]) * depth, backtrace);
+  }
+
+  // Trace the event.
+  Log(event.get());
+}
+
+void TraceLog::Trace(const char* name,
+                     size_t name_len,
+                     EventType type,
+                     const void* id,
+                     const char* extra,
+                     size_t extra_len) {
+  TraceLog* provider = TraceLog::Get();
+  if (provider && provider->IsTracing()) {
+    // Compute the name & extra lengths if not supplied already.
+    if (name_len == -1)
+      name_len = (name == NULL) ? 0 : strlen(name);
+    if (extra_len == -1)
+      extra_len = (extra == NULL) ? 0 : strlen(extra);
+
+    provider->TraceEvent(name, name_len, type, id, extra, extra_len);
+  }
+}
+
+void TraceLog::Resurrect() {
+  StaticMemorySingletonTraits<TraceLog>::Resurrect();
+}
+
+}  // namespace debug
+}  // namespace base

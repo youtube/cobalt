@@ -23,7 +23,7 @@
 #include <new>
 #include <string>
 
-#include "base/debug_util.h"
+#include "base/debug/debugger.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/string_util.h"
@@ -166,7 +166,7 @@ bool ProcessIterator::CheckForNextProcess() {
 }
 
 bool NamedProcessIterator::IncludeEntry() {
-  return (base::SysWideToUTF8(executable_name_) == entry().exe_file() &&
+  return (SysWideToUTF8(executable_name_) == entry().exe_file() &&
           ProcessIterator::IncludeEntry());
 }
 
@@ -187,7 +187,7 @@ ProcessMetrics::ProcessMetrics(ProcessHandle process,
       last_time_(0),
       last_system_time_(0),
       port_provider_(port_provider) {
-  processor_count_ = base::SysInfo::NumberOfProcessors();
+  processor_count_ = SysInfo::NumberOfProcessors();
 }
 
 // static
@@ -402,7 +402,7 @@ void* oom_killer_malloc(struct _malloc_zone_t* zone,
                         size_t size) {
   void* result = g_old_malloc(zone, size);
   if (!result && size)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -411,7 +411,7 @@ void* oom_killer_calloc(struct _malloc_zone_t* zone,
                         size_t size) {
   void* result = g_old_calloc(zone, num_items, size);
   if (!result && num_items && size)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -419,7 +419,7 @@ void* oom_killer_valloc(struct _malloc_zone_t* zone,
                         size_t size) {
   void* result = g_old_valloc(zone, size);
   if (!result && size)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -428,7 +428,7 @@ void* oom_killer_realloc(struct _malloc_zone_t* zone,
                          size_t size) {
   void* result = g_old_realloc(zone, ptr, size);
   if (!result && size)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -441,7 +441,7 @@ void* oom_killer_memalign(struct _malloc_zone_t* zone,
   // http://opensource.apple.com/source/Libc/Libc-583/gen/malloc.c ).
   if (!result && size && alignment >= sizeof(void*)
       && (alignment & (alignment - 1)) == 0) {
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   }
   return result;
 }
@@ -450,7 +450,7 @@ void* oom_killer_malloc_purgeable(struct _malloc_zone_t* zone,
                                   size_t size) {
   void* result = g_old_malloc_purgeable(zone, size);
   if (!result && size)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -459,7 +459,7 @@ void* oom_killer_calloc_purgeable(struct _malloc_zone_t* zone,
                                   size_t size) {
   void* result = g_old_calloc_purgeable(zone, num_items, size);
   if (!result && num_items && size)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -467,7 +467,7 @@ void* oom_killer_valloc_purgeable(struct _malloc_zone_t* zone,
                                   size_t size) {
   void* result = g_old_valloc_purgeable(zone, size);
   if (!result && size)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -476,7 +476,7 @@ void* oom_killer_realloc_purgeable(struct _malloc_zone_t* zone,
                                    size_t size) {
   void* result = g_old_realloc_purgeable(zone, ptr, size);
   if (!result && size)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -489,7 +489,7 @@ void* oom_killer_memalign_purgeable(struct _malloc_zone_t* zone,
   // http://opensource.apple.com/source/Libc/Libc-583/gen/malloc.c ).
   if (!result && size && alignment >= sizeof(void*)
       && (alignment & (alignment - 1)) == 0) {
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   }
   return result;
 }
@@ -497,7 +497,7 @@ void* oom_killer_memalign_purgeable(struct _malloc_zone_t* zone,
 // === C++ operator new ===
 
 void oom_killer_new() {
-  DebugUtil::BreakDebugger();
+  debug::BreakDebugger();
 }
 
 // === Core Foundation CFAllocators ===
@@ -513,7 +513,7 @@ void* oom_killer_cfallocator_system_default(CFIndex alloc_size,
                                             void* info) {
   void* result = g_old_cfallocator_system_default(alloc_size, hint, info);
   if (!result)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -522,7 +522,7 @@ void* oom_killer_cfallocator_malloc(CFIndex alloc_size,
                                     void* info) {
   void* result = g_old_cfallocator_malloc(alloc_size, hint, info);
   if (!result)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -531,7 +531,7 @@ void* oom_killer_cfallocator_malloc_zone(CFIndex alloc_size,
                                          void* info) {
   void* result = g_old_cfallocator_malloc_zone(alloc_size, hint, info);
   if (!result)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
@@ -544,7 +544,7 @@ id oom_killer_allocWithZone(id self, SEL _cmd, NSZone* zone)
 {
   id result = g_old_allocWithZone(self, _cmd, zone);
   if (!result)
-    DebugUtil::BreakDebugger();
+    debug::BreakDebugger();
   return result;
 }
 
