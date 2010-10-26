@@ -18,7 +18,7 @@
 
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
-#include "base/debug_util.h"
+#include "base/debug/stack_trace.h"
 #include "base/dir_reader_posix.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
@@ -103,7 +103,7 @@ int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
 
 void StackDumpSignalHandler(int signal) {
   LOG(ERROR) << "Received signal " << signal;
-  StackTrace().PrintBacktrace();
+  debug::StackTrace().PrintBacktrace();
   _exit(1);
 }
 

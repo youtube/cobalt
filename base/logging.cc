@@ -42,7 +42,8 @@ typedef pthread_mutex_t* MutexHandle;
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "base/debug_util.h"
+#include "base/debug/debugger.h"
+#include "base/debug/stack_trace.h"
 #include "base/eintr_wrapper.h"
 #include "base/lock_impl.h"
 #if defined(OS_POSIX)
@@ -220,7 +221,7 @@ class LoggingLock {
 #if DEBUG
           // Keep the error code for debugging
           int error = GetLastError();  // NOLINT
-          DebugUtil::BreakDebugger();
+          base::debug::BreakDebugger();
 #endif
           // Return nicely without putting initialized to true.
           return;
@@ -580,7 +581,7 @@ LogMessage::~LogMessage() {
 #ifndef NDEBUG
   if (severity_ == LOG_FATAL) {
     // Include a stack trace on a fatal.
-    StackTrace trace;
+    base::debug::StackTrace trace;
     stream_ << std::endl;  // Newline to separate from log message.
     trace.OutputToStream(&stream_);
   }
@@ -637,8 +638,8 @@ LogMessage::~LogMessage() {
 
   if (severity_ == LOG_FATAL) {
     // display a message or break into the debugger on a fatal error
-    if (DebugUtil::BeingDebugged()) {
-      DebugUtil::BreakDebugger();
+    if (base::debug::BeingDebugged()) {
+      base::debug::BreakDebugger();
     } else {
       if (log_assert_handler) {
         // make a copy of the string for the handler out of paranoia
@@ -653,7 +654,7 @@ LogMessage::~LogMessage() {
         DisplayDebugMessageInDialog(stream_.str());
 #endif
         // Crash the process to generate a dump.
-        DebugUtil::BreakDebugger();
+        base::debug::BreakDebugger();
       }
     }
   } else if (severity_ == LOG_ERROR_REPORT) {
@@ -792,7 +793,7 @@ void RawLog(int level, const char* message) {
   }
 
   if (level == LOG_FATAL)
-    DebugUtil::BreakDebugger();
+    base::debug::BreakDebugger();
 }
 
 }  // namespace logging

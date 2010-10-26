@@ -6,6 +6,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/debug/trace_event.h"
 #include "base/format_macros.h"
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"

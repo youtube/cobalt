@@ -16,7 +16,8 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/debug_util.h"
+#include "base/debug/debugger.h"
+#include "base/debug/stack_trace.h"
 #include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/metrics/field_trial.h"
@@ -1065,7 +1066,7 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
     // Because we destroy outstanding requests during Shutdown(),
     // |req_handle| is already cancelled.
     LOG(ERROR) << "Called HostResolverImpl::CancelRequest() after Shutdown().";
-    StackTrace().PrintBacktrace();
+    base::debug::StackTrace().PrintBacktrace();
     return;
   }
   Request* req = reinterpret_cast<Request*>(req_handle);
