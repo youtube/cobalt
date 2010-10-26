@@ -26,6 +26,9 @@
 #include "base/message_pump_glib.h"
 #endif
 #endif
+#if defined(TOUCH_UI)
+#include "base/message_pump_glib_x_dispatch.h"
+#endif
 
 namespace base {
 class Histogram;
@@ -290,7 +293,11 @@ class MessageLoop : public base::MessagePump::Delegate {
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
 #elif !defined(OS_MACOSX)
+#if defined(TOUCH_UI)
+  typedef base::MessagePumpGlibXDispatcher Dispatcher;
+#else
   typedef base::MessagePumpForUI::Dispatcher Dispatcher;
+#endif
   typedef base::MessagePumpForUI::Observer Observer;
 #endif
 

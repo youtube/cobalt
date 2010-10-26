@@ -88,6 +88,10 @@ class MessagePumpForUI : public MessagePump {
   // some task before/after calling the default handler (EventDispatcher).
   virtual void DispatchEvents(GdkEvent* event);
 
+ protected:
+  // Returns the dispatcher for the current run state (|state_->dispatcher|).
+  Dispatcher* GetDispatcher();
+
  private:
   // We may make recursive calls to Run, so we save state that needs to be
   // separate between them in this structure type.
