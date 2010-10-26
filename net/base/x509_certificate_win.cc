@@ -575,6 +575,33 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
     dns_names->push_back(subject_.common_name);
 }
 
+class GlobalCertStore {
+ public:
+  HCERTSTORE cert_store() {
+    return cert_store_;
+  }
+
+ private:
+  friend struct DefaultSingletonTraits<GlobalCertStore>;
+
+  GlobalCertStore()
+      : cert_store_(CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL)) {
+  }
+
+  ~GlobalCertStore() {
+    CertCloseStore(cert_store_, 0 /* flags */);
+  }
+
+  const HCERTSTORE cert_store_;
+
+  DISALLOW_COPY_AND_ASSIGN(GlobalCertStore);
+};
+
+// static
+HCERTSTORE X509Certificate::cert_store() {
+  return Singleton<GlobalCertStore>::get()->cert_store();
+}
+
 int X509Certificate::Verify(const std::string& hostname,
                             int flags,
                             CertVerifyResult* verify_result) const {
