@@ -75,10 +75,10 @@ class MessageLoop : public base::MessagePump::Delegate {
     TaskObserver();
 
     // This method is called before processing a task.
-    virtual void WillProcessTask(base::TimeTicks birth_time) = 0;
+    virtual void WillProcessTask(const Task* task) = 0;
 
     // This method is called after processing a task.
-    virtual void DidProcessTask() = 0;
+    virtual void DidProcessTask(const Task* task) = 0;
 
    protected:
     virtual ~TaskObserver();
