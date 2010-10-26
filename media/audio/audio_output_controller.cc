@@ -134,9 +134,14 @@ void AudioOutputController::SetVolume(double volume) {
 void AudioOutputController::EnqueueData(const uint8* data, uint32 size) {
   // Write data to the push source and ask for more data if needed.
   AutoLock auto_lock(lock_);
-  buffer_.Append(data, size);
   pending_request_ = false;
-  SubmitOnMoreData_Locked();
+  // If |size| is set to 0, it indicates that the audio source doesn't have
+  // more data right now, and so it doesn't make sense to send additional
+  // request.
+  if (size) {
+    buffer_.Append(data, size);
+    SubmitOnMoreData_Locked();
+  }
 }
 
 void AudioOutputController::DoCreate(AudioParameters params,
