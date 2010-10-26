@@ -41,6 +41,42 @@ WAVEHDR* GetNextBuffer(WAVEHDR* current) {
 
 }  // namespace
 
+// See Also
+// http://www.thx.com/consumer/home-entertainment/home-theater/surround-sound-speaker-set-up/
+// http://en.wikipedia.org/wiki/Surround_sound
+
+const int kMaxChannelsToMask = 8;
+const unsigned int kChannelsToMask[kMaxChannelsToMask + 1] = {
+  0,
+  // 1 = Mono
+  SPEAKER_FRONT_CENTER,
+  // 2 = Stereo
+  SPEAKER_FRONT_LEFT  | SPEAKER_FRONT_RIGHT,
+  // 3 = Stereo + Center
+  SPEAKER_FRONT_LEFT  | SPEAKER_FRONT_RIGHT | SPEAKER_FRONT_CENTER,
+  // 4 = Quad
+  SPEAKER_FRONT_LEFT  | SPEAKER_FRONT_RIGHT |
+  SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT,
+  // 5 = 5.0
+  SPEAKER_FRONT_LEFT  | SPEAKER_FRONT_RIGHT | SPEAKER_FRONT_CENTER |
+  SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT,
+  // 6 = 5.1
+  SPEAKER_FRONT_LEFT  | SPEAKER_FRONT_RIGHT |
+  SPEAKER_FRONT_CENTER | SPEAKER_LOW_FREQUENCY |
+  SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT,
+  // 7 = 6.1
+  SPEAKER_FRONT_LEFT  | SPEAKER_FRONT_RIGHT |
+  SPEAKER_FRONT_CENTER | SPEAKER_LOW_FREQUENCY |
+  SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT |
+  SPEAKER_BACK_CENTER,
+  // 8 = 7.1
+  SPEAKER_FRONT_LEFT  | SPEAKER_FRONT_RIGHT |
+  SPEAKER_FRONT_CENTER | SPEAKER_LOW_FREQUENCY |
+  SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT |
+  SPEAKER_SIDE_LEFT | SPEAKER_SIDE_RIGHT
+  // TODO(fbarchard): Add additional masks for 7.2 and beyond.
+};
+
 PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
     AudioManagerWin* manager, AudioParameters params, int num_buffers,
     UINT device_id)
@@ -65,26 +101,10 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
                                 format_.Format.wBitsPerSample) / 8;
   format_.Format.nAvgBytesPerSec = format_.Format.nBlockAlign *
                                    format_.Format.nSamplesPerSec;
-  // This mask handles 6.1
-  if (params.channels == 7) {
-    format_.dwChannelMask = SPEAKER_FRONT_LEFT  |
-                            SPEAKER_FRONT_RIGHT |
-                            SPEAKER_FRONT_CENTER |
-                            SPEAKER_LOW_FREQUENCY |
-                            SPEAKER_BACK_LEFT |
-                            SPEAKER_BACK_RIGHT |
-                            SPEAKER_BACK_CENTER;
+  if (params.channels > kMaxChannelsToMask) {
+    format_.dwChannelMask = kChannelsToMask[kMaxChannelsToMask];
   } else {
-    // This mask handles mono, stereo, 5.1, 7.1
-    // TODO(fbarchard): Support masks for other channel layouts.
-    format_.dwChannelMask = SPEAKER_FRONT_LEFT  |
-                            SPEAKER_FRONT_RIGHT |
-                            SPEAKER_FRONT_CENTER |
-                            SPEAKER_LOW_FREQUENCY |
-                            SPEAKER_BACK_LEFT |
-                            SPEAKER_BACK_RIGHT |
-                            SPEAKER_SIDE_LEFT |
-                            SPEAKER_SIDE_RIGHT;
+    format_.dwChannelMask = kChannelsToMask[params.channels];
   }
   format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
   format_.Samples.wValidBitsPerSample = params.bits_per_sample;
