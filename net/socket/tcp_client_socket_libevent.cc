@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/socket/tcp_client_socket_libevent.h"
+#include "net/socket/tcp_client_socket.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -121,11 +121,16 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
-      previously_disconnected_(false) {
+      previously_disconnected_(false),
+      use_tcp_fastopen_(false),
+      tcp_fastopen_connected_(false) {
   scoped_refptr<NetLog::EventParameters> params;
   if (source.is_valid())
     params = new NetLogSourceParameter("source_dependency", source);
   net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+
+  if (is_tcp_fastopen_enabled())
+    use_tcp_fastopen_ = true;
 }
 
 TCPClientSocketLibevent::~TCPClientSocketLibevent() {
@@ -212,9 +217,15 @@ int TCPClientSocketLibevent::DoConnect() {
     return MapPosixError(connect_os_error_);
 
   // Connect the socket.
-  if (!HANDLE_EINTR(connect(socket_, current_ai_->ai_addr,
-                            static_cast<int>(current_ai_->ai_addrlen)))) {
-    // Connected without waiting!
+  if (!use_tcp_fastopen_) {
+    if (!HANDLE_EINTR(connect(socket_, current_ai_->ai_addr,
+                              static_cast<int>(current_ai_->ai_addrlen)))) {
+      // Connected without waiting!
+      return OK;
+    }
+  } else {
+    // With TCP FastOpen, we pretend that the socket is connected.
+    DCHECK(!tcp_fastopen_connected_);
     return OK;
   }
 
@@ -372,7 +383,7 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
   DCHECK(callback);
   DCHECK_GT(buf_len, 0);
 
-  int nwrite = HANDLE_EINTR(write(socket_, buf->data(), buf_len));
+  int nwrite = InternalWrite(buf, buf_len);
   if (nwrite >= 0) {
     static base::StatsCounter write_bytes("tcp.write_bytes");
     write_bytes.Add(nwrite);
@@ -396,6 +407,38 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
   write_buf_len_ = buf_len;
   write_callback_ = callback;
   return ERR_IO_PENDING;
+}
+
+int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
+  int nwrite;
+  if (use_tcp_fastopen_ && !tcp_fastopen_connected_) {
+    // We have a limited amount of data to send in the SYN packet.
+    int kMaxFastOpenSendLength = 1420;
+
+    buf_len = std::min(kMaxFastOpenSendLength, buf_len);
+
+    int flags = 0x20000000;  // Magic flag to enable TCP_FASTOPEN
+    nwrite = HANDLE_EINTR(sendto(socket_,
+                                 buf->data(),
+                                 buf_len,
+                                 flags,
+                                 current_ai_->ai_addr,
+                                 static_cast<int>(current_ai_->ai_addrlen)));
+    tcp_fastopen_connected_ = true;
+
+    if (nwrite < 0) {
+      // Non-blocking mode is returning EINPROGRESS rather than EAGAIN.
+      if (errno == EINPROGRESS)
+         errno = EAGAIN;
+
+      // Unlike "normal" nonblocking sockets, the data is already queued,
+      // so tell the app that we've consumed it.
+      return buf_len;
+    }
+  } else {
+    nwrite = HANDLE_EINTR(write(socket_, buf->data(), buf_len));
+  }
+  return nwrite;
 }
 
 bool TCPClientSocketLibevent::SetReceiveBufferSize(int32 size) {
@@ -558,6 +601,10 @@ void TCPClientSocketLibevent::SetOmniboxSpeculation() {
 
 bool TCPClientSocketLibevent::WasEverUsed() const {
   return use_history_.was_used_to_convey_data();
+}
+
+bool TCPClientSocketLibevent::UsingTCPFastOpen() const {
+  return use_tcp_fastopen_;
 }
 
 }  // namespace net

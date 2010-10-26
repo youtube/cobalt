@@ -185,6 +185,14 @@ bool HttpProxyClientSocket::WasEverUsed() const {
   return false;
 }
 
+bool HttpProxyClientSocket::UsingTCPFastOpen() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->UsingTCPFastOpen();
+  }
+  NOTREACHED();
+  return false;
+}
+
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 CompletionCallback* callback) {
   DCHECK(!user_callback_);

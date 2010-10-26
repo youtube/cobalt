@@ -609,6 +609,7 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const { return IsConnected(); }
   virtual bool WasEverUsed() const { return was_used_to_convey_data_; }
+  virtual bool UsingTCPFastOpen() const { return false; }
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
@@ -654,6 +655,7 @@ class DeterministicMockTCPClientSocket : public MockClientSocket,
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const { return IsConnected(); }
   virtual bool WasEverUsed() const { return was_used_to_convey_data_; }
+  virtual bool UsingTCPFastOpen() const { return false; }
 
   // Socket methods:
   virtual int Write(net::IOBuffer* buf, int buf_len,
@@ -698,6 +700,7 @@ class MockSSLClientSocket : public MockClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool WasEverUsed() const;
+  virtual bool UsingTCPFastOpen() const;
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
