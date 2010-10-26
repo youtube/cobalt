@@ -543,6 +543,11 @@ bool TCPClientSocketWin::WasEverUsed() const {
   return use_history_.was_used_to_convey_data();
 }
 
+bool TCPClientSocketWin::UsingTCPFastOpen() const {
+  // Not supported on windows.
+  return false;
+}
+
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionCallback* callback) {

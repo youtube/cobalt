@@ -71,6 +71,7 @@ class SpdyProxyClientSocket : public ClientSocket, public SpdyStream::Delegate {
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;
+  virtual bool UsingTCPFastOpen() const;
 
   // Socket methods:
 

@@ -513,6 +513,10 @@ bool MockSSLClientSocket::WasEverUsed() const {
   return transport_->socket()->WasEverUsed();
 }
 
+bool MockSSLClientSocket::UsingTCPFastOpen() const {
+  return transport_->socket()->UsingTCPFastOpen();
+}
+
 int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* callback) {
   return transport_->socket()->Read(buf, buf_len, callback);

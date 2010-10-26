@@ -120,6 +120,10 @@ bool SpdyProxyClientSocket::WasEverUsed() const {
   return was_ever_used_ || (spdy_stream_ && spdy_stream_->WasEverUsed());
 }
 
+bool SpdyProxyClientSocket::UsingTCPFastOpen() const {
+  return false;
+}
+
 int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 CompletionCallback* callback) {
   DCHECK(!read_callback_);
