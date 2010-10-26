@@ -13,7 +13,7 @@
 #include <ios>
 
 #include "base/command_line.h"
-#include "base/debug_util.h"
+#include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/scoped_ptr.h"
@@ -40,7 +40,7 @@ LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
 // Prints the exception call stack.
 // This is the unit tests exception filter.
 long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
-  StackTrace(info).PrintBacktrace();
+  debug::StackTrace(info).PrintBacktrace();
   if (g_previous_filter)
     return g_previous_filter(info);
   return EXCEPTION_CONTINUE_SEARCH;
@@ -155,7 +155,7 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level) {
   if (!level)
     return false;
 
-  if (base::win::GetVersion() < base::win::VERSION_VISTA)
+  if (win::GetVersion() < base::win::VERSION_VISTA)
     return false;
 
   HANDLE process_token;
@@ -163,7 +163,7 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level) {
       &process_token))
     return false;
 
-  base::win::ScopedHandle scoped_process_token(process_token);
+  win::ScopedHandle scoped_process_token(process_token);
 
   DWORD token_info_length = 0;
   if (GetTokenInformation(process_token, TokenIntegrityLevel, NULL, 0,
@@ -326,8 +326,8 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
   }
 
   // Ensure we don't leak the handles.
-  base::win::ScopedHandle scoped_out_read(out_read);
-  base::win::ScopedHandle scoped_out_write(out_write);
+  win::ScopedHandle scoped_out_read(out_read);
+  win::ScopedHandle scoped_out_write(out_write);
 
   // Ensure the read handle to the pipe for STDOUT is not inherited.
   if (!SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0)) {
