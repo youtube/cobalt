@@ -267,8 +267,9 @@ class HttpCache::SSLHostInfoFactoryAdaptor : public SSLHostInfoFactory {
       : http_cache_(http_cache) {
   }
 
-  SSLHostInfo* GetForHost(const std::string& hostname) {
-    return new DiskCacheBasedSSLHostInfo(hostname, http_cache_);
+  SSLHostInfo* GetForHost(const std::string& hostname,
+                          const SSLConfig& ssl_config) {
+    return new DiskCacheBasedSSLHostInfo(hostname, ssl_config, http_cache_);
   }
 
  private:
