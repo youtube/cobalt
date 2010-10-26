@@ -7,7 +7,6 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include "base/file_path.h"
 #include "net/base/completion_callback.h"
@@ -45,8 +44,6 @@ class URLRequestFileJob : public URLRequestJob {
  private:
   void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
   void DidRead(int result);
-#if defined(OS_CHROMEOS)
-  static bool AccessDisabled(const FilePath& file_path);
 #endif
 
   net::CompletionCallbackImpl<URLRequestFileJob> io_callback_;
