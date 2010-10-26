@@ -193,7 +193,8 @@ int SSLConnectJob::DoTCPConnect() {
 
   if (ssl_host_info_factory_ && SSLConfigService::snap_start_enabled()) {
       ssl_host_info_.reset(
-          ssl_host_info_factory_->GetForHost(params_->hostname()));
+          ssl_host_info_factory_->GetForHost(params_->hostname(),
+                                             params_->ssl_config()));
   }
   if (ssl_host_info_.get()) {
     // This starts fetching the SSL host info from the disk cache for Snap
