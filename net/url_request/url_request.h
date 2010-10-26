@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "base/leak_tracker.h"
+#include "base/debug/leak_tracker.h"
 #include "base/linked_ptr.h"
 #include "base/logging.h"
 #include "base/non_thread_safe.h"
@@ -634,7 +634,7 @@ class URLRequest : public NonThreadSafe {
   // this to determine which URLRequest to allocate sockets to first.
   net::RequestPriority priority_;
 
-  base::LeakTracker<URLRequest> leak_tracker_;
+  base::debug::LeakTracker<URLRequest> leak_tracker_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };

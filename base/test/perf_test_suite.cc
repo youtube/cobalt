@@ -5,7 +5,7 @@
 #include "base/test/perf_test_suite.h"
 
 #include "base/command_line.h"
-#include "base/debug_util.h"
+#include "base/debug/debugger.h"
 #include "base/file_path.h"
 #include "base/path_service.h"
 #include "base/perftimer.h"
@@ -34,7 +34,7 @@ void PerfTestSuite::Initialize() {
 
   // Raise to high priority to have more precise measurements. Since we don't
   // aim at 1% precision, it is not necessary to run at realtime level.
-  if (!DebugUtil::BeingDebugged())
+  if (!base::debug::BeingDebugged())
     base::RaiseProcessToHighPriority();
 }
 
