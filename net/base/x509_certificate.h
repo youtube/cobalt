@@ -13,6 +13,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
+#include "base/string_piece.h"
 #include "base/time.h"
 #include "net/base/x509_cert_types.h"
 
@@ -107,11 +108,19 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // certificate cache prefers the handle from the network because our HTTP
   // cache isn't caching the corresponding intermediate CA certificates yet
   // (http://crbug.com/7065).
-  // The list of intermediate certificates is ignored under NSS (i.e. Linux.)
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromHandle(OSCertHandle cert_handle,
       Source source,
       const OSCertHandles& intermediates);
+
+  // Create an X509Certificate from a chain of DER encoded certificates. The
+  // first certificate in the chain is the end-entity certificate to which a
+  // handle is returned. The other certificates in the chain are intermediate
+  // certificates. See the comment for |CreateFromHandle| about the |source|
+  // argument.
+  // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
+  static X509Certificate* CreateFromDERCertChain(
+      const std::vector<base::StringPiece>& der_certs);
 
   // Create an X509Certificate from the DER-encoded representation.
   // Returns NULL on failure.
@@ -173,14 +182,12 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // now.
   bool HasExpired() const;
 
-#if defined(OS_MACOSX) || defined(OS_WIN) || defined(USE_OPENSSL)
   // Returns intermediate certificates added via AddIntermediateCertificate().
   // Ownership follows the "get" rule: it is the caller's responsibility to
   // retain the elements of the result.
   const OSCertHandles& GetIntermediateCertificates() const {
     return intermediate_ca_certs_;
   }
-#endif
 
   // Returns true if I already contain the given intermediate cert.
   bool HasIntermediateCertificate(OSCertHandle cert);
@@ -211,6 +218,17 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
   // Creates the chain of certs to use for this client identity cert.
   CFArrayRef CreateClientCertificateChain() const;
+#endif
+
+#if defined(OS_WIN)
+  // Returns a handle to a global, in-memory certificate store. We use it for
+  // two purposes:
+  // 1. Import server certificates into this store so that we can verify and
+  //    display the certificates using CryptoAPI.
+  // 2. Copy client certificates from the "MY" system certificate store into
+  //    this store so that we can close the system store when we finish
+  //    searching for client certificates.
+  static HCERTSTORE cert_store();
 #endif
 
   // Verifies the certificate against the given hostname.  Returns OK if
@@ -292,11 +310,9 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // A handle to the certificate object in the underlying crypto library.
   OSCertHandle cert_handle_;
 
-#if defined(OS_MACOSX) || defined(OS_WIN) || defined(USE_OPENSSL)
   // Untrusted intermediate certificates associated with this certificate
-  // that may be needed for chain building. (NSS impl does not need these.)
+  // that may be needed for chain building.
   OSCertHandles intermediate_ca_certs_;
-#endif
 
 #if defined(OS_MACOSX)
   // Blocks multiple threads from verifying the cert simultaneously.
