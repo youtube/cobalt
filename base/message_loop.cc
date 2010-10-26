@@ -412,9 +412,9 @@ void MessageLoop::RunTask(Task* task) {
 
   HistogramEvent(kTaskRunEvent);
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
-                    WillProcessTask(task->tracked_birth_time()));
+                    WillProcessTask(task));
   task->Run();
-  FOR_EACH_OBSERVER(TaskObserver, task_observers_, DidProcessTask());
+  FOR_EACH_OBSERVER(TaskObserver, task_observers_, DidProcessTask(task));
   delete task;
 
   nestable_tasks_allowed_ = true;

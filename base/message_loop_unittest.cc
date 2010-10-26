@@ -1488,14 +1488,16 @@ class DummyTaskObserver : public MessageLoop::TaskObserver {
 
   virtual ~DummyTaskObserver() {}
 
-  virtual void WillProcessTask(base::TimeTicks /* birth_time */) {
+  virtual void WillProcessTask(const Task* task) {
     num_tasks_started_++;
+    EXPECT_TRUE(task != NULL);
     EXPECT_LE(num_tasks_started_, num_tasks_);
     EXPECT_EQ(num_tasks_started_, num_tasks_processed_ + 1);
   }
 
-  virtual void DidProcessTask() {
+  virtual void DidProcessTask(const Task* task) {
     num_tasks_processed_++;
+    EXPECT_TRUE(task != NULL);
     EXPECT_LE(num_tasks_started_, num_tasks_);
     EXPECT_EQ(num_tasks_started_, num_tasks_processed_);
   }
