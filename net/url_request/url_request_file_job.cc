@@ -89,9 +89,11 @@ URLRequestJob* URLRequestFileJob::Factory(
   FilePath file_path;
   net::FileURLToFilePath(request->url(), &file_path);
 
+#if defined(OS_CHROMEOS)
   // Check file access.
   if (AccessDisabled(file_path))
     return new URLRequestErrorJob(request, net::ERR_ACCESS_DENIED);
+#endif
 
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
@@ -353,25 +355,18 @@ static const char* const kLocalAccessWhiteList[] = {
   "/tmp",
   "/var/log",
 };
-#endif
 
 // static
 bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
-  bool disable = false;
-
-#if defined(OS_CHROMEOS)
-  disable = true;
   for (size_t i = 0; i < arraysize(kLocalAccessWhiteList); ++i) {
     const FilePath white_listed_path(kLocalAccessWhiteList[i]);
     // FilePath::operator== should probably handle trailing seperators.
     if (white_listed_path == file_path.StripTrailingSeparators() ||
         white_listed_path.IsParent(file_path)) {
-      disable = false;
-      break;
+      return false;
     }
   }
-#endif
-
-  return disable;
+  return true;
 }
+#endif
 
