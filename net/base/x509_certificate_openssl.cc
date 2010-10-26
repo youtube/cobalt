@@ -89,7 +89,6 @@ void ParsePrincipal(X509Certificate::OSCertHandle cert,
                                  &principal->state_or_province_name);
   nxou::ParsePrincipalValueByNID(x509_name, NID_countryName,
                                  &principal->country_name);
-
 }
 
 void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
