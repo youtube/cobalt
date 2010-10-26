@@ -456,6 +456,7 @@
           'message_pump_glib.h',
           'message_pump_glib_x.cc',
           'message_pump_glib_x.h',
+          'message_pump_glib_x_dispatch.h',
           'message_pump_libevent.cc',
           'message_pump_libevent.h',
           'message_pump_mac.h',
