@@ -27,18 +27,20 @@ const char kSemaphoreSuffix[] = "-sem";
 
 SharedMemory::SharedMemory()
     : mapped_file_(-1),
+      mapped_size_(0),
       inode_(0),
       memory_(NULL),
       read_only_(false),
-      max_size_(0) {
+      created_size_(0) {
 }
 
 SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only)
     : mapped_file_(handle.fd),
+      mapped_size_(0),
       inode_(0),
       memory_(NULL),
       read_only_(read_only),
-      max_size_(0) {
+      created_size_(0) {
   struct stat st;
   if (fstat(handle.fd, &st) == 0) {
     // If fstat fails, then the file descriptor is invalid and we'll learn this
@@ -50,9 +52,11 @@ SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only)
 SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only,
                            ProcessHandle process)
     : mapped_file_(handle.fd),
+      mapped_size_(0),
+      inode_(0),
       memory_(NULL),
       read_only_(read_only),
-      max_size_(0) {
+      created_size_(0) {
   // We don't handle this case yet (note the ignored parameter); let's die if
   // someone comes calling.
   NOTREACHED();
@@ -78,20 +82,90 @@ void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
   close(handle.fd);
 }
 
-bool SharedMemory::Create(const std::string& name, bool read_only,
-                          bool open_existing, uint32 size) {
-  read_only_ = read_only;
+bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
+  return CreateAnonymous(size) && Map(size);
+}
 
-  int posix_flags = 0;
-  posix_flags |= read_only ? O_RDONLY : O_RDWR;
-  if (!open_existing || mapped_file_ <= 0)
-    posix_flags |= O_CREAT;
+bool SharedMemory::CreateAnonymous(uint32 size) {
+  return CreateNamed("", false, size);
+}
 
-  if (!CreateOrOpen(name, posix_flags, size))
+// Chromium mostly only uses the unique/private shmem as specified by
+// "name == L"". The exception is in the StatsTable.
+// TODO(jrg): there is no way to "clean up" all unused named shmem if
+// we restart from a crash.  (That isn't a new problem, but it is a problem.)
+// In case we want to delete it later, it may be useful to save the value
+// of mem_filename after FilePathForMemoryName().
+bool SharedMemory::CreateNamed(const std::string& name,
+                               bool open_existing, uint32 size) {
+  DCHECK(mapped_file_ == -1);
+  if (size == 0) return false;
+
+  // This function theoretically can block on the disk, but realistically
+  // the temporary files we create will just go into the buffer cache
+  // and be deleted before they ever make it out to disk.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
+  FILE *fp;
+  bool fix_size = true;
+
+  FilePath path;
+  if (name.empty()) {
+    // It doesn't make sense to have a open-existing private piece of shmem
+    DCHECK(!open_existing);
+    // Q: Why not use the shm_open() etc. APIs?
+    // A: Because they're limited to 4mb on OS X.  FFFFFFFUUUUUUUUUUU
+    fp = file_util::CreateAndOpenTemporaryShmemFile(&path);
+
+    // Deleting the file prevents anyone else from mapping it in
+    // (making it private), and prevents the need for cleanup (once
+    // the last fd is closed, it is truly freed).
+    if (fp)
+      file_util::Delete(path, false);
+
+  } else {
+    if (!FilePathForMemoryName(name, &path))
+      return false;
+
+    fp = file_util::OpenFile(path, "w+x");
+    if (fp == NULL && open_existing) {
+      // "w+" will truncate if it already exists.
+      fp = file_util::OpenFile(path, "a+");
+      fix_size = false;
+    }
+  }
+  if (fp && fix_size) {
+    // Get current size.
+    struct stat stat;
+    if (fstat(fileno(fp), &stat) != 0)
+      return false;
+    const uint32 current_size = stat.st_size;
+    if (current_size != size) {
+      if (ftruncate(fileno(fp), size) != 0)
+        return false;
+      if (fseeko(fp, size, SEEK_SET) != 0)
+        return false;
+    }
+    created_size_ = size;
+  }
+  if (fp == NULL) {
+#if !defined(OS_MACOSX)
+    PLOG(ERROR) << "Creating shared memory in " << path.value() << " failed";
+    FilePath dir = path.DirName();
+    if (access(dir.value().c_str(), W_OK | X_OK) < 0) {
+      PLOG(ERROR) << "Unable to access(W_OK|X_OK) " << dir.value();
+      if (dir.value() == "/dev/shm") {
+        LOG(FATAL) << "This is frequently caused by incorrect permissions on "
+        << "/dev/shm.  Try 'sudo chmod 777 /dev/shm' to fix.";
+      }
+    }
+#else
+    PLOG(ERROR) << "Creating shared memory in " << path.value() << " failed";
+#endif
     return false;
+  }
 
-  max_size_ = size;
-  return true;
+  return PrepareMapFile(fp);
 }
 
 // Our current implementation of shmem is with mmap()ing of files.
@@ -111,12 +185,15 @@ bool SharedMemory::Delete(const std::string& name) {
 }
 
 bool SharedMemory::Open(const std::string& name, bool read_only) {
+  FilePath path;
+  if (!FilePathForMemoryName(name, &path))
+    return false;
+
   read_only_ = read_only;
 
-  int posix_flags = 0;
-  posix_flags |= read_only ? O_RDONLY : O_RDWR;
-
-  return CreateOrOpen(name, posix_flags, 0);
+  const char *mode = read_only ? "r" : "r+";
+  FILE *fp = file_util::OpenFile(path, mode);
+  return PrepareMapFile(fp);
 }
 
 // For the given shmem named |mem_name|, return a filename to mmap()
@@ -137,97 +214,16 @@ bool SharedMemory::FilePathForMemoryName(const std::string& mem_name,
   return true;
 }
 
-// Chromium mostly only use the unique/private shmem as specified by
-// "name == L"". The exception is in the StatsTable.
-// TODO(jrg): there is no way to "clean up" all unused named shmem if
-// we restart from a crash.  (That isn't a new problem, but it is a problem.)
-// In case we want to delete it later, it may be useful to save the value
-// of mem_filename after FilePathForMemoryName().
-bool SharedMemory::CreateOrOpen(const std::string& name,
-                                int posix_flags, uint32 size) {
+bool SharedMemory::PrepareMapFile(FILE *fp) {
   DCHECK(mapped_file_ == -1);
+  if (fp == NULL) return false;
 
   // This function theoretically can block on the disk, but realistically
   // the temporary files we create will just go into the buffer cache
   // and be deleted before they ever make it out to disk.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  file_util::ScopedFILE file_closer;
-  FILE *fp;
-
-  FilePath path;
-  if (name.empty()) {
-    // It doesn't make sense to have a read-only private piece of shmem
-    DCHECK(posix_flags & (O_RDWR | O_WRONLY));
-
-    // Q: Why not use the shm_open() etc. APIs?
-    // A: Because they're limited to 4mb on OS X.  FFFFFFFUUUUUUUUUUU
-    fp = file_util::CreateAndOpenTemporaryShmemFile(&path);
-
-    // Deleting the file prevents anyone else from mapping it in
-    // (making it private), and prevents the need for cleanup (once
-    // the last fd is closed, it is truly freed).
-    if (fp)
-      file_util::Delete(path, false);
-  } else {
-    if (!FilePathForMemoryName(name, &path))
-      return false;
-
-    std::string mode;
-    switch (posix_flags) {
-      case (O_RDWR | O_CREAT):
-        // Careful: "w+" will truncate if it already exists.
-        mode = "a+";
-        break;
-      case O_RDWR:
-        mode = "r+";
-        break;
-      case O_RDONLY:
-        mode = "r";
-        break;
-      default:
-        NOTIMPLEMENTED();
-        break;
-    }
-
-    fp = file_util::OpenFile(path, mode.c_str());
-  }
-
-  if (fp == NULL) {
-    if (posix_flags & O_CREAT) {
-#if !defined(OS_MACOSX)
-      PLOG(ERROR) << "Creating shared memory in " << path.value() << " failed";
-      FilePath dir = path.DirName();
-      if (access(dir.value().c_str(), W_OK | X_OK) < 0) {
-        PLOG(ERROR) << "Unable to access(W_OK|X_OK) " << dir.value();
-        if (dir.value() == "/dev/shm") {
-          LOG(FATAL) << "This is frequently caused by incorrect permissions on "
-                     << "/dev/shm.  Try 'sudo chmod 777 /dev/shm' to fix.";
-        }
-      }
-#else
-      PLOG(ERROR) << "Creating shared memory in " << path.value() << " failed";
-#endif
-    }
-    return false;
-  }
-
-  file_closer.reset(fp);  // close when we go out of scope
-
-  // Make sure the (new) file is the right size.
-  if (size && (posix_flags & (O_RDWR | O_CREAT))) {
-    // Get current size.
-    struct stat stat;
-    if (fstat(fileno(fp), &stat) != 0)
-      return false;
-    const uint32 current_size = stat.st_size;
-    if (current_size != size) {
-      if (ftruncate(fileno(fp), size) != 0)
-        return false;
-      if (fseeko(fp, size, SEEK_SET) != 0)
-        return false;
-    }
-  }
+  file_util::ScopedFILE file_closer(fp);
 
   mapped_file_ = dup(fileno(fp));
   if (mapped_file_ == -1) {
@@ -255,7 +251,7 @@ bool SharedMemory::Map(uint32 bytes) {
                  MAP_SHARED, mapped_file_, 0);
 
   if (memory_)
-    max_size_ = bytes;
+    mapped_size_ = bytes;
 
   bool mmap_succeeded = (memory_ != (void*)-1);
   DCHECK(mmap_succeeded) << "Call to mmap failed, errno=" << errno;
@@ -266,9 +262,9 @@ bool SharedMemory::Unmap() {
   if (memory_ == NULL)
     return false;
 
-  munmap(memory_, max_size_);
+  munmap(memory_, mapped_size_);
   memory_ = NULL;
-  max_size_ = 0;
+  mapped_size_ = 0;
   return true;
 }
 

@@ -8,6 +8,7 @@
 #include "base/shared_memory.h"
 #include "base/scoped_ptr.h"
 #include "base/test/multiprocess_test.h"
+#include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
@@ -36,7 +37,7 @@ class MultipleThreadMain : public PlatformThread::Delegate {
     mac::ScopedNSAutoreleasePool pool;  // noop if not OSX
     const uint32 kDataSize = 1024;
     SharedMemory memory;
-    bool rv = memory.Create(s_test_name_, false, true, kDataSize);
+    bool rv = memory.CreateNamed(s_test_name_, true, kDataSize);
     EXPECT_TRUE(rv);
     rv = memory.Map(kDataSize);
     EXPECT_TRUE(rv);
@@ -82,8 +83,8 @@ class MultipleLockThread : public PlatformThread::Delegate {
     SharedMemoryHandle handle = NULL;
     {
       SharedMemory memory1;
-      EXPECT_TRUE(memory1.Create("SharedMemoryMultipleLockThreadTest",
-                                 false, true, kDataSize));
+      EXPECT_TRUE(memory1.CreateNamed("SharedMemoryMultipleLockThreadTest",
+                                 true, kDataSize));
       EXPECT_TRUE(memory1.ShareToProcess(GetCurrentProcess(), &handle));
       // TODO(paulg): Implement this once we have a posix version of
       // SharedMemory::ShareToProcess.
@@ -128,7 +129,7 @@ TEST(SharedMemoryTest, OpenClose) {
   EXPECT_TRUE(rv);
   rv = memory1.Open(test_name, false);
   EXPECT_FALSE(rv);
-  rv = memory1.Create(test_name, false, false, kDataSize);
+  rv = memory1.CreateNamed(test_name, false, kDataSize);
   EXPECT_TRUE(rv);
   rv = memory1.Map(kDataSize);
   EXPECT_TRUE(rv);
@@ -160,6 +161,58 @@ TEST(SharedMemoryTest, OpenClose) {
   rv = memory1.Delete(test_name);
   EXPECT_TRUE(rv);
   rv = memory2.Delete(test_name);
+  EXPECT_TRUE(rv);
+}
+
+TEST(SharedMemoryTest, OpenExclusive) {
+  const uint32 kDataSize = 1024;
+  const uint32 kDataSize2 = 2048;
+  std::ostringstream test_name_stream;
+  test_name_stream << "SharedMemoryOpenExclusiveTest."
+                   << Time::Now().ToDoubleT();
+  std::string test_name = test_name_stream.str();
+
+  // Open two handles to a memory segment and check that open_existing works
+  // as expected.
+  SharedMemory memory1;
+  bool rv = memory1.CreateNamed(test_name, false, kDataSize);
+  EXPECT_TRUE(rv);
+
+  // Memory1 knows it's size because it created it.
+  EXPECT_EQ(memory1.created_size(), kDataSize);
+
+  rv = memory1.Map(kDataSize);
+  EXPECT_TRUE(rv);
+
+  memset(memory1.memory(), 'G', kDataSize);
+
+  SharedMemory memory2;
+  // Should not be able to create if openExisting is false.
+  rv = memory2.CreateNamed(test_name, false, kDataSize2);
+  EXPECT_FALSE(rv);
+
+  // Should be able to create with openExisting true.
+  rv = memory2.CreateNamed(test_name, true, kDataSize2);
+  EXPECT_TRUE(rv);
+
+  // Memory2 shouldn't know the size because we didn't create it.
+  EXPECT_EQ(memory2.created_size(), 0U);
+
+  // We should be able to map the original size.
+  rv = memory2.Map(kDataSize);
+  EXPECT_TRUE(rv);
+
+  // Verify that opening memory2 didn't truncate or delete memory 1.
+  char *start_ptr = static_cast<char *>(memory2.memory());
+  char *end_ptr = start_ptr + kDataSize;
+  for (char* ptr = start_ptr; ptr < end_ptr; ptr++) {
+    EXPECT_EQ(*ptr, 'G');
+  }
+
+  memory1.Close();
+  memory2.Close();
+
+  rv = memory1.Delete(test_name);
   EXPECT_TRUE(rv);
 }
 
@@ -243,9 +296,7 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
   ASSERT_TRUE(pointers.get());
 
   for (i = 0; i < count; i++) {
-    rv = memories[i].Create("", false, true, kDataSize);
-    EXPECT_TRUE(rv);
-    rv = memories[i].Map(kDataSize);
+    rv = memories[i].CreateAndMapAnonymous(kDataSize);
     EXPECT_TRUE(rv);
     int *ptr = static_cast<int*>(memories[i].memory());
     EXPECT_TRUE(ptr);
@@ -289,7 +340,7 @@ class SharedMemoryProcessTest : public base::MultiProcessTest {
     mac::ScopedNSAutoreleasePool pool;  // noop if not OSX
     const uint32 kDataSize = 1024;
     SharedMemory memory;
-    bool rv = memory.Create(s_test_name_, false, true, kDataSize);
+    bool rv = memory.CreateNamed(s_test_name_, true, kDataSize);
     EXPECT_TRUE(rv);
     if (rv != true)
       errors++;
