@@ -23,13 +23,14 @@ class ClientSocketHandle;
 class GrowableIOBuffer;
 class HttpResponseInfo;
 struct HttpRequestInfo;
+class HttpRequestHeaders;
 class HttpStreamParser;
 class IOBuffer;
 class UploadDataStream;
 
 class HttpBasicStream : public HttpStream {
  public:
-  explicit HttpBasicStream(ClientSocketHandle* connection);
+  HttpBasicStream(ClientSocketHandle* connection, bool using_proxy);
   virtual ~HttpBasicStream();
 
   // HttpStream methods:
@@ -37,7 +38,7 @@ class HttpBasicStream : public HttpStream {
                                const BoundNetLog& net_log,
                                CompletionCallback* callback);
 
-  virtual int SendRequest(const std::string& headers,
+  virtual int SendRequest(const HttpRequestHeaders& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           CompletionCallback* callback);
@@ -75,6 +76,12 @@ class HttpBasicStream : public HttpStream {
   scoped_ptr<HttpStreamParser> parser_;
 
   scoped_ptr<ClientSocketHandle> connection_;
+
+  bool using_proxy_;
+
+  std::string request_line_;
+
+  const HttpRequestInfo* request_info_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpBasicStream);
 };
