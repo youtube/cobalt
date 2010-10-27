@@ -182,6 +182,7 @@ void HttpResponseInfo::Persist(Pickle* pickle,
   }
   if (ssl_info.security_bits != -1)
     flags |= RESPONSE_INFO_HAS_SECURITY_BITS;
+  // TODO(wtc): we should persist ssl_info.connection_status.
   if (vary_data.is_valid())
     flags |= RESPONSE_INFO_HAS_VARY_DATA;
   if (response_truncated)
