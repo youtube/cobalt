@@ -17,6 +17,7 @@
 #include "net/base/request_priority.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_auth.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_transaction.h"
 #include "net/http/stream_factory.h"
@@ -222,7 +223,7 @@ class HttpNetworkTransaction : public HttpTransaction,
 
   SSLConfig ssl_config_;
 
-  std::string request_headers_;
+  HttpRequestHeaders request_headers_;
 
   // The size in bytes of the buffer we use to drain the response body that
   // we want to throw away.  The response body is typically a small error
