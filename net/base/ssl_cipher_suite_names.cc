@@ -6,6 +6,8 @@
 
 #include <stdlib.h>
 
+#include "base/logging.h"
+#include "net/base/ssl_connection_status_flags.h"
 
 // Rather than storing the names of all the ciphersuites we eliminate the
 // redundancy and break each cipher suite into a key exchange method, cipher
@@ -343,6 +345,30 @@ void SSLCompressionToString(const char** name, uint8 compresssion) {
     *name = "LZS";
   } else {
     *name = "???";
+  }
+}
+
+void SSLVersionToString(const char** name, int ssl_version) {
+  switch (ssl_version) {
+    case SSL_CONNECTION_VERSION_SSL2:
+      *name = "SSL 2.0";
+      break;
+    case SSL_CONNECTION_VERSION_SSL3:
+      *name = "SSL 3.0";
+      break;
+    case SSL_CONNECTION_VERSION_TLS1:
+      *name = "TLS 1.0";
+      break;
+    case SSL_CONNECTION_VERSION_TLS1_1:
+      *name = "TLS 1.1";
+      break;
+    case SSL_CONNECTION_VERSION_TLS1_2:
+      *name = "TLS 1.2";
+      break;
+    default:
+      NOTREACHED();
+      *name = "???";
+      break;
   }
 }
 

@@ -60,6 +60,7 @@
 #include <sechash.h>
 #include <ssl.h>
 #include <sslerr.h>
+#include <sslproto.h>
 
 #include <limits>
 
@@ -76,6 +77,7 @@
 #include "net/base/address_list.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
+#include "net/base/connection_type_histograms.h"
 #include "net/base/dns_util.h"
 #include "net/base/dnsrr_resolver.h"
 #include "net/base/dnssec_chain_verifier.h"
@@ -381,6 +383,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       user_read_buf_len_(0),
       user_write_buf_len_(0),
       server_cert_nss_(NULL),
+      ssl_connection_status_(0),
       client_auth_cert_needed_(false),
       handshake_callback_called_(false),
       completed_handshake_(false),
@@ -867,6 +870,7 @@ void SSLClientSocketNSS::Disconnect() {
     server_cert_nss_     = NULL;
   }
   server_cert_verify_result_.Reset();
+  ssl_connection_status_ = 0;
   completed_handshake_   = false;
   pseudo_connected_      = false;
   eset_mitm_detected_    = false;
@@ -1034,11 +1038,10 @@ bool SSLClientSocketNSS::SetSendBufferSize(int32 size) {
   return transport_->socket()->SetSendBufferSize(size);
 }
 
-
+// Sets server_cert_ and server_cert_nss_ if not yet set.
+// Returns server_cert_.
 X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
-  // We set the server_cert_ from HandshakeCallback(), but this handler
-  // does not necessarily get called if we are continuing a cached SSL
-  // session.
+  // We set the server_cert_ from HandshakeCallback().
   if (server_cert_ == NULL) {
     server_cert_nss_ = SSL_PeerCertificate(nss_fd_);
     if (server_cert_nss_) {
@@ -1069,21 +1072,61 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
   return server_cert_;
 }
 
-// Log an informational message if the server does not support secure
-// renegotiation (RFC 5746).
-void SSLClientSocketNSS::CheckSecureRenegotiation() const {
+// Sets ssl_connection_status_.
+void SSLClientSocketNSS::UpdateConnectionStatus() {
+  SSLChannelInfo channel_info;
+  SECStatus ok = SSL_GetChannelInfo(nss_fd_,
+                                    &channel_info, sizeof(channel_info));
+  if (ok == SECSuccess &&
+      channel_info.length == sizeof(channel_info) &&
+      channel_info.cipherSuite) {
+    ssl_connection_status_ |=
+        (static_cast<int>(channel_info.cipherSuite) &
+         SSL_CONNECTION_CIPHERSUITE_MASK) <<
+        SSL_CONNECTION_CIPHERSUITE_SHIFT;
+
+    ssl_connection_status_ |=
+        (static_cast<int>(channel_info.compressionMethod) &
+         SSL_CONNECTION_COMPRESSION_MASK) <<
+        SSL_CONNECTION_COMPRESSION_SHIFT;
+
+    int version = SSL_CONNECTION_VERSION_UNKNOWN;
+    if (channel_info.protocolVersion < SSL_LIBRARY_VERSION_3_0) {
+      // All versions less than SSL_LIBRARY_VERSION_3_0 are treated as SSL
+      // version 2.
+      version = SSL_CONNECTION_VERSION_SSL2;
+    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_0) {
+      version = SSL_CONNECTION_VERSION_SSL3;
+    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_1_TLS) {
+      version = SSL_CONNECTION_VERSION_TLS1;
+    }
+    ssl_connection_status_ |=
+        (version & SSL_CONNECTION_VERSION_MASK) <<
+        SSL_CONNECTION_VERSION_SHIFT;
+  }
+
   // SSL_HandshakeNegotiatedExtension was added in NSS 3.12.6.
   // Since SSL_MAX_EXTENSIONS was added at the same time, we can test
   // SSL_MAX_EXTENSIONS for the presence of SSL_HandshakeNegotiatedExtension.
 #if defined(SSL_MAX_EXTENSIONS)
-  PRBool received_renego_info;
-  if (SSL_HandshakeNegotiatedExtension(nss_fd_, ssl_renegotiation_info_xtn,
-                                       &received_renego_info) == SECSuccess &&
-      !received_renego_info) {
-    VLOG(1) << "The server " << hostname_
-            << " does not support the TLS renegotiation_info extension.";
+  PRBool peer_supports_renego_ext;
+  ok = SSL_HandshakeNegotiatedExtension(nss_fd_, ssl_renegotiation_info_xtn,
+                                        &peer_supports_renego_ext);
+  if (ok == SECSuccess) {
+    if (!peer_supports_renego_ext) {
+      ssl_connection_status_ |= SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION;
+      // Log an informational message if the server does not support secure
+      // renegotiation (RFC 5746).
+      VLOG(1) << "The server " << hostname_
+              << " does not support the TLS renegotiation_info extension.";
+    }
+    UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
+                              peer_supports_renego_ext, 2);
   }
 #endif
+
+  if (ssl_config_.ssl3_fallback)
+    ssl_connection_status_ |= SSL_CONNECTION_SSL3_FALLBACK;
 }
 
 void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
@@ -1095,50 +1138,23 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
     return;
   }
 
-  SSLChannelInfo channel_info;
-  SECStatus ok = SSL_GetChannelInfo(nss_fd_,
-                                    &channel_info, sizeof(channel_info));
-  if (ok == SECSuccess &&
-      channel_info.length == sizeof(channel_info) &&
-      channel_info.cipherSuite) {
-    SSLCipherSuiteInfo cipher_info;
-    ok = SSL_GetCipherSuiteInfo(channel_info.cipherSuite,
-                                &cipher_info, sizeof(cipher_info));
-    if (ok == SECSuccess) {
-      ssl_info->security_bits = cipher_info.effectiveKeyBits;
-    } else {
-      ssl_info->security_bits = -1;
-      LOG(DFATAL) << "SSL_GetCipherSuiteInfo returned " << PR_GetError()
-                  << " for cipherSuite " << channel_info.cipherSuite;
-    }
-    ssl_info->connection_status |=
-        (((int)channel_info.cipherSuite) & SSL_CONNECTION_CIPHERSUITE_MASK) <<
-        SSL_CONNECTION_CIPHERSUITE_SHIFT;
-
-    ssl_info->connection_status |=
-        (((int)channel_info.compressionMethod) &
-         SSL_CONNECTION_COMPRESSION_MASK) <<
-        SSL_CONNECTION_COMPRESSION_SHIFT;
-
-    UpdateServerCert();
-  }
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
   DCHECK(server_cert_ != NULL);
   ssl_info->cert = server_cert_;
+  ssl_info->connection_status = ssl_connection_status_;
 
-  PRBool peer_supports_renego_ext;
-  ok = SSL_HandshakeNegotiatedExtension(nss_fd_, ssl_renegotiation_info_xtn,
-                                        &peer_supports_renego_ext);
+  PRUint16 cipher_suite =
+      SSLConnectionStatusToCipherSuite(ssl_connection_status_);
+  SSLCipherSuiteInfo cipher_info;
+  SECStatus ok = SSL_GetCipherSuiteInfo(cipher_suite,
+                                        &cipher_info, sizeof(cipher_info));
   if (ok == SECSuccess) {
-    if (!peer_supports_renego_ext)
-      ssl_info->connection_status |= SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION;
-    UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
-                              (int)peer_supports_renego_ext, 2);
+    ssl_info->security_bits = cipher_info.effectiveKeyBits;
+  } else {
+    ssl_info->security_bits = -1;
+    LOG(DFATAL) << "SSL_GetCipherSuiteInfo returned " << PR_GetError()
+                << " for cipherSuite " << cipher_suite;
   }
-
-  if (ssl_config_.ssl3_fallback)
-    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
-
   LeaveFunction("");
 }
 
@@ -1798,8 +1814,7 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
   that->handshake_callback_called_ = true;
 
   that->UpdateServerCert();
-
-  that->CheckSecureRenegotiation();
+  that->UpdateConnectionStatus();
 }
 
 int SSLClientSocketNSS::DoSnapStartLoadInfo() {
@@ -2218,6 +2233,9 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
     result = OK;
   }
 
+  if (result == OK)
+    LogConnectionTypeMetrics();
+
   completed_handshake_ = true;
   // TODO(ukai): we may not need this call because it is now harmless to have a
   // session with a bad cert.
@@ -2284,6 +2302,38 @@ int SSLClientSocketNSS::DoPayloadWrite() {
   net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
                     new SSLErrorParams(rv, prerr));
   return rv;
+}
+
+void SSLClientSocketNSS::LogConnectionTypeMetrics() const {
+  UpdateConnectionTypeHistograms(CONNECTION_SSL);
+  if (server_cert_verify_result_.has_md5)
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5);
+  if (server_cert_verify_result_.has_md2)
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2);
+  if (server_cert_verify_result_.has_md4)
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD4);
+  if (server_cert_verify_result_.has_md5_ca)
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5_CA);
+  if (server_cert_verify_result_.has_md2_ca)
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2_CA);
+  int ssl_version = SSLConnectionStatusToVersion(ssl_connection_status_);
+  switch (ssl_version) {
+    case SSL_CONNECTION_VERSION_SSL2:
+      UpdateConnectionTypeHistograms(CONNECTION_SSL_SSL2);
+      break;
+    case SSL_CONNECTION_VERSION_SSL3:
+      UpdateConnectionTypeHistograms(CONNECTION_SSL_SSL3);
+      break;
+    case SSL_CONNECTION_VERSION_TLS1:
+      UpdateConnectionTypeHistograms(CONNECTION_SSL_TLS1);
+      break;
+    case SSL_CONNECTION_VERSION_TLS1_1:
+      UpdateConnectionTypeHistograms(CONNECTION_SSL_TLS1_1);
+      break;
+    case SSL_CONNECTION_VERSION_TLS1_2:
+      UpdateConnectionTypeHistograms(CONNECTION_SSL_TLS1_2);
+      break;
+  };
 }
 
 }  // namespace net

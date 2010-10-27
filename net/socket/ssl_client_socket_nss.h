@@ -50,7 +50,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
   virtual NextProtoStatus GetNextProto(std::string* proto);
-  virtual void UseDNSSEC(DNSSECProvider*);
+  virtual void UseDNSSEC(DNSSECProvider* provider);
 
   // ClientSocket methods:
   virtual int Connect(CompletionCallback* callback);
@@ -83,7 +83,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   static X509Certificate::OSCertHandle CreateOSCert(const SECItem& der_cert);
 #endif
   X509Certificate* UpdateServerCert();
-  void CheckSecureRenegotiation() const;
+  void UpdateConnectionStatus();
   void DoReadCallback(int result);
   void DoWriteCallback(int result);
   void DoConnectCallback(int result);
@@ -105,6 +105,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoVerifyCertComplete(int result);
   int DoPayloadRead();
   int DoPayloadWrite();
+  void LogConnectionTypeMetrics() const;
   int Init();
   void SaveSnapStartInfo();
   bool LoadSnapStartInfo();
@@ -166,6 +167,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   scoped_refptr<X509Certificate> server_cert_;
   CERTCertificate* server_cert_nss_;
   CertVerifyResult server_cert_verify_result_;
+  int ssl_connection_status_;
 
   // Stores client authentication information between ClientAuthHandler and
   // GetSSLCertRequestInfo calls.
