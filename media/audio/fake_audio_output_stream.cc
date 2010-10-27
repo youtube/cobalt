@@ -75,6 +75,8 @@ FakeAudioOutputStream::FakeAudioOutputStream()
       closed_(false) {
 }
 
+FakeAudioOutputStream::~FakeAudioOutputStream() {}
+
 // static
 void FakeAudioOutputStream::DestroyLastFakeStream(void* param) {
   if (last_fake_stream_) {

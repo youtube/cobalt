@@ -31,7 +31,7 @@ class FakeAudioOutputStream : public AudioOutputStream {
 
  private:
   FakeAudioOutputStream();
-  virtual ~FakeAudioOutputStream() {}
+  virtual ~FakeAudioOutputStream();
 
   static void DestroyLastFakeStream(void* param);
   static bool has_created_fake_stream_;
