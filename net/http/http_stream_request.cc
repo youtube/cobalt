@@ -726,8 +726,12 @@ int HttpStreamRequest::DoCreateStream() {
   if (connection_->socket() && !connection_->is_reused())
     SetSocketMotivation();
 
+  const ProxyServer& proxy_server = proxy_info()->proxy_server();
+
   if (!using_spdy_) {
-    stream_.reset(new HttpBasicStream(connection_.release()));
+    bool using_proxy = (proxy_info()->is_http() || proxy_info()->is_https()) &&
+        request_info().url.SchemeIs("http");
+    stream_.reset(new HttpBasicStream(connection_.release(), using_proxy));
     return OK;
   }
 
@@ -737,7 +741,6 @@ int HttpStreamRequest::DoCreateStream() {
   SpdySessionPool* spdy_pool = session_->spdy_session_pool();
   scoped_refptr<SpdySession> spdy_session;
 
-  const ProxyServer& proxy_server = proxy_info()->proxy_server();
   HostPortProxyPair pair(endpoint_, proxy_server);
   if (spdy_pool->HasSession(pair)) {
     // We have a SPDY session to the origin server.  This might be a direct

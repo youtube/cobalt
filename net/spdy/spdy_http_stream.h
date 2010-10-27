@@ -49,7 +49,7 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   // |callback| is used when this completes asynchronously.
   // SpdyHttpStream takes ownership of |upload_data|. |upload_data| may be NULL.
   // The actual SYN_STREAM packet will be sent if the stream is non-pushed.
-  virtual int SendRequest(const std::string& headers,
+  virtual int SendRequest(const HttpRequestHeaders& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           CompletionCallback* callback);
