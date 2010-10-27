@@ -42,9 +42,8 @@ class SSLInfo {
   int security_bits;
 
   // Information about the SSL connection itself. See
-  // ssl_connection_status_flags.h for values. The ciphersuite and compression
-  // in use are encoded within.
-  // TODO(agl): also encode the protocol version used.
+  // ssl_connection_status_flags.h for values. The protocol version,
+  // ciphersuite, and compression in use are encoded within.
   int connection_status;
 };
 
