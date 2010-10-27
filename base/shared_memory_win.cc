@@ -13,7 +13,7 @@ SharedMemory::SharedMemory()
     : mapped_file_(NULL),
       memory_(NULL),
       read_only_(false),
-      max_size_(0),
+      created_size_(0),
       lock_(NULL) {
 }
 
@@ -21,7 +21,7 @@ SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only)
     : mapped_file_(handle),
       memory_(NULL),
       read_only_(read_only),
-      max_size_(0),
+      created_size_(0),
       lock_(NULL) {
 }
 
@@ -30,7 +30,7 @@ SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only,
     : mapped_file_(NULL),
       memory_(NULL),
       read_only_(read_only),
-      max_size_(0),
+      created_size_(0),
       lock_(NULL) {
   ::DuplicateHandle(process, handle,
                     GetCurrentProcess(), &mapped_file_,
@@ -61,9 +61,19 @@ void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
   ::CloseHandle(handle);
 }
 
-bool SharedMemory::Create(const std::string& name, bool read_only,
-                          bool open_existing, uint32 size) {
+bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
+  return CreateAnonymous(size) && Map(size);
+}
+
+bool SharedMemory::CreateAnonymous(uint32 size) {
+  return CreateNamed("", false, size);
+}
+
+bool SharedMemory::CreateNamed(const std::string& name,
+                               bool open_existing, uint32 size) {
   DCHECK(mapped_file_ == NULL);
+  if (size == 0)
+    return false;
 
   // NaCl's memory allocator requires 0mod64K alignment and size for
   // shared memory objects.  To allow passing shared memory to NaCl,
@@ -72,20 +82,25 @@ bool SharedMemory::Create(const std::string& name, bool read_only,
   // actual requested size.
   uint32 rounded_size = (size + 0xffff) & ~0xffff;
   name_ = ASCIIToWide(name);
-  read_only_ = read_only;
   mapped_file_ = CreateFileMapping(INVALID_HANDLE_VALUE, NULL,
-      read_only_ ? PAGE_READONLY : PAGE_READWRITE, 0,
-      static_cast<DWORD>(rounded_size),
+      PAGE_READWRITE, 0, static_cast<DWORD>(rounded_size),
       name_.empty() ? NULL : name_.c_str());
   if (!mapped_file_)
     return false;
 
+  created_size_ = size;
+
   // Check if the shared memory pre-exists.
-  if (GetLastError() == ERROR_ALREADY_EXISTS && !open_existing) {
-    Close();
-    return false;
+  if (GetLastError() == ERROR_ALREADY_EXISTS) {
+    // If the file already existed, set created_size_ to 0 to show that
+    // we don't know the size.
+    created_size_ = 0;
+    if (!open_existing) {
+      Close();
+      return false;
+    }
   }
-  max_size_ = size;
+
   return true;
 }
 
