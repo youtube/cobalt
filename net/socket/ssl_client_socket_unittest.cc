@@ -181,6 +181,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
 // Attempt to connect to a page which requests a client certificate. It should
 // return an error code on connect.
+// Flaky: http://crbug.com/54445
 TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
   net::TestServer test_server(net::TestServer::TYPE_HTTPS_CLIENT_AUTH,
                               FilePath());
