@@ -26,8 +26,26 @@
 namespace net {
 
 #if defined(USE_OPENSSL)
-X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
+X509Certificate* AddTemporaryRootCertToStore(X509* x509_cert) {
   OpenSSLInitSingleton* openssl_init = GetOpenSSLInitSingleton();
+
+  if (!X509_STORE_add_cert(openssl_init->x509_store(), x509_cert)) {
+    unsigned long error_code = ERR_get_error();
+    if (ERR_GET_LIB(error_code) != ERR_LIB_X509 ||
+        ERR_GET_REASON(error_code) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
+      do {
+        LOG(ERROR) << "X509_STORE_add_cert error: " << error_code;
+      } while ((error_code = ERR_get_error()) != 0);
+      return NULL;
+    }
+  }
+  return X509Certificate::CreateFromHandle(
+      x509_cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
+      X509Certificate::OSCertHandles());
+}
+
+X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
+  EnsureOpenSSLInit();
 
   std::string rawcert;
   if (!file_util::ReadFileToString(filename, &rawcert)) {
@@ -43,27 +61,21 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
     return NULL;
   }
 
-  ScopedSSL<X509, X509_free> x509_cert(PEM_read_bio_X509(cert_bio.get(),
-                                                         NULL, NULL, NULL));
-  if (!x509_cert.get()) {
-    LOG(ERROR) << "Can't parse certificate " << filename.value();
-    return NULL;
-  }
+  ScopedSSL<X509, X509_free> pem_cert(PEM_read_bio_X509(cert_bio.get(),
+                                                        NULL, NULL, NULL));
+  if (pem_cert.get())
+    return AddTemporaryRootCertToStore(pem_cert.get());
 
-  if (!X509_STORE_add_cert(openssl_init->x509_store(), x509_cert.get())) {
-    unsigned long error_code = ERR_get_error();
-    if (ERR_GET_LIB(error_code) != ERR_LIB_X509 ||
-        ERR_GET_REASON(error_code) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
-      do {
-        LOG(ERROR) << "X509_STORE_add_cert error: " << error_code;
-      } while ((error_code = ERR_get_error()) != 0);
-      return NULL;
-    }
-  }
+  // File does not contain PEM data, let's try DER.
+  const unsigned char* der_data =
+      reinterpret_cast<const unsigned char*>(rawcert.c_str());
+  int der_length = rawcert.length();
+  ScopedSSL<X509, X509_free> der_cert(d2i_X509(NULL, &der_data, der_length));
+  if (der_cert.get())
+    return AddTemporaryRootCertToStore(der_cert.get());
 
-  return X509Certificate::CreateFromHandle(
-      x509_cert.get(), X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      X509Certificate::OSCertHandles());
+  LOG(ERROR) << "Can't parse certificate " << filename.value();
+  return NULL;
 }
 #elif defined(USE_NSS)
 X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
