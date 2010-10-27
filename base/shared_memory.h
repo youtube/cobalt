@@ -66,14 +66,21 @@ class SharedMemory {
   // Closes a shared memory handle.
   static void CloseHandle(const SharedMemoryHandle& handle);
 
+  // Creates and maps an anonymous shared memory segment of size size.
+  // Returns true on success and false on failure.
+  bool CreateAndMapAnonymous(uint32 size);
+
+  // Creates an anonymous shared memory segment of size size.
+  // Returns true on success and false on failure.
+  bool CreateAnonymous(uint32 size);
+
   // Creates or opens a shared memory segment based on a name.
-  // If read_only is true, opens the memory as read-only.
   // If open_existing is true, and the shared memory already exists,
   // opens the existing shared memory and ignores the size parameter.
-  // If name is the empty string, use a unique name.
+  // If open_existing is false, shared memory must not exist.
+  // size is the size of the block to be created.
   // Returns true on success, false on failure.
-  bool Create(const std::string& name, bool read_only, bool open_existing,
-              uint32 size);
+  bool CreateNamed(const std::string& name, bool open_existing, uint32 size);
 
   // Deletes resources associated with a shared memory segment based on name.
   // Not all platforms require this call.
@@ -81,7 +88,6 @@ class SharedMemory {
 
   // Opens a shared memory segment based on a name.
   // If read_only is true, opens for read-only access.
-  // If name is the empty string, use a unique name.
   // Returns true on success, false on failure.
   bool Open(const std::string& name, bool read_only);
 
@@ -95,12 +101,15 @@ class SharedMemory {
   // memory is not mapped.
   bool Unmap();
 
-  // Get the size of the opened shared memory backing file.
+  // Get the size of the shared memory backing file.
   // Note:  This size is only available to the creator of the
   // shared memory, and not to those that opened shared memory
   // created externally.
-  // Returns 0 if not opened or unknown.
-  uint32 max_size() const { return max_size_; }
+  // Returns 0 if not created or unknown.
+  // Deprecated method, please keep track of the size yourself if you created
+  // it.
+  // http://crbug.com/60821
+  uint32 created_size() const { return created_size_; }
 
   // Gets a pointer to the opened memory space if it has been
   // Mapped via Map().  Returns NULL if it is not mapped.
@@ -161,7 +170,7 @@ class SharedMemory {
 
  private:
 #if defined(OS_POSIX)
-  bool CreateOrOpen(const std::string& name, int posix_flags, uint32 size);
+  bool PrepareMapFile(FILE *fp);
   bool FilePathForMemoryName(const std::string& mem_name, FilePath* path);
   void LockOrUnlockCommon(int function);
 #endif
@@ -174,11 +183,12 @@ class SharedMemory {
   HANDLE             mapped_file_;
 #elif defined(OS_POSIX)
   int                mapped_file_;
+  uint32             mapped_size_;
   ino_t              inode_;
 #endif
   void*              memory_;
   bool               read_only_;
-  uint32             max_size_;
+  uint32             created_size_;
 #if !defined(OS_POSIX)
   SharedMemoryLock   lock_;
 #endif
