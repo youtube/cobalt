@@ -22,12 +22,13 @@
 namespace net {
 
 class BoundNetLog;
+class HttpRequestHeaders;
+struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class SSLCertRequestInfo;
 class SSLInfo;
 class UploadDataStream;
-struct HttpRequestInfo;
 
 class HttpStream {
  public:
@@ -45,7 +46,7 @@ class HttpStream {
   // synchronously, in which case the result will be passed to the callback
   // when available. Returns OK on success. The HttpStream takes ownership
   // of the request_body.
-  virtual int SendRequest(const std::string& request_headers,
+  virtual int SendRequest(const HttpRequestHeaders& request_headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           CompletionCallback* callback) = 0;
