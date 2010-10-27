@@ -89,6 +89,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       request_(NULL),
       headers_valid_(false),
       logged_response_time_(false),
+      request_headers_(),
       read_buf_len_(0),
       next_state_(STATE_NONE),
       establishing_tunnel_(false) {
@@ -624,38 +625,22 @@ int HttpNetworkTransaction::DoSendRequest() {
 
   // This is constructed lazily (instead of within our Start method), so that
   // we have proxy info available.
-  if (request_headers_.empty() && !response_.was_fetched_via_spdy) {
+  if (request_headers_.IsEmpty()) {
     bool using_proxy = (proxy_info_.is_http()|| proxy_info_.is_https()) &&
                         !is_https_request();
-    const std::string path = using_proxy ?
-                             HttpUtil::SpecForRequest(request_->url) :
-                             HttpUtil::PathForRequest(request_->url);
-    std::string request_line = base::StringPrintf(
-        "%s %s HTTP/1.1\r\n", request_->method.c_str(), path.c_str());
-
-    HttpRequestHeaders request_headers;
     HttpUtil::BuildRequestHeaders(request_, request_body, auth_controllers_,
                                   ShouldApplyServerAuth(),
                                   ShouldApplyProxyAuth(), using_proxy,
-                                  &request_headers);
+                                  &request_headers_);
 
     if (session_->network_delegate())
-      session_->network_delegate()->OnSendHttpRequest(&request_headers);
-
-    if (net_log_.IsLoggingAllEvents()) {
-      net_log_.AddEvent(
-          NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
-          new NetLogHttpRequestParameter(request_line, request_headers));
-    }
-
-    request_headers_ = request_line + request_headers.ToString();
-  } else {
-    if (net_log_.IsLoggingAllEvents()) {
-      net_log_.AddEvent(
-          NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
-          new NetLogHttpRequestParameter(request_->url.spec(),
-                                         request_->extra_headers));
-    }
+      session_->network_delegate()->OnSendHttpRequest(&request_headers_);
+  }
+  if (net_log_.IsLoggingAllEvents()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+        new NetLogHttpRequestParameter(request_->url.spec(),
+                                       request_->extra_headers));
   }
 
   headers_valid_ = false;
@@ -1050,7 +1035,7 @@ void HttpNetworkTransaction::ResetStateForAuthRestart() {
   read_buf_ = NULL;
   read_buf_len_ = 0;
   headers_valid_ = false;
-  request_headers_.clear();
+  request_headers_.Clear();
   response_ = HttpResponseInfo();
   establishing_tunnel_ = false;
 }
@@ -1080,7 +1065,7 @@ void HttpNetworkTransaction::ResetConnectionAndRequestForResend() {
   // We need to clear request_headers_ because it contains the real request
   // headers, but we may need to resend the CONNECT request first to recreate
   // the SSL tunnel.
-  request_headers_.clear();
+  request_headers_.Clear();
   next_state_ = STATE_CREATE_STREAM;  // Resend the request.
 }
 

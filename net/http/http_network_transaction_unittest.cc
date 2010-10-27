@@ -3991,7 +3991,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   // Setup some state (which we expect ResetStateForRestart() will clear).
   trans->read_buf_ = new IOBuffer(15);
   trans->read_buf_len_ = 15;
-  trans->request_headers_ = "Authorization: NTLM";
+  trans->request_headers_.SetHeader("Authorization", "NTLM");
 
   // Setup state in response_
   HttpResponseInfo* response = &trans->response_;
@@ -4016,7 +4016,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   // Verify that the state that needed to be reset, has been reset.
   EXPECT_TRUE(trans->read_buf_.get() == NULL);
   EXPECT_EQ(0, trans->read_buf_len_);
-  EXPECT_EQ(0U, trans->request_headers_.size());
+  EXPECT_TRUE(trans->request_headers_.IsEmpty());
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_TRUE(response->headers.get() == NULL);
   EXPECT_FALSE(response->was_cached);

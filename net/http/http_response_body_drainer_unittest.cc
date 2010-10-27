@@ -78,7 +78,7 @@ class MockHttpStream : public HttpStream {
                                CompletionCallback* callback) {
     return ERR_UNEXPECTED;
   }
-  virtual int SendRequest(const std::string& request_headers,
+  virtual int SendRequest(const HttpRequestHeaders& request_headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           CompletionCallback* callback) {
