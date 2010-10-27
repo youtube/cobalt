@@ -25,6 +25,12 @@ void SSLCipherSuiteToStrings(const char** key_exchange_str,
 // If the algorithm is unknown, |name| is set to "???".
 void SSLCompressionToString(const char** name, uint8 compression_method);
 
+// SSLVersionToString returns the name of the SSL protocol version
+// specified by |ssl_version|, which is defined in
+// net/base/ssl_connection_status_flags.h.
+// If the version is unknown, |name| is set to "???".
+void SSLVersionToString(const char** name, int ssl_version);
+
 }  // namespace net
 
 #endif  // NET_BASE_SSL_CIPHER_SUITE_NAMES_H_

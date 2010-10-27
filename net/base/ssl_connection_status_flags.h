@@ -27,6 +27,16 @@ enum {
   // library that doesn't report it, like SChannel.)
   SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION = 1 << 19,
 
+  // The next three bits are reserved for the SSL version.
+  SSL_CONNECTION_VERSION_SHIFT = 20,
+  SSL_CONNECTION_VERSION_MASK = 7,
+  SSL_CONNECTION_VERSION_UNKNOWN = 0,  // Unknown SSL version or SSL not used.
+  SSL_CONNECTION_VERSION_SSL2 = 1,
+  SSL_CONNECTION_VERSION_SSL3 = 2,
+  SSL_CONNECTION_VERSION_TLS1 = 3,
+  SSL_CONNECTION_VERSION_TLS1_1 = 4,
+  SSL_CONNECTION_VERSION_TLS1_2 = 5,
+
   // 1 << 31 (the sign bit) is reserved so that the SSL connection status will
   // never be negative.
 };
@@ -39,6 +49,11 @@ inline int SSLConnectionStatusToCipherSuite(int connection_status) {
 inline int SSLConnectionStatusToCompression(int connection_status) {
   return (connection_status >> SSL_CONNECTION_COMPRESSION_SHIFT) &
          SSL_CONNECTION_COMPRESSION_MASK;
+}
+
+inline int SSLConnectionStatusToVersion(int connection_status) {
+  return (connection_status >> SSL_CONNECTION_VERSION_SHIFT) &
+         SSL_CONNECTION_VERSION_MASK;
 }
 
 }  // namespace net
