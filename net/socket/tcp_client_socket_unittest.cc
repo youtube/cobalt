@@ -93,7 +93,7 @@ void TCPClientSocketTest::SetUp() {
   AddressList addr;
   scoped_ptr<HostResolver> resolver(
       CreateSystemHostResolver(HostResolver::kDefaultParallelism,
-                               NULL, NULL));
+                               NULL));
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
   int rv = resolver->Resolve(info, &addr, NULL, NULL, BoundNetLog());
   CHECK_EQ(rv, OK);
