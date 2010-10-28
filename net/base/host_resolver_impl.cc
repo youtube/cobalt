@@ -72,7 +72,6 @@ HostCache* CreateDefaultCache() {
 }  // anonymous namespace
 
 HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
-                                       HostResolverProc* resolver_proc,
                                        NetLog* net_log) {
   // Maximum of 50 concurrent threads.
   // TODO(eroman): Adjust this, do some A/B experiments.
@@ -82,7 +81,7 @@ HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
     max_concurrent_resolves = kDefaultMaxJobs;
 
   HostResolverImpl* resolver =
-      new HostResolverImpl(resolver_proc, CreateDefaultCache(),
+      new HostResolverImpl(NULL, CreateDefaultCache(),
                            max_concurrent_resolves, net_log);
 
   return resolver;
