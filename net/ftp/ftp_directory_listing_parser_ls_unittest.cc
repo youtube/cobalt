@@ -91,6 +91,28 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
   }
 }
 
+TEST_F(FtpDirectoryListingParserLsTest, Ignored) {
+  const char* ignored_cases[] = {
+    "drwxr-xr-x 2 0 0 4096 Mar 18  2007  ",  // http://crbug.com/60065
+
+    // Tests important for security: verify that after we detect the column
+    // offset we don't try to access invalid memory on malformed input.
+    "drwxr-xr-x 3 ftp ftp 4096 May 15 18:11",
+    "drwxr-xr-x 3 ftp     4096 May 15 18:11",
+    "drwxr-xr-x   folder     0 May 15 18:11",
+  };
+  for (size_t i = 0; i < arraysize(ignored_cases); i++) {
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
+                                    ignored_cases[i]));
+
+    net::FtpDirectoryListingParserLs parser(GetMockCurrentTime());
+    EXPECT_TRUE(parser.ConsumeLine(UTF8ToUTF16(ignored_cases[i])));
+    EXPECT_FALSE(parser.EntryAvailable());
+    EXPECT_TRUE(parser.OnEndOfInput());
+    EXPECT_FALSE(parser.EntryAvailable());
+  }
+}
+
 TEST_F(FtpDirectoryListingParserLsTest, Bad) {
   const char* bad_cases[] = {
     " foo",
@@ -112,12 +134,6 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "d-wx-wx-wt++  4 ftp 989 512 Dec  8 15:54 incoming",
     "d-wx-wx-wt$  4 ftp 989 512 Dec  8 15:54 incoming",
     "-qqqqqqqqq+  2 sys          512 Mar 27  2009 pub",
-
-    // Tests important for security: verify that after we detect the column
-    // offset we don't try to access invalid memory on malformed input.
-    "drwxr-xr-x 3 ftp ftp 4096 May 15 18:11",
-    "drwxr-xr-x 3 ftp     4096 May 15 18:11",
-    "drwxr-xr-x   folder     0 May 15 18:11",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
     net::FtpDirectoryListingParserLs parser(GetMockCurrentTime());
