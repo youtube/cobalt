@@ -336,7 +336,7 @@ bool InitializeLogFileHandle() {
   return true;
 }
 
-void BaseInitLoggingImpl(const PathChar* new_log_file,
+bool BaseInitLoggingImpl(const PathChar* new_log_file,
                          LoggingDestination logging_dest,
                          LogLockingState lock_log,
                          OldFileDeletionState delete_old) {
@@ -370,7 +370,7 @@ void BaseInitLoggingImpl(const PathChar* new_log_file,
   // ignore file options if logging is disabled or only to system
   if (logging_destination == LOG_NONE ||
       logging_destination == LOG_ONLY_TO_SYSTEM_DEBUG_LOG)
-    return;
+    return true;
 
   if (!log_file_name)
     log_file_name = new PathString();
@@ -378,7 +378,7 @@ void BaseInitLoggingImpl(const PathChar* new_log_file,
   if (delete_old == DELETE_OLD_LOG_FILE)
     DeleteFilePath(*log_file_name);
 
-  InitializeLogFileHandle();
+  return InitializeLogFileHandle();
 }
 
 void SetMinLogLevel(int level) {
