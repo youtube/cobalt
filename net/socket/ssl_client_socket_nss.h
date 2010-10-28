@@ -166,7 +166,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // converted into an X509Certificate object (server_cert_).
   scoped_refptr<X509Certificate> server_cert_;
   CERTCertificate* server_cert_nss_;
-  CertVerifyResult server_cert_verify_result_;
+  // |server_cert_verify_result_| points at the verification result, which may,
+  // or may not be, |&local_server_cert_verify_result_|, depending on whether
+  // we used an SSLHostInfo's verification.
+  const CertVerifyResult* server_cert_verify_result_;
+  CertVerifyResult local_server_cert_verify_result_;
   int ssl_connection_status_;
 
   // Stores client authentication information between ClientAuthHandler and
@@ -193,6 +197,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True iff we believe that the user has NetNanny intercepting our HTTPS
   // connections.
   bool netnanny_mitm_detected_;
+
+  // True iff |ssl_host_info_| contained a predicted certificate chain and
+  // that we found the prediction to be correct.
+  bool predicted_cert_chain_correct_;
 
   // True if the peer name has been initialized.
   bool peername_initialized_;
