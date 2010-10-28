@@ -1072,28 +1072,15 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
   if (server_cert_ == NULL) {
     server_cert_nss_ = SSL_PeerCertificate(nss_fd_);
     if (server_cert_nss_) {
-#if defined(OS_WIN) || defined(OS_MACOSX)
-      std::vector<base::StringPiece> der_certs;
-      CERTCertList* cert_list = CERT_GetCertChainFromCert(
-          server_cert_nss_, PR_Now(), certUsageSSLCA);
-      if (cert_list) {
-        for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
-             !CERT_LIST_END(node, cert_list);
-             node = CERT_LIST_NEXT(node)) {
-          der_certs.push_back(base::StringPiece(
-                reinterpret_cast<const char*>(node->cert->derCert.data),
-                node->cert->derCert.len));
-        }
-        server_cert_ = X509Certificate::CreateFromDERCertChain(der_certs);
-        CERT_DestroyCertList(cert_list);
+      PeerCertificateChain certs(nss_fd_);
+      std::vector<base::StringPiece> der_certs(certs.size());
+
+      for (unsigned i = 0; i < certs.size(); i++) {
+        der_certs[i] = base::StringPiece(
+            reinterpret_cast<const char*>(certs[i]->derCert.data),
+            certs[i]->derCert.len);
       }
-#else
-      // TODO(agl): this should use SSL_PeerCertificateChain
-      server_cert_ = X509Certificate::CreateFromHandle(
-          server_cert_nss_,
-          X509Certificate::SOURCE_FROM_NETWORK,
-          X509Certificate::OSCertHandles());
-#endif
+      server_cert_ = X509Certificate::CreateFromDERCertChain(der_certs);
     }
   }
   return server_cert_;
@@ -2247,41 +2234,15 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   if (SSLConfigService::snap_start_enabled())
     result = OK;
 
-  if (result == OK) {
-    // Remember the intermediate CA certs if the server sends them to us.
-    //
-    // We used to remember the intermediate CA certs in the NSS database
-    // persistently.  However, NSS opens a connection to the SQLite database
-    // during NSS initialization and doesn't close the connection until NSS
-    // shuts down.  If the file system where the database resides is gone,
-    // the database connection goes bad.  What's worse, the connection won't
-    // recover when the file system comes back.  Until this NSS or SQLite bug
-    // is fixed, we need to  avoid using the NSS database for non-essential
-    // purposes.  See https://bugzilla.mozilla.org/show_bug.cgi?id=508081 and
-    // http://crbug.com/15630 for more info.
-    CERTCertList* cert_list = CERT_GetCertChainFromCert(
-        server_cert_nss_, PR_Now(), certUsageSSLCA);
-    if (cert_list) {
-      for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
-           !CERT_LIST_END(node, cert_list);
-           node = CERT_LIST_NEXT(node)) {
-        if (node->cert->slot || node->cert->isRoot || node->cert->isperm ||
-            node->cert == server_cert_nss_) {
-          // Some certs we don't want to remember are:
-          // - found on a token.
-          // - the root cert.
-          // - already stored in perm db.
-          // - the server cert itself.
-          continue;
-        }
-
-        // We have found a CA cert that we want to remember.
-        // TODO(wtc): Remember the intermediate CA certs in a std::set
-        // temporarily (http://crbug.com/15630).
-      }
-      CERT_DestroyCertList(cert_list);
-    }
-  }
+  // We used to remember the intermediate CA certs in the NSS database
+  // persistently.  However, NSS opens a connection to the SQLite database
+  // during NSS initialization and doesn't close the connection until NSS
+  // shuts down.  If the file system where the database resides is gone,
+  // the database connection goes bad.  What's worse, the connection won't
+  // recover when the file system comes back.  Until this NSS or SQLite bug
+  // is fixed, we need to  avoid using the NSS database for non-essential
+  // purposes.  See https://bugzilla.mozilla.org/show_bug.cgi?id=508081 and
+  // http://crbug.com/15630 for more info.
 
   // If we have been explicitly told to accept this certificate, override the
   // result of verifier_.Verify.
