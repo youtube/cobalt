@@ -310,7 +310,9 @@ TEST_F(HTTPSRequestTest, HTTPSGetTest) {
 }
 
 TEST_F(HTTPSRequestTest, HTTPSMismatchedTest) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS_MISMATCHED_HOSTNAME,
+  net::TestServer::HTTPSOptions https_options(
+      net::TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
+  net::TestServer test_server(https_options,
                               FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -340,7 +342,9 @@ TEST_F(HTTPSRequestTest, HTTPSMismatchedTest) {
 }
 
 TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS_EXPIRED_CERTIFICATE,
+  net::TestServer::HTTPSOptions https_options(
+      net::TestServer::HTTPSOptions::CERT_EXPIRED);
+  net::TestServer test_server(https_options,
                               FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -398,7 +402,9 @@ class SSLClientAuthTestDelegate : public TestDelegate {
 // - Getting a certificate request in an SSL renegotiation sending the
 //   HTTP request.
 TEST_F(HTTPSRequestTest, ClientAuthTest) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS_CLIENT_AUTH,
+  net::TestServer::HTTPSOptions https_options;
+  https_options.request_client_certificate = true;
+  net::TestServer test_server(https_options,
                               FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
