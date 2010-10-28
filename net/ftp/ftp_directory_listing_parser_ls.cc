@@ -126,8 +126,20 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
 
   // We may receive file names containing spaces, which can make the number of
   // columns arbitrarily large. We will handle that later. For now just make
-  // sure we have all the columns that should normally be there.
-  if (columns.size() < 7U + column_offset)
+  // sure we have all the columns that should normally be there:
+  //
+  //   1. permission listing
+  //   2. number of links (optional)
+  //   3. owner name
+  //   4. group name (optional)
+  //   5. size in bytes
+  //   6. month
+  //   7. day of month
+  //   8. year or time
+  //
+  // The number of optional columns is stored in |column_offset|
+  // and is between 0 and 2 (inclusive).
+  if (columns.size() < 6U + column_offset)
     return false;
 
   if (!LooksLikeUnixPermissionsListing(columns[0]))
@@ -165,6 +177,14 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
   }
 
   entry.name = FtpUtil::GetStringPartAfterColumns(line, 6 + column_offset);
+
+  if (entry.name.empty()) {
+    // Some FTP servers send listing entries with empty names. It's not obvious
+    // how to display such an entry, so we ignore them. We don't want to make
+    // the parsing fail at this point though. Other entries can still be useful.
+    return true;
+  }
+
   if (entry.type == FtpDirectoryListingEntry::SYMLINK) {
     string16::size_type pos = entry.name.rfind(ASCIIToUTF16(" -> "));
 
