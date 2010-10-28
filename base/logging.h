@@ -179,7 +179,7 @@ typedef char PathChar;
 // Implementation of the InitLogging() method declared below.  We use a
 // more-specific name so we can #define it above without affecting other code
 // that has named stuff "InitLogging".
-void BaseInitLoggingImpl(const PathChar* log_file,
+bool BaseInitLoggingImpl(const PathChar* log_file,
                          LoggingDestination logging_dest,
                          LogLockingState lock_log,
                          OldFileDeletionState delete_old);
@@ -194,11 +194,11 @@ void BaseInitLoggingImpl(const PathChar* log_file,
 // The default log file is initialized to "debug.log" in the application
 // directory. You probably don't want this, especially since the program
 // directory may not be writable on an enduser's system.
-inline void InitLogging(const PathChar* log_file,
+inline bool InitLogging(const PathChar* log_file,
                         LoggingDestination logging_dest,
                         LogLockingState lock_log,
                         OldFileDeletionState delete_old) {
-  BaseInitLoggingImpl(log_file, logging_dest, lock_log, delete_old);
+  return BaseInitLoggingImpl(log_file, logging_dest, lock_log, delete_old);
 }
 
 // Sets the log level. Anything at or above this level will be written to the
