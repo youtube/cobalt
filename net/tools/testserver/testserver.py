@@ -64,7 +64,7 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
   """This is a specialization of StoppableHTTPerver that add https support."""
 
   def __init__(self, server_address, request_hander_class, cert_path,
-               ssl_client_auth, ssl_client_cas):
+               ssl_client_auth, ssl_client_cas, ssl_bulk_ciphers):
     s = open(cert_path).read()
     x509 = tlslite.api.X509()
     x509.parse(s)
@@ -78,6 +78,9 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
         x509 = tlslite.api.X509()
         x509.parse(s)
         self.ssl_client_cas.append(x509.subject)
+    self.ssl_handshake_settings = tlslite.api.HandshakeSettings()
+    if ssl_bulk_ciphers is not None:
+      self.ssl_handshake_settings.cipherNames = ssl_bulk_ciphers
 
     self.session_cache = tlslite.api.SessionCache()
     StoppableHTTPServer.__init__(self, server_address, request_hander_class)
@@ -89,6 +92,7 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
                                     privateKey=self.private_key,
                                     sessionCache=self.session_cache,
                                     reqCert=self.ssl_client_auth,
+                                    settings=self.ssl_handshake_settings,
                                     reqCAs=self.ssl_client_cas)
       tlsConnection.ignoreAbruptClose = True
       return True
@@ -1169,7 +1173,8 @@ def main(options, args):
                 ' exiting...'
           return
       server = HTTPSServer(('127.0.0.1', port), TestPageHandler, options.cert,
-                           options.ssl_client_auth, options.ssl_client_ca)
+                           options.ssl_client_auth, options.ssl_client_ca,
+                           options.ssl_bulk_cipher)
       print 'HTTPS server started on port %d...' % port
     else:
       server = StoppableHTTPServer(('127.0.0.1', port), TestPageHandler)
@@ -1240,8 +1245,18 @@ if __name__ == '__main__':
                            help='Require SSL client auth on every connection.')
   option_parser.add_option('', '--ssl-client-ca', action='append', default=[],
                            help='Specify that the client certificate request '
-                           'should indicate that it supports the CA contained '
-                           'in the specified certificate file')
+                           'should include the CA named in the subject of '
+                           'the DER-encoded certificate contained in the '
+                           'specified file. This option may appear multiple '
+                           'times, indicating multiple CA names should be '
+                           'sent in the request.')
+  option_parser.add_option('', '--ssl-bulk-cipher', action='append',
+                           help='Specify the bulk encryption algorithm(s)'
+                           'that will be accepted by the SSL server. Valid '
+                           'values are "aes256", "aes128", "3des", "rc4". If '
+                           'omitted, all algorithms will be used. This '
+                           'option may appear multiple times, indicating '
+                           'multiple algorithms should be enabled.');
   option_parser.add_option('', '--file-root-url', default='/files/',
                            help='Specify a root URL for files served.')
   option_parser.add_option('', '--startup-pipe', type='int',

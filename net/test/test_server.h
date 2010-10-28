@@ -6,9 +6,10 @@
 #define NET_TEST_TEST_SERVER_H_
 #pragma once
 
-#include "build/build_config.h"
-
 #include <string>
+#include <vector>
+
+#include "build/build_config.h"
 
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
@@ -25,6 +26,7 @@
 #include "net/base/x509_certificate.h"
 #endif
 
+class CommandLine;
 class GURL;
 
 namespace net {
@@ -39,12 +41,70 @@ class TestServer {
     TYPE_FTP,
     TYPE_HTTP,
     TYPE_HTTPS,
-    TYPE_HTTPS_CLIENT_AUTH,
-    TYPE_HTTPS_MISMATCHED_HOSTNAME,
-    TYPE_HTTPS_EXPIRED_CERTIFICATE,
+  };
+
+  // Container for various options to control how the HTTPS server is
+  // initialized.
+  struct HTTPSOptions {
+    enum ServerCertificate {
+      CERT_OK,
+      CERT_MISMATCHED_NAME,
+      CERT_EXPIRED,
+    };
+
+    // Bitmask of bulk encryption algorithms that the test server supports
+    // and that can be selectively enabled or disabled.
+    enum BulkCipher {
+      // Special value used to indicate that any algorithm the server supports
+      // is acceptable. Preferred over explicitly OR-ing all ciphers.
+      BULK_CIPHER_ANY    = 0,
+
+      BULK_CIPHER_RC4    = (1 << 0),
+      BULK_CIPHER_AES128 = (1 << 1),
+      BULK_CIPHER_AES256 = (1 << 2),
+
+      // NOTE: 3DES support in the Python test server has external
+      // dependencies and not be available on all machines. Clients may not
+      // be able to connect if only 3DES is specified.
+      BULK_CIPHER_3DES   = (1 << 3),
+    };
+
+    // Initialize a new HTTPSOptions using CERT_OK as the certificate.
+    HTTPSOptions();
+
+    // Initialize a new HTTPSOptions that will use the specified certificate.
+    explicit HTTPSOptions(ServerCertificate cert);
+    ~HTTPSOptions();
+
+    // Returns the relative filename of the file that contains the
+    // |server_certificate|.
+    FilePath GetCertificateFile() const;
+
+    // The certificate to use when serving requests.
+    ServerCertificate server_certificate;
+
+    // True if a CertificateRequest should be sent to the client during
+    // handshaking.
+    bool request_client_certificate;
+
+    // If |request_client_certificate| is true, an optional list of files,
+    // each containing a single, PEM-encoded X.509 certificates. The subject
+    // from each certificate will be added to the certificate_authorities
+    // field of the CertificateRequest.
+    std::vector<FilePath> client_authorities;
+
+    // A bitwise-OR of BulkCipher that should be used by the
+    // HTTPS server, or BULK_CIPHER_ANY to indicate that all implemented
+    // ciphers are acceptable.
+    int bulk_ciphers;
   };
 
   TestServer(Type type, const FilePath& document_root);
+
+  // Initialize a HTTPS TestServer with a specific set of HTTPSOptions.
+  TestServer(const HTTPSOptions& https_options,
+             const FilePath& document_root);
+
   ~TestServer();
 
   bool Start() WARN_UNUSED_RESULT;
@@ -67,6 +127,8 @@ class TestServer {
                                  const std::string& password);
 
  private:
+  void Init(const FilePath& document_root);
+
   // Modify PYTHONPATH to contain libraries we need.
   bool SetPythonPath() WARN_UNUSED_RESULT;
 
@@ -85,9 +147,9 @@ class TestServer {
   // Load the test root cert, if it hasn't been loaded yet.
   bool LoadTestRootCert() WARN_UNUSED_RESULT;
 
-  // Returns path to the SSL certificate we should use, or empty path
-  // if not applicable.
-  FilePath GetCertificatePath();
+  // Add the command line arguments for the Python test server to
+  // |command_line|. Return true on success.
+  bool AddCommandLineArguments(CommandLine* command_line) const;
 
   // Document root of the test server.
   FilePath document_root_;
@@ -114,6 +176,9 @@ class TestServer {
   int child_fd_;
   file_util::ScopedFD child_fd_closer_;
 #endif
+
+  // If |type_| is TYPE_HTTPS, the TLS settings to use for the test server.
+  HTTPSOptions https_options_;
 
 #if defined(USE_NSS)
   scoped_refptr<X509Certificate> cert_;
