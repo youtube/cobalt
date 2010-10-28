@@ -93,8 +93,9 @@ TEST_F(SSLClientSocketTest, Connect) {
 }
 
 TEST_F(SSLClientSocketTest, ConnectExpired) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS_EXPIRED_CERTIFICATE,
-                              FilePath());
+  net::TestServer::HTTPSOptions https_options(
+      net::TestServer::HTTPSOptions::CERT_EXPIRED);
+  net::TestServer test_server(https_options, FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -136,8 +137,9 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 }
 
 TEST_F(SSLClientSocketTest, ConnectMismatched) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS_MISMATCHED_HOSTNAME,
-                              FilePath());
+  net::TestServer::HTTPSOptions https_options(
+      net::TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
+  net::TestServer test_server(https_options, FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -183,8 +185,9 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 // return an error code on connect.
 // Flaky: http://crbug.com/54445
 TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS_CLIENT_AUTH,
-                              FilePath());
+  net::TestServer::HTTPSOptions https_options;
+  https_options.request_client_certificate = true;
+  net::TestServer test_server(https_options, FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -230,8 +233,9 @@ TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
 //
 // TODO(davidben): Also test providing an actual certificate.
 TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS_CLIENT_AUTH,
-                              FilePath());
+  net::TestServer::HTTPSOptions https_options;
+  https_options.request_client_certificate = true;
+  net::TestServer test_server(https_options, FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
