@@ -20,6 +20,7 @@ namespace net {
 class AddressList;
 class BoundNetLog;
 class HostResolverImpl;
+class HostResolverProc;
 class NetLog;
 
 // This class represents the task of resolving hostnames (or IP address
@@ -230,13 +231,13 @@ class SingleRequestHostResolver {
   DISALLOW_COPY_AND_ASSIGN(SingleRequestHostResolver);
 };
 
-// Creates a HostResolver implementation that queries the underlying system.
-// (Except if a unit-test has changed the global HostResolverProc using
-// ScopedHostResolverProc to intercept requests to the system).
-// |max_concurrent_resolves| is how many resolve requests will be allowed to
-// run in parallel. Pass HostResolver::kDefaultParallelism to choose a
-// default value.
+// Creates a HostResolver implementation using |resolver_proc| as resolver,
+// (which if NULL, will default to getaddrinfo() wrapper) that queries the
+// underlying system, |max_concurrent_resolves| is how many resolve
+// requests will be allowed to run in parallel. Pass
+// HostResolver::kDefaultParallelism to choose a default value.
 HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
+                                       HostResolverProc* resolver_proc,
                                        NetLog* net_log);
 
 }  // namespace net
