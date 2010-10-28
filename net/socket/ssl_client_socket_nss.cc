@@ -359,6 +359,43 @@ BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
 
 #endif
 
+// PeerCertificateChain is a helper object which extracts the certificate
+// chain, as given by the server, from an NSS socket and performs the needed
+// resource management. The first element of the chain is the leaf certificate
+// and the other elements are in the order given by the server.
+class PeerCertificateChain {
+ public:
+  PeerCertificateChain(PRFileDesc* nss_fd)
+      : num_certs_(0),
+        certs_(NULL) {
+    SECStatus rv = SSL_PeerCertificateChain(nss_fd, NULL, &num_certs_);
+    DCHECK_EQ(rv, SECSuccess);
+
+    certs_ = new CERTCertificate*[num_certs_];
+    const unsigned expected_num_certs = num_certs_;
+    rv = SSL_PeerCertificateChain(nss_fd, certs_, &num_certs_);
+    DCHECK_EQ(rv, SECSuccess);
+    DCHECK_EQ(num_certs_, expected_num_certs);
+  }
+
+  ~PeerCertificateChain() {
+    for (unsigned i = 0; i < num_certs_; i++)
+      CERT_DestroyCertificate(certs_[i]);
+    delete[] certs_;
+  }
+
+  unsigned size() const { return num_certs_; }
+
+  CERTCertificate* operator[](unsigned i) {
+    DCHECK_LT(i, num_certs_);
+    return certs_[i];
+  }
+
+ private:
+  unsigned num_certs_;
+  CERTCertificate** certs_;
+};
+
 }  // namespace
 
 SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
@@ -468,33 +505,19 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
     state->npn_valid = false;
   }
 
-  // TODO(wtc): CERT_GetCertChainFromCert might not return the same cert chain
-  // that the Certificate message actually contained. http://crbug.com/48854
-  CERTCertList* cert_list = CERT_GetCertChainFromCert(
-      server_cert_nss_, PR_Now(), certUsageSSLCA);
-  if (!cert_list)
-    return;
-
   state->certs.clear();
-  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
-       !CERT_LIST_END(node, cert_list);
-       node = CERT_LIST_NEXT(node)) {
-    if (node->cert->derCert.len > std::numeric_limits<uint16>::max()) {
-      CERT_DestroyCertList(cert_list);
+  PeerCertificateChain certs(nss_fd_);
+  for (unsigned i = 0; i < certs.size(); i++) {
+    if (certs[i]->derCert.len > std::numeric_limits<uint16>::max())
       return;
-    }
-    if (node->cert->isRoot == PR_TRUE)
-      continue;
 
     state->certs.push_back(std::string(
-          reinterpret_cast<char*>(node->cert->derCert.data),
-          node->cert->derCert.len));
+          reinterpret_cast<char*>(certs[i]->derCert.data),
+          certs[i]->derCert.len));
   }
 
   LOG(ERROR) << "Setting Snap Start info " << hostname_;
   ssl_host_info_->Persist();
-
-  CERT_DestroyCertList(cert_list);
 }
 
 static void DestroyCertificates(CERTCertificate** certs, unsigned len) {
