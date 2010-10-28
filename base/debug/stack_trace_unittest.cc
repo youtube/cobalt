@@ -14,8 +14,13 @@ namespace debug {
 
 // Note: On Linux, this test currently only fully works on Debug builds.
 // See comments in the #ifdef soup if you intend to change this.
-// Flaky, crbug.com/32070.
-TEST(StackTrace, FLAKY_OutputToStream) {
+#if defined(OS_WIN)
+// Always fails on Windows: crbug.com/32070
+#define MAYBE_OutputToStream FAILS_OutputToStream
+#else
+#define MAYBE_OutputToStream OutputToStream
+#endif
+TEST(StackTrace, MAYBE_OutputToStream) {
   StackTrace trace;
 
   // Dump the trace into a string.
