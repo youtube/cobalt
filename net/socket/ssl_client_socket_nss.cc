@@ -420,6 +420,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       user_read_buf_len_(0),
       user_write_buf_len_(0),
       server_cert_nss_(NULL),
+      server_cert_verify_result_(NULL),
       ssl_connection_status_(0),
       client_auth_cert_needed_(false),
       handshake_callback_called_(false),
@@ -427,6 +428,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       pseudo_connected_(false),
       eset_mitm_detected_(false),
       netnanny_mitm_detected_(false),
+      predicted_cert_chain_correct_(false),
       peername_initialized_(false),
       dnssec_provider_(NULL),
       next_handshake_state_(STATE_NONE),
@@ -892,12 +894,14 @@ void SSLClientSocketNSS::Disconnect() {
     CERT_DestroyCertificate(server_cert_nss_);
     server_cert_nss_     = NULL;
   }
-  server_cert_verify_result_.Reset();
+  local_server_cert_verify_result_.Reset();
+  server_cert_verify_result_ = NULL;
   ssl_connection_status_ = 0;
   completed_handshake_   = false;
   pseudo_connected_      = false;
   eset_mitm_detected_    = false;
   netnanny_mitm_detected_= false;
+  predicted_cert_chain_correct_ = false;
   peername_initialized_  = false;
   nss_bufs_              = NULL;
   client_certs_.clear();
@@ -1161,7 +1165,7 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
     return;
   }
 
-  ssl_info->cert_status = server_cert_verify_result_.cert_status;
+  ssl_info->cert_status = server_cert_verify_result_->cert_status;
   DCHECK(server_cert_ != NULL);
   ssl_info->cert = server_cert_;
   ssl_info->connection_status = ssl_connection_status_;
@@ -1924,6 +1928,26 @@ int SSLClientSocketNSS::DoHandshake() {
       } else if (netnanny_mitm_detected_) {
         net_error = ERR_NETNANNY_SSL_INTERCEPTION;
       } else {
+        // We need to see if the predicted certificate chain (in
+        // |ssl_host_info_->state().certs) matches the actual certificate chain
+        // before we call SaveSnapStartInfo, as that will update
+        // |ssl_host_info_|.
+        if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty()) {
+          PeerCertificateChain certs(nss_fd_);
+          const SSLHostInfo::State& state = ssl_host_info_->state();
+          predicted_cert_chain_correct_ = certs.size() == state.certs.size();
+          if (predicted_cert_chain_correct_) {
+            for (unsigned i = 0; i < certs.size(); i++) {
+              if (certs[i]->derCert.len != state.certs[i].size() ||
+                  memcmp(certs[i]->derCert.data, state.certs[i].data(),
+                         certs[i]->derCert.len) != 0) {
+                predicted_cert_chain_correct_ = false;
+                break;
+              }
+            }
+          }
+        }
+
         SaveSnapStartInfo();
         // SSL handshake is completed. It's possible that we mispredicted the
         // NPN agreed protocol. In this case, we've just sent a request in the
@@ -2122,7 +2146,8 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
   if (ssl_config_.dnssec_enabled) {
     DNSValidationResult r = CheckDNSSECChain(hostname_, server_cert_nss_);
     if (r == DNSVR_SUCCESS) {
-      server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
+      local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
+      server_cert_verify_result_ = &local_server_cert_verify_result_;
       GotoState(STATE_VERIFY_CERT_COMPLETE);
       return OK;
     }
@@ -2167,13 +2192,15 @@ int SSLClientSocketNSS::DoVerifyDNSSECComplete(int result) {
   switch (r) {
     case DNSVR_FAILURE:
       GotoState(STATE_VERIFY_CERT_COMPLETE);
-      server_cert_verify_result_.cert_status |= CERT_STATUS_NOT_IN_DNS;
+      local_server_cert_verify_result_.cert_status |= CERT_STATUS_NOT_IN_DNS;
+      server_cert_verify_result_ = &local_server_cert_verify_result_;
       return ERR_CERT_NOT_IN_DNS;
     case DNSVR_CONTINUE:
       GotoState(STATE_VERIFY_CERT);
       break;
     case DNSVR_SUCCESS:
-      server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
+      local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
+      server_cert_verify_result_ = &local_server_cert_verify_result_;
       GotoState(STATE_VERIFY_CERT_COMPLETE);
       break;
     default:
@@ -2186,16 +2213,28 @@ int SSLClientSocketNSS::DoVerifyDNSSECComplete(int result) {
 
 int SSLClientSocketNSS::DoVerifyCert(int result) {
   DCHECK(server_cert_);
-  GotoState(STATE_VERIFY_CERT_COMPLETE);
-  int flags = 0;
 
+  GotoState(STATE_VERIFY_CERT_COMPLETE);
+
+  if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty() &&
+      predicted_cert_chain_correct_) {
+    // If the SSLHostInfo had a prediction for the certificate chain of this
+    // server then it will have optimistically started a verification of that
+    // chain. So, if the prediction was correct, we should wait for that
+    // verification to finish rather than start our own.
+    server_cert_verify_result_ = &ssl_host_info_->cert_verify_result();
+    return ssl_host_info_->WaitForCertVerification(&handshake_io_callback_);
+  }
+
+  int flags = 0;
   if (ssl_config_.rev_checking_enabled)
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new CertVerifier);
+  server_cert_verify_result_ = &local_server_cert_verify_result_;
   return verifier_->Verify(server_cert_, hostname_, flags,
-                           &server_cert_verify_result_,
+                           &local_server_cert_verify_result_,
                            &handshake_io_callback_);
 }
 
@@ -2329,15 +2368,15 @@ int SSLClientSocketNSS::DoPayloadWrite() {
 
 void SSLClientSocketNSS::LogConnectionTypeMetrics() const {
   UpdateConnectionTypeHistograms(CONNECTION_SSL);
-  if (server_cert_verify_result_.has_md5)
+  if (server_cert_verify_result_->has_md5)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5);
-  if (server_cert_verify_result_.has_md2)
+  if (server_cert_verify_result_->has_md2)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2);
-  if (server_cert_verify_result_.has_md4)
+  if (server_cert_verify_result_->has_md4)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD4);
-  if (server_cert_verify_result_.has_md5_ca)
+  if (server_cert_verify_result_->has_md5_ca)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5_CA);
-  if (server_cert_verify_result_.has_md2_ca)
+  if (server_cert_verify_result_->has_md2_ca)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2_CA);
   int ssl_version = SSLConnectionStatusToVersion(ssl_connection_status_);
   switch (ssl_version) {
