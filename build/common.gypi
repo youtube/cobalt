@@ -283,9 +283,9 @@
     # better.
     'linux_keep_shadow_stacks%': 0,
 
-    # Turn on seccomp sandbox by default.
-    # (Note: this is disabled for official builds.)
-    'linux_use_seccomp_sandbox%': 1,
+    # Set to 1 to turn on seccomp sandbox by default.
+    # (Note: this is ignored for official builds.)
+    'linux_use_seccomp_sandbox%': 0,
 
     # Set to 1 to link against libgnome-keyring instead of using dlopen().
     'linux_link_gnome_keyring%': 0,
