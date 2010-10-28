@@ -806,6 +806,7 @@ png_push_read_IDAT(png_structp png_ptr)
          save_size = png_ptr->current_buffer_size;
 
       png_calculate_crc(png_ptr, png_ptr->current_buffer_ptr, save_size);
+
       png_process_IDAT_data(png_ptr, png_ptr->current_buffer_ptr, save_size);
 
       png_ptr->idat_size -= save_size;
@@ -849,6 +850,7 @@ png_process_IDAT_data(png_structp png_ptr, png_bytep buffer,
 	  !(png_ptr->flags & PNG_FLAG_ZLIB_FINISHED))
    {
       int ret;
+
       /* We have data for zlib, but we must check that zlib
        * has somewhere to put the results.  It doesn't matter
        * if we don't expect any results -- it may be the input
@@ -874,50 +876,49 @@ png_process_IDAT_data(png_structp png_ptr, png_bytep buffer,
       /* Check for any failure before proceeding. */
       if (ret != Z_OK && ret != Z_STREAM_END)
       {
-         /* Terminate the decompression. */
-         png_ptr->flags |= PNG_FLAG_ZLIB_FINISHED;
-         /* This may be a truncated stream (missing or
-          * damaged end code).  Treat that as a warning.
-          */
-         if (png_ptr->row_number >= png_ptr->num_rows ||
-            png_ptr->pass > 6)
-	         png_warning(png_ptr, "Truncated compressed data in IDAT");
-         else
-           png_error(png_ptr, "Decompression error in IDAT");
+	 /* Terminate the decompression. */
+	 png_ptr->flags |= PNG_FLAG_ZLIB_FINISHED;
 
-         /* Skip the check on unprocessed input */
+         /* This may be a truncated stream (missing or
+	  * damaged end code).  Treat that as a warning.
+	  */
+         if (png_ptr->row_number >= png_ptr->num_rows ||
+	     png_ptr->pass > 6)
+	    png_warning(png_ptr, "Truncated compressed data in IDAT");
+	 else
+	    png_error(png_ptr, "Decompression error in IDAT");
+
+	 /* Skip the check on unprocessed input */
          return;
       }
 
       /* Did inflate output any data? */
       if (png_ptr->zstream.next_out != png_ptr->row_buf)
       {
-        /* Is this unexpected data after the last row?
-         * If it is, artificially terminate the LZ output
-         * here.
-         */
+	 /* Is this unexpected data after the last row?
+	  * If it is, artificially terminate the LZ output
+	  * here.
+	  */
          if (png_ptr->row_number >= png_ptr->num_rows ||
-            png_ptr->pass > 6)
+	     png_ptr->pass > 6)
          {
-           /* Extra data. */
-           png_warning(png_ptr, "Extra compressed data in IDAT");
-           png_ptr->flags |= PNG_FLAG_ZLIB_FINISHED;
-           /* Do no more processing; skip the unprocessed
-            * input check below.
-            */
+	    /* Extra data. */
+	    png_warning(png_ptr, "Extra compressed data in IDAT");
+            png_ptr->flags |= PNG_FLAG_ZLIB_FINISHED;
+	    /* Do no more processing; skip the unprocessed
+	     * input check below.
+	     */
             return;
-         }
+	 }
 
- 	       /* Do we have a complete row? */
-         if (png_ptr->zstream.avail_out == 0)
-           png_push_process_row(png_ptr);
+	 /* Do we have a complete row? */
+	 if (png_ptr->zstream.avail_out == 0)
+	    png_push_process_row(png_ptr);
       }
 
-      else
-         break;
       /* And check for the end of the stream. */
       if (ret == Z_STREAM_END)
-        png_ptr->flags |= PNG_FLAG_ZLIB_FINISHED;
+	 png_ptr->flags |= PNG_FLAG_ZLIB_FINISHED;
    }
 
    /* All the data should have been processed, if anything
@@ -941,8 +942,8 @@ png_push_process_row(png_structp png_ptr)
        png_ptr->row_info.width);
 
    png_read_filter_row(png_ptr, &(png_ptr->row_info),
-      png_ptr->row_buf + 1, png_ptr->prev_row + 1,
-      (int)(png_ptr->row_buf[0]));
+       png_ptr->row_buf + 1, png_ptr->prev_row + 1,
+       (int)(png_ptr->row_buf[0]));
 
    png_memcpy_check(png_ptr, png_ptr->prev_row, png_ptr->row_buf,
       png_ptr->rowbytes + 1);
@@ -957,7 +958,7 @@ png_push_process_row(png_structp png_ptr)
       if (png_ptr->pass < 6)
 /*       old interface (pre-1.0.9):
          png_do_read_interlace(&(png_ptr->row_info),
-            png_ptr->row_buf + 1, png_ptr->pass, png_ptr->transformations);
+             png_ptr->row_buf + 1, png_ptr->pass, png_ptr->transformations);
  */
          png_do_read_interlace(png_ptr);
 
@@ -992,7 +993,7 @@ png_push_process_row(png_structp png_ptr)
 
             if (png_ptr->pass == 6 && png_ptr->height <= 4)
             {
-                png_push_have_row(png_ptr, png_bytep_NULL);
+                  png_push_have_row(png_ptr, png_bytep_NULL);
                 png_read_push_finish_row(png_ptr);
             }
 
@@ -1032,7 +1033,7 @@ png_push_process_row(png_structp png_ptr)
 
             for (i = 0; i < 4 && png_ptr->pass == 2; i++)
             {
-               png_push_have_row(png_ptr, png_bytep_NULL);
+                  png_push_have_row(png_ptr, png_bytep_NULL);
                png_read_push_finish_row(png_ptr);
             }
 
@@ -1082,13 +1083,13 @@ png_push_process_row(png_structp png_ptr)
 
             for (i = 0; i < 2 && png_ptr->pass == 4; i++)
             {
-               png_push_have_row(png_ptr, png_bytep_NULL);
+                  png_push_have_row(png_ptr, png_bytep_NULL);
                png_read_push_finish_row(png_ptr);
             }
 
             if (png_ptr->pass == 6) /* Pass 5 might be empty */
             {
-               png_push_have_row(png_ptr, png_bytep_NULL);
+                  png_push_have_row(png_ptr, png_bytep_NULL);
                png_read_push_finish_row(png_ptr);
             }
 
@@ -1107,7 +1108,7 @@ png_push_process_row(png_structp png_ptr)
 
             if (png_ptr->pass == 6) /* Skip top generated row */
             {
-               png_push_have_row(png_ptr, png_bytep_NULL);
+                  png_push_have_row(png_ptr, png_bytep_NULL);
                png_read_push_finish_row(png_ptr);
             }
 
@@ -1121,7 +1122,7 @@ png_push_process_row(png_structp png_ptr)
             if (png_ptr->pass != 6)
                break;
 
-            png_push_have_row(png_ptr, png_bytep_NULL);
+                  png_push_have_row(png_ptr, png_bytep_NULL);
             png_read_push_finish_row(png_ptr);
          }
       }
