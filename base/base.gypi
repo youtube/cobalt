@@ -103,8 +103,6 @@
           'global_descriptors_posix.cc',
           'global_descriptors_posix.h',
           'gtest_prod_util.h',
-          'gtk_util.cc',
-          'gtk_util.h',
           'hash_tables.h',
           'id_map.h',
           'json/json_reader.cc',
