@@ -26,10 +26,10 @@ TEST_F(VlogTest, NoVmodule) {
   EXPECT_EQ(5, VlogInfo("5", "").GetVlogLevel("test6"));
 }
 
-TEST_F(VlogTest, Vmodule) {
+TEST_F(VlogTest, VmoduleBasic) {
   const char kVSwitch[] = "-1";
   const char kVModuleSwitch[] =
-      "foo=,bar=0,baz=blah,,qux=0blah1,quux=1,corge=5";
+      "foo=,bar=0,baz=blah,,qux=0blah1,quux=1,corge.ext=5";
   VlogInfo vlog_info(kVSwitch, kVModuleSwitch);
   EXPECT_EQ(-1, vlog_info.GetVlogLevel("/path/to/grault.cc"));
   EXPECT_EQ(0, vlog_info.GetVlogLevel("/path/to/foo.cc"));
@@ -38,69 +38,31 @@ TEST_F(VlogTest, Vmodule) {
   EXPECT_EQ(0, vlog_info.GetVlogLevel("baz.h"));
   EXPECT_EQ(0, vlog_info.GetVlogLevel("/another/path/to/qux.h"));
   EXPECT_EQ(1, vlog_info.GetVlogLevel("/path/to/quux"));
-  EXPECT_EQ(5, vlog_info.GetVlogLevel("c:\\path/to/corge.h"));
+  EXPECT_EQ(5, vlog_info.GetVlogLevel("c:\\path/to/corge.ext.h"));
 }
 
-#define BENCHMARK(iters, elapsed, code)                         \
-  do {                                                          \
-    base::TimeTicks start = base::TimeTicks::Now();             \
-    for (int i = 0; i < iters; ++i) code;                       \
-    base::TimeTicks end = base::TimeTicks::Now();               \
-    elapsed = end - start;                                      \
-    double cps = iters / elapsed.InSecondsF();                  \
-    LOG(INFO) << cps << " cps (" << elapsed.InSecondsF()        \
-              << "s elapsed)";                                  \
-  } while (0)
+TEST_F(VlogTest, VmoduleDirs) {
+  const char kVModuleSwitch[] =
+      "foo/bar.cc=1,baz\\*\\qux.cc=2,*quux/*=3,*/*-inl.h=4";
+  VlogInfo vlog_info("", kVModuleSwitch);
+  EXPECT_EQ(0, vlog_info.GetVlogLevel("/foo/bar.cc"));
+  EXPECT_EQ(0, vlog_info.GetVlogLevel("bar.cc"));
+  EXPECT_EQ(1, vlog_info.GetVlogLevel("foo/bar.cc"));
 
-double GetSlowdown(const base::TimeDelta& base,
-                   const base::TimeDelta& elapsed) {
-  return elapsed.InSecondsF() / base.InSecondsF();
+  EXPECT_EQ(0, vlog_info.GetVlogLevel("baz/grault/qux.h"));
+  EXPECT_EQ(0, vlog_info.GetVlogLevel("/baz/grault/qux.cc"));
+  EXPECT_EQ(0, vlog_info.GetVlogLevel("baz/grault/qux.cc"));
+  EXPECT_EQ(0, vlog_info.GetVlogLevel("baz/grault/blah/qux.cc"));
+  EXPECT_EQ(2, vlog_info.GetVlogLevel("baz\\grault\\qux.cc"));
+  EXPECT_EQ(2, vlog_info.GetVlogLevel("baz\\grault\\blah\\qux.cc"));
+
+  EXPECT_EQ(0, vlog_info.GetVlogLevel("/foo/bar/baz/quux.cc"));
+  EXPECT_EQ(3, vlog_info.GetVlogLevel("/foo/bar/baz/quux/grault.cc"));
+
+  EXPECT_EQ(0, vlog_info.GetVlogLevel("foo/bar/test-inl.cc"));
+  EXPECT_EQ(4, vlog_info.GetVlogLevel("foo/bar/test-inl.h"));
+  EXPECT_EQ(4, vlog_info.GetVlogLevel("foo/bar/baz/blah-inl.h"));
 }
-
-
-TEST_F(VlogTest, Perf) {
-  const char* kVlogs[] = {
-    "/path/to/foo.cc",
-    "C:\\path\\to\\bar.h",
-    "/path/to/not-matched.mm",
-    "C:\\path\\to\\baz-inl.mm",
-    "C:\\path\\to\\qux.mm",
-    "/path/to/quux.mm",
-    "/path/to/another-not-matched.mm",
-  };
-  const int kVlogCount = arraysize(kVlogs);
-  const int kBenchmarkIterations = RunningOnValgrind() ? 30000 : 10000000;
-
-  base::TimeDelta null_elapsed;
-  {
-    VlogInfo null_vlog_info("", "");
-    BENCHMARK(kBenchmarkIterations, null_elapsed, {
-      EXPECT_NE(-1, null_vlog_info.GetVlogLevel(kVlogs[i % kVlogCount]));
-    });
-  }
-
-  {
-    VlogInfo small_vlog_info("0", "foo=1,bar=2,baz=3,qux=4,quux=5");
-    base::TimeDelta elapsed;
-    BENCHMARK(kBenchmarkIterations, elapsed, {
-      EXPECT_NE(-1, small_vlog_info.GetVlogLevel(kVlogs[i % kVlogCount]));
-    });
-    LOG(INFO) << "slowdown = " << GetSlowdown(null_elapsed, elapsed)
-              << "x";
-  }
-
-  {
-    VlogInfo pattern_vlog_info("0", "fo*=1,ba?=2,b*?z=3,*ux=4,?uux=5");
-    base::TimeDelta elapsed;
-    BENCHMARK(kBenchmarkIterations, elapsed, {
-      EXPECT_NE(-1, pattern_vlog_info.GetVlogLevel(kVlogs[i % kVlogCount]));
-    });
-    LOG(INFO) << "slowdown = " << GetSlowdown(null_elapsed, elapsed)
-              << "x";
-  }
-}
-
-#undef BENCHMARK
 
 }  // namespace
 

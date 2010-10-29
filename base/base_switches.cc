@@ -39,6 +39,11 @@ const char kV[]                             = "v";
 // given by --v.  E.g. "my_module=2,foo*=3" would change the logging
 // level for all code in source files "my_module.*" and "foo*.*"
 // ("-inl" suffixes are also disregarded for this matching).
+//
+// Any pattern containing a forward or backward slash will be tested
+// against the whole pathname and not just the module.  E.g.,
+// "*/foo/bar/*=2" would change the logging level for all code in
+// source files under a "foo/bar" directory.
 const char kVModule[]                       = "vmodule";
 
 // Will wait for 60 seconds for a debugger to come to attach to the process.
