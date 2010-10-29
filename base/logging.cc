@@ -533,10 +533,10 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
 
 // writes the common header info to the stream
 void LogMessage::Init(const char* file, int line) {
-  // log only the filename
-  const char* last_slash = strrchr(file, '\\');
-  if (last_slash)
-    file = last_slash + 1;
+  base::StringPiece filename(file);
+  size_t last_slash_pos = filename.find_last_of("\\/");
+  if (last_slash_pos != base::StringPiece::npos)
+    filename.remove_prefix(last_slash_pos + 1);
 
   // TODO(darin): It might be nice if the columns were fixed width.
 
@@ -565,7 +565,7 @@ void LogMessage::Init(const char* file, int line) {
   }
   if (log_tickcount)
     stream_ << TickCount() << ':';
-  stream_ << log_severity_names[severity_] << ":" << file <<
+  stream_ << log_severity_names[severity_] << ":" << filename <<
              "(" << line << ")] ";
 
   message_start_ = stream_.tellp();
