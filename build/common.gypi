@@ -392,7 +392,7 @@
           'NACL_WIN64',
         ],
       }],
-      ['OS=="mac" or (OS=="linux" and chromeos==0 and target_arch!="arm")', {
+      ['OS=="linux" and chromeos==0 and target_arch!="arm"', {
         'use_cups%': 1,
       }, {
         'use_cups%': 0,
