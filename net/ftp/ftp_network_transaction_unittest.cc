@@ -231,6 +231,27 @@ class FtpSocketDataProviderDirectoryListingWithPasvFallback
       FtpSocketDataProviderDirectoryListingWithPasvFallback);
 };
 
+class FtpSocketDataProviderDirectoryListingZeroSize
+    : public FtpSocketDataProviderDirectoryListing {
+ public:
+  FtpSocketDataProviderDirectoryListingZeroSize() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SIZE:
+        return Verify("SIZE /\r\n", data, PRE_CWD, "213 0\r\n");
+      default:
+        return FtpSocketDataProviderDirectoryListing::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderDirectoryListingZeroSize);
+};
+
 class FtpSocketDataProviderVMSDirectoryListing : public FtpSocketDataProvider {
  public:
   FtpSocketDataProviderVMSDirectoryListing() {
@@ -383,6 +404,31 @@ class FtpSocketDataProviderFileDownloadWithPasvFallback
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderFileDownloadWithPasvFallback);
+};
+
+class FtpSocketDataProviderFileDownloadZeroSize
+    : public FtpSocketDataProviderFileDownload {
+ public:
+  FtpSocketDataProviderFileDownloadZeroSize() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SIZE:
+        return Verify("SIZE /file\r\n", data, PRE_CWD,
+                      "213 0\r\n");
+      case PRE_CWD:
+        return Verify("CWD /file\r\n", data, PRE_RETR,
+                      "550 not a directory\r\n");
+      default:
+        return FtpSocketDataProviderFileDownload::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderFileDownloadZeroSize);
 };
 
 class FtpSocketDataProviderVMSFileDownload : public FtpSocketDataProvider {
@@ -807,6 +853,12 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionMultilineWelcomeShort) {
   ExecuteTransaction(&ctrl_socket, "ftp://host", OK);
 }
 
+// Regression test for http://crbug.com/60555.
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionZeroSize) {
+  FtpSocketDataProviderDirectoryListingZeroSize ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host", OK);
+}
+
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionVMS) {
   FtpSocketDataProviderVMSDirectoryListing ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/dir", OK);
@@ -870,6 +922,11 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionShortReads2) {
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionShortReads5) {
   FtpSocketDataProviderFileDownload ctrl_socket;
   ctrl_socket.set_short_read_limit(5);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionZeroSize) {
+  FtpSocketDataProviderFileDownloadZeroSize ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
 }
 
