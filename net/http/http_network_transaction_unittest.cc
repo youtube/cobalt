@@ -460,6 +460,67 @@ TEST_F(HttpNetworkTransactionTest,
 }
 
 TEST_F(HttpNetworkTransactionTest,
+       DuplicateContentLengthHeadersNoTransferEncoding) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Length: 5\r\n"),
+    MockRead("Content-Length: 5\r\n\r\n"),
+    MockRead("Hello"),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                              arraysize(data_reads));
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("Hello", out.response_data);
+}
+
+TEST_F(HttpNetworkTransactionTest,
+       ComplexContentLengthHeadersNoTransferEncoding) {
+  // More than 2 dupes.
+  {
+    MockRead data_reads[] = {
+      MockRead("HTTP/1.1 200 OK\r\n"),
+      MockRead("Content-Length: 5\r\n"),
+      MockRead("Content-Length: 5\r\n"),
+      MockRead("Content-Length: 5\r\n\r\n"),
+      MockRead("Hello"),
+    };
+    SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                                arraysize(data_reads));
+    EXPECT_EQ(OK, out.rv);
+    EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+    EXPECT_EQ("Hello", out.response_data);
+  }
+  // HTTP/1.0
+  {
+    MockRead data_reads[] = {
+      MockRead("HTTP/1.0 200 OK\r\n"),
+      MockRead("Content-Length: 5\r\n"),
+      MockRead("Content-Length: 5\r\n"),
+      MockRead("Content-Length: 5\r\n\r\n"),
+      MockRead("Hello"),
+    };
+    SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                                arraysize(data_reads));
+    EXPECT_EQ(OK, out.rv);
+    EXPECT_EQ("HTTP/1.0 200 OK", out.status_line);
+    EXPECT_EQ("Hello", out.response_data);
+  }
+  // 2 dupes and one mismatched.
+  {
+    MockRead data_reads[] = {
+      MockRead("HTTP/1.1 200 OK\r\n"),
+      MockRead("Content-Length: 10\r\n"),
+      MockRead("Content-Length: 10\r\n"),
+      MockRead("Content-Length: 5\r\n\r\n"),
+    };
+    SimpleGetHelperResult out = SimpleGetHelper(data_reads,
+                                                arraysize(data_reads));
+    EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH, out.rv);
+  }
+}
+
+TEST_F(HttpNetworkTransactionTest,
        MultipleContentLengthHeadersTransferEncoding) {
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
