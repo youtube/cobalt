@@ -244,7 +244,8 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
     CreateMockWrite(*rst, 2, true),
   };
   scoped_ptr<spdy::SpdyFrame> resp(
-      ConstructSpdySynReplyError("407 Proxy Authentication Required", 1));
+      ConstructSpdySynReplyError(
+          "407 Proxy Authentication Required", NULL, 0, 1));
   MockRead spdy_reads[] = {
     CreateMockWrite(*resp, 1, true),
     MockRead(true, 0, 3)
