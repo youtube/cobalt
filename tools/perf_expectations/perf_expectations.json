@@ -61,7 +61,7 @@
  "xp-release-dual-core/dhtml/times/t": {"improve": -45, "regress": 45},
  "xp-release-dual-core/dromaeo_domcore/score/score": {"improve": 284, "regress": 236},
  "xp-release-dual-core/dromaeo_jslib/score/score": {"improve": 18, "regress": -6},
- "xp-release-dual-core/intl1/times/t": {"reva": 63175, "revb": 63335, "improve": 367, "regress": 548},
+ "xp-release-dual-core/intl1/times/t": {"reva": 63751, "revb": 64344, "improve": 213, "regress": 480},
  "xp-release-dual-core/intl2/times/t": {"improve": 30, "regress": 150},
  "xp-release-dual-core/morejs/times/t": {"reva": 63167, "revb": 63335, "improve": -107, "regress": -68},
  "xp-release-dual-core/moz/times/t": {"reva": 63120, "revb": 63335, "improve": 40, "regress": 91},
