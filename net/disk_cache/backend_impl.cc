@@ -13,6 +13,7 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/sys_info.h"
+#include "base/thread_restrictions.h"
 #include "base/time.h"
 #include "base/timer.h"
 #include "base/worker_pool.h"
@@ -115,6 +116,10 @@ FilePath GetTempCacheName(const FilePath& path, const std::string& name) {
 
 // Moves the cache files to a new folder and creates a task to delete them.
 bool DelayedCacheCleanup(const FilePath& full_path) {
+  // GetTempCacheName() and MoveCache() use synchronous file
+  // operations.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   FilePath current_path = full_path.StripTrailingSeparators();
 
   FilePath path = current_path.DirName();
