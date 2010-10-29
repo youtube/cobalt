@@ -149,22 +149,22 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
 
 TEST(HttpAuthTest, HandleChallengeResponse) {
   std::string challenge_used;
-  const char* kMockChallenge =
+  const char* const kMockChallenge =
       "HTTP/1.1 401 Unauthorized\n"
       "WWW-Authenticate: Mock token_here\n";
-  const char* kBasicChallenge =
+  const char* const kBasicChallenge =
       "HTTP/1.1 401 Unauthorized\n"
       "WWW-Authenticate: Basic realm=\"happy\"\n";
-  const char* kMissingChallenge =
+  const char* const kMissingChallenge =
       "HTTP/1.1 401 Unauthorized\n";
-  const char* kEmptyChallenge =
+  const char* const kEmptyChallenge =
       "HTTP/1.1 401 Unauthorized\n"
       "WWW-Authenticate: \n";
-  const char* kBasicAndMockChallenges =
+  const char* const kBasicAndMockChallenges =
       "HTTP/1.1 401 Unauthorized\n"
       "WWW-Authenticate: Basic realm=\"happy\"\n"
       "WWW-Authenticate: Mock token_here\n";
-  const char* kTwoMockChallenges =
+  const char* const kTwoMockChallenges =
       "HTTP/1.1 401 Unauthorized\n"
       "WWW-Authenticate: Mock token_a\n"
       "WWW-Authenticate: Mock token_b\n";
