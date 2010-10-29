@@ -124,6 +124,9 @@ class CertDatabase {
   // Returns true on success or false on failure.
   // |cert| is still valid when this function returns.
   bool DeleteCertAndKey(const X509Certificate* cert);
+
+  // Check whether cert is stored in a readonly slot.
+  bool IsReadOnly(const X509Certificate* cert) const;
 #endif
 
  private:
