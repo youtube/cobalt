@@ -133,7 +133,8 @@ class HttpAuth {
   //
   // |headers| must be non-NULL and contain the new HTTP response.
   //
-  // |target| specifies whether the headers came from a server or proxy.
+  // |target| specifies whether the authentication challenge response came
+  // from a server or a proxy.
   //
   // |disabled_schemes| are the authentication schemes to ignore.
   //
