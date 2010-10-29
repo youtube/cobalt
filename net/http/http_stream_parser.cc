@@ -510,13 +510,20 @@ int HttpStreamParser::DoParseResponseHeaders(int end_offset) {
 
   void* it = NULL;
   const std::string content_length_header("Content-Length");
-  std::string ignored_header_value;
+  std::string content_length_value;
   if (!headers->HasHeader("Transfer-Encoding") &&
       headers->EnumerateHeader(
-          &it, content_length_header, &ignored_header_value) &&
-      headers->EnumerateHeader(
-          &it, content_length_header, &ignored_header_value)) {
-    return ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH;
+          &it, content_length_header, &content_length_value)) {
+    // Ok, there's no Transfer-Encoding header and there's at least one
+    // Content-Length header.  Check if there are any more Content-Length
+    // headers, and if so, make sure they have the same value.  Otherwise, it's
+    // a possible response smuggling attack.
+    std::string content_length_value2;
+    while (headers->EnumerateHeader(
+        &it, content_length_header, &content_length_value2)) {
+      if (content_length_value != content_length_value2)
+        return ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH;
+    }
   }
 
   response_->headers = headers;
