@@ -8,7 +8,6 @@
 
 #include <cstddef>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
@@ -28,6 +27,11 @@ class VlogInfo {
   // E.g. "my_module=2,foo*=3" would change the logging level for all
   // code in source files "my_module.*" and "foo*.*" ("-inl" suffixes
   // are also disregarded for this matching).
+  //
+  // Any pattern containing a forward or backward slash will be tested
+  // against the whole pathname and not just the module.  E.g.,
+  // "*/foo/bar/*=2" would change the logging level for all code in
+  // source files under a "foo/bar" directory.
   VlogInfo(const std::string& v_switch,
            const std::string& vmodule_switch);
   ~VlogInfo();
@@ -39,7 +43,19 @@ class VlogInfo {
   static const int kDefaultVlogLevel;
 
  private:
-  typedef std::pair<std::string, int> VmodulePattern;
+  // VmodulePattern holds all the information for each pattern parsed
+  // from |vmodule_switch|.
+  struct VmodulePattern {
+    enum MatchTarget { MATCH_MODULE, MATCH_FILE };
+
+    explicit VmodulePattern(const std::string& pattern);
+
+    VmodulePattern();
+
+    std::string pattern;
+    int vlog_level;
+    MatchTarget match_target;
+  };
 
   int max_vlog_level_;
   std::vector<VmodulePattern> vmodule_levels_;

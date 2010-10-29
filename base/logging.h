@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -81,16 +81,22 @@
 //
 // These always log at the INFO log level (when they log at all).
 // The verbose logging can also be turned on module-by-module.  For instance,
-//    --vmodule=profile=2,icon_loader=1,browser_*=3 --v=0
+//    --vmodule=profile=2,icon_loader=1,browser_*=3,*/chromeos/*=4 --v=0
 // will cause:
 //   a. VLOG(2) and lower messages to be printed from profile.{h,cc}
 //   b. VLOG(1) and lower messages to be printed from icon_loader.{h,cc}
 //   c. VLOG(3) and lower messages to be printed from files prefixed with
 //      "browser"
+//   c. VLOG(4) and lower messages to be printed from files under a
+//     "chromeos" directory.
 //   d. VLOG(0) and lower messages to be printed from elsewhere
 //
 // The wildcarding functionality shown by (c) supports both '*' (match
-// 0 or more characters) and '?' (match any single character) wildcards.
+// 0 or more characters) and '?' (match any single character)
+// wildcards.  Any pattern containing a forward or backward slash will
+// be tested against the whole pathname and not just the module.
+// E.g., "*/foo/bar/*=2" would change the logging level for all code
+// in source files under a "foo/bar" directory.
 //
 // There's also VLOG_IS_ON(n) "verbose level" condition macro. To be used as
 //
