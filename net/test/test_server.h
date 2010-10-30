@@ -167,8 +167,11 @@ class TestServer {
   // JobObject used to clean up orphaned child processes.
   ScopedHandle job_handle_;
 
-  // The file handle the child writes to when it starts.
-  ScopedHandle child_fd_;
+  // The pipe file handle we read from.
+  ScopedHandle child_read_fd_;
+
+  // The pipe file handle the child and we write to.
+  ScopedHandle child_write_fd_;
 #endif
 
 #if defined(OS_POSIX)
