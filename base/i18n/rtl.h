@@ -29,8 +29,18 @@ enum TextDirection {
   LEFT_TO_RIGHT,
 };
 
-// Get language and region from the OS.
+#if defined(OS_WIN)
+// Get language and region from the OS. Used by Chrome Frame.
 void GetLanguageAndRegionFromOS(std::string* lang, std::string* region);
+#endif
+
+// Get the locale that the currently running process has been configured to use.
+// The return value is of the form language[-country] (e.g., en-US) where the
+// language is the 2 or 3 letter code from ISO-639.
+std::string GetConfiguredLocale();
+
+// Canonicalize a string (eg. a POSIX locale string) to a Chrome locale name.
+std::string GetCanonicalLocale(const char* locale);
 
 // Sets the default locale of ICU.
 // Once the application locale of Chrome in GetApplicationLocale is determined,
@@ -136,7 +146,7 @@ void WrapPathWithLTRFormatting(const FilePath& path,
 // string is wrapped with LRE (Left-To-Right Embedding) and PDF (Pop
 // Directional Formatting) marks and returned. In LTR locale, the string itself
 // is returned.
-string16 GetDisplayStringInLTRDirectionality(const string16& text) 
+string16 GetDisplayStringInLTRDirectionality(const string16& text)
     WARN_UNUSED_RESULT;
 
 // Strip the beginning (U+202A..U+202B, U+202D..U+202E) and/or ending (U+202C)
