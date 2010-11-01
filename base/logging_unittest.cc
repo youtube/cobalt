@@ -14,23 +14,35 @@ namespace {
 
 using ::testing::Return;
 
+// Needs to be global since log assert handlers can't maintain state.
+int log_sink_call_count = 0;
+
+void LogSink(const std::string& str) {
+  ++log_sink_call_count;
+}
+
 // Class to make sure any manipulations we do to the min log level are
 // contained (i.e., do not affect other unit tests).
-class MinLogLevelSaver {
+class LogStateSaver {
  public:
-  MinLogLevelSaver() : old_min_log_level_(GetMinLogLevel()) {}
+  LogStateSaver() : old_min_log_level_(GetMinLogLevel()) {}
 
-  ~MinLogLevelSaver() { SetMinLogLevel(old_min_log_level_);  }
+  ~LogStateSaver() {
+    SetMinLogLevel(old_min_log_level_);
+    SetLogAssertHandler(NULL);
+    SetLogReportHandler(NULL);
+    log_sink_call_count = 0;
+  }
 
  private:
   int old_min_log_level_;
 
-  DISALLOW_COPY_AND_ASSIGN(MinLogLevelSaver);
+  DISALLOW_COPY_AND_ASSIGN(LogStateSaver);
 };
 
 class LoggingTest : public testing::Test {
  private:
-  MinLogLevelSaver min_log_level_saver_;
+  LogStateSaver log_state_saver_;
 };
 
 class MockLogSource {
@@ -138,6 +150,33 @@ TEST_F(LoggingTest, DchecksAreLazy) {
   DCHECK_EQ(0, 0) << mock_log_source.Log();
   DCHECK_EQ(mock_log_source.Log(), static_cast<const char*>(NULL))
       << mock_log_source.Log();
+}
+
+TEST_F(LoggingTest, Dcheck) {
+#if defined(LOGGING_IS_OFFICIAL_BUILD)
+  // Official build.
+  EXPECT_FALSE(DCHECK_IS_ON());
+  EXPECT_FALSE(DLOG_IS_ON(DCHECK));
+#elif defined(NDEBUG)
+  // Unofficial release build.
+  logging::g_enable_dcheck = true;
+  logging::SetLogReportHandler(&LogSink);
+  EXPECT_TRUE(DCHECK_IS_ON());
+  EXPECT_FALSE(DLOG_IS_ON(DCHECK));
+#else
+  // Unofficial debug build.
+  logging::SetLogAssertHandler(&LogSink);
+  EXPECT_TRUE(DCHECK_IS_ON());
+  EXPECT_TRUE(DLOG_IS_ON(DCHECK));
+#endif  // defined(LOGGING_IS_OFFICIAL_BUILD)
+
+  EXPECT_EQ(0, log_sink_call_count);
+  DCHECK(false);
+  EXPECT_EQ(DCHECK_IS_ON() ? 1 : 0, log_sink_call_count);
+  DPCHECK(false);
+  EXPECT_EQ(DCHECK_IS_ON() ? 2 : 0, log_sink_call_count);
+  DCHECK_EQ(0, 1);
+  EXPECT_EQ(DCHECK_IS_ON() ? 3 : 0, log_sink_call_count);
 }
 
 TEST_F(LoggingTest, DcheckReleaseBehavior) {
