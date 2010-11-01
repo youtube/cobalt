@@ -131,7 +131,7 @@ void DeterministicSocketDataTest::AssertReadBufferEquals(const char* data,
 
 void DeterministicSocketDataTest::AssertSyncWriteEquals(const char* data,
                                                          int len) {
-  scoped_refptr<IOBuffer> buf = new IOBuffer(len);
+  scoped_refptr<IOBuffer> buf(new IOBuffer(len));
   memcpy(buf->data(), data, len);
 
   // Issue the write, which will complete immediately
@@ -152,7 +152,7 @@ void DeterministicSocketDataTest::AssertAsyncWriteEquals(const char* data,
 
 void DeterministicSocketDataTest::AssertWriteReturns(const char* data,
                                                      int len, int rv) {
-  scoped_refptr<IOBuffer> buf = new IOBuffer(len);
+  scoped_refptr<IOBuffer> buf(new IOBuffer(len));
   memcpy(buf->data(), data, len);
 
   // Issue the read, which will complete asynchronously

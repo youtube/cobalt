@@ -77,8 +77,8 @@ TEST(DirectoryListerTest, BigDirTest) {
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
 
   ListerDelegate delegate(false);
-  scoped_refptr<net::DirectoryLister> lister =
-      new net::DirectoryLister(path, &delegate);
+  scoped_refptr<net::DirectoryLister> lister(
+      new net::DirectoryLister(path, &delegate));
 
   lister->Start();
 
@@ -92,11 +92,11 @@ TEST(DirectoryListerTest, BigDirRecursiveTest) {
   ASSERT_TRUE(PathService::Get(base::DIR_EXE, &path));
 
   ListerDelegate delegate(true);
-  scoped_refptr<net::DirectoryLister> lister =
+  scoped_refptr<net::DirectoryLister> lister(
       new net::DirectoryLister(path,
                                true,
                                net::DirectoryLister::FULL_PATH,
-                               &delegate);
+                               &delegate));
 
   lister->Start();
 
@@ -110,8 +110,8 @@ TEST(DirectoryListerTest, CancelTest) {
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
 
   ListerDelegate delegate(false);
-  scoped_refptr<net::DirectoryLister> lister =
-      new net::DirectoryLister(path, &delegate);
+  scoped_refptr<net::DirectoryLister> lister(
+      new net::DirectoryLister(path, &delegate));
 
   lister->Start();
   lister->Cancel();

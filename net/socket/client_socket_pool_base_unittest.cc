@@ -1281,7 +1281,7 @@ class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
       }
       within_callback_ = true;
       TestCompletionCallback next_job_callback;
-      scoped_refptr<TestSocketParams> params = new TestSocketParams();
+      scoped_refptr<TestSocketParams> params(new TestSocketParams());
       int rv = handle_->Init("a",
                              params,
                              kDefaultPriority,
@@ -2087,7 +2087,7 @@ class TestReleasingSocketRequest : public CallbackRunner< Tuple1<int> > {
     callback_.RunWithParams(params);
     if (reset_releasing_handle_)
                       handle_.Reset();
-    scoped_refptr<TestSocketParams> con_params = new TestSocketParams();
+    scoped_refptr<TestSocketParams> con_params(new TestSocketParams());
     EXPECT_EQ(expected_result_, handle2_.Init("a",
                                               con_params,
                                               kDefaultPriority,

@@ -404,7 +404,7 @@ int SpdyProxyClientSocket::OnResponseReceived(
 void SpdyProxyClientSocket::OnDataReceived(const char* data, int length) {
   if (length > 0) {
     // Save the received data.
-    scoped_refptr<IOBuffer> io_buffer = new IOBuffer(length);
+    scoped_refptr<IOBuffer> io_buffer(new IOBuffer(length));
     memcpy(io_buffer->data(), data, length);
     read_buffer_.push_back(new DrainableIOBuffer(io_buffer, length));
   }

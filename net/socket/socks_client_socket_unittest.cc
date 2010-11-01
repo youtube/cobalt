@@ -153,7 +153,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(LogContainsEndEvent(
       log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
 
-  scoped_refptr<IOBuffer> buffer = new IOBuffer(payload_write.size());
+  scoped_refptr<IOBuffer> buffer(new IOBuffer(payload_write.size()));
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
   rv = user_sock_->Write(buffer, payload_write.size(), &callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);

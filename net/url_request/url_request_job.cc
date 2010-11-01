@@ -452,7 +452,7 @@ void URLRequestJob::NotifyHeadersComplete() {
   // check the request pointer to see if it still exists, and return
   // immediately if it has been destroyed.  self_preservation ensures our
   // survival until we can get out of this method.
-  scoped_refptr<URLRequestJob> self_preservation = this;
+  scoped_refptr<URLRequestJob> self_preservation(this);
 
   GURL new_location;
   int http_status_code;
@@ -558,7 +558,7 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
   // check the request pointer to see if it still exists, and return
   // immediately if it has been destroyed.  self_preservation ensures our
   // survival until we can get out of this method.
-  scoped_refptr<URLRequestJob> self_preservation = this;
+  scoped_refptr<URLRequestJob> self_preservation(this);
 
   prefilter_bytes_read_ += bytes_read;
   if (filter_.get()) {

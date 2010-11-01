@@ -252,9 +252,9 @@ void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
 }
 
 TEST(X509CertificateTest, GoogleCertParsing) {
-  scoped_refptr<X509Certificate> google_cert =
+  scoped_refptr<X509Certificate> google_cert(
       X509Certificate::CreateFromBytes(
-          reinterpret_cast<const char*>(google_der), sizeof(google_der));
+          reinterpret_cast<const char*>(google_der), sizeof(google_der)));
 
   CheckGoogleCert(google_cert, google_fingerprint,
                   1238192407,   // Mar 27 22:20:07 2009 GMT
@@ -262,8 +262,8 @@ TEST(X509CertificateTest, GoogleCertParsing) {
 }
 
 TEST(X509CertificateTest, WebkitCertParsing) {
-  scoped_refptr<X509Certificate> webkit_cert = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
+  scoped_refptr<X509Certificate> webkit_cert(X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der)));
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), webkit_cert);
 
@@ -318,8 +318,8 @@ TEST(X509CertificateTest, WebkitCertParsing) {
 }
 
 TEST(X509CertificateTest, ThawteCertParsing) {
-  scoped_refptr<X509Certificate> thawte_cert = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der));
+  scoped_refptr<X509Certificate> thawte_cert(X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der)));
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), thawte_cert);
 
@@ -379,10 +379,10 @@ TEST(X509CertificateTest, ThawteCertParsing) {
 }
 
 TEST(X509CertificateTest, PaypalNullCertParsing) {
-  scoped_refptr<X509Certificate> paypal_null_cert =
+  scoped_refptr<X509Certificate> paypal_null_cert(
       X509Certificate::CreateFromBytes(
           reinterpret_cast<const char*>(paypal_null_der),
-          sizeof(paypal_null_der));
+          sizeof(paypal_null_der)));
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), paypal_null_cert);
 
@@ -409,8 +409,8 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
 // This certificate will expire on 2011-09-08.
 TEST(X509CertificateTest, UnoSoftCertParsing) {
   FilePath certs_dir = GetTestCertsDirectory();
-  scoped_refptr<X509Certificate> unosoft_hu_cert =
-      ImportCertFromFile(certs_dir, "unosoft_hu_cert.der");
+  scoped_refptr<X509Certificate> unosoft_hu_cert(
+      ImportCertFromFile(certs_dir, "unosoft_hu_cert.der"));
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), unosoft_hu_cert);
 
@@ -481,18 +481,18 @@ TEST(X509CertificateTest, Cache) {
   // certificate cache.
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert1 = X509Certificate::CreateFromHandle(
+  scoped_refptr<X509Certificate> cert1(X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      X509Certificate::OSCertHandles());
+      X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   // Add a certificate from the same source (SOURCE_LONE_CERT_IMPORT).  This
   // should return the cached certificate (cert1).
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert2 = X509Certificate::CreateFromHandle(
+  scoped_refptr<X509Certificate> cert2(X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-      X509Certificate::OSCertHandles());
+      X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   EXPECT_EQ(cert1, cert2);
@@ -501,9 +501,9 @@ TEST(X509CertificateTest, Cache) {
   // cached certificate (cert1) and return a new certificate.
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert3 = X509Certificate::CreateFromHandle(
+  scoped_refptr<X509Certificate> cert3(X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles());
+      X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   EXPECT_NE(cert1, cert3);
@@ -512,43 +512,43 @@ TEST(X509CertificateTest, Cache) {
   // certificate (cert3).
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert4 = X509Certificate::CreateFromHandle(
+  scoped_refptr<X509Certificate> cert4(X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles());
+      X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   EXPECT_EQ(cert3, cert4);
 
   google_cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
-  scoped_refptr<X509Certificate> cert5 = X509Certificate::CreateFromHandle(
+  scoped_refptr<X509Certificate> cert5(X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-      X509Certificate::OSCertHandles());
+      X509Certificate::OSCertHandles()));
   X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   EXPECT_EQ(cert3, cert5);
 }
 
 TEST(X509CertificateTest, Pickle) {
-  scoped_refptr<X509Certificate> cert1 = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
+  scoped_refptr<X509Certificate> cert1(X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(google_der), sizeof(google_der)));
 
   Pickle pickle;
   cert1->Persist(&pickle);
 
   void* iter = NULL;
-  scoped_refptr<X509Certificate> cert2 =
-      X509Certificate::CreateFromPickle(pickle, &iter);
+  scoped_refptr<X509Certificate> cert2(
+      X509Certificate::CreateFromPickle(pickle, &iter));
 
   EXPECT_EQ(cert1, cert2);
 }
 
 TEST(X509CertificateTest, Policy) {
-  scoped_refptr<X509Certificate> google_cert = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
+  scoped_refptr<X509Certificate> google_cert(X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(google_der), sizeof(google_der)));
 
-  scoped_refptr<X509Certificate> webkit_cert = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
+  scoped_refptr<X509Certificate> webkit_cert(X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der)));
 
   CertPolicy policy;
 
@@ -581,18 +581,18 @@ TEST(X509CertificateTest, Policy) {
 
 #if defined(OS_MACOSX) || defined(OS_WIN)
 TEST(X509CertificateTest, IntermediateCertificates) {
-  scoped_refptr<X509Certificate> webkit_cert =
+  scoped_refptr<X509Certificate> webkit_cert(
       X509Certificate::CreateFromBytes(
-          reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
+          reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der)));
 
-  scoped_refptr<X509Certificate> thawte_cert =
+  scoped_refptr<X509Certificate> thawte_cert(
       X509Certificate::CreateFromBytes(
-          reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der));
+          reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der)));
 
-  scoped_refptr<X509Certificate> paypal_cert =
+  scoped_refptr<X509Certificate> paypal_cert(
       X509Certificate::CreateFromBytes(
           reinterpret_cast<const char*>(paypal_null_der),
-          sizeof(paypal_null_der));
+          sizeof(paypal_null_der)));
 
   X509Certificate::OSCertHandle google_handle;
   // Create object with no intermediates:
@@ -645,8 +645,8 @@ TEST(X509CertificateTest, IsIssuedBy) {
   FilePath certs_dir = GetTestCertsDirectory();
 
   // Test a client certificate from MIT.
-  scoped_refptr<X509Certificate> mit_davidben_cert =
-      ImportCertFromFile(certs_dir, "mit.davidben.der");
+  scoped_refptr<X509Certificate> mit_davidben_cert(
+      ImportCertFromFile(certs_dir, "mit.davidben.der"));
   ASSERT_NE(static_cast<X509Certificate*>(NULL), mit_davidben_cert);
 
   CertPrincipal mit_issuer;
@@ -662,8 +662,8 @@ TEST(X509CertificateTest, IsIssuedBy) {
   EXPECT_TRUE(mit_davidben_cert->IsIssuedBy(mit_issuers));
 
   // Test a client certificate from FOAF.ME.
-  scoped_refptr<X509Certificate> foaf_me_chromium_test_cert =
-      ImportCertFromFile(certs_dir, "foaf.me.chromium-test-cert.der");
+  scoped_refptr<X509Certificate> foaf_me_chromium_test_cert(
+      ImportCertFromFile(certs_dir, "foaf.me.chromium-test-cert.der"));
   ASSERT_NE(static_cast<X509Certificate*>(NULL), foaf_me_chromium_test_cert);
 
   CertPrincipal foaf_issuer;
