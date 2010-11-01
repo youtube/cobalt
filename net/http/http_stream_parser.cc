@@ -53,7 +53,7 @@ int HttpStreamParser::SendRequest(const std::string& headers,
   DCHECK(response);
 
   response_ = response;
-  scoped_refptr<StringIOBuffer> headers_io_buf = new StringIOBuffer(headers);
+  scoped_refptr<StringIOBuffer> headers_io_buf(new StringIOBuffer(headers));
   request_headers_ = new DrainableIOBuffer(headers_io_buf,
                                            headers_io_buf->size());
   request_body_.reset(request_body);

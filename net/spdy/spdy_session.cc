@@ -1054,8 +1054,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     return;
   }
 
-  scoped_refptr<SpdyStream> stream =
-      new SpdyStream(this, stream_id, true, net_log_);
+  scoped_refptr<SpdyStream> stream(
+      new SpdyStream(this, stream_id, true, net_log_));
 
   stream->set_path(path);
 

@@ -95,7 +95,7 @@ void RunTest_PostTask(MessageLoop::Type message_loop_type) {
   MessageLoop loop(message_loop_type);
 
   // Add tests to message loop
-  scoped_refptr<Foo> foo = new Foo();
+  scoped_refptr<Foo> foo(new Foo());
   std::string a("a"), b("b"), c("c"), d("d");
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       foo.get(), &Foo::Test0));
@@ -111,7 +111,7 @@ void RunTest_PostTask(MessageLoop::Type message_loop_type) {
     foo.get(), &Foo::Test2Mixed, a, &d));
 
   // After all tests, post a message that will shut down the message loop
-  scoped_refptr<QuitMsgLoop> quit = new QuitMsgLoop();
+  scoped_refptr<QuitMsgLoop> quit(new QuitMsgLoop());
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       quit.get(), &QuitMsgLoop::QuitNow));
 
@@ -126,7 +126,7 @@ void RunTest_PostTask_SEH(MessageLoop::Type message_loop_type) {
   MessageLoop loop(message_loop_type);
 
   // Add tests to message loop
-  scoped_refptr<Foo> foo = new Foo();
+  scoped_refptr<Foo> foo(new Foo());
   std::string a("a"), b("b"), c("c"), d("d");
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       foo.get(), &Foo::Test0));
@@ -142,7 +142,7 @@ void RunTest_PostTask_SEH(MessageLoop::Type message_loop_type) {
       foo.get(), &Foo::Test2Mixed, a, &d));
 
   // After all tests, post a message that will shut down the message loop
-  scoped_refptr<QuitMsgLoop> quit = new QuitMsgLoop();
+  scoped_refptr<QuitMsgLoop> quit(new QuitMsgLoop());
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       quit.get(), &QuitMsgLoop::QuitNow));
 

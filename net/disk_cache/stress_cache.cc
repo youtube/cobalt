@@ -130,7 +130,7 @@ void StressTheCache(int iteration) {
   }
 
   const int kSize = 4000;
-  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   memset(buffer->data(), 'k', kSize);
 
   for (int i = 0;; i++) {

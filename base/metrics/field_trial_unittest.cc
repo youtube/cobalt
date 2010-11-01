@@ -100,7 +100,7 @@ TEST_F(FieldTrialTest, FiftyFiftyProbability) {
   int counter = 0;
   do {
     std::string name = base::StringPrintf("FiftyFifty%d", ++counter);
-    scoped_refptr<FieldTrial> trial = new FieldTrial(name, 2);
+    scoped_refptr<FieldTrial> trial(new FieldTrial(name, 2));
     trial->AppendGroup("first", 1);  // 50% chance of being chosen.
     if (trial->group() != FieldTrial::kNotParticipating) {
       first_winner = true;

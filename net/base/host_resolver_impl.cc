@@ -1371,7 +1371,7 @@ void HostResolverImpl::ProcessQueuedRequests() {
   if (!top_req)
     return;
 
-  scoped_refptr<Job> job = CreateAndStartJob(top_req);
+  scoped_refptr<Job> job(CreateAndStartJob(top_req));
 
   // Search for any other pending request which can piggy-back off this job.
   for (size_t pool_i = 0; pool_i < POOL_COUNT; ++pool_i) {
@@ -1401,8 +1401,8 @@ HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
   req->request_net_log().AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CREATE_JOB,
                                   NULL);
 
-  scoped_refptr<Job> job = new Job(next_job_id_++, this, key,
-                                   req->request_net_log(), net_log_);
+  scoped_refptr<Job> job(new Job(next_job_id_++, this, key,
+                                   req->request_net_log(), net_log_));
   job->AddRequest(req);
   AddOutstandingJob(job);
   job->Start();

@@ -872,10 +872,10 @@ bool X509Certificate::IsIssuedBy(
   for (int i = 0; i < n; ++i) {
     SecCertificateRef cert_handle = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(cert_chain, i)));
-    scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
+    scoped_refptr<X509Certificate> cert(X509Certificate::CreateFromHandle(
         cert_handle,
         X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        X509Certificate::OSCertHandles());
+        X509Certificate::OSCertHandles()));
     for (unsigned j = 0; j < valid_issuers.size(); j++) {
       if (cert->issuer().Matches(valid_issuers[j]))
         return true;

@@ -230,7 +230,7 @@ TEST_F(DiskCacheBackendTest, ExternalFiles) {
   FilePath filename = GetCacheFilePath().AppendASCII("f_000001");
 
   const int kSize = 50;
-  scoped_refptr<net::IOBuffer> buffer1 = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer1(new net::IOBuffer(kSize));
   CacheTestFillBuffer(buffer1->data(), kSize, false);
   ASSERT_EQ(kSize, file_util::WriteFile(filename, buffer1->data(), kSize));
 
@@ -241,7 +241,7 @@ TEST_F(DiskCacheBackendTest, ExternalFiles) {
   entry->Close();
 
   // And verify that the first file is still there.
-  scoped_refptr<net::IOBuffer> buffer2 = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer2(new net::IOBuffer(kSize));
   ASSERT_EQ(kSize, file_util::ReadFile(filename, buffer2->data(), kSize));
   EXPECT_EQ(0, memcmp(buffer1->data(), buffer2->data(), kSize));
 }
@@ -269,7 +269,7 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
     ASSERT_EQ(net::OK, cb.GetResult(rv));
 
     const int kSize = 25000;
-    scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+    scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
     CacheTestFillBuffer(buffer->data(), kSize, false);
 
     for (int i = 0; i < 10 * 1024 * 1024; i += 64 * 1024) {
@@ -319,7 +319,7 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO2) {
     ASSERT_EQ(net::OK, cb.GetResult(rv));
 
     const int kSize = 25000;
-    scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+    scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
     CacheTestFillBuffer(buffer->data(), kSize, false);
 
     rv = entry->WriteData(0, 0, buffer, kSize, &cb, false);
@@ -366,7 +366,7 @@ void DiskCacheBackendTest::BackendSetSize() {
   disk_cache::Entry* entry;
   ASSERT_EQ(net::OK, CreateEntry(first, &entry));
 
-  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(cache_size);
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(cache_size));
   memset(buffer->data(), 0, cache_size);
   EXPECT_EQ(cache_size / 10, WriteData(entry, 0, 0, buffer, cache_size / 10,
                                        false)) << "normal file";
@@ -497,7 +497,7 @@ void DiskCacheBackendTest::BackendValidEntry() {
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
 
   const int kSize = 50;
-  scoped_refptr<net::IOBuffer> buffer1 = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer1(new net::IOBuffer(kSize));
   memset(buffer1->data(), 0, kSize);
   base::strlcpy(buffer1->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer1, kSize, false));
@@ -506,7 +506,7 @@ void DiskCacheBackendTest::BackendValidEntry() {
 
   ASSERT_EQ(net::OK, OpenEntry(key, &entry));
 
-  scoped_refptr<net::IOBuffer> buffer2 = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer2(new net::IOBuffer(kSize));
   memset(buffer2->data(), 0, kSize);
   EXPECT_EQ(kSize, ReadData(entry, 0, 0, buffer2, kSize));
   entry->Close();
@@ -535,7 +535,7 @@ void DiskCacheBackendTest::BackendInvalidEntry() {
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
 
   const int kSize = 50;
-  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   memset(buffer->data(), 0, kSize);
   base::strlcpy(buffer->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer, kSize, false));
@@ -579,7 +579,7 @@ void DiskCacheBackendTest::BackendInvalidEntryRead() {
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
 
   const int kSize = 50;
-  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   memset(buffer->data(), 0, kSize);
   base::strlcpy(buffer->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer, kSize, false));
@@ -697,7 +697,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry() {
   disk_cache::Entry* entry;
   ASSERT_EQ(net::OK, CreateEntry(first, &entry));
 
-  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   memset(buffer->data(), 0, kSize);
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer, kSize, false));
 
@@ -748,7 +748,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
   SetMaxSize(kSize * 40);
   InitCache();
 
-  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   memset(buffer->data(), 0, kSize);
   disk_cache::Entry* entry;
 
@@ -940,7 +940,7 @@ void DiskCacheBackendTest::BackendInvalidEntryEnumeration() {
   ASSERT_EQ(net::OK, CreateEntry(key, &entry1));
 
   const int kSize = 50;
-  scoped_refptr<net::IOBuffer> buffer1 = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer1(new net::IOBuffer(kSize));
   memset(buffer1->data(), 0, kSize);
   base::strlcpy(buffer1->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry1, 0, 0, buffer1, kSize, false));
@@ -1574,7 +1574,7 @@ void DiskCacheBackendTest::BackendDisable4() {
   ASSERT_EQ(net::OK, CreateEntry(key3, &entry3));
 
   const int kBufSize = 20000;
-  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kBufSize);
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kBufSize));
   memset(buf->data(), 0, kBufSize);
   EXPECT_EQ(100, WriteData(entry2, 0, 0, buf, 100, false));
   EXPECT_EQ(kBufSize, WriteData(entry3, 0, 0, buf, kBufSize, false));
@@ -1840,7 +1840,7 @@ TEST_F(DiskCacheBackendTest, TotalBuffersSize1) {
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
 
   const int kSize = 200;
-  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   CacheTestFillBuffer(buffer->data(), kSize, true);
 
   for (int i = 0; i < 10; i++) {

@@ -172,8 +172,8 @@ int MemEntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
     return net::ERR_INVALID_ARGUMENT;
 
   // We will keep using this buffer and adjust the offset in this buffer.
-  scoped_refptr<net::DrainableIOBuffer> io_buf =
-      new net::DrainableIOBuffer(buf, buf_len);
+  scoped_refptr<net::DrainableIOBuffer> io_buf(
+      new net::DrainableIOBuffer(buf, buf_len));
 
   // Iterate until we have read enough.
   while (io_buf->BytesRemaining()) {
@@ -218,8 +218,8 @@ int MemEntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   if (offset < 0 || buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
 
-  scoped_refptr<net::DrainableIOBuffer> io_buf =
-      new net::DrainableIOBuffer(buf, buf_len);
+  scoped_refptr<net::DrainableIOBuffer> io_buf(
+      new net::DrainableIOBuffer(buf, buf_len));
 
   // This loop walks through child entries continuously starting from |offset|
   // and writes blocks of data (of maximum size kMaxSparseEntrySize) into each

@@ -480,9 +480,9 @@ int HttpStreamRequest::DoInitConnection() {
   } else {
     ProxyServer proxy_server = proxy_info()->proxy_server();
     proxy_host_port.reset(new HostPortPair(proxy_server.host_port_pair()));
-    scoped_refptr<TCPSocketParams> proxy_tcp_params =
+    scoped_refptr<TCPSocketParams> proxy_tcp_params(
         new TCPSocketParams(*proxy_host_port, request_info().priority,
-                            request_info().referrer, disable_resolver_cache);
+                            request_info().referrer, disable_resolver_cache));
 
     if (proxy_info()->is_http() || proxy_info()->is_https()) {
       GURL authentication_url = request_info().url;
@@ -857,12 +857,12 @@ scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSslParams(
     ssl_config()->mitm_proxies_allowed = true;
   }
 
-  scoped_refptr<SSLSocketParams> ssl_params =
+  scoped_refptr<SSLSocketParams> ssl_params(
       new SSLSocketParams(tcp_params, socks_params, http_proxy_params,
                           proxy_scheme, hostname,
                           *ssl_config(), load_flags,
                           force_spdy_always_ && force_spdy_over_ssl_,
-                          want_spdy_over_npn);
+                          want_spdy_over_npn));
 
   return ssl_params;
 }

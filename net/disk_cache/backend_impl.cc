@@ -174,13 +174,13 @@ bool SetFieldTrialInfo(int size_group) {
 
   // Field trials involve static objects so we have to do this only once.
   first = false;
-  scoped_refptr<base::FieldTrial> trial1 =
-      new base::FieldTrial("CacheSize", 10);
+  scoped_refptr<base::FieldTrial> trial1(
+      new base::FieldTrial("CacheSize", 10));
   std::string group1 = base::StringPrintf("CacheSizeGroup_%d", size_group);
   trial1->AppendGroup(group1, base::FieldTrial::kAllRemainingProbability);
 
-  scoped_refptr<base::FieldTrial> trial2 =
-      new base::FieldTrial("CacheThrottle", 100);
+  scoped_refptr<base::FieldTrial> trial2(
+      new base::FieldTrial("CacheThrottle", 100));
   int group2a = trial2->AppendGroup("CacheThrottle_On", 10);  // 10 % in.
   trial2->AppendGroup("CacheThrottle_Off", 10);  // 10 % control.
 

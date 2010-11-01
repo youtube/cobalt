@@ -121,8 +121,8 @@ SOCKET ListenSocket::Accept(SOCKET s) {
 void ListenSocket::Accept() {
   SOCKET conn = Accept(socket_);
   if (conn != kInvalidSocket) {
-    scoped_refptr<ListenSocket> sock =
-        new ListenSocket(conn, socket_delegate_);
+    scoped_refptr<ListenSocket> sock(
+        new ListenSocket(conn, socket_delegate_));
     // it's up to the delegate to AddRef if it wants to keep it around
 #if defined(OS_POSIX)
     sock->WatchSocket(WAITING_READ);

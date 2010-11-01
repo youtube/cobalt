@@ -285,7 +285,7 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
 
   State next_state = STATE_NONE;
 
-  scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
+  scoped_refptr<HttpResponseHeaders> headers(GetResponseHeaders());
   if (headers_valid_ && headers.get() && stream_request_.get()) {
     // We're trying to read the body of the response but we're still trying
     // to establish an SSL tunnel through the proxy.  We can't read these
@@ -1078,7 +1078,7 @@ bool HttpNetworkTransaction::ShouldApplyServerAuth() const {
 }
 
 int HttpNetworkTransaction::HandleAuthChallenge() {
-  scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
+  scoped_refptr<HttpResponseHeaders> headers(GetResponseHeaders());
   DCHECK(headers);
 
   int status = headers->response_code();
