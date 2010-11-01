@@ -1132,8 +1132,8 @@ int SSLClientSocketMac::DidCompleteHandshake() {
   DCHECK(!server_cert_ || renegotiating_);
   VLOG(1) << "Handshake completed, next verify cert";
 
-  scoped_refptr<X509Certificate> new_server_cert =
-      GetServerCert(ssl_context_);
+  scoped_refptr<X509Certificate> new_server_cert(
+      GetServerCert(ssl_context_));
   if (!new_server_cert)
     return ERR_UNEXPECTED;
 

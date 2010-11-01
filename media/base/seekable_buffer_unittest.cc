@@ -225,7 +225,7 @@ TEST_F(SeekableBufferTest, SeekBackward) {
 TEST_F(SeekableBufferTest, GetCurrentChunk) {
   const size_t kSeekSize = kWriteSize / 3;
 
-  scoped_refptr<media::DataBuffer> buffer = new media::DataBuffer(kWriteSize);
+  scoped_refptr<media::DataBuffer> buffer(new media::DataBuffer(kWriteSize));
   memcpy(buffer->GetWritableData(), data_, kWriteSize);
   buffer->SetDataSize(kWriteSize);
 
@@ -325,7 +325,7 @@ TEST_F(SeekableBufferTest, GetTime) {
   EXPECT_EQ(kInvalidTimestamp.ToInternalValue(),
             buffer_.current_time().ToInternalValue());
 
-  scoped_refptr<media::DataBuffer> buffer = new media::DataBuffer(kWriteSize);
+  scoped_refptr<media::DataBuffer> buffer(new media::DataBuffer(kWriteSize));
   memcpy(buffer->GetWritableData(), data_, kWriteSize);
   buffer->SetDataSize(kWriteSize);
 

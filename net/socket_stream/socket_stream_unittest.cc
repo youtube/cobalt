@@ -240,8 +240,8 @@ TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
 
   MockHostResolver host_resolver;
 
-  scoped_refptr<SocketStream> socket_stream =
-      new SocketStream(GURL("ws://example.com/demo"), delegate.get());
+  scoped_refptr<SocketStream> socket_stream(
+      new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
   socket_stream->set_context(new TestURLRequestContext());
   socket_stream->SetHostResolver(&host_resolver);
@@ -331,8 +331,8 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
       NewCallback(delegate.get(),
                   &SocketStreamEventRecorder::DoRestartWithAuth));
 
-  scoped_refptr<SocketStream> socket_stream =
-      new SocketStream(GURL("ws://example.com/demo"), delegate.get());
+  scoped_refptr<SocketStream> socket_stream(
+      new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
   socket_stream->set_context(new TestURLRequestContext("myproxy:70"));
   MockHostResolver host_resolver;

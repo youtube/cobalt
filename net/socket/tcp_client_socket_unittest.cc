@@ -138,8 +138,8 @@ TEST_F(TCPClientSocketTest, Read) {
   }
 
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
-  scoped_refptr<IOBuffer> request_buffer =
-      new IOBuffer(arraysize(request_text) - 1);
+  scoped_refptr<IOBuffer> request_buffer(
+      new IOBuffer(arraysize(request_text) - 1));
   memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
 
   rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
@@ -150,7 +150,7 @@ TEST_F(TCPClientSocketTest, Read) {
     EXPECT_EQ(rv, static_cast<int>(arraysize(request_text) - 1));
   }
 
-  scoped_refptr<IOBuffer> buf = new IOBuffer(4096);
+  scoped_refptr<IOBuffer> buf(new IOBuffer(4096));
   uint32 bytes_read = 0;
   while (bytes_read < arraysize(kServerReply) - 1) {
     rv = sock_->Read(buf, 4096, &callback);
@@ -183,8 +183,8 @@ TEST_F(TCPClientSocketTest, Read_SmallChunks) {
   }
 
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
-  scoped_refptr<IOBuffer> request_buffer =
-      new IOBuffer(arraysize(request_text) - 1);
+  scoped_refptr<IOBuffer> request_buffer(
+      new IOBuffer(arraysize(request_text) - 1));
   memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
 
   rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
@@ -195,7 +195,7 @@ TEST_F(TCPClientSocketTest, Read_SmallChunks) {
     EXPECT_EQ(rv, static_cast<int>(arraysize(request_text) - 1));
   }
 
-  scoped_refptr<IOBuffer> buf = new IOBuffer(1);
+  scoped_refptr<IOBuffer> buf(new IOBuffer(1));
   uint32 bytes_read = 0;
   while (bytes_read < arraysize(kServerReply) - 1) {
     rv = sock_->Read(buf, 1, &callback);
@@ -228,8 +228,8 @@ TEST_F(TCPClientSocketTest, Read_Interrupted) {
   }
 
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
-  scoped_refptr<IOBuffer> request_buffer =
-      new IOBuffer(arraysize(request_text) - 1);
+  scoped_refptr<IOBuffer> request_buffer(
+      new IOBuffer(arraysize(request_text) - 1));
   memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
 
   rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
@@ -241,7 +241,7 @@ TEST_F(TCPClientSocketTest, Read_Interrupted) {
   }
 
   // Do a partial read and then exit.  This test should not crash!
-  scoped_refptr<IOBuffer> buf = new IOBuffer(16);
+  scoped_refptr<IOBuffer> buf(new IOBuffer(16));
   rv = sock_->Read(buf, 16, &callback);
   EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
@@ -263,13 +263,13 @@ TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
 
   // Read first.  There's no data, so it should return ERR_IO_PENDING.
   const int kBufLen = 4096;
-  scoped_refptr<IOBuffer> buf = new IOBuffer(kBufLen);
+  scoped_refptr<IOBuffer> buf(new IOBuffer(kBufLen));
   rv = sock_->Read(buf, kBufLen, &callback);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   PauseServerReads();
   const int kWriteBufLen = 64 * 1024;
-  scoped_refptr<IOBuffer> request_buffer = new IOBuffer(kWriteBufLen);
+  scoped_refptr<IOBuffer> request_buffer(new IOBuffer(kWriteBufLen));
   char* request_data = request_buffer->data();
   memset(request_data, 'A', kWriteBufLen);
   TestCompletionCallback write_callback;
@@ -305,7 +305,7 @@ TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
 
   PauseServerReads();
   const int kWriteBufLen = 64 * 1024;
-  scoped_refptr<IOBuffer> request_buffer = new IOBuffer(kWriteBufLen);
+  scoped_refptr<IOBuffer> request_buffer(new IOBuffer(kWriteBufLen));
   char* request_data = request_buffer->data();
   memset(request_data, 'A', kWriteBufLen);
   TestCompletionCallback write_callback;
@@ -322,7 +322,7 @@ TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   // Read() to block on ERR_IO_PENDING too.
 
   const int kBufLen = 4096;
-  scoped_refptr<IOBuffer> buf = new IOBuffer(kBufLen);
+  scoped_refptr<IOBuffer> buf(new IOBuffer(kBufLen));
   while (true) {
     rv = sock_->Read(buf, kBufLen, &callback);
     ASSERT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);

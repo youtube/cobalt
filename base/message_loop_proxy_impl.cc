@@ -93,7 +93,7 @@ void MessageLoopProxyImpl::WillDestroyCurrentMessageLoop() {
 
 scoped_refptr<MessageLoopProxy>
 MessageLoopProxy::CreateForCurrentThread() {
-  scoped_refptr<MessageLoopProxy> ret = new MessageLoopProxyImpl();
+  scoped_refptr<MessageLoopProxy> ret(new MessageLoopProxyImpl());
   return ret;
 }
 

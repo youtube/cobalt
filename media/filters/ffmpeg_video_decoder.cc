@@ -234,7 +234,7 @@ void FFmpegVideoDecoder::OnFormatChange(VideoStreamInfo stream_info) {
 }
 
 void FFmpegVideoDecoder::OnReadComplete(Buffer* buffer_in) {
-  scoped_refptr<Buffer> buffer = buffer_in;
+  scoped_refptr<Buffer> buffer(buffer_in);
   message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this,

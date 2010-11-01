@@ -42,7 +42,7 @@ scoped_refptr<StatsHistogram> StatsHistogram::StatsHistogramFactoryGet(
   Histogram* temp_histogram = histogram.get();
   StatsHistogram* temp_stats_histogram =
       static_cast<StatsHistogram*>(temp_histogram);
-  scoped_refptr<StatsHistogram> return_histogram = temp_stats_histogram;
+  scoped_refptr<StatsHistogram> return_histogram(temp_stats_histogram);
   return return_histogram;
 }
 

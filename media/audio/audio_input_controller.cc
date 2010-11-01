@@ -42,8 +42,8 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
     return factory_->Create(event_handler, params, samples_per_packet);
   }
 
-  scoped_refptr<AudioInputController> controller = new AudioInputController(
-      event_handler);
+  scoped_refptr<AudioInputController> controller(new AudioInputController(
+      event_handler));
 
   // Start the thread and post a task to create the audio input stream.
   controller->thread_.Start();

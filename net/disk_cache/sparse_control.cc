@@ -319,8 +319,8 @@ int SparseControl::CreateSparseEntry() {
   children_map_.Resize(kNumSparseBits, true);
 
   // Save the header. The bitmap is saved in the destructor.
-  scoped_refptr<net::IOBuffer> buf =
-      new net::WrappedIOBuffer(reinterpret_cast<char*>(&sparse_header_));
+  scoped_refptr<net::IOBuffer> buf(
+      new net::WrappedIOBuffer(reinterpret_cast<char*>(&sparse_header_)));
 
   int rv = entry_->WriteData(kSparseIndex, 0, buf, sizeof(sparse_header_), NULL,
                              false);
@@ -349,8 +349,8 @@ int SparseControl::OpenSparseEntry(int data_len) {
   if (map_len > kMaxMapSize || map_len % 4)
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
 
-  scoped_refptr<net::IOBuffer> buf =
-      new net::WrappedIOBuffer(reinterpret_cast<char*>(&sparse_header_));
+  scoped_refptr<net::IOBuffer> buf(
+      new net::WrappedIOBuffer(reinterpret_cast<char*>(&sparse_header_)));
 
   // Read header.
   int rv = entry_->ReadData(kSparseIndex, 0, buf, sizeof(sparse_header_), NULL);
@@ -402,8 +402,8 @@ bool SparseControl::OpenChild() {
           static_cast<int>(sizeof(child_data_)))
     return KillChildAndContinue(key, false);
 
-  scoped_refptr<net::WrappedIOBuffer> buf =
-      new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_));
+  scoped_refptr<net::WrappedIOBuffer> buf(
+      new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_)));
 
   // Read signature.
   int rv = child_->ReadData(kSparseIndex, 0, buf, sizeof(child_data_), NULL);
@@ -425,8 +425,8 @@ bool SparseControl::OpenChild() {
 }
 
 void SparseControl::CloseChild() {
-  scoped_refptr<net::WrappedIOBuffer> buf =
-      new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_));
+  scoped_refptr<net::WrappedIOBuffer> buf(
+      new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_)));
 
   // Save the allocation bitmap before closing the child entry.
   int rv = child_->WriteData(kSparseIndex, 0, buf, sizeof(child_data_),
@@ -492,8 +492,8 @@ void SparseControl::SetChildBit(bool value) {
 }
 
 void SparseControl::WriteSparseData() {
-  scoped_refptr<net::IOBuffer> buf = new net::WrappedIOBuffer(
-      reinterpret_cast<const char*>(children_map_.GetMap()));
+  scoped_refptr<net::IOBuffer> buf(new net::WrappedIOBuffer(
+      reinterpret_cast<const char*>(children_map_.GetMap())));
 
   int len = children_map_.ArraySize() * 4;
   int rv = entry_->WriteData(kSparseIndex, sizeof(sparse_header_), buf, len,
@@ -597,8 +597,8 @@ void SparseControl::InitChildData() {
   memset(&child_data_, 0, sizeof(child_data_));
   child_data_.header = sparse_header_;
 
-  scoped_refptr<net::WrappedIOBuffer> buf =
-      new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_));
+  scoped_refptr<net::WrappedIOBuffer> buf(
+      new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_)));
 
   int rv = child_->WriteData(kSparseIndex, 0, buf, sizeof(child_data_),
                              NULL, false);
