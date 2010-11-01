@@ -78,7 +78,7 @@ class ProxyScriptFetcherImplTest : public PlatformTest {
 };
 
 TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
-  scoped_refptr<URLRequestContext> context = new RequestContext;
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   scoped_ptr<ProxyScriptFetcher> pac_fetcher(
       new ProxyScriptFetcherImpl(context));
 
@@ -107,7 +107,7 @@ TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
 TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context = new RequestContext;
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   scoped_ptr<ProxyScriptFetcher> pac_fetcher(
       new ProxyScriptFetcherImpl(context));
 
@@ -143,7 +143,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
 TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context = new RequestContext;
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   scoped_ptr<ProxyScriptFetcher> pac_fetcher(
       new ProxyScriptFetcherImpl(context));
 
@@ -170,7 +170,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
 TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context = new RequestContext;
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   scoped_ptr<ProxyScriptFetcher> pac_fetcher(
       new ProxyScriptFetcherImpl(context));
 
@@ -188,7 +188,7 @@ TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
 TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context = new RequestContext;
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   scoped_ptr<ProxyScriptFetcher> pac_fetcher(
       new ProxyScriptFetcherImpl(context));
 
@@ -221,7 +221,7 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
 TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context = new RequestContext;
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   scoped_ptr<ProxyScriptFetcherImpl> pac_fetcher(
       new ProxyScriptFetcherImpl(context));
 
@@ -263,7 +263,7 @@ TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
 TEST_F(ProxyScriptFetcherImplTest, Hang) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context = new RequestContext;
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   scoped_ptr<ProxyScriptFetcherImpl> pac_fetcher(
       new ProxyScriptFetcherImpl(context));
 
@@ -302,7 +302,7 @@ TEST_F(ProxyScriptFetcherImplTest, Hang) {
 TEST_F(ProxyScriptFetcherImplTest, Encodings) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context = new RequestContext;
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   scoped_ptr<ProxyScriptFetcher> pac_fetcher(
       new ProxyScriptFetcherImpl(context));
 

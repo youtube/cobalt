@@ -147,7 +147,7 @@ int ReadTransaction(net::HttpTransaction* trans, std::string* result) {
 
   std::string content;
   do {
-    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(256);
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(256));
     rv = trans->Read(buf, 256, &callback);
     if (rv == net::ERR_IO_PENDING)
       rv = callback.WaitForResult();

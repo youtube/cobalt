@@ -605,7 +605,7 @@ TEST_F(HttpNetworkTransactionTest, Head) {
 
 TEST_F(HttpNetworkTransactionTest, ReuseConnection) {
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n"),
@@ -794,7 +794,7 @@ TEST_F(HttpNetworkTransactionTest, EmptyResponse) {
 void HttpNetworkTransactionTest::KeepAliveConnectionResendRequestTest(
     const MockRead& read_failure) {
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -911,7 +911,7 @@ TEST_F(HttpNetworkTransactionTest, NonKeepAliveConnectionEOF) {
 // reading the body.
 TEST_F(HttpNetworkTransactionTest, KeepAliveAfterUnreadBody) {
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3250,7 +3250,7 @@ TEST_F(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
   request[1].load_flags = 0;
 
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   // The first socket is used for transaction 1 and the first attempt of
   // transaction 2.
@@ -3518,7 +3518,7 @@ TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
 // Test that previously tried username/passwords for a realm get re-used.
 TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   // Transaction 1: authenticate (foo, bar) on MyRealm1
   {
@@ -3911,7 +3911,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 // are started with the same nonce.
 TEST_F(HttpNetworkTransactionTest, DigestPreAuthNonceCount) {
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
   HttpAuthHandlerDigest::SetFixedCnonce(true);
 
   // Transaction 1: authenticate (foo, bar) on MyRealm1
@@ -4065,7 +4065,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
     HttpRequestInfo request;
     std::string temp("HTTP/1.1 200 OK\nVary: foo, bar\n\n");
     std::replace(temp.begin(), temp.end(), '\n', '\0');
-    scoped_refptr<HttpResponseHeaders> headers = new HttpResponseHeaders(temp);
+    scoped_refptr<HttpResponseHeaders> headers(new HttpResponseHeaders(temp));
     request.extra_headers.SetHeader("Foo", "1");
     request.extra_headers.SetHeader("bar", "23");
     EXPECT_TRUE(response->vary_data.Init(request, *headers));
@@ -5378,7 +5378,7 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh3) {
 // Make sure we can handle an error when writing the request.
 TEST_F(HttpNetworkTransactionTest, RequestWriteError) {
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -5407,7 +5407,7 @@ TEST_F(HttpNetworkTransactionTest, RequestWriteError) {
 // Check that a connection closed after the start of the headers finishes ok.
 TEST_F(HttpNetworkTransactionTest, ConnectionClosedAfterStartOfHeaders) {
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -5449,7 +5449,7 @@ TEST_F(HttpNetworkTransactionTest, ConnectionClosedAfterStartOfHeaders) {
 // restart does the right thing.
 TEST_F(HttpNetworkTransactionTest, DrainResetOK) {
   SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -6473,8 +6473,8 @@ TEST_F(HttpNetworkTransactionTest,
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, session->mutable_spdy_settings(),
                                         BoundNetLog());
-  scoped_refptr<TCPSocketParams> tcp_params =
-      new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false);
+  scoped_refptr<TCPSocketParams> tcp_params(
+      new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(ERR_IO_PENDING,
@@ -6948,7 +6948,7 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
                                   origin, BoundNetLog());
   auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
 
-  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
   int rv = OK;
@@ -7649,8 +7649,8 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, session->mutable_spdy_settings(),
                                         BoundNetLog());
-  scoped_refptr<TCPSocketParams> tcp_params =
-      new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false);
+  scoped_refptr<TCPSocketParams> tcp_params(
+      new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false));
   TestCompletionCallback callback;
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);

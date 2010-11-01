@@ -192,8 +192,8 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   GURL url("http://www.google.com/");
 
   HostPortPair host_port_pair("www.google.com", 80);
-  scoped_refptr<TCPSocketParams> tcp_params =
-      new TCPSocketParams(host_port_pair, LOWEST, GURL(), false);
+  scoped_refptr<TCPSocketParams> tcp_params(
+      new TCPSocketParams(host_port_pair, LOWEST, GURL(), false));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,

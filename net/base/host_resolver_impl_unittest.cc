@@ -259,8 +259,8 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
   AddressList addrlist;
   const int kPortnum = 80;
 
-  scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
-      new RuleBasedHostResolverProc(NULL);
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
   scoped_ptr<HostResolver> host_resolver(
@@ -291,8 +291,8 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   AddressList addrlist;
   const int kPortnum = 80;
 
-  scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
-      new RuleBasedHostResolverProc(NULL);
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
   scoped_ptr<HostResolver> host_resolver(
@@ -328,8 +328,8 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
 }
 
 TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
-  scoped_refptr<WaitingHostResolverProc> resolver_proc =
-      new WaitingHostResolverProc(NULL);
+  scoped_refptr<WaitingHostResolverProc> resolver_proc(
+      new WaitingHostResolverProc(NULL));
 
   CapturingNetLog net_log(CapturingNetLog::kUnbounded);
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
@@ -390,8 +390,8 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
 TEST_F(HostResolverImplTest, NumericIPv4Address) {
   // Stevens says dotted quads with AI_UNSPEC resolve to a single sockaddr_in.
 
-  scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
-      new RuleBasedHostResolverProc(NULL);
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
   resolver_proc->AllowDirectLookup("*");
 
   scoped_ptr<HostResolver> host_resolver(
@@ -413,8 +413,8 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
 }
 
 TEST_F(HostResolverImplTest, NumericIPv6Address) {
-  scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
-      new RuleBasedHostResolverProc(NULL);
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
   resolver_proc->AllowDirectLookup("*");
 
   // Resolve a plain IPv6 address.  Don't worry about [brackets], because
@@ -445,8 +445,8 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
 }
 
 TEST_F(HostResolverImplTest, EmptyHost) {
-  scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
-      new RuleBasedHostResolverProc(NULL);
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
   resolver_proc->AllowDirectLookup("*");
 
   scoped_ptr<HostResolver> host_resolver(
@@ -459,8 +459,8 @@ TEST_F(HostResolverImplTest, EmptyHost) {
 }
 
 TEST_F(HostResolverImplTest, LongHost) {
-  scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
-      new RuleBasedHostResolverProc(NULL);
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
   resolver_proc->AllowDirectLookup("*");
 
   scoped_ptr<HostResolver> host_resolver(
@@ -523,8 +523,8 @@ class DeDupeRequestsVerifier : public ResolveRequest::Delegate {
 TEST_F(HostResolverImplTest, DeDupeRequests) {
   // Use a capturing resolver_proc, since the verifier needs to know what calls
   // reached Resolve().  Also, the capturing resolver_proc is initially blocked.
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(NULL);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(NULL));
 
   scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
@@ -574,8 +574,8 @@ TEST_F(HostResolverImplTest, CancelMultipleRequests) {
   // Use a capturing resolver_proc, since the verifier needs to know what calls
   // reached Resolver().  Also, the capturing resolver_proc is initially
   // blocked.
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(NULL);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(NULL));
 
   scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
@@ -661,8 +661,8 @@ TEST_F(HostResolverImplTest, CancelWithinCallback) {
   // Use a capturing resolver_proc, since the verifier needs to know what calls
   // reached Resolver().  Also, the capturing resolver_proc is initially
   // blocked.
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(NULL);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(NULL));
 
   scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
@@ -718,8 +718,8 @@ TEST_F(HostResolverImplTest, DeleteWithinCallback) {
   // Use a capturing resolver_proc, since the verifier needs to know what calls
   // reached Resolver().  Also, the capturing resolver_proc is initially
   // blocked.
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(NULL);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened. Note that the verifier holds the
@@ -773,8 +773,8 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
   // Use a capturing resolver_proc, since the verifier needs to know what calls
   // reached Resolver().  Also, the capturing resolver_proc is initially
   // blocked.
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(NULL);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(NULL));
 
   // Turn off caching for this host resolver.
   scoped_ptr<HostResolver> host_resolver(
@@ -1105,8 +1105,8 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
 
 // Test that IP address changes send ERR_ABORTED to pending requests.
 TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
-  scoped_refptr<WaitingHostResolverProc> resolver_proc =
-      new WaitingHostResolverProc(NULL);
+  scoped_refptr<WaitingHostResolverProc> resolver_proc(
+      new WaitingHostResolverProc(NULL));
   HostCache* cache = CreateDefaultCache();
   scoped_ptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, cache, kMaxJobs, NULL));
@@ -1130,8 +1130,8 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
 
 // Obey pool constraints after IP address has changed.
 TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
-  scoped_refptr<WaitingHostResolverProc> resolver_proc =
-      new WaitingHostResolverProc(NULL);
+  scoped_refptr<WaitingHostResolverProc> resolver_proc(
+      new WaitingHostResolverProc(NULL));
   scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver());
   host_resolver->Reset(resolver_proc);
 
@@ -1202,8 +1202,8 @@ class ResolveWithinCallback : public CallbackRunner< Tuple1<int> > {
 };
 
 TEST_F(HostResolverImplTest, OnlyAbortExistingRequestsOnIPAddressChange) {
-  scoped_refptr<WaitingHostResolverProc> resolver_proc =
-      new WaitingHostResolverProc(NULL);
+  scoped_refptr<WaitingHostResolverProc> resolver_proc(
+      new WaitingHostResolverProc(NULL));
   scoped_ptr<MockHostResolver> host_resolver(new MockHostResolver());
   host_resolver->Reset(resolver_proc);
 
@@ -1227,8 +1227,8 @@ TEST_F(HostResolverImplTest, OnlyAbortExistingRequestsOnIPAddressChange) {
 // Tests that when the maximum threads is set to 1, requests are dequeued
 // in order of priority.
 TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(NULL);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(NULL));
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   size_t kMaxJobs = 1u;
@@ -1312,8 +1312,8 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
 
 // Try cancelling a request which has not been attached to a job yet.
 TEST_F(HostResolverImplTest, CancelPendingRequest) {
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(NULL);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(NULL));
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxJobs = 1u;
@@ -1375,8 +1375,8 @@ TEST_F(HostResolverImplTest, CancelPendingRequest) {
 
 // Test that when too many requests are enqueued, old ones start to be aborted.
 TEST_F(HostResolverImplTest, QueueOverflow) {
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(NULL);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(NULL));
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
@@ -1453,8 +1453,8 @@ TEST_F(HostResolverImplTest, QueueOverflow) {
 // Tests that after changing the default AddressFamily to IPV4, requests
 // with UNSPECIFIED address family map to IPV4.
 TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(new EchoingHostResolverProc);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(new EchoingHostResolverProc));
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
@@ -1521,8 +1521,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
 // of requests 0 and 1 is flipped, and the default is set to IPv6 in place of
 // IPv4.
 TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(new EchoingHostResolverProc);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(new EchoingHostResolverProc));
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
@@ -1588,8 +1588,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
 // This tests that the default address family is respected for synchronous
 // resolutions.
 TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
-  scoped_refptr<CapturingHostResolverProc> resolver_proc =
-      new CapturingHostResolverProc(new EchoingHostResolverProc);
+  scoped_refptr<CapturingHostResolverProc> resolver_proc(
+      new CapturingHostResolverProc(new EchoingHostResolverProc));
 
   const size_t kMaxOutstandingJobs = 10u;
   scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(

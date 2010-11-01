@@ -80,8 +80,8 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
   synchronous_mode_ = false;
 
   // At the root of the chain, map everything to localhost.
-  scoped_refptr<RuleBasedHostResolverProc> catchall =
-      new RuleBasedHostResolverProc(NULL);
+  scoped_refptr<RuleBasedHostResolverProc> catchall(
+      new RuleBasedHostResolverProc(NULL));
   catchall->AddRule("*", "127.0.0.1");
 
   // Next add a rules-based layer the use controls.

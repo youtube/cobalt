@@ -1801,7 +1801,7 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
     DCHECK_EQ(200, response_.headers->response_code());
   }
 
-  scoped_refptr<PickledIOBuffer> data = new PickledIOBuffer();
+  scoped_refptr<PickledIOBuffer> data(new PickledIOBuffer());
   response_.Persist(data->pickle(), skip_transient_headers, truncated);
   data->Done();
 

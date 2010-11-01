@@ -182,8 +182,8 @@ void BackgroundIO::OnIOSignalled() {
 
 void InFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
                           size_t offset, disk_cache::FileIOCallback *callback) {
-  scoped_refptr<BackgroundIO> operation =
-      new BackgroundIO(file, buf, buf_len, offset, callback, this);
+  scoped_refptr<BackgroundIO> operation(
+      new BackgroundIO(file, buf, buf_len, offset, callback, this));
   io_list_.insert(operation.get());
   file->AddRef();  // Balanced on InvokeCallback()
 
@@ -198,8 +198,8 @@ void InFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
 void InFlightIO::PostWrite(disk_cache::File* file, const void* buf,
                            size_t buf_len, size_t offset,
                            disk_cache::FileIOCallback* callback) {
-  scoped_refptr<BackgroundIO> operation =
-      new BackgroundIO(file, buf, buf_len, offset, callback, this);
+  scoped_refptr<BackgroundIO> operation(
+      new BackgroundIO(file, buf, buf_len, offset, callback, this));
   io_list_.insert(operation.get());
   file->AddRef();  // Balanced on InvokeCallback()
 

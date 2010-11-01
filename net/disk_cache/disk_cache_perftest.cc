@@ -44,8 +44,8 @@ const int kMaxSize = 16 * 1024 - 1;
 int TimeWrite(int num_entries, disk_cache::Backend* cache,
               TestEntries* entries) {
   const int kSize1 = 200;
-  scoped_refptr<net::IOBuffer> buffer1 = new net::IOBuffer(kSize1);
-  scoped_refptr<net::IOBuffer> buffer2 = new net::IOBuffer(kMaxSize);
+  scoped_refptr<net::IOBuffer> buffer1(new net::IOBuffer(kSize1));
+  scoped_refptr<net::IOBuffer> buffer2(new net::IOBuffer(kMaxSize));
 
   CacheTestFillBuffer(buffer1->data(), kSize1, false);
   CacheTestFillBuffer(buffer2->data(), kMaxSize, false);
@@ -95,8 +95,8 @@ int TimeWrite(int num_entries, disk_cache::Backend* cache,
 int TimeRead(int num_entries, disk_cache::Backend* cache,
              const TestEntries& entries, bool cold) {
   const int kSize1 = 200;
-  scoped_refptr<net::IOBuffer> buffer1 = new net::IOBuffer(kSize1);
-  scoped_refptr<net::IOBuffer> buffer2 = new net::IOBuffer(kMaxSize);
+  scoped_refptr<net::IOBuffer> buffer1(new net::IOBuffer(kSize1));
+  scoped_refptr<net::IOBuffer> buffer2(new net::IOBuffer(kMaxSize));
 
   CacheTestFillBuffer(buffer1->data(), kSize1, false);
   CacheTestFillBuffer(buffer2->data(), kMaxSize, false);

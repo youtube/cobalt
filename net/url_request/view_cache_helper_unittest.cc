@@ -40,8 +40,8 @@ void WriteHeaders(disk_cache::Entry* entry, int flags, const std::string data) {
   pickle.WriteInt64(0);
   pickle.WriteString(data);
 
-  scoped_refptr<net::WrappedIOBuffer> buf = new net::WrappedIOBuffer(
-      reinterpret_cast<const char*>(pickle.data()));
+  scoped_refptr<net::WrappedIOBuffer> buf(new net::WrappedIOBuffer(
+      reinterpret_cast<const char*>(pickle.data())));
   int len = static_cast<int>(pickle.size());
 
   TestCompletionCallback cb;

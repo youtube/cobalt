@@ -1411,7 +1411,7 @@ int SSLClientSocketNSS::BufferSend(void) {
 
   int rv = 0;
   if (len) {
-    scoped_refptr<IOBuffer> send_buffer = new IOBuffer(len);
+    scoped_refptr<IOBuffer> send_buffer(new IOBuffer(len));
     memcpy(send_buffer->data(), buf1, len1);
     memcpy(send_buffer->data() + len1, buf2, len2);
     rv = transport_->socket()->Write(send_buffer, len,

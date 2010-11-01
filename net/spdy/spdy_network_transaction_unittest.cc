@@ -346,7 +346,7 @@ class SpdyNetworkTransactionTest
     const int kSize = 3000;
 
     int bytes_read = 0;
-    scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(kSize);
+    scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(kSize));
     TestCompletionCallback callback;
     while (true) {
       int rv = trans->Read(buf, kSize, &callback);
@@ -462,8 +462,8 @@ INSTANTIATE_TEST_CASE_P(Spdy,
 // Verify HttpNetworkTransaction constructor.
 TEST_P(SpdyNetworkTransactionTest, Constructor) {
   SpdySessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session =
-      SpdySessionDependencies::SpdyCreateSession(&session_deps);
+  scoped_refptr<HttpNetworkSession> session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 }
 
@@ -1709,7 +1709,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
 
   // Issue a read which will cause a WINDOW_UPDATE to be sent and window
   // size increased to default.
-  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kUploadDataSize);
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kUploadDataSize));
   rv = trans->Read(buf, kUploadDataSize, NULL);
   EXPECT_EQ(kUploadDataSize, rv);
   std::string content(buf->data(), buf->data()+kUploadDataSize);
@@ -2075,7 +2075,7 @@ TEST_P(SpdyNetworkTransactionTest, StartTransactionOnReadCallback) {
 
   StartTransactionCallback callback2(helper.session(), helper);
   const int kSize = 3000;
-  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kSize));
   rv = trans->Read(buf, kSize, &callback2);
   // This forces an err_IO_pending, which sets the callback.
   data->CompleteRead();
@@ -2135,7 +2135,7 @@ TEST_P(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
   // memory holding the stream object. Note that the callback deletes trans.
   DeleteSessionCallback callback2(helper);
   const int kSize = 3000;
-  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kSize));
   rv = trans->Read(buf, kSize, &callback2);
   ASSERT_EQ(ERR_IO_PENDING, rv);
   data->CompleteRead();
@@ -3418,7 +3418,7 @@ TEST_P(SpdyNetworkTransactionTest, BufferFull) {
   do {
     // Read small chunks at a time.
     const int kSmallReadSize = 3;
-    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSmallReadSize);
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kSmallReadSize));
     rv = trans->Read(buf, kSmallReadSize, &read_callback);
     if (rv == net::ERR_IO_PENDING) {
       data->CompleteRead();
@@ -3584,7 +3584,7 @@ TEST_P(SpdyNetworkTransactionTest, Buffering) {
   do {
     // Read small chunks at a time.
     const int kSmallReadSize = 14;
-    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSmallReadSize);
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kSmallReadSize));
     rv = trans->Read(buf, kSmallReadSize, &read_callback);
     if (rv == net::ERR_IO_PENDING) {
       data->CompleteRead();
@@ -3679,7 +3679,7 @@ TEST_P(SpdyNetworkTransactionTest, BufferedAll) {
   do {
     // Read small chunks at a time.
     const int kSmallReadSize = 14;
-    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSmallReadSize);
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kSmallReadSize));
     rv = trans->Read(buf, kSmallReadSize, &read_callback);
     if (rv > 0) {
       EXPECT_EQ(kSmallReadSize, rv);
@@ -3768,7 +3768,7 @@ TEST_P(SpdyNetworkTransactionTest, BufferedClosed) {
   do {
     // Read small chunks at a time.
     const int kSmallReadSize = 14;
-    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSmallReadSize);
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kSmallReadSize));
     rv = trans->Read(buf, kSmallReadSize, &read_callback);
     if (rv == net::ERR_IO_PENDING) {
       data->CompleteRead();
@@ -3844,7 +3844,7 @@ TEST_P(SpdyNetworkTransactionTest, BufferedCancelled) {
 
   do {
     const int kReadSize = 256;
-    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kReadSize);
+    scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kReadSize));
     rv = trans->Read(buf, kReadSize, &read_callback);
     if (rv == net::ERR_IO_PENDING) {
       // Complete the read now, which causes buffering to start.
@@ -4382,8 +4382,8 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   request_proxy.load_flags = 0;
   scoped_ptr<SpdySessionDependencies> ssd_proxy(new SpdySessionDependencies());
   // Ensure that this transaction uses the same SpdySessionPool.
-  scoped_refptr<HttpNetworkSession> session_proxy =
-      SpdySessionDependencies::SpdyCreateSession(ssd_proxy.get());
+  scoped_refptr<HttpNetworkSession> session_proxy(
+      SpdySessionDependencies::SpdyCreateSession(ssd_proxy.get()));
   NormalSpdyTransactionHelper helper_proxy(request_proxy,
                                            BoundNetLog(), GetParam());
   HttpNetworkSessionPeer session_peer(session_proxy);

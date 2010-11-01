@@ -39,8 +39,8 @@ void VideoFrame::CreateFrame(VideoFrame::Format format,
   DCHECK(width * height < 100000000);
   DCHECK(frame_out);
   bool alloc_worked = false;
-  scoped_refptr<VideoFrame> frame =
-      new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY, format, width, height);
+  scoped_refptr<VideoFrame> frame(
+      new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY, format, width, height));
   if (frame) {
     frame->SetTimestamp(timestamp);
     frame->SetDuration(duration);
@@ -85,8 +85,8 @@ void VideoFrame::CreateFrameExternal(SurfaceType type,
                                      void* private_buffer,
                                      scoped_refptr<VideoFrame>* frame_out) {
   DCHECK(frame_out);
-  scoped_refptr<VideoFrame> frame =
-      new VideoFrame(type, format, width, height);
+  scoped_refptr<VideoFrame> frame(
+      new VideoFrame(type, format, width, height));
   if (frame) {
     frame->SetTimestamp(timestamp);
     frame->SetDuration(duration);
@@ -108,8 +108,8 @@ void VideoFrame::CreateFrameGlTexture(Format format,
                                       GlTexture const textures[kMaxPlanes],
                                       scoped_refptr<VideoFrame>* frame_out) {
   DCHECK(frame_out);
-  scoped_refptr<VideoFrame> frame =
-      new VideoFrame(TYPE_GL_TEXTURE, format, width, height);
+  scoped_refptr<VideoFrame> frame(
+      new VideoFrame(TYPE_GL_TEXTURE, format, width, height));
   if (frame) {
     frame->external_memory_ = true;
     frame->planes_ = GetNumberOfPlanes(format);
