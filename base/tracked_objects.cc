@@ -156,7 +156,7 @@ void ThreadData::WriteHTML(const std::string& query, std::string* output) {
 
   DCHECK(ThreadData::current());
 
-  output->append("<html><head><title>About Objects");
+  output->append("<html><head><title>About Tasks");
   std::string escaped_query = UnescapeQuery(query);
   if (!escaped_query.empty())
     output->append(" - " + escaped_query);
