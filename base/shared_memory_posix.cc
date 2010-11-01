@@ -156,7 +156,7 @@ bool SharedMemory::CreateNamed(const std::string& name,
       PLOG(ERROR) << "Unable to access(W_OK|X_OK) " << dir.value();
       if (dir.value() == "/dev/shm") {
         LOG(FATAL) << "This is frequently caused by incorrect permissions on "
-        << "/dev/shm.  Try 'sudo chmod 777 /dev/shm' to fix.";
+        << "/dev/shm.  Try 'sudo chmod 1777 /dev/shm' to fix.";
       }
     }
 #else
