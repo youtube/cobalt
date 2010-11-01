@@ -531,6 +531,7 @@ DECLARE_CHECK_STROP_IMPL(_stricmp, false)
 
 #if ENABLE_DLOG
 
+#define DLOG_IS_ON(severity) LOG_IS_ON(severity)
 #define DLOG_IF(severity, condition) LOG_IF(severity, condition)
 #define DLOG_ASSERT(condition) LOG_ASSERT(condition)
 #define DPLOG_IF(severity, condition) PLOG_IF(severity, condition)
@@ -546,6 +547,7 @@ DECLARE_CHECK_STROP_IMPL(_stricmp, false)
 #define DLOG_EAT_STREAM_PARAMETERS                                      \
   true ? (void) 0 : ::logging::LogMessageVoidify() & LOG_STREAM(FATAL)
 
+#define DLOG_IS_ON(severity) false
 #define DLOG_IF(severity, condition) DLOG_EAT_STREAM_PARAMETERS
 #define DLOG_ASSERT(condition) DLOG_EAT_STREAM_PARAMETERS
 #define DPLOG_IF(severity, condition) DLOG_EAT_STREAM_PARAMETERS
@@ -564,8 +566,6 @@ DECLARE_CHECK_STROP_IMPL(_stricmp, false)
 enum { DEBUG_MODE = ENABLE_DLOG };
 
 #undef ENABLE_DLOG
-
-#define DLOG_IS_ON(severity) (::logging::DEBUG_MODE && LOG_IS_ON(severity))
 
 #define DLOG(severity)                                          \
   LAZY_STREAM(LOG_STREAM(severity), DLOG_IS_ON(severity))
@@ -592,28 +592,34 @@ enum { DEBUG_MODE = ENABLE_DLOG };
 
 #if defined(NDEBUG)
 
-// Set to true in InitLogging when we want to enable the dchecks in release.
-extern bool g_enable_dcheck;
-#define DCHECK_IS_ON() (::logging::g_enable_dcheck)
 #define DCHECK_SEVERITY ERROR_REPORT
 const LogSeverity LOG_DCHECK = LOG_ERROR_REPORT;
+// This is set to true in InitLogging when we want to enable the
+// DCHECKs in release.
+extern bool g_enable_dcheck;
+#define DCHECK_IS_ON() (::logging::g_enable_dcheck && LOG_IS_ON(DCHECK))
 
 #else  // defined(NDEBUG)
 
-// On a regular debug build, we want to have DCHECKS enabled.
-#define DCHECK_IS_ON() (true)
+// On a regular debug build, we want to have DCHECKs enabled.
 #define DCHECK_SEVERITY FATAL
 const LogSeverity LOG_DCHECK = LOG_FATAL;
+// TODO(akalin): We don't define this as 'true' since if the log level
+// is above FATAL, the DCHECK won't go through anyway.  Make it so
+// that DCHECKs work regardless of the logging level, then set this to
+// 'true'.
+#define DCHECK_IS_ON() LOG_IS_ON(DCHECK)
 
 #endif  // defined(NDEBUG)
 
 #else  // ENABLE_DCHECK
 
-#define DCHECK_IS_ON() (false)
 #define DCHECK_SEVERITY FATAL
 const LogSeverity LOG_DCHECK = LOG_FATAL;
+#define DCHECK_IS_ON() false
 
 #endif  // ENABLE_DCHECK
+#undef ENABLE_DCHECK
 
 // Unlike CHECK et al., DCHECK et al. *does* evaluate their arguments
 // lazily.
@@ -636,7 +642,7 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use DCHECK_EQ et al below.
 #define DCHECK_OP(name, op, val1, val2)                         \
-  if (DLOG_IS_ON(DCHECK_SEVERITY))                              \
+  if (DCHECK_IS_ON())                                           \
     if (logging::CheckOpString _result =                        \
         logging::Check##name##Impl((val1), (val2),              \
                                    #val1 " " #op " " #val2))    \
