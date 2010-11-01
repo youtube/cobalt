@@ -63,6 +63,19 @@ class VlogInfo {
   DISALLOW_COPY_AND_ASSIGN(VlogInfo);
 };
 
+// Returns true if the string passed in matches the vlog pattern.  The
+// vlog pattern string can contain wildcards like * and ?.  ? matches
+// exactly one character while * matches 0 or more characters.  Also,
+// as a special case, a / or \ character matches either / or \.
+//
+// Examples:
+//   "kh?n" matches "khan" but not "khn" or "khaan"
+//   "kh*n" matches "khn", "khan", or even "khaaaaan"
+//   "/foo\bar" matches "/foo/bar", "\foo\bar", or "/foo\bar"
+//     (disregarding C escaping rules)
+bool MatchVlogPattern(const base::StringPiece& string,
+                      const base::StringPiece& vlog_pattern);
+
 }  // namespace logging
 
 #endif  // BASE_VLOG_H_

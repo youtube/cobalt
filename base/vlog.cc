@@ -5,9 +5,9 @@
 #include "base/vlog.h"
 
 #include "base/basictypes.h"
+#include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
-#include "base/string_util.h"
 
 namespace logging {
 
@@ -20,15 +20,8 @@ VlogInfo::VmodulePattern::VmodulePattern(const std::string& pattern)
   // If the pattern contains a {forward,back} slash, we assume that
   // it's meant to be tested against the entire __FILE__ string.
   std::string::size_type first_slash = pattern.find_first_of("\\/");
-  if (first_slash != std::string::npos) {
-    // The backslash is an escape character for patterns, so we need
-    // to escape it.  This is okay, because it's highly unlikely that
-    // the user would want to match literal *s or ?s.  However, we may
-    // want to have our own simpler version of MatchPattern() to avoid
-    // these sorts of hacks.
-    ReplaceSubstringsAfterOffset(&this->pattern, first_slash, "\\", "\\\\");
+  if (first_slash != std::string::npos)
     match_target = MATCH_FILE;
-  }
 }
 
 VlogInfo::VmodulePattern::VmodulePattern()
@@ -93,11 +86,64 @@ int VlogInfo::GetVlogLevel(const base::StringPiece& file) {
              vmodule_levels_.begin(); it != vmodule_levels_.end(); ++it) {
       base::StringPiece target(
           (it->match_target == VmodulePattern::MATCH_FILE) ? file : module);
-      if (MatchPattern(target, it->pattern))
+      if (MatchVlogPattern(target, it->pattern))
         return it->vlog_level;
     }
   }
   return max_vlog_level_;
+}
+
+bool MatchVlogPattern(const base::StringPiece& string,
+                      const base::StringPiece& vlog_pattern) {
+  base::StringPiece p(vlog_pattern);
+  base::StringPiece s(string);
+  // Consume characters until the next star.
+  while (!p.empty() && !s.empty() && (p[0] != '*')) {
+    switch (p[0]) {
+      // A slash (forward or back) must match a slash (forward or back).
+      case '/':
+      case '\\':
+        if ((s[0] != '/') && (s[0] != '\\'))
+          return false;
+        break;
+
+      // A '?' matches anything.
+      case '?':
+        break;
+
+      // Anything else must match literally.
+      default:
+        if (p[0] != s[0])
+          return false;
+        break;
+    }
+    p.remove_prefix(1), s.remove_prefix(1);
+  }
+
+  // An empty pattern here matches only an empty string.
+  if (p.empty())
+    return s.empty();
+
+  // Coalesce runs of consecutive stars.  There should be at least
+  // one.
+  while (!p.empty() && (p[0] == '*'))
+    p.remove_prefix(1);
+
+  // Since we moved past the stars, an empty pattern here matches
+  // anything.
+  if (p.empty())
+    return true;
+
+  // Since we moved past the stars and p is non-empty, if some
+  // non-empty substring of s matches p, then we ourselves match.
+  while (!s.empty()) {
+    if (MatchVlogPattern(s, p))
+      return true;
+    s.remove_prefix(1);
+  }
+
+  // Otherwise, we couldn't find a match.
+  return false;
 }
 
 }  // namespace
