@@ -126,8 +126,8 @@ void FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
   }
 
   // Enqueue the callback and attempt to satisfy a read immediately.
-  scoped_refptr<Buffer> buffer =
-      new AVPacketBuffer(packet, timestamp, duration);
+  scoped_refptr<Buffer> buffer(
+      new AVPacketBuffer(packet, timestamp, duration));
   if (!buffer) {
     NOTREACHED() << "Unable to allocate AVPacketBuffer";
     return;

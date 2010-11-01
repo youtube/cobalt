@@ -410,8 +410,8 @@ int MultiThreadedProxyResolver::GetProxyForURL(const GURL& url,
   DCHECK(current_script_data_.get())
       << "Resolver is un-initialized. Must call SetPacScript() first!";
 
-  scoped_refptr<GetProxyForURLJob> job =
-      new GetProxyForURLJob(url, results, callback, net_log);
+  scoped_refptr<GetProxyForURLJob> job(
+      new GetProxyForURLJob(url, results, callback, net_log));
 
   // Completion will be notified through |callback|, unless the caller cancels
   // the request using |request|.

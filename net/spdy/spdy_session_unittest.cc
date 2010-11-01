@@ -91,8 +91,8 @@ TEST_F(SpdySessionTest, GoAway) {
                              BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
-  scoped_refptr<TCPSocketParams> tcp_params =
-      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false);
+  scoped_refptr<TCPSocketParams> tcp_params(
+      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
@@ -200,8 +200,8 @@ TEST_F(SpdySessionTest, OnSettings) {
                              BoundNetLog());
   ASSERT_TRUE(spdy_session_pool->HasSession(pair));
 
-  scoped_refptr<TCPSocketParams> tcp_params =
-      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false);
+  scoped_refptr<TCPSocketParams> tcp_params(
+      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,

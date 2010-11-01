@@ -669,7 +669,7 @@ void RunCallback(size_t size, DataSource::ReadCallback* callback) {
 
 TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   // Creates a demuxer.
-  scoped_refptr<MockFFmpegDemuxer> demuxer = new MockFFmpegDemuxer();
+  scoped_refptr<MockFFmpegDemuxer> demuxer(new MockFFmpegDemuxer());
   ASSERT_TRUE(demuxer);
   demuxer->set_host(&host_);
   demuxer->set_message_loop(&message_loop_);

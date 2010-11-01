@@ -58,8 +58,8 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
     return NULL;
 
   // Starts the audio controller thread.
-  scoped_refptr<AudioOutputController> controller = new AudioOutputController(
-      event_handler, buffer_capacity, NULL);
+  scoped_refptr<AudioOutputController> controller(new AudioOutputController(
+      event_handler, buffer_capacity, NULL));
 
   controller->message_loop_ =
       AudioManager::GetAudioManager()->GetMessageLoop();
@@ -83,8 +83,8 @@ scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
     return NULL;
 
   // Starts the audio controller thread.
-  scoped_refptr<AudioOutputController> controller = new AudioOutputController(
-      event_handler, 0, sync_reader);
+  scoped_refptr<AudioOutputController> controller(new AudioOutputController(
+      event_handler, 0, sync_reader));
 
   controller->message_loop_ =
       AudioManager::GetAudioManager()->GetMessageLoop();

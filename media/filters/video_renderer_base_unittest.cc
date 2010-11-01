@@ -113,7 +113,7 @@ TEST_F(VideoRendererBaseTest, Initialize_BadMediaFormat) {
 
   // Don't set a media format.
   MediaFormat media_format;
-  scoped_refptr<MockVideoDecoder> bad_decoder = new MockVideoDecoder();
+  scoped_refptr<MockVideoDecoder> bad_decoder(new MockVideoDecoder());
   EXPECT_CALL(*bad_decoder, media_format())
       .WillRepeatedly(ReturnRef(media_format));
 

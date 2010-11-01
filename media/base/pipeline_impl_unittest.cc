@@ -118,7 +118,7 @@ class PipelineImplTest : public ::testing::Test {
 
     // Configure the demuxer to return the streams.
     for (size_t i = 0; i < streams->size(); ++i) {
-      scoped_refptr<DemuxerStream> stream = (*streams)[i];
+      scoped_refptr<DemuxerStream> stream((*streams)[i]);
       EXPECT_CALL(*mocks_->demuxer(), GetStream(i))
           .WillRepeatedly(Return(stream));
     }

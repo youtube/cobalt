@@ -573,7 +573,7 @@ class MockHttpCache {
     int size = disk_entry->GetDataSize(0);
 
     TestCompletionCallback cb;
-    scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(size);
+    scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(size));
     int rv = disk_entry->ReadData(0, 0, buffer, size, &cb);
     rv = cb.GetResult(rv);
     EXPECT_EQ(size, rv);
@@ -593,8 +593,8 @@ class MockHttpCache {
         &pickle, skip_transient_headers, response_truncated);
 
     TestCompletionCallback cb;
-    scoped_refptr<net::WrappedIOBuffer> data = new net::WrappedIOBuffer(
-        reinterpret_cast<const char*>(pickle.data()));
+    scoped_refptr<net::WrappedIOBuffer> data(new net::WrappedIOBuffer(
+        reinterpret_cast<const char*>(pickle.data())));
     int len = static_cast<int>(pickle.size());
 
     int rv =  disk_entry->WriteData(0, 0, data, len, &cb, true);
@@ -951,8 +951,8 @@ const MockTransaction kRangeGET_TransactionOK = {
 void Verify206Response(std::string response, int start, int end) {
   std::string raw_headers(net::HttpUtil::AssembleRawHeaders(response.data(),
                                                             response.size()));
-  scoped_refptr<net::HttpResponseHeaders> headers =
-      new net::HttpResponseHeaders(raw_headers);
+  scoped_refptr<net::HttpResponseHeaders> headers(
+      new net::HttpResponseHeaders(raw_headers));
 
   ASSERT_EQ(206, headers->response_code());
 
@@ -1854,7 +1854,7 @@ TEST(HttpCache, SimpleGET_AbandonedCacheRead) {
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);
 
-  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(256);
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(256));
   rv = trans->Read(buf, 256, &callback);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
@@ -3544,7 +3544,7 @@ TEST(HttpCache, RangeGET_Cancel) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   // Make sure that the entry has some data stored.
-  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(10);
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(10));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
   if (rv == net::ERR_IO_PENDING)
     rv = c->callback.WaitForResult();
@@ -3585,7 +3585,7 @@ TEST(HttpCache, RangeGET_Cancel2) {
 
   // Make sure that we revalidate the entry and read from the cache (a single
   // read will return while waiting for the network).
-  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(5);
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(5));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
   EXPECT_EQ(5, c->callback.GetResult(rv));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
@@ -3631,7 +3631,7 @@ TEST(HttpCache, RangeGET_Cancel3) {
 
   // Make sure that we revalidate the entry and read from the cache (a single
   // read will return while waiting for the network).
-  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(5);
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(5));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
   EXPECT_EQ(5, c->callback.GetResult(rv));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
@@ -4029,7 +4029,7 @@ TEST(HttpCache, DoomOnDestruction2) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   // Make sure that the entry has some data stored.
-  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(10);
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(10));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
   if (rv == net::ERR_IO_PENDING)
     rv = c->callback.WaitForResult();
@@ -4073,7 +4073,7 @@ TEST(HttpCache, DoomOnDestruction3) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   // Make sure that the entry has some data stored.
-  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(10);
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(10));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
   if (rv == net::ERR_IO_PENDING)
     rv = c->callback.WaitForResult();
@@ -4117,7 +4117,7 @@ TEST(HttpCache, Set_Truncated_Flag) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   // Make sure that the entry has some data stored.
-  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(10);
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(10));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
   if (rv == net::ERR_IO_PENDING)
     rv = c->callback.WaitForResult();

@@ -62,7 +62,7 @@ TEST(FileDataSourceTest, OpenFile) {
   EXPECT_CALL(callback, OnFilterCallback());
   EXPECT_CALL(callback, OnCallbackDestroyed());
 
-  scoped_refptr<FileDataSource> filter = new FileDataSource();
+  scoped_refptr<FileDataSource> filter(new FileDataSource());
   filter->set_host(&host);
   filter->Initialize(TestFileURL(), callback.NewCallback());
 
@@ -79,7 +79,7 @@ TEST(FileDataSourceTest, ReadData) {
   // Create our mock filter host and initialize the data source.
   NiceMock<MockFilterHost> host;
   NiceMock<MockFilterCallback> callback;
-  scoped_refptr<FileDataSource> filter = new FileDataSource();
+  scoped_refptr<FileDataSource> filter(new FileDataSource());
 
   filter->set_host(&host);
   filter->Initialize(TestFileURL(), callback.NewCallback());
@@ -116,7 +116,7 @@ TEST(FileDataSourceTest, Seek) {
   EXPECT_CALL(callback, OnCallbackDestroyed());
   const base::TimeDelta kZero;
 
-  scoped_refptr<FileDataSource> filter = new FileDataSource();
+  scoped_refptr<FileDataSource> filter(new FileDataSource());
   filter->Seek(kZero, callback.NewCallback());
 
   EXPECT_CALL(callback, OnFilterCallback());
