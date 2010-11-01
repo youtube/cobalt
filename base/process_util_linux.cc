@@ -22,6 +22,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
+#include "base/thread_restrictions.h"
 
 namespace {
 
@@ -33,6 +34,9 @@ enum ParsingState {
 // Reads /proc/<pid>/stat and populates |proc_stats| with the values split by
 // spaces. Returns true if successful.
 bool GetProcStats(pid_t pid, std::vector<std::string>* proc_stats) {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   FilePath stat_file("/proc");
   stat_file = stat_file.Append(base::IntToString(pid));
   stat_file = stat_file.Append("stat");
@@ -49,6 +53,9 @@ bool GetProcStats(pid_t pid, std::vector<std::string>* proc_stats) {
 // null characters. We tokenize it into a vector of strings using '\0' as a
 // delimiter.
 bool GetProcCmdline(pid_t pid, std::vector<std::string>* proc_cmd_line_args) {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   FilePath cmd_line_file("/proc");
   cmd_line_file = cmd_line_file.Append(base::IntToString(pid));
   cmd_line_file = cmd_line_file.Append("cmdline");
@@ -66,6 +73,9 @@ bool GetProcCmdline(pid_t pid, std::vector<std::string>* proc_cmd_line_args) {
 namespace base {
 
 ProcessId GetParentProcessId(ProcessHandle process) {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   FilePath stat_file("/proc");
   stat_file = stat_file.Append(base::IntToString(process));
   stat_file = stat_file.Append("status");
@@ -307,6 +317,9 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
 // close approximation.
 // See http://www.pixelbeat.org/scripts/ps_mem.py
 bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   FilePath stat_file =
       FilePath("/proc").Append(base::IntToString(process_)).Append("smaps");
   std::string smaps;
@@ -380,6 +393,9 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
 // To have /proc/self/io file you must enable CONFIG_TASK_IO_ACCOUNTING
 // in your kernel configuration.
 bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   std::string proc_io_contents;
   FilePath io_file("/proc");
   io_file = io_file.Append(base::IntToString(process_));
@@ -447,6 +463,9 @@ int ParseProcStatCPU(const std::string& input) {
 // Get the total CPU of a single process.  Return value is number of jiffies
 // on success or -1 on error.
 static int GetProcessCPU(pid_t pid) {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   // Use /proc/<pid>/task to find all threads and parse their /stat file.
   FilePath path = FilePath(StringPrintf("/proc/%d/task/", pid));
 
@@ -534,6 +553,9 @@ const size_t kMemCacheIndex = 10;
 }  // namespace
 
 size_t GetSystemCommitCharge() {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   // Used memory is: total - free - buffers - caches
   FilePath meminfo_file("/proc/meminfo");
   std::string meminfo_data;
