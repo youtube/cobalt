@@ -308,4 +308,57 @@ TEST(HistogramTest, BucketPlacementTest) {
 }
 
 }  // namespace
+
+//------------------------------------------------------------------------------
+// We can't be an an anonymous namespace while being friends, so we pop back
+// out to the base namespace here.  We need to be friends to corrupt the
+// internals of the histogram and/or sampleset.
+TEST(HistogramTest, CorruptSampleCounts) {
+  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
+      "Histogram", 1, 64, 8, Histogram::kNoFlags);  // As per header file.
+
+  EXPECT_EQ(0, histogram->sample_.redundant_count());
+  histogram->Add(20);  // Add some samples.
+  histogram->Add(40);
+  EXPECT_EQ(2, histogram->sample_.redundant_count());
+
+  Histogram::SampleSet snapshot;
+  histogram->SnapshotSample(&snapshot);
+  EXPECT_EQ(Histogram::NO_INCONSISTENCIES, 0);
+  EXPECT_EQ(0, histogram->FindCorruption(snapshot));  // No default corruption.
+  EXPECT_EQ(2, snapshot.redundant_count());
+
+  snapshot.counts_[3] += 100;  // Sample count won't match redundant count.
+  EXPECT_EQ(Histogram::COUNT_LOW_ERROR, histogram->FindCorruption(snapshot));
+  snapshot.counts_[2] -= 200;
+  EXPECT_EQ(Histogram::COUNT_HIGH_ERROR, histogram->FindCorruption(snapshot));
+
+  // But we can't spot a corruption if it is compensated for.
+  snapshot.counts_[1] += 100;
+  EXPECT_EQ(0, histogram->FindCorruption(snapshot));
+}
+
+TEST(HistogramTest, CorruptBucketBounds) {
+  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
+      "Histogram", 1, 64, 8, Histogram::kNoFlags);  // As per header file.
+
+  Histogram::SampleSet snapshot;
+  histogram->SnapshotSample(&snapshot);
+  EXPECT_EQ(Histogram::NO_INCONSISTENCIES, 0);
+  EXPECT_EQ(0, histogram->FindCorruption(snapshot));  // No default corruption.
+
+  std::swap(histogram->ranges_[1], histogram->ranges_[2]);
+  EXPECT_EQ(Histogram::BUCKET_ORDER_ERROR, histogram->FindCorruption(snapshot));
+
+  std::swap(histogram->ranges_[1], histogram->ranges_[2]);
+  EXPECT_EQ(0, histogram->FindCorruption(snapshot));
+
+  ++histogram->ranges_[3];
+  EXPECT_EQ(Histogram::RANGE_CHECKSUM_ERROR,
+            histogram->FindCorruption(snapshot));
+
+  // Repair histogram so that destructor won't DCHECK().
+  --histogram->ranges_[3];
+}
+
 }  // namespace base
