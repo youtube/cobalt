@@ -26,6 +26,54 @@ TEST_F(VlogTest, NoVmodule) {
   EXPECT_EQ(5, VlogInfo("5", "").GetVlogLevel("test6"));
 }
 
+TEST_F(VlogTest, MatchVlogPattern) {
+  // Degenerate cases.
+  EXPECT_TRUE(MatchVlogPattern("", ""));
+  EXPECT_TRUE(MatchVlogPattern("", "****"));
+  EXPECT_FALSE(MatchVlogPattern("", "x"));
+  EXPECT_FALSE(MatchVlogPattern("x", ""));
+
+  // Basic.
+  EXPECT_TRUE(MatchVlogPattern("blah", "blah"));
+
+  // ? should match exactly one character.
+  EXPECT_TRUE(MatchVlogPattern("blah", "bl?h"));
+  EXPECT_FALSE(MatchVlogPattern("blh", "bl?h"));
+  EXPECT_FALSE(MatchVlogPattern("blaah", "bl?h"));
+  EXPECT_TRUE(MatchVlogPattern("blah", "?lah"));
+  EXPECT_FALSE(MatchVlogPattern("lah", "?lah"));
+  EXPECT_FALSE(MatchVlogPattern("bblah", "?lah"));
+
+  // * can match any number (even 0) of characters.
+  EXPECT_TRUE(MatchVlogPattern("blah", "bl*h"));
+  EXPECT_TRUE(MatchVlogPattern("blabcdefh", "bl*h"));
+  EXPECT_TRUE(MatchVlogPattern("blh", "bl*h"));
+  EXPECT_TRUE(MatchVlogPattern("blah", "*blah"));
+  EXPECT_TRUE(MatchVlogPattern("ohblah", "*blah"));
+  EXPECT_TRUE(MatchVlogPattern("blah", "blah*"));
+  EXPECT_TRUE(MatchVlogPattern("blahhhh", "blah*"));
+  EXPECT_TRUE(MatchVlogPattern("blahhhh", "blah*"));
+  EXPECT_TRUE(MatchVlogPattern("blah", "*blah*"));
+  EXPECT_TRUE(MatchVlogPattern("blahhhh", "*blah*"));
+  EXPECT_TRUE(MatchVlogPattern("bbbblahhhh", "*blah*"));
+
+  // Multiple *s should work fine.
+  EXPECT_TRUE(MatchVlogPattern("ballaah", "b*la*h"));
+  EXPECT_TRUE(MatchVlogPattern("blah", "b*la*h"));
+  EXPECT_TRUE(MatchVlogPattern("bbbblah", "b*la*h"));
+  EXPECT_TRUE(MatchVlogPattern("blaaah", "b*la*h"));
+
+  // There should be no escaping going on.
+  EXPECT_TRUE(MatchVlogPattern("bl\\ah", "bl\\?h"));
+  EXPECT_FALSE(MatchVlogPattern("bl?h", "bl\\?h"));
+  EXPECT_TRUE(MatchVlogPattern("bl\\aaaah", "bl\\*h"));
+  EXPECT_FALSE(MatchVlogPattern("bl*h", "bl\\*h"));
+
+  // Any slash matches any slash.
+  EXPECT_TRUE(MatchVlogPattern("/b\\lah", "/b\\lah"));
+  EXPECT_TRUE(MatchVlogPattern("\\b/lah", "/b\\lah"));
+}
+
 TEST_F(VlogTest, VmoduleBasic) {
   const char kVSwitch[] = "-1";
   const char kVModuleSwitch[] =
@@ -51,13 +99,14 @@ TEST_F(VlogTest, VmoduleDirs) {
 
   EXPECT_EQ(0, vlog_info.GetVlogLevel("baz/grault/qux.h"));
   EXPECT_EQ(0, vlog_info.GetVlogLevel("/baz/grault/qux.cc"));
-  EXPECT_EQ(0, vlog_info.GetVlogLevel("baz/grault/qux.cc"));
-  EXPECT_EQ(0, vlog_info.GetVlogLevel("baz/grault/blah/qux.cc"));
+  EXPECT_EQ(2, vlog_info.GetVlogLevel("baz/grault/qux.cc"));
+  EXPECT_EQ(2, vlog_info.GetVlogLevel("baz/grault/blah/qux.cc"));
   EXPECT_EQ(2, vlog_info.GetVlogLevel("baz\\grault\\qux.cc"));
-  EXPECT_EQ(2, vlog_info.GetVlogLevel("baz\\grault\\blah\\qux.cc"));
+  EXPECT_EQ(2, vlog_info.GetVlogLevel("baz\\grault//blah\\qux.cc"));
 
   EXPECT_EQ(0, vlog_info.GetVlogLevel("/foo/bar/baz/quux.cc"));
   EXPECT_EQ(3, vlog_info.GetVlogLevel("/foo/bar/baz/quux/grault.cc"));
+  EXPECT_EQ(3, vlog_info.GetVlogLevel("/foo\\bar/baz\\quux/grault.cc"));
 
   EXPECT_EQ(0, vlog_info.GetVlogLevel("foo/bar/test-inl.cc"));
   EXPECT_EQ(4, vlog_info.GetVlogLevel("foo/bar/test-inl.h"));

@@ -87,9 +87,9 @@
 //   b. VLOG(1) and lower messages to be printed from icon_loader.{h,cc}
 //   c. VLOG(3) and lower messages to be printed from files prefixed with
 //      "browser"
-//   c. VLOG(4) and lower messages to be printed from files under a
+//   d. VLOG(4) and lower messages to be printed from files under a
 //     "chromeos" directory.
-//   d. VLOG(0) and lower messages to be printed from elsewhere
+//   e. VLOG(0) and lower messages to be printed from elsewhere
 //
 // The wildcarding functionality shown by (c) supports both '*' (match
 // 0 or more characters) and '?' (match any single character)
