@@ -50,7 +50,7 @@ NET_ERROR(FILE_TOO_BIG, -8)
 // invalid assumption.
 NET_ERROR(UNEXPECTED, -9)
 
-// Permission to access a resource was denied.
+// Permission to access a resource, other than the network, was denied.
 NET_ERROR(ACCESS_DENIED, -10)
 
 // The operation failed because of unimplemented functionality.
@@ -66,7 +66,7 @@ NET_ERROR(OUT_OF_MEMORY, -13)
 // from the expectation.
 NET_ERROR(UPLOAD_FILE_CHANGED, -14)
 
-// The socket is not connected
+// The socket is not connected.
 NET_ERROR(SOCKET_NOT_CONNECTED, -15)
 
 // A connection was closed (corresponding to a TCP FIN).
@@ -207,6 +207,11 @@ NET_ERROR(PROXY_CERTIFICATE_INVALID, -136)
 
 // An error occurred when trying to do a name resolution (DNS).
 NET_ERROR(NAME_RESOLUTION_FAILED, -137)
+
+// Permission to access the network was denied. This is used to distinguish
+// errors that were most likely caused by a firewall from other access denied
+// errors. See also ERR_ACCESS_DENIED.
+NET_ERROR(NETWORK_ACCESS_DENIED, -138)
 
 // Certificate error codes
 //
