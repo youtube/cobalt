@@ -638,8 +638,8 @@ int HttpNetworkTransaction::DoSendRequest() {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
-        new NetLogHttpRequestParameter(request_->url.spec(),
-                                       request_->extra_headers));
+        make_scoped_refptr(new NetLogHttpRequestParameter(
+            request_->url.spec(), request_->extra_headers)));
   }
 
   headers_valid_ = false;
@@ -732,7 +732,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
-        new NetLogHttpResponseParameter(response_.headers));
+        make_scoped_refptr(new NetLogHttpResponseParameter(response_.headers)));
   }
 
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {

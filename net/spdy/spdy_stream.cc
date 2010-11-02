@@ -60,8 +60,9 @@ SpdyStream::SpdyStream(SpdySession* session,
       net_log_(net_log),
       send_bytes_(0),
       recv_bytes_(0) {
-  net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM,
-                      new NetLogIntegerParameter("stream_id", stream_id_));
+  net_log_.BeginEvent(
+      NetLog::TYPE_SPDY_STREAM,
+      make_scoped_refptr(new NetLogIntegerParameter("stream_id", stream_id_)));
 }
 
 SpdyStream::~SpdyStream() {
@@ -148,9 +149,10 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
 
   send_window_size_ = new_window_size;
 
-  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_SEND_WINDOW_UPDATE,
-                    new NetLogSpdyStreamWindowUpdateParameter(stream_id_,
-                        delta_window_size, send_window_size_));
+  net_log_.AddEvent(
+      NetLog::TYPE_SPDY_STREAM_SEND_WINDOW_UPDATE,
+      make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
+          stream_id_, delta_window_size, send_window_size_)));
   if (stalled_by_flow_control_) {
     stalled_by_flow_control_ = false;
     io_state_ = STATE_SEND_BODY;
@@ -170,9 +172,10 @@ void SpdyStream::DecreaseSendWindowSize(int delta_window_size) {
 
   send_window_size_ -= delta_window_size;
 
-  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_SEND_WINDOW_UPDATE,
-                    new NetLogSpdyStreamWindowUpdateParameter(stream_id_,
-                        -delta_window_size, send_window_size_));
+  net_log_.AddEvent(
+      NetLog::TYPE_SPDY_STREAM_SEND_WINDOW_UPDATE,
+      make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
+          stream_id_, -delta_window_size, send_window_size_)));
 }
 
 void SpdyStream::IncreaseRecvWindowSize(int delta_window_size) {
@@ -185,9 +188,10 @@ void SpdyStream::IncreaseRecvWindowSize(int delta_window_size) {
     DCHECK(new_window_size > 0);
 
   recv_window_size_ = new_window_size;
-  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_RECV_WINDOW_UPDATE,
-                    new NetLogSpdyStreamWindowUpdateParameter(stream_id_,
-                        delta_window_size, recv_window_size_));
+  net_log_.AddEvent(
+      NetLog::TYPE_SPDY_STREAM_RECV_WINDOW_UPDATE,
+      make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
+          stream_id_, delta_window_size, recv_window_size_)));
   session_->SendWindowUpdate(stream_id_, delta_window_size);
 }
 
@@ -195,9 +199,10 @@ void SpdyStream::DecreaseRecvWindowSize(int delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
 
   recv_window_size_ -= delta_window_size;
-  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_RECV_WINDOW_UPDATE,
-                    new NetLogSpdyStreamWindowUpdateParameter(stream_id_,
-                        -delta_window_size, recv_window_size_));
+  net_log_.AddEvent(
+      NetLog::TYPE_SPDY_STREAM_RECV_WINDOW_UPDATE,
+      make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
+          stream_id_, -delta_window_size, recv_window_size_)));
 
   // Since we never decrease the initial window size, we should never hit
   // a negative |recv_window_size_|, if we do, it's a flow-control violation.
@@ -257,7 +262,7 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     if (length > 0) {
       IOBufferWithSize* buf = new IOBufferWithSize(length);
       memcpy(buf->data(), data, length);
-      pending_buffers_.push_back(buf);
+      pending_buffers_.push_back(make_scoped_refptr(buf));
     } else {
       pending_buffers_.push_back(NULL);
       metrics_.StopStream();
@@ -298,7 +303,7 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     // We'll return received data when delegate gets attached to the stream.
     IOBufferWithSize* buf = new IOBufferWithSize(length);
     memcpy(buf->data(), data, length);
-    pending_buffers_.push_back(buf);
+    pending_buffers_.push_back(make_scoped_refptr(buf));
     return;
   }
 

@@ -113,7 +113,7 @@ int SpdyHttpStream::ReadResponseBody(
         memcpy(new_buffer->data(), &(data->data()[bytes_to_copy]),
                bytes_remaining);
         response_body_.pop_front();
-        response_body_.push_front(new_buffer);
+        response_body_.push_front(make_scoped_refptr(new_buffer));
       }
       bytes_read += bytes_to_copy;
     }
@@ -273,7 +273,7 @@ void SpdyHttpStream::OnDataReceived(const char* data, int length) {
     // Save the received data.
     IOBufferWithSize* io_buffer = new IOBufferWithSize(length);
     memcpy(io_buffer->data(), data, length);
-    response_body_.push_back(io_buffer);
+    response_body_.push_back(make_scoped_refptr(io_buffer));
 
     if (user_buffer_) {
       // Handing small chunks of data to the caller creates measurable overhead.

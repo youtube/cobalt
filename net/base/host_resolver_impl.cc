@@ -356,9 +356,10 @@ class HostResolverImpl::Job
        had_non_speculative_request_(false),
        net_log_(BoundNetLog::Make(net_log,
                                   NetLog::SOURCE_HOST_RESOLVER_IMPL_JOB)) {
-    net_log_.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
-            new JobCreationParameters(key.hostname,
-                                      source_net_log.source()));
+    net_log_.BeginEvent(
+        NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
+        make_scoped_refptr(
+            new JobCreationParameters(key.hostname, source_net_log.source())));
   }
 
   // Attaches a request to this job. The job takes ownership of |req| and will
@@ -366,7 +367,8 @@ class HostResolverImpl::Job
   void AddRequest(Request* req) {
     req->request_net_log().BeginEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_ATTACH,
-        new NetLogSourceParameter("source_dependency", net_log_.source()));
+        make_scoped_refptr(new NetLogSourceParameter(
+            "source_dependency", net_log_.source())));
 
     req->set_job(this);
     requests_.push_back(req);
@@ -1238,11 +1240,13 @@ void HostResolverImpl::OnStartRequest(const BoundNetLog& source_net_log,
                                       const RequestInfo& info) {
   source_net_log.BeginEvent(
       NetLog::TYPE_HOST_RESOLVER_IMPL,
-      new NetLogSourceParameter("source_dependency", request_net_log.source()));
+      make_scoped_refptr(new NetLogSourceParameter(
+          "source_dependency", request_net_log.source())));
 
   request_net_log.BeginEvent(
       NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
-      new RequestInfoParameters(info, source_net_log.source()));
+      make_scoped_refptr(new RequestInfoParameters(
+          info, source_net_log.source())));
 
   // Notify the observers of the start.
   if (!observers_.empty()) {

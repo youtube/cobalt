@@ -447,8 +447,8 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
           = new FFmpegDemuxerStream(this, stream);
 
       DCHECK(demuxer_stream);
-      streams_.push_back(demuxer_stream);
-      packet_streams_.push_back(demuxer_stream);
+      streams_.push_back(make_scoped_refptr(demuxer_stream));
+      packet_streams_.push_back(make_scoped_refptr(demuxer_stream));
       max_duration = std::max(max_duration, demuxer_stream->duration());
     } else {
       packet_streams_.push_back(NULL);

@@ -1027,7 +1027,7 @@ void PipelineImpl::PrepareFilter(scoped_refptr<MediaFilter> filter) {
   DCHECK(filter_types_.find(filter->filter_type()) == filter_types_.end())
       << "Filter type " << filter->filter_type() << " already exists";
   filter->set_host(this);
-  filters_.push_back(filter.get());
+  filters_.push_back(make_scoped_refptr(filter.get()));
   filter_types_[filter->filter_type()] = filter.get();
 }
 
