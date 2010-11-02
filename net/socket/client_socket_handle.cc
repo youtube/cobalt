@@ -116,7 +116,8 @@ void ClientSocketHandle::HandleInitCompletion(int result) {
   DCHECK(socket_.get());
   socket_->NetLog().BeginEvent(
       NetLog::TYPE_SOCKET_IN_USE,
-      new NetLogSourceParameter("source_dependency", requesting_source_));
+      make_scoped_refptr(new NetLogSourceParameter(
+          "source_dependency", requesting_source_)));
 }
 
 }  // namespace net

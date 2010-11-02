@@ -308,13 +308,15 @@ int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
 
   // Got the greet data.
   if (buffer_[0] != kSOCKS5Version) {
-    net_log_.AddEvent(NetLog::TYPE_SOCKS_UNEXPECTED_VERSION,
-                      new NetLogIntegerParameter("version", buffer_[0]));
+    net_log_.AddEvent(
+        NetLog::TYPE_SOCKS_UNEXPECTED_VERSION,
+        make_scoped_refptr(new NetLogIntegerParameter("version", buffer_[0])));
     return ERR_SOCKS_CONNECTION_FAILED;
   }
   if (buffer_[1] != 0x00) {
-    net_log_.AddEvent(NetLog::TYPE_SOCKS_UNEXPECTED_AUTH,
-                      new NetLogIntegerParameter("method", buffer_[1]));
+    net_log_.AddEvent(
+        NetLog::TYPE_SOCKS_UNEXPECTED_AUTH,
+        make_scoped_refptr(new NetLogIntegerParameter("method", buffer_[1])));
     return ERR_SOCKS_CONNECTION_FAILED;
   }
 
@@ -417,13 +419,17 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
   // and accordingly increase them
   if (bytes_received_ == kReadHeaderSize) {
     if (buffer_[0] != kSOCKS5Version || buffer_[2] != kNullByte) {
-      net_log_.AddEvent(NetLog::TYPE_SOCKS_UNEXPECTED_VERSION,
-                        new NetLogIntegerParameter("version", buffer_[0]));
+      net_log_.AddEvent(
+          NetLog::TYPE_SOCKS_UNEXPECTED_VERSION,
+          make_scoped_refptr(
+              new NetLogIntegerParameter("version", buffer_[0])));
       return ERR_SOCKS_CONNECTION_FAILED;
     }
     if (buffer_[1] != 0x00) {
-      net_log_.AddEvent(NetLog::TYPE_SOCKS_SERVER_ERROR,
-                        new NetLogIntegerParameter("error_code", buffer_[1]));
+      net_log_.AddEvent(
+          NetLog::TYPE_SOCKS_SERVER_ERROR,
+          make_scoped_refptr(
+              new NetLogIntegerParameter("error_code", buffer_[1])));
       return ERR_SOCKS_CONNECTION_FAILED;
     }
 
@@ -441,8 +447,10 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
     else if (address_type == kEndPointResolvedIPv6)
       read_header_size += sizeof(struct in6_addr) - 1;
     else {
-      net_log_.AddEvent(NetLog::TYPE_SOCKS_UNKNOWN_ADDRESS_TYPE,
-                        new NetLogIntegerParameter("address_type", buffer_[3]));
+      net_log_.AddEvent(
+          NetLog::TYPE_SOCKS_UNKNOWN_ADDRESS_TYPE,
+          make_scoped_refptr(
+              new NetLogIntegerParameter("address_type", buffer_[3])));
       return ERR_SOCKS_CONNECTION_FAILED;
     }
 

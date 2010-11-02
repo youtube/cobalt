@@ -87,9 +87,9 @@ void ConnectJob::UseForNormalRequest() {
 
 void ConnectJob::set_socket(ClientSocket* socket) {
   if (socket) {
-    net_log().AddEvent(NetLog::TYPE_CONNECT_JOB_SET_SOCKET,
-                       new NetLogSourceParameter("source_dependency",
-                                                 socket->NetLog().source()));
+    net_log().AddEvent(NetLog::TYPE_CONNECT_JOB_SET_SOCKET, make_scoped_refptr(
+          new NetLogSourceParameter("source_dependency",
+                                    socket->NetLog().source())));
   }
   socket_.reset(socket);
 }
@@ -110,7 +110,7 @@ void ConnectJob::ResetTimer(base::TimeDelta remaining_time) {
 
 void ConnectJob::LogConnectStart() {
   net_log().BeginEvent(NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_CONNECT,
-                       new NetLogStringParameter("group_name", group_name_));
+      make_scoped_refptr(new NetLogStringParameter("group_name", group_name_)));
 }
 
 void ConnectJob::LogConnectCompletion(int net_error) {
@@ -239,7 +239,8 @@ void ClientSocketPoolBaseHelper::RequestSockets(
 
   request.net_log().BeginEvent(
       NetLog::TYPE_SOCKET_POOL_CONNECTING_N_SOCKETS,
-      new NetLogIntegerParameter("num_sockets", num_sockets));
+      make_scoped_refptr(new NetLogIntegerParameter(
+          "num_sockets", num_sockets)));
 
   Group* group = GetOrCreateGroup(group_name);
 
@@ -394,7 +395,8 @@ void ClientSocketPoolBaseHelper::LogBoundConnectJobToRequest(
     const NetLog::Source& connect_job_source, const Request* request) {
   request->net_log().AddEvent(
       NetLog::TYPE_SOCKET_POOL_BOUND_TO_CONNECT_JOB,
-      new NetLogSourceParameter("source_dependency", connect_job_source));
+      make_scoped_refptr(new NetLogSourceParameter(
+          "source_dependency", connect_job_source)));
 }
 
 void ClientSocketPoolBaseHelper::CancelRequest(
@@ -763,8 +765,8 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
         HandOutSocket(socket.release(), false /* unused socket */, r->handle(),
                       base::TimeDelta(), group, r->net_log());
       }
-      r->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL,
-                            new NetLogIntegerParameter("net_error", result));
+      r->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL, make_scoped_refptr(
+          new NetLogIntegerParameter("net_error", result)));
       InvokeUserCallbackLater(r->handle(), r->callback(), result);
     } else {
       RemoveConnectJob(job, group);
@@ -849,13 +851,13 @@ void ClientSocketPoolBaseHelper::HandOutSocket(
   if (reused) {
     net_log.AddEvent(
         NetLog::TYPE_SOCKET_POOL_REUSED_AN_EXISTING_SOCKET,
-        new NetLogIntegerParameter(
-            "idle_ms", static_cast<int>(idle_time.InMilliseconds())));
+        make_scoped_refptr(new NetLogIntegerParameter(
+            "idle_ms", static_cast<int>(idle_time.InMilliseconds()))));
   }
 
   net_log.AddEvent(NetLog::TYPE_SOCKET_POOL_BOUND_TO_SOCKET,
-                   new NetLogSourceParameter(
-                       "source_dependency", socket->NetLog().source()));
+                   make_scoped_refptr(new NetLogSourceParameter(
+                       "source_dependency", socket->NetLog().source())));
 
   handed_out_socket_count_++;
   group->IncrementActiveSocketCount();

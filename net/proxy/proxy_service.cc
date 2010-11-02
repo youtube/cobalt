@@ -702,13 +702,15 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
     if (net_log.IsLoggingAllEvents()) {
       net_log.AddEvent(
           NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
-          new NetLogStringParameter("pac_string", result->ToPacString()));
+          make_scoped_refptr(new NetLogStringParameter(
+              "pac_string", result->ToPacString())));
     }
     result->DeprioritizeBadProxies(proxy_retry_info_);
   } else {
     net_log.AddEvent(
         NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
-        new NetLogIntegerParameter("net_error", result_code));
+        make_scoped_refptr(new NetLogIntegerParameter(
+            "net_error", result_code)));
 
     // Fall-back to direct when the proxy resolver fails. This corresponds
     // with a javascript runtime error in the PAC script.
