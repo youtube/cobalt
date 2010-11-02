@@ -315,8 +315,8 @@ void URLRequest::StartJob(URLRequestJob* job) {
 
   net_log_.BeginEvent(
       net::NetLog::TYPE_URL_REQUEST_START_JOB,
-      new URLRequestStartEventParameters(
-          url_, method_, load_flags_, priority_));
+      make_scoped_refptr(new URLRequestStartEventParameters(
+          url_, method_, load_flags_, priority_)));
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
@@ -493,8 +493,8 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         net::NetLog::TYPE_URL_REQUEST_REDIRECTED,
-        new net::NetLogStringParameter(
-            "location", location.possibly_invalid_spec()));
+        make_scoped_refptr(new net::NetLogStringParameter(
+            "location", location.possibly_invalid_spec())));
   }
   if (redirect_limit_ <= 0) {
     DVLOG(1) << "disallowing redirect: exceeds limit";

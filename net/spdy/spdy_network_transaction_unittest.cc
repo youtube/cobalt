@@ -4151,8 +4151,8 @@ TEST_P(SpdyNetworkTransactionTest, ProxyConnect) {
                                      BoundNetLog(), GetParam());
   helper.session_deps().reset(new SpdySessionDependencies(
       ProxyService::CreateFixedFromPacResult("PROXY myproxy:70")));
-  helper.SetSession(SpdySessionDependencies::SpdyCreateSession(
-      helper.session_deps().get()));
+  helper.SetSession(make_scoped_refptr(
+      SpdySessionDependencies::SpdyCreateSession(helper.session_deps().get())));
   helper.RunPreTestSetup();
   HttpNetworkTransaction* trans = helper.trans();
 
@@ -4254,8 +4254,8 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   // that the session pool key used does is just "DIRECT".
   helper.session_deps().reset(new SpdySessionDependencies(
       ProxyService::CreateFixedFromPacResult("DIRECT; PROXY myproxy:70")));
-  helper.SetSession(SpdySessionDependencies::SpdyCreateSession(
-      helper.session_deps().get()));
+  helper.SetSession(make_scoped_refptr(
+      SpdySessionDependencies::SpdyCreateSession(helper.session_deps().get())));
 
   SpdySessionPool* spdy_session_pool = helper.session()->spdy_session_pool();
   helper.RunPreTestSetup();
