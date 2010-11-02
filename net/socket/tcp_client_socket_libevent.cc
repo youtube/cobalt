@@ -152,8 +152,9 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
 
   DCHECK(!waiting_connect());
 
-  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
-                      new AddressListNetLogParam(addresses_));
+  net_log_.BeginEvent(
+      NetLog::TYPE_TCP_CONNECT,
+      make_scoped_refptr(new AddressListNetLogParam(addresses_)));
 
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.
@@ -208,8 +209,8 @@ int TCPClientSocketLibevent::DoConnect() {
   }
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
-                      new NetLogStringParameter(
-                          "address", NetAddressToStringWithPort(current_ai_)));
+                      make_scoped_refptr(new NetLogStringParameter(
+                          "address", NetAddressToStringWithPort(current_ai_))));
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
