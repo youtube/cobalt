@@ -82,6 +82,7 @@ static const MimeInfo primary_mappings[] = {
   { "text/xml", "xml" },
   { "image/gif", "gif" },
   { "image/jpeg", "jpeg,jpg" },
+  { "image/webp", "webp" },
   { "image/png", "png" },
   { "video/mp4", "mp4,m4v" },
   { "audio/x-m4a", "m4a" },
@@ -192,6 +193,7 @@ static const char* const supported_image_types[] = {
   "image/jpeg",
   "image/pjpeg",
   "image/jpg",
+  "image/webp",
   "image/png",
   "image/gif",
   "image/bmp",
@@ -547,6 +549,7 @@ static const char* kStandardImageTypes[] = {
   "image/gif",
   "image/ief",
   "image/jpeg",
+  "image/webp",
   "image/pict",
   "image/pipeg",
   "image/png",
@@ -660,7 +663,6 @@ void HashSetToVector(base::hash_set<T>* source, std::vector<T>* target) {
     target->at(old_target_size + i) = *iter;
   }
 }
-
 }
 
 void GetImageExtensions(std::vector<FilePath::StringType>* extensions) {
