@@ -66,7 +66,7 @@ static base::PlatformFileError PerformCommonCheckAndPreparationForMoveAndCopy(
   return base::PLATFORM_FILE_OK;
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 class MessageLoopRelay
     : public base::RefCountedThreadSafe<MessageLoopRelay> {
@@ -442,7 +442,7 @@ class RelayReadDirectory : public MessageLoopRelay {
         file_util::FileEnumerator::DIRECTORIES));
     FilePath current;
     while (!(current = file_enum.Next()).empty()) {
-      base::file_util_proxy::Entry entry;
+      base::FileUtilProxy::Entry entry;
       file_util::FileEnumerator::FindInfo info;
       file_enum.GetFindInfo(&info);
       entry.is_directory = file_enum.IsDirectory(info);
@@ -461,7 +461,7 @@ class RelayReadDirectory : public MessageLoopRelay {
  private:
   base::FileUtilProxy::ReadDirectoryCallback* callback_;
   FilePath file_path_;
-  std::vector<base::file_util_proxy::Entry> entries_;
+  std::vector<base::FileUtilProxy::Entry> entries_;
 };
 
 class RelayGetFileInfo : public MessageLoopRelay {
