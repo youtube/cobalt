@@ -143,7 +143,7 @@ template<typename CHAR> class WhitespaceHelper {
 template<> class WhitespaceHelper<char> {
  public:
   static bool Invoke(char c) {
-    return 0 != isspace(c);
+    return 0 != isspace(static_cast<unsigned char>(c));
   }
 };
 
