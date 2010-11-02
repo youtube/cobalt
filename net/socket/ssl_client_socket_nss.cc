@@ -366,7 +366,7 @@ BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
 // and the other elements are in the order given by the server.
 class PeerCertificateChain {
  public:
-  PeerCertificateChain(PRFileDesc* nss_fd)
+  explicit PeerCertificateChain(PRFileDesc* nss_fd)
       : num_certs_(0),
         certs_(NULL) {
     SECStatus rv = SSL_PeerCertificateChain(nss_fd, NULL, &num_certs_);
@@ -1105,6 +1105,8 @@ void SSLClientSocketNSS::UpdateConnectionStatus() {
          SSL_CONNECTION_COMPRESSION_MASK) <<
         SSL_CONNECTION_COMPRESSION_SHIFT;
 
+    // NSS 3.12.x doesn't have version macros for TLS 1.1 and 1.2 (because NSS
+    // doesn't support them yet), so we use 0x0302 and 0x0303 directly.
     int version = SSL_CONNECTION_VERSION_UNKNOWN;
     if (channel_info.protocolVersion < SSL_LIBRARY_VERSION_3_0) {
       // All versions less than SSL_LIBRARY_VERSION_3_0 are treated as SSL
@@ -1114,6 +1116,10 @@ void SSLClientSocketNSS::UpdateConnectionStatus() {
       version = SSL_CONNECTION_VERSION_SSL3;
     } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_1_TLS) {
       version = SSL_CONNECTION_VERSION_TLS1;
+    } else if (channel_info.protocolVersion == 0x0302) {
+      version = SSL_CONNECTION_VERSION_TLS1_1;
+    } else if (channel_info.protocolVersion == 0x0303) {
+      version = SSL_CONNECTION_VERSION_TLS1_2;
     }
     ssl_connection_status_ |=
         (version & SSL_CONNECTION_VERSION_MASK) <<
@@ -1651,6 +1657,11 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     CERTDistNames* ca_names,
     CERTCertificate** result_certificate,
     SECKEYPrivateKey** result_private_key) {
+  // NSS passes a null ca_names if SSL 2.0 is used.  Just fail rather than
+  // trying to make this work, as we plan to remove SSL 2.0 support soon.
+  if (!ca_names)
+    return SECFailure;
+
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
