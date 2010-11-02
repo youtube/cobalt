@@ -30,16 +30,24 @@ enum {
   // The next three bits are reserved for the SSL version.
   SSL_CONNECTION_VERSION_SHIFT = 20,
   SSL_CONNECTION_VERSION_MASK = 7,
-  SSL_CONNECTION_VERSION_UNKNOWN = 0,  // Unknown SSL version or SSL not used.
+
+  // 1 << 31 (the sign bit) is reserved so that the SSL connection status will
+  // never be negative.
+};
+
+// NOTE: the SSL version enum constants must be between 0 and
+// SSL_CONNECTION_VERSION_MASK, inclusive.
+enum {
+  SSL_CONNECTION_VERSION_UNKNOWN = 0,  // Unknown SSL version.
   SSL_CONNECTION_VERSION_SSL2 = 1,
   SSL_CONNECTION_VERSION_SSL3 = 2,
   SSL_CONNECTION_VERSION_TLS1 = 3,
   SSL_CONNECTION_VERSION_TLS1_1 = 4,
   SSL_CONNECTION_VERSION_TLS1_2 = 5,
-
-  // 1 << 31 (the sign bit) is reserved so that the SSL connection status will
-  // never be negative.
+  SSL_CONNECTION_VERSION_MAX,
 };
+COMPILE_ASSERT(SSL_CONNECTION_VERSION_MAX - 1 <= SSL_CONNECTION_VERSION_MASK,
+               SSL_CONNECTION_VERSION_MASK_too_small);
 
 inline int SSLConnectionStatusToCipherSuite(int connection_status) {
   return (connection_status >> SSL_CONNECTION_CIPHERSUITE_SHIFT) &
