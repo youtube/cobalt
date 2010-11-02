@@ -1304,6 +1304,7 @@ void FtpNetworkTransaction::RecordDataConnectionError(int result) {
       type = NET_ERROR_OK;
       break;
     case ERR_ACCESS_DENIED:
+    case ERR_NETWORK_ACCESS_DENIED:
       type = NET_ERROR_ACCESS_DENIED;
       break;
     case ERR_TIMED_OUT:

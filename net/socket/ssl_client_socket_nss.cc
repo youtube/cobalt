@@ -1352,6 +1352,7 @@ static PRErrorCode MapErrorToNSS(int result) {
     case ERR_IO_PENDING:
       return PR_WOULD_BLOCK_ERROR;
     case ERR_ACCESS_DENIED:
+    case ERR_NETWORK_ACCESS_DENIED:
       // For connect, this could be mapped to PR_ADDRESS_NOT_SUPPORTED_ERROR.
       return PR_NO_ACCESS_RIGHTS_ERROR;
     case ERR_INTERNET_DISCONNECTED:  // Equivalent to ENETDOWN.
