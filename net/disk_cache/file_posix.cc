@@ -184,7 +184,7 @@ void InFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
                           size_t offset, disk_cache::FileIOCallback *callback) {
   scoped_refptr<BackgroundIO> operation(
       new BackgroundIO(file, buf, buf_len, offset, callback, this));
-  io_list_.insert(operation.get());
+  io_list_.insert(operation);
   file->AddRef();  // Balanced on InvokeCallback()
 
   if (!callback_thread_)
@@ -200,7 +200,7 @@ void InFlightIO::PostWrite(disk_cache::File* file, const void* buf,
                            disk_cache::FileIOCallback* callback) {
   scoped_refptr<BackgroundIO> operation(
       new BackgroundIO(file, buf, buf_len, offset, callback, this));
-  io_list_.insert(operation.get());
+  io_list_.insert(operation);
   file->AddRef();  // Balanced on InvokeCallback()
 
   if (!callback_thread_)
@@ -241,7 +241,7 @@ void InFlightIO::InvokeCallback(BackgroundIO* operation, bool cancel_task) {
 
   // Release the references acquired in PostRead / PostWrite.
   operation->file()->Release();
-  io_list_.erase(operation);
+  io_list_.erase(make_scoped_refptr(operation));
   callback->OnFileIOComplete(bytes);
 }
 

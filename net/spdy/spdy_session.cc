@@ -255,7 +255,8 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
   DCHECK(HttpStreamFactory::spdy_enabled());
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
-      new NetLogSpdySessionParameter(host_port_proxy_pair_));
+      make_scoped_refptr(
+          new NetLogSpdySessionParameter(host_port_proxy_pair_)));
 
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 
@@ -463,7 +464,8 @@ int SpdySession::WriteSynStream(
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_SYN_STREAM,
-        new NetLogSpdySynParameter(headers, flags, stream_id));
+        make_scoped_refptr(
+            new NetLogSpdySynParameter(headers, flags, stream_id)));
   }
 
   return ERR_IO_PENDING;
@@ -494,8 +496,10 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
       // as stalled - because only the session knows for sure when the
       // stall occurs.
       stream->set_stalled_by_flow_control(true);
-      net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_STALLED_ON_SEND_WINDOW,
-                         new NetLogIntegerParameter("stream_id", stream_id));
+      net_log().AddEvent(
+          NetLog::TYPE_SPDY_SESSION_STALLED_ON_SEND_WINDOW,
+          make_scoped_refptr(
+              new NetLogIntegerParameter("stream_id", stream_id)));
       return ERR_IO_PENDING;
     }
     int new_len = std::min(len, stream->send_window_size());
@@ -506,9 +510,11 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
     stream->DecreaseSendWindowSize(len);
   }
 
-  if (net_log().IsLoggingAllEvents())
-    net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_SEND_DATA,
-                       new NetLogSpdyDataParameter(stream_id, len, flags));
+  if (net_log().IsLoggingAllEvents()) {
+    net_log().AddEvent(
+        NetLog::TYPE_SPDY_SESSION_SEND_DATA,
+        make_scoped_refptr(new NetLogSpdyDataParameter(stream_id, len, flags)));
+  }
 
   // TODO(mbelshe): reduce memory copies here.
   scoped_ptr<spdy::SpdyDataFrame> frame(
@@ -529,7 +535,7 @@ void SpdySession::ResetStream(
 
   net_log().AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_RST_STREAM,
-      new NetLogSpdyRstParameter(stream_id, status));
+      make_scoped_refptr(new NetLogSpdyRstParameter(stream_id, status)));
 
   scoped_ptr<spdy::SpdyRstStreamControlFrame> rst_frame(
       spdy_framer_.CreateRstStream(stream_id, status));
@@ -829,8 +835,9 @@ void SpdySession::CloseSessionOnError(net::Error err, bool remove_from_pool) {
   scoped_refptr<SpdySession> self(this);
 
   DCHECK_LT(err, OK);
-  net_log_.AddEvent(NetLog::TYPE_SPDY_SESSION_CLOSE,
-                    new NetLogIntegerParameter("status", err));
+  net_log_.AddEvent(
+      NetLog::TYPE_SPDY_SESSION_CLOSE,
+      make_scoped_refptr(new NetLogIntegerParameter("status", err)));
 
   // Don't close twice.  This can occur because we can have both
   // a read and a write outstanding, and each can complete with
@@ -912,7 +919,7 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
 
 void SpdySession::RemoveFromPool() {
   if (spdy_session_pool_) {
-    spdy_session_pool_->Remove(this);
+    spdy_session_pool_->Remove(make_scoped_refptr(this));
     spdy_session_pool_ = NULL;
   }
 }
@@ -963,9 +970,12 @@ void SpdySession::OnError(spdy::SpdyFramer* framer) {
 void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                     const char* data,
                                     size_t len) {
-  if (net_log().IsLoggingAllEvents())
-    net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_RECV_DATA,
-        new NetLogSpdyDataParameter(stream_id, len, spdy::SpdyDataFlags()));
+  if (net_log().IsLoggingAllEvents()) {
+    net_log().AddEvent(
+        NetLog::TYPE_SPDY_SESSION_RECV_DATA,
+        make_scoped_refptr(new NetLogSpdyDataParameter(
+            stream_id, len, spdy::SpdyDataFlags())));
+  }
 
   if (!IsStreamActive(stream_id)) {
     // NOTE:  it may just be that the stream was cancelled.
@@ -999,9 +1009,9 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
-        new NetLogSpdySynParameter(
+        make_scoped_refptr(new NetLogSpdySynParameter(
             headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
-            stream_id));
+            stream_id)));
   }
 
   // Server-initiated streams should have even sequence numbers.
@@ -1097,9 +1107,9 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_SYN_REPLY,
-        new NetLogSpdySynParameter(
+        make_scoped_refptr(new NetLogSpdySynParameter(
             headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
-            stream_id));
+            stream_id)));
   }
 
   Respond(*headers, stream);
@@ -1160,7 +1170,8 @@ void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
 
   net_log().AddEvent(
       NetLog::TYPE_SPDY_SESSION_RST_STREAM,
-      new NetLogSpdyRstParameter(stream_id, frame.status()));
+      make_scoped_refptr(
+          new NetLogSpdyRstParameter(stream_id, frame.status())));
 
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
@@ -1185,9 +1196,10 @@ void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
 void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_GOAWAY,
-      new NetLogSpdyGoAwayParameter(frame.last_accepted_stream_id(),
-                                    active_streams_.size(),
-                                    unclaimed_pushed_streams_.size()));
+      make_scoped_refptr(
+          new NetLogSpdyGoAwayParameter(frame.last_accepted_stream_id(),
+                                        active_streams_.size(),
+                                        unclaimed_pushed_streams_.size())));
   RemoveFromPool();
   CloseAllStreams(net::ERR_ABORTED);
 
@@ -1210,7 +1222,7 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_RECV_SETTINGS,
-      new NetLogSpdySettingsParameter(settings));
+      make_scoped_refptr(new NetLogSpdySettingsParameter(settings)));
 }
 
 void SpdySession::OnWindowUpdate(
@@ -1238,9 +1250,8 @@ void SpdySession::OnWindowUpdate(
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_WINDOW_UPDATE,
-      new NetLogSpdyWindowUpdateParameter(stream_id,
-                                          delta_window_size,
-                                          stream->send_window_size()));
+      make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
+          stream_id, delta_window_size, stream->send_window_size())));
 }
 
 void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
@@ -1251,9 +1262,8 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_RECV_WINDOW_UPDATE,
-      new NetLogSpdyWindowUpdateParameter(stream_id,
-                                          delta_window_size,
-                                          stream->recv_window_size()));
+      make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
+          stream_id, delta_window_size, stream->recv_window_size())));
 
   scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
       spdy_framer_.CreateWindowUpdate(stream_id, delta_window_size));
@@ -1268,7 +1278,7 @@ void SpdySession::SendSettings() {
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_SETTINGS,
-      new NetLogSpdySettingsParameter(settings));
+      make_scoped_refptr(new NetLogSpdySettingsParameter(settings)));
 
   // Create the SETTINGS frame and send it.
   scoped_ptr<spdy::SpdySettingsControlFrame> settings_frame(

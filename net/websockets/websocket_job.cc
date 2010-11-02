@@ -313,7 +313,8 @@ void WebSocketJob::OnCanGetCookiesCompleted(int policy) {
     handshake_request_sent_ = 0;
     socket_->net_log()->AddEvent(
         NetLog::TYPE_WEB_SOCKET_SEND_REQUEST_HEADERS,
-        new NetLogWebSocketHandshakeParameter(handshake_request));
+        make_scoped_refptr(
+            new NetLogWebSocketHandshakeParameter(handshake_request)));
     socket_->SendData(handshake_request.data(),
                       handshake_request.size());
   }
@@ -354,8 +355,8 @@ void WebSocketJob::OnReceivedHandshakeResponse(
   // handshake message is completed.
   socket_->net_log()->AddEvent(
       NetLog::TYPE_WEB_SOCKET_READ_RESPONSE_HEADERS,
-      new NetLogWebSocketHandshakeParameter(
-          handshake_response_->GetRawResponse()));
+      make_scoped_refptr(new NetLogWebSocketHandshakeParameter(
+          handshake_response_->GetRawResponse())));
   if (len - response_length > 0) {
     // If we received extra data, it should be frame data.
     receive_frame_handler_->AppendData(data + response_length,

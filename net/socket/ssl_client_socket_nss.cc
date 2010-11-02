@@ -317,8 +317,9 @@ class SSLFailedNSSFunctionParams : public NetLog::EventParameters {
 void LogFailedNSSFunction(const BoundNetLog& net_log,
                           const char* function,
                           const char* param) {
-  net_log.AddEvent(NetLog::TYPE_SSL_NSS_ERROR,
-                   new SSLFailedNSSFunctionParams(function, param));
+  net_log.AddEvent(
+      NetLog::TYPE_SSL_NSS_ERROR,
+      make_scoped_refptr(new SSLFailedNSSFunctionParams(function, param)));
 }
 
 #if defined(OS_WIN)
@@ -1545,7 +1546,8 @@ int SSLClientSocketNSS::DoReadLoop(int result) {
   if (!nss_bufs_) {
     LOG(DFATAL) << "!nss_bufs_";
     int rv = ERR_UNEXPECTED;
-    net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR, new SSLErrorParams(rv, 0));
+    net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
+                      make_scoped_refptr(new SSLErrorParams(rv, 0)));
     return rv;
   }
 
@@ -1571,7 +1573,8 @@ int SSLClientSocketNSS::DoWriteLoop(int result) {
   if (!nss_bufs_) {
     LOG(DFATAL) << "!nss_bufs_";
     int rv = ERR_UNEXPECTED;
-    net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR, new SSLErrorParams(rv, 0));
+    net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
+                      make_scoped_refptr(new SSLErrorParams(rv, 0)));
     return rv;
   }
 
@@ -1900,7 +1903,7 @@ int SSLClientSocketNSS::DoHandshake() {
   if (client_auth_cert_needed_) {
     net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
     net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                      new SSLErrorParams(net_error, 0));
+                      make_scoped_refptr(new SSLErrorParams(net_error, 0)));
     // If the handshake already succeeded (because the server requests but
     // doesn't require a client cert), we need to invalidate the SSL session
     // so that we won't try to resume the non-client-authenticated session in
@@ -1957,7 +1960,7 @@ int SSLClientSocketNSS::DoHandshake() {
       rv = SECFailure;
       net_error = ERR_SSL_PROTOCOL_ERROR;
       net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                        new SSLErrorParams(net_error, 0));
+                        make_scoped_refptr(new SSLErrorParams(net_error, 0)));
     }
   } else {
     PRErrorCode prerr = PR_GetError();
@@ -1969,8 +1972,9 @@ int SSLClientSocketNSS::DoHandshake() {
     } else {
       LOG(ERROR) << "handshake failed; NSS error code " << prerr
                  << ", net_error " << net_error;
-      net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                        new SSLErrorParams(net_error, prerr));
+      net_log_.AddEvent(
+          NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+          make_scoped_refptr(new SSLErrorParams(net_error, prerr)));
     }
   }
 
@@ -2288,7 +2292,7 @@ int SSLClientSocketNSS::DoPayloadRead() {
     LeaveFunction("");
     rv = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
     net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
-                      new SSLErrorParams(rv, 0));
+                      make_scoped_refptr(new SSLErrorParams(rv, 0)));
     return rv;
   }
   if (rv >= 0) {
@@ -2303,7 +2307,8 @@ int SSLClientSocketNSS::DoPayloadRead() {
   }
   LeaveFunction("");
   rv = MapNSPRError(prerr);
-  net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR, new SSLErrorParams(rv, prerr));
+  net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
+                    make_scoped_refptr(new SSLErrorParams(rv, prerr)));
   return rv;
 }
 
@@ -2324,7 +2329,7 @@ int SSLClientSocketNSS::DoPayloadWrite() {
   LeaveFunction("");
   rv = MapNSPRError(prerr);
   net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
-                    new SSLErrorParams(rv, prerr));
+                    make_scoped_refptr(new SSLErrorParams(rv, prerr)));
   return rv;
 }
 

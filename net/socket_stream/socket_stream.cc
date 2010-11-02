@@ -138,7 +138,8 @@ void SocketStream::Connect() {
   next_state_ = STATE_RESOLVE_PROXY;
   net_log_.BeginEvent(
       NetLog::TYPE_SOCKET_STREAM_CONNECT,
-      new NetLogStringParameter("url", url_.possibly_invalid_spec()));
+      make_scoped_refptr(
+          new NetLogStringParameter("url", url_.possibly_invalid_spec())));
   MessageLoop::current()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &SocketStream::DoLoop, OK));
@@ -162,7 +163,8 @@ bool SocketStream::SendData(const char* data, int len) {
     if (current_amount_send > max_pending_send_allowed_)
       return false;
 
-    pending_write_bufs_.push_back(new IOBufferWithSize(len));
+    pending_write_bufs_.push_back(make_scoped_refptr(
+        new IOBufferWithSize(len)));
     memcpy(pending_write_bufs_.back()->data(), data, len);
     return true;
   }
@@ -445,8 +447,9 @@ void SocketStream::DoLoop(int result) {
     // close the connection.
     if (state != STATE_READ_WRITE && result < ERR_IO_PENDING) {
       DCHECK_EQ(next_state_, STATE_CLOSE);
-      net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT,
-                        new NetLogIntegerParameter("net_error", result));
+      net_log_.EndEvent(
+          NetLog::TYPE_SOCKET_STREAM_CONNECT,
+          make_scoped_refptr(new NetLogIntegerParameter("net_error", result)));
     }
   } while (result != ERR_IO_PENDING);
 }

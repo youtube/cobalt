@@ -513,7 +513,7 @@ void InFlightBackendIO::QueueOperationToList(BackendIO* operation,
   if (list->empty())
     return PostOperation(operation);
 
-  list->push_back(operation);
+  list->push_back(make_scoped_refptr(operation));
 }
 
 }  // namespace
