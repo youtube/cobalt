@@ -80,6 +80,8 @@ TEST(StringNumberConversionsTest, StringToInt) {
   } cases[] = {
     {"0", 0, true},
     {"42", 42, true},
+    {"42\x99", 42, false},
+    {"\x99" "42\x99", 0, false},
     {"-2147483648", INT_MIN, true},
     {"2147483647", INT_MAX, true},
     {"", 0, false},
@@ -161,6 +163,11 @@ TEST(StringNumberConversionsTest, StringToInt) {
                            utf16_chars + utf16_input.length(),
                            &output));
   EXPECT_EQ(6, output);
+
+  output = 0;
+  const char16 negative_wide_input[] = { 0xFF4D, '4', '2', 0};
+  EXPECT_FALSE(StringToInt(string16(negative_wide_input), &output));
+  EXPECT_EQ(0, output);
 }
 
 TEST(StringNumberConversionsTest, StringToInt64) {
