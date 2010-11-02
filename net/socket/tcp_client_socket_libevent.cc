@@ -86,6 +86,8 @@ int MapPosixError(int os_error) {
 
 int MapConnectError(int os_error) {
   switch (os_error) {
+    case EACCES:
+      return ERR_NETWORK_ACCESS_DENIED;
     case ETIMEDOUT:
       return ERR_CONNECTION_TIMED_OUT;
     default: {

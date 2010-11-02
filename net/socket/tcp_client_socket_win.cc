@@ -64,8 +64,6 @@ int MapWinsockError(int os_error) {
   // There are numerous Winsock error codes, but these are the ones we thus far
   // find interesting.
   switch (os_error) {
-    // connect fails with WSAEACCES when Windows Firewall blocks the
-    // connection.
     case WSAEACCES:
       return ERR_ACCESS_DENIED;
     case WSAENETDOWN:
@@ -104,6 +102,10 @@ int MapWinsockError(int os_error) {
 
 int MapConnectError(int os_error) {
   switch (os_error) {
+    // connect fails with WSAEACCES when Windows Firewall blocks the
+    // connection.
+    case WSAEACCES:
+      return ERR_NETWORK_ACCESS_DENIED;
     case WSAETIMEDOUT:
       return ERR_CONNECTION_TIMED_OUT;
     default: {
