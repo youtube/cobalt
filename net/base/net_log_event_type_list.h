@@ -334,6 +334,17 @@ EVENT_TYPE(SSL_HANDSHAKE_ERROR)
 EVENT_TYPE(SSL_READ_ERROR)
 EVENT_TYPE(SSL_WRITE_ERROR)
 
+// An SSL Snap Start was attempted
+// The following parameters are attached to the event:
+//   {
+//     "type": <Integer code for the Snap Start result>,
+//   }
+EVENT_TYPE(SSL_SNAP_START)
+
+// We found that our prediction of the server's certificates was correct and
+// we merged the verification with the SSLHostInfo.
+EVENT_TYPE(SSL_VERIFICATION_MERGED)
+
 // An SSL error occurred while calling an NSS function not directly related to
 // one of the above activities.  Can also be used when more information than
 // is provided by just an error code is needed:
