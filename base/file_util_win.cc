@@ -19,6 +19,7 @@
 #include "base/win/scoped_handle.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/thread_restrictions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "base/win_util.h"
@@ -35,6 +36,8 @@ const DWORD kFileShareAll =
 // Helper for NormalizeFilePath(), defined below.
 bool DevicePathToDriveLetterPath(const FilePath& device_path,
                                  FilePath* drive_letter_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // Get the mapping of drive letters to device paths.
   const int kDriveMappingSize = 1024;
   wchar_t drive_mapping[kDriveMappingSize] = {'\0'};
@@ -75,6 +78,7 @@ bool DevicePathToDriveLetterPath(const FilePath& device_path,
 }  // namespace
 
 std::wstring GetDirectoryFromPath(const std::wstring& path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   wchar_t path_buffer[MAX_PATH];
   wchar_t* file_ptr = NULL;
   if (GetFullPathName(path.c_str(), MAX_PATH, path_buffer, &file_ptr) == 0)
@@ -87,6 +91,7 @@ std::wstring GetDirectoryFromPath(const std::wstring& path) {
 }
 
 bool AbsolutePath(FilePath* path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   wchar_t file_path_buf[MAX_PATH];
   if (!_wfullpath(file_path_buf, path->value().c_str(), MAX_PATH))
     return false;
@@ -96,6 +101,8 @@ bool AbsolutePath(FilePath* path) {
 
 int CountFilesCreatedAfter(const FilePath& path,
                            const base::Time& comparison_time) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   int file_count = 0;
   FILETIME comparison_filetime(comparison_time.ToFileTime());
 
@@ -123,6 +130,8 @@ int CountFilesCreatedAfter(const FilePath& path,
 }
 
 bool Delete(const FilePath& path, bool recursive) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   if (path.value().length() >= MAX_PATH)
     return false;
 
@@ -161,6 +170,8 @@ bool Delete(const FilePath& path, bool recursive) {
 }
 
 bool DeleteAfterReboot(const FilePath& path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   if (path.value().length() >= MAX_PATH)
     return false;
 
@@ -170,6 +181,8 @@ bool DeleteAfterReboot(const FilePath& path) {
 }
 
 bool Move(const FilePath& from_path, const FilePath& to_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // NOTE: I suspect we could support longer paths, but that would involve
   // analyzing all our usage of files.
   if (from_path.value().length() >= MAX_PATH ||
@@ -189,6 +202,8 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool ReplaceFile(const FilePath& from_path, const FilePath& to_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // Make sure that the target file exists.
   HANDLE target_file = ::CreateFile(
       to_path.value().c_str(),
@@ -208,6 +223,8 @@ bool ReplaceFile(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // NOTE: I suspect we could support longer paths, but that would involve
   // analyzing all our usage of files.
   if (from_path.value().length() >= MAX_PATH ||
@@ -220,6 +237,8 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 
 bool ShellCopy(const FilePath& from_path, const FilePath& to_path,
                bool recursive) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // NOTE: I suspect we could support longer paths, but that would involve
   // analyzing all our usage of files.
   if (from_path.value().length() >= MAX_PATH ||
@@ -251,6 +270,8 @@ bool ShellCopy(const FilePath& from_path, const FilePath& to_path,
 
 bool CopyDirectory(const FilePath& from_path, const FilePath& to_path,
                    bool recursive) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   if (recursive)
     return ShellCopy(from_path, to_path, true);
 
@@ -274,6 +295,7 @@ bool CopyDirectory(const FilePath& from_path, const FilePath& to_path,
 
 bool CopyAndDeleteDirectory(const FilePath& from_path,
                             const FilePath& to_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   if (CopyDirectory(from_path, to_path, true)) {
     if (Delete(from_path, true)) {
       return true;
@@ -288,10 +310,12 @@ bool CopyAndDeleteDirectory(const FilePath& from_path,
 
 
 bool PathExists(const FilePath& path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   return (GetFileAttributes(path.value().c_str()) != INVALID_FILE_ATTRIBUTES);
 }
 
 bool PathIsWritable(const FilePath& path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   HANDLE dir =
       CreateFile(path.value().c_str(), FILE_ADD_FILE, kFileShareAll,
                  NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
@@ -304,6 +328,7 @@ bool PathIsWritable(const FilePath& path) {
 }
 
 bool DirectoryExists(const FilePath& path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   DWORD fileattr = GetFileAttributes(path.value().c_str());
   if (fileattr != INVALID_FILE_ATTRIBUTES)
     return (fileattr & FILE_ATTRIBUTE_DIRECTORY) != 0;
@@ -312,6 +337,7 @@ bool DirectoryExists(const FilePath& path) {
 
 bool GetFileCreationLocalTimeFromHandle(HANDLE file_handle,
                                         LPSYSTEMTIME creation_time) {
+  base::ThreadRestrictions::AssertIOAllowed();
   if (!file_handle)
     return false;
 
@@ -328,6 +354,7 @@ bool GetFileCreationLocalTimeFromHandle(HANDLE file_handle,
 
 bool GetFileCreationLocalTime(const std::wstring& filename,
                               LPSYSTEMTIME creation_time) {
+  base::ThreadRestrictions::AssertIOAllowed();
   base::win::ScopedHandle file_handle(
       CreateFile(filename.c_str(), GENERIC_READ, kFileShareAll, NULL,
                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
@@ -335,6 +362,8 @@ bool GetFileCreationLocalTime(const std::wstring& filename,
 }
 
 bool ResolveShortcut(FilePath* path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   HRESULT result;
   base::win::ScopedComPtr<IShellLink> i_shell_link;
   bool is_resolved = false;
@@ -370,6 +399,8 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
                         const wchar_t *description, const wchar_t *icon,
                         int icon_index, const wchar_t* app_id) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // Length of arguments and description must be less than MAX_PATH.
   DCHECK(lstrlen(arguments) < MAX_PATH);
   DCHECK(lstrlen(description) < MAX_PATH);
@@ -421,6 +452,8 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
                         const wchar_t *description, const wchar_t *icon,
                         int icon_index, const wchar_t* app_id) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // Length of arguments and description must be less than MAX_PATH.
   DCHECK(lstrlen(arguments) < MAX_PATH);
   DCHECK(lstrlen(description) < MAX_PATH);
@@ -467,6 +500,8 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
 }
 
 bool TaskbarPinShortcutLink(const wchar_t* shortcut) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // "Pin to taskbar" is only supported after Win7.
   if (base::win::GetVersion() < base::win::VERSION_WIN7)
     return false;
@@ -477,6 +512,8 @@ bool TaskbarPinShortcutLink(const wchar_t* shortcut) {
 }
 
 bool TaskbarUnpinShortcutLink(const wchar_t* shortcut) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // "Unpin from taskbar" is only supported after Win7.
   if (base::win::GetVersion() < base::win::VERSION_WIN7)
     return false;
@@ -487,6 +524,8 @@ bool TaskbarUnpinShortcutLink(const wchar_t* shortcut) {
 }
 
 bool GetTempDir(FilePath* path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   wchar_t temp_path[MAX_PATH + 1];
   DWORD path_len = ::GetTempPath(MAX_PATH, temp_path);
   if (path_len >= MAX_PATH || path_len <= 0)
@@ -503,6 +542,8 @@ bool GetShmemTempDir(FilePath* path) {
 }
 
 bool CreateTemporaryFile(FilePath* path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   FilePath temp_file;
 
   if (!GetTempDir(path))
@@ -517,6 +558,7 @@ bool CreateTemporaryFile(FilePath* path) {
 }
 
 FILE* CreateAndOpenTemporaryShmemFile(FilePath* path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   return CreateAndOpenTemporaryFile(path);
 }
 
@@ -525,6 +567,7 @@ FILE* CreateAndOpenTemporaryShmemFile(FilePath* path) {
 // TODO(jrg): is there equivalent call to use on Windows instead of
 // going 2-step?
 FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   if (!CreateTemporaryFileInDir(dir, path)) {
     return NULL;
   }
@@ -536,6 +579,8 @@ FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
 
 bool CreateTemporaryFileInDir(const FilePath& dir,
                               FilePath* temp_file) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   wchar_t temp_name[MAX_PATH + 1];
 
   if (!GetTempFileName(dir.value().c_str(), L"", 0, temp_name)) {
@@ -558,6 +603,8 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
 bool CreateTemporaryDirInDir(const FilePath& base_dir,
                              const FilePath::StringType& prefix,
                              FilePath* new_dir) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   FilePath path_to_create;
   srand(static_cast<uint32>(time(NULL)));
 
@@ -582,6 +629,8 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
 
 bool CreateNewTempDirectory(const FilePath::StringType& prefix,
                             FilePath* new_temp_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   FilePath system_temp_dir;
   if (!GetTempDir(&system_temp_dir))
     return false;
@@ -590,6 +639,8 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
 }
 
 bool CreateDirectory(const FilePath& full_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // If the path exists, we've succeeded if it's a directory, failed otherwise.
   const wchar_t* full_path_str = full_path.value().c_str();
   DWORD fileattr = ::GetFileAttributes(full_path_str);
@@ -636,6 +687,8 @@ bool CreateDirectory(const FilePath& full_path) {
 }
 
 bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   WIN32_FILE_ATTRIBUTE_DATA attr;
   if (!GetFileAttributesEx(file_path.value().c_str(),
                            GetFileExInfoStandard, &attr)) {
@@ -657,15 +710,18 @@ bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
 }
 
 FILE* OpenFile(const FilePath& filename, const char* mode) {
+  base::ThreadRestrictions::AssertIOAllowed();
   std::wstring w_mode = ASCIIToWide(std::string(mode));
   return _wfsopen(filename.value().c_str(), w_mode.c_str(), _SH_DENYNO);
 }
 
 FILE* OpenFile(const std::string& filename, const char* mode) {
+  base::ThreadRestrictions::AssertIOAllowed();
   return _fsopen(filename.c_str(), mode, _SH_DENYNO);
 }
 
 int ReadFile(const FilePath& filename, char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
   base::win::ScopedHandle file(CreateFile(filename.value().c_str(),
                                           GENERIC_READ,
                                           FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -684,6 +740,7 @@ int ReadFile(const FilePath& filename, char* data, int size) {
 }
 
 int WriteFile(const FilePath& filename, const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
   base::win::ScopedHandle file(CreateFile(filename.value().c_str(),
                                           GENERIC_WRITE,
                                           0,
@@ -718,6 +775,8 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
 
 bool RenameFileAndResetSecurityDescriptor(const FilePath& source_file_path,
                                           const FilePath& target_file_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // The parameters to SHFileOperation must be terminated with 2 NULL chars.
   std::wstring source = source_file_path.value();
   std::wstring target = target_file_path.value();
@@ -740,6 +799,8 @@ bool RenameFileAndResetSecurityDescriptor(const FilePath& source_file_path,
 
 // Gets the current working directory for the process.
 bool GetCurrentDirectory(FilePath* dir) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   wchar_t system_buffer[MAX_PATH];
   system_buffer[0] = 0;
   DWORD len = ::GetCurrentDirectory(MAX_PATH, system_buffer);
@@ -755,6 +816,7 @@ bool GetCurrentDirectory(FilePath* dir) {
 
 // Sets the current working directory for the process.
 bool SetCurrentDirectory(const FilePath& directory) {
+  base::ThreadRestrictions::AssertIOAllowed();
   BOOL ret = ::SetCurrentDirectory(directory.value().c_str());
   return ret != 0;
 }
@@ -812,6 +874,8 @@ FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
 }
 
 FilePath FileEnumerator::Next() {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   while (has_find_data_ || !pending_paths_.empty()) {
     if (!has_find_data_) {
       // The last find FindFirstFile operation is done, prepare a new one.
@@ -883,6 +947,8 @@ MemoryMappedFile::MemoryMappedFile()
 }
 
 bool MemoryMappedFile::MapFileToMemoryInternal() {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   if (file_ == INVALID_HANDLE_VALUE)
     return false;
 
@@ -926,12 +992,14 @@ void MemoryMappedFile::CloseHandles() {
 
 bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
                               const base::Time& cutoff_time) {
+  base::ThreadRestrictions::AssertIOAllowed();
   long result = CompareFileTime(&find_info.ftLastWriteTime,
                                 &cutoff_time.ToFileTime());
   return result == 1 || result == 0;
 }
 
 bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   FilePath mapped_file;
   if (!NormalizeToNativeFilePath(path, &mapped_file))
     return false;
@@ -943,6 +1011,7 @@ bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
 }
 
 bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
   // In Vista, GetFinalPathNameByHandle() would give us the real path
   // from a file handle.  If we ever deprecate XP, consider changing the
   // code below to a call to GetFinalPathNameByHandle().  The method this
@@ -998,6 +1067,7 @@ bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
 
 bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
                   size_t step_size) {
+  base::ThreadRestrictions::AssertIOAllowed();
   if (base::win::GetVersion() > base::win::VERSION_XP) {
     // Vista+ branch. On these OSes, the forced reads through the DLL actually
     // slows warm starts. The solution is to sequentially read file contents
