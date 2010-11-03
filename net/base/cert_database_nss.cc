@@ -168,7 +168,6 @@ unsigned int CertDatabase::GetCertTrust(
           trust.HasTrustedCA(PR_FALSE, PR_TRUE, PR_FALSE) * TRUSTED_EMAIL +
           trust.HasTrustedCA(PR_FALSE, PR_FALSE, PR_TRUE) * TRUSTED_OBJ_SIGN;
     case SERVER_CERT:
-    case EMAIL_CERT:
       return trust.HasTrustedPeer(PR_TRUE, PR_FALSE, PR_FALSE) * TRUSTED_SSL +
           trust.HasTrustedPeer(PR_FALSE, PR_TRUE, PR_FALSE) * TRUSTED_EMAIL +
           trust.HasTrustedPeer(PR_FALSE, PR_FALSE, PR_TRUE) * TRUSTED_OBJ_SIGN;
