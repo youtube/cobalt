@@ -655,8 +655,7 @@
       #   2 == /INCREMENTAL
       # Debug links incremental, Release does not.
       #
-      # Abstract base configurations to cover common
-      # attributes.
+      # Abstract base configurations to cover common attributes.
       #
       'Common_Base': {
         'abstract': 1,
