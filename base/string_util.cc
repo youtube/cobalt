@@ -484,7 +484,7 @@ static inline bool DoLowerCaseEqualsASCII(Iter a_begin,
                                           Iter a_end,
                                           const char* b) {
   for (Iter it = a_begin; it != a_end; ++it, ++b) {
-    if (!*b || ToLowerASCII(*it) != *b)
+    if (!*b || base::ToLowerASCII(*it) != *b)
       return false;
   }
   return *b == 0;
