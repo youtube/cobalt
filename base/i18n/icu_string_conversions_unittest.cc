@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
+#include "base/string_piece.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -322,6 +323,35 @@ TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
       EXPECT_EQ(kConvertCodepageCases[i].success, success);
       EXPECT_EQ(kConvertCodepageCases[i].encoded, encoded);
     }
+  }
+}
+
+static const struct {
+  const char* encoded;
+  const char* codepage_name;
+  bool expected_success;
+  const char* expected_value;
+} kConvertAndNormalizeCases[] = {
+  {"foo-\xe4.html", "iso-8859-1", true, "foo-\xc3\xa4.html"},
+  {"foo-\xe4.html", "iso-8859-7", true, "foo-\xce\xb4.html"},
+  {"foo-\xe4.html", "foo-bar", false, ""},
+  {"foo-\xff.html", "ascii", false, ""},
+  {"foo.html", "ascii", true, "foo.html"},
+  {"foo-a\xcc\x88.html", "utf-8", true, "foo-\xc3\xa4.html"},
+  {"\x95\x32\x82\x36\xD2\xBB", "gb18030", true, "\xF0\xA0\x80\x80\xE4\xB8\x80"},
+  {"\xA7\x41\xA6\x6E", "big5", true, "\xE4\xBD\xA0\xE5\xA5\xBD"},
+  // Windows-1258 does have a combining character at xD2 (which is U+0309).
+  // The sequence of (U+00E2, U+0309) is also encoded as U+1EA9.
+  {"foo\xE2\xD2", "windows-1258", true, "foo\xE1\xBA\xA9"},
+};
+TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
+  std::string result;
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kConvertAndNormalizeCases); ++i) {
+    bool success = ConvertToUtf8AndNormalize(
+        kConvertAndNormalizeCases[i].encoded,
+        kConvertAndNormalizeCases[i].codepage_name, &result);
+    EXPECT_EQ(kConvertAndNormalizeCases[i].expected_success, success);
+    EXPECT_EQ(kConvertAndNormalizeCases[i].expected_value, result);
   }
 }
 

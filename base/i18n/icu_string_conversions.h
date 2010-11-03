@@ -64,6 +64,12 @@ bool CodepageToWide(const std::string& encoded,
                     OnStringConversionError::Type on_error,
                     std::wstring* wide);
 
+// Converts from any codepage to UTF-8 and ensures the resulting UTF-8 is
+// normalized.
+bool ConvertToUtf8AndNormalize(const std::string& text,
+                               const std::string& charset,
+                               std::string* result);
+
 }  // namespace base
 
 #endif  // BASE_I18N_ICU_STRING_CONVERSIONS_H_

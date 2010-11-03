@@ -9,9 +9,11 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "unicode/ucnv.h"
 #include "unicode/ucnv_cb.h"
 #include "unicode/ucnv_err.h"
+#include "unicode/unorm.h"
 #include "unicode/ustring.h"
 
 namespace base {
@@ -262,6 +264,30 @@ bool CodepageToWide(const std::string& encoded,
   wide->resize(actual_size / sizeof(wchar_t));
   return true;
 #endif  // defined(WCHAR_T_IS_UTF32)
+}
+
+bool ConvertToUtf8AndNormalize(const std::string& text,
+                               const std::string& charset,
+                               std::string* result) {
+  result->clear();
+  string16 utf16;
+  if (!CodepageToUTF16(
+      text, charset.c_str(), OnStringConversionError::FAIL, &utf16))
+    return false;
+
+  UErrorCode status = U_ZERO_ERROR;
+  size_t max_length = utf16.length() + 1;
+  string16 normalized_utf16;
+  int actual_length = unorm_normalize(
+      utf16.c_str(), utf16.length(), UNORM_NFC, 0,
+      WriteInto(&normalized_utf16, max_length),
+      static_cast<int>(max_length), &status);
+  if (!U_SUCCESS(status))
+    return false;
+  normalized_utf16.resize(actual_length);
+
+  return UTF16ToUTF8(normalized_utf16.data(),
+                     normalized_utf16.length(), result);
 }
 
 }  // namespace base
