@@ -36,6 +36,7 @@
 #include <string>
 #include <vector>
 
+#include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/logging.h"
 #include "base/time.h"
@@ -243,8 +244,8 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   typedef std::vector<Count> Counts;
   typedef std::vector<Sample> Ranges;
 
-  /* These enums are meant to facilitate deserialization of renderer histograms
-     into the browser. */
+  // These enums are used to facilitate deserialization of renderer histograms
+  // into the browser.
   enum ClassType {
     HISTOGRAM,
     LINEAR_HISTOGRAM,
@@ -273,6 +274,16 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
     kHexRangePrintingFlag = 0x8000,  // Fancy bucket-naming supported.
   };
 
+  enum Inconsistencies {
+    NO_INCONSISTENCIES = 0x0,
+    RANGE_CHECKSUM_ERROR = 0x1,
+    BUCKET_ORDER_ERROR = 0x2,
+    COUNT_HIGH_ERROR = 0x4,
+    COUNT_LOW_ERROR = 0x8,
+
+    NEVER_EXCEEDED_VALUE = 0x10
+  };
+
   struct DescriptionPair {
     Sample sample;
     const char* description;  // Null means end of a list of pairs.
@@ -298,6 +309,7 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
     Count TotalCount() const;
     int64 sum() const { return sum_; }
     int64 square_sum() const { return square_sum_; }
+    int64 redundant_count() const { return redundant_count_; }
 
     // Arithmetic manipulation of corresponding elements of the set.
     void Add(const SampleSet& other);
@@ -315,7 +327,21 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
     // without shared memory at some point.
     int64 sum_;         // sum of samples.
     int64 square_sum_;  // sum of squares of samples.
+
+   private:
+    // Allow tests to corrupt our innards for testing purposes.
+    FRIEND_TEST(HistogramTest, CorruptSampleCounts);
+
+    // To help identify memory corruption, we reduntantly save the number of
+    // samples we've accumulated into all of our buckets.  We can compare this
+    // count to the sum of the counts in all buckets, and detect problems.  Note
+    // that due to races in histogram accumulation (if a histogram is indeed
+    // updated on several threads simultaneously), the tallies might mismatch,
+    // and also the snapshotting code may asynchronously get a mismatch (though
+    // generally either race based mismatch cause is VERY rare).
+    int64 redundant_count_;
   };
+
   //----------------------------------------------------------------------------
   // minimum should start from 1. 0 is invalid as a minimum. 0 is an implicit
   // default underflow bucket.
@@ -367,6 +393,13 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   // browser process.
   static bool DeserializeHistogramInfo(const std::string& histogram_info);
 
+  // Check to see if bucket ranges, counts and tallies in the snapshot are
+  // consistent with the bucket ranges and checksums in our histogram.  This can
+  // produce a false-alarm if a race occurred in the reading of the data during
+  // a SnapShot process, but should otherwise be false at all times (unless we
+  // have memory over-writes, or DRAM failures).
+  virtual Inconsistencies FindCorruption(const SampleSet& snapshot) const;
+
   //----------------------------------------------------------------------------
   // Accessors for factory constuction, serialization and testing.
   //----------------------------------------------------------------------------
@@ -375,6 +408,7 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   Sample declared_min() const { return declared_min_; }
   Sample declared_max() const { return declared_max_; }
   virtual Sample ranges(size_t i) const { return ranges_[i];}
+  Sample range_checksum() const { return range_checksum_; }
   virtual size_t bucket_count() const { return bucket_count_; }
   // Snapshot the current complete set of sample data.
   // Override with atomic/locked snapshot if needed.
@@ -409,6 +443,9 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   // Get normalized size, relative to the ranges_[i].
   virtual double GetBucketSize(Count current, size_t i) const;
 
+  // Recalculate range_checksum_.
+  void ResetRangeChecksum();
+
   // Return a string description of what goes in a given bucket.
   // Most commonly this is the numeric value, but in derived classes it may
   // be a name (or string description) given to the bucket.
@@ -430,8 +467,17 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   bool ValidateBucketRanges() const;
 
  private:
+  // Allow tests to corrupt our innards for testing purposes.
+  FRIEND_TEST(HistogramTest, CorruptBucketBounds);
+  FRIEND_TEST(HistogramTest, CorruptSampleCounts);
+
   // Post constructor initialization.
   void Initialize();
+
+  // Return true iff the range_checksum_ matches current ranges_ vector.
+  bool HasValidRangeChecksum() const;
+
+  Sample CalculateRangeChecksum() const;
 
   //----------------------------------------------------------------------------
   // Helpers for emitting Ascii graphic.  Each method appends data to output.
@@ -476,6 +522,11 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   // containing kSampleType_MAX, to make calculations easy.
   // The dimension of ranges_ is bucket_count + 1.
   Ranges ranges_;
+
+  // For redundancy, we store the sum of all the sample ranges when ranges are
+  // generated.  If ever there is ever a difference, then the histogram must
+  // have been corrupted.
+  Sample range_checksum_;
 
   // Finally, provide the state that changes with the addition of each new
   // sample.
@@ -561,11 +612,11 @@ class CustomHistogram : public Histogram {
   virtual ClassType histogram_type() const;
 
   static scoped_refptr<Histogram> FactoryGet(const std::string& name,
-      const std::vector<int>& custom_ranges, Flags flags);
+      const std::vector<Sample>& custom_ranges, Flags flags);
 
  protected:
   CustomHistogram(const std::string& name,
-                  const std::vector<int>& custom_ranges);
+                  const std::vector<Sample>& custom_ranges);
 
   // Initialize ranges_ mapping.
   virtual void InitializeBucketRange();
@@ -573,7 +624,7 @@ class CustomHistogram : public Histogram {
 
  private:
   // Temporary pointer used during construction/initialization, and then NULLed.
-  const std::vector<int>* ranges_vector_;
+  const std::vector<Sample>* ranges_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(CustomHistogram);
 };
