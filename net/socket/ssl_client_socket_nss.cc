@@ -1899,7 +1899,6 @@ int SSLClientSocketNSS::DoSnapStartWaitForWrite() {
       nss_fd_, reinterpret_cast<const unsigned char*>(user_write_buf_->data()),
       user_write_buf_len_);
   DCHECK_EQ(SECSuccess, rv);
-  user_write_buf_ = NULL;
 
   GotoState(STATE_HANDSHAKE);
   LeaveFunction("");
@@ -2280,11 +2279,31 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   // session with a bad cert.
   InvalidateSessionIfBadCertificate();
 
-  // Likewise, if we merged a Write call into the handshake we need to make the
+  // If we merged a Write call into the handshake we need to make the
   // callback now.
   if (user_write_callback_) {
     corked_ = false;
-    DoWriteCallback(user_write_buf_len_);
+    if (result != OK) {
+      DoWriteCallback(result);
+    } else {
+      SSLSnapStartResult snap_start_type;
+      SECStatus rv = SSL_GetSnapStartResult(nss_fd_, &snap_start_type);
+      DCHECK_EQ(rv, SECSuccess);
+      DCHECK_NE(snap_start_type, SSL_SNAP_START_NONE);
+      if (snap_start_type == SSL_SNAP_START_RECOVERY ||
+          snap_start_type == SSL_SNAP_START_RESUME_RECOVERY) {
+        // If we mispredicted the server's handshake then Snap Start will have
+        // triggered a recovery mode. The misprediction could have been caused
+        // by the server having a different certificate so the application data
+        // wasn't resent. Now that we have verified the certificate, we need to
+        // resend the application data.
+        int bytes_written = DoPayloadWrite();
+        if (bytes_written != ERR_IO_PENDING)
+          DoWriteCallback(bytes_written);
+      } else {
+        DoWriteCallback(user_write_buf_len_);
+      }
+    }
   }
 
   // Exit DoHandshakeLoop and return the result to the caller to Connect.
