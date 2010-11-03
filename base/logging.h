@@ -245,6 +245,7 @@ void SetShowErrorDialogs(bool enable_dialogs);
 // (e.g. a silent one for Unit Tests)
 typedef void (*LogAssertHandlerFunction)(const std::string& str);
 void SetLogAssertHandler(LogAssertHandlerFunction handler);
+
 // Sets the Log Report Handler that will be used to notify of check failures
 // in non-debug mode. The default handler shows a dialog box and continues
 // the execution, however clients can use this function to override with their
@@ -258,6 +259,7 @@ void SetLogReportHandler(LogReportHandlerFunction handler);
 // should not be sent to other log destinations.
 typedef bool (*LogMessageHandlerFunction)(int severity, const std::string& str);
 void SetLogMessageHandler(LogMessageHandlerFunction handler);
+LogMessageHandlerFunction GetLogMessageHandler();
 
 typedef int LogSeverity;
 const LogSeverity LOG_INFO = 0;
