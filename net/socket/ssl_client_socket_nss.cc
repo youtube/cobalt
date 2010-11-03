@@ -480,6 +480,8 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
     NOTREACHED();
     return;
   }
+  net_log_.AddEvent(NetLog::TYPE_SSL_SNAP_START,
+                    new NetLogIntegerParameter("type", snap_start_type));
   LOG(ERROR) << "Snap Start: " << snap_start_type << " " << hostname_;
   if (snap_start_type == SSL_SNAP_START_FULL ||
       snap_start_type == SSL_SNAP_START_RESUME) {
@@ -743,7 +745,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // TODO(agl): check that SSL_ENABLE_SNAP_START actually does something in the
   // current NSS code.
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SNAP_START,
-                     SSLConfigService::snap_start_enabled());
+                     ssl_config_.snap_start_enabled);
   if (rv != SECSuccess)
     VLOG(1) << "SSL_ENABLE_SNAP_START failed.  Old system nss?";
 #endif
@@ -1849,15 +1851,26 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
 int SSLClientSocketNSS::DoSnapStartLoadInfo() {
   EnterFunction("");
   int rv = ssl_host_info_->WaitForDataReady(&handshake_io_callback_);
+  GotoState(STATE_HANDSHAKE);
 
   if (rv == OK) {
-    if (LoadSnapStartInfo()) {
-      pseudo_connected_ = true;
-      GotoState(STATE_SNAP_START_WAIT_FOR_WRITE);
-      if (user_connect_callback_)
-        DoConnectCallback(OK);
-    } else {
-      GotoState(STATE_HANDSHAKE);
+    if (ssl_host_info_->WaitForCertVerification(NULL) == OK) {
+      if (LoadSnapStartInfo()) {
+        pseudo_connected_ = true;
+        GotoState(STATE_SNAP_START_WAIT_FOR_WRITE);
+        if (user_connect_callback_)
+          DoConnectCallback(OK);
+      }
+    } else if (!ssl_host_info_->state().server_hello.empty()) {
+      // A non-empty ServerHello suggests that we would have tried a Snap Start
+      // connection.
+      base::TimeTicks now = base::TimeTicks::Now();
+      const base::TimeDelta duration =
+          now - ssl_host_info_->verification_start_time();
+      UMA_HISTOGRAM_TIMES("Net.SSLSnapStartNeededVerificationInMs", duration);
+      VLOG(1) << "Cannot snap start because verification isn't ready. "
+              << "Wanted verification after "
+              << duration.InMilliseconds() << "ms";
     }
   } else {
     DCHECK_EQ(ERR_IO_PENDING, rv);
@@ -2224,8 +2237,15 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     // server then it will have optimistically started a verification of that
     // chain. So, if the prediction was correct, we should wait for that
     // verification to finish rather than start our own.
+    net_log_.AddEvent(NetLog::TYPE_SSL_VERIFICATION_MERGED, NULL);
+    UMA_HISTOGRAM_ENUMERATION("Net.SSLVerificationMerged", 1 /* true */, 2);
+    base::TimeTicks now = base::TimeTicks::Now();
+    UMA_HISTOGRAM_TIMES("Net.SSLVerificationMergedMsSaved",
+                        now - ssl_host_info_->verification_start_time());
     server_cert_verify_result_ = &ssl_host_info_->cert_verify_result();
     return ssl_host_info_->WaitForCertVerification(&handshake_io_callback_);
+  } else {
+    UMA_HISTOGRAM_ENUMERATION("Net.SSLVerificationMerged", 0 /* false */, 2);
   }
 
   int flags = 0;
@@ -2244,10 +2264,6 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
 // mozilla/source/security/manager/ssl/src/nsNSSCallbacks.cpp.
 int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   verifier_.reset();
-
-  // Using Snap Start disables certificate verification for now.
-  if (SSLConfigService::snap_start_enabled())
-    result = OK;
 
   // We used to remember the intermediate CA certs in the NSS database
   // persistently.  However, NSS opens a connection to the SQLite database
@@ -2304,6 +2320,12 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
         DoWriteCallback(user_write_buf_len_);
       }
     }
+  }
+
+  if (user_read_callback_) {
+    int rv = DoReadLoop(OK);
+    if (rv != ERR_IO_PENDING)
+      DoReadCallback(rv);
   }
 
   // Exit DoHandshakeLoop and return the result to the caller to Connect.
