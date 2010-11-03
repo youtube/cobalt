@@ -316,6 +316,10 @@ const LogSeverity LOG_DFATAL = LOG_FATAL;
 // Needed for LOG_IS_ON(ERROR).
 const LogSeverity LOG_0 = LOG_ERROR;
 
+// As special cases, we can assume that LOG_IS_ON(ERROR_REPORT) and
+// LOG_IS_ON(FATAL) always hold.  Also, LOG_IS_ON(DFATAL) always holds
+// in debug mode.  In particular, CHECK()s will always fire if they
+// fail.
 #define LOG_IS_ON(severity) \
   ((::logging::LOG_ ## severity) >= ::logging::GetMinLogLevel())
 
@@ -398,9 +402,6 @@ const LogSeverity LOG_0 = LOG_ERROR;
 //
 // We make sure CHECK et al. always evaluates their arguments, as
 // doing CHECK(FunctionWithSideEffect()) is a common idiom.
-//
-// TODO(akalin): Fix the problem where if the min log level is >
-// FATAL, CHECK() et al. won't terminate the program.
 #define CHECK(condition)                       \
   LAZY_STREAM(LOG_STREAM(FATAL), !(condition)) \
   << "Check failed: " #condition ". "
@@ -577,7 +578,9 @@ enum { DEBUG_MODE = ENABLE_DLOG };
 
 #if defined(NDEBUG)
 
-#define DCHECK_SEVERITY ERROR_REPORT
+#define COMPACT_GOOGLE_LOG_EX_DCHECK(ClassName, ...) \
+  COMPACT_GOOGLE_LOG_EX_ERROR_REPORT(ClassName , ##__VA_ARGS__)
+#define COMPACT_GOOGLE_LOG_DCHECK COMPACT_GOOGLE_LOG_ERROR_REPORT
 const LogSeverity LOG_DCHECK = LOG_ERROR_REPORT;
 // This is set to true in InitLogging when we want to enable the
 // DCHECKs in release.
@@ -587,41 +590,38 @@ extern bool g_enable_dcheck;
 #else  // defined(NDEBUG)
 
 // On a regular debug build, we want to have DCHECKs enabled.
-#define DCHECK_SEVERITY FATAL
+#define COMPACT_GOOGLE_LOG_EX_DCHECK(ClassName, ...) \
+  COMPACT_GOOGLE_LOG_EX_FATAL(ClassName , ##__VA_ARGS__)
+#define COMPACT_GOOGLE_LOG_DCHECK COMPACT_GOOGLE_LOG_FATAL
 const LogSeverity LOG_DCHECK = LOG_FATAL;
-// TODO(akalin): We don't define this as 'true' since if the log level
-// is above FATAL, the DCHECK won't go through anyway.  Make it so
-// that DCHECKs work regardless of the logging level, then set this to
-// 'true'.
-#define DCHECK_IS_ON() LOG_IS_ON(DCHECK)
+#define DCHECK_IS_ON() true
 
 #endif  // defined(NDEBUG)
 
 #else  // ENABLE_DCHECK
 
-#define DCHECK_SEVERITY FATAL
-const LogSeverity LOG_DCHECK = LOG_FATAL;
+// These are just dummy values since DCHECK_IS_ON() is always false in
+// this case.
+#define COMPACT_GOOGLE_LOG_EX_DCHECK(ClassName, ...) \
+  COMPACT_GOOGLE_LOG_EX_INFO(ClassName , ##__VA_ARGS__)
+#define COMPACT_GOOGLE_LOG_DCHECK COMPACT_GOOGLE_LOG_INFO
+const LogSeverity LOG_DCHECK = LOG_INFO;
 #define DCHECK_IS_ON() false
 
 #endif  // ENABLE_DCHECK
 #undef ENABLE_DCHECK
 
-// Unlike CHECK et al., DCHECK et al. *does* evaluate their arguments
-// lazily.
-
-// DCHECK et al. also make sure to reference |condition| regardless of
+// DCHECK et al. make sure to reference |condition| regardless of
 // whether DCHECKs are enabled; this is so that we don't get unused
 // variable warnings if the only use of a variable is in a DCHECK.
 // This behavior is different from DLOG_IF et al.
 
-#define DCHECK(condition)                       \
-  !DCHECK_IS_ON() ? (void) 0 :                  \
-  LOG_IF(DCHECK_SEVERITY, !(condition))         \
+#define DCHECK(condition)                                           \
+  LAZY_STREAM(LOG_STREAM(DCHECK), DCHECK_IS_ON() && !(condition))   \
   << "Check failed: " #condition ". "
 
-#define DPCHECK(condition)                      \
-  !DCHECK_IS_ON() ? (void) 0 :                  \
-  PLOG_IF(DCHECK_SEVERITY, !(condition))        \
+#define DPCHECK(condition)                                          \
+  LAZY_STREAM(PLOG_STREAM(DCHECK), DCHECK_IS_ON() && !(condition))  \
   << "Check failed: " #condition ". "
 
 // Helper macro for binary operators.
@@ -635,9 +635,10 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
           __FILE__, __LINE__, ::logging::LOG_DCHECK,            \
           _result).stream()
 
-// Equality/Inequality checks - compare two values, and log a LOG_FATAL message
-// including the two values when the result is not as expected.  The values
-// must have operator<<(ostream, ...) defined.
+// Equality/Inequality checks - compare two values, and log a
+// LOG_DCHECK message including the two values when the result is not
+// as expected.  The values must have operator<<(ostream, ...)
+// defined.
 //
 // You may append to the error message like so:
 //   DCHECK_NE(1, 2) << ": The world must be ending!";

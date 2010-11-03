@@ -382,7 +382,7 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
 }
 
 void SetMinLogLevel(int level) {
-  min_log_level = level;
+  min_log_level = std::min(LOG_ERROR_REPORT, level);
 }
 
 int GetMinLogLevel() {
