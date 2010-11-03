@@ -12,6 +12,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/stl_util-inl.h"
+#include "base/thread_restrictions.h"
 #include "base/win/registry.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_config.h"
@@ -72,6 +73,9 @@ ProxyConfigServiceWin::ProxyConfigServiceWin()
 }
 
 ProxyConfigServiceWin::~ProxyConfigServiceWin() {
+  // The registry functions below will end up going to disk.  Do this on another
+  // thread to avoid slowing the IO thread.  http://crbug.com/61453
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
   STLDeleteElements(&keys_to_watch_);
 }
 
@@ -86,6 +90,10 @@ void ProxyConfigServiceWin::AddObserver(Observer* observer) {
 void ProxyConfigServiceWin::StartWatchingRegistryForChanges() {
   if (!keys_to_watch_.empty())
     return;  // Already initialized.
+
+  // The registry functions below will end up going to disk.  Do this on another
+  // thread to avoid slowing the IO thread.  http://crbug.com/61453
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
 
   // There are a number of different places where proxy settings can live
   // in the registry. In some cases it appears in a binary value, in other
