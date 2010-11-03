@@ -42,6 +42,18 @@ namespace net {
 typedef uint32 FormatUrlType;
 typedef uint32 FormatUrlTypes;
 
+// Used by GetHeaderParamValue to determine how to handle quotes in the value.
+class QuoteRule {
+ public:
+  enum Type {
+    KEEP_OUTER_QUOTES,
+    REMOVE_OUTER_QUOTES,
+  };
+
+ private:
+  QuoteRule();
+};
+
 // Nothing is ommitted.
 extern const FormatUrlType kFormatUrlOmitNothing;
 
@@ -124,23 +136,26 @@ std::string GetSpecificHeader(const std::string& headers,
 // 'param_name'.  Returns the empty string if the parameter is not found or is
 // improperly formatted.
 std::wstring GetHeaderParamValue(const std::wstring& field,
-                                 const std::wstring& param_name);
+                                 const std::wstring& param_name,
+                                 QuoteRule::Type quote_rule);
 std::string GetHeaderParamValue(const std::string& field,
-                                const std::string& param_name);
+                                const std::string& param_name,
+                                QuoteRule::Type quote_rule);
 
 // Return the filename extracted from Content-Disposition header. The following
 // formats are tried in order listed below:
 //
-// 1. RFC 2047
-// 2. Raw-8bit-characters :
+// 1. RFC 5987
+// 2. RFC 2047
+// 3. Raw-8bit-characters :
 //    a. UTF-8, b. referrer_charset, c. default os codepage.
-// 3. %-escaped UTF-8.
+// 4. %-escaped UTF-8.
 //
-// In step 2, if referrer_charset is empty(i.e. unknown), 2b is skipped.
-// In step 3, the fallback charsets tried in step 2 are not tried. We
+// In step 3, if referrer_charset is empty(i.e. unknown), 3b is skipped.
+// In step 4, the fallback charsets tried in step 3 are not tried. We
 // can consider doing that later.
 //
-// When a param value is ASCII, but is not in format #1 or format #3 above,
+// When a param value is ASCII, but is not in format #2 or format #4 above,
 // it is returned as it is unless it's pretty close to two supported
 // formats but not well-formed. In that case, an empty string is returned.
 //

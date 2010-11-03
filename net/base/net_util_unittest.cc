@@ -711,7 +711,8 @@ TEST(NetUtilTest, GetHeaderParamValue) {
     std::wstring header_value =
         net::GetSpecificHeader(google_headers, tests[i].header_name);
     std::wstring result =
-        net::GetHeaderParamValue(header_value, tests[i].param_name);
+        net::GetHeaderParamValue(header_value, tests[i].param_name,
+                                 net::QuoteRule::REMOVE_OUTER_QUOTES);
     EXPECT_EQ(result, tests[i].expected);
   }
 
@@ -719,8 +720,35 @@ TEST(NetUtilTest, GetHeaderParamValue) {
     std::wstring header_value =
         net::GetSpecificHeader(L"", tests[i].header_name);
     std::wstring result =
-        net::GetHeaderParamValue(header_value, tests[i].param_name);
+        net::GetHeaderParamValue(header_value, tests[i].param_name,
+                                 net::QuoteRule::REMOVE_OUTER_QUOTES);
     EXPECT_EQ(result, std::wstring());
+  }
+}
+
+TEST(NetUtilTest, GetHeaderParamValueQuotes) {
+  struct {
+    const char* header;
+    const char* expected_with_quotes;
+    const char* expected_without_quotes;
+  } tests[] = {
+    {"filename=foo", "foo", "foo"},
+    {"filename=\"foo\"", "\"foo\"", "foo"},
+    {"filename=foo\"", "foo\"", "foo\""},
+    {"filename=fo\"o", "fo\"o", "fo\"o"},
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    std::string actual_with_quotes =
+        net::GetHeaderParamValue(tests[i].header, "filename",
+                                 net::QuoteRule::KEEP_OUTER_QUOTES);
+    std::string actual_without_quotes =
+        net::GetHeaderParamValue(tests[i].header, "filename",
+                                 net::QuoteRule::REMOVE_OUTER_QUOTES);
+    EXPECT_EQ(tests[i].expected_with_quotes, actual_with_quotes)
+        << "Failed while processing: " << tests[i].header;
+    EXPECT_EQ(tests[i].expected_without_quotes, actual_without_quotes)
+        << "Failed while processing: " << tests[i].header;
   }
 }
 
@@ -762,7 +790,7 @@ TEST(NetUtilTest, GetFileNameFromCD) {
      "_3=2Epng?=", "", L"\U00010330 3.png"},
     {"Content-Disposition: inline; filename=\"=?iso88591?Q?caf=e9_=2epng?=\"",
      "", L"caf\x00e9 .png"},
-    // Space after an encode word should be removed.
+    // Space after an encoded word should be removed.
     {"Content-Disposition: inline; filename=\"=?iso88591?Q?caf=E9_?= .png\"",
      "", L"caf\x00e9 .png"},
     // Two encoded words with different charsets (not very likely to be emitted
@@ -812,11 +840,92 @@ TEST(NetUtilTest, GetFileNameFromCD) {
     // Two RFC 2047 encoded words in a row without a space is an error.
     {"Content-Disposition: attachment; filename==?windows-1252?Q?caf=E3?="
      "=?iso-8859-7?b?4eIucG5nCg==?=", "", L""},
+
+    // RFC 5987 tests with Filename*  : see http://tools.ietf.org/html/rfc5987
+    {"Content-Disposition: attachment; filename*=foo.html", "", L""},
+    {"Content-Disposition: attachment; filename*=foo'.html", "", L""},
+    {"Content-Disposition: attachment; filename*=''foo'.html", "", L""},
+    {"Content-Disposition: attachment; filename*=''foo.html'", "", L""},
+    {"Content-Disposition: attachment; filename*=''f\"oo\".html'", "", L""},
+    {"Content-Disposition: attachment; filename*=bogus_charset''foo.html'",
+     "", L""},
+    {"Content-Disposition: attachment; filename*='en'foo.html'", "", L""},
+    {"Content-Disposition: attachment; filename*=iso-8859-1'en'foo.html", "",
+      L"foo.html"},
+    {"Content-Disposition: attachment; filename*=utf-8'en'foo.html", "",
+      L"foo.html"},
+    // charset cannot be omitted.
+    {"Content-Disposition: attachment; filename*='es'f\xfa.html'", "", L""},
+    // Non-ASCII bytes are not allowed.
+    {"Content-Disposition: attachment; filename*=iso-8859-1'es'f\xfa.html", "",
+      L""},
+    {"Content-Disposition: attachment; filename*=utf-8'es'f\xce\xba.html", "",
+      L""},
+    // TODO(jshin): Space should be %-encoded, but currently, we allow
+    // spaces.
+    {"Content-Disposition: inline; filename*=iso88591''cafe foo.png", "",
+      L"cafe foo.png"},
+
+    // Filename* tests converted from Q-encoded tests above.
+    {"Content-Disposition: attachment; filename*=EUC-JP''%B7%DD%BD%D13%2Epng",
+     "", L"\x82b8\x8853" L"3.png"},
+    {"Content-Disposition: attachment; filename*=utf-8''"
+      "%E8%8A%B8%E8%A1%93%203%2Epng", "", L"\x82b8\x8853 3.png"},
+    {"Content-Disposition: attachment; filename*=utf-8''%F0%90%8C%B0 3.png", "",
+      L"\U00010330 3.png"},
+    {"Content-Disposition: inline; filename*=Euc-Kr'ko'%BF%B9%BC%FA%2Epng", "",
+     L"\xc608\xc220.png"},
+    {"Content-Disposition: attachment; filename*=windows-1252''caf%E9.png", "",
+      L"caf\x00e9.png"},
+
+    // http://greenbytes.de/tech/tc2231/ filename* test cases.
+    // attwithisofn2231iso
+    {"Content-Disposition: attachment; filename*=iso-8859-1''foo-%E4.html", "",
+      L"foo-\xe4.html"},
+    // attwithfn2231utf8
+    {"Content-Disposition: attachment; filename*="
+      "UTF-8''foo-%c3%a4-%e2%82%ac.html", "", L"foo-\xe4-\x20ac.html"},
+    // attwithfn2231noc : no encoding specified but UTF-8 is used.
+    {"Content-Disposition: attachment; filename*=''foo-%c3%a4-%e2%82%ac.html",
+      "", L""},
+    // attwithfn2231utf8comp
+    {"Content-Disposition: attachment; filename*=UTF-8''foo-a%cc%88.html", "",
+      L"foo-\xe4.html"},
+#ifdef ICU_SHOULD_FAIL_CONVERSION_ON_INVALID_CHARACTER
+    // This does not work because we treat ISO-8859-1 synonymous with
+    // Windows-1252 per HTML5. For HTTP, in theory, we're not
+    // supposed to.
+    // attwithfn2231utf8-bad
+    {"Content-Disposition: attachment; filename*="
+      "iso-8859-1''foo-%c3%a4-%e2%82%ac.html", "", L""},
+#endif
+    // attwithfn2231ws1
+    {"Content-Disposition: attachment; filename *=UTF-8''foo-%c3%a4.html", "",
+      L""},
+    // attwithfn2231ws2
+    {"Content-Disposition: attachment; filename*= UTF-8''foo-%c3%a4.html", "",
+      L"foo-\xe4.html"},
+    // attwithfn2231ws3
+    {"Content-Disposition: attachment; filename* =UTF-8''foo-%c3%a4.html", "",
+      L"foo-\xe4.html"},
+    // attwithfn2231quot
+    {"Content-Disposition: attachment; filename*=\"UTF-8''foo-%c3%a4.html\"",
+      "", L""},
+    // attfnboth
+    {"Content-Disposition: attachment; filename=\"foo-ae.html\"; "
+      "filename*=UTF-8''foo-%c3%a4.html", "", L"foo-\xe4.html"},
+    // attfnboth2
+    {"Content-Disposition: attachment; filename*=UTF-8''foo-%c3%a4.html; "
+      "filename=\"foo-ae.html\"", "", L"foo-\xe4.html"},
+    // attnewandfn
+    {"Content-Disposition: attachment; foobar=x; filename=\"foo.html\"", "",
+      L"foo.html"},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     EXPECT_EQ(tests[i].expected,
               UTF8ToWide(net::GetFileNameFromCD(tests[i].header_field,
-                                                tests[i].referrer_charset)));
+                                                tests[i].referrer_charset)))
+        << "Failed on input: " << tests[i].header_field;
   }
 }
 
