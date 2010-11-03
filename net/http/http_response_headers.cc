@@ -484,7 +484,7 @@ bool HttpResponseHeaders::HasHeaderValue(const std::string& name,
   while (EnumerateHeader(&iter, name, &temp)) {
     if (value.size() == temp.size() &&
         std::equal(temp.begin(), temp.end(), value.begin(),
-                   CaseInsensitiveCompare<char>()))
+                   base::CaseInsensitiveCompare<char>()))
       return true;
   }
   return false;
@@ -629,7 +629,7 @@ size_t HttpResponseHeaders::FindHeader(size_t from,
     const std::string::const_iterator& name_end = parsed_[i].name_end;
     if (static_cast<size_t>(name_end - name_begin) == search.size() &&
         std::equal(name_begin, name_end, search.begin(),
-                   CaseInsensitiveCompare<char>()))
+                   base::CaseInsensitiveCompare<char>()))
       return i;
   }
 

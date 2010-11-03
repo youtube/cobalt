@@ -568,7 +568,7 @@ bool StartsWithT(const STR& str, const STR& search, bool case_sensitive) {
     if (search.size() > str.size())
       return false;
     return std::equal(search.begin(), search.end(), str.begin(),
-                      CaseInsensitiveCompare<typename STR::value_type>());
+                      base::CaseInsensitiveCompare<typename STR::value_type>());
   }
 }
 
@@ -595,7 +595,7 @@ bool EndsWithT(const STR& str, const STR& search, bool case_sensitive) {
   } else {
     return std::equal(search.begin(), search.end(),
                       str.begin() + (str_length - search_length),
-                      CaseInsensitiveCompare<typename STR::value_type>());
+                      base::CaseInsensitiveCompare<typename STR::value_type>());
   }
 }
 
