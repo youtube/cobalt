@@ -4,7 +4,7 @@
 
 {
   'targets': [
-    # libvpx_lib is currently not being used since we use libvpx inside
+    # libvpx_lib is not currently being used since we use libvpx inside
     # libavcodec. Keeping this just in case we need this later.
     {
       'target_name': 'libvpx_lib',
