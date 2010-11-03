@@ -13,6 +13,7 @@
 
 #include "base/callback.h"
 #include "media/base/filters.h"
+#include "media/base/media_filter_collection.h"
 
 namespace base {
 class TimeDelta;
@@ -59,7 +60,7 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // If the caller provides a |start_callback|, it will be called when the
   // pipeline initialization completes.  Clients are expected to call GetError()
   // to check whether initialization succeeded.
-  virtual bool Start(const MediaFilterCollection& filter_collection,
+  virtual bool Start(MediaFilterCollection* filter_collection,
                      const std::string& url,
                      PipelineCallback* start_callback) = 0;
 

@@ -66,7 +66,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   explicit PipelineImpl(MessageLoop* message_loop);
 
   // Pipeline implementation.
-  virtual bool Start(const MediaFilterCollection& filter_collection,
+  virtual bool Start(MediaFilterCollection* filter_collection,
                      const std::string& uri,
                      PipelineCallback* start_callback);
   virtual void Stop(PipelineCallback* stop_callback);
@@ -194,7 +194,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
   // message loop.
-  void StartTask(const MediaFilterCollection& filter_collection,
+  void StartTask(MediaFilterCollection* filter_collection,
                  const std::string& url,
                  PipelineCallback* start_callback);
 
@@ -241,15 +241,6 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Internal methods used in the implementation of the pipeline thread.  All
   // of these methods are only called on the pipeline thread.
 
-  // Uses the MediaFilterCollection to return a filter of |filter_type|.
-  // If the required filter cannot be found, NULL is returned.
-  template <class Filter>
-  void SelectFilter(FilterType filter_type,
-                    scoped_refptr<Filter>* filter_out) const;
-
-  // Remove a filer from MediaFilterCollection.
-  void RemoveFilter(scoped_refptr<MediaFilter> filter);
-
   // PrepareFilter() creates the filter's thread and injects a FilterHost and
   // MessageLoop.
   void PrepareFilter(scoped_refptr<MediaFilter> filter);
@@ -280,8 +271,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // specified filter type. If one exists, the |filter_out| will contain
   // the filter, |*filter_out| will be NULL.
   template <class Filter>
-  void GetInitializedFilter(FilterType filter_type,
-                            scoped_refptr<Filter>* filter_out) const;
+  void GetInitializedFilter(scoped_refptr<Filter>* filter_out) const;
 
   // Kicks off destroying filters. Called by StopTask() and ErrorChangedTask().
   // When we start to tear down the pipeline, we will consider two cases:
@@ -400,7 +390,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   base::TimeDelta max_buffered_time_;
 
   // Filter collection as passed in by Start().
-  MediaFilterCollection filter_collection_;
+  scoped_ptr<MediaFilterCollection> filter_collection_;
 
   // URL for the data source as passed in by Start().
   std::string url_;

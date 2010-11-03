@@ -17,6 +17,7 @@
 
 #include "base/callback.h"
 #include "media/base/filters.h"
+#include "media/base/media_filter_collection.h"
 #include "media/base/video_frame.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -284,14 +285,21 @@ class MockFilterCollection {
   MockVideoRenderer* video_renderer() const { return video_renderer_; }
   MockAudioRenderer* audio_renderer() const { return audio_renderer_; }
 
-  MediaFilterCollection filter_collection() const {
-    MediaFilterCollection collection;
-    collection.push_back(data_source_);
-    collection.push_back(demuxer_);
-    collection.push_back(video_decoder_);
-    collection.push_back(audio_decoder_);
-    collection.push_back(video_renderer_);
-    collection.push_back(audio_renderer_);
+  MediaFilterCollection* filter_collection() const {
+    return filter_collection(true);
+  }
+
+  MediaFilterCollection* filter_collection(bool include_data_source) const {
+    MediaFilterCollection* collection = new MediaFilterCollection();
+
+    if (include_data_source) {
+      collection->AddFilter(data_source_);
+    }
+    collection->AddFilter(demuxer_);
+    collection->AddFilter(video_decoder_);
+    collection->AddFilter(audio_decoder_);
+    collection->AddFilter(video_renderer_);
+    collection->AddFilter(audio_renderer_);
     return collection;
   }
 
