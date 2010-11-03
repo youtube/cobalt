@@ -8366,20 +8366,6 @@ ssl3_SendFinished(sslSocket *ss, PRInt32 flags)
 	}
     }
 
-    if ((ss->ssl3.hs.snapStartType == snap_start_recovery ||
-         ss->ssl3.hs.snapStartType == snap_start_resume_recovery) &&
-	ss->ssl3.snapStartApplicationData.data) {
-	/* In the event that the server ignored the application data in our
-	 * snap start extension, we need to retransmit it now. */
-	PRInt32 sent = ssl3_SendRecord(ss, content_application_data,
-                                       ss->ssl3.snapStartApplicationData.data,
-                                       ss->ssl3.snapStartApplicationData.len,
-                                       flags);
-	SECITEM_FreeItem(&ss->ssl3.snapStartApplicationData, PR_FALSE);
-	if (sent < 0)
-	    return (SECStatus)sent;	/* error code set by ssl3_SendRecord */
-    }
-
     return SECSuccess;
 
 fail:
