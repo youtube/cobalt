@@ -221,15 +221,8 @@ SetCertTrust(const net::X509Certificate* cert,
     srv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(),
                                nsscert,
                                trust.GetTrust());
-  } else if (type == net::EMAIL_CERT) {
-    // always start with untrusted and move up
-    trust.SetValidPeer();
-    trust.AddPeerTrust(0, trusted & net::CertDatabase::TRUSTED_EMAIL, 0);
-    srv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(),
-                               nsscert,
-                               trust.GetTrust());
   } else {
-    // ignore user certs
+    // ignore user and email/unknown certs
     return true;
   }
   if (srv != SECSuccess)

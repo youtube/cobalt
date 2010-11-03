@@ -11,16 +11,14 @@ namespace net {
 // This is only used in the context of CertDatabase, but is defined outside to
 // avoid an awkwardly long type name.
 // The type is a combination of intrinsic properties, such as the presense of an
-// email address or Certificate Authority Basic Constraint, and assigned trust
-// values.  For example, a cert with no email address, basic constraints, or
-// trust, would be classified as UNKNOWN_CERT.  If that cert is then trusted
-// with SetCertTrust(cert, SERVER_CERT, TRUSTED_SSL), it would become a
-// SERVER_CERT.
+// Certificate Authority Basic Constraint, and assigned trust values.  For
+// example, a cert with no basic constraints or trust would be classified as
+// UNKNOWN_CERT.  If that cert is then trusted with SetCertTrust(cert,
+// SERVER_CERT, TRUSTED_SSL), it would become a SERVER_CERT.
 enum CertType {
   UNKNOWN_CERT,
   CA_CERT,
   USER_CERT,
-  EMAIL_CERT,
   SERVER_CERT,
   NUM_CERT_TYPES
 };
