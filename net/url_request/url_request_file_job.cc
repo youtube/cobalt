@@ -203,6 +203,10 @@ bool URLRequestFileJob::GetContentEncodings(
 }
 
 bool URLRequestFileJob::GetMimeType(std::string* mime_type) const {
+  // URL requests should not block on the disk!  On Windows this goes to the
+  // registry.
+  //   http://code.google.com/p/chromium/issues/detail?id=59849
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
   DCHECK(request_);
   return net::GetMimeTypeFromFile(file_path_, mime_type);
 }
@@ -252,6 +256,10 @@ void URLRequestFileJob::DidResolve(
   if (!exists) {
     rv = net::ERR_FILE_NOT_FOUND;
   } else if (!is_directory_) {
+    // URL requests should not block on the disk!
+    //   http://code.google.com/p/chromium/issues/detail?id=59849
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+
     int flags = base::PLATFORM_FILE_OPEN |
                 base::PLATFORM_FILE_READ |
                 base::PLATFORM_FILE_ASYNC;
