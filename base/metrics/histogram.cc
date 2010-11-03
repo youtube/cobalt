@@ -61,6 +61,7 @@ Histogram::Histogram(const std::string& name, Sample minimum,
     bucket_count_(bucket_count),
     flags_(kNoFlags),
     ranges_(bucket_count + 1, 0),
+    range_checksum_(0),
     sample_() {
   Initialize();
 }
@@ -73,6 +74,7 @@ Histogram::Histogram(const std::string& name, TimeDelta minimum,
     bucket_count_(bucket_count),
     flags_(kNoFlags),
     ranges_(bucket_count + 1, 0),
+    range_checksum_(0),
     sample_() {
   Initialize();
 }
@@ -86,6 +88,7 @@ Histogram::~Histogram() {
 
   // Just to make sure most derived class did this properly...
   DCHECK(ValidateBucketRanges());
+  DCHECK(HasValidRangeChecksum());
 }
 
 bool Histogram::PrintEmptyBucket(size_t index) const {
@@ -218,7 +221,7 @@ void Histogram::Initialize() {
 // We have to be careful that we don't pick a ratio between starting points in
 // consecutive buckets that is sooo small, that the integer bounds are the same
 // (effectively making one bucket get no values).  We need to avoid:
-// (ranges_[i] == ranges_[i + 1]
+//   ranges_[i] == ranges_[i + 1]
 // To avoid that, we just do a fine-grained bucket width as far as we need to
 // until we get a ratio that moves us along at least 2 units at a time.  From
 // that bucket onward we do use the exponential growth of buckets.
@@ -244,6 +247,7 @@ void Histogram::InitializeBucketRange() {
       ++current;  // Just do a narrow bucket, and keep trying.
     SetBucketRange(bucket_index, current);
   }
+  ResetRangeChecksum();
 
   DCHECK_EQ(bucket_count(), bucket_index);
 }
@@ -285,6 +289,23 @@ double Histogram::GetBucketSize(Count current, size_t i) const {
   if (denominator > kTransitionWidth)
     denominator = kTransitionWidth;  // Stop trying to normalize.
   return current/denominator;
+}
+
+void Histogram::ResetRangeChecksum() {
+  range_checksum_ = CalculateRangeChecksum();
+}
+
+bool Histogram::HasValidRangeChecksum() const {
+  return CalculateRangeChecksum() == range_checksum_;
+}
+
+Histogram::Sample Histogram::CalculateRangeChecksum() const {
+  DCHECK_EQ(ranges_.size(), bucket_count() + 1);
+  Sample checksum = 0;
+  for (size_t index = 0; index < bucket_count(); ++index) {
+    checksum += ranges(index);
+  }
+  return checksum;
 }
 
 //------------------------------------------------------------------------------
@@ -417,6 +438,7 @@ std::string Histogram::SerializeHistogramInfo(const Histogram& histogram,
   pickle.WriteInt(histogram.declared_min());
   pickle.WriteInt(histogram.declared_max());
   pickle.WriteSize(histogram.bucket_count());
+  pickle.WriteInt(histogram.range_checksum());
   pickle.WriteInt(histogram.histogram_type());
   pickle.WriteInt(histogram.flags());
 
@@ -432,19 +454,21 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
 
   Pickle pickle(histogram_info.data(),
                 static_cast<int>(histogram_info.size()));
-  void* iter = NULL;
-  size_t bucket_count;
+  std::string histogram_name;
   int declared_min;
   int declared_max;
+  size_t bucket_count;
+  int range_checksum;
   int histogram_type;
   int pickle_flags;
-  std::string histogram_name;
   SampleSet sample;
 
+  void* iter = NULL;
   if (!pickle.ReadString(&iter, &histogram_name) ||
       !pickle.ReadInt(&iter, &declared_min) ||
       !pickle.ReadInt(&iter, &declared_max) ||
       !pickle.ReadSize(&iter, &bucket_count) ||
+      !pickle.ReadInt(&iter, &range_checksum) ||
       !pickle.ReadInt(&iter, &histogram_type) ||
       !pickle.ReadInt(&iter, &pickle_flags) ||
       !sample.Histogram::SampleSet::Deserialize(&iter, pickle)) {
@@ -483,6 +507,7 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   DCHECK_EQ(render_histogram->declared_min(), declared_min);
   DCHECK_EQ(render_histogram->declared_max(), declared_max);
   DCHECK_EQ(render_histogram->bucket_count(), bucket_count);
+  DCHECK_EQ(render_histogram->range_checksum(), range_checksum);
   DCHECK_EQ(render_histogram->histogram_type(), histogram_type);
 
   if (render_histogram->flags() & kIPCSerializationSourceFlag) {
@@ -497,13 +522,64 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
 }
 
 //------------------------------------------------------------------------------
+// Methods for the validating a sample and a related histogram.
+//------------------------------------------------------------------------------
+
+Histogram::Inconsistencies Histogram::FindCorruption(
+    const SampleSet& snapshot) const {
+  int inconsistencies = NO_INCONSISTENCIES;
+  Sample previous_range = -1;  // Bottom range is always 0.
+  Sample checksum = 0;
+  int64 count = 0;
+  for (size_t index = 0; index < bucket_count(); ++index) {
+    count += snapshot.counts(index);
+    int new_range = ranges(index);
+    checksum += new_range;
+    if (previous_range >= new_range)
+      inconsistencies |= BUCKET_ORDER_ERROR;
+    previous_range = new_range;
+  }
+
+  if (checksum != range_checksum_)
+    inconsistencies |= RANGE_CHECKSUM_ERROR;
+
+  int64 delta64 = snapshot.redundant_count() - count;
+  if (delta64 != 0) {
+    int delta = static_cast<int>(delta64);
+    if (delta != delta64)
+      delta = INT_MAX;  // Flag all giant errors as INT_MAX.
+    // Since snapshots of histograms are taken asynchronously relative to
+    // sampling (and snapped from different threads), it is pretty likely that
+    // we'll catch a redundant count that doesn't match the sample count.  We
+    // allow for a certain amount of slop before flagging this as an
+    // inconsistency.  Even with an inconsistency, we'll snapshot it again (for
+    // UMA in about a half hour, so we'll eventually get the data, if it was
+    // not the result of a corruption.  If histograms show that 1 is "too tight"
+    // then we may try to use 2 or 3 for this slop value.
+    const int kCommonRaceBasedCountMismatch = 1;
+    if (delta > 0) {
+      UMA_HISTOGRAM_COUNTS("Histogram.InconsistentCountHigh", delta);
+      if (delta > kCommonRaceBasedCountMismatch)
+        inconsistencies |= COUNT_HIGH_ERROR;
+    } else {
+      DCHECK_GT(0, delta);
+      UMA_HISTOGRAM_COUNTS("Histogram.InconsistentCountLow", -delta);
+      if (-delta > kCommonRaceBasedCountMismatch)
+        inconsistencies |= COUNT_LOW_ERROR;
+    }
+  }
+  return static_cast<Inconsistencies>(inconsistencies);
+}
+
+//------------------------------------------------------------------------------
 // Methods for the Histogram::SampleSet class
 //------------------------------------------------------------------------------
 
 Histogram::SampleSet::SampleSet()
     : counts_(),
       sum_(0),
-      square_sum_(0) {
+      square_sum_(0),
+      redundant_count_(0) {
 }
 
 Histogram::SampleSet::~SampleSet() {
@@ -524,9 +600,11 @@ void Histogram::SampleSet::Accumulate(Sample value,  Count count,
   counts_[index] += count;
   sum_ += count * value;
   square_sum_ += (count * value) * static_cast<int64>(value);
+  redundant_count_ += count;
   DCHECK_GE(counts_[index], 0);
   DCHECK_GE(sum_, 0);
   DCHECK_GE(square_sum_, 0);
+  DCHECK_GE(redundant_count_, 0);
 }
 
 Count Histogram::SampleSet::TotalCount() const {
@@ -536,6 +614,7 @@ Count Histogram::SampleSet::TotalCount() const {
        ++it) {
     total += *it;
   }
+  DCHECK_EQ(total, redundant_count_);
   return total;
 }
 
@@ -543,6 +622,7 @@ void Histogram::SampleSet::Add(const SampleSet& other) {
   DCHECK_EQ(counts_.size(), other.counts_.size());
   sum_ += other.sum_;
   square_sum_ += other.square_sum_;
+  redundant_count_ += other.redundant_count_;
   for (size_t index = 0; index < counts_.size(); ++index)
     counts_[index] += other.counts_[index];
 }
@@ -554,6 +634,7 @@ void Histogram::SampleSet::Subtract(const SampleSet& other) {
   // calculated).  As a result, we don't currently CHCEK() for positive values.
   sum_ -= other.sum_;
   square_sum_ -= other.square_sum_;
+  redundant_count_ -= other.redundant_count_;
   for (size_t index = 0; index < counts_.size(); ++index) {
     counts_[index] -= other.counts_[index];
     DCHECK_GE(counts_[index], 0);
@@ -563,6 +644,7 @@ void Histogram::SampleSet::Subtract(const SampleSet& other) {
 bool Histogram::SampleSet::Serialize(Pickle* pickle) const {
   pickle->WriteInt64(sum_);
   pickle->WriteInt64(square_sum_);
+  pickle->WriteInt64(redundant_count_);
   pickle->WriteSize(counts_.size());
 
   for (size_t index = 0; index < counts_.size(); ++index) {
@@ -576,11 +658,13 @@ bool Histogram::SampleSet::Deserialize(void** iter, const Pickle& pickle) {
   DCHECK_EQ(counts_.size(), 0u);
   DCHECK_EQ(sum_, 0);
   DCHECK_EQ(square_sum_, 0);
+  DCHECK_EQ(redundant_count_, 0);
 
   size_t counts_size;
 
   if (!pickle.ReadInt64(iter, &sum_) ||
       !pickle.ReadInt64(iter, &square_sum_) ||
+      !pickle.ReadInt64(iter, &redundant_count_) ||
       !pickle.ReadSize(iter, &counts_size)) {
     return false;
   }
@@ -588,14 +672,16 @@ bool Histogram::SampleSet::Deserialize(void** iter, const Pickle& pickle) {
   if (counts_size == 0)
     return false;
 
+  int count = 0;
   for (size_t index = 0; index < counts_size; ++index) {
     int i;
     if (!pickle.ReadInt(iter, &i))
       return false;
     counts_.push_back(i);
+    count += i;
   }
-
-  return true;
+  DCHECK_EQ(count, redundant_count_);
+  return count == redundant_count_;
 }
 
 //------------------------------------------------------------------------------
@@ -694,6 +780,7 @@ void LinearHistogram::InitializeBucketRange() {
                           (bucket_count() - 2);
     SetBucketRange(i, static_cast<int> (linear_range + 0.5));
   }
+  ResetRangeChecksum();
 }
 
 double LinearHistogram::GetBucketSize(Count current, size_t i) const {
@@ -740,7 +827,7 @@ BooleanHistogram::BooleanHistogram(const std::string& name)
 
 scoped_refptr<Histogram> CustomHistogram::FactoryGet(
     const std::string& name,
-    const std::vector<int>& custom_ranges,
+    const std::vector<Sample>& custom_ranges,
     Flags flags) {
   scoped_refptr<Histogram> histogram(NULL);
 
@@ -774,7 +861,7 @@ Histogram::ClassType CustomHistogram::histogram_type() const {
 }
 
 CustomHistogram::CustomHistogram(const std::string& name,
-                                 const std::vector<int>& custom_ranges)
+                                 const std::vector<Sample>& custom_ranges)
     : Histogram(name, custom_ranges[1], custom_ranges.back(),
                 custom_ranges.size()) {
   DCHECK_GT(custom_ranges.size(), 1u);
@@ -789,6 +876,7 @@ void CustomHistogram::InitializeBucketRange() {
   DCHECK_LE(ranges_vector_->size(), bucket_count());
   for (size_t index = 0; index < ranges_vector_->size(); ++index)
     SetBucketRange(index, (*ranges_vector_)[index]);
+  ResetRangeChecksum();
 }
 
 double CustomHistogram::GetBucketSize(Count current, size_t i) const {
