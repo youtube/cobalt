@@ -176,7 +176,7 @@ STR GetSpecificHeaderT(const STR& headers, const STR& name) {
 
   typename STR::const_iterator begin =
       search(headers.begin(), headers.end(), match.begin(), match.end(),
-             CaseInsensitiveCompareASCII<typename STR::value_type>());
+             base::CaseInsensitiveCompareASCII<typename STR::value_type>());
 
   if (begin == headers.end())
     return STR();
@@ -424,7 +424,7 @@ STR GetHeaderParamValueT(const STR& header, const STR& param_name) {
   // This assumes args are formatted exactly like "bla; arg1=value; arg2=value".
   typename STR::const_iterator param_begin =
       search(header.begin(), header.end(), param_name.begin(), param_name.end(),
-             CaseInsensitiveCompareASCII<typename STR::value_type>());
+             base::CaseInsensitiveCompareASCII<typename STR::value_type>());
 
   if (param_begin == header.end())
     return STR();
