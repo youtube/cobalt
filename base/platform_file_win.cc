@@ -6,7 +6,6 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
-#include "base/thread_restrictions.h"
 
 namespace base {
 
@@ -14,8 +13,6 @@ PlatformFile CreatePlatformFile(const FilePath& name,
                                 int flags,
                                 bool* created,
                                 PlatformFileError* error_code) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
   DWORD disposition = 0;
 
   if (flags & PLATFORM_FILE_OPEN)
@@ -111,12 +108,10 @@ PlatformFile CreatePlatformFile(const std::wstring& name, int flags,
 }
 
 bool ClosePlatformFile(PlatformFile file) {
-  base::ThreadRestrictions::AssertIOAllowed();
   return (CloseHandle(file) != 0);
 }
 
 int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (file == kInvalidPlatformFileValue)
     return -1;
 
@@ -138,7 +133,6 @@ int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
 
 int WritePlatformFile(PlatformFile file, int64 offset,
                       const char* data, int size) {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (file == kInvalidPlatformFileValue)
     return -1;
 
@@ -157,7 +151,6 @@ int WritePlatformFile(PlatformFile file, int64 offset,
 }
 
 bool TruncatePlatformFile(PlatformFile file, int64 length) {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (file == kInvalidPlatformFileValue)
     return false;
 
@@ -183,13 +176,11 @@ bool TruncatePlatformFile(PlatformFile file, int64 length) {
 }
 
 bool FlushPlatformFile(PlatformFile file) {
-  base::ThreadRestrictions::AssertIOAllowed();
   return ((file != kInvalidPlatformFileValue) && ::FlushFileBuffers(file));
 }
 
 bool TouchPlatformFile(PlatformFile file, const base::Time& last_access_time,
                        const base::Time& last_modified_time) {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (file == kInvalidPlatformFileValue)
     return false;
 
@@ -200,7 +191,6 @@ bool TouchPlatformFile(PlatformFile file, const base::Time& last_access_time,
 }
 
 bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info) {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (!info)
     return false;
 
