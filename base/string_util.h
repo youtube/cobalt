@@ -116,6 +116,24 @@ size_t wcslcpy(wchar_t* dst, const wchar_t* src, size_t dst_size);
 // This function is intended to be called from base::vswprintf.
 bool IsWprintfFormatPortable(const wchar_t* format);
 
+// Function objects to aid in comparing/searching strings.
+
+template<typename Char> struct CaseInsensitiveCompare {
+ public:
+  bool operator()(Char x, Char y) const {
+    // TODO(darin): Do we really want to do locale sensitive comparisons here?
+    // See http://crbug.com/24917
+    return tolower(x) == tolower(y);
+  }
+};
+
+template<typename Char> struct CaseInsensitiveCompareASCII {
+ public:
+  bool operator()(Char x, Char y) const {
+    return ToLowerASCII(x) == ToLowerASCII(y);
+  }
+};
+
 }  // namespace base
 
 #if defined(OS_WIN)
@@ -468,23 +486,6 @@ inline typename string_type::value_type* WriteInto(string_type* str,
 
 //-----------------------------------------------------------------------------
 
-// Function objects to aid in comparing/searching strings.
-
-template<typename Char> struct CaseInsensitiveCompare {
- public:
-  bool operator()(Char x, Char y) const {
-    // TODO(darin): Do we really want to do locale sensitive comparisons here?
-    // See http://crbug.com/24917
-    return tolower(x) == tolower(y);
-  }
-};
-
-template<typename Char> struct CaseInsensitiveCompareASCII {
- public:
-  bool operator()(Char x, Char y) const {
-    return ToLowerASCII(x) == ToLowerASCII(y);
-  }
-};
 
 // Splits a string into its fields delimited by any of the characters in
 // |delimiters|.  Each field is added to the |tokens| vector.  Returns the
