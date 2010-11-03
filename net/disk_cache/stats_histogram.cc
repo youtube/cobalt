@@ -86,4 +86,10 @@ void StatsHistogram::SnapshotSample(SampleSet* sample) const {
   mutable_me->ClearFlags(kUmaTargetedHistogramFlag);
 }
 
+Histogram::Inconsistencies StatsHistogram::FindCorruption(
+    const SampleSet& snapshot) const {
+  return NO_INCONSISTENCIES;  // This class won't monitor inconsistencies.
+}
+
+
 }  // namespace disk_cache
