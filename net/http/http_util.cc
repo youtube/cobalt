@@ -292,7 +292,7 @@ bool HttpUtil::HasHeader(const std::string& headers, const char* name) {
                   headers.end(),
                   name,
                   name + name_len,
-                  CaseInsensitiveCompareASCII<char>());
+                  base::CaseInsensitiveCompareASCII<char>());
   if (it == headers.end())
     return false;
 

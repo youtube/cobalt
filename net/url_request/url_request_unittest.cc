@@ -69,7 +69,7 @@ bool ContainsString(const std::string& haystack, const char* needle) {
                   haystack.end(),
                   needle,
                   needle + strlen(needle),
-                  CaseInsensitiveCompare<char>());
+                  base::CaseInsensitiveCompare<char>());
   return it != haystack.end();
 }
 
