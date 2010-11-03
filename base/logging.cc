@@ -420,6 +420,10 @@ void SetLogMessageHandler(LogMessageHandlerFunction handler) {
   log_message_handler = handler;
 }
 
+LogMessageHandlerFunction GetLogMessageHandler() {
+  return log_message_handler;
+}
+
 // MSVC doesn't like complex extern templates and DLLs.
 #if !defined(COMPILER_MSVC)
 // Explicit instantiations for commonly used comparisons.
