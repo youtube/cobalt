@@ -534,7 +534,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info);
+      SSLHostInfo* ssl_host_info,
+      DnsRRResolver* dnsrr_resolver);
   SocketDataProviderArray<SocketDataProvider>& mock_data() {
     return mock_data_;
   }
@@ -878,7 +879,8 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info);
+      SSLHostInfo* ssl_host_info,
+      DnsRRResolver* dnsrr_resolver);
 
   SocketDataProviderArray<DeterministicSocketData>& mock_data() {
     return mock_data_;

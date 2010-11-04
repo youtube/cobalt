@@ -28,6 +28,8 @@ struct SSLConfig {
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
   bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
   bool snap_start_enabled;  // True if we'll try Snap Start handshakes.
+  // True if we'll do async checks for certificate provenance using DNS.
+  bool dns_cert_provenance_checking_enabled;
 
   // True if we allow this connection to be MITM attacked. This sounds a little
   // worse than it is: large networks sometimes MITM attack all SSL connections
@@ -143,6 +145,10 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   static void DisableFalseStart();
   // True if we use False Start for SSL and TLS.
   static bool false_start_enabled();
+
+  // Enables DNS side checks for certificates.
+  static void EnableDNSCertProvenanceChecking();
+  static bool dns_cert_provenance_checking_enabled();
 
   // Add an observer of this service.
   void AddObserver(Observer* observer);
