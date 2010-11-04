@@ -109,7 +109,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info) {
+      SSLHostInfo* ssl_host_info,
+      DnsRRResolver* dnsrr_resolver) {
     NOTIMPLEMENTED();
     delete ssl_host_info;
     return NULL;
