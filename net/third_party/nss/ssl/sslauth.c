@@ -252,6 +252,28 @@ SSL_GetClientAuthDataHook(PRFileDesc *s, SSLGetClientAuthData func,
     return SECSuccess;
 }
 
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+/* NEED LOCKS IN HERE.  */
+SECStatus 
+SSL_GetPlatformClientAuthDataHook(PRFileDesc *s,
+                                  SSLGetPlatformClientAuthData func,
+                                  void *arg)
+{
+    sslSocket *ss;
+
+    ss = ssl_FindSocket(s);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in GetPlatformClientAuthDataHook",
+		 SSL_GETPID(), s));
+	return SECFailure;
+    }
+
+    ss->getPlatformClientAuthData = func;
+    ss->getPlatformClientAuthDataArg = arg;
+    return SECSuccess;
+}
+#endif   /* NSS_PLATFORM_CLIENT_AUTH */
+
 /* NEED LOCKS IN HERE.  */
 SECStatus 
 SSL_SetPKCS11PinArg(PRFileDesc *s, void *arg)
