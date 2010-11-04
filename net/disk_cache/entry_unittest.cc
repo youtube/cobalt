@@ -475,6 +475,75 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyExternalAsyncIO) {
   ExternalAsyncIO();
 }
 
+TEST_F(DiskCacheEntryTest, RequestThrottling) {
+  SetDirectMode();
+  InitCache();
+  disk_cache::Entry* entry = NULL;
+  ASSERT_EQ(net::OK, CreateEntry("the first key", &entry));
+  ASSERT_TRUE(NULL != entry);
+
+  // Let's verify that each IO goes to the right callback object.
+  CallbackTest cb(true);
+
+  g_cache_tests_error = false;
+  g_cache_tests_received = 0;
+
+  MessageLoopHelper helper;
+
+  const int kSize = 200;
+  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  CacheTestFillBuffer(buffer->data(), kSize, false);
+
+  int expected = 0;
+  // Start with no throttling.
+  for (; expected < 10; expected++) {
+    int ret = entry->WriteData(0, 0, buffer, kSize, &cb, false);
+    EXPECT_EQ(net::ERR_IO_PENDING, ret);
+  }
+  EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
+
+  // And now with full throttling.
+  cache_impl_->ThrottleRequestsForTest(true);
+  for (; expected < 20; expected++) {
+    int ret = entry->WriteData(0, 0, buffer, kSize, &cb, false);
+    EXPECT_EQ(net::ERR_IO_PENDING, ret);
+  }
+  EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
+
+  for (; expected < 30; expected++) {
+    int ret = entry->WriteData(0, 0, buffer, kSize, &cb, false);
+    EXPECT_EQ(net::ERR_IO_PENDING, ret);
+  }
+  // We have 9 queued requests, lets dispatch them all at once.
+  cache_impl_->ThrottleRequestsForTest(false);
+  EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
+
+  cache_impl_->ThrottleRequestsForTest(true);
+  for (; expected < 40; expected++) {
+    int ret = entry->WriteData(0, 0, buffer, kSize, &cb, false);
+    EXPECT_EQ(net::ERR_IO_PENDING, ret);
+  }
+
+  // We can close the entry and keep receiving notifications.
+  entry->Close();
+  EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
+
+  ASSERT_EQ(net::OK, OpenEntry("the first key", &entry));
+  for (; expected < 50; expected++) {
+    int ret = entry->WriteData(0, 0, buffer, kSize, &cb, false);
+    EXPECT_EQ(net::ERR_IO_PENDING, ret);
+  }
+
+  // ... and even close the cache.
+  entry->Close();
+  delete cache_impl_;
+  cache_ = cache_impl_ = NULL;
+  EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
+
+  EXPECT_FALSE(g_cache_tests_error);
+  EXPECT_EQ(expected, g_cache_tests_received);
+}
+
 void DiskCacheEntryTest::StreamAccess() {
   disk_cache::Entry* entry = NULL;
   ASSERT_EQ(net::OK, CreateEntry("the first key", &entry));
@@ -755,11 +824,6 @@ void DiskCacheEntryTest::TruncateData() {
 TEST_F(DiskCacheEntryTest, TruncateData) {
   InitCache();
   TruncateData();
-
-  // We generate asynchronous IO that is not really tracked until completion
-  // so we just wait here before running the next test.
-  MessageLoopHelper helper;
-  helper.WaitUntilCacheIoFinished(1);
 }
 
 TEST_F(DiskCacheEntryTest, TruncateDataNoBuffer) {
@@ -767,11 +831,6 @@ TEST_F(DiskCacheEntryTest, TruncateDataNoBuffer) {
   InitCache();
   cache_impl_->SetFlags(disk_cache::kNoBuffering);
   TruncateData();
-
-  // We generate asynchronous IO that is not really tracked until completion
-  // so we just wait here before running the next test.
-  MessageLoopHelper helper;
-  helper.WaitUntilCacheIoFinished(1);
 }
 
 TEST_F(DiskCacheEntryTest, MemoryOnlyTruncateData) {
