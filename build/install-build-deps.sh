@@ -106,9 +106,10 @@ dev_list="apache2 bison fakeroot flex g++ gperf libapache2-mod-php5
           libgconf2-dev libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev
           libgnome-keyring-dev libgtk2.0-dev libjpeg62-dev libnspr4-dev
           libnss3-dev libpam0g-dev libsqlite3-dev libxslt1-dev libxss-dev
-          lighttpd mesa-common-dev msttcorefonts patch perl php5-cgi pkg-config
-          python python-dev rpm subversion ttf-dejavu-core ttf-kochi-gothic
-          ttf-kochi-mincho wdiff libcurl4-gnutls-dev $chromeos_dev_list"
+          libxtst-dev lighttpd mesa-common-dev msttcorefonts patch perl
+          php5-cgi pkg-config python python-dev rpm subversion ttf-dejavu-core
+          ttf-kochi-gothic ttf-kochi-mincho wdiff libcurl4-gnutls-dev
+          $chromeos_dev_list"
 
 # Run-time libraries required by chromeos only
 chromeos_lib_list="libpulse0 libbz2-1.0 libcurl4-gnutls-dev"
@@ -119,7 +120,8 @@ lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
           libnspr4-0d libnss3-1d libpango1.0-0 libpcre3 libpixman-1-0 libpng12-0
           libstdc++6 libsqlite3-0 libx11-6 libxau6 libxcb1 libxcomposite1
           libxcursor1 libxdamage1 libxdmcp6 libxext6 libxfixes3 libxi6
-          libxinerama1 libxrandr2 libxrender1 zlib1g $chromeos_lib_list"
+          libxinerama1 libxrandr2 libxrender1 libxtst6 zlib1g
+          $chromeos_lib_list"
 
 # Debugging symbols for all of the run-time libraries
 dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
@@ -128,7 +130,7 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
           libx11-6-dbg libxau6-dbg libxcb1-dbg libxcomposite1-dbg
           libxcursor1-dbg libxdamage1-dbg libxdmcp6-dbg libxext6-dbg
           libxfixes3-dbg libxi6-dbg libxinerama1-dbg libxrandr2-dbg
-          libxrender1-dbg zlib1g-dbg"
+          libxrender1-dbg libxtst6-dbg zlib1g-dbg"
 
 # CUPS package changed its name from hardy to the next version. Include
 # proper package here depending on the system.
