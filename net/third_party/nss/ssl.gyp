@@ -53,6 +53,7 @@
         'ssl/sslmutex.c',
         'ssl/sslmutex.h',
         'ssl/sslnonce.c',
+        'ssl/sslplatf.c',
         'ssl/sslproto.h',
         'ssl/sslreveal.c',
         'ssl/sslsecur.c',
@@ -83,6 +84,13 @@
         'NO_NSPR_10_SUPPORT',
       ],
       'conditions': [
+        [ 'OS=="mac"', {
+          'defines': [
+            'XP_UNIX',
+            'DARWIN',
+            'XP_MACOSX',
+          ],
+        }],
         [ 'OS == "win"', {
             'sources!': [
               'ssl/unix_err.c',
@@ -122,6 +130,9 @@
           'sources/': [
             ['exclude', 'ssl/bodge/'],
           ],
+          'defines': [
+            'NSS_PLATFORM_CLIENT_AUTH',
+          ],
           'dependencies': [
             '../../../third_party/zlib/zlib.gyp:zlib',
             '../../../third_party/nss/nss.gyp:nss',
@@ -129,6 +140,9 @@
           'direct_dependent_settings': {
             'include_dirs': [
               'ssl',
+            ],
+            'defines': [
+              'NSS_PLATFORM_CLIENT_AUTH',
             ],
           },
         }],
