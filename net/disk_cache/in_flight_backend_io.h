@@ -37,7 +37,8 @@ class BackendIO : public BackgroundIO {
 
   net::CompletionCallback* callback() { return callback_; }
 
-  void ReleaseEntry();
+  // Grabs an extra reference of entry_.
+  void ReferenceEntry();
 
   // Returns the time that has passed since the operation was created.
   base::TimeDelta ElapsedTime() const;
@@ -72,12 +73,10 @@ class BackendIO : public BackgroundIO {
 
  private:
   // There are two types of operations to proxy: regular backend operations are
-  // queued so that we don't have more than one operation going on at the same
-  // time (for instance opening an entry and creating the same entry). On the
-  // other hand, operations targeted to a given entry can be long lived and
-  // support multiple simultaneous users (multiple reads or writes to the same
-  // entry), so they are not queued, just posted to the worker thread as they
-  // come.
+  // executed sequentially (queued by the message loop). On the other hand,
+  // operations targeted to a given entry can be long lived and support multiple
+  // simultaneous users (multiple reads or writes to the same entry), and they
+  // are subject to throttling, so we keep an explicit queue.
   enum Operation {
     OP_NONE = 0,
     OP_INIT,
@@ -200,13 +199,13 @@ class InFlightBackendIO : public InFlightIO {
   typedef std::list<scoped_refptr<BackendIO> > OperationList;
   void QueueOperation(BackendIO* operation);
   void PostOperation(BackendIO* operation);
-  void PostQueuedOperation(OperationList* from_list);
-  void QueueOperationToList(BackendIO* operation, OperationList* list);
+  void PostQueuedOperation();
+  void PostAllQueuedOperations();
+  bool RemoveFirstQueuedOperation(BackendIO* operation);
 
   BackendImpl* backend_;
   scoped_refptr<base::MessageLoopProxy> background_thread_;
-  OperationList pending_ops_;  // The list of operations to be posted.
-  OperationList pending_entry_ops_;  // Entry (async) operations to be posted.
+  OperationList pending_ops_;  // Entry (async) operations to be posted.
   bool queue_entry_ops_;  // True if we are queuing entry (async) operations.
 
   DISALLOW_COPY_AND_ASSIGN(InFlightBackendIO);
