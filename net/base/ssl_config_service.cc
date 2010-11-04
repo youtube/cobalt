@@ -95,6 +95,7 @@ static bool g_dnssec_enabled = false;
 static bool g_false_start_enabled = true;
 static bool g_mitm_proxies_allowed = false;
 static bool g_snap_start_enabled = false;
+static bool g_dns_cert_provenance_checking = false;
 
 // static
 void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
@@ -102,6 +103,8 @@ void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
   ssl_config->false_start_enabled = g_false_start_enabled;
   ssl_config->mitm_proxies_allowed = g_mitm_proxies_allowed;
   ssl_config->snap_start_enabled = g_snap_start_enabled;
+  ssl_config->dns_cert_provenance_checking_enabled =
+      g_dns_cert_provenance_checking;
 }
 
 // static
@@ -142,6 +145,16 @@ void SSLConfigService::AllowMITMProxies() {
 // static
 bool SSLConfigService::mitm_proxies_allowed() {
   return g_mitm_proxies_allowed;
+}
+
+// static
+void SSLConfigService::EnableDNSCertProvenanceChecking() {
+  g_dns_cert_provenance_checking = true;
+}
+
+// static
+bool SSLConfigService::dns_cert_provenance_checking_enabled() {
+  return g_dns_cert_provenance_checking;
 }
 
 void SSLConfigService::AddObserver(Observer* observer) {

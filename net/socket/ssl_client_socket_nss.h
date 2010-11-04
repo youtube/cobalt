@@ -30,6 +30,7 @@ namespace net {
 class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
+class DnsRRResolver;
 class SSLHostInfo;
 class X509Certificate;
 
@@ -43,7 +44,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                      const std::string& hostname,
                      const SSLConfig& ssl_config,
-                     SSLHostInfo* ssl_host_info);
+                     SSLHostInfo* ssl_host_info,
+                     DnsRRResolver* dnsrr_resolver);
   ~SSLClientSocketNSS();
 
   // SSLClientSocket methods:
@@ -247,6 +249,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   bool predicted_npn_proto_used_;
 
   scoped_ptr<SSLHostInfo> ssl_host_info_;
+  DnsRRResolver* const dnsrr_resolver_;
 };
 
 }  // namespace net

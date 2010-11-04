@@ -15,6 +15,7 @@ namespace net {
 class AddressList;
 class ClientSocket;
 class ClientSocketHandle;
+class DnsRRResolver;
 class SSLClientSocket;
 struct SSLConfig;
 class SSLHostInfo;
@@ -24,7 +25,8 @@ typedef SSLClientSocket* (*SSLClientSocketFactory)(
     ClientSocketHandle* transport_socket,
     const std::string& hostname,
     const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info);
+    SSLHostInfo* ssl_host_info,
+    DnsRRResolver* dnsrr_resolver);
 
 // An interface used to instantiate ClientSocket objects.  Used to facilitate
 // testing code with mock socket implementations.
@@ -43,7 +45,8 @@ class ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const std::string& hostname,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info) = 0;
+      SSLHostInfo* ssl_host_info,
+      DnsRRResolver* dnsrr_resolver) = 0;
 
   // Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
   virtual SSLClientSocket* CreateSSLClientSocket(ClientSocket* transport_socket,
