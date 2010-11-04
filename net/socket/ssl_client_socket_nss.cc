@@ -50,6 +50,9 @@
 #if defined(USE_SYSTEM_SSL)
 #include <dlfcn.h>
 #endif
+#if defined(OS_MACOSX)
+#include <Security/Security.h>
+#endif
 #include <certdb.h>
 #include <hasht.h>
 #include <keyhi.h>
@@ -214,6 +217,8 @@ int MapNSPRError(PRErrorCode err) {
       return ERR_INVALID_ARGUMENT;
     case PR_END_OF_FILE_ERROR:
       return ERR_CONNECTION_CLOSED;
+    case PR_NOT_IMPLEMENTED_ERROR:
+      return ERR_NOT_IMPLEMENTED;
 
     case SEC_ERROR_INVALID_ARGS:
       return ERR_INVALID_ARGUMENT;
@@ -800,7 +805,12 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     return ERR_UNEXPECTED;
   }
 
+#if defined(NSS_PLATFORM_CLIENT_AUTH)
+  rv = SSL_GetPlatformClientAuthDataHook(nss_fd_, PlatformClientAuthHandler,
+                                         this);
+#else
   rv = SSL_GetClientAuthDataHook(nss_fd_, ClientAuthHandler, this);
+#endif
   if (rv != SECSuccess) {
     LogFailedNSSFunction(net_log_, "SSL_GetClientAuthDataHook", "");
     return ERR_UNEXPECTED;
@@ -1364,6 +1374,8 @@ static PRErrorCode MapErrorToNSS(int result) {
     case ERR_NETWORK_ACCESS_DENIED:
       // For connect, this could be mapped to PR_ADDRESS_NOT_SUPPORTED_ERROR.
       return PR_NO_ACCESS_RIGHTS_ERROR;
+    case ERR_NOT_IMPLEMENTED:
+      return PR_NOT_IMPLEMENTED_ERROR;
     case ERR_INTERNET_DISCONNECTED:  // Equivalent to ENETDOWN.
       return PR_NETWORK_UNREACHABLE_ERROR;  // Best approximation.
     case ERR_CONNECTION_TIMED_OUT:
@@ -1650,29 +1662,69 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
   return SECSuccess;
 }
 
+#if defined(NSS_PLATFORM_CLIENT_AUTH)
 // static
 // NSS calls this if a client certificate is needed.
-// Based on Mozilla's NSS_GetClientAuthData.
-SECStatus SSLClientSocketNSS::ClientAuthHandler(
+SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     void* arg,
     PRFileDesc* socket,
     CERTDistNames* ca_names,
-    CERTCertificate** result_certificate,
-    SECKEYPrivateKey** result_private_key) {
-  // NSS passes a null ca_names if SSL 2.0 is used.  Just fail rather than
-  // trying to make this work, as we plan to remove SSL 2.0 support soon.
-  if (!ca_names)
-    return SECFailure;
-
+    CERTCertList** result_certs,
+    void** result_private_key) {
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
-
 #if defined(OS_WIN)
   if (that->ssl_config_.send_client_cert) {
-    // TODO(wtc): SSLClientSocketNSS can't do SSL client authentication using
-    // CryptoAPI yet (http://crbug.com/37560), so client_cert must be NULL.
-    DCHECK(!that->ssl_config_.client_cert);
+    if (that->ssl_config_.client_cert) {
+      PCCERT_CONTEXT cert_context =
+          that->ssl_config_.client_cert->os_cert_handle();
+      HCRYPTPROV provider = NULL;
+      DWORD key_spec = AT_KEYEXCHANGE;
+      BOOL must_free = FALSE;
+      BOOL acquired_key = CryptAcquireCertificatePrivateKey(
+          cert_context,
+          CRYPT_ACQUIRE_CACHE_FLAG | CRYPT_ACQUIRE_COMPARE_KEY_FLAG,
+          NULL, &provider, &key_spec, &must_free);
+      if (acquired_key && provider) {
+        DCHECK_NE(key_spec, CERT_NCRYPT_KEY_SPEC);
+
+        // The certificate cache may have been updated/used, in which case,
+        // duplicate the existing handle, since NSS will free it when no
+        // longer in use.
+        if (!must_free)
+          CryptContextAddRef(provider, NULL, 0);
+
+        SECItem der_cert;
+        der_cert.type = siDERCertBuffer;
+        der_cert.data = cert_context->pbCertEncoded;
+        der_cert.len  = cert_context->cbCertEncoded;
+
+        // TODO(rsleevi): Error checking for NSS allocation errors.
+        *result_certs = CERT_NewCertList();
+        CERTCertDBHandle* db_handle = CERT_GetDefaultCertDB();
+        CERTCertificate* user_cert = CERT_NewTempCertificate(
+            db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
+        CERT_AddCertToListTail(*result_certs, user_cert);
+
+        // Add the intermediates.
+        X509Certificate::OSCertHandles intermediates =
+            that->ssl_config_.client_cert->GetIntermediateCertificates();
+        for (X509Certificate::OSCertHandles::const_iterator it =
+            intermediates.begin(); it != intermediates.end(); ++it) {
+          der_cert.data = (*it)->pbCertEncoded;
+          der_cert.len = (*it)->cbCertEncoded;
+
+          CERTCertificate* intermediate = CERT_NewTempCertificate(
+              db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
+          CERT_AddCertToListTail(*result_certs, intermediate);
+        }
+        // TODO(wtc): |key_spec| should be passed along with |provider|.
+        *result_private_key = reinterpret_cast<void*>(provider);
+        return SECSuccess;
+      }
+      LOG(WARNING) << "Client cert found without private key";
+    }
     // Send no client certificate.
     return SECFailure;
   }
@@ -1733,11 +1785,34 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
       NOTREACHED();
       continue;
     }
+
+    // Copy the rest of the chain to our own store as well. Copying the chain
+    // stops gracefully if an error is encountered, with the partial chain
+    // being used as the intermediates, rather than failing to consider the
+    // client certificate.
+    net::X509Certificate::OSCertHandles intermediates;
+    for (DWORD i = 1; i < chain_context->rgpChain[0]->cElement; i++) {
+      PCCERT_CONTEXT intermediate_copy;
+      ok = CertAddCertificateContextToStore(X509Certificate::cert_store(),
+          chain_context->rgpChain[0]->rgpElement[i]->pCertContext,
+          CERT_STORE_ADD_USE_EXISTING, &intermediate_copy);
+      if (!ok) {
+        NOTREACHED();
+        break;
+      }
+      intermediates.push_back(intermediate_copy);
+    }
+
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
         cert_context2, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        X509Certificate::OSCertHandles());
-    X509Certificate::FreeOSCertHandle(cert_context2);
+        intermediates);
     that->client_certs_.push_back(cert);
+
+    X509Certificate::FreeOSCertHandle(cert_context2);
+    for (net::X509Certificate::OSCertHandles::iterator it =
+        intermediates.begin(); it != intermediates.end(); ++it) {
+      net::X509Certificate::FreeOSCertHandle(*it);
+    }
   }
 
   BOOL ok = CertCloseStore(my_cert_store, CERT_CLOSE_STORE_CHECK_FLAG);
@@ -1748,9 +1823,63 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   return SECWouldBlock;
 #elif defined(OS_MACOSX)
   if (that->ssl_config_.send_client_cert) {
-    // TODO(wtc): SSLClientSocketNSS can't do SSL client authentication using
-    // CDSA/CSSM yet (http://crbug.com/45369), so client_cert must be NULL.
-    DCHECK(!that->ssl_config_.client_cert);
+    if (that->ssl_config_.client_cert) {
+      OSStatus os_error = noErr;
+      SecIdentityRef identity = NULL;
+      SecKeyRef private_key = NULL;
+      CFArrayRef chain =
+          that->ssl_config_.client_cert->CreateClientCertificateChain();
+      if (chain) {
+        identity = reinterpret_cast<SecIdentityRef>(
+            const_cast<void*>(CFArrayGetValueAtIndex(chain, 0)));
+      }
+      if (identity)
+        os_error = SecIdentityCopyPrivateKey(identity, &private_key);
+
+      if (chain && identity && os_error == noErr) {
+        // TODO(rsleevi): Error checking for NSS allocation errors.
+        *result_certs = CERT_NewCertList();
+        *result_private_key = reinterpret_cast<void*>(private_key);
+
+        for (CFIndex i = 0; i < CFArrayGetCount(chain); ++i) {
+          CSSM_DATA cert_data;
+          SecCertificateRef cert_ref;
+          if (i == 0) {
+            cert_ref = that->ssl_config_.client_cert->os_cert_handle();
+          } else {
+            cert_ref = reinterpret_cast<SecCertificateRef>(
+                const_cast<void*>(CFArrayGetValueAtIndex(chain, i)));
+          }
+          os_error = SecCertificateGetData(cert_ref, &cert_data);
+          if (os_error != noErr)
+            break;
+
+          SECItem der_cert;
+          der_cert.type = siDERCertBuffer;
+          der_cert.data = cert_data.Data;
+          der_cert.len = cert_data.Length;
+          CERTCertificate* nss_cert = CERT_NewTempCertificate(
+              CERT_GetDefaultCertDB(), &der_cert, NULL, PR_FALSE, PR_TRUE);
+          CERT_AddCertToListTail(*result_certs, nss_cert);
+        }
+      }
+      if (os_error == noErr) {
+        CFRelease(chain);
+        return SECSuccess;
+      }
+      LOG(WARNING) << "Client cert found, but could not be used: "
+                   << os_error;
+      if (*result_certs) {
+        CERT_DestroyCertList(*result_certs);
+        *result_certs = NULL;
+      }
+      if (*result_private_key)
+        *result_private_key = NULL;
+      if (private_key)
+        CFRelease(private_key);
+      if (chain)
+        CFRelease(chain);
+    }
     // Send no client certificate.
     return SECFailure;
   }
@@ -1778,6 +1907,24 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   return SECWouldBlock;
 #else
+  return SECFailure;
+#endif
+}
+
+#else  // NSS_PLATFORM_CLIENT_AUTH
+
+// static
+// NSS calls this if a client certificate is needed.
+// Based on Mozilla's NSS_GetClientAuthData.
+SECStatus SSLClientSocketNSS::ClientAuthHandler(
+    void* arg,
+    PRFileDesc* socket,
+    CERTDistNames* ca_names,
+    CERTCertificate** result_certificate,
+    SECKEYPrivateKey** result_private_key) {
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
   void* wincx  = SSL_RevealPinArg(socket);
 
   // Second pass: a client certificate should have been selected.
@@ -1831,8 +1978,8 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   // Tell NSS to suspend the client authentication.  We will then abort the
   // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   return SECWouldBlock;
-#endif
 }
+#endif  // NSS_PLATFORM_CLIENT_AUTH
 
 // static
 // NSS calls this when handshake is completed.
