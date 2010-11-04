@@ -351,7 +351,8 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
       command_line->HasSwitch(switches::kVModule)) {
     g_vlog_info =
         new VlogInfo(command_line->GetSwitchValueASCII(switches::kV),
-                     command_line->GetSwitchValueASCII(switches::kVModule));
+                     command_line->GetSwitchValueASCII(switches::kVModule),
+                     &min_log_level);
   }
 
   LoggingLock::Init(lock_log, new_log_file);
@@ -389,11 +390,15 @@ int GetMinLogLevel() {
   return min_log_level;
 }
 
+int GetVlogVerbosity() {
+  return std::max(-1, LOG_INFO - GetMinLogLevel());
+}
+
 int GetVlogLevelHelper(const char* file, size_t N) {
   DCHECK_GT(N, 0U);
   return g_vlog_info ?
       g_vlog_info->GetVlogLevel(base::StringPiece(file, N - 1)) :
-      VlogInfo::kDefaultVlogLevel;
+      GetVlogVerbosity();
 }
 
 void SetLogItems(bool enable_process_id, bool enable_thread_id,
@@ -508,30 +513,30 @@ LogMessage::SaveLastError::~SaveLastError() {
 
 LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
                        int ctr)
-    : severity_(severity) {
+    : severity_(severity), file_(file), line_(line) {
   Init(file, line);
 }
 
 LogMessage::LogMessage(const char* file, int line, const CheckOpString& result)
-    : severity_(LOG_FATAL) {
+    : severity_(LOG_FATAL), file_(file), line_(line) {
   Init(file, line);
   stream_ << "Check failed: " << (*result.str_);
 }
 
 LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
                        const CheckOpString& result)
-    : severity_(severity) {
+    : severity_(severity), file_(file), line_(line) {
   Init(file, line);
   stream_ << "Check failed: " << (*result.str_);
 }
 
 LogMessage::LogMessage(const char* file, int line)
-     : severity_(LOG_INFO) {
+    : severity_(LOG_INFO), file_(file), line_(line) {
   Init(file, line);
 }
 
 LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
-    : severity_(severity) {
+    : severity_(severity), file_(file), line_(line) {
   Init(file, line);
 }
 
@@ -569,8 +574,12 @@ void LogMessage::Init(const char* file, int line) {
   }
   if (log_tickcount)
     stream_ << TickCount() << ':';
-  stream_ << log_severity_names[severity_] << ":" << filename <<
-             "(" << line << ")] ";
+  if (severity_ >= 0)
+    stream_ << log_severity_names[severity_];
+  else
+    stream_ << "VERBOSE" << -severity_;
+
+  stream_ << ":" << file << "(" << line << ")] ";
 
   message_start_ = stream_.tellp();
 }
@@ -594,8 +603,11 @@ LogMessage::~LogMessage() {
   std::string str_newline(stream_.str());
 
   // Give any log message handler first dibs on the message.
-  if (log_message_handler && log_message_handler(severity_, str_newline))
+  if (log_message_handler && log_message_handler(severity_, file_, line_,
+          message_start_, str_newline)) {
+    // The handler took care of it, no further processing.
     return;
+  }
 
   if (logging_destination == LOG_ONLY_TO_SYSTEM_DEBUG_LOG ||
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {
