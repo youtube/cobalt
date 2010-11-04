@@ -450,6 +450,9 @@ class MessageLoop : public base::MessagePump::Delegate {
   // Contains delayed tasks, sorted by their 'delayed_run_time' property.
   DelayedTaskQueue delayed_work_queue_;
 
+  // A recent snapshot of Time::Now(), used to check delayed_work_queue_.
+  base::Time recent_time_;
+
   // A queue of non-nestable tasks that we had to defer because when it came
   // time to execute them we were in a nested message loop.  They will execute
   // once we're out of nested message loops.
