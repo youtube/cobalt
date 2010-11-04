@@ -249,29 +249,25 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // MediaFilter object from MediaFilterCollection and initialize it
   // asynchronously.
   void InitializeDataSource();
-  void InitializeDemuxer();
+  void InitializeDemuxer(const scoped_refptr<DataSource>& data_source);
 
   // Returns true if the asynchronous action of creating decoder has started.
   // Returns false if this method did nothing because the corresponding
   // audio/video stream does not exist.
-  bool InitializeAudioDecoder();
-  bool InitializeVideoDecoder();
+  bool InitializeAudioDecoder(const scoped_refptr<Demuxer>& demuxer);
+  bool InitializeVideoDecoder(const scoped_refptr<Demuxer>& demuxer);
 
   // Initializes a renderer and connects it with decoder. Returns true if the
   // asynchronous action of creating renderer has started. Returns
   // false if this method did nothing because the corresponding audio/video
   // stream does not exist.
-  bool InitializeAudioRenderer();
-  bool InitializeVideoRenderer();
+  bool InitializeAudioRenderer(const scoped_refptr<AudioDecoder>& decoder);
+  bool InitializeVideoRenderer(const scoped_refptr<VideoDecoder>& decoder);
 
   // Helper to find the demuxer of |major_mime_type| from Demuxer.
-  scoped_refptr<DemuxerStream> FindDemuxerStream(std::string major_mime_type);
-
-  // Examine the list of initialized filters to find one that matches the
-  // specified filter type. If one exists, the |filter_out| will contain
-  // the filter, |*filter_out| will be NULL.
-  template <class Filter>
-  void GetInitializedFilter(scoped_refptr<Filter>* filter_out) const;
+  scoped_refptr<DemuxerStream> FindDemuxerStream(
+      const scoped_refptr<Demuxer>& demuxer,
+      std::string major_mime_type);
 
   // Kicks off destroying filters. Called by StopTask() and ErrorChangedTask().
   // When we start to tear down the pipeline, we will consider two cases:
@@ -407,12 +403,26 @@ class PipelineImpl : public Pipeline, public FilterHost {
   typedef std::vector<scoped_refptr<MediaFilter> > FilterVector;
   FilterVector filters_;
 
-  typedef std::map<FilterType, scoped_refptr<MediaFilter> > FilterTypeMap;
-  FilterTypeMap filter_types_;
+  // Renderer references used for setting the volume and determining
+  // when playback has finished.
+  scoped_refptr<AudioRenderer> audio_renderer_;
+  scoped_refptr<VideoRenderer> video_renderer_;
 
   // Vector of threads owned by the pipeline and being used by filters.
   typedef std::vector<base::Thread*> FilterThreadVector;
   FilterThreadVector filter_threads_;
+
+  // Helper class that stores filter references during pipeline
+  // initialization.
+  class PipelineInitState {
+   public:
+    scoped_refptr<DataSource> data_source_;
+    scoped_refptr<Demuxer> demuxer_;
+    scoped_refptr<AudioDecoder> audio_decoder_;
+    scoped_refptr<VideoDecoder> video_decoder_;
+  };
+
+  scoped_ptr<PipelineInitState> pipeline_init_state_;
 
   FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, GetBufferedTime);
 
