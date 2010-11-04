@@ -286,6 +286,10 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // Common object initialization code.  Called by the constructors only.
   void Initialize();
 
+#if defined(OS_WIN)
+  bool CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
+               const char* policy_oid) const;
+#endif
   bool VerifyEV() const;
 
   // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
