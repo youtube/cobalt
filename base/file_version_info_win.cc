@@ -10,12 +10,14 @@
 #include "base/file_version_info.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "base/thread_restrictions.h"
 
 // This has to be last.
 #include <strsafe.h>
 
 FileVersionInfoWin::FileVersionInfoWin(void* data, int language, int code_page)
     : language_(language), code_page_(code_page) {
+  base::ThreadRestrictions::AssertIOAllowed();
   data_.reset((char*) data);
   fixed_file_info_ = NULL;
   UINT size;
@@ -43,6 +45,8 @@ FileVersionInfo* FileVersionInfo::CreateFileVersionInfoForCurrentModule() {
 // static
 FileVersionInfo* FileVersionInfo::CreateFileVersionInfo(
     const FilePath& file_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   DWORD dummy;
   const wchar_t* path = file_path.value().c_str();
   DWORD length = ::GetFileVersionInfoSize(path, &dummy);
