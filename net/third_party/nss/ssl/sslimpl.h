@@ -65,6 +65,15 @@
 
 #include "sslt.h" /* for some formerly private types, now public */
 
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+#if defined(XP_WIN32)
+#include <windows.h>
+#include <wincrypt.h>
+#elif defined(XP_MACOSX)
+#include <Security/Security.h>
+#endif
+#endif
+
 /* to make some of these old enums public without namespace pollution,
 ** it was necessary to prepend ssl_ to the names.
 ** These #defines preserve compatibility with the old code here in libssl.
@@ -573,6 +582,19 @@ typedef enum {	never_cached,
 
 #define MAX_PEER_CERT_CHAIN_SIZE 8
 
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+typedef struct {
+#if defined(XP_WIN32)
+    char * provider;
+    char * container;
+    DWORD  provType;
+#elif defined(XP_MACOSX)
+    SecKeychainRef keychain;
+    CFDataRef persistentKey;
+#endif
+} PlatformAuthInfo;
+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
+
 struct sslSessionIDStr {
     sslSessionID *        next;   /* chain used for client sockets, only */
 
@@ -656,6 +678,11 @@ struct sslSessionIDStr {
 
             char              masterValid;
 	    char              clAuthValid;
+
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+	    PlatformAuthInfo  clPlatformAuthInfo;
+	    char              clPlatformAuthValid;
+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
 
 	    /* Session ticket if we have one, is sent as an extension in the
 	     * ClientHello message.  This field is used by clients.
@@ -816,6 +843,15 @@ const ssl3CipherSuiteDef *suite_def;
     PRBool                nextProtoNego;/* Our peer has sent this extension */
 } SSL3HandshakeState;
 
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+#if defined(XP_WIN32)
+typedef HCRYPTPROV PlatformKey;
+#elif defined(XP_MACOSX)
+typedef SecKeyRef PlatformKey;
+#else
+typedef void *PlatformKey;
+#endif
+#endif
 
 
 /*
@@ -839,6 +875,9 @@ struct ssl3StateStr {
 
     CERTCertificate *    clientCertificate;  /* used by client */
     SECKEYPrivateKey *   clientPrivateKey;   /* used by client */
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    PlatformKey          platformClientKey;  /* used by client */
+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
     CERTCertificateList *clientCertChain;    /* used by client */
     PRBool               sendEmptyCert;      /* used by client */
 
@@ -1100,6 +1139,10 @@ const unsigned char *  preferredCipher;
     void                     *authCertificateArg;
     SSLGetClientAuthData      getClientAuthData;
     void                     *getClientAuthDataArg;
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    SSLGetPlatformClientAuthData getPlatformClientAuthData;
+    void                        *getPlatformClientAuthDataArg;
+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
     SSLSNISocketConfig        sniSocketConfig;
     void                     *sniSocketConfigArg;
     SSLBadCertHandler         handleBadCert;
@@ -1691,6 +1734,43 @@ extern SECStatus ssl_InitSessionCacheLocks(PRBool lazyInit);
 
 extern SECStatus ssl_FreeSessionCacheLocks(void);
 
+/***************** platform client auth ****************/
+
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+// Releases the platform key.
+extern void ssl_FreePlatformKey(PlatformKey key);
+
+// Frees any memory allocated to store a persistent reference to the
+// platform key.
+extern void ssl_FreePlatformAuthInfo(PlatformAuthInfo* info);
+
+// Initializes the PlatformAuthInfo to empty/invalid values.
+extern void ssl_InitPlatformAuthInfo(PlatformAuthInfo* info);
+
+// Determine if the given key is still present in the system. This is used
+// to check for things like smart cards being ejected after handshaking,
+// since no further operations on the key will happen which would detect this.
+extern PRBool ssl_PlatformAuthTokenPresent(PlatformAuthInfo* info);
+
+// Obtain a persistent reference to a key, sufficient for
+// ssl_PlatformAuthTokenPresent to determine if the key is still present.
+extern void ssl_GetPlatformAuthInfoForKey(PlatformKey key,
+                                          PlatformAuthInfo* info);
+
+// Implement the client CertificateVerify message for SSL3/TLS1.0
+extern SECStatus ssl3_PlatformSignHashes(SSL3Hashes *hash,
+                                         PlatformKey key, SECItem *buf,
+                                         PRBool isTLS);
+
+// Converts a CERTCertList* (A collection of CERTCertificates) into a
+// CERTCertificateList* (A collection of SECItems), or returns NULL if
+// it cannot be converted.
+// This is to allow the platform-supplied chain to be created with purely
+// public API functions, using the preferred CERTCertList mutators, rather
+// pushing this hack to clients.
+extern CERTCertificateList* hack_NewCertificateListFromCertList(
+        CERTCertList* list);
+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
 
 /********************** misc calls *********************/
 

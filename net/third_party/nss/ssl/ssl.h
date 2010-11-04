@@ -323,6 +323,35 @@ typedef SECStatus (PR_CALLBACK *SSLGetClientAuthData)(void *arg,
 SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd, 
 			                       SSLGetClientAuthData f, void *a);
 
+/*
+ * Prototype for SSL callback to get client auth data from the application,
+ * when using the underlying platform's cryptographic primitives. Returning
+ * SECFailure will cause the socket to send no client certificate.
+ *	arg - application passed argument
+ *	caNames - pointer to distinguished names of CAs that the server likes
+ *	pRetCerts - pointer to pointer to list of certs, with the first being
+ *		    the client cert, and any following being used for chain
+ *		    building
+ *	pRetKey - pointer to native key pointer, for return of key
+ *          - Windows: pointer to HCRYPTPROV
+ *          - Mac OS X: pointer to SecKeyRef
+ */
+typedef SECStatus (PR_CALLBACK *SSLGetPlatformClientAuthData)(void *arg,
+                                PRFileDesc *fd,
+                                CERTDistNames *caNames,
+                                CERTCertList **pRetCerts,/*return */
+                                void **pRetKey);/* return */
+
+/*
+ * Set the client side callback for SSL to retrieve user's private key
+ * and certificate.
+ *	fd - the file descriptor for the connection in question
+ *	f - the application's callback that delivers the key and cert
+ *	a - application specific data
+ */
+SSL_IMPORT SECStatus
+SSL_GetPlatformClientAuthDataHook(PRFileDesc *fd,
+                                  SSLGetPlatformClientAuthData f, void *a);
 
 /*
 ** SNI extension processing callback function.

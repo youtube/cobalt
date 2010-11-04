@@ -336,6 +336,10 @@ ssl_DupSocket(sslSocket *os)
 	    ss->authCertificateArg    = os->authCertificateArg;
 	    ss->getClientAuthData     = os->getClientAuthData;
 	    ss->getClientAuthDataArg  = os->getClientAuthDataArg;
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+	    ss->getPlatformClientAuthData    = os->getPlatformClientAuthData;
+	    ss->getPlatformClientAuthDataArg = os->getPlatformClientAuthDataArg;
+#endif
             ss->sniSocketConfig       = os->sniSocketConfig;
             ss->sniSocketConfigArg    = os->sniSocketConfigArg;
 	    ss->handleBadCert         = os->handleBadCert;
@@ -1443,6 +1447,12 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
         ss->getClientAuthData     = sm->getClientAuthData;
     if (sm->getClientAuthDataArg)
         ss->getClientAuthDataArg  = sm->getClientAuthDataArg;
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    if (sm->getPlatformClientAuthData)
+        ss->getPlatformClientAuthData    = sm->getPlatformClientAuthData;
+    if (sm->getPlatformClientAuthDataArg)
+        ss->getPlatformClientAuthDataArg = sm->getPlatformClientAuthDataArg;
+#endif
     if (sm->sniSocketConfig)
         ss->sniSocketConfig       = sm->sniSocketConfig;
     if (sm->sniSocketConfigArg)
@@ -2456,6 +2466,10 @@ ssl_NewSocket(PRBool makeLocks)
         ss->sniSocketConfig    = NULL;
         ss->sniSocketConfigArg = NULL;
 	ss->getClientAuthData  = NULL;
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+	ss->getPlatformClientAuthData = NULL;
+	ss->getPlatformClientAuthDataArg = NULL;
+#endif   /* NSS_PLATFORM_CLIENT_AUTH */
 	ss->handleBadCert      = NULL;
 	ss->badCertArg         = NULL;
 	ss->pkcs11PinArg       = NULL;

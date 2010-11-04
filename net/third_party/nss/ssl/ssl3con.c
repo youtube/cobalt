@@ -2011,6 +2011,12 @@ ssl3_ComputeRecordMAC(
 
 static PRBool
 ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    if (!sid || !sid->u.ssl3.clPlatformAuthValid) {
+	return PR_TRUE;
+    }
+    return ssl_PlatformAuthTokenPresent(&sid->u.ssl3.clPlatformAuthInfo);
+#else
     PK11SlotInfo *slot = NULL;
     PRBool isPresent = PR_TRUE;
 
@@ -2034,6 +2040,7 @@ ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
 	PK11_FreeSlot(slot);
     }
     return isPresent;
+#endif /* NSS_PLATFORM_CLIENT_AUTH */
 }
 
 SECStatus
@@ -4827,6 +4834,20 @@ ssl3_SendCertificateVerify(sslSocket *ss)
     }
 
     isTLS = (PRBool)(ss->ssl3.pwSpec->version > SSL_LIBRARY_VERSION_3_0);
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    rv = ssl3_PlatformSignHashes(&hashes, ss->ssl3.platformClientKey,
+                                 &buf, isTLS);
+    if (rv == SECSuccess) {
+        sslSessionID * sid = ss->sec.ci.sid;
+        ssl_GetPlatformAuthInfoForKey(ss->ssl3.platformClientKey,
+                                      &sid->u.ssl3.clPlatformAuthInfo);
+        sid->u.ssl3.clPlatformAuthValid = PR_TRUE;
+    }
+    if (ss->ssl3.hs.kea_def->exchKeyType == kt_rsa) {
+        ssl_FreePlatformKey(ss->ssl3.platformClientKey);
+        ss->ssl3.platformClientKey = (PlatformKey)NULL;
+    }
+#else /* NSS_PLATFORM_CLIENT_AUTH */
     rv = ssl3_SignHashes(&hashes, ss->ssl3.clientPrivateKey, &buf, isTLS);
     if (rv == SECSuccess) {
 	PK11SlotInfo * slot;
@@ -4851,6 +4872,7 @@ ssl3_SendCertificateVerify(sslSocket *ss)
 	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
 	ss->ssl3.clientPrivateKey = NULL;
     }
+#endif /* NSS_PLATFORM_CLIENT_AUTH */
     if (rv != SECSuccess) {
 	goto done;	/* err code was set by ssl3_SignHashes */
     }
@@ -5481,6 +5503,10 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     SSL3AlertDescription desc        = illegal_parameter;
     SECItem              cert_types  = {siBuffer, NULL, 0};
     CERTDistNames        ca_list;
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    CERTCertList *       platform_cert_list = NULL;
+    CERTCertListNode *   certNode = NULL;
+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
 
     SSL_TRC(3, ("%d: SSL3[%d]: handle certificate_request handshake",
 		SSL_GETPID(), ss->fd));
@@ -5507,6 +5533,12 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
        SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
        ss->ssl3.clientPrivateKey = NULL;
     }
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    if (ss->ssl3.platformClientKey) {
+       ssl_FreePlatformKey(ss->ssl3.platformClientKey);
+       ss->ssl3.platformClientKey = (PlatformKey)NULL;
+    }
+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
 
     isTLS = (PRBool)(ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0);
     rv = ssl3_ConsumeHandshakeVariable(ss, &cert_types, 1, &b, &length);
@@ -5573,6 +5605,18 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     desc = no_certificate;
     ss->ssl3.hs.ws = wait_hello_done;
 
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    if (ss->getPlatformClientAuthData == NULL) {
+	rv = SECFailure; /* force it to send a no_certificate alert */
+    } else {
+	/* XXX Should pass cert_types in this call!! */
+        rv = (SECStatus)(*ss->getPlatformClientAuthData)(
+                                        ss->getPlatformClientAuthDataArg,
+                                        ss->fd, &ca_list,
+                                        &platform_cert_list,
+                                        (void**)&ss->ssl3.platformClientKey);
+    }
+#else
     if (ss->getClientAuthData == NULL) {
 	rv = SECFailure; /* force it to send a no_certificate alert */
     } else {
@@ -5582,12 +5626,51 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 						 &ss->ssl3.clientCertificate,
 						 &ss->ssl3.clientPrivateKey);
     }
+#endif   /* NSS_PLATFORM_CLIENT_AUTH */
     switch (rv) {
     case SECWouldBlock:	/* getClientAuthData has put up a dialog box. */
 	ssl_SetAlwaysBlock(ss);
 	break;	/* not an error */
 
     case SECSuccess:
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+        if (!platform_cert_list || CERT_LIST_EMPTY(platform_cert_list) ||
+            !ss->ssl3.platformClientKey) {
+            if (platform_cert_list) {
+                CERT_DestroyCertList(platform_cert_list);
+                platform_cert_list = NULL;
+            }
+            if (ss->ssl3.platformClientKey) {
+                ssl_FreePlatformKey(ss->ssl3.platformClientKey);
+                ss->ssl3.platformClientKey = (PlatformKey)NULL;
+            }
+            goto send_no_certificate;
+        }
+
+        certNode = CERT_LIST_HEAD(platform_cert_list);
+        ss->ssl3.clientCertificate = CERT_DupCertificate(certNode->cert);
+
+        /* Setting ssl3.clientCertChain non-NULL will cause
+         * ssl3_HandleServerHelloDone to call SendCertificate.
+         * Note: clientCertChain should include the EE cert as
+         * clientCertificate is ignored during the actual sending
+         */
+        ss->ssl3.clientCertChain =
+            hack_NewCertificateListFromCertList(platform_cert_list);
+        CERT_DestroyCertList(platform_cert_list);
+        platform_cert_list = NULL;
+        if (ss->ssl3.clientCertChain == NULL) {
+            if (ss->ssl3.clientCertificate != NULL) {
+                CERT_DestroyCertificate(ss->ssl3.clientCertificate);
+                ss->ssl3.clientCertificate = NULL;
+            }
+            if (ss->ssl3.platformClientKey) {
+                ssl_FreePlatformKey(ss->ssl3.platformClientKey);
+                ss->ssl3.platformClientKey = (PlatformKey)NULL;
+            }
+            goto send_no_certificate;
+        } 
+#else
         /* check what the callback function returned */
         if ((!ss->ssl3.clientCertificate) || (!ss->ssl3.clientPrivateKey)) {
             /* we are missing either the key or cert */
@@ -5620,6 +5703,7 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	    }
 	    goto send_no_certificate;
 	}
+#endif   /* NSS_PLATFORM_CLIENT_AUTH */
 	break;	/* not an error */
 
     case SECFailure:
@@ -5650,6 +5734,10 @@ loser:
 done:
     if (arena != NULL)
     	PORT_FreeArena(arena, PR_FALSE);
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    if (platform_cert_list)
+        CERT_DestroyCertList(platform_cert_list);
+#endif
     return rv;
 }
 
@@ -5758,6 +5846,16 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
 	    goto loser;	/* error code is set. */
     	}
     } else
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    if (ss->ssl3.clientCertChain != NULL &&
+        ss->ssl3.platformClientKey) {
+        send_verify = PR_TRUE;
+        rv = ssl3_SendCertificate(ss);
+        if (rv != SECSuccess) {
+            goto loser; /* error code is set. */
+        }
+    }
+#else
     if (ss->ssl3.clientCertChain  != NULL &&
 	ss->ssl3.clientPrivateKey != NULL) {
 	send_verify = PR_TRUE;
@@ -5766,6 +5864,7 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
 	    goto loser;	/* error code is set. */
     	}
     }
+#endif /* NSS_PLATFORM_CLIENT_AUTH */
 
     rv = ssl3_SendClientKeyExchange(ss);
     if (rv != SECSuccess) {
@@ -9626,6 +9725,10 @@ ssl3_DestroySSL3Info(sslSocket *ss)
 
     if (ss->ssl3.clientPrivateKey != NULL)
 	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+    if (ss->ssl3.platformClientKey)
+	ssl_FreePlatformKey(ss->ssl3.platformClientKey);    
+#endif /* NSS_PLATFORM_CLIENT_AUTH */
 
     if (ss->ssl3.peerCertArena != NULL)
 	ssl3_CleanupPeerCerts(ss);

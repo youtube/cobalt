@@ -123,11 +123,19 @@ class SSLClientSocketNSS : public SSLClientSocket {
   static SECStatus OwnAuthCertHandler(void* arg, PRFileDesc* socket,
                                       PRBool checksig, PRBool is_server);
   // NSS calls this when client authentication is requested.
+#if defined(NSS_PLATFORM_CLIENT_AUTH)
+  static SECStatus PlatformClientAuthHandler(void* arg,
+                                             PRFileDesc* socket,
+                                             CERTDistNames* ca_names,
+                                             CERTCertList** result_certs,
+                                             void** result_private_key);
+#else
   static SECStatus ClientAuthHandler(void* arg,
                                      PRFileDesc* socket,
                                      CERTDistNames* ca_names,
                                      CERTCertificate** result_certificate,
                                      SECKEYPrivateKey** result_private_key);
+#endif
   // NSS calls this when handshake is completed.  We pass 'this' as the second
   // argument.
   static void HandshakeCallback(PRFileDesc* socket, void* arg);
