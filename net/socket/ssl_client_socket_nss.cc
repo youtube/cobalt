@@ -93,6 +93,7 @@
 #include "net/base/sys_addrinfo.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/dns_cert_provenance_check.h"
 #include "net/socket/ssl_host_info.h"
 
 static const int kRecvBufferSize = 4096;
@@ -397,6 +398,17 @@ class PeerCertificateChain {
     return certs_[i];
   }
 
+  std::vector<base::StringPiece> AsStringPieceVector() const {
+    std::vector<base::StringPiece> v(size());
+    for (unsigned i = 0; i < size(); i++) {
+      v[i] = base::StringPiece(
+          reinterpret_cast<const char*>(certs_[i]->derCert.data),
+          certs_[i]->derCert.len);
+    }
+
+    return v;
+  }
+
  private:
   unsigned num_certs_;
   CERTCertificate** certs_;
@@ -407,7 +419,8 @@ class PeerCertificateChain {
 SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                                        const std::string& hostname,
                                        const SSLConfig& ssl_config,
-                                       SSLHostInfo* ssl_host_info)
+                                       SSLHostInfo* ssl_host_info,
+                                       DnsRRResolver* dnsrr_resolver)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketNSS::BufferSendComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
@@ -443,7 +456,8 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       net_log_(transport_socket->socket()->NetLog()),
       predicted_npn_status_(kNextProtoUnsupported),
       predicted_npn_proto_used_(false),
-      ssl_host_info_(ssl_host_info) {
+      ssl_host_info_(ssl_host_info),
+      dnsrr_resolver_(dnsrr_resolver) {
   EnterFunction("");
 }
 
@@ -1086,14 +1100,8 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
     server_cert_nss_ = SSL_PeerCertificate(nss_fd_);
     if (server_cert_nss_) {
       PeerCertificateChain certs(nss_fd_);
-      std::vector<base::StringPiece> der_certs(certs.size());
-
-      for (unsigned i = 0; i < certs.size(); i++) {
-        der_certs[i] = base::StringPiece(
-            reinterpret_cast<const char*>(certs[i]->derCert.data),
-            certs[i]->derCert.len);
-      }
-      server_cert_ = X509Certificate::CreateFromDERCertChain(der_certs);
+      server_cert_ = X509Certificate::CreateFromDERCertChain(
+          certs.AsStringPieceVector());
     }
   }
   return server_cert_;
@@ -2305,6 +2313,14 @@ static DNSValidationResult CheckDNSSECChain(
 }
 
 int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
+#if !defined(USE_OPENSSL)
+  if (ssl_config_.dns_cert_provenance_checking_enabled && dnsrr_resolver_) {
+    PeerCertificateChain certs(nss_fd_);
+    DoAsyncDNSCertProvenanceVerification(
+        hostname_, dnsrr_resolver_, certs.AsStringPieceVector());
+  }
+#endif
+
   if (ssl_config_.dnssec_enabled) {
     DNSValidationResult r = CheckDNSSECChain(hostname_, server_cert_nss_);
     if (r == DNSVR_SUCCESS) {
