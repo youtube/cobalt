@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,8 @@
 #include <pkcs11n.h>
 #include <secerr.h>
 #include <secoid.h>
+#elif defined(OS_WIN)
+#include <stdlib.h>
 #endif
 
 #include "base/logging.h"
@@ -251,6 +253,36 @@ static const EVMetadata ev_root_ca_metadata[] = {
   }
 };
 
+#if defined(OS_WIN)
+// static
+const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
+  // The OIDs must be sorted in ascending order.
+  "1.2.392.200091.100.721.1",
+  "1.3.6.1.4.1.14370.1.6",
+  "1.3.6.1.4.1.22234.2.5.2.3.1",
+  "1.3.6.1.4.1.23223.1.1.1",
+  "1.3.6.1.4.1.34697.2.1",
+  "1.3.6.1.4.1.34697.2.2",
+  "1.3.6.1.4.1.34697.2.3",
+  "1.3.6.1.4.1.34697.2.4",
+  "1.3.6.1.4.1.4146.1.1",
+  "1.3.6.1.4.1.6334.1.100.1",
+  "1.3.6.1.4.1.6449.1.2.1.5.1",
+  "1.3.6.1.4.1.782.1.2.1.8.1",
+  "1.3.6.1.4.1.8024.0.2.100.1.2",
+  "2.16.528.1.1001.1.1.1.12.6.1.1.1",
+  "2.16.756.1.89.1.2.1.1",
+  "2.16.840.1.113733.1.7.23.6",
+  "2.16.840.1.113733.1.7.48.1",
+  "2.16.840.1.114028.10.1.2",
+  "2.16.840.1.114171.500.9",
+  "2.16.840.1.114404.1.1.2.4.1",
+  "2.16.840.1.114412.2.1",
+  "2.16.840.1.114413.1.7.23.3",
+  "2.16.840.1.114414.1.7.23.3",
+};
+#endif
+
 // static
 EVRootCAMetadata* EVRootCAMetadata::GetInstance() {
   return Singleton<EVRootCAMetadata>::get();
@@ -264,6 +296,35 @@ bool EVRootCAMetadata::GetPolicyOID(
     return false;
   *policy_oid = iter->second;
   return true;
+}
+
+#if defined(OS_WIN)
+static int PolicyOIDCmp(const void* keyval, const void* datum) {
+  const char* oid1 = reinterpret_cast<const char*>(keyval);
+  const char* const* oid2 = reinterpret_cast<const char* const*>(datum);
+  return strcmp(oid1, *oid2);
+}
+
+bool EVRootCAMetadata::IsEVPolicyOID(PolicyOID policy_oid) const {
+  return bsearch(policy_oid, &policy_oids_[0], num_policy_oids_,
+                 sizeof(PolicyOID), PolicyOIDCmp) != NULL;
+}
+#else
+bool EVRootCAMetadata::IsEVPolicyOID(PolicyOID policy_oid) const {
+  for (size_t i = 0; i < policy_oids_.size(); ++i) {
+    if (PolicyOIDsAreEqual(policy_oid, policy_oids_[i]))
+      return true;
+  }
+  return false;
+}
+#endif
+
+bool EVRootCAMetadata::HasEVPolicyOID(const SHA1Fingerprint& fingerprint,
+                                      PolicyOID policy_oid) const {
+  PolicyOID ev_policy_oid;
+  if (!GetPolicyOID(fingerprint, &ev_policy_oid))
+    return false;
+  return PolicyOIDsAreEqual(ev_policy_oid, policy_oid);
 }
 
 EVRootCAMetadata::EVRootCAMetadata() {
@@ -293,6 +354,18 @@ EVRootCAMetadata::EVRootCAMetadata() {
     ev_policy_[metadata.fingerprint] = policy;
     policy_oids_.push_back(policy);
   }
+#elif defined(OS_WIN)
+  num_policy_oids_ = arraysize(policy_oids_);
+  // Verify policy_oids_ is in ascending order.
+  for (int i = 0; i < num_policy_oids_ - 1; i++)
+    CHECK(strcmp(policy_oids_[i], policy_oids_[i + 1]) < 0);
+
+  for (size_t i = 0; i < arraysize(ev_root_ca_metadata); i++) {
+    const EVMetadata& metadata = ev_root_ca_metadata[i];
+    ev_policy_[metadata.fingerprint] = metadata.policy_oid;
+    // Verify policy_oids_ contains every EV policy OID.
+    DCHECK(IsEVPolicyOID(metadata.policy_oid));
+  }
 #else
   for (size_t i = 0; i < arraysize(ev_root_ca_metadata); i++) {
     const EVMetadata& metadata = ev_root_ca_metadata[i];
@@ -306,6 +379,15 @@ EVRootCAMetadata::EVRootCAMetadata() {
 }
 
 EVRootCAMetadata::~EVRootCAMetadata() {
+}
+
+// static
+bool EVRootCAMetadata::PolicyOIDsAreEqual(PolicyOID a, PolicyOID b) {
+#if defined(USE_NSS)
+  return a == b;
+#else
+  return !strcmp(a, b);
+#endif
 }
 
 }  // namespace net
