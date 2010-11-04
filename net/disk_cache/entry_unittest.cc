@@ -900,6 +900,16 @@ void DiskCacheEntryTest::Buffering() {
   EXPECT_EQ(100, ReadData(entry, 1, 23100, buffer2, kSize));
   EXPECT_TRUE(!memcmp(buffer2->data(), buffer1->data() + 100, 100));
 
+  // Extend the file again and read before without closing the entry.
+  EXPECT_EQ(kSize, WriteData(entry, 1, 25000, buffer1, kSize, false));
+  EXPECT_EQ(kSize, WriteData(entry, 1, 45000, buffer1, kSize, false));
+  CacheTestFillBuffer(buffer2->data(), kSize, true);
+  EXPECT_EQ(kSize, ReadData(entry, 1, 25000, buffer2, kSize));
+  EXPECT_TRUE(!memcmp(buffer2->data(), buffer1->data(), kSize));
+  CacheTestFillBuffer(buffer2->data(), kSize, true);
+  EXPECT_EQ(kSize, ReadData(entry, 1, 45000, buffer2, kSize));
+  EXPECT_TRUE(!memcmp(buffer2->data(), buffer1->data(), kSize));
+
   entry->Close();
 }
 
@@ -943,7 +953,7 @@ void DiskCacheEntryTest::SizeChanges() {
   EXPECT_TRUE(!memcmp(buffer2->data(), zeros, kSize));
 
   // Read at the end of the old file size.
-  EXPECT_EQ(35, ReadData(entry, 1, 23000 + kSize - 35, buffer2, kSize));
+  EXPECT_EQ(kSize, ReadData(entry, 1, 23000 + kSize - 35, buffer2, kSize));
   EXPECT_TRUE(!memcmp(buffer2->data(), buffer1->data() + kSize - 35, 35));
 
   // Read slightly before the last write.

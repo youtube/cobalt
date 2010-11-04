@@ -148,6 +148,7 @@ bool EntryImpl::UserBuffer::PreWrite(int offset, int len) {
 void EntryImpl::UserBuffer::Truncate(int offset) {
   DCHECK_GE(offset, 0);
   DCHECK_GE(offset, offset_);
+  DVLOG(3) << "Buffer truncate at " << offset << " current " << offset_;
 
   offset -= offset_;
   if (Size() >= offset)
@@ -159,6 +160,7 @@ void EntryImpl::UserBuffer::Write(int offset, net::IOBuffer* buf, int len) {
   DCHECK_GE(len, 0);
   DCHECK_GE(offset + len, 0);
   DCHECK_GE(offset, offset_);
+  DVLOG(3) << "Buffer write at " << offset << " current " << offset_;
 
   if (!Size() && offset > kMaxBlockSize)
     offset_ = offset;
@@ -267,6 +269,8 @@ bool EntryImpl::UserBuffer::GrowBuffer(int required, int limit) {
   grow_allowed_ = backend_->IsAllocAllowed(current_size, required);
   if (!grow_allowed_)
     return false;
+
+  DVLOG(3) << "Buffer grow to " << required;
 
   buffer_.reserve(required);
   return true;
@@ -480,6 +484,7 @@ void EntryImpl::DoomImpl() {
 int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
                             int buf_len, CompletionCallback* callback) {
   DCHECK(node_.Data()->dirty || read_only_);
+  DVLOG(2) << "Read from " << index << " at " << offset << " : " << buf_len;
   if (index < 0 || index >= kNumStreams)
     return net::ERR_INVALID_ARGUMENT;
 
@@ -500,8 +505,8 @@ int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
   backend_->OnEvent(Stats::READ_DATA);
   backend_->OnRead(buf_len);
 
-  // We need the current size in disk.
-  int eof = entry_size - unreported_size_[index];
+  Addr address(entry_.Data()->data_addr[index]);
+  int eof = address.is_initialized() ? entry_size : 0;
   if (user_buffers_[index].get() &&
       user_buffers_[index]->PreRead(eof, offset, &buf_len)) {
     // Complete the operation locally.
@@ -510,7 +515,7 @@ int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
     return buf_len;
   }
 
-  Addr address(entry_.Data()->data_addr[index]);
+  address.set_value(entry_.Data()->data_addr[index]);
   DCHECK(address.is_initialized());
   if (!address.is_initialized())
     return net::ERR_FAILED;
@@ -548,6 +553,7 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
                              int buf_len, CompletionCallback* callback,
                              bool truncate) {
   DCHECK(node_.Data()->dirty || read_only_);
+  DVLOG(2) << "Write to " << index << " at " << offset << " : " << buf_len;
   if (index < 0 || index >= kNumStreams)
     return net::ERR_INVALID_ARGUMENT;
 
@@ -1142,14 +1148,20 @@ bool EntryImpl::ImportSeparateFile(int index, int new_size) {
 
 bool EntryImpl::PrepareBuffer(int index, int offset, int buf_len) {
   DCHECK(user_buffers_[index].get());
-  if (offset > user_buffers_[index]->End()) {
-    // We are about to extend the buffer (with zeros), so make sure that we are
-    // not overwriting anything.
+  if ((user_buffers_[index]->End() && offset > user_buffers_[index]->End()) ||
+      offset > entry_.Data()->data_size[index]) {
+    // We are about to extend the buffer or the file (with zeros), so make sure
+    // that we are not overwriting anything.
     Addr address(entry_.Data()->data_addr[index]);
     if (address.is_initialized() && address.is_separate_file()) {
-      int eof = entry_.Data()->data_size[index];
-      if (eof > user_buffers_[index]->Start() && !Flush(index, 0))
+      if (!Flush(index, 0))
         return false;
+      // There is an actual file already, and we don't want to keep track of
+      // its length so we let this operation go straight to disk.
+      // The only case when a buffer is allowed to extend the file (as in fill
+      // with zeros before the start) is when there is no file yet to extend.
+      user_buffers_[index].reset();
+      return true;
     }
   }
 
@@ -1158,7 +1170,8 @@ bool EntryImpl::PrepareBuffer(int index, int offset, int buf_len) {
       return false;
 
     // Lets try again.
-    if (!user_buffers_[index]->PreWrite(offset, buf_len)) {
+    if (offset > user_buffers_[index]->End() ||
+        !user_buffers_[index]->PreWrite(offset, buf_len)) {
       // We cannot complete the operation with a buffer.
       DCHECK(!user_buffers_[index]->Size());
       DCHECK(!user_buffers_[index]->Start());
@@ -1172,6 +1185,7 @@ bool EntryImpl::Flush(int index, int min_len) {
   Addr address(entry_.Data()->data_addr[index]);
   DCHECK(user_buffers_[index].get());
   DCHECK(!address.is_initialized() || address.is_separate_file());
+  DVLOG(3) << "Flush";
 
   int size = std::max(entry_.Data()->data_size[index], min_len);
   if (size && !address.is_initialized() && !CreateDataBlock(index, size))
