@@ -291,48 +291,6 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
   }
 }
 
-///////////////////////////////////////////////////////////////////////////
-//
-// Functions used by X509Certificate::IsEV
-//
-///////////////////////////////////////////////////////////////////////////
-
-// Constructs a certificate chain starting from the end certificate
-// 'cert_context', matching any of the certificate policies.
-//
-// Returns the certificate chain context on success, or NULL on failure.
-// The caller is responsible for freeing the certificate chain context with
-// CertFreeCertificateChain.
-PCCERT_CHAIN_CONTEXT ConstructCertChain(
-    PCCERT_CONTEXT cert_context,
-    const char* const* policies,
-    int num_policies) {
-  CERT_CHAIN_PARA chain_para;
-  memset(&chain_para, 0, sizeof(chain_para));
-  chain_para.cbSize = sizeof(chain_para);
-  chain_para.RequestedUsage.dwType = USAGE_MATCH_TYPE_AND;
-  chain_para.RequestedUsage.Usage.cUsageIdentifier = 0;
-  chain_para.RequestedUsage.Usage.rgpszUsageIdentifier = NULL;  // LPSTR*
-  chain_para.RequestedIssuancePolicy.dwType = USAGE_MATCH_TYPE_OR;
-  chain_para.RequestedIssuancePolicy.Usage.cUsageIdentifier = num_policies;
-  chain_para.RequestedIssuancePolicy.Usage.rgpszUsageIdentifier =
-      const_cast<char**>(policies);
-  PCCERT_CHAIN_CONTEXT chain_context;
-  if (!CertGetCertificateChain(
-      NULL,  // default chain engine, HCCE_CURRENT_USER
-      cert_context,
-      NULL,  // current system time
-      cert_context->hCertStore,  // search this store
-      &chain_para,
-      CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT |
-      CERT_CHAIN_CACHE_END_CERT,
-      NULL,  // reserved
-      &chain_context)) {
-    return NULL;
-  }
-  return chain_context;
-}
-
 // Decodes the cert's certificatePolicies extension into a CERT_POLICIES_INFO
 // structure and stores it in *output.
 void GetCertPoliciesInfo(PCCERT_CONTEXT cert,
@@ -360,18 +318,6 @@ void GetCertPoliciesInfo(PCCERT_CONTEXT cert,
                            &policies_info_size);
   if (rv)
     output->reset(policies_info);
-}
-
-// Returns true if the policy is in the array of CERT_POLICY_INFO in
-// the CERT_POLICIES_INFO structure.
-bool ContainsPolicy(const CERT_POLICIES_INFO* policies_info,
-                    const char* policy) {
-  int num_policies = policies_info->cPolicyInfo;
-  for (int i = 0; i < num_policies; i++) {
-    if (!strcmp(policies_info->rgPolicyInfo[i].pszPolicyIdentifier, policy))
-      return true;
-  }
-  return false;
 }
 
 // Helper function to parse a principal from a WinInet description of that
@@ -637,6 +583,28 @@ int X509Certificate::Verify(const std::string& hostname,
     // EV requires revocation checking.
     flags &= ~VERIFY_EV_CERT;
   }
+
+  // Get the certificatePolicies extension of the certificate.
+  scoped_ptr_malloc<CERT_POLICIES_INFO> policies_info;
+  LPSTR ev_policy_oid = NULL;
+  if (flags & VERIFY_EV_CERT) {
+    GetCertPoliciesInfo(cert_handle_, &policies_info);
+    if (policies_info.get()) {
+      EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
+      for (DWORD i = 0; i < policies_info->cPolicyInfo; ++i) {
+        LPSTR policy_oid = policies_info->rgPolicyInfo[i].pszPolicyIdentifier;
+        if (metadata->IsEVPolicyOID(policy_oid)) {
+          ev_policy_oid = policy_oid;
+          chain_para.RequestedIssuancePolicy.dwType = USAGE_MATCH_TYPE_AND;
+          chain_para.RequestedIssuancePolicy.Usage.cUsageIdentifier = 1;
+          chain_para.RequestedIssuancePolicy.Usage.rgpszUsageIdentifier =
+              &ev_policy_oid;
+          break;
+        }
+      }
+    }
+  }
+
   PCCERT_CHAIN_CONTEXT chain_context;
   // IE passes a non-NULL pTime argument that specifies the current system
   // time.  IE passes CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT as the
@@ -651,6 +619,24 @@ int X509Certificate::Verify(const std::string& hostname,
            NULL,  // reserved
            &chain_context)) {
     return MapSecurityError(GetLastError());
+  }
+  if (chain_context->TrustStatus.dwErrorStatus &
+      CERT_TRUST_IS_NOT_VALID_FOR_USAGE) {
+    ev_policy_oid = NULL;
+    chain_para.RequestedIssuancePolicy.Usage.cUsageIdentifier = 0;
+    chain_para.RequestedIssuancePolicy.Usage.rgpszUsageIdentifier = NULL;
+    CertFreeCertificateChain(chain_context);
+    if (!CertGetCertificateChain(
+             NULL,  // default chain engine, HCCE_CURRENT_USER
+             cert_handle_,
+             NULL,  // current system time
+             cert_handle_->hCertStore,  // search this store
+             &chain_para,
+             chain_flags,
+             NULL,  // reserved
+             &chain_context)) {
+      return MapSecurityError(GetLastError());
+    }
   }
   ScopedCertChainContext scoped_chain_context(chain_context);
 
@@ -756,8 +742,7 @@ int X509Certificate::Verify(const std::string& hostname,
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
-  // TODO(ukai): combine regular cert verification and EV cert verification.
-  if ((flags & VERIFY_EV_CERT) && VerifyEV())
+  if (ev_policy_oid && CheckEV(chain_context, ev_policy_oid))
     verify_result->cert_status |= CERT_STATUS_IS_EV;
   return OK;
 }
@@ -768,16 +753,8 @@ int X509Certificate::Verify(const std::string& hostname,
 // certificates in the certificate chain according to Section 7 (pp. 11-12)
 // of the EV Certificate Guidelines Version 1.0 at
 // http://cabforum.org/EV_Certificate_Guidelines.pdf.
-bool X509Certificate::VerifyEV() const {
-  DCHECK(cert_handle_);
-  net::EVRootCAMetadata* metadata = net::EVRootCAMetadata::GetInstance();
-
-  PCCERT_CHAIN_CONTEXT chain_context = ConstructCertChain(cert_handle_,
-      metadata->GetPolicyOIDs(), metadata->NumPolicyOIDs());
-  if (!chain_context)
-    return false;
-  ScopedCertChainContext scoped_chain_context(chain_context);
-
+bool X509Certificate::CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
+                              const char* policy_oid) const {
   DCHECK(chain_context->cChain != 0);
   // If the cert doesn't match any of the policies, the
   // CERT_TRUST_IS_NOT_VALID_FOR_USAGE bit (0x10) in
@@ -798,19 +775,16 @@ bool X509Certificate::VerifyEV() const {
   // Look up the EV policy OID of the root CA.
   PCCERT_CONTEXT root_cert = element[num_elements - 1]->pCertContext;
   SHA1Fingerprint fingerprint = CalculateFingerprint(root_cert);
-  const char* ev_policy_oid = NULL;
-  if (!metadata->GetPolicyOID(fingerprint, &ev_policy_oid))
-    return false;
-  DCHECK(ev_policy_oid);
+  EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
+  return metadata->HasEVPolicyOID(fingerprint, policy_oid);
+}
 
-  // Get the certificatePolicies extension of the end certificate.
-  PCCERT_CONTEXT end_cert = element[0]->pCertContext;
-  scoped_ptr_malloc<CERT_POLICIES_INFO> policies_info;
-  GetCertPoliciesInfo(end_cert, &policies_info);
-  if (!policies_info.get())
-    return false;
-
-  return ContainsPolicy(policies_info.get(), ev_policy_oid);
+bool X509Certificate::VerifyEV() const {
+  // We don't call this private method, but we do need to implement it because
+  // it's defined in x509_certificate.h. We perform EV checking in the
+  // Verify() above.
+  NOTREACHED();
+  return false;
 }
 
 // static

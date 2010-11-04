@@ -694,6 +694,7 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
     // Determine the certificate's EV status using SecTrustCopyExtendedResult(),
     // which we need to look up because the function wasn't added until
     // Mac OS X 10.5.7.
+    // Note: "ExtendedResult" means extended validation results.
     CFBundleRef bundle =
         CFBundleGetBundleWithIdentifier(CFSTR("com.apple.security"));
     if (bundle) {
