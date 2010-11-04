@@ -586,6 +586,8 @@
         'socket/client_socket_pool_histograms.h',
         'socket/client_socket_pool_manager.cc',
         'socket/client_socket_pool_manager.h',
+        'socket/dns_cert_provenance_check.cc',
+        'socket/dns_cert_provenance_check.h',
         'socket/socket.h',
         'socket/socks5_client_socket.cc',
         'socket/socks5_client_socket.h',
@@ -720,6 +722,8 @@
         }],
         ['use_openssl==1', {
             'sources!': [
+              'socket/dns_cert_provenance_check.cc',
+              'socket/dns_cert_provenance_check.h',
               'socket/ssl_client_socket_nss.cc',
               'socket/ssl_client_socket_nss.h',
               'socket/ssl_client_socket_nss_factory.cc',
