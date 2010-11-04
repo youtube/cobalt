@@ -719,9 +719,6 @@
           ],
         }],
         ['use_openssl==1', {
-            'dependencies': [
-              '../build/linux/system.gyp:openssl',
-            ],
             'sources!': [
               'socket/ssl_client_socket_nss.cc',
               'socket/ssl_client_socket_nss.h',
@@ -740,7 +737,18 @@
             'dependencies': [
               '../build/linux/system.gyp:gconf',
               '../build/linux/system.gyp:gdk',
-              '../build/linux/system.gyp:nss',
+            ],
+            'conditions': [
+              ['use_openssl==1', {
+                'dependencies': [
+                  '../build/linux/system.gyp:openssl',
+                ],
+              },
+              {  # else use_openssl==0, use NSS
+                'dependencies': [
+                  '../build/linux/system.gyp:nss',
+                ],
+              }],
             ],
           },
           {  # else: OS is not in the above list
