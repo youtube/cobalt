@@ -21,6 +21,10 @@ enum LogEnableMask {
   // If this bit is set in our provider enable mask, we will include
   // a stack trace with every log message.
   ENABLE_STACK_TRACE_CAPTURE = 0x0001,
+  // If this bit is set in our provider enable mask, the provider will log
+  // a LOG message with only the textual content of the message, and no
+  // stack trace.
+  ENABLE_LOG_MESSAGE_ONLY = 0x0002,
 };
 
 // The message types our log event provider generates.
@@ -31,6 +35,12 @@ enum LogMessageTypes {
   // A message with a stack trace, followed by the zero-terminated
   // message text.
   LOG_MESSAGE_WITH_STACKTRACE = 11,
+  // A message with:
+  //  a stack trace,
+  //  the line number as a four byte integer,
+  //  the file as a zero terminated UTF8 string,
+  //  the zero-terminated UTF8 message text.
+  LOG_MESSAGE_FULL = 12,
 };
 
 // Trace provider class to drive log control and transport
@@ -39,7 +49,9 @@ class LogEventProvider : public EtwTraceProvider {
  public:
   LogEventProvider();
 
-  static bool LogMessage(int severity, const std::string& message);
+  static bool LogMessage(logging::LogSeverity severity, const char* file,
+      int line, size_t message_start, const std::string& str);
+
   static void Initialize(const GUID& provider_name);
   static void Uninitialize();
 

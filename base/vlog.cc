@@ -29,14 +29,20 @@ VlogInfo::VmodulePattern::VmodulePattern()
       match_target(MATCH_MODULE) {}
 
 VlogInfo::VlogInfo(const std::string& v_switch,
-                   const std::string& vmodule_switch)
-    : max_vlog_level_(kDefaultVlogLevel) {
+                   const std::string& vmodule_switch,
+                   int* min_log_level)
+    : min_log_level_(min_log_level) {
+  DCHECK(min_log_level != NULL);
+
   typedef std::pair<std::string, std::string> KVPair;
-  if (!v_switch.empty() &&
-      !base::StringToInt(v_switch, &max_vlog_level_)) {
+  int vlog_level = 0;
+  if (base::StringToInt(v_switch, &vlog_level)) {
+    SetMaxVlogLevel(vlog_level);
+  } else {
     LOG(WARNING) << "Parsed v switch \""
-                 << v_switch << "\" as " << max_vlog_level_;
+                 << v_switch << "\" as " << vlog_level;
   }
+
   std::vector<KVPair> kv_pairs;
   if (!base::SplitStringIntoKeyValuePairs(
           vmodule_switch, '=', ',', &kv_pairs)) {
@@ -56,6 +62,15 @@ VlogInfo::VlogInfo(const std::string& v_switch,
 }
 
 VlogInfo::~VlogInfo() {}
+
+void VlogInfo::SetMaxVlogLevel(int level) {
+  // Log severity is the negative verbosity.
+  *min_log_level_ = -level;
+}
+
+int VlogInfo::GetMaxVlogLevel() const {
+  return -*min_log_level_;
+}
 
 namespace {
 
@@ -79,7 +94,7 @@ base::StringPiece GetModule(const base::StringPiece& file) {
 
 }  // namespace
 
-int VlogInfo::GetVlogLevel(const base::StringPiece& file) {
+int VlogInfo::GetVlogLevel(const base::StringPiece& file) const {
   if (!vmodule_levels_.empty()) {
     base::StringPiece module(GetModule(file));
     for (std::vector<VmodulePattern>::const_iterator it =
@@ -90,7 +105,7 @@ int VlogInfo::GetVlogLevel(const base::StringPiece& file) {
         return it->vlog_level;
     }
   }
-  return max_vlog_level_;
+  return GetMaxVlogLevel();
 }
 
 bool MatchVlogPattern(const base::StringPiece& string,
