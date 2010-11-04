@@ -249,6 +249,9 @@ class BackendImpl : public Backend {
   // deleted after it runs.
   int RunTaskForTest(Task* task, CompletionCallback* callback);
 
+  // Starts or stops throttling requests.
+  void ThrottleRequestsForTest(bool throttle);
+
   // Peforms a simple self-check, and returns the number of dirty items
   // or an error code (negative value).
   int SelfCheck();

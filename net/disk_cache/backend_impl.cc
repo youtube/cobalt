@@ -1315,6 +1315,13 @@ int BackendImpl::RunTaskForTest(Task* task, CompletionCallback* callback) {
   return net::ERR_IO_PENDING;
 }
 
+void BackendImpl::ThrottleRequestsForTest(bool throttle) {
+  if (throttle)
+    background_queue_.StartQueingOperations();
+  else
+    background_queue_.StopQueingOperations();
+}
+
 int BackendImpl::SelfCheck() {
   if (!init_) {
     LOG(ERROR) << "Init failed";
