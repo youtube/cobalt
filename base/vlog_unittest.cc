@@ -18,12 +18,13 @@ class VlogTest : public testing::Test {
 };
 
 TEST_F(VlogTest, NoVmodule) {
-  EXPECT_EQ(0, VlogInfo("", "").GetVlogLevel("test1"));
-  EXPECT_EQ(0, VlogInfo("0", "").GetVlogLevel("test2"));
-  EXPECT_EQ(0, VlogInfo("blah", "").GetVlogLevel("test3"));
-  EXPECT_EQ(0, VlogInfo("0blah1", "").GetVlogLevel("test4"));
-  EXPECT_EQ(1, VlogInfo("1", "").GetVlogLevel("test5"));
-  EXPECT_EQ(5, VlogInfo("5", "").GetVlogLevel("test6"));
+  int min_log_level = 0;
+  EXPECT_EQ(0, VlogInfo("", "", &min_log_level).GetVlogLevel("test1"));
+  EXPECT_EQ(0, VlogInfo("0", "", &min_log_level).GetVlogLevel("test2"));
+  EXPECT_EQ(0, VlogInfo("blah", "", &min_log_level).GetVlogLevel("test3"));
+  EXPECT_EQ(0, VlogInfo("0blah1", "", &min_log_level).GetVlogLevel("test4"));
+  EXPECT_EQ(1, VlogInfo("1", "", &min_log_level).GetVlogLevel("test5"));
+  EXPECT_EQ(5, VlogInfo("5", "", &min_log_level).GetVlogLevel("test6"));
 }
 
 TEST_F(VlogTest, MatchVlogPattern) {
@@ -78,7 +79,8 @@ TEST_F(VlogTest, VmoduleBasic) {
   const char kVSwitch[] = "-1";
   const char kVModuleSwitch[] =
       "foo=,bar=0,baz=blah,,qux=0blah1,quux=1,corge.ext=5";
-  VlogInfo vlog_info(kVSwitch, kVModuleSwitch);
+  int min_log_level = 0;
+  VlogInfo vlog_info(kVSwitch, kVModuleSwitch, &min_log_level);
   EXPECT_EQ(-1, vlog_info.GetVlogLevel("/path/to/grault.cc"));
   EXPECT_EQ(0, vlog_info.GetVlogLevel("/path/to/foo.cc"));
   EXPECT_EQ(0, vlog_info.GetVlogLevel("D:\\Path\\To\\bar-inl.mm"));
@@ -92,7 +94,8 @@ TEST_F(VlogTest, VmoduleBasic) {
 TEST_F(VlogTest, VmoduleDirs) {
   const char kVModuleSwitch[] =
       "foo/bar.cc=1,baz\\*\\qux.cc=2,*quux/*=3,*/*-inl.h=4";
-  VlogInfo vlog_info("", kVModuleSwitch);
+  int min_log_level = 0;
+  VlogInfo vlog_info("", kVModuleSwitch, &min_log_level);
   EXPECT_EQ(0, vlog_info.GetVlogLevel("/foo/bar.cc"));
   EXPECT_EQ(0, vlog_info.GetVlogLevel("bar.cc"));
   EXPECT_EQ(1, vlog_info.GetVlogLevel("foo/bar.cc"));

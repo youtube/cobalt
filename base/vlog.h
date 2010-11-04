@@ -28,21 +28,29 @@ class VlogInfo {
   // code in source files "my_module.*" and "foo*.*" ("-inl" suffixes
   // are also disregarded for this matching).
   //
+  // |log_severity| points to an int that stores the log level. If a valid
+  // |v_switch| is provided, it will set the log level, and the default
+  // vlog severity will be read from there..
+  //
   // Any pattern containing a forward or backward slash will be tested
   // against the whole pathname and not just the module.  E.g.,
   // "*/foo/bar/*=2" would change the logging level for all code in
   // source files under a "foo/bar" directory.
   VlogInfo(const std::string& v_switch,
-           const std::string& vmodule_switch);
+           const std::string& vmodule_switch,
+           int* min_log_level);
   ~VlogInfo();
 
   // Returns the vlog level for a given file (usually taken from
   // __FILE__).
-  int GetVlogLevel(const base::StringPiece& file);
+  int GetVlogLevel(const base::StringPiece& file) const;
 
   static const int kDefaultVlogLevel;
 
  private:
+  void SetMaxVlogLevel(int level);
+  int GetMaxVlogLevel() const;
+
   // VmodulePattern holds all the information for each pattern parsed
   // from |vmodule_switch|.
   struct VmodulePattern {
@@ -57,8 +65,8 @@ class VlogInfo {
     MatchTarget match_target;
   };
 
-  int max_vlog_level_;
   std::vector<VmodulePattern> vmodule_levels_;
+  int* min_log_level_;
 
   DISALLOW_COPY_AND_ASSIGN(VlogInfo);
 };

@@ -209,12 +209,17 @@ inline bool InitLogging(const PathChar* log_file,
 
 // Sets the log level. Anything at or above this level will be written to the
 // log file/displayed to the user (if applicable). Anything below this level
-// will be silently ignored. The log level defaults to 0 (everything is logged)
-// if this function is not called.
+// will be silently ignored. The log level defaults to 0 (everything is logged
+// up to level INFO) if this function is not called.
+// Note that log messages for VLOG(x) are logged at level -x, so setting
+// the min log level to negative values enables verbose logging.
 void SetMinLogLevel(int level);
 
 // Gets the current log level.
 int GetMinLogLevel();
+
+// Gets the VLOG default verbosity level.
+int GetVlogVerbosity();
 
 // Gets the current vlog level for the given file (usually taken from
 // __FILE__).
@@ -257,11 +262,15 @@ void SetLogReportHandler(LogReportHandlerFunction handler);
 // it's sent to other log destinations (if any).
 // Returns true to signal that it handled the message and the message
 // should not be sent to other log destinations.
-typedef bool (*LogMessageHandlerFunction)(int severity, const std::string& str);
+typedef bool (*LogMessageHandlerFunction)(int severity,
+    const char* file, int line, size_t message_start, const std::string& str);
 void SetLogMessageHandler(LogMessageHandlerFunction handler);
 LogMessageHandlerFunction GetLogMessageHandler();
 
 typedef int LogSeverity;
+const LogSeverity LOG_VERBOSE = -1;  // This is level 1 verbosity
+// Note: the log severities are used to index into the array of names,
+// see log_severity_names.
 const LogSeverity LOG_INFO = 0;
 const LogSeverity LOG_WARNING = 1;
 const LogSeverity LOG_ERROR = 2;
@@ -354,9 +363,16 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define SYSLOG(severity) LOG(severity)
 #define SYSLOG_IF(severity, condition) LOG_IF(severity, condition)
 
-#define VLOG(verboselevel) LOG_IF(INFO, VLOG_IS_ON(verboselevel))
-#define VLOG_IF(verboselevel, condition) \
-  LOG_IF(INFO, VLOG_IS_ON(verboselevel) && (condition))
+// The VLOG macros log with negative verbosities.
+#define VLOG_STREAM(verbose_level) \
+  logging::LogMessage(__FILE__, __LINE__, -verbose_level).stream()
+
+#define VLOG(verbose_level) \
+  LAZY_STREAM(VLOG_STREAM(verbose_level), VLOG_IS_ON(verbose_level))
+
+#define VLOG_IF(verbose_level, condition) \
+  LAZY_STREAM(VLOG_STREAM(verbose_level), \
+      VLOG_IS_ON(verbose_level) && (condition))
 
 // TODO(akalin): Add more VLOG variants, e.g. VPLOG.
 
@@ -718,6 +734,10 @@ class LogMessage {
   std::ostringstream stream_;
   size_t message_start_;  // Offset of the start of the message (past prefix
                           // info).
+  // The file and line information passed in to the constructor.
+  const char* file_;
+  const int line_;
+
 #if defined(OS_WIN)
   // Stores the current value of GetLastError in the constructor and restores
   // it in the destructor by calling SetLastError.
