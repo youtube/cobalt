@@ -191,10 +191,7 @@ NET_ERROR(SSL_SNAP_START_NPN_MISPREDICTION, -131)
 // give the user a helpful error message rather than have the connection hang.
 NET_ERROR(ESET_ANTI_VIRUS_SSL_INTERCEPTION, -132)
 
-// We detected NetNanny intercepting our HTTPS connections. Since this product
-// is False Start intolerant, we return this error so that we can give the user
-// a helpful error message rather than have the connection hang.
-NET_ERROR(NETNANNY_SSL_INTERCEPTION, -133)
+// Missing -133. Feel free to reuse in the future.
 
 // The permission to use the SSL client certificate's private key was denied.
 NET_ERROR(SSL_CLIENT_AUTH_PRIVATE_KEY_ACCESS_DENIED, -134)
