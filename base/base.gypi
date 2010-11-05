@@ -354,6 +354,13 @@
               ],
             },
           ],
+          # Temporarily include linux implementation while debugging a
+          # workerpool issue.  See http://crbug.com/20471 and
+          # http://crbug.com/60426
+          [ 'OS == "mac"', {
+              'sources/': [ ['include', '(^|/)worker_pool_linux\.cc$'] ],
+            },
+          ],
           [ 'OS != "mac"', {
               'sources!': [
                 'scoped_aedesc.h'
