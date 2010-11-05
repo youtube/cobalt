@@ -446,7 +446,6 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       completed_handshake_(false),
       pseudo_connected_(false),
       eset_mitm_detected_(false),
-      netnanny_mitm_detected_(false),
       predicted_cert_chain_correct_(false),
       peername_initialized_(false),
       dnssec_provider_(NULL),
@@ -927,7 +926,6 @@ void SSLClientSocketNSS::Disconnect() {
   completed_handshake_   = false;
   pseudo_connected_      = false;
   eset_mitm_detected_    = false;
-  netnanny_mitm_detected_= false;
   predicted_cert_chain_correct_ = false;
   peername_initialized_  = false;
   nss_bufs_              = NULL;
@@ -1635,16 +1633,10 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
   // different reads or not, depending on network conditions.
   PRBool false_start = 0;
   SECStatus rv = SSL_OptionGet(socket, SSL_ENABLE_FALSE_START, &false_start);
-  if (rv != SECSuccess)
-    NOTREACHED();
+  DCHECK_EQ(SECSuccess, rv);
+
   if (false_start) {
     SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
-    if (!that->handshake_callback_called_) {
-      that->corked_ = true;
-      that->uncork_timer_.Start(
-          base::TimeDelta::FromMilliseconds(kCorkTimeoutMs),
-          that, &SSLClientSocketNSS::UncorkAfterTimeout);
-    }
 
     // ESET anti-virus is capable of intercepting HTTPS connections on Windows.
     // However, it is False Start intolerant and causes the connections to hang
@@ -1657,11 +1649,23 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
       if (common_name) {
         if (strcmp(common_name, "ESET_RootSslCert") == 0)
           that->eset_mitm_detected_ = true;
-        if (strcmp(common_name, "ContentWatch Root Certificate Authority") == 0)
-          that->netnanny_mitm_detected_ = true;
+        if (strcmp(common_name, "ContentWatch Root Certificate Authority") == 0) {
+          // This is NetNanny. NetNanny are updating their product so we
+          // silently disable False Start for now.
+          rv = SSL_OptionSet(socket, SSL_ENABLE_FALSE_START, PR_FALSE);
+          DCHECK_EQ(SECSuccess, rv);
+          false_start = 0;
+        }
         PORT_Free(common_name);
       }
       CERT_DestroyCertificate(cert);
+    }
+
+    if (false_start && !that->handshake_callback_called_) {
+      that->corked_ = true;
+      that->uncork_timer_.Start(
+          base::TimeDelta::FromMilliseconds(kCorkTimeoutMs),
+          that, &SSLClientSocketNSS::UncorkAfterTimeout);
     }
   }
 #endif
@@ -2094,8 +2098,6 @@ int SSLClientSocketNSS::DoHandshake() {
     if (handshake_callback_called_) {
       if (eset_mitm_detected_) {
         net_error = ERR_ESET_ANTI_VIRUS_SSL_INTERCEPTION;
-      } else if (netnanny_mitm_detected_) {
-        net_error = ERR_NETNANNY_SSL_INTERCEPTION;
       } else {
         // We need to see if the predicted certificate chain (in
         // |ssl_host_info_->state().certs) matches the actual certificate chain
