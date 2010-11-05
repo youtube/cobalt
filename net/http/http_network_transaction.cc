@@ -1089,6 +1089,11 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   if (target == HttpAuth::AUTH_PROXY && proxy_info_.is_direct())
     return ERR_UNEXPECTED_PROXY_AUTH;
 
+  // This case can trigger when an HTTPS server responds with a 407 status
+  // code through a non-authenticating proxy.
+  if (!auth_controllers_[target].get())
+    return ERR_UNEXPECTED_PROXY_AUTH;
+
   int rv = auth_controllers_[target]->HandleAuthChallenge(
       headers, (request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA) != 0, false,
       net_log_);

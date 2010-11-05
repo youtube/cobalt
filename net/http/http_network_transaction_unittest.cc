@@ -1768,6 +1768,66 @@ TEST_F(HttpNetworkTransactionTest, UnexpectedProxyAuth) {
   EXPECT_EQ(ERR_UNEXPECTED_PROXY_AUTH, rv);
 }
 
+// Tests when an HTTPS server (non-proxy) returns a 407 (proxy-authentication)
+// through a non-authenticating proxy. The request should fail with
+// ERR_UNEXPECTED_PROXY_AUTH.
+// Note that it is impossible to detect if an HTTP server returns a 407 through
+// a non-authenticating proxy - there is nothing to indicate whether the
+// response came from the proxy or the server, so it is treated as if the proxy
+// issued the challenge.
+TEST_F(HttpNetworkTransactionTest, HttpsServerRequestsProxyAuthThroughProxy) {
+  SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+
+  // Since we have proxy, should try to establish tunnel.
+  MockWrite data_writes1[] = {
+    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n\r\n"),
+
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead data_reads1[] = {
+    MockRead("HTTP/1.1 200 Connection Established\r\n\r\n"),
+
+    MockRead("HTTP/1.1 407 Unauthorized\r\n"),
+    MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
+    MockRead("\r\n"),
+    MockRead(false, OK),
+  };
+
+  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                 data_writes1, arraysize(data_writes1));
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  SSLSocketDataProvider ssl(true, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  TestCompletionCallback callback1;
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback1, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(ERR_UNEXPECTED_PROXY_AUTH, rv);
+  size_t pos = ExpectLogContainsSomewhere(
+      log.entries(), 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+      NetLog::PHASE_NONE);
+  ExpectLogContainsSomewhere(
+      log.entries(), pos,
+      NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
+      NetLog::PHASE_NONE);
+}
 
 // Test a simple get through an HTTPS Proxy.
 TEST_F(HttpNetworkTransactionTest, HttpsProxyGet) {
