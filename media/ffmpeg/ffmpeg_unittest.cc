@@ -455,6 +455,7 @@ FFMPEG_TEST_CASE(counting, ogv);
 // The following are bugs reported by users.
 FFMPEG_TEST_CASE(crbug47761, ogg);
 FFMPEG_TEST_CASE(crbug50045, mp4);
+FFMPEG_TEST_CASE(crbug62127, webm);
 
 TEST_P(FFmpegTest, Perf) {
   {
