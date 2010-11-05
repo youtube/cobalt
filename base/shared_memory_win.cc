@@ -17,6 +17,15 @@ SharedMemory::SharedMemory()
       lock_(NULL) {
 }
 
+SharedMemory::SharedMemory(const std::wstring& name)
+    : mapped_file_(NULL),
+      memory_(NULL),
+      read_only_(false),
+      created_size_(0),
+      lock_(NULL),
+      name_(name) {
+}
+
 SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only)
     : mapped_file_(handle),
       memory_(NULL),
@@ -188,6 +197,10 @@ void SharedMemory::Close() {
 }
 
 void SharedMemory::Lock() {
+  Lock(INFINITE);
+}
+
+bool SharedMemory::Lock(uint32 timeout_ms) {
   if (lock_ == NULL) {
     std::wstring name = name_;
     name.append(L"lock");
@@ -195,10 +208,13 @@ void SharedMemory::Lock() {
     DCHECK(lock_ != NULL);
     if (lock_ == NULL) {
       DLOG(ERROR) << "Could not create mutex" << GetLastError();
-      return;  // there is nothing good we can do here.
+      return false;  // there is nothing good we can do here.
     }
   }
-  WaitForSingleObject(lock_, INFINITE);
+  DWORD result = WaitForSingleObject(lock_, timeout_ms);
+
+  // Return false for WAIT_ABANDONED, WAIT_TIMEOUT or WAIT_FAILED.
+  return (result == WAIT_OBJECT_0);
 }
 
 void SharedMemory::Unlock() {
