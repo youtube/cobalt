@@ -43,6 +43,13 @@ class SharedMemory {
  public:
   SharedMemory();
 
+#if defined(OS_WIN)
+  // Similar to the default constructor, except that this allows for
+  // calling Lock() to acquire the named mutex before either Create or Open
+  // are called on Windows.
+  explicit SharedMemory(const std::wstring& name);
+#endif
+
   // Create a new SharedMemory object from an existing, open
   // shared memory file.
   SharedMemory(SharedMemoryHandle handle, bool read_only);
@@ -164,6 +171,12 @@ class SharedMemory {
   // (futex, lockf+anon_semaphore) but none are both clean and common
   // across Mac and Linux.
   void Lock();
+
+#if defined(OS_WIN)
+  // A Lock() implementation with a timeout. Returns true if the Lock() has
+  // been acquired, false if the timeout was reached.
+  bool Lock(uint32 timeout_ms);
+#endif
 
   // Releases the shared memory lock.
   void Unlock();
