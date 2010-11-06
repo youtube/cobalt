@@ -9,8 +9,8 @@
 #include "base/at_exit.h"
 #include "base/basictypes.h"
 #include "base/file_util.h"
-#include "base/event_trace_consumer_win.h"
-#include "base/event_trace_controller_win.h"
+#include "base/win/event_trace_consumer.h"
+#include "base/win/event_trace_controller.h"
 #include "base/win/windows_version.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,6 +27,11 @@ using testing::InSequence;
 using testing::Ge;
 using testing::Le;
 using testing::NotNull;
+
+using base::win::EtwEventType;
+using base::win::EtwTraceConsumerBase;
+using base::win::EtwTraceController;
+using base::win::EtwTraceProperties;
 
 // Data for unittests traces.
 const char kEmpty[] = "";
