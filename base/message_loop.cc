@@ -29,6 +29,7 @@
 
 using base::Time;
 using base::TimeDelta;
+using base::TimeTicks;
 
 namespace {
 
@@ -332,7 +333,7 @@ void MessageLoop::PostTask_Helper(
 
   if (delay_ms > 0) {
     pending_task.delayed_run_time =
-        Time::Now() + TimeDelta::FromMilliseconds(delay_ms);
+        TimeTicks::Now() + TimeDelta::FromMilliseconds(delay_ms);
 
 #if defined(OS_WIN)
     if (high_resolution_timer_expiration_.is_null()) {
@@ -345,7 +346,7 @@ void MessageLoop::PostTask_Helper(
           delay_ms < (2 * Time::kMinLowResolutionThresholdMs);
       if (needs_high_res_timers) {
         Time::ActivateHighResolutionTimer(true);
-        high_resolution_timer_expiration_ = base::TimeTicks::Now() +
+        high_resolution_timer_expiration_ = TimeTicks::Now() +
             TimeDelta::FromMilliseconds(kHighResolutionTimerModeLeaseTimeMs);
       }
     }
@@ -356,9 +357,9 @@ void MessageLoop::PostTask_Helper(
 
 #if defined(OS_WIN)
   if (!high_resolution_timer_expiration_.is_null()) {
-    if (base::TimeTicks::Now() > high_resolution_timer_expiration_) {
+    if (TimeTicks::Now() > high_resolution_timer_expiration_) {
       Time::ActivateHighResolutionTimer(false);
-      high_resolution_timer_expiration_ = base::TimeTicks();
+      high_resolution_timer_expiration_ = TimeTicks();
     }
   }
 #endif
@@ -540,21 +541,22 @@ bool MessageLoop::DoWork() {
   return false;
 }
 
-bool MessageLoop::DoDelayedWork(base::Time* next_delayed_work_time) {
+bool MessageLoop::DoDelayedWork(base::TimeTicks* next_delayed_work_time) {
   if (!nestable_tasks_allowed_ || delayed_work_queue_.empty()) {
-    recent_time_ = *next_delayed_work_time = base::Time();
+    recent_time_ = *next_delayed_work_time = TimeTicks();
     return false;
   }
 
-  // When we "fall behind," there may be a lot of tasks in the delayed work
+  // When we "fall behind," there will be a lot of tasks in the delayed work
   // queue that are ready to run.  To increase efficiency when we fall behind,
   // we will only call Time::Now() intermittently, and then process all tasks
   // that are ready to run before calling it again.  As a result, the more we
   // fall behind (and have a lot of ready-to-run delayed tasks), the more
   // efficient we'll be at handling the tasks.
-  base::Time next_run_time = delayed_work_queue_.top().delayed_run_time;
+
+  TimeTicks next_run_time = delayed_work_queue_.top().delayed_run_time;
   if (next_run_time > recent_time_) {
-    recent_time_ = base::Time::Now();  // Get a better view of Now().
+    recent_time_ = TimeTicks::Now();  // Get a better view of Now();
     if (next_run_time > recent_time_) {
       *next_delayed_work_time = next_run_time;
       return false;
