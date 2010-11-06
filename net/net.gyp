@@ -1326,63 +1326,61 @@
     },
   ],
   'conditions': [
-    ['OS=="linux"', {
-      'targets': [
-        {
-          'target_name': 'flip_in_mem_edsm_server',
-          'type': 'executable',
-          'dependencies': [
-            '../base/base.gyp:base',
-            'net.gyp:net',
-          ],
-          'link_settings': {
-            'ldflags': [
-              '-lcrypto',
-              '-lssl'
-            ],
-            'libraries': [
-              '-lcrypto',
-              '-lssl'
-            ],
-          },
-          'sources': [
-            'tools/dump_cache/url_to_filename_encoder.cc',
-            'tools/dump_cache/url_to_filename_encoder.h',
-            'tools/dump_cache/url_utilities.h',
-            'tools/dump_cache/url_utilities.cc',
+    # ['OS=="linux"', {
+    #   'targets': [
+    #     {
+    #       'target_name': 'flip_in_mem_edsm_server',
+    #       'type': 'executable',
+    #       'dependencies': [
+    #         '../base/base.gyp:base',
+    #         'net.gyp:net',
+    #       ],
+    #       'link_settings': {
+    #         'ldflags': [
+    #           '-lssl'
+    #         ],
+    #         'libraries': [
+    #           '-lssl'
+    #         ],
+    #       },
+    #       'sources': [
+    #         'tools/dump_cache/url_to_filename_encoder.cc',
+    #         'tools/dump_cache/url_to_filename_encoder.h',
+    #         'tools/dump_cache/url_utilities.h',
+    #         'tools/dump_cache/url_utilities.cc',
 
-            'tools/flip_server/balsa_enums.h',
-            'tools/flip_server/balsa_frame.cc',
-            'tools/flip_server/balsa_frame.h',
-            'tools/flip_server/balsa_headers.cc',
-            'tools/flip_server/balsa_headers.h',
-            'tools/flip_server/balsa_headers_token_utils.cc',
-            'tools/flip_server/balsa_headers_token_utils.h',
-            'tools/flip_server/balsa_visitor_interface.h',
-            'tools/flip_server/buffer_interface.h',
-            'tools/flip_server/create_listener.cc',
-            'tools/flip_server/create_listener.h',
-            'tools/flip_server/epoll_server.cc',
-            'tools/flip_server/epoll_server.h',
-            'tools/flip_server/flip_in_mem_edsm_server.cc',
-            'tools/flip_server/http_message_constants.cc',
-            'tools/flip_server/http_message_constants.h',
-            'tools/flip_server/loadtime_measurement.h',
-            'tools/flip_server/porting.txt',
-            'tools/flip_server/ring_buffer.cc',
-            'tools/flip_server/ring_buffer.h',
-            'tools/flip_server/simple_buffer.cc',
-            'tools/flip_server/simple_buffer.h',
-            'tools/flip_server/split.h',
-            'tools/flip_server/split.cc',
-            'tools/flip_server/string_piece_utils.h',
-            'tools/flip_server/thread.h',
-            'tools/flip_server/url_to_filename_encoder.h',
-            'tools/flip_server/url_utilities.h',
-          ],
-        },
-      ]
-    }],
+    #         'tools/flip_server/balsa_enums.h',
+    #         'tools/flip_server/balsa_frame.cc',
+    #         'tools/flip_server/balsa_frame.h',
+    #         'tools/flip_server/balsa_headers.cc',
+    #         'tools/flip_server/balsa_headers.h',
+    #         'tools/flip_server/balsa_headers_token_utils.cc',
+    #         'tools/flip_server/balsa_headers_token_utils.h',
+    #         'tools/flip_server/balsa_visitor_interface.h',
+    #         'tools/flip_server/buffer_interface.h',
+    #         'tools/flip_server/create_listener.cc',
+    #         'tools/flip_server/create_listener.h',
+    #         'tools/flip_server/epoll_server.cc',
+    #         'tools/flip_server/epoll_server.h',
+    #         'tools/flip_server/flip_in_mem_edsm_server.cc',
+    #         'tools/flip_server/http_message_constants.cc',
+    #         'tools/flip_server/http_message_constants.h',
+    #         'tools/flip_server/loadtime_measurement.h',
+    #         'tools/flip_server/porting.txt',
+    #         'tools/flip_server/ring_buffer.cc',
+    #         'tools/flip_server/ring_buffer.h',
+    #         'tools/flip_server/simple_buffer.cc',
+    #         'tools/flip_server/simple_buffer.h',
+    #         'tools/flip_server/split.h',
+    #         'tools/flip_server/split.cc',
+    #         'tools/flip_server/string_piece_utils.h',
+    #         'tools/flip_server/thread.h',
+    #         'tools/flip_server/url_to_filename_encoder.h',
+    #         'tools/flip_server/url_utilities.h',
+    #       ],
+    #     },
+    #   ]
+    # }],
     ['OS=="win"', {
       'targets': [
         {
