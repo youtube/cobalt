@@ -341,10 +341,10 @@ class MessageLoop : public base::MessagePump::Delegate {
 
   // This structure is copied around by value.
   struct PendingTask {
-    Task* task;                   // The task to run.
-    base::Time delayed_run_time;  // The time when the task should be run.
-    int sequence_num;             // Used to facilitate sorting by run time.
-    bool nestable;                // True if OK to dispatch from a nested loop.
+    Task* task;                        // The task to run.
+    base::TimeTicks delayed_run_time;  // The time when the task should be run.
+    int sequence_num;                  // Secondary sort key for run time.
+    bool nestable;                     // OK to dispatch from a nested loop.
 
     PendingTask(Task* task, bool nestable)
         : task(task), sequence_num(0), nestable(nestable) {
@@ -429,7 +429,7 @@ class MessageLoop : public base::MessagePump::Delegate {
 
   // base::MessagePump::Delegate methods:
   virtual bool DoWork();
-  virtual bool DoDelayedWork(base::Time* next_delayed_work_time);
+  virtual bool DoDelayedWork(base::TimeTicks* next_delayed_work_time);
   virtual bool DoIdleWork();
 
   // Start recording histogram info about events and action IF it was enabled
@@ -451,7 +451,7 @@ class MessageLoop : public base::MessagePump::Delegate {
   DelayedTaskQueue delayed_work_queue_;
 
   // A recent snapshot of Time::Now(), used to check delayed_work_queue_.
-  base::Time recent_time_;
+  base::TimeTicks recent_time_;
 
   // A queue of non-nestable tasks that we had to defer because when it came
   // time to execute them we were in a nested message loop.  They will execute
