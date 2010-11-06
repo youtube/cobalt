@@ -8,7 +8,7 @@
 #pragma once
 
 #include <string>
-#include "base/event_trace_provider_win.h"
+#include "base/win/event_trace_provider.h"
 
 #define TRACE_EVENT_BEGIN(name, id, extra) \
   base::debug::TraceLog::Trace( \
@@ -40,7 +40,7 @@ namespace debug {
 
 // This EtwTraceProvider subclass implements ETW logging
 // for the macros above on Windows.
-class TraceLog : public EtwTraceProvider {
+class TraceLog : public base::win::EtwTraceProvider {
  public:
   enum EventType {
     EVENT_BEGIN,
@@ -126,9 +126,9 @@ extern const GUID kTraceEventClass32;
 extern const GUID kTraceEventClass64;
 
 // The ETW event types, IDs 0x00-0x09 are reserved, so start at 0x10.
-const EtwEventType kTraceEventTypeBegin = 0x10;
-const EtwEventType kTraceEventTypeEnd = 0x11;
-const EtwEventType kTraceEventTypeInstant = 0x12;
+const base::win::EtwEventType kTraceEventTypeBegin = 0x10;
+const base::win::EtwEventType kTraceEventTypeEnd = 0x11;
+const base::win::EtwEventType kTraceEventTypeInstant = 0x12;
 
 // If this flag is set in enable flags
 enum TraceEventFlags {

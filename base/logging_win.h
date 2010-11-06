@@ -8,7 +8,7 @@
 
 #include <string>
 #include "base/basictypes.h"
-#include "base/event_trace_provider_win.h"
+#include "base/win/event_trace_provider.h"
 #include "base/logging.h"
 
 namespace logging {
@@ -45,7 +45,7 @@ enum LogMessageTypes {
 
 // Trace provider class to drive log control and transport
 // with Event Tracing for Windows.
-class LogEventProvider : public EtwTraceProvider {
+class LogEventProvider : public base::win::EtwTraceProvider {
  public:
   LogEventProvider();
 

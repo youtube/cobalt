@@ -16,6 +16,9 @@ Singleton<logging::LogEventProvider, LogEventSingletonTraits> log_provider;
 
 namespace logging {
 
+using base::win::EtwEventLevel;
+using base::win::EtwMofEvent;
+
 DEFINE_GUID(kLogEventId,
     0x7fe69228, 0x633e, 0x4f06, 0x80, 0xc1, 0x52, 0x7f, 0xea, 0x23, 0xe3, 0xa7);
 

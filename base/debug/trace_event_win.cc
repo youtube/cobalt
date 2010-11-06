@@ -11,6 +11,9 @@
 namespace base {
 namespace debug {
 
+using base::win::EtwEventType;
+using base::win::EtwMofEvent;
+
 // {3DADA31D-19EF-4dc1-B345-037927193422}
 const GUID kChromeTraceProviderName = {
     0x3dada31d, 0x19ef, 0x4dc1, 0xb3, 0x45, 0x3, 0x79, 0x27, 0x19, 0x34, 0x22 };
