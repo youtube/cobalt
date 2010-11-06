@@ -21,7 +21,7 @@ import shutil
 import SocketServer
 import sys
 import time
-import urllib2
+import urlparse
 import warnings
 
 # Ignore deprecation warnings, they make our output more cluttered.
@@ -573,6 +573,24 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.end_headers()
     return True
 
+  def _ReplaceFileData(self, data, query_parameters):
+    """Replaces matching substrings in a file.
+
+    If the 'replace_orig' and 'replace_new' URL query parameters are present,
+    a new string is returned with all occasions of the 'replace_orig' value
+    replaced by the 'replace_new' value.
+
+    If the parameters are not present, |data| is returned.
+    """
+    query_dict = cgi.parse_qs(query_parameters)
+    orig_values = query_dict.get('replace_orig', [])
+    new_values = query_dict.get('replace_new', [])
+    if not orig_values or not new_values:
+      return data
+    orig_value = orig_values[0]
+    new_value = new_values[0]
+    return data.replace(orig_value, new_value)
+
   def FileHandler(self):
     """This handler sends the contents of the requested file.  Wow, it's like
     a real webserver!"""
@@ -585,29 +603,27 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     if self.command == 'POST' or self.command == 'PUT' :
       self.rfile.read(int(self.headers.getheader('content-length')))
 
-    file = self.path[len(prefix):]
-    if file.find('?') > -1:
-      # Ignore the query parameters entirely.
-      url, querystring = file.split('?')
-    else:
-      url = file
-    entries = url.split('/')
-    path = os.path.join(self.server.data_dir, *entries)
-    if os.path.isdir(path):
-      path = os.path.join(path, 'index.html')
+    _, _, url_path, _, query, _ = urlparse.urlparse(self.path)
+    sub_path = url_path[len(prefix):]
+    entries = sub_path.split('/')
+    file_path = os.path.join(self.server.data_dir, *entries)
+    if os.path.isdir(file_path):
+      file_path = os.path.join(file_path, 'index.html')
 
-    if not os.path.isfile(path):
-      print "File not found " + file + " full path:" + path
+    if not os.path.isfile(file_path):
+      print "File not found " + sub_path + " full path:" + file_path
       self.send_error(404)
       return True
 
-    f = open(path, "rb")
+    f = open(file_path, "rb")
     data = f.read()
     f.close()
 
+    data = self._ReplaceFileData(data, query)
+
     # If file.mock-http-headers exists, it contains the headers we
     # should send.  Read them in and parse them.
-    headers_path = path + '.mock-http-headers'
+    headers_path = file_path + '.mock-http-headers'
     if os.path.isfile(headers_path):
       f = open(headers_path, "r")
 
@@ -627,7 +643,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       # Could be more generic once we support mime-type sniffing, but for
       # now we need to set it explicitly.
       self.send_response(200)
-      self.send_header('Content-type', self.GetMIMETypeFromName(file))
+      self.send_header('Content-type', self.GetMIMETypeFromName(file_path))
       self.send_header('Content-Length', len(data))
     self.end_headers()
 
