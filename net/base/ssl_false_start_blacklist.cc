@@ -12,8 +12,8 @@ bool SSLFalseStartBlacklist::IsMember(const char* host) {
   if (!last_two_labels)
     return false;
   const unsigned bucket = Hash(last_two_labels) & (kBuckets - 1);
-  const uint16 start = kHashTable[bucket];
-  const uint16 end = kHashTable[bucket + 1];
+  const uint32 start = kHashTable[bucket];
+  const uint32 end = kHashTable[bucket + 1];
   const size_t len = strlen(host);
 
   for (size_t i = start; i < end;) {
