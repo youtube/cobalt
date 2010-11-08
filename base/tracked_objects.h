@@ -21,18 +21,18 @@
 // across a series of objects so that the counts and times can be rapidly
 // updated without (usually) having to lock the data, and hence there is usually
 // very little contention caused by the tracking.  The data can be viewed via
-// the about:objects URL, with a variety of sorting and filtering choices.
+// the about:tasks URL, with a variety of sorting and filtering choices.
 //
-// Theese classes serve as the basis of a profiler of sorts for the Tasks
-// system.  As a result, design decisions were made to maximize speed, by
-// minimizing recurring allocation/deallocation, lock contention and data
-// copying.  In the "stable" state, which is reached relatively quickly, there
-// is no separate marginal allocation cost associated with construction or
-// destruction of tracked objects, no locks are generally employed, and probably
-// the largest computational cost is associated with obtaining start and stop
-// times for instances as they are created and destroyed.  The introduction of
-// worker threads had a slight impact on this approach, and required use of some
-// locks when accessing data from the worker threads.
+// These classes serve as the basis of a profiler of sorts for the Tasks system.
+// As a result, design decisions were made to maximize speed, by minimizing
+// recurring allocation/deallocation, lock contention and data copying.  In the
+// "stable" state, which is reached relatively quickly, there is no separate
+// marginal allocation cost associated with construction or destruction of
+// tracked objects, no locks are generally employed, and probably the largest
+// computational cost is associated with obtaining start and stop times for
+// instances as they are created and destroyed.  The introduction of worker
+// threads had a slight impact on this approach, and required use of some locks
+// when accessing data from the worker threads.
 //
 // The following describes the lifecycle of tracking an instance.
 //
@@ -111,7 +111,7 @@
 //
 // The above description tries to define the high performance (run time)
 // portions of these classes.  After gathering statistics, calls instigated
-// by visiting about:objects will assemble and aggregate data for display. The
+// by visiting about:tasks will assemble and aggregate data for display. The
 // following data structures are used for producing such displays.  They are
 // not performance critical, and their only major constraint is that they should
 // be able to run concurrently with ongoing augmentation of the birth and death
@@ -137,8 +137,7 @@
 // need to be sorted, and possibly aggregated (example: how many threads are in
 // a specific consecutive set of Snapshots?  What was the total birth count for
 // that set? etc.).  Aggregation instances collect running sums of any set of
-// snapshot instances, and are used to print sub-totals in an about:objects
-// page.
+// snapshot instances, and are used to print sub-totals in an about:tasks page.
 //
 // TODO(jar): I need to store DataCollections, and provide facilities for taking
 // the difference between two gathered DataCollections.  For now, I'm just
