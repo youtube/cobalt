@@ -17,8 +17,7 @@
 namespace net {
 
 class CertVerifier::Request :
-    public base::RefCountedThreadSafe<CertVerifier::Request>,
-    public MessageLoop::DestructionObserver {
+    public base::RefCountedThreadSafe<CertVerifier::Request> {
  public:
   Request(CertVerifier* verifier,
           X509Certificate* cert,
@@ -34,8 +33,6 @@ class CertVerifier::Request :
         callback_(callback),
         origin_loop_(MessageLoop::current()),
         error_(OK) {
-    if (origin_loop_)
-      origin_loop_->AddDestructionObserver(this);
   }
 
   void DoVerify() {
@@ -89,25 +86,13 @@ class CertVerifier::Request :
     verifier_ = NULL;
 
     AutoLock locked(origin_loop_lock_);
-    if (origin_loop_) {
-      origin_loop_->RemoveDestructionObserver(this);
-      origin_loop_ = NULL;
-    }
-  }
-
-  // MessageLoop::DestructionObserver override.
-  virtual void WillDestroyCurrentMessageLoop() {
-    LOG(ERROR) << "CertVerifier wasn't deleted before the thread was deleted.";
-    AutoLock locked(origin_loop_lock_);
     origin_loop_ = NULL;
   }
 
  private:
   friend class base::RefCountedThreadSafe<CertVerifier::Request>;
 
-  ~Request() {
-    Cancel();
-  }
+  ~Request() {}
 
   // Set on the origin thread, read on the worker thread.
   scoped_refptr<X509Certificate> cert_;
