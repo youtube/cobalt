@@ -342,6 +342,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.noisebridge.net"));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "noisebridge.net"));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "foo.noisebridge.net"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "neg9.org"));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "www.neg9.org"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
