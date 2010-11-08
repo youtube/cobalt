@@ -18,6 +18,33 @@ chrome_src = os.path.normpath(os.path.join(script_dir, os.pardir))
 sys.path.insert(0, os.path.join(chrome_src, 'tools', 'gyp', 'pylib'))
 import gyp
 
+def apply_gyp_environment(file_path=None):
+  """
+  Reads in a *.gyp_env file and applies the valid keys to os.environ.
+  """
+  if not file_path or not os.path.exists(file_path):
+    return
+  file_contents = open(file_path).read()
+  try:
+    file_data = eval(file_contents, {'__builtins__': None}, None)
+  except SyntaxError, e:
+    e.filename = os.path.abspath(file_path)
+    raise
+  supported_vars = ( 'CHROMIUM_GYP_FILE',
+                     'CHROMIUM_GYP_SYNTAX_CHECK',
+                     'GYP_DEFINES',
+                     'GYP_GENERATOR_FLAGS',
+                     'GYP_GENERATOR_OUTPUT', )
+  for var in supported_vars:
+    val = file_data.get(var)
+    if val:
+      if var in os.environ:
+        print 'INFO: Environment value for "%s" overrides value in %s.' % (
+            var, os.path.abspath(file_path)
+        )
+      else:
+        os.environ[var] = val
+
 def additional_include_files(args=[]):
   """
   Returns a list of additional (.gypi) files to include, without
@@ -50,6 +77,11 @@ def additional_include_files(args=[]):
 
 if __name__ == '__main__':
   args = sys.argv[1:]
+
+  if 'SKIP_CHROMIUM_GYP_ENV' not in os.environ:
+    # Update the environment based on chromium.gyp_env
+    gyp_env_path = os.path.join(os.path.dirname(chrome_src), 'chromium.gyp_env')
+    apply_gyp_environment(gyp_env_path)
 
   # This could give false positives since it doesn't actually do real option
   # parsing.  Oh well.
