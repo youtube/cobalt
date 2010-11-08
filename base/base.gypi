@@ -149,7 +149,6 @@
           'metrics/stats_table.h',
           'mime_util.h',
           'mime_util_xdg.cc',
-          'move.h',
           'native_library.h',
           'native_library_linux.cc',
           'native_library_mac.mm',
