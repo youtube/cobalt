@@ -434,6 +434,12 @@
       # See http://msdn.microsoft.com/en-us/library/47238hez(VS.71).aspx
       'win_debug_InlineFunctionExpansion%': '',    # empty = default, 0 = off,
       'win_release_InlineFunctionExpansion%': '2', # 1 = only __inline, 2 = max
+      # VS inserts quite a lot of extra checks to algorithms like
+      # std::partial_sort in Debug build which make them O(N^2)
+      # instead of O(N*logN). This is particularly slow under memory
+      # tools like ThreadSanitizer so we want it to be disablable.
+      # See http://msdn.microsoft.com/en-us/library/aa985982(v=VS.80).aspx
+      'win_debug_disable_iterator_debugging%': '0',
 
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
@@ -721,6 +727,9 @@
               ['win_debug_InlineFunctionExpansion!=""', {
                 'InlineFunctionExpansion':
                   '<(win_debug_InlineFunctionExpansion)',
+              }],
+              ['win_debug_disable_iterator_debugging==1', {
+                'PreprocessorDefinitions': ['_HAS_ITERATOR_DEBUGGING=0'],
               }],
             ],
           },
