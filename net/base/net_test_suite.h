@@ -9,7 +9,9 @@
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
 #include "base/test/test_suite.h"
+#include "build/build_config.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/ocsp/nss_ocsp.h"
 
 class NetTestSuite : public base::TestSuite {
  public:
@@ -39,6 +41,10 @@ class NetTestSuite : public base::TestSuite {
   }
 
   virtual void Shutdown() {
+#if defined(OS_LINUX)
+    net::ShutdownOCSP();
+#endif  // defined(OS_LINUX)
+
     // We want to destroy this here before the TestSuite continues to tear down
     // the environment.
     message_loop_.reset();
