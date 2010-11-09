@@ -6,9 +6,7 @@
 """This is a simple HTTP server used for testing Chrome.
 
 It supports several test URLs, as specified by the handlers in TestPageHandler.
-By default, it listens on an ephemeral port and sends the port number back to
-the originating process over a pipe. The originating process can specify an
-explicit port if necessary.
+It defaults to living on localhost:8888.
 It can use https if you specify the flag --https=CERT where CERT is the path
 to a pem file containing the certificate and private key that should be used.
 """
@@ -22,7 +20,6 @@ import re
 import shutil
 import SocketServer
 import sys
-import struct
 import time
 import urlparse
 import warnings
@@ -503,7 +500,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       'pre { border: 1px solid black; margin: 5px; padding: 5px }'
       '</style></head><body>'
       '<div style="float: right">'
-      '<a href="/echo">back to referring page</a></div>'
+      '<a href="http://localhost:8888/echo">back to referring page</a></div>'
       '<h1>Request Body:</h1><pre>')
 
     if self.command == 'POST' or self.command == 'PUT':
@@ -1194,15 +1191,15 @@ def main(options, args):
       server = HTTPSServer(('127.0.0.1', port), TestPageHandler, options.cert,
                            options.ssl_client_auth, options.ssl_client_ca,
                            options.ssl_bulk_cipher)
-      print 'HTTPS server started on port %d...' % server.server_port
+      print 'HTTPS server started on port %d...' % port
     else:
       server = StoppableHTTPServer(('127.0.0.1', port), TestPageHandler)
-      print 'HTTP server started on port %d...' % server.server_port
+      print 'HTTP server started on port %d...' % port
 
     server.data_dir = MakeDataDir()
     server.file_root_url = options.file_root_url
     server._sync_handler = None
-    listen_port = server.server_port
+
   # means FTP Server
   else:
     my_data_dir = MakeDataDir()
@@ -1227,8 +1224,7 @@ def main(options, args):
     # Instantiate FTP server class and listen to 127.0.0.1:port
     address = ('127.0.0.1', port)
     server = pyftpdlib.ftpserver.FTPServer(address, ftp_handler)
-    listen_port = server.socket.getsockname()[1]
-    print 'FTP server started on port %d...' % listen_port
+    print 'FTP server started on port %d...' % port
 
   # Notify the parent that we've started. (BaseServer subclasses
   # bind their sockets on construction.)
@@ -1238,10 +1234,7 @@ def main(options, args):
     else:
       fd = options.startup_pipe
     startup_pipe = os.fdopen(fd, "w")
-    # Write the listening port as a 2 byte value. This is _not_ using
-    # network byte ordering since the other end of the pipe is on the same
-    # machine.
-    startup_pipe.write(struct.pack('@H', listen_port))
+    startup_pipe.write("READY")
     startup_pipe.close()
 
   try:
@@ -1256,9 +1249,8 @@ if __name__ == '__main__':
                            const=SERVER_FTP, default=SERVER_HTTP,
                            dest='server_type',
                            help='FTP or HTTP server: default is HTTP.')
-  option_parser.add_option('', '--port', default='0', type='int',
-                           help='Port used by the server. If unspecified, the '
-                           'server will listen on an ephemeral port.')
+  option_parser.add_option('', '--port', default='8888', type='int',
+                           help='Port used by the server.')
   option_parser.add_option('', '--data-dir', dest='data_dir',
                            help='Directory from which to read the files.')
   option_parser.add_option('', '--https', dest='cert',
