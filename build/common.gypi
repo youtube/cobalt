@@ -314,6 +314,9 @@
     # whether to compile in the sources for the GPU plugin / process.
     'enable_gpu%': 1,
 
+    # Use GConf, the GNOME configuration system.
+    'use_gconf%': 1,
+
     # Use OpenSSL instead of NSS. Currently in development.
     'use_openssl%': 0,
 

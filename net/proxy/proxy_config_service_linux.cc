@@ -6,7 +6,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#if defined(USE_GCONF)
 #include <gconf/gconf-client.h>
+#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -185,6 +187,7 @@ namespace {
 
 const int kDebounceTimeoutMilliseconds = 250;
 
+#if defined(USE_GCONF)
 // This is the "real" gconf version that actually uses gconf.
 class GConfSettingGetterImplGConf
     : public ProxyConfigServiceLinux::GConfSettingGetter {
@@ -419,6 +422,7 @@ class GConfSettingGetterImplGConf
 
   DISALLOW_COPY_AND_ASSIGN(GConfSettingGetterImplGConf);
 };
+#endif  // defined(USE_GCONF)
 
 // This is the KDE version that reads kioslaverc and simulates gconf.
 // Doing this allows the main Delegate code, as well as the unit tests
@@ -1064,7 +1068,9 @@ ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter)
   // Figure out which GConfSettingGetterImpl to use, if any.
   switch (base::nix::GetDesktopEnvironment(env_var_getter)) {
     case base::nix::DESKTOP_ENVIRONMENT_GNOME:
+#if defined(USE_GCONF)
       gconf_getter_.reset(new GConfSettingGetterImplGConf());
+#endif
       break;
     case base::nix::DESKTOP_ENVIRONMENT_KDE3:
     case base::nix::DESKTOP_ENVIRONMENT_KDE4:
