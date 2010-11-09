@@ -16,8 +16,10 @@ extern const char kPythonPathEnv[];
 // Appends the dir to python path environment variable.
 void AppendToPythonPath(const FilePath& dir);
 
+// Return the location of the compiler-generated python protobuf.
+bool GetPyProtoPath(FilePath* dir);
+
 // Returns the path that should be used to launch Python.
 bool GetPythonRunTime(FilePath* path) WARN_UNUSED_RESULT;
 
 #endif  // NET_TEST_PYTHON_UTILS_H_
-
