@@ -188,10 +188,13 @@
       'target_name': 'gconf',
       'type': 'settings',
       'conditions': [
-        ['_toolset=="target"', {
+        ['use_gconf==1 and _toolset=="target"', {
           'direct_dependent_settings': {
             'cflags': [
               '<!@(<(pkg-config) --cflags gconf-2.0)',
+            ],
+            'defines': [
+              'USE_GCONF',
             ],
           },
           'link_settings': {
