@@ -113,7 +113,7 @@ class TestServer {
   bool Stop();
 
   const FilePath& document_root() const { return document_root_; }
-  const HostPortPair& host_port_pair() const;
+  const HostPortPair& host_port_pair() const { return host_port_pair_; }
   std::string GetScheme() const;
   bool GetAddressList(AddressList* address_list) const WARN_UNUSED_RESULT;
 
@@ -188,9 +188,6 @@ class TestServer {
 #endif
 
   Type type_;
-
-  // Has the server been started?
-  bool started_;
 
   DISALLOW_COPY_AND_ASSIGN(TestServer);
 };
