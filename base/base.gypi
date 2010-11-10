@@ -280,6 +280,8 @@
           'utf_string_conversions.h',
           'values.cc',
           'values.h',
+          'version.cc',
+          'version.h',
           'vlog.cc',
           'vlog.h',
           'waitable_event.h',
@@ -488,8 +490,6 @@
           'sync_socket_posix.cc',
           'time_mac.cc',
           'time_posix.cc',
-          'version.cc',
-          'version.h',
         ],
         'conditions': [
           [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
