@@ -31,7 +31,7 @@ SSLConfig::~SSLConfig() {
 
 bool SSLConfig::IsAllowedBadCert(X509Certificate* cert) const {
   for (size_t i = 0; i < allowed_bad_certs.size(); ++i) {
-    if (cert == allowed_bad_certs[i].cert)
+    if (cert->Equals(allowed_bad_certs[i].cert))
       return true;
   }
   return false;
