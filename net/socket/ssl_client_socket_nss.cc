@@ -883,19 +883,11 @@ int SSLClientSocketNSS::InitializeSSLPeerName() {
   return OK;
 }
 
-void SSLClientSocketNSS::InvalidateSessionIfBadCertificate() {
-  if (UpdateServerCert() != NULL &&
-      ssl_config_.IsAllowedBadCert(server_cert_)) {
-    SSL_InvalidateSession(nss_fd_);
-  }
-}
-
 void SSLClientSocketNSS::Disconnect() {
   EnterFunction("");
 
   // TODO(wtc): Send SSL close_notify alert.
   if (nss_fd_ != NULL) {
-    InvalidateSessionIfBadCertificate();
     PR_Close(nss_fd_);
     nss_fd_ = NULL;
   }
@@ -1088,6 +1080,11 @@ bool SSLClientSocketNSS::SetReceiveBufferSize(int32 size) {
 
 bool SSLClientSocketNSS::SetSendBufferSize(int32 size) {
   return transport_->socket()->SetSendBufferSize(size);
+}
+
+// static
+void SSLClientSocketNSS::ClearSessionCache() {
+  SSL_ClearSessionCache();
 }
 
 // Sets server_cert_ and server_cert_nss_ if not yet set.
@@ -2456,9 +2453,6 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
     LogConnectionTypeMetrics();
 
   completed_handshake_ = true;
-  // TODO(ukai): we may not need this call because it is now harmless to have a
-  // session with a bad cert.
-  InvalidateSessionIfBadCertificate();
 
   // If we merged a Write call into the handshake we need to make the
   // callback now.

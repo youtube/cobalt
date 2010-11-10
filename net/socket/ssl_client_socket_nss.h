@@ -72,6 +72,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
+  // For tests
+  static void ClearSessionCache();
+
  private:
   // Initializes NSS SSL options.  Returns a net error code.
   int InitializeSSLOptions();
@@ -79,7 +82,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Initializes the socket peer name in SSL.  Returns a net error code.
   int InitializeSSLPeerName();
 
-  void InvalidateSessionIfBadCertificate();
 #if defined(OS_MACOSX) || defined(OS_WIN)
   // Creates an OS certificate from a DER-encoded certificate.
   static X509Certificate::OSCertHandle CreateOSCert(const SECItem& der_cert);
