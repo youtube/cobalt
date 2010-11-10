@@ -1381,36 +1381,6 @@
     #     },
     #   ]
     # }],
-    ['OS=="linux"', {
-      'targets': [
-        {
-          'target_name': 'snap_start_unittests',
-          'type': 'executable',
-          'dependencies': [
-            'net',
-            'net_test_support',
-            'openssl_helper',
-            '../build/linux/system.gyp:nss',
-            '../testing/gmock.gyp:gmock',
-            '../testing/gtest.gyp:gtest',
-          ],
-          'sources': [
-            'base/run_all_unittests.cc',
-            'socket/ssl_client_socket_snapstart_unittest.cc',
-          ]
-        },
-        {
-          'target_name': 'openssl_helper',
-          'type': 'executable',
-          'dependencies': [
-            '../third_party/openssl/openssl.gyp:openssl',
-          ],
-          'sources': [
-            'test/openssl_helper.cc',
-          ],
-        },
-      ],
-    }],
     ['OS=="win"', {
       'targets': [
         {
