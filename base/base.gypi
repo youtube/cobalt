@@ -198,6 +198,8 @@
           'scoped_callback_factory.h',
           'mac/scoped_cftyperef.h',
           'scoped_handle.h',
+          'scoped_native_library.cc',
+          'scoped_native_library.h',
           'scoped_nsobject.h',
           'scoped_open_process.h',
           'scoped_ptr.h',
