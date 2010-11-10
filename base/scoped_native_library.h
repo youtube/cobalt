@@ -17,23 +17,33 @@ namespace base {
 // This class automatically unloads the loaded library in its destructor.
 class ScopedNativeLibrary {
  public:
-  explicit ScopedNativeLibrary(const FilePath& library_path) {
-    library_ = base::LoadNativeLibrary(library_path);
-  }
+  // Initializes with a NULL library.
+  ScopedNativeLibrary();
 
-  ~ScopedNativeLibrary() {
-    if (library_)
-      base::UnloadNativeLibrary(library_);
-  }
+  // Takes ownership of the given library handle.
+  explicit ScopedNativeLibrary(NativeLibrary library);
 
-  void* GetFunctionPointer(const char* function_name) {
-    if (!library_)
-      return NULL;
-    return base::GetFunctionPointerFromNativeLibrary(library_, function_name);
-  }
+  // Opens the given library and manages its lifetime.
+  explicit ScopedNativeLibrary(const FilePath& library_path);
+
+  ~ScopedNativeLibrary();
+
+  // Returns true if there's a valid library loaded.
+  bool is_valid() const { return !!library_; }
+
+  void* GetFunctionPointer(const char* function_name) const;
+
+  // Takes ownership of the given library handle. Any existing handle will
+  // be freed.
+  void Reset(NativeLibrary library);
+
+  // Returns the native library handle and removes it from this object. The
+  // caller must manage the lifetime of the handle.
+  NativeLibrary Release();
 
  private:
-  base::NativeLibrary library_;
+  NativeLibrary library_;
+
   DISALLOW_COPY_AND_ASSIGN(ScopedNativeLibrary);
 };
 
