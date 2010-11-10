@@ -21,7 +21,7 @@ GTEST_API_ AssertionResult CmpHelperNSEQ(const char* expected_expression,
                                          const char* actual_expression,
                                          id<NSObject> expected,
                                          id<NSObject> actual) {
-  if ([expected isEqual:actual]) {
+  if (expected == actual || [expected isEqual:actual]) {
     return AssertionSuccess();
   }
   return EqFailure(expected_expression,
@@ -37,7 +37,7 @@ GTEST_API_ AssertionResult CmpHelperNSNE(const char* expected_expression,
                                          const char* actual_expression,
                                          id<NSObject> expected,
                                          id<NSObject> actual) {
-  if (![expected isEqual:actual]) {
+  if (expected != actual && ![expected isEqual:actual]) {
     return AssertionSuccess();
   }
   Message msg;
