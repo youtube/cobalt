@@ -182,6 +182,9 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // now.
   bool HasExpired() const;
 
+  // Returns true if this object and |other| represent the same certificate.
+  bool Equals(const X509Certificate* other) const;
+
   // Returns intermediate certificates added via AddIntermediateCertificate().
   // Ownership follows the "get" rule: it is the caller's responsibility to
   // retain the elements of the result.

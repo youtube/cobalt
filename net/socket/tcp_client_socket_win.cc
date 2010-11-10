@@ -306,6 +306,15 @@ TCPClientSocketWin::~TCPClientSocketWin() {
   net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
 }
 
+void TCPClientSocketWin::AdoptSocket(SOCKET socket) {
+  DCHECK_EQ(socket_, INVALID_SOCKET);
+  socket_ = socket;
+  int error = SetupSocket();
+  DCHECK_EQ(0, error);
+  current_ai_ = addresses_.head();
+  use_history_.set_was_ever_connected();
+}
+
 int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
 
@@ -674,7 +683,10 @@ int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
     LOG(ERROR) << "WSASocket failed: " << os_error;
     return os_error;
   }
+  return SetupSocket();
+}
 
+int TCPClientSocketWin::SetupSocket() {
   // Increase the socket buffer sizes from the default sizes for WinXP.  In
   // performance testing, there is substantial benefit by increasing from 8KB
   // to 64KB.
