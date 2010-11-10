@@ -322,6 +322,10 @@ bool X509Certificate::HasExpired() const {
   return base::Time::Now() > valid_expiry();
 }
 
+bool X509Certificate::Equals(const X509Certificate* other) const {
+  return IsSameOSCert(cert_handle_, other->cert_handle_);
+}
+
 bool X509Certificate::HasIntermediateCertificate(OSCertHandle cert) {
 #if defined(OS_MACOSX) || defined(OS_WIN) || defined(USE_OPENSSL)
   for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {

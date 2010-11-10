@@ -33,6 +33,12 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
 
   virtual ~TCPClientSocketLibevent();
 
+  // AdoptSocket causes the given, connected socket to be adopted as a TCP
+  // socket. This object must not be connected. This object takes ownership of
+  // the given socket and then acts as if Connect() had been called. This
+  // function is intended for testing only.
+  void AdoptSocket(int socket);
+
   // ClientSocket methods:
   virtual int Connect(CompletionCallback* callback);
   virtual void Disconnect();
@@ -124,6 +130,9 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
 
   // Returns the OS error code (or 0 on success).
   int CreateSocket(const struct addrinfo* ai);
+
+  // Returns the OS error code (or 0 on success).
+  int SetupSocket();
 
   // Helper to add a TCP_CONNECT (end) event to the NetLog.
   void LogConnectCompletion(int net_error);
