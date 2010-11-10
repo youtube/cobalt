@@ -45,3 +45,13 @@ TEST(GTestMac, AssertNSNE) {
 
   ASSERT_NSNE(@"a", @"b");
 }
+
+TEST(GTestMac, ExpectNSNil) {
+  base::mac::ScopedNSAutoreleasePool pool;
+
+  EXPECT_NSEQ(nil, nil);
+  EXPECT_NSNE(nil, @"a");
+  EXPECT_NSNE(@"a", nil);
+
+  // TODO(shess): Test that EXPECT_NSNE(nil, nil) fails.
+}
