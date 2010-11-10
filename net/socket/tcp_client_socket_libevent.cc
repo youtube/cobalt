@@ -140,6 +140,18 @@ TCPClientSocketLibevent::~TCPClientSocketLibevent() {
   net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
 }
 
+void TCPClientSocketLibevent::AdoptSocket(int socket) {
+  DCHECK_EQ(socket_, kInvalidSocket);
+  socket_ = socket;
+  int error = SetupSocket();
+  DCHECK_EQ(0, error);
+  // This is to make GetPeerAddress work. It's up to the test that is calling
+  // this function to ensure that address_ contains a reasonable address for
+  // this socket. (i.e. at least match IPv4 vs IPv6!).
+  current_ai_ = addresses_.head();
+  use_history_.set_was_ever_connected();
+}
+
 int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
 
@@ -467,7 +479,10 @@ int TCPClientSocketLibevent::CreateSocket(const addrinfo* ai) {
   socket_ = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
   if (socket_ == kInvalidSocket)
     return errno;
+  return SetupSocket();
+}
 
+int TCPClientSocketLibevent::SetupSocket() {
   if (SetNonBlocking(socket_)) {
     const int err = errno;
     close(socket_);
