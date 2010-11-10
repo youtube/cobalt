@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,28 +10,23 @@
 #include "net/http/http_response_headers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace std;
-using base::Time;
-using net::HttpResponseHeaders;
-using net::HttpVersion;
-
 namespace {
 
 struct TestData {
   const char* raw_headers;
   const char* expected_headers;
   int expected_response_code;
-  HttpVersion expected_parsed_version;
-  HttpVersion expected_version;
+  net::HttpVersion expected_parsed_version;
+  net::HttpVersion expected_version;
 };
 
 struct ContentTypeTestData {
-  const string raw_headers;
-  const string mime_type;
+  const std::string raw_headers;
+  const std::string mime_type;
   const bool has_mimetype;
-  const string charset;
+  const std::string charset;
   const bool has_charset;
-  const string all_content_type;
+  const std::string all_content_type;
 };
 
 class HttpResponseHeadersTest : public testing::Test {
@@ -46,13 +41,13 @@ void HeadersToRaw(std::string* headers) {
 }
 
 void TestCommon(const TestData& test) {
-  string raw_headers(test.raw_headers);
+  std::string raw_headers(test.raw_headers);
   HeadersToRaw(&raw_headers);
-  string expected_headers(test.expected_headers);
+  std::string expected_headers(test.expected_headers);
 
-  string headers;
-  scoped_refptr<HttpResponseHeaders> parsed(
-      new HttpResponseHeaders(raw_headers));
+  std::string headers;
+  scoped_refptr<net::HttpResponseHeaders> parsed(
+      new net::HttpResponseHeaders(raw_headers));
   parsed->GetNormalizedHeaders(&headers);
 
   // Transform to readable output format (so it's easier to see diffs).
@@ -84,8 +79,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersWhitespace) {
     "Set-Cookie: a, b\n",
 
     202,
-    HttpVersion(1,1),
-    HttpVersion(1,1)
+    net::HttpVersion(1,1),
+    net::HttpVersion(1,1)
   };
   TestCommon(test);
 }
@@ -104,8 +99,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersLeadingWhitespace) {
     "Set-Cookie: a, b\n",
 
     202,
-    HttpVersion(1,1),
-    HttpVersion(1,1)
+    net::HttpVersion(1,1),
+    net::HttpVersion(1,1)
   };
   TestCommon(test);
 }
@@ -126,8 +121,8 @@ TEST(HttpResponseHeadersTest, BlankHeaders) {
     "Header5: \n",
 
     200,
-    HttpVersion(1,1),
-    HttpVersion(1,1)
+    net::HttpVersion(1,1),
+    net::HttpVersion(1,1)
   };
   TestCommon(test);
 }
@@ -142,8 +137,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersVersion) {
     "Content-TYPE: text/html; charset=utf-8\n",
 
     201,
-    HttpVersion(0,9),
-    HttpVersion(1,0)
+    net::HttpVersion(0,9),
+    net::HttpVersion(1,0)
   };
   TestCommon(test);
 }
@@ -157,8 +152,8 @@ TEST(HttpResponseHeadersTest, PreserveHttp09) {
     "HTTP/0.9 200 OK\n",
 
     200,
-    HttpVersion(0,9),
-    HttpVersion(0,9)
+    net::HttpVersion(0,9),
+    net::HttpVersion(0,9)
   };
   TestCommon(test);
 }
@@ -172,8 +167,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersMissingOK) {
     "Content-TYPE: text/html; charset=utf-8\n",
 
     201,
-    HttpVersion(1,1),
-    HttpVersion(1,1)
+    net::HttpVersion(1,1),
+    net::HttpVersion(1,1)
   };
   TestCommon(test);
 }
@@ -187,8 +182,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersBadStatus) {
     "Content-TYPE: text/html; charset=utf-8\n",
 
     200,
-    HttpVersion(0,0), // Parse error
-    HttpVersion(1,0)
+    net::HttpVersion(0,0), // Parse error
+    net::HttpVersion(1,0)
   };
   TestCommon(test);
 }
@@ -200,8 +195,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersEmpty) {
     "HTTP/1.0 200 OK\n",
 
     200,
-    HttpVersion(0,0), // Parse Error
-    HttpVersion(1,0)
+    net::HttpVersion(0,0), // Parse Error
+    net::HttpVersion(1,0)
   };
   TestCommon(test);
 }
@@ -219,8 +214,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersStartWithColon) {
     "baz: blat\n",
 
     202,
-    HttpVersion(1,1),
-    HttpVersion(1,1)
+    net::HttpVersion(1,1),
+    net::HttpVersion(1,1)
   };
   TestCommon(test);
 }
@@ -240,8 +235,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersStartWithColonAtEOL) {
     "zip: \n",
 
     202,
-    HttpVersion(1,1),
-    HttpVersion(1,1)
+    net::HttpVersion(1,1),
+    net::HttpVersion(1,1)
   };
   TestCommon(test);
 }
@@ -253,8 +248,8 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersOfWhitepace) {
     "HTTP/1.0 200 OK\n",
 
     200,
-    HttpVersion(0,0),  // Parse error
-    HttpVersion(1,0)
+    net::HttpVersion(0,0),  // Parse error
+    net::HttpVersion(1,0)
   };
   TestCommon(test);
 }
@@ -269,8 +264,8 @@ TEST(HttpResponseHeadersTest, RepeatedSetCookie) {
     "Set-Cookie: x=1, y=2\n",
 
     200,
-    HttpVersion(1,1),
-    HttpVersion(1,1)
+    net::HttpVersion(1,1),
+    net::HttpVersion(1,1)
   };
   TestCommon(test);
 }
@@ -281,7 +276,8 @@ TEST(HttpResponseHeadersTest, GetNormalizedHeader) {
       "Cache-control: private\n"
       "cache-Control: no-store\n";
   HeadersToRaw(&headers);
-  scoped_refptr<HttpResponseHeaders> parsed(new HttpResponseHeaders(headers));
+  scoped_refptr<net::HttpResponseHeaders> parsed(
+      new net::HttpResponseHeaders(headers));
 
   std::string value;
   EXPECT_TRUE(parsed->GetNormalizedHeader("cache-control", &value));
@@ -448,19 +444,19 @@ TEST(HttpResponseHeadersTest, Persist) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::string headers = tests[i].raw_headers;
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed1(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed1(
+        new net::HttpResponseHeaders(headers));
 
     Pickle pickle;
     parsed1->Persist(&pickle, tests[i].options);
 
     void* iter = NULL;
-    scoped_refptr<HttpResponseHeaders> parsed2(
-        new HttpResponseHeaders(pickle, &iter));
+    scoped_refptr<net::HttpResponseHeaders> parsed2(
+        new net::HttpResponseHeaders(pickle, &iter));
 
     std::string h2;
     parsed2->GetNormalizedHeaders(&h2);
-    EXPECT_EQ(string(tests[i].expected_headers), h2);
+    EXPECT_EQ(std::string(tests[i].expected_headers), h2);
   }
 }
 
@@ -472,7 +468,8 @@ TEST(HttpResponseHeadersTest, EnumerateHeader_Coalesced) {
       "Cache-control:private , no-cache=\"set-cookie,server\" \n"
       "cache-Control: no-store\n";
   HeadersToRaw(&headers);
-  scoped_refptr<HttpResponseHeaders> parsed(new HttpResponseHeaders(headers));
+  scoped_refptr<net::HttpResponseHeaders> parsed(
+      new net::HttpResponseHeaders(headers));
 
   void* iter = NULL;
   std::string value;
@@ -493,7 +490,8 @@ TEST(HttpResponseHeadersTest, EnumerateHeader_Challenge) {
       "WWW-Authenticate:Digest realm=foobar, nonce=x, domain=y\n"
       "WWW-Authenticate:Basic realm=quatar\n";
   HeadersToRaw(&headers);
-  scoped_refptr<HttpResponseHeaders> parsed(new HttpResponseHeaders(headers));
+  scoped_refptr<net::HttpResponseHeaders> parsed(
+      new net::HttpResponseHeaders(headers));
 
   void* iter = NULL;
   std::string value;
@@ -512,7 +510,8 @@ TEST(HttpResponseHeadersTest, EnumerateHeader_DateValued) {
       "Date: Tue, 07 Aug 2007 23:10:55 GMT\n"
       "Last-Modified: Wed, 01 Aug 2007 23:23:45 GMT\n";
   HeadersToRaw(&headers);
-  scoped_refptr<HttpResponseHeaders> parsed(new HttpResponseHeaders(headers));
+  scoped_refptr<net::HttpResponseHeaders> parsed(
+      new net::HttpResponseHeaders(headers));
 
   std::string value;
   EXPECT_TRUE(parsed->EnumerateHeader(NULL, "date", &value));
@@ -654,10 +653,10 @@ TEST(HttpResponseHeadersTest, GetMimeType) {
   };
 
   for (size_t i = 0; i < arraysize(tests); ++i) {
-    string headers(tests[i].raw_headers);
+    std::string headers(tests[i].raw_headers);
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
 
     std::string value;
     EXPECT_EQ(tests[i].has_mimetype, parsed->GetMimeType(&value));
@@ -799,16 +798,16 @@ TEST(HttpResponseHeadersTest, RequiresValidation) {
     },
     // TODO(darin): add many many more tests here
   };
-  Time request_time, response_time, current_time;
-  Time::FromString(L"Wed, 28 Nov 2007 00:40:09 GMT", &request_time);
-  Time::FromString(L"Wed, 28 Nov 2007 00:40:12 GMT", &response_time);
-  Time::FromString(L"Wed, 28 Nov 2007 00:45:20 GMT", &current_time);
+  base::Time request_time, response_time, current_time;
+  base::Time::FromString(L"Wed, 28 Nov 2007 00:40:09 GMT", &request_time);
+  base::Time::FromString(L"Wed, 28 Nov 2007 00:40:12 GMT", &response_time);
+  base::Time::FromString(L"Wed, 28 Nov 2007 00:45:20 GMT", &current_time);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string headers(tests[i].headers);
+    std::string headers(tests[i].headers);
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
 
     bool requires_validation =
         parsed->RequiresValidation(request_time, response_time, current_time);
@@ -869,21 +868,21 @@ TEST(HttpResponseHeadersTest, Update) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string orig_headers(tests[i].orig_headers);
+    std::string orig_headers(tests[i].orig_headers);
     HeadersToRaw(&orig_headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(orig_headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(orig_headers));
 
-    string new_headers(tests[i].new_headers);
+    std::string new_headers(tests[i].new_headers);
     HeadersToRaw(&new_headers);
-    scoped_refptr<HttpResponseHeaders> new_parsed(
-        new HttpResponseHeaders(new_headers));
+    scoped_refptr<net::HttpResponseHeaders> new_parsed(
+        new net::HttpResponseHeaders(new_headers));
 
     parsed->Update(*new_parsed);
 
-    string resulting_headers;
+    std::string resulting_headers;
     parsed->GetNormalizedHeaders(&resulting_headers);
-    EXPECT_EQ(string(tests[i].expected_headers), resulting_headers);
+    EXPECT_EQ(std::string(tests[i].expected_headers), resulting_headers);
   }
 }
 
@@ -915,12 +914,12 @@ TEST(HttpResponseHeadersTest, EnumerateHeaderLines) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string headers(tests[i].headers);
+    std::string headers(tests[i].headers);
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
 
-    string name, value, lines;
+    std::string name, value, lines;
 
     void* iter = NULL;
     while (parsed->EnumerateHeaderLines(&iter, &name, &value)) {
@@ -930,7 +929,7 @@ TEST(HttpResponseHeadersTest, EnumerateHeaderLines) {
       lines.append("\n");
     }
 
-    EXPECT_EQ(string(tests[i].expected_lines), lines);
+    EXPECT_EQ(std::string(tests[i].expected_lines), lines);
   }
 }
 
@@ -999,10 +998,10 @@ TEST(HttpResponseHeadersTest, IsRedirect) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string headers(tests[i].headers);
+    std::string headers(tests[i].headers);
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
 
     std::string location;
     EXPECT_EQ(parsed->IsRedirect(&location), tests[i].is_redirect);
@@ -1085,10 +1084,10 @@ TEST(HttpResponseHeadersTest, GetContentLength) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string headers(tests[i].headers);
+    std::string headers(tests[i].headers);
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
 
     EXPECT_EQ(tests[i].expected_len, parsed->GetContentLength());
   }
@@ -1336,10 +1335,10 @@ TEST(HttpResponseHeaders, GetContentRange) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string headers(tests[i].headers);
+    std::string headers(tests[i].headers);
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
 
     int64 first_byte_position;
     int64 last_byte_position;
@@ -1418,10 +1417,10 @@ TEST(HttpResponseHeadersTest, IsKeepAlive) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string headers(tests[i].headers);
+    std::string headers(tests[i].headers);
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
 
     EXPECT_EQ(tests[i].expected_keep_alive, parsed->IsKeepAlive());
   }
@@ -1471,10 +1470,10 @@ TEST(HttpResponseHeadersTest, HasStrongValidators) {
     }
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string headers(tests[i].headers);
+    std::string headers(tests[i].headers);
     HeadersToRaw(&headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
 
     EXPECT_EQ(tests[i].expected_result, parsed->HasStrongValidators()) <<
         "Failed test case " << i;
@@ -1484,14 +1483,16 @@ TEST(HttpResponseHeadersTest, HasStrongValidators) {
 TEST(HttpResponseHeadersTest, GetStatusText) {
   std::string headers("HTTP/1.1 404 Not Found");
   HeadersToRaw(&headers);
-  scoped_refptr<HttpResponseHeaders> parsed(new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
   EXPECT_EQ(std::string("Not Found"), parsed->GetStatusText());
 }
 
 TEST(HttpResponseHeadersTest, GetStatusTextMissing) {
   std::string headers("HTTP/1.1 404");
   HeadersToRaw(&headers);
-  scoped_refptr<HttpResponseHeaders> parsed(new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
   // Since the status line gets normalized, we have OK
   EXPECT_EQ(std::string("OK"), parsed->GetStatusText());
 }
@@ -1499,14 +1500,16 @@ TEST(HttpResponseHeadersTest, GetStatusTextMissing) {
 TEST(HttpResponseHeadersTest, GetStatusTextMultiSpace) {
   std::string headers("HTTP/1.0     404     Not   Found");
   HeadersToRaw(&headers);
-  scoped_refptr<HttpResponseHeaders> parsed(new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
   EXPECT_EQ(std::string("Not   Found"), parsed->GetStatusText());
 }
 
 TEST(HttpResponseHeadersTest, GetStatusBadStatusLine) {
   std::string headers("Foo bar.");
   HeadersToRaw(&headers);
-  scoped_refptr<HttpResponseHeaders> parsed(new HttpResponseHeaders(headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(headers));
   // The bad status line would have gotten rewritten as
   // HTTP/1.0 200 OK.
   EXPECT_EQ(std::string("OK"), parsed->GetStatusText());
@@ -1543,17 +1546,17 @@ TEST(HttpResponseHeadersTest, AddHeader) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string orig_headers(tests[i].orig_headers);
+    std::string orig_headers(tests[i].orig_headers);
     HeadersToRaw(&orig_headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(orig_headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(orig_headers));
 
-    string new_header(tests[i].new_header);
+    std::string new_header(tests[i].new_header);
     parsed->AddHeader(new_header);
 
-    string resulting_headers;
+    std::string resulting_headers;
     parsed->GetNormalizedHeaders(&resulting_headers);
-    EXPECT_EQ(string(tests[i].expected_headers), resulting_headers);
+    EXPECT_EQ(std::string(tests[i].expected_headers), resulting_headers);
   }
 }
 
@@ -1588,17 +1591,17 @@ TEST(HttpResponseHeadersTest, RemoveHeader) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string orig_headers(tests[i].orig_headers);
+    std::string orig_headers(tests[i].orig_headers);
     HeadersToRaw(&orig_headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(orig_headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(orig_headers));
 
-    string name(tests[i].to_remove);
+    std::string name(tests[i].to_remove);
     parsed->RemoveHeader(name);
 
-    string resulting_headers;
+    std::string resulting_headers;
     parsed->GetNormalizedHeaders(&resulting_headers);
-    EXPECT_EQ(string(tests[i].expected_headers), resulting_headers);
+    EXPECT_EQ(std::string(tests[i].expected_headers), resulting_headers);
   }
 }
 
@@ -1643,16 +1646,16 @@ TEST(HttpResponseHeadersTest, ReplaceStatus) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    string orig_headers(tests[i].orig_headers);
+    std::string orig_headers(tests[i].orig_headers);
     HeadersToRaw(&orig_headers);
-    scoped_refptr<HttpResponseHeaders> parsed(
-        new HttpResponseHeaders(orig_headers));
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(orig_headers));
 
-    string name(tests[i].new_status);
+    std::string name(tests[i].new_status);
     parsed->ReplaceStatusLine(name);
 
-    string resulting_headers;
+    std::string resulting_headers;
     parsed->GetNormalizedHeaders(&resulting_headers);
-    EXPECT_EQ(string(tests[i].expected_headers), resulting_headers);
+    EXPECT_EQ(std::string(tests[i].expected_headers), resulting_headers);
   }
 }
