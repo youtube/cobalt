@@ -22,6 +22,7 @@ SSLConfig::CertAndStatus::~CertAndStatus() {}
 SSLConfig::SSLConfig()
     : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
       tls1_enabled(true), dnssec_enabled(false), snap_start_enabled(false),
+      dns_cert_provenance_checking_enabled(false),
       mitm_proxies_allowed(false), false_start_enabled(true),
       send_client_cert(false), verify_ev_cert(false), ssl3_fallback(false) {
 }
