@@ -17,6 +17,7 @@
 .gdbinit
 .metadata
 .project
+v8.log
 tags
 /Makefile
 /_out
@@ -80,6 +81,7 @@ tags
 /third_party/lss
 /third_party/mingw-w64
 /third_party/nss
+/third_party/openssl
 /third_party/ots
 /third_party/pdfsqueeze
 /third_party/pefile
