@@ -117,6 +117,10 @@ void CheckSSLInfo(const net::SSLInfo& ssl_info) {
 
 // Inherit PlatformTest since we require the autorelease pool on Mac OS X.f
 class URLRequestTest : public PlatformTest {
+ public:
+  static void SetUpTestCase() {
+    URLRequest::AllowFileAccess();
+  }
 };
 
 class URLRequestTestHTTP : public URLRequestTest {
