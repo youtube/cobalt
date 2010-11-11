@@ -27,7 +27,7 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   virtual ~PCMQueueOutAudioOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open(uint32 packet_size);
+  virtual bool Open();
   virtual void Close();
   virtual void Start(AudioSourceCallback* callback);
   virtual void Stop();
@@ -54,6 +54,8 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   AudioSourceCallback* source_;
   // Our creator, the audio manager needs to be notified when we close.
   AudioManagerMac* manager_;
+  // Packet size in bytes.
+  uint32 packet_size_;
   // Number of bytes for making a silence buffer.
   int silence_bytes_;
   // Volume level from 0 to 1.

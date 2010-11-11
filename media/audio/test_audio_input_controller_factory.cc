@@ -25,8 +25,7 @@ TestAudioInputControllerFactory::TestAudioInputControllerFactory()
 
 AudioInputController* TestAudioInputControllerFactory::Create(
     AudioInputController::EventHandler* event_handler,
-    AudioParameters params,
-    int samples_per_packet) {
+    AudioParameters params) {
   DCHECK(!controller_);  // Only one test instance managed at a time.
   controller_ = new TestAudioInputController(this, event_handler);
   return controller_;

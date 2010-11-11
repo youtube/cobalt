@@ -29,7 +29,6 @@ class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
   virtual uint32 OnMoreData(
       AudioOutputStream* stream, uint8* dest, uint32 max_size,
       AudioBuffersState audio_buffers);
-  virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
  protected:
@@ -73,7 +72,6 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
   // Implementation of AudioSourceCallback.
   virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
                             uint32 max_size, AudioBuffersState buffers_state);
-  virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
   // Discard all buffered data and reset to initial state.

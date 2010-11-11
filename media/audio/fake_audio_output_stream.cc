@@ -11,12 +11,13 @@ bool FakeAudioOutputStream::has_created_fake_stream_ = false;
 FakeAudioOutputStream* FakeAudioOutputStream::last_fake_stream_ = NULL;
 
 // static
-AudioOutputStream* FakeAudioOutputStream::MakeFakeStream() {
+AudioOutputStream* FakeAudioOutputStream::MakeFakeStream(
+    AudioParameters params) {
   if (!has_created_fake_stream_)
     base::AtExitManager::RegisterCallback(&DestroyLastFakeStream, NULL);
   has_created_fake_stream_ = true;
 
-  FakeAudioOutputStream* new_stream = new FakeAudioOutputStream();
+  FakeAudioOutputStream* new_stream = new FakeAudioOutputStream(params);
 
   if (last_fake_stream_) {
     DCHECK(last_fake_stream_->closed_);
@@ -32,10 +33,9 @@ FakeAudioOutputStream* FakeAudioOutputStream::GetLastFakeStream() {
   return last_fake_stream_;
 }
 
-bool FakeAudioOutputStream::Open(uint32 packet_size) {
-  if (packet_size < sizeof(int16))
+bool FakeAudioOutputStream::Open() {
+  if (packet_size_ < sizeof(int16))
     return false;
-  packet_size_ = packet_size;
   buffer_.reset(new uint8[packet_size_]);
   return true;
 }
@@ -48,6 +48,7 @@ void FakeAudioOutputStream::Start(AudioSourceCallback* callback)  {
 }
 
 void FakeAudioOutputStream::Stop() {
+  callback_ = NULL;
 }
 
 void FakeAudioOutputStream::SetVolume(double volume) {
@@ -59,19 +60,13 @@ void FakeAudioOutputStream::GetVolume(double* volume) {
 }
 
 void FakeAudioOutputStream::Close() {
-  // Calls |callback_| only if it is valid. We don't have |callback_| if
-  // we have not yet started.
-  if (callback_) {
-    callback_->OnClose(this);
-    callback_ = NULL;
-  }
   closed_ = true;
 }
 
-FakeAudioOutputStream::FakeAudioOutputStream()
+FakeAudioOutputStream::FakeAudioOutputStream(AudioParameters params)
     : volume_(0),
       callback_(NULL),
-      packet_size_(0),
+      packet_size_(params.GetPacketSize()),
       closed_(false) {
 }
 

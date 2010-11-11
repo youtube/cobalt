@@ -35,7 +35,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   virtual ~PCMWaveOutAudioOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open(uint32 packet_size);
+  virtual bool Open();
   virtual void Close();
   virtual void Start(AudioSourceCallback* callback);
   virtual void Stop();
@@ -65,7 +65,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   void HandleError(MMRESULT error);
   // Allocates and prepares the memory that will be used for playback. Only
   // two buffers are created.
-  void SetupBuffers(uint32 rq_size);
+  void SetupBuffers();
   // Deallocates the memory allocated in SetupBuffers.
   void FreeBuffers();
 
@@ -116,4 +116,3 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
 };
 
 #endif  // MEDIA_AUDIO_WIN_WAVEOUT_OUTPUT_WIN_H_
-

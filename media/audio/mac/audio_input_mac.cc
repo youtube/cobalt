@@ -17,9 +17,7 @@ enum {
 #endif
 
 PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
-    AudioManagerMac* manager,
-    AudioParameters params,
-    int samples_per_buffer)
+    AudioManagerMac* manager, AudioParameters params)
     : manager_(manager),
       callback_(NULL),
       audio_queue_(NULL),
@@ -39,7 +37,7 @@ PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
   format_.mBytesPerPacket = (params.bits_per_sample * params.channels) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
 
-  buffer_size_bytes_ = format_.mBytesPerFrame * samples_per_buffer;
+  buffer_size_bytes_ = params.GetPacketSize();
 }
 
 PCMQueueInAudioInputStream::~PCMQueueInAudioInputStream() {

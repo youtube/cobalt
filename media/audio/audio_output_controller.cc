@@ -6,22 +6,14 @@
 
 #include "base/message_loop.h"
 
-// The following parameters limit the request buffer and packet size from the
-// renderer to avoid renderer from requesting too much memory.
-static const uint32 kMegabytes = 1024 * 1024;
-static const uint32 kMaxHardwareBufferSize = 2 * kMegabytes;
 // Signal a pause in low-latency mode.
 static const int kPauseMark = -1;
 
 namespace {
 // Return true if the parameters for creating an audio stream is valid.
 // Return false otherwise.
-static bool CheckParameters(AudioParameters params,
-                            uint32 hardware_buffer_size) {
+static bool CheckParameters(AudioParameters params) {
   if (!params.IsValid())
-    return false;
-  if (hardware_buffer_size <= 0 ||
-      hardware_buffer_size > kMaxHardwareBufferSize)
     return false;
   return true;
 }
@@ -51,10 +43,9 @@ AudioOutputController::~AudioOutputController() {
 scoped_refptr<AudioOutputController> AudioOutputController::Create(
     EventHandler* event_handler,
     AudioParameters params,
-    uint32 hardware_buffer_size,
     uint32 buffer_capacity) {
 
-  if (!CheckParameters(params, hardware_buffer_size))
+  if (!CheckParameters(params))
     return NULL;
 
   // Starts the audio controller thread.
@@ -66,7 +57,7 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
   controller->message_loop_->PostTask(
       FROM_HERE,
       NewRunnableMethod(controller.get(), &AudioOutputController::DoCreate,
-                        params, hardware_buffer_size));
+                        params));
   return controller;
 }
 
@@ -74,12 +65,11 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
 scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
     EventHandler* event_handler,
     AudioParameters params,
-    uint32 hardware_buffer_size,
     SyncReader* sync_reader) {
 
   DCHECK(sync_reader);
 
-  if (!CheckParameters(params, hardware_buffer_size))
+  if (!CheckParameters(params))
     return NULL;
 
   // Starts the audio controller thread.
@@ -91,7 +81,7 @@ scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
   controller->message_loop_->PostTask(
       FROM_HERE,
       NewRunnableMethod(controller.get(), &AudioOutputController::DoCreate,
-                        params, hardware_buffer_size));
+                        params));
   return controller;
 }
 
@@ -144,8 +134,7 @@ void AudioOutputController::EnqueueData(const uint8* data, uint32 size) {
   }
 }
 
-void AudioOutputController::DoCreate(AudioParameters params,
-                                     uint32 hardware_buffer_size) {
+void AudioOutputController::DoCreate(AudioParameters params) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // Close() can be called before DoCreate() is executed.
@@ -160,7 +149,7 @@ void AudioOutputController::DoCreate(AudioParameters params,
     return;
   }
 
-  if (!stream_->Open(hardware_buffer_size)) {
+  if (!stream_->Open()) {
     stream_->Close();
     stream_ = NULL;
 
@@ -168,6 +157,7 @@ void AudioOutputController::DoCreate(AudioParameters params,
     handler_->OnError(this, 0);
     return;
   }
+
   // We have successfully opened the stream. Set the initial volume.
   stream_->SetVolume(volume_);
 
@@ -246,6 +236,10 @@ void AudioOutputController::DoClose(Task* closed_task) {
       stream_ = NULL;
     }
 
+    if (LowLatencyMode()) {
+      sync_reader_->Close();
+    }
+
     state_ = kClosed;
   }
 
@@ -297,15 +291,6 @@ uint32 AudioOutputController::OnMoreData(
   uint32 size =  sync_reader_->Read(dest, max_size);
   sync_reader_->UpdatePendingBytes(buffers_state.total_bytes() + size);
   return size;
-}
-
-void AudioOutputController::OnClose(AudioOutputStream* stream) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
-
-  // Push source doesn't need to know the stream so just pass in NULL.
-  if (LowLatencyMode()) {
-    sync_reader_->Close();
-  }
 }
 
 void AudioOutputController::OnError(AudioOutputStream* stream, int code) {

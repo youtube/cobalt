@@ -17,7 +17,6 @@
 namespace {
 
 const int kMaxInputChannels = 2;
-const int kMaxSamplesPerPacket = media::Limits::kMaxSampleRate;
 
 }  // namespace
 
@@ -37,7 +36,7 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
   // Early return for testing hook.  Do this before checking for
   // |initialized_|.
   if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioOutputStream::MakeFakeStream();
+    return FakeAudioOutputStream::MakeFakeStream(params);
   }
 
   if (!initialized()) {
@@ -60,13 +59,12 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
-    AudioParameters params, int samples_per_packet) {
-  if (!params.IsValid() || params.channels > kMaxInputChannels ||
-      samples_per_packet < 0 || samples_per_packet > kMaxSamplesPerPacket)
+    AudioParameters params) {
+  if (!params.IsValid() || params.channels > kMaxInputChannels)
     return NULL;
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
+    return FakeAudioInputStream::MakeFakeStream(params);
   } else if (params.format != AudioParameters::AUDIO_PCM_LINEAR) {
     return NULL;
   }
@@ -81,7 +79,7 @@ AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
   }
 
   AlsaPcmInputStream* stream = new AlsaPcmInputStream(
-      device_name, params, samples_per_packet, wrapper_.get());
+      device_name, params, wrapper_.get());
 
   return stream;
 }

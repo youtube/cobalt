@@ -45,14 +45,14 @@ enum {
 
 PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
     AudioManagerMac* manager, AudioParameters params)
-        : format_(),
-          audio_queue_(NULL),
-          buffer_(),
-          source_(NULL),
-          manager_(manager),
-          silence_bytes_(0),
-          volume_(1),
-          pending_bytes_(0) {
+    : format_(),
+      audio_queue_(NULL),
+      buffer_(),
+      source_(NULL),
+      manager_(manager),
+      silence_bytes_(0),
+      volume_(1),
+      pending_bytes_(0) {
   // We must have a manager.
   DCHECK(manager_);
   // A frame is one sample across all channels. In interleaved audio the per
@@ -67,6 +67,8 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
   format_.mFramesPerPacket = 1;
   format_.mBytesPerPacket = (format_.mBitsPerChannel * params.channels) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
+
+  packet_size_ = params.GetPacketSize();
 
   // Silence buffer has a duration of 6ms to simulate the behavior of Windows.
   // This value is choosen by experiments and macs cannot keep up with
@@ -87,11 +89,7 @@ void PCMQueueOutAudioOutputStream::HandleError(OSStatus err) {
   NOTREACHED() << "error code " << err;
 }
 
-bool PCMQueueOutAudioOutputStream::Open(uint32 packet_size) {
-  if (0 == packet_size) {
-    // TODO(cpu) : Impelement default buffer computation.
-    return false;
-  }
+bool PCMQueueOutAudioOutputStream::Open() {
   // Create the actual queue object and let the OS use its own thread to
   // run its CFRunLoop.
   OSStatus err = AudioQueueNewOutput(&format_, RenderCallback, this, NULL,
@@ -102,7 +100,7 @@ bool PCMQueueOutAudioOutputStream::Open(uint32 packet_size) {
   }
   // Allocate the hardware-managed buffers.
   for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
-    err = AudioQueueAllocateBuffer(audio_queue_, packet_size, &buffer_[ix]);
+    err = AudioQueueAllocateBuffer(audio_queue_, packet_size_, &buffer_[ix]);
     if (err != noErr) {
       HandleError(err);
       return false;

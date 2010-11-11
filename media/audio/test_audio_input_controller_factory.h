@@ -74,8 +74,7 @@ class TestAudioInputControllerFactory : public AudioInputController::Factory {
   // AudioInputController::Factory methods.
   AudioInputController* Create(
       AudioInputController::EventHandler* event_handler,
-      AudioParameters params,
-      int samples_per_packet);
+      AudioParameters params);
 
   TestAudioInputController* controller() const { return controller_; }
 

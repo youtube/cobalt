@@ -28,8 +28,7 @@ AudioOutputStream* AudioManagerOpenBSD::MakeAudioOutputStream(
 }
 
 AudioInputStream* AudioManagerOpenBSD::MakeAudioInputStream(
-    AudioParameters params,
-    uint32 samples_per_packet) {
+    AudioParameters params) {
   NOTIMPLEMENTED();
   return NULL;
 }
