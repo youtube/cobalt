@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,6 +45,9 @@ class URLRequestFileJob : public URLRequestJob {
  private:
   void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
   void DidRead(int result);
+#if defined(OS_CHROMEOS)
+  static bool AccessDisabled(const FilePath& file_path);
+#endif
 
   net::CompletionCallbackImpl<URLRequestFileJob> io_callback_;
   net::FileStream stream_;
