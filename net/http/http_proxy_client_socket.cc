@@ -132,7 +132,8 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
   drain_buf_ = NULL;
   parser_buf_ = NULL;
   http_stream_parser_.reset();
-  request_headers_.clear();
+  request_line_.clear();
+  request_headers_.Clear();
   response_ = HttpResponseInfo();
   return OK;
 }
@@ -332,28 +333,25 @@ int HttpProxyClientSocket::DoSendRequest() {
 
   // This is constructed lazily (instead of within our Start method), so that
   // we have proxy info available.
-  if (request_headers_.empty()) {
+  if (request_line_.empty()) {
+    DCHECK(request_headers_.IsEmpty());
     HttpRequestHeaders authorization_headers;
     if (auth_->HaveAuth())
       auth_->AddAuthorizationHeader(&authorization_headers);
-    std::string request_line;
-    HttpRequestHeaders request_headers;
     BuildTunnelRequest(request_, authorization_headers, endpoint_,
-                       &request_line, &request_headers);
+                       &request_line_, &request_headers_);
     if (net_log_.IsLoggingAllEvents()) {
       net_log_.AddEvent(
           NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
           make_scoped_refptr(new NetLogHttpRequestParameter(
-              request_line, request_headers)));
+              request_line_, request_headers_)));
     }
-    request_headers_ = request_line + request_headers.ToString();
   }
-
 
   parser_buf_ = new GrowableIOBuffer();
   http_stream_parser_.reset(
       new HttpStreamParser(transport_.get(), &request_, parser_buf_, net_log_));
-  return http_stream_parser_->SendRequest(request_headers_, NULL,
+  return http_stream_parser_->SendRequest(request_line_, request_headers_, NULL,
                                           &response_, &io_callback_);
 }
 

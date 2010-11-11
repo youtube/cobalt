@@ -156,7 +156,8 @@ class HttpProxyClientSocket : public ClientSocket {
   // If true, then the connection to the proxy is a SPDY connection.
   const bool using_spdy_;
 
-  std::string request_headers_;
+  std::string request_line_;
+  HttpRequestHeaders request_headers_;
 
   const BoundNetLog net_log_;
 

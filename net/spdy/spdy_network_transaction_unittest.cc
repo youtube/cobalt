@@ -324,6 +324,17 @@ class SpdyNetworkTransactionTest
     return google_get_request_;
   }
 
+  const HttpRequestInfo& CreateGetRequestWithUserAgent() {
+    if (!google_get_request_initialized_) {
+      google_get_request_.method = "GET";
+      google_get_request_.url = GURL(kDefaultURL);
+      google_get_request_.load_flags = 0;
+      google_get_request_.extra_headers.SetHeader("User-Agent", "Chrome");
+      google_get_request_initialized_ = true;
+    }
+    return google_get_request_;
+  }
+
   const HttpRequestInfo& CreatePostRequest() {
     if (!google_post_request_initialized_) {
       google_post_request_.method = "POST";
@@ -3300,7 +3311,11 @@ TEST_P(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
 
 // Test that the NetLog contains good data for a simple GET request.
 TEST_P(SpdyNetworkTransactionTest, NetLog) {
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  static const char* const kExtraHeaders[] = {
+    "user-agent",   "Chrome",
+  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(kExtraHeaders, 1, false, 1,
+                                                   LOWEST));
   MockWrite writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
@@ -3316,7 +3331,7 @@ TEST_P(SpdyNetworkTransactionTest, NetLog) {
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+  NormalSpdyTransactionHelper helper(CreateGetRequestWithUserAgent(),
                                      log.bound(), GetParam());
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
@@ -3348,6 +3363,32 @@ TEST_P(SpdyNetworkTransactionTest, NetLog) {
   pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
       net::NetLog::TYPE_HTTP_TRANSACTION_READ_BODY,
       net::NetLog::PHASE_END);
+
+  // Check that we logged all the headers correctly
+  pos = net::ExpectLogContainsSomewhere(
+      log.entries(), 0,
+      net::NetLog::TYPE_SPDY_SESSION_SYN_STREAM,
+      net::NetLog::PHASE_NONE);
+  CapturingNetLog::Entry entry = log.entries()[pos];
+  NetLogSpdySynParameter* request_params =
+      static_cast<NetLogSpdySynParameter*>(entry.extra_parameters.get());
+  spdy::SpdyHeaderBlock* headers =
+      request_params->GetHeaders().get();
+
+  spdy::SpdyHeaderBlock expected;
+  expected["host"] = "www.google.com";
+  expected["url"] = "/";
+  expected["scheme"] = "http";
+  expected["version"] = "HTTP/1.1";
+  expected["method"] = "GET";
+  expected["user-agent"] = "Chrome";
+  EXPECT_EQ(expected.size(), headers->size());
+  spdy::SpdyHeaderBlock::const_iterator end = expected.end();
+  for (spdy::SpdyHeaderBlock::const_iterator it = expected.begin();
+      it != end;
+      ++it) {
+    EXPECT_EQ(it->second, (*headers)[it->first]);
+  }
 }
 
 // Since we buffer the IO from the stream to the renderer, this test verifies

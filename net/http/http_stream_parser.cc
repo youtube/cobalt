@@ -9,6 +9,8 @@
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/http/http_net_log_params.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
@@ -43,7 +45,8 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
 
 HttpStreamParser::~HttpStreamParser() {}
 
-int HttpStreamParser::SendRequest(const std::string& headers,
+int HttpStreamParser::SendRequest(const std::string& request_line,
+                                  const HttpRequestHeaders& headers,
                                   UploadDataStream* request_body,
                                   HttpResponseInfo* response,
                                   CompletionCallback* callback) {
@@ -52,8 +55,15 @@ int HttpStreamParser::SendRequest(const std::string& headers,
   DCHECK(callback);
   DCHECK(response);
 
+  if (net_log_.IsLoggingAllEvents()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+        make_scoped_refptr(new NetLogHttpRequestParameter(
+            request_line, headers)));
+  }
   response_ = response;
-  scoped_refptr<StringIOBuffer> headers_io_buf(new StringIOBuffer(headers));
+  std::string request = request_line + headers.ToString();
+  scoped_refptr<StringIOBuffer> headers_io_buf(new StringIOBuffer(request));
   request_headers_ = new DrainableIOBuffer(headers_io_buf,
                                            headers_io_buf->size());
   request_body_.reset(request_body);
