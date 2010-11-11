@@ -4,6 +4,8 @@
 
 #include "net/proxy/proxy_script_fetcher_impl.h"
 
+#include <string>
+
 #include "base/file_path.h"
 #include "base/compiler_specific.h"
 #include "base/path_service.h"
@@ -71,6 +73,10 @@ class ProxyScriptFetcherImplTest : public PlatformTest {
  public:
   ProxyScriptFetcherImplTest()
       : test_server_(net::TestServer::TYPE_HTTP, FilePath(kDocRoot)) {
+  }
+
+  static void SetUpTestCase() {
+    URLRequest::AllowFileAccess();
   }
 
  protected:
