@@ -724,6 +724,8 @@
         }],
         ['use_openssl==1', {
             'sources!': [
+              'ocsp/nss_ocsp.cc',
+              'ocsp/nss_ocsp.h',
               'socket/dns_cert_provenance_check.cc',
               'socket/dns_cert_provenance_check.h',
               'socket/ssl_client_socket_nss.cc',

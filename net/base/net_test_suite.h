@@ -11,7 +11,9 @@
 #include "base/test/test_suite.h"
 #include "build/build_config.h"
 #include "net/base/mock_host_resolver.h"
+#if defined(USE_NSS)
 #include "net/ocsp/nss_ocsp.h"
+#endif
 
 class NetTestSuite : public base::TestSuite {
  public:
@@ -41,9 +43,9 @@ class NetTestSuite : public base::TestSuite {
   }
 
   virtual void Shutdown() {
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
     net::ShutdownOCSP();
-#endif  // defined(OS_LINUX)
+#endif
 
     // We want to destroy this here before the TestSuite continues to tear down
     // the environment.
