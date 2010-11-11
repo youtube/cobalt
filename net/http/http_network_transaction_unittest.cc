@@ -28,6 +28,7 @@
 #include "net/http/http_auth_handler_mock.h"
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_basic_stream.h"
+#include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_session_peer.h"
 #include "net/http/http_stream.h"
@@ -156,6 +157,7 @@ class HttpNetworkTransactionTest : public PlatformTest {
     TestCompletionCallback callback;
 
     CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+    EXPECT_TRUE(log.bound().IsLoggingAllEvents());
     int rv = trans->Start(&request, &callback, log.bound());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
@@ -178,6 +180,14 @@ class HttpNetworkTransactionTest : public PlatformTest {
         log.entries(), pos,
         NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
         NetLog::PHASE_NONE);
+
+    CapturingNetLog::Entry entry = log.entries()[pos];
+    NetLogHttpRequestParameter* request_params =
+        static_cast<NetLogHttpRequestParameter*>(entry.extra_parameters.get());
+    EXPECT_EQ("GET / HTTP/1.1\r\n", request_params->GetLine());
+    EXPECT_EQ("Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n\r\n",
+              request_params->GetHeaders().ToString());
 
     return out;
   }

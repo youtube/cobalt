@@ -28,6 +28,30 @@
 
 namespace net {
 
+NetLogSpdySynParameter::NetLogSpdySynParameter(
+    const linked_ptr<spdy::SpdyHeaderBlock>& headers,
+    spdy::SpdyControlFlags flags,
+    spdy::SpdyStreamId id)
+    : headers_(headers), flags_(flags), id_(id) {
+}
+
+NetLogSpdySynParameter::~NetLogSpdySynParameter() {
+}
+
+Value* NetLogSpdySynParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  ListValue* headers_list = new ListValue();
+  for (spdy::SpdyHeaderBlock::const_iterator it = headers_->begin();
+      it != headers_->end(); ++it) {
+    headers_list->Append(new StringValue(base::StringPrintf(
+        "%s: %s", it->first.c_str(), it->second.c_str())));
+  }
+  dict->SetInteger("flags", flags_);
+  dict->Set("headers", headers_list);
+  dict->SetInteger("id", id_);
+  return dict;
+}
+
 namespace {
 
 const int kReadBufferSize = 8 * 1024;
@@ -58,43 +82,12 @@ class NetLogSpdySessionParameter : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySessionParameter);
 };
 
-class NetLogSpdySynParameter : public NetLog::EventParameters {
- public:
-  NetLogSpdySynParameter(const linked_ptr<spdy::SpdyHeaderBlock>& headers,
-                         spdy::SpdyControlFlags flags,
-                         spdy::SpdyStreamId id)
-      : headers_(headers), flags_(flags), id_(id) {}
-
-  Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    ListValue* headers_list = new ListValue();
-    for (spdy::SpdyHeaderBlock::const_iterator it = headers_->begin();
-         it != headers_->end(); ++it) {
-      headers_list->Append(new StringValue(base::StringPrintf(
-          "%s: %s", it->first.c_str(), it->second.c_str())));
-    }
-    dict->SetInteger("flags", flags_);
-    dict->Set("headers", headers_list);
-    dict->SetInteger("id", id_);
-    return dict;
-  }
-
- private:
-  ~NetLogSpdySynParameter() {}
-
-  const linked_ptr<spdy::SpdyHeaderBlock> headers_;
-  const spdy::SpdyControlFlags flags_;
-  const spdy::SpdyStreamId id_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
-};
-
 class NetLogSpdySettingsParameter : public NetLog::EventParameters {
  public:
   explicit NetLogSpdySettingsParameter(const spdy::SpdySettings& settings)
       : settings_(settings) {}
 
-  Value* ToValue() const {
+  virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     ListValue* settings = new ListValue();
     for (spdy::SpdySettings::const_iterator it = settings_.begin();

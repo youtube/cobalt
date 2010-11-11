@@ -411,6 +411,28 @@ class SpdySession : public base::RefCounted<SpdySession>,
   static size_t max_concurrent_stream_limit_;
 };
 
+class NetLogSpdySynParameter : public NetLog::EventParameters {
+ public:
+  NetLogSpdySynParameter(const linked_ptr<spdy::SpdyHeaderBlock>& headers,
+                         spdy::SpdyControlFlags flags,
+                         spdy::SpdyStreamId id);
+
+  virtual Value* ToValue() const;
+
+  const linked_ptr<spdy::SpdyHeaderBlock>& GetHeaders() const {
+    return headers_;
+  }
+
+ private:
+  virtual ~NetLogSpdySynParameter();
+
+  const linked_ptr<spdy::SpdyHeaderBlock> headers_;
+  const spdy::SpdyControlFlags flags_;
+  const spdy::SpdyStreamId id_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
+};
+
 }  // namespace net
 
 #endif  // NET_SPDY_SPDY_SESSION_H_
