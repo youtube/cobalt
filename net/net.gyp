@@ -610,6 +610,8 @@
         'socket/ssl_client_socket_pool.h',
         'socket/ssl_client_socket_win.cc',
         'socket/ssl_client_socket_win.h',
+        'socket/ssl_error_params.cc',
+        'socket/ssl_error_params.h',
         'socket/tcp_client_socket.cc',
         'socket/tcp_client_socket.h',
         'socket/tcp_client_socket_libevent.cc',

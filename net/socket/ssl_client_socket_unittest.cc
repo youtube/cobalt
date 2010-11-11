@@ -514,3 +514,78 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
   rv = sock->Connect(&callback);
   EXPECT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
 }
+
+#if defined(USE_OPENSSL)
+// TODO(rsleevi): Not implemented for Schannel or OpenSSL. Schannel is
+// controlled by the SSL client socket factory, rather than a define, so it
+// cannot be conditionally disabled here. As Schannel is only used when
+// performing client authentication, it will not be tested here.
+#define MAYBE_CipherSuiteDisables DISABLED_CipherSuiteDisables
+#else
+#define MAYBE_CipherSuiteDisables CipherSuiteDisables
+#endif
+TEST_F(SSLClientSocketTest, MAYBE_CipherSuiteDisables) {
+  // Rather than exhaustively disabling every RC4 ciphersuite defined at
+  // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml,
+  // only disabling those cipher suites that the test server actually
+  // implements.
+  const uint16 kCiphersToDisable[] = {
+    0x0005,  // TLS_RSA_WITH_RC4_128_SHA
+  };
+
+  net::TestServer::HTTPSOptions https_options;
+  // Enable only RC4 on the test server.
+  https_options.bulk_ciphers =
+      net::TestServer::HTTPSOptions::BULK_CIPHER_RC4;
+  net::TestServer test_server(https_options, FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  net::AddressList addr;
+  ASSERT_TRUE(test_server.GetAddressList(&addr));
+
+  TestCompletionCallback callback;
+  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::ClientSocket* transport = new net::TCPClientSocket(
+      addr, &log, net::NetLog::Source());
+  int rv = transport->Connect(&callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+
+  net::SSLConfig ssl_config;
+  for (size_t i = 0; i < arraysize(kCiphersToDisable); ++i)
+    ssl_config.disabled_cipher_suites.push_back(kCiphersToDisable[i]);
+
+  scoped_ptr<net::SSLClientSocket> sock(
+      socket_factory_->CreateSSLClientSocket(
+          transport, test_server.host_port_pair().host(),
+          ssl_config, NULL));
+
+  EXPECT_FALSE(sock->IsConnected());
+
+  rv = sock->Connect(&callback);
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+
+  // NSS has special handling that maps a handshake_failure alert received
+  // immediately after a client_hello to be a mismatched cipher suite error,
+  // leading to ERR_SSL_VERSION_OR_CIPHER_MISMATCH. When using OpenSSL or
+  // Secure Transport (OS X), the handshake_failure is bubbled up without any
+  // interpretation, leading to ERR_SSL_PROTOCOL_ERROR. Either way, a failure
+  // indicates that no cipher suite was negotiated with the test server.
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_TRUE(rv == net::ERR_SSL_VERSION_OR_CIPHER_MISMATCH ||
+              rv == net::ERR_SSL_PROTOCOL_ERROR);
+  // The exact ordering differs between SSLClientSocketNSS (which issues an
+  // extra read) and SSLClientSocketMac (which does not). Just make sure the
+  // error appears somewhere in the log.
+  net::ExpectLogContainsSomewhere(log.entries(), 0,
+                                  net::NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+                                  net::NetLog::PHASE_NONE);
+
+  // We cannot test sock->IsConnected(), as the NSS implementation disconnects
+  // the socket when it encounters an error, whereas other implementations
+  // leave it connected.
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
+}
