@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -176,13 +176,13 @@ void HttpResponseInfo::Persist(Pickle* pickle,
                                bool skip_transient_headers,
                                bool response_truncated) const {
   int flags = RESPONSE_INFO_VERSION;
-  if (ssl_info.cert) {
+  if (ssl_info.is_valid()) {
     flags |= RESPONSE_INFO_HAS_CERT;
     flags |= RESPONSE_INFO_HAS_CERT_STATUS;
+    if (ssl_info.security_bits != -1)
+      flags |= RESPONSE_INFO_HAS_SECURITY_BITS;
+    // TODO(wtc): we should persist ssl_info.connection_status.
   }
-  if (ssl_info.security_bits != -1)
-    flags |= RESPONSE_INFO_HAS_SECURITY_BITS;
-  // TODO(wtc): we should persist ssl_info.connection_status.
   if (vary_data.is_valid())
     flags |= RESPONSE_INFO_HAS_VARY_DATA;
   if (response_truncated)
@@ -214,12 +214,12 @@ void HttpResponseInfo::Persist(Pickle* pickle,
 
   headers->Persist(pickle, persist_options);
 
-  if (ssl_info.cert) {
+  if (ssl_info.is_valid()) {
     ssl_info.cert->Persist(pickle);
     pickle->WriteInt(ssl_info.cert_status);
+    if (ssl_info.security_bits != -1)
+      pickle->WriteInt(ssl_info.security_bits);
   }
-  if (ssl_info.security_bits != -1)
-    pickle->WriteInt(ssl_info.security_bits);
 
   if (vary_data.is_valid())
     vary_data.Persist(pickle);
