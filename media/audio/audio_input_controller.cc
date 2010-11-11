@@ -8,7 +8,6 @@
 namespace {
 
 const int kMaxInputChannels = 2;
-const int kMaxSamplesPerPacket = media::Limits::kMaxSampleRate;
 
 }  // namespace
 
@@ -31,15 +30,12 @@ AudioInputController::~AudioInputController() {
 // static
 scoped_refptr<AudioInputController> AudioInputController::Create(
     EventHandler* event_handler,
-    AudioParameters params,
-    int samples_per_packet) {
-  if (!params.IsValid() ||
-      (params.channels > kMaxInputChannels) ||
-      (samples_per_packet > kMaxSamplesPerPacket) || (samples_per_packet < 0))
+    AudioParameters params) {
+  if (!params.IsValid() || (params.channels > kMaxInputChannels))
     return NULL;
 
   if (factory_) {
-    return factory_->Create(event_handler, params, samples_per_packet);
+    return factory_->Create(event_handler, params);
   }
 
   scoped_refptr<AudioInputController> controller(new AudioInputController(
@@ -50,7 +46,7 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
   controller->thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(controller.get(), &AudioInputController::DoCreate,
-                        params, samples_per_packet));
+                        params));
   return controller;
 }
 
@@ -75,10 +71,8 @@ void AudioInputController::Close() {
   thread_.Stop();
 }
 
-void AudioInputController::DoCreate(AudioParameters params,
-                                    uint32 samples_per_packet) {
-  stream_ = AudioManager::GetAudioManager()->MakeAudioInputStream(
-      params, samples_per_packet);
+void AudioInputController::DoCreate(AudioParameters params) {
+  stream_ = AudioManager::GetAudioManager()->MakeAudioInputStream(params);
 
   if (!stream_) {
     // TODO(satish): Define error types.

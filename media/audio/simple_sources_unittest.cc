@@ -58,8 +58,6 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
     EXPECT_EQ(0, memcmp(data.get() + i, read_data.get(), size));
   }
   EXPECT_EQ(0u, push_source.UnProcessedBytes());
-
-  push_source.OnClose(NULL);
 }
 
 // Validate that the SineWaveAudioSource writes the expected values for
@@ -78,10 +76,10 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
   ASSERT_TRUE(NULL != audio_man);
   AudioParameters params(
       AudioParameters::AUDIO_MOCK, 1, AudioParameters::kTelephoneSampleRate,
-      bytes_per_sample * 2);
+      bytes_per_sample * 2, samples);
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(params);
   ASSERT_TRUE(NULL != oas);
-  EXPECT_TRUE(oas->Open(samples * bytes_per_sample));
+  EXPECT_TRUE(oas->Open());
 
   oas->Start(&source);
   oas->Stop();

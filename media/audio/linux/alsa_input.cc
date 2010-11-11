@@ -28,16 +28,14 @@ const char* AlsaPcmInputStream::kAutoSelectDevice = "";
 
 AlsaPcmInputStream::AlsaPcmInputStream(const std::string& device_name,
                                        const AudioParameters& params,
-                                       int samples_per_packet,
                                        AlsaWrapper* wrapper)
     : device_name_(device_name),
       params_(params),
-      samples_per_packet_(samples_per_packet),
-      bytes_per_packet_(samples_per_packet_ *
+      bytes_per_packet_(params.samples_per_packet *
                         (params.channels * params.bits_per_sample) / 8),
       wrapper_(wrapper),
       packet_duration_ms_(
-          (samples_per_packet_ * base::Time::kMillisecondsPerSecond) /
+          (params.samples_per_packet * base::Time::kMillisecondsPerSecond) /
           params.sample_rate),
       callback_(NULL),
       device_handle_(NULL),
@@ -147,7 +145,7 @@ void AlsaPcmInputStream::ReadAudio() {
     Recover(frames);
   }
 
-  if (frames < samples_per_packet_) {
+  if (frames < params_.samples_per_packet) {
     // Not enough data yet or error happened. In both cases wait for a very
     // small duration before checking again.
     MessageLoop::current()->PostDelayedTask(
@@ -157,15 +155,15 @@ void AlsaPcmInputStream::ReadAudio() {
     return;
   }
 
-  int num_packets = frames / samples_per_packet_;
+  int num_packets = frames / params_.samples_per_packet;
   while (num_packets--) {
     int frames_read = wrapper_->PcmReadi(device_handle_, audio_packet_.get(),
-                                         samples_per_packet_);
-    if (frames_read == samples_per_packet_) {
+                                         params_.samples_per_packet);
+    if (frames_read == params_.samples_per_packet) {
       callback_->OnData(this, audio_packet_.get(), bytes_per_packet_);
     } else {
       LOG(WARNING) << "PcmReadi returning less than expected frames: "
-                   << frames_read << " vs. " << samples_per_packet_
+                   << frames_read << " vs. " << params_.samples_per_packet
                    << ". Dropping this packet.";
     }
   }
@@ -213,4 +211,3 @@ void AlsaPcmInputStream::HandleError(const char* method, int error) {
   LOG(WARNING) << method << ": " << wrapper_->StrError(error);
   callback_->OnError(this, error);
 }
-

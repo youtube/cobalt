@@ -87,10 +87,11 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       callback_(NULL),
       num_buffers_(num_buffers),
       buffer_(NULL),
-      buffer_size_(0),
+      buffer_size_(params.GetPacketSize()),
       volume_(1),
       channels_(params.channels),
       pending_bytes_(0) {
+
   format_.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
   format_.Format.nChannels = params.channels;
   format_.Format.nSamplesPerSec = params.sample_rate;
@@ -116,10 +117,8 @@ PCMWaveOutAudioOutputStream::~PCMWaveOutAudioOutputStream() {
   DCHECK(NULL == waveout_);
 }
 
-bool PCMWaveOutAudioOutputStream::Open(uint32 buffer_size) {
+bool PCMWaveOutAudioOutputStream::Open() {
   if (state_ != PCMA_BRAND_NEW)
-    return false;
-  if (buffer_size > kMaxOpenBufferSize)
     return false;
   if (num_buffers_ < 2 || num_buffers_ > 5)
     return false;
@@ -132,24 +131,20 @@ bool PCMWaveOutAudioOutputStream::Open(uint32 buffer_size) {
                                   CALLBACK_FUNCTION);
   if (result != MMSYSERR_NOERROR)
     return false;
-  // If we don't have a packet size we use 100ms.
-  if (!buffer_size)
-    buffer_size = format_.Format.nAvgBytesPerSec / 10;
 
-  SetupBuffers(buffer_size);
-  buffer_size_ = buffer_size;
+  SetupBuffers();
   state_ = PCMA_READY;
   return true;
 }
 
-void PCMWaveOutAudioOutputStream::SetupBuffers(uint32 rq_size) {
+void PCMWaveOutAudioOutputStream::SetupBuffers() {
   WAVEHDR* last = NULL;
   WAVEHDR* first = NULL;
   for (int ix = 0; ix != num_buffers_; ++ix) {
-    uint32 sz = sizeof(WAVEHDR) + rq_size;
+    uint32 sz = sizeof(WAVEHDR) + buffer_size_;
     buffer_ =  reinterpret_cast<WAVEHDR*>(new char[sz]);
     buffer_->lpData = reinterpret_cast<char*>(buffer_) + sizeof(WAVEHDR);
-    buffer_->dwBufferLength = rq_size;
+    buffer_->dwBufferLength = buffer_size_;
     buffer_->dwBytesRecorded = 0;
     buffer_->dwUser = reinterpret_cast<DWORD_PTR>(last);
     buffer_->dwFlags = WHDR_DONE;
@@ -235,6 +230,10 @@ void PCMWaveOutAudioOutputStream::Stop() {
     HandleError(res);
     return;
   }
+
+  // Don't use callback after Stop().
+  callback_ = NULL;
+
   state_ = PCMA_READY;
 }
 
@@ -347,10 +346,5 @@ void PCMWaveOutAudioOutputStream::WaveCallback(HWAVEOUT hwo, UINT msg,
 
     obj->pending_bytes_ += buffer->dwBufferLength;
 
-  } else if (msg == WOM_CLOSE) {
-    // We can be closed before calling Start, so it is possible to have a
-    // null callback at this point.
-    if (obj->callback_)
-      obj->callback_->OnClose(obj);
   }
 }

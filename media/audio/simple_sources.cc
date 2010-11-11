@@ -43,9 +43,6 @@ uint32 SineWaveAudioSource::OnMoreData(
   return max_size;
 }
 
-void SineWaveAudioSource::OnClose(AudioOutputStream* stream) {
-}
-
 void SineWaveAudioSource::OnError(AudioOutputStream* stream, int code) {
   NOTREACHED();
 }
@@ -63,10 +60,6 @@ uint32 PushSource::OnMoreData(
     AudioOutputStream* stream, uint8* dest, uint32 max_size,
     AudioBuffersState buffers_state) {
   return buffer_.Read(dest, max_size);
-}
-
-void PushSource::OnClose(AudioOutputStream* stream) {
-  CleanUp();
 }
 
 void PushSource::OnError(AudioOutputStream* stream, int code) {

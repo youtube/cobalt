@@ -55,8 +55,7 @@ class AudioInputController :
   class Factory {
    public:
     virtual AudioInputController* Create(EventHandler* event_handler,
-                                         AudioParameters params,
-                                         int samples_per_packet) = 0;
+                                         AudioParameters params) = 0;
 
    protected:
     virtual ~Factory() {}
@@ -70,8 +69,7 @@ class AudioInputController :
   // handler will receive a OnCreated() call.
   static scoped_refptr<AudioInputController> Create(
       EventHandler* event_handler,
-      AudioParameters params,
-      int samples_per_packet);        // Size of the hardware buffer.
+      AudioParameters params);
 
   // Sets the factory used by the static method Create. AudioInputController
   // does not take ownership of |factory|. A value of NULL results in an
@@ -110,8 +108,7 @@ class AudioInputController :
   AudioInputController(EventHandler* handler);
 
   // The following methods are executed on the audio controller thread.
-  void DoCreate(AudioParameters params,
-                uint32 samples_per_packet);
+  void DoCreate(AudioParameters params);
   void DoRecord();
   void DoClose();
   void DoReportError(int code);

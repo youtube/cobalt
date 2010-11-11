@@ -108,8 +108,6 @@ class AudioOutputController
   static scoped_refptr<AudioOutputController> Create(
       EventHandler* event_handler,
       AudioParameters params,
-      uint32 hardware_buffer_size,    // Size of the hardware buffer.
-
       // Soft limit for buffer capacity in this controller. This parameter
       // is used only in regular latency mode.
       uint32 buffer_capacity);
@@ -118,8 +116,6 @@ class AudioOutputController
   static scoped_refptr<AudioOutputController> CreateLowLatency(
       EventHandler* event_handler,
       AudioParameters params,
-      uint32 hardware_buffer_size,    // Size of the hardware buffer.
-
       // External synchronous reader for audio controller.
       SyncReader* sync_reader);
 
@@ -158,7 +154,6 @@ class AudioOutputController
   // AudioSourceCallback methods.
   virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
                             uint32 max_size, AudioBuffersState buffers_state);
-  virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
  private:
@@ -166,7 +161,7 @@ class AudioOutputController
                         uint32 capacity, SyncReader* sync_reader);
 
   // The following methods are executed on the audio controller thread.
-  void DoCreate(AudioParameters params, uint32 hardware_buffer_size);
+  void DoCreate(AudioParameters params);
   void DoPlay();
   void DoPause();
   void DoFlush();

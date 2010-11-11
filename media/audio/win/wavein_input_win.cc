@@ -26,7 +26,7 @@ WAVEHDR* GetNextBuffer(WAVEHDR* current) {
 
 PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
     AudioManagerWin* manager, AudioParameters params, int num_buffers,
-    uint32 samples_per_packet, UINT device_id)
+    UINT device_id)
     : state_(kStateEmpty),
       manager_(manager),
       device_id_(device_id),
@@ -42,7 +42,7 @@ PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
   format_.cbSize = 0;
   format_.nBlockAlign = (format_.nChannels * format_.wBitsPerSample) / 8;
   format_.nAvgBytesPerSec = format_.nBlockAlign * format_.nSamplesPerSec;
-  buffer_size_ = samples_per_packet * format_.nBlockAlign;
+  buffer_size_ = params.samples_per_packet * format_.nBlockAlign;
   // If we don't have a packet size we use 100ms.
   if (!buffer_size_)
     buffer_size_ = format_.nAvgBytesPerSec / 10;
