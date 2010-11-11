@@ -84,7 +84,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
                    "User-Agent: Foo/1.0\r\n\r\n"),
   };
   net::StaticSocketDataProvider data(data_reads, arraysize(data_reads),
-                                     data_writes, arraysize(data_reads));
+                                     data_writes, arraysize(data_writes));
   mock_socket_factory.AddSocketDataProvider(&data);
 
   MockHostResolver host_resolver;
