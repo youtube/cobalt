@@ -146,7 +146,8 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.EchoTitleHandler,
       self.EchoAllHandler,
       self.ChromiumSyncCommandHandler,
-      self.EchoHandler] + self._get_handlers
+      self.EchoHandler,
+      self.DeviceManagementHandler] + self._get_handlers
     self._put_handlers = [
       self.EchoTitleHandler,
       self.EchoAllHandler,
@@ -1104,6 +1105,29 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.wfile.write(contents)
     return True
 
+  def DeviceManagementHandler(self):
+    """Delegates to the device management service used for cloud policy."""
+    if not self._ShouldHandleRequest("/device_management"):
+      return False
+
+    length = int(self.headers.getheader('content-length'))
+    raw_request = self.rfile.read(length)
+
+    if not self.server._device_management_handler:
+      import device_management
+      policy_path = os.path.join(self.server.data_dir, 'device_management')
+      self.server._device_management_handler = (
+          device_management.TestServer(policy_path))
+
+    http_response, raw_reply = (
+        self.server._device_management_handler.HandleRequest(self.path,
+                                                             self.headers,
+                                                             raw_request))
+    self.send_response(http_response)
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True
+
   def do_CONNECT(self):
     for handler in self._connect_handlers:
       if handler():
@@ -1199,6 +1223,7 @@ def main(options, args):
     server.data_dir = MakeDataDir()
     server.file_root_url = options.file_root_url
     server._sync_handler = None
+    server._device_management_handler = None
 
   # means FTP Server
   else:
