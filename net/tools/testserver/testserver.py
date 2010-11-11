@@ -577,20 +577,26 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
   def _ReplaceFileData(self, data, query_parameters):
     """Replaces matching substrings in a file.
 
-    If the 'replace_orig' and 'replace_new' URL query parameters are present,
-    a new string is returned with all occasions of the 'replace_orig' value
-    replaced by the 'replace_new' value.
+    If the 'replace_text' URL query parameter is present, it is expected to be
+    of the form old_text:new_text, which indicates that any old_text strings in
+    the file are replaced with new_text. Multiple 'replace_text' parameters may
+    be specified.
 
     If the parameters are not present, |data| is returned.
     """
     query_dict = cgi.parse_qs(query_parameters)
-    orig_values = query_dict.get('replace_orig', [])
-    new_values = query_dict.get('replace_new', [])
-    if not orig_values or not new_values:
-      return data
-    orig_value = orig_values[0]
-    new_value = new_values[0]
-    return data.replace(orig_value, new_value)
+    replace_text_values = query_dict.get('replace_text', [])
+    for replace_text_value in replace_text_values:
+      replace_text_args = replace_text_value.split(':')
+      if len(replace_text_args) != 2:
+        raise ValueError(
+          'replace_text must be of form old_text:new_text. Actual value: %s' %
+          replace_text_value)
+      old_text_b64, new_text_b64 = replace_text_args
+      old_text = base64.urlsafe_b64decode(old_text_b64)
+      new_text = base64.urlsafe_b64decode(new_text_b64)
+      data = data.replace(old_text, new_text)
+    return data
 
   def FileHandler(self):
     """This handler sends the contents of the requested file.  Wow, it's like
