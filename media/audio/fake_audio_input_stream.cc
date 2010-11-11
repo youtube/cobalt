@@ -7,18 +7,17 @@
 using base::Time;
 using base::TimeDelta;
 
-AudioInputStream* FakeAudioInputStream::MakeFakeStream(AudioParameters params,
-                                                       int samples_per_packet) {
-  return new FakeAudioInputStream(params, samples_per_packet);
+AudioInputStream* FakeAudioInputStream::MakeFakeStream(AudioParameters params) {
+  return new FakeAudioInputStream(params);
 }
 
-FakeAudioInputStream::FakeAudioInputStream(AudioParameters params,
-                                           int samples_per_packet)
+FakeAudioInputStream::FakeAudioInputStream(AudioParameters params)
     : callback_(NULL),
       buffer_size_((params.channels * params.bits_per_sample *
-                    samples_per_packet) / 8),
+                    params.samples_per_packet) / 8),
       thread_("FakeAudioRecordingThread"),
-      callback_interval_ms_((samples_per_packet * 1000) / params.sample_rate) {
+      callback_interval_ms_((params.samples_per_packet * 1000) /
+                            params.sample_rate) {
   // This object is ref counted (so that it can be used with Thread, PostTask)
   // but the caller expects a plain pointer. So we take a reference here and
   // will Release() ourselves in Close().

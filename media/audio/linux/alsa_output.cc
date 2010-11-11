@@ -232,15 +232,18 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       bytes_per_sample_(params.bits_per_sample / 8),
       bytes_per_frame_(channels_ * params.bits_per_sample / 8),
       should_downmix_(false),
-      latency_micros_(0),
-      micros_per_packet_(0),
+      packet_size_(params.GetPacketSize()),
+      micros_per_packet_(FramesToMicros(
+          params.samples_per_packet, sample_rate_)),
+      latency_micros_(std::max(AlsaPcmOutputStream::kMinLatencyMicros,
+                               micros_per_packet_ * 2)),
       bytes_per_output_frame_(bytes_per_frame_),
       alsa_buffer_frames_(0),
       stop_stream_(false),
       wrapper_(wrapper),
       manager_(manager),
       playback_handle_(NULL),
-      frames_per_packet_(0),
+      frames_per_packet_(packet_size_ / bytes_per_frame_),
       client_thread_loop_(MessageLoop::current()),
       message_loop_(message_loop) {
 
@@ -271,12 +274,8 @@ AlsaPcmOutputStream::~AlsaPcmOutputStream() {
   // where the stream is not always stopped and closed, causing this to fail.
 }
 
-bool AlsaPcmOutputStream::Open(uint32 packet_size) {
+bool AlsaPcmOutputStream::Open() {
   DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
-
-  DCHECK_EQ(0U, packet_size % bytes_per_frame_)
-      << "Buffers should end on a frame boundary. Frame size: "
-      << bytes_per_frame_;
 
   if (shared_data_.state() == kInError) {
     return false;
@@ -294,7 +293,7 @@ bool AlsaPcmOutputStream::Open(uint32 packet_size) {
   shared_data_.TransitionTo(kIsOpened);
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &AlsaPcmOutputStream::OpenTask, packet_size));
+      NewRunnableMethod(this, &AlsaPcmOutputStream::OpenTask));
 
   return true;
 }
@@ -307,10 +306,6 @@ void AlsaPcmOutputStream::Close() {
   if (shared_data_.TransitionTo(kIsClosed) != kIsClosed) {
     NOTREACHED() << "Unable to transition Closed.";
   }
-
-  // Signal our successful close, and disassociate the source callback.
-  shared_data_.OnClose(this);
-  shared_data_.set_source_callback(NULL);
 
   message_loop_->PostTask(
       FROM_HERE,
@@ -340,6 +335,9 @@ void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {
 void AlsaPcmOutputStream::Stop() {
   DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
 
+  // Reset the callback, so that it is not called anymore.
+  shared_data_.set_source_callback(NULL);
+
   shared_data_.TransitionTo(kIsStopped);
 }
 
@@ -355,18 +353,10 @@ void AlsaPcmOutputStream::GetVolume(double* volume) {
   *volume = shared_data_.volume();
 }
 
-void AlsaPcmOutputStream::OpenTask(uint32 packet_size) {
+void AlsaPcmOutputStream::OpenTask() {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
-  // Initialize the configuration variables.
-  packet_size_ = packet_size;
-  frames_per_packet_ = packet_size_ / bytes_per_frame_;
-
   // Try to open the device.
-  micros_per_packet_ =
-      FramesToMicros(packet_size / bytes_per_frame_, sample_rate_);
-  latency_micros_ = std::max(AlsaPcmOutputStream::kMinLatencyMicros,
-                             micros_per_packet_ * 2);
   if (requested_device_name_ == kAutoSelectDevice) {
     playback_handle_ = AutoSelectDevice(latency_micros_);
     if (playback_handle_)
@@ -918,13 +908,6 @@ uint32 AlsaPcmOutputStream::SharedData::OnMoreData(
   }
 
   return 0;
-}
-
-void AlsaPcmOutputStream::SharedData::OnClose(AudioOutputStream* stream) {
-  AutoLock l(lock_);
-  if (source_callback_) {
-    source_callback_->OnClose(stream);
-  }
 }
 
 void AlsaPcmOutputStream::SharedData::OnError(AudioOutputStream* stream,

@@ -13,7 +13,6 @@
 
 namespace {
 const int kMaxInputChannels = 2;
-const int kMaxSamplesPerPacket = media::Limits::kMaxSampleRate;
 
 bool HasAudioHardware(AudioObjectPropertySelector selector) {
   AudioDeviceID output_device_id = kAudioObjectUnknown;
@@ -45,22 +44,21 @@ bool AudioManagerMac::HasAudioInputDevices() {
 AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
     AudioParameters params) {
   if (params.format == AudioParameters::AUDIO_MOCK)
-    return FakeAudioOutputStream::MakeFakeStream();
+    return FakeAudioOutputStream::MakeFakeStream(params);
   else if (params.format != AudioParameters::AUDIO_PCM_LINEAR)
     return NULL;
   return new PCMQueueOutAudioOutputStream(this, params);
 }
 
 AudioInputStream* AudioManagerMac::MakeAudioInputStream(
-    AudioParameters params, int samples_per_packet) {
-  if (!params.IsValid() || (params.channels > kMaxInputChannels) ||
-      (samples_per_packet > kMaxSamplesPerPacket) || (samples_per_packet < 0))
+    AudioParameters params) {
+  if (!params.IsValid() || (params.channels > kMaxInputChannels))
     return NULL;
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
+    return FakeAudioInputStream::MakeFakeStream(params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
-    return new PCMQueueInAudioInputStream(this, params, samples_per_packet);
+    return new PCMQueueInAudioInputStream(this, params);
   }
   return NULL;
 }

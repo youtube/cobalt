@@ -27,6 +27,7 @@ struct Limits {
   static const int kMaxSampleRate = 192000;
   static const int kMaxChannels = 32;
   static const int kMaxBitsPerSample = 64;
+  static const int kMaxSamplesPerPacket = kMaxSampleRate;
 
   // Maximum possible time.
   static const int64 kMaxTimeInMicroseconds = kint64max;

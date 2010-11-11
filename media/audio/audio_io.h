@@ -40,6 +40,11 @@
 // Models an audio stream that gets rendered to the audio hardware output.
 // Because we support more audio streams than physically available channels
 // a given AudioOutputStream might or might not talk directly to hardware.
+// An audio stream allocates several buffers for audio data and calls
+// AudioSourceCallback::OnModeData() periodically to fill these buffers,
+// as the data is written to the audio device. Size of each packet is determined
+// by |samples_per_packet| specified in AudioParameters  when the stream is
+// created.
 class AudioOutputStream {
  public:
   // Audio sources must implement AudioSourceCallback. This interface will be
@@ -51,18 +56,15 @@ class AudioOutputStream {
     virtual ~AudioSourceCallback() {}
 
     // Provide more data by filling |dest| up to |max_size| bytes. The provided
-    // buffer size is usually what is specified in Open(). The source
-    // will return the number of bytes it filled. The expected structure of
-    // |dest| is platform and format specific.
-    // |pending_bytes| is the number of bytes will be played before the
-    // requested data is played.
+    // buffer size is determined by the |samples_per_packet| specified in
+    // AudioParameters when the stream is created. The source will return
+    // the number of bytes it filled. The expected structure of |dest| is
+    // platform and format specific.
+    // |buffers_state| contains current state of the buffers, and can be used
+    // by the source to calculate delay.
     virtual uint32 OnMoreData(
         AudioOutputStream* stream, uint8* dest, uint32 max_size,
         AudioBuffersState buffers_state) = 0;
-
-    // The stream is done with this callback. After this call the audio source
-    // can go away or be destroyed.
-    virtual void OnClose(AudioOutputStream* stream) = 0;
 
     // There was an error while playing a buffer. Audio source cannot be
     // destroyed yet. No direct action needed by the AudioStream, but it is
@@ -72,17 +74,8 @@ class AudioOutputStream {
     virtual void OnError(AudioOutputStream* stream, int code) = 0;
   };
 
-  // Open the stream. |packet_size| is the requested buffer allocation which
-  // the audio source thinks it can usually fill without blocking. Internally
-  // two or three buffers of |packet_size| size are created, one will be
-  // locked for playback and one will be ready to be filled in the call to
-  // AudioSourceCallback::OnMoreData().
-  // The number of buffers is controlled by AUDIO_PCM_LOW_LATENCY. See more
-  // information below.
-  //
-  // TODO(ajwong): Streams are not reusable, so try to move packet_size into the
-  // constructor.
-  virtual bool Open(uint32 packet_size) = 0;
+  // Open the stream. false is returned if the stream cannot be opened.
+  virtual bool Open() = 0;
 
   // Starts playing audio and generating AudioSourceCallback::OnMoreData().
   // Since implementor of AudioOutputStream may have internal buffers, right

@@ -23,7 +23,6 @@ namespace {
 const int kWinMaxChannels = 8;
 
 const int kWinMaxInputChannels = 2;
-const int kMaxSamplesPerPacket = media::Limits::kMaxSampleRate;
 // We use 3 buffers for recording audio so that if a recording callback takes
 // some time to return we won't lose audio. More buffers while recording are
 // ok because they don't introduce any delay in recording, unlike in playback
@@ -51,7 +50,7 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
     return NULL;
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioOutputStream::MakeFakeStream();
+    return FakeAudioOutputStream::MakeFakeStream(params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
     return new PCMWaveOutAudioOutputStream(this, params, 3, WAVE_MAPPER);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
@@ -63,16 +62,15 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
 
 // Factory for the implementations of AudioInputStream.
 AudioInputStream* AudioManagerWin::MakeAudioInputStream(
-    AudioParameters params, int samples_per_packet) {
-  if (!params.IsValid() || (params.channels > kWinMaxInputChannels) ||
-      (samples_per_packet > kMaxSamplesPerPacket) || (samples_per_packet < 0))
+    AudioParameters params) {
+  if (!params.IsValid() || (params.channels > kWinMaxInputChannels))
     return NULL;
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioInputStream::MakeFakeStream(params, samples_per_packet);
+    return FakeAudioInputStream::MakeFakeStream(params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
     return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
-                                         samples_per_packet, WAVE_MAPPER);
+                                         WAVE_MAPPER);
   }
   return NULL;
 }

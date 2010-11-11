@@ -21,8 +21,7 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   // the audio manager who is creating this object and |device_id| which
   // is provided by the operating system.
   PCMWaveInAudioInputStream(AudioManagerWin* manager, AudioParameters params,
-                            int num_buffers, uint32 samples_per_packet,
-                            UINT device_id);
+                            int num_buffers, UINT device_id);
   virtual ~PCMWaveInAudioInputStream();
 
   // Implementation of AudioInputStream.

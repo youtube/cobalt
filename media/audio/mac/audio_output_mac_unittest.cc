@@ -24,7 +24,6 @@ class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
   MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, uint8* dest,
                                   uint32 max_size,
                                   AudioBuffersState buffers_state));
-  MOCK_METHOD1(OnClose, void(AudioOutputStream* stream));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
 
@@ -58,7 +57,7 @@ TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16));
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16, 1024));
   ASSERT_TRUE(NULL != oas);
   oas->Close();
 }
@@ -70,9 +69,9 @@ TEST(MacAudioTest, PCMWaveStreamOpenAndClose) {
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16));
+      AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16, 1024));
   ASSERT_TRUE(NULL != oas);
-  EXPECT_TRUE(oas->Open(1024));
+  EXPECT_TRUE(oas->Open());
   oas->Close();
 }
 
@@ -85,17 +84,15 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
   ASSERT_TRUE(NULL != audio_man);
   if (!audio_man->HasAudioOutputDevices())
     return;
+  uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
-                      AudioParameters::kAudioCDSampleRate, 16));
+                      AudioParameters::kAudioCDSampleRate, 16, frames_100_ms));
   ASSERT_TRUE(NULL != oas);
+  EXPECT_TRUE(oas->Open());
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              200.0, AudioParameters::kAudioCDSampleRate);
-  uint32 bytes_100_ms = (AudioParameters::kAudioCDSampleRate / 10) * 2;
-
-  EXPECT_TRUE(oas->Open(bytes_100_ms));
-
   oas->SetVolume(0.5);
   oas->Start(&source);
   usleep(500000);
@@ -118,16 +115,16 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
   ASSERT_TRUE(NULL != audio_man);
   if (!audio_man->HasAudioOutputDevices())
     return;
+  uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
-                      AudioParameters::kAudioCDSampleRate / 2, 16));
+                      AudioParameters::kAudioCDSampleRate / 2, 16,
+                      frames_100_ms));
   ASSERT_TRUE(NULL != oas);
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              200.0, AudioParameters::kAudioCDSampleRate/2);
-  uint32 bytes_100_ms = (AudioParameters::kAudioCDSampleRate / 20) * 2;
-
-  EXPECT_TRUE(oas->Open(bytes_100_ms));
+  EXPECT_TRUE(oas->Open());
   oas->Start(&source);
   usleep(1500000);
   oas->Stop();
@@ -145,14 +142,17 @@ TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
   ASSERT_TRUE(NULL != audio_man);
   if (!audio_man->HasAudioOutputDevices())
     return;
+
+  uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 1,
-                      AudioParameters::kAudioCDSampleRate, 16));
+                      AudioParameters::kAudioCDSampleRate, 16, frames_100_ms));
   ASSERT_TRUE(NULL != oas);
 
   NiceMock<MockAudioSource> source;
-  uint32 bytes_100_ms = (AudioParameters::kAudioCDSampleRate / 10) * 2;
-  EXPECT_TRUE(oas->Open(bytes_100_ms));
+  EXPECT_TRUE(oas->Open());
+
+  uint32 bytes_100_ms = frames_100_ms * 2;
 
   // We expect the amount of pending bytes will reaching |bytes_100_ms|
   // because the audio output stream has a double buffer scheme.

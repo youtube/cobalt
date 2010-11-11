@@ -24,15 +24,21 @@ struct AudioParameters {
 
   AudioParameters();
 
-  AudioParameters(Format format, int channels,
-                  int sample_rate, int bits_per_sample);
+  AudioParameters(Format format, int channels, int sample_rate,
+                  int bits_per_sample, int samples_per_packet);
 
+  // Checks that all values are in the expected range. All limits are specified
+  // in media::Limits.
   bool IsValid() const;
 
-  Format format;        // Format of the stream.
-  int channels;         // Number of channels.
-  int sample_rate;      // Sampling frequency/rate.
-  int bits_per_sample;  // Number of bits per sample.
+  // Returns size of audio packets in bytes.
+  int GetPacketSize() const;
+
+  Format format;           // Format of the stream.
+  int channels;            // Number of channels.
+  int sample_rate;         // Sampling frequency/rate.
+  int bits_per_sample;     // Number of bits per sample.
+  int samples_per_packet;  // Size of a packet in frames.
 };
 
 #endif  // MEDIA_AUDIO_AUDIO_PARAMETERS_H_

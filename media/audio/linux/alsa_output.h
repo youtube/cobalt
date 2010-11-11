@@ -24,6 +24,13 @@
 // threading assumptions at the top of the implementation file to avoid
 // introducing race conditions between tasks posted to the internal
 // message_loop, and the thread calling the public APIs.
+//
+// TODO(sergeyu): AlsaPcmOutputStream is always created and used from the
+// audio thread (i.e. |client_thread_loop_| and |message_loop_| always point
+// to the same thread), so it doesn't need to be thread-safe anymore.
+//
+// TODO(sergeyu): Remove refcounter from AlsaPcmOutputStream and use
+// ScopedRunnableMethodFactory to create tasks.
 
 #ifndef MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
 #define MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
@@ -79,7 +86,7 @@ class AlsaPcmOutputStream :
                       MessageLoop* message_loop);
 
   // Implementation of AudioOutputStream.
-  virtual bool Open(uint32 packet_size);
+  virtual bool Open();
   virtual void Close();
   virtual void Start(AudioSourceCallback* callback);
   virtual void Stop();
@@ -127,7 +134,7 @@ class AlsaPcmOutputStream :
   friend std::ostream& operator<<(std::ostream& os, InternalState);
 
   // Various tasks that complete actions started in the public API.
-  void OpenTask(uint32 packet_size);
+  void OpenTask();
   void StartTask();
   void CloseTask();
 
@@ -179,7 +186,6 @@ class AlsaPcmOutputStream :
     // using a deleted callback.
     uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
                       uint32 max_size, AudioBuffersState buffers_state);
-    void OnClose(AudioOutputStream* stream);
     void OnError(AudioOutputStream* stream, int code);
 
     // Changes the AudioSourceCallback to proxy calls to.  Pass in NULL to
@@ -211,9 +217,9 @@ class AlsaPcmOutputStream :
   // Device configuration data. Populated after OpenTask() completes.
   std::string device_name_;
   bool should_downmix_;
-  uint32 latency_micros_;
   uint32 packet_size_;
   uint32 micros_per_packet_;
+  uint32 latency_micros_;
   uint32 bytes_per_output_frame_;
   uint32 alsa_buffer_frames_;
 
