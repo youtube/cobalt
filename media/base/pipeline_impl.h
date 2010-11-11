@@ -66,6 +66,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   explicit PipelineImpl(MessageLoop* message_loop);
 
   // Pipeline implementation.
+  virtual void Init(PipelineCallback* ended_callback,
+                    PipelineCallback* error_callback,
+                    PipelineCallback* network_callback);
   virtual bool Start(MediaFilterCollection* filter_collection,
                      const std::string& uri,
                      PipelineCallback* start_callback);
@@ -88,18 +91,6 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual bool IsStreaming() const;
   virtual bool IsLoaded() const;
   virtual PipelineError GetError() const;
-
-  // Sets a permanent callback owned by the pipeline that will be executed when
-  // the media reaches the end.
-  virtual void SetPipelineEndedCallback(PipelineCallback* ended_callback);
-
-  // |error_callback_| will be executed upon an error in the pipeline. If
-  // |error_callback_| is NULL, it is ignored. The pipeline takes ownership
-  // of |error_callback|.
-  virtual void SetPipelineErrorCallback(PipelineCallback* error_callback);
-
-  // |network_callback_| will be executed when there's a network event.
-  virtual void SetNetworkEventCallback(PipelineCallback* network_callback);
 
  private:
   // Pipeline states, as described above.

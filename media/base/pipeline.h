@@ -48,6 +48,15 @@ typedef Callback0::Type PipelineCallback;
 
 class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
+  // Initializes pipeline. Pipeline takes ownership of all callbacks passed
+  // into this method.
+  // |ended_callback| will be executed when the media reaches the end.
+  // |error_callback_| will be executed upon an error in the pipeline.
+  // |network_callback_| will be executed when there's a network event.
+  virtual void Init(PipelineCallback* ended_callback,
+                    PipelineCallback* error_callback,
+                    PipelineCallback* network_callback) = 0;
+
   // Build a pipeline to render the given URL using the given filter collection
   // to construct a filter chain.  Returns true if successful, false otherwise
   // (i.e., pipeline already started).  Note that a return value of true
@@ -92,6 +101,9 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // point where playback controls will be respected.  Note that it is possible
   // for a pipeline to be started but not initialized (i.e., an error occurred).
   virtual bool IsInitialized() const = 0;
+
+  // Returns true if there has been network activity.
+  virtual bool IsNetworkActive() const = 0;
 
   // If the |major_mime_type| exists in the pipeline and is being rendered, this
   // method will return true.  Types are defined in media/base/media_foramt.h.
