@@ -1174,6 +1174,7 @@
         ['inside_chromium_build==1', {
           'dependencies': [
             '../chrome/browser/sync/protocol/sync_proto.gyp:sync_proto',
+            '../chrome/browser/policy/proto/device_management_proto.gyp:device_management_proto',
             '../third_party/protobuf/protobuf.gyp:py_proto',
           ],
         }],
