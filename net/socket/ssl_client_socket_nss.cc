@@ -94,6 +94,7 @@
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/dns_cert_provenance_check.h"
+#include "net/socket/ssl_error_params.h"
 #include "net/socket/ssl_host_info.h"
 
 static const int kRecvBufferSize = 4096;
@@ -271,28 +272,6 @@ int MapHandshakeError(PRErrorCode err) {
       return MapNSPRError(err);
   }
 }
-
-// Extra parameters to attach to the NetLog when we receive an SSL error.
-class SSLErrorParams : public NetLog::EventParameters {
- public:
-  // If |ssl_lib_error| is 0, it will be ignored.
-  SSLErrorParams(int net_error, PRErrorCode ssl_lib_error)
-      : net_error_(net_error),
-        ssl_lib_error_(ssl_lib_error) {
-  }
-
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetInteger("net_error", net_error_);
-    if (ssl_lib_error_)
-      dict->SetInteger("ssl_lib_error", ssl_lib_error_);
-    return dict;
-  }
-
- private:
-  const int net_error_;
-  const PRErrorCode ssl_lib_error_;
-};
 
 // Extra parameters to attach to the NetLog when we receive an error in response
 // to a call to an NSS function.  Used instead of SSLErrorParams with
@@ -727,6 +706,14 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   if (rv != SECSuccess) {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_TLS");
     return ERR_UNEXPECTED;
+  }
+
+  for (std::vector<uint16>::const_iterator it =
+           ssl_config_.disabled_cipher_suites.begin();
+       it != ssl_config_.disabled_cipher_suites.end(); ++it) {
+    // This will fail if the specified cipher is not implemented by NSS, but
+    // the failure is harmless.
+    SSL_CipherPrefSet(nss_fd_, *it, PR_FALSE);
   }
 
 #ifdef SSL_ENABLE_SESSION_TICKETS

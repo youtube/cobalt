@@ -8,6 +8,7 @@
 
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/observer_list.h"
 #include "base/ref_counted.h"
 #include "net/base/x509_certificate.h"
@@ -30,6 +31,24 @@ struct SSLConfig {
   bool snap_start_enabled;  // True if we'll try Snap Start handshakes.
   // True if we'll do async checks for certificate provenance using DNS.
   bool dns_cert_provenance_checking_enabled;
+
+  // Cipher suites which should be explicitly prevented from being used. By
+  // default, all cipher suites supported by the underlying SSL implementation
+  // will be enabled, except for:
+  // - Null encryption cipher suites.
+  // - Weak cipher suites: < 80 bits of security strength.
+  // - FORTEZZA cipher suites (obsolete).
+  // - IDEA cipher suites (RFC 5469 explains why).
+  // - Anonymous cipher suites.
+  //
+  // Though cipher suites are sent in TLS as "uint8 CipherSuite[2]", in
+  // big-endian form, they should be declared in host byte order, with the
+  // first uint8 occupying the most significant byte.
+  // Ex: To disable TLS_RSA_WITH_RC4_128_MD5, specify 0x0004, while to
+  // disable TLS_ECDH_ECDSA_WITH_RC4_128_SHA, specify 0xC002.
+  //
+  // TODO(rsleevi): Not implemented when using OpenSSL or Schannel.
+  std::vector<uint16> disabled_cipher_suites;
 
   // True if we allow this connection to be MITM attacked. This sounds a little
   // worse than it is: large networks sometimes MITM attack all SSL connections
