@@ -43,9 +43,9 @@ int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
                            HttpUtil::PathForRequest(request_info_->url);
   request_line_ = base::StringPrintf("%s %s HTTP/1.1\r\n",
                                      request_info_->method.c_str(),
-                                     path.c_str()) + headers.ToString();
-
-  return parser_->SendRequest(request_line_, request_body, response, callback);
+                                     path.c_str());
+  return parser_->SendRequest(request_line_, headers, request_body, response,
+                              callback);
 }
 
 HttpBasicStream::~HttpBasicStream() {}
