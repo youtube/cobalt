@@ -1675,6 +1675,54 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     if (that->ssl_config_.client_cert) {
       PCCERT_CONTEXT cert_context =
           that->ssl_config_.client_cert->os_cert_handle();
+      if (VLOG_IS_ON(1)) {
+        do {
+          DWORD size_needed = 0;
+          BOOL got_info = CertGetCertificateContextProperty(
+              cert_context, CERT_KEY_PROV_INFO_PROP_ID, NULL, &size_needed);
+          if (!got_info) {
+            VLOG(1) << "Failed to get key prov info size " << GetLastError();
+            break;
+          }
+          std::vector<BYTE> raw_info(size_needed);
+          got_info = CertGetCertificateContextProperty(
+              cert_context, CERT_KEY_PROV_INFO_PROP_ID, &raw_info[0],
+              &size_needed);
+          if (!got_info) {
+            VLOG(1) << "Failed to get key prov info " << GetLastError();
+            break;
+          }
+          PCRYPT_KEY_PROV_INFO info =
+              reinterpret_cast<PCRYPT_KEY_PROV_INFO>(&raw_info[0]);
+          VLOG(1) << "Container Name: " << info->pwszContainerName
+                  << "\nProvider Name: " << info->pwszProvName
+                  << "\nProvider Type: " << info->dwProvType
+                  << "\nFlags: " << info->dwFlags
+                  << "\nProvider Param Count: " << info->cProvParam
+                  << "\nKey Specifier: " << info->dwKeySpec;
+        } while (false);
+
+        do {
+          DWORD size_needed = 0;
+          BOOL got_identifier = CertGetCertificateContextProperty(
+              cert_context, CERT_KEY_IDENTIFIER_PROP_ID, NULL, &size_needed);
+          if (!got_identifier) {
+            VLOG(1) << "Failed to get key identifier size "
+                    << GetLastError();
+            break;
+          }
+          std::vector<BYTE> raw_id(size_needed);
+          got_identifier = CertGetCertificateContextProperty(
+              cert_context, CERT_KEY_IDENTIFIER_PROP_ID, &raw_id[0],
+              &size_needed);
+          if (!got_identifier) {
+            VLOG(1) << "Failed to get key identifier " << GetLastError();
+            break;
+          }
+          VLOG(1) << "Key Identifier: " << base::HexEncode(&raw_id[0],
+                                                           size_needed);
+        } while (false);
+      }
       HCRYPTPROV provider = NULL;
       DWORD key_spec = AT_KEYEXCHANGE;
       BOOL must_free = FALSE;
