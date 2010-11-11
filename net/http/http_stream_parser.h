@@ -20,6 +20,7 @@ class ClientSocketHandle;
 class DrainableIOBuffer;
 class GrowableIOBuffer;
 struct HttpRequestInfo;
+class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
 class SSLCertRequestInfo;
@@ -40,7 +41,9 @@ class HttpStreamParser {
 
   // These functions implement the interface described in HttpStream with
   // some additional functionality
-  int SendRequest(const std::string& headers, UploadDataStream* request_body,
+  int SendRequest(const std::string& request_line,
+                  const HttpRequestHeaders& headers,
+                  UploadDataStream* request_body,
                   HttpResponseInfo* response, CompletionCallback* callback);
 
   int ReadResponseHeaders(CompletionCallback* callback);
