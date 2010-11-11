@@ -7,6 +7,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "build/build_config.h"
@@ -117,14 +118,20 @@ class TestServer {
   std::string GetScheme() const;
   bool GetAddressList(AddressList* address_list) const WARN_UNUSED_RESULT;
 
-  GURL GetURL(const std::string& path);
+  GURL GetURL(const std::string& path) const;
 
   GURL GetURLWithUser(const std::string& path,
-                      const std::string& user);
+                      const std::string& user) const;
 
   GURL GetURLWithUserAndPassword(const std::string& path,
                                  const std::string& user,
-                                 const std::string& password);
+                                 const std::string& password) const;
+
+  typedef std::pair<std::string, std::string> StringPair;
+  static bool GetFilePathWithReplacements(
+      const std::string& original_path,
+      const std::vector<StringPair>& text_to_replace,
+      std::string* replacement_path);
 
  private:
   void Init(const FilePath& document_root);
