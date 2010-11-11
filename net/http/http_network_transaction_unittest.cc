@@ -7746,4 +7746,96 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   EXPECT_EQ(OK, callback.WaitForResult());
 }
 
+// Given a net error, cause that error to be returned from the first Write()
+// call and verify that the HttpTransaction fails with that error.
+static void CheckErrorIsPassedBack(int error, bool async) {
+  SessionDependencies session_deps;
+
+  SSLSocketDataProvider ssl_data(async, OK);
+  net::MockWrite data_writes[] = {
+    net::MockWrite(async, error),
+  };
+  net::StaticSocketDataProvider data(NULL, 0,
+                                     data_writes, arraysize(data_writes));
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  net::HttpRequestInfo request_info;
+  request_info.url = GURL("https://www.example.com/");
+  request_info.method = "GET";
+  request_info.load_flags = net::LOAD_NORMAL;
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request_info, &callback, net::BoundNetLog());
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  ASSERT_EQ(error, rv);
+}
+
+TEST_F(HttpNetworkTransactionTest, SSLWriteCertError) {
+  // Just check a grab bag of cert errors.
+  static const int kErrors[] = {
+    ERR_CERT_COMMON_NAME_INVALID,
+    ERR_CERT_AUTHORITY_INVALID,
+    ERR_CERT_DATE_INVALID,
+  };
+  for (size_t i = 0; i < arraysize(kErrors); i++) {
+    CheckErrorIsPassedBack(kErrors[i], false /* not async */);
+    CheckErrorIsPassedBack(kErrors[i], true /* async */);
+  }
+}
+
+// Test that the transaction is restarted in the event of an NPN misprediction.
+TEST_F(HttpNetworkTransactionTest, NPNMispredict) {
+  SessionDependencies session_deps;
+
+  SSLSocketDataProvider ssl_data1(true /* async */, OK);
+  SSLSocketDataProvider ssl_data2(true /* async */, OK);
+
+  net::MockWrite data1_writes[] = {
+    net::MockWrite(true /* async */, ERR_SSL_SNAP_START_NPN_MISPREDICTION),
+  };
+  net::MockRead data2_reads[] = {
+    net::MockRead("HTTP/1.0 200 OK\r\n\r\n"),
+    net::MockRead("hello world"),
+    net::MockRead(false, net::OK),
+  };
+  net::MockWrite data2_writes[] = {
+    net::MockWrite("GET / HTTP/1.1\r\n"
+                   "Host: www.example.com\r\n"
+                   "Connection: keep-alive\r\n\r\n"),
+  };
+  net::StaticSocketDataProvider data1(
+      NULL, 0, data1_writes, arraysize(data1_writes));
+  net::StaticSocketDataProvider data2(data2_reads, arraysize(data2_reads),
+                                      data2_writes, arraysize(data2_writes));
+
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data1);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data2);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  net::HttpRequestInfo request_info;
+  request_info.url = GURL("https://www.example.com/");
+  request_info.method = "GET";
+  request_info.load_flags = net::LOAD_NORMAL;
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request_info, &callback, net::BoundNetLog());
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  ASSERT_EQ(OK, rv);
+
+  std::string contents;
+  rv = ReadTransaction(trans.get(), &contents);
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_EQ("hello world", contents);
+}
+
 }  // namespace net

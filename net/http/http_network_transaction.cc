@@ -1014,6 +1014,16 @@ int HttpNetworkTransaction::HandleIOError(int error) {
         error = OK;
       }
       break;
+    case ERR_SSL_SNAP_START_NPN_MISPREDICTION:
+      // This means that we tried to Snap Start a connection, but we
+      // mispredicted the NPN result. This isn't a problem from the point of
+      // view of the SSL layer because the server will ignore the application
+      // data in the Snap Start extension. However, at the HTTP layer, we have
+      // already decided that it's a HTTP or SPDY connection and it's easier to
+      // abort and start again.
+      ResetConnectionAndRequestForResend();
+      error = OK;
+      break;
   }
   return error;
 }
