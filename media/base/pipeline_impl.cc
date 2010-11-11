@@ -31,6 +31,16 @@ PipelineImpl::~PipelineImpl() {
   DCHECK(!seek_pending_);
 }
 
+void PipelineImpl::Init(PipelineCallback* ended_callback,
+                        PipelineCallback* error_callback,
+                        PipelineCallback* network_callback) {
+  DCHECK(!IsRunning())
+      << "Init() should be called before the pipeline has started";
+  ended_callback_.reset(ended_callback);
+  error_callback_.reset(error_callback);
+  network_callback_.reset(network_callback);
+}
+
 // Creates the PipelineInternal and calls it's start method.
 bool PipelineImpl::Start(MediaFilterCollection* collection,
                          const std::string& url,
@@ -271,24 +281,6 @@ void PipelineImpl::SetCurrentReadPosition(int64 offset) {
 int64 PipelineImpl::GetCurrentReadPosition() {
   AutoLock auto_lock(lock_);
   return current_bytes_;
-}
-
-void PipelineImpl::SetPipelineEndedCallback(PipelineCallback* ended_callback) {
-  DCHECK(!IsRunning())
-      << "Permanent callbacks should be set before the pipeline has started";
-  ended_callback_.reset(ended_callback);
-}
-
-void PipelineImpl::SetPipelineErrorCallback(PipelineCallback* error_callback) {
-  DCHECK(!IsRunning())
-      << "Permanent callbacks should be set before the pipeline has started";
-  error_callback_.reset(error_callback);
-}
-
-void PipelineImpl::SetNetworkEventCallback(PipelineCallback* network_callback) {
-  DCHECK(!IsRunning())
-      << "Permanent callbacks should be set before the pipeline has started";
-  network_callback_.reset(network_callback);
 }
 
 void PipelineImpl::ResetState() {

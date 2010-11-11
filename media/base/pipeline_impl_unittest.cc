@@ -61,9 +61,12 @@ class PipelineImplTest : public ::testing::Test {
  public:
   PipelineImplTest()
       : pipeline_(new PipelineImpl(&message_loop_)) {
-    pipeline_->SetPipelineErrorCallback(NewCallback(
-        reinterpret_cast<CallbackHelper*>(&callbacks_),
-        &CallbackHelper::OnError));
+    pipeline_->Init(
+        NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                    &CallbackHelper::OnEnded),
+        NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                    &CallbackHelper::OnError),
+        NULL);
     mocks_.reset(new MockFilterCollection());
   }
 
@@ -598,10 +601,6 @@ TEST_F(PipelineImplTest, DisableAudioRenderer) {
   streams.push_back(audio_stream());
   streams.push_back(video_stream());
 
-  pipeline_->SetPipelineEndedCallback(
-      NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                  &CallbackHelper::OnEnded));
-
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
   InitializeAudioDecoder(audio_stream());
@@ -648,11 +647,6 @@ TEST_F(PipelineImplTest, EndedCallback) {
   MockDemuxerStreamVector streams;
   streams.push_back(audio_stream());
   streams.push_back(video_stream());
-
-  // Set our ended callback.
-  pipeline_->SetPipelineEndedCallback(
-      NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                  &CallbackHelper::OnEnded));
 
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
