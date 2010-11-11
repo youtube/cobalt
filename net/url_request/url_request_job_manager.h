@@ -7,6 +7,7 @@
 #pragma once
 
 #include <map>
+#include <string>
 #include <vector>
 
 #include "base/lock.h"
@@ -60,13 +61,17 @@ class URLRequestJobManager {
   void RegisterRequestInterceptor(URLRequest::Interceptor* interceptor);
   void UnregisterRequestInterceptor(URLRequest::Interceptor* interceptor);
 
+  void set_enable_file_access(bool enable) { enable_file_access_ = enable; }
+  bool enable_file_access() const { return enable_file_access_; }
+
  private:
-  typedef std::map<std::string,URLRequest::ProtocolFactory*> FactoryMap;
+  typedef std::map<std::string, URLRequest::ProtocolFactory*> FactoryMap;
   typedef std::vector<URLRequest::Interceptor*> InterceptorList;
 
   mutable Lock lock_;
   FactoryMap factories_;
   InterceptorList interceptors_;
+  bool enable_file_access_;
 
 #ifndef NDEBUG
   // We use this to assert that CreateJob and the registration functions all

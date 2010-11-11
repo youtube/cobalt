@@ -251,6 +251,10 @@ class URLRequest : public NonThreadSafe {
   // to handle those.
   static bool IsHandledURL(const GURL& url);
 
+  // Allow access to file:// on ChromeOS for tests.
+  static void AllowFileAccess();
+  static bool IsFileAccessAllowed();
+
   // The original url is the url used to initialize the request, and it may
   // differ from the url if the request was redirected.
   const GURL& original_url() const { return original_url_; }

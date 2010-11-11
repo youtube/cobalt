@@ -274,6 +274,17 @@ bool URLRequest::IsHandledURL(const GURL& url) {
   return IsHandledProtocol(url.scheme());
 }
 
+// static
+void URLRequest::AllowFileAccess() {
+  GetJobManager()->set_enable_file_access(true);
+}
+
+// static
+bool URLRequest::IsFileAccessAllowed() {
+  return GetJobManager()->enable_file_access();
+}
+
+
 void URLRequest::set_first_party_for_cookies(
     const GURL& first_party_for_cookies) {
   first_party_for_cookies_ = first_party_for_cookies;
