@@ -11,7 +11,7 @@
 #include "net/test/test_server.h"
 
 static void PrintUsage() {
-  printf("run_testserver --doc-root=relpath [--http|--https|--ftp]\n");
+  printf("run_testserver --doc-root=relpath [--http|--https|--ftp|--sync]\n");
   printf("(NOTE: relpath should be relative to the 'src' directory)\n");
 }
 
@@ -29,18 +29,20 @@ int main(int argc, const char* argv[]) {
     return -1;
   }
 
-  FilePath doc_root =  command_line->GetSwitchValuePath("doc-root");
-  if (doc_root.empty()) {
-    printf("Error: --doc-root must be specified\n");
-    PrintUsage();
-    return -1;
-  }
-
   net::TestServer::Type server_type(net::TestServer::TYPE_HTTP);
   if (command_line->HasSwitch("https")) {
     server_type = net::TestServer::TYPE_HTTPS;
   } else if (command_line->HasSwitch("ftp")) {
     server_type = net::TestServer::TYPE_FTP;
+  } else if (command_line->HasSwitch("sync")) {
+    server_type = net::TestServer::TYPE_SYNC;
+  }
+
+  FilePath doc_root = command_line->GetSwitchValuePath("doc-root");
+  if ((server_type != net::TestServer::TYPE_SYNC) && doc_root.empty()) {
+    printf("Error: --doc-root must be specified\n");
+    PrintUsage();
+    return -1;
   }
 
   net::TestServer test_server(server_type, doc_root);
