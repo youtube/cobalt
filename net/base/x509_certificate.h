@@ -277,8 +277,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, Cache);
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, IntermediateCertificates);
 
-  class Cache;
-
   // Construct an X509Certificate from a handle to the certificate object
   // in the underlying crypto library.
   X509Certificate(OSCertHandle cert_handle, Source source,
