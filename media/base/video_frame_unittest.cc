@@ -106,7 +106,6 @@ TEST(VideoFrame, CreateFrame) {
   EXPECT_EQ(kDurationA.InMicroseconds(),
             frame->GetDuration().InMicroseconds());
   EXPECT_FALSE(frame->IsEndOfStream());
-  EXPECT_FALSE(frame->IsDiscontinuous());
   frame->SetTimestamp(kTimestampB);
   frame->SetDuration(kDurationB);
   EXPECT_EQ(kTimestampB.InMicroseconds(),
@@ -114,10 +113,6 @@ TEST(VideoFrame, CreateFrame) {
   EXPECT_EQ(kDurationB.InMicroseconds(),
             frame->GetDuration().InMicroseconds());
   EXPECT_FALSE(frame->IsEndOfStream());
-  frame->SetDiscontinuous(true);
-  EXPECT_TRUE(frame->IsDiscontinuous());
-  frame->SetDiscontinuous(false);
-  EXPECT_FALSE(frame->IsDiscontinuous());
 
   // Test VideoFrame implementation.
   EXPECT_EQ(media::VideoFrame::TYPE_SYSTEM_MEMORY, frame->type());

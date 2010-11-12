@@ -9,11 +9,8 @@ namespace media {
 const base::TimeDelta kNoTimestamp =
     base::TimeDelta::FromMicroseconds(kint64min);
 
-StreamSample::StreamSample()
-    : discontinuous_(false) {
-}
+StreamSample::StreamSample() {}
 
-StreamSample::~StreamSample() {
-}
+StreamSample::~StreamSample() {}
 
 }  // namespace media
