@@ -53,7 +53,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
             HostPortPair("proxy", 80), LOWEST, GURL(), false)),
         ignored_ssl_socket_params_(new SSLSocketParams(
             ignored_tcp_socket_params_, NULL, NULL, ProxyServer::SCHEME_DIRECT,
-            "www.google.com", ssl_config_, 0, false, false)),
+            HostPortPair("www.google.com", 443), ssl_config_, 0, false, false)),
         tcp_histograms_("MockTCP"),
         tcp_socket_pool_(
             kMaxSockets, kMaxSocketsPerGroup,
@@ -415,7 +415,7 @@ TEST_P(HttpProxyClientSocketPoolTest, SslClientAuth) {
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());
 
-  EXPECT_EQ(ERR_PROXY_AUTH_UNSUPPORTED, callback_.WaitForResult());
+  EXPECT_EQ(ERR_SSL_CLIENT_AUTH_CERT_NEEDED, callback_.WaitForResult());
 
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());

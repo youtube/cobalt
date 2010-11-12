@@ -113,7 +113,7 @@ class SSLClientSocketPoolTest : public testing::Test {
         proxy == ProxyServer::SCHEME_SOCKS5 ? socks_socket_params_ : NULL,
         proxy == ProxyServer::SCHEME_HTTP ? http_proxy_socket_params_ : NULL,
         proxy,
-        "host",
+        HostPortPair("host", 443),
         ssl_config_,
         0,
         false,
