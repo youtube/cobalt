@@ -274,10 +274,8 @@ HttpAuthHandlerNegotiate::Factory::Factory()
       max_token_length_(0),
       first_creation_(true),
       is_unsupported_(false),
-      auth_library_(SSPILibrary::GetDefault()) {
-#elif defined(OS_POSIX)
-      auth_library_(GSSAPILibrary::GetDefault()) {
 #endif
+      auth_library_(NULL) {
 }
 
 HttpAuthHandlerNegotiate::Factory::~Factory() {
@@ -300,7 +298,7 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
   if (is_unsupported_ || reason == CREATE_PREEMPTIVE)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
   if (max_token_length_ == 0) {
-    int rv = DetermineMaxTokenLength(auth_library_, NEGOSSP_NAME,
+    int rv = DetermineMaxTokenLength(auth_library_.get(), NEGOSSP_NAME,
                                      &max_token_length_);
     if (rv == ERR_UNSUPPORTED_AUTH_SCHEME)
       is_unsupported_ = true;
@@ -310,7 +308,7 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   scoped_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNegotiate(auth_library_, max_token_length_,
+      new HttpAuthHandlerNegotiate(auth_library_.get(), max_token_length_,
                                    url_security_manager(), resolver_,
                                    disable_cname_lookup_, use_port_));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
@@ -321,7 +319,7 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
   // TODO(ahendrickson): Move towards model of parsing in the factory
   //                     method and only constructing when valid.
   scoped_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNegotiate(auth_library_, url_security_manager(),
+      new HttpAuthHandlerNegotiate(auth_library_.get(), url_security_manager(),
                                    resolver_, disable_cname_lookup_,
                                    use_port_));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))

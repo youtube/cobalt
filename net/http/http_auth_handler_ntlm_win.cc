@@ -46,7 +46,7 @@ HttpAuthHandlerNTLM::Factory::Factory()
     : max_token_length_(0),
       first_creation_(true),
       is_unsupported_(false),
-      sspi_library_(SSPILibrary::GetDefault()) {
+      sspi_library_(NULL) {
 }
 
 HttpAuthHandlerNTLM::Factory::~Factory() {

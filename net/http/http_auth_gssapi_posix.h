@@ -95,15 +95,14 @@ class GSSAPILibrary {
       int* locally_initiated,
       int* open) = 0;
 
-  // Get the default GSSPILibrary instance. The object returned is a singleton
-  // instance, and the caller should not delete it.
-  static GSSAPILibrary* GetDefault();
 };
 
 // GSSAPISharedLibrary class is defined here so that unit tests can access it.
 class GSSAPISharedLibrary : public GSSAPILibrary {
  public:
-  GSSAPISharedLibrary();
+  // If |gssapi_library_name| is empty, hard-coded default library names are
+  // used.
+  explicit GSSAPISharedLibrary(const std::string& gssapi_library_name);
   virtual ~GSSAPISharedLibrary();
 
   // GSSAPILibrary methods:
@@ -179,6 +178,7 @@ class GSSAPISharedLibrary : public GSSAPILibrary {
 
   bool initialized_;
 
+  std::string gssapi_library_name_;
   // Need some way to invalidate the library.
   base::NativeLibrary gssapi_library_;
 

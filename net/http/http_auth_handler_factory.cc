@@ -48,12 +48,23 @@ HttpAuthHandlerRegistryFactory* HttpAuthHandlerFactory::CreateDefault(
       "basic", new HttpAuthHandlerBasic::Factory());
   registry_factory->RegisterSchemeFactory(
       "digest", new HttpAuthHandlerDigest::Factory());
+
   HttpAuthHandlerNegotiate::Factory* negotiate_factory =
       new HttpAuthHandlerNegotiate::Factory();
+#if defined(OS_POSIX)
+  negotiate_factory->set_library(new GSSAPISharedLibrary(std::string()));
+#elif defined(OS_WIN)
+  negotiate_factory->set_library(new SSPILibraryDefault());
+#endif
   negotiate_factory->set_host_resolver(host_resolver);
   registry_factory->RegisterSchemeFactory("negotiate", negotiate_factory);
-  registry_factory->RegisterSchemeFactory(
-      "ntlm", new HttpAuthHandlerNTLM::Factory());
+
+  HttpAuthHandlerNTLM::Factory* ntlm_factory =
+      new HttpAuthHandlerNTLM::Factory();
+#if defined(OS_WIN)
+  ntlm_factory->set_sspi_library(new SSPILibraryDefault());
+#endif
+  registry_factory->RegisterSchemeFactory("ntlm", ntlm_factory);
   return registry_factory;
 }
 
@@ -73,6 +84,7 @@ HttpAuthHandlerRegistryFactory* HttpAuthHandlerRegistryFactory::Create(
     const std::vector<std::string>& supported_schemes,
     URLSecurityManager* security_manager,
     HostResolver* host_resolver,
+    const std::string& gssapi_library_name,
     bool negotiate_disable_cname_lookup,
     bool negotiate_enable_port) {
   HttpAuthHandlerRegistryFactory* registry_factory =
@@ -87,11 +99,20 @@ HttpAuthHandlerRegistryFactory* HttpAuthHandlerRegistryFactory::Create(
     HttpAuthHandlerNTLM::Factory* ntlm_factory =
         new HttpAuthHandlerNTLM::Factory();
     ntlm_factory->set_url_security_manager(security_manager);
+#if defined(OS_WIN)
+    ntlm_factory->set_sspi_library(new SSPILibraryDefault());
+#endif
     registry_factory->RegisterSchemeFactory("ntlm", ntlm_factory);
   }
   if (IsSupportedScheme(supported_schemes, "negotiate")) {
     HttpAuthHandlerNegotiate::Factory* negotiate_factory =
         new HttpAuthHandlerNegotiate::Factory();
+#if defined(OS_POSIX)
+    negotiate_factory->set_library(
+        new GSSAPISharedLibrary(gssapi_library_name));
+#elif defined(OS_WIN)
+    negotiate_factory->set_library(new SSPILibraryDefault());
+#endif
     negotiate_factory->set_url_security_manager(security_manager);
     DCHECK(host_resolver || negotiate_disable_cname_lookup);
     negotiate_factory->set_host_resolver(host_resolver);
