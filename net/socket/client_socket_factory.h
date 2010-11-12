@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "net/base/net_log.h"
 
 namespace net {
@@ -16,6 +17,7 @@ class AddressList;
 class ClientSocket;
 class ClientSocketHandle;
 class DnsRRResolver;
+class HostPortPair;
 class SSLClientSocket;
 struct SSLConfig;
 class SSLHostInfo;
@@ -23,7 +25,7 @@ class SSLHostInfo;
 // Callback function to create new SSLClientSocket objects.
 typedef SSLClientSocket* (*SSLClientSocketFactory)(
     ClientSocketHandle* transport_socket,
-    const std::string& hostname,
+    const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,
     DnsRRResolver* dnsrr_resolver);
@@ -43,16 +45,17 @@ class ClientSocketFactory {
 
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
-      const std::string& hostname,
+      const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
       DnsRRResolver* dnsrr_resolver) = 0;
 
   // Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
-  virtual SSLClientSocket* CreateSSLClientSocket(ClientSocket* transport_socket,
-                                                 const std::string& hostname,
-                                                 const SSLConfig& ssl_config,
-                                                 SSLHostInfo* ssl_host_info);
+  virtual SSLClientSocket* CreateSSLClientSocket(
+      ClientSocket* transport_socket,
+      const HostPortPair& host_and_port,
+      const SSLConfig& ssl_config,
+      SSLHostInfo* ssl_host_info);
 
   // Returns the default ClientSocketFactory.
   static ClientSocketFactory* GetDefaultFactory();

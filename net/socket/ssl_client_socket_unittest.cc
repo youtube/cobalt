@@ -67,8 +67,7 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -105,8 +104,7 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -145,8 +143,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -189,8 +186,7 @@ TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -232,8 +228,7 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), ssl_config,
-          NULL));
+          transport, test_server.host_port_pair(), ssl_config, NULL));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -275,8 +270,7 @@ TEST_F(SSLClientSocketTest, Read) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   rv = sock->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -331,8 +325,7 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   rv = sock->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -386,8 +379,7 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   rv = sock->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -437,8 +429,7 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   rv = sock->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
@@ -508,8 +499,7 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(), kDefaultSSLConfig,
-          NULL));
+          transport, test_server.host_port_pair(), kDefaultSSLConfig, NULL));
 
   rv = sock->Connect(&callback);
   EXPECT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
@@ -558,8 +548,7 @@ TEST_F(SSLClientSocketTest, MAYBE_CipherSuiteDisables) {
 
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair().host(),
-          ssl_config, NULL));
+          transport, test_server.host_port_pair(), ssl_config, NULL));
 
   EXPECT_FALSE(sock->IsConnected());
 

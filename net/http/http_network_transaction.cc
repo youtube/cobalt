@@ -172,8 +172,8 @@ int HttpNetworkTransaction::RestartWithCertificate(
 
   ssl_config_.client_cert = client_cert;
   if (client_cert) {
-    session_->ssl_client_auth_cache()->Add(GetHostAndPort(request_->url),
-                                           client_cert);
+    session_->ssl_client_auth_cache()->Add(
+        response_.cert_request_info->host_and_port, client_cert);
   }
   ssl_config_.send_client_cert = true;
   // Reset the other member variables.
@@ -973,8 +973,8 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
 
   // If the user selected one of the certificate in client_certs for this
   // server before, use it automatically.
-  X509Certificate* client_cert = session_->ssl_client_auth_cache()->
-                                 Lookup(GetHostAndPort(request_->url));
+  X509Certificate* client_cert = session_->ssl_client_auth_cache()->Lookup(
+      response_.cert_request_info->host_and_port);
   if (client_cert) {
     const std::vector<scoped_refptr<X509Certificate> >& client_certs =
         response_.cert_request_info->client_certs;
