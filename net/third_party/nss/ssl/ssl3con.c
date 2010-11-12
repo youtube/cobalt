@@ -5023,20 +5023,20 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	goto alert_loser;
     }
 
-    if (!ss->ssl3.serverHelloPredictionData.data) {
-        /* If this allocation fails it will only stop the application from
-	 * recording the ServerHello information and performing future Snap
-	 * Starts. */
-	if (SECITEM_AllocItem(NULL, &ss->ssl3.serverHelloPredictionData,
-			      length))
-	    memcpy(ss->ssl3.serverHelloPredictionData.data, b, length);
-	/* ss->ssl3.serverHelloPredictionDataValid is still false at this
-	 * point. We have to record the contents of the ServerHello here
-	 * because we don't have a pointer to the whole message when handling
-	 * the extensions. However, we wait until the Snap Start extenion
-	 * handler to recognise that the server supports Snap Start and to set
-	 * serverHelloPredictionDataValid. */
-    }
+    if (ss->ssl3.serverHelloPredictionData.data)
+	SECITEM_FreeItem(&ss->ssl3.serverHelloPredictionData, PR_FALSE);
+
+    /* If this allocation fails it will only stop the application from
+     * recording the ServerHello information and performing future Snap
+     * Starts. */
+    if (SECITEM_AllocItem(NULL, &ss->ssl3.serverHelloPredictionData, length))
+	memcpy(ss->ssl3.serverHelloPredictionData.data, b, length);
+    /* ss->ssl3.serverHelloPredictionDataValid is still false at this
+     * point. We have to record the contents of the ServerHello here
+     * because we don't have a pointer to the whole message when handling
+     * the extensions. However, we wait until the Snap Start extension
+     * handler to recognise that the server supports Snap Start and to set
+     * serverHelloPredictionDataValid. */
 
     temp = ssl3_ConsumeHandshakeNumber(ss, 2, &b, &length);
     if (temp < 0) {
