@@ -76,9 +76,15 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup) {
   // TODO(ahendrickson): Manipulate the libraries and paths to test each of the
   // libraries we expect, and also whether or not they have the interface
   // functions we want.
-  GSSAPILibrary* gssapi = GSSAPILibrary::GetDefault();
-  DCHECK(gssapi);
-  gssapi->Init();
+  scoped_ptr<GSSAPILibrary> gssapi(new GSSAPISharedLibrary(""));
+  DCHECK(gssapi.get());
+  DCHECK(gssapi.get()->Init());
+}
+
+TEST(HttpAuthGSSAPIPOSIXTest, GSSAPILoadCustomLibrary) {
+  scoped_ptr<GSSAPILibrary> gssapi(
+      new GSSAPISharedLibrary("/this/library/does/not/exist"));
+  DCHECK(!gssapi.get()->Init());
 }
 
 TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
