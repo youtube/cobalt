@@ -19,7 +19,12 @@ typedef HANDLE MutexHandle;
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h>
 #elif defined(OS_POSIX)
+#if defined(OS_NACL)
+#include <sys/nacl_syscalls.h>
+#include <sys/time.h> // timespec doesn't seem to be in <time.h>
+#else
 #include <sys/syscall.h>
+#endif
 #include <time.h>
 #endif
 
@@ -128,6 +133,8 @@ int32 CurrentThreadId() {
 #elif defined(OS_FREEBSD)
   // TODO(BSD): find a better thread ID
   return reinterpret_cast<int64>(pthread_self());
+#elif defined(OS_NACL)
+  return pthread_self();
 #endif
 }
 
@@ -136,6 +143,10 @@ uint64 TickCount() {
   return GetTickCount();
 #elif defined(OS_MACOSX)
   return mach_absolute_time();
+#elif defined(OS_NACL)
+  // NaCl sadly does not have _POSIX_TIMERS enabled in sys/features.h
+  // So we have to use clock() for now.
+  return clock();
 #elif defined(OS_POSIX)
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);

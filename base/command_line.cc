@@ -224,7 +224,7 @@ void CommandLine::Init(int argc, const char* const* argv) {
 #endif
 }
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_NACL)
 // static
 void CommandLine::SetProcTitle() {
   // Build a single string which consists of all the arguments separated
