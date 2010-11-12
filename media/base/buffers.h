@@ -53,12 +53,6 @@ class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
   // depending on specific data.
   virtual bool IsEndOfStream() const = 0;
 
-  // Indicates that this sample is discontinuous from the previous one, for
-  // example, following a seek.
-  bool IsDiscontinuous() const {
-    return discontinuous_;
-  }
-
   // Sets the timestamp of this buffer in microseconds.
   void SetTimestamp(const base::TimeDelta& timestamp) {
     timestamp_ = timestamp;
@@ -69,11 +63,6 @@ class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
     duration_ = duration;
   }
 
-  // Sets the value returned by IsDiscontinuous().
-  void SetDiscontinuous(bool discontinuous) {
-    discontinuous_ = discontinuous;
-  }
-
  protected:
   friend class base::RefCountedThreadSafe<StreamSample>;
   StreamSample();
@@ -81,7 +70,6 @@ class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
 
   base::TimeDelta timestamp_;
   base::TimeDelta duration_;
-  bool discontinuous_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StreamSample);

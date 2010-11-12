@@ -58,7 +58,6 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
                                          AVStream* stream)
     : demuxer_(demuxer),
       stream_(stream),
-      discontinuous_(false),
       stopped_(false) {
   DCHECK(demuxer_);
 
@@ -141,7 +140,6 @@ void FFmpegDemuxerStream::FlushBuffers() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
-  discontinuous_ = true;
 }
 
 void FFmpegDemuxerStream::Stop() {
@@ -193,14 +191,6 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
   scoped_ptr<Callback1<Buffer*>::Type> read_callback(read_queue_.front());
   buffer_queue_.pop_front();
   read_queue_.pop_front();
-
-  // Handle discontinuities due to FlushBuffers() being called.
-  //
-  // TODO(scherkus): get rid of |discontinuous_| and use buffer flags.
-  if (discontinuous_) {
-    buffer->SetDiscontinuous(true);
-    discontinuous_ = false;
-  }
 
   // Execute the callback.
   read_callback->Run(buffer);
