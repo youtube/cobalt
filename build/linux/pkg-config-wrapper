@@ -11,4 +11,6 @@ rewrite=`dirname $0`/rewrite_dirs.py
 
 shift
 config_path=$root/usr/lib/pkgconfig:$root/usr/share/pkgconfig
-PKG_CONFIG_PATH=$config_path pkg-config --define-variable=prefix=/usr "$@" | $rewrite $root
+set -e
+result=`PKG_CONFIG_PATH=$config_path pkg-config --define-variable=prefix=/usr "$@"`
+echo "$result"| $rewrite $root
