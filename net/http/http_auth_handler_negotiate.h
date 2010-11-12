@@ -72,14 +72,10 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                   const BoundNetLog& net_log,
                                   scoped_ptr<HttpAuthHandler>* handler);
 
-    // Set the system library to use. Typically the only callers which need to
-    // use this are unit tests which pass in a mocked-out version of the
-    // system library.
-    // The caller is responsible for managing the lifetime of |*auth_library|,
-    // and the lifetime must exceed that of this Factory object and all
-    // HttpAuthHandler's that this Factory object creates.
+    // Sets the system library to use, thereby assuming ownership of
+    // |auth_library|.
     void set_library(AuthLibrary* auth_library) {
-      auth_library_ = auth_library;
+      auth_library_.reset(auth_library);
     }
 
    private:
@@ -91,7 +87,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
     bool first_creation_;
     bool is_unsupported_;
 #endif
-    AuthLibrary* auth_library_;
+    scoped_ptr<AuthLibrary> auth_library_;
   };
 
   HttpAuthHandlerNegotiate(AuthLibrary* sspi_library,

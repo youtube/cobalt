@@ -31,7 +31,7 @@ namespace net {
 class HttpAuthHandlerNegotiateTest : public PlatformTest {
  public:
   virtual void SetUp() {
-    auth_library_.reset(new MockAuthLibrary());
+    auth_library_ = new MockAuthLibrary();
     resolver_.reset(new MockHostResolver());
     resolver_->rules()->AddIPLiteralRule("alias", "10.0.0.2",
                                            "canonical.example.com");
@@ -39,7 +39,7 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
     url_security_manager_.reset(new URLSecurityManagerAllow());
     factory_.reset(new HttpAuthHandlerNegotiate::Factory());
     factory_->set_url_security_manager(url_security_manager_.get());
-    factory_->set_library(auth_library_.get());
+    factory_->set_library(auth_library_);
     factory_->set_host_resolver(resolver_.get());
   }
 
@@ -205,13 +205,14 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
     return rv;
   }
 
-  MockAuthLibrary* AuthLibrary() { return auth_library_.get(); }
+  MockAuthLibrary* AuthLibrary() { return auth_library_; }
 
  private:
 #if defined(OS_WIN)
   scoped_ptr<SecPkgInfoW> security_package_;
 #endif
-  scoped_ptr<MockAuthLibrary> auth_library_;
+  // |auth_library_| is passed to |factory_|, which assumes ownership of it.
+  MockAuthLibrary* auth_library_;
   scoped_ptr<MockHostResolver> resolver_;
   scoped_ptr<URLSecurityManager> url_security_manager_;
   scoped_ptr<HttpAuthHandlerNegotiate::Factory> factory_;

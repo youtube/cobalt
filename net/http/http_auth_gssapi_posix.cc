@@ -11,7 +11,6 @@
 #include "base/file_path.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
-#include "base/singleton.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/base/net_errors.h"
@@ -385,8 +384,9 @@ std::string DescribeContext(GSSAPILibrary* gssapi_lib,
 
 }  // namespace
 
-GSSAPISharedLibrary::GSSAPISharedLibrary()
+GSSAPISharedLibrary::GSSAPISharedLibrary(const std::string& gssapi_library_name)
     : initialized_(false),
+      gssapi_library_name_(gssapi_library_name),
       gssapi_library_(NULL),
       import_name_(NULL),
       release_name_(NULL),
@@ -422,19 +422,29 @@ bool GSSAPISharedLibrary::InitImpl() {
 }
 
 base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
-  static const char* kLibraryNames[] = {
+  const char** library_names;
+  size_t num_lib_names;
+  const char* user_specified_library[1];
+  if (!gssapi_library_name_.empty()) {
+    user_specified_library[0] = gssapi_library_name_.c_str();
+    library_names = user_specified_library;
+    num_lib_names = 1;
+  } else {
+    static const char* kDefaultLibraryNames[] = {
 #if defined(OS_MACOSX)
-    "libgssapi_krb5.dylib"  // MIT Kerberos
+      "libgssapi_krb5.dylib"  // MIT Kerberos
 #else
-    "libgssapi_krb5.so.2",  // MIT Kerberos - FC, Suse10, Debian
-    "libgssapi.so.4",       // Heimdal - Suse10, MDK
-    "libgssapi.so.1"        // Heimdal - Suse9, CITI - FC, MDK, Suse10
+      "libgssapi_krb5.so.2",  // MIT Kerberos - FC, Suse10, Debian
+      "libgssapi.so.4",       // Heimdal - Suse10, MDK
+      "libgssapi.so.1"        // Heimdal - Suse9, CITI - FC, MDK, Suse10
 #endif
-  };
-  static size_t num_lib_names = arraysize(kLibraryNames);
+    };
+    library_names = kDefaultLibraryNames;
+    num_lib_names = arraysize(kDefaultLibraryNames);
+  }
 
   for (size_t i = 0; i < num_lib_names; ++i) {
-    const char* library_name = kLibraryNames[i];
+    const char* library_name = library_names[i];
     FilePath file_path(library_name);
     base::NativeLibrary lib = base::LoadNativeLibrary(file_path);
     if (lib) {
@@ -612,9 +622,6 @@ OM_uint32 GSSAPISharedLibrary::inquire_context(
                           ctx_flags,
                           locally_initiated,
                           open);
-}
-GSSAPILibrary* GSSAPILibrary::GetDefault() {
-  return Singleton<GSSAPISharedLibrary>::get();
 }
 
 ScopedSecurityContext::ScopedSecurityContext(GSSAPILibrary* gssapi_lib)
