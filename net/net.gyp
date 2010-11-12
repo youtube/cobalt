@@ -971,6 +971,7 @@
         'websockets/websocket_handshake_handler_unittest.cc',
         'websockets/websocket_handshake_unittest.cc',
         'websockets/websocket_job_unittest.cc',
+        'websockets/websocket_net_log_params_unittest.cc',
         'websockets/websocket_throttle_unittest.cc',
         'websockets/websocket_unittest.cc',
       ],

@@ -28,28 +28,34 @@ class NetLogWebSocketHandshakeParameter : public NetLog::EventParameters {
   Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     ListValue* headers = new ListValue();
-    std::vector<std::string> lines;
-    base::SplitStringDontTrim(headers_, '\n', &lines);
-    for (size_t i = 0; i < lines.size(); ++i) {
-      if (lines[i] == "\r") {
-        headers->Append(new StringValue(""));
-        // Dump WebSocket key3
-        std::string key;
-        i = i + 1;
-        for (; i < lines.size(); ++i) {
-          for (size_t j = 0; j < lines[i].length(); ++j) {
-            key += base::StringPrintf("\\x%02x", lines[i][j] & 0xff);
+
+    size_t last = 0;
+    size_t headers_size = headers_.size();
+    size_t pos = 0;
+    while (pos <= headers_size) {
+      if (pos == headers_size ||
+          (headers_[pos] == '\r' &&
+           pos + 1 < headers_size && headers_[pos + 1] == '\n')) {
+        std::string entry = headers_.substr(last, pos - last);
+        pos += 2;
+        last = pos;
+
+        headers->Append(new StringValue(entry));
+
+        if (entry.empty()) {
+          // Dump WebSocket key3.
+          std::string key;
+          for (; pos < headers_size; ++pos) {
+            key += base::StringPrintf("\\x%02x", headers_[pos] & 0xff);
           }
-          key += "\\x0a";
+          headers->Append(new StringValue(key));
+          break;
         }
-        headers->Append(new StringValue(key));
-        break;
+      } else {
+        ++pos;
       }
-      std::string line = lines[i];
-      if (line.length() > 0 && line[line.length() - 1] == '\r')
-        line = line.substr(0, line.length() - 1);
-      headers->Append(new StringValue(line));
     }
+
     dict->Set("headers", headers);
     return dict;
   }
