@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #endif
 
+#include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/singleton.h"
 
 namespace net {
 
@@ -283,9 +283,13 @@ const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
 };
 #endif
 
+static base::LazyInstance<EVRootCAMetadata,
+                          base::LeakyLazyInstanceTraits<EVRootCAMetadata> >
+    g_ev_root_ca_metadata(base::LINKER_INITIALIZED);
+
 // static
 EVRootCAMetadata* EVRootCAMetadata::GetInstance() {
-  return Singleton<EVRootCAMetadata>::get();
+  return g_ev_root_ca_metadata.Pointer();
 }
 
 bool EVRootCAMetadata::GetPolicyOID(
