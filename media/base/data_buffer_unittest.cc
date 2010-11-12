@@ -23,16 +23,10 @@ TEST(DataBufferTest, StreamSampleImpl) {
   EXPECT_TRUE(kTimestampA == buffer->GetTimestamp());
   EXPECT_TRUE(kDurationA == buffer->GetDuration());
   EXPECT_TRUE(buffer->IsEndOfStream());
-  EXPECT_FALSE(buffer->IsDiscontinuous());
   buffer->SetTimestamp(kTimestampB);
   buffer->SetDuration(kDurationB);
   EXPECT_TRUE(kTimestampB == buffer->GetTimestamp());
   EXPECT_TRUE(kDurationB == buffer->GetDuration());
-
-  buffer->SetDiscontinuous(true);
-  EXPECT_TRUE(buffer->IsDiscontinuous());
-  buffer->SetDiscontinuous(false);
-  EXPECT_FALSE(buffer->IsDiscontinuous());
 }
 
 TEST(DataBufferTest, Constructors) {
