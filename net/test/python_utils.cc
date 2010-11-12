@@ -46,10 +46,10 @@ bool GetPyProtoPath(FilePath* dir) {
 
   const FilePath kPyProto(FILE_PATH_LITERAL("pyproto"));
 
-#if defined(OS_MACOSX)
-  // On Mac, DIR_EXE might be pointing deep into the Release/ (or Debug/)
-  // directory and we can't depend on how far down it goes. So we walk upwards
-  // from DIR_EXE until we find a likely looking spot.
+#if defined(OS_MACOSX) || defined(OS_CHROMEOS)
+  // On Mac and Chrome OS, DIR_EXE might be pointing deep into the Release/
+  // (or Debug/) directory and we can't depend on how far down it goes. So we
+  // walk upwards from DIR_EXE until we find a likely looking spot.
   while (!file_util::DirectoryExists(generated_code_dir.Append(kPyProto))) {
     FilePath parent = generated_code_dir.DirName();
     if (parent == generated_code_dir) {
