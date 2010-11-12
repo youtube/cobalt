@@ -97,8 +97,6 @@
         'base/seekable_buffer.h',
         'base/state_matrix.cc',
         'base/state_matrix.h',
-        'base/synchronizer.cc',
-        'base/synchronizer.h',
         'base/video_frame.cc',
         'base/video_frame.h',
         'base/yuv_convert.cc',
