@@ -19,7 +19,7 @@
 
 #include "base/string16.h"
 
-// Macro usefull for writing cross-platform function pointers.
+// Macro useful for writing cross-platform function pointers.
 #if defined(OS_WIN) && !defined(CDECL)
 #define CDECL __cdecl
 #else

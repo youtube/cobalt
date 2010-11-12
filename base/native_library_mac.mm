@@ -11,12 +11,14 @@
 #include "base/file_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
+#include "base/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
 namespace base {
 
 // static
 NativeLibrary LoadNativeLibrary(const FilePath& library_path) {
+  // dlopen() etc. open the file off disk.
   if (library_path.Extension() == "dylib" ||
       !file_util::DirectoryExists(library_path)) {
     void* dylib = dlopen(library_path.value().c_str(), RTLD_LAZY);
