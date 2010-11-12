@@ -6664,7 +6664,7 @@ TEST_F(HttpNetworkTransactionTest,
   session->ssl_config_service()->GetSSLConfig(&ssl_config);
   ClientSocket* socket = connection->release_socket();
   socket = session->socket_factory()->CreateSSLClientSocket(
-      socket, "" , ssl_config, NULL /* ssl_host_info */);
+      socket, HostPortPair("" , 443), ssl_config, NULL /* ssl_host_info */);
   connection->set_socket(socket);
   EXPECT_EQ(ERR_IO_PENDING, socket->Connect(&callback));
   EXPECT_EQ(OK, callback.WaitForResult());

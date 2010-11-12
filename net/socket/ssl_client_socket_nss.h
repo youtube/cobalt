@@ -19,6 +19,7 @@
 #include "base/timer.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/net_log.h"
 #include "net/base/nss_memio.h"
 #include "net/base/ssl_config_service.h"
@@ -38,11 +39,13 @@ class X509Certificate;
 class SSLClientSocketNSS : public SSLClientSocket {
  public:
   // Takes ownership of the |transport_socket|, which must already be connected.
-  // The given hostname will be compared with the name(s) in the server's
-  // certificate during the SSL handshake.  ssl_config specifies the SSL
-  // settings.
+  // The hostname specified in |host_and_port| will be compared with the name(s)
+  // in the server's certificate during the SSL handshake.  If SSL client
+  // authentication is requested, the host_and_port field of SSLCertRequestInfo
+  // will be populated with |host_and_port|.  |ssl_config| specifies
+  // the SSL settings.
   SSLClientSocketNSS(ClientSocketHandle* transport_socket,
-                     const std::string& hostname,
+                     const HostPortPair& host_and_port,
                      const SSLConfig& ssl_config,
                      SSLHostInfo* ssl_host_info,
                      DnsRRResolver* dnsrr_resolver);
@@ -158,7 +161,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   CompletionCallbackImpl<SSLClientSocketNSS> handshake_io_callback_;
   scoped_ptr<ClientSocketHandle> transport_;
-  std::string hostname_;
+  HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
   CompletionCallback* user_connect_callback_;

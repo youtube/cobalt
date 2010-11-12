@@ -15,6 +15,7 @@
 #include "base/utf_string_conversions.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
@@ -371,7 +372,7 @@ class ClientCertStore {
 static const int kRecvBufferSize = (5 + 16*1024 + 64);
 
 SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
-                                       const std::string& hostname,
+                                       const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
         handshake_io_callback_(this,
@@ -381,7 +382,7 @@ SSLClientSocketWin::SSLClientSocketWin(ClientSocketHandle* transport_socket,
       ALLOW_THIS_IN_INITIALIZER_LIST(
         write_callback_(this, &SSLClientSocketWin::OnWriteComplete)),
       transport_(transport_socket),
-      hostname_(hostname),
+      host_and_port_(host_and_port),
       ssl_config_(ssl_config),
       user_connect_callback_(NULL),
       user_read_callback_(NULL),
@@ -453,7 +454,7 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
 
 void SSLClientSocketWin::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
-  cert_request_info->host_and_port = hostname_;  // TODO(wtc): no port!
+  cert_request_info->host_and_port = host_and_port_.ToString();
   cert_request_info->client_certs.clear();
 
   // Get the certificate_authorities field of the CertificateRequest message.
@@ -601,7 +602,7 @@ int SSLClientSocketWin::InitializeSSLContext() {
   status = InitializeSecurityContext(
       creds_,
       NULL,  // NULL on the first call
-      const_cast<wchar_t*>(ASCIIToWide(hostname_).c_str()),
+      const_cast<wchar_t*>(ASCIIToWide(host_and_port_.host()).c_str()),
       flags,
       0,  // Reserved
       0,  // Not used with Schannel.
@@ -1123,7 +1124,7 @@ int SSLClientSocketWin::DoVerifyCert() {
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new CertVerifier);
-  return verifier_->Verify(server_cert_, hostname_, flags,
+  return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
                            &server_cert_verify_result_,
                            &handshake_io_callback_);
 }

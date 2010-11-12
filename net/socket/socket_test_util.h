@@ -532,7 +532,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
       const NetLog::Source& source);
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
-      const std::string& hostname,
+      const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
       DnsRRResolver* dnsrr_resolver);
@@ -690,7 +690,7 @@ class MockSSLClientSocket : public MockClientSocket {
  public:
   MockSSLClientSocket(
       net::ClientSocketHandle* transport_socket,
-      const std::string& hostname,
+      const HostPortPair& host_and_port,
       const net::SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
       net::SSLSocketDataProvider* socket);
@@ -877,7 +877,7 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
                                               const NetLog::Source& source);
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
-      const std::string& hostname,
+      const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
       DnsRRResolver* dnsrr_resolver);

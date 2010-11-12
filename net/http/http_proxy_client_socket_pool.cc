@@ -207,9 +207,11 @@ int HttpProxyConnectJob::DoSSLConnect() {
 }
 
 int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
-  // TODO(rch): enable support for client auth to the proxy
-  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
-    return ERR_PROXY_AUTH_UNSUPPORTED;
+  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
+    error_response_info_ = transport_socket_handle_->ssl_error_response_info();
+    DCHECK(error_response_info_.cert_request_info.get());
+    return result;
+  }
   if (IsCertificateError(result)) {
     if (params_->ssl_params()->load_flags() & LOAD_IGNORE_ALL_CERT_ERRORS)
       result = OK;
@@ -246,6 +248,13 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
   return result;
 }
 
+void HttpProxyConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
+  if (error_response_info_.cert_request_info) {
+    handle->set_ssl_error_response_info(error_response_info_);
+    handle->set_is_ssl_error(true);
+  }
+}
+
 int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
   DCHECK(using_spdy_);
   DCHECK(params_->tunnel());
@@ -256,20 +265,19 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
   scoped_refptr<SpdySession> spdy_session;
   // It's possible that a session to the proxy has recently been created
   if (spdy_pool->HasSession(pair)) {
-    if (transport_socket_handle_->socket())
-      transport_socket_handle_->socket()->Disconnect();
-    transport_socket_handle_->Reset();
+    if (transport_socket_handle_.get()) {
+      if (transport_socket_handle_->socket())
+        transport_socket_handle_->socket()->Disconnect();
+      transport_socket_handle_->Reset();
+    }
     spdy_session = spdy_pool->Get(pair, params_->spdy_settings(), net_log());
   } else {
     // Create a session direct to the proxy itself
     int rv = spdy_pool->GetSpdySessionFromSocket(
         pair, params_->spdy_settings(), transport_socket_handle_.release(),
         net_log(), OK, &spdy_session, /*using_ssl_*/ true);
-    if (rv < 0) {
-      if (transport_socket_handle_->socket())
-        transport_socket_handle_->socket()->Disconnect();
+    if (rv < 0)
       return rv;
-    }
   }
 
   next_state_ = STATE_SPDY_PROXY_CREATE_STREAM_COMPLETE;

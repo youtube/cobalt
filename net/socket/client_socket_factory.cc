@@ -27,20 +27,21 @@ namespace {
 
 SSLClientSocket* DefaultSSLClientSocketFactory(
     ClientSocketHandle* transport_socket,
-    const std::string& hostname,
+    const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,
     DnsRRResolver* dnsrr_resolver) {
   scoped_ptr<SSLHostInfo> shi(ssl_host_info);
 #if defined(OS_WIN)
-  return new SSLClientSocketWin(transport_socket, hostname, ssl_config);
+  return new SSLClientSocketWin(transport_socket, host_and_port, ssl_config);
 #elif defined(USE_OPENSSL)
-  return new SSLClientSocketOpenSSL(transport_socket, hostname, ssl_config);
+  return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
+                                    ssl_config);
 #elif defined(USE_NSS)
-  return new SSLClientSocketNSS(transport_socket, hostname, ssl_config,
+  return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
                                 shi.release(), dnsrr_resolver);
 #elif defined(OS_MACOSX)
-  return new SSLClientSocketNSS(transport_socket, hostname, ssl_config,
+  return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
                                 shi.release(), dnsrr_resolver);
 #else
   NOTIMPLEMENTED();
@@ -61,12 +62,12 @@ class DefaultClientSocketFactory : public ClientSocketFactory {
 
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
-      const std::string& hostname,
+      const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
       DnsRRResolver* dnsrr_resolver) {
-    return g_ssl_factory(transport_socket, hostname, ssl_config, ssl_host_info,
-                         dnsrr_resolver);
+    return g_ssl_factory(transport_socket, host_and_port, ssl_config,
+                         ssl_host_info, dnsrr_resolver);
   }
 };
 
@@ -86,12 +87,12 @@ void ClientSocketFactory::SetSSLClientSocketFactory(
 // Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
 SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
     ClientSocket* transport_socket,
-    const std::string& hostname,
+    const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info) {
   ClientSocketHandle* socket_handle = new ClientSocketHandle();
   socket_handle->set_socket(transport_socket);
-  return CreateSSLClientSocket(socket_handle, hostname, ssl_config,
+  return CreateSSLClientSocket(socket_handle, host_and_port, ssl_config,
                                ssl_host_info, NULL /* DnsRRResolver */);
 }
 
