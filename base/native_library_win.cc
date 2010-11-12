@@ -7,12 +7,16 @@
 #include <windows.h>
 
 #include "base/file_util.h"
+#include "base/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
 namespace base {
 
 // static
 NativeLibrary LoadNativeLibrary(const FilePath& library_path) {
+  // LoadLibrary() opens the file off disk.
+  base::ThreadRestrictions::AssertIOAllowed();
+
   // Switch the current directory to the library directory as the library
   // may have dependencies on DLLs in this directory.
   bool restore_directory = false;
