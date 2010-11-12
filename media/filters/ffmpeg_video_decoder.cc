@@ -283,7 +283,7 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
   // TODO(ajwong): This push logic, along with the pop logic below needs to
   // be reevaluated to correctly handle decode errors.
   if (state_ == kNormal && !buffer->IsEndOfStream() &&
-      buffer->GetTimestamp() != StreamSample::kInvalidTimestamp) {
+      buffer->GetTimestamp() != kNoTimestamp) {
     pts_heap_.Push(buffer->GetTimestamp());
   }
 
@@ -380,7 +380,7 @@ FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
   // situation and set the timestamp to kInvalidTimestamp.
   DCHECK(frame);
   base::TimeDelta timestamp = frame->GetTimestamp();
-  if (timestamp != StreamSample::kInvalidTimestamp &&
+  if (timestamp != kNoTimestamp &&
       timestamp.ToInternalValue() != 0) {
     pts.timestamp = timestamp;
     // We need to clean up the timestamp we pushed onto the |pts_heap|.
@@ -390,19 +390,19 @@ FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
     // If the frame did not have pts, try to get the pts from the |pts_heap|.
     pts.timestamp = pts_heap->Top();
     pts_heap->Pop();
-  } else if (last_pts.timestamp != StreamSample::kInvalidTimestamp &&
-             last_pts.duration != StreamSample::kInvalidTimestamp) {
+  } else if (last_pts.timestamp != kNoTimestamp &&
+             last_pts.duration != kNoTimestamp) {
     // Guess assuming this frame was the same as the last frame.
     pts.timestamp = last_pts.timestamp + last_pts.duration;
   } else {
     // Now we really have no clue!!!  Mark an invalid timestamp and let the
     // video renderer handle it (i.e., drop frame).
-    pts.timestamp = StreamSample::kInvalidTimestamp;
+    pts.timestamp = kNoTimestamp;
   }
 
   // Fill in the duration, using the frame itself as the authoratative source.
   base::TimeDelta duration = frame->GetDuration();
-  if (duration != StreamSample::kInvalidTimestamp &&
+  if (duration != kNoTimestamp &&
       duration.ToInternalValue() != 0) {
     pts.duration = duration;
   } else {

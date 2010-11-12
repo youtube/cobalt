@@ -233,7 +233,7 @@ void FFmpegDemuxerStream::EnableBitstreamConverter() {
 base::TimeDelta FFmpegDemuxerStream::ConvertStreamTimestamp(
     const AVRational& time_base, int64 timestamp) {
   if (timestamp == static_cast<int64>(AV_NOPTS_VALUE))
-    return StreamSample::kInvalidTimestamp;
+    return kNoTimestamp;
 
   return ConvertTimestamp(time_base, timestamp);
 }

@@ -29,7 +29,7 @@ const size_t FFmpegAudioDecoder::kOutputBufferSize =
 
 FFmpegAudioDecoder::FFmpegAudioDecoder()
     : codec_context_(NULL),
-      estimated_next_timestamp_(StreamSample::kInvalidTimestamp) {
+      estimated_next_timestamp_(kNoTimestamp) {
 }
 
 FFmpegAudioDecoder::~FFmpegAudioDecoder() {
@@ -94,7 +94,7 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
 
 void FFmpegAudioDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {
   avcodec_flush_buffers(codec_context_);
-  estimated_next_timestamp_ = StreamSample::kInvalidTimestamp;
+  estimated_next_timestamp_ = kNoTimestamp;
   done_cb->Run();
   delete done_cb;
 }
@@ -151,8 +151,8 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
   // a whole bunch of AV_NOPTS_VALUE packets.  Discard them until we find
   // something valid.  Refer to http://crbug.com/49709
   // TODO(hclam): remove this once fixing the issue in FFmpeg.
-  if (input->GetTimestamp() == StreamSample::kInvalidTimestamp &&
-      estimated_next_timestamp_ == StreamSample::kInvalidTimestamp &&
+  if (input->GetTimestamp() == kNoTimestamp &&
+      estimated_next_timestamp_ == kNoTimestamp &&
       !input->IsEndOfStream()) {
     DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
     return;
@@ -201,12 +201,12 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
     result_buffer->SetDuration(duration);
 
     // Use an estimated timestamp unless the incoming buffer has a valid one.
-    if (input->GetTimestamp() == StreamSample::kInvalidTimestamp) {
+    if (input->GetTimestamp() == kNoTimestamp) {
       result_buffer->SetTimestamp(estimated_next_timestamp_);
 
       // Keep the estimated timestamp invalid until we get an incoming buffer
       // with a valid timestamp.  This can happen during seeks, etc...
-      if (estimated_next_timestamp_ != StreamSample::kInvalidTimestamp) {
+      if (estimated_next_timestamp_ != kNoTimestamp) {
         estimated_next_timestamp_ += duration;
       }
     } else {
@@ -223,8 +223,8 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
   // this can be a marker packet that only contains timestamp.  In this case we
   // save the timestamp for later use.
   if (result && !input->IsEndOfStream() &&
-      input->GetTimestamp() != StreamSample::kInvalidTimestamp &&
-      input->GetDuration() != StreamSample::kInvalidTimestamp) {
+      input->GetTimestamp() != kNoTimestamp &&
+      input->GetDuration() != kNoTimestamp) {
     estimated_next_timestamp_ = input->GetTimestamp() + input->GetDuration();
     DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
     return;
