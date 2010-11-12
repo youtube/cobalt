@@ -25,6 +25,7 @@ namespace net {
 class ClientSocketFactory;
 class ConnectJobFactory;
 class DnsRRResolver;
+class HostPortPair;
 class HttpProxyClientSocketPool;
 class HttpProxySocketParams;
 class SOCKSClientSocketPool;
@@ -43,7 +44,7 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
                   const scoped_refptr<SOCKSSocketParams>& socks_params,
                   const scoped_refptr<HttpProxySocketParams>& http_proxy_params,
                   ProxyServer::Scheme proxy,
-                  const std::string& hostname,
+                  const HostPortPair& host_and_port,
                   const SSLConfig& ssl_config,
                   int load_flags,
                   bool force_spdy_over_ssl,
@@ -57,7 +58,7 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
     return socks_params_;
   }
   ProxyServer::Scheme proxy() const { return proxy_; }
-  const std::string& hostname() const { return hostname_; }
+  const HostPortPair& host_and_port() const { return host_and_port_; }
   const SSLConfig& ssl_config() const { return ssl_config_; }
   int load_flags() const { return load_flags_; }
   bool force_spdy_over_ssl() const { return force_spdy_over_ssl_; }
@@ -71,7 +72,7 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
   const scoped_refptr<HttpProxySocketParams> http_proxy_params_;
   const scoped_refptr<SOCKSSocketParams> socks_params_;
   const ProxyServer::Scheme proxy_;
-  const std::string hostname_;
+  const HostPortPair host_and_port_;
   const SSLConfig ssl_config_;
   const int load_flags_;
   const bool force_spdy_over_ssl_;
