@@ -1952,6 +1952,113 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGet) {
   EXPECT_EQ(net::kUploadData, response_data);
 }
 
+// Test a SPDY get through an HTTPS Proxy.
+TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGetWithProxyAuth) {
+  // Configure against https proxy server "proxy:70".
+  SessionDependencies session_deps(
+      ProxyService::CreateFixed("https://proxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  // The first request will be a bare GET, the second request will be a
+  // GET with a Proxy-Authorization header.
+  scoped_ptr<spdy::SpdyFrame> req_get(
+      ConstructSpdyGet(NULL, 0, false, 1, LOWEST, false));
+  const char* const kExtraAuthorizationHeaders[] = {
+    "proxy-authorization",
+    "Basic Zm9vOmJhcg==",
+  };
+  scoped_ptr<spdy::SpdyFrame> req_get_authorization(
+      ConstructSpdyGet(
+          kExtraAuthorizationHeaders, arraysize(kExtraAuthorizationHeaders)/2,
+          false, 3, LOWEST, false));
+  MockWrite spdy_writes[] = {
+    CreateMockWrite(*req_get, 1),
+    CreateMockWrite(*req_get_authorization, 4),
+  };
+
+  // The first response is a 407 proxy authentication challenge, and the second
+  // response will be a 200 response since the second request includes a valid
+  // Authorization header.
+  const char* const kExtraAuthenticationHeaders[] = {
+    "Proxy-Authenticate",
+    "Basic realm=\"MyRealm1\""
+  };
+  scoped_ptr<spdy::SpdyFrame> resp_authentication(
+      ConstructSpdySynReplyError(
+          "407 Proxy Authentication Required",
+          kExtraAuthenticationHeaders, arraysize(kExtraAuthenticationHeaders)/2,
+          1));
+  scoped_ptr<spdy::SpdyFrame> body_authentication(
+      ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame> resp_data(ConstructSpdyGetSynReply(NULL, 0, 3));
+  scoped_ptr<spdy::SpdyFrame> body_data(ConstructSpdyBodyFrame(3, true));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*resp_authentication, 2),
+    CreateMockRead(*body_authentication, 3),
+    CreateMockRead(*resp_data, 5),
+    CreateMockRead(*body_data, 6),
+    MockRead(true, 0, 7),
+  };
+
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(spdy_reads, arraysize(spdy_reads),
+                            spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  TestCompletionCallback callback1;
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback1, log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* const response = trans->GetResponseInfo();
+
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ(407, response->headers->response_code());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+
+  // The password prompt info should have been set in response->auth_challenge.
+  ASSERT_TRUE(response->auth_challenge.get() != NULL);
+  EXPECT_TRUE(response->auth_challenge->is_proxy);
+  EXPECT_EQ(L"proxy:70", response->auth_challenge->host_and_port);
+  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
+  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+
+  TestCompletionCallback callback2;
+
+  rv = trans->RestartWithAuth(kFoo, kBar, &callback2);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback2.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* const response_restart = trans->GetResponseInfo();
+
+  ASSERT_TRUE(response_restart != NULL);
+  ASSERT_TRUE(response_restart->headers != NULL);
+  EXPECT_EQ(200, response_restart->headers->response_code());
+  // The password prompt info should not be set.
+  EXPECT_TRUE(response_restart->auth_challenge.get() == NULL);
+}
+
 // Test a SPDY CONNECT through an HTTPS Proxy to an HTTPS (non-SPDY) Server.
 TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectHttps) {
   // Configure against https proxy server "proxy:70".
