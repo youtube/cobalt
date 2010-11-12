@@ -358,7 +358,7 @@ EVRootCAMetadata::EVRootCAMetadata() {
   num_policy_oids_ = arraysize(policy_oids_);
   // Verify policy_oids_ is in ascending order.
   for (int i = 0; i < num_policy_oids_ - 1; i++)
-    CHECK(strcmp(policy_oids_[i], policy_oids_[i + 1]) < 0);
+    DCHECK(strcmp(policy_oids_[i], policy_oids_[i + 1]) < 0);
 
   for (size_t i = 0; i < arraysize(ev_root_ca_metadata); i++) {
     const EVMetadata& metadata = ev_root_ca_metadata[i];
