@@ -16,6 +16,7 @@
 #include "base/logging.h"
 #include "base/nss_util.h"
 #include "base/task.h"
+#include "base/thread_restrictions.h"
 #include "base/waitable_event.h"
 #include "base/worker_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -90,6 +91,9 @@ class ConcurrencyTestTask : public Task {
   }
 
   virtual void Run() {
+    // We allow Singleton use on the worker thread here since we use a
+    // WaitableEvent to synchronize, so it's safe.
+    base::ThreadRestrictions::ScopedAllowSingleton scoped_allow_singleton;
     KeygenHandler handler(768, "some challenge",
                           GURL("http://www.example.com"));
     handler.set_stores_key(false); // Don't leave the key-pair behind.
