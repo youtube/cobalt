@@ -260,7 +260,6 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
         ssl_MapLowLevelError(SSL_ERROR_SIGN_HASHES_FAILURE);
         goto done;
     }
-    buf->len  = signatureLen;
     buf->data = (unsigned char *)PORT_Alloc(signatureLen);
     if (!buf->data)
         goto done;    /* error code was set. */
@@ -270,6 +269,7 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
         ssl_MapLowLevelError(SSL_ERROR_SIGN_HASHES_FAILURE);
         goto done;
     }
+    buf->len = signatureLen;
 
     /* CryptoAPI signs in little-endian, so reverse */
     for (i = 0; i < buf->len / 2; ++i) {
@@ -424,7 +424,6 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
         goto done;
     }
 
-    buf->len  = signatureLen;
     buf->data = (unsigned char *)PORT_Alloc(signatureLen);
     if (!buf->data)
         goto done;    /* error code was set. */
@@ -462,7 +461,7 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
         goto done;
     }
 
-    signatureData.Length = buf->len;
+    signatureData.Length = signatureLen;
     signatureData.Data   = (uint8*)buf->data;
     
     cssmRv = CSSM_CSP_CreateSignatureContext(cspHandle, sigAlg, cssmCreds,
@@ -492,6 +491,7 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
         ssl_MapLowLevelError(SSL_ERROR_SIGN_HASHES_FAILURE);
         goto done;
     }
+    buf->len = signatureData.Length;
 
     if (doDerEncode) {
         SECItem derSig = {siBuffer, NULL, 0};
