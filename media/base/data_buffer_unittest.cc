@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,7 +35,7 @@ TEST(DataBufferTest, StreamSampleImpl) {
   EXPECT_FALSE(buffer->IsDiscontinuous());
 }
 
-TEST(DataBufferTest, Ctors) {
+TEST(DataBufferTest, Constructors) {
   const size_t kTestSize = 10;
 
   scoped_refptr<DataBuffer> buffer(new DataBuffer(0));
@@ -46,7 +46,7 @@ TEST(DataBufferTest, Ctors) {
   EXPECT_EQ(kTestSize, buffer2->GetBufferSize());
 }
 
-TEST(DataBufferTest, WritableBufferImpl) {
+TEST(DataBufferTest, ReadingWriting) {
   const char kData[] = "hello";
   const size_t kDataSize = arraysize(kData);
   const char kNewData[] = "chromium";

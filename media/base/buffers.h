@@ -103,23 +103,6 @@ class Buffer : public StreamSample {
   virtual ~Buffer() {}
 };
 
-
-class WritableBuffer : public Buffer  {
- public:
-  // Returns a read-write pointer to the buffer data.
-  virtual uint8* GetWritableData() = 0;
-
-  // Updates the size of valid data in bytes, which must be less than or equal
-  // to GetBufferSize().
-  virtual void SetDataSize(size_t data_size) = 0;
-
-  // Returns the size of the underlying buffer.
-  virtual size_t GetBufferSize() const = 0;
-
- protected:
-  virtual ~WritableBuffer() {}
-};
-
 }  // namespace media
 
 #endif  // MEDIA_BASE_BUFFERS_H_
