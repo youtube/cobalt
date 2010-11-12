@@ -63,11 +63,62 @@ class SSPILibrary {
   virtual SECURITY_STATUS DeleteSecurityContext(PCtxtHandle phContext) = 0;
 
   virtual SECURITY_STATUS FreeContextBuffer(PVOID pvContextBuffer) = 0;
+};
 
-  // Get the default SSPILibrary instance, which simply acts as a passthrough
-  // to the Windows SSPI implementation. The object returned is a singleton
-  // instance, and the caller should not delete it.
-  static SSPILibrary* GetDefault();
+class SSPILibraryDefault : public SSPILibrary {
+ public:
+  SSPILibraryDefault() {}
+  virtual ~SSPILibraryDefault() {}
+
+  virtual SECURITY_STATUS AcquireCredentialsHandle(LPWSTR pszPrincipal,
+                                                   LPWSTR pszPackage,
+                                                   unsigned long fCredentialUse,
+                                                   void* pvLogonId,
+                                                   void* pvAuthData,
+                                                   SEC_GET_KEY_FN pGetKeyFn,
+                                                   void* pvGetKeyArgument,
+                                                   PCredHandle phCredential,
+                                                   PTimeStamp ptsExpiry) {
+    return ::AcquireCredentialsHandle(pszPrincipal, pszPackage, fCredentialUse,
+                                      pvLogonId, pvAuthData, pGetKeyFn,
+                                      pvGetKeyArgument, phCredential,
+                                      ptsExpiry);
+  }
+
+  virtual SECURITY_STATUS InitializeSecurityContext(PCredHandle phCredential,
+                                                    PCtxtHandle phContext,
+                                                    SEC_WCHAR* pszTargetName,
+                                                    unsigned long fContextReq,
+                                                    unsigned long Reserved1,
+                                                    unsigned long TargetDataRep,
+                                                    PSecBufferDesc pInput,
+                                                    unsigned long Reserved2,
+                                                    PCtxtHandle phNewContext,
+                                                    PSecBufferDesc pOutput,
+                                                    unsigned long* contextAttr,
+                                                    PTimeStamp ptsExpiry) {
+    return ::InitializeSecurityContext(phCredential, phContext, pszTargetName,
+                                       fContextReq, Reserved1, TargetDataRep,
+                                       pInput, Reserved2, phNewContext, pOutput,
+                                       contextAttr, ptsExpiry);
+  }
+
+  virtual SECURITY_STATUS QuerySecurityPackageInfo(LPWSTR pszPackageName,
+                                                   PSecPkgInfoW *pkgInfo) {
+    return ::QuerySecurityPackageInfo(pszPackageName, pkgInfo);
+  }
+
+  virtual SECURITY_STATUS FreeCredentialsHandle(PCredHandle phCredential) {
+    return ::FreeCredentialsHandle(phCredential);
+  }
+
+  virtual SECURITY_STATUS DeleteSecurityContext(PCtxtHandle phContext) {
+    return ::DeleteSecurityContext(phContext);
+  }
+
+  virtual SECURITY_STATUS FreeContextBuffer(PVOID pvContextBuffer) {
+    return ::FreeContextBuffer(pvContextBuffer);
+  }
 };
 
 class HttpAuthSSPI {
