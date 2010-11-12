@@ -225,17 +225,7 @@
               '<!@(<(pkg-config) --libs-only-l x11)',
             ],
           },
-      }],
-      # When XInput2 is available (i.e. inputproto version is 2.0), the
-      # pkg-config command will succeed, so the output will be empty.
-      ['"<!@(<(pkg-config) --atleast-version=2.0 inputproto || echo $?)"==""', {
-        'direct_dependent_settings': {
-          'defines': [
-            'HAVE_XINPUT2',
-          ],
-        },
-      }],
-      ],
+      }]]
     },
     {
       'target_name': 'xext',
