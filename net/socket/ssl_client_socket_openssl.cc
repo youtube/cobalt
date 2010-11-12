@@ -63,6 +63,7 @@ int MapOpenSSLError(int err) {
 SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     ClientSocketHandle* transport_socket,
     const std::string& hostname,
+    uint16 port,
     const SSLConfig& ssl_config)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketOpenSSL::BufferSendComplete)),
@@ -80,6 +81,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       transport_bio_(NULL),
       transport_(transport_socket),
       hostname_(hostname),
+      port_(port),
       ssl_config_(ssl_config),
       completed_handshake_(false),
       net_log_(transport_socket->socket()->NetLog()) {

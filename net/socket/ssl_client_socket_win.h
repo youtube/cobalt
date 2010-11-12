@@ -17,25 +17,29 @@
 #include "base/scoped_ptr.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
+class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
-class BoundNetLog;
+class HostPortPair;
 
 // An SSL client socket implemented with the Windows Schannel.
 class SSLClientSocketWin : public SSLClientSocket {
  public:
   // Takes ownership of the |transport_socket|, which must already be connected.
-  // The given hostname will be compared with the name(s) in the server's
-  // certificate during the SSL handshake.  ssl_config specifies the SSL
-  // settings.
+  // The hostname specified in |host_and_port| will be compared with the name(s)
+  // in the server's certificate during the SSL handshake.  If SSL client
+  // authentication is requested, the host_and_port field of SSLCertRequestInfo
+  // will be populated with |host_and_port|.  |ssl_config| specifies
+  // the SSL settings.
   SSLClientSocketWin(ClientSocketHandle* transport_socket,
-                     const std::string& hostname,
+                     const HostPortPair& host_and_port,
                      const SSLConfig& ssl_config);
   ~SSLClientSocketWin();
 
@@ -103,7 +107,7 @@ class SSLClientSocketWin : public SSLClientSocket {
   CompletionCallbackImpl<SSLClientSocketWin> write_callback_;
 
   scoped_ptr<ClientSocketHandle> transport_;
-  std::string hostname_;
+  HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
   // User function to callback when the Connect() completes.

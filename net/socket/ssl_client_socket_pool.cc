@@ -7,6 +7,7 @@
 #include "base/metrics/histogram.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
@@ -24,7 +25,7 @@ SSLSocketParams::SSLSocketParams(
     const scoped_refptr<SOCKSSocketParams>& socks_params,
     const scoped_refptr<HttpProxySocketParams>& http_proxy_params,
     ProxyServer::Scheme proxy,
-    const std::string& hostname,
+    const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     int load_flags,
     bool force_spdy_over_ssl,
@@ -33,7 +34,7 @@ SSLSocketParams::SSLSocketParams(
       http_proxy_params_(http_proxy_params),
       socks_params_(socks_params),
       proxy_(proxy),
-      hostname_(hostname),
+      host_and_port_(host_and_port),
       ssl_config_(ssl_config),
       load_flags_(load_flags),
       force_spdy_over_ssl_(force_spdy_over_ssl),
@@ -193,7 +194,7 @@ int SSLConnectJob::DoTCPConnect() {
 
   if (ssl_host_info_factory_ && SSLConfigService::snap_start_enabled()) {
       ssl_host_info_.reset(
-          ssl_host_info_factory_->GetForHost(params_->hostname(),
+          ssl_host_info_factory_->GetForHost(params_->host_and_port().host(),
                                              params_->ssl_config()));
   }
   if (ssl_host_info_.get()) {
@@ -248,16 +249,17 @@ int SSLConnectJob::DoTunnelConnect() {
 }
 
 int SSLConnectJob::DoTunnelConnectComplete(int result) {
-  ClientSocket* socket = transport_socket_handle_->socket();
-  HttpProxyClientSocket* tunnel_socket =
-      static_cast<HttpProxyClientSocket*>(socket);
-
-  // Extract the information needed to prompt for the proxy authentication.
-  // so that when ClientSocketPoolBaseHelper calls |GetAdditionalErrorState|,
-  // we can easily set the state.
-  if (result == ERR_PROXY_AUTH_REQUESTED)
+  // Extract the information needed to prompt for appropriate proxy
+  // authentication so that when ClientSocketPoolBaseHelper calls
+  // |GetAdditionalErrorState|, we can easily set the state.
+  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
+    error_response_info_ = transport_socket_handle_->ssl_error_response_info();
+  } else if (result == ERR_PROXY_AUTH_REQUESTED) {
+    ClientSocket* socket = transport_socket_handle_->socket();
+    HttpProxyClientSocket* tunnel_socket =
+        static_cast<HttpProxyClientSocket*>(socket);
     error_response_info_ = *tunnel_socket->GetResponseInfo();
-
+  }
   if (result < 0)
     return result;
 
@@ -284,9 +286,8 @@ int SSLConnectJob::DoSSLConnect() {
   ssl_connect_start_time_ = base::TimeTicks::Now();
 
   ssl_socket_.reset(client_socket_factory_->CreateSSLClientSocket(
-        transport_socket_handle_.release(), params_->hostname(),
-        params_->ssl_config(), ssl_host_info_.release(),
-        dnsrr_resolver_));
+      transport_socket_handle_.release(), params_->host_and_port(),
+      params_->ssl_config(), ssl_host_info_.release(), dnsrr_resolver_));
   return ssl_socket_->Connect(&callback_);
 }
 

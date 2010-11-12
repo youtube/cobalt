@@ -505,9 +505,9 @@ int HttpStreamRequest::DoInitConnection() {
       scoped_refptr<SSLSocketParams> ssl_params;
       if (proxy_info()->is_https()) {
         // Set ssl_params, and unset proxy_tcp_params
-        ssl_params = GenerateSslParams(proxy_tcp_params, NULL, NULL,
+        ssl_params = GenerateSSLParams(proxy_tcp_params, NULL, NULL,
                                        ProxyServer::SCHEME_DIRECT,
-                                       proxy_host_port->host(),
+                                       *proxy_host_port.get(),
                                        want_spdy_over_npn);
         proxy_tcp_params = NULL;
       }
@@ -544,9 +544,9 @@ int HttpStreamRequest::DoInitConnection() {
   // Deal with SSL - which layers on top of any given proxy.
   if (using_ssl_) {
     scoped_refptr<SSLSocketParams> ssl_params =
-        GenerateSslParams(tcp_params, http_proxy_params, socks_params,
+        GenerateSSLParams(tcp_params, http_proxy_params, socks_params,
                           proxy_info()->proxy_server().scheme(),
-                          request_info().url.HostNoBrackets(),
+                          HostPortPair::FromURL(request_info().url),
                           want_spdy_over_npn);
     SSLClientSocketPool* ssl_pool = NULL;
     if (proxy_info()->is_direct())
@@ -828,12 +828,12 @@ bool HttpStreamRequest::IsHttpsProxyAndHttpUrl() {
 
 // Returns a newly create SSLSocketParams, and sets several
 // fields of ssl_config_.
-scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSslParams(
+scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSSLParams(
     scoped_refptr<TCPSocketParams> tcp_params,
     scoped_refptr<HttpProxySocketParams> http_proxy_params,
     scoped_refptr<SOCKSSocketParams> socks_params,
     ProxyServer::Scheme proxy_scheme,
-    std::string hostname,
+    const HostPortPair& host_and_port,
     bool want_spdy_over_npn) {
 
   if (factory_->IsTLSIntolerantServer(request_info().url)) {
@@ -859,7 +859,7 @@ scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSslParams(
 
   scoped_refptr<SSLSocketParams> ssl_params(
       new SSLSocketParams(tcp_params, socks_params, http_proxy_params,
-                          proxy_scheme, hostname,
+                          proxy_scheme, host_and_port,
                           *ssl_config(), load_flags,
                           force_spdy_always_ && force_spdy_over_ssl_,
                           want_spdy_over_npn));

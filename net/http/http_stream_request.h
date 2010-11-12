@@ -140,12 +140,12 @@ class HttpStreamRequest : public StreamRequest {
 
   // Returns a newly create SSLSocketParams, and sets several
   // fields of ssl_config_.
-  scoped_refptr<SSLSocketParams> GenerateSslParams(
+  scoped_refptr<SSLSocketParams> GenerateSSLParams(
       scoped_refptr<TCPSocketParams> tcp_params,
       scoped_refptr<HttpProxySocketParams> http_proxy_params,
       scoped_refptr<SOCKSSocketParams> socks_params,
       ProxyServer::Scheme proxy_scheme,
-      std::string hostname,
+      const HostPortPair& host_and_port,
       bool want_spdy_over_npn);
 
   // AlternateProtocol API

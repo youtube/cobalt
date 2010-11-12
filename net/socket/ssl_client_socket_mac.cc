@@ -516,7 +516,7 @@ EnabledCipherSuites::EnabledCipherSuites() {
 //-----------------------------------------------------------------------------
 
 SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
-                                       const std::string& hostname,
+                                       const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config)
     : handshake_io_callback_(this, &SSLClientSocketMac::OnHandshakeIOComplete),
       transport_read_callback_(this,
@@ -524,7 +524,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
       transport_write_callback_(this,
                                 &SSLClientSocketMac::OnTransportWriteComplete),
       transport_(transport_socket),
-      hostname_(hostname),
+      host_and_port_(host_and_port),
       ssl_config_(ssl_config),
       user_connect_callback_(NULL),
       user_read_callback_(NULL),
@@ -742,9 +742,11 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
   }
 
   // Now get the available client certs whose issuers are allowed by the server.
-  cert_request_info->host_and_port = hostname_;
+  cert_request_info->host_and_port = host_and_port_.ToString();
   cert_request_info->client_certs.clear();
-  X509Certificate::GetSSLClientCertificates(hostname_,
+  // TODO(rch):  we should consider passing a host-port pair as the first
+  // argument to X509Certificate::GetSSLClientCertificates.
+  X509Certificate::GetSSLClientCertificates(host_and_port_.host(),
                                             valid_issuers,
                                             &cert_request_info->client_certs);
   VLOG(1) << "Asking user to choose between "
@@ -812,8 +814,8 @@ int SSLClientSocketMac::InitializeSSLContext() {
 
   // Passing the domain name enables the server_name TLS extension (SNI).
   status = SSLSetPeerDomainName(ssl_context_,
-                                hostname_.data(),
-                                hostname_.length());
+                                host_and_port_.host().data(),
+                                host_and_port_.host().length());
   if (status)
     return NetErrorFromOSStatus(status);
 
@@ -840,10 +842,9 @@ int SSLClientSocketMac::InitializeSSLContext() {
   if (rv != OK)
     return rv;
   const struct addrinfo* ai = address.head();
-  std::string peer_id(hostname_);
+  std::string peer_id(host_and_port_.ToString());
   peer_id += std::string(reinterpret_cast<char*>(ai->ai_addr),
                          ai->ai_addrlen);
-
   // SSLSetPeerID() treats peer_id as a binary blob, and makes its
   // own copy.
   status = SSLSetPeerID(ssl_context_, peer_id.data(), peer_id.length());
@@ -1063,7 +1064,7 @@ int SSLClientSocketMac::DoVerifyCert() {
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new CertVerifier);
-  return verifier_->Verify(server_cert_, hostname_, flags,
+  return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
                            &server_cert_verify_result_,
                            &handshake_io_callback_);
 }
