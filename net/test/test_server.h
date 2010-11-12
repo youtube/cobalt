@@ -42,6 +42,7 @@ class TestServer {
     TYPE_FTP,
     TYPE_HTTP,
     TYPE_HTTPS,
+    TYPE_SYNC,
   };
 
   // Container for various options to control how the HTTPS server is
