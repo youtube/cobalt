@@ -285,17 +285,17 @@ TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
   AVRational time_base = {1, 2};
 
   FFmpegVideoDecoder::TimeTuple last_pts;
-  last_pts.timestamp = StreamSample::kInvalidTimestamp;
-  last_pts.duration = StreamSample::kInvalidTimestamp;
+  last_pts.timestamp = kNoTimestamp;
+  last_pts.duration = kNoTimestamp;
 
   // Simulate an uninitialized |video_frame| and |last_pts| where we cannot
   // determine a timestamp at all.
-  video_frame_->SetTimestamp(StreamSample::kInvalidTimestamp);
-  video_frame_->SetDuration(StreamSample::kInvalidTimestamp);
+  video_frame_->SetTimestamp(kNoTimestamp);
+  video_frame_->SetDuration(kNoTimestamp);
   FFmpegVideoDecoder::TimeTuple result_pts =
       decoder_->FindPtsAndDuration(time_base, &pts_heap,
                                    last_pts, video_frame_.get());
-  EXPECT_EQ(StreamSample::kInvalidTimestamp.InMicroseconds(),
+  EXPECT_EQ(kNoTimestamp.InMicroseconds(),
             result_pts.timestamp.InMicroseconds());
   EXPECT_EQ(500000, result_pts.duration.InMicroseconds());
 
@@ -306,8 +306,8 @@ TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
 
   // Simulate an uninitialized |video_frame| where |last_pts| will be used to
   // generate a timestamp and |time_base| will be used to generate a duration.
-  video_frame_->SetTimestamp(StreamSample::kInvalidTimestamp);
-  video_frame_->SetDuration(StreamSample::kInvalidTimestamp);
+  video_frame_->SetTimestamp(kNoTimestamp);
+  video_frame_->SetDuration(kNoTimestamp);
   result_pts =
       decoder_->FindPtsAndDuration(time_base, &pts_heap,
                                    last_pts, video_frame_.get());
