@@ -17,10 +17,8 @@
 
 #include "net/base/x509_certificate.h"
 
-namespace base {
 template <typename T>
-struct DefaultLazyInstanceTraits;
-}  // namespace base
+struct DefaultSingletonTraits;
 
 namespace net {
 
@@ -57,7 +55,7 @@ class EVRootCAMetadata {
                       PolicyOID policy_oid) const;
 
  private:
-  friend struct base::DefaultLazyInstanceTraits<EVRootCAMetadata>;
+  friend struct DefaultSingletonTraits<EVRootCAMetadata>;
 
   typedef std::map<SHA1Fingerprint, PolicyOID,
                    SHA1FingerprintLessThan> PolicyOidMap;
