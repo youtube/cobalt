@@ -129,6 +129,7 @@
         'simple_thread_unittest.cc',
         'singleton_unittest.cc',
         'stack_container_unittest.cc',
+        'string16_unittest.cc',
         'string_number_conversions_unittest.cc',
         'string_piece_unittest.cc',
         'string_split_unittest.cc',

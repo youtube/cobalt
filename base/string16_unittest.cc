@@ -43,7 +43,7 @@ TEST(String16Test, OutputStream) {
 
     std::ostringstream stream;
     stream << initial_surrogate << "," << final_surrogate << ","
-           << surrogate_pair << ",", unterminated_surrogate;
+           << surrogate_pair << "," << unterminated_surrogate;
 
     EXPECT_STREQ("\xef\xbf\xbd,\xef\xbf\xbd,\xf0\x90\x8c\x80z,\xef\xbf\xbds",
                  stream.str().c_str());
