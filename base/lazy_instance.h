@@ -36,18 +36,14 @@
 #define BASE_LAZY_INSTANCE_H_
 #pragma once
 
-#include <new>  // For placement new.
 #include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
-#include "base/thread_restrictions.h"
 
 namespace base {
 
 template <typename Type>
 struct DefaultLazyInstanceTraits {
-  static const bool kAllowedToAccessOnNonjoinableThread = false;
-
   static Type* New(void* instance) {
     // Use placement new to initialize our instance in our preallocated space.
     // The parenthesis is very important here to force POD type initialization.
@@ -61,8 +57,6 @@ struct DefaultLazyInstanceTraits {
 
 template <typename Type>
 struct LeakyLazyInstanceTraits {
-  static const bool kAllowedToAccessOnNonjoinableThread = true;
-
   static Type* New(void* instance) {
     return DefaultLazyInstanceTraits<Type>::New(instance);
   }
@@ -118,9 +112,6 @@ class LazyInstance : public LazyInstanceHelper {
   }
 
   Type* Pointer() {
-    if (!Traits::kAllowedToAccessOnNonjoinableThread)
-      base::ThreadRestrictions::AssertSingletonAllowed();
-
     // We will hopefully have fast access when the instance is already created.
     if ((base::subtle::NoBarrier_Load(&state_) != STATE_CREATED) &&
         NeedsInstance()) {
