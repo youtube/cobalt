@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include "base/command_line.h"
 #include "base/basictypes.h"
+#include "base/command_line.h"
 #include "base/file_path.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -154,3 +154,28 @@ TEST(CommandLineTest, AppendSwitches) {
             cl.command_line_string());
 #endif
 }
+
+// Tests that when AppendArguments is called that the program is set correctly
+// on the target CommandLine object and the switches from the source
+// CommandLine are added to the target.
+TEST(CommandLineTest, AppendArguments) {
+  CommandLine cl1(FilePath(FILE_PATH_LITERAL("Program")));
+  cl1.AppendSwitch("switch1");
+  cl1.AppendSwitchASCII("switch2", "foo");
+
+  CommandLine cl2(CommandLine::NO_PROGRAM);
+  cl2.AppendArguments(cl1, true);
+  EXPECT_EQ(cl1.GetProgram().value(), cl2.GetProgram().value());
+  EXPECT_EQ(cl1.command_line_string(), cl2.command_line_string());
+
+  CommandLine c1(FilePath(FILE_PATH_LITERAL("Program1")));
+  c1.AppendSwitch("switch1");
+  CommandLine c2(FilePath(FILE_PATH_LITERAL("Program2")));
+  c2.AppendSwitch("switch2");
+
+  c1.AppendArguments(c2, true);
+  EXPECT_EQ(c1.GetProgram().value(), c2.GetProgram().value());
+  EXPECT_TRUE(c1.HasSwitch("switch1"));
+  EXPECT_TRUE(c1.HasSwitch("switch2"));
+}
+
