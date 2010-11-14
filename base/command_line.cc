@@ -431,7 +431,14 @@ void CommandLine::AppendArguments(const CommandLine& other,
   // Verify include_program is used correctly.
   // Logic could be shorter but this is clearer.
   DCHECK_EQ(include_program, !other.GetProgram().empty());
-  command_line_string_ += L" " + other.command_line_string_;
+  if (include_program)
+    program_ = other.program_;
+
+  if (!command_line_string_.empty())
+    command_line_string_ += L' ';
+
+  command_line_string_ += other.command_line_string_;
+
   std::map<std::string, StringType>::const_iterator i;
   for (i = other.switches_.begin(); i != other.switches_.end(); ++i)
     switches_[i->first] = i->second;
@@ -482,9 +489,15 @@ void CommandLine::AppendArguments(const CommandLine& other,
   // Verify include_program is used correctly.
   // Logic could be shorter but this is clearer.
   DCHECK_EQ(include_program, !other.GetProgram().empty());
-  size_t first_arg = include_program ? 0 : 1;
-  for (size_t i = first_arg; i < other.argv_.size(); ++i)
+
+  if (include_program)
+    argv_[0] = other.argv_[0];
+
+  // Skip the first arg when copying since it's the program but push all
+  // arguments to our arg vector.
+  for (size_t i = 1; i < other.argv_.size(); ++i)
     argv_.push_back(other.argv_[i]);
+
   std::map<std::string, StringType>::const_iterator i;
   for (i = other.switches_.begin(); i != other.switches_.end(); ++i)
     switches_[i->first] = i->second;
