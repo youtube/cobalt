@@ -69,6 +69,21 @@ void SplitStringDontTrim(const std::string& str,
                          char c,
                          std::vector<std::string>* r);
 
+// WARNING: this uses whitespace as defined by the HTML5 spec. If you need
+// a function similar to this but want to trim all types of whitespace, then
+// factor this out into a function that takes a string containing the characters
+// that are treated as whitespace.
+//
+// Splits the string along whitespace (where whitespace is the five space
+// characters defined by HTML 5). Each contiguous block of non-whitespace
+// characters is added to result.
+void SplitStringAlongWhitespace(const std::wstring& str,
+                                std::vector<std::wstring>* result);
+void SplitStringAlongWhitespace(const string16& str,
+                                std::vector<string16>* result);
+void SplitStringAlongWhitespace(const std::string& str,
+                                std::vector<std::string>* result);
+
 }  // namespace base
 
 #endif  // BASE_STRING_SPLIT_H
