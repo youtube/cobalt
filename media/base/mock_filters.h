@@ -293,13 +293,13 @@ class MockFilterCollection {
     MediaFilterCollection* collection = new MediaFilterCollection();
 
     if (include_data_source) {
-      collection->AddFilter(data_source_);
+      collection->AddDataSource(data_source_);
     }
-    collection->AddFilter(demuxer_);
-    collection->AddFilter(video_decoder_);
-    collection->AddFilter(audio_decoder_);
-    collection->AddFilter(video_renderer_);
-    collection->AddFilter(audio_renderer_);
+    collection->AddDemuxer(demuxer_);
+    collection->AddVideoDecoder(video_decoder_);
+    collection->AddAudioDecoder(audio_decoder_);
+    collection->AddVideoRenderer(video_renderer_);
+    collection->AddAudioRenderer(audio_renderer_);
     return collection;
   }
 
