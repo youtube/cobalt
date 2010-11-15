@@ -4,7 +4,7 @@
 
 #include "base/file_util.h"
 
-#import <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
 #include <copyfile.h>
 
 #include "base/basictypes.h"
