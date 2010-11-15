@@ -7,7 +7,7 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #elif defined(OS_MACOSX)
-#include <CoreServices/CoreServices.h>
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 #include "base/logging.h"
