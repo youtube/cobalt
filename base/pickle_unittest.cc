@@ -87,6 +87,39 @@ TEST(PickleTest, EncodeDecode) {
   VerifyResult(pickle3);
 }
 
+// Tests that we can handle really small buffers.
+TEST(PickleTest, SmallBuffer) {
+  scoped_array<char> buffer(new char[1]);
+
+  // We should not touch the buffer.
+  Pickle pickle(buffer.get(), 1);
+
+  void* iter = NULL;
+  int data;
+  EXPECT_FALSE(pickle.ReadInt(&iter, &data));
+}
+
+// Tests that we can handle improper headers.
+TEST(PickleTest, BigSize) {
+  int buffer[] = { 0x56035200, 25, 40, 50 };
+
+  Pickle pickle(reinterpret_cast<char*>(buffer), sizeof(buffer));
+
+  void* iter = NULL;
+  int data;
+  EXPECT_FALSE(pickle.ReadInt(&iter, &data));
+}
+
+TEST(PickleTest, UnalignedSize) {
+  int buffer[] = { 10, 25, 40, 50 };
+
+  Pickle pickle(reinterpret_cast<char*>(buffer), sizeof(buffer));
+
+  void* iter = NULL;
+  int data;
+  EXPECT_FALSE(pickle.ReadInt(&iter, &data));
+}
+
 TEST(PickleTest, ZeroLenStr) {
   Pickle pickle;
   EXPECT_TRUE(pickle.WriteString(""));
