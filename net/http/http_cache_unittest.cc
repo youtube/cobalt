@@ -904,8 +904,10 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
   if (!request->extra_headers.HasHeader("If-None-Match") || modified_) {
     EXPECT_EQ(9, (end - start) % 10);
     std::string data;
-    for (int block_start = start; block_start < end; block_start += 10)
-      StringAppendF(&data, "rg: %02d-%02d ", block_start, block_start + 9);
+    for (int block_start = start; block_start < end; block_start += 10) {
+      base::StringAppendF(&data, "rg: %02d-%02d ",
+                          block_start, block_start + 9);
+    }
     *response_data = data;
 
     if (end - start != 9) {

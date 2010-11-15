@@ -160,10 +160,12 @@ std::string HttpRequestHeaders::ToString() const {
   std::string output;
   for (HeaderVector::const_iterator it = headers_.begin();
        it != headers_.end(); ++it) {
-    if (!it->value.empty())
-      StringAppendF(&output, "%s: %s\r\n", it->key.c_str(), it->value.c_str());
-    else
-      StringAppendF(&output, "%s:\r\n", it->key.c_str());
+    if (!it->value.empty()) {
+      base::StringAppendF(&output, "%s: %s\r\n",
+                          it->key.c_str(), it->value.c_str());
+    } else {
+      base::StringAppendF(&output, "%s:\r\n", it->key.c_str());
+    }
   }
   output.append("\r\n");
   return output;

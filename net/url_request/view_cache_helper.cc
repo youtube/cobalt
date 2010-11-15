@@ -28,7 +28,7 @@ void HexDump(const char *buf, size_t buf_len, std::string* result) {
 
   const unsigned char *p;
   while (buf_len) {
-    StringAppendF(result, "%08x:  ", offset);
+    base::StringAppendF(result, "%08x:  ", offset);
     offset += kMaxRows;
 
     p = (const unsigned char *) buf;
@@ -38,7 +38,7 @@ void HexDump(const char *buf, size_t buf_len, std::string* result) {
 
     // print hex codes:
     for (i = 0; i < row_max; ++i)
-      StringAppendF(result, "%02x  ", *p++);
+      base::StringAppendF(result, "%02x  ", *p++);
     for (i = row_max; i < kMaxRows; ++i)
       result->append("    ");
 
