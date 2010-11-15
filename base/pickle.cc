@@ -41,11 +41,21 @@ Pickle::Pickle(int header_size)
 
 Pickle::Pickle(const char* data, int data_len)
     : header_(reinterpret_cast<Header*>(const_cast<char*>(data))),
-      header_size_(data_len - header_->payload_size),
+      header_size_(0),
       capacity_(kCapacityReadOnly),
       variable_buffer_offset_(0) {
-  DCHECK(header_size_ >= sizeof(Header));
-  DCHECK(header_size_ == AlignInt(header_size_, sizeof(uint32)));
+  if (data_len >= static_cast<int>(sizeof(Header)))
+    header_size_ = data_len - header_->payload_size;
+
+  if (header_size_ > static_cast<unsigned int>(data_len))
+    header_size_ = 0;
+
+  if (header_size_ != AlignInt(header_size_, sizeof(uint32)))
+    header_size_ = 0;
+
+  // If there is anything wrong with the data, we're not going to use it.
+  if (!header_size_)
+    header_ = NULL;
 }
 
 Pickle::Pickle(const Pickle& other)
