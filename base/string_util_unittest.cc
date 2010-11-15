@@ -925,38 +925,6 @@ TEST(StringUtilTest, ReplaceStringPlaceholdersConsecutiveDollarSigns) {
             "$1 $$2 $$$3");
 }
 
-TEST(StringUtilTest, SplitStringAlongWhitespace) {
-  struct TestData {
-    const std::wstring input;
-    const size_t expected_result_count;
-    const std::wstring output1;
-    const std::wstring output2;
-  } data[] = {
-    { L"a",       1, L"a",  L""   },
-    { L" ",       0, L"",   L""   },
-    { L" a",      1, L"a",  L""   },
-    { L" ab ",    1, L"ab", L""   },
-    { L" ab c",   2, L"ab", L"c"  },
-    { L" ab c ",  2, L"ab", L"c"  },
-    { L" ab cd",  2, L"ab", L"cd" },
-    { L" ab cd ", 2, L"ab", L"cd" },
-    { L" \ta\t",  1, L"a",  L""   },
-    { L" b\ta\t", 2, L"b",  L"a"  },
-    { L" b\tat",  2, L"b",  L"at" },
-    { L"b\tat",   2, L"b",  L"at" },
-    { L"b\t at",  2, L"b",  L"at" },
-  };
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(data); ++i) {
-    std::vector<std::wstring> results;
-    SplitStringAlongWhitespace(data[i].input, &results);
-    ASSERT_EQ(data[i].expected_result_count, results.size());
-    if (data[i].expected_result_count > 0)
-      ASSERT_EQ(data[i].output1, results[0]);
-    if (data[i].expected_result_count > 1)
-      ASSERT_EQ(data[i].output2, results[1]);
-  }
-}
-
 TEST(StringUtilTest, MatchPatternTest) {
   EXPECT_TRUE(MatchPattern("www.google.com", "*.com"));
   EXPECT_TRUE(MatchPattern("www.google.com", "*"));
