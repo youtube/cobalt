@@ -486,7 +486,6 @@ inline typename string_type::value_type* WriteInto(string_type* str,
 
 //-----------------------------------------------------------------------------
 
-
 // Splits a string into its fields delimited by any of the characters in
 // |delimiters|.  Each field is added to the |tokens| vector.  Returns the
 // number of tokens found.
@@ -506,21 +505,6 @@ size_t Tokenize(const base::StringPiece& str,
 // Does the opposite of SplitString().
 string16 JoinString(const std::vector<string16>& parts, char16 s);
 std::string JoinString(const std::vector<std::string>& parts, char s);
-
-// WARNING: this uses whitespace as defined by the HTML5 spec. If you need
-// a function similar to this but want to trim all types of whitespace, then
-// factor this out into a function that takes a string containing the characters
-// that are treated as whitespace.
-//
-// Splits the string along whitespace (where whitespace is the five space
-// characters defined by HTML 5). Each contiguous block of non-whitespace
-// characters is added to result.
-void SplitStringAlongWhitespace(const std::wstring& str,
-                                std::vector<std::wstring>* result);
-void SplitStringAlongWhitespace(const string16& str,
-                                std::vector<string16>* result);
-void SplitStringAlongWhitespace(const std::string& str,
-                                std::vector<std::string>* result);
 
 // Replace $1-$2-$3..$9 in the format string with |a|-|b|-|c|..|i| respectively.
 // Additionally, any number of consecutive '$' characters is replaced by that
