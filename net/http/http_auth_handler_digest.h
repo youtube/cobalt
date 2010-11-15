@@ -63,12 +63,11 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     ALGORITHM_MD5_SESS,
   };
 
-  // Possible values for "qop" -- may be or-ed together if there were
-  // multiple comma separated values.
+  // Possible values for QualityOfProtection.
+  // auth-int is not supported, see http://crbug.com/62890 for justification.
   enum QualityOfProtection {
-    QOP_UNSPECIFIED = 0,
-    QOP_AUTH = 1 << 0,
-    QOP_AUTH_INT = 1 << 1,
+    QOP_UNSPECIFIED,
+    QOP_AUTH,
   };
 
   explicit HttpAuthHandlerDigest(int nonce_count);
@@ -86,8 +85,8 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
   static std::string GenerateNonce();
 
   // Convert enum value back to string.
-  static std::string QopToString(int qop);
-  static std::string AlgorithmToString(int algorithm);
+  static std::string QopToString(QualityOfProtection qop);
+  static std::string AlgorithmToString(DigestAlgorithm algorithm);
 
   // Extract the method and path of the request, as needed by
   // the 'A2' production. (path may be a hostname for proxy).
@@ -122,7 +121,7 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
   std::string opaque_;
   bool stale_;
   DigestAlgorithm algorithm_;
-  int qop_;  // Bitfield of QualityOfProtection
+  QualityOfProtection qop_;
 
   int nonce_count_;
 
