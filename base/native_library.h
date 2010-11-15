@@ -14,7 +14,7 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #elif defined(OS_MACOSX)
-#import <Carbon/Carbon.h>
+#import <CoreFoundation/CoreFoundation.h>
 #endif  // OS_*
 
 #include "base/string16.h"
