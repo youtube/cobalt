@@ -590,8 +590,8 @@ std::string HttpUtil::GenerateAcceptLanguageHeader(
       lang_list_with_q = language;
     } else {
       DCHECK_LT(qvalue10, 10U);
-      StringAppendF(&lang_list_with_q, ",%s;q=0.%d", language.c_str(),
-                    qvalue10);
+      base::StringAppendF(&lang_list_with_q, ",%s;q=0.%d", language.c_str(),
+                          qvalue10);
     }
     // It does not make sense to have 'q=0'.
     if (qvalue10 > kQvalueDecrement10)

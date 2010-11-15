@@ -38,10 +38,10 @@ class HostnamePatternRule : public ProxyBypassRules::Rule {
   virtual std::string ToString() const {
     std::string str;
     if (!optional_scheme_.empty())
-      StringAppendF(&str, "%s://", optional_scheme_.c_str());
+      base::StringAppendF(&str, "%s://", optional_scheme_.c_str());
     str += hostname_pattern_;
     if (optional_port_ != -1)
-      StringAppendF(&str, ":%d", optional_port_);
+      base::StringAppendF(&str, ":%d", optional_port_);
     return str;
   }
 
