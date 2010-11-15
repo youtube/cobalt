@@ -616,25 +616,25 @@
         'conditions': [
           ['OS!="win"', {
             'sources/': [ ['exclude', '_win(_unittest)?\\.cc$'],
-                          ['exclude', '/win/'],
-                          ['exclude', '/win_[^/]*\\.cc$'] ],
+                          ['exclude', '(^|/)win/'],
+                          ['exclude', '(^|/)win_[^/]*\\.cc$'] ],
           }],
           ['OS!="mac"', {
             'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.cc$'],
-                          ['exclude', '/(cocoa|mac)/'],
-                          ['exclude', '\.mm?$' ] ],
+                          ['exclude', '(^|/)(cocoa|mac)/'],
+                          ['exclude', '\\.mm?$' ] ],
           }],
           ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
             'sources/': [
               ['exclude', '_(chromeos|gtk|x|x11|xdg)(_unittest)?\\.cc$'],
-              ['exclude', '/gtk/'],
-              ['exclude', '/(gtk|x11)_[^/]*\\.cc$'],
+              ['exclude', '(^|/)gtk/'],
+              ['exclude', '(^|/)(gtk|x11)_[^/]*\\.cc$'],
             ],
           }],
           ['OS!="linux"', {
             'sources/': [
               ['exclude', '_linux(_unittest)?\\.cc$'],
-              ['exclude', '/linux/'],
+              ['exclude', '(^|/)linux/'],
             ],
           }],
           # We use "POSIX" to refer to all non-Windows operating systems.
