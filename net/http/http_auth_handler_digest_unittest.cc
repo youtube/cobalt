@@ -28,7 +28,7 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
     int parsed_algorithm;
     int parsed_qop;
   } tests[] = {
-    {
+    { // Check that a minimal challenge works correctly.
       "Digest nonce=\"xyz\", realm=\"Thunder Bluff\"",
       true,
       "Thunder Bluff",
@@ -40,42 +40,16 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
       HttpAuthHandlerDigest::QOP_UNSPECIFIED
     },
 
-    { // Check that when algorithm has an unsupported value, parsing fails.
-      "Digest nonce=\"xyz\", algorithm=\"awezum\", realm=\"Thunder\"",
-      false,
-      // The remaining values don't matter (but some have been set already).
-      "",
+    { // Realm does not need to be quoted, even though RFC2617 requires it.
+      "Digest nonce=\"xyz\", realm=ThunderBluff",
+      true,
+      "ThunderBluff",
       "xyz",
       "",
       "",
       false,
       HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
       HttpAuthHandlerDigest::QOP_UNSPECIFIED
-    },
-
-    { // Check that algorithm's value is case insensitive.
-      "Digest nonce=\"xyz\", algorithm=\"mD5\", realm=\"Oblivion\"",
-      true,
-      "Oblivion",
-      "xyz",
-      "",
-      "",
-      false,
-      HttpAuthHandlerDigest::ALGORITHM_MD5,
-      HttpAuthHandlerDigest::QOP_UNSPECIFIED
-    },
-
-    { // Check that md5-sess is recognized, as is single QOP
-      "Digest nonce=\"xyz\", algorithm=\"md5-sess\", "
-      "realm=\"Oblivion\", qop=\"auth\"",
-      true,
-      "Oblivion",
-      "xyz",
-      "",
-      "",
-      false,
-      HttpAuthHandlerDigest::ALGORITHM_MD5_SESS,
-      HttpAuthHandlerDigest::QOP_AUTH
     },
 
     { // We allow the realm to be omitted, and will default it to empty string.
@@ -101,7 +75,193 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
       false,
       HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
       HttpAuthHandlerDigest::QOP_UNSPECIFIED
-    }
+    },
+
+    { // At a minimum, a nonce must be provided.
+      "Digest realm=\"Thunder Bluff\"",
+      false,
+      "",
+      "",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // The nonce does not need to be quoted, even though RFC2617
+      // requires it.
+      "Digest nonce=xyz, realm=\"Thunder Bluff\"",
+      true,
+      "Thunder Bluff",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Unknown authentication parameters are ignored.
+      "Digest nonce=\"xyz\", realm=\"Thunder Bluff\", foo=\"bar\"",
+      true,
+      "Thunder Bluff",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Check that when algorithm has an unsupported value, parsing fails.
+      "Digest nonce=\"xyz\", algorithm=\"awezum\", realm=\"Thunder\"",
+      false,
+      // The remaining values don't matter (but some have been set already).
+      "",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Check that algorithm's value is case insensitive, and that MD5 is
+      // a supported algorithm.
+      "Digest nonce=\"xyz\", algorithm=\"mD5\", realm=\"Oblivion\"",
+      true,
+      "Oblivion",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_MD5,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Check that md5-sess is a supported algorithm.
+      "Digest nonce=\"xyz\", algorithm=\"md5-sess\", realm=\"Oblivion\"",
+      true,
+      "Oblivion",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_MD5_SESS,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED,
+    },
+
+    { // Check that qop's value is case insensitive, and that auth is known.
+      "Digest nonce=\"xyz\", realm=\"Oblivion\", qop=\"aUth\"",
+      true,
+      "Oblivion",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_AUTH
+    },
+
+    { // auth-int is not handled, but will fall back to default qop.
+      "Digest nonce=\"xyz\", realm=\"Oblivion\", qop=\"auth-int\"",
+      true,
+      "Oblivion",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Unknown qop values are ignored.
+      "Digest nonce=\"xyz\", realm=\"Oblivion\", qop=\"auth,foo\"",
+      true,
+      "Oblivion",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_AUTH
+    },
+
+    { // If auth-int is included with auth, then use auth.
+      "Digest nonce=\"xyz\", realm=\"Oblivion\", qop=\"auth,auth-int\"",
+      true,
+      "Oblivion",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_AUTH
+    },
+
+    { // Opaque parameter parsing should work correctly.
+      "Digest nonce=\"xyz\", realm=\"Thunder Bluff\", opaque=\"foobar\"",
+      true,
+      "Thunder Bluff",
+      "xyz",
+      "",
+      "foobar",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Opaque parameters do not need to be quoted, even though RFC2617
+      // seems to require it.
+      "Digest nonce=\"xyz\", realm=\"Thunder Bluff\", opaque=foobar",
+      true,
+      "Thunder Bluff",
+      "xyz",
+      "",
+      "foobar",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Domain can be parsed.
+      "Digest nonce=\"xyz\", realm=\"Thunder Bluff\", "
+      "domain=\"http://intranet.example.com/protection\"",
+      true,
+      "Thunder Bluff",
+      "xyz",
+      "http://intranet.example.com/protection",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Multiple domains can be parsed.
+      "Digest nonce=\"xyz\", realm=\"Thunder Bluff\", "
+      "domain=\"http://intranet.example.com/protection http://www.google.com\"",
+      true,
+      "Thunder Bluff",
+      "xyz",
+      "http://intranet.example.com/protection http://www.google.com",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // If a non-Digest scheme is somehow passed in, it should be rejected.
+      "Basic realm=\"foo\"",
+      false,
+      "",
+      "",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
   };
 
   GURL origin("http://www.example.com");
@@ -118,9 +278,10 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
       EXPECT_EQ(OK, rv);
     } else {
       EXPECT_NE(OK, rv);
+      EXPECT_TRUE(handler.get() == NULL);
       continue;
     }
-    ASSERT_TRUE(handler != NULL);
+    ASSERT_TRUE(handler.get() != NULL);
     HttpAuthHandlerDigest* digest =
         static_cast<HttpAuthHandlerDigest*>(handler.get());
     EXPECT_STREQ(tests[i].parsed_realm, digest->realm_.c_str());
@@ -291,7 +452,7 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
   }
 }
 
-TEST(HttpAuthHandlerDigest, HandleAnotherChallenge_Failed) {
+TEST(HttpAuthHandlerDigest, HandleAnotherChallenge) {
   scoped_ptr<HttpAuthHandlerDigest::Factory> factory(
       new HttpAuthHandlerDigest::Factory());
   scoped_ptr<HttpAuthHandler> handler;
