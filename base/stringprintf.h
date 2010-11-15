@@ -50,7 +50,5 @@ void StringAppendV(std::wstring* dst, const wchar_t* format, va_list ap)
 // TODO(brettw) remove these when calling code is converted.
 using base::StringPrintf;
 using base::StringAppendV;
-using base::StringAppendF;
-using base::StringAppendV;
 
 #endif  // BASE_STRINGPRINTF_H_
