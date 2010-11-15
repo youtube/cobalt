@@ -80,8 +80,8 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
 
 void Time::Explode(bool is_local, Exploded* exploded) const {
   CFAbsoluteTime seconds =
-      (static_cast<double>((us_ - kWindowsEpochDeltaMicroseconds) /
-      kMicrosecondsPerSecond) - kCFAbsoluteTimeIntervalSince1970);
+      ((static_cast<double>(us_) - kWindowsEpochDeltaMicroseconds) /
+      kMicrosecondsPerSecond) - kCFAbsoluteTimeIntervalSince1970;
 
   base::mac::ScopedCFTypeRef<CFTimeZoneRef>
       time_zone(is_local ? CFTimeZoneCopySystem() : NULL);
