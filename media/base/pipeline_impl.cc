@@ -954,7 +954,7 @@ void PipelineImpl::InitializeDataSource() {
 
   scoped_refptr<DataSource> data_source;
   while (true) {
-    filter_collection_->SelectDataSource(&data_source);
+    filter_collection_->SelectFilter(&data_source);
     if (!data_source || data_source->IsUrlSupported(url_))
       break;
   }
@@ -979,7 +979,7 @@ void PipelineImpl::InitializeDemuxer(
 
   CHECK(data_source);
 
-  filter_collection_->SelectDemuxer(&demuxer);
+  filter_collection_->SelectFilter(&demuxer);
   if (!demuxer) {
     SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
     return;
@@ -1001,7 +1001,7 @@ bool PipelineImpl::InitializeAudioDecoder(
 
   if (stream) {
     scoped_refptr<AudioDecoder> audio_decoder;
-    filter_collection_->SelectAudioDecoder(&audio_decoder);
+    filter_collection_->SelectFilter(&audio_decoder);
 
     if (audio_decoder) {
       PrepareFilter(audio_decoder);
@@ -1028,7 +1028,7 @@ bool PipelineImpl::InitializeVideoDecoder(
 
   if (stream) {
     scoped_refptr<VideoDecoder> video_decoder;
-    filter_collection_->SelectVideoDecoder(&video_decoder);
+    filter_collection_->SelectFilter(&video_decoder);
 
     if (video_decoder) {
       PrepareFilter(video_decoder);
@@ -1050,7 +1050,7 @@ bool PipelineImpl::InitializeAudioRenderer(
   DCHECK(IsPipelineOk());
 
   if (decoder) {
-    filter_collection_->SelectAudioRenderer(&audio_renderer_);
+    filter_collection_->SelectFilter(&audio_renderer_);
 
     if (audio_renderer_) {
       PrepareFilter(audio_renderer_);
@@ -1070,7 +1070,7 @@ bool PipelineImpl::InitializeVideoRenderer(
   DCHECK(IsPipelineOk());
 
   if (decoder) {
-    filter_collection_->SelectVideoRenderer(&video_renderer_);
+    filter_collection_->SelectFilter(&video_renderer_);
 
     if (video_renderer_) {
       PrepareFilter(video_renderer_);
