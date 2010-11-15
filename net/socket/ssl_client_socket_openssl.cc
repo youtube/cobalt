@@ -62,8 +62,7 @@ int MapOpenSSLError(int err) {
 
 SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     ClientSocketHandle* transport_socket,
-    const std::string& hostname,
-    uint16 port,
+    const HostPortPair& host_and_port,
     const SSLConfig& ssl_config)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketOpenSSL::BufferSendComplete)),
@@ -80,8 +79,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       ssl_(NULL),
       transport_bio_(NULL),
       transport_(transport_socket),
-      hostname_(hostname),
-      port_(port),
+      host_and_port_(host_and_port),
       ssl_config_(ssl_config),
       completed_handshake_(false),
       net_log_(transport_socket->socket()->NetLog()) {
@@ -101,7 +99,7 @@ bool SSLClientSocketOpenSSL::Init() {
     return false;
   }
 
-  if (!SSL_set_tlsext_host_name(ssl_, hostname_.c_str())) {
+  if (!SSL_set_tlsext_host_name(ssl_, host_and_port_.host().c_str())) {
     MaybeLogSSLError();
     return false;
   }
@@ -350,7 +348,7 @@ int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new CertVerifier);
-  return verifier_->Verify(server_cert_, hostname_, flags,
+  return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
                            &server_cert_verify_result_,
                            &handshake_io_callback_);
 }

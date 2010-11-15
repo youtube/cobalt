@@ -32,8 +32,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   // certificate during the SSL handshake.  ssl_config specifies the SSL
   // settings.
   SSLClientSocketOpenSSL(ClientSocketHandle* transport_socket,
-                         const std::string& hostname,
-                         uint16 port,
+                         const HostPortPair& host_and_port,
                          const SSLConfig& ssl_config);
   ~SSLClientSocketOpenSSL();
 
@@ -126,8 +125,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   BIO* transport_bio_;
 
   scoped_ptr<ClientSocketHandle> transport_;
-  std::string hostname_;
-  uint16 port_;
+  const HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
   bool completed_handshake_;
