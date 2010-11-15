@@ -539,37 +539,11 @@
               ],
           },],
           [ 'use_openssl==1', {
-              # TODO(joth): Use a glob to match exclude patterns once the
-              #             OpenSSL file set is complete.
               'sources!': [
-                'crypto/encryptor_nss.cc',
-                'crypto/rsa_private_key_nss.cc',
-                'crypto/signature_creator_nss.cc',
-                'crypto/signature_verifier_nss.cc',
-                'crypto/symmetric_key_nss.cc',
-                'hmac_nss.cc',
-                'nss_util.cc',
-                'nss_util.h',
                 # Note that sha2.cc depends on the NSS files bundled into
                 # chromium; it does not have the _nss postfix as it is required
                 # on platforms besides linux and *bsd.
                 'sha2.cc',
-                'third_party/nss/blapi.h',
-                'third_party/nss/blapit.h',
-                'third_party/nss/sha256.h',
-                'third_party/nss/sha512.cc',
-              ],
-            }, {
-              'sources!': [
-                'crypto/encryptor_openssl.cc',
-                'crypto/rsa_private_key_openssl.cc',
-                'crypto/signature_creator_openssl.cc',
-                'crypto/signature_verifier_openssl.cc',
-                'crypto/symmetric_key_openssl.cc',
-                'hmac_openssl.cc',
-                'openssl_util.cc',
-                'openssl_util.h',
-                'sha2_openssl.cc',
               ],
           },],
         ],

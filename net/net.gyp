@@ -266,13 +266,8 @@
         ],
         [ 'use_openssl==1', {
             'sources!': [
-              'base/cert_database_nss.cc',
               'base/dnssec_keyset.cc',
               'base/dnssec_keyset.h',
-              'base/keygen_handler_nss.cc',
-              'base/nss_memio.c',
-              'base/nss_memio.h',
-              'base/x509_certificate_nss.cc',
               'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
               'third_party/mozilla_security_manager/nsKeygenHandler.h',
               'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
@@ -282,17 +277,6 @@
               'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
               'third_party/mozilla_security_manager/nsPKCS12Blob.h',
             ],
-          },
-          {  # else: not using openssl.
-            'sources!': [
-              'base/cert_database_openssl.cc',
-              'base/keygen_handler_openssl.cc',
-              'base/openssl_util.cc',
-              'base/openssl_util.h',
-              'base/x509_certificate_openssl.cc',
-              'base/x509_openssl_util.cc',
-              'base/x509_openssl_util.h',
-             ],
           },
         ],
         [ 'OS == "win"', {
@@ -724,20 +708,8 @@
         }],
         ['use_openssl==1', {
             'sources!': [
-              'ocsp/nss_ocsp.cc',
-              'ocsp/nss_ocsp.h',
               'socket/dns_cert_provenance_check.cc',
               'socket/dns_cert_provenance_check.h',
-              'socket/ssl_client_socket_nss.cc',
-              'socket/ssl_client_socket_nss.h',
-              'socket/ssl_client_socket_nss_factory.cc',
-              'socket/ssl_client_socket_nss_factory.h',
-            ],
-          },
-          {  # else !use_openssl: remove the unneeded files
-            'sources!': [
-              'socket/ssl_client_socket_openssl.cc',
-              'socket/ssl_client_socket_openssl.h',
             ],
           },
         ],

@@ -653,6 +653,18 @@
           ['toolkit_views==0', {
             'sources/': [ ['exclude', '_views\\.cc$'] ]
           }],
+          ['use_openssl==1', {
+            'sources/': [
+              ['exclude', '_nss\\.(cc|c)$'],
+              ['exclude', '/nss/'],
+              ['exclude', '(/|_|^)nss_[^/]*\\.(cc|c)$'],
+            ],
+          }, {
+            'sources/': [
+              ['exclude', '_openssl\\.cc$'],
+              ['exclude', '(/|_|^)openssl_[^/]*\\.cc$'],
+            ],
+          }],
         ],
       }],
     ],  # target_conditions for 'target_defaults'
