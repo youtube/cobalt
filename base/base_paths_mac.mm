@@ -52,7 +52,8 @@ bool PathProviderMac(int key, FilePath* result) {
     case base::DIR_APP_DATA:
       return mac_util::GetUserDirectory(NSApplicationSupportDirectory, result);
     case base::DIR_SOURCE_ROOT: {
-      if (GetNSExecutablePath(result)) {
+      // Go through PathService to catch overrides.
+      if (PathService::Get(base::FILE_EXE, result)) {
         // Start with the executable's directory.
         *result = result->DirName();
         if (mac_util::AmIBundled()) {
