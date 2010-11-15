@@ -5,7 +5,6 @@
 #include "base/native_library.h"
 
 #include <dlfcn.h>
-#import <Carbon/Carbon.h>
 
 #include "base/file_path.h"
 #include "base/file_util.h"
