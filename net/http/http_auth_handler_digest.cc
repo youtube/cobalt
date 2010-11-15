@@ -18,8 +18,6 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_util.h"
 
-// TODO(eroman): support qop=auth-int
-
 namespace net {
 
 // Digest authentication is specified in RFC 2617.
@@ -65,25 +63,30 @@ std::string HttpAuthHandlerDigest::GenerateNonce() {
 }
 
 // static
-std::string HttpAuthHandlerDigest::QopToString(int qop) {
+std::string HttpAuthHandlerDigest::QopToString(QualityOfProtection qop) {
   switch (qop) {
+    case QOP_UNSPECIFIED:
+      return "";
     case QOP_AUTH:
       return "auth";
-    case QOP_AUTH_INT:
-      return "auth-int";
     default:
+      NOTREACHED();
       return "";
   }
 }
 
 // static
-std::string HttpAuthHandlerDigest::AlgorithmToString(int algorithm) {
+std::string HttpAuthHandlerDigest::AlgorithmToString(
+    DigestAlgorithm algorithm) {
   switch (algorithm) {
+    case ALGORITHM_UNSPECIFIED:
+      return "";
     case ALGORITHM_MD5:
       return "MD5";
     case ALGORITHM_MD5_SESS:
       return "MD5-sess";
     default:
+      NOTREACHED();
       return "";
   }
 }
@@ -91,7 +94,7 @@ std::string HttpAuthHandlerDigest::AlgorithmToString(int algorithm) {
 HttpAuthHandlerDigest::HttpAuthHandlerDigest(int nonce_count)
     : stale_(false),
       algorithm_(ALGORITHM_UNSPECIFIED),
-      qop_(0),
+      qop_(QOP_UNSPECIFIED),
       nonce_count_(nonce_count) {
 }
 
@@ -308,12 +311,13 @@ bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
     }
   } else if (LowerCaseEqualsASCII(name, "qop")) {
     // Parse the comma separated list of qops.
+    // auth is the only supported qop, and all other values are ignored.
     HttpUtil::ValuesIterator qop_values(value.begin(), value.end(), ',');
+    qop_ = QOP_UNSPECIFIED;
     while (qop_values.GetNext()) {
       if (LowerCaseEqualsASCII(qop_values.value(), "auth")) {
-        qop_ |= QOP_AUTH;
-      } else if (LowerCaseEqualsASCII(qop_values.value(), "auth-int")) {
-        qop_ |= QOP_AUTH_INT;
+        qop_ = QOP_AUTH;
+        break;
       }
     }
   } else {
