@@ -234,6 +234,14 @@
             'HAVE_XINPUT2',
           ],
         },
+        'link_settings': {
+          'ldflags': [
+            '<!@(<(pkg-config) --libs-only-L --libs-only-other xi)',
+          ],
+          'libraries': [
+            '<!@(<(pkg-config) --libs-only-l xi)',
+          ],
+        }
       }],
       ],
     },
