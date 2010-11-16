@@ -164,6 +164,7 @@
         'win/event_trace_consumer_unittest.cc',
         'win/event_trace_controller_unittest.cc',
         'win/event_trace_provider_unittest.cc',
+        'win/i18n_unittest.cc',
         'win/pe_image_unittest.cc',
         'win/registry_unittest.cc',
         'win/scoped_bstr_unittest.cc',
