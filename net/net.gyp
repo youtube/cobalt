@@ -867,6 +867,7 @@
         'base/upload_data_stream_unittest.cc',
         'base/x509_certificate_unittest.cc',
         'base/x509_cert_types_unittest.cc',
+        'base/x509_openssl_util_unittest.cc',
         'disk_cache/addr_unittest.cc',
         'disk_cache/backend_unittest.cc',
         'disk_cache/bitmap_unittest.cc',
@@ -1014,6 +1015,11 @@
               'base/dnssec_unittest.cc',
             ],
           },
+          { # else, remove openssl specific tests
+            'sources!': [
+              'base/x509_openssl_util_unittest.cc',
+            ],
+          }
         ],
         [ 'OS == "win"', {
             'sources!': [
