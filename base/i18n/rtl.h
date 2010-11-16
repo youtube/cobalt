@@ -6,6 +6,8 @@
 #define BASE_I18N_RTL_H_
 #pragma once
 
+#include <string>
+
 #include "base/compiler_specific.h"
 #include "base/string16.h"
 #include "build/build_config.h"
@@ -28,11 +30,6 @@ enum TextDirection {
   RIGHT_TO_LEFT,
   LEFT_TO_RIGHT,
 };
-
-#if defined(OS_WIN)
-// Get language and region from the OS. Used by Chrome Frame.
-void GetLanguageAndRegionFromOS(std::string* lang, std::string* region);
-#endif
 
 // Get the locale that the currently running process has been configured to use.
 // The return value is of the form language[-country] (e.g., en-US) where the

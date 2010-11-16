@@ -44,22 +44,6 @@ namespace i18n {
 // Represents the locale-specific ICU text direction.
 static TextDirection g_icu_text_direction = UNKNOWN_DIRECTION;
 
-#if defined(OS_WIN)
-void GetLanguageAndRegionFromOS(std::string* lang, std::string* region) {
-  // Later we may have to change this to be OS-dependent so that
-  // it's not affected by ICU's default locale. It's all right
-  // to do this way because SetICUDefaultLocale is internal
-  // to this file and we know that it's not yet called when this function
-  // is called.
-  const icu::Locale& locale = icu::Locale::getDefault();
-  const char* language = locale.getLanguage();
-  const char* country = locale.getCountry();
-  DCHECK(language);
-  *lang = language;
-  *region = country;
-}
-#endif
-
 // Convert the ICU default locale to a string.
 std::string GetConfiguredLocale() {
   return GetLocaleString(icu::Locale::getDefault());
