@@ -173,9 +173,11 @@ class SharedMemory {
   void Lock();
 
 #if defined(OS_WIN)
-  // A Lock() implementation with a timeout. Returns true if the Lock() has
-  // been acquired, false if the timeout was reached.
-  bool Lock(uint32 timeout_ms);
+  // A Lock() implementation with a timeout that also allows setting
+  // security attributes on the mutex. sec_attr may be NULL.
+  // Returns true if the Lock() has been acquired, false if the timeout was
+  // reached.
+  bool Lock(uint32 timeout_ms, SECURITY_ATTRIBUTES* sec_attr);
 #endif
 
   // Releases the shared memory lock.

@@ -197,17 +197,16 @@ void SharedMemory::Close() {
 }
 
 void SharedMemory::Lock() {
-  Lock(INFINITE);
+  Lock(INFINITE, NULL);
 }
 
-bool SharedMemory::Lock(uint32 timeout_ms) {
+bool SharedMemory::Lock(uint32 timeout_ms, SECURITY_ATTRIBUTES* sec_attr) {
   if (lock_ == NULL) {
     std::wstring name = name_;
     name.append(L"lock");
-    lock_ = CreateMutex(NULL, FALSE, name.c_str());
-    DCHECK(lock_ != NULL);
+    lock_ = CreateMutex(sec_attr, FALSE, name.c_str());
     if (lock_ == NULL) {
-      DLOG(ERROR) << "Could not create mutex" << GetLastError();
+      PLOG(ERROR) << "Could not create mutex.";
       return false;  // there is nothing good we can do here.
     }
   }
