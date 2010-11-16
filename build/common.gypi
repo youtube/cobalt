@@ -615,31 +615,31 @@
         ],
         'conditions': [
           ['OS!="win"', {
-            'sources/': [ ['exclude', '_win(_unittest)?\\.cc$'],
+            'sources/': [ ['exclude', '_win(_unittest)?\\.(h|cc)$'],
                           ['exclude', '(^|/)win/'],
-                          ['exclude', '(^|/)win_[^/]*\\.cc$'] ],
+                          ['exclude', '(^|/)win_[^/]*\\.(h|cc)$'] ],
           }],
           ['OS!="mac"', {
-            'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.cc$'],
+            'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.(h|cc)$'],
                           ['exclude', '(^|/)(cocoa|mac)/'],
                           ['exclude', '\\.mm?$' ] ],
           }],
           ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
             'sources/': [
-              ['exclude', '_(chromeos|gtk|x|x11|xdg)(_unittest)?\\.cc$'],
+              ['exclude', '_(chromeos|gtk|x|x11|xdg)(_unittest)?\\.(h|cc)$'],
               ['exclude', '(^|/)gtk/'],
-              ['exclude', '(^|/)(gtk|x11)_[^/]*\\.cc$'],
+              ['exclude', '(^|/)(gtk|x11)_[^/]*\\.(h|cc)$'],
             ],
           }],
           ['OS!="linux"', {
             'sources/': [
-              ['exclude', '_linux(_unittest)?\\.cc$'],
+              ['exclude', '_linux(_unittest)?\\.(h|cc)$'],
               ['exclude', '(^|/)linux/'],
             ],
           }],
           # We use "POSIX" to refer to all non-Windows operating systems.
           ['OS=="win"', {
-            'sources/': [ ['exclude', '_posix\\.cc$'] ],
+            'sources/': [ ['exclude', '_posix\\.(h|cc)$'] ],
             # turn on warnings for signed/unsigned mismatch on chromium code.
             'msvs_settings': {
               'VCCLCompilerTool': {
@@ -648,10 +648,10 @@
             },
           }],
           ['chromeos!=1', {
-            'sources/': [ ['exclude', '_chromeos\\.cc$'] ]
+            'sources/': [ ['exclude', '_chromeos\\.(h|cc)$'] ]
           }],
           ['toolkit_views==0', {
-            'sources/': [ ['exclude', '_views\\.cc$'] ]
+            'sources/': [ ['exclude', '_views\\.(h|cc)$'] ]
           }],
         ],
       }],
