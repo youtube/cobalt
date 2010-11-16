@@ -4,7 +4,7 @@
 
 #include "base/base_paths_mac.h"
 
-#import <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
 #include <mach-o/dyld.h>
 
 #include "base/compiler_specific.h"
