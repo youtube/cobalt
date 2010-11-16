@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -378,6 +378,14 @@ int X509Certificate::Verify(const std::string& hostname,
                             int flags,
                             CertVerifyResult* verify_result) const {
   verify_result->Reset();
+
+  // TODO(joth): We should fetch the subjectAltNames directly rather than via
+  // GetDNSNames, so we can apply special handling for IP addresses vs DNS
+  // names, etc. See http://crbug.com/62973.
+  std::vector<std::string> cert_names;
+  GetDNSNames(&cert_names);
+  if (!x509_openssl_util::VerifyHostname(hostname, cert_names))
+    verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
   ScopedSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(X509_STORE_CTX_new());
 
