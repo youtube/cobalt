@@ -122,6 +122,12 @@ template <class Char> inline Char ToLowerASCII(Char c) {
   return (c >= 'A' && c <= 'Z') ? (c + ('a' - 'A')) : c;
 }
 
+// ASCII-specific toupper.  The standard library's toupper is locale sensitive,
+// so we don't want to use it here.
+template <class Char> inline Char ToUpperASCII(Char c) {
+  return (c >= 'a' && c <= 'z') ? (c + ('A' - 'a')) : c;
+}
+
 // Function objects to aid in comparing/searching strings.
 
 template<typename Char> struct CaseInsensitiveCompare {
@@ -295,17 +301,11 @@ template <class str> inline str StringToLowerASCII(const str& s) {
   return output;
 }
 
-// ASCII-specific toupper.  The standard library's toupper is locale sensitive,
-// so we don't want to use it here.
-template <class Char> inline Char ToUpperASCII(Char c) {
-  return (c >= 'a' && c <= 'z') ? (c + ('A' - 'a')) : c;
-}
-
 // Converts the elements of the given string.  This version uses a pointer to
 // clearly differentiate it from the non-pointer variant.
 template <class str> inline void StringToUpperASCII(str* s) {
   for (typename str::iterator i = s->begin(); i != s->end(); ++i)
-    *i = ToUpperASCII(*i);
+    *i = base::ToUpperASCII(*i);
 }
 
 template <class str> inline str StringToUpperASCII(const str& s) {
