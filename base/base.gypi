@@ -294,6 +294,8 @@
           'watchdog.h',
           'weak_ptr.cc',
           'weak_ptr.h',
+          'win/i18n.cc',
+          'win/i18n.h',
           'win/pe_image.cc',
           'win/event_trace_consumer.h',
           'win/event_trace_controller.cc',
