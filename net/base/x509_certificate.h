@@ -26,6 +26,7 @@
 #elif defined(USE_OPENSSL)
 // Forward declaration; real one in <x509.h>
 struct x509_st;
+typedef struct x509_store_st X509_STORE;
 #elif defined(USE_NSS)
 // Forward declaration; real one in <cert.h>
 struct CERTCertificateStr;
@@ -232,6 +233,12 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   //    this store so that we can close the system store when we finish
   //    searching for client certificates.
   static HCERTSTORE cert_store();
+#endif
+
+#if defined(USE_OPENSSL)
+  // Returns a handle to a global, in-memory certificate store. We
+  // use it for test code, e.g. importing the test server's certificate.
+  static X509_STORE* cert_store();
 #endif
 
   // Verifies the certificate against the given hostname.  Returns OK if
