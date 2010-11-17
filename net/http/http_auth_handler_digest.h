@@ -8,7 +8,9 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
+#include "base/scoped_ptr.h"
 #include "base/string16.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -18,6 +20,43 @@ namespace net {
 // Code for handling http digest authentication.
 class HttpAuthHandlerDigest : public HttpAuthHandler {
  public:
+  // A NonceGenerator is a simple interface for generating client nonces.
+  // Unit tests can override the default client nonce behavior with fixed
+  // nonce generation to get reproducible results.
+  class NonceGenerator {
+   public:
+    NonceGenerator();
+    virtual ~NonceGenerator();
+
+    // Generates a client nonce.
+    virtual std::string GenerateNonce() const = 0;
+   private:
+    DISALLOW_COPY_AND_ASSIGN(NonceGenerator);
+  };
+
+  // DynamicNonceGenerator does a random shuffle of 16
+  // characters to generate a client nonce.
+  class DynamicNonceGenerator : public NonceGenerator {
+   public:
+    DynamicNonceGenerator();
+    virtual std::string GenerateNonce() const;
+   private:
+    DISALLOW_COPY_AND_ASSIGN(DynamicNonceGenerator);
+  };
+
+  // FixedNonceGenerator always uses the same string specified at
+  // construction time as the client nonce.
+  class FixedNonceGenerator : public NonceGenerator {
+   public:
+    explicit FixedNonceGenerator(const std::string& nonce);
+
+    virtual std::string GenerateNonce() const;
+
+   private:
+    const std::string nonce_;
+    DISALLOW_COPY_AND_ASSIGN(FixedNonceGenerator);
+  };
+
   class Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
@@ -30,6 +69,12 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
                                   int digest_nonce_count,
                                   const BoundNetLog& net_log,
                                   scoped_ptr<HttpAuthHandler>* handler);
+
+    // This factory owns the passed in |nonce_generator|.
+    void set_nonce_generator(const NonceGenerator* nonce_generator);
+
+   private:
+    scoped_ptr<const NonceGenerator> nonce_generator_;
   };
 
   HttpAuth::AuthorizationResult HandleAnotherChallenge(
@@ -70,7 +115,12 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     QOP_AUTH,
   };
 
-  explicit HttpAuthHandlerDigest(int nonce_count);
+  // |nonce_count| indicates how many times the server-specified nonce has
+  // been used so far.
+  // |nonce_generator| is used to create a client nonce, and is not owned by
+  // the handler. The lifetime of the |nonce_generator| must exceed that of this
+  // handler.
+  HttpAuthHandlerDigest(int nonce_count, const NonceGenerator* nonce_generator);
   ~HttpAuthHandlerDigest();
 
   // Parse the challenge, saving the results into this instance.
@@ -110,11 +160,6 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
                                   const std::string& cnonce,
                                   int nonce_count) const;
 
-  // Forces cnonce to be the same each time. This is used for unit tests.
-  static void SetFixedCnonce(bool fixed_cnonce) {
-    fixed_cnonce_ = fixed_cnonce;
-  }
-
   // Information parsed from the challenge.
   std::string nonce_;
   std::string domain_;
@@ -124,9 +169,7 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
   QualityOfProtection qop_;
 
   int nonce_count_;
-
-  // Forces the cnonce to be the same each time, for unit tests.
-  static bool fixed_cnonce_;
+  const NonceGenerator* nonce_generator_;
 };
 
 }  // namespace net
