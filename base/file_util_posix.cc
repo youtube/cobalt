@@ -132,7 +132,7 @@ int CountFilesCreatedAfter(const FilePath& path,
       // which are older than |comparison_time| are considered newer
       // (current implementation) 2. files newer than
       // |comparison_time| are considered older.
-      if (st.st_ctime >= comparison_time.ToTimeT())
+      if (static_cast<time_t>(st.st_ctime) >= comparison_time.ToTimeT())
         ++file_count;
     }
     closedir(dir);
@@ -762,7 +762,7 @@ void MemoryMappedFile::CloseHandles() {
 
 bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
                               const base::Time& cutoff_time) {
-  return find_info.stat.st_mtime >= cutoff_time.ToTimeT();
+  return static_cast<time_t>(find_info.stat.st_mtime) >= cutoff_time.ToTimeT();
 }
 
 bool NormalizeFilePath(const FilePath& path, FilePath* normalized_path) {
