@@ -2030,12 +2030,12 @@ bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
 uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info) {
   DCHECK(info);
   if (info->ai_family == AF_INET) {
-    DCHECK_EQ(sizeof(sockaddr_in), info->ai_addrlen);
+    DCHECK_EQ(sizeof(sockaddr_in), static_cast<size_t>(info->ai_addrlen));
     struct sockaddr_in* sockaddr =
         reinterpret_cast<struct sockaddr_in*>(info->ai_addr);
     return &sockaddr->sin_port;
   } else if (info->ai_family == AF_INET6) {
-    DCHECK_EQ(sizeof(sockaddr_in6), info->ai_addrlen);
+    DCHECK_EQ(sizeof(sockaddr_in6), static_cast<size_t>(info->ai_addrlen));
     struct sockaddr_in6* sockaddr =
         reinterpret_cast<struct sockaddr_in6*>(info->ai_addr);
     return &sockaddr->sin6_port;
