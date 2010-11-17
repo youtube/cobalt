@@ -8,8 +8,9 @@
 
 #if defined(USE_OPENSSL)
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 #include <openssl/x509v3.h>
-#include "net/base/openssl_util.h"
+#include "base/openssl_util.h"
 #elif defined(USE_NSS)
 #include <cert.h>
 #include "base/nss_util.h"
@@ -27,15 +28,11 @@ namespace net {
 
 #if defined(USE_OPENSSL)
 X509Certificate* AddTemporaryRootCertToStore(X509* x509_cert) {
-  OpenSSLInitSingleton* openssl_init = GetOpenSSLInitSingleton();
-
-  if (!X509_STORE_add_cert(openssl_init->x509_store(), x509_cert)) {
+  if (!X509_STORE_add_cert(X509Certificate::cert_store(), x509_cert)) {
     unsigned long error_code = ERR_get_error();
     if (ERR_GET_LIB(error_code) != ERR_LIB_X509 ||
         ERR_GET_REASON(error_code) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
-      do {
-        LOG(ERROR) << "X509_STORE_add_cert error: " << error_code;
-      } while ((error_code = ERR_get_error()) != 0);
+      base::ClearOpenSSLERRStack();
       return NULL;
     }
   }
@@ -45,7 +42,7 @@ X509Certificate* AddTemporaryRootCertToStore(X509* x509_cert) {
 }
 
 X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
-  EnsureOpenSSLInit();
+  base::EnsureOpenSSLInit();
 
   std::string rawcert;
   if (!file_util::ReadFileToString(filename, &rawcert)) {
@@ -53,7 +50,7 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
     return NULL;
   }
 
-  ScopedSSL<BIO, BIO_free_all> cert_bio(
+  base::ScopedOpenSSL<BIO, BIO_free_all> cert_bio(
       BIO_new_mem_buf(const_cast<char*>(rawcert.c_str()),
                       rawcert.length()));
   if (!cert_bio.get()) {
@@ -61,8 +58,8 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
     return NULL;
   }
 
-  ScopedSSL<X509, X509_free> pem_cert(PEM_read_bio_X509(cert_bio.get(),
-                                                        NULL, NULL, NULL));
+  base::ScopedOpenSSL<X509, X509_free> pem_cert(PEM_read_bio_X509(
+      cert_bio.get(), NULL, NULL, NULL));
   if (pem_cert.get())
     return AddTemporaryRootCertToStore(pem_cert.get());
 
@@ -70,7 +67,8 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
   const unsigned char* der_data =
       reinterpret_cast<const unsigned char*>(rawcert.c_str());
   int der_length = rawcert.length();
-  ScopedSSL<X509, X509_free> der_cert(d2i_X509(NULL, &der_data, der_length));
+  base::ScopedOpenSSL<X509, X509_free> der_cert(d2i_X509(
+      NULL, &der_data, der_length));
   if (der_cert.get())
     return AddTemporaryRootCertToStore(der_cert.get());
 
