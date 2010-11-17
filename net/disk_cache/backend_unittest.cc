@@ -1313,6 +1313,26 @@ TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry2) {
   BackendInvalidEntry2();
 }
 
+TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry3) {
+  ASSERT_TRUE(CopyTestCache("bad_rankings3"));
+  DisableFirstCleanup();
+  SetNewEviction();
+  InitCache();
+
+  // The second entry is dirty, but removing it should not corrupt the list.
+  disk_cache::Entry* entry;
+  ASSERT_NE(net::OK, OpenEntry("the second key", &entry));
+  ASSERT_EQ(net::OK, OpenEntry("the first key", &entry));
+
+  // This should not delete the cache.
+  entry->Doom();
+  FlushQueueForTest();
+  entry->Close();
+
+  ASSERT_EQ(net::OK, OpenEntry("some other key", &entry));
+  entry->Close();
+}
+
 // We want to be able to deal with abnormal dirty entries.
 void DiskCacheBackendTest::BackendNotMarkedButDirty(const std::string& name) {
   ASSERT_TRUE(CopyTestCache(name));
