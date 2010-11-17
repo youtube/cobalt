@@ -13,13 +13,13 @@
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
 
+#include "base/openssl_util.h"
 #include "base/pickle.h"
 #include "base/singleton.h"
 #include "base/string_number_conversions.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
-#include "net/base/openssl_util.h"
 #include "net/base/x509_openssl_util.h"
 
 namespace net {
@@ -31,8 +31,9 @@ namespace {
 void CreateOSCertHandlesFromPKCS7Bytes(
     const char* data, int length,
     X509Certificate::OSCertHandles* handles) {
+  base::EnsureOpenSSLInit();
   const unsigned char* der_data = reinterpret_cast<const unsigned char*>(data);
-  ScopedSSL<PKCS7, PKCS7_free> pkcs7_cert(
+  base::ScopedOpenSSL<PKCS7, PKCS7_free> pkcs7_cert(
       d2i_PKCS7(NULL, &der_data, length));
   if (!pkcs7_cert.get())
     return;
@@ -98,7 +99,7 @@ void ParseSubjectAltNames(X509Certificate::OSCertHandle cert,
   if (!alt_name_ext)
     return;
 
-  ScopedSSL<GENERAL_NAMES, GENERAL_NAMES_free> alt_names(
+  base::ScopedOpenSSL<GENERAL_NAMES, GENERAL_NAMES_free> alt_names(
       reinterpret_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(alt_name_ext)));
   if (!alt_names.get())
     return;
@@ -206,16 +207,22 @@ void DERCache_free(void* parent, void* ptr, CRYPTO_EX_DATA* ad, int idx,
 class X509InitSingleton {
  public:
   int der_cache_ex_index() const { return der_cache_ex_index_; }
+  X509_STORE* store() const { return store_.get(); }
 
  private:
   friend struct DefaultSingletonTraits<X509InitSingleton>;
-  X509InitSingleton() {
-    der_cache_ex_index_ = X509_get_ex_new_index(0, 0, 0, 0, DERCache_free);
+  X509InitSingleton()
+      :   der_cache_ex_index_((base::EnsureOpenSSLInit(),
+                               X509_get_ex_new_index(0, 0, 0, 0,
+                                                     DERCache_free))),
+        store_(X509_STORE_new()) {
     DCHECK_NE(der_cache_ex_index_, -1);
+    X509_STORE_set_default_paths(store_.get());
+    // TODO(joth): Enable CRL (see X509_STORE_set_flags(X509_V_FLAG_CRL_CHECK)).
   }
-  ~X509InitSingleton() {}
 
   int der_cache_ex_index_;
+  base::ScopedOpenSSL<X509_STORE, X509_STORE_free> store_;
 
   DISALLOW_COPY_AND_ASSIGN(X509InitSingleton);
 };
@@ -290,6 +297,7 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 }
 
 void X509Certificate::Initialize() {
+  base::EnsureOpenSSLInit();
   fingerprint_ = CalculateFingerprint(cert_handle_);
   ParsePrincipal(cert_handle_, X509_get_subject_name(cert_handle_), &subject_);
   ParsePrincipal(cert_handle_, X509_get_issuer_name(cert_handle_), &issuer_);
@@ -311,6 +319,7 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   if (length < 0)
     return NULL;
+  base::EnsureOpenSSLInit();
   const unsigned char* d2i_data =
       reinterpret_cast<const unsigned char*>(data);
   // Don't cache this data via SetDERCache as this wire format may be not be
@@ -346,6 +355,7 @@ X509Certificate::OSCertHandles X509Certificate::CreateOSCertHandlesFromBytes(
   return results;
 }
 
+// static
 X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
                                                    void** pickle_iter) {
   const char* data;
@@ -374,6 +384,11 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
     dns_names->push_back(subject_.common_name);
 }
 
+// static
+X509_STORE* X509Certificate::cert_store() {
+  return Singleton<X509InitSingleton>::get()->store();
+}
+
 int X509Certificate::Verify(const std::string& hostname,
                             int flags,
                             CertVerifyResult* verify_result) const {
@@ -387,9 +402,11 @@ int X509Certificate::Verify(const std::string& hostname,
   if (!x509_openssl_util::VerifyHostname(hostname, cert_names))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
-  ScopedSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(X509_STORE_CTX_new());
+  base::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
+      X509_STORE_CTX_new());
 
-  ScopedSSL<STACK_OF(X509), sk_X509_free_fn> intermediates(sk_X509_new_null());
+  base::ScopedOpenSSL<STACK_OF(X509), sk_X509_free_fn> intermediates(
+      sk_X509_new_null());
   if (!intermediates.get())
     return ERR_OUT_OF_MEMORY;
 
@@ -398,8 +415,7 @@ int X509Certificate::Verify(const std::string& hostname,
     if (!sk_X509_push(intermediates.get(), *it))
       return ERR_OUT_OF_MEMORY;
   }
-  int rv = X509_STORE_CTX_init(ctx.get(),
-                               GetOpenSSLInitSingleton()->x509_store(),
+  int rv = X509_STORE_CTX_init(ctx.get(), cert_store(),
                                cert_handle_, intermediates.get());
   CHECK_EQ(1, rv);
 
