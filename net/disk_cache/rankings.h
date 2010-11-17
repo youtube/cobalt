@@ -159,9 +159,10 @@ class Rankings {
   // selfcheck).
   bool CheckEntry(CacheRankingsBlock* rankings);
 
-  // Returns false if node is not properly linked.
+  // Returns false if node is not properly linked. This method may change the
+  // provided |list| to reflect the list where this node is actually stored.
   bool CheckLinks(CacheRankingsBlock* node, CacheRankingsBlock* prev,
-                  CacheRankingsBlock* next, List list);
+                  CacheRankingsBlock* next, List* list);
 
   // Checks the links between two consecutive nodes.
   bool CheckSingleLink(CacheRankingsBlock* prev, CacheRankingsBlock* next);
@@ -170,9 +171,10 @@ class Rankings {
   // error code (negative value).
   int CheckList(List list);
 
-  // Returns true if addr is the head or tail of any list.
-  bool IsHead(CacheAddr addr);
-  bool IsTail(CacheAddr addr);
+  // Returns true if addr is the head or tail of any list. When there is a
+  // match |list| will contain the list number for |addr|.
+  bool IsHead(CacheAddr addr, List* list);
+  bool IsTail(CacheAddr addr, List* list);
 
   // Updates the iterators whenever node is being changed.
   void UpdateIterators(CacheRankingsBlock* node);

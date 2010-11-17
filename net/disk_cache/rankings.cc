@@ -174,6 +174,14 @@ void GenerateCrash(CrashLocation location) {
 #endif  // NDEBUG
 }
 
+// Update the timestamp fields of |node|.
+void UpdateTimes(disk_cache::CacheRankingsBlock* node, bool modified) {
+  base::Time now = base::Time::Now();
+  node->Data()->last_used = now.ToInternalValue();
+  if (modified)
+    node->Data()->last_modified = now.ToInternalValue();
+}
+
 }  // namespace
 
 namespace disk_cache {
@@ -273,7 +281,7 @@ void Rankings::ConvertToLongLived(CacheRankingsBlock* rankings) {
 }
 
 void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
-  Trace("Insert 0x%x", node->address().value());
+  Trace("Insert 0x%x l %d", node->address().value(), list);
   DCHECK(node->HasData());
   Addr& my_head = heads_[list];
   Addr& my_tail = tails_[list];
@@ -306,10 +314,7 @@ void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
     GenerateCrash(ON_INSERT_2);
   }
 
-  Time now = Time::Now();
-  node->Data()->last_used = now.ToInternalValue();
-  if (modified)
-    node->Data()->last_modified = now.ToInternalValue();
+  UpdateTimes(node, modified);
   node->Store();
   GenerateCrash(ON_INSERT_3);
 
@@ -346,15 +351,17 @@ void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
 //    3. a(x, a), r(a, r), head(x), tail(a)           prev.Store()
 //    4. a(x, a), r(0, 0), head(x), tail(a)           next.Store()
 void Rankings::Remove(CacheRankingsBlock* node, List list) {
-  Trace("Remove 0x%x (0x%x 0x%x)", node->address().value(), node->Data()->next,
-        node->Data()->prev);
+  Trace("Remove 0x%x (0x%x 0x%x) l %d", node->address().value(),
+        node->Data()->next, node->Data()->prev, list);
   DCHECK(node->HasData());
   InvalidateIterators(node);
   Addr next_addr(node->Data()->next);
   Addr prev_addr(node->Data()->prev);
   if (!next_addr.is_initialized() || next_addr.is_separate_file() ||
       !prev_addr.is_initialized() || prev_addr.is_separate_file()) {
-    LOG(WARNING) << "Invalid rankings info.";
+    if (next_addr.is_initialized() || prev_addr.is_initialized()) {
+      LOG(ERROR) << "Invalid rankings info.";
+    }
     return;
   }
 
@@ -363,7 +370,7 @@ void Rankings::Remove(CacheRankingsBlock* node, List list) {
   if (!GetRanking(&next) || !GetRanking(&prev))
     return;
 
-  if (!CheckLinks(node, &prev, &next, list))
+  if (!CheckLinks(node, &prev, &next, &list))
     return;
 
   Transaction lock(control_data_, node->address(), REMOVE, list);
@@ -423,6 +430,13 @@ void Rankings::Remove(CacheRankingsBlock* node, List list) {
 // but the net effect is just an assert on debug when attempting to remove the
 // entry. Otherwise we'll need reentrant transactions, which is an overkill.
 void Rankings::UpdateRank(CacheRankingsBlock* node, bool modified, List list) {
+  Addr& my_head = heads_[list];
+  if (my_head.value() == node->address().value()) {
+    UpdateTimes(node, modified);
+    node->set_modified();
+    return;
+  }
+
   TimeTicks start = TimeTicks::Now();
   Remove(node, list);
   Insert(node, modified, list);
@@ -649,10 +663,11 @@ bool Rankings::SanityCheck(CacheRankingsBlock* node, bool from_list) {
   if (!data->next && !data->prev && from_list)
     return false;
 
-  if ((node->address().value() == data->prev) && !IsHead(data->prev))
+  List list = NO_USE;  // Initialize it to something.
+  if ((node->address().value() == data->prev) && !IsHead(data->prev, &list))
     return false;
 
-  if ((node->address().value() == data->next) && !IsTail(data->next))
+  if ((node->address().value() == data->next) && !IsTail(data->next, &list))
     return false;
 
   return true;
@@ -685,26 +700,42 @@ bool Rankings::CheckEntry(CacheRankingsBlock* rankings) {
 }
 
 bool Rankings::CheckLinks(CacheRankingsBlock* node, CacheRankingsBlock* prev,
-                          CacheRankingsBlock* next, List list) {
-  if ((prev->Data()->next != node->address().value() &&
-       heads_[list].value() != node->address().value()) ||
-      (next->Data()->prev != node->address().value() &&
-       tails_[list].value() != node->address().value())) {
-    LOG(ERROR) << "Inconsistent LRU.";
+                          CacheRankingsBlock* next, List* list) {
+  CacheAddr node_addr = node->address().value();
+  if (prev->Data()->next == node_addr &&
+      next->Data()->prev == node_addr) {
+    // A regular linked node.
+    return true;
+  }
 
-    if (prev->Data()->next == next->address().value() &&
-        next->Data()->prev == prev->address().value()) {
-      // The list is actually ok, node is wrong.
-      node->Data()->next = 0;
-      node->Data()->prev = 0;
-      node->Store();
-      return false;
-    }
-    backend_->CriticalError(ERR_INVALID_LINKS);
+  Trace("CheckLinks 0x%x (0x%x 0x%x)", node_addr,
+        prev->Data()->next, next->Data()->prev);
+
+  if (node_addr != prev->address().value() &&
+      node_addr != next->address().value() &&
+      prev->Data()->next == next->address().value() &&
+      next->Data()->prev == prev->address().value()) {
+    // The list is actually ok, node is wrong.
+    Trace("node 0x%x out of list %d", node_addr, list);
+    node->Data()->next = 0;
+    node->Data()->prev = 0;
+    node->Store();
     return false;
   }
 
-  return true;
+  if (prev->Data()->next == node_addr ||
+      next->Data()->prev == node_addr) {
+    // Only one link is weird, lets double check.
+    if (prev->Data()->next != node_addr && IsHead(node_addr, list))
+      return true;
+
+    if (next->Data()->prev != node_addr && IsTail(node_addr, list))
+      return true;
+  }
+
+  LOG(ERROR) << "Inconsistent LRU.";
+  backend_->CriticalError(ERR_INVALID_LINKS);
+  return false;
 }
 
 bool Rankings::CheckSingleLink(CacheRankingsBlock* prev,
@@ -761,17 +792,27 @@ int Rankings::CheckList(List list) {
   return num_items;
 }
 
-bool Rankings::IsHead(CacheAddr addr) {
-  for (int i = 0; i < LAST_ELEMENT; i++)
-    if (addr == heads_[i].value())
+bool Rankings::IsHead(CacheAddr addr, List* list) {
+  for (int i = 0; i < LAST_ELEMENT; i++) {
+    if (addr == heads_[i].value()) {
+      if (*list != i)
+        Trace("Changing list %d to %d", *list, i);
+      *list = static_cast<List>(i);
       return true;
+    }
+  }
   return false;
 }
 
-bool Rankings::IsTail(CacheAddr addr) {
-  for (int i = 0; i < LAST_ELEMENT; i++)
-    if (addr == tails_[i].value())
+bool Rankings::IsTail(CacheAddr addr, List* list) {
+  for (int i = 0; i < LAST_ELEMENT; i++) {
+    if (addr == tails_[i].value()) {
+      if (*list != i)
+        Trace("Changing list %d to %d", *list, i);
+      *list = static_cast<List>(i);
       return true;
+    }
+  }
   return false;
 }
 
