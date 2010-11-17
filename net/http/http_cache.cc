@@ -405,14 +405,6 @@ void HttpCache::Suspend(bool suspend) {
 bool HttpCache::ParseResponseInfo(const char* data, int len,
                                   HttpResponseInfo* response_info,
                                   bool* response_truncated) {
-  // This block is here just to debug a Linux-only crash (bug 56449).
-  // TODO(rvargas): Remove this.
-  if (len < 4)
-    return false;
-  int payload_size = *reinterpret_cast<const int*>(data);
-  if (payload_size < 4)
-    return false;
-
   Pickle pickle(data, len);
   return response_info->InitFromPickle(pickle, response_truncated);
 }
