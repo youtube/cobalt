@@ -24,6 +24,8 @@ class HttpAuthHandler;
 class HttpAuthHandlerRegistryFactory;
 
 // An HttpAuthHandlerFactory is used to create HttpAuthHandler objects.
+// The HttpAuthHandlerFactory object _must_ outlive any of the HttpAuthHandler
+// objects that it creates.
 class HttpAuthHandlerFactory {
  public:
   HttpAuthHandlerFactory() : url_security_manager_(NULL) {}
@@ -49,7 +51,7 @@ class HttpAuthHandlerFactory {
   // challenge specified by |*challenge|. |challenge| must point to a valid
   // non-NULL tokenizer.
   //
-  // If an HttpAuthHandler object  is successfully created it is passed back to
+  // If an HttpAuthHandler object is successfully created it is passed back to
   // the caller through |*handler| and OK is returned.
   //
   // If |*challenge| specifies an unsupported authentication scheme, |*handler|
