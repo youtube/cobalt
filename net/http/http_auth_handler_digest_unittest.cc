@@ -463,7 +463,7 @@ TEST(HttpAuthHandlerDigest, HandleAnotherChallenge) {
       default_challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(),
       &handler);
   EXPECT_EQ(OK, rv);
-
+  ASSERT_TRUE(handler.get() != NULL);
   HttpAuth::ChallengeTokenizer tok_default(default_challenge.begin(),
                                            default_challenge.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,

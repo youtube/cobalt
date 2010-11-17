@@ -4088,8 +4088,13 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 // are started with the same nonce.
 TEST_F(HttpNetworkTransactionTest, DigestPreAuthNonceCount) {
   SessionDependencies session_deps;
+  HttpAuthHandlerDigest::Factory* digest_factory =
+      new HttpAuthHandlerDigest::Factory();
+  HttpAuthHandlerDigest::FixedNonceGenerator* nonce_generator =
+      new HttpAuthHandlerDigest::FixedNonceGenerator("0123456789abcdef");
+  digest_factory->set_nonce_generator(nonce_generator);
+  session_deps.http_auth_handler_factory.reset(digest_factory);
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-  HttpAuthHandlerDigest::SetFixedCnonce(true);
 
   // Transaction 1: authenticate (foo, bar) on MyRealm1
   {
