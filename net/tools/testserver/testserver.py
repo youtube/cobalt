@@ -221,7 +221,8 @@ class TestPageHandler(BasePageHandler):
       'gif': 'image/gif',
       'jpeg' : 'image/jpeg',
       'jpg' : 'image/jpeg',
-      'xml' : 'text/xml'
+      'xml' : 'text/xml',
+      'pdf' : 'application/pdf'
     }
     self._default_mime_type = 'text/html'
 
@@ -698,9 +699,27 @@ class TestPageHandler(BasePageHandler):
     else:
       # Could be more generic once we support mime-type sniffing, but for
       # now we need to set it explicitly.
-      self.send_response(200)
+
+      range = self.headers.get('Range')
+      if range and range.startswith('bytes='):
+        # Note this doesn't handle all valid byte range values (i.e. open ended
+        # ones), just enough for what we needed so far.
+        range = range[6:].split('-')
+        start = int(range[0])
+        end = int(range[1])
+
+        self.send_response(206)
+        content_range = 'bytes ' + str(start) + '-' + str(end) + '/' + \
+                        str(len(data))
+        self.send_header('Content-Range', content_range)
+        data = data[start: end + 1]
+      else:
+        self.send_response(200)
+
       self.send_header('Content-type', self.GetMIMETypeFromName(file_path))
+      self.send_header('Accept-Ranges', 'bytes')
       self.send_header('Content-Length', len(data))
+      self.send_header('ETag', '\'' + file_path + '\'')
     self.end_headers()
 
     self.wfile.write(data)
