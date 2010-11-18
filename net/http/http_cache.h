@@ -41,7 +41,6 @@ class Entry;
 
 namespace net {
 
-class DnsCertProvenanceChecker;
 class DnsRRResolver;
 class HostResolver;
 class HttpAuthHandlerFactory;
@@ -118,7 +117,6 @@ class HttpCache : public HttpTransactionFactory,
   // The HttpCache takes ownership of the |backend_factory|.
   HttpCache(HostResolver* host_resolver,
             DnsRRResolver* dnsrr_resolver,
-            DnsCertProvenanceChecker* dns_cert_checker,
             ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
