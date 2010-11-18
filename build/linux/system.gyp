@@ -46,6 +46,11 @@
               '<!@(<(pkg-config) --libs-only-l gtk+-2.0 gthread-2.0)',
             ],
           },
+      }],
+      [ 'chromeos==1', {
+        'link_settings': {
+          'libraries': [ '-lXtst' ]
+        }
       }]]
     },
     {
