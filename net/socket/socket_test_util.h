@@ -535,7 +535,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      DnsCertProvenanceChecker* dns_cert_checker);
+      DnsRRResolver* dnsrr_resolver);
   SocketDataProviderArray<SocketDataProvider>& mock_data() {
     return mock_data_;
   }
@@ -880,7 +880,7 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      DnsCertProvenanceChecker* dns_cert_checker);
+      DnsRRResolver* dnsrr_resolver);
 
   SocketDataProviderArray<DeterministicSocketData>& mock_data() {
     return mock_data_;
