@@ -7,6 +7,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace base {
 
@@ -14,6 +15,11 @@ namespace base {
 // in |encoding|. For ASCII texts |encoding| will be set to an empty string.
 // Returns true on success.
 bool DetectEncoding(const std::string& text, std::string* encoding);
+
+// Detect all possible encodings of |text| and put their names
+// (as returned by ICU) in |encodings|. Returns true on success.
+bool DetectAllEncodings(const std::string& text,
+                        std::vector<std::string>* encodings);
 
 }  // namespace base
 
