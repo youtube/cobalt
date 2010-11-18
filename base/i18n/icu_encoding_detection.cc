@@ -9,8 +9,6 @@
 
 namespace base {
 
-// TODO(jungshik): We can apply more heuristics here (e.g. using various hints
-// like TLD, the UI language/default encoding of a client, etc).
 bool DetectEncoding(const std::string& text, std::string* encoding) {
   if (IsStringASCII(text)) {
     *encoding = std::string();
@@ -21,9 +19,6 @@ bool DetectEncoding(const std::string& text, std::string* encoding) {
   UCharsetDetector* detector = ucsdet_open(&status);
   ucsdet_setText(detector, text.data(), static_cast<int32_t>(text.length()),
                  &status);
-  // TODO(jungshik): Should we check the quality of the match? A rather
-  // arbitrary number is assigned by ICU and it's hard to come up with
-  // a lower limit.
   const UCharsetMatch* match = ucsdet_detect(detector, &status);
   const char* detected_encoding = ucsdet_getName(match, &status);
   ucsdet_close(detector);
@@ -33,6 +28,37 @@ bool DetectEncoding(const std::string& text, std::string* encoding) {
 
   *encoding = detected_encoding;
   return true;
+}
+
+bool DetectAllEncodings(const std::string& text,
+                        std::vector<std::string>* encodings) {
+  UErrorCode status = U_ZERO_ERROR;
+  UCharsetDetector* detector = ucsdet_open(&status);
+  ucsdet_setText(detector, text.data(), static_cast<int32_t>(text.length()),
+                 &status);
+  int matches_count = 0;
+  const UCharsetMatch** matches = ucsdet_detectAll(detector,
+                                                   &matches_count,
+                                                   &status);
+  if (U_FAILURE(status)) {
+    ucsdet_close(detector);
+    return false;
+  }
+
+  encodings->clear();
+  for (int i = 0; i < matches_count; i++) {
+    UErrorCode get_name_status = U_ZERO_ERROR;
+    const char* encoding_name = ucsdet_getName(matches[i], &get_name_status);
+
+    // If we failed to get the encoding's name, ignore the error.
+    if (U_FAILURE(get_name_status))
+      continue;
+
+    encodings->push_back(encoding_name);
+  }
+
+  ucsdet_close(detector);
+  return !encodings->empty();
 }
 
 }  // namespace base
