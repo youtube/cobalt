@@ -1016,7 +1016,7 @@ SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,
-    DnsRRResolver* dnsrr_resolver) {
+    DnsCertProvenanceChecker* dns_cert_checker) {
   MockSSLClientSocket* socket =
       new MockSSLClientSocket(transport_socket, host_and_port, ssl_config,
                               ssl_host_info, mock_ssl_data_.GetNext());
@@ -1066,7 +1066,7 @@ SSLClientSocket* DeterministicMockClientSocketFactory::CreateSSLClientSocket(
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,
-    DnsRRResolver* dnsrr_resolver) {
+    DnsCertProvenanceChecker* dns_cert_checker) {
   MockSSLClientSocket* socket =
       new MockSSLClientSocket(transport_socket, host_and_port, ssl_config,
                               ssl_host_info, mock_ssl_data_.GetNext());

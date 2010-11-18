@@ -31,7 +31,7 @@ namespace net {
 class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
-class DnsRRResolver;
+class DnsCertProvenanceChecker;
 class SSLHostInfo;
 class X509Certificate;
 
@@ -48,7 +48,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      const HostPortPair& host_and_port,
                      const SSLConfig& ssl_config,
                      SSLHostInfo* ssl_host_info,
-                     DnsRRResolver* dnsrr_resolver);
+                     DnsCertProvenanceChecker* dnsrr_resolver);
   ~SSLClientSocketNSS();
 
   // SSLClientSocket methods:
@@ -250,7 +250,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   bool predicted_npn_proto_used_;
 
   scoped_ptr<SSLHostInfo> ssl_host_info_;
-  DnsRRResolver* const dnsrr_resolver_;
+  DnsCertProvenanceChecker* const dns_cert_checker_;
 };
 
 }  // namespace net

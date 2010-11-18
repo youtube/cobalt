@@ -16,6 +16,7 @@
 namespace net {
 
 class ClientSocketFactory;
+class DnsCertProvenanceChecker;
 class DnsRRResolver;
 class HostResolver;
 class HttpAuthHandlerFactory;
@@ -34,6 +35,7 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   HttpNetworkLayer(ClientSocketFactory* socket_factory,
                    HostResolver* host_resolver,
                    DnsRRResolver* dnsrr_resolver,
+                   DnsCertProvenanceChecker* dns_cert_checker,
                    SSLHostInfoFactory* ssl_host_info_factory,
                    ProxyService* proxy_service,
                    SSLConfigService* ssl_config_service,
@@ -46,6 +48,7 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
       ClientSocketFactory* socket_factory,
       HostResolver* host_resolver,
       DnsRRResolver* dnsrr_resolver,
+      DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
       ProxyService* proxy_service,
       SSLConfigService* ssl_config_service,
@@ -62,6 +65,7 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   static HttpTransactionFactory* CreateFactory(
       HostResolver* host_resolver,
       DnsRRResolver* dnsrr_resolver,
+      DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
       ProxyService* proxy_service,
       SSLConfigService* ssl_config_service,
@@ -100,6 +104,7 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   // creating |session_|.
   HostResolver* host_resolver_;
   DnsRRResolver* dnsrr_resolver_;
+  DnsCertProvenanceChecker* dns_cert_checker_;
   SSLHostInfoFactory* ssl_host_info_factory_;
   scoped_refptr<ProxyService> proxy_service_;
 
