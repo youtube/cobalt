@@ -273,6 +273,8 @@ SpdySession::~SpdySession() {
   DCHECK_EQ(0u, num_active_streams());
   DCHECK_EQ(0u, num_unclaimed_pushed_streams());
 
+  DCHECK(pending_callback_map_.empty());
+
   RecordHistograms();
 
   net_log_.EndEvent(NetLog::TYPE_SPDY_SESSION, NULL);
@@ -360,11 +362,14 @@ void SpdySession::ProcessPendingCreateStreams() {
                                      pending_create.priority,
                                      pending_create.spdy_stream,
                                      *pending_create.stream_net_log);
+        scoped_refptr<SpdyStream>* stream = pending_create.spdy_stream;
+        DCHECK(!ContainsKey(pending_callback_map_, stream));
+        pending_callback_map_[stream] =
+            CallbackResultPair(pending_create.callback, error);
         MessageLoop::current()->PostTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
-                &SpdySession::InvokeUserStreamCreationCallback,
-                pending_create.callback, error));
+                &SpdySession::InvokeUserStreamCreationCallback, stream));
         break;
       }
     }
@@ -375,6 +380,12 @@ void SpdySession::ProcessPendingCreateStreams() {
 
 void SpdySession::CancelPendingCreateStreams(
     const scoped_refptr<SpdyStream>* spdy_stream) {
+  PendingCallbackMap::iterator it = pending_callback_map_.find(spdy_stream);
+  if (it != pending_callback_map_.end()) {
+    pending_callback_map_.erase(it);
+    return;
+  }
+
   for (int i = 0;i < NUM_PRIORITIES;++i) {
     PendingCreateStreamQueue tmp;
     // Make a copy removing this trans
@@ -1342,8 +1353,17 @@ void SpdySession::RecordHistograms() {
 }
 
 void SpdySession::InvokeUserStreamCreationCallback(
-    CompletionCallback* callback, int rv) {
-  callback->Run(rv);
+    scoped_refptr<SpdyStream>* stream) {
+  PendingCallbackMap::iterator it = pending_callback_map_.find(stream);
+
+  // Exit if the request has already been cancelled.
+  if (it == pending_callback_map_.end())
+    return;
+
+  CompletionCallback* callback = it->second.callback;
+  int result = it->second.result;
+  pending_callback_map_.erase(it);
+  callback->Run(result);
 }
 
 }  // namespace net

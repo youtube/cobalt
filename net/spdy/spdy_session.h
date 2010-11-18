@@ -230,6 +230,18 @@ class SpdySession : public base::RefCounted<SpdySession>,
   typedef std::map<std::string, scoped_refptr<SpdyStream> > PushedStreamMap;
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
+  struct CallbackResultPair {
+    CallbackResultPair() : callback(NULL), result(OK) {}
+    CallbackResultPair(CompletionCallback* callback_in, int result_in)
+        : callback(callback_in), result(result_in) {}
+
+    CompletionCallback* callback;
+    int result;
+  };
+
+  typedef std::map<const scoped_refptr<SpdyStream>*, CallbackResultPair>
+      PendingCallbackMap;
+
   virtual ~SpdySession();
 
   void ProcessPendingCreateStreams();
@@ -309,7 +321,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   // Invokes a user callback for stream creation.  We provide this method so it
   // can be deferred to the MessageLoop, so we avoid re-entrancy problems.
-  void InvokeUserStreamCreationCallback(CompletionCallback* callback, int rv);
+  void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
 
   // Callbacks for the Spdy session.
   CompletionCallbackImpl<SpdySession> read_callback_;
@@ -320,6 +332,11 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // alive if the last reference is within a RunnableMethod.  Just revoke the
   // method.
   ScopedRunnableMethodFactory<SpdySession> method_factory_;
+
+  // Map of the SpdyStreams for which we have a pending Task to invoke a
+  // callback.  This is necessary since, before we invoke said callback, it's
+  // possible that the request is cancelled.
+  PendingCallbackMap pending_callback_map_;
 
   // The domain this session is connected to.
   const HostPortProxyPair host_port_proxy_pair_;
