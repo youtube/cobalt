@@ -6,6 +6,7 @@
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/file_path.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "net/test/test_server.h"
@@ -22,6 +23,14 @@ int main(int argc, const char* argv[]) {
   // Process command line
   CommandLine::Init(argc, argv);
   CommandLine* command_line = CommandLine::ForCurrentProcess();
+
+  if (!logging::InitLogging(FILE_PATH_LITERAL("testserver.log"),
+                            logging::LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG,
+                            logging::LOCK_LOG_FILE,
+                            logging::APPEND_TO_OLD_LOG_FILE)) {
+    printf("Error: could not initialize logging. Exiting.\n");
+    return -1;
+  }
 
   if (command_line->GetSwitchCount() == 0 ||
       command_line->HasSwitch("help")) {
