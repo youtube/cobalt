@@ -11,6 +11,7 @@ Current version: 2.7.7.
 Modifications:
 - Import XPath fix http://git.gnome.org/browse/libxml2/commit/?id=91d19754d46acd4a639a8b9e31f50f31c78f8c9c
 - Import follow-on for above commit: http://git.gnome.org/browse/libxml2/commit/?id=ea90b894146030c214a7df6d8375310174f134b9
+- Import additional XPath fix http://git.gnome.org/browse/libxml2/commit/?id=df83c17e5a2646bd923f75e5e507bc80d73c9722
 
 To import a new snapshot of libxml:
 
