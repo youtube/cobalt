@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/native_library.h"
 #include "base/path_service.h"
+#include "base/stringize_macros.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "third_party/ffmpeg/ffmpeg_stubs.h"
 #if defined(OS_LINUX)
@@ -32,12 +33,9 @@ namespace {
 #error FFmpeg headers not included!
 #endif
 
-#define STRINGIZE(x) #x
-#define STRINGIZE_MACRO(x) STRINGIZE(x)
-
-#define AVCODEC_VERSION STRINGIZE_MACRO(LIBAVCODEC_VERSION_MAJOR)
-#define AVFORMAT_VERSION STRINGIZE_MACRO(LIBAVFORMAT_VERSION_MAJOR)
-#define AVUTIL_VERSION STRINGIZE_MACRO(LIBAVUTIL_VERSION_MAJOR)
+#define AVCODEC_VERSION STRINGIZE(LIBAVCODEC_VERSION_MAJOR)
+#define AVFORMAT_VERSION STRINGIZE(LIBAVFORMAT_VERSION_MAJOR)
+#define AVUTIL_VERSION STRINGIZE(LIBAVUTIL_VERSION_MAJOR)
 
 #if defined(OS_MACOSX)
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE "." VERSION ".dylib")
