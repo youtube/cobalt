@@ -36,14 +36,6 @@ typedef struct _malloc_zone_t malloc_zone_t;
 #include "base/file_descriptor_shuffle.h"
 #include "base/process.h"
 
-#ifndef NAME_MAX  // Solaris and some BSDs have no NAME_MAX
-#ifdef MAXNAMLEN
-#define NAME_MAX MAXNAMLEN
-#else
-#define NAME_MAX 256
-#endif
-#endif
-
 class CommandLine;
 class FilePath;
 
