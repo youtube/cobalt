@@ -32,7 +32,7 @@ X509Certificate* AddTemporaryRootCertToStore(X509* x509_cert) {
     unsigned long error_code = ERR_get_error();
     if (ERR_GET_LIB(error_code) != ERR_LIB_X509 ||
         ERR_GET_REASON(error_code) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
-      base::ClearOpenSSLERRStack();
+      base::ClearOpenSSLERRStack(FROM_HERE);
       return NULL;
     }
   }
