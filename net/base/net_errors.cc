@@ -5,8 +5,7 @@
 #include "net/base/net_errors.h"
 
 #include "base/basictypes.h"
-
-#define STRINGIZE(x) #x
+#include "base/stringize_macros.h"
 
 namespace net {
 
@@ -19,7 +18,7 @@ const char* ErrorToString(int error) {
   switch (error) {
 #define NET_ERROR(label, value) \
   case ERR_ ## label: \
-    return "net::" STRINGIZE(ERR_ ## label);
+    return "net::" STRINGIZE_NO_EXPANSION(ERR_ ## label);
 #include "net/base/net_error_list.h"
 #undef NET_ERROR
   default:
