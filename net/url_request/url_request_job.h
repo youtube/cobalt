@@ -30,10 +30,7 @@ class URLRequest;
 class URLRequestStatus;
 class URLRequestJobMetrics;
 
-// The URLRequestJob is using RefCounterThreadSafe because some sub classes
-// can be destroyed on multiple threads. This is the case of the
-// UrlRequestFileJob.
-class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
+class URLRequestJob : public base::RefCounted<URLRequestJob>,
                       public FilterContext {
  public:
   // When histogramming results related to SDCH and/or an SDCH latency test, the
@@ -218,7 +215,7 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   virtual void RecordPacketStats(StatisticSelector statistic) const;
 
  protected:
-  friend class base::RefCountedThreadSafe<URLRequestJob>;
+  friend class base::RefCounted<URLRequestJob>;
   virtual ~URLRequestJob();
 
   // Notifies the job that headers have been received.
