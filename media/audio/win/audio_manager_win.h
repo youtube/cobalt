@@ -26,6 +26,7 @@ class AudioManagerWin : public AudioManagerBase {
   virtual AudioInputStream* MakeAudioInputStream(AudioParameters params);
   virtual void MuteAll();
   virtual void UnMuteAll();
+  virtual string16 GetAudioInputDeviceModel();
 
   // Windows-only methods to free a stream created in MakeAudioStream. These
   // are called internally by the audio stream when it has been closed.
