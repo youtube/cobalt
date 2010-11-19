@@ -85,7 +85,8 @@ class OCSPIOLoop {
   DISALLOW_COPY_AND_ASSIGN(OCSPIOLoop);
 };
 
-base::LazyInstance<OCSPIOLoop> g_ocsp_io_loop(base::LINKER_INITIALIZED);
+base::LazyInstance<OCSPIOLoop, base::LeakyLazyInstanceTraits<OCSPIOLoop> >
+    g_ocsp_io_loop(base::LINKER_INITIALIZED);
 
 const int kRecvBufferSize = 4096;
 
@@ -560,7 +561,6 @@ OCSPNSSInitialization::~OCSPNSSInitialization() {}
 SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
                             SEC_HTTP_SERVER_SESSION* pSession) {
   VLOG(1) << "OCSP create session: host=" << host << " port=" << portnum;
-  DCHECK(!MessageLoop::current());
   pthread_mutex_lock(&g_request_context_lock);
   URLRequestContext* request_context = g_request_context;
   pthread_mutex_unlock(&g_request_context_lock);
@@ -579,7 +579,6 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
 SECStatus OCSPKeepAliveSession(SEC_HTTP_SERVER_SESSION session,
                                PRPollDesc **pPollDesc) {
   VLOG(1) << "OCSP keep alive";
-  DCHECK(!MessageLoop::current());
   if (pPollDesc)
     *pPollDesc = NULL;
   return SECSuccess;
@@ -587,7 +586,6 @@ SECStatus OCSPKeepAliveSession(SEC_HTTP_SERVER_SESSION session,
 
 SECStatus OCSPFreeSession(SEC_HTTP_SERVER_SESSION session) {
   VLOG(1) << "OCSP free session";
-  DCHECK(!MessageLoop::current());
   delete reinterpret_cast<OCSPServerSession*>(session);
   return SECSuccess;
 }
@@ -602,7 +600,6 @@ SECStatus OCSPCreate(SEC_HTTP_SERVER_SESSION session,
           << " path_and_query=" << path_and_query_string
           << " http_request_method=" << http_request_method
           << " timeout=" << timeout;
-  DCHECK(!MessageLoop::current());
   OCSPServerSession* ocsp_session =
       reinterpret_cast<OCSPServerSession*>(session);
 
@@ -624,7 +621,6 @@ SECStatus OCSPSetPostData(SEC_HTTP_REQUEST_SESSION request,
                           const PRUint32 http_data_len,
                           const char* http_content_type) {
   VLOG(1) << "OCSP set post data len=" << http_data_len;
-  DCHECK(!MessageLoop::current());
   OCSPRequestSession* req = reinterpret_cast<OCSPRequestSession*>(request);
 
   req->SetPostData(http_data, http_data_len, http_content_type);
@@ -636,7 +632,6 @@ SECStatus OCSPAddHeader(SEC_HTTP_REQUEST_SESSION request,
                         const char* http_header_value) {
   VLOG(1) << "OCSP add header name=" << http_header_name
           << " value=" << http_header_value;
-  DCHECK(!MessageLoop::current());
   OCSPRequestSession* req = reinterpret_cast<OCSPRequestSession*>(request);
 
   req->AddHeader(http_header_name, http_header_value);
@@ -696,7 +691,6 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
   }
 
   VLOG(1) << "OCSP try send and receive";
-  DCHECK(!MessageLoop::current());
   OCSPRequestSession* req = reinterpret_cast<OCSPRequestSession*>(request);
   // We support blocking mode only.
   if (pPollDesc)
@@ -774,7 +768,6 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
 
 SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
   VLOG(1) << "OCSP free";
-  DCHECK(!MessageLoop::current());
   OCSPRequestSession* req = reinterpret_cast<OCSPRequestSession*>(request);
   req->Cancel();
   req->Release();
