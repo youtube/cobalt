@@ -244,8 +244,6 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
-  // Set up the socket so we read a SETTINGS frame that raises max concurrent
-  // streams to 2.
   MockRead reads[] = {
     MockRead(false, ERR_IO_PENDING)  // Stall forever.
   };
@@ -323,6 +321,71 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
 
   // Should not crash when running the pending callback.
   MessageLoop::current()->RunAllPending();
+}
+
+TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
+  SpdySessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  MockRead reads[] = {
+    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+  };
+
+  // Create the bogus setting that we want to verify is sent out.
+  // Note that it will be marked as SETTINGS_FLAG_PERSISTED when sent out.  But
+  // to set it into the SpdySettingsStorage, we need to mark as
+  // SETTINGS_FLAG_PLEASE_PERSIST.
+  spdy::SpdySettings settings;
+  const uint32 kBogusSettingId = 0xABAB;
+  const uint32 kBogusSettingValue = 0xCDCD;
+  spdy::SettingsFlagsAndId id(kBogusSettingId);
+  id.set_id(kBogusSettingId);
+  id.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
+  settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
+  MockConnect connect_data(false, OK);
+  scoped_ptr<spdy::SpdyFrame> settings_frame(
+      ConstructSpdySettings(settings));
+  MockWrite writes[] = {
+    CreateMockWrite(*settings_frame),
+  };
+
+  StaticSocketDataProvider data(
+      reads, arraysize(reads), writes, arraysize(writes));
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(false, OK);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  const std::string kTestHost("www.foo.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+  settings.clear();
+  settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
+  http_session->mutable_spdy_settings()->Set(test_host_port_pair, settings);
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),
+                             BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+  scoped_refptr<TCPSocketParams> tcp_params(
+      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK,
+            connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
+                              NULL, http_session->tcp_socket_pool(),
+                              BoundNetLog()));
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+  MessageLoop::current()->RunAllPending();
+  EXPECT_TRUE(data.at_write_eof());
 }
 
 }  // namespace
