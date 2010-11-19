@@ -7,6 +7,7 @@
 
 import sys
 import os
+import optparse
 
 REWRITE_PREFIX = ['-I',
                   '-idirafter',
@@ -18,15 +19,19 @@ REWRITE_PREFIX = ['-I',
                   '-isystem',
                   '-L']
 
-def RewritePath(path, sysroot):
-  """Rewrites a path by prefixing it with the sysroot if it is absolute."""
+def RewritePath(path, opts):
+  """Rewrites a path by stripping the prefix and prepending the sysroot."""
+  sysroot = opts.sysroot
+  prefix = opts.strip_prefix
   if os.path.isabs(path) and not path.startswith(sysroot):
+    if path.startswith(prefix):
+      path = path[len(prefix):]
     path = path.lstrip('/')
     return os.path.join(sysroot, path)
   else:
     return path
 
-def RewriteLine(line, sysroot):
+def RewriteLine(line, opts):
   """Rewrites all the paths in recognized options."""
   args = line.split()
   count = len(args)
@@ -38,25 +43,24 @@ def RewriteLine(line, sysroot):
       if args[i] == prefix:
         i += 1
         try:
-          args[i] = RewritePath(args[i], sysroot)
+          args[i] = RewritePath(args[i], opts)
         except IndexError:
           sys.stderr.write('Missing argument following %s\n' % prefix)
           break
       elif args[i].startswith(prefix):
-        args[i] = prefix + RewritePath(args[i][len(prefix):], sysroot)
+        args[i] = prefix + RewritePath(args[i][len(prefix):], opts)
     i += 1
 
   return ' '.join(args)
 
 def main(argv):
-  try:
-    sysroot = argv[1]
-  except IndexError:
-    sys.stderr.write('usage: %s /path/to/sysroot\n' % argv[0])
-    return 1
+  parser = optparse.OptionParser()
+  parser.add_option('-s', '--sysroot', default='/', help='sysroot to prepend')
+  parser.add_option('-p', '--strip-prefix', default='', help='prefix to strip')
+  opts, args = parser.parse_args(argv[1:])
 
   for line in sys.stdin.readlines():
-    line = RewriteLine(line.strip(), sysroot)
+    line = RewriteLine(line.strip(), opts)
     print line
   return 0
 
