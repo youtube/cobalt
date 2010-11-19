@@ -10,6 +10,7 @@
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/thread_restrictions.h"
 
 using base::TimeDelta;
 
@@ -89,7 +90,13 @@ Lock ThreadData::list_lock_;
 // static
 ThreadData::Status ThreadData::status_ = ThreadData::UNINITIALIZED;
 
-ThreadData::ThreadData() : next_(NULL), message_loop_(MessageLoop::current()) {}
+ThreadData::ThreadData() : next_(NULL) {
+  // This shouldn't use the MessageLoop::current() LazyInstance since this might
+  // be used on a non-joinable thread.
+  // http://crbug.com/62728
+  base::ThreadRestrictions::ScopedAllowSingleton scoped_allow_singleton;
+  message_loop_ = MessageLoop::current();
+}
 
 ThreadData::~ThreadData() {}
 
@@ -260,8 +267,14 @@ void ThreadData::WriteHTMLTotalAndSubtotals(
 }
 
 Births* ThreadData::TallyABirth(const Location& location) {
-  if (!message_loop_)  // In case message loop wasn't yet around...
-    message_loop_ = MessageLoop::current();  // Find it now.
+  {
+    // This shouldn't use the MessageLoop::current() LazyInstance since this
+    // might be used on a non-joinable thread.
+    // http://crbug.com/62728
+    base::ThreadRestrictions::ScopedAllowSingleton scoped_allow_singleton;
+    if (!message_loop_)  // In case message loop wasn't yet around...
+      message_loop_ = MessageLoop::current();  // Find it now.
+  }
 
   BirthMap::iterator it = birth_map_.find(location);
   if (it != birth_map_.end()) {
@@ -279,8 +292,12 @@ Births* ThreadData::TallyABirth(const Location& location) {
 
 void ThreadData::TallyADeath(const Births& lifetimes,
                              const TimeDelta& duration) {
-  if (!message_loop_)  // In case message loop wasn't yet around...
-    message_loop_ = MessageLoop::current();  // Find it now.
+  {
+    // http://crbug.com/62728
+    base::ThreadRestrictions::ScopedAllowSingleton scoped_allow_singleton;
+    if (!message_loop_)  // In case message loop wasn't yet around...
+      message_loop_ = MessageLoop::current();  // Find it now.
+  }
 
   DeathMap::iterator it = death_map_.find(&lifetimes);
   if (it != death_map_.end()) {
