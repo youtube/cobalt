@@ -17,6 +17,8 @@ class AudioManagerBase : public AudioManager {
 
   virtual MessageLoop* GetMessageLoop();
 
+  virtual string16 GetAudioInputDeviceModel();
+
  protected:
   virtual ~AudioManagerBase() {}
 

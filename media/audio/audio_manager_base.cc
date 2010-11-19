@@ -13,6 +13,10 @@ void AudioManagerBase::Init() {
   initialized_ = audio_thread_.Start();
 }
 
+string16 AudioManagerBase::GetAudioInputDeviceModel() {
+  return string16();
+}
+
 MessageLoop* AudioManagerBase::GetMessageLoop() {
   DCHECK(initialized_);
   return audio_thread_.message_loop();
