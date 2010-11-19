@@ -47,6 +47,10 @@ const int kWinMaxInputChannels = 2;
 // play.
 const int kNumInputBuffers = 3;
 
+int GetVersionPartAsInt(DWORDLONG num) {
+  return static_cast<int>(num & 0xffff);
+}
+
 // Returns a string containing the given device's description and installed
 // driver version.
 string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
@@ -71,10 +75,10 @@ string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
                               &driver_data)) {
       DWORDLONG version = driver_data.DriverVersion;
       device_and_driver_info = string16(driver_data.Description) + L" v" +
-          base::IntToString16((version >> 48) & 0xffff) + L"." +
-          base::IntToString16((version >> 32) & 0xffff) + L"." +
-          base::IntToString16((version >> 16) & 0xffff) + L"." +
-          base::IntToString16(version & 0xffff);
+          base::IntToString16(GetVersionPartAsInt((version >> 48))) + L"." +
+          base::IntToString16(GetVersionPartAsInt((version >> 32))) + L"." +
+          base::IntToString16(GetVersionPartAsInt((version >> 16))) + L"." +
+          base::IntToString16(GetVersionPartAsInt(version));
     }
     SetupDiDestroyDriverInfoList(device_info, device_data, SPDIT_COMPATDRIVER);
   }
