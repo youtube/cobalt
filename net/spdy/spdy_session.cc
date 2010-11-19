@@ -294,9 +294,8 @@ net::Error SpdySession::InitializeWithSocket(
   is_secure_ = is_secure;
   certificate_error_code_ = certificate_error_code;
 
-  // This is a newly initialized session that no client should have a handle to
-  // yet, so there's no need to start writing data as in OnTCPConnect(), but we
-  // should start reading data.
+  // Write out any data that we might have to send, such as the settings frame.
+  WriteSocketLater();
   net::Error error = ReadSocket();
   if (error == ERR_IO_PENDING)
     return OK;
