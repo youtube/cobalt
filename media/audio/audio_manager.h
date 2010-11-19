@@ -6,6 +6,7 @@
 #define MEDIA_AUDIO_AUDIO_MANAGER_H_
 
 #include "base/basictypes.h"
+#include "base/string16.h"
 #include "media/audio/audio_parameters.h"
 
 class AudioInputStream;
@@ -28,6 +29,10 @@ class AudioManager {
   // does not guarantee that the existing devices support all formats and
   // sample rates.
   virtual bool HasAudioInputDevices() = 0;
+
+  // Returns a human readable string for the model/make of the active audio
+  // input device for this computer.
+  virtual string16 GetAudioInputDeviceModel() = 0;
 
   // Factory for all the supported stream formats. |params| defines parameters
   // of the audio stream to be created.

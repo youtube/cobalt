@@ -5,15 +5,32 @@
 #include "media/audio/audio_io.h"
 
 #include <windows.h>
+#include <objbase.h>  // This has to be before initguid.h
+#include <initguid.h>
 #include <mmsystem.h>
+#include <setupapi.h>
 
 #include "base/basictypes.h"
+#include "base/scoped_ptr.h"
+#include "base/string_number_conversions.h"
+#include "base/string_util.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
 #include "media/base/limits.h"
+
+// Libraries required for the SetupAPI and Wbem APIs used here.
+#pragma comment(lib, "setupapi.lib")
+
+// The following are defined in various DDK headers, and we (re)define them
+// here to avoid adding the DDK as a chrome dependency.
+#define DRV_QUERYDEVICEINTERFACE 0x80c
+#define DRVM_MAPPER_PREFERRED_GET 0x2015
+#define DRV_QUERYDEVICEINTERFACESIZE 0x80d
+DEFINE_GUID(AM_KSCATEGORY_AUDIO, 0x6994ad04, 0x93ef, 0x11d0,
+            0xa3, 0xcc, 0x00, 0xa0, 0xc9, 0x22, 0x31, 0x96);
 
 namespace {
 
@@ -30,7 +47,45 @@ const int kWinMaxInputChannels = 2;
 // play.
 const int kNumInputBuffers = 3;
 
-}  // namespace.
+// Returns a string containing the given device's description and installed
+// driver version.
+string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
+                                SP_DEVINFO_DATA* device_data) {
+  // Save the old install params setting and set a flag for the
+  // SetupDiBuildDriverInfoList below to return only the installed drivers.
+  SP_DEVINSTALL_PARAMS old_device_install_params;
+  old_device_install_params.cbSize = sizeof(old_device_install_params);
+  SetupDiGetDeviceInstallParams(device_info, device_data,
+                                &old_device_install_params);
+  SP_DEVINSTALL_PARAMS device_install_params = old_device_install_params;
+  device_install_params.FlagsEx |= DI_FLAGSEX_INSTALLEDDRIVER;
+  SetupDiSetDeviceInstallParams(device_info, device_data,
+                                &device_install_params);
+
+  SP_DRVINFO_DATA driver_data;
+  driver_data.cbSize = sizeof(driver_data);
+  string16 device_and_driver_info;
+  if (SetupDiBuildDriverInfoList(device_info, device_data,
+                                 SPDIT_COMPATDRIVER)) {
+    if (SetupDiEnumDriverInfo(device_info, device_data, SPDIT_COMPATDRIVER, 0,
+                              &driver_data)) {
+      DWORDLONG version = driver_data.DriverVersion;
+      device_and_driver_info = string16(driver_data.Description) + L" v" +
+          base::IntToString16((version >> 48) & 0xffff) + L"." +
+          base::IntToString16((version >> 32) & 0xffff) + L"." +
+          base::IntToString16((version >> 16) & 0xffff) + L"." +
+          base::IntToString16(version & 0xffff);
+    }
+    SetupDiDestroyDriverInfoList(device_info, device_data, SPDIT_COMPATDRIVER);
+  }
+
+  SetupDiSetDeviceInstallParams(device_info, device_data,
+                                &old_device_install_params);
+
+  return device_and_driver_info;
+}
+
+}  // namespace
 
 bool AudioManagerWin::HasAudioOutputDevices() {
   return (::waveOutGetNumDevs() != 0);
@@ -92,6 +147,65 @@ void AudioManagerWin::UnMuteAll() {
 }
 
 AudioManagerWin::~AudioManagerWin() {
+}
+
+string16 AudioManagerWin::GetAudioInputDeviceModel() {
+  // Get the default audio capture device and its device interface name.
+  DWORD device_id = 0;
+  waveInMessage(reinterpret_cast<HWAVEIN>(WAVE_MAPPER),
+                DRVM_MAPPER_PREFERRED_GET,
+                reinterpret_cast<DWORD_PTR>(&device_id), NULL);
+  ULONG device_interface_name_size = 0;
+  waveInMessage(reinterpret_cast<HWAVEIN>(device_id),
+                DRV_QUERYDEVICEINTERFACESIZE,
+                reinterpret_cast<DWORD_PTR>(&device_interface_name_size), 0);
+  string16 device_interface_name;
+  string16::value_type* name_ptr = WriteInto(&device_interface_name,
+      device_interface_name_size / sizeof(string16::value_type));
+  waveInMessage(reinterpret_cast<HWAVEIN>(device_id),
+                DRV_QUERYDEVICEINTERFACE,
+                reinterpret_cast<DWORD_PTR>(name_ptr),
+                static_cast<DWORD_PTR>(device_interface_name_size));
+
+  // Enumerate all audio devices and find the one matching the above device
+  // interface name.
+  HDEVINFO device_info = SetupDiGetClassDevs(
+      &AM_KSCATEGORY_AUDIO, 0, 0, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
+  if (device_info == INVALID_HANDLE_VALUE)
+    return string16();
+
+  DWORD interface_index = 0;
+  SP_DEVICE_INTERFACE_DATA interface_data;
+  interface_data.cbSize = sizeof(interface_data);
+  while (SetupDiEnumDeviceInterfaces(device_info, 0, &AM_KSCATEGORY_AUDIO,
+                                     interface_index++, &interface_data)) {
+    // Query the size of the struct, allocate it and then query the data.
+    SP_DEVINFO_DATA device_data;
+    device_data.cbSize = sizeof(device_data);
+    DWORD interface_detail_size = 0;
+    SetupDiGetDeviceInterfaceDetail(device_info, &interface_data, 0, 0,
+                                    &interface_detail_size, &device_data);
+    if (!interface_detail_size)
+      continue;
+
+    scoped_array<char> interface_detail_buffer(new char[interface_detail_size]);
+    SP_DEVICE_INTERFACE_DETAIL_DATA* interface_detail =
+        reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA*>(
+            interface_detail_buffer.get());
+    interface_detail->cbSize = interface_detail_size;
+    if (!SetupDiGetDeviceInterfaceDetail(device_info, &interface_data,
+                                         interface_detail,
+                                         interface_detail_size, NULL,
+                                         &device_data))
+      return string16();
+
+    bool device_found = (device_interface_name == interface_detail->DevicePath);
+
+    if (device_found)
+      return GetDeviceAndDriverInfo(device_info, &device_data);
+  }
+
+  return string16();
 }
 
 // static
