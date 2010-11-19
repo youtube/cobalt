@@ -8,7 +8,9 @@
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
+#include "net/base/test_completion_callback.h"
 #include "net/http/http_auth_handler_digest.h"
+#include "net/http/http_request_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -291,6 +293,10 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
     EXPECT_EQ(tests[i].parsed_stale, digest->stale_);
     EXPECT_EQ(tests[i].parsed_algorithm, digest->algorithm_);
     EXPECT_EQ(tests[i].parsed_qop, digest->qop_);
+    EXPECT_TRUE(handler->encrypts_identity());
+    EXPECT_FALSE(handler->is_connection_based());
+    EXPECT_TRUE(handler->NeedsIdentity());
+    EXPECT_FALSE(handler->AllowsDefaultCredentials());
   }
 }
 
@@ -481,5 +487,160 @@ TEST(HttpAuthHandlerDigest, HandleAnotherChallenge) {
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
             handler->HandleAnotherChallenge(&tok_stale_false));
 }
+
+namespace {
+
+const char* const kSimpleChallenge =
+  "Digest realm=\"Oblivion\", nonce=\"nonce-value\"";
+
+// RespondToChallenge creates an HttpAuthHandlerDigest for the specified
+// |challenge|, and generates a response to the challenge which is returned in
+// |token|.
+//
+// The return value is an error string - an empty string indicates no errors.
+//
+// If |target| is HttpAuth::AUTH_PROXY, then |proxy_name| specifies the source
+// of the |challenge|. Otherwise, the scheme and host and port of |request_url|
+// indicates the origin of the challenge.
+std::string RespondToChallenge(HttpAuth::Target target,
+                               const std::string& proxy_name,
+                               const std::string& request_url,
+                               const std::string& challenge,
+                               std::string* token) {
+  // Input validation.
+  DCHECK(token);
+  DCHECK(target != HttpAuth::AUTH_PROXY || !proxy_name.empty());
+  DCHECK(!request_url.empty());
+  DCHECK(!challenge.empty());
+
+  token->clear();
+  scoped_ptr<HttpAuthHandlerDigest::Factory> factory(
+      new HttpAuthHandlerDigest::Factory());
+  HttpAuthHandlerDigest::NonceGenerator* nonce_generator =
+      new HttpAuthHandlerDigest::FixedNonceGenerator("client_nonce");
+  factory->set_nonce_generator(nonce_generator);
+  scoped_ptr<HttpAuthHandler> handler;
+
+  // Create a handler for a particular challenge.
+  GURL url_origin(target == HttpAuth::AUTH_SERVER ? request_url : proxy_name);
+  int rv_create = factory->CreateAuthHandlerFromString(
+    challenge, target, url_origin.GetOrigin(), BoundNetLog(), &handler);
+  if (rv_create != OK || handler.get() == NULL)
+    return "Unable to create auth handler.";
+
+  // Create a token in response to the challenge.
+  // NOTE: HttpAuthHandlerDigest's implementation of GenerateAuthToken always
+  // completes synchronously. That's why this test can get away with a
+  // TestCompletionCallback without an IO thread.
+  TestCompletionCallback callback;
+  scoped_ptr<HttpRequestInfo> request(new HttpRequestInfo());
+  request->url = GURL(request_url);
+  const string16 kFoo = ASCIIToUTF16("foo");
+  const string16 kBar = ASCIIToUTF16("bar");
+  int rv_generate = handler->GenerateAuthToken(
+      &kFoo, &kBar, request.get(), &callback, token);
+  if (rv_generate != OK)
+    return "Problems generating auth token";
+
+  // The token was correctly generated and is returned in |token|.
+  return std::string();
+}
+
+}  // namespace
+
+TEST(HttpAuthHandlerDigest, RespondToServerChallenge) {
+  std::string auth_token;
+  std::string error_text = RespondToChallenge(
+      HttpAuth::AUTH_SERVER,
+      std::string(),
+      "http://www.example.com/path/to/resource",
+      kSimpleChallenge,
+      &auth_token);
+  EXPECT_EQ("", error_text);
+  EXPECT_EQ("Digest username=\"foo\", realm=\"Oblivion\", "
+            "nonce=\"nonce-value\", uri=\"/path/to/resource\", "
+            "response=\"6779f90bd0d658f937c1af967614fe84\"",
+            auth_token);
+}
+
+TEST(HttpAuthHandlerDigest, RespondToHttpsServerChallenge) {
+  std::string auth_token;
+  std::string error_text = RespondToChallenge(
+      HttpAuth::AUTH_SERVER,
+      std::string(),
+      "https://www.example.com/path/to/resource",
+      kSimpleChallenge,
+      &auth_token);
+  EXPECT_EQ("", error_text);
+  EXPECT_EQ("Digest username=\"foo\", realm=\"Oblivion\", "
+            "nonce=\"nonce-value\", uri=\"/path/to/resource\", "
+            "response=\"6779f90bd0d658f937c1af967614fe84\"",
+            auth_token);
+}
+
+TEST(HttpAuthHandlerDigest, RespondToProxyChallenge) {
+  std::string auth_token;
+  std::string error_text = RespondToChallenge(
+      HttpAuth::AUTH_PROXY,
+      "http://proxy.intranet.corp.com:3128",
+      "http://www.example.com/path/to/resource",
+      kSimpleChallenge,
+      &auth_token);
+  EXPECT_EQ("", error_text);
+  EXPECT_EQ("Digest username=\"foo\", realm=\"Oblivion\", "
+            "nonce=\"nonce-value\", uri=\"/path/to/resource\", "
+            "response=\"6779f90bd0d658f937c1af967614fe84\"",
+            auth_token);
+}
+
+TEST(HttpAuthHandlerDigest, RespondToProxyChallengeHttps) {
+  std::string auth_token;
+  std::string error_text = RespondToChallenge(
+      HttpAuth::AUTH_PROXY,
+      "http://proxy.intranet.corp.com:3128",
+      "https://www.example.com/path/to/resource",
+      kSimpleChallenge,
+      &auth_token);
+  EXPECT_EQ("", error_text);
+  EXPECT_EQ("Digest username=\"foo\", realm=\"Oblivion\", "
+            "nonce=\"nonce-value\", uri=\"www.example.com:443\", "
+            "response=\"3270da8467afbe9ddf2334a48d46e9b9\"",
+            auth_token);
+}
+
+TEST(HttpAuthHandlerDigest, RespondToChallengeAuthQop) {
+  std::string auth_token;
+  std::string error_text = RespondToChallenge(
+      HttpAuth::AUTH_SERVER,
+      std::string(),
+      "http://www.example.com/path/to/resource",
+      "Digest realm=\"Oblivion\", nonce=\"nonce-value\", qop=\"auth\"",
+      &auth_token);
+  EXPECT_EQ("", error_text);
+  EXPECT_EQ("Digest username=\"foo\", realm=\"Oblivion\", "
+            "nonce=\"nonce-value\", uri=\"/path/to/resource\", "
+            "response=\"5b1459beda5cee30d6ff9e970a69c0ea\", "
+            "qop=auth, nc=00000001, cnonce=\"client_nonce\"",
+            auth_token);
+}
+
+TEST(HttpAuthHandlerDigest, RespondToChallengeOpaque) {
+  std::string auth_token;
+  std::string error_text = RespondToChallenge(
+      HttpAuth::AUTH_SERVER,
+      std::string(),
+      "http://www.example.com/path/to/resource",
+      "Digest realm=\"Oblivion\", nonce=\"nonce-value\", "
+      "qop=\"auth\", opaque=\"opaque text\"",
+      &auth_token);
+  EXPECT_EQ("", error_text);
+  EXPECT_EQ("Digest username=\"foo\", realm=\"Oblivion\", "
+            "nonce=\"nonce-value\", uri=\"/path/to/resource\", "
+            "response=\"5b1459beda5cee30d6ff9e970a69c0ea\", "
+            "opaque=\"opaque text\", "
+            "qop=auth, nc=00000001, cnonce=\"client_nonce\"",
+            auth_token);
+}
+
 
 } // namespace net
