@@ -36,6 +36,10 @@ class URLRequestFileJob : public URLRequestJob {
 
   static URLRequest::ProtocolFactory Factory;
 
+#if defined(OS_CHROMEOS)
+  static bool AccessDisabled(const FilePath& file_path);
+#endif
+
  protected:
   virtual ~URLRequestFileJob();
 
@@ -45,9 +49,6 @@ class URLRequestFileJob : public URLRequestJob {
  private:
   void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
   void DidRead(int result);
-#if defined(OS_CHROMEOS)
-  static bool AccessDisabled(const FilePath& file_path);
-#endif
 
   net::CompletionCallbackImpl<URLRequestFileJob> io_callback_;
   net::FileStream stream_;
