@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "base/message_loop_proxy_impl.h"
-#include "base/thread_restrictions.h"
 
 namespace base {
 
@@ -46,11 +45,6 @@ bool MessageLoopProxyImpl::PostNonNestableDelayedTask(
 }
 
 bool MessageLoopProxyImpl::BelongsToCurrentThread() {
-  // We shouldn't use MessageLoop::current() since it uses LazyInstance which
-  // may be deleted by ~AtExitManager when a WorkerPool thread calls this
-  // function.
-  // http://crbug.com/63678
-  base::ThreadRestrictions::ScopedAllowSingleton allow_singleton;
   AutoLock lock(message_loop_lock_);
   return (target_message_loop_ &&
           (MessageLoop::current() == target_message_loop_));
@@ -104,3 +98,4 @@ MessageLoopProxy::CreateForCurrentThread() {
 }
 
 }  // namespace base
+
