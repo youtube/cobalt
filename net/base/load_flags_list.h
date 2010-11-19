@@ -97,3 +97,8 @@ LOAD_FLAG(SUB_FRAME, 1 << 21)
 // respected if renderer has CanReadRawCookies capability in the security
 // policy.
 LOAD_FLAG(REPORT_RAW_HEADERS, 1 << 22)
+
+// Indicates that this load was motivated by the rel=prefetch feature,
+// and is (in theory) not intended for the current frame.
+LOAD_FLAG(PREFETCH, 1 << 23)
+
