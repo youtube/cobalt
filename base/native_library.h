@@ -54,6 +54,15 @@ typedef void* NativeLibrary;
 // you're done.
 NativeLibrary LoadNativeLibrary(const FilePath& library_path);
 
+#if defined(OS_WIN)
+// Loads a native library from disk.  Release it with UnloadNativeLibrary when
+// you're done.
+// This function retrieves the LoadLibrary function exported from kernel32.dll
+// and calls it instead of directly calling the LoadLibrary function via the
+// import table.
+NativeLibrary LoadNativeLibraryDynamically(const FilePath& library_path);
+#endif  // OS_WIN
+
 // Unloads a native library.
 void UnloadNativeLibrary(NativeLibrary library);
 
