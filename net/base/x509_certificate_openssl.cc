@@ -206,6 +206,13 @@ void DERCache_free(void* parent, void* ptr, CRYPTO_EX_DATA* ad, int idx,
 
 class X509InitSingleton {
  public:
+  static X509InitSingleton* Get() {
+    // We allow the X509 store to leak, because it is used from a non-joinable
+    // worker that is not stopped on shutdown, hence may still be using
+    // OpenSSL library after the AtExit runner has completed.
+    return Singleton<X509InitSingleton,
+                     LeakySingletonTraits<X509InitSingleton> >::get();
+  }
   int der_cache_ex_index() const { return der_cache_ex_index_; }
   X509_STORE* store() const { return store_.get(); }
 
@@ -252,8 +259,7 @@ DERCache* SetDERCache(X509Certificate::OSCertHandle cert,
 // not free it).
 bool GetDERAndCacheIfNeeded(X509Certificate::OSCertHandle cert,
                             DERCache* der_cache) {
-  int x509_der_cache_index =
-      Singleton<X509InitSingleton>::get()->der_cache_ex_index();
+  int x509_der_cache_index = X509InitSingleton::Get()->der_cache_ex_index();
 
   // Re-encoding the DER data via i2d_X509 is an expensive operation, but it's
   // necessary for comparing two certificates. We re-encode at most once per
@@ -386,7 +392,7 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
 
 // static
 X509_STORE* X509Certificate::cert_store() {
-  return Singleton<X509InitSingleton>::get()->store();
+  return X509InitSingleton::Get()->store();
 }
 
 int X509Certificate::Verify(const std::string& hostname,
