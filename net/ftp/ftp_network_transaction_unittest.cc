@@ -331,6 +331,30 @@ class FtpSocketDataProviderVMSDirectoryListingRootDirectory
       FtpSocketDataProviderVMSDirectoryListingRootDirectory);
 };
 
+class FtpSocketDataProviderFileDownloadWithFileTypecode
+    : public FtpSocketDataProvider {
+ public:
+  FtpSocketDataProviderFileDownloadWithFileTypecode() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SIZE:
+        return Verify("SIZE /file\r\n", data, PRE_RETR,
+                      "213 18\r\n");
+      case PRE_RETR:
+        return Verify("RETR /file\r\n", data, PRE_QUIT, "200 OK\r\n");
+      default:
+        return FtpSocketDataProvider::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderFileDownloadWithFileTypecode);
+};
+
 class FtpSocketDataProviderFileDownload : public FtpSocketDataProvider {
  public:
   FtpSocketDataProviderFileDownload() {
@@ -341,8 +365,11 @@ class FtpSocketDataProviderFileDownload : public FtpSocketDataProvider {
       return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_SIZE:
-        return Verify("SIZE /file\r\n", data, PRE_RETR,
+        return Verify("SIZE /file\r\n", data, PRE_CWD,
                       "213 18\r\n");
+      case PRE_CWD:
+        return Verify("CWD /file\r\n", data, PRE_RETR,
+                      "550 Not a directory\r\n");
       case PRE_RETR:
         return Verify("RETR /file\r\n", data, PRE_QUIT, "200 OK\r\n");
       default:
@@ -452,8 +479,11 @@ class FtpSocketDataProviderVMSFileDownload : public FtpSocketDataProvider {
         return Verify("PASV\r\n", data, PRE_SIZE,
                       "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
       case PRE_SIZE:
-        return Verify("SIZE ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_RETR,
+        return Verify("SIZE ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_CWD,
                       "213 18\r\n");
+      case PRE_CWD:
+        return Verify("CWD ANONYMOUS_ROOT:[file]\r\n", data, PRE_RETR,
+                      "550 Not a directory\r\n");
       case PRE_RETR:
         return Verify("RETR ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_QUIT,
                       "200 OK\r\n");
@@ -476,8 +506,11 @@ class FtpSocketDataProviderEscaping : public FtpSocketDataProviderFileDownload {
       return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_SIZE:
-        return Verify("SIZE / !\"#$%y\200\201\r\n", data, PRE_RETR,
+        return Verify("SIZE / !\"#$%y\200\201\r\n", data, PRE_CWD,
                       "213 18\r\n");
+      case PRE_CWD:
+        return Verify("CWD / !\"#$%y\200\201\r\n", data, PRE_RETR,
+                      "550 Not a directory\r\n");
       case PRE_RETR:
         return Verify("RETR / !\"#$%y\200\201\r\n", data, PRE_QUIT,
                       "200 OK\r\n");
@@ -891,7 +924,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionWithPasvFallback) {
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionWithTypecodeA) {
-  FtpSocketDataProviderFileDownload ctrl_socket;
+  FtpSocketDataProviderFileDownloadWithFileTypecode ctrl_socket;
   ctrl_socket.set_data_type('A');
   ExecuteTransaction(&ctrl_socket, "ftp://host/file;type=a", OK);
 
@@ -900,7 +933,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionWithTypecodeA) {
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionWithTypecodeI) {
-  FtpSocketDataProviderFileDownload ctrl_socket;
+  FtpSocketDataProviderFileDownloadWithFileTypecode ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file;type=i", OK);
 
   // We pass an artificial value of 18 as a response to the SIZE command.
@@ -1191,7 +1224,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionBigSize) {
   // Pass a valid, but large file size. The transaction should not fail.
   FtpSocketDataProviderEvilSize ctrl_socket(
       "213 3204427776\r\n",
-      FtpSocketDataProvider::PRE_RETR);
+      FtpSocketDataProvider::PRE_CWD);
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
   EXPECT_EQ(3204427776LL,
             transaction_.GetResponseInfo()->expected_content_size);
