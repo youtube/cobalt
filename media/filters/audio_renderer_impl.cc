@@ -6,6 +6,7 @@
 
 #include <math.h>
 
+#include "base/logging.h"
 #include "media/base/filter_host.h"
 #include "media/audio/audio_manager.h"
 
