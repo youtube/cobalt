@@ -18,8 +18,6 @@
 // TODO(eroman):
 //   - Support auth-prompts.
 
-// TODO(eroman): Use a state machine rather than recursion. Recursion could
-//               lead to lots of frames.
 namespace net {
 
 namespace {
@@ -142,7 +140,7 @@ URLRequestContext* ProxyScriptFetcherImpl::GetRequestContext() {
 
 void ProxyScriptFetcherImpl::OnAuthRequired(URLRequest* request,
                                             AuthChallengeInfo* auth_info) {
-  DCHECK(request == cur_request_.get());
+  DCHECK_EQ(request, cur_request_.get());
   // TODO(eroman):
   LOG(WARNING) << "Auth required to fetch PAC script, aborting.";
   result_code_ = ERR_NOT_IMPLEMENTED;
@@ -152,7 +150,7 @@ void ProxyScriptFetcherImpl::OnAuthRequired(URLRequest* request,
 void ProxyScriptFetcherImpl::OnSSLCertificateError(URLRequest* request,
                                                    int cert_error,
                                                    X509Certificate* cert) {
-  DCHECK(request == cur_request_.get());
+  DCHECK_EQ(request, cur_request_.get());
   LOG(WARNING) << "SSL certificate error when fetching PAC script, aborting.";
   // Certificate errors are in same space as net errors.
   result_code_ = cert_error;
@@ -160,7 +158,7 @@ void ProxyScriptFetcherImpl::OnSSLCertificateError(URLRequest* request,
 }
 
 void ProxyScriptFetcherImpl::OnResponseStarted(URLRequest* request) {
-  DCHECK(request == cur_request_.get());
+  DCHECK_EQ(request, cur_request_.get());
 
   if (!request->status().is_success()) {
     OnResponseCompleted(request);
@@ -195,24 +193,15 @@ void ProxyScriptFetcherImpl::OnResponseStarted(URLRequest* request) {
 
 void ProxyScriptFetcherImpl::OnReadCompleted(URLRequest* request,
                                              int num_bytes) {
-  DCHECK(request == cur_request_.get());
-  if (num_bytes > 0) {
-    // Enforce maximum size bound.
-    if (num_bytes + bytes_read_so_far_.size() >
-        static_cast<size_t>(max_response_bytes_)) {
-      result_code_ = ERR_FILE_TOO_BIG;
-      request->Cancel();
-      return;
-    }
-    bytes_read_so_far_.append(buf_->data(), num_bytes);
+  DCHECK_EQ(request, cur_request_.get());
+  if (ConsumeBytesRead(request, num_bytes)) {
+    // Keep reading.
     ReadBody(request);
-  } else {  // Error while reading, or EOF
-    OnResponseCompleted(request);
   }
 }
 
 void ProxyScriptFetcherImpl::OnResponseCompleted(URLRequest* request) {
-  DCHECK(request == cur_request_.get());
+  DCHECK_EQ(request, cur_request_.get());
 
   // Use |result_code_| as the request's error if we have already set it to
   // something specific.
@@ -223,13 +212,38 @@ void ProxyScriptFetcherImpl::OnResponseCompleted(URLRequest* request) {
 }
 
 void ProxyScriptFetcherImpl::ReadBody(URLRequest* request) {
-  int num_bytes;
-  if (request->Read(buf_, kBufSize, &num_bytes)) {
-    OnReadCompleted(request, num_bytes);
-  } else if (!request->status().is_io_pending()) {
-    // Read failed synchronously.
-    OnResponseCompleted(request);
+  // Read as many bytes as are available synchronously.
+  while (true) {
+    int num_bytes;
+    if (!request->Read(buf_, kBufSize, &num_bytes)) {
+      // Check whether the read failed synchronously.
+      if (!request->status().is_io_pending())
+        OnResponseCompleted(request);
+      return;
+    }
+    if (!ConsumeBytesRead(request, num_bytes))
+      return;
   }
+}
+
+bool ProxyScriptFetcherImpl::ConsumeBytesRead(URLRequest* request,
+                                              int num_bytes) {
+  if (num_bytes <= 0) {
+    // Error while reading, or EOF.
+    OnResponseCompleted(request);
+    return false;
+  }
+
+  // Enforce maximum size bound.
+  if (num_bytes + bytes_read_so_far_.size() >
+      static_cast<size_t>(max_response_bytes_)) {
+    result_code_ = ERR_FILE_TOO_BIG;
+    request->Cancel();
+    return false;
+  }
+
+  bytes_read_so_far_.append(buf_->data(), num_bytes);
+  return true;
 }
 
 void ProxyScriptFetcherImpl::FetchCompleted() {

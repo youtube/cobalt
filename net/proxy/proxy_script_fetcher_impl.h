@@ -60,6 +60,10 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   // Read more bytes from the response.
   void ReadBody(URLRequest* request);
 
+  // Handles a response from Read(). Returns true if we should continue trying
+  // to read. |num_bytes| is 0 for EOF, and < 0 on errors.
+  bool ConsumeBytesRead(URLRequest* request, int num_bytes);
+
   // Called once the request has completed to notify the caller of
   // |response_code_| and |response_text_|.
   void FetchCompleted();
