@@ -33,7 +33,6 @@
 #include "base/basictypes.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
-#include "base/lock.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "base/singleton.h"
@@ -864,4 +863,4 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 }
 #endif  // defined(OS_MACOSX)
 
-} // namespace file_util
+}  // namespace file_util

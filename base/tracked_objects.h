@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "base/lock.h"
-#include "base/task.h"
 #include "base/thread_local_storage.h"
 #include "base/tracked.h"
 
