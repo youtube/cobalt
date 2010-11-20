@@ -17,7 +17,6 @@
 
 #include <deque>
 
-#include "base/lock.h"
 #include "media/audio/audio_io.h"
 #include "media/base/buffers.h"
 #include "media/base/filters.h"

@@ -7,7 +7,6 @@
 
 #include <list>
 
-#include "base/lock.h"
 #include "media/audio/audio_io.h"
 #include "media/base/seekable_buffer.h"
 
@@ -42,7 +41,7 @@ class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
 // defined by AudioSourceCallback are pull model only.
 class PushAudioOutput {
  public:
-  virtual ~PushAudioOutput(){}
+  virtual ~PushAudioOutput() {}
 
   // Write audio data to the audio device. It will be played eventually.
   // Returns false on failure.
