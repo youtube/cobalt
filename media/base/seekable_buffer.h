@@ -36,7 +36,6 @@
 #include <list>
 
 #include "base/basictypes.h"
-#include "base/lock.h"
 #include "base/ref_counted.h"
 #include "media/base/buffers.h"
 
