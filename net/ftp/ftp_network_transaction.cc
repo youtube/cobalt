@@ -978,13 +978,10 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
       if (size < 0)
         return Stop(ERR_INVALID_RESPONSE);
 
-      // Some FTP servers respond with success to the SIZE command
-      // for directories, and return 0 size. Make sure we don't set
-      // the resource type to file if that's the case.
-      if (size > 0) {
-        response_.expected_content_size = size;
-        resource_type_ = RESOURCE_TYPE_FILE;
-      }
+      // A successful response to SIZE does not mean the resource is a file.
+      // Some FTP servers (for example, the qnx one) send a SIZE even for
+      // directories.
+      response_.expected_content_size = size;
       break;
     case ERROR_CLASS_INFO_NEEDED:
       break;
