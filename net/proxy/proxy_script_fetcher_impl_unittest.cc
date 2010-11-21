@@ -85,14 +85,13 @@ class ProxyScriptFetcherImplTest : public PlatformTest {
 
 TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
   scoped_refptr<URLRequestContext> context(new RequestContext);
-  scoped_ptr<ProxyScriptFetcher> pac_fetcher(
-      new ProxyScriptFetcherImpl(context));
+  ProxyScriptFetcherImpl pac_fetcher(context);
 
   { // Fetch a non-existent file.
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(GetTestFileUrl("does-not-exist"),
-                                    &text, &callback);
+    int result = pac_fetcher.Fetch(GetTestFileUrl("does-not-exist"),
+                                   &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_FILE_NOT_FOUND, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
@@ -100,8 +99,8 @@ TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
   { // Fetch a file that exists.
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(GetTestFileUrl("pac.txt"),
-                                    &text, &callback);
+    int result = pac_fetcher.Fetch(GetTestFileUrl("pac.txt"),
+                                   &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.txt-\n"), text);
@@ -114,14 +113,13 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
   ASSERT_TRUE(test_server_.Start());
 
   scoped_refptr<URLRequestContext> context(new RequestContext);
-  scoped_ptr<ProxyScriptFetcher> pac_fetcher(
-      new ProxyScriptFetcherImpl(context));
+  ProxyScriptFetcherImpl pac_fetcher(context);
 
   { // Fetch a PAC with mime type "text/plain"
     GURL url(test_server_.GetURL("files/pac.txt"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.txt-\n"), text);
@@ -130,7 +128,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
     GURL url(test_server_.GetURL("files/pac.html"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.html-\n"), text);
@@ -139,7 +137,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
     GURL url(test_server_.GetURL("files/pac.nsproxy"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.nsproxy-\n"), text);
@@ -150,14 +148,13 @@ TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
   ASSERT_TRUE(test_server_.Start());
 
   scoped_refptr<URLRequestContext> context(new RequestContext);
-  scoped_ptr<ProxyScriptFetcher> pac_fetcher(
-      new ProxyScriptFetcherImpl(context));
+  ProxyScriptFetcherImpl pac_fetcher(context);
 
   { // Fetch a PAC which gives a 500 -- FAIL
     GURL url(test_server_.GetURL("files/500.pac"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_PAC_STATUS_NOT_OK, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
@@ -166,7 +163,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
     GURL url(test_server_.GetURL("files/404.pac"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_PAC_STATUS_NOT_OK, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
@@ -177,15 +174,14 @@ TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
   ASSERT_TRUE(test_server_.Start());
 
   scoped_refptr<URLRequestContext> context(new RequestContext);
-  scoped_ptr<ProxyScriptFetcher> pac_fetcher(
-      new ProxyScriptFetcherImpl(context));
+  ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Fetch PAC scripts via HTTP with a Content-Disposition header -- should
   // have no effect.
   GURL url(test_server_.GetURL("files/downloadable.pac"));
   string16 text;
   TestCompletionCallback callback;
-  int result = pac_fetcher->Fetch(url, &text, &callback);
+  int result = pac_fetcher.Fetch(url, &text, &callback);
   EXPECT_EQ(ERR_IO_PENDING, result);
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_EQ(ASCIIToUTF16("-downloadable.pac-\n"), text);
@@ -195,15 +191,14 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   ASSERT_TRUE(test_server_.Start());
 
   scoped_refptr<URLRequestContext> context(new RequestContext);
-  scoped_ptr<ProxyScriptFetcher> pac_fetcher(
-      new ProxyScriptFetcherImpl(context));
+  ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Fetch a PAC script whose HTTP headers make it cacheable for 1 hour.
   GURL url(test_server_.GetURL("files/cacheable_1hr.pac"));
   {
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-cacheable_1hr.pac-\n"), text);
@@ -218,7 +213,7 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   {
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_CONNECTION_REFUSED, callback.WaitForResult());
   }
@@ -228,11 +223,10 @@ TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
   ASSERT_TRUE(test_server_.Start());
 
   scoped_refptr<URLRequestContext> context(new RequestContext);
-  scoped_ptr<ProxyScriptFetcherImpl> pac_fetcher(
-      new ProxyScriptFetcherImpl(context));
+  ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Set the maximum response size to 50 bytes.
-  int prev_size = pac_fetcher->SetSizeConstraint(50);
+  int prev_size = pac_fetcher.SetSizeConstraint(50);
 
   // These two URLs are the same file, but are http:// vs file://
   GURL urls[] = {
@@ -246,20 +240,20 @@ TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
     const GURL& url = urls[i];
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_FILE_TOO_BIG, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
   }
 
   // Restore the original size bound.
-  pac_fetcher->SetSizeConstraint(prev_size);
+  pac_fetcher.SetSizeConstraint(prev_size);
 
   { // Make sure we can still fetch regular URLs.
     GURL url(test_server_.GetURL("files/pac.nsproxy"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.nsproxy-\n"), text);
@@ -270,11 +264,10 @@ TEST_F(ProxyScriptFetcherImplTest, Hang) {
   ASSERT_TRUE(test_server_.Start());
 
   scoped_refptr<URLRequestContext> context(new RequestContext);
-  scoped_ptr<ProxyScriptFetcherImpl> pac_fetcher(
-      new ProxyScriptFetcherImpl(context));
+  ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Set the timeout period to 0.5 seconds.
-  base::TimeDelta prev_timeout = pac_fetcher->SetTimeoutConstraint(
+  base::TimeDelta prev_timeout = pac_fetcher.SetTimeoutConstraint(
       base::TimeDelta::FromMilliseconds(500));
 
   // Try fetching a URL which takes 1.2 seconds. We should abort the request
@@ -282,20 +275,20 @@ TEST_F(ProxyScriptFetcherImplTest, Hang) {
   { GURL url(test_server_.GetURL("slow/proxy.pac?1.2"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_TIMED_OUT, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
   }
 
   // Restore the original timeout period.
-  pac_fetcher->SetTimeoutConstraint(prev_timeout);
+  pac_fetcher.SetTimeoutConstraint(prev_timeout);
 
   { // Make sure we can still fetch regular URLs.
     GURL url(test_server_.GetURL("files/pac.nsproxy"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.nsproxy-\n"), text);
@@ -309,15 +302,14 @@ TEST_F(ProxyScriptFetcherImplTest, Encodings) {
   ASSERT_TRUE(test_server_.Start());
 
   scoped_refptr<URLRequestContext> context(new RequestContext);
-  scoped_ptr<ProxyScriptFetcher> pac_fetcher(
-      new ProxyScriptFetcherImpl(context));
+  ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Test a response that is gzip-encoded -- should get inflated.
   {
     GURL url(test_server_.GetURL("files/gzipped_pac"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("This data was gzipped.\n"), text);
@@ -329,7 +321,7 @@ TEST_F(ProxyScriptFetcherImplTest, Encodings) {
     GURL url(test_server_.GetURL("files/utf16be_pac"));
     string16 text;
     TestCompletionCallback callback;
-    int result = pac_fetcher->Fetch(url, &text, &callback);
+    int result = pac_fetcher.Fetch(url, &text, &callback);
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("This was encoded as UTF-16BE.\n"), text);
