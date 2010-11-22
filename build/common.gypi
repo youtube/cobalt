@@ -1168,6 +1168,9 @@
               # http://code.google.com/p/googletest/source/detail?r=446 .
               # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
               '-Wno-unnamed-type-template-args',
+              # The integrated assembler chokes on one ffmpeg file.
+              # http://crbug.com/61931
+              '-no-integrated-as',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
