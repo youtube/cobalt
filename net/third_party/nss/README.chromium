@@ -42,5 +42,8 @@ Patches:
     patches/snapstart.patch
     http://tools.ietf.org/html/draft-agl-tls-snapstart-00
 
+  * Add OCSP stapling support
+    patches/ocspstapling.patch
+
 The ssl/bodge directory contains files taken from the NSS repo that we required
 for building libssl outside of its usual build environment.

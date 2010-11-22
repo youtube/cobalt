@@ -148,6 +148,7 @@ SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd);
 /* previous connection to the same server is required. See                  */
 /* SSL_GetPredictedServerHelloData, SSL_SetPredictedPeerCertificates and    */
 /* SSL_SetSnapStartApplicationData.                                         */
+#define SSL_ENABLE_OCSP_STAPLING       24 /* Request OCSP stapling (client) */
 
 #ifdef SSL_DEPRECATED_FUNCTION 
 /* Old deprecated function names */
@@ -282,6 +283,23 @@ SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
 */
 SSL_IMPORT SECStatus SSL_PeerCertificateChain(
 	PRFileDesc *fd, CERTCertificate **certs, unsigned int *certs_size);
+
+/* SSL_GetStapledOCSPResponse returns the OCSP response that was provided by
+ * the TLS server. The resulting data is copied to |out_data|. On entry, |*len|
+ * must contain the size of |out_data|. On exit, |*len| will contain the size
+ * of the OCSP stapled response. If the stapled response is too large to fit in
+ * |out_data| then it will be truncated. If no OCSP response was given by the
+ * server then it has zero length.
+ *
+ * You must set the SSL_ENABLE_OCSP_STAPLING option in order for OCSP responses
+ * to be provided by a server.
+ *
+ * You can call this function during the certificate verification callback or
+ * any time afterwards.
+ */
+SSL_IMPORT SECStatus SSL_GetStapledOCSPResponse(PRFileDesc *fd,
+						unsigned char *out_data,
+						unsigned int *len);
 
 /*
 ** Authenticate certificate hook. Called when a certificate comes in
