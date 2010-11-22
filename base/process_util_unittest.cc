@@ -203,7 +203,7 @@ TEST_F(ProcessUtilTest, GetAppOutput) {
   FilePath python_runtime;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &python_runtime));
   python_runtime = python_runtime.Append(FILE_PATH_LITERAL("third_party"))
-                                 .Append(FILE_PATH_LITERAL("python_24"))
+                                 .Append(FILE_PATH_LITERAL("python_26"))
                                  .Append(FILE_PATH_LITERAL("python.exe"));
 
   CommandLine cmd_line(python_runtime);
