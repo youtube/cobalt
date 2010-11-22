@@ -350,6 +350,7 @@ typedef struct sslOptionsStr {
     unsigned int requireSafeNegotiation : 1;  /* 22 */
     unsigned int enableFalseStart       : 1;  /* 23 */
     unsigned int enableSnapStart        : 1;  /* 24 */
+    unsigned int enableOCSPStapling     : 1;  /* 25 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -820,6 +821,14 @@ const ssl3CipherSuiteDef *suite_def;
                                         * when this one finishes */
     PRBool                usedStepDownKey;  /* we did a server key exchange. */
     PRBool                sendingSCSV; /* instead of empty RI */
+    PRBool                may_get_cert_status; /* the server echoed a
+                                                * status_request extension so
+                                                * may send a CertificateStatus
+                                                * handshake message. */
+    SECItem               pending_cert_msg; /* a Certificate message which we
+                                             * save temporarily if we may get
+                                             * a CertificateStatus message */
+    SECItem               cert_status; /* an OCSP response */
     sslBuffer             msgState;    /* current state for handshake messages*/
                                        /* protected by recvBufLock */
     sslBuffer             messages;    /* Accumulated handshake messages */
@@ -1620,6 +1629,8 @@ extern SECStatus ssl3_ClientHandleSessionTicketXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
+extern SECStatus ssl3_ClientHandleStatusRequestXtn(sslSocket *ss,
+			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ServerHandleSessionTicketXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ServerHandleNextProtoNegoXtn(sslSocket *ss,
@@ -1630,6 +1641,8 @@ extern SECStatus ssl3_ServerHandleNextProtoNegoXtn(sslSocket *ss,
  * that need exposure.
  */
 extern PRInt32 ssl3_SendSessionTicketXtn(sslSocket *ss, PRBool append,
+			PRUint32 maxBytes);
+extern PRInt32 ssl3_ClientSendStatusRequestXtn(sslSocket *ss, PRBool append,
 			PRUint32 maxBytes);
 
 /* ClientHello and ServerHello extension senders.
