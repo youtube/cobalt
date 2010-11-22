@@ -22,7 +22,6 @@ namespace net {
 HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
     HostResolver* host_resolver,
     DnsRRResolver* dnsrr_resolver,
-    DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
@@ -33,7 +32,6 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
 
   return new HttpNetworkLayer(ClientSocketFactory::GetDefaultFactory(),
                               host_resolver, dnsrr_resolver,
-                              dns_cert_checker,
                               ssl_host_info_factory, proxy_service,
                               ssl_config_service, http_auth_handler_factory,
                               network_delegate,
@@ -53,7 +51,6 @@ HttpNetworkLayer::HttpNetworkLayer(
     ClientSocketFactory* socket_factory,
     HostResolver* host_resolver,
     DnsRRResolver* dnsrr_resolver,
-    DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
@@ -63,7 +60,6 @@ HttpNetworkLayer::HttpNetworkLayer(
     : socket_factory_(socket_factory),
       host_resolver_(host_resolver),
       dnsrr_resolver_(dnsrr_resolver),
-      dns_cert_checker_(dns_cert_checker),
       ssl_host_info_factory_(ssl_host_info_factory),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
@@ -81,7 +77,6 @@ HttpNetworkLayer::HttpNetworkLayer(
     ClientSocketFactory* socket_factory,
     HostResolver* host_resolver,
     DnsRRResolver* dnsrr_resolver,
-    DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
@@ -92,7 +87,6 @@ HttpNetworkLayer::HttpNetworkLayer(
     : socket_factory_(socket_factory),
       host_resolver_(host_resolver),
       dnsrr_resolver_(dnsrr_resolver),
-      dns_cert_checker_(dns_cert_checker),
       ssl_host_info_factory_(ssl_host_info_factory),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
@@ -109,7 +103,6 @@ HttpNetworkLayer::HttpNetworkLayer(
 HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
     : socket_factory_(ClientSocketFactory::GetDefaultFactory()),
       dnsrr_resolver_(NULL),
-      dns_cert_checker_(NULL),
       ssl_host_info_factory_(NULL),
       ssl_config_service_(NULL),
       session_(session),
@@ -151,7 +144,6 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     session_ = new HttpNetworkSession(
         host_resolver_,
         dnsrr_resolver_,
-        dns_cert_checker_,
         ssl_host_info_factory_,
         proxy_service_,
         socket_factory_,
@@ -163,7 +155,6 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     // These were just temps for lazy-initializing HttpNetworkSession.
     host_resolver_ = NULL;
     dnsrr_resolver_ = NULL;
-    dns_cert_checker_ = NULL;
     ssl_host_info_factory_ = NULL;
     proxy_service_ = NULL;
     socket_factory_ = NULL;

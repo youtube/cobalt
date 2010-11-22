@@ -87,7 +87,7 @@
 #include "net/base/sys_addrinfo.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
-#include "net/socket/dns_cert_provenance_checker.h"
+#include "net/socket/dns_cert_provenance_check.h"
 #include "net/socket/ssl_error_params.h"
 #include "net/socket/ssl_host_info.h"
 
@@ -405,7 +405,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                                        const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config,
                                        SSLHostInfo* ssl_host_info,
-                                       DnsCertProvenanceChecker* dns_ctx)
+                                       DnsRRResolver* dnsrr_resolver)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketNSS::BufferSendComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
@@ -441,7 +441,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       predicted_npn_status_(kNextProtoUnsupported),
       predicted_npn_proto_used_(false),
       ssl_host_info_(ssl_host_info),
-      dns_cert_checker_(dns_ctx) {
+      dnsrr_resolver_(dnsrr_resolver) {
   EnterFunction("");
 }
 
@@ -2354,13 +2354,6 @@ static DNSValidationResult CheckDNSSECChain(
 }
 
 int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
-  if (ssl_config_.dns_cert_provenance_checking_enabled &&
-      dns_cert_checker_) {
-    PeerCertificateChain certs(nss_fd_);
-    dns_cert_checker_->DoAsyncVerification(
-        host_and_port_.host(), certs.AsStringPieceVector());
-  }
-
   if (ssl_config_.dnssec_enabled) {
     DNSValidationResult r = CheckDNSSECChain(host_and_port_.host(),
                                              server_cert_nss_);
