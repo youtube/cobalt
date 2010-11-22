@@ -44,6 +44,7 @@ struct SessionDependencies {
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(session_deps->host_resolver.get(),
                                 NULL /* dnsrr_resolver */,
+                                NULL /* dns_cert_checker */,
                                 NULL /* ssl_host_info_factory */,
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
@@ -170,7 +171,7 @@ template<>
 CapturePreconnectsSSLSocketPool::CapturePreconnectsSocketPool(
     HttpNetworkSession* session)
     : SSLClientSocketPool(0, 0, NULL, session->host_resolver(), NULL, NULL,
-                          NULL, NULL, NULL, NULL, NULL, NULL) {}
+                          NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
 
 TEST(HttpStreamFactoryTest, PreconnectDirect) {
   for (size_t i = 0; i < arraysize(kTests); ++i) {
