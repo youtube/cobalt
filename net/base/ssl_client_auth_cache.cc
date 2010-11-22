@@ -4,15 +4,26 @@
 
 #include "net/base/ssl_client_auth_cache.h"
 
+#include "base/logging.h"
+#include "net/base/x509_certificate.h"
+
 namespace net {
 
 SSLClientAuthCache::SSLClientAuthCache() {}
 
 SSLClientAuthCache::~SSLClientAuthCache() {}
 
-X509Certificate* SSLClientAuthCache::Lookup(const std::string& server) {
+bool SSLClientAuthCache::Lookup(
+    const std::string& server,
+    scoped_refptr<X509Certificate>* certificate) {
+  DCHECK(certificate);
+
   AuthCacheMap::iterator iter = cache_.find(server);
-  return (iter == cache_.end()) ? NULL : iter->second;
+  if (iter == cache_.end())
+    return false;
+
+  *certificate = iter->second;
+  return true;
 }
 
 void SSLClientAuthCache::Add(const std::string& server,
