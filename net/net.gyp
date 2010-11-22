@@ -862,7 +862,7 @@
         'base/test_completion_callback_unittest.cc',
         'base/upload_data_stream_unittest.cc',
         'base/x509_certificate_unittest.cc',
-        'base/x509_cert_types_unittest.cc',
+        'base/x509_cert_types_mac_unittest.cc',
         'base/x509_openssl_util_unittest.cc',
         'disk_cache/addr_unittest.cc',
         'disk_cache/backend_unittest.cc',

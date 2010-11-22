@@ -23,6 +23,8 @@
 #elif defined(OS_MACOSX)
 #include <CoreFoundation/CFArray.h>
 #include <Security/SecBase.h>
+
+#include "base/lock.h"
 #elif defined(USE_OPENSSL)
 // Forward declaration; real one in <x509.h>
 struct x509_st;
