@@ -96,7 +96,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
   session->ssl_config_service()->GetSSLConfig(&ssl_config_);
   if (session->http_stream_factory()->next_protos())
     ssl_config_.next_protos = *session->http_stream_factory()->next_protos();
-
 }
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
@@ -171,10 +170,8 @@ int HttpNetworkTransaction::RestartWithCertificate(
   DCHECK_EQ(STATE_NONE, next_state_);
 
   ssl_config_.client_cert = client_cert;
-  if (client_cert) {
-    session_->ssl_client_auth_cache()->Add(
-        response_.cert_request_info->host_and_port, client_cert);
-  }
+  session_->ssl_client_auth_cache()->Add(
+      response_.cert_request_info->host_and_port, client_cert);
   ssl_config_.send_client_cert = true;
   // Reset the other member variables.
   // Note: this is necessary only with SSL renegotiation.
@@ -971,29 +968,43 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
   // handshake.
   stream_request_.reset();
 
-  // If the user selected one of the certificate in client_certs for this
-  // server before, use it automatically.
-  X509Certificate* client_cert = session_->ssl_client_auth_cache()->Lookup(
-      response_.cert_request_info->host_and_port);
+  // If the user selected one of the certificates in client_certs or declined
+  // to provide one for this server before, use the past decision
+  // automatically.
+  scoped_refptr<X509Certificate> client_cert;
+  bool found_cached_cert = session_->ssl_client_auth_cache()->Lookup(
+      response_.cert_request_info->host_and_port, &client_cert);
+  if (!found_cached_cert)
+    return error;
+
+  // Check that the certificate selected is still a certificate the server
+  // is likely to accept, based on the criteria supplied in the
+  // CertificateRequest message.
   if (client_cert) {
     const std::vector<scoped_refptr<X509Certificate> >& client_certs =
         response_.cert_request_info->client_certs;
+    bool cert_still_valid = false;
     for (size_t i = 0; i < client_certs.size(); ++i) {
-      if (client_cert->fingerprint().Equals(client_certs[i]->fingerprint())) {
-        // TODO(davidben): Add a unit test which covers this path; we need to be
-        // able to send a legitimate certificate and also bypass/clear the
-        // SSL session cache.
-        ssl_config_.client_cert = client_cert;
-        ssl_config_.send_client_cert = true;
-        next_state_ = STATE_CREATE_STREAM;
-        // Reset the other member variables.
-        // Note: this is necessary only with SSL renegotiation.
-        ResetStateForRestart();
-        return OK;
+      if (client_cert->Equals(client_certs[i])) {
+        cert_still_valid = true;
+        break;
       }
     }
+
+    if (!cert_still_valid)
+      return error;
   }
-  return error;
+
+  // TODO(davidben): Add a unit test which covers this path; we need to be
+  // able to send a legitimate certificate and also bypass/clear the
+  // SSL session cache.
+  ssl_config_.client_cert = client_cert;
+  ssl_config_.send_client_cert = true;
+  next_state_ = STATE_CREATE_STREAM;
+  // Reset the other member variables.
+  // Note: this is necessary only with SSL renegotiation.
+  ResetStateForRestart();
+  return OK;
 }
 
 // This method determines whether it is safe to resend the request after an
