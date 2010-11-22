@@ -280,6 +280,7 @@ class HttpCache::SSLHostInfoFactoryAdaptor : public SSLHostInfoFactory {
 
 HttpCache::HttpCache(HostResolver* host_resolver,
                      DnsRRResolver* dnsrr_resolver,
+                     DnsCertProvenanceChecker* dns_cert_checker_,
                      ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
                      HttpAuthHandlerFactory* http_auth_handler_factory,
@@ -292,7 +293,8 @@ HttpCache::HttpCache(HostResolver* host_resolver,
       ssl_host_info_factory_(new SSLHostInfoFactoryAdaptor(
             ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       network_layer_(HttpNetworkLayer::CreateFactory(host_resolver,
-          dnsrr_resolver, ssl_host_info_factory_.get(),
+          dnsrr_resolver, dns_cert_checker_,
+          ssl_host_info_factory_.get(),
           proxy_service, ssl_config_service,
           http_auth_handler_factory, network_delegate, net_log)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
