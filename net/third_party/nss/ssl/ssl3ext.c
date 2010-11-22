@@ -247,6 +247,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_session_ticket_xtn,     &ssl3_ClientHandleSessionTicketXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientHandleNextProtoNegoXtn },
+    { ssl_cert_status_xtn,        &ssl3_ClientHandleStatusRequestXtn },
     { ssl_snap_start_xtn,         &ssl3_ClientHandleSnapStartXtn },
     { -1, NULL }
 };
@@ -272,6 +273,7 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
 #endif
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientSendNextProtoNegoXtn },
+    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn },
     { ssl_snap_start_xtn,         &ssl3_SendSnapStartXtn }
     /* NOTE: The Snap Start sender MUST be the last extension in the list. */
     /* any extra entries will appear as { 0, NULL }    */
@@ -657,6 +659,80 @@ ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss,
 
  loser:
     return -1;
+}
+
+SECStatus
+ssl3_ClientHandleStatusRequestXtn(sslSocket *ss, PRUint16 ex_type,
+				  SECItem *data)
+{
+    /* If we didn't request this extension, then the server may not echo it. */
+    if (!ss->opt.enableOCSPStapling)
+	return SECFailure;
+
+    /* The echoed extension must be empty. */
+    if (data->len != 0)
+	return SECFailure;
+
+    ss->ssl3.hs.may_get_cert_status = PR_TRUE;
+
+    /* Keep track of negotiated extensions. */
+    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+
+    return SECSuccess;
+}
+
+/* ssl3_ClientSendStatusRequestXtn builds the status_request extension on the
+ * client side. See RFC 4366 section 3.6. */
+PRInt32
+ssl3_ClientSendStatusRequestXtn(sslSocket * ss, PRBool append,
+				PRUint32 maxBytes)
+{
+    PRInt32 extension_length;
+
+    if (!ss->opt.enableOCSPStapling)
+	return 0;
+
+    /* extension_type (2-bytes) +
+     * length(extension_data) (2-bytes) +
+     * status_type (1) +
+     * responder_id_list length (2) +
+     * request_extensions length (2)
+     */
+    extension_length = 9;
+
+    if (append && maxBytes >= extension_length) {
+	SECStatus rv;
+	TLSExtensionData *xtnData;
+
+	/* extension_type */
+	rv = ssl3_AppendHandshakeNumber(ss, ssl_cert_status_xtn, 2);
+	if (rv != SECSuccess)
+	    return -1;
+	rv = ssl3_AppendHandshakeNumber(ss, extension_length - 4, 2);
+	if (rv != SECSuccess)
+	    return -1;
+	rv = ssl3_AppendHandshakeNumber(ss, 1 /* status_type ocsp */, 1);
+	if (rv != SECSuccess)
+	    return -1;
+	/* A zero length responder_id_list means that the responders are
+	 * implicitly known to the server. */
+	rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
+	if (rv != SECSuccess)
+	    return -1;
+	/* A zero length request_extensions means that there are no extensions.
+	 * Specifically, we don't set the id-pkix-ocsp-nonce extension. This
+	 * means that the server can replay a cached OCSP response to us. */
+	rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
+	if (rv != SECSuccess)
+	    return -1;
+
+	xtnData = &ss->xtnData;
+	xtnData->advertised[xtnData->numAdvertised++] = ssl_cert_status_xtn;
+    } else if (maxBytes < extension_length) {
+	PORT_Assert(0);
+	return 0;
+    }
+    return extension_length;
 }
 
 /*
