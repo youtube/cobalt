@@ -24,6 +24,7 @@ namespace net {
 
 class ClientSocketFactory;
 class ConnectJobFactory;
+class DnsCertProvenanceChecker;
 class DnsRRResolver;
 class HostPortPair;
 class HttpProxyClientSocketPool;
@@ -95,6 +96,7 @@ class SSLConnectJob : public ConnectJob {
       ClientSocketFactory* client_socket_factory,
       HostResolver* host_resolver,
       DnsRRResolver* dnsrr_resolver,
+      DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
       Delegate* delegate,
       NetLog* net_log);
@@ -144,6 +146,7 @@ class SSLConnectJob : public ConnectJob {
   ClientSocketFactory* const client_socket_factory_;
   HostResolver* const resolver_;
   DnsRRResolver* const dnsrr_resolver_;
+  DnsCertProvenanceChecker* dns_cert_checker_;
   SSLHostInfoFactory* const ssl_host_info_factory_;
 
   State next_state_;
@@ -171,6 +174,7 @@ class SSLClientSocketPool : public ClientSocketPool,
       ClientSocketPoolHistograms* histograms,
       HostResolver* host_resolver,
       DnsRRResolver* dnsrr_resolver,
+      DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
       ClientSocketFactory* client_socket_factory,
       TCPClientSocketPool* tcp_pool,
@@ -244,6 +248,7 @@ class SSLClientSocketPool : public ClientSocketPool,
         ClientSocketFactory* client_socket_factory,
         HostResolver* host_resolver,
         DnsRRResolver* dnsrr_resolver,
+        DnsCertProvenanceChecker* dns_cert_checker,
         SSLHostInfoFactory* ssl_host_info_factory,
         NetLog* net_log);
 
@@ -264,6 +269,7 @@ class SSLClientSocketPool : public ClientSocketPool,
     ClientSocketFactory* const client_socket_factory_;
     HostResolver* const host_resolver_;
     DnsRRResolver* const dnsrr_resolver_;
+    DnsCertProvenanceChecker* const dns_cert_checker_;
     SSLHostInfoFactory* const ssl_host_info_factory_;
     base::TimeDelta timeout_;
     NetLog* net_log_;
