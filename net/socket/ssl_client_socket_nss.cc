@@ -47,12 +47,6 @@
 
 #include "net/socket/ssl_client_socket_nss.h"
 
-#if defined(USE_SYSTEM_SSL)
-#include <dlfcn.h>
-#endif
-#if defined(OS_MACOSX)
-#include <Security/Security.h>
-#endif
 #include <certdb.h>
 #include <hasht.h>
 #include <keyhi.h>
@@ -96,6 +90,18 @@
 #include "net/socket/dns_cert_provenance_check.h"
 #include "net/socket/ssl_error_params.h"
 #include "net/socket/ssl_host_info.h"
+
+#if defined(USE_SYSTEM_SSL)
+#include <dlfcn.h>
+#endif
+#if defined(OS_WIN)
+#include <windows.h>
+#include <wincrypt.h>
+#elif defined(OS_MACOSX)
+#include <Security/SecBase.h>
+#include <Security/SecCertificate.h>
+#include <Security/SecIdentity.h>
+#endif
 
 static const int kRecvBufferSize = 4096;
 
