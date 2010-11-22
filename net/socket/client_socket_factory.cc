@@ -21,7 +21,7 @@
 
 namespace net {
 
-class DnsCertProvenanceChecker;
+class DnsRRResolver;
 
 namespace {
 
@@ -30,7 +30,7 @@ SSLClientSocket* DefaultSSLClientSocketFactory(
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,
-    DnsCertProvenanceChecker* dns_cert_checker) {
+    DnsRRResolver* dnsrr_resolver) {
   scoped_ptr<SSLHostInfo> shi(ssl_host_info);
 #if defined(OS_WIN)
   return new SSLClientSocketWin(transport_socket, host_and_port, ssl_config);
@@ -39,10 +39,10 @@ SSLClientSocket* DefaultSSLClientSocketFactory(
                                     ssl_config);
 #elif defined(USE_NSS)
   return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                shi.release(), dns_cert_checker);
+                                shi.release(), dnsrr_resolver);
 #elif defined(OS_MACOSX)
   return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                shi.release(), dns_cert_checker);
+                                shi.release(), dnsrr_resolver);
 #else
   NOTIMPLEMENTED();
   return NULL;
@@ -65,9 +65,9 @@ class DefaultClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
-      DnsCertProvenanceChecker* dns_cert_checker) {
+      DnsRRResolver* dnsrr_resolver) {
     return g_ssl_factory(transport_socket, host_and_port, ssl_config,
-                         ssl_host_info, dns_cert_checker);
+                         ssl_host_info, dnsrr_resolver);
   }
 };
 
@@ -93,8 +93,7 @@ SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
   ClientSocketHandle* socket_handle = new ClientSocketHandle();
   socket_handle->set_socket(transport_socket);
   return CreateSSLClientSocket(socket_handle, host_and_port, ssl_config,
-                               ssl_host_info,
-                               NULL /* DnsCertProvenanceChecker */);
+                               ssl_host_info, NULL /* DnsRRResolver */);
 }
 
 }  // namespace net
