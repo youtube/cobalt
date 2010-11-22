@@ -127,4 +127,10 @@
 #error Please add support for your compiler in build/build_config.h
 #endif
 
+#if defined(OS_CHROMEOS)
+// Single define to trigger whether CrOS fonts have BCI on.
+// In that case font sizes/deltas should be adjusted.
+//define CROS_FONTS_USING_BCI
+#endif
+
 #endif  // BUILD_BUILD_CONFIG_H_
