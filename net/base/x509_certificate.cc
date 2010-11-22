@@ -9,6 +9,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
+#include "base/singleton.h"
 #include "base/string_piece.h"
 #include "base/time.h"
 #include "net/base/pem_tokenizer.h"

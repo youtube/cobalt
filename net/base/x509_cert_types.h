@@ -8,25 +8,14 @@
 
 #include <string.h>
 
-#include <functional>
-#include <iosfwd>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "base/ref_counted.h"
-#include "base/singleton.h"
-#include "base/time.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "build/build_config.h"
 
-#if defined(OS_WIN)
-#include <windows.h>
-#include <wincrypt.h>
-#elif defined(OS_MACOSX)
+#if defined(OS_MACOSX)
 #include <Security/x509defs.h>
-#elif defined(USE_NSS)
-// Forward declaration; real one in <cert.h>
-struct CERTCertificateStr;
 #endif
 
 namespace net {
@@ -56,17 +45,19 @@ struct CertPrincipal {
   explicit CertPrincipal(const std::string& name);
   ~CertPrincipal();
 
+#if defined(OS_MACOSX)
   // Parses a BER-format DistinguishedName.
   bool ParseDistinguishedName(const void* ber_name_data, size_t length);
 
-#if defined(OS_MACOSX)
   // Parses a CSSM_X509_NAME struct.
   void Parse(const CSSM_X509_NAME* name);
-#endif
 
-  // Returns true if all attributes of the two objects match,
-  // where "match" is defined in RFC 5280 sec. 7.1.
+  // Compare this CertPrincipal with |against|, returning true if they're
+  // equal enough to be a possible match. This should NOT be used for any
+  // security relevant decisions.
+  // TODO(rsleevi): Remove once Mac client auth uses NSS for name comparison.
   bool Matches(const CertPrincipal& against) const;
+#endif
 
   // Returns a name that can be used to represent the issuer.  It tries in this
   // order: CN, O and OU and returns the first non-empty one found.
@@ -85,9 +76,6 @@ struct CertPrincipal {
   std::vector<std::string> organization_unit_names;
   std::vector<std::string> domain_components;
 };
-
-// Writes a human-readable description of a CertPrincipal, for debugging.
-std::ostream& operator<<(std::ostream& s, const CertPrincipal& p);
 
 // This class is useful for maintaining policies about which certificates are
 // permitted or forbidden for a particular purpose.

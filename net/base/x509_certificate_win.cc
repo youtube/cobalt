@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/pickle.h"
+#include "base/singleton.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"

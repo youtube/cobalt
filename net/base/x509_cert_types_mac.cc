@@ -14,7 +14,9 @@
 
 namespace net {
 
-static const CSSM_OID* kOIDs[] = {
+namespace {
+
+const CSSM_OID* kOIDs[] = {
     &CSSMOID_CommonName,
     &CSSMOID_LocalityName,
     &CSSMOID_StateProvinceName,
@@ -24,65 +26,6 @@ static const CSSM_OID* kOIDs[] = {
     &CSSMOID_OrganizationalUnitName,
     &CSSMOID_DNQualifier      // This should be "DC" but is undoubtedly wrong.
 };                            // TODO(avi): Find the right OID.
-
-// Converts raw CSSM_DATA to a std::string. (Char encoding is unaltered.)
-static std::string DataToString(CSSM_DATA data);
-
-// Converts raw CSSM_DATA in ISO-8859-1 to a std::string in UTF-8.
-static std::string Latin1DataToUTF8String(CSSM_DATA data);
-
-// Converts big-endian UTF-16 to UTF-8 in a std::string.
-// Note: The byte-order flipping is done in place on the input buffer!
-static bool UTF16BigEndianToUTF8(char16* chars, size_t length,
-                                 std::string* out_string);
-
-// Converts big-endian UTF-32 to UTF-8 in a std::string.
-// Note: The byte-order flipping is done in place on the input buffer!
-static bool UTF32BigEndianToUTF8(char32* chars, size_t length,
-                                 std::string* out_string);
-
-// Adds a type+value pair to the appropriate vector from a C array.
-// The array is keyed by the matching OIDs from kOIDS[].
-  static void AddTypeValuePair(const CSSM_OID type,
-                               const std::string& value,
-                               std::vector<std::string>* values[]);
-
-// Stores the first string of the vector, if any, to *single_value.
-static void SetSingle(const std::vector<std::string> &values,
-                      std::string* single_value);
-
-
-void CertPrincipal::Parse(const CSSM_X509_NAME* name) {
-  std::vector<std::string> common_names, locality_names, state_names,
-      country_names;
-
-  std::vector<std::string>* values[] = {
-      &common_names, &locality_names,
-      &state_names, &country_names,
-      &(this->street_addresses),
-      &(this->organization_names),
-      &(this->organization_unit_names),
-      &(this->domain_components)
-  };
-  DCHECK(arraysize(kOIDs) == arraysize(values));
-
-  for (size_t rdn = 0; rdn < name->numberOfRDNs; ++rdn) {
-    CSSM_X509_RDN rdn_struct = name->RelativeDistinguishedName[rdn];
-    for (size_t pair = 0; pair < rdn_struct.numberOfPairs; ++pair) {
-      CSSM_X509_TYPE_VALUE_PAIR pair_struct =
-          rdn_struct.AttributeTypeAndValue[pair];
-      AddTypeValuePair(pair_struct.type,
-                       DataToString(pair_struct.value),
-                       values);
-    }
-  }
-
-  SetSingle(common_names, &this->common_name);
-  SetSingle(locality_names, &this->locality_name);
-  SetSingle(state_names, &this->state_or_province_name);
-  SetSingle(country_names, &this->country_name);
-}
-
 
 // The following structs and templates work with Apple's very arcane and under-
 // documented SecAsn1Parser API, which is apparently the same as NSS's ASN.1
@@ -108,7 +51,7 @@ struct KeyValuePair {
   };
 };
 
-static const SecAsn1Template kStringValueTemplate[] = {
+const SecAsn1Template kStringValueTemplate[] = {
   { SEC_ASN1_CHOICE, offsetof(KeyValuePair, value_type), },
   { SEC_ASN1_PRINTABLE_STRING,
     offsetof(KeyValuePair, value), 0, KeyValuePair::kTypePrintableString },
@@ -125,7 +68,7 @@ static const SecAsn1Template kStringValueTemplate[] = {
   { 0, }
 };
 
-static const SecAsn1Template kKeyValuePairTemplate[] = {
+const SecAsn1Template kKeyValuePairTemplate[] = {
   { SEC_ASN1_SEQUENCE, 0, NULL, sizeof(KeyValuePair) },
   { SEC_ASN1_OBJECT_ID, offsetof(KeyValuePair, key), },
   { SEC_ASN1_INLINE, 0, &kStringValueTemplate, },
@@ -136,8 +79,8 @@ struct KeyValuePairs {
   KeyValuePair* pairs;
 };
 
-static const SecAsn1Template kKeyValuePairSetTemplate[] = {
-  { SEC_ASN1_SET_OF, offsetof(KeyValuePairs,pairs),
+const SecAsn1Template kKeyValuePairSetTemplate[] = {
+  { SEC_ASN1_SET_OF, offsetof(KeyValuePairs, pairs),
       kKeyValuePairTemplate, sizeof(KeyValuePairs) }
 };
 
@@ -145,10 +88,98 @@ struct X509Name {
   KeyValuePairs** pairs_list;
 };
 
-static const SecAsn1Template kNameTemplate[] = {
-  { SEC_ASN1_SEQUENCE_OF, offsetof(X509Name,pairs_list),
+const SecAsn1Template kNameTemplate[] = {
+  { SEC_ASN1_SEQUENCE_OF, offsetof(X509Name, pairs_list),
       kKeyValuePairSetTemplate, sizeof(X509Name) }
 };
+
+// Converts raw CSSM_DATA to a std::string. (Char encoding is unaltered.)
+std::string DataToString(CSSM_DATA data) {
+  return std::string(
+      reinterpret_cast<std::string::value_type*>(data.Data),
+      data.Length);
+}
+
+// Converts raw CSSM_DATA in ISO-8859-1 to a std::string in UTF-8.
+std::string Latin1DataToUTF8String(CSSM_DATA data) {
+  string16 utf16;
+  if (!CodepageToUTF16(DataToString(data), base::kCodepageLatin1,
+                       base::OnStringConversionError::FAIL, &utf16))
+    return "";
+  return UTF16ToUTF8(utf16);
+}
+
+// Converts big-endian UTF-16 to UTF-8 in a std::string.
+// Note: The byte-order flipping is done in place on the input buffer!
+bool UTF16BigEndianToUTF8(char16* chars, size_t length,
+                          std::string* out_string) {
+  for (size_t i = 0; i < length; i++)
+    chars[i] = EndianU16_BtoN(chars[i]);
+  return UTF16ToUTF8(chars, length, out_string);
+}
+
+// Converts big-endian UTF-32 to UTF-8 in a std::string.
+// Note: The byte-order flipping is done in place on the input buffer!
+bool UTF32BigEndianToUTF8(char32* chars, size_t length,
+                          std::string* out_string) {
+  for (size_t i = 0; i < length; ++i)
+    chars[i] = EndianS32_BtoN(chars[i]);
+#if defined(WCHAR_T_IS_UTF32)
+  return WideToUTF8(reinterpret_cast<const wchar_t*>(chars),
+                    length, out_string);
+#else
+#error This code doesn't handle 16-bit wchar_t.
+#endif
+}
+
+// Adds a type+value pair to the appropriate vector from a C array.
+// The array is keyed by the matching OIDs from kOIDS[].
+void AddTypeValuePair(const CSSM_OID type,
+                      const std::string& value,
+                      std::vector<std::string>* values[]) {
+  for (size_t oid = 0; oid < arraysize(kOIDs); ++oid) {
+    if (CSSMOIDEqual(&type, kOIDs[oid])) {
+      values[oid]->push_back(value);
+      break;
+    }
+  }
+}
+
+// Stores the first string of the vector, if any, to *single_value.
+void SetSingle(const std::vector<std::string>& values,
+               std::string* single_value) {
+  // We don't expect to have more than one CN, L, S, and C.
+  LOG_IF(WARNING, values.size() > 1) << "Didn't expect multiple values";
+  if (values.size() > 0)
+    *single_value = values[0];
+}
+
+bool match(const std::string& str, const std::string& against) {
+  // TODO(snej): Use the full matching rules specified in RFC 5280 sec. 7.1
+  // including trimming and case-folding: <http://www.ietf.org/rfc/rfc5280.txt>.
+  return against == str;
+}
+
+bool match(const std::vector<std::string>& rdn1,
+           const std::vector<std::string>& rdn2) {
+  // "Two relative distinguished names RDN1 and RDN2 match if they have the
+  // same number of naming attributes and for each naming attribute in RDN1
+  // there is a matching naming attribute in RDN2." --RFC 5280 sec. 7.1.
+  if (rdn1.size() != rdn2.size())
+    return false;
+  for (unsigned i1 = 0; i1 < rdn1.size(); ++i1) {
+    unsigned i2;
+    for (i2 = 0; i2 < rdn2.size(); ++i2) {
+      if (match(rdn1[i1], rdn2[i2]))
+          break;
+    }
+    if (i2 == rdn2.size())
+      return false;
+  }
+  return true;
+}
+
+}  // namespace
 
 bool CertPrincipal::ParseDistinguishedName(const void* ber_name_data,
                                            size_t length) {
@@ -182,7 +213,7 @@ bool CertPrincipal::ParseDistinguishedName(const void* ber_name_data,
   };
   DCHECK(arraysize(kOIDs) == arraysize(values));
 
-  for (int rdn=0; name[rdn].pairs_list; ++rdn) {
+  for (int rdn = 0; name[rdn].pairs_list; ++rdn) {
     KeyValuePair *pair;
     for (int pair_index = 0;
          NULL != (pair = name[rdn].pairs_list[0][pair_index].pairs);
@@ -235,59 +266,46 @@ bool CertPrincipal::ParseDistinguishedName(const void* ber_name_data,
   return true;
 }
 
+void CertPrincipal::Parse(const CSSM_X509_NAME* name) {
+  std::vector<std::string> common_names, locality_names, state_names,
+      country_names;
 
-// SUBROUTINES:
+  std::vector<std::string>* values[] = {
+      &common_names, &locality_names,
+      &state_names, &country_names,
+      &(this->street_addresses),
+      &(this->organization_names),
+      &(this->organization_unit_names),
+      &(this->domain_components)
+  };
+  DCHECK(arraysize(kOIDs) == arraysize(values));
 
-static std::string DataToString(CSSM_DATA data) {
-  return std::string(
-      reinterpret_cast<std::string::value_type*>(data.Data),
-      data.Length);
-}
-
-static std::string Latin1DataToUTF8String(CSSM_DATA data) {
-  string16 utf16;
-  if (!CodepageToUTF16(DataToString(data), base::kCodepageLatin1,
-                       base::OnStringConversionError::FAIL, &utf16))
-    return "";
-  return UTF16ToUTF8(utf16);
-}
-
-bool UTF16BigEndianToUTF8(char16* chars, size_t length,
-                          std::string* out_string) {
-  for (size_t i = 0; i < length; i++)
-    chars[i] = EndianU16_BtoN(chars[i]);
-  return UTF16ToUTF8(chars, length, out_string);
-}
-
-bool UTF32BigEndianToUTF8(char32* chars, size_t length,
-                          std::string* out_string) {
-  for (size_t i = 0; i < length; i++)
-    chars[i] = EndianS32_BtoN(chars[i]);
-#if defined(WCHAR_T_IS_UTF32)
-  return WideToUTF8(reinterpret_cast<const wchar_t*>(chars),
-                    length, out_string);
-#else
-#error This code doesn't handle 16-bit wchar_t.
-#endif
-}
-
-  static void AddTypeValuePair(const CSSM_OID type,
-                               const std::string& value,
-                               std::vector<std::string>* values[]) {
-  for (size_t oid = 0; oid < arraysize(kOIDs); ++oid) {
-    if (CSSMOIDEqual(&type, kOIDs[oid])) {
-      values[oid]->push_back(value);
-      break;
+  for (size_t rdn = 0; rdn < name->numberOfRDNs; ++rdn) {
+    CSSM_X509_RDN rdn_struct = name->RelativeDistinguishedName[rdn];
+    for (size_t pair = 0; pair < rdn_struct.numberOfPairs; ++pair) {
+      CSSM_X509_TYPE_VALUE_PAIR pair_struct =
+          rdn_struct.AttributeTypeAndValue[pair];
+      AddTypeValuePair(pair_struct.type,
+                       DataToString(pair_struct.value),
+                       values);
     }
   }
+
+  SetSingle(common_names, &this->common_name);
+  SetSingle(locality_names, &this->locality_name);
+  SetSingle(state_names, &this->state_or_province_name);
+  SetSingle(country_names, &this->country_name);
 }
 
-static void SetSingle(const std::vector<std::string> &values,
-                      std::string* single_value) {
-  // We don't expect to have more than one CN, L, S, and C.
-  LOG_IF(WARNING, values.size() > 1) << "Didn't expect multiple values";
-  if (values.size() > 0)
-    *single_value = values[0];
+bool CertPrincipal::Matches(const CertPrincipal& against) const {
+  return match(common_name, against.common_name) &&
+      match(locality_name, against.locality_name) &&
+      match(state_or_province_name, against.state_or_province_name) &&
+      match(country_name, against.country_name) &&
+      match(street_addresses, against.street_addresses) &&
+      match(organization_names, against.organization_names) &&
+      match(organization_unit_names, against.organization_unit_names) &&
+      match(domain_components, against.domain_components);
 }
 
 }  // namespace net
