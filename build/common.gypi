@@ -1279,6 +1279,8 @@
                 # Don't die on dtoa code that uses a char as an array index.
                 # This is required solely for base/third_party/dmg_fp/dtoa.cc.
                 '-Wno-char-subscripts',
+                # Clang spots more unused functions.
+                '-Wno-unused-function',
                 # Survive EXPECT_EQ(unnamed_enum, unsigned int) -- see
                 # http://code.google.com/p/googletest/source/detail?r=446 .
                 # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
