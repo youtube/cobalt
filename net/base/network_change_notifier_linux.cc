@@ -102,11 +102,11 @@ void NetworkChangeNotifierLinux::Thread::ListenForNotifications() {
     if (HandleNetlinkMessage(buf, rv)) {
       VLOG(1) << "Detected IP address changes.";
 #if defined(OS_CHROMEOS)
-      // TODO(zelidrag): chromium-os:3996 - introduced artificial delay to
-      // work around the issue of proxy initialization before name resolving
-      // is functional in ChromeOS. This should be removed once this bug
-      // is properly fixed.
-      const int kObserverNotificationDelayMS = 500;
+      // TODO(oshima): chromium-os:8285 - introduced artificial delay to
+      // work around the issue of network load issue after connection
+      // restored. See the bug for more details.
+      //  This should be removed once this bug is properly fixed.
+      const int kObserverNotificationDelayMS = 200;
       message_loop()->PostDelayedTask(
           FROM_HERE,
           method_factory_.NewRunnableMethod(
