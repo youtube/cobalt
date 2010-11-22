@@ -10,9 +10,10 @@
 #include <map>
 
 #include "base/ref_counted.h"
-#include "net/base/x509_certificate.h"
 
 namespace net {
+
+class X509Certificate;
 
 // The SSLClientAuthCache class is a simple cache structure to store SSL
 // client certificates. Provides lookup, insertion, and deletion of entries.
@@ -26,13 +27,18 @@ class SSLClientAuthCache {
   SSLClientAuthCache();
   ~SSLClientAuthCache();
 
-  // Check if we have a client certificate for SSL server at |server|.
-  // Returns the client certificate (if found) or NULL (if not found).
-  X509Certificate* Lookup(const std::string& server);
+  // Checks for a client certificate preference for SSL server at |server|.
+  // Returns true if a preference is found, and sets |*certificate| to the
+  // desired client certificate. The desired certificate may be NULL, which
+  // indicates a preference to not send any certificate to |server|.
+  // If a certificate preference is not found, returns false.
+  bool Lookup(const std::string& server,
+              scoped_refptr<X509Certificate>* certificate);
 
   // Add a client certificate for |server| to the cache. If there is already
-  // a client certificate for |server|, it will be overwritten. Both parameters
-  // are IN only.
+  // a client certificate for |server|, it will be overwritten. A NULL
+  // |client_cert| indicates a preference that no client certificate should
+  // be sent to |server|.
   void Add(const std::string& server, X509Certificate* client_cert);
 
   // Remove the client certificate for |server| from the cache, if one exists.

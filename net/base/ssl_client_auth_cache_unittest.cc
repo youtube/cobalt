@@ -5,6 +5,7 @@
 #include "net/base/ssl_client_auth_cache.h"
 
 #include "base/time.h"
+#include "net/base/x509_certificate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -27,32 +28,50 @@ TEST(SSLClientAuthCacheTest, LookupAddRemove) {
   scoped_refptr<X509Certificate> cert3(
     new X509Certificate("foo3", "CA", start_date, expiration_date));
 
+  scoped_refptr<X509Certificate> cached_cert;
   // Lookup non-existent client certificate.
-  EXPECT_TRUE(cache.Lookup(server1) == NULL);
+  cached_cert = NULL;
+  EXPECT_FALSE(cache.Lookup(server1, &cached_cert));
 
   // Add client certificate for server1.
-  cache.Add(server1, cert1.get());
-  EXPECT_EQ(cert1.get(), cache.Lookup(server1));
+  cache.Add(server1, cert1);
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server1, &cached_cert));
+  EXPECT_EQ(cert1, cached_cert);
 
   // Add client certificate for server2.
-  cache.Add(server2, cert2.get());
-  EXPECT_EQ(cert1.get(), cache.Lookup(server1));
-  EXPECT_EQ(cert2.get(), cache.Lookup(server2));
+  cache.Add(server2, cert2);
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server1, &cached_cert));
+  EXPECT_EQ(cert1, cached_cert.get());
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server2, &cached_cert));
+  EXPECT_EQ(cert2, cached_cert);
 
   // Overwrite the client certificate for server1.
-  cache.Add(server1, cert3.get());
-  EXPECT_EQ(cert3.get(), cache.Lookup(server1));
-  EXPECT_EQ(cert2.get(), cache.Lookup(server2));
+  cache.Add(server1, cert3);
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server1, &cached_cert));
+  EXPECT_EQ(cert3, cached_cert);
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server2, &cached_cert));
+  EXPECT_EQ(cert2, cached_cert);
 
   // Remove client certificate of server1.
   cache.Remove(server1);
-  EXPECT_TRUE(cache.Lookup(server1) == NULL);
-  EXPECT_EQ(cert2.get(), cache.Lookup(server2));
+  cached_cert = NULL;
+  EXPECT_FALSE(cache.Lookup(server1, &cached_cert));
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server2, &cached_cert));
+  EXPECT_EQ(cert2, cached_cert);
 
   // Remove non-existent client certificate.
   cache.Remove(server1);
-  EXPECT_TRUE(cache.Lookup(server1) == NULL);
-  EXPECT_EQ(cert2.get(), cache.Lookup(server2));
+  cached_cert = NULL;
+  EXPECT_FALSE(cache.Lookup(server1, &cached_cert));
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server2, &cached_cert));
+  EXPECT_EQ(cert2, cached_cert);
 }
 
 // Check that if the server differs only by port number, it is considered
@@ -74,8 +93,48 @@ TEST(SSLClientAuthCacheTest, LookupWithPort) {
   cache.Add(server1, cert1.get());
   cache.Add(server2, cert2.get());
 
-  EXPECT_EQ(cert1.get(), cache.Lookup(server1));
-  EXPECT_EQ(cert2.get(), cache.Lookup(server2));
+  scoped_refptr<X509Certificate> cached_cert;
+  EXPECT_TRUE(cache.Lookup(server1, &cached_cert));
+  EXPECT_EQ(cert1.get(), cached_cert);
+  EXPECT_TRUE(cache.Lookup(server2, &cached_cert));
+  EXPECT_EQ(cert2.get(), cached_cert);
+}
+
+// Check that the a NULL certificate, indicating the user has declined to send
+// a certificate, is properly cached.
+TEST(SSLClientAuthCacheTest, LookupNullPreference) {
+  SSLClientAuthCache cache;
+  base::Time start_date = base::Time::Now();
+  base::Time expiration_date = start_date + base::TimeDelta::FromDays(1);
+
+  std::string server1("foo:443");
+  scoped_refptr<X509Certificate> cert1(
+      new X509Certificate("foo", "CA", start_date, expiration_date));
+
+  cache.Add(server1, NULL);
+
+  scoped_refptr<X509Certificate> cached_cert(cert1);
+  // Make sure that |cached_cert| is updated to NULL, indicating the user
+  // declined to send a certificate to |server1|.
+  EXPECT_TRUE(cache.Lookup(server1, &cached_cert));
+  EXPECT_EQ(NULL, cached_cert.get());
+
+  // Remove the existing cached certificate.
+  cache.Remove(server1);
+  cached_cert = NULL;
+  EXPECT_FALSE(cache.Lookup(server1, &cached_cert));
+
+  // Add a new preference for a specific certificate.
+  cache.Add(server1, cert1);
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server1, &cached_cert));
+  EXPECT_EQ(cert1, cached_cert);
+
+  // Replace the specific preference with a NULL certificate.
+  cache.Add(server1, NULL);
+  cached_cert = NULL;
+  EXPECT_TRUE(cache.Lookup(server1, &cached_cert));
+  EXPECT_EQ(NULL, cached_cert.get());
 }
 
 }  // namespace net
