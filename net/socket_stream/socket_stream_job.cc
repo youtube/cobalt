@@ -4,6 +4,7 @@
 
 #include "net/socket_stream/socket_stream_job.h"
 
+#include "base/singleton.h"
 #include "net/socket_stream/socket_stream_job_manager.h"
 
 namespace net {
