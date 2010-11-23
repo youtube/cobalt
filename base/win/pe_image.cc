@@ -558,12 +558,12 @@ PVOID PEImageAsData::RVAToAddr(DWORD rva) const {
     return NULL;
 
   PVOID in_memory = PEImage::RVAToAddr(rva);
-  DWORD dummy;
+  DWORD disk_offset;
 
-  if (!ImageAddrToOnDiskOffset(in_memory, &dummy))
+  if (!ImageAddrToOnDiskOffset(in_memory, &disk_offset))
     return NULL;
 
-  return in_memory;
+  return PEImage::RVAToAddr(disk_offset);
 }
 
 }  // namespace win
