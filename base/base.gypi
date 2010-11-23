@@ -281,6 +281,8 @@
           'utf_string_conversions.h',
           'values.cc',
           'values.h',
+          'values_util.cc',
+          'values_util.h',
           'version.cc',
           'version.h',
           'vlog.cc',
