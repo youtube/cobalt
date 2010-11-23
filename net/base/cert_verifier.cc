@@ -8,7 +8,9 @@
 #include <private/pprthred.h>  // PR_DetatchThread
 #endif
 
-#include "base/message_loop.h"
+#include "base/lock.h"
+#include "base/message_loop_proxy.h"
+#include "base/scoped_ptr.h"
 #include "base/worker_pool.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
@@ -31,7 +33,7 @@ class CertVerifier::Request :
         verifier_(verifier),
         verify_result_(verify_result),
         callback_(callback),
-        origin_loop_(MessageLoop::current()),
+        origin_loop_proxy_(base::MessageLoopProxy::CreateForCurrentThread()),
         error_(OK) {
   }
 
@@ -49,20 +51,16 @@ class CertVerifier::Request :
     PR_DetachThread();
 #endif
 
-    Task* reply = NewRunnableMethod(this, &Request::DoCallback);
+    scoped_ptr<Task> reply(NewRunnableMethod(this, &Request::DoCallback));
 
     // The origin loop could go away while we are trying to post to it, so we
     // need to call its PostTask method inside a lock.  See ~CertVerifier.
-    {
-      AutoLock locked(origin_loop_lock_);
-      if (origin_loop_) {
-        origin_loop_->PostTask(FROM_HERE, reply);
-        reply = NULL;
-      }
+    AutoLock locked(origin_loop_proxy_lock_);
+    if (origin_loop_proxy_) {
+      bool posted = origin_loop_proxy_->PostTask(FROM_HERE, reply.release());
+      // TODO(willchan): Fix leaks and then change this to a DCHECK.
+      LOG_IF(ERROR, !posted) << "Leaked CertVerifier!";
     }
-
-    // Does nothing if it got posted.
-    delete reply;
   }
 
   void DoCallback() {
@@ -85,8 +83,8 @@ class CertVerifier::Request :
   void Cancel() {
     verifier_ = NULL;
 
-    AutoLock locked(origin_loop_lock_);
-    origin_loop_ = NULL;
+    AutoLock locked(origin_loop_proxy_lock_);
+    origin_loop_proxy_ = NULL;
   }
 
  private:
@@ -106,8 +104,13 @@ class CertVerifier::Request :
   CompletionCallback* callback_;
 
   // Used to post ourselves onto the origin thread.
-  Lock origin_loop_lock_;
-  MessageLoop* origin_loop_;
+  Lock origin_loop_proxy_lock_;
+  // Use a MessageLoopProxy in case the owner of the CertVerifier is leaked, so
+  // this code won't crash: http://crbug.com/42275.  If this is leaked, then it
+  // doesn't get Cancel()'d, so |origin_loop_proxy_| doesn't get NULL'd out.  If
+  // the MessageLoop goes away, then if we had used a MessageLoop, this would
+  // crash.
+  scoped_refptr<base::MessageLoopProxy> origin_loop_proxy_;
 
   // Assigned on the worker thread, read on the origin thread.
   int error_;

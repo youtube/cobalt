@@ -78,6 +78,11 @@ bool MessageLoopProxyImpl::PostTaskHelper(
 }
 
 void MessageLoopProxyImpl::OnDestruct() const {
+  // We shouldn't use MessageLoop::current() since it uses LazyInstance which
+  // may be deleted by ~AtExitManager when a WorkerPool thread calls this
+  // function.
+  // http://crbug.com/63678
+  base::ThreadRestrictions::ScopedAllowSingleton allow_singleton;
   bool delete_later = false;
   {
     AutoLock lock(message_loop_lock_);
