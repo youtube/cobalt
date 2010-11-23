@@ -614,6 +614,7 @@ Count Histogram::SampleSet::TotalCount() const {
        ++it) {
     total += *it;
   }
+  DCHECK_EQ(total, redundant_count_);
   return total;
 }
 
