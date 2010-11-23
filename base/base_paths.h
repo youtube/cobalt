@@ -33,10 +33,11 @@ enum {
                     // for tests that need to locate various resources.  It
                     // should not be used outside of test code.
 #if defined(OS_POSIX)
-  DIR_USER_CACHE,   // Directory where user cache data resides. The Chromium
-                    // browser cache can be a subdirectory of DIR_USER_CACHE.
-                    // This is $XDG_CACHE_HOME on Linux and ~/Library/Caches
-                    // on Mac.
+  DIR_CACHE,    // Directory where to put cache data.  Note this is
+                // *not* where the browser cache lives, but the
+                // browser cache can be a subdirectory.
+                // This is $XDG_CACHE_HOME on Linux and
+                // ~/Library/Caches on Mac.
 #endif
 
   PATH_END
