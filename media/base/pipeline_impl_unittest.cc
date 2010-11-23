@@ -1,3 +1,4 @@
+
 // Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -6,6 +7,7 @@
 
 #include "base/callback.h"
 #include "base/stl_util-inl.h"
+#include "media/base/clock_impl.h"
 #include "media/base/pipeline_impl.h"
 #include "media/base/media_format.h"
 #include "media/base/filters.h"
@@ -632,8 +634,6 @@ TEST_F(PipelineImplTest, DisableAudioRenderer) {
   mocks_->audio_renderer()->SetPlaybackRate(1.0f);
 
   // Verify that ended event is fired when video ends.
-  EXPECT_CALL(*mocks_->audio_renderer(), HasEnded())
-      .WillOnce(Return(false));
   EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
       .WillOnce(Return(true));
   EXPECT_CALL(callbacks_, OnEnded());
@@ -671,6 +671,80 @@ TEST_F(PipelineImplTest, EndedCallback) {
       .WillOnce(Return(false));
   host->NotifyEnded();
 
+  EXPECT_CALL(*mocks_->audio_renderer(), HasEnded())
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
+      .WillOnce(Return(true));
+  EXPECT_CALL(callbacks_, OnEnded());
+  host->NotifyEnded();
+}
+
+// Static function & time variable used to simulate changes in wallclock time.
+static int64 g_static_clock_time;
+static base::Time StaticClockFunction() {
+  return base::Time::FromInternalValue(g_static_clock_time);
+}
+
+TEST_F(PipelineImplTest, AudioStreamShorterThanVideo) {
+  base::TimeDelta duration = base::TimeDelta::FromSeconds(10);
+
+  CreateAudioStream();
+  CreateVideoStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(audio_stream());
+  streams.push_back(video_stream());
+
+  InitializeDataSource();
+  InitializeDemuxer(&streams, duration);
+  InitializeAudioDecoder(audio_stream());
+  InitializeAudioRenderer();
+  InitializeVideoDecoder(video_stream());
+  InitializeVideoRenderer();
+  InitializePipeline();
+
+  // For convenience to simulate filters calling the methods.
+  FilterHost* host = pipeline_;
+
+  // Replace the clock so we can simulate wallclock time advancing w/o using
+  // Sleep.
+  pipeline_->clock_.reset(new ClockImpl(&StaticClockFunction));
+
+  EXPECT_EQ(0, host->GetTime().ToInternalValue());
+
+  float playback_rate = 1.0f;
+  EXPECT_CALL(*mocks_->data_source(), SetPlaybackRate(playback_rate));
+  EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(playback_rate));
+  EXPECT_CALL(*mocks_->video_decoder(), SetPlaybackRate(playback_rate));
+  EXPECT_CALL(*mocks_->audio_decoder(), SetPlaybackRate(playback_rate));
+  EXPECT_CALL(*mocks_->video_renderer(), SetPlaybackRate(playback_rate));
+  EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(playback_rate));
+  pipeline_->SetPlaybackRate(playback_rate);
+  message_loop_.RunAllPending();
+
+  InSequence s;
+
+  // Verify that the clock doesn't advance since it hasn't been started by
+  // a time update from the audio stream.
+  int64 start_time = host->GetTime().ToInternalValue();
+  g_static_clock_time +=
+      base::TimeDelta::FromMilliseconds(100).ToInternalValue();
+  EXPECT_EQ(host->GetTime().ToInternalValue(), start_time);
+
+  // Signal end of audio stream.
+  EXPECT_CALL(*mocks_->audio_renderer(), HasEnded())
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
+      .WillOnce(Return(false));
+  host->NotifyEnded();
+  message_loop_.RunAllPending();
+
+  // Verify that the clock advances.
+  start_time = host->GetTime().ToInternalValue();
+  g_static_clock_time +=
+      base::TimeDelta::FromMilliseconds(100).ToInternalValue();
+  EXPECT_GT(host->GetTime().ToInternalValue(), start_time);
+
+  // Signal end of video stream and make sure OnEnded() callback occurs.
   EXPECT_CALL(*mocks_->audio_renderer(), HasEnded())
       .WillOnce(Return(true));
   EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
