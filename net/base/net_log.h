@@ -81,7 +81,7 @@ class NetLog {
   // Base class for associating additional parameters with an event. Log
   // observers need to know what specific derivations of EventParameters a
   // particular EventType uses, in order to get at the individual components.
-  class EventParameters : public base::RefCounted<EventParameters> {
+  class EventParameters : public base::RefCountedThreadSafe<EventParameters> {
    public:
     EventParameters() {}
     virtual ~EventParameters() {}
