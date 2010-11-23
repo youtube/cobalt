@@ -16,7 +16,8 @@ struct MessageLoopProxyTraits;
 
 // This class provides a thread-safe refcounted interface to the Post* methods
 // of a message loop. This class can outlive the target message loop. You can
-// obtain a MessageLoopProxy via Thread::message_loop_proxy().
+// obtain a MessageLoopProxy via Thread::message_loop_proxy() or
+// MessageLoopProxy::CreateForCurrentThread().
 class MessageLoopProxy
     : public base::RefCountedThreadSafe<MessageLoopProxy,
                                         MessageLoopProxyTraits> {
