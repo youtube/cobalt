@@ -17,7 +17,7 @@
 #include "base/scoped_ptr.h"
 #include "base/thread.h"
 #include "base/time.h"
-#include "media/base/clock_impl.h"
+#include "media/base/clock.h"
 #include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
 
@@ -331,7 +331,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Reference clock.  Keeps track of current playback time.  Uses system
   // clock and linear interpolation, but can have its time manually set
   // by filters.
-  ClockImpl clock_;
+  scoped_ptr<Clock> clock_;
 
   // If this value is set to true, then |clock_| is paused and we are waiting
   // for an update of the clock greater than or equal to the elapsed time to
@@ -416,6 +416,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   scoped_ptr<PipelineInitState> pipeline_init_state_;
 
   FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, GetBufferedTime);
+  FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, AudioStreamShorterThanVideo);
 
   DISALLOW_COPY_AND_ASSIGN(PipelineImpl);
 };

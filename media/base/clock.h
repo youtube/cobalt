@@ -16,6 +16,7 @@
 #ifndef MEDIA_BASE_CLOCK_H_
 #define MEDIA_BASE_CLOCK_H_
 
+#include "base/scoped_ptr.h"
 #include "base/time.h"
 
 namespace media {
@@ -42,6 +43,8 @@ class Clock {
   virtual base::TimeDelta Elapsed() const = 0;
 
  protected:
+  // Only allow scoped_ptr<> to delete clocks.
+  friend class scoped_ptr<Clock>;
   virtual ~Clock() {}
 };
 
