@@ -36,7 +36,7 @@ VlogInfo::VlogInfo(const std::string& v_switch,
 
   typedef std::pair<std::string, std::string> KVPair;
   int vlog_level = 0;
-  if (base::StringToInt(v_switch, &vlog_level)) {
+  if (!v_switch.empty() && base::StringToInt(v_switch, &vlog_level)) {
     SetMaxVlogLevel(vlog_level);
   } else {
     LOG(WARNING) << "Parsed v switch \""

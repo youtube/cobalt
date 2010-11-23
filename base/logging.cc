@@ -596,12 +596,6 @@ void LogMessage::Init(const char* file, int line) {
 }
 
 LogMessage::~LogMessage() {
-  // The macros in logging.h should already avoid creating LogMessages
-  // when this holds, but it's possible that users create LogMessages
-  // directly (e.g., using LOG_STREAM() directly).
-  if (severity_ < min_log_level)
-    return;
-
 #ifndef NDEBUG
   if (severity_ == LOG_FATAL) {
     // Include a stack trace on a fatal.
