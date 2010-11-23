@@ -77,7 +77,6 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
 
 URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
     : URLRequestJob(request),
-      context_(request->context()),
       response_info_(NULL),
       response_cookies_save_index_(0),
       proxy_auth_state_(net::AUTH_STATE_DONT_NEED_AUTH),
@@ -609,6 +608,7 @@ void URLRequestHttpJob::DestroyTransaction() {
 
   transaction_.reset();
   response_info_ = NULL;
+  context_ = NULL;
 }
 
 void URLRequestHttpJob::StartTransaction() {
@@ -631,6 +631,9 @@ void URLRequestHttpJob::StartTransaction() {
     if (rv == net::OK) {
       rv = transaction_->Start(
           &request_info_, &start_callback_, request_->net_log());
+      // Make sure the context is alive for the duration of the
+      // transaction.
+      context_ = request_->context();
     }
   }
 
