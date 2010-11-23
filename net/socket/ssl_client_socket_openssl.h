@@ -36,6 +36,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
                          const SSLConfig& ssl_config);
   ~SSLClientSocketOpenSSL();
 
+  const HostPortPair& host_and_port() const { return host_and_port_; }
+
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
@@ -111,6 +113,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   // Set when handshake finishes.
   scoped_refptr<X509Certificate> server_cert_;
   CertVerifyResult server_cert_verify_result_;
+  bool completed_handshake_;
 
   // Stores client authentication information between ClientAuthHandler and
   // GetSSLCertRequestInfo calls.
@@ -128,7 +131,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   const HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
-  bool completed_handshake_;
+  // Used for session cache diagnostics.
+  bool trying_cached_session_;
 
   enum State {
     STATE_NONE,
