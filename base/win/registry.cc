@@ -357,7 +357,12 @@ bool RegKey::WriteValue(const wchar_t* name, DWORD value) {
 
 bool RegKey::DeleteKey(const wchar_t* name) {
   base::ThreadRestrictions::AssertIOAllowed();
-  return (!key_) ? false : (ERROR_SUCCESS == SHDeleteKey(key_, name));
+  if (!key_)
+    return false;
+  LSTATUS ret = SHDeleteKey(key_, name);
+  if (ERROR_SUCCESS != ret)
+    SetLastError(ret);
+  return ERROR_SUCCESS == ret;
 }
 
 bool RegKey::DeleteValue(const wchar_t* value_name) {
