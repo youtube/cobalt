@@ -21,6 +21,12 @@ namespace {
 bool ReturnsValidPath(int dir_type) {
   FilePath path;
   bool result = PathService::Get(dir_type, &path);
+#if defined(OS_POSIX)
+  // If chromium has never been started on this account, the cache path will not
+  // exist.
+  if (dir_type == base::DIR_USER_CACHE)
+    return result && !path.value().empty();
+#endif
   return result && !path.value().empty() && file_util::PathExists(path);
 }
 
