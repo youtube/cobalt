@@ -9,6 +9,7 @@
 #include "base/compiler_specific.h"
 #include "base/condition_variable.h"
 #include "base/stl_util-inl.h"
+#include "media/base/clock_impl.h"
 #include "media/base/media_format.h"
 #include "media/base/pipeline_impl.h"
 
@@ -16,7 +17,7 @@ namespace media {
 
 PipelineImpl::PipelineImpl(MessageLoop* message_loop)
     : message_loop_(message_loop),
-      clock_(&base::Time::Now),
+      clock_(new ClockImpl(&base::Time::Now)),
       waiting_for_clock_update_(false),
       state_(kCreated),
       remaining_transitions_(0),
@@ -179,7 +180,7 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
 }
 
 base::TimeDelta PipelineImpl::GetCurrentTime_Locked() const {
-  base::TimeDelta elapsed = clock_.Elapsed();
+  base::TimeDelta elapsed = clock_->Elapsed();
   if (state_ == kEnded || elapsed > duration_) {
     return duration_;
   }
@@ -303,7 +304,7 @@ void PipelineImpl::ResetState() {
   error_            = PIPELINE_OK;
   waiting_for_clock_update_ = false;
   audio_disabled_   = false;
-  clock_.SetTime(kZero);
+  clock_->SetTime(kZero);
   rendered_mime_types_.clear();
 }
 
@@ -411,14 +412,14 @@ void PipelineImpl::SetTime(base::TimeDelta time) {
   // If we were waiting for a valid timestamp and such timestamp arrives, we
   // need to clear the flag for waiting and start the clock.
   if (waiting_for_clock_update_) {
-    if (time < clock_.Elapsed())
+    if (time < clock_->Elapsed())
       return;
     waiting_for_clock_update_ = false;
-    clock_.SetTime(time);
-    clock_.Play();
+    clock_->SetTime(time);
+    clock_->Play();
     return;
   }
-  clock_.SetTime(time);
+  clock_->SetTime(time);
 }
 
 void PipelineImpl::SetDuration(base::TimeDelta duration) {
@@ -693,7 +694,7 @@ void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   {
     AutoLock auto_lock(lock_);
-    clock_.SetPlaybackRate(playback_rate);
+    clock_->SetPlaybackRate(playback_rate);
   }
   for (FilterVector::iterator iter = filters_.begin();
        iter != filters_.end();
@@ -745,7 +746,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
     AutoLock auto_lock(lock_);
     // If we are waiting for a clock update, the clock hasn't been played yet.
     if (!waiting_for_clock_update_)
-      clock_.Pause();
+      clock_->Pause();
   }
   filters_.front()->Pause(
       NewCallback(this, &PipelineImpl::OnFilterStateTransition));
@@ -762,8 +763,20 @@ void PipelineImpl::NotifyEndedTask() {
   DCHECK(audio_renderer_ || video_renderer_);
 
   // Make sure every extant renderer has ended.
-  if ((audio_renderer_ && !audio_renderer_->HasEnded() && !audio_disabled_) ||
-      (video_renderer_ && !video_renderer_->HasEnded())) {
+  if (audio_renderer_ && !audio_disabled_) {
+    if (!audio_renderer_->HasEnded()) {
+      return;
+    }
+
+    if (waiting_for_clock_update_) {
+      // Start clock since there is no more audio to
+      // trigger clock updates.
+      waiting_for_clock_update_ = false;
+      clock_->Play();
+    }
+  }
+
+  if (video_renderer_ && !video_renderer_->HasEnded()) {
     return;
   }
 
@@ -821,7 +834,7 @@ void PipelineImpl::FilterStateTransitionTask() {
     state_ = FindNextState(state_);
     if (state_ == kSeeking) {
       AutoLock auto_lock(lock_);
-      clock_.SetTime(seek_timestamp_);
+      clock_->SetTime(seek_timestamp_);
     }
 
     if (TransientState(state_)) {
@@ -866,7 +879,7 @@ void PipelineImpl::FilterStateTransitionTask() {
         rendered_mime_types_.find(mime_type::kMajorTypeAudio) !=
         rendered_mime_types_.end();
     if (!waiting_for_clock_update_)
-      clock_.Play();
+      clock_->Play();
 
     if (IsPipelineStopPending()) {
       // We had a pending stop request need to be honored right now.
