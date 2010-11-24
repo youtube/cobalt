@@ -8,6 +8,12 @@
 #include "base/basictypes.h"
 
 struct AudioParameters {
+  // Compare is useful when AudioParameters is used as a key in std::map.
+  class Compare {
+   public:
+    bool operator()(const AudioParameters& a, const AudioParameters& b) const;
+  };
+
   enum Format {
     AUDIO_PCM_LINEAR = 0,     // PCM is 'raw' amplitude samples.
     AUDIO_PCM_LOW_LATENCY,    // Linear PCM, low latency requested.
