@@ -187,6 +187,7 @@
             '../sandbox/sandbox.gyp:sbox_integration_tests',
             '../sandbox/sandbox.gyp:sbox_unittests',
             '../sandbox/sandbox.gyp:sbox_validation_tests',
+            '../views/views.gyp:views_unittests',
             '../webkit/support/webkit_support.gyp:npapi_layout_test_plugin',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
             # This should:
