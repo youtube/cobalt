@@ -30,6 +30,14 @@ bool EvictFileFromSystemCache(const FilePath& file);
 bool CopyRecursiveDirNoCache(const FilePath& source_dir,
                              const FilePath& dest_dir);
 
+#if defined(OS_WIN)
+// Returns true if the volume supports Alternate Data Streams.
+bool VolumeSupportsADS(const FilePath& path);
+
+// Returns true if the ZoneIdentifier is correctly set to "Internet" (3).
+bool HasInternetZoneIdentifier(const FilePath& full_path);
+#endif  // defined(OS_WIN)
+
 }  // namespace file_util
 
 #endif  // BASE_TEST_TEST_FILE_UTIL_H_
