@@ -163,30 +163,27 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text) {
 }
 #endif
 
-bool AdjustStringForLocaleDirection(const string16& text,
-                                    string16* localized_text) {
-  if (!IsRTL() || text.empty())
+bool AdjustStringForLocaleDirection(string16* text) {
+  if (!IsRTL() || text->empty())
     return false;
 
   // Marking the string as LTR if the locale is RTL and the string does not
   // contain strong RTL characters. Otherwise, mark the string as RTL.
-  *localized_text = text;
-  bool has_rtl_chars = StringContainsStrongRTLChars(text);
+  bool has_rtl_chars = StringContainsStrongRTLChars(*text);
   if (!has_rtl_chars)
-    WrapStringWithLTRFormatting(localized_text);
+    WrapStringWithLTRFormatting(text);
   else
-    WrapStringWithRTLFormatting(localized_text);
+    WrapStringWithRTLFormatting(text);
 
   return true;
 }
 
 #if defined(WCHAR_T_IS_UTF32)
-bool AdjustStringForLocaleDirection(const std::wstring& text,
-                                    std::wstring* localized_text) {
-  string16 out;
-  if (AdjustStringForLocaleDirection(WideToUTF16(text), &out)) {
+bool AdjustStringForLocaleDirection(std::wstring* text) {
+  string16 temp = WideToUTF16(*text);
+  if (AdjustStringForLocaleDirection(&temp)) {
     // We should only touch the output on success.
-    *localized_text = UTF16ToWide(out);
+    *text = UTF16ToWide(temp);
     return true;
   }
   return false;

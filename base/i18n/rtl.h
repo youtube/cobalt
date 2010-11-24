@@ -71,13 +71,12 @@ TextDirection GetFirstStrongCharacterDirection(const string16& text);
 TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
 #endif
 
-// Given the string in |text|, this function creates a copy of the string with
+// Given the string in |text|, this function modifies the string in place with
 // the appropriate Unicode formatting marks that mark the string direction
-// (either left-to-right or right-to-left). The new string is returned in
-// |localized_text|. The function checks both the current locale and the
-// contents of the string in order to determine the direction of the returned
-// string. The function returns true if the string in |text| was properly
-// adjusted.
+// (either left-to-right or right-to-left). The function checks both the current
+// locale and the contents of the string in order to determine the direction of
+// the returned string. The function returns true if the string in |text| was
+// properly adjusted.
 //
 // Certain LTR strings are not rendered correctly when the context is RTL. For
 // example, the string "Foo!" will appear as "!Foo" if it is rendered as is in
@@ -85,16 +84,7 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
 // string is always treated as a right-to-left string. This is done by
 // inserting certain Unicode formatting marks into the returned string.
 //
-// TODO(brettw) bug 47194: This funciton is confusing. If it does no adjustment
-// becuase the current locale is not RTL, it will do nothing and return false.
-// This means you have to check the return value in many cases which doesn't
-// make sense. This should be cleaned up and probably just take a single
-// argument that's a pointer to a string that it modifies as necessary. In the
-// meantime, the recommended usage is to use the same arg as input & output,
-// which will work without extra checks:
-//   AdjustStringForLocaleDirection(text, &text);
-//
-// TODO(idana) bug# 1206120: this function adjusts the string in question only
+// TODO(idana) bug 6806: this function adjusts the string in question only
 // if the current locale is right-to-left. The function does not take care of
 // the opposite case (an RTL string displayed in an LTR context) since
 // adjusting the string involves inserting Unicode formatting characters that
@@ -102,11 +92,9 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
 // installed. Since the English version of Windows doesn't have right-to-left
 // language support installed by default, inserting the direction Unicode mark
 // results in Windows displaying squares.
-bool AdjustStringForLocaleDirection(const string16& text,
-                                    string16* localized_text);
+bool AdjustStringForLocaleDirection(string16* text);
 #if defined(WCHAR_T_IS_UTF32)
-bool AdjustStringForLocaleDirection(const std::wstring& text,
-                                    std::wstring* localized_text);
+bool AdjustStringForLocaleDirection(std::wstring* text);
 #endif
 
 // Returns true if the string contains at least one character with strong right
