@@ -37,3 +37,25 @@ bool AudioParameters::IsValid() const {
 int AudioParameters::GetPacketSize() const {
   return samples_per_packet * channels * bits_per_sample / 8;
 }
+
+bool AudioParameters::Compare::operator()(
+    const AudioParameters& a,
+    const AudioParameters& b) const {
+  if (a.format < b.format)
+    return true;
+  if (a.format > b.format)
+    return false;
+  if (a.channels < b.channels)
+    return true;
+  if (a.channels > b.channels)
+    return false;
+  if (a.sample_rate < b.sample_rate)
+    return true;
+  if (a.sample_rate > b.sample_rate)
+    return false;
+  if (a.bits_per_sample < b.bits_per_sample)
+    return true;
+  if (a.bits_per_sample > b.bits_per_sample)
+    return false;
+  return a.samples_per_packet < b.samples_per_packet;
+}
