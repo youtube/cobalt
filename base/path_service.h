@@ -45,11 +45,6 @@ class PathService {
   // over the lifetime of the app, so this method should be used with caution.
   static bool Override(int key, const FilePath& path);
 
-  // Return whether a path was overridden.
-  // TODO(evan): temporarily restoring this to quick-fix a regression.
-  // Remove me again once it's fixed properly.
-  static bool IsOverridden(int key);
-
   // To extend the set of supported keys, you can register a path provider,
   // which is just a function mirroring PathService::Get.  The ProviderFunc
   // returns false if it cannot provide a non-empty path for the given key.
