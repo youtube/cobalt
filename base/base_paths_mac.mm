@@ -47,7 +47,7 @@ bool PathProviderMac(int key, FilePath* result) {
     case base::FILE_MODULE: {
       return GetNSExecutablePath(result);
     }
-    case base::DIR_USER_CACHE:
+    case base::DIR_CACHE:
       return mac_util::GetUserDirectory(NSCachesDirectory, result);
     case base::DIR_APP_DATA:
       return mac_util::GetUserDirectory(NSApplicationSupportDirectory, result);
