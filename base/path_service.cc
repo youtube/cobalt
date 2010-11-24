@@ -215,6 +215,14 @@ bool PathService::Get(int key, std::wstring* result) {
 }
 #endif
 
+// TODO(evan): remove me -- see comments in header.
+bool PathService::IsOverridden(int key) {
+  PathData* path_data = GetPathData();
+  DCHECK(path_data);
+  AutoLock scoped_lock(path_data->lock);
+  return path_data->overrides.find(key) != path_data->overrides.end();
+}
+
 bool PathService::Override(int key, const FilePath& path) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
