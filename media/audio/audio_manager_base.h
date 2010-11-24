@@ -5,8 +5,12 @@
 #ifndef MEDIA_AUDIO_AUDIO_MANAGER_BASE_H_
 #define MEDIA_AUDIO_AUDIO_MANAGER_BASE_H_
 
+#include <map>
+
 #include "base/thread.h"
 #include "media/audio/audio_manager.h"
+
+class AudioOutputDispatcher;
 
 // AudioManagerBase provides AudioManager functions common for all platforms.
 class AudioManagerBase : public AudioManager {
@@ -19,8 +23,15 @@ class AudioManagerBase : public AudioManager {
 
   virtual string16 GetAudioInputDeviceModel();
 
+  virtual AudioOutputStream* MakeAudioOutputStreamProxy(
+      const AudioParameters& params);
+
  protected:
-  virtual ~AudioManagerBase() {}
+  virtual ~AudioManagerBase();
+
+  typedef std::map<AudioParameters, scoped_refptr<AudioOutputDispatcher>,
+                   AudioParameters::Compare>
+      AudioOutputDispatchersMap;
 
   bool initialized() { return initialized_; }
 
@@ -29,6 +40,8 @@ class AudioManagerBase : public AudioManager {
   base::Thread audio_thread_;
 
   bool initialized_;
+
+  AudioOutputDispatchersMap output_dispatchers_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerBase);
 };

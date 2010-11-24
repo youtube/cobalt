@@ -6,6 +6,7 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/linux/alsa_input.h"
@@ -94,6 +95,10 @@ AudioManagerLinux::~AudioManagerLinux() {
   // This way we make sure activities of the audio streams are all stopped
   // before we destroy them.
   audio_thread_.Stop();
+
+  // Free output dispatchers, closing all remaining open streams.
+  output_dispatchers_.clear();
+
   active_streams_.clear();
 }
 

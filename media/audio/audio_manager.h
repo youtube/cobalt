@@ -54,6 +54,13 @@ class AudioManager {
   // Do not free the returned AudioOutputStream. It is owned by AudioManager.
   virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params) = 0;
 
+  // Creates new audio output proxy. A proxy implements
+  // AudioOutputStream interface, but unlike regular output stream
+  // created with MakeAudioOutputStream() it opens device only when a
+  // sound is actually playing.
+  virtual AudioOutputStream* MakeAudioOutputStreamProxy(
+      const AudioParameters& params) = 0;
+
   // Factory to create audio recording streams.
   // |channels| can be 1 or 2.
   // |sample_rate| is in hertz and can be any value supported by the platform.

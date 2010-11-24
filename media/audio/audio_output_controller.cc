@@ -142,7 +142,7 @@ void AudioOutputController::DoCreate(AudioParameters params) {
     return;
   DCHECK(state_ == kEmpty);
 
-  stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(params);
+  stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStreamProxy(params);
   if (!stream_) {
     // TODO(hclam): Define error types.
     handler_->OnError(this, 0);
