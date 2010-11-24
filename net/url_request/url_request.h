@@ -302,7 +302,7 @@ class URLRequest : public NonThreadSafe {
   // expected modification time is provided (non-zero), it will be used to
   // check if the underlying file has been changed or not. The granularity of
   // the time comparison is 1 second since time_t precision is used in WebKit.
-  void AppendBytesToUpload(const char* bytes, int bytes_len);
+  void AppendBytesToUpload(const char* bytes, int bytes_len);  // takes a copy
   void AppendFileRangeToUpload(const FilePath& file_path,
                                uint64 offset, uint64 length,
                                const base::Time& expected_modification_time);
@@ -431,9 +431,7 @@ class URLRequest : public NonThreadSafe {
   // and the response has not yet been called).
   bool is_pending() const { return is_pending_; }
 
-  // Returns the error status of the request.  This value is 0 if there is no
-  // error.  Otherwise, it is a value defined by the operating system (e.g., an
-  // error code returned by GetLastError() on windows).
+  // Returns the error status of the request.
   const URLRequestStatus& status() const { return status_; }
 
   // This method is called to start the request.  The delegate will receive
