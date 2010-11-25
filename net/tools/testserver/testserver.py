@@ -27,13 +27,6 @@ import time
 import urlparse
 import warnings
 
-# If we use simplejson always, we get some warnings when we run under
-# 2.6.
-if sys.version_info < (2, 6):
-  import simplejson as json
-else:
-  import json
-
 # Ignore deprecation warnings, they make our output more cluttered.
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -1328,22 +1321,15 @@ def main(options, args):
   # Notify the parent that we've started. (BaseServer subclasses
   # bind their sockets on construction.)
   if options.startup_pipe is not None:
-    server_data = {
-      'port': listen_port
-    }
-    server_data_json = json.dumps(server_data)
-    debug('sending server_data: %s' % server_data_json)
-    server_data_len = len(server_data_json)
     if sys.platform == 'win32':
       fd = msvcrt.open_osfhandle(options.startup_pipe, 0)
     else:
       fd = options.startup_pipe
     startup_pipe = os.fdopen(fd, "w")
-    # First write the data length as an unsigned 4-byte value.  This
-    # is _not_ using network byte ordering since the other end of the
-    # pipe is on the same machine.
-    startup_pipe.write(struct.pack('=L', server_data_len))
-    startup_pipe.write(server_data_json)
+    # Write the listening port as a 2 byte value. This is _not_ using
+    # network byte ordering since the other end of the pipe is on the same
+    # machine.
+    startup_pipe.write(struct.pack('@H', listen_port))
     startup_pipe.close()
 
   try:
