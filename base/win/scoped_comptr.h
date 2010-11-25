@@ -82,6 +82,11 @@ class ScopedComPtr : public scoped_refptr<Interface> {
     return &ptr_;
   }
 
+  // A convenience for whenever a void pointer is needed as an out argument.
+  void** ReceiveVoid() {
+    return reinterpret_cast<void**>(Receive());
+  }
+
   template <class Query>
   HRESULT QueryInterface(Query** p) {
     DCHECK(p != NULL);
