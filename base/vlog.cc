@@ -36,11 +36,12 @@ VlogInfo::VlogInfo(const std::string& v_switch,
 
   typedef std::pair<std::string, std::string> KVPair;
   int vlog_level = 0;
-  if (!v_switch.empty() && base::StringToInt(v_switch, &vlog_level)) {
-    SetMaxVlogLevel(vlog_level);
-  } else {
-    LOG(WARNING) << "Parsed v switch \""
-                 << v_switch << "\" as " << vlog_level;
+  if (!v_switch.empty()) {
+    if (base::StringToInt(v_switch, &vlog_level)) {
+      SetMaxVlogLevel(vlog_level);
+    } else {
+      LOG(WARNING) << "Could not parse v switch \"" << v_switch << "\"";
+    }
   }
 
   std::vector<KVPair> kv_pairs;
