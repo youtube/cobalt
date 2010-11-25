@@ -29,6 +29,7 @@ class Time;
 }  // namespace base
 
 namespace net {
+class CookieOptions;
 class IOBuffer;
 class SSLCertRequestInfo;
 class UploadData;
@@ -187,6 +188,7 @@ class URLRequest : public NonThreadSafe {
     // when LOAD_DO_NOT_SAVE_COOKIES is specified.
     virtual void OnSetCookie(URLRequest* request,
                              const std::string& cookie_line,
+                             const net::CookieOptions& options,
                              bool blocked_by_policy);
 
     // After calling Start(), the delegate will receive an OnResponseStarted
