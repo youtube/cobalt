@@ -475,6 +475,7 @@ void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
       request_->delegate()->OnSetCookie(
           request_,
           response_cookies_[response_cookies_save_index_],
+          net::CookieOptions(),
           true);
     } else if ((policy == net::OK || policy == net::OK_FOR_SESSION_ONLY) &&
                request_->context()->cookie_store()) {
@@ -489,6 +490,7 @@ void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
       request_->delegate()->OnSetCookie(
           request_,
           response_cookies_[response_cookies_save_index_],
+          options,
           false);
     }
     response_cookies_save_index_++;
