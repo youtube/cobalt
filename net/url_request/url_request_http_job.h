@@ -15,6 +15,7 @@
 #include "net/base/completion_callback.h"
 #include "net/http/http_request_info.h"
 #include "net/url_request/url_request_job.h"
+#include "net/url_request/url_request_throttler_entry_interface.h"
 
 namespace net {
 class HttpResponseInfo;
@@ -111,6 +112,9 @@ class URLRequestHttpJob : public URLRequestJob {
   GURL sdch_dictionary_url_;
 
   scoped_ptr<net::HttpTransaction> transaction_;
+
+  // This is used to supervise traffic and enforce exponential back-off.
+  scoped_refptr<net::URLRequestThrottlerEntryInterface> throttling_entry_;
 
   // Indicated if an SDCH dictionary was advertised, and hence an SDCH
   // compressed response is expected.  We use this to help detect (accidental?)

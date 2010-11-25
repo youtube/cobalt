@@ -33,6 +33,8 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_redirect_job.h"
+#include "net/url_request/url_request_throttler_header_adapter.h"
+#include "net/url_request/url_request_throttler_manager.h"
 
 static const char kAvailDictionaryHeader[] = "Avail-Dictionary";
 
@@ -91,6 +93,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
           this, &URLRequestHttpJob::OnReadCompleted)),
       read_in_progress_(false),
       transaction_(NULL),
+      throttling_entry_(net::URLRequestThrottlerManager::GetInstance()->
+          RegisterRequestUrl(request->url())),
       sdch_dictionary_advertised_(false),
       sdch_test_activated_(false),
       sdch_test_control_(false),
@@ -569,6 +573,12 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // also need this info.
   is_cached_content_ = response_info_->was_cached;
 
+  if (!is_cached_content_) {
+    net::URLRequestThrottlerHeaderAdapter response_adapter(
+        response_info_->headers);
+    throttling_entry_->UpdateWithResponse(&response_adapter);
+  }
+
   ProcessStrictTransportSecurityHeader();
 
   if (SdchManager::Global() &&
@@ -618,6 +628,7 @@ void URLRequestHttpJob::StartTransaction() {
   // with auth provided by username_ and password_.
 
   int rv;
+
   if (transaction_.get()) {
     rv = transaction_->RestartWithAuth(username_, password_, &start_callback_);
     username_.clear();
@@ -629,8 +640,13 @@ void URLRequestHttpJob::StartTransaction() {
     rv = request_->context()->http_transaction_factory()->CreateTransaction(
         &transaction_);
     if (rv == net::OK) {
-      rv = transaction_->Start(
-          &request_info_, &start_callback_, request_->net_log());
+      if (!throttling_entry_->IsDuringExponentialBackoff()) {
+        rv = transaction_->Start(
+            &request_info_, &start_callback_, request_->net_log());
+      } else {
+        // Special error code for the exponential back-off module.
+        rv = net::ERR_TEMPORARILY_THROTTLED;
+      }
       // Make sure the context is alive for the duration of the
       // transaction.
       context_ = request_->context();
