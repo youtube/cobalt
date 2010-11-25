@@ -210,6 +210,9 @@ NET_ERROR(NAME_RESOLUTION_FAILED, -137)
 // errors. See also ERR_ACCESS_DENIED.
 NET_ERROR(NETWORK_ACCESS_DENIED, -138)
 
+// The request throttler module cancelled this request to avoid DDOS.
+NET_ERROR(TEMPORARILY_THROTTLED, -139)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
