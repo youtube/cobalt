@@ -146,6 +146,10 @@ class TestServer {
   // Waits for the server to start. Returns true on success.
   bool WaitToStart() WARN_UNUSED_RESULT;
 
+  // Parses the server data read from the test server.  Returns true
+  // on success.
+  bool ParseServerData(const std::string& server_data) WARN_UNUSED_RESULT;
+
   // Returns path to the root certificate.
   FilePath GetRootCertificatePath();
 
