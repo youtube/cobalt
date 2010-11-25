@@ -14,8 +14,8 @@
         'sources': [
           '../build/build_config.h',
           'third_party/dmg_fp/dmg_fp.h',
-          'third_party/dmg_fp/dtoa.cc',
           'third_party/dmg_fp/g_fmt.cc',
+          'third_party/dmg_fp/dtoa_wrapper.cc',
           'third_party/icu/icu_utf.cc',
           'third_party/icu/icu_utf.h',
           'third_party/nspr/prtime.cc',
