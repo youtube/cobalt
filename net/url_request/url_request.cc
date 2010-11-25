@@ -89,6 +89,7 @@ void URLRequest::Delegate::OnGetCookies(URLRequest* request,
 
 void URLRequest::Delegate::OnSetCookie(URLRequest* request,
                                        const std::string& cookie_line,
+                                       const net::CookieOptions& options,
                                        bool blocked_by_policy) {
 }
 
