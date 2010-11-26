@@ -15,7 +15,7 @@ class URLRequestThrottlerHeaderInterface;
 
 // Interface provided on entries of the URL request throttler manager.
 class URLRequestThrottlerEntryInterface
-    : public base::RefCounted<URLRequestThrottlerEntryInterface> {
+    : public base::RefCountedThreadSafe<URLRequestThrottlerEntryInterface> {
  public:
   URLRequestThrottlerEntryInterface() {}
 
@@ -51,6 +51,7 @@ class URLRequestThrottlerEntryInterface
   virtual void ReceivedContentWasMalformed() = 0;
 
  protected:
+  friend class base::RefCountedThreadSafe<URLRequestThrottlerEntryInterface>;
   virtual ~URLRequestThrottlerEntryInterface() {}
 
  private:
