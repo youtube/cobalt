@@ -20,6 +20,7 @@ import optparse
 import os
 import re
 import shutil
+import simplejson
 import SocketServer
 import sys
 import struct
@@ -1321,6 +1322,12 @@ def main(options, args):
   # Notify the parent that we've started. (BaseServer subclasses
   # bind their sockets on construction.)
   if options.startup_pipe is not None:
+    server_data = {
+      'port': listen_port
+    }
+    server_data_json = simplejson.dumps(server_data)
+    debug('sending server_data: %s' % server_data_json)
+    server_data_len = len(server_data_json)
     if sys.platform == 'win32':
       fd = msvcrt.open_osfhandle(options.startup_pipe, 0)
     else:
@@ -1329,7 +1336,7 @@ def main(options, args):
     # Write the listening port as a 2 byte value. This is _not_ using
     # network byte ordering since the other end of the pipe is on the same
     # machine.
-    startup_pipe.write(struct.pack('@H', listen_port))
+    startup_pipe.write(struct.pack('@H', server_data['port']))
     startup_pipe.close()
 
   try:
