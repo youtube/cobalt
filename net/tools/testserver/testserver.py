@@ -1322,11 +1322,6 @@ def main(options, args):
   # Notify the parent that we've started. (BaseServer subclasses
   # bind their sockets on construction.)
   if options.startup_pipe is not None:
-    server_data = {
-      'port': listen_port
-    }
-    server_data_json = simplejson.dumps(server_data)
-    debug('sending server_data: %s' % server_data_json)
     if sys.platform == 'win32':
       fd = msvcrt.open_osfhandle(options.startup_pipe, 0)
     else:
