@@ -20,6 +20,7 @@ import optparse
 import os
 import re
 import shutil
+import simplejson
 import SocketServer
 import sys
 import struct
