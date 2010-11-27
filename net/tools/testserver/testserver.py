@@ -13,15 +13,18 @@ It can use https if you specify the flag --https=CERT where CERT is the path
 to a pem file containing the certificate and private key that should be used.
 """
 
+import asyncore
 import base64
 import BaseHTTPServer
 import cgi
+import errno
 import optparse
 import os
 import re
-import shutil
+import select
 import simplejson
 import SocketServer
+import socket
 import sys
 import struct
 import time
@@ -117,11 +120,90 @@ class SyncHTTPServer(StoppableHTTPServer):
     # We import here to avoid pulling in chromiumsync's dependencies
     # unless strictly necessary.
     import chromiumsync
-    self._sync_handler = chromiumsync.TestServer()
+    import xmppserver
     StoppableHTTPServer.__init__(self, server_address, request_handler_class)
+    self._sync_handler = chromiumsync.TestServer()
+    self._xmpp_socket_map = {}
+    self._xmpp_server = xmppserver.XmppServer(
+      self._xmpp_socket_map, ('localhost', 0))
+    self.xmpp_port = self._xmpp_server.getsockname()[1]
 
   def HandleCommand(self, query, raw_request):
     return self._sync_handler.HandleCommand(query, raw_request)
+
+  def HandleRequestNoBlock(self):
+    """Handles a single request.
+
+    Copied from SocketServer._handle_request_noblock().
+    """
+    try:
+      request, client_address = self.get_request()
+    except socket.error:
+      return
+    if self.verify_request(request, client_address):
+      try:
+        self.process_request(request, client_address)
+      except:
+        self.handle_error(request, client_address)
+        self.close_request(request)
+
+  def serve_forever(self):
+    """This is a merge of asyncore.loop() and SocketServer.serve_forever().
+    """
+
+    def RunDispatcherHandler(dispatcher, handler):
+      """Handles a single event for an asyncore.dispatcher.
+
+      Adapted from asyncore.read() et al.
+      """
+      try:
+        handler(dispatcher)
+      except (asyncore.ExitNow, KeyboardInterrupt, SystemExit):
+        raise
+      except:
+        dispatcher.handle_error()
+
+    while True:
+      read_fds = [ self.fileno() ]
+      write_fds = []
+      exceptional_fds = []
+
+      for fd, xmpp_connection in self._xmpp_socket_map.items():
+        is_r = xmpp_connection.readable()
+        is_w = xmpp_connection.writable()
+        if is_r:
+          read_fds.append(fd)
+        if is_w:
+          write_fds.append(fd)
+        if is_r or is_w:
+          exceptional_fds.append(fd)
+
+      try:
+        read_fds, write_fds, exceptional_fds = (
+          select.select(read_fds, write_fds, exceptional_fds))
+      except select.error, err:
+        if err.args[0] != errno.EINTR:
+          raise
+        else:
+          continue
+
+      for fd in read_fds:
+        if fd == self.fileno():
+          self.HandleRequestNoBlock()
+          continue
+        xmpp_connection = self._xmpp_socket_map.get(fd)
+        RunDispatcherHandler(xmpp_connection,
+                             asyncore.dispatcher.handle_read_event)
+
+      for fd in write_fds:
+        xmpp_connection = self._xmpp_socket_map.get(fd)
+        RunDispatcherHandler(xmpp_connection,
+                             asyncore.dispatcher.handle_write_event)
+
+      for fd in exceptional_fds:
+        xmpp_connection = self._xmpp_socket_map.get(fd)
+        RunDispatcherHandler(xmpp_connection,
+                             asyncore.dispatcher.handle_expt_event)
 
 
 class BasePageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -1265,6 +1347,8 @@ def main(options, args):
 
   port = options.port
 
+  server_data = {}
+
   if options.server_type == SERVER_HTTP:
     if options.cert:
       # let's make sure the cert file exists.
@@ -1287,12 +1371,14 @@ def main(options, args):
 
     server.data_dir = MakeDataDir()
     server.file_root_url = options.file_root_url
-    listen_port = server.server_port
+    server_data['port'] = server.server_port
     server._device_management_handler = None
   elif options.server_type == SERVER_SYNC:
     server = SyncHTTPServer(('127.0.0.1', port), SyncPageHandler)
     print 'Sync HTTP server started on port %d...' % server.server_port
-    listen_port = server.server_port
+    print 'Sync XMPP server started on port %d...' % server.xmpp_port
+    server_data['port'] = server.server_port
+    server_data['xmpp_port'] = server.xmpp_port
   # means FTP Server
   else:
     my_data_dir = MakeDataDir()
@@ -1317,15 +1403,12 @@ def main(options, args):
     # Instantiate FTP server class and listen to 127.0.0.1:port
     address = ('127.0.0.1', port)
     server = pyftpdlib.ftpserver.FTPServer(address, ftp_handler)
-    listen_port = server.socket.getsockname()[1]
-    print 'FTP server started on port %d...' % listen_port
+    server_data['port'] = server.socket.getsockname()[1]
+    print 'FTP server started on port %d...' % server_data['port']
 
   # Notify the parent that we've started. (BaseServer subclasses
   # bind their sockets on construction.)
   if options.startup_pipe is not None:
-    server_data = {
-      'port': listen_port
-    }
     server_data_json = simplejson.dumps(server_data)
     server_data_len = len(server_data_json)
     print 'sending server_data: %s (%d bytes)' % (
