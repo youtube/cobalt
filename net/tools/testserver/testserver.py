@@ -49,6 +49,7 @@ SERVER_HTTP = 0
 SERVER_FTP = 1
 SERVER_SYNC = 2
 
+# Using debug() seems to cause hangs on XP: see http://crbug.com/64515 .
 debug_output = sys.stderr
 def debug(str):
   debug_output.write(str + "\n")
@@ -1326,15 +1327,19 @@ def main(options, args):
       'port': listen_port
     }
     server_data_json = simplejson.dumps(server_data)
+    server_data_len = len(server_data_json)
+    print 'sending server_data: %s (%d bytes)' % (
+      server_data_json, server_data_len)
     if sys.platform == 'win32':
       fd = msvcrt.open_osfhandle(options.startup_pipe, 0)
     else:
       fd = options.startup_pipe
     startup_pipe = os.fdopen(fd, "w")
-    # Write the listening port as a 2 byte value. This is _not_ using
-    # network byte ordering since the other end of the pipe is on the same
-    # machine.
-    startup_pipe.write(struct.pack('@H', listen_port))
+    # First write the data length as an unsigned 4-byte value.  This
+    # is _not_ using network byte ordering since the other end of the
+    # pipe is on the same machine.
+    startup_pipe.write(struct.pack('=L', server_data_len))
+    startup_pipe.write(server_data_json)
     startup_pipe.close()
 
   try:
