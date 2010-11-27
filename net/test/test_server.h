@@ -28,6 +28,7 @@
 #endif
 
 class CommandLine;
+class DictionaryValue;
 class GURL;
 
 namespace net {
@@ -116,6 +117,7 @@ class TestServer {
 
   const FilePath& document_root() const { return document_root_; }
   const HostPortPair& host_port_pair() const;
+  const DictionaryValue& server_data() const;
   std::string GetScheme() const;
   bool GetAddressList(AddressList* address_list) const WARN_UNUSED_RESULT;
 
@@ -171,6 +173,9 @@ class TestServer {
 
   // Address the test server listens on.
   HostPortPair host_port_pair_;
+
+  // Holds the data sent from the server (e.g., port number).
+  scoped_ptr<DictionaryValue> server_data_;
 
   // Handle of the Python process running the test server.
   base::ProcessHandle process_handle_;
