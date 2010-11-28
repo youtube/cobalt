@@ -17,7 +17,7 @@ class URLRequestFileDirJob
   : public URLRequestJob,
     public net::DirectoryLister::DirectoryListerDelegate {
  public:
-  URLRequestFileDirJob(URLRequest* request, const FilePath& dir_path);
+  URLRequestFileDirJob(net::URLRequest* request, const FilePath& dir_path);
 
   // URLRequestJob methods:
   virtual void Start();
