@@ -27,10 +27,11 @@ class URLRequestContext;
 // provides an implementation for both HTTP and HTTPS.
 class URLRequestHttpJob : public URLRequestJob {
  public:
-  static URLRequestJob* Factory(URLRequest* request, const std::string& scheme);
+  static URLRequestJob* Factory(net::URLRequest* request,
+                                const std::string& scheme);
 
  protected:
-  explicit URLRequestHttpJob(URLRequest* request);
+  explicit URLRequestHttpJob(net::URLRequest* request);
 
   // URLRequestJob methods:
   virtual void SetUpload(net::UploadData* upload);
