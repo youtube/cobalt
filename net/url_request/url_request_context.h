@@ -31,8 +31,8 @@ class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
 class HttpTransactionFactory;
 class SSLConfigService;
-}
 class URLRequest;
+}  // namespace net
 
 // Subclass to provide application-specific context for URLRequest instances.
 class URLRequestContext
