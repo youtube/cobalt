@@ -9,7 +9,7 @@
 #include "net/base/net_errors.h"
 #include "net/url_request/url_request_status.h"
 
-URLRequestSimpleJob::URLRequestSimpleJob(URLRequest* request)
+URLRequestSimpleJob::URLRequestSimpleJob(net::URLRequest* request)
     : URLRequestJob(request),
       data_offset_(0) {
 }

@@ -18,8 +18,8 @@ URLRequestFilter* URLRequestFilter::GetInstance() {
 }
 
 /* static */
-URLRequestJob* URLRequestFilter::Factory(URLRequest* request,
-                                         const std::string& scheme) {
+net::URLRequestJob* URLRequestFilter::Factory(net::URLRequest* request,
+                                              const std::string& scheme) {
   // Returning null here just means that the built-in handler will be used.
   return GetInstance()->FindRequestHandler(request, scheme);
 }
@@ -112,9 +112,10 @@ void URLRequestFilter::ClearHandlers() {
 
 URLRequestFilter::URLRequestFilter() : hit_count_(0) { }
 
-URLRequestJob* URLRequestFilter::FindRequestHandler(URLRequest* request,
-                                                    const std::string& scheme) {
-  URLRequestJob* job = NULL;
+net::URLRequestJob* URLRequestFilter::FindRequestHandler(
+    net::URLRequest* request,
+    const std::string& scheme) {
+  net::URLRequestJob* job = NULL;
   if (request->url().is_valid()) {
     // Check the hostname map first.
     const std::string& hostname = request->url().host();

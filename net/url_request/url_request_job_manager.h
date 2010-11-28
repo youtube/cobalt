@@ -33,18 +33,18 @@ class URLRequestJobManager {
   // Instantiate an URLRequestJob implementation based on the registered
   // interceptors and protocol factories.  This will always succeed in
   // returning a job unless we are--in the extreme case--out of memory.
-  URLRequestJob* CreateJob(URLRequest* request) const;
+  net::URLRequestJob* CreateJob(net::URLRequest* request) const;
 
   // Allows interceptors to hijack the request after examining the new location
   // of a redirect. Returns NULL if no interceptor intervenes.
-  URLRequestJob* MaybeInterceptRedirect(URLRequest* request,
-                                        const GURL& location) const;
+  net::URLRequestJob* MaybeInterceptRedirect(net::URLRequest* request,
+                                             const GURL& location) const;
 
   // Allows interceptors to hijack the request after examining the response
   // status and headers. This is also called when there is no server response
   // at all to allow interception of failed requests due to network errors.
   // Returns NULL if no interceptor intervenes.
-  URLRequestJob* MaybeInterceptResponse(URLRequest* request) const;
+  net::URLRequestJob* MaybeInterceptResponse(net::URLRequest* request) const;
 
   // Returns true if there is a protocol factory registered for the given
   // scheme.  Note: also returns true if there is a built-in handler for the

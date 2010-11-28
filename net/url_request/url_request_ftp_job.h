@@ -22,9 +22,10 @@ class URLRequestContext;
 class URLRequestFtpJob : public URLRequestJob {
  public:
 
-  explicit URLRequestFtpJob(URLRequest* request);
+  explicit URLRequestFtpJob(net::URLRequest* request);
 
-  static URLRequestJob* Factory(URLRequest* request, const std::string& scheme);
+  static URLRequestJob* Factory(net::URLRequest* request,
+                                const std::string& scheme);
 
   // URLRequestJob methods:
   virtual bool GetMimeType(std::string* mime_type) const;

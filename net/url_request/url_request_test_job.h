@@ -33,7 +33,7 @@
 //
 // Optionally, you can also construct test jobs that advance automatically
 // without having to call ProcessOnePendingMessage.
-class URLRequestTestJob : public URLRequestJob {
+class URLRequestTestJob : public net::URLRequestJob {
  public:
   // Constructs a job to return one of the canned responses depending on the
   // request url, with auto advance disabled.

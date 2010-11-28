@@ -10,11 +10,13 @@
 
 #include "net/url_request/url_request_job.h"
 
+namespace net {
 class URLRequest;
+}  // namespace net
 
-class URLRequestSimpleJob : public URLRequestJob {
+class URLRequestSimpleJob : public net::URLRequestJob {
  public:
-  explicit URLRequestSimpleJob(URLRequest* request);
+  explicit URLRequestSimpleJob(net::URLRequest* request);
 
   virtual void Start();
   virtual bool ReadRawData(net::IOBuffer* buf, int buf_size, int *bytes_read);
