@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,15 +13,16 @@
 
 class URLRequestErrorJob : public URLRequestJob {
  public:
-  URLRequestErrorJob(URLRequest* request, int error);
+  URLRequestErrorJob(net::URLRequest* request, int error);
 
   virtual void Start();
 
  private:
   ~URLRequestErrorJob() {}
 
-  int error_;
   void StartAsync();
+
+  int error_;
 };
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_ERROR_JOB_H_

@@ -6,7 +6,7 @@
 
 #include "base/message_loop.h"
 
-URLRequestRedirectJob::URLRequestRedirectJob(URLRequest* request,
+URLRequestRedirectJob::URLRequestRedirectJob(net::URLRequest* request,
                                              GURL redirect_destination)
     : URLRequestJob(request), redirect_destination_(redirect_destination) {
 }

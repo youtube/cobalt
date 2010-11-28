@@ -33,18 +33,19 @@ class CookieOptions;
 class IOBuffer;
 class SSLCertRequestInfo;
 class UploadData;
+class URLRequestJob;
 class X509Certificate;
 }  // namespace net
 
 class FilePath;
 class URLRequestContext;
-class URLRequestJob;
 
 // This stores the values of the Set-Cookie headers received during the request.
 // Each item in the vector corresponds to a Set-Cookie: line received,
 // excluding the "Set-Cookie:" part.
 typedef std::vector<std::string> ResponseCookies;
 
+namespace net {
 //-----------------------------------------------------------------------------
 // A class  representing the asynchronous load of a data stream from an URL.
 //
@@ -642,5 +643,9 @@ class URLRequest : public NonThreadSafe {
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };
+
+}  // namespace net
+
+typedef net::URLRequest URLRequest;
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_H_

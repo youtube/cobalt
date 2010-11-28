@@ -23,12 +23,14 @@ class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
 class UploadData;
-class X509Certificate;
-}
-
 class URLRequest;
+class X509Certificate;
+}  // namespace net
+
 class URLRequestStatus;
 class URLRequestJobMetrics;
+
+namespace net {
 
 class URLRequestJob : public base::RefCounted<URLRequestJob>,
                       public FilterContext {
@@ -40,11 +42,11 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   // congestion window on stalling of transmissions.
   static const size_t kSdchPacketHistogramCount = 5;
 
-  explicit URLRequestJob(URLRequest* request);
+  explicit URLRequestJob(net::URLRequest* request);
 
   // Returns the request that owns this job. THIS POINTER MAY BE NULL if the
   // request was destroyed.
-  URLRequest* request() const {
+  net::URLRequest* request() const {
     return request_;
   }
 
@@ -278,7 +280,7 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
 
   // The request that initiated this job. This value MAY BE NULL if the
   // request was released by DetachRequest().
-  URLRequest* request_;
+  net::URLRequest* request_;
 
   // The status of the job.
   const URLRequestStatus GetStatus();
@@ -419,5 +421,9 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestJob);
 };
+
+}  // namespace net
+
+typedef net::URLRequestJob URLRequestJob;
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_JOB_H_
