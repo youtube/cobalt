@@ -40,10 +40,8 @@ namespace base {
 
 namespace {
 
-// WaitpidWithTimeout performs a timed waitpid() call. The arguments and return
-// value match waitpid(2).
-pid_t WaitpidWithTimeout(ProcessHandle handle, int* status,
-                         int64 wait_milliseconds) {
+int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
+                       bool* success) {
   // This POSIX version of this function only guarantees that we wait no less
   // than |wait_milliseconds| for the process to exit.  The child process may
   // exit sometime before the timeout has ended but we may still block for up
@@ -65,15 +63,13 @@ pid_t WaitpidWithTimeout(ProcessHandle handle, int* status,
   // has been installed.  This means that when a SIGCHLD is sent, it will exit
   // depending on behavior external to this function.
   //
-  // This function is used in unit tests and by DidProcessCrash. See the
-  // comments in DidProcessCrash about its use in Chrome itself.
+  // This function is used primarily for unit tests, if we want to use it in
+  // the application itself it would probably be best to examine other routes.
+  int status = -1;
+  pid_t ret_pid = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
   static const int64 kMaxSleepInMicroseconds = 1 << 18;  // ~256 milliseconds.
   int64 max_sleep_time_usecs = 1 << 10;  // ~1 milliseconds.
-  int double_sleep_time = 0;
-
-  pid_t ret_pid = HANDLE_EINTR(waitpid(handle, status, WNOHANG));
-  if (ret_pid != 0)
-    return ret_pid;
+  int64 double_sleep_time = 0;
 
   // If the process hasn't exited yet, then sleep and try again.
   Time wakeup_time = Time::Now() +
@@ -91,7 +87,7 @@ pid_t WaitpidWithTimeout(ProcessHandle handle, int* status,
     // usleep() will return 0 and set errno to EINTR on receipt of a signal
     // such as SIGCHLD.
     usleep(sleep_time_usecs);
-    ret_pid = HANDLE_EINTR(waitpid(handle, status, WNOHANG));
+    ret_pid = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
 
     if ((max_sleep_time_usecs < kMaxSleepInMicroseconds) &&
         (double_sleep_time++ % 4 == 0)) {
@@ -99,7 +95,10 @@ pid_t WaitpidWithTimeout(ProcessHandle handle, int* status,
     }
   }
 
-  return ret_pid;
+  if (success)
+    *success = (ret_pid != -1);
+
+  return status;
 }
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
@@ -632,27 +631,15 @@ void RaiseProcessToHighPriority() {
 }
 
 bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
-  // We call DidProcessCrash when we see an EOF from a socket to that child.
-  // Sadly, the kernel is raceable: it will close a dead process's file
-  // descriptors before marking the process as dead. Therefore it's possible to
-  // see the EOF and still have a subsequent waitpid() return zero. (Had I
-  // known that from the beginning, child processing would have been designed
-  // differently.)
-  //
-  // Everything higher up copes with the case where waitpid fails, but we might
-  // lose some crash notifications. In order to minimise this we waitpid() in a
-  // loop with a timeout to try and catch the exit code. In the typical case,
-  // we should only be blocking for microseconds here.
-  //
-  // It's possible for a bad child to close its socket without exiting. Because
-  // we don't want to hang the browser in this case we have a timeout.
   int status;
-  pid_t pid = WaitpidWithTimeout(handle, &status, 250 /* milliseconds */);
-
-  if (pid == 0) {
-    // We waited for the full timeout and the child still isn't dead.
-    LOG(ERROR) << "We janked because we expected child "
-               << handle << " to have exited.";
+  const pid_t result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
+  if (result == -1) {
+    PLOG(ERROR) << "waitpid(" << handle << ")";
+    if (child_exited)
+      *child_exited = false;
+    return false;
+  } else if (result == 0) {
+    // the child hasn't exited yet.
     if (child_exited)
       *child_exited = false;
     return false;
@@ -698,10 +685,12 @@ bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
 
 bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
                                 int64 timeout_milliseconds) {
-  int status;
-  pid_t pid = WaitpidWithTimeout(handle, &status, timeout_milliseconds);
-
-  if (pid <= 0)
+  bool waitpid_success = false;
+  int status = WaitpidWithTimeout(handle, timeout_milliseconds,
+                                  &waitpid_success);
+  if (status == -1)
+    return false;
+  if (!waitpid_success)
     return false;
   if (!WIFEXITED(status))
     return false;
@@ -714,31 +703,30 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
 }
 
 bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
+  bool waitpid_success;
   int status;
-  pid_t pid;
-  if (wait_milliseconds == base::kNoTimeout) {
-    pid = (HANDLE_EINTR(waitpid(handle, &status, 0)) == handle);
+  if (wait_milliseconds == base::kNoTimeout)
+    waitpid_success = (HANDLE_EINTR(waitpid(handle, &status, 0)) != -1);
+  else
+    status = WaitpidWithTimeout(handle, wait_milliseconds, &waitpid_success);
+  if (status != -1) {
+    DCHECK(waitpid_success);
+    return WIFEXITED(status);
   } else {
-    pid = WaitpidWithTimeout(handle, &status, wait_milliseconds);
-  }
-
-  if (pid <= 0)
     return false;
-
-  return WIFEXITED(status);
+  }
 }
 
 bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds) {
-  int status;
-  pid_t pid = WaitpidWithTimeout(handle, &status, wait_milliseconds);
-  if (pid < 0) {
-    // If waitpid failed then the process probably didn't exist prior to the
-    // call.
-    return true;
-  } else if (pid == 0) {
-    return false;
-  } else {
+  bool waitpid_success;
+  int status = WaitpidWithTimeout(handle, wait_milliseconds, &waitpid_success);
+  if (status != -1) {
+    DCHECK(waitpid_success);
     return !(WIFEXITED(status) || WIFSIGNALED(status));
+  } else {
+    // If waitpid returned with an error, then the process doesn't exist
+    // (which most probably means it didn't exist before our call).
+    return waitpid_success;
   }
 }
 
