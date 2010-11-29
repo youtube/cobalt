@@ -79,7 +79,7 @@ typedef int8 UBool;
     ((uint32)(c)<0xd800 || \
         ((uint32)(c)>0xdfff && \
          (uint32)(c)<=0x10ffff && \
-         !U_IS_UNICODE_NONCHAR(c)))
+         !CBU_IS_UNICODE_NONCHAR(c)))
 
 /**
  * Is this code point a surrogate (U+d800..U+dfff)?
