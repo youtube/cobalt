@@ -38,7 +38,7 @@
     transaction.oncomplete = storeCreated;
 
     while (db.objectStoreNames.length)
-      db.removeObjectStore(db.objectStoreNames[0]);
+      db.deleteObjectStore(db.objectStoreNames[0]);
 
     db.createObjectStore('store');
   }
