@@ -179,3 +179,22 @@ TEST(CommandLineTest, AppendArguments) {
   EXPECT_TRUE(c1.HasSwitch("switch2"));
 }
 
+#if defined(OS_WIN)
+// Make sure that the program part of a command line is always quoted.
+// This only makes sense on Windows and the test is basically here to guard
+// against regressions.
+TEST(CommandLineTest, ProgramQuotes) {
+  const FilePath kProgram(L"Program");
+
+  // Check that quotes are not returned from GetProgram().
+  CommandLine cl(kProgram);
+  EXPECT_EQ(kProgram.value(), cl.GetProgram().value());
+
+  // Verify that in the command line string, the program part is always quoted.
+  CommandLine::StringType cmd(cl.command_line_string());
+  CommandLine::StringType program(cl.GetProgram().value());
+  EXPECT_EQ('"', cmd[0]);
+  EXPECT_EQ(program, cmd.substr(1, program.length()));
+  EXPECT_EQ('"', cmd[program.length() + 1]);
+}
+#endif
