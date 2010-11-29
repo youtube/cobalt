@@ -43,6 +43,7 @@ tags
 /chrome/test/data/layout_tests
 /chrome/test/data/osdd
 /chrome/test/data/plugin
+/chrome/test/data/pyauto_private
 /chrome/tools/memory
 /chrome/tools/test/reference_build
 /chrome_frame/tools/test/reference_build
