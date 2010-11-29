@@ -19,7 +19,7 @@
     if (!setup())
       testComplete(SETUP_FAILED);
 
-    var request = indexedDB.open('idb_basic_insert', '');
+    var request = indexedDB.open('idb_basic_insert');
     request.onsuccess = onOpen;
     request.onerror = error;
   }
