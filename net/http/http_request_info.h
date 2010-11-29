@@ -18,9 +18,12 @@ namespace net {
 struct HttpRequestInfo {
   enum RequestMotivation{
     // TODO(mbelshe): move these into Client Socket.
-    PRECONNECT_MOTIVATED,  // This request was motivated by a prefetch.
-    OMNIBOX_MOTIVATED,   // This request was motivated by the omnibox.
-    NORMAL_MOTIVATION    // No special motivation associated with the request.
+    PRECONNECT_MOTIVATED,  // Request was motivated by a prefetch.
+    OMNIBOX_MOTIVATED,     // Request was motivated by the omnibox.
+    NORMAL_MOTIVATION,     // No special motivation associated with the request.
+    EARLY_LOAD_MOTIVATED,  // When browser asks a tab to open an URL, this short
+                           // circuits that path (of waiting for the renderer to
+                           // do the URL request), and starts loading ASAP.
   };
 
   HttpRequestInfo();
