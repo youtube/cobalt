@@ -5,7 +5,6 @@
 #include "net/url_request/url_request.h"
 
 #include "base/compiler_specific.h"
-#include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/singleton.h"
@@ -587,12 +586,6 @@ int64 URLRequest::GetExpectedContentSize() const {
     expected_content_size = job_->expected_content_size();
 
   return expected_content_size;
-}
-
-void URLRequest::set_priority(net::RequestPriority priority) {
-  DCHECK_GE(priority, net::HIGHEST);
-  DCHECK_LT(priority, net::NUM_PRIORITIES);
-  priority_ = priority;
 }
 
 URLRequest::UserData* URLRequest::GetUserData(const void* key) const {
