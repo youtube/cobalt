@@ -13,7 +13,6 @@
 #include "base/file_util.h"
 #include "base/platform_thread.h"
 #include "base/ref_counted.h"
-#include "base/task.h"
 
 class MessageLoop;
 
