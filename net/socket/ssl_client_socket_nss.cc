@@ -685,19 +685,14 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     return ERR_UNEXPECTED;
   }
 
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SSL2, ssl_config_.ssl2_enabled);
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SSL2, PR_FALSE);
   if (rv != SECSuccess) {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_SSL2");
     return ERR_UNEXPECTED;
   }
 
-  // SNI is enabled automatically if TLS is enabled -- as long as
-  // SSL_V2_COMPATIBLE_HELLO isn't.
-  // So don't do V2 compatible hellos unless we're really using SSL2,
-  // to avoid errors like
-  // "common name `mail.google.com' != requested host name `gmail.com'"
-  rv = SSL_OptionSet(nss_fd_, SSL_V2_COMPATIBLE_HELLO,
-                     ssl_config_.ssl2_enabled);
+  // Don't do V2 compatible hellos because they don't support TLS extensions.
+  rv = SSL_OptionSet(nss_fd_, SSL_V2_COMPATIBLE_HELLO, PR_FALSE);
   if (rv != SECSuccess) {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_V2_COMPATIBLE_HELLO");
     return ERR_UNEXPECTED;

@@ -769,7 +769,7 @@ int SSLClientSocketMac::InitializeSSLContext() {
 
   status = SSLSetProtocolVersionEnabled(ssl_context_,
                                         kSSLProtocol2,
-                                        ssl_config_.ssl2_enabled);
+                                        false);
   if (status)
     return NetErrorFromOSStatus(status);
 
