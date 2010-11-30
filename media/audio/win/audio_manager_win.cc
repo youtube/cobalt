@@ -34,6 +34,9 @@ DEFINE_GUID(AM_KSCATEGORY_AUDIO, 0x6994ad04, 0x93ef, 0x11d0,
 
 namespace {
 
+// Maximum number of output streams that can be open simultaneously.
+const size_t kMaxOutputStreams = 50;
+
 // Up to 8 channels can be passed to the driver.
 // This should work, given the right drivers, but graceful error handling is
 // needed.
@@ -91,6 +94,13 @@ string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
 
 }  // namespace
 
+AudioManagerWin::AudioManagerWin()
+    : num_output_streams_(0) {
+}
+
+AudioManagerWin::~AudioManagerWin() {
+}
+
 bool AudioManagerWin::HasAudioOutputDevices() {
   return (::waveOutGetNumDevs() != 0);
 }
@@ -108,11 +118,18 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
   if (!params.IsValid() || (params.channels > kWinMaxChannels))
     return NULL;
 
+  // Limit the number of audio streams opened.
+  if (num_output_streams_ >= kMaxOutputStreams) {
+    return NULL;
+  }
+
   if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioOutputStream::MakeFakeStream(params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+    num_output_streams_++;
     return new PCMWaveOutAudioOutputStream(this, params, 3, WAVE_MAPPER);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+    num_output_streams_++;
     // TODO(cpu): waveout cannot hit 20ms latency. Use other method.
     return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
   }
@@ -135,22 +152,19 @@ AudioInputStream* AudioManagerWin::MakeAudioInputStream(
 }
 
 void AudioManagerWin::ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream) {
-  if (stream)
-    delete stream;
+  DCHECK(stream);
+  num_output_streams_--;
+  delete stream;
 }
 
 void AudioManagerWin::ReleaseInputStream(PCMWaveInAudioInputStream* stream) {
-  if (stream)
-    delete stream;
+  delete stream;
 }
 
 void AudioManagerWin::MuteAll() {
 }
 
 void AudioManagerWin::UnMuteAll() {
-}
-
-AudioManagerWin::~AudioManagerWin() {
 }
 
 string16 AudioManagerWin::GetAudioInputDeviceModel() {
