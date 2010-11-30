@@ -70,12 +70,12 @@ std::string URLRequestTestJob::test_error_headers() {
 }
 
 // static
-URLRequestJob* URLRequestTestJob::Factory(URLRequest* request,
+URLRequestJob* URLRequestTestJob::Factory(net::URLRequest* request,
                                           const std::string& scheme) {
   return new URLRequestTestJob(request);
 }
 
-URLRequestTestJob::URLRequestTestJob(URLRequest* request)
+URLRequestTestJob::URLRequestTestJob(net::URLRequest* request)
     : URLRequestJob(request),
       auto_advance_(false),
       stage_(WAITING),
@@ -84,7 +84,8 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request)
       async_buf_size_(0) {
 }
 
-URLRequestTestJob::URLRequestTestJob(URLRequest* request, bool auto_advance)
+URLRequestTestJob::URLRequestTestJob(net::URLRequest* request,
+                                     bool auto_advance)
     : URLRequestJob(request),
       auto_advance_(auto_advance),
       stage_(WAITING),
@@ -93,7 +94,7 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request, bool auto_advance)
       async_buf_size_(0) {
 }
 
-URLRequestTestJob::URLRequestTestJob(URLRequest* request,
+URLRequestTestJob::URLRequestTestJob(net::URLRequest* request,
                                      const std::string& response_headers,
                                      const std::string& response_data,
                                      bool auto_advance)

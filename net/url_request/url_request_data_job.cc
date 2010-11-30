@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,12 +10,12 @@
 #include "net/url_request/url_request.h"
 
 // static
-URLRequestJob* URLRequestDataJob::Factory(URLRequest* request,
+URLRequestJob* URLRequestDataJob::Factory(net::URLRequest* request,
                                           const std::string& scheme) {
   return new URLRequestDataJob(request);
 }
 
-URLRequestDataJob::URLRequestDataJob(URLRequest* request)
+URLRequestDataJob::URLRequestDataJob(net::URLRequest* request)
     : URLRequestSimpleJob(request) {
 }
 

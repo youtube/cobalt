@@ -76,7 +76,7 @@ class ProxyScriptFetcherImplTest : public PlatformTest {
   }
 
   static void SetUpTestCase() {
-    URLRequest::AllowFileAccess();
+    net::URLRequest::AllowFileAccess();
   }
 
  protected:
