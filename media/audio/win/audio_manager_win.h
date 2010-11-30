@@ -18,7 +18,7 @@ class PCMWaveOutAudioOutputStream;
 // the AudioManager class.
 class AudioManagerWin : public AudioManagerBase {
  public:
-  AudioManagerWin() {}
+  AudioManagerWin();
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices();
   virtual bool HasAudioInputDevices();
@@ -36,8 +36,11 @@ class AudioManagerWin : public AudioManagerBase {
   void ReleaseInputStream(PCMWaveInAudioInputStream* stream);
 
  private:
-  friend void DestroyAudioManagerWin(void *);
   virtual ~AudioManagerWin();
+
+  // Number of currently open output streams.
+  int num_output_streams_;
+
   DISALLOW_COPY_AND_ASSIGN(AudioManagerWin);
 };
 
