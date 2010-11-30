@@ -162,10 +162,6 @@ MessageLoop::MessageLoop(Type type)
 MessageLoop::~MessageLoop() {
   DCHECK_EQ(this, current());
 
-  // Let interested parties have one last shot at accessing this.
-  FOR_EACH_OBSERVER(DestructionObserver, destruction_observers_,
-                    WillDestroyCurrentMessageLoop());
-
   DCHECK(!state_);
 
   // Clean up any unprocessed tasks, but take care: deleting a task could
@@ -184,6 +180,10 @@ MessageLoop::~MessageLoop() {
       break;
   }
   DCHECK(!did_work);
+
+  // Let interested parties have one last shot at accessing this.
+  FOR_EACH_OBSERVER(DestructionObserver, destruction_observers_,
+                    WillDestroyCurrentMessageLoop());
 
   // OK, now make it so that no one can find us.
   lazy_tls_ptr.Pointer()->Set(NULL);
