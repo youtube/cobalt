@@ -581,17 +581,46 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
 
 #endif  // defined(OS_WIN)
 
+#if defined(OS_POSIX)
+
+TEST_F(FileUtilTest, CreateAndReadSymlinks) {
+  FilePath link_from = temp_dir_.path().Append(FPL("from_file"));
+  FilePath link_to = temp_dir_.path().Append(FPL("to_file"));
+  CreateTextFile(link_to, bogus_content);
+
+  ASSERT_TRUE(file_util::CreateSymbolicLink(link_to, link_from))
+    << "Failed to create file symlink.";
+
+  // If we created the link properly, we should be able to read the
+  // contents through it.
+  std::wstring contents = ReadTextFile(link_from);
+  ASSERT_EQ(contents, bogus_content);
+
+  FilePath result;
+  ASSERT_TRUE(file_util::ReadSymbolicLink(link_from, &result));
+  ASSERT_EQ(link_to.value(), result.value());
+
+  // Link to a directory.
+  link_from = temp_dir_.path().Append(FPL("from_dir"));
+  link_to = temp_dir_.path().Append(FPL("to_dir"));
+  file_util::CreateDirectory(link_to);
+
+  ASSERT_TRUE(file_util::CreateSymbolicLink(link_to, link_from))
+    << "Failed to create directory symlink.";
+
+  // Test failures.
+  ASSERT_FALSE(file_util::CreateSymbolicLink(link_to, link_to));
+  ASSERT_FALSE(file_util::ReadSymbolicLink(link_to, &result));
+  FilePath missing = temp_dir_.path().Append(FPL("missing"));
+  ASSERT_FALSE(file_util::ReadSymbolicLink(missing, &result));
+}
+
+
 // The following test of NormalizeFilePath() require that we create a symlink.
-// This can not be done on windows before vista.  On vista, creating a symlink
+// This can not be done on Windows before Vista.  On Vista, creating a symlink
 // requires privilege "SeCreateSymbolicLinkPrivilege".
 // TODO(skerner): Investigate the possibility of giving base_unittests the
 // privileges required to create a symlink.
-#if defined(OS_POSIX)
-
-bool MakeSymlink(const FilePath& link_to, const FilePath& link_from) {
-  return (symlink(link_to.value().c_str(), link_from.value().c_str()) == 0);
-}
-
 TEST_F(FileUtilTest, NormalizeFilePathSymlinks) {
   FilePath normalized_path;
 
@@ -600,7 +629,7 @@ TEST_F(FileUtilTest, NormalizeFilePathSymlinks) {
   FilePath link_to = temp_dir_.path().Append(FPL("to_file"));
   CreateTextFile(link_to, bogus_content);
 
-  ASSERT_TRUE(MakeSymlink(link_to, link_from))
+  ASSERT_TRUE(file_util::CreateSymbolicLink(link_to, link_from))
     << "Failed to create file symlink.";
 
   // Check that NormalizeFilePath sees the link.
@@ -614,7 +643,7 @@ TEST_F(FileUtilTest, NormalizeFilePathSymlinks) {
   link_to = temp_dir_.path().Append(FPL("to_dir"));
   file_util::CreateDirectory(link_to);
 
-  ASSERT_TRUE(MakeSymlink(link_to, link_from))
+  ASSERT_TRUE(file_util::CreateSymbolicLink(link_to, link_from))
     << "Failed to create directory symlink.";
 
   ASSERT_FALSE(file_util::NormalizeFilePath(link_from, &normalized_path))
@@ -623,9 +652,9 @@ TEST_F(FileUtilTest, NormalizeFilePathSymlinks) {
   // Test that a loop in the links causes NormalizeFilePath() to return false.
   link_from = temp_dir_.path().Append(FPL("link_a"));
   link_to = temp_dir_.path().Append(FPL("link_b"));
-  ASSERT_TRUE(MakeSymlink(link_to, link_from))
+  ASSERT_TRUE(file_util::CreateSymbolicLink(link_to, link_from))
     << "Failed to create loop symlink a.";
-  ASSERT_TRUE(MakeSymlink(link_from, link_to))
+  ASSERT_TRUE(file_util::CreateSymbolicLink(link_from, link_to))
     << "Failed to create loop symlink b.";
 
   // Infinite loop!
