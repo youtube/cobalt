@@ -10,9 +10,9 @@
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/debug/leak_tracker.h"
 #include "base/linked_ptr.h"
+#include "base/logging.h"
 #include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/string16.h"
@@ -535,7 +535,11 @@ class URLRequest : public NonThreadSafe {
 
   // Returns the priority level for this request.
   net::RequestPriority priority() const { return priority_; }
-  void set_priority(net::RequestPriority priority);
+  void set_priority(net::RequestPriority priority) {
+    DCHECK_GE(priority, net::HIGHEST);
+    DCHECK_LT(priority, net::NUM_PRIORITIES);
+    priority_ = priority;
+  }
 
 #ifdef UNIT_TEST
   URLRequestJob* job() { return job_; }
