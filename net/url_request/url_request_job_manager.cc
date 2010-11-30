@@ -22,7 +22,7 @@ namespace {
 
 struct SchemeToFactory {
   const char* scheme;
-  URLRequest::ProtocolFactory* factory;
+  net::URLRequest::ProtocolFactory* factory;
 };
 
 }  // namespace
@@ -45,7 +45,7 @@ URLRequestJobManager::URLRequestJobManager() : enable_file_access_(false) {
 
 URLRequestJobManager::~URLRequestJobManager() {}
 
-URLRequestJob* URLRequestJobManager::CreateJob(URLRequest* request) const {
+URLRequestJob* URLRequestJobManager::CreateJob(net::URLRequest* request) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
@@ -100,8 +100,8 @@ URLRequestJob* URLRequestJobManager::CreateJob(URLRequest* request) const {
 }
 
 URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
-                                         URLRequest* request,
-                                         const GURL& location) const {
+    net::URLRequest* request,
+    const GURL& location) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
@@ -121,7 +121,7 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
 }
 
 URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
-                                         URLRequest* request) const {
+    net::URLRequest* request) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
@@ -155,16 +155,16 @@ bool URLRequestJobManager::SupportsScheme(const std::string& scheme) const {
   return false;
 }
 
-URLRequest::ProtocolFactory* URLRequestJobManager::RegisterProtocolFactory(
+net::URLRequest::ProtocolFactory* URLRequestJobManager::RegisterProtocolFactory(
     const std::string& scheme,
-    URLRequest::ProtocolFactory* factory) {
+    net::URLRequest::ProtocolFactory* factory) {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
 
   AutoLock locked(lock_);
 
-  URLRequest::ProtocolFactory* old_factory;
+  net::URLRequest::ProtocolFactory* old_factory;
   FactoryMap::iterator i = factories_.find(scheme);
   if (i != factories_.end()) {
     old_factory = i->second;
@@ -180,7 +180,7 @@ URLRequest::ProtocolFactory* URLRequestJobManager::RegisterProtocolFactory(
 }
 
 void URLRequestJobManager::RegisterRequestInterceptor(
-    URLRequest::Interceptor* interceptor) {
+    net::URLRequest::Interceptor* interceptor) {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
@@ -193,7 +193,7 @@ void URLRequestJobManager::RegisterRequestInterceptor(
 }
 
 void URLRequestJobManager::UnregisterRequestInterceptor(
-    URLRequest::Interceptor* interceptor) {
+    net::URLRequest::Interceptor* interceptor) {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif

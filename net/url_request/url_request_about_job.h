@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,12 +13,12 @@
 
 class URLRequestAboutJob : public URLRequestJob {
  public:
-  explicit URLRequestAboutJob(URLRequest* request);
+  explicit URLRequestAboutJob(net::URLRequest* request);
 
   virtual void Start();
   virtual bool GetMimeType(std::string* mime_type) const;
 
-  static URLRequest::ProtocolFactory Factory;
+  static net::URLRequest::ProtocolFactory Factory;
 
  private:
   ~URLRequestAboutJob();

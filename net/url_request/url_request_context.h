@@ -34,7 +34,8 @@ class SSLConfigService;
 class URLRequest;
 }  // namespace net
 
-// Subclass to provide application-specific context for URLRequest instances.
+// Subclass to provide application-specific context for net::URLRequest
+// instances.
 class URLRequestContext
     : public base::RefCountedThreadSafe<URLRequestContext>,
       public NonThreadSafe {

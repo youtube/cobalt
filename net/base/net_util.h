@@ -125,7 +125,7 @@ void GetIdentityFromURL(const GURL& url,
 std::string GetHostOrSpecFromURL(const GURL& url);
 
 // Return the value of the HTTP response header with name 'name'.  'headers'
-// should be in the format that URLRequest::GetResponseHeaders() returns.
+// should be in the format that net::URLRequest::GetResponseHeaders() returns.
 // Returns the empty string if the header is not found.
 std::wstring GetSpecificHeader(const std::wstring& headers,
                                const std::wstring& name);
