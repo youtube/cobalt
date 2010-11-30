@@ -30,7 +30,7 @@ LOAD_FLAG(ONLY_FROM_CACHE, 1 << 3)
 LOAD_FLAG(DISABLE_CACHE, 1 << 4)
 
 // This is a navigation that will not be intercepted by any registered
-// URLRequest::Interceptors.
+// net::URLRequest::Interceptors.
 LOAD_FLAG(DISABLE_INTERCEPT, 1 << 5)
 
 // If present, upload progress messages should be provided to initiator.

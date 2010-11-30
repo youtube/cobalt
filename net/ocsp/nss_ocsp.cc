@@ -140,13 +140,13 @@ base::LazyInstance<OCSPNSSInitialization> g_ocsp_nss_initialization(
     base::LINKER_INITIALIZED);
 
 // Concrete class for SEC_HTTP_REQUEST_SESSION.
-// Public methods except virtual methods of URLRequest::Delegate (On* methods)
-// run on certificate verifier thread (worker thread).
-// Virtual methods of URLRequest::Delegate and private methods run
+// Public methods except virtual methods of net::URLRequest::Delegate
+// (On* methods) run on certificate verifier thread (worker thread).
+// Virtual methods of net::URLRequest::Delegate and private methods run
 // on IO thread.
 class OCSPRequestSession
     : public base::RefCountedThreadSafe<OCSPRequestSession>,
-      public URLRequest::Delegate {
+      public net::URLRequest::Delegate {
  public:
   OCSPRequestSession(const GURL& url,
                      const char* http_request_method,
@@ -248,7 +248,7 @@ class OCSPRequestSession
     return data_;
   }
 
-  virtual void OnResponseStarted(URLRequest* request) {
+  virtual void OnResponseStarted(net::URLRequest* request) {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
@@ -262,7 +262,7 @@ class OCSPRequestSession
     OnReadCompleted(request_, bytes_read);
   }
 
-  virtual void OnReadCompleted(URLRequest* request, int bytes_read) {
+  virtual void OnReadCompleted(net::URLRequest* request, int bytes_read) {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
@@ -349,7 +349,7 @@ class OCSPRequestSession
       g_ocsp_io_loop.Get().AddRequest(this);
     }
 
-    request_ = new URLRequest(url_, this);
+    request_ = new net::URLRequest(url_, this);
     request_->set_context(url_request_context);
     // To meet the privacy requirements of off-the-record mode.
     request_->set_load_flags(
@@ -376,7 +376,7 @@ class OCSPRequestSession
   GURL url_;                      // The URL we eventually wound up at
   std::string http_request_method_;
   base::TimeDelta timeout_;       // The timeout for OCSP
-  URLRequest* request_;           // The actual request this wraps
+  net::URLRequest* request_;           // The actual request this wraps
   scoped_refptr<net::IOBuffer> buffer_;  // Read buffer
   net::HttpRequestHeaders extra_request_headers_;
   std::string upload_content_;    // HTTP POST payload
@@ -567,7 +567,7 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
   if (request_context == NULL) {
     LOG(ERROR) << "No URLRequestContext for OCSP handler.";
     // The application failed to call SetURLRequestContextForOCSP, so we
-    // can't create and use URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an
+    // can't create and use net::URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an
     // accurate error code for this error condition, but is close enough.
     PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
     return SECFailure;

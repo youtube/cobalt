@@ -83,8 +83,8 @@ class URLRequestFileJob::AsyncResolver
 #endif
 
 // static
-URLRequestJob* URLRequestFileJob::Factory(
-    URLRequest* request, const std::string& scheme) {
+URLRequestJob* URLRequestFileJob::Factory(net::URLRequest* request,
+                                          const std::string& scheme) {
 
   FilePath file_path;
   const bool is_file = net::FileURLToFilePath(request->url(), &file_path);
@@ -111,7 +111,7 @@ URLRequestJob* URLRequestFileJob::Factory(
   return new URLRequestFileJob(request, file_path);
 }
 
-URLRequestFileJob::URLRequestFileJob(URLRequest* request,
+URLRequestFileJob::URLRequestFileJob(net::URLRequest* request,
                                      const FilePath& file_path)
     : URLRequestJob(request),
       file_path_(file_path),
@@ -367,7 +367,7 @@ static const char* const kLocalAccessWhiteList[] = {
 
 // static
 bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
-  if (URLRequest::IsFileAccessAllowed()) {  // for tests.
+  if (net::URLRequest::IsFileAccessAllowed()) {  // for tests.
     return false;
   }
 
