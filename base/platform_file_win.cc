@@ -214,6 +214,7 @@ bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info) {
   info->size = size.QuadPart;
   info->is_directory =
       file_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0;
+  info->is_symbolic_link = false; // Windows doesn't have symbolic links.
   info->last_modified = base::Time::FromFileTime(file_info.ftLastWriteTime);
   info->last_accessed = base::Time::FromFileTime(file_info.ftLastAccessTime);
   info->creation_time = base::Time::FromFileTime(file_info.ftCreationTime);
