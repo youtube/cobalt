@@ -20,6 +20,8 @@
 
 namespace net {
 
+const long int TransportSecurityState::kMaxHSTSAgeSecs = 86400 * 365;  // 1 year
+
 TransportSecurityState::TransportSecurityState()
     : delegate_(NULL) {
 }
@@ -98,6 +100,24 @@ bool TransportSecurityState::IsEnabledForHost(DomainState* result,
   return false;
 }
 
+// MaxAgeToInt converts a string representation of a number of seconds into a
+// int. We use strtol in order to handle overflow correctly. The string may
+// contain an arbitary number which we should truncate correctly rather than
+// throwing a parse failure.
+static bool MaxAgeToInt(std::string::const_iterator begin,
+                        std::string::const_iterator end,
+                        int* result) {
+  const std::string s(begin, end);
+  char* endptr;
+  long int i = strtol(s.data(), &endptr, 10 /* base */);
+  if (*endptr || i < 0)
+    return false;
+  if (i > TransportSecurityState::kMaxHSTSAgeSecs)
+    i = TransportSecurityState::kMaxHSTSAgeSecs;
+  *result = i;
+  return true;
+}
+
 // "Strict-Transport-Security" ":"
 //     "max-age" "=" delta-seconds [ ";" "includeSubDomains" ]
 bool TransportSecurityState::ParseHeader(const std::string& value,
@@ -106,7 +126,7 @@ bool TransportSecurityState::ParseHeader(const std::string& value,
   DCHECK(max_age);
   DCHECK(include_subdomains);
 
-  int max_age_candidate;
+  int max_age_candidate = 0;
 
   enum ParserState {
     START,
@@ -142,11 +162,9 @@ bool TransportSecurityState::ParseHeader(const std::string& value,
       case AFTER_MAX_AGE_EQUALS:
         if (IsAsciiWhitespace(*tokenizer.token_begin()))
           continue;
-        if (!base::StringToInt(tokenizer.token_begin(),
-                               tokenizer.token_end(),
-                               &max_age_candidate))
-          return false;
-        if (max_age_candidate < 0)
+        if (!MaxAgeToInt(tokenizer.token_begin(),
+                         tokenizer.token_end(),
+                         &max_age_candidate))
           return false;
         state = AFTER_MAX_AGE;
         break;

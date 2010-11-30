@@ -116,17 +116,26 @@ TEST_F(TransportSecurityStateTest, ValidHeaders) {
 
   EXPECT_TRUE(TransportSecurityState::ParseHeader(
       "max-age=39408299  ;incLudesUbdOmains", &max_age, &include_subdomains));
-  EXPECT_EQ(max_age, 39408299);
+  EXPECT_EQ(max_age,
+            std::min(TransportSecurityState::kMaxHSTSAgeSecs, 39408299l));
   EXPECT_TRUE(include_subdomains);
 
   EXPECT_TRUE(TransportSecurityState::ParseHeader(
       "max-age=394082038  ;  incLudesUbdOmains", &max_age, &include_subdomains));
-  EXPECT_EQ(max_age, 394082038);
+  EXPECT_EQ(max_age,
+            std::min(TransportSecurityState::kMaxHSTSAgeSecs, 394082038l));
   EXPECT_TRUE(include_subdomains);
 
   EXPECT_TRUE(TransportSecurityState::ParseHeader(
       "  max-age=0  ;  incLudesUbdOmains   ", &max_age, &include_subdomains));
   EXPECT_EQ(max_age, 0);
+  EXPECT_TRUE(include_subdomains);
+
+  EXPECT_TRUE(TransportSecurityState::ParseHeader(
+      "  max-age=999999999999999999999999999999999999999999999  ;"
+      "  incLudesUbdOmains   ",
+      &max_age, &include_subdomains));
+  EXPECT_EQ(max_age, TransportSecurityState::kMaxHSTSAgeSecs);
   EXPECT_TRUE(include_subdomains);
 }
 
