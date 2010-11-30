@@ -187,6 +187,7 @@ bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info) {
     return false;
 
   info->is_directory = S_ISDIR(file_info.st_mode);
+  info->is_symbolic_link = S_ISLNK(file_info.st_mode);
   info->size = file_info.st_size;
   info->last_modified = base::Time::FromTimeT(file_info.st_mtime);
   info->last_accessed = base::Time::FromTimeT(file_info.st_atime);

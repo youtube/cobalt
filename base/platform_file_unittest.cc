@@ -269,6 +269,7 @@ TEST(PlatformFile, TouchGetInfoPlatformFile) {
   base::Time now = base::Time::Now() + base::TimeDelta::FromSeconds(2);
   EXPECT_EQ(0, info.size);
   EXPECT_FALSE(info.is_directory);
+  EXPECT_FALSE(info.is_symbolic_link);
   EXPECT_LE(info.last_accessed.ToInternalValue(), now.ToInternalValue());
   EXPECT_LE(info.last_modified.ToInternalValue(), now.ToInternalValue());
   EXPECT_LE(info.creation_time.ToInternalValue(), now.ToInternalValue());
@@ -296,6 +297,7 @@ TEST(PlatformFile, TouchGetInfoPlatformFile) {
   EXPECT_TRUE(base::GetPlatformFileInfo(file, &info));
   EXPECT_EQ(info.size, kTestDataSize);
   EXPECT_FALSE(info.is_directory);
+  EXPECT_FALSE(info.is_symbolic_link);
 
   // ext2/ext3 and HPS/HPS+ seem to have a timestamp granularity of 1s.
 #if defined(OS_POSIX)
