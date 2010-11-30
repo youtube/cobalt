@@ -88,6 +88,9 @@ class TransportSecurityState :
   bool Serialise(std::string* output);
   bool Deserialise(const std::string& state, bool* dirty);
 
+  // The maximum number of seconds for which we'll cache an HSTS request.
+  static const long int kMaxHSTSAgeSecs;
+
  private:
   friend class base::RefCountedThreadSafe<TransportSecurityState>;
   FRIEND_TEST_ALL_PREFIXES(TransportSecurityStateTest, IsPreloaded);
