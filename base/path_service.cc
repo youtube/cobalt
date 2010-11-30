@@ -203,18 +203,6 @@ bool PathService::Get(int key, FilePath* result) {
   return true;
 }
 
-#if defined(OS_WIN)
-// static
-bool PathService::Get(int key, std::wstring* result) {
-  // Deprecated compatibility function.
-  FilePath path;
-  if (!Get(key, &path))
-    return false;
-  *result = path.ToWStringHack();
-  return true;
-}
-#endif
-
 bool PathService::Override(int key, const FilePath& path) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
