@@ -233,6 +233,7 @@ void ClientSocketPoolBaseHelper::RequestSockets(
   DCHECK(!request.handle());
 
   if (num_sockets > max_sockets_per_group_) {
+    NOTREACHED();
     num_sockets = max_sockets_per_group_;
   }
 
