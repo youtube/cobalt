@@ -20,7 +20,7 @@ SSLConfig::CertAndStatus::CertAndStatus() : cert_status(0) {}
 SSLConfig::CertAndStatus::~CertAndStatus() {}
 
 SSLConfig::SSLConfig()
-    : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
+    : rev_checking_enabled(true), ssl3_enabled(true),
       tls1_enabled(true), dnssec_enabled(false), snap_start_enabled(false),
       dns_cert_provenance_checking_enabled(false),
       mitm_proxies_allowed(false), false_start_enabled(true),
@@ -169,7 +169,6 @@ void SSLConfigService::RemoveObserver(Observer* observer) {
 void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
                                            const SSLConfig& new_config) {
   if (orig_config.rev_checking_enabled != new_config.rev_checking_enabled ||
-      orig_config.ssl2_enabled != new_config.ssl2_enabled ||
       orig_config.ssl3_enabled != new_config.ssl3_enabled ||
       orig_config.tls1_enabled != new_config.tls1_enabled) {
     FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());

@@ -267,7 +267,7 @@ bool SSLClientSocketOpenSSL::Init() {
   // set everything we care about to an absolute value.
   long set_mask = 0;
   long clear_mask = 0;
-  SET_SSL_CONFIG_OPTION(SSL_OP_NO_SSLv2, !ssl_config_.ssl2_enabled);
+  SET_SSL_CONFIG_OPTION(SSL_OP_NO_SSLv2, true);
   SET_SSL_CONFIG_OPTION(SSL_OP_NO_SSLv3, !ssl_config_.ssl3_enabled);
   SET_SSL_CONFIG_OPTION(SSL_OP_NO_TLSv1, !ssl_config_.tls1_enabled);
 
