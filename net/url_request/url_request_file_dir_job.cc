@@ -20,7 +20,7 @@
 
 using std::string;
 
-URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
+URLRequestFileDirJob::URLRequestFileDirJob(net::URLRequest* request,
                                            const FilePath& dir_path)
     : URLRequestJob(request),
       dir_path_(dir_path),
@@ -62,9 +62,9 @@ void URLRequestFileDirJob::Kill() {
 
   canceled_ = true;
 
-  // Don't call CloseLister or dispatch an error to the URLRequest because we
-  // want OnListDone to be called to also write the error to the output stream.
-  // OnListDone will notify the URLRequest at this time.
+  // Don't call CloseLister or dispatch an error to the net::URLRequest because
+  // we want OnListDone to be called to also write the error to the output
+  // stream. OnListDone will notify the net::URLRequest at this time.
   if (lister_)
     lister_->Cancel();
 

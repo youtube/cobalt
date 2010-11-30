@@ -27,12 +27,12 @@ net::URLRequestJob* URLRequestFilter::Factory(net::URLRequest* request,
 URLRequestFilter::~URLRequestFilter() {}
 
 void URLRequestFilter::AddHostnameHandler(const std::string& scheme,
-    const std::string& hostname, URLRequest::ProtocolFactory* factory) {
+    const std::string& hostname, net::URLRequest::ProtocolFactory* factory) {
   hostname_handler_map_[make_pair(scheme, hostname)] = factory;
 
   // Register with the ProtocolFactory.
-  URLRequest::RegisterProtocolFactory(scheme,
-                                      &URLRequestFilter::Factory);
+  net::URLRequest::RegisterProtocolFactory(scheme,
+                                           &URLRequestFilter::Factory);
 
 #ifndef NDEBUG
   // Check to see if we're masking URLs in the url_handler_map_.
@@ -54,20 +54,22 @@ void URLRequestFilter::RemoveHostnameHandler(const std::string& scheme,
   DCHECK(iter != hostname_handler_map_.end());
 
   hostname_handler_map_.erase(iter);
-  // Note that we don't unregister from the URLRequest ProtocolFactory as this
-  // would left no protocol factory for the scheme.  URLRequestFilter::Factory
-  // will keep forwarding the requests to the URLRequestInetJob.
+  // Note that we don't unregister from the net::URLRequest ProtocolFactory as
+  // this would left no protocol factory for the scheme.
+  // URLRequestFilter::Factory will keep forwarding the requests to the
+  // URLRequestInetJob.
 }
 
-bool URLRequestFilter::AddUrlHandler(const GURL& url,
-                                     URLRequest::ProtocolFactory* factory) {
+bool URLRequestFilter::AddUrlHandler(
+    const GURL& url,
+    net::URLRequest::ProtocolFactory* factory) {
   if (!url.is_valid())
     return false;
   url_handler_map_[url.spec()] = factory;
 
   // Register with the ProtocolFactory.
-  URLRequest::RegisterProtocolFactory(url.scheme(),
-                                      &URLRequestFilter::Factory);
+  net::URLRequest::RegisterProtocolFactory(url.scheme(),
+                                           &URLRequestFilter::Factory);
 #ifndef NDEBUG
   // Check to see if this URL is masked by a hostname handler.
   HostnameHandlerMap::iterator host_it =
@@ -84,9 +86,10 @@ void URLRequestFilter::RemoveUrlHandler(const GURL& url) {
   DCHECK(iter != url_handler_map_.end());
 
   url_handler_map_.erase(iter);
-  // Note that we don't unregister from the URLRequest ProtocolFactory as this
-  // would left no protocol factory for the scheme.  URLRequestFilter::Factory
-  // will keep forwarding the requests to the URLRequestInetJob.
+  // Note that we don't unregister from the net::URLRequest ProtocolFactory as
+  // this would left no protocol factory for the scheme.
+  // URLRequestFilter::Factory will keep forwarding the requests to the
+  // URLRequestInetJob.
 }
 
 void URLRequestFilter::ClearHandlers() {
@@ -102,7 +105,7 @@ void URLRequestFilter::ClearHandlers() {
   }
   for (std::set<std::string>::const_iterator scheme = schemes.begin();
        scheme != schemes.end(); ++scheme) {
-    URLRequest::RegisterProtocolFactory(*scheme, NULL);
+    net::URLRequest::RegisterProtocolFactory(*scheme, NULL);
   }
 
   url_handler_map_.clear();

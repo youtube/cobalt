@@ -24,7 +24,7 @@ namespace net {
 // Implementation of ProxyScriptFetcher that downloads scripts using the
 // specified request context.
 class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
-                               public URLRequest::Delegate {
+                               public net::URLRequest::Delegate {
  public:
   // Creates a ProxyScriptFetcher that issues requests through
   // |url_request_context|. |url_request_context| must remain valid for the
@@ -43,15 +43,14 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   virtual void Cancel();
   virtual URLRequestContext* GetRequestContext();
 
-  // URLRequest::Delegate methods:
-
-  virtual void OnAuthRequired(URLRequest* request,
+  // net::URLRequest::Delegate methods:
+  virtual void OnAuthRequired(net::URLRequest* request,
                               AuthChallengeInfo* auth_info);
-  virtual void OnSSLCertificateError(URLRequest* request, int cert_error,
+  virtual void OnSSLCertificateError(net::URLRequest* request, int cert_error,
                                      X509Certificate* cert);
-  virtual void OnResponseStarted(URLRequest* request);
-  virtual void OnReadCompleted(URLRequest* request, int num_bytes);
-  virtual void OnResponseCompleted(URLRequest* request);
+  virtual void OnResponseStarted(net::URLRequest* request);
+  virtual void OnReadCompleted(net::URLRequest* request, int num_bytes);
+  virtual void OnResponseCompleted(net::URLRequest* request);
 
   // Used by unit-tests to modify the default limits.
   base::TimeDelta SetTimeoutConstraint(base::TimeDelta timeout);
@@ -59,11 +58,11 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
  private:
   // Read more bytes from the response.
-  void ReadBody(URLRequest* request);
+  void ReadBody(net::URLRequest* request);
 
   // Handles a response from Read(). Returns true if we should continue trying
   // to read. |num_bytes| is 0 for EOF, and < 0 on errors.
-  bool ConsumeBytesRead(URLRequest* request, int num_bytes);
+  bool ConsumeBytesRead(net::URLRequest* request, int num_bytes);
 
   // Called once the request has completed to notify the caller of
   // |response_code_| and |response_text_|.
@@ -82,7 +81,7 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   // The context used for making network requests.
   URLRequestContext* url_request_context_;
 
-  // Buffer that URLRequest writes into.
+  // Buffer that net::URLRequest writes into.
   enum { kBufSize = 4096 };
   scoped_refptr<net::IOBuffer> buf_;
 
@@ -90,7 +89,7 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   int next_id_;
 
   // The current (in progress) request, or NULL.
-  scoped_ptr<URLRequest> cur_request_;
+  scoped_ptr<net::URLRequest> cur_request_;
 
   // State for current request (only valid when |cur_request_| is not NULL):
 

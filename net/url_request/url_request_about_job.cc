@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,12 +11,12 @@
 #include "base/message_loop.h"
 
 // static
-URLRequestJob* URLRequestAboutJob::Factory(URLRequest* request,
+URLRequestJob* URLRequestAboutJob::Factory(net::URLRequest* request,
                                            const std::string& scheme) {
   return new URLRequestAboutJob(request);
 }
 
-URLRequestAboutJob::URLRequestAboutJob(URLRequest* request)
+URLRequestAboutJob::URLRequestAboutJob(net::URLRequest* request)
     : URLRequestJob(request) {
 }
 

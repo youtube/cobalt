@@ -646,6 +646,4 @@ class URLRequest : public NonThreadSafe {
 
 }  // namespace net
 
-typedef net::URLRequest URLRequest;
-
 #endif  // NET_URL_REQUEST_URL_REQUEST_H_

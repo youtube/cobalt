@@ -44,6 +44,8 @@ void StripPostSpecificHeaders(net::HttpRequestHeaders* headers) {
 
 }  // namespace
 
+namespace net {
+
 ///////////////////////////////////////////////////////////////////////////////
 // URLRequest::Interceptor
 
@@ -598,3 +600,5 @@ URLRequest::UserData* URLRequest::GetUserData(const void* key) const {
 void URLRequest::SetUserData(const void* key, UserData* data) {
   user_data_[key] = linked_ptr<UserData>(data);
 }
+
+}  // namespace net
