@@ -77,6 +77,9 @@ struct PlatformFileInfo {
   // True if the file corresponds to a directory.
   bool is_directory;
 
+  // True if the file corresponds to a symbolic link.
+  bool is_symbolic_link;
+
   // The last modified time of a file.
   base::Time last_modified;
 
