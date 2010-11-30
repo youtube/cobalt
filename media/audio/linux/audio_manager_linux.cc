@@ -17,6 +17,9 @@
 
 namespace {
 
+// Maximum number of output streams that can be open simultaneously.
+const size_t kMaxOutputStreams = 50;
+
 const int kMaxInputChannels = 2;
 
 }  // namespace
@@ -41,6 +44,11 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
   }
 
   if (!initialized()) {
+    return NULL;
+  }
+
+  // Don't allow opening more than |kMaxOutputStreams| streams.
+  if (active_streams_.size() >= kMaxOutputStreams) {
     return NULL;
   }
 

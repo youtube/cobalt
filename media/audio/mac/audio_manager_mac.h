@@ -16,7 +16,7 @@ class PCMQueueOutAudioOutputStream;
 // the AudioManager class.
 class AudioManagerMac : public AudioManagerBase {
  public:
-  AudioManagerMac() {};
+  AudioManagerMac();
 
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices();
@@ -33,8 +33,11 @@ class AudioManagerMac : public AudioManagerBase {
   void ReleaseInputStream(PCMQueueInAudioInputStream* stream);
 
  private:
-  friend void DestroyAudioManagerMac(void*);
-  virtual ~AudioManagerMac() {};
+  virtual ~AudioManagerMac();
+
+  // Number of currently open output streams.
+  size_t num_output_streams_;
+
   DISALLOW_COPY_AND_ASSIGN(AudioManagerMac);
 };
 
