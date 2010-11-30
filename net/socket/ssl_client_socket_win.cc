@@ -110,12 +110,11 @@ static int MapSecurityError(SECURITY_STATUS err) {
 //-----------------------------------------------------------------------------
 
 // A bitmask consisting of these bit flags encodes which versions of the SSL
-// protocol (SSL 2.0, SSL 3.0, and TLS 1.0) are enabled.
+// protocol (SSL 3.0 and TLS 1.0) are enabled.
 enum {
-  SSL2 = 1 << 0,
-  SSL3 = 1 << 1,
-  TLS1 = 1 << 2,
-  SSL_VERSION_MASKS = 1 << 3  // The number of SSL version bitmasks.
+  SSL3 = 1 << 0,
+  TLS1 = 1 << 1,
+  SSL_VERSION_MASKS = 1 << 2  // The number of SSL version bitmasks.
 };
 
 // CredHandleClass simply gives a default constructor and a destructor to
@@ -210,8 +209,6 @@ int CredHandleTable::InitializeHandle(CredHandle* handle,
   // The global system registry settings take precedence over the value of
   // schannel_cred.grbitEnabledProtocols.
   schannel_cred.grbitEnabledProtocols = 0;
-  if (ssl_version_mask & SSL2)
-    schannel_cred.grbitEnabledProtocols |= SP_PROT_SSL2;
   if (ssl_version_mask & SSL3)
     schannel_cred.grbitEnabledProtocols |= SP_PROT_SSL3;
   if (ssl_version_mask & TLS1)
@@ -560,8 +557,6 @@ int SSLClientSocketWin::Connect(CompletionCallback* callback) {
 
 int SSLClientSocketWin::InitializeSSLContext() {
   int ssl_version_mask = 0;
-  if (ssl_config_.ssl2_enabled)
-    ssl_version_mask |= SSL2;
   if (ssl_config_.ssl3_enabled)
     ssl_version_mask |= SSL3;
   if (ssl_config_.tls1_enabled)
