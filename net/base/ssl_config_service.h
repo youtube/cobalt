@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,13 +18,13 @@ namespace net {
 // A collection of SSL-related configuration settings.
 struct SSLConfig {
   // Default to revocation checking.
-  // Default to SSL 2.0 off, SSL 3.0 on, and TLS 1.0 on.
+  // Default to SSL 3.0 on and TLS 1.0 on.
   SSLConfig();
   ~SSLConfig();
 
   bool rev_checking_enabled;  // True if server certificate revocation
                               // checking is enabled.
-  bool ssl2_enabled;  // True if SSL 2.0 is enabled.
+  // SSL 2.0 is not supported.
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
   bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
@@ -112,7 +112,6 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
     // data in SSLConfig, just those that qualify as a user config change.
     // The following settings are considered user changes:
     //     rev_checking_enabled
-    //     ssl2_enabled
     //     ssl3_enabled
     //     tls1_enabled
     virtual void OnSSLConfigChanged() = 0;
@@ -181,7 +180,7 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   virtual ~SSLConfigService();
 
   // SetFlags sets the values of several flags based on global configuration.
-  static void SetSSLConfigFlags(SSLConfig*);
+  static void SetSSLConfigFlags(SSLConfig* ssl_config);
 
   // Process before/after config update.
   void ProcessConfigUpdate(const SSLConfig& orig_config,
