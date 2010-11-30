@@ -24,8 +24,8 @@
 // before destroying that thread, one can check that there are no remaining
 // instances of that class.
 //
-// For example, to enable leak tracking for class URLRequest, start by
-// adding a member variable of type LeakTracker<URLRequest>.
+// For example, to enable leak tracking for class net::URLRequest, start by
+// adding a member variable of type LeakTracker<net::URLRequest>.
 //
 //   class URLRequest {
 //     ...
@@ -34,11 +34,11 @@
 //   };
 //
 //
-// Next, when we believe all instances of URLRequest have been deleted:
+// Next, when we believe all instances of net::URLRequest have been deleted:
 //
-//   LeakTracker<URLRequest>::CheckForLeaks();
+//   LeakTracker<net::URLRequest>::CheckForLeaks();
 //
-// Should the check fail (because there are live instances of URLRequest),
+// Should the check fail (because there are live instances of net::URLRequest),
 // then the allocation callstack for each leaked instances is dumped to
 // the error log.
 //

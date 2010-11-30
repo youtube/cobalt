@@ -16,7 +16,7 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_error_job.h"
 
-URLRequestFtpJob::URLRequestFtpJob(URLRequest* request)
+URLRequestFtpJob::URLRequestFtpJob(net::URLRequest* request)
     : URLRequestJob(request),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           start_callback_(this, &URLRequestFtpJob::OnStartCompleted)),
@@ -30,7 +30,7 @@ URLRequestFtpJob::~URLRequestFtpJob() {
 }
 
 // static
-URLRequestJob* URLRequestFtpJob::Factory(URLRequest* request,
+URLRequestJob* URLRequestFtpJob::Factory(net::URLRequest* request,
                                          const std::string& scheme) {
   DCHECK_EQ(scheme, "ftp");
 
@@ -233,7 +233,7 @@ void URLRequestFtpJob::StartTransaction() {
     rv = net::ERR_FAILED;
   }
   // The transaction started synchronously, but we need to notify the
-  // URLRequest delegate via the message loop.
+  // net::URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       this, &URLRequestFtpJob::OnStartCompleted, rv));
 }

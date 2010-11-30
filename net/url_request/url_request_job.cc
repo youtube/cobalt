@@ -25,6 +25,8 @@ using base::TimeTicks;
 // static
 const int URLRequestJob::kFilterBufSize = 32 * 1024;
 
+namespace net {
+
 URLRequestJob::URLRequestJob(URLRequest* request)
     : request_(request),
       prefilter_bytes_read_(0),
@@ -443,7 +445,7 @@ void URLRequestJob::NotifyHeadersComplete() {
 
   // Initialize to the current time, and let the subclass optionally override
   // the time stamps if it has that information.  The default request_time is
-  // set by URLRequest before it calls our Start method.
+  // set by net::URLRequest before it calls our Start method.
   request_->response_info_.response_time = Time::Now();
   GetResponseInfo(&request_->response_info_);
 
@@ -930,3 +932,5 @@ void URLRequestJob::RecordCompressionHistograms() {
     COMPRESSION_HISTOGRAM("NoProxy.ShouldHaveBeenCompressed", decompressed_B);
   }
 }
+
+}  // namespace net

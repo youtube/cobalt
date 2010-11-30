@@ -86,7 +86,7 @@ ProxyScriptFetcherImpl::ProxyScriptFetcherImpl(
 }
 
 ProxyScriptFetcherImpl::~ProxyScriptFetcherImpl() {
-  // The URLRequest's destructor will cancel the outstanding request, and
+  // The net::URLRequest's destructor will cancel the outstanding request, and
   // ensure that the delegate (this) is not called again.
 }
 
@@ -99,7 +99,7 @@ int ProxyScriptFetcherImpl::Fetch(const GURL& url,
   DCHECK(callback);
   DCHECK(text);
 
-  cur_request_.reset(new URLRequest(url, this));
+  cur_request_.reset(new net::URLRequest(url, this));
   cur_request_->set_context(url_request_context_);
   cur_request_->set_method("GET");
 
@@ -129,7 +129,7 @@ int ProxyScriptFetcherImpl::Fetch(const GURL& url,
 }
 
 void ProxyScriptFetcherImpl::Cancel() {
-  // ResetCurRequestState will free the URLRequest, which will cause
+  // ResetCurRequestState will free the net::URLRequest, which will cause
   // cancellation.
   ResetCurRequestState();
 }
@@ -138,7 +138,7 @@ URLRequestContext* ProxyScriptFetcherImpl::GetRequestContext() {
   return url_request_context_;
 }
 
-void ProxyScriptFetcherImpl::OnAuthRequired(URLRequest* request,
+void ProxyScriptFetcherImpl::OnAuthRequired(net::URLRequest* request,
                                             AuthChallengeInfo* auth_info) {
   DCHECK_EQ(request, cur_request_.get());
   // TODO(eroman):
@@ -147,7 +147,7 @@ void ProxyScriptFetcherImpl::OnAuthRequired(URLRequest* request,
   request->CancelAuth();
 }
 
-void ProxyScriptFetcherImpl::OnSSLCertificateError(URLRequest* request,
+void ProxyScriptFetcherImpl::OnSSLCertificateError(net::URLRequest* request,
                                                    int cert_error,
                                                    X509Certificate* cert) {
   DCHECK_EQ(request, cur_request_.get());
@@ -157,7 +157,7 @@ void ProxyScriptFetcherImpl::OnSSLCertificateError(URLRequest* request,
   request->Cancel();
 }
 
-void ProxyScriptFetcherImpl::OnResponseStarted(URLRequest* request) {
+void ProxyScriptFetcherImpl::OnResponseStarted(net::URLRequest* request) {
   DCHECK_EQ(request, cur_request_.get());
 
   if (!request->status().is_success()) {
@@ -191,7 +191,7 @@ void ProxyScriptFetcherImpl::OnResponseStarted(URLRequest* request) {
   ReadBody(request);
 }
 
-void ProxyScriptFetcherImpl::OnReadCompleted(URLRequest* request,
+void ProxyScriptFetcherImpl::OnReadCompleted(net::URLRequest* request,
                                              int num_bytes) {
   DCHECK_EQ(request, cur_request_.get());
   if (ConsumeBytesRead(request, num_bytes)) {
@@ -200,7 +200,7 @@ void ProxyScriptFetcherImpl::OnReadCompleted(URLRequest* request,
   }
 }
 
-void ProxyScriptFetcherImpl::OnResponseCompleted(URLRequest* request) {
+void ProxyScriptFetcherImpl::OnResponseCompleted(net::URLRequest* request) {
   DCHECK_EQ(request, cur_request_.get());
 
   // Use |result_code_| as the request's error if we have already set it to
@@ -211,7 +211,7 @@ void ProxyScriptFetcherImpl::OnResponseCompleted(URLRequest* request) {
   FetchCompleted();
 }
 
-void ProxyScriptFetcherImpl::ReadBody(URLRequest* request) {
+void ProxyScriptFetcherImpl::ReadBody(net::URLRequest* request) {
   // Read as many bytes as are available synchronously.
   while (true) {
     int num_bytes;
@@ -226,7 +226,7 @@ void ProxyScriptFetcherImpl::ReadBody(URLRequest* request) {
   }
 }
 
-bool ProxyScriptFetcherImpl::ConsumeBytesRead(URLRequest* request,
+bool ProxyScriptFetcherImpl::ConsumeBytesRead(net::URLRequest* request,
                                               int num_bytes) {
   if (num_bytes <= 0) {
     // Error while reading, or EOF.
@@ -277,7 +277,7 @@ void ProxyScriptFetcherImpl::ResetCurRequestState() {
 }
 
 void ProxyScriptFetcherImpl::OnTimeout(int id) {
-  // Timeout tasks may outlive the URLRequest they reference. Make sure it
+  // Timeout tasks may outlive the net::URLRequest they reference. Make sure it
   // is still applicable.
   if (cur_request_id_ != id)
     return;

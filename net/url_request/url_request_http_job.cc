@@ -40,7 +40,7 @@ static const char kAvailDictionaryHeader[] = "Avail-Dictionary";
 
 // TODO(darin): make sure the port blocking code is not lost
 // static
-URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
+URLRequestJob* URLRequestHttpJob::Factory(net::URLRequest* request,
                                           const std::string& scheme) {
   DCHECK(scheme == "http" || scheme == "https");
 
@@ -77,7 +77,7 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
   return new URLRequestHttpJob(request);
 }
 
-URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
+URLRequestHttpJob::URLRequestHttpJob(net::URLRequest* request)
     : URLRequestJob(request),
       response_info_(NULL),
       response_cookies_save_index_(0),
@@ -261,7 +261,7 @@ bool URLRequestHttpJob::IsSafeRedirect(const GURL& location) {
   // restrict redirects to externally handled protocols.  Our consumer would
   // need to take care of those.
 
-  if (!URLRequest::IsHandledURL(location))
+  if (!net::URLRequest::IsHandledURL(location))
     return true;
 
   static const char* kSafeSchemes[] = {
@@ -388,7 +388,7 @@ void URLRequestHttpJob::ContinueWithCertificate(
     return;
 
   // The transaction started synchronously, but we need to notify the
-  // URLRequest delegate via the message loop.
+  // net::URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       this, &URLRequestHttpJob::OnStartCompleted, rv));
 }
@@ -409,7 +409,7 @@ void URLRequestHttpJob::ContinueDespiteLastError() {
     return;
 
   // The transaction started synchronously, but we need to notify the
-  // URLRequest delegate via the message loop.
+  // net::URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       this, &URLRequestHttpJob::OnStartCompleted, rv));
 }
@@ -659,7 +659,7 @@ void URLRequestHttpJob::StartTransaction() {
     return;
 
   // The transaction started synchronously, but we need to notify the
-  // URLRequest delegate via the message loop.
+  // net::URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       this, &URLRequestHttpJob::OnStartCompleted, rv));
 }

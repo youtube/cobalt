@@ -13,7 +13,8 @@
 // log context around it.)
 EVENT_TYPE(CANCELLED)
 
-// Marks the creation/destruction of a request (URLRequest or SocketStream).
+// Marks the creation/destruction of a request (net::URLRequest or
+// SocketStream).
 EVENT_TYPE(REQUEST_ALIVE)
 
 // ------------------------------------------------------------------------
@@ -464,12 +465,12 @@ EVENT_TYPE(SOCKET_POOL_BOUND_TO_SOCKET)
 EVENT_TYPE(SOCKET_POOL_CONNECTING_N_SOCKETS)
 
 // ------------------------------------------------------------------------
-// URLRequest
+// net::URLRequest
 // ------------------------------------------------------------------------
 
 // Measures the time it took a URLRequestJob to start. For the most part this
-// corresponds with the time between URLRequest::Start() and
-// URLRequest::ResponseStarted(), however it is also repeated for every
+// corresponds with the time between net::URLRequest::Start() and
+// net::URLRequest::ResponseStarted(), however it is also repeated for every
 // redirect, and every intercepted job that handles the request.
 //
 // For the BEGIN phase, the following parameters are attached:
@@ -486,7 +487,7 @@ EVENT_TYPE(SOCKET_POOL_CONNECTING_N_SOCKETS)
 //   }
 EVENT_TYPE(URL_REQUEST_START_JOB)
 
-// This event is sent once a URLRequest receives a redirect. The parameters
+// This event is sent once a net::URLRequest receives a redirect. The parameters
 // attached to the event are:
 //   {
 //     "location": <The URL that was redirected to>
@@ -589,7 +590,7 @@ EVENT_TYPE(SPDY_SESSION)
 EVENT_TYPE(SPDY_SESSION_SYN_STREAM)
 
 // This event is sent for a SPDY SYN_STREAM pushed by the server, where a
-// URLRequest is already waiting for the stream.
+// net::URLRequest is already waiting for the stream.
 // The following parameters are attached:
 //   {
 //     "flags": <The control frame flags>

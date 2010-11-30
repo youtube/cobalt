@@ -23,7 +23,7 @@ struct FileInfo;
 // A request job that handles reading file URLs
 class URLRequestFileJob : public URLRequestJob {
  public:
-  URLRequestFileJob(URLRequest* request, const FilePath& file_path);
+  URLRequestFileJob(net::URLRequest* request, const FilePath& file_path);
 
   virtual void Start();
   virtual void Kill();
@@ -34,7 +34,7 @@ class URLRequestFileJob : public URLRequestJob {
   virtual bool GetMimeType(std::string* mime_type) const;
   virtual void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers);
 
-  static URLRequest::ProtocolFactory Factory;
+  static net::URLRequest::ProtocolFactory Factory;
 
 #if defined(OS_CHROMEOS)
   static bool AccessDisabled(const FilePath& file_path);

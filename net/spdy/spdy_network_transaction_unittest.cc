@@ -2158,7 +2158,7 @@ TEST_P(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
 
 // Send a spdy request to www.google.com that gets redirected to www.foo.com.
 TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
-  // These are headers which the URLRequest tacks on.
+  // These are headers which the net::URLRequest tacks on.
   const char* const kExtraHeaders[] = {
     "accept-charset",
     "",
@@ -2236,7 +2236,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
   HttpStreamFactory::set_force_spdy_always(true);
   TestDelegate d;
   {
-    URLRequest r(GURL("http://www.google.com/"), &d);
+    net::URLRequest r(GURL("http://www.google.com/"), &d);
     SpdyURLRequestContext* spdy_url_request_context =
         new SpdyURLRequestContext();
     r.set_context(spdy_url_request_context);
@@ -2268,7 +2268,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
 // Send a spdy request to www.google.com. Get a pushed stream that redirects to
 // www.foo.com.
 TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
-  // These are headers which the URLRequest tacks on.
+  // These are headers which the net::URLRequest tacks on.
   const char* const kExtraHeaders[] = {
     "accept-charset",
     "",
@@ -2356,7 +2356,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
   scoped_refptr<SpdyURLRequestContext> spdy_url_request_context(
       new SpdyURLRequestContext());
   {
-    URLRequest r(GURL("http://www.google.com/"), &d);
+    net::URLRequest r(GURL("http://www.google.com/"), &d);
     r.set_context(spdy_url_request_context);
     spdy_url_request_context->socket_factory().
         AddSocketDataProvider(data.get());
@@ -2368,7 +2368,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
     std::string contents("hello!");
     EXPECT_EQ(contents, d.data_received());
 
-    URLRequest r2(GURL("http://www.google.com/foo.dat"), &d2);
+    net::URLRequest r2(GURL("http://www.google.com/foo.dat"), &d2);
     r2.set_context(spdy_url_request_context);
     spdy_url_request_context->socket_factory().
         AddSocketDataProvider(data2.get());
