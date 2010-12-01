@@ -174,15 +174,18 @@ class HttpNetworkTransactionTest : public PlatformTest {
 
     rv = ReadTransaction(trans.get(), &out.response_data);
     EXPECT_EQ(OK, rv);
+
+    net::CapturingNetLog::EntryList entries;
+    log.GetEntries(&entries);
     size_t pos = ExpectLogContainsSomewhere(
-        log.entries(), 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+        entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
         NetLog::PHASE_NONE);
     ExpectLogContainsSomewhere(
-        log.entries(), pos,
+        entries, pos,
         NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
         NetLog::PHASE_NONE);
 
-    CapturingNetLog::Entry entry = log.entries()[pos];
+    CapturingNetLog::Entry entry = entries[pos];
     NetLogHttpRequestParameter* request_params =
         static_cast<NetLogHttpRequestParameter*>(entry.extra_parameters.get());
     EXPECT_EQ("GET / HTTP/1.1\r\n", request_params->GetLine());
@@ -1525,11 +1528,13 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyNoKeepAlive) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
-      log.entries(), 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
       NetLog::PHASE_NONE);
   ExpectLogContainsSomewhere(
-      log.entries(), pos,
+      entries, pos,
       NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
       NetLog::PHASE_NONE);
 
@@ -1629,11 +1634,13 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
-      log.entries(), 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
       NetLog::PHASE_NONE);
   ExpectLogContainsSomewhere(
-      log.entries(), pos,
+      entries, pos,
       NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
       NetLog::PHASE_NONE);
 
@@ -1831,11 +1838,13 @@ TEST_F(HttpNetworkTransactionTest, HttpsServerRequestsProxyAuthThroughProxy) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(ERR_UNEXPECTED_PROXY_AUTH, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
-      log.entries(), 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
       NetLog::PHASE_NONE);
   ExpectLogContainsSomewhere(
-      log.entries(), pos,
+      entries, pos,
       NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
       NetLog::PHASE_NONE);
 }
@@ -7724,11 +7733,13 @@ TEST_F(HttpNetworkTransactionTest, ProxyTunnelGet) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
-      log.entries(), 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
       NetLog::PHASE_NONE);
   ExpectLogContainsSomewhere(
-      log.entries(), pos,
+      entries, pos,
       NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
       NetLog::PHASE_NONE);
 
@@ -7786,11 +7797,13 @@ TEST_F(HttpNetworkTransactionTest, ProxyTunnelGetHangup) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(ERR_EMPTY_RESPONSE, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
-      log.entries(), 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
       NetLog::PHASE_NONE);
   ExpectLogContainsSomewhere(
-      log.entries(), pos,
+      entries, pos,
       NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
       NetLog::PHASE_NONE);
 }

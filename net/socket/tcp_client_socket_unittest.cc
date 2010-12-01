@@ -105,10 +105,13 @@ TEST_F(TCPClientSocketTest, Connect) {
   EXPECT_FALSE(sock_->IsConnected());
 
   int rv = sock_->Connect(&callback);
+
+  net::CapturingNetLog::EntryList net_log_entries;
+  net_log_.GetEntries(&net_log_entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      net_log_.entries(), 0, net::NetLog::TYPE_SOCKET_ALIVE));
+      net_log_entries, 0, net::NetLog::TYPE_SOCKET_ALIVE));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      net_log_.entries(), 1, net::NetLog::TYPE_TCP_CONNECT));
+      net_log_entries, 1, net::NetLog::TYPE_TCP_CONNECT));
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
     rv = callback.WaitForResult();
@@ -116,8 +119,9 @@ TEST_F(TCPClientSocketTest, Connect) {
   }
 
   EXPECT_TRUE(sock_->IsConnected());
+  net_log_.GetEntries(&net_log_entries);
   EXPECT_TRUE(net::LogContainsEndEvent(
-      net_log_.entries(), -1, net::NetLog::TYPE_TCP_CONNECT));
+      net_log_entries, -1, net::NetLog::TYPE_TCP_CONNECT));
 
   sock_->Disconnect();
   EXPECT_FALSE(sock_->IsConnected());

@@ -142,16 +142,20 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_TRUE(
-      LogContainsBeginEvent(log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
-  EXPECT_FALSE(user_sock_->IsConnected());
-  rv = callback_.WaitForResult();
 
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+  EXPECT_TRUE(
+      LogContainsBeginEvent(entries, 0, NetLog::TYPE_SOCKS_CONNECT));
+  EXPECT_FALSE(user_sock_->IsConnected());
+
+  rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4, user_sock_->socks_version_);
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
+      entries, -1, NetLog::TYPE_SOCKS_CONNECT));
 
   scoped_refptr<IOBuffer> buffer(new IOBuffer(payload_write.size()));
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
@@ -208,14 +212,19 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
 
     int rv = user_sock_->Connect(&callback_);
     EXPECT_EQ(ERR_IO_PENDING, rv);
+
+    net::CapturingNetLog::EntryList entries;
+    log.GetEntries(&entries);
     EXPECT_TRUE(LogContainsBeginEvent(
-        log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
+        entries, 0, NetLog::TYPE_SOCKS_CONNECT));
+
     rv = callback_.WaitForResult();
     EXPECT_EQ(tests[i].fail_code, rv);
     EXPECT_FALSE(user_sock_->IsConnected());
     EXPECT_TRUE(tcp_sock_->IsConnected());
+    log.GetEntries(&entries);
     EXPECT_TRUE(LogContainsEndEvent(
-        log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
+        entries, -1, NetLog::TYPE_SOCKS_CONNECT));
   }
 }
 
@@ -240,13 +249,17 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
+      entries, 0, NetLog::TYPE_SOCKS_CONNECT));
+
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
+      entries, -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Tests scenario when the client sends the handshake request in
@@ -274,13 +287,17 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
+      entries, 0, NetLog::TYPE_SOCKS_CONNECT));
+
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
+      entries, -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Tests the case when the server sends a smaller sized handshake data
@@ -302,13 +319,17 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
+      entries, 0, NetLog::TYPE_SOCKS_CONNECT));
+
   rv = callback_.WaitForResult();
   EXPECT_EQ(ERR_CONNECTION_CLOSED, rv);
   EXPECT_FALSE(user_sock_->IsConnected());
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
+      entries, -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Tries to connect to an unknown DNS and on failure should revert to SOCKS4A.
@@ -335,14 +356,18 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
+      entries, 0, NetLog::TYPE_SOCKS_CONNECT));
+
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4a, user_sock_->socks_version_);
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
+      entries, -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Tries to connect to a domain that resolves to IPv6.
@@ -371,14 +396,18 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
 
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
+      entries, 0, NetLog::TYPE_SOCKS_CONNECT));
+
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4a, user_sock_->socks_version_);
+  log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
+      entries, -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Calls Disconnect() while a host resolve is in progress. The outstanding host
