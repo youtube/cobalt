@@ -18,7 +18,7 @@ CapturingNetLog::Entry::Entry(EventType type,
 CapturingNetLog::Entry::~Entry() {}
 
 CapturingNetLog::CapturingNetLog(size_t max_num_entries)
-    : next_id_(0), max_num_entries_(max_num_entries) {
+    : last_id_(-1), max_num_entries_(max_num_entries) {
 }
 
 CapturingNetLog::~CapturingNetLog() {}
@@ -28,16 +28,23 @@ void CapturingNetLog::AddEntry(EventType type,
                                const Source& source,
                                EventPhase phase,
                                EventParameters* extra_parameters) {
+  AutoLock lock(lock_);
   Entry entry(type, time, source, phase, extra_parameters);
   if (entries_.size() + 1 < max_num_entries_)
     entries_.push_back(entry);
 }
 
 uint32 CapturingNetLog::NextID() {
-  return next_id_++;
+  return base::subtle::NoBarrier_AtomicIncrement(&last_id_, 1);
+}
+
+void CapturingNetLog::GetEntries(EntryList* entry_list) const {
+  AutoLock lock(lock_);
+  *entry_list = entries_;
 }
 
 void CapturingNetLog::Clear() {
+  AutoLock lock(lock_);
   entries_.clear();
 }
 
@@ -51,16 +58,13 @@ CapturingBoundNetLog::CapturingBoundNetLog(size_t max_num_entries)
 
 CapturingBoundNetLog::~CapturingBoundNetLog() {}
 
-void CapturingBoundNetLog::Clear() {
-  capturing_net_log_->Clear();
+void CapturingBoundNetLog::GetEntries(
+    CapturingNetLog::EntryList* entry_list) const {
+  capturing_net_log_->GetEntries(entry_list);
 }
 
-void CapturingBoundNetLog::AppendTo(const BoundNetLog& net_log) const {
-  for (size_t i = 0; i < entries().size(); ++i) {
-    const CapturingNetLog::Entry& entry = entries()[i];
-    net_log.AddEntryWithTime(entry.type, entry.time, entry.phase,
-                             entry.extra_parameters);
-  }
+void CapturingBoundNetLog::Clear() {
+  capturing_net_log_->Clear();
 }
 
 }  // namespace net

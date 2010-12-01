@@ -304,65 +304,82 @@ TEST(ProxyResolverJSBindingsTest, NetLog) {
   bindings->set_current_request_context(&context);
 
   std::string ip_address;
-
-  ASSERT_EQ(0u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+  ASSERT_EQ(0u, entries.size());
 
   // Call all the bindings. Each call should be logging something to
   // our NetLog.
 
   bindings->MyIpAddress(&ip_address);
-  EXPECT_EQ(2u, log.entries().size());
+
+  log.GetEntries(&entries);
+  EXPECT_EQ(2u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS));
+      entries, 0, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 1, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS));
+      entries, 1, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS));
 
   bindings->MyIpAddressEx(&ip_address);
-  EXPECT_EQ(4u, log.entries().size());
+
+  log.GetEntries(&entries);
+  EXPECT_EQ(4u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 2, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX));
+      entries, 2, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 3, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX));
+      entries, 3, NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX));
 
   bindings->DnsResolve("foo", &ip_address);
-  EXPECT_EQ(6u, log.entries().size());
+
+  log.GetEntries(&entries);
+  EXPECT_EQ(6u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 4, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE));
+      entries, 4, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 5, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE));
+      entries, 5, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE));
 
   bindings->DnsResolveEx("foo", &ip_address);
-  EXPECT_EQ(8u, log.entries().size());
+
+  log.GetEntries(&entries);
+  EXPECT_EQ(8u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 6, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX));
+      entries, 6, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 7, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX));
+      entries, 7, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX));
 
   // Nothing has been emitted globally yet.
-  EXPECT_EQ(0u, global_log.entries().size());
+  net::CapturingNetLog::EntryList global_log_entries;
+  global_log.GetEntries(&global_log_entries);
+  EXPECT_EQ(0u, global_log_entries.size());
 
   bindings->OnError(30, string16());
-  EXPECT_EQ(9u, log.entries().size());
+
+  log.GetEntries(&entries);
+  EXPECT_EQ(9u, entries.size());
   EXPECT_TRUE(LogContainsEvent(
-      log.entries(), 8, NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
+      entries, 8, NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
       NetLog::PHASE_NONE));
 
   // We also emit errors to the top-level log stream.
-  EXPECT_EQ(1u, global_log.entries().size());
+  global_log.GetEntries(&global_log_entries);
+  EXPECT_EQ(1u, global_log_entries.size());
   EXPECT_TRUE(LogContainsEvent(
-      global_log.entries(), 0, NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
+      global_log_entries, 0, NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
       NetLog::PHASE_NONE));
 
   bindings->Alert(string16());
-  EXPECT_EQ(10u, log.entries().size());
+
+  log.GetEntries(&entries);
+  EXPECT_EQ(10u, entries.size());
   EXPECT_TRUE(LogContainsEvent(
-      log.entries(), 9, NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
+      entries, 9, NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
       NetLog::PHASE_NONE));
 
   // We also emit javascript alerts to the top-level log stream.
-  EXPECT_EQ(2u, global_log.entries().size());
+  global_log.GetEntries(&global_log_entries);
+  EXPECT_EQ(2u, global_log_entries.size());
   EXPECT_TRUE(LogContainsEvent(
-      global_log.entries(), 1, NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
+      global_log_entries, 1, NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
       NetLog::PHASE_NONE));
 }
 

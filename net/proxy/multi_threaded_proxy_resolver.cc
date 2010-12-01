@@ -8,8 +8,8 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/thread.h"
-#include "net/base/capturing_net_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/proxy/proxy_info.h"
 
 // TODO(eroman): Have the MultiThreadedProxyResolver clear its PAC script
@@ -253,13 +253,9 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
 
   // Runs on the worker thread.
   virtual void Run(MessageLoop* origin_loop) {
-    const size_t kNetLogBound = 50u;
-    worker_log_.reset(new CapturingNetLog(kNetLogBound));
-    BoundNetLog bound_worker_log(NetLog::Source(), worker_log_.get());
-
     ProxyResolver* resolver = executor()->resolver();
     int rv = resolver->GetProxyForURL(
-        url_, &results_buf_, NULL, NULL, bound_worker_log);
+        url_, &results_buf_, NULL, NULL, net_log_);
     DCHECK_NE(rv, ERR_IO_PENDING);
 
     origin_loop->PostTask(
@@ -272,12 +268,6 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
   void QueryComplete(int result_code) {
     // The Job may have been cancelled after it was started.
     if (!was_cancelled()) {
-      // Merge the load log that was generated on the worker thread, into the
-      // main log.
-      CapturingBoundNetLog bound_worker_log(NetLog::Source(),
-                                            worker_log_.release());
-      bound_worker_log.AppendTo(net_log_);
-
       if (result_code >= OK) {  // Note: unit-tests use values > 0.
         results_->Use(results_buf_);
       }
@@ -288,15 +278,13 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
 
   // Must only be used on the "origin" thread.
   ProxyInfo* results_;
+
+  // Can be used on either "origin" or worker thread.
   BoundNetLog net_log_;
   const GURL url_;
 
   // Usable from within DoQuery on the worker thread.
   ProxyInfo results_buf_;
-
-  // Used to pass the captured events between DoQuery [worker thread] and
-  // QueryComplete [origin thread].
-  scoped_ptr<CapturingNetLog> worker_log_;
 
   bool was_waiting_for_thread_;
 };

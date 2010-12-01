@@ -49,11 +49,12 @@ TEST(HttpAuthHandlerTest, NetLog) {
         if (async)
           test_callback.WaitForResult();
 
-        EXPECT_EQ(2u, capturing_net_log.entries().size());
-        EXPECT_TRUE(LogContainsBeginEvent(capturing_net_log.entries(),
-                                          0, event_type));
-        EXPECT_TRUE(LogContainsEndEvent(capturing_net_log.entries(),
-                                        1, event_type));
+        net::CapturingNetLog::EntryList entries;
+        capturing_net_log.GetEntries(&entries);
+
+        EXPECT_EQ(2u, entries.size());
+        EXPECT_TRUE(LogContainsBeginEvent(entries, 0, event_type));
+        EXPECT_TRUE(LogContainsEndEvent(entries, 1, event_type));
       }
     }
   }
