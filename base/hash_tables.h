@@ -58,7 +58,7 @@ using __gnu_cxx::hash_set;
 
 namespace __gnu_cxx {
 
-// The GNU C++ library provides identiy hash functions for many integral types,
+// The GNU C++ library provides identity hash functions for many integral types,
 // but not for |long long|.  This hash function will truncate if |size_t| is
 // narrower than |long long|.  This is probably good enough for what we will
 // use it for.
