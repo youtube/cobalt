@@ -3343,33 +3343,36 @@ TEST_P(SpdyNetworkTransactionTest, NetLog) {
   // This test is intentionally non-specific about the exact ordering of the
   // log; instead we just check to make sure that certain events exist, and that
   // they are in the right order.
-  EXPECT_LT(0u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_LT(0u, entries.size());
   int pos = 0;
-  pos = net::ExpectLogContainsSomewhere(log.entries(), 0,
+  pos = net::ExpectLogContainsSomewhere(entries, 0,
       net::NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST,
       net::NetLog::PHASE_BEGIN);
-  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+  pos = net::ExpectLogContainsSomewhere(entries, pos + 1,
       net::NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST,
       net::NetLog::PHASE_END);
-  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+  pos = net::ExpectLogContainsSomewhere(entries, pos + 1,
       net::NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS,
       net::NetLog::PHASE_BEGIN);
-  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+  pos = net::ExpectLogContainsSomewhere(entries, pos + 1,
       net::NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS,
       net::NetLog::PHASE_END);
-  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+  pos = net::ExpectLogContainsSomewhere(entries, pos + 1,
       net::NetLog::TYPE_HTTP_TRANSACTION_READ_BODY,
       net::NetLog::PHASE_BEGIN);
-  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+  pos = net::ExpectLogContainsSomewhere(entries, pos + 1,
       net::NetLog::TYPE_HTTP_TRANSACTION_READ_BODY,
       net::NetLog::PHASE_END);
 
   // Check that we logged all the headers correctly
   pos = net::ExpectLogContainsSomewhere(
-      log.entries(), 0,
+      entries, 0,
       net::NetLog::TYPE_SPDY_SESSION_SYN_STREAM,
       net::NetLog::PHASE_NONE);
-  CapturingNetLog::Entry entry = log.entries()[pos];
+  CapturingNetLog::Entry entry = entries[pos];
   NetLogSpdySynParameter* request_params =
       static_cast<NetLogSpdySynParameter*>(entry.extra_parameters.get());
   spdy::SpdyHeaderBlock* headers =

@@ -1044,19 +1044,22 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
   // Check that the NetLog was filled as expected.
   // (We attempted to both Open and Create entries, but both failed).
-  EXPECT_EQ(6u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(6u, entries.size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      entries, 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      entries, 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      entries, 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      entries, 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
@@ -1145,23 +1148,26 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
                             log.bound());
 
   // Check that the NetLog was filled as expected.
-  EXPECT_EQ(8u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(8u, entries.size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      entries, 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      entries, 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      entries, 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      entries, 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 6, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 6, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 7, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 7, net::NetLog::TYPE_HTTP_CACHE_WAITING));
 
   // force this transaction to read from the cache
   MockTransaction transaction(kSimpleGET_Transaction);
@@ -1172,23 +1178,25 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   RunTransactionTestWithLog(cache.http_cache(), transaction, log.bound());
 
   // Check that the NetLog was filled as expected.
-  EXPECT_EQ(8u, log.entries().size());
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(8u, entries.size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      entries, 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      entries, 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 4, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 5, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 6, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
+      entries, 6, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 7, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
+      entries, 7, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
@@ -1268,23 +1276,26 @@ TEST(HttpCache, SimpleGET_LoadBypassCache) {
   RunTransactionTestWithLog(cache.http_cache(), transaction, log.bound());
 
   // Check that the NetLog was filled as expected.
-  EXPECT_EQ(8u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(8u, entries.size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
+      entries, 2, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
+      entries, 3, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      entries, 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      entries, 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 6, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 6, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 7, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      entries, 7, net::NetLog::TYPE_HTTP_CACHE_WAITING));
 
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());

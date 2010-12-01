@@ -72,13 +72,17 @@ TEST_F(SSLClientSocketTest, Connect) {
   EXPECT_FALSE(sock->IsConnected());
 
   rv = sock->Connect(&callback);
+
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+      entries, 5, net::NetLog::TYPE_SSL_CONNECT));
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
   EXPECT_TRUE(sock->IsConnected());
-  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
+  log.GetEntries(&entries);
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
 
   sock->Disconnect();
   EXPECT_FALSE(sock->IsConnected());
@@ -109,8 +113,11 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
   EXPECT_FALSE(sock->IsConnected());
 
   rv = sock->Connect(&callback);
+
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+      entries, 5, net::NetLog::TYPE_SSL_CONNECT));
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
 
@@ -120,7 +127,8 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
   // test that the handshake has finished. This is because it may be
   // desirable to disconnect the socket before showing a user prompt, since
   // the user may take indefinitely long to respond.
-  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
+  log.GetEntries(&entries);
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
 }
 
 TEST_F(SSLClientSocketTest, ConnectMismatched) {
@@ -149,8 +157,10 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   rv = sock->Connect(&callback);
 
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+      entries, 5, net::NetLog::TYPE_SSL_CONNECT));
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
 
@@ -160,7 +170,8 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
   // test that the handshake has finished. This is because it may be
   // desirable to disconnect the socket before showing a user prompt, since
   // the user may take indefinitely long to respond.
-  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
+  log.GetEntries(&entries);
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
 }
 
 // Attempt to connect to a page which requests a client certificate. It should
@@ -191,11 +202,16 @@ TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
   EXPECT_FALSE(sock->IsConnected());
 
   rv = sock->Connect(&callback);
+
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+      entries, 5, net::NetLog::TYPE_SSL_CONNECT));
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
 
+  log.GetEntries(&entries);
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
   EXPECT_EQ(net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED, rv);
   EXPECT_FALSE(sock->IsConnected());
 }
@@ -235,14 +251,18 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
   // Our test server accepts certificate-less connections.
   // TODO(davidben): Add a test which requires them and verify the error.
   rv = sock->Connect(&callback);
+
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+      entries, 5, net::NetLog::TYPE_SSL_CONNECT));
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
 
   EXPECT_EQ(net::OK, rv);
   EXPECT_TRUE(sock->IsConnected());
-  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
+  log.GetEntries(&entries);
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
 
   sock->Disconnect();
   EXPECT_FALSE(sock->IsConnected());
@@ -553,8 +573,10 @@ TEST_F(SSLClientSocketTest, MAYBE_CipherSuiteDisables) {
   EXPECT_FALSE(sock->IsConnected());
 
   rv = sock->Connect(&callback);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
+      entries, 5, net::NetLog::TYPE_SSL_CONNECT));
 
   // NSS has special handling that maps a handshake_failure alert received
   // immediately after a client_hello to be a mismatched cipher suite error,
@@ -569,12 +591,13 @@ TEST_F(SSLClientSocketTest, MAYBE_CipherSuiteDisables) {
   // The exact ordering differs between SSLClientSocketNSS (which issues an
   // extra read) and SSLClientSocketMac (which does not). Just make sure the
   // error appears somewhere in the log.
-  net::ExpectLogContainsSomewhere(log.entries(), 0,
+  log.GetEntries(&entries);
+  net::ExpectLogContainsSomewhere(entries, 0,
                                   net::NetLog::TYPE_SSL_HANDSHAKE_ERROR,
                                   net::NetLog::PHASE_NONE);
 
   // We cannot test sock->IsConnected(), as the NSS implementation disconnects
   // the socket when it encounters an error, whereas other implementations
   // leave it connected.
-  EXPECT_TRUE(LogContainsSSLConnectEndEvent(log.entries(), -1));
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
 }
