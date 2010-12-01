@@ -1576,7 +1576,7 @@ TEST(MessageLoopTest, HighResolutionTimer) {
 
 #endif  // defined(OS_WIN)
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(OS_NACL)
 
 namespace {
 
@@ -1646,7 +1646,7 @@ TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
 
 }  // namespace
 
-#endif  // defined(OS_POSIX)
+#endif  // defined(OS_POSIX) && !defined(OS_NACL)
 
 namespace {
 class RunAtDestructionTask : public Task {
