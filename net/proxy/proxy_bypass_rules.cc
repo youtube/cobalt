@@ -4,6 +4,7 @@
 
 #include "net/proxy/proxy_bypass_rules.h"
 
+#include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
@@ -45,6 +46,12 @@ class HostnamePatternRule : public ProxyBypassRules::Rule {
     return str;
   }
 
+  virtual Rule* Clone() const {
+    return new HostnamePatternRule(optional_scheme_,
+                                   hostname_pattern_,
+                                   optional_port_);
+  }
+
  private:
   const std::string optional_scheme_;
   const std::string hostname_pattern_;
@@ -62,6 +69,10 @@ class BypassLocalRule : public ProxyBypassRules::Rule {
 
   virtual std::string ToString() const {
     return "<local>";
+  }
+
+  virtual Rule* Clone() const {
+    return new BypassLocalRule();
   }
 };
 
@@ -102,6 +113,13 @@ class BypassIPBlockRule : public ProxyBypassRules::Rule {
     return description_;
   }
 
+  virtual Rule* Clone() const {
+    return new BypassIPBlockRule(description_,
+                                 optional_scheme_,
+                                 ip_prefix_,
+                                 prefix_length_in_bits_);
+  }
+
  private:
   const std::string description_;
   const std::string optional_scheme_;
@@ -122,18 +140,29 @@ bool IsIPAddress(const std::string& domain) {
 
 }  // namespace
 
+ProxyBypassRules::Rule::Rule() {
+}
+
+ProxyBypassRules::Rule::~Rule() {
+}
+
+bool ProxyBypassRules::Rule::Equals(const Rule& rule) const {
+  return ToString() == rule.ToString();
+}
+
 ProxyBypassRules::ProxyBypassRules() {
 }
 
-ProxyBypassRules::ProxyBypassRules(const ProxyBypassRules& rhs)
-    : rules_(rhs.rules_) {
+ProxyBypassRules::ProxyBypassRules(const ProxyBypassRules& rhs) {
+  AssignFrom(rhs);
 }
 
 ProxyBypassRules::~ProxyBypassRules() {
+  Clear();
 }
 
 ProxyBypassRules& ProxyBypassRules::operator=(const ProxyBypassRules& rhs) {
-  rules_ = rhs.rules_;
+  AssignFrom(rhs);
   return *this;
 }
 
@@ -146,11 +175,11 @@ bool ProxyBypassRules::Matches(const GURL& url) const {
 }
 
 bool ProxyBypassRules::Equals(const ProxyBypassRules& other) const {
-  if (rules_.size() != other.rules().size())
+  if (rules_.size() != other.rules_.size())
     return false;
 
   for (size_t i = 0; i < rules_.size(); ++i) {
-    if (!rules_[i]->Equals(*other.rules()[i]))
+    if (!rules_[i]->Equals(*other.rules_[i]))
       return false;
   }
   return true;
@@ -171,14 +200,14 @@ bool ProxyBypassRules::AddRuleForHostname(const std::string& optional_scheme,
   if (hostname_pattern.empty())
     return false;
 
-  rules_.push_back(make_scoped_refptr(new HostnamePatternRule(optional_scheme,
-                                                              hostname_pattern,
-                                                              optional_port)));
+  rules_.push_back(new HostnamePatternRule(optional_scheme,
+                                           hostname_pattern,
+                                           optional_port));
   return true;
 }
 
 void ProxyBypassRules::AddRuleToBypassLocal() {
-  rules_.push_back(make_scoped_refptr(new BypassLocalRule));
+  rules_.push_back(new BypassLocalRule);
 }
 
 bool ProxyBypassRules::AddRuleFromString(const std::string& raw) {
@@ -191,7 +220,17 @@ bool ProxyBypassRules::AddRuleFromStringUsingSuffixMatching(
 }
 
 void ProxyBypassRules::Clear() {
-  rules_.clear();
+  STLDeleteElements(&rules_);
+}
+
+void ProxyBypassRules::AssignFrom(const ProxyBypassRules& other) {
+  Clear();
+
+  // Make a copy of the rules list.
+  for (RuleList::const_iterator it = other.rules_.begin();
+       it != other.rules_.end(); ++it) {
+    rules_.push_back((*it)->Clone());
+  }
 }
 
 void ProxyBypassRules::ParseFromStringInternal(
@@ -241,8 +280,8 @@ bool ProxyBypassRules::AddRuleFromStringInternal(
     if (!ParseCIDRBlock(raw, &ip_prefix, &prefix_length_in_bits))
       return false;
 
-    rules_.push_back(make_scoped_refptr(
-        new BypassIPBlockRule(raw, scheme, ip_prefix, prefix_length_in_bits)));
+    rules_.push_back(
+        new BypassIPBlockRule(raw, scheme, ip_prefix, prefix_length_in_bits));
 
     return true;
   }
