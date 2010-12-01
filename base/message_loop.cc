@@ -142,6 +142,11 @@ MessageLoop::MessageLoop(Type type)
 // TODO(sadrul): enable the new message pump when ready
 #define MESSAGE_PUMP_UI new base::MessagePumpForUI()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
+#elif defined(OS_NACL)
+// Currently NaCl doesn't have a UI or an IO MessageLoop.
+// TODO(abarth): Figure out if we need these.
+#define MESSAGE_PUMP_UI NULL
+#define MESSAGE_PUMP_IO NULL
 #elif defined(OS_POSIX)  // POSIX but not MACOSX.
 #define MESSAGE_PUMP_UI new base::MessagePumpForUI()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
@@ -661,7 +666,7 @@ void MessageLoopForUI::DidProcessMessage(const MSG& message) {
 }
 #endif  // defined(OS_WIN)
 
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(OS_NACL)
 void MessageLoopForUI::AddObserver(Observer* observer) {
   pump_ui()->AddObserver(observer);
 }
@@ -675,7 +680,7 @@ void MessageLoopForUI::Run(Dispatcher* dispatcher) {
   state_->dispatcher = dispatcher;
   RunHandler();
 }
-#endif  // !defined(OS_MACOSX)
+#endif  // !defined(OS_MACOSX) && !defined(OS_NACL)
 
 //------------------------------------------------------------------------------
 // MessageLoopForIO
@@ -690,7 +695,7 @@ bool MessageLoopForIO::WaitForIOCompletion(DWORD timeout, IOHandler* filter) {
   return pump_io()->WaitForIOCompletion(timeout, filter);
 }
 
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(OS_NACL)
 
 bool MessageLoopForIO::WatchFileDescriptor(int fd,
                                            bool persistent,
