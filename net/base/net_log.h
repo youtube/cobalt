@@ -29,12 +29,9 @@ namespace net {
 // is usually accessed through a BoundNetLog, which will always pass in a
 // specific source ID.
 //
-// Note that NetLog is NOT THREADSAFE.
-//
 // ******** The NetLog (and associated logging) is a work in progress ********
 //
 // TODO(eroman): Remove the 'const' qualitifer from the BoundNetLog methods.
-// TODO(eroman): Make the DNS jobs emit into the NetLog.
 // TODO(eroman): Start a new Source each time net::URLRequest redirects
 //               (simpler to reason about each as a separate entity).
 

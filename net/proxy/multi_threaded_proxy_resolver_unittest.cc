@@ -260,9 +260,11 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
   // on completion, this should have been copied into |log0|.
   // We also have 1 log entry that was emitted by the
   // MultiThreadedProxyResolver.
-  ASSERT_EQ(2u, log0.entries().size());
-  EXPECT_EQ(NetLog::TYPE_SUBMITTED_TO_RESOLVER_THREAD,
-            log0.entries()[0].type);
+  net::CapturingNetLog::EntryList entries0;
+  log0.GetEntries(&entries0);
+
+  ASSERT_EQ(2u, entries0.size());
+  EXPECT_EQ(NetLog::TYPE_SUBMITTED_TO_RESOLVER_THREAD, entries0[0].type);
 
   // Start 3 more requests (request1 to request3).
 
@@ -368,30 +370,42 @@ TEST(MultiThreadedProxyResolverTest,
   // 1 entry from the mock proxy resolver.
   EXPECT_EQ(0, callback0.WaitForResult());
   EXPECT_EQ("PROXY request0:80", results0.ToPacString());
-  ASSERT_EQ(2u, log0.entries().size());
+
+  net::CapturingNetLog::EntryList entries0;
+  log0.GetEntries(&entries0);
+
+  ASSERT_EQ(2u, entries0.size());
   EXPECT_EQ(NetLog::TYPE_SUBMITTED_TO_RESOLVER_THREAD,
-            log0.entries()[0].type);
+            entries0[0].type);
 
   // Check that request 1 completed as expected.
   EXPECT_EQ(1, callback1.WaitForResult());
   EXPECT_EQ("PROXY request1:80", results1.ToPacString());
-  ASSERT_EQ(4u, log1.entries().size());
+
+  net::CapturingNetLog::EntryList entries1;
+  log1.GetEntries(&entries1);
+
+  ASSERT_EQ(4u, entries1.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log1.entries(), 0,
+      entries1, 0,
       NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD));
   EXPECT_TRUE(LogContainsEndEvent(
-      log1.entries(), 1,
+      entries1, 1,
       NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD));
 
   // Check that request 2 completed as expected.
   EXPECT_EQ(2, callback2.WaitForResult());
   EXPECT_EQ("PROXY request2:80", results2.ToPacString());
-  ASSERT_EQ(4u, log2.entries().size());
+
+  net::CapturingNetLog::EntryList entries2;
+  log2.GetEntries(&entries2);
+
+  ASSERT_EQ(4u, entries2.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log2.entries(), 0,
+      entries2, 0,
       NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD));
   EXPECT_TRUE(LogContainsEndEvent(
-      log2.entries(), 1,
+      entries2, 1,
       NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD));
 }
 

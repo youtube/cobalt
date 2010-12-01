@@ -8,7 +8,9 @@
 
 #include <vector>
 
+#include "base/atomicops.h"
 #include "base/basictypes.h"
+#include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
@@ -55,12 +57,17 @@ class CapturingNetLog : public NetLog {
   virtual LogLevel GetLogLevel() const { return LOG_ALL_BUT_BYTES; }
 
   // Returns the list of all entries in the log.
-  const EntryList& entries() const { return entries_; }
+  void GetEntries(EntryList* entry_list) const;
 
   void Clear();
 
  private:
-  uint32 next_id_;
+  // Needs to be "mutable" so can use it in GetEntries().
+  mutable Lock lock_;
+
+  // Last assigned source ID.  Incremented to get the next one.
+  base::subtle::Atomic32 last_id_;
+
   size_t max_num_entries_;
   EntryList entries_;
 
@@ -85,16 +92,10 @@ class CapturingBoundNetLog {
     return BoundNetLog(source_, capturing_net_log_.get());
   }
 
-  // Returns the list of all entries in the log.
-  const CapturingNetLog::EntryList& entries() const {
-    return capturing_net_log_->entries();
-  }
+  // Fills |entry_list| with all entries in the log.
+  void GetEntries(CapturingNetLog::EntryList* entry_list) const;
 
   void Clear();
-
-  // Sends all of captured messages to |net_log|, using the same source ID
-  // as |net_log|.
-  void AppendTo(const BoundNetLog& net_log) const;
 
  private:
   NetLog::Source source_;
