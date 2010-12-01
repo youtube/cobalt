@@ -465,6 +465,52 @@
         },
       ],
     }],
+    ['OS!="mac"', {
+      'targets': [
+        {
+          'target_name': 'shader_bench',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../app/app.gyp:app_base',
+          ],
+          'sources': [
+            'tools/shader_bench/shader_bench.cc',
+            'tools/shader_bench/cpu_color_painter.cc',
+            'tools/shader_bench/cpu_color_painter.h',
+            'tools/shader_bench/gpu_color_painter.cc',
+            'tools/shader_bench/gpu_color_painter.h',
+            'tools/shader_bench/gpu_color_painter_exp.cc',
+            'tools/shader_bench/gpu_color_painter_exp.h',
+            'tools/shader_bench/gpu_painter.cc',
+            'tools/shader_bench/gpu_painter.h',
+            'tools/shader_bench/painter.cc',
+            'tools/shader_bench/painter.h',
+            'tools/shader_bench/window.cc',
+            'tools/shader_bench/window.h',
+          ],
+          'conditions': [
+            ['OS=="linux"', {
+              'dependencies': [
+                '../build/linux/system.gyp:gtk',
+              ],
+              'sources': [
+                'tools/shader_bench/window_linux.cc',
+              ],
+            }],
+            ['OS=="win"', {
+              'dependencies': [
+                '../third_party/angle/src/build_angle.gyp:libEGL',
+                '../third_party/angle/src/build_angle.gyp:libGLESv2',
+              ],
+              'sources': [
+                'tools/shader_bench/window_win.cc',
+              ],
+            }],
+          ],
+        },
+      ],
+    }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
       'targets': [
         {
