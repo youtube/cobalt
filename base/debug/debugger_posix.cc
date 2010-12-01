@@ -3,13 +3,16 @@
 // found in the LICENSE file.
 
 #include "base/debug/debugger.h"
+#include "build/build_config.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#if !defined(OS_NACL)
 #include <sys/sysctl.h>
+#endif
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -125,6 +128,13 @@ bool BeingDebugged() {
   return pid_index < status.size() && status[pid_index] != '0';
 }
 
+#elif defined(OS_NACL)
+
+bool BeingDebugged() {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 #elif defined(OS_FREEBSD)
 
 bool DebugUtil::BeingDebugged() {
@@ -150,6 +160,11 @@ bool DebugUtil::BeingDebugged() {
 // Mac: Always send SIGTRAP.
 
 #if defined(NDEBUG) && !defined(OS_MACOSX)
+#define DEBUG_BREAK() abort()
+#elif defined(OS_NACL)
+// The NaCl verifier doesn't let use use int3.  For now, we call abort().  We
+// should ask for advice from some NaCl experts about the optimum thing here.
+// http://code.google.com/p/nativeclient/issues/detail?id=645
 #define DEBUG_BREAK() abort()
 #elif defined(ARCH_CPU_ARM_FAMILY)
 #define DEBUG_BREAK() asm("bkpt 0")
