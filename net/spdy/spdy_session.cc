@@ -314,9 +314,10 @@ int SpdySession::GetPushStream(
   // encrypted SSL socket.
   if (is_secure_ && certificate_error_code_ != OK &&
       (url.SchemeIs("https") || url.SchemeIs("wss"))) {
-    LOG(DFATAL) << "Tried to get pushed spdy stream for secure content over an "
-                << "unauthenticated session.";
-    return certificate_error_code_;
+    LOG(ERROR) << "Tried to get pushed spdy stream for secure content over an "
+               << "unauthenticated session.";
+    CloseSessionOnError(static_cast<net::Error>(certificate_error_code_), true);
+    return ERR_SPDY_PROTOCOL_ERROR;
   }
 
   const std::string& path = url.PathForRequest();
@@ -411,9 +412,10 @@ int SpdySession::CreateStreamImpl(
   // encrypted SSL socket.
   if (is_secure_ && certificate_error_code_ != OK &&
       (url.SchemeIs("https") || url.SchemeIs("wss"))) {
-    LOG(DFATAL) << "Tried to create spdy stream for secure content over an "
-                << "unauthenticated session.";
-    return certificate_error_code_;
+    LOG(ERROR) << "Tried to create spdy stream for secure content over an "
+               << "unauthenticated session.";
+    CloseSessionOnError(static_cast<net::Error>(certificate_error_code_), true);
+    return ERR_SPDY_PROTOCOL_ERROR;
   }
 
   const std::string& path = url.PathForRequest();

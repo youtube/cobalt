@@ -759,7 +759,12 @@ int HttpStreamRequest::DoCreateStream() {
     direct = false;
   }
 
-  if (!spdy_session.get()) {
+  if (spdy_session.get()) {
+    // We picked up an existing session, so we don't need our socket.
+    if (connection_->socket())
+      connection_->socket()->Disconnect();
+    connection_->Reset();
+  } else {
     // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
     // extension, or just directly using SSL. Either way, |connection_| must
     // contain an SSLClientSocket.
