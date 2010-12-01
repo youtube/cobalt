@@ -234,7 +234,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // PrepareFilter() creates the filter's thread and injects a FilterHost and
   // MessageLoop.
-  void PrepareFilter(scoped_refptr<MediaFilter> filter);
+  bool PrepareFilter(scoped_refptr<MediaFilter> filter);
 
   // The following initialize methods are used to select a specific type of
   // MediaFilter object from MediaFilterCollection and initialize it

@@ -937,7 +937,7 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
   }
 }
 
-void PipelineImpl::PrepareFilter(scoped_refptr<MediaFilter> filter) {
+bool PipelineImpl::PrepareFilter(scoped_refptr<MediaFilter> filter) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
@@ -948,7 +948,7 @@ void PipelineImpl::PrepareFilter(scoped_refptr<MediaFilter> filter) {
     if (!thread.get() || !thread->Start()) {
       NOTREACHED() << "Could not start filter thread";
       SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-      return;
+      return false;
     }
 
     filter->set_message_loop(thread->message_loop());
@@ -959,6 +959,7 @@ void PipelineImpl::PrepareFilter(scoped_refptr<MediaFilter> filter) {
   DCHECK(IsPipelineOk());
   filter->set_host(this);
   filters_.push_back(make_scoped_refptr(filter.get()));
+  return true;
 }
 
 void PipelineImpl::InitializeDataSource() {
@@ -977,7 +978,9 @@ void PipelineImpl::InitializeDataSource() {
     return;
   }
 
-  PrepareFilter(data_source);
+  if (!PrepareFilter(data_source))
+    return;
+
   pipeline_init_state_->data_source_ = data_source;
   data_source->Initialize(
       url_, NewCallback(this, &PipelineImpl::OnFilterInitialize));
@@ -998,7 +1001,9 @@ void PipelineImpl::InitializeDemuxer(
     return;
   }
 
-  PrepareFilter(demuxer);
+  if (!PrepareFilter(demuxer))
+    return;
+
   pipeline_init_state_->demuxer_ = demuxer;
   demuxer->Initialize(data_source,
                       NewCallback(this, &PipelineImpl::OnFilterInitialize));
@@ -1012,23 +1017,25 @@ bool PipelineImpl::InitializeAudioDecoder(
   scoped_refptr<DemuxerStream> stream =
       FindDemuxerStream(demuxer, mime_type::kMajorTypeAudio);
 
-  if (stream) {
-    scoped_refptr<AudioDecoder> audio_decoder;
-    filter_collection_->SelectAudioDecoder(&audio_decoder);
+  if (!stream)
+    return false;
 
-    if (audio_decoder) {
-      PrepareFilter(audio_decoder);
-      pipeline_init_state_->audio_decoder_ = audio_decoder;
-      audio_decoder->Initialize(
-          stream,
-          NewCallback(this, &PipelineImpl::OnFilterInitialize));
-      return true;
-    } else {
-      SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
-    }
+  scoped_refptr<AudioDecoder> audio_decoder;
+  filter_collection_->SelectAudioDecoder(&audio_decoder);
+
+  if (!audio_decoder) {
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+    return false;
   }
 
-  return false;
+  if (!PrepareFilter(audio_decoder))
+    return false;
+
+  pipeline_init_state_->audio_decoder_ = audio_decoder;
+  audio_decoder->Initialize(
+      stream,
+      NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  return true;
 }
 
 bool PipelineImpl::InitializeVideoDecoder(
@@ -1039,22 +1046,25 @@ bool PipelineImpl::InitializeVideoDecoder(
   scoped_refptr<DemuxerStream> stream =
       FindDemuxerStream(demuxer, mime_type::kMajorTypeVideo);
 
-  if (stream) {
-    scoped_refptr<VideoDecoder> video_decoder;
-    filter_collection_->SelectVideoDecoder(&video_decoder);
+  if (!stream)
+    return false;
 
-    if (video_decoder) {
-      PrepareFilter(video_decoder);
-      pipeline_init_state_->video_decoder_ = video_decoder;
-      video_decoder->Initialize(
-          stream,
-          NewCallback(this, &PipelineImpl::OnFilterInitialize));
-      return true;
-    } else {
-      SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
-    }
+  scoped_refptr<VideoDecoder> video_decoder;
+  filter_collection_->SelectVideoDecoder(&video_decoder);
+
+  if (!video_decoder) {
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+    return false;
   }
-  return false;
+
+  if (!PrepareFilter(video_decoder))
+    return false;
+
+  pipeline_init_state_->video_decoder_ = video_decoder;
+  video_decoder->Initialize(
+      stream,
+      NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  return true;
 }
 
 bool PipelineImpl::InitializeAudioRenderer(
@@ -1062,19 +1072,21 @@ bool PipelineImpl::InitializeAudioRenderer(
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
-  if (decoder) {
-    filter_collection_->SelectAudioRenderer(&audio_renderer_);
+  if (!decoder)
+    return false;
 
-    if (audio_renderer_) {
-      PrepareFilter(audio_renderer_);
-      audio_renderer_->Initialize(
-          decoder, NewCallback(this, &PipelineImpl::OnFilterInitialize));
-      return true;
-    } else {
-      SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
-    }
+  filter_collection_->SelectAudioRenderer(&audio_renderer_);
+  if (!audio_renderer_) {
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+    return false;
   }
-  return false;
+
+  if (!PrepareFilter(audio_renderer_))
+    return false;
+
+  audio_renderer_->Initialize(
+      decoder, NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  return true;
 }
 
 bool PipelineImpl::InitializeVideoRenderer(
@@ -1082,19 +1094,21 @@ bool PipelineImpl::InitializeVideoRenderer(
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
-  if (decoder) {
-    filter_collection_->SelectVideoRenderer(&video_renderer_);
+  if (!decoder)
+    return false;
 
-    if (video_renderer_) {
-      PrepareFilter(video_renderer_);
-      video_renderer_->Initialize(
-          decoder, NewCallback(this, &PipelineImpl::OnFilterInitialize));
-      return true;
-    } else {
-      SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
-    }
+  filter_collection_->SelectVideoRenderer(&video_renderer_);
+  if (!video_renderer_) {
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+    return false;
   }
-  return false;
+
+  if (!PrepareFilter(video_renderer_))
+    return false;
+
+  video_renderer_->Initialize(
+      decoder, NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  return true;
 }
 
 scoped_refptr<DemuxerStream> PipelineImpl::FindDemuxerStream(
