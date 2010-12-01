@@ -138,8 +138,10 @@ TEST(ProxyResolverV8Test, Direct) {
   EXPECT_EQ(0U, resolver.mock_js_bindings()->alerts.size());
   EXPECT_EQ(0U, resolver.mock_js_bindings()->errors.size());
 
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
   // No bindings were called, so no log entries.
-  EXPECT_EQ(0u, log.entries().size());
+  EXPECT_EQ(0u, entries.size());
 }
 
 TEST(ProxyResolverV8Test, ReturnEmptyString) {

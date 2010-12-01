@@ -131,14 +131,19 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(user_sock_->IsConnected());
-  EXPECT_TRUE(LogContainsBeginEvent(net_log_.entries(), 0,
+
+  net::CapturingNetLog::EntryList net_log_entries;
+  net_log_.GetEntries(&net_log_entries);
+  EXPECT_TRUE(LogContainsBeginEvent(net_log_entries, 0,
                                     NetLog::TYPE_SOCKS5_CONNECT));
 
   rv = callback_.WaitForResult();
 
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
-  EXPECT_TRUE(LogContainsEndEvent(net_log_.entries(), -1,
+
+  net_log_.GetEntries(&net_log_entries);
+  EXPECT_TRUE(LogContainsEndEvent(net_log_entries, -1,
                                   NetLog::TYPE_SOCKS5_CONNECT));
 
   scoped_refptr<IOBuffer> buffer(new IOBuffer(payload_write.size()));
@@ -248,12 +253,18 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
                                      hostname, 80, &net_log_));
     int rv = user_sock_->Connect(&callback_);
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContainsBeginEvent(net_log_.entries(), 0,
+
+    net::CapturingNetLog::EntryList net_log_entries;
+    net_log_.GetEntries(&net_log_entries);
+    EXPECT_TRUE(LogContainsBeginEvent(net_log_entries, 0,
                 NetLog::TYPE_SOCKS5_CONNECT));
+
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
-    EXPECT_TRUE(LogContainsEndEvent(net_log_.entries(), -1,
+
+    net_log_.GetEntries(&net_log_entries);
+    EXPECT_TRUE(LogContainsEndEvent(net_log_entries, -1,
                 NetLog::TYPE_SOCKS5_CONNECT));
   }
 
@@ -273,12 +284,16 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
                                      hostname, 80, &net_log_));
     int rv = user_sock_->Connect(&callback_);
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContainsBeginEvent(net_log_.entries(), 0,
+
+    net::CapturingNetLog::EntryList net_log_entries;
+    net_log_.GetEntries(&net_log_entries);
+    EXPECT_TRUE(LogContainsBeginEvent(net_log_entries, 0,
                                       NetLog::TYPE_SOCKS5_CONNECT));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
-    EXPECT_TRUE(LogContainsEndEvent(net_log_.entries(), -1,
+    net_log_.GetEntries(&net_log_entries);
+    EXPECT_TRUE(LogContainsEndEvent(net_log_entries, -1,
                                     NetLog::TYPE_SOCKS5_CONNECT));
   }
 
@@ -299,12 +314,15 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
                                      hostname, 80, &net_log_));
     int rv = user_sock_->Connect(&callback_);
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContainsBeginEvent(net_log_.entries(), 0,
+    net::CapturingNetLog::EntryList net_log_entries;
+    net_log_.GetEntries(&net_log_entries);
+    EXPECT_TRUE(LogContainsBeginEvent(net_log_entries, 0,
                                       NetLog::TYPE_SOCKS5_CONNECT));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
-    EXPECT_TRUE(LogContainsEndEvent(net_log_.entries(), -1,
+    net_log_.GetEntries(&net_log_entries);
+    EXPECT_TRUE(LogContainsEndEvent(net_log_entries, -1,
                                     NetLog::TYPE_SOCKS5_CONNECT));
   }
 
@@ -327,12 +345,15 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
                                      hostname, 80, &net_log_));
     int rv = user_sock_->Connect(&callback_);
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContainsBeginEvent(net_log_.entries(), 0,
+    net::CapturingNetLog::EntryList net_log_entries;
+    net_log_.GetEntries(&net_log_entries);
+    EXPECT_TRUE(LogContainsBeginEvent(net_log_entries, 0,
                                       NetLog::TYPE_SOCKS5_CONNECT));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
-    EXPECT_TRUE(LogContainsEndEvent(net_log_.entries(), -1,
+    net_log_.GetEntries(&net_log_entries);
+    EXPECT_TRUE(LogContainsEndEvent(net_log_entries, -1,
                                     NetLog::TYPE_SOCKS5_CONNECT));
   }
 }

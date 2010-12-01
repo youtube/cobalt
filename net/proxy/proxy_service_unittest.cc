@@ -130,14 +130,17 @@ TEST(ProxyServiceTest, Direct) {
   EXPECT_TRUE(info.is_direct());
 
   // Check the NetLog was filled correctly.
-  EXPECT_EQ(3u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(3u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_PROXY_SERVICE));
+      entries, 0, NetLog::TYPE_PROXY_SERVICE));
   EXPECT_TRUE(LogContainsEvent(
-      log.entries(), 1, NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
+      entries, 1, NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
       NetLog::PHASE_NONE));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 2, NetLog::TYPE_PROXY_SERVICE));
+      entries, 2, NetLog::TYPE_PROXY_SERVICE));
 }
 
 TEST(ProxyServiceTest, PAC) {
@@ -174,15 +177,18 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
 
   // Check the NetLog was filled correctly.
-  EXPECT_EQ(5u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(5u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_PROXY_SERVICE));
+      entries, 0, NetLog::TYPE_PROXY_SERVICE));
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 1, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
+      entries, 1, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 2, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
+      entries, 2, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 4, NetLog::TYPE_PROXY_SERVICE));
+      entries, 4, NetLog::TYPE_PROXY_SERVICE));
 }
 
 // Test that the proxy resolver does not see the URL's username/password
@@ -1149,18 +1155,21 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   EXPECT_FALSE(callback1.have_result());  // Cancelled.
   EXPECT_FALSE(callback2.have_result());  // Cancelled.
 
+  net::CapturingNetLog::EntryList entries1;
+  log1.GetEntries(&entries1);
+
   // Check the NetLog for request 1 (which was cancelled) got filled properly.
-  EXPECT_EQ(4u, log1.entries().size());
+  EXPECT_EQ(4u, entries1.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log1.entries(), 0, NetLog::TYPE_PROXY_SERVICE));
+      entries1, 0, NetLog::TYPE_PROXY_SERVICE));
   EXPECT_TRUE(LogContainsBeginEvent(
-      log1.entries(), 1, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
+      entries1, 1, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
   // Note that TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC is never completed before
   // the cancellation occured.
   EXPECT_TRUE(LogContainsEvent(
-      log1.entries(), 2, NetLog::TYPE_CANCELLED, NetLog::PHASE_NONE));
+      entries1, 2, NetLog::TYPE_CANCELLED, NetLog::PHASE_NONE));
   EXPECT_TRUE(LogContainsEndEvent(
-      log1.entries(), 3, NetLog::TYPE_PROXY_SERVICE));
+      entries1, 3, NetLog::TYPE_PROXY_SERVICE));
 }
 
 // Test that if auto-detect fails, we fall-back to the custom pac.
@@ -1679,11 +1688,14 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // In particular, PROXY_CONFIG_CHANGED should have only been emitted once
   // (for the initial setup), and NOT a second time when the IP address
   // changed.
-  EXPECT_TRUE(LogContainsEntryWithType(log.entries(), 0,
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_TRUE(LogContainsEntryWithType(entries, 0,
                                        NetLog::TYPE_PROXY_CONFIG_CHANGED));
-  ASSERT_EQ(13u, log.entries().size());
-  for (size_t i = 1; i < log.entries().size(); ++i)
-    EXPECT_NE(NetLog::TYPE_PROXY_CONFIG_CHANGED, log.entries()[i].type);
+  ASSERT_EQ(13u, entries.size());
+  for (size_t i = 1; i < entries.size(); ++i)
+    EXPECT_NE(NetLog::TYPE_PROXY_CONFIG_CHANGED, entries[i].type);
 }
 
 }  // namespace net

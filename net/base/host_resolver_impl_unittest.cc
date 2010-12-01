@@ -271,11 +271,14 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
   int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, err);
 
-  EXPECT_EQ(2u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(2u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
+      entries, 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
+      entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   const struct addrinfo* ainfo = addrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -304,18 +307,23 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
                                    log.bound());
   EXPECT_EQ(ERR_IO_PENDING, err);
 
-  EXPECT_EQ(1u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(1u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
+      entries, 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   MessageLoop::current()->Run();
 
   ASSERT_TRUE(callback_called_);
   ASSERT_EQ(OK, callback_result_);
 
-  EXPECT_EQ(2u, log.entries().size());
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(2u, entries.size());
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
+      entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   const struct addrinfo* ainfo = addrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -356,31 +364,37 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
 
   resolver_proc->Signal();
 
-  EXPECT_EQ(2u, log.entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
-  EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
 
-  int pos = net::ExpectLogContainsSomewhereAfter(net_log.entries(), 0,
+  EXPECT_EQ(2u, entries.size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      entries, 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_TRUE(LogContainsEndEvent(
+      entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
+
+  net::CapturingNetLog::EntryList net_log_entries;
+  net_log.GetEntries(&net_log_entries);
+
+  int pos = net::ExpectLogContainsSomewhereAfter(net_log_entries, 0,
       net::NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
       net::NetLog::PHASE_BEGIN);
-  pos = net::ExpectLogContainsSomewhereAfter(net_log.entries(), pos + 1,
+  pos = net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       net::NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
       net::NetLog::PHASE_BEGIN);
   // Both Job and Request need to be cancelled.
-  pos = net::ExpectLogContainsSomewhereAfter(net_log.entries(), pos + 1,
+  pos = net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       net::NetLog::TYPE_CANCELLED,
       net::NetLog::PHASE_NONE);
   // Don't care about order in which they end, or when the other one is
   // cancelled.
-  net::ExpectLogContainsSomewhereAfter(net_log.entries(), pos + 1,
+  net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       net::NetLog::TYPE_CANCELLED,
       net::NetLog::PHASE_NONE);
-  net::ExpectLogContainsSomewhereAfter(net_log.entries(), pos + 1,
+  net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       net::NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
       net::NetLog::PHASE_END);
-  net::ExpectLogContainsSomewhereAfter(net_log.entries(), pos + 1,
+  net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       net::NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
       net::NetLog::PHASE_END);
 
@@ -943,11 +957,14 @@ TEST_F(HostResolverImplTest, Observers) {
   int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, rv);
 
-  EXPECT_EQ(2u, log.entries().size());
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(2u, entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
+      entries, 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
+      entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   EXPECT_EQ(1U, observer.start_log.size());
   EXPECT_EQ(1U, observer.finish_log.size());
