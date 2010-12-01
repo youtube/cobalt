@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "base/ref_counted.h"
 #include "googleurl/src/gurl.h"
 
 namespace net {
@@ -20,10 +19,10 @@ namespace net {
 class ProxyBypassRules {
  public:
   // Interface for an individual proxy bypass rule.
-  class Rule : public base::RefCounted<Rule> {
+  class Rule {
    public:
-    Rule() {}
-    virtual ~Rule() {}
+    Rule();
+    virtual ~Rule();
 
     // Returns true if |url| matches the rule.
     virtual bool Matches(const GURL& url) const = 0;
@@ -32,15 +31,16 @@ class ProxyBypassRules {
     // visualizing the rules, and also to test equality of a rules list.
     virtual std::string ToString() const = 0;
 
-    bool Equals(const Rule& rule) const {
-      return ToString() == rule.ToString();
-    }
+    // Creates a copy of this rule. (Caller is responsible for deleting it)
+    virtual Rule* Clone() const = 0;
+
+    bool Equals(const Rule& rule) const;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(Rule);
   };
 
-  typedef std::vector<scoped_refptr<Rule> > RuleList;
+  typedef std::vector<const Rule*> RuleList;
 
   // Note: This class supports copy constructor and assignment.
   ProxyBypassRules();
@@ -48,7 +48,9 @@ class ProxyBypassRules {
   ~ProxyBypassRules();
   ProxyBypassRules& operator=(const ProxyBypassRules& rhs);
 
-  // Returns the current list of rules.
+  // Returns the current list of rules. The rules list contains pointers
+  // which are owned by this class, callers should NOT keep references
+  // or delete them.
   const RuleList& rules() const { return rules_; }
 
   // Returns true if |url| matches any of the proxy bypass rules.
@@ -153,6 +155,9 @@ class ProxyBypassRules {
 
   // Removes all the rules.
   void Clear();
+
+  // Sets |*this| to |other|.
+  void AssignFrom(const ProxyBypassRules& other);
 
  private:
   // The following are variants of ParseFromString() and AddRuleFromString(),
