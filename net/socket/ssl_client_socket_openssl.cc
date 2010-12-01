@@ -202,6 +202,19 @@ class SSLContext {
   SSLSessionCache session_cache_;
 };
 
+// Utility to construct the appropriate set & clear masks for use the OpenSSL
+// options and mode configuration functions. (SSL_set_options etc)
+struct SslSetClearMask {
+  SslSetClearMask() : set_mask(0), clear_mask(0) {}
+  void ConfigureFlag(long flag, bool state) {
+    (state ? set_mask : clear_mask) |= flag;
+    // Make sure we haven't got any intersection in the set & clear options.
+    DCHECK_EQ(0, set_mask & clear_mask) << flag << ":" << state;
+  }
+  long set_mask;
+  long clear_mask;
+};
+
 }  // namespace
 
 SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
@@ -260,27 +273,45 @@ bool SSLClientSocketOpenSSL::Init() {
 
   SSL_set_bio(ssl_, ssl_bio, ssl_bio);
 
-#define SET_SSL_CONFIG_OPTION(option, value)   \
-      (((value) ? set_mask : clear_mask) |= (option))
-
   // OpenSSL defaults some options to on, others to off. To avoid ambiguity,
   // set everything we care about to an absolute value.
-  long set_mask = 0;
-  long clear_mask = 0;
-  SET_SSL_CONFIG_OPTION(SSL_OP_NO_SSLv2, true);
-  SET_SSL_CONFIG_OPTION(SSL_OP_NO_SSLv3, !ssl_config_.ssl3_enabled);
-  SET_SSL_CONFIG_OPTION(SSL_OP_NO_TLSv1, !ssl_config_.tls1_enabled);
+  SslSetClearMask options;
+  options.ConfigureFlag(SSL_OP_NO_SSLv2, true);
+  options.ConfigureFlag(SSL_OP_NO_SSLv3, !ssl_config_.ssl3_enabled);
+  options.ConfigureFlag(SSL_OP_NO_TLSv1, !ssl_config_.tls1_enabled);
+
+#if defined(SSL_OP_NO_COMPRESSION)
+  // If TLS was disabled also disable compression, to provide maximum site
+  // compatibility in the case of protocol fallback. See http://crbug.com/31628
+  options.ConfigureFlag(SSL_OP_NO_COMPRESSION, !ssl_config_.tls1_enabled);
+#endif
 
   // TODO(joth): Set this conditionally, see http://crbug.com/55410
-  SET_SSL_CONFIG_OPTION(SSL_OP_LEGACY_SERVER_CONNECT, true);
+  options.ConfigureFlag(SSL_OP_LEGACY_SERVER_CONNECT, true);
 
-  // Make sure we haven't got any intersection in the set & clear options.
-  DCHECK_EQ(0, set_mask & clear_mask);
+  SSL_set_options(ssl_, options.set_mask);
+  SSL_clear_options(ssl_, options.clear_mask);
 
-  SSL_set_options(ssl_, set_mask);
-  SSL_clear_options(ssl_, clear_mask);
-#undef SET_SSL_CONFIG_OPTION
+  // Same as above, this time for the SSL mode.
+  SslSetClearMask mode;
 
+#if defined(SSL_MODE_HANDSHAKE_CUTTHROUGH)
+  mode.ConfigureFlag(SSL_MODE_HANDSHAKE_CUTTHROUGH,
+                     ssl_config_.false_start_enabled &&
+                     !SSLConfigService::IsKnownFalseStartIncompatibleServer(
+                         host_and_port_.host()));
+#endif
+
+#if defined(SSL_MODE_RELEASE_BUFFERS)
+  mode.ConfigureFlag(SSL_MODE_RELEASE_BUFFERS, true);
+#endif
+
+#if defined(SSL_MODE_SMALL_BUFFERS)
+  mode.ConfigureFlag(SSL_MODE_SMALL_BUFFERS, true);
+#endif
+
+  SSL_set_mode(ssl_, mode.set_mask);
+  SSL_clear_mode(ssl_, mode.clear_mask);
   return true;
 }
 
