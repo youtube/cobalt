@@ -1140,7 +1140,9 @@ std::string GetFileNameFromCD(const std::string& header,
         // RFC 5987 value should be ASCII-only.
         if (!IsStringASCII(value))
           return std::string();
-        std::string tmp = UnescapeURLComponent(value, UnescapeRule::SPACES);
+        std::string tmp = UnescapeURLComponent(
+            value,
+            UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
         if (base::ConvertToUtf8AndNormalize(tmp, charset, &decoded))
           return decoded;
       }
