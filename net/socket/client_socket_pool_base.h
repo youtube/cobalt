@@ -480,6 +480,11 @@ class ClientSocketPoolBaseHelper
   // I'm not sure if we hit this situation often.
   void CloseOneIdleSocket();
 
+  // Same as CloseOneIdleSocket() except it won't close an idle socket in
+  // |group|.  If |group| is NULL, it is ignored.  Returns true if it closed a
+  // socket.
+  bool CloseOneIdleSocketExceptInGroup(const Group* group);
+
   // Checks if there are stalled socket groups that should be notified
   // for possible wakeup.
   void CheckForStalledSocketGroups();

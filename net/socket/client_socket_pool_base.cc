@@ -250,6 +250,8 @@ void ClientSocketPoolBaseHelper::RequestSockets(
        group->NumActiveSocketSlots() < num_sockets &&
        num_iterations_left > 0 ; num_iterations_left--) {
     int rv = RequestSocketInternal(group_name, &request);
+    // TODO(willchan): Possibly check for ERR_PRECONNECT_MAX_SOCKET_LIMIT so we
+    // can log it into the NetLog.
     if (rv < 0 && rv != ERR_IO_PENDING) {
       // We're encountering a synchronous error.  Give up.
       if (!ContainsKey(group_map_, group_name))
@@ -298,7 +300,9 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
 
   if (ReachedMaxSocketsLimit()) {
     if (idle_socket_count() > 0) {
-      CloseOneIdleSocket();
+      bool closed = CloseOneIdleSocketExceptInGroup(group);
+      if (preconnecting && !closed)
+        return ERR_PRECONNECT_MAX_SOCKET_LIMIT;
     } else {
       // We could check if we really have a stalled group here, but it requires
       // a scan of all groups, so just flip a flag here, and do the check later.
@@ -940,10 +944,17 @@ bool ClientSocketPoolBaseHelper::ReachedMaxSocketsLimit() const {
 }
 
 void ClientSocketPoolBaseHelper::CloseOneIdleSocket() {
+  CloseOneIdleSocketExceptInGroup(NULL);
+}
+
+bool ClientSocketPoolBaseHelper::CloseOneIdleSocketExceptInGroup(
+    const Group* exception_group) {
   CHECK_GT(idle_socket_count(), 0);
 
   for (GroupMap::iterator i = group_map_.begin(); i != group_map_.end(); ++i) {
     Group* group = i->second;
+    if (exception_group == group)
+      continue;
     std::list<IdleSocket>* idle_sockets = group->mutable_idle_sockets();
 
     if (!idle_sockets->empty()) {
@@ -953,11 +964,14 @@ void ClientSocketPoolBaseHelper::CloseOneIdleSocket() {
       if (group->IsEmpty())
         RemoveGroup(i);
 
-      return;
+      return true;
     }
   }
 
-  LOG(DFATAL) << "No idle socket found to close!.";
+  if (!exception_group)
+    LOG(DFATAL) << "No idle socket found to close!.";
+
+  return false;
 }
 
 void ClientSocketPoolBaseHelper::InvokeUserCallbackLater(

@@ -3025,6 +3025,81 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectJobsTakenByNormalRequests) {
   EXPECT_EQ(1, pool_->IdleSocketCountInGroup("a"));
 }
 
+// http://crbug.com/64940 regression test.
+TEST_F(ClientSocketPoolBaseTest, PreconnectClosesIdleSocketRemovesGroup) {
+  const int kMaxTotalSockets = 3;
+  const int kMaxSocketsPerGroup = 2;
+  CreatePool(kMaxTotalSockets, kMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  // Note that group name ordering matters here.  "a" comes before "b", so
+  // CloseOneIdleSocket() will try to close "a"'s idle socket.
+
+  // Set up one idle socket in "a".
+  ClientSocketHandle handle1;
+  TestCompletionCallback callback1;
+  EXPECT_EQ(ERR_IO_PENDING, handle1.Init("a",
+                                         params_,
+                                         kDefaultPriority,
+                                         &callback1,
+                                         pool_.get(),
+                                         BoundNetLog()));
+
+  ASSERT_EQ(OK, callback1.WaitForResult());
+  handle1.Reset();
+  EXPECT_EQ(1, pool_->IdleSocketCountInGroup("a"));
+
+  // Set up two active sockets in "b".
+  ClientSocketHandle handle2;
+  TestCompletionCallback callback2;
+  EXPECT_EQ(ERR_IO_PENDING, handle1.Init("b",
+                                         params_,
+                                         kDefaultPriority,
+                                         &callback1,
+                                         pool_.get(),
+                                         BoundNetLog()));
+  EXPECT_EQ(ERR_IO_PENDING, handle2.Init("b",
+                                         params_,
+                                         kDefaultPriority,
+                                         &callback2,
+                                         pool_.get(),
+                                         BoundNetLog()));
+
+  ASSERT_EQ(OK, callback1.WaitForResult());
+  ASSERT_EQ(OK, callback2.WaitForResult());
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("b"));
+  EXPECT_EQ(2, pool_->NumActiveSocketsInGroup("b"));
+
+  // Now we have 1 idle socket in "a" and 2 active sockets in "b".  This means
+  // we've maxed out on sockets, since we set |kMaxTotalSockets| to 3.
+  // Requesting 2 preconnected sockets for "a" should fail to allocate any more
+  // sockets for "a", and "b" should still have 2 active sockets.
+
+  pool_->RequestSockets("a", &params_, 2, BoundNetLog());
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(1, pool_->IdleSocketCountInGroup("a"));
+  EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("a"));
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("b"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("b"));
+  EXPECT_EQ(2, pool_->NumActiveSocketsInGroup("b"));
+
+  // Now release the 2 active sockets for "b".  This will give us 1 idle socket
+  // in "a" and 2 idle sockets in "b".  Requesting 2 preconnected sockets for
+  // "a" should result in closing 1 for "b".
+  handle1.Reset();
+  handle2.Reset();
+  EXPECT_EQ(2, pool_->IdleSocketCountInGroup("b"));
+  EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("b"));
+
+  pool_->RequestSockets("a", &params_, 2, BoundNetLog());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(1, pool_->IdleSocketCountInGroup("a"));
+  EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("a"));
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("b"));
+  EXPECT_EQ(1, pool_->IdleSocketCountInGroup("b"));
+  EXPECT_EQ(0, pool_->NumActiveSocketsInGroup("b"));
+}
+
 }  // namespace
 
 }  // namespace net
