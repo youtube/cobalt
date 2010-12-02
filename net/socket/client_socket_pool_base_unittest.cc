@@ -2916,6 +2916,16 @@ TEST_F(ClientSocketPoolBaseTest, RequestSocketsSynchronous) {
   EXPECT_EQ(kDefaultMaxSocketsPerGroup, pool_->IdleSocketCountInGroup("b"));
 }
 
+TEST_F(ClientSocketPoolBaseTest, RequestSocketsSynchronousError) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockFailingJob);
+
+  pool_->RequestSockets("a", &params_, kDefaultMaxSocketsPerGroup,
+                        BoundNetLog());
+
+  ASSERT_FALSE(pool_->HasGroup("a"));
+}
+
 TEST_F(ClientSocketPoolBaseTest, RequestSocketsMultipleTimesDoesNothing) {
   CreatePool(4, 4);
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
