@@ -15,7 +15,9 @@
 #include "net/socket/client_socket_handle.h"
 
 typedef struct bio_st BIO;
+typedef struct evp_pkey_st EVP_PKEY;
 typedef struct ssl_st SSL;
+typedef struct x509_st X509;
 
 namespace net {
 
@@ -37,6 +39,10 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   ~SSLClientSocketOpenSSL();
 
   const HostPortPair& host_and_port() const { return host_and_port_; }
+
+  // Callback from the SSL layer that indicates the remote server is requesting
+  // a certificate for this client.
+  int ClientCertRequestCallback(SSL* ssl, X509** x509, EVP_PKEY** pkey);
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
@@ -71,7 +77,6 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
   void DoConnectCallback(int result);
-  void InvalidateSessionIfBadCertificate();
   X509Certificate* UpdateServerCert();
 
   void OnHandshakeIOComplete(int result);

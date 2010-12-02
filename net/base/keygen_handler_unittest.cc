@@ -73,7 +73,13 @@ void AssertValidSignedPublicKeyAndChallenge(const std::string& result,
   //    openssl asn1parse -inform DER
 }
 
-TEST_F(KeygenHandlerTest, SmokeTest) {
+// Keygen not yet implemented for OpenSSL: http://crbug.com/64917
+#if defined(USE_OPENSSL)
+#define MAYBE_SmokeTest FAILS_SmokeTest
+#else
+#define MAYBE_SmokeTest SmokeTest
+#endif
+TEST_F(KeygenHandlerTest, MAYBE_SmokeTest) {
   KeygenHandler handler(768, "some challenge", GURL("http://www.example.com"));
   handler.set_stores_key(false);  // Don't leave the key-pair behind
   std::string result = handler.GenKeyAndSignChallenge();
@@ -117,9 +123,15 @@ class ConcurrencyTestTask : public Task {
   std::string* result_;
 };
 
+// Keygen not yet implemented for OpenSSL: http://crbug.com/64917
+#if defined(USE_OPENSSL)
+#define MAYBE_ConcurrencyTest FAILS_ConcurrencyTest
+#else
+#define MAYBE_ConcurrencyTest ConcurrencyTest
+#endif
 // We asynchronously generate the keys so as not to hang up the IO thread. This
 // test tries to catch concurrency problems in the keygen implementation.
-TEST_F(KeygenHandlerTest, ConcurrencyTest) {
+TEST_F(KeygenHandlerTest, MAYBE_ConcurrencyTest) {
   const int NUM_HANDLERS = 5;
   base::WaitableEvent* events[NUM_HANDLERS] = { NULL };
   std::string results[NUM_HANDLERS];

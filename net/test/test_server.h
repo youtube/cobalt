@@ -22,7 +22,7 @@
 #include "base/scoped_handle_win.h"
 #endif
 
-#if defined(USE_NSS)
+#if defined(USE_OPENSSL) || defined(USE_NSS)
 #include "base/ref_counted.h"
 #include "net/base/x509_certificate.h"
 #endif
@@ -200,7 +200,7 @@ class TestServer {
   // If |type_| is TYPE_HTTPS, the TLS settings to use for the test server.
   HTTPSOptions https_options_;
 
-#if defined(USE_NSS)
+#if defined(USE_OPENSSL) || defined(USE_NSS)
   scoped_refptr<X509Certificate> cert_;
 #endif
 
