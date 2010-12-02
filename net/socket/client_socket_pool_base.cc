@@ -243,17 +243,29 @@ void ClientSocketPoolBaseHelper::RequestSockets(
 
   Group* group = GetOrCreateGroup(group_name);
 
+  // RequestSocketsInternal() may delete the group.
+  bool deleted_group = false;
+
   for (int num_iterations_left = num_sockets;
        group->NumActiveSocketSlots() < num_sockets &&
        num_iterations_left > 0 ; num_iterations_left--) {
     int rv = RequestSocketInternal(group_name, &request);
     if (rv < 0 && rv != ERR_IO_PENDING) {
       // We're encountering a synchronous error.  Give up.
+      if (!ContainsKey(group_map_, group_name))
+        deleted_group = true;
+      break;
+    }
+    if (!ContainsKey(group_map_, group_name)) {
+      // Unexpected.  The group should only be getting deleted on synchronous
+      // error.
+      NOTREACHED();
+      deleted_group = true;
       break;
     }
   }
 
-  if (group->IsEmpty())
+  if (!deleted_group && group->IsEmpty())
     RemoveGroup(group_name);
 
   request.net_log().EndEvent(
