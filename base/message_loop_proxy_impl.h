@@ -18,7 +18,7 @@ namespace base {
 class MessageLoopProxyImpl : public MessageLoopProxy,
                              public MessageLoop::DestructionObserver {
  public:
-  ~MessageLoopProxyImpl();
+  virtual ~MessageLoopProxyImpl();
 
   // MessageLoopProxy implementation
   virtual bool PostTask(const tracked_objects::Location& from_here,
