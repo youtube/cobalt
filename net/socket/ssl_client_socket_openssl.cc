@@ -16,6 +16,7 @@
 #include "base/singleton.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/net_errors.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 
@@ -173,6 +174,7 @@ class SSLContext {
     SSL_CTX_sess_set_remove_cb(ssl_ctx_.get(), RemoveSessionCallbackStatic);
     SSL_CTX_set_timeout(ssl_ctx_.get(), kSessionCacheTimeoutSeconds);
     SSL_CTX_sess_set_cache_size(ssl_ctx_.get(), kSessionCacheMaxEntires);
+    SSL_CTX_set_client_cert_cb(ssl_ctx_.get(), ClientCertCallback);
   }
 
   static int NewSessionCallbackStatic(SSL* ssl, SSL_SESSION* session) {
@@ -192,6 +194,12 @@ class SSLContext {
   void RemoveSessionCallback(SSL_CTX* ctx, SSL_SESSION* session) {
     DCHECK(ctx == ssl_ctx());
     session_cache_.OnSessionRemoved(session);
+  }
+
+  static int ClientCertCallback(SSL* ssl, X509** x509, EVP_PKEY** pkey) {
+    SSLClientSocketOpenSSL* socket = Get()->GetClientSocketFromSSL(ssl);
+    CHECK(socket);
+    return socket->ClientCertRequestCallback(ssl, x509, pkey);
   }
 
   // This is the index used with SSL_get_ex_data to retrieve the owner
@@ -356,7 +364,8 @@ void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
 
 void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
-  NOTREACHED();
+  cert_request_info->host_and_port = host_and_port_.ToString();
+  cert_request_info->client_certs = client_certs_;
 }
 
 SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
@@ -493,12 +502,26 @@ int SSLClientSocketOpenSSL::DoHandshake() {
   int net_error = net::OK;
   int rv = SSL_do_handshake(ssl_);
 
-  if (rv == 1) {
+  if (client_auth_cert_needed_) {
+    net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+    // If the handshake already succeeded (because the server requests but
+    // doesn't require a client cert), we need to invalidate the SSL session
+    // so that we won't try to resume the non-client-authenticated session in
+    // the next handshake.  This will cause the server to ask for a client
+    // cert again.
+    if (rv == 1) {
+      // Remove from session cache but don't clear this connection.
+      SSL_SESSION* session = SSL_get_session(ssl_);
+      if (session) {
+        int rv = SSL_CTX_remove_session(SSL_get_SSL_CTX(ssl_), session);
+        LOG_IF(WARNING, !rv) << "Couldn't invalidate SSL session: " << session;
+      }
+    }
+  } else if (rv == 1) {
     if (trying_cached_session_ && logging::DEBUG_MODE) {
       DVLOG(2) << "Result of session reuse for " << host_and_port_.ToString()
                << " is: " << (SSL_session_reused(ssl_) ? "Success" : "Fail");
     }
-
     // SSL handshake is completed.  Let's verify the certificate.
     const bool got_cert = !!UpdateServerCert();
     DCHECK(got_cert);
@@ -517,6 +540,31 @@ int SSLClientSocketOpenSSL::DoHandshake() {
     }
   }
   return net_error;
+}
+
+int SSLClientSocketOpenSSL::ClientCertRequestCallback(SSL* ssl,
+                                                      X509** x509,
+                                                      EVP_PKEY** pkey) {
+  DVLOG(3) << "OpenSSL ClientCertRequestCallback called";
+  DCHECK(ssl == ssl_);
+  DCHECK(*x509 == NULL);
+  DCHECK(*pkey == NULL);
+
+  if (!ssl_config_.send_client_cert) {
+    client_auth_cert_needed_ = true;
+    return -1;  // Suspends handshake.
+  }
+
+  // Second pass: a client certificate should have been selected.
+  if (ssl_config_.client_cert) {
+    // TODO(joth): We need a way to lookup the private key this
+    // certificate. See http://crbug.com/64951 and example code in
+    // http://codereview.chromium.org/5195001/diff/6001/net/socket/ssl_client_socket_openssl.cc
+    NOTIMPLEMENTED();
+  }
+
+  // Send no client certificate.
+  return 0;
 }
 
 int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
