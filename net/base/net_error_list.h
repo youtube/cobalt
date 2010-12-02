@@ -191,7 +191,9 @@ NET_ERROR(SSL_SNAP_START_NPN_MISPREDICTION, -131)
 // give the user a helpful error message rather than have the connection hang.
 NET_ERROR(ESET_ANTI_VIRUS_SSL_INTERCEPTION, -132)
 
-// Missing -133. Feel free to reuse in the future.
+// We've hit the max socket limit for the socket pool while preconnecting.  We
+// don't bother trying to preconnect more sockets.
+NET_ERROR(PRECONNECT_MAX_SOCKET_LIMIT, -133)
 
 // The permission to use the SSL client certificate's private key was denied.
 NET_ERROR(SSL_CLIENT_AUTH_PRIVATE_KEY_ACCESS_DENIED, -134)
