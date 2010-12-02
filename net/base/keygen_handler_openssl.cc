@@ -4,15 +4,15 @@
 
 #include "net/base/keygen_handler.h"
 
-#if defined(USE_OPENSSL)
+#include "base/logging.h"
 
 namespace net {
 
 std::string KeygenHandler::GenKeyAndSignChallenge() {
   // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
   return "";
 }
 
 }  // namespace net
 
-#endif  // USE_OPENSSL
