@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/file_path.h"
+#include "base/task.h"
 #include "net/base/completion_callback.h"
 #include "net/base/file_stream.h"
 #include "net/http/http_byte_range.h"
@@ -62,6 +63,8 @@ class URLRequestFileJob : public URLRequestJob {
   friend class AsyncResolver;
   scoped_refptr<AsyncResolver> async_resolver_;
 #endif
+
+  ScopedRunnableMethodFactory<URLRequestFileJob> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFileJob);
 };

@@ -118,7 +118,8 @@ URLRequestFileJob::URLRequestFileJob(net::URLRequest* request,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &URLRequestFileJob::DidRead)),
       is_directory_(false),
-      remaining_bytes_(0) {
+      remaining_bytes_(0),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
 URLRequestFileJob::~URLRequestFileJob() {
@@ -149,8 +150,10 @@ void URLRequestFileJob::Start() {
   }
 
   // Continue asynchronously.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestFileJob::DidResolve, exists, file_info));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestFileJob::DidResolve, exists, file_info));
 }
 
 void URLRequestFileJob::Kill() {
@@ -164,6 +167,7 @@ void URLRequestFileJob::Kill() {
 #endif
 
   URLRequestJob::Kill();
+  method_factory_.RevokeAll();
 }
 
 bool URLRequestFileJob::ReadRawData(net::IOBuffer* dest, int dest_size,
@@ -382,4 +386,3 @@ bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
   return true;
 }
 #endif
-
