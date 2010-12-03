@@ -21,23 +21,6 @@ using base::TimeTicks;
 
 namespace net {
 
-// A small wrapper for histogramming purposes ;-)
-static BOOL CallWinHttpGetProxyForUrl(HINTERNET session, LPCWSTR url,
-                                      WINHTTP_AUTOPROXY_OPTIONS* options,
-                                      WINHTTP_PROXY_INFO* results) {
-  TimeTicks time_start = TimeTicks::Now();
-  BOOL rv = WinHttpGetProxyForUrl(session, url, options, results);
-  TimeDelta time_delta = TimeTicks::Now() - time_start;
-  // Record separately success and failure times since they will have very
-  // different characteristics.
-  if (rv) {
-    UMA_HISTOGRAM_LONG_TIMES("Net.GetProxyForUrl_OK", time_delta);
-  } else {
-    UMA_HISTOGRAM_LONG_TIMES("Net.GetProxyForUrl_FAIL", time_delta);
-  }
-  return rv;
-}
-
 static void FreeInfo(WINHTTP_PROXY_INFO* info) {
   if (info->lpszProxy)
     GlobalFree(info->lpszProxy);
@@ -82,12 +65,12 @@ int ProxyResolverWinHttp::GetProxyForURL(const GURL& query_url,
   // Otherwise, we fail over to trying it with a value of true.  This way we
   // get good performance in the case where WinHTTP uses an out-of-process
   // resolver.  This is important for Vista and Win2k3.
-  BOOL ok = CallWinHttpGetProxyForUrl(
+  BOOL ok = WinHttpGetProxyForUrl(
       session_handle_, ASCIIToWide(query_url.spec()).c_str(), &options, &info);
   if (!ok) {
     if (ERROR_WINHTTP_LOGIN_FAILURE == GetLastError()) {
       options.fAutoLogonIfChallenged = TRUE;
-      ok = CallWinHttpGetProxyForUrl(
+      ok = WinHttpGetProxyForUrl(
           session_handle_, ASCIIToWide(query_url.spec()).c_str(),
           &options, &info);
     }
