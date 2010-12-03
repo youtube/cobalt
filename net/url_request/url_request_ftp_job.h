@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/string16.h"
+#include "base/task.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 #include "net/ftp/ftp_request_info.h"
@@ -48,7 +49,6 @@ class URLRequestFtpJob : public URLRequestJob {
   virtual uint64 GetUploadProgress() const { return 0; }
   virtual bool ReadRawData(net::IOBuffer* buf, int buf_size, int *bytes_read);
 
-  void DestroyTransaction();
   void StartTransaction();
 
   void OnStartCompleted(int result);
@@ -71,6 +71,8 @@ class URLRequestFtpJob : public URLRequestJob {
   // Keep a reference to the url request context to be sure it's not deleted
   // before us.
   scoped_refptr<URLRequestContext> context_;
+
+  ScopedRunnableMethodFactory<URLRequestFtpJob> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFtpJob);
 };

@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_file_dir_job.h"
 
+#include "base/compiler_specific.h"
 #include "base/file_util.h"
 #include "base/message_loop.h"
 #include "base/sys_string_conversions.h"
@@ -28,7 +29,8 @@ URLRequestFileDirJob::URLRequestFileDirJob(net::URLRequest* request,
       list_complete_(false),
       wrote_header_(false),
       read_pending_(false),
-      read_buffer_length_(0) {
+      read_buffer_length_(0),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
 URLRequestFileDirJob::~URLRequestFileDirJob() {
@@ -39,12 +41,17 @@ URLRequestFileDirJob::~URLRequestFileDirJob() {
 void URLRequestFileDirJob::Start() {
   // Start reading asynchronously so that all error reporting and data
   // callbacks happen as they would for network requests.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestFileDirJob::StartAsync));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestFileDirJob::StartAsync));
 }
 
 void URLRequestFileDirJob::StartAsync() {
   DCHECK(!lister_);
+
+  // TODO(willchan): This is stupid.  We should tell |lister_| not to call us
+  // back.  Fix this stupidity.
 
   // AddRef so that *this* cannot be destroyed while the lister_
   // is trying to feed us data.
@@ -69,6 +76,8 @@ void URLRequestFileDirJob::Kill() {
     lister_->Cancel();
 
   URLRequestJob::Kill();
+
+  method_factory_.RevokeAll();
 }
 
 bool URLRequestFileDirJob::ReadRawData(net::IOBuffer* buf, int buf_size,
