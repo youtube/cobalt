@@ -12,8 +12,6 @@
 #include <string>
 
 #include "base/callback.h"
-#include "media/base/filters.h"
-#include "media/base/media_filter_collection.h"
 
 namespace base {
 class TimeDelta;
@@ -42,6 +40,8 @@ enum PipelineError {
   DEMUXER_ERROR_COULD_NOT_CREATE_THREAD,
 };
 
+class FilterCollection;
+
 // Client-provided callbacks for various pipeline operations.  Clients should
 // inspect the Pipeline for errors.
 typedef Callback0::Type PipelineCallback;
@@ -69,7 +69,7 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // If the caller provides a |start_callback|, it will be called when the
   // pipeline initialization completes.  Clients are expected to call GetError()
   // to check whether initialization succeeded.
-  virtual bool Start(MediaFilterCollection* filter_collection,
+  virtual bool Start(FilterCollection* filter_collection,
                      const std::string& url,
                      PipelineCallback* start_callback) = 0;
 

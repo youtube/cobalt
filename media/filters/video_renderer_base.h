@@ -44,7 +44,7 @@ class VideoRendererBase : public VideoRenderer,
       VideoFrame::Format* surface_format_out,
       int* width_out, int* height_out);
 
-  // MediaFilter implementation.
+  // Filter implementation.
   virtual void Play(FilterCallback* callback);
   virtual void Pause(FilterCallback* callback);
   virtual void Flush(FilterCallback* callback);

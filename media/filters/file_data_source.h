@@ -20,7 +20,7 @@ class FileDataSource : public DataSource {
   FileDataSource();
   virtual ~FileDataSource();
 
-  // Implementation of MediaFilter.
+  // Implementation of Filter.
   virtual void Stop(FilterCallback* callback);
 
   // Implementation of DataSource.

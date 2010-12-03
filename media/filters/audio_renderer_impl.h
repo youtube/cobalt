@@ -30,7 +30,7 @@ class AudioRendererImpl : public AudioRendererBase,
   AudioRendererImpl();
   virtual ~AudioRendererImpl();
 
-  // MediaFilter implementation.
+  // Filter implementation.
   virtual void SetPlaybackRate(float playback_rate);
 
   // AudioRenderer implementation.
