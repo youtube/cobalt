@@ -108,9 +108,7 @@
       },
     },
     {
-      # Note that calling this "gtest_main" confuses the scons build,
-      # which uses "_main" on scons files to produce special behavior.
-      'target_name': 'gtestmain',
+      'target_name': 'gtest_main',
       'type': '<(library)',
       'dependencies': [
         'gtest',

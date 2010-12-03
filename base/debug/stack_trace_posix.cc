@@ -56,9 +56,9 @@ const char kSymbolCharacters[] =
 #if !defined(USE_SYMBOLIZE)
 // Demangles C++ symbols in the given text. Example:
 //
-// "sconsbuild/Debug/base_unittests(_ZN10StackTraceC1Ev+0x20) [0x817778c]"
+// "out/Debug/base_unittests(_ZN10StackTraceC1Ev+0x20) [0x817778c]"
 // =>
-// "sconsbuild/Debug/base_unittests(StackTrace::StackTrace()+0x20) [0x817778c]"
+// "out/Debug/base_unittests(StackTrace::StackTrace()+0x20) [0x817778c]"
 void DemangleSymbols(std::string* text) {
 #if defined(__GLIBCXX__)
 
