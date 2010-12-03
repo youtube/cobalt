@@ -296,10 +296,14 @@ EntryImpl::EntryImpl(BackendImpl* backend, Addr address, bool read_only)
 // written before).
 EntryImpl::~EntryImpl() {
   Log("~EntryImpl in");
-  backend_->OnEntryDestroyBegin(entry_.address());
 
-  // Save the sparse info to disk before deleting this entry.
+  // Save the sparse info to disk. This will generate IO for this entry and
+  // maybe for a child entry, so it is important to do it before deleting this
+  // entry.
   sparse_.reset();
+
+  // Remove this entry from the list of open entries.
+  backend_->OnEntryDestroyBegin(entry_.address());
 
   if (doomed_) {
     DeleteEntryData(true);
