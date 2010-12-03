@@ -50,9 +50,7 @@
       ],
     },
     {
-      # Note that calling this "gmock_main" confuses the scons build,
-      # which uses "_main" on scons files to produce special behavior.
-      'target_name': 'gmockmain',
+      'target_name': 'gmock_main',
       'type': '<(library)',
       'dependencies': [
         'gmock',
