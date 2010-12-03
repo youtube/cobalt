@@ -1444,7 +1444,7 @@ void DiskCacheBackendTest::BackendDisable() {
   ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry1));
 
   EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry2));
-  EXPECT_EQ(2, cache_->GetEntryCount());
+  EXPECT_EQ(0, cache_->GetEntryCount());
   EXPECT_NE(net::OK, CreateEntry("Something new", &entry2));
 
   entry1->Close();
@@ -1601,7 +1601,7 @@ void DiskCacheBackendTest::BackendDisable4() {
 
   // This line should disable the cache but not delete it.
   EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry4));
-  EXPECT_EQ(4, cache_->GetEntryCount());
+  EXPECT_EQ(0, cache_->GetEntryCount());
 
   EXPECT_NE(net::OK, CreateEntry("cache is disabled", &entry4));
 
