@@ -428,7 +428,7 @@ BackendImpl::~BackendImpl() {
 // ------------------------------------------------------------------------
 
 int32 BackendImpl::GetEntryCount() const {
-  if (!index_)
+  if (!index_ || disabled_)
     return 0;
   // num_entries includes entries already evicted.
   int32 not_deleted = data_->header.num_entries -
