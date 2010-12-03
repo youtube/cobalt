@@ -53,8 +53,12 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
     // Returns true if no more data to be sent.
     virtual bool OnSendBodyComplete(int status) = 0;
 
-    // Called when SYN_STREAM or SYN_REPLY received. |status| indicates network
-    // error. Returns network error code.
+    // Called when the SYN_STREAM, SYN_REPLY, or HEADERS frames are received.
+    // Normal streams will receive a SYN_REPLY and optional HEADERS frames.
+    // Pushed streams will receive a SYN_STREAM and optional HEADERS frames.
+    // Because a stream may have a SYN_* frame and multiple HEADERS frames,
+    // this callback may be called multiple times.
+    // |status| indicates network error. Returns network error code.
     virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
                                    base::Time response_time,
                                    int status) = 0;
@@ -156,6 +160,10 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // Called by the SpdySession when a response (e.g. a SYN_STREAM or SYN_REPLY)
   // has been received for this stream. Returns a status code.
   int OnResponseReceived(const spdy::SpdyHeaderBlock& response);
+
+  // Called by the SpdySession when late-bound headers are received for a
+  // stream. Returns a status code.
+  int OnHeaders(const spdy::SpdyHeaderBlock& headers);
 
   // Called by the SpdySession when response data has been received for this
   // stream.  This callback may be called multiple times as data arrives

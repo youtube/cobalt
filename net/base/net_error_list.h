@@ -426,6 +426,10 @@ NET_ERROR(RESPONSE_BODY_TOO_BIG_TO_DRAIN, -345)
 // The HTTP response was too big to drain.
 NET_ERROR(RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH, -346)
 
+// SPDY Headers have been received, but not all of them - status or version
+// headers are missing, so we're expecting additional frames to complete them.
+NET_ERROR(INCOMPLETE_SPDY_HEADERS, -347)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 

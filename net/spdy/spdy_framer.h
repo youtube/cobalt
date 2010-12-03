@@ -157,31 +157,6 @@ class SpdyFramer {
                                              bool compressed,
                                              SpdyHeaderBlock* headers);
 
-  static SpdyRstStreamControlFrame* CreateRstStream(SpdyStreamId stream_id,
-                                                    SpdyStatusCodes status);
-
-  // Creates an instance of SpdyGoAwayControlFrame. The GOAWAY frame is used
-  // prior to the shutting down of the TCP connection, and includes the
-  // stream_id of the last stream the sender of the frame is willing to process
-  // to completion.
-  static SpdyGoAwayControlFrame* CreateGoAway(
-      SpdyStreamId last_accepted_stream_id);
-
-  // Creates an instance of SpdyWindowUpdateControlFrame. The WINDOW_UPDATE
-  // frame is used to implement per stream flow control in SPDY.
-  static SpdyWindowUpdateControlFrame* CreateWindowUpdate(
-      SpdyStreamId stream_id, uint32 delta_window_size);
-
-  // Creates an instance of SpdySettingsControlFrame. The SETTINGS frame is
-  // used to communicate name/value pairs relevant to the communication channel.
-  // TODO(mbelshe): add the name/value pairs!!
-  static SpdySettingsControlFrame* CreateSettings(const SpdySettings& values);
-
-  // Given a SpdySettingsControlFrame, extract the settings.
-  // Returns true on successful parse, false otherwise.
-  static bool ParseSettings(const SpdySettingsControlFrame* frame,
-      SpdySettings* settings);
-
   // Create a SpdySynReplyControlFrame.
   // |stream_id| is the stream for this frame.
   // |flags| is the flags to use with the data.
@@ -193,6 +168,42 @@ class SpdyFramer {
                                            bool compressed,
                                            SpdyHeaderBlock* headers);
 
+  static SpdyRstStreamControlFrame* CreateRstStream(SpdyStreamId stream_id,
+                                                    SpdyStatusCodes status);
+
+  // Creates an instance of SpdySettingsControlFrame. The SETTINGS frame is
+  // used to communicate name/value pairs relevant to the communication channel.
+  // TODO(mbelshe): add the name/value pairs!!
+  static SpdySettingsControlFrame* CreateSettings(const SpdySettings& values);
+
+  static SpdyControlFrame* CreateNopFrame();
+
+  // Creates an instance of SpdyGoAwayControlFrame. The GOAWAY frame is used
+  // prior to the shutting down of the TCP connection, and includes the
+  // stream_id of the last stream the sender of the frame is willing to process
+  // to completion.
+  static SpdyGoAwayControlFrame* CreateGoAway(
+      SpdyStreamId last_accepted_stream_id);
+
+  // Creates an instance of SpdyHeadersControlFrame. The HEADERS frame is used
+  // for sending additional headers outside of a SYN_STREAM/SYN_REPLY. The
+  // arguments are the same as for CreateSynReply.
+  SpdyHeadersControlFrame* CreateHeaders(SpdyStreamId stream_id,
+                                         SpdyControlFlags flags,
+                                         bool compressed,
+                                         SpdyHeaderBlock* headers);
+
+  // Creates an instance of SpdyWindowUpdateControlFrame. The WINDOW_UPDATE
+  // frame is used to implement per stream flow control in SPDY.
+  static SpdyWindowUpdateControlFrame* CreateWindowUpdate(
+      SpdyStreamId stream_id,
+      uint32 delta_window_size);
+
+  // Given a SpdySettingsControlFrame, extract the settings.
+  // Returns true on successful parse, false otherwise.
+  static bool ParseSettings(const SpdySettingsControlFrame* frame,
+      SpdySettings* settings);
+
   // Create a data frame.
   // |stream_id| is the stream  for this frame
   // |data| is the data to be included in the frame.
@@ -202,8 +213,6 @@ class SpdyFramer {
   //    To mark this frame as the last data frame, enable DATA_FLAG_FIN.
   SpdyDataFrame* CreateDataFrame(SpdyStreamId stream_id, const char* data,
                                  uint32 len, SpdyDataFlags flags);
-
-  static SpdyControlFrame* CreateNopFrame();
 
   // NOTES about frame compression.
   // We want spdy to compress headers across the entire session.  As long as
@@ -249,7 +258,11 @@ class SpdyFramer {
 
  protected:
   FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, DataCompression);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, ExpandBuffer_HeapSmash);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, HugeHeaderBlock);
   FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, UnclosedStreamDataCompressors);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest,
+                           UncompressLargerThanFrameBufferInitialSize);
   friend class net::HttpNetworkLayer;  // This is temporary for the server.
   friend class net::HttpNetworkTransactionTest;
   friend class net::HttpProxyClientSocketPoolTest;
@@ -265,6 +278,16 @@ class SpdyFramer {
   // For ease of testing we can tweak compression on/off.
   void set_enable_compression(bool value);
   static void set_enable_compression_default(bool value);
+
+
+  // The initial size of the control frame buffer; this is used internally
+  // as we parse through control frames. (It is exposed here for unit test
+  // purposes.)
+  static size_t kControlFrameBufferInitialSize;
+
+  // The maximum size of the control frame buffer that we support.
+  // TODO(mbelshe): We should make this stream-based so there are no limits.
+  static size_t kControlFrameBufferMaxSize;
 
  private:
   typedef std::map<SpdyStreamId, z_stream*> CompressorMap;
