@@ -111,13 +111,12 @@ FilePath GetProcessExecutablePath(ProcessHandle process) {
   FilePath stat_file("/proc");
   stat_file = stat_file.Append(base::IntToString(process));
   stat_file = stat_file.Append("exe");
-  char exename[2048];
-  ssize_t len = readlink(stat_file.value().c_str(), exename, sizeof(exename));
-  if (len < 1) {
+  FilePath exe_name;
+  if (!file_util::ReadSymbolicLink(stat_file, &exe_name)) {
     // No such process.  Happens frequently in e.g. TerminateAllChromeProcesses
     return FilePath();
   }
-  return FilePath(std::string(exename, len));
+  return exe_name;
 }
 
 ProcessIterator::ProcessIterator(const ProcessFilter* filter)

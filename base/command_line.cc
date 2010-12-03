@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "base/file_path.h"
+#include "base/file_util.h"
 #include "base/logging.h"
 #include "base/singleton.h"
 #include "base/string_split.h"
@@ -237,13 +238,11 @@ void CommandLine::SetProcTitle() {
   // show up as "exe" in process listings. Read the symlink /proc/self/exe and
   // use the path it points at for our process title. Note that this is only for
   // display purposes and has no TOCTTOU security implications.
-  char buffer[PATH_MAX];
-  // Note: readlink() does not append a null byte to terminate the string.
-  ssize_t length = readlink("/proc/self/exe", buffer, sizeof(buffer));
-  DCHECK(length <= static_cast<ssize_t>(sizeof(buffer)));
-  if (length > 0) {
+  FilePath target;
+  FilePath self_exe("/proc/self/exe");
+  if (file_util::ReadSymbolicLink(self_exe, &target)) {
     have_argv0 = true;
-    title.assign(buffer, length);
+    title = target.value();
     // If the binary has since been deleted, Linux appends " (deleted)" to the
     // symlink target. Remove it, since this is not really part of our name.
     const std::string kDeletedSuffix = " (deleted)";
