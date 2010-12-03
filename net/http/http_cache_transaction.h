@@ -341,6 +341,7 @@ class HttpCache::Transaction : public HttpTransaction {
   bool invalid_range_;  // We may bypass the cache for this request.
   bool enable_range_support_;
   bool truncated_;  // We don't have all the response data.
+  bool is_sparse_;  // The data is stored in sparse byte ranges.
   bool server_responded_206_;
   bool cache_pending_;  // We are waiting for the HttpCache.
   scoped_refptr<IOBuffer> read_buf_;

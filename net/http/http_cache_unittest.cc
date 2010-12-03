@@ -3227,36 +3227,41 @@ TEST(HttpCache, GET_Previous206) {
 }
 
 // Tests that we can handle non-range requests when we have cached the first
-// part of the object and server replies with 304 (Not Modified).
+// part of the object and the server replies with 304 (Not Modified).
 TEST(HttpCache, GET_Previous206_NotModified) {
   MockHttpCache cache;
   cache.http_cache()->set_enable_range_support(true);
 
   MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "Range: bytes = 0-9\r\n" EXTRA_HEADER;
-  transaction.data = "rg: 00-09 ";
   AddMockTransaction(&transaction);
   std::string headers;
 
   // Write to the cache (0-9).
+  transaction.request_headers = "Range: bytes = 0-9\r\n" EXTRA_HEADER;
+  transaction.data = "rg: 00-09 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
-
   Verify206Response(headers, 0, 9);
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(0, cache.disk_cache()->open_count());
+
+  // Write to the cache (70-79).
+  transaction.request_headers = "Range: bytes = 70-79\r\n" EXTRA_HEADER;
+  transaction.data = "rg: 70-79 ";
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+  Verify206Response(headers, 70, 79);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
-  // Read from the cache (0-9), write and read from cache (10 - 79),
-  MockTransaction transaction2(kRangeGET_TransactionOK);
-  transaction2.load_flags |= net::LOAD_VALIDATE_CACHE;
-  transaction2.request_headers = "Foo: bar\r\n" EXTRA_HEADER;
-  transaction2.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
+  // Read from the cache (0-9), write and read from cache (10 - 79).
+  transaction.load_flags |= net::LOAD_VALIDATE_CACHE;
+  transaction.request_headers = "Foo: bar\r\n" EXTRA_HEADER;
+  transaction.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
                       "rg: 50-59 rg: 60-69 rg: 70-79 ";
-  RunTransactionTestWithResponse(cache.http_cache(), transaction2, &headers);
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   EXPECT_EQ(0U, headers.find("HTTP/1.1 200 OK\n"));
-  EXPECT_EQ(3, cache.network_layer()->transaction_count());
-  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(4, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   RemoveMockTransaction(&transaction);
