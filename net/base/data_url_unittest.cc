@@ -9,13 +9,13 @@
 
 namespace {
 
-  struct ParseTestData {
-    const char* url;
-    bool is_valid;
-    const char* mime_type;
-    const char* charset;
-    const char* data;
-  };
+struct ParseTestData {
+  const char* url;
+  bool is_valid;
+  const char* mime_type;
+  const char* charset;
+  const char* data;
+};
 
 class DataURLTest : public testing::Test {
 };
