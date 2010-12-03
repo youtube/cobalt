@@ -263,6 +263,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
              const linked_ptr<spdy::SpdyHeaderBlock>& headers);
   void OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
                   const linked_ptr<spdy::SpdyHeaderBlock>& headers);
+  void OnHeaders(const spdy::SpdyHeadersControlFrame& frame,
+                 const linked_ptr<spdy::SpdyHeaderBlock>& headers);
   void OnRst(const spdy::SpdyRstStreamControlFrame& frame);
   void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
   void OnSettings(const spdy::SpdySettingsControlFrame& frame);
@@ -432,7 +434,8 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
  public:
   NetLogSpdySynParameter(const linked_ptr<spdy::SpdyHeaderBlock>& headers,
                          spdy::SpdyControlFlags flags,
-                         spdy::SpdyStreamId id);
+                         spdy::SpdyStreamId id,
+                         spdy::SpdyStreamId associated_stream);
 
   virtual Value* ToValue() const;
 
@@ -446,6 +449,7 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
   const linked_ptr<spdy::SpdyHeaderBlock> headers_;
   const spdy::SpdyControlFlags flags_;
   const spdy::SpdyStreamId id_;
+  const spdy::SpdyStreamId associated_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
 };

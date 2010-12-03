@@ -596,8 +596,18 @@ EVENT_TYPE(SPDY_SESSION_SYN_STREAM)
 //     "flags": <The control frame flags>
 //     "headers": <The list of header:value pairs>
 //     "id": <The stream id>
+//     "associated_stream": <The stream id>
 //   }
 EVENT_TYPE(SPDY_SESSION_PUSHED_SYN_STREAM)
+
+// This event is sent for a SPDY HEADERS frame.
+// The following parameters are attached:
+//   {
+//     "flags": <The control frame flags>
+//     "headers": <The list of header:value pairs>
+//     "id": <The stream id>
+//   }
+EVENT_TYPE(SPDY_SESSION_HEADERS)
 
 // This event is sent for a SPDY SYN_REPLY.
 // The following parameters are attached:
