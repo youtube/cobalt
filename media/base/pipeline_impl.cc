@@ -10,6 +10,7 @@
 #include "base/condition_variable.h"
 #include "base/stl_util-inl.h"
 #include "media/base/clock_impl.h"
+#include "media/base/filter_collection.h"
 #include "media/base/media_format.h"
 #include "media/base/pipeline_impl.h"
 
@@ -43,12 +44,12 @@ void PipelineImpl::Init(PipelineCallback* ended_callback,
 }
 
 // Creates the PipelineInternal and calls it's start method.
-bool PipelineImpl::Start(MediaFilterCollection* collection,
+bool PipelineImpl::Start(FilterCollection* collection,
                          const std::string& url,
                          PipelineCallback* start_callback) {
   AutoLock auto_lock(lock_);
   scoped_ptr<PipelineCallback> callback(start_callback);
-  scoped_ptr<MediaFilterCollection> filter_collection(collection);
+  scoped_ptr<FilterCollection> filter_collection(collection);
 
   if (running_) {
     VLOG(1) << "Media pipeline is already running";
@@ -519,7 +520,7 @@ void PipelineImpl::OnFilterStateTransition() {
       NewRunnableMethod(this, &PipelineImpl::FilterStateTransitionTask));
 }
 
-void PipelineImpl::StartTask(MediaFilterCollection* filter_collection,
+void PipelineImpl::StartTask(FilterCollection* filter_collection,
                              const std::string& url,
                              PipelineCallback* start_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
@@ -844,7 +845,7 @@ void PipelineImpl::FilterStateTransitionTask() {
 
   // Carry out the action for the current state.
   if (TransientState(state_)) {
-    MediaFilter* filter = filters_[filters_.size() - remaining_transitions_];
+    Filter* filter = filters_[filters_.size() - remaining_transitions_];
     if (state_ == kPausing) {
       filter->Pause(NewCallback(this, &PipelineImpl::OnFilterStateTransition));
     } else if (state_ == kFlushing) {
@@ -937,7 +938,7 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
   }
 }
 
-bool PipelineImpl::PrepareFilter(scoped_refptr<MediaFilter> filter) {
+bool PipelineImpl::PrepareFilter(scoped_refptr<Filter> filter) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 

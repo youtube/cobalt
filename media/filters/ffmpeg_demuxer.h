@@ -127,7 +127,7 @@ class FFmpegDemuxer : public Demuxer,
   // Posts a task to perform additional demuxing.
   virtual void PostDemuxTask();
 
-  // MediaFilter implementation.
+  // Filter implementation.
   virtual void Stop(FilterCallback* callback);
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
   virtual void OnAudioRendererDisabled();
