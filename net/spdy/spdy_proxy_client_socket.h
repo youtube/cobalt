@@ -62,7 +62,6 @@ class SpdyProxyClientSocket : public ClientSocket, public SpdyStream::Delegate {
   }
 
   // ClientSocket methods:
-
   virtual int Connect(CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
@@ -74,43 +73,21 @@ class SpdyProxyClientSocket : public ClientSocket, public SpdyStream::Delegate {
   virtual bool UsingTCPFastOpen() const;
 
   // Socket methods:
-
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
-
   virtual int GetPeerAddress(AddressList* address) const;
 
   // SpdyStream::Delegate methods:
-
-  // Called when SYN frame has been sent.
-  // Returns true if no more data to be sent after SYN frame.
   virtual bool OnSendHeadersComplete(int status);
-
-  // Called when stream is ready to send data.
-  // Returns network error code. OK when it successfully sent data.
   virtual int OnSendBody();
-
-  // Called when data has been sent. |status| indicates network error
-  // or number of bytes has been sent.
-  // Returns true if no more data to be sent.
   virtual bool OnSendBodyComplete(int status);
-
-  // Called when SYN_STREAM or SYN_REPLY received. |status| indicates network
-  // error. Returns network error code.
   virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status);
-
-  // Called when data is received.
   virtual void OnDataReceived(const char* data, int length);
-
-  // Called when data is sent.
   virtual void OnDataSent(int length);
-
-  // Called when SpdyStream is closed.
   virtual void OnClose(int status);
 
  private:

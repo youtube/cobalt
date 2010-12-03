@@ -390,13 +390,18 @@ int SpdyProxyClientSocket::OnResponseReceived(
     const spdy::SpdyHeaderBlock& response,
     base::Time response_time,
     int status) {
-  // Save the response
-  SpdyHeadersToHttpResponse(response, &response_);
+  // If we've already received the reply, existing headers are too late.
+  // TODO(mbelshe): figure out a way to make HEADERS frames useful after the
+  //                initial response.
+  if (next_state_ != STATE_READ_REPLY_COMPLETE)
+    return OK;
 
-  DCHECK_EQ(next_state_, STATE_READ_REPLY_COMPLETE);
+  // Save the response
+  int rv = SpdyHeadersToHttpResponse(response, &response_);
+  if (rv == ERR_INCOMPLETE_SPDY_HEADERS)
+    return rv;  // More headers are coming.
 
   OnIOComplete(status);
-
   return OK;
 }
 

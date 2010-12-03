@@ -37,99 +37,50 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
 
   SpdyStream* stream() { return stream_.get(); }
 
-  // ===================================================
-  // HttpStream methods:
+  // Cancels any callbacks from being invoked and deletes the stream.
+  void Cancel();
 
-  // Initialize stream.  Must be called before calling SendRequest().
+  // HttpStream methods:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
                                CompletionCallback* callback);
-
-  // Sends the request.
-  // |callback| is used when this completes asynchronously.
-  // SpdyHttpStream takes ownership of |upload_data|. |upload_data| may be NULL.
-  // The actual SYN_STREAM packet will be sent if the stream is non-pushed.
   virtual int SendRequest(const HttpRequestHeaders& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           CompletionCallback* callback);
-
-  // Returns the number of bytes uploaded.
   virtual uint64 GetUploadProgress() const;
-
-  // Reads the response headers.  Returns a net error code.
   virtual int ReadResponseHeaders(CompletionCallback* callback);
-
   virtual const HttpResponseInfo* GetResponseInfo() const;
-
-  // Reads the response body.  Returns a net error code or the number of bytes
-  // read.
-  virtual int ReadResponseBody(
-      IOBuffer* buf, int buf_len, CompletionCallback* callback);
-
-  // Closes the stream.
+  virtual int ReadResponseBody(IOBuffer* buf,
+                               int buf_len,
+                               CompletionCallback* callback);
   virtual void Close(bool not_reusable);
-
   virtual HttpStream* RenewStreamForAuth() { return NULL; }
-
-  // Indicates if the response body has been completely read.
   virtual bool IsResponseBodyComplete() const {
     if (!stream_)
       return false;
     return stream_->closed();
   }
-
-  // With SPDY the end of response is always detectable.
   virtual bool CanFindEndOfResponse() const { return true; }
-
-  // A SPDY stream never has more data after the FIN.
   virtual bool IsMoreDataBuffered() const { return false; }
-
   virtual bool IsConnectionReused() const {
     return spdy_session_->IsReused();
   }
-
   virtual void SetConnectionReused() {
     // SPDY doesn't need an indicator here.
   }
-
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
-  // ===================================================
-  // SpdyStream::Delegate.
-
-  // Cancels any callbacks from being invoked and deletes the stream.
-  void Cancel();
-
+  // SpdyStream::Delegate methods:
   virtual bool OnSendHeadersComplete(int status);
   virtual int OnSendBody();
   virtual bool OnSendBodyComplete(int status);
-
-  // Called by the SpdySession when a response (e.g. a SYN_REPLY) has been
-  // received for this stream.
-  // SpdyHttpSession calls back |callback| set by SendRequest or
-  // ReadResponseHeaders.
   virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status);
-
-  // Called by the SpdySession when response data has been received for this
-  // stream.  This callback may be called multiple times as data arrives
-  // from the network, and will never be called prior to OnResponseReceived.
-  // SpdyHttpSession schedule to call back |callback| set by ReadResponseBody.
   virtual void OnDataReceived(const char* buffer, int bytes);
-
-  // For HTTP streams, no data is sent from the client while in the OPEN state,
-  // so OnDataSent is never called.
   virtual void OnDataSent(int length);
-
-  // Called by the SpdySession when the request is finished.  This callback
-  // will always be called at the end of the request and signals to the
-  // stream that the stream has no more network events.  No further callbacks
-  // to the stream will be made after this call.
-  // SpdyHttpSession call back |callback| set by SendRequest,
-  // ReadResponseHeaders or ReadResponseBody.
   virtual void OnClose(int status);
 
  private:
@@ -161,6 +112,7 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   scoped_ptr<HttpResponseInfo> push_response_info_;
 
   bool download_finished_;
+  bool response_headers_received_;  // Indicates waiting for more HEADERS.
 
   // We buffer the response body as it arrives asynchronously from the stream.
   // TODO(mbelshe):  is this infinite buffering?

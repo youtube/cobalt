@@ -27,18 +27,14 @@ bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
   // The "status" and "version" headers are required.
   spdy::SpdyHeaderBlock::const_iterator it;
   it = headers.find("status");
-  if (it == headers.end()) {
-    LOG(ERROR) << "SpdyHeaderBlock without status header.";
+  if (it == headers.end())
     return false;
-  }
   status = it->second;
 
   // Grab the version.  If not provided by the server,
   it = headers.find("version");
-  if (it == headers.end()) {
-    LOG(ERROR) << "SpdyHeaderBlock without version header.";
+  if (it == headers.end())
     return false;
-  }
   version = it->second;
 
   response->response_time = base::Time::Now();
