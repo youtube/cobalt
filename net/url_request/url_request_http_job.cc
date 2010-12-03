@@ -98,7 +98,8 @@ URLRequestHttpJob::URLRequestHttpJob(net::URLRequest* request)
       sdch_dictionary_advertised_(false),
       sdch_test_activated_(false),
       sdch_test_control_(false),
-      is_cached_content_(false) {
+      is_cached_content_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
 URLRequestHttpJob::~URLRequestHttpJob() {
@@ -369,8 +370,10 @@ void URLRequestHttpJob::CancelAuth() {
   //
   // We have to do this via InvokeLater to avoid "recursing" the consumer.
   //
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestHttpJob::OnStartCompleted, net::OK));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestHttpJob::OnStartCompleted, net::OK));
 }
 
 void URLRequestHttpJob::ContinueWithCertificate(
@@ -389,8 +392,10 @@ void URLRequestHttpJob::ContinueWithCertificate(
 
   // The transaction started synchronously, but we need to notify the
   // net::URLRequest delegate via the message loop.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestHttpJob::OnStartCompleted, rv));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
 void URLRequestHttpJob::ContinueDespiteLastError() {
@@ -410,8 +415,10 @@ void URLRequestHttpJob::ContinueDespiteLastError() {
 
   // The transaction started synchronously, but we need to notify the
   // net::URLRequest delegate via the message loop.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestHttpJob::OnStartCompleted, rv));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
 bool URLRequestHttpJob::ReadRawData(net::IOBuffer* buf, int buf_size,
@@ -660,8 +667,10 @@ void URLRequestHttpJob::StartTransaction() {
 
   // The transaction started synchronously, but we need to notify the
   // net::URLRequest delegate via the message loop.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestHttpJob::OnStartCompleted, rv));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
 void URLRequestHttpJob::AddExtraHeaders() {
