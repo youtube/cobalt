@@ -60,6 +60,10 @@ bool DataURL::Parse(const GURL& url, std::string* mime_type,
   if (charset->empty())
     charset->assign("US-ASCII");
 
+  // The caller may not be interested in receiving the data.
+  if (!data)
+    return true;
+
   // Preserve spaces if dealing with text or xml input, same as mozilla:
   //   https://bugzilla.mozilla.org/show_bug.cgi?id=138052
   // but strip them otherwise:
