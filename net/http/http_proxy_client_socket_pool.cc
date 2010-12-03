@@ -283,7 +283,8 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
   next_state_ = STATE_SPDY_PROXY_CREATE_STREAM_COMPLETE;
   return spdy_session->CreateStream(params_->request_url(),
                                     params_->destination().priority(),
-                                    &spdy_stream_, net_log(), &callback_);
+                                    &spdy_stream_, spdy_session->net_log(),
+                                    &callback_);
 }
 
 int HttpProxyConnectJob::DoSpdyProxyCreateStreamComplete(int result) {
