@@ -356,7 +356,7 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
   EXPECT_CALL(callbacks_, OnStart());
 
   // Create a filter collection with missing filter.
-  MediaFilterCollection* collection = mocks_->filter_collection(false);
+  FilterCollection* collection = mocks_->filter_collection(false);
   pipeline_->Start(collection, "",
                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                &CallbackHelper::OnStart));

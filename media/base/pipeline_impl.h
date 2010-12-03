@@ -69,7 +69,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void Init(PipelineCallback* ended_callback,
                     PipelineCallback* error_callback,
                     PipelineCallback* network_callback);
-  virtual bool Start(MediaFilterCollection* filter_collection,
+  virtual bool Start(FilterCollection* filter_collection,
                      const std::string& uri,
                      PipelineCallback* start_callback);
   virtual void Stop(PipelineCallback* stop_callback);
@@ -185,7 +185,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
   // message loop.
-  void StartTask(MediaFilterCollection* filter_collection,
+  void StartTask(FilterCollection* filter_collection,
                  const std::string& url,
                  PipelineCallback* start_callback);
 
@@ -234,11 +234,10 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // PrepareFilter() creates the filter's thread and injects a FilterHost and
   // MessageLoop.
-  bool PrepareFilter(scoped_refptr<MediaFilter> filter);
+  bool PrepareFilter(scoped_refptr<Filter> filter);
 
   // The following initialize methods are used to select a specific type of
-  // MediaFilter object from MediaFilterCollection and initialize it
-  // asynchronously.
+  // Filter object from FilterCollection and initialize it asynchronously.
   void InitializeDataSource();
   void InitializeDemuxer(const scoped_refptr<DataSource>& data_source);
 
@@ -377,7 +376,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   base::TimeDelta max_buffered_time_;
 
   // Filter collection as passed in by Start().
-  scoped_ptr<MediaFilterCollection> filter_collection_;
+  scoped_ptr<FilterCollection> filter_collection_;
 
   // URL for the data source as passed in by Start().
   std::string url_;
@@ -391,7 +390,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Vector of our filters and map maintaining the relationship between the
   // FilterType and the filter itself.
-  typedef std::vector<scoped_refptr<MediaFilter> > FilterVector;
+  typedef std::vector<scoped_refptr<Filter> > FilterVector;
   FilterVector filters_;
 
   // Renderer references used for setting the volume and determining

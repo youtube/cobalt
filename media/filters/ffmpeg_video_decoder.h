@@ -28,7 +28,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   explicit FFmpegVideoDecoder(VideoDecodeContext* decode_context);
   virtual ~FFmpegVideoDecoder();
 
-  // MediaFilter implementation.
+  // Filter implementation.
   virtual void Stop(FilterCallback* callback);
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
   virtual void Pause(FilterCallback* callback);

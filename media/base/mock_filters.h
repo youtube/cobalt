@@ -17,7 +17,7 @@
 
 #include "base/callback.h"
 #include "media/base/filters.h"
-#include "media/base/media_filter_collection.h"
+#include "media/base/filter_collection.h"
 #include "media/base/video_frame.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -94,7 +94,7 @@ class MockDataSource : public DataSource {
  public:
   MockDataSource() {}
 
-  // MediaFilter implementation.
+  // Filter implementation.
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
@@ -121,7 +121,7 @@ class MockDemuxer : public Demuxer {
  public:
   MockDemuxer() {}
 
-  // MediaFilter implementation.
+  // Filter implementation.
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
@@ -163,7 +163,7 @@ class MockVideoDecoder : public VideoDecoder {
  public:
   MockVideoDecoder() {}
 
-  // MediaFilter implementation.
+  // Filter implementation.
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
@@ -192,7 +192,7 @@ class MockAudioDecoder : public AudioDecoder {
  public:
   MockAudioDecoder() {}
 
-  // MediaFilter implementation.
+  // Filter implementation.
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
@@ -220,7 +220,7 @@ class MockVideoRenderer : public VideoRenderer {
  public:
   MockVideoRenderer() {}
 
-  // MediaFilter implementation.
+  // Filter implementation.
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
@@ -243,7 +243,7 @@ class MockAudioRenderer : public AudioRenderer {
  public:
   MockAudioRenderer() {}
 
-  // MediaFilter implementation.
+  // Filter implementation.
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
@@ -285,12 +285,12 @@ class MockFilterCollection {
   MockVideoRenderer* video_renderer() const { return video_renderer_; }
   MockAudioRenderer* audio_renderer() const { return audio_renderer_; }
 
-  MediaFilterCollection* filter_collection() const {
+  FilterCollection* filter_collection() const {
     return filter_collection(true);
   }
 
-  MediaFilterCollection* filter_collection(bool include_data_source) const {
-    MediaFilterCollection* collection = new MediaFilterCollection();
+  FilterCollection* filter_collection(bool include_data_source) const {
+    FilterCollection* collection = new FilterCollection();
 
     if (include_data_source) {
       collection->AddDataSource(data_source_);
