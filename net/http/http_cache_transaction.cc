@@ -112,6 +112,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
       invalid_range_(false),
       enable_range_support_(enable_range_support),
       truncated_(false),
+      is_sparse_(false),
       server_responded_206_(false),
       cache_pending_(false),
       read_offset_(0),
@@ -676,7 +677,7 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     return OK;
   }
   if (server_responded_206_ && mode_ == READ_WRITE && !truncated_ &&
-      response_.headers->response_code() == 200) {
+      !is_sparse_) {
     // We have stored the full entry, but it changed and the server is
     // sending a range. We have to delete the old entry.
     DoneWritingToEntry(false);
@@ -886,6 +887,7 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   return OK;
 }
 
+// We may end up here multiple times for a given request.
 int HttpCache::Transaction::DoStartPartialCacheValidation() {
   if (mode_ == NONE)
     return OK;
@@ -1446,6 +1448,7 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
   return ValidateEntryHeadersAndContinue(false);
 }
 
+// This should only be called once per request.
 int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
     bool byte_range_requested) {
   DCHECK(mode_ == READ_WRITE);
@@ -1460,6 +1463,9 @@ int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
     next_state_ = STATE_INIT_ENTRY;
     return OK;
   }
+
+  if (response_.headers->response_code() == 206)
+    is_sparse_ = true;
 
   if (!partial_->IsRequestedRangeOK()) {
     // The stored data is fine, but the request may be invalid.
@@ -1842,6 +1848,7 @@ void HttpCache::Transaction::DoomPartialEntry(bool delete_object) {
   DCHECK_EQ(OK, rv);
   cache_->DoneWithEntry(entry_, this, false);
   entry_ = NULL;
+  is_sparse_ = false;
   if (delete_object)
     partial_.reset(NULL);
 }
