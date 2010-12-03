@@ -23,7 +23,8 @@ URLRequestFtpJob::URLRequestFtpJob(net::URLRequest* request)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           read_callback_(this, &URLRequestFtpJob::OnReadCompleted)),
       read_in_progress_(false),
-      context_(request->context()) {
+      context_(request->context()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
 URLRequestFtpJob::~URLRequestFtpJob() {
@@ -61,8 +62,9 @@ void URLRequestFtpJob::Start() {
 void URLRequestFtpJob::Kill() {
   if (!transaction_.get())
     return;
-  DestroyTransaction();
+  transaction_.reset();
   URLRequestJob::Kill();
+  method_factory_.RevokeAll();
 }
 
 net::LoadState URLRequestFtpJob::GetLoadState() const {
@@ -111,8 +113,10 @@ void URLRequestFtpJob::CancelAuth() {
   // Once the auth is cancelled, we proceed with the request as though
   // there were no auth.  Schedule this for later so that we don't cause
   // any recursing into the caller as a result of this call.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestFtpJob::OnStartCompleted, net::OK));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestFtpJob::OnStartCompleted, net::OK));
 }
 
 bool URLRequestFtpJob::ReadRawData(net::IOBuffer* buf,
@@ -138,13 +142,6 @@ bool URLRequestFtpJob::ReadRawData(net::IOBuffer* buf,
 }
 
 void URLRequestFtpJob::OnStartCompleted(int result) {
-  // If the request was destroyed, then there is no more work to do.
-  if (!request_ || !request_->delegate())
-    return;
-  // If the transaction was destroyed, then the job was cancelled, and
-  // we can just ignore this notification.
-  if (!transaction_.get())
-    return;
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
@@ -218,7 +215,7 @@ void URLRequestFtpJob::StartTransaction() {
   DCHECK(request_->context()->ftp_transaction_factory());
 
   transaction_.reset(
-  request_->context()->ftp_transaction_factory()->CreateTransaction());
+      request_->context()->ftp_transaction_factory()->CreateTransaction());
 
   // No matter what, we want to report our status as IO pending since we will
   // be notifying our consumer asynchronously via OnStartCompleted.
@@ -234,12 +231,8 @@ void URLRequestFtpJob::StartTransaction() {
   }
   // The transaction started synchronously, but we need to notify the
   // net::URLRequest delegate via the message loop.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestFtpJob::OnStartCompleted, rv));
-}
-
-void URLRequestFtpJob::DestroyTransaction() {
-  DCHECK(transaction_.get());
-
-  transaction_.reset();
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestFtpJob::OnStartCompleted, rv));
 }
