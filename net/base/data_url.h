@@ -37,6 +37,9 @@ class DataURL {
   // If the URL is malformed, then this method will return false, and its
   // output variables will remain unchanged.  On success, true is returned.
   //
+  // OPTIONAL: If |data| is NULL, then the <data> section will not be parsed
+  //           or validated.
+  //
   static bool Parse(const GURL& url,
                     std::string* mime_type,
                     std::string* charset,
