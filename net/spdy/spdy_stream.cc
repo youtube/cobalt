@@ -44,8 +44,8 @@ SpdyStream::SpdyStream(SpdySession* session,
       stream_id_(stream_id),
       priority_(0),
       stalled_by_flow_control_(false),
-      send_window_size_(spdy::kInitialWindowSize),
-      recv_window_size_(spdy::kInitialWindowSize),
+      send_window_size_(spdy::kSpdyStreamInitialWindowSize),
+      recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
       response_received_(false),
@@ -60,14 +60,10 @@ SpdyStream::SpdyStream(SpdySession* session,
       net_log_(net_log),
       send_bytes_(0),
       recv_bytes_(0) {
-  net_log_.BeginEvent(
-      NetLog::TYPE_SPDY_STREAM,
-      make_scoped_refptr(new NetLogIntegerParameter("stream_id", stream_id_)));
 }
 
 SpdyStream::~SpdyStream() {
   UpdateHistograms();
-  net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM, NULL);
 }
 
 void SpdyStream::SetDelegate(Delegate* delegate) {
@@ -88,9 +84,17 @@ void SpdyStream::PushedStreamReplayData() {
   if (cancelled_ || !delegate_)
     return;
 
-  delegate_->OnResponseReceived(*response_, response_time_, OK);
-
   continue_buffering_data_ = false;
+
+  int rv = delegate_->OnResponseReceived(*response_, response_time_, OK);
+  if (rv == ERR_INCOMPLETE_SPDY_HEADERS) {
+    // We don't have complete headers.  Assume we're waiting for another
+    // HEADERS frame.  Since we don't have headers, we had better not have
+    // any pending data frames.
+    DCHECK_EQ(0U, pending_buffers_.size());
+    return;
+  }
+
   std::vector<scoped_refptr<IOBufferWithSize> > buffers;
   buffers.swap(pending_buffers_);
   for (size_t i = 0; i < buffers.size(); ++i) {
@@ -253,8 +257,43 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   return rv;
 }
 
+int SpdyStream::OnHeaders(const spdy::SpdyHeaderBlock& headers) {
+  DCHECK(!response_->empty());
+
+  // Append all the headers into the response header block.
+  for (spdy::SpdyHeaderBlock::const_iterator it = headers.begin();
+      it != headers.end(); ++it) {
+    // Disallow duplicate headers.  This is just to be conservative.
+    if ((*response_).find(it->first) != (*response_).end()) {
+      LOG(WARNING) << "HEADERS duplicate header";
+      response_status_ = ERR_SPDY_PROTOCOL_ERROR;
+      return ERR_SPDY_PROTOCOL_ERROR;
+    }
+
+    (*response_)[it->first] = it->second;
+  }
+
+  int rv = OK;
+  if (delegate_) {
+    rv = delegate_->OnResponseReceived(*response_, response_time_, rv);
+    // ERR_INCOMPLETE_SPDY_HEADERS means that we are waiting for more
+    // headers before the response header block is complete.
+    if (rv == ERR_INCOMPLETE_SPDY_HEADERS)
+      rv = OK;
+  }
+  return rv;
+}
+
 void SpdyStream::OnDataReceived(const char* data, int length) {
   DCHECK_GE(length, 0);
+
+  // If we don't have a response, then the SYN_REPLY did not come through.
+  // We cannot pass data up to the caller unless the reply headers have been
+  // received.
+  if (!response_received()) {
+    session_->CloseStream(stream_id_, ERR_SYN_REPLY_NOT_RECEIVED);
+    return;
+  }
 
   if (!delegate_ || continue_buffering_data_) {
     // It should be valid for this to happen in the server push case.
@@ -272,15 +311,7 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     return;
   }
 
- CHECK(!closed());
-
-  // If we don't have a response, then the SYN_REPLY did not come through.
-  // We cannot pass data up to the caller unless the reply headers have been
-  // received.
-  if (!response_received()) {
-    session_->CloseStream(stream_id_, ERR_SYN_REPLY_NOT_RECEIVED);
-    return;
-  }
+  CHECK(!closed());
 
   // A zero-length read means that the stream is being closed.
   if (!length) {

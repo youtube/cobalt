@@ -27,6 +27,7 @@ SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session, bool direct)
       spdy_session_(spdy_session),
       response_info_(NULL),
       download_finished_(false),
+      response_headers_received_(false),
       user_callback_(NULL),
       user_buffer_len_(0),
       buffered_read_callback_pending_(false),
@@ -242,22 +243,29 @@ int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
     response_info_ = push_response_info_.get();
   }
 
+  // If the response is already received, these headers are too late.
+  if (response_headers_received_) {
+    LOG(WARNING) << "SpdyHttpStream headers received after response started.";
+    return OK;
+  }
+
   // TODO(mbelshe): This is the time of all headers received, not just time
   // to first byte.
-  DCHECK(response_info_->response_time.is_null());
   response_info_->response_time = base::Time::Now();
 
   if (!SpdyHeadersToHttpResponse(response, response_info_)) {
-    status = ERR_INVALID_RESPONSE;
-  } else {
-    stream_->GetSSLInfo(&response_info_->ssl_info,
-                        &response_info_->was_npn_negotiated);
-    response_info_->request_time = stream_->GetRequestTime();
-    response_info_->vary_data.Init(*request_info_, *response_info_->headers);
-    // TODO(ahendrickson): This is recorded after the entire SYN_STREAM control
-    // frame has been received and processed.  Move to framer?
-    response_info_->response_time = response_time;
+    // We might not have complete headers yet.
+    return ERR_INCOMPLETE_SPDY_HEADERS;
   }
+
+  response_headers_received_ = true;
+  stream_->GetSSLInfo(&response_info_->ssl_info,
+                      &response_info_->was_npn_negotiated);
+  response_info_->request_time = stream_->GetRequestTime();
+  response_info_->vary_data.Init(*request_info_, *response_info_->headers);
+  // TODO(ahendrickson): This is recorded after the entire SYN_STREAM control
+  // frame has been received and processed.  Move to framer?
+  response_info_->response_time = response_time;
 
   if (user_callback_)
     DoCallback(status);
@@ -265,6 +273,11 @@ int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
 }
 
 void SpdyHttpStream::OnDataReceived(const char* data, int length) {
+  // SpdyStream won't call us with data if the header block didn't contain a
+  // valid set of headers.  So we don't expect to not have headers received
+  // here.
+  DCHECK(response_headers_received_);
+
   // Note that data may be received for a SpdyStream prior to the user calling
   // ReadResponseBody(), therefore user_buffer_ may be NULL.  This may often
   // happen for server initiated streams.
