@@ -38,6 +38,10 @@ struct EmptyStrings {
   const std::string s;
   const std::wstring ws;
   const string16 s16;
+
+  static EmptyStrings* GetInstance() {
+    return Singleton<EmptyStrings>::get();
+  }
 };
 
 // Used by ReplaceStringPlaceholders to track the position in the string of
@@ -102,15 +106,15 @@ bool IsWprintfFormatPortable(const wchar_t* format) {
 
 
 const std::string& EmptyString() {
-  return Singleton<EmptyStrings>::get()->s;
+  return EmptyStrings::GetInstance()->s;
 }
 
 const std::wstring& EmptyWString() {
-  return Singleton<EmptyStrings>::get()->ws;
+  return EmptyStrings::GetInstance()->ws;
 }
 
 const string16& EmptyString16() {
-  return Singleton<EmptyStrings>::get()->s16;
+  return EmptyStrings::GetInstance()->s16;
 }
 
 #define WHITESPACE_UNICODE \

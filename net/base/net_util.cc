@@ -513,6 +513,11 @@ bool IsCompatibleWithASCIILetters(const std::string& lang) {
 typedef std::map<std::string, icu::UnicodeSet*> LangToExemplarSetMap;
 
 class LangToExemplarSet {
+ public:
+  static LangToExemplarSet* GetInstance() {
+    return Singleton<LangToExemplarSet>::get();
+  }
+
  private:
   LangToExemplarSetMap map;
   LangToExemplarSet() { }
@@ -530,7 +535,7 @@ class LangToExemplarSet {
 
 bool GetExemplarSetForLang(const std::string& lang,
                            icu::UnicodeSet** lang_set) {
-  const LangToExemplarSetMap& map = Singleton<LangToExemplarSet>()->map;
+  const LangToExemplarSetMap& map = LangToExemplarSet::GetInstance()->map;
   LangToExemplarSetMap::const_iterator pos = map.find(lang);
   if (pos != map.end()) {
     *lang_set = pos->second;
@@ -541,7 +546,7 @@ bool GetExemplarSetForLang(const std::string& lang,
 
 void SetExemplarSetForLang(const std::string& lang,
                            icu::UnicodeSet* lang_set) {
-  LangToExemplarSetMap& map = Singleton<LangToExemplarSet>()->map;
+  LangToExemplarSetMap& map = LangToExemplarSet::GetInstance()->map;
   map.insert(std::make_pair(lang, lang_set));
 }
 

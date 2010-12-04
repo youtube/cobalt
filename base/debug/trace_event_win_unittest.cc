@@ -106,7 +106,7 @@ class TraceEventTest: public testing::Test {
     TraceLog* tracelog = NULL;
     if (!is_xp) {
       TraceLog::Resurrect();
-      tracelog = TraceLog::Get();
+      tracelog = TraceLog::GetInstance();
       ASSERT_TRUE(tracelog != NULL);
       ASSERT_FALSE(tracelog->IsTracing());
     }
@@ -142,7 +142,7 @@ class TraceEventTest: public testing::Test {
 
     if (is_xp) {
       TraceLog::Resurrect();
-      tracelog = TraceLog::Get();
+      tracelog = TraceLog::GetInstance();
     }
     ASSERT_TRUE(tracelog != NULL);
     EXPECT_TRUE(tracelog->IsTracing());

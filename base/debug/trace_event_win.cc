@@ -31,8 +31,8 @@ TraceLog::TraceLog() : EtwTraceProvider(kChromeTraceProviderName) {
   Register();
 }
 
-TraceLog* TraceLog::Get() {
-  return Singleton<TraceLog, StaticMemorySingletonTraits<TraceLog>>::get();
+TraceLog* TraceLog::GetInstance() {
+  return Singleton<TraceLog, StaticMemorySingletonTraits<TraceLog> >::get();
 }
 
 bool TraceLog::StartTracing() {
@@ -99,7 +99,7 @@ void TraceLog::Trace(const char* name,
                      const void* id,
                      const char* extra,
                      size_t extra_len) {
-  TraceLog* provider = TraceLog::Get();
+  TraceLog* provider = TraceLog::GetInstance();
   if (provider && provider->IsTracing()) {
     // Compute the name & extra lengths if not supplied already.
     if (name_len == -1)
