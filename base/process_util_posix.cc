@@ -26,6 +26,7 @@
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
 #include "base/stringprintf.h"
+#include "base/thread_restrictions.h"
 #include "base/time.h"
 #include "base/waitable_event.h"
 
@@ -553,6 +554,9 @@ bool LaunchAppImpl(
   } else {
     // Parent process
     if (wait) {
+      // While this isn't strictly disk IO, waiting for another process to
+      // finish is the sort of thing ThreadRestrictions is trying to prevent.
+      base::ThreadRestrictions::AssertIOAllowed();
       pid_t ret = HANDLE_EINTR(waitpid(pid, 0, 0));
       DPCHECK(ret > 0);
     }
@@ -748,6 +752,9 @@ int64 TimeValToMicroseconds(const struct timeval& tv) {
 static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
                                  std::string* output, size_t max_output,
                                  bool do_search_path) {
+  // Doing a blocking wait for another command to finish counts as IO.
+  base::ThreadRestrictions::AssertIOAllowed();
+
   int pipe_fd[2];
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
