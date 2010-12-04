@@ -85,7 +85,7 @@ class TraceLog : public base::win::EtwTraceProvider {
 
   // Retrieves the singleton.
   // Note that this may return NULL post-AtExit processing.
-  static TraceLog* Get();
+  static TraceLog* GetInstance();
 
   // Returns true iff tracing is turned on.
   bool IsTracing() {

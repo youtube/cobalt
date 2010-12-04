@@ -11,6 +11,9 @@
 #include "base/win/event_trace_provider.h"
 #include "base/logging.h"
 
+template <typename Type>
+struct StaticMemorySingletonTraits;
+
 namespace logging {
 
 // Event ID for the log messages we generate.
@@ -47,7 +50,7 @@ enum LogMessageTypes {
 // with Event Tracing for Windows.
 class LogEventProvider : public base::win::EtwTraceProvider {
  public:
-  LogEventProvider();
+  static LogEventProvider* GetInstance();
 
   static bool LogMessage(logging::LogSeverity severity, const char* file,
       int line, size_t message_start, const std::string& str);
@@ -61,10 +64,13 @@ class LogEventProvider : public base::win::EtwTraceProvider {
   virtual void OnEventsDisabled();
 
  private:
+  LogEventProvider();
+
   // The log severity prior to OnEventsEnabled,
   // restored in OnEventsDisabled.
   logging::LogSeverity old_log_level_;
 
+  friend struct StaticMemorySingletonTraits<LogEventProvider>;
   DISALLOW_COPY_AND_ASSIGN(LogEventProvider);
 };
 

@@ -45,15 +45,18 @@ TraceLog::~TraceLog() {
 }
 
 // static
+TraceLog* TraceLog::GetInstance() {
+  return Singleton<TraceLog, DefaultSingletonTraits<TraceLog> >::get();
+}
+
+// static
 bool TraceLog::IsTracing() {
-  TraceLog* trace = Singleton<TraceLog>::get();
-  return trace->enabled_;
+  return TraceLog::GetInstance()->enabled_;
 }
 
 // static
 bool TraceLog::StartTracing() {
-  TraceLog* trace = Singleton<TraceLog>::get();
-  return trace->Start();
+  return TraceLog::GetInstance()->Start();
 }
 
 bool TraceLog::Start() {
@@ -70,8 +73,7 @@ bool TraceLog::Start() {
 
 // static
 void TraceLog::StopTracing() {
-  TraceLog* trace = Singleton<TraceLog>::get();
-  return trace->Stop();
+  return TraceLog::GetInstance()->Stop();
 }
 
 void TraceLog::Stop() {

@@ -6,14 +6,6 @@
 #include "base/singleton.h"
 #include <initguid.h>  // NOLINT
 
-namespace {
-
-typedef StaticMemorySingletonTraits<logging::LogEventProvider>
-    LogEventSingletonTraits;
-Singleton<logging::LogEventProvider, LogEventSingletonTraits> log_provider;
-
-}  // namespace
-
 namespace logging {
 
 using base::win::EtwEventLevel;
@@ -23,6 +15,11 @@ DEFINE_GUID(kLogEventId,
     0x7fe69228, 0x633e, 0x4f06, 0x80, 0xc1, 0x52, 0x7f, 0xea, 0x23, 0xe3, 0xa7);
 
 LogEventProvider::LogEventProvider() : old_log_level_(LOG_NONE) {
+}
+
+LogEventProvider* LogEventProvider::GetInstance() {
+  return Singleton<LogEventProvider,
+                   StaticMemorySingletonTraits<LogEventProvider> >::get();
 }
 
 bool LogEventProvider::LogMessage(logging::LogSeverity severity,
@@ -53,7 +50,7 @@ bool LogEventProvider::LogMessage(logging::LogSeverity severity,
 
   // Bail if we're not logging, not at that level,
   // or if we're post-atexit handling.
-  LogEventProvider* provider = log_provider.get();
+  LogEventProvider* provider = LogEventProvider::GetInstance();
   if (provider == NULL || level > provider->enable_level())
     return false;
 
@@ -100,7 +97,7 @@ bool LogEventProvider::LogMessage(logging::LogSeverity severity,
 }
 
 void LogEventProvider::Initialize(const GUID& provider_name) {
-  LogEventProvider* provider = log_provider.get();
+  LogEventProvider* provider = LogEventProvider::GetInstance();
 
   provider->set_provider_name(provider_name);
   provider->Register();
@@ -110,7 +107,7 @@ void LogEventProvider::Initialize(const GUID& provider_name) {
 }
 
 void LogEventProvider::Uninitialize() {
-  log_provider.get()->Unregister();
+  LogEventProvider::GetInstance()->Unregister();
 }
 
 void LogEventProvider::OnEventsEnabled() {
