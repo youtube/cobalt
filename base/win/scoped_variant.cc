@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/scoped_variant_win.h"
+#include "base/win/scoped_variant.h"
 #include "base/logging.h"
 
 namespace base {
