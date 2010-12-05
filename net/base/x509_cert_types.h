@@ -18,6 +18,11 @@
 #include <Security/x509defs.h>
 #endif
 
+namespace base {
+class Time;
+class StringPiece;
+}  // namespace base
+
 namespace net {
 
 class X509Certificate;
@@ -127,6 +132,23 @@ inline bool CSSMOIDEqual(const CSSM_OID* oid1, const CSSM_OID* oid2) {
 }
 #endif
 
+// A list of ASN.1 date/time formats that ParseCertificateDate() supports,
+// encoded in the canonical forms specified in RFC 2459/3280/5280.
+enum CertDateFormat {
+  // UTCTime: Format is YYMMDDHHMMSSZ
+  CERT_DATE_FORMAT_UTC_TIME,
+
+  // GeneralizedTime: Format is YYYYMMDDHHMMSSZ
+  CERT_DATE_FORMAT_GENERALIZED_TIME,
+};
+
+// Attempts to parse |raw_date|, an ASN.1 date/time string encoded as
+// |format|, and writes the result into |*time|. If an invalid date is
+// specified, or if parsing fails, returns false, and |*time| will not be
+// updated.
+bool ParseCertificateDate(const base::StringPiece& raw_date,
+                          CertDateFormat format,
+                          base::Time* time);
 }  // namespace net
 
 #endif  // NET_BASE_X509_CERT_TYPES_H_
