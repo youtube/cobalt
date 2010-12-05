@@ -222,9 +222,10 @@ void GetCertGeneralNamesForOID(X509Certificate::OSCertHandle cert_handle,
   for (size_t field = 0; field < fields.num_of_fields; ++field) {
     if (CSSMOIDEqual(&fields.fields[field].FieldOid, &oid)) {
       CSSM_X509_EXTENSION_PTR cssm_ext =
-          (CSSM_X509_EXTENSION_PTR)fields.fields[field].FieldValue.Data;
+          reinterpret_cast<CSSM_X509_EXTENSION_PTR>(
+              fields.fields[field].FieldValue.Data);
       CE_GeneralNames* alt_name =
-          (CE_GeneralNames*) cssm_ext->value.parsedValue;
+          reinterpret_cast<CE_GeneralNames*>(cssm_ext->value.parsedValue);
 
       for (size_t name = 0; name < alt_name->numNames; ++name) {
         const CE_GeneralName& name_struct = alt_name->generalName[name];
@@ -235,10 +236,9 @@ void GetCertGeneralNamesForOID(X509Certificate::OSCertHandle cert_handle,
         // CE_GeneralNameType for more information.
         if (name_struct.nameType == name_type) {
           const CSSM_DATA& name_data = name_struct.name;
-          std::string value =
-          std::string(reinterpret_cast<std::string::value_type*>
-                      (name_data.Data),
-                      name_data.Length);
+          std::string value = std::string(
+              reinterpret_cast<const char*>(name_data.Data),
+              name_data.Length);
           result->push_back(value);
         }
       }
@@ -257,43 +257,23 @@ void GetCertDateForOID(X509Certificate::OSCertHandle cert_handle,
 
   for (size_t field = 0; field < fields.num_of_fields; ++field) {
     if (CSSMOIDEqual(&fields.fields[field].FieldOid, &oid)) {
-      CSSM_X509_TIME* x509_time =
-          reinterpret_cast<CSSM_X509_TIME *>
-            (fields.fields[field].FieldValue.Data);
-      std::string time_string =
-          std::string(reinterpret_cast<std::string::value_type*>
-                      (x509_time->time.Data),
-                      x509_time->time.Length);
-
-      DCHECK(x509_time->timeType == BER_TAG_UTC_TIME ||
-             x509_time->timeType == BER_TAG_GENERALIZED_TIME);
-
-      struct tm time;
-      const char* parse_string;
-      if (x509_time->timeType == BER_TAG_UTC_TIME)
-        parse_string = "%y%m%d%H%M%SZ";
-      else if (x509_time->timeType == BER_TAG_GENERALIZED_TIME)
-        parse_string = "%y%m%d%H%M%SZ";
-      else {
-        // Those are the only two BER tags for time; if neither are used then
-        // this is a rather broken cert.
+      CSSM_X509_TIME* x509_time = reinterpret_cast<CSSM_X509_TIME*>(
+          fields.fields[field].FieldValue.Data);
+      if (x509_time->timeType != BER_TAG_UTC_TIME &&
+          x509_time->timeType != BER_TAG_GENERALIZED_TIME) {
+        LOG(ERROR) << "Unsupported date/time format "
+                   << x509_time->timeType;
         return;
       }
 
-      strptime(time_string.c_str(), parse_string, &time);
-
-      Time::Exploded exploded;
-      exploded.year         = time.tm_year + 1900;
-      exploded.month        = time.tm_mon + 1;
-      exploded.day_of_week  = time.tm_wday;
-      exploded.day_of_month = time.tm_mday;
-      exploded.hour         = time.tm_hour;
-      exploded.minute       = time.tm_min;
-      exploded.second       = time.tm_sec;
-      exploded.millisecond  = 0;
-
-      *result = Time::FromUTCExploded(exploded);
-      break;
+      base::StringPiece time_string(
+          reinterpret_cast<const char*>(x509_time->time.Data),
+          x509_time->time.Length);
+      CertDateFormat format = x509_time->timeType == BER_TAG_UTC_TIME ?
+          CERT_DATE_FORMAT_UTC_TIME : CERT_DATE_FORMAT_GENERALIZED_TIME;
+      if (!ParseCertificateDate(time_string, format, result))
+        LOG(ERROR) << "Invalid certificate date/time " << time_string;
+      return;
     }
   }
 }
@@ -334,7 +314,8 @@ OSStatus CreatePolicy(const CSSM_OID* policy_OID,
 // Caller is responsible for releasing the value stored into *out_cert_chain.
 OSStatus CopyCertChain(SecCertificateRef cert_handle,
                        CFArrayRef* out_cert_chain) {
-  DCHECK(cert_handle && out_cert_chain);
+  DCHECK(cert_handle);
+  DCHECK(out_cert_chain);
   // Create an SSL policy ref configured for client cert evaluation.
   SecPolicyRef ssl_policy;
   OSStatus result = X509Certificate::CreateSSLClientPolicy(&ssl_policy);
@@ -343,9 +324,9 @@ OSStatus CopyCertChain(SecCertificateRef cert_handle,
   ScopedCFTypeRef<SecPolicyRef> scoped_ssl_policy(ssl_policy);
 
   // Create a SecTrustRef.
-  ScopedCFTypeRef<CFArrayRef> input_certs(
-      CFArrayCreate(NULL, (const void**)&cert_handle, 1,
-                    &kCFTypeArrayCallBacks));
+  ScopedCFTypeRef<CFArrayRef> input_certs(CFArrayCreate(
+      NULL, const_cast<const void**>(reinterpret_cast<void**>(&cert_handle)),
+      1, &kCFTypeArrayCallBacks));
   SecTrustRef trust_ref = NULL;
   result = SecTrustCreateWithCertificates(input_certs, ssl_policy, &trust_ref);
   if (result)
@@ -400,8 +381,8 @@ void AddCertificatesFromBytes(const char* data, size_t length,
                               X509Certificate::OSCertHandles* output) {
   SecExternalFormat input_format = format;
   ScopedCFTypeRef<CFDataRef> local_data(CFDataCreateWithBytesNoCopy(
-      kCFAllocatorDefault, reinterpret_cast<const UInt8*>(data),
-      length, kCFAllocatorNull));
+      kCFAllocatorDefault, reinterpret_cast<const UInt8*>(data), length,
+      kCFAllocatorNull));
 
   CFArrayRef items = NULL;
   OSStatus status = SecKeychainItemImport(local_data, NULL, &input_format,
@@ -452,13 +433,12 @@ void SetMacTestCertificate(X509Certificate* cert) {
 void X509Certificate::Initialize() {
   const CSSM_X509_NAME* name;
   OSStatus status = SecCertificateGetSubject(cert_handle_, &name);
-  if (!status) {
+  if (!status)
     subject_.Parse(name);
-  }
+
   status = SecCertificateGetIssuer(cert_handle_, &name);
-  if (!status) {
+  if (!status)
     issuer_.Parse(name);
-  }
 
   GetCertDateForOID(cert_handle_, CSSMOID_X509V1ValidityNotBefore,
                     &valid_start_);
@@ -659,9 +639,8 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
           if (cert_status == CERT_STATUS_COMMON_NAME_INVALID) {
             std::vector<std::string> names;
             GetDNSNames(&names);
-            if (OverrideHostnameMismatch(hostname, &names)) {
+            if (OverrideHostnameMismatch(hostname, &names))
               cert_status = 0;
-            }
           }
           verify_result->cert_status |= cert_status;
         }
@@ -682,9 +661,8 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
       if (status)
         return NetErrorFromOSStatus(status);
       verify_result->cert_status |= CertStatusFromOSStatus(cssm_result);
-      if (!verify_result->cert_status) {
+      if (!verify_result->cert_status)
         verify_result->cert_status |= CERT_STATUS_INVALID;
-      }
       break;
   }
 
@@ -818,8 +796,8 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
   if (status)
     return sha1;
 
-  DCHECK(NULL != cert_data.Data);
-  DCHECK(0 != cert_data.Length);
+  DCHECK(cert_data.Data);
+  DCHECK_NE(cert_data.Length, 0U);
 
   CC_SHA1(cert_data.Data, cert_data.Length, sha1.data);
 
@@ -870,7 +848,7 @@ bool X509Certificate::IsIssuedBy(
   CFArrayRef cert_chain = NULL;
   OSStatus result;
   result = CopyCertChain(os_cert_handle(), &cert_chain);
-  if (result != noErr)
+  if (result)
     return false;
   ScopedCFTypeRef<CFArrayRef> scoped_cert_chain(cert_chain);
 
@@ -906,20 +884,22 @@ OSStatus X509Certificate::CreateSSLClientPolicy(SecPolicyRef* out_policy) {
 }
 
 // static
-bool X509Certificate::GetSSLClientCertificates (
+bool X509Certificate::GetSSLClientCertificates(
     const std::string& server_domain,
     const std::vector<CertPrincipal>& valid_issuers,
-    std::vector<scoped_refptr<X509Certificate> >* certs) {
+    CertificateList* certs) {
   ScopedCFTypeRef<SecIdentityRef> preferred_identity;
   if (!server_domain.empty()) {
     // See if there's an identity preference for this domain:
     ScopedCFTypeRef<CFStringRef> domain_str(
         base::SysUTF8ToCFStringRef("https://" + server_domain));
     SecIdentityRef identity = NULL;
-    if (SecIdentityCopyPreference(domain_str,
-                                  0,
-                                  NULL, // validIssuers argument is ignored :(
-                                  &identity) == noErr)
+    // While SecIdentityCopyPreferences appears to take a list of CA issuers
+    // to restrict the identity search to, within Security.framework the
+    // argument is ignored and filtering unimplemented. See
+    // SecIdentity.cpp in libsecurity_keychain, specifically
+    // _SecIdentityCopyPreferenceMatchingName().
+    if (SecIdentityCopyPreference(domain_str, 0, NULL, &identity) == noErr)
       preferred_identity.reset(identity);
   }
 
@@ -997,8 +977,10 @@ CFArrayRef X509Certificate::CreateClientCertificateChain() const {
 
   CFArrayRef cert_chain = NULL;
   result = CopyCertChain(cert_handle_, &cert_chain);
-  if (result)
-    goto exit;
+  if (result) {
+    LOG(ERROR) << "CreateIdentityCertificateChain error " << result;
+    return chain.release();
+  }
 
   // Append the intermediate certs from SecTrust to the result array:
   if (cert_chain) {
@@ -1010,9 +992,7 @@ CFArrayRef X509Certificate::CreateClientCertificateChain() const {
     }
     CFRelease(cert_chain);
   }
-exit:
-  if (result)
-    LOG(ERROR) << "CreateIdentityCertificateChain error " << result;
+
   return chain.release();
 }
 

@@ -6,8 +6,26 @@
 
 #include "net/base/x509_certificate.h"
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
+#include "base/string_piece.h"
+#include "base/time.h"
 
 namespace net {
+
+namespace {
+
+// Helper for ParseCertificateDate. |*field| must contain at least
+// |field_len| characters. |*field| will be advanced by |field_len| on exit.
+// |*ok| is set to false if there is an error in parsing the number, but left
+// untouched otherwise. Returns the parsed integer.
+int ParseIntAndAdvance(const char** field, size_t field_len, bool* ok) {
+  int result = 0;
+  *ok &= base::StringToInt(*field, *field + field_len, &result);
+  *field += field_len;
+  return result;
+}
+
+}  // namespace
 
 CertPrincipal::CertPrincipal() {
 }
@@ -73,6 +91,36 @@ bool CertPolicy::HasAllowedCert() const {
 
 bool CertPolicy::HasDeniedCert() const {
   return !denied_.empty();
+}
+
+bool ParseCertificateDate(const base::StringPiece& raw_date,
+                          CertDateFormat format,
+                          base::Time* time) {
+  size_t year_length = format == CERT_DATE_FORMAT_UTC_TIME ? 2 : 4;
+
+  if (raw_date.length() < 11 + year_length)
+    return false;
+
+  const char* field = raw_date.data();
+  bool valid = true;
+  base::Time::Exploded exploded = {0};
+
+  exploded.year =         ParseIntAndAdvance(&field, year_length, &valid);
+  exploded.month =        ParseIntAndAdvance(&field, 2, &valid);
+  exploded.day_of_month = ParseIntAndAdvance(&field, 2, &valid);
+  exploded.hour =         ParseIntAndAdvance(&field, 2, &valid);
+  exploded.minute =       ParseIntAndAdvance(&field, 2, &valid);
+  exploded.second =       ParseIntAndAdvance(&field, 2, &valid);
+  if (valid && year_length == 2)
+    exploded.year += exploded.year < 50 ? 2000 : 1900;
+
+  valid &= exploded.HasValidValues();
+
+  if (!valid)
+    return false;
+
+  *time = base::Time::FromUTCExploded(exploded);
+  return true;
 }
 
 }  // namespace net

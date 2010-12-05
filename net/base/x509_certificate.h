@@ -220,7 +220,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   static bool GetSSLClientCertificates(
       const std::string& server_domain,
       const std::vector<CertPrincipal>& valid_issuers,
-      std::vector<scoped_refptr<X509Certificate> >* certs);
+      CertificateList* certs);
 
   // Creates the chain of certs to use for this client identity cert.
   CFArrayRef CreateClientCertificateChain() const;
