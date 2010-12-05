@@ -90,6 +90,7 @@ class PlatformUtility(object):
       "server_root": os.path.join(self._UnixRoot(), "usr"),
       "mime_types_path": mime_types_path,
       "output_dir": output_dir,
+      "ssl_mutex": "file:"+os.path.join(output_dir, "ssl_mutex"),
       "user": os.environ.get("USER", "#%d" % os.geteuid()),
       "lock_file": os.path.join(output_dir, "accept.lock"),
     }
@@ -112,6 +113,7 @@ class PlatformUtility(object):
       ' -C \'ServerRoot "%(server_root)s"\''
       ' -c \'LockFile "%(lock_file)s"\''
       ' -c \'SSLCertificateFile "%(ssl_certificate_file)s"\''
+      ' -c \'SSLMutex "%(ssl_mutex)s"\''
     )
 
     if document_root:
