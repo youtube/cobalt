@@ -26,6 +26,8 @@ tags
 /build/Purify
 /build/Release
 /build/util/support
+# The Chrome OS build creates a /c symlink due to http://crbug.com/54866.
+/c
 /chrome/Debug
 /chrome/Hammer
 /chrome/Release
@@ -52,6 +54,7 @@ tags
 /gpu/gles2_conform_test
 /native_client
 /out
+/out_*
 /rlz
 /sdch/open-vcdiff
 /seccompsandbox
