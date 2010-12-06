@@ -323,6 +323,31 @@ bool SSLClientSocketOpenSSL::Init() {
   return true;
 }
 
+int SSLClientSocketOpenSSL::ClientCertRequestCallback(SSL* ssl,
+                                                      X509** x509,
+                                                      EVP_PKEY** pkey) {
+  DVLOG(3) << "OpenSSL ClientCertRequestCallback called";
+  DCHECK(ssl == ssl_);
+  DCHECK(*x509 == NULL);
+  DCHECK(*pkey == NULL);
+
+  if (!ssl_config_.send_client_cert) {
+    client_auth_cert_needed_ = true;
+    return -1;  // Suspends handshake.
+  }
+
+  // Second pass: a client certificate should have been selected.
+  if (ssl_config_.client_cert) {
+    // TODO(joth): We need a way to lookup the private key this
+    // certificate. See http://crbug.com/64951 and example code in
+    // http://codereview.chromium.org/5195001/diff/6001/net/socket/ssl_client_socket_openssl.cc
+    NOTIMPLEMENTED();
+  }
+
+  // Send no client certificate.
+  return 0;
+}
+
 // SSLClientSocket methods
 
 void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
@@ -540,31 +565,6 @@ int SSLClientSocketOpenSSL::DoHandshake() {
     }
   }
   return net_error;
-}
-
-int SSLClientSocketOpenSSL::ClientCertRequestCallback(SSL* ssl,
-                                                      X509** x509,
-                                                      EVP_PKEY** pkey) {
-  DVLOG(3) << "OpenSSL ClientCertRequestCallback called";
-  DCHECK(ssl == ssl_);
-  DCHECK(*x509 == NULL);
-  DCHECK(*pkey == NULL);
-
-  if (!ssl_config_.send_client_cert) {
-    client_auth_cert_needed_ = true;
-    return -1;  // Suspends handshake.
-  }
-
-  // Second pass: a client certificate should have been selected.
-  if (ssl_config_.client_cert) {
-    // TODO(joth): We need a way to lookup the private key this
-    // certificate. See http://crbug.com/64951 and example code in
-    // http://codereview.chromium.org/5195001/diff/6001/net/socket/ssl_client_socket_openssl.cc
-    NOTIMPLEMENTED();
-  }
-
-  // Send no client certificate.
-  return 0;
 }
 
 int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
