@@ -100,6 +100,10 @@ class Value {
   // Compares if two Value objects have equal contents.
   virtual bool Equals(const Value* other) const;
 
+  // Compares if two Value objects have equal contents. Can handle NULLs.
+  // NULLs are considered equal but different from Value::CreateNullValue().
+  static bool Equals(const Value* a, const Value* b);
+
  protected:
   // This isn't safe for end-users (they should use the Create*Value()
   // static methods above), but it's useful for subclasses.

@@ -508,6 +508,29 @@ TEST_F(ValuesTest, Equals) {
   EXPECT_FALSE(dv.Equals(copy.get()));
 }
 
+TEST_F(ValuesTest, StaticEquals) {
+  scoped_ptr<Value> null1(Value::CreateNullValue());
+  scoped_ptr<Value> null2(Value::CreateNullValue());
+  EXPECT_TRUE(Value::Equals(null1.get(), null2.get()));
+  EXPECT_TRUE(Value::Equals(NULL, NULL));
+
+  scoped_ptr<Value> i42(Value::CreateIntegerValue(42));
+  scoped_ptr<Value> j42(Value::CreateIntegerValue(42));
+  scoped_ptr<Value> i17(Value::CreateIntegerValue(17));
+  EXPECT_TRUE(Value::Equals(i42.get(), i42.get()));
+  EXPECT_TRUE(Value::Equals(j42.get(), i42.get()));
+  EXPECT_TRUE(Value::Equals(i42.get(), j42.get()));
+  EXPECT_FALSE(Value::Equals(i42.get(), i17.get()));
+  EXPECT_FALSE(Value::Equals(i42.get(), NULL));
+  EXPECT_FALSE(Value::Equals(NULL, i42.get()));
+
+  // NULL and Value::CreateNullValue() are intentionally different: We need
+  // support for NULL as a return value for "undefined" without caring for
+  // ownership of the pointer.
+  EXPECT_FALSE(Value::Equals(null1.get(), NULL));
+  EXPECT_FALSE(Value::Equals(NULL, null1.get()));
+}
+
 TEST_F(ValuesTest, RemoveEmptyChildren) {
   scoped_ptr<DictionaryValue> root(new DictionaryValue);
   // Remove empty lists and dictionaries.
