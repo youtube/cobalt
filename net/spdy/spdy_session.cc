@@ -248,6 +248,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       frames_received_(0),
       sent_settings_(false),
       received_settings_(false),
+      stalled_streams_(0),
       initial_send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       initial_recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
@@ -346,6 +347,7 @@ int SpdySession::CreateStream(
     return CreateStreamImpl(url, priority, spdy_stream, stream_net_log);
   }
 
+  stalled_streams_++;
   net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_STALLED_MAX_STREAMS, NULL);
   create_stream_queues_[priority].push(
       PendingCreateStream(url, priority, spdy_stream,
@@ -1375,6 +1377,11 @@ void SpdySession::RecordHistograms() {
                             sent_settings_ ? 1 : 0, 2);
   UMA_HISTOGRAM_ENUMERATION("Net.SpdySettingsReceived",
                             received_settings_ ? 1 : 0, 2);
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamStallsPerSession",
+                              stalled_streams_,
+                              0, 300, 50);
+  UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionsWithStalls",
+                            stalled_streams_ > 0 ? 1 : 0, 2);
 
   if (received_settings_) {
     // Enumerate the saved settings, and set histograms for it.
