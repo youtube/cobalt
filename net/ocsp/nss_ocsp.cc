@@ -248,6 +248,19 @@ class OCSPRequestSession
     return data_;
   }
 
+  virtual void OnReceivedRedirect(net::URLRequest* request,
+                                  const GURL& new_url,
+                                  bool* defer_redirect) {
+    DCHECK_EQ(request, request_);
+    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
+
+    if (!new_url.SchemeIs("http")) {
+      // Prevent redirects to non-HTTP schemes, including HTTPS. This matches
+      // the initial check in OCSPServerSession::CreateRequest().
+      CancelURLRequest();
+    }
+  }
+
   virtual void OnResponseStarted(net::URLRequest* request) {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
