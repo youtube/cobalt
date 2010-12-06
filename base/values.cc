@@ -133,6 +133,13 @@ bool Value::Equals(const Value* other) const {
   return other->IsType(TYPE_NULL);
 }
 
+// static
+bool Value::Equals(const Value* a, const Value* b) {
+  if ((a == NULL) && (b == NULL)) return true;
+  if ((a == NULL) ^  (b == NULL)) return false;
+  return a->Equals(b);
+}
+
 Value::Value(ValueType type) : type_(type) {
 }
 
