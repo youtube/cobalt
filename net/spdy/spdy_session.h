@@ -411,6 +411,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   bool sent_settings_;      // Did this session send settings when it started.
   bool received_settings_;  // Did this session receive at least one settings
                             // frame.
+  int stalled_streams_;     // Count of streams that were ever stalled.
 
   // Initial send window size for the session; can be changed by an
   // arriving SETTINGS frame; newly created streams use this value for the
