@@ -434,7 +434,6 @@ int X509Certificate::Verify(const std::string& hostname,
         << " : " << X509_STORE_CTX_get_error_depth(ctx.get())
         << " : " << cert_status;
     verify_result->cert_status |= cert_status;
-    return MapCertStatusToNetError(verify_result->cert_status);
   }
 
   if (IsCertStatusError(verify_result->cert_status))
