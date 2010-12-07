@@ -404,14 +404,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Helper class that stores filter references during pipeline
   // initialization.
-  class PipelineInitState {
-   public:
-    scoped_refptr<DataSource> data_source_;
-    scoped_refptr<Demuxer> demuxer_;
-    scoped_refptr<AudioDecoder> audio_decoder_;
-    scoped_refptr<VideoDecoder> video_decoder_;
-  };
-
+  class PipelineInitState;
   scoped_ptr<PipelineInitState> pipeline_init_state_;
 
   FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, GetBufferedTime);
