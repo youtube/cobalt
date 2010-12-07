@@ -8,11 +8,12 @@
 #    May you share freely, never taking more than you give.
 #
 #***********************************************************************
-# 
+#
+# $Id: rtree6.test,v 1.1 2008/09/01 12:47:00 danielk1977 Exp $
 #
 
 if {![info exists testdir]} {
-  set testdir [file join [file dirname [info script]] .. .. test]
+  set testdir [file join [file dirname $argv0] .. .. test]
 } 
 source $testdir/tester.tcl
 
@@ -88,8 +89,8 @@ do_test rtree6.2.2 {
 do_test rtree6.2.3 {
   query_plan {SELECT * FROM t1,t2 WHERE k=ii}
 } [list \
-  {TABLE t1 VIRTUAL TABLE INDEX 2:}   \
-  {TABLE t2 USING PRIMARY KEY}        \
+  {TABLE t2}                          \
+  {TABLE t1 VIRTUAL TABLE INDEX 1:}   \
 ]
 
 do_test rtree6.2.4 {
@@ -102,8 +103,9 @@ do_test rtree6.2.4 {
 do_test rtree6.2.5 {
   query_plan {SELECT * FROM t1,t2 WHERE k=ii AND x1<v}
 } [list \
-  {TABLE t1 VIRTUAL TABLE INDEX 2:}   \
-  {TABLE t2 USING PRIMARY KEY}        \
+  {TABLE t2}                              \
+  {TABLE t1 VIRTUAL TABLE INDEX 1:}   \
 ]
 
 finish_test
+

@@ -10,6 +10,8 @@
 **
 *************************************************************************
 ** This file contains the C functions that implement mutexes for OS/2
+**
+** $Id: mutex_os2.c,v 1.11 2008/11/22 19:50:54 pweilbacher Exp $
 */
 #include "sqliteInt.h"
 
@@ -158,39 +160,6 @@ static void os2MutexFree(sqlite3_mutex *p){
   sqlite3_free( p );
 }
 
-#ifdef SQLITE_DEBUG
-/*
-** The sqlite3_mutex_held() and sqlite3_mutex_notheld() routine are
-** intended for use inside assert() statements.
-*/
-static int os2MutexHeld(sqlite3_mutex *p){
-  TID tid;
-  PID pid;
-  ULONG ulCount;
-  PTIB ptib;
-  if( p!=0 ) {
-    DosQueryMutexSem(p->mutex, &pid, &tid, &ulCount);
-  } else {
-    DosGetInfoBlocks(&ptib, NULL);
-    tid = ptib->tib_ptib2->tib2_ultid;
-  }
-  return p==0 || (p->nRef!=0 && p->owner==tid);
-}
-static int os2MutexNotheld(sqlite3_mutex *p){
-  TID tid;
-  PID pid;
-  ULONG ulCount;
-  PTIB ptib;
-  if( p!= 0 ) {
-    DosQueryMutexSem(p->mutex, &pid, &tid, &ulCount);
-  } else {
-    DosGetInfoBlocks(&ptib, NULL);
-    tid = ptib->tib_ptib2->tib2_ultid;
-  }
-  return p==0 || p->nRef==0 || p->owner!=tid;
-}
-#endif
-
 /*
 ** The sqlite3_mutex_enter() and sqlite3_mutex_try() routines attempt
 ** to enter a mutex.  If another thread is already within the mutex,
@@ -251,8 +220,41 @@ static void os2MutexLeave(sqlite3_mutex *p){
   DosReleaseMutexSem(p->mutex);
 }
 
-sqlite3_mutex_methods const *sqlite3DefaultMutex(void){
-  static const sqlite3_mutex_methods sMutex = {
+#ifdef SQLITE_DEBUG
+/*
+** The sqlite3_mutex_held() and sqlite3_mutex_notheld() routine are
+** intended for use inside assert() statements.
+*/
+static int os2MutexHeld(sqlite3_mutex *p){
+  TID tid;
+  PID pid;
+  ULONG ulCount;
+  PTIB ptib;
+  if( p!=0 ) {
+    DosQueryMutexSem(p->mutex, &pid, &tid, &ulCount);
+  } else {
+    DosGetInfoBlocks(&ptib, NULL);
+    tid = ptib->tib_ptib2->tib2_ultid;
+  }
+  return p==0 || (p->nRef!=0 && p->owner==tid);
+}
+static int os2MutexNotheld(sqlite3_mutex *p){
+  TID tid;
+  PID pid;
+  ULONG ulCount;
+  PTIB ptib;
+  if( p!= 0 ) {
+    DosQueryMutexSem(p->mutex, &pid, &tid, &ulCount);
+  } else {
+    DosGetInfoBlocks(&ptib, NULL);
+    tid = ptib->tib_ptib2->tib2_ultid;
+  }
+  return p==0 || p->nRef==0 || p->owner!=tid;
+}
+#endif
+
+sqlite3_mutex_methods *sqlite3DefaultMutex(void){
+  static sqlite3_mutex_methods sMutex = {
     os2MutexInit,
     os2MutexEnd,
     os2MutexAlloc,

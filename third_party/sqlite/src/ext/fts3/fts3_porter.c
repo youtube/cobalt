@@ -24,7 +24,6 @@
 */
 #if !defined(SQLITE_CORE) || defined(SQLITE_ENABLE_FTS3)
 
-#include "fts3Int.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -54,6 +53,10 @@ typedef struct porter_tokenizer_cursor {
 } porter_tokenizer_cursor;
 
 
+/* Forward declaration */
+static const sqlite3_tokenizer_module porterTokenizerModule;
+
+
 /*
 ** Create a new tokenizer instance.
 */
@@ -62,10 +65,6 @@ static int porterCreate(
   sqlite3_tokenizer **ppTokenizer
 ){
   porter_tokenizer *t;
-
-  UNUSED_PARAMETER(argc);
-  UNUSED_PARAMETER(argv);
-
   t = (porter_tokenizer *) sqlite3_malloc(sizeof(*t));
   if( t==NULL ) return SQLITE_NOMEM;
   memset(t, 0, sizeof(*t));
@@ -93,8 +92,6 @@ static int porterOpen(
   sqlite3_tokenizer_cursor **ppCursor    /* OUT: Tokenization cursor */
 ){
   porter_tokenizer_cursor *c;
-
-  UNUSED_PARAMETER(pTokenizer);
 
   c = (porter_tokenizer_cursor *) sqlite3_malloc(sizeof(*c));
   if( c==NULL ) return SQLITE_NOMEM;
@@ -236,7 +233,7 @@ static int hasVowel(const char *z){
 ** the first two characters of z[].
 */
 static int doubleConsonant(const char *z){
-  return isConsonant(z) && z[0]==z[1];
+  return isConsonant(z) && z[0]==z[1] && isConsonant(z+1);
 }
 
 /*
@@ -249,10 +246,10 @@ static int doubleConsonant(const char *z){
 */
 static int star_oh(const char *z){
   return
-    isConsonant(z) &&
+    z[0]!=0 && isConsonant(z) &&
     z[0]!='w' && z[0]!='x' && z[0]!='y' &&
-    isVowel(z+1) &&
-    isConsonant(z+2);
+    z[1]!=0 && isVowel(z+1) &&
+    z[2]!=0 && isConsonant(z+2);
 }
 
 /*
@@ -296,7 +293,7 @@ static void copy_stemmer(const char *zIn, int nIn, char *zOut, int *pnOut){
   int i, mx, j;
   int hasDigit = 0;
   for(i=0; i<nIn; i++){
-    char c = zIn[i];
+    int c = zIn[i];
     if( c>='A' && c<='Z' ){
       zOut[i] = c - 'A' + 'a';
     }else{
@@ -340,7 +337,7 @@ static void copy_stemmer(const char *zIn, int nIn, char *zOut, int *pnOut){
 ** no chance of overflowing the zOut buffer.
 */
 static void porter_stemmer(const char *zIn, int nIn, char *zOut, int *pnOut){
-  int i, j;
+  int i, j, c;
   char zReverse[28];
   char *z, *z2;
   if( nIn<3 || nIn>=sizeof(zReverse)-7 ){
@@ -350,7 +347,7 @@ static void porter_stemmer(const char *zIn, int nIn, char *zOut, int *pnOut){
     return;
   }
   for(i=0, j=sizeof(zReverse)-6; i<nIn; i++, j--){
-    char c = zIn[i];
+    c = zIn[i];
     if( c>='A' && c<='Z' ){
       zReverse[j] = c + 'a' - 'A';
     }else if( c>='a' && c<='z' ){
@@ -549,7 +546,7 @@ static void porter_stemmer(const char *zIn, int nIn, char *zOut, int *pnOut){
   /* z[] is now the stemmed word in reverse order.  Flip it back
   ** around into forward order and return.
   */
-  *pnOut = i = (int)strlen(z);
+  *pnOut = i = strlen(z);
   zOut[i] = 0;
   while( *z ){
     zOut[--i] = *(z++);
@@ -604,11 +601,9 @@ static int porterNext(
     if( c->iOffset>iStartOffset ){
       int n = c->iOffset-iStartOffset;
       if( n>c->nAllocated ){
-        char *pNew;
         c->nAllocated = n+20;
-        pNew = sqlite3_realloc(c->zToken, c->nAllocated);
-        if( !pNew ) return SQLITE_NOMEM;
-        c->zToken = pNew;
+        c->zToken = sqlite3_realloc(c->zToken, c->nAllocated);
+        if( c->zToken==NULL ) return SQLITE_NOMEM;
       }
       porter_stemmer(&z[iStartOffset], n, c->zToken, pnBytes);
       *pzToken = c->zToken;

@@ -1,7 +1,6 @@
-diff --git a/third_party/sqlite/src/ext/fts2/fts2.c b/third_party/sqlite/src/ext/fts2/fts2.c
-index 74c2890..5ec1265 100644
---- a/third_party/sqlite/src/ext/fts2/fts2.c
-+++ b/third_party/sqlite/src/ext/fts2/fts2.c
+diff -ru ext-orig/fts2/fts2.c ext/fts2/fts2.c
+--- ext-orig/fts2/fts2.c	2009-09-04 13:37:41.000000000 -0700
++++ ext/fts2/fts2.c	2009-09-30 14:48:14.000000000 -0700
 @@ -37,6 +37,20 @@
  ** This is an SQLite module implementing full-text search.
  */
@@ -23,7 +22,7 @@ index 74c2890..5ec1265 100644
  /*
  ** The code in this file is only compiled if:
  **
-@@ -333,6 +347,16 @@ SQLITE_EXTENSION_INIT1
+@@ -335,6 +349,16 @@
  # define TRACE(A)
  #endif
  
@@ -40,7 +39,7 @@ index 74c2890..5ec1265 100644
  /* It is not safe to call isspace(), tolower(), or isalnum() on
  ** hi-bit-set characters.  This is the same solution used in the
  ** tokenizer.
-@@ -421,30 +445,41 @@ static int putVarint(char *p, sqlite_int64 v){
+@@ -423,30 +447,41 @@
  /* Read a 64-bit variable-length integer from memory starting at p[0].
   * Return the number of bytes read, or 0 on error.
   * The value is stored in *v. */
@@ -90,7 +89,7 @@ index 74c2890..5ec1265 100644
  /*******************************************************************/
  /* DataBuffer is used to collect data into a buffer in piecemeal
  ** fashion.  It implements the usual distinction between amount of
-@@ -613,7 +648,7 @@ typedef struct DLReader {
+@@ -615,7 +650,7 @@
  
  static int dlrAtEnd(DLReader *pReader){
    assert( pReader->nData>=0 );
@@ -99,7 +98,7 @@ index 74c2890..5ec1265 100644
  }
  static sqlite_int64 dlrDocid(DLReader *pReader){
    assert( !dlrAtEnd(pReader) );
-@@ -637,7 +672,8 @@ static int dlrAllDataBytes(DLReader *pReader){
+@@ -639,7 +674,8 @@
  */
  static const char *dlrPosData(DLReader *pReader){
    sqlite_int64 iDummy;
@@ -109,7 +108,7 @@ index 74c2890..5ec1265 100644
    assert( !dlrAtEnd(pReader) );
    return pReader->pData+n;
  }
-@@ -647,7 +683,7 @@ static int dlrPosDataLen(DLReader *pReader){
+@@ -649,7 +685,7 @@
    assert( !dlrAtEnd(pReader) );
    return pReader->nElement-n;
  }
@@ -118,7 +117,7 @@ index 74c2890..5ec1265 100644
    assert( !dlrAtEnd(pReader) );
  
    /* Skip past current doclist element. */
-@@ -656,32 +692,48 @@ static void dlrStep(DLReader *pReader){
+@@ -658,32 +694,48 @@
    pReader->nData -= pReader->nElement;
  
    /* If there is more data, read the next doclist element. */
@@ -168,19 +167,19 @@ index 74c2890..5ec1265 100644
      assert( pReader->nElement<=pReader->nData );
    }
 +  return SQLITE_OK;
-+}
-+static void dlrDestroy(DLReader *pReader){
-+  SCRAMBLE(pReader);
  }
 -static void dlrInit(DLReader *pReader, DocListType iType,
 -                    const char *pData, int nData){
++static void dlrDestroy(DLReader *pReader){
++  SCRAMBLE(pReader);
++}
 +static int dlrInit(DLReader *pReader, DocListType iType,
 +                   const char *pData, int nData){
 +  int rc;
    assert( pData!=NULL && nData!=0 );
    pReader->iType = iType;
    pReader->pData = pData;
-@@ -690,10 +742,9 @@ static void dlrInit(DLReader *pReader, DocListType iType,
+@@ -692,10 +744,9 @@
    pReader->iDocid = 0;
  
    /* Load the first element's data.  There must be a first element. */
@@ -194,7 +193,7 @@ index 74c2890..5ec1265 100644
  }
  
  #ifndef NDEBUG
-@@ -780,9 +831,9 @@ static void dlwDestroy(DLWriter *pWriter){
+@@ -782,9 +833,9 @@
  /* TODO(shess) This has become just a helper for docListMerge.
  ** Consider a refactor to make this cleaner.
  */
@@ -207,7 +206,7 @@ index 74c2890..5ec1265 100644
    sqlite_int64 iDocid = 0;
    char c[VARINT_MAX];
    int nFirstOld, nFirstNew;     /* Old and new varint len of first docid. */
-@@ -791,7 +842,8 @@ static void dlwAppend(DLWriter *pWriter,
+@@ -793,7 +844,8 @@
  #endif
  
    /* Recode the initial docid as delta from iPrevDocid. */
@@ -217,7 +216,7 @@ index 74c2890..5ec1265 100644
    assert( nFirstOld<nData || (nFirstOld==nData && pWriter->iType==DL_DOCIDS) );
    nFirstNew = putVarint(c, iFirstDocid-pWriter->iPrevDocid);
  
-@@ -812,10 +864,11 @@ static void dlwAppend(DLWriter *pWriter,
+@@ -814,10 +866,11 @@
      dataBufferAppend(pWriter->b, c, nFirstNew);
    }
    pWriter->iPrevDocid = iLastDocid;
@@ -232,7 +231,7 @@ index 74c2890..5ec1265 100644
  }
  static void dlwAdd(DLWriter *pWriter, sqlite_int64 iDocid){
    char c[VARINT_MAX];
-@@ -876,45 +929,63 @@ static int plrEndOffset(PLReader *pReader){
+@@ -878,45 +931,63 @@
    assert( !plrAtEnd(pReader) );
    return pReader->iEndOffset;
  }
@@ -310,7 +309,7 @@ index 74c2890..5ec1265 100644
    pReader->pData = dlrPosData(pDLReader);
    pReader->nData = dlrPosDataLen(pDLReader);
    pReader->iType = pDLReader->iType;
-@@ -922,10 +993,9 @@ static void plrInit(PLReader *pReader, DLReader *pDLReader){
+@@ -924,10 +995,9 @@
    pReader->iPosition = 0;
    pReader->iStartOffset = 0;
    pReader->iEndOffset = 0;
@@ -324,7 +323,7 @@ index 74c2890..5ec1265 100644
  }
  
  /*******************************************************************/
-@@ -1111,14 +1181,16 @@ static void dlcDelete(DLCollector *pCollector){
+@@ -1113,14 +1183,16 @@
  ** deletion will be trimmed, and will thus not effect a deletion
  ** during the merge.
  */
@@ -344,7 +343,7 @@ index 74c2890..5ec1265 100644
    dlwInit(&dlWriter, iOutType, out);
  
    while( !dlrAtEnd(&dlReader) ){
-@@ -1126,7 +1198,8 @@ static void docListTrim(DocListType iType, const char *pData, int nData,
+@@ -1128,7 +1200,8 @@
      PLWriter plWriter;
      int match = 0;
  
@@ -354,7 +353,7 @@ index 74c2890..5ec1265 100644
  
      while( !plrAtEnd(&plReader) ){
        if( iColumn==-1 || plrColumn(&plReader)==iColumn ){
-@@ -1137,7 +1210,11 @@ static void docListTrim(DocListType iType, const char *pData, int nData,
+@@ -1139,7 +1212,11 @@
          plwAdd(&plWriter, plrColumn(&plReader), plrPosition(&plReader),
                 plrStartOffset(&plReader), plrEndOffset(&plReader));
        }
@@ -367,7 +366,7 @@ index 74c2890..5ec1265 100644
      }
      if( match ){
        plwTerminate(&plWriter);
-@@ -1145,10 +1222,13 @@ static void docListTrim(DocListType iType, const char *pData, int nData,
+@@ -1147,10 +1224,13 @@
      }
  
      plrDestroy(&plReader);
@@ -382,7 +381,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* Used by docListMerge() to keep doclists in the ascending order by
-@@ -1205,19 +1285,20 @@ static void orderedDLReaderReorder(OrderedDLReader *p, int n){
+@@ -1207,19 +1287,20 @@
  /* TODO(shess) nReaders must be <= MERGE_COUNT.  This should probably
  ** be fixed.
  */
@@ -406,7 +405,7 @@ index 74c2890..5ec1265 100644
    }
  
    assert( nReaders<=MERGE_COUNT );
-@@ -1250,20 +1331,23 @@ static void docListMerge(DataBuffer *out,
+@@ -1252,20 +1333,23 @@
        nStart += dlrDocDataBytes(readers[0].pReader);
      }else{
        if( pStart!=0 ){
@@ -433,7 +432,7 @@ index 74c2890..5ec1265 100644
      }
  
      /* Get the readers back into order. */
-@@ -1273,8 +1357,11 @@ static void docListMerge(DataBuffer *out,
+@@ -1275,8 +1359,11 @@
    }
  
    /* Copy over any remaining elements. */
@@ -446,7 +445,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* Helper function for posListUnion().  Compares the current position
-@@ -1310,30 +1397,40 @@ static int posListCmp(PLReader *pLeft, PLReader *pRight){
+@@ -1312,30 +1399,40 @@
  ** work with any doclist type, though both inputs and the output
  ** should be the same type.
  */
@@ -494,7 +493,7 @@ index 74c2890..5ec1265 100644
      }
    }
  
-@@ -1341,56 +1438,75 @@ static void posListUnion(DLReader *pLeft, DLReader *pRight, DLWriter *pOut){
+@@ -1343,56 +1440,75 @@
    plwDestroy(&writer);
    plrDestroy(&left);
    plrDestroy(&right);
@@ -586,7 +585,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* pLeft and pRight are DLReaders positioned to the same docid.
-@@ -1405,35 +1521,47 @@ static void docListUnion(
+@@ -1407,35 +1523,47 @@
  ** include the positions from pRight that are one more than a
  ** position in pLeft.  In other words:  pRight.iPos==pLeft.iPos+1.
  */
@@ -644,7 +643,7 @@ index 74c2890..5ec1265 100644
      }
    }
  
-@@ -1444,6 +1572,7 @@ static void posListPhraseMerge(DLReader *pLeft, DLReader *pRight,
+@@ -1446,6 +1574,7 @@
  
    plrDestroy(&left);
    plrDestroy(&right);
@@ -652,7 +651,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* We have two doclists with positions:  pLeft and pRight.
-@@ -1455,7 +1584,7 @@ static void posListPhraseMerge(DLReader *pLeft, DLReader *pRight,
+@@ -1457,7 +1586,7 @@
  ** iType controls the type of data written to pOut.  If iType is
  ** DL_POSITIONS, the positions are those from pRight.
  */
@@ -661,7 +660,7 @@ index 74c2890..5ec1265 100644
    const char *pLeft, int nLeft,
    const char *pRight, int nRight,
    DocListType iType,
-@@ -1463,152 +1592,198 @@ static void docListPhraseMerge(
+@@ -1465,152 +1594,198 @@
  ){
    DLReader left, right;
    DLWriter writer;
@@ -894,7 +893,7 @@ index 74c2890..5ec1265 100644
  }
  
  static char *string_dup_n(const char *s, int n){
-@@ -1812,7 +1987,7 @@ static const char *const fulltext_zStatement[MAX_STMT] = {
+@@ -1814,7 +1989,7 @@
    /* SEGDIR_MAX_INDEX */ "select max(idx) from %_segdir where level = ?",
    /* SEGDIR_SET */ "insert into %_segdir values (?, ?, ?, ?, ?, ?)",
    /* SEGDIR_SELECT_LEVEL */
@@ -903,7 +902,7 @@ index 74c2890..5ec1265 100644
    " where level = ? order by idx",
    /* SEGDIR_SPAN */
    "select min(start_block), max(end_block) from %_segdir "
-@@ -3411,7 +3586,8 @@ static int fulltextNext(sqlite3_vtab_cursor *pCursor){
+@@ -3413,7 +3588,8 @@
        return SQLITE_OK;
      }
      rc = sqlite3_bind_int64(c->pStmt, 1, dlrDocid(&c->reader));
@@ -913,7 +912,7 @@ index 74c2890..5ec1265 100644
      if( rc!=SQLITE_OK ) return rc;
      /* TODO(shess) Handle SQLITE_SCHEMA AND SQLITE_BUSY. */
      rc = sqlite3_step(c->pStmt);
-@@ -3419,8 +3595,11 @@ static int fulltextNext(sqlite3_vtab_cursor *pCursor){
+@@ -3421,8 +3597,11 @@
        c->eof = 0;
        return SQLITE_OK;
      }
@@ -927,7 +926,7 @@ index 74c2890..5ec1265 100644
    }
  }
  
-@@ -3468,14 +3647,18 @@ static int docListOfTerm(
+@@ -3470,14 +3649,18 @@
        return rc;
      }
      dataBufferInit(&new, 0);
@@ -949,7 +948,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* Add a new term pTerm[0..nTerm-1] to the query *q.
-@@ -3542,6 +3725,7 @@ static int tokenizeSegment(
+@@ -3544,6 +3727,7 @@
    int firstIndex = pQuery->nTerms;
    int iCol;
    int nTerm = 1;
@@ -957,7 +956,7 @@ index 74c2890..5ec1265 100644
    
    int rc = pModule->xOpen(pTokenizer, pSegment, nSegment, &pCursor);
    if( rc!=SQLITE_OK ) return rc;
-@@ -3566,6 +3750,20 @@ static int tokenizeSegment(
+@@ -3568,6 +3752,20 @@
        pQuery->nextIsOr = 1;
        continue;
      }
@@ -978,7 +977,7 @@ index 74c2890..5ec1265 100644
      queryAdd(pQuery, pToken, nToken);
      if( !inPhrase && iBegin>0 && pSegment[iBegin-1]=='-' ){
        pQuery->pTerms[pQuery->nTerms-1].isNot = 1;
-@@ -3705,18 +3903,30 @@ static int fulltextQuery(
+@@ -3707,18 +3905,30 @@
          return rc;
        }
        dataBufferInit(&new, 0);
@@ -1011,7 +1010,7 @@ index 74c2890..5ec1265 100644
        left = new;
      }
    }
-@@ -3736,9 +3946,15 @@ static int fulltextQuery(
+@@ -3738,9 +3948,15 @@
        return rc;
      }
      dataBufferInit(&new, 0);
@@ -1028,7 +1027,7 @@ index 74c2890..5ec1265 100644
      left = new;
    }
  
-@@ -3832,7 +4048,8 @@ static int fulltextFilter(
+@@ -3834,7 +4050,8 @@
        rc = fulltextQuery(v, idxNum-QUERY_FULLTEXT, zQuery, -1, &c->result, &c->q);
        if( rc!=SQLITE_OK ) return rc;
        if( c->result.nData!=0 ){
@@ -1038,7 +1037,7 @@ index 74c2890..5ec1265 100644
        }
        break;
      }
-@@ -4333,22 +4550,19 @@ static void interiorReaderDestroy(InteriorReader *pReader){
+@@ -4335,22 +4552,19 @@
    SCRAMBLE(pReader);
  }
  
@@ -1066,7 +1065,7 @@ index 74c2890..5ec1265 100644
    pReader->pData = pData+1+n;
    pReader->nData = nData-(1+n);
  
-@@ -4359,17 +4573,18 @@ static void interiorReaderInit(const char *pData, int nData,
+@@ -4361,17 +4575,18 @@
    if( pReader->nData==0 ){
      dataBufferInit(&pReader->term, 0);
    }else{
@@ -1088,7 +1087,7 @@ index 74c2890..5ec1265 100644
  }
  
  static sqlite_int64 interiorReaderCurrentBlockid(InteriorReader *pReader){
-@@ -4386,7 +4601,7 @@ static const char *interiorReaderTerm(InteriorReader *pReader){
+@@ -4388,7 +4603,7 @@
  }
  
  /* Step forward to the next term in the node. */
@@ -1097,7 +1096,7 @@ index 74c2890..5ec1265 100644
    assert( !interiorReaderAtEnd(pReader) );
  
    /* If the last term has been read, signal eof, else construct the
-@@ -4397,18 +4612,26 @@ static void interiorReaderStep(InteriorReader *pReader){
+@@ -4399,18 +4614,26 @@
    }else{
      int n, nPrefix, nSuffix;
  
@@ -1130,7 +1129,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* Compare the current term to pTerm[nTerm], returning strcmp-style
-@@ -4780,7 +5003,8 @@ static int leafWriterStepMerge(fulltext_vtab *v, LeafWriter *pWriter,
+@@ -4782,7 +5005,8 @@
    n = putVarint(c, nData);
    dataBufferAppend(&pWriter->data, c, n);
  
@@ -1140,7 +1139,7 @@ index 74c2890..5ec1265 100644
    ASSERT_VALID_DOCLIST(DL_DEFAULT,
                         pWriter->data.pData+iDoclistData+n,
                         pWriter->data.nData-iDoclistData-n, NULL);
-@@ -4890,7 +5114,8 @@ static int leafWriterStep(fulltext_vtab *v, LeafWriter *pWriter,
+@@ -4892,7 +5116,8 @@
    int rc;
    DLReader reader;
  
@@ -1150,7 +1149,7 @@ index 74c2890..5ec1265 100644
    rc = leafWriterStepMerge(v, pWriter, pTerm, nTerm, &reader, 1);
    dlrDestroy(&reader);
  
-@@ -4935,38 +5160,40 @@ static int leafReaderDataBytes(LeafReader *pReader){
+@@ -4937,38 +5162,40 @@
  static const char *leafReaderData(LeafReader *pReader){
    int n, nData;
    assert( pReader->term.nData>0 );
@@ -1199,7 +1198,7 @@ index 74c2890..5ec1265 100644
    pReader->pData += n+nData;
    pReader->nData -= n+nData;
  
-@@ -4974,15 +5201,23 @@ static void leafReaderStep(LeafReader *pReader){
+@@ -4976,15 +5203,23 @@
      /* Construct the new term using a prefix from the old term plus a
      ** suffix from the leaf data.
      */
@@ -1229,7 +1228,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* strcmp-style comparison of pReader's current term against pTerm.
-@@ -5075,6 +5310,9 @@ static void leavesReaderDestroy(LeavesReader *pReader){
+@@ -5077,6 +5312,9 @@
  ** the leaf data was entirely contained in the root), or from the
  ** stream of blocks between iStartBlockid and iEndBlockid, inclusive.
  */
@@ -1239,7 +1238,7 @@ index 74c2890..5ec1265 100644
  static int leavesReaderInit(fulltext_vtab *v,
                              int idx,
                              sqlite_int64 iStartBlockid,
-@@ -5086,32 +5324,67 @@ static int leavesReaderInit(fulltext_vtab *v,
+@@ -5088,32 +5326,67 @@
  
    dataBufferInit(&pReader->rootData, 0);
    if( iStartBlockid==0 ){
@@ -1317,7 +1316,7 @@ index 74c2890..5ec1265 100644
    }
    return SQLITE_OK;
  }
-@@ -5120,11 +5393,12 @@ static int leavesReaderInit(fulltext_vtab *v,
+@@ -5122,11 +5395,12 @@
  ** end of the current leaf, step forward to the next leaf block.
  */
  static int leavesReaderStep(fulltext_vtab *v, LeavesReader *pReader){
@@ -1332,7 +1331,7 @@ index 74c2890..5ec1265 100644
      if( pReader->rootData.pData ){
        pReader->eof = 1;
        return SQLITE_OK;
-@@ -5134,10 +5408,25 @@ static int leavesReaderStep(fulltext_vtab *v, LeavesReader *pReader){
+@@ -5136,10 +5410,25 @@
        pReader->eof = 1;
        return rc==SQLITE_DONE ? SQLITE_OK : rc;
      }
@@ -1362,7 +1361,7 @@ index 74c2890..5ec1265 100644
    }
    return SQLITE_OK;
  }
-@@ -5198,8 +5487,19 @@ static int leavesReadersInit(fulltext_vtab *v, int iLevel,
+@@ -5200,8 +5489,19 @@
      sqlite_int64 iEnd = sqlite3_column_int64(s, 1);
      const char *pRootData = sqlite3_column_blob(s, 2);
      int nRootData = sqlite3_column_bytes(s, 2);
@@ -1383,7 +1382,7 @@ index 74c2890..5ec1265 100644
      rc = leavesReaderInit(v, i, iStart, iEnd, pRootData, nRootData,
                            &pReaders[i]);
      if( rc!=SQLITE_OK ) break;
-@@ -5210,6 +5510,7 @@ static int leavesReadersInit(fulltext_vtab *v, int iLevel,
+@@ -5212,6 +5512,7 @@
      while( i-->0 ){
        leavesReaderDestroy(&pReaders[i]);
      }
@@ -1391,7 +1390,7 @@ index 74c2890..5ec1265 100644
      return rc;
    }
  
-@@ -5233,13 +5534,26 @@ static int leavesReadersMerge(fulltext_vtab *v,
+@@ -5235,13 +5536,26 @@
    DLReader dlReaders[MERGE_COUNT];
    const char *pTerm = leavesReaderTerm(pReaders);
    int i, nTerm = leavesReaderTermBytes(pReaders);
@@ -1421,7 +1420,7 @@ index 74c2890..5ec1265 100644
    }
  
    return leafWriterStepMerge(v, pWriter, pTerm, nTerm, dlReaders, nReaders);
-@@ -5293,10 +5607,14 @@ static int segmentMerge(fulltext_vtab *v, int iLevel){
+@@ -5295,10 +5609,14 @@
    memset(&lrs, '\0', sizeof(lrs));
    rc = leavesReadersInit(v, iLevel, lrs, &i);
    if( rc!=SQLITE_OK ) return rc;
@@ -1437,7 +1436,7 @@ index 74c2890..5ec1265 100644
    /* Since leavesReaderReorder() pushes readers at eof to the end,
    ** when the first reader is empty, all will be empty.
    */
-@@ -5339,12 +5657,14 @@ static int segmentMerge(fulltext_vtab *v, int iLevel){
+@@ -5341,12 +5659,14 @@
  }
  
  /* Accumulate the union of *acc and *pData into *acc. */
@@ -1455,7 +1454,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* TODO(shess) It might be interesting to explore different merge
-@@ -5386,8 +5706,13 @@ static int loadSegmentLeavesInt(fulltext_vtab *v, LeavesReader *pReader,
+@@ -5388,8 +5708,13 @@
      int c = leafReaderTermCmp(&pReader->leafReader, pTerm, nTerm, isPrefix);
      if( c>0 ) break;      /* Past any possible matches. */
      if( c==0 ){
@@ -1470,7 +1469,7 @@ index 74c2890..5ec1265 100644
  
        /* Find the first empty buffer. */
        for(iBuffer=0; iBuffer<nBuffers; ++iBuffer){
-@@ -5433,11 +5758,13 @@ static int loadSegmentLeavesInt(fulltext_vtab *v, LeavesReader *pReader,
+@@ -5435,11 +5760,13 @@
          ** with pData/nData.
          */
          dataBufferSwap(p, pAcc);
@@ -1486,7 +1485,7 @@ index 74c2890..5ec1265 100644
  
            /* dataBufferReset() could allow a large doclist to blow up
            ** our memory requirements.
-@@ -5462,13 +5789,15 @@ static int loadSegmentLeavesInt(fulltext_vtab *v, LeavesReader *pReader,
+@@ -5464,13 +5791,15 @@
          if( out->nData==0 ){
            dataBufferSwap(out, &(pBuffers[iBuffer]));
          }else{
@@ -1504,7 +1503,7 @@ index 74c2890..5ec1265 100644
    while( nBuffers-- ){
      dataBufferDestroy(&(pBuffers[nBuffers]));
    }
-@@ -5527,20 +5856,26 @@ static int loadSegmentLeaves(fulltext_vtab *v,
+@@ -5529,20 +5858,26 @@
  ** node.  Consider whether breaking symmetry is worthwhile.  I suspect
  ** it is not worthwhile.
  */
@@ -1537,7 +1536,7 @@ index 74c2890..5ec1265 100644
    }
    *piStartChild = interiorReaderCurrentBlockid(&reader);
  
-@@ -5550,7 +5885,11 @@ static void getChildrenContaining(const char *pData, int nData,
+@@ -5552,7 +5887,11 @@
    */
    while( !interiorReaderAtEnd(&reader) ){
      if( interiorReaderTermCmp(&reader, pTerm, nTerm, isPrefix)>0 ) break;
@@ -1550,7 +1549,7 @@ index 74c2890..5ec1265 100644
    }
    *piEndChild = interiorReaderCurrentBlockid(&reader);
  
-@@ -5559,6 +5898,7 @@ static void getChildrenContaining(const char *pData, int nData,
+@@ -5561,6 +5900,7 @@
    /* Children must ascend, and if !prefix, both must be the same. */
    assert( *piEndChild>=*piStartChild );
    assert( isPrefix || *piStartChild==*piEndChild );
@@ -1558,7 +1557,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* Read block at iBlockid and pass it with other params to
-@@ -5586,11 +5926,31 @@ static int loadAndGetChildrenContaining(
+@@ -5588,11 +5928,31 @@
    if( rc!=SQLITE_OK ) return rc;
  
    rc = sqlite3_step(s);
@@ -1593,7 +1592,7 @@ index 74c2890..5ec1265 100644
  
    /* We expect only one row.  We must execute another sqlite3_step()
     * to complete the iteration; otherwise the table will remain
-@@ -5620,8 +5980,9 @@ static int loadSegmentInt(fulltext_vtab *v, const char *pData, int nData,
+@@ -5622,8 +5982,9 @@
      /* Process pData as an interior node, then loop down the tree
      ** until we find the set of leaf nodes to scan for the term.
      */
@@ -1605,7 +1604,7 @@ index 74c2890..5ec1265 100644
      while( iStartChild>iLeavesEnd ){
        sqlite_int64 iNextStart, iNextEnd;
        rc = loadAndGetChildrenContaining(v, iStartChild, pTerm, nTerm, isPrefix,
-@@ -5673,7 +6034,8 @@ static int loadSegment(fulltext_vtab *v, const char *pData, int nData,
+@@ -5675,7 +6036,8 @@
    DataBuffer result;
    int rc;
  
@@ -1615,7 +1614,7 @@ index 74c2890..5ec1265 100644
  
    /* This code should never be called with buffered updates. */
    assert( v->nPendingData<0 );
-@@ -5690,16 +6052,21 @@ static int loadSegment(fulltext_vtab *v, const char *pData, int nData,
+@@ -5692,16 +6054,21 @@
        DataBuffer merged;
        DLReader readers[2];
  
@@ -1645,7 +1644,7 @@ index 74c2890..5ec1265 100644
    dataBufferDestroy(&result);
    return rc;
  }
-@@ -5727,11 +6094,20 @@ static int termSelect(fulltext_vtab *v, int iColumn,
+@@ -5729,11 +6096,20 @@
      const char *pData = sqlite3_column_blob(s, 2);
      const int nData = sqlite3_column_bytes(s, 2);
      const sqlite_int64 iLeavesEnd = sqlite3_column_int64(s, 1);
@@ -1666,7 +1665,7 @@ index 74c2890..5ec1265 100644
      if( doclist.nData!=0 ){
        /* TODO(shess) The old term_select_all() code applied the column
        ** restrict as we merged segments, leading to smaller buffers.
-@@ -5739,13 +6115,13 @@ static int termSelect(fulltext_vtab *v, int iColumn,
+@@ -5741,13 +6117,13 @@
        ** system is checked in.
        */
        if( iColumn==v->nColumn) iColumn = -1;
@@ -1683,7 +1682,7 @@ index 74c2890..5ec1265 100644
    dataBufferDestroy(&doclist);
    return rc;
  }
-@@ -6087,6 +6463,7 @@ static int optimizeInternal(fulltext_vtab *v,
+@@ -6089,6 +6465,7 @@
                              LeafWriter *pWriter){
    int i, rc = SQLITE_OK;
    DataBuffer doclist, merged, tmp;
@@ -1691,7 +1690,7 @@ index 74c2890..5ec1265 100644
  
    /* Order the readers. */
    i = nReaders;
-@@ -6107,14 +6484,21 @@ static int optimizeInternal(fulltext_vtab *v,
+@@ -6109,14 +6486,21 @@
        if( 0!=optLeavesReaderTermCmp(&readers[0], &readers[i]) ) break;
      }
  
@@ -1717,7 +1716,7 @@ index 74c2890..5ec1265 100644
      }else{
        DLReader dlReaders[MERGE_COUNT];
        int iReader, nReaders;
-@@ -6122,9 +6506,10 @@ static int optimizeInternal(fulltext_vtab *v,
+@@ -6124,9 +6508,10 @@
        /* Prime the pipeline with the first reader's doclist.  After
        ** one pass index 0 will reference the accumulated doclist.
        */
@@ -1731,7 +1730,7 @@ index 74c2890..5ec1265 100644
        iReader = 1;
  
        assert( iReader<i );  /* Must execute the loop at least once. */
-@@ -6132,24 +6517,35 @@ static int optimizeInternal(fulltext_vtab *v,
+@@ -6134,24 +6519,35 @@
          /* Merge 16 inputs per pass. */
          for( nReaders=1; iReader<i && nReaders<MERGE_COUNT;
               iReader++, nReaders++ ){
@@ -1776,7 +1775,7 @@ index 74c2890..5ec1265 100644
        }
  
        /* Destroy reader that was left in the pipeline. */
-@@ -6157,8 +6553,9 @@ static int optimizeInternal(fulltext_vtab *v,
+@@ -6159,8 +6555,9 @@
  
        /* Trim deletions from the doclist. */
        dataBufferReset(&merged);
@@ -1788,7 +1787,7 @@ index 74c2890..5ec1265 100644
      }
  
      /* Only pass doclists with hits (skip if all hits deleted). */
-@@ -6238,6 +6635,14 @@ static void optimizeFunc(sqlite3_context *pContext,
+@@ -6240,6 +6637,14 @@
        const char *pRootData = sqlite3_column_blob(s, 2);
        int nRootData = sqlite3_column_bytes(s, 2);
  
@@ -1803,7 +1802,7 @@ index 74c2890..5ec1265 100644
        assert( i<nReaders );
        rc = leavesReaderInit(v, -1, iStart, iEnd, pRootData, nRootData,
                              &readers[i].reader);
-@@ -6251,6 +6656,8 @@ static void optimizeFunc(sqlite3_context *pContext,
+@@ -6253,6 +6658,8 @@
      if( rc==SQLITE_DONE ){
        assert( i==nReaders );
        rc = optimizeInternal(v, readers, nReaders, &writer);
@@ -1812,7 +1811,7 @@ index 74c2890..5ec1265 100644
      }
  
      while( i-- > 0 ){
-@@ -6314,9 +6721,18 @@ static int collectSegmentTerms(fulltext_vtab *v, sqlite3_stmt *s,
+@@ -6316,9 +6723,18 @@
    const sqlite_int64 iEndBlockid = sqlite3_column_int64(s, 1);
    const char *pRootData = sqlite3_column_blob(s, 2);
    const int nRootData = sqlite3_column_bytes(s, 2);
@@ -1833,7 +1832,7 @@ index 74c2890..5ec1265 100644
    if( rc!=SQLITE_OK ) return rc;
  
    while( rc==SQLITE_OK && !leavesReaderAtEnd(&reader) ){
-@@ -6478,16 +6894,19 @@ static void createDoclistResult(sqlite3_context *pContext,
+@@ -6480,16 +6896,19 @@
                                  const char *pData, int nData){
    DataBuffer dump;
    DLReader dlReader;
@@ -1856,7 +1855,7 @@ index 74c2890..5ec1265 100644
      if( DL_DEFAULT==DL_DOCIDS || plrAtEnd(&plReader) ){
        sqlite3_snprintf(sizeof(buf), buf, "[%lld] ", dlrDocid(&dlReader));
        dataBufferAppend(&dump, buf, strlen(buf));
-@@ -6498,7 +6917,8 @@ static void createDoclistResult(sqlite3_context *pContext,
+@@ -6500,7 +6919,8 @@
                         dlrDocid(&dlReader), iColumn);
        dataBufferAppend(&dump, buf, strlen(buf));
  
@@ -1866,7 +1865,7 @@ index 74c2890..5ec1265 100644
          if( plrColumn(&plReader)!=iColumn ){
            iColumn = plrColumn(&plReader);
            sqlite3_snprintf(sizeof(buf), buf, "] %d[", iColumn);
-@@ -6519,6 +6939,7 @@ static void createDoclistResult(sqlite3_context *pContext,
+@@ -6521,6 +6941,7 @@
          dataBufferAppend(&dump, buf, strlen(buf));
        }
        plrDestroy(&plReader);
@@ -1874,7 +1873,7 @@ index 74c2890..5ec1265 100644
  
        assert( dump.nData>0 );
        dump.nData--;                     /* Overwrite trailing space. */
-@@ -6527,6 +6948,10 @@ static void createDoclistResult(sqlite3_context *pContext,
+@@ -6529,6 +6950,10 @@
      }
    }
    dlrDestroy(&dlReader);
@@ -1885,7 +1884,7 @@ index 74c2890..5ec1265 100644
  
    assert( dump.nData>0 );
    dump.nData--;                     /* Overwrite trailing space. */
-@@ -6538,6 +6963,7 @@ static void createDoclistResult(sqlite3_context *pContext,
+@@ -6540,6 +6965,7 @@
    sqlite3_result_text(pContext, dump.pData, dump.nData, sqlite3_free);
    dump.pData = NULL;
    dump.nData = dump.nCapacity = 0;
@@ -1893,7 +1892,7 @@ index 74c2890..5ec1265 100644
  }
  
  /* Implements dump_doclist() for use in inspecting the fts2 index from
-@@ -6820,7 +7246,11 @@ int sqlite3Fts2Init(sqlite3 *db){
+@@ -6822,7 +7248,11 @@
    ** module with sqlite.
    */
    if( SQLITE_OK==rc 
@@ -1905,11 +1904,10 @@ index 74c2890..5ec1265 100644
     && SQLITE_OK==(rc = sqlite3_overload_function(db, "snippet", -1))
     && SQLITE_OK==(rc = sqlite3_overload_function(db, "offsets", -1))
     && SQLITE_OK==(rc = sqlite3_overload_function(db, "optimize", -1))
-diff --git a/third_party/sqlite/src/ext/fts2/fts2_icu.c b/third_party/sqlite/src/ext/fts2/fts2_icu.c
-index de8e116..6b9687e 100644
---- a/third_party/sqlite/src/ext/fts2/fts2_icu.c
-+++ b/third_party/sqlite/src/ext/fts2/fts2_icu.c
-@@ -198,7 +198,7 @@ static int icuNext(
+diff -ru ext-orig/fts2/fts2_icu.c ext/fts2/fts2_icu.c
+--- ext-orig/fts2/fts2_icu.c	2009-09-03 13:32:06.000000000 -0700
++++ ext/fts2/fts2_icu.c	2009-09-18 14:39:41.000000000 -0700
+@@ -198,7 +198,7 @@
  
      while( iStart<iEnd ){
        int iWhite = iStart;
@@ -1918,11 +1916,10 @@ index de8e116..6b9687e 100644
        if( u_isspace(c) ){
          iStart = iWhite;
        }else{
-diff --git a/third_party/sqlite/src/ext/fts2/fts2_tokenizer.c b/third_party/sqlite/src/ext/fts2/fts2_tokenizer.c
-index f8b0663..00ed365 100644
---- a/third_party/sqlite/src/ext/fts2/fts2_tokenizer.c
-+++ b/third_party/sqlite/src/ext/fts2/fts2_tokenizer.c
-@@ -33,6 +33,7 @@ SQLITE_EXTENSION_INIT1
+diff -ru ext-orig/fts2/fts2_tokenizer.c ext/fts2/fts2_tokenizer.c
+--- ext-orig/fts2/fts2_tokenizer.c	2009-09-03 13:32:06.000000000 -0700
++++ ext/fts2/fts2_tokenizer.c	2009-09-18 14:39:41.000000000 -0700
+@@ -33,6 +33,7 @@
  #include "fts2_hash.h"
  #include "fts2_tokenizer.h"
  #include <assert.h>

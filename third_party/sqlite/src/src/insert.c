@@ -11,6 +11,8 @@
 *************************************************************************
 ** This file contains C code routines that are called by the parser
 ** to handle INSERT statements in SQLite.
+**
+** $Id: insert.c,v 1.270 2009/07/24 17:58:53 danielk1977 Exp $
 */
 #include "sqliteInt.h"
 
@@ -67,7 +69,7 @@ const char *sqlite3IndexAffinityStr(Vdbe *v, Index *pIdx){
     int n;
     Table *pTab = pIdx->pTable;
     sqlite3 *db = sqlite3VdbeDb(v);
-    pIdx->zColAff = (char *)sqlite3DbMallocRaw(0, pIdx->nColumn+2);
+    pIdx->zColAff = (char *)sqlite3Malloc(pIdx->nColumn+2);
     if( !pIdx->zColAff ){
       db->mallocFailed = 1;
       return 0;
@@ -109,7 +111,7 @@ void sqlite3TableAffinityStr(Vdbe *v, Table *pTab){
     int i;
     sqlite3 *db = sqlite3VdbeDb(v);
 
-    zColAff = (char *)sqlite3DbMallocRaw(0, pTab->nCol+1);
+    zColAff = (char *)sqlite3Malloc(pTab->nCol+1);
     if( !zColAff ){
       db->mallocFailed = 1;
       return;
@@ -727,7 +729,7 @@ void sqlite3Insert(
         }else{
           sqlite3ErrorMsg(pParse, "table %S has no column named %s",
               pTabList, 0, pColumn->a[i].zName);
-          pParse->checkSchema = 1;
+          pParse->nErr++;
           goto insert_cleanup;
         }
       }
@@ -846,7 +848,7 @@ void sqlite3Insert(
           if( pColumn->a[j].idx==i ) break;
         }
       }
-      if( (!useTempTable && !pList) || (pColumn && j>=pColumn->nId) ){
+      if( pColumn && j>=pColumn->nId ){
         sqlite3ExprCode(pParse, pTab->aCol[i].pDflt, regCols+i+1);
       }else if( useTempTable ){
         sqlite3VdbeAddOp3(v, OP_Column, srcTab, j, regCols+i+1); 
@@ -868,7 +870,7 @@ void sqlite3Insert(
 
     /* Fire BEFORE or INSTEAD OF triggers */
     sqlite3CodeRowTrigger(pParse, pTrigger, TK_INSERT, 0, TRIGGER_BEFORE, 
-        pTab, regCols-pTab->nCol-1, onError, endOfLoop);
+        pTab, -1, regCols-pTab->nCol-1, onError, endOfLoop);
 
     sqlite3ReleaseTempRange(pParse, regCols, pTab->nCol+1);
   }
@@ -977,7 +979,6 @@ void sqlite3Insert(
       sqlite3GenerateConstraintChecks(pParse, pTab, baseCur, regIns, aRegIdx,
           keyColumn>=0, 0, onError, endOfLoop, &isReplace
       );
-      sqlite3FkCheck(pParse, pTab, 0, regIns);
       sqlite3CompleteInsertion(
           pParse, pTab, baseCur, regIns, aRegIdx, 0, appendFlag, isReplace==0
       );
@@ -993,7 +994,7 @@ void sqlite3Insert(
   if( pTrigger ){
     /* Code AFTER triggers */
     sqlite3CodeRowTrigger(pParse, pTrigger, TK_INSERT, 0, TRIGGER_AFTER, 
-        pTab, regData-2-pTab->nCol, onError, endOfLoop);
+        pTab, -1, regData-2-pTab->nCol, onError, endOfLoop);
   }
 
   /* The bottom of the main insertion loop, if the data source
@@ -1044,20 +1045,6 @@ insert_cleanup:
   sqlite3IdListDelete(db, pColumn);
   sqlite3DbFree(db, aRegIdx);
 }
-
-/* Make sure "isView" and other macros defined above are undefined. Otherwise
-** thely may interfere with compilation of other functions in this file
-** (or in another file, if this file becomes part of the amalgamation).  */
-#ifdef isView
- #undef isView
-#endif
-#ifdef pTrigger
- #undef pTrigger
-#endif
-#ifdef tmask
- #undef tmask
-#endif
-
 
 /*
 ** Generate code to do constraint checks prior to an INSERT or an UPDATE.
@@ -1220,7 +1207,6 @@ void sqlite3GenerateConstraintChecks(
     if( onError==OE_Ignore ){
       sqlite3VdbeAddOp2(v, OP_Goto, 0, ignoreDest);
     }else{
-      if( onError==OE_Replace ) onError = OE_Abort; /* IMP: R-15569-63625 */
       sqlite3HaltConstraint(pParse, onError, 0, 0);
     }
     sqlite3VdbeResolveLabel(v, allOk);
@@ -1239,70 +1225,57 @@ void sqlite3GenerateConstraintChecks(
       onError = OE_Abort;
     }
     
-    if( isUpdate ){
-      j2 = sqlite3VdbeAddOp3(v, OP_Eq, regRowid, 0, rowidChng);
-    }
-    j3 = sqlite3VdbeAddOp3(v, OP_NotExists, baseCur, 0, regRowid);
-    switch( onError ){
-      default: {
-        onError = OE_Abort;
-        /* Fall thru into the next case */
+    if( onError!=OE_Replace || pTab->pIndex ){
+      if( isUpdate ){
+        j2 = sqlite3VdbeAddOp3(v, OP_Eq, regRowid, 0, rowidChng);
       }
-      case OE_Rollback:
-      case OE_Abort:
-      case OE_Fail: {
-        sqlite3HaltConstraint(
-          pParse, onError, "PRIMARY KEY must be unique", P4_STATIC);
-        break;
-      }
-      case OE_Replace: {
-        /* If there are DELETE triggers on this table and the
-        ** recursive-triggers flag is set, call GenerateRowDelete() to
-        ** remove the conflicting row from the the table. This will fire
-        ** the triggers and remove both the table and index b-tree entries.
-        **
-        ** Otherwise, if there are no triggers or the recursive-triggers
-        ** flag is not set, but the table has one or more indexes, call 
-        ** GenerateRowIndexDelete(). This removes the index b-tree entries 
-        ** only. The table b-tree entry will be replaced by the new entry 
-        ** when it is inserted.  
-        **
-        ** If either GenerateRowDelete() or GenerateRowIndexDelete() is called,
-        ** also invoke MultiWrite() to indicate that this VDBE may require
-        ** statement rollback (if the statement is aborted after the delete
-        ** takes place). Earlier versions called sqlite3MultiWrite() regardless,
-        ** but being more selective here allows statements like:
-        **
-        **   REPLACE INTO t(rowid) VALUES($newrowid)
-        **
-        ** to run without a statement journal if there are no indexes on the
-        ** table.
-        */
-        Trigger *pTrigger = 0;
-        if( pParse->db->flags&SQLITE_RecTriggers ){
-          pTrigger = sqlite3TriggersExist(pParse, pTab, TK_DELETE, 0, 0);
+      j3 = sqlite3VdbeAddOp3(v, OP_NotExists, baseCur, 0, regRowid);
+      switch( onError ){
+        default: {
+          onError = OE_Abort;
+          /* Fall thru into the next case */
         }
-        if( pTrigger || sqlite3FkRequired(pParse, pTab, 0, 0) ){
-          sqlite3MultiWrite(pParse);
-          sqlite3GenerateRowDelete(
-              pParse, pTab, baseCur, regRowid, 0, pTrigger, OE_Replace
-          );
-        }else if( pTab->pIndex ){
-          sqlite3MultiWrite(pParse);
-          sqlite3GenerateRowIndexDelete(pParse, pTab, baseCur, 0);
+        case OE_Rollback:
+        case OE_Abort:
+        case OE_Fail: {
+          sqlite3HaltConstraint(
+            pParse, onError, "PRIMARY KEY must be unique", P4_STATIC);
+          break;
         }
-        seenReplace = 1;
-        break;
+        case OE_Replace: {
+          /* If there are DELETE triggers on this table and the
+          ** recursive-triggers flag is set, call GenerateRowDelete() to
+          ** remove the conflicting row from the the table. This will fire
+          ** the triggers and remove both the table and index b-tree entries.
+          **
+          ** Otherwise, if there are no triggers or the recursive-triggers
+          ** flag is not set, call GenerateRowIndexDelete(). This removes
+          ** the index b-tree entries only. The table b-tree entry will be 
+          ** replaced by the new entry when it is inserted.  */
+          Trigger *pTrigger = 0;
+          if( pParse->db->flags&SQLITE_RecTriggers ){
+            pTrigger = sqlite3TriggersExist(pParse, pTab, TK_DELETE, 0, 0);
+          }
+          if( pTrigger ){
+            sqlite3GenerateRowDelete(
+                pParse, pTab, baseCur, regRowid, 0, pTrigger, OE_Replace
+            );
+          }else{
+            sqlite3GenerateRowIndexDelete(pParse, pTab, baseCur, 0);
+          }
+          seenReplace = 1;
+          break;
+        }
+        case OE_Ignore: {
+          assert( seenReplace==0 );
+          sqlite3VdbeAddOp2(v, OP_Goto, 0, ignoreDest);
+          break;
+        }
       }
-      case OE_Ignore: {
-        assert( seenReplace==0 );
-        sqlite3VdbeAddOp2(v, OP_Goto, 0, ignoreDest);
-        break;
+      sqlite3VdbeJumpHere(v, j3);
+      if( isUpdate ){
+        sqlite3VdbeJumpHere(v, j2);
       }
-    }
-    sqlite3VdbeJumpHere(v, j3);
-    if( isUpdate ){
-      sqlite3VdbeJumpHere(v, j2);
     }
   }
 
@@ -1391,7 +1364,6 @@ void sqlite3GenerateConstraintChecks(
       default: {
         Trigger *pTrigger = 0;
         assert( onError==OE_Replace );
-        sqlite3MultiWrite(pParse);
         if( pParse->db->flags&SQLITE_RecTriggers ){
           pTrigger = sqlite3TriggersExist(pParse, pTab, TK_DELETE, 0, 0);
         }
@@ -1405,7 +1377,7 @@ void sqlite3GenerateConstraintChecks(
     sqlite3VdbeJumpHere(v, j3);
     sqlite3ReleaseTempReg(pParse, regR);
   }
-  
+
   if( pbMayReplace ){
     *pbMayReplace = seenReplace;
   }
@@ -1730,7 +1702,7 @@ static int xferOptimization(
     }
   }
 #ifndef SQLITE_OMIT_CHECK
-  if( pDest->pCheck && sqlite3ExprCompare(pSrc->pCheck, pDest->pCheck) ){
+  if( pDest->pCheck && !sqlite3ExprCompare(pSrc->pCheck, pDest->pCheck) ){
     return 0;   /* Tables have different CHECK constraints.  Ticket #2252 */
   }
 #endif
@@ -1828,3 +1800,8 @@ static int xferOptimization(
   }
 }
 #endif /* SQLITE_OMIT_XFER_OPT */
+
+/* Make sure "isView" gets undefined in case this file becomes part of
+** the amalgamation - so that subsequent files do not see isView as a
+** macro. */
+#undef isView
