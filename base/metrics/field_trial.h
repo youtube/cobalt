@@ -117,6 +117,9 @@ class FieldTrial : public RefCounted<FieldTrial> {
   static std::string MakeName(const std::string& name_prefix,
                               const std::string& trial_name);
 
+  // Enable benchmarking sets field trials to a common setting.
+  static void EnableBenchmarking();
+
  private:
   friend class RefCounted<FieldTrial>;
 
@@ -147,6 +150,10 @@ class FieldTrial : public RefCounted<FieldTrial> {
   // A textual name for the randomly selected group, including the Trial name.
   // If this Trial is not a member of an group, this string is empty.
   std::string group_name_;
+
+  // When benchmarking is enabled, field trials all revert to the 'default'
+  // bucket.
+  static bool enable_benchmarking_;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrial);
 };
@@ -205,6 +212,9 @@ class FieldTrialList {
     // For testing purposes only, or when we don't yet have a start time.
     return TimeTicks::Now();
   }
+
+  // Return the number of active field trials.
+  static size_t GetFieldTrialCount();
 
  private:
   // Helper function should be called only while holding lock_.
