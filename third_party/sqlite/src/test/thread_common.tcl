@@ -80,7 +80,7 @@ set thread_procs {
 }
 
 proc thread_spawn {varname args} {
-  sqlthread spawn $varname [join $args {;}]
+  sqlthread spawn $varname [join $args ;]
 }
 
 # Return true if this build can run the multi-threaded tests.
@@ -96,10 +96,16 @@ proc run_thread_tests {{print_warning 0}} {
     set zProblem "Linked against a non-threadsafe Tcl build"
   }
   if {[info exists zProblem]} {
-    puts "WARNING: Multi-threaded tests skipped: $zProblem"
+    if {$print_warning} {
+      if {[info exists ::run_thread_tests_failed]} {
+        puts "WARNING: Multi-threaded tests skipped: $zProblem"
+      }
+    } else {
+      puts "Skipping thread tests: $zProblem"
+      set ::run_thread_tests_failed 1
+    }
     return 0
   }
-  set ::run_thread_tests_called 1
   return 1;
 }
 

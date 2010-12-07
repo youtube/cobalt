@@ -14,6 +14,8 @@
 ** This header defines the interface to the virtual database engine
 ** or VDBE.  The VDBE implements an abstract machine that runs a
 ** simple program to access and modify the underlying database.
+**
+** $Id: vdbe.h,v 1.142 2009/07/24 17:58:53 danielk1977 Exp $
 */
 #ifndef _SQLITE_VDBE_H_
 #define _SQLITE_VDBE_H_
@@ -42,7 +44,7 @@ typedef struct SubProgram SubProgram;
 struct VdbeOp {
   u8 opcode;          /* What operation to perform */
   signed char p4type; /* One of the P4_xxx constants for p4 */
-  u8 opflags;         /* Mask of the OPFLG_* flags in opcodes.h */
+  u8 opflags;         /* Not currently used */
   u8 p5;              /* Fifth parameter is an unsigned character */
   int p1;             /* First operand */
   int p2;             /* Second parameter (often the jump destination) */
@@ -81,8 +83,8 @@ struct SubProgram {
   int nOp;                      /* Elements in aOp[] */
   int nMem;                     /* Number of memory cells required */
   int nCsr;                     /* Number of cursors required */
+  int nRef;                     /* Number of pointers to this structure */
   void *token;                  /* id that may be used to recursive triggers */
-  SubProgram *pNext;            /* Next sub-program already visited */
 };
 
 /*
@@ -170,7 +172,6 @@ int sqlite3VdbeAddOp1(Vdbe*,int,int);
 int sqlite3VdbeAddOp2(Vdbe*,int,int,int);
 int sqlite3VdbeAddOp3(Vdbe*,int,int,int,int);
 int sqlite3VdbeAddOp4(Vdbe*,int,int,int,int,const char *zP4,int);
-int sqlite3VdbeAddOp4Int(Vdbe*,int,int,int,int,int);
 int sqlite3VdbeAddOpList(Vdbe*, int nOp, VdbeOpList const *aOp);
 void sqlite3VdbeChangeP1(Vdbe*, int addr, int P1);
 void sqlite3VdbeChangeP2(Vdbe*, int addr, int P2);
@@ -182,9 +183,7 @@ void sqlite3VdbeChangeP4(Vdbe*, int addr, const char *zP4, int N);
 void sqlite3VdbeUsesBtree(Vdbe*, int);
 VdbeOp *sqlite3VdbeGetOp(Vdbe*, int);
 int sqlite3VdbeMakeLabel(Vdbe*);
-void sqlite3VdbeRunOnlyOnce(Vdbe*);
 void sqlite3VdbeDelete(Vdbe*);
-void sqlite3VdbeDeleteObject(sqlite3*,Vdbe*);
 void sqlite3VdbeMakeReady(Vdbe*,int,int,int,int,int,int);
 int sqlite3VdbeFinalize(Vdbe*);
 void sqlite3VdbeResolveLabel(Vdbe*, int);
@@ -202,19 +201,14 @@ sqlite3 *sqlite3VdbeDb(Vdbe*);
 void sqlite3VdbeSetSql(Vdbe*, const char *z, int n, int);
 void sqlite3VdbeSwap(Vdbe*,Vdbe*);
 VdbeOp *sqlite3VdbeTakeOpArray(Vdbe*, int*, int*);
-sqlite3_value *sqlite3VdbeGetValue(Vdbe*, int, u8);
-void sqlite3VdbeSetVarmask(Vdbe*, int);
-#ifndef SQLITE_OMIT_TRACE
-  char *sqlite3VdbeExpandSql(Vdbe*, const char*);
-#endif
+void sqlite3VdbeProgramDelete(sqlite3 *, SubProgram *, int);
 
+#ifdef SQLITE_ENABLE_MEMORY_MANAGEMENT
+int sqlite3VdbeReleaseMemory(int);
+#endif
 UnpackedRecord *sqlite3VdbeRecordUnpack(KeyInfo*,int,const void*,char*,int);
 void sqlite3VdbeDeleteUnpackedRecord(UnpackedRecord*);
 int sqlite3VdbeRecordCompare(int,const void*,UnpackedRecord*);
-
-#ifndef SQLITE_OMIT_TRIGGER
-void sqlite3VdbeLinkSubProgram(Vdbe *, SubProgram *);
-#endif
 
 
 #ifndef NDEBUG

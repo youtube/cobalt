@@ -65,39 +65,32 @@ close $in
 set varpattern {^[a-zA-Z][a-zA-Z_0-9 *]+sqlite3_[_a-zA-Z0-9]+(\[|;| =)}
 set declpattern {^ *[a-zA-Z][a-zA-Z_0-9 ]+ \**sqlite3_[_a-zA-Z0-9]+\(}
 
-# Process the src/sqlite.h.in ext/rtree/sqlite3rtree.h files.
+# Process the  src/sqlite.h.in  file.
 #
-foreach file [list $TOP/src/sqlite.h.in $TOP/ext/rtree/sqlite3rtree.h] {
-  set in [open $file]
-  while {![eof $in]} {
-  
-    set line [gets $in]
+set in [open $TOP/src/sqlite.h.in]
+while {![eof $in]} {
 
-    # File sqlite3rtree.h contains a line "#include <sqlite3.h>". Omit this
-    # line when copying sqlite3rtree.h into sqlite3.h.
-    #
-    if {[string match {*#include*<sqlite3.h>*} $line]} continue
-  
-    regsub -- --VERS--           $line $zVersion line
-    regsub -- --VERSION-NUMBER-- $line $nVersion line
-    regsub -- --SOURCE-ID--      $line "$zDate $zUuid" line
-  
-    if {[regexp {define SQLITE_EXTERN extern} $line]} {
-      puts $line
-      puts [gets $in]
-      puts ""
-      puts "#ifndef SQLITE_API"
-      puts "# define SQLITE_API"
-      puts "#endif"
-      set line ""
-    }
-  
-    if {([regexp $varpattern $line] && ![regexp {^ *typedef} $line])
-     || ([regexp $declpattern $line])
-    } {
-      set line "SQLITE_API $line"
-    }
+  set line [gets $in]
+
+  regsub -- --VERS--           $line $zVersion line
+  regsub -- --VERSION-NUMBER-- $line $nVersion line
+  regsub -- --SOURCE-ID--      $line "$zDate $zUuid" line
+
+  if {[regexp {define SQLITE_EXTERN extern} $line]} {
     puts $line
+    puts [gets $in]
+    puts ""
+    puts "#ifndef SQLITE_API"
+    puts "# define SQLITE_API"
+    puts "#endif"
+    set line ""
   }
-  close $in
+
+  if {([regexp $varpattern $line] && ![regexp {^ *typedef} $line])
+   || ([regexp $declpattern $line])
+  } {
+    set line "SQLITE_API $line"
+  }
+  puts $line
 }
+close $in

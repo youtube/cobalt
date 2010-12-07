@@ -10,6 +10,8 @@
 **
 *************************************************************************
 ** This file implements that page cache.
+**
+** @(#) $Id: pcache.c,v 1.47 2009/07/25 11:46:49 danielk1977 Exp $
 */
 #include "sqliteInt.h"
 
@@ -142,16 +144,12 @@ static void pcacheUnpin(PgHdr *p){
 */
 int sqlite3PcacheInitialize(void){
   if( sqlite3GlobalConfig.pcache.xInit==0 ){
-    /* IMPLEMENTATION-OF: R-26801-64137 If the xInit() method is NULL, then the
-    ** built-in default page cache is used instead of the application defined
-    ** page cache. */
     sqlite3PCacheSetDefault();
   }
   return sqlite3GlobalConfig.pcache.xInit(sqlite3GlobalConfig.pcache.pArg);
 }
 void sqlite3PcacheShutdown(void){
   if( sqlite3GlobalConfig.pcache.xShutdown ){
-    /* IMPLEMENTATION-OF: R-26000-56589 The xShutdown() method may be NULL. */
     sqlite3GlobalConfig.pcache.xShutdown(sqlite3GlobalConfig.pcache.pArg);
   }
 }
@@ -193,7 +191,6 @@ void sqlite3PcacheSetPageSize(PCache *pCache, int szPage){
   if( pCache->pCache ){
     sqlite3GlobalConfig.pcache.xDestroy(pCache->pCache);
     pCache->pCache = 0;
-    pCache->pPage1 = 0;
   }
   pCache->szPage = szPage;
 }
@@ -247,7 +244,6 @@ int sqlite3PcacheFetch(
         pPg && (pPg->nRef || (pPg->flags&PGHDR_NEED_SYNC)); 
         pPg=pPg->pDirtyPrev
     );
-    pCache->pSynced = pPg;
     if( !pPg ){
       for(pPg=pCache->pDirtyTail; pPg && pPg->nRef; pPg=pPg->pDirtyPrev);
     }
@@ -264,17 +260,15 @@ int sqlite3PcacheFetch(
 
   if( pPage ){
     if( !pPage->pData ){
-      memset(pPage, 0, sizeof(PgHdr));
-      pPage->pData = (void *)&pPage[1];
-      pPage->pExtra = (void*)&((char *)pPage->pData)[pCache->szPage];
-      memset(pPage->pExtra, 0, pCache->szExtra);
+      memset(pPage, 0, sizeof(PgHdr) + pCache->szExtra);
+      pPage->pExtra = (void*)&pPage[1];
+      pPage->pData = (void *)&((char *)pPage)[sizeof(PgHdr) + pCache->szExtra];
       pPage->pCache = pCache;
       pPage->pgno = pgno;
     }
     assert( pPage->pCache==pCache );
     assert( pPage->pgno==pgno );
-    assert( pPage->pData==(void *)&pPage[1] );
-    assert( pPage->pExtra==(void *)&((char *)&pPage[1])[pCache->szPage] );
+    assert( pPage->pExtra==(void *)&pPage[1] );
 
     if( 0==pPage->nRef ){
       pCache->nRef++;
@@ -413,12 +407,7 @@ void sqlite3PcacheTruncate(PCache *pCache, Pgno pgno){
     PgHdr *pNext;
     for(p=pCache->pDirty; p; p=pNext){
       pNext = p->pDirtyNext;
-      /* This routine never gets call with a positive pgno except right
-      ** after sqlite3PcacheCleanAll().  So if there are dirty pages,
-      ** it must be that pgno==0.
-      */
-      assert( p->pgno>0 );
-      if( ALWAYS(p->pgno>pgno) ){
+      if( p->pgno>pgno ){
         assert( p->flags&PGHDR_DIRTY );
         sqlite3PcacheMakeClean(p);
       }

@@ -4,7 +4,7 @@ URL: http://sqlite.org/
 
 Instructions for importing a new release of SQLite from sqlite.org.
 
-Note: our current base version is 3.7.3.
+Note: our current base version is 3.6.18.
 
 First, you need to be on Linux.
 
@@ -15,8 +15,8 @@ First, you need to be on Linux.
 # Note - this is just an example. Always refer to the version above for our
 # real current version.
 # Set some variables to remember the versions, e.g.:
-BASE=3.7.3
-LATEST=3.7.4
+BASE=3.6.18
+LATEST=3.6.22
 
 # Get to the src/third_party directory in your Chromium client:
 cd src/third_party
@@ -31,7 +31,7 @@ tar xzf sqlite-$BASE.tar.gz
 tar xzf sqlite-$LATEST.tar.gz
 
 # Use kdiff3 to merge the changes:
-kdiff3 -m sqlite-$BASE sqlite-$LATEST sqlite/src
+kdiff3 -m sqlite-$BASE sqlite-$LATEST sqlite
 
 # Resolve any conflicts.  Figure out if we've got everything we should
 # have (see below), or if we can omit any changes we no longer need.
@@ -63,6 +63,8 @@ preload-cache.patch
 safe-tolower.patch
 sqlite-poison.patch
 fts2.patch
+fts3.patch
+icu-regexp.patch
 attach-integer.patch
 
 So, e.g. you could do this to apply all our patches to vanilla SQLite:
@@ -73,15 +75,14 @@ patch -p0 < ../sqlite/preload-cache.patch
 patch -p0 < ../sqlite/safe-tolower.patch
 patch -p0 < ../sqlite/sqlite-poison.patch
 patch -p0 < ../sqlite/fts2.patch
+patch -p0 < ../sqlite/fts3.patch
+patch -p0 < ../sqlite/icu-regexp.patch
 patch -p0 < ../sqlite/attach-integer.patch
 
 This will only be the case if all changes we make also update the corresponding
 patch files. Therefore please remember to do that whenever you make a change!
 
 Descriptions of the changes we've made can be found at the bottom of this file.
-
-NOTE: fts3.patch no longer applies at all, so the patch only exists for
-historical reference.
 
 --------------------------------------------
 
@@ -91,7 +92,7 @@ Prerequisties: On my corp Ubuntu 8.04 workstation, I needed to install the
 following packages:
 sudo apt-get install tcl8.4-dev libicu-dev
 
-cd src/third_party/sqlite/src
+cd src/third_party/sqlite
 mkdir build
 cd build
 make -f ../Makefile.linux-gcc testfixture
@@ -113,6 +114,8 @@ As of May 07, 2010, these are our changes from sqlite_vendor:
 
  - A fix for a crash passing an integer expression to ATTACH / DETACH. See
  attach-integer.patch
+ - A fix for a crash mis-calling the REGEXP() function of the ICU extension.
+ See icu-regexp.patch
  - A large number of fts2 robustness fixes against corrupt data in its metadata
    tables.
  - fts2.c disables fts2_tokenizer().

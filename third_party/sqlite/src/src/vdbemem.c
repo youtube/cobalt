@@ -14,6 +14,8 @@
 ** stores a single value in the VDBE.  Mem is an opaque structure visible
 ** only within the VDBE.  Interface routines refer to a Mem using the
 ** name sqlite_value
+**
+** $Id: vdbemem.c,v 1.152 2009/07/22 18:07:41 drh Exp $
 */
 #include "sqliteInt.h"
 #include "vdbeInt.h"
@@ -132,9 +134,6 @@ int sqlite3VdbeMemMakeWriteable(Mem *pMem){
     pMem->z[pMem->n] = 0;
     pMem->z[pMem->n+1] = 0;
     pMem->flags |= MEM_Term;
-#ifdef SQLITE_DEBUG
-    pMem->pScopyFrom = 0;
-#endif
   }
 
   return SQLITE_OK;
@@ -255,7 +254,7 @@ int sqlite3VdbeMemFinalize(Mem *pMem, FuncDef *pFunc){
     ctx.s.db = pMem->db;
     ctx.pMem = pMem;
     ctx.pFunc = pFunc;
-    pFunc->xFinalize(&ctx); /* IMP: R-24505-23230 */
+    pFunc->xFinalize(&ctx);
     assert( 0==(pMem->flags&MEM_Dyn) && !pMem->xDel );
     sqlite3DbFree(pMem->db, pMem->zMalloc);
     memcpy(pMem, &ctx.s, sizeof(ctx.s));
@@ -318,10 +317,6 @@ void sqlite3VdbeMemRelease(Mem *p){
 ** before attempting the conversion.
 */
 static i64 doubleToInt64(double r){
-#ifdef SQLITE_OMIT_FLOATING_POINT
-  /* When floating-point is omitted, double and int64 are the same thing */
-  return r;
-#else
   /*
   ** Many compilers we encounter do not define constants for the
   ** minimum and maximum 64-bit integers, or they define them
@@ -343,7 +338,6 @@ static i64 doubleToInt64(double r){
   }else{
     return (i64)r;
   }
-#endif
 }
 
 /*
@@ -368,9 +362,13 @@ i64 sqlite3VdbeIntValue(Mem *pMem){
     return doubleToInt64(pMem->r);
   }else if( flags & (MEM_Str|MEM_Blob) ){
     i64 value;
-    assert( pMem->z || pMem->n==0 );
-    testcase( pMem->z==0 );
-    sqlite3Atoi64(pMem->z, &value, pMem->n, pMem->enc);
+    pMem->flags |= MEM_Str;
+    if( sqlite3VdbeChangeEncoding(pMem, SQLITE_UTF8)
+       || sqlite3VdbeMemNulTerminate(pMem) ){
+      return 0;
+    }
+    assert( pMem->z );
+    sqlite3Atoi64(pMem->z, &value);
     return value;
   }else{
     return 0;
@@ -393,7 +391,14 @@ double sqlite3VdbeRealValue(Mem *pMem){
   }else if( pMem->flags & (MEM_Str|MEM_Blob) ){
     /* (double)0 In case of SQLITE_OMIT_FLOATING_POINT... */
     double val = (double)0;
-    sqlite3AtoF(pMem->z, &val, pMem->n, pMem->enc);
+    pMem->flags |= MEM_Str;
+    if( sqlite3VdbeChangeEncoding(pMem, SQLITE_UTF8)
+       || sqlite3VdbeMemNulTerminate(pMem) ){
+      /* (double)0 In case of SQLITE_OMIT_FLOATING_POINT... */
+      return (double)0;
+    }
+    assert( pMem->z );
+    sqlite3AtoF(pMem->z, &val);
     return val;
   }else{
     /* (double)0 In case of SQLITE_OMIT_FLOATING_POINT... */
@@ -460,25 +465,22 @@ int sqlite3VdbeMemRealify(Mem *pMem){
 /*
 ** Convert pMem so that it has types MEM_Real or MEM_Int or both.
 ** Invalidate any prior representations.
-**
-** Every effort is made to force the conversion, even if the input
-** is a string that does not look completely like a number.  Convert
-** as much of the string as we can and ignore the rest.
 */
 int sqlite3VdbeMemNumerify(Mem *pMem){
-  if( (pMem->flags & (MEM_Int|MEM_Real|MEM_Null))==0 ){
-    assert( (pMem->flags & (MEM_Blob|MEM_Str))!=0 );
-    assert( pMem->db==0 || sqlite3_mutex_held(pMem->db->mutex) );
-    if( 0==sqlite3Atoi64(pMem->z, &pMem->u.i, pMem->n, pMem->enc) ){
-      MemSetTypeFlag(pMem, MEM_Int);
-    }else{
-      pMem->r = sqlite3VdbeRealValue(pMem);
-      MemSetTypeFlag(pMem, MEM_Real);
-      sqlite3VdbeIntegerAffinity(pMem);
-    }
+  double r1, r2;
+  i64 i;
+  assert( (pMem->flags & (MEM_Int|MEM_Real|MEM_Null))==0 );
+  assert( (pMem->flags & (MEM_Blob|MEM_Str))!=0 );
+  assert( pMem->db==0 || sqlite3_mutex_held(pMem->db->mutex) );
+  r1 = sqlite3VdbeRealValue(pMem);
+  i = doubleToInt64(r1);
+  r2 = (double)i;
+  if( r1==r2 ){
+    sqlite3VdbeMemIntegerify(pMem);
+  }else{
+    pMem->r = r1;
+    MemSetTypeFlag(pMem, MEM_Real);
   }
-  assert( (pMem->flags & (MEM_Int|MEM_Real|MEM_Null))!=0 );
-  pMem->flags &= ~(MEM_Str|MEM_Blob);
   return SQLITE_OK;
 }
 
@@ -529,7 +531,6 @@ void sqlite3VdbeMemSetInt64(Mem *pMem, i64 val){
   pMem->type = SQLITE_INTEGER;
 }
 
-#ifndef SQLITE_OMIT_FLOATING_POINT
 /*
 ** Delete any previous value and set the value stored in *pMem to val,
 ** manifest type REAL.
@@ -544,7 +545,6 @@ void sqlite3VdbeMemSetDouble(Mem *pMem, double val){
     pMem->type = SQLITE_FLOAT;
   }
 }
-#endif
 
 /*
 ** Delete any previous value and set the value of pMem to be an
@@ -583,28 +583,6 @@ int sqlite3VdbeMemTooBig(Mem *p){
   return 0; 
 }
 
-#ifdef SQLITE_DEBUG
-/*
-** This routine prepares a memory cell for modication by breaking
-** its link to a shallow copy and by marking any current shallow
-** copies of this cell as invalid.
-**
-** This is used for testing and debugging only - to make sure shallow
-** copies are not misused.
-*/
-void sqlite3VdbeMemPrepareToChange(Vdbe *pVdbe, Mem *pMem){
-  int i;
-  Mem *pX;
-  for(i=1, pX=&pVdbe->aMem[1]; i<=pVdbe->nMem; i++, pX++){
-    if( pX->pScopyFrom==pMem ){
-      pX->flags |= MEM_Invalid;
-      pX->pScopyFrom = 0;
-    }
-  }
-  pMem->pScopyFrom = 0;
-}
-#endif /* SQLITE_DEBUG */
-
 /*
 ** Size of struct Mem not including the Mem.zMalloc member.
 */
@@ -621,7 +599,7 @@ void sqlite3VdbeMemShallowCopy(Mem *pTo, const Mem *pFrom, int srcType){
   sqlite3VdbeMemReleaseExternal(pTo);
   memcpy(pTo, pFrom, MEMCELLSIZE);
   pTo->xDel = 0;
-  if( (pFrom->flags&MEM_Static)==0 ){
+  if( (pFrom->flags&MEM_Dyn)!=0 || pFrom->z==pFrom->zMalloc ){
     pTo->flags &= ~(MEM_Dyn|MEM_Static|MEM_Ephem);
     assert( srcType==MEM_Ephem || srcType==MEM_Static );
     pTo->flags |= srcType;
@@ -778,6 +756,9 @@ int sqlite3MemCompare(const Mem *pMem1, const Mem *pMem2, const CollSeq *pColl){
   int f1, f2;
   int combined_flags;
 
+  /* Interchange pMem1 and pMem2 if the collating sequence specifies
+  ** DESC order.
+  */
   f1 = pMem1->flags;
   f2 = pMem2->flags;
   combined_flags = f1|f2;
@@ -973,7 +954,7 @@ const void *sqlite3ValueText(sqlite3_value* pVal, u8 enc){
         return 0;
       }
     }
-    sqlite3VdbeMemNulTerminate(pVal); /* IMP: R-59893-45467 */
+    sqlite3VdbeMemNulTerminate(pVal);
   }else{
     assert( (pVal->flags&MEM_Blob)==0 );
     sqlite3VdbeMemStringify(pVal, enc);
@@ -1021,43 +1002,23 @@ int sqlite3ValueFromExpr(
   int op;
   char *zVal = 0;
   sqlite3_value *pVal = 0;
-  int negInt = 1;
-  const char *zNeg = "";
 
   if( !pExpr ){
     *ppVal = 0;
     return SQLITE_OK;
   }
   op = pExpr->op;
-
-  /* op can only be TK_REGISTER if we have compiled with SQLITE_ENABLE_STAT2.
-  ** The ifdef here is to enable us to achieve 100% branch test coverage even
-  ** when SQLITE_ENABLE_STAT2 is omitted.
-  */
-#ifdef SQLITE_ENABLE_STAT2
-  if( op==TK_REGISTER ) op = pExpr->op2;
-#else
-  if( NEVER(op==TK_REGISTER) ) op = pExpr->op2;
-#endif
-
-  /* Handle negative integers in a single step.  This is needed in the
-  ** case when the value is -9223372036854775808.
-  */
-  if( op==TK_UMINUS
-   && (pExpr->pLeft->op==TK_INTEGER || pExpr->pLeft->op==TK_FLOAT) ){
-    pExpr = pExpr->pLeft;
-    op = pExpr->op;
-    negInt = -1;
-    zNeg = "-";
+  if( op==TK_REGISTER ){
+    op = pExpr->op2;
   }
 
   if( op==TK_STRING || op==TK_FLOAT || op==TK_INTEGER ){
     pVal = sqlite3ValueNew(db);
     if( pVal==0 ) goto no_mem;
     if( ExprHasProperty(pExpr, EP_IntValue) ){
-      sqlite3VdbeMemSetInt64(pVal, (i64)pExpr->u.iValue*negInt);
+      sqlite3VdbeMemSetInt64(pVal, (i64)pExpr->u.iValue);
     }else{
-      zVal = sqlite3MPrintf(db, "%s%s", zNeg, pExpr->u.zToken);
+      zVal = sqlite3DbStrDup(db, pExpr->u.zToken);
       if( zVal==0 ) goto no_mem;
       sqlite3ValueSetStr(pVal, -1, zVal, SQLITE_UTF8, SQLITE_DYNAMIC);
       if( op==TK_FLOAT ) pVal->type = SQLITE_FLOAT;
@@ -1067,18 +1028,14 @@ int sqlite3ValueFromExpr(
     }else{
       sqlite3ValueApplyAffinity(pVal, affinity, SQLITE_UTF8);
     }
-    if( pVal->flags & (MEM_Int|MEM_Real) ) pVal->flags &= ~MEM_Str;
     if( enc!=SQLITE_UTF8 ){
       sqlite3VdbeChangeEncoding(pVal, enc);
     }
   }else if( op==TK_UMINUS ) {
-    /* This branch happens for multiple negative signs.  Ex: -(-5) */
     if( SQLITE_OK==sqlite3ValueFromExpr(db,pExpr->pLeft,enc,affinity,&pVal) ){
-      sqlite3VdbeMemNumerify(pVal);
       pVal->u.i = -1 * pVal->u.i;
       /* (double)-1 In case of SQLITE_OMIT_FLOATING_POINT... */
       pVal->r = (double)-1 * pVal->r;
-      sqlite3ValueApplyAffinity(pVal, affinity, enc);
     }
   }
 #ifndef SQLITE_OMIT_BLOB_LITERAL
@@ -1096,9 +1053,6 @@ int sqlite3ValueFromExpr(
   }
 #endif
 
-  if( pVal ){
-    sqlite3VdbeMemStoreType(pVal);
-  }
   *ppVal = pVal;
   return SQLITE_OK;
 
