@@ -94,6 +94,7 @@ tags
 /third_party/ppapi
 /third_party/pthreads-win32
 /third_party/python_24
+/third_party/python_26
 /third_party/pywebsocket
 /third_party/safe_browsing/testing
 /third_party/skia
