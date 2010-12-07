@@ -33,7 +33,6 @@
         '../third_party/ffmpeg/ffmpeg.gyp:*',
         '../third_party/iccjpeg/iccjpeg.gyp:*',
         '../third_party/icu/icu.gyp:*',
-        '../third_party/libjpeg/libjpeg.gyp:*',
         '../third_party/libpng/libpng.gyp:*',
         '../third_party/libwebp/libwebp.gyp:*',
         '../third_party/libxml/libxml.gyp:*',
@@ -51,6 +50,7 @@
         '../webkit/webkit.gyp:*',
         'util/build_util.gyp:*',
         'temp_gyp/googleurl.gyp:*',
+        '<(libjpeg_gyp_path):*',
       ],
       'conditions': [
         ['javascript_engine=="v8"', {
