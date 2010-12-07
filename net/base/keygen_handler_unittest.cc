@@ -4,14 +4,9 @@
 
 #include "net/base/keygen_handler.h"
 
-#include "build/build_config.h" // Needs to be imported early for USE_NSS
-
-#if defined(USE_NSS)
-#include <private/pprthred.h>  // PR_DetachThread
-#endif
-
 #include <string>
 
+#include "build/build_config.h"
 #include "base/base64.h"
 #include "base/logging.h"
 #include "base/nss_util.h"
@@ -20,6 +15,10 @@
 #include "base/waitable_event.h"
 #include "base/worker_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(USE_NSS)
+#include <private/pprthred.h>  // PR_DetachThread
+#endif
 
 namespace net {
 
@@ -73,13 +72,7 @@ void AssertValidSignedPublicKeyAndChallenge(const std::string& result,
   //    openssl asn1parse -inform DER
 }
 
-// Keygen not yet implemented for OpenSSL: http://crbug.com/64917
-#if defined(USE_OPENSSL)
-#define MAYBE_SmokeTest FAILS_SmokeTest
-#else
-#define MAYBE_SmokeTest SmokeTest
-#endif
-TEST_F(KeygenHandlerTest, MAYBE_SmokeTest) {
+TEST_F(KeygenHandlerTest, SmokeTest) {
   KeygenHandler handler(768, "some challenge", GURL("http://www.example.com"));
   handler.set_stores_key(false);  // Don't leave the key-pair behind
   std::string result = handler.GenKeyAndSignChallenge();
@@ -102,7 +95,7 @@ class ConcurrencyTestTask : public Task {
     base::ThreadRestrictions::ScopedAllowSingleton scoped_allow_singleton;
     KeygenHandler handler(768, "some challenge",
                           GURL("http://www.example.com"));
-    handler.set_stores_key(false); // Don't leave the key-pair behind.
+    handler.set_stores_key(false);  // Don't leave the key-pair behind.
     *result_ = handler.GenKeyAndSignChallenge();
     event_->Signal();
 #if defined(USE_NSS)
@@ -123,15 +116,9 @@ class ConcurrencyTestTask : public Task {
   std::string* result_;
 };
 
-// Keygen not yet implemented for OpenSSL: http://crbug.com/64917
-#if defined(USE_OPENSSL)
-#define MAYBE_ConcurrencyTest FAILS_ConcurrencyTest
-#else
-#define MAYBE_ConcurrencyTest ConcurrencyTest
-#endif
 // We asynchronously generate the keys so as not to hang up the IO thread. This
 // test tries to catch concurrency problems in the keygen implementation.
-TEST_F(KeygenHandlerTest, MAYBE_ConcurrencyTest) {
+TEST_F(KeygenHandlerTest, ConcurrencyTest) {
   const int NUM_HANDLERS = 5;
   base::WaitableEvent* events[NUM_HANDLERS] = { NULL };
   std::string results[NUM_HANDLERS];
