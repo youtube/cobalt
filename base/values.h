@@ -92,6 +92,7 @@ class Value {
   virtual bool GetAsReal(double* out_value) const;
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(string16* out_value) const;
+  virtual bool GetAsList(ListValue** out_value);
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
@@ -366,6 +367,7 @@ class ListValue : public Value {
   ~ListValue();
 
   // Subclassed methods
+  virtual bool GetAsList(ListValue** out_value);
   Value* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
