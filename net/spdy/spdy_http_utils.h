@@ -17,8 +17,8 @@ class HttpRequestHeaders;
 // Convert a SpdyHeaderBlock into an HttpResponseInfo.
 // |headers| input parameter with the SpdyHeaderBlock.
 // |info| output parameter for the HttpResponseInfo.
-// Returns true if successfully converted.  False if there was a failure
-// or if the SpdyHeaderBlock was invalid.
+// Returns true if successfully converted.  False if the SpdyHeaderBlock is
+// incomplete (e.g. missing 'status' or 'version').
 bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
                                HttpResponseInfo* response);
 
