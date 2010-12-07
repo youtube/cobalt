@@ -31,7 +31,6 @@ void sqlite3Coverage(int x){
 }
 #endif
 
-#ifndef SQLITE_OMIT_FLOATING_POINT
 /*
 ** Return true if the floating point value is Not a Number (NaN).
 **
@@ -76,7 +75,6 @@ int sqlite3IsNaN(double x){
   testcase( rc );
   return rc;
 }
-#endif /* SQLITE_OMIT_FLOATING_POINT */
 
 /*
 ** Compute a string length that is limited to what can be stored in
@@ -148,20 +146,23 @@ void sqlite3Error(sqlite3 *db, int err_code, const char *zFormat, ...){
 ** (sqlite3_step() etc.).
 */
 void sqlite3ErrorMsg(Parse *pParse, const char *zFormat, ...){
-  char *zMsg;
   va_list ap;
   sqlite3 *db = pParse->db;
+  pParse->nErr++;
+  sqlite3DbFree(db, pParse->zErrMsg);
   va_start(ap, zFormat);
-  zMsg = sqlite3VMPrintf(db, zFormat, ap);
+  pParse->zErrMsg = sqlite3VMPrintf(db, zFormat, ap);
   va_end(ap);
-  if( db->suppressErr ){
-    sqlite3DbFree(db, zMsg);
-  }else{
-    pParse->nErr++;
-    sqlite3DbFree(db, pParse->zErrMsg);
-    pParse->zErrMsg = zMsg;
-    pParse->rc = SQLITE_ERROR;
-  }
+  pParse->rc = SQLITE_ERROR;
+}
+
+/*
+** Clear the error message in pParse, if any
+*/
+void sqlite3ErrorClear(Parse *pParse){
+  sqlite3DbFree(pParse->db, pParse->zErrMsg);
+  pParse->zErrMsg = 0;
+  pParse->nErr = 0;
 }
 
 /*
@@ -215,12 +216,6 @@ int sqlite3Dequote(char *z){
 /*
 ** Some systems have stricmp().  Others have strcasecmp().  Because
 ** there is no consistency, we will define our own.
-**
-** IMPLEMENTATION-OF: R-20522-24639 The sqlite3_strnicmp() API allows
-** applications and extensions to compare the contents of two buffers
-** containing UTF-8 strings in a case-independent fashion, using the same
-** definition of case independence that SQLite uses internally when
-** comparing identifiers.
 */
 int sqlite3StrICmp(const char *zLeft, const char *zRight){
   register unsigned char *a, *b;
@@ -238,111 +233,119 @@ int sqlite3_strnicmp(const char *zLeft, const char *zRight, int N){
 }
 
 /*
-** The string z[] is an text representation of a real number.
-** Convert this string to a double and write it into *pResult.
+** Return TRUE if z is a pure numeric string.  Return FALSE and leave
+** *realnum unchanged if the string contains any character which is not
+** part of a number.
 **
-** The string z[] is length bytes in length (bytes, not characters) and
-** uses the encoding enc.  The string is not necessarily zero-terminated.
+** If the string is pure numeric, set *realnum to TRUE if the string
+** contains the '.' character or an "E+000" style exponentiation suffix.
+** Otherwise set *realnum to FALSE.  Note that just becaue *realnum is
+** false does not mean that the number can be successfully converted into
+** an integer - it might be too big.
 **
-** Return TRUE if the result is a valid real number (or integer) and FALSE
-** if the string is empty or contains extraneous text.  Valid numbers
-** are in one of these formats:
-**
-**    [+-]digits[E[+-]digits]
-**    [+-]digits.[digits][E[+-]digits]
-**    [+-].digits[E[+-]digits]
-**
-** Leading and trailing whitespace is ignored for the purpose of determining
-** validity.
-**
-** If some prefix of the input string is a valid number, this routine
-** returns FALSE but it still converts the prefix and writes the result
-** into *pResult.
+** An empty string is considered non-numeric.
 */
-int sqlite3AtoF(const char *z, double *pResult, int length, u8 enc){
-#ifndef SQLITE_OMIT_FLOATING_POINT
+int sqlite3IsNumber(const char *z, int *realnum, u8 enc){
   int incr = (enc==SQLITE_UTF8?1:2);
-  const char *zEnd = z + length;
+  if( enc==SQLITE_UTF16BE ) z++;
+  if( *z=='-' || *z=='+' ) z += incr;
+  if( !sqlite3Isdigit(*z) ){
+    return 0;
+  }
+  z += incr;
+  *realnum = 0;
+  while( sqlite3Isdigit(*z) ){ z += incr; }
+  if( *z=='.' ){
+    z += incr;
+    if( !sqlite3Isdigit(*z) ) return 0;
+    while( sqlite3Isdigit(*z) ){ z += incr; }
+    *realnum = 1;
+  }
+  if( *z=='e' || *z=='E' ){
+    z += incr;
+    if( *z=='+' || *z=='-' ) z += incr;
+    if( !sqlite3Isdigit(*z) ) return 0;
+    while( sqlite3Isdigit(*z) ){ z += incr; }
+    *realnum = 1;
+  }
+  return *z==0;
+}
+
+/*
+** The string z[] is an ASCII representation of a real number.
+** Convert this string to a double.
+**
+** This routine assumes that z[] really is a valid number.  If it
+** is not, the result is undefined.
+**
+** This routine is used instead of the library atof() function because
+** the library atof() might want to use "," as the decimal point instead
+** of "." depending on how locale is set.  But that would cause problems
+** for SQL.  So this routine always uses "." regardless of locale.
+*/
+int sqlite3AtoF(const char *z, double *pResult){
+#ifndef SQLITE_OMIT_FLOATING_POINT
+  const char *zBegin = z;
   /* sign * significand * (10 ^ (esign * exponent)) */
-  int sign = 1;    /* sign of significand */
-  i64 s = 0;       /* significand */
-  int d = 0;       /* adjust exponent for shifting decimal point */
-  int esign = 1;   /* sign of exponent */
-  int e = 0;       /* exponent */
-  int eValid = 1;  /* True exponent is either not used or is well-formed */
+  int sign = 1;   /* sign of significand */
+  i64 s = 0;      /* significand */
+  int d = 0;      /* adjust exponent for shifting decimal point */
+  int esign = 1;  /* sign of exponent */
+  int e = 0;      /* exponent */
   double result;
   int nDigits = 0;
 
-  *pResult = 0.0;   /* Default return value, in case of an error */
-
-  if( enc==SQLITE_UTF16BE ) z++;
-
   /* skip leading spaces */
-  while( z<zEnd && sqlite3Isspace(*z) ) z+=incr;
-  if( z>=zEnd ) return 0;
-
+  while( sqlite3Isspace(*z) ) z++;
   /* get sign of significand */
   if( *z=='-' ){
     sign = -1;
-    z+=incr;
+    z++;
   }else if( *z=='+' ){
-    z+=incr;
+    z++;
   }
-
   /* skip leading zeroes */
-  while( z<zEnd && z[0]=='0' ) z+=incr, nDigits++;
+  while( z[0]=='0' ) z++, nDigits++;
 
   /* copy max significant digits to significand */
-  while( z<zEnd && sqlite3Isdigit(*z) && s<((LARGEST_INT64-9)/10) ){
+  while( sqlite3Isdigit(*z) && s<((LARGEST_INT64-9)/10) ){
     s = s*10 + (*z - '0');
-    z+=incr, nDigits++;
+    z++, nDigits++;
   }
-
   /* skip non-significant significand digits
   ** (increase exponent by d to shift decimal left) */
-  while( z<zEnd && sqlite3Isdigit(*z) ) z+=incr, nDigits++, d++;
-  if( z>=zEnd ) goto do_atof_calc;
+  while( sqlite3Isdigit(*z) ) z++, nDigits++, d++;
 
   /* if decimal point is present */
   if( *z=='.' ){
-    z+=incr;
+    z++;
     /* copy digits from after decimal to significand
     ** (decrease exponent by d to shift decimal right) */
-    while( z<zEnd && sqlite3Isdigit(*z) && s<((LARGEST_INT64-9)/10) ){
+    while( sqlite3Isdigit(*z) && s<((LARGEST_INT64-9)/10) ){
       s = s*10 + (*z - '0');
-      z+=incr, nDigits++, d--;
+      z++, nDigits++, d--;
     }
     /* skip non-significant digits */
-    while( z<zEnd && sqlite3Isdigit(*z) ) z+=incr, nDigits++;
+    while( sqlite3Isdigit(*z) ) z++, nDigits++;
   }
-  if( z>=zEnd ) goto do_atof_calc;
 
   /* if exponent is present */
   if( *z=='e' || *z=='E' ){
-    z+=incr;
-    eValid = 0;
-    if( z>=zEnd ) goto do_atof_calc;
+    z++;
     /* get sign of exponent */
     if( *z=='-' ){
       esign = -1;
-      z+=incr;
+      z++;
     }else if( *z=='+' ){
-      z+=incr;
+      z++;
     }
     /* copy digits to exponent */
-    while( z<zEnd && sqlite3Isdigit(*z) ){
+    while( sqlite3Isdigit(*z) ){
       e = e*10 + (*z - '0');
-      z+=incr;
-      eValid = 1;
+      z++;
     }
   }
 
-  /* skip trailing spaces */
-  if( nDigits && eValid ){
-    while( z<zEnd && sqlite3Isspace(*z) ) z+=incr;
-  }
-
-do_atof_calc:
   /* adjust exponent by d, and update sign */
   e = (e*esign) + d;
   if( e<0 ) {
@@ -401,10 +404,10 @@ do_atof_calc:
   /* store the result */
   *pResult = result;
 
-  /* return true if number and no extra non-whitespace chracters after */
-  return z>=zEnd && nDigits>0 && eValid;
+  /* return number of characters used */
+  return (int)(z - zBegin);
 #else
-  return !sqlite3Atoi64(z, pResult, length, enc);
+  return sqlite3Atoi64(z, pResult);
 #endif /* SQLITE_OMIT_FLOATING_POINT */
 }
 
@@ -412,89 +415,108 @@ do_atof_calc:
 ** Compare the 19-character string zNum against the text representation
 ** value 2^63:  9223372036854775808.  Return negative, zero, or positive
 ** if zNum is less than, equal to, or greater than the string.
-** Note that zNum must contain exactly 19 characters.
 **
 ** Unlike memcmp() this routine is guaranteed to return the difference
 ** in the values of the last digit if the only difference is in the
 ** last digit.  So, for example,
 **
-**      compare2pow63("9223372036854775800", 1)
+**      compare2pow63("9223372036854775800")
 **
 ** will return -8.
 */
-static int compare2pow63(const char *zNum, int incr){
-  int c = 0;
-  int i;
-                    /* 012345678901234567 */
-  const char *pow63 = "922337203685477580";
-  for(i=0; c==0 && i<18; i++){
-    c = (zNum[i*incr]-pow63[i])*10;
-  }
+static int compare2pow63(const char *zNum){
+  int c;
+  c = memcmp(zNum,"922337203685477580",18)*10;
   if( c==0 ){
-    c = zNum[18*incr] - '8';
-    testcase( c==(-1) );
-    testcase( c==0 );
-    testcase( c==(+1) );
+    c = zNum[18] - '8';
   }
   return c;
 }
 
 
 /*
-** Convert zNum to a 64-bit signed integer and write
-** the value of the integer into *pNum.
-** If zNum is exactly 9223372036854665808, return 2.
-** This is a special case as the context will determine
-** if it is too big (used as a negative).
-** If zNum is not an integer or is an integer that 
-** is too large to be expressed with 64 bits,
-** then return 1.  Otherwise return 0.
+** Return TRUE if zNum is a 64-bit signed integer and write
+** the value of the integer into *pNum.  If zNum is not an integer
+** or is an integer that is too large to be expressed with 64 bits,
+** then return false.
 **
-** length is the number of bytes in the string (bytes, not characters).
-** The string is not necessarily zero-terminated.  The encoding is
-** given by enc.
+** When this routine was originally written it dealt with only
+** 32-bit numbers.  At that time, it was much faster than the
+** atoi() library routine in RedHat 7.2.
 */
-int sqlite3Atoi64(const char *zNum, i64 *pNum, int length, u8 enc){
-  int incr = (enc==SQLITE_UTF8?1:2);
+int sqlite3Atoi64(const char *zNum, i64 *pNum){
   i64 v = 0;
-  int neg = 0; /* assume positive */
-  int i;
-  int c = 0;
+  int neg;
+  int i, c;
   const char *zStart;
-  const char *zEnd = zNum + length;
-  if( enc==SQLITE_UTF16BE ) zNum++;
-  while( zNum<zEnd && sqlite3Isspace(*zNum) ) zNum+=incr;
-  if( zNum>=zEnd ) goto do_atoi_calc;
+  while( sqlite3Isspace(*zNum) ) zNum++;
   if( *zNum=='-' ){
     neg = 1;
-    zNum+=incr;
+    zNum++;
   }else if( *zNum=='+' ){
-    zNum+=incr;
+    neg = 0;
+    zNum++;
+  }else{
+    neg = 0;
   }
-do_atoi_calc:
   zStart = zNum;
-  while( zNum<zEnd && zNum[0]=='0' ){ zNum+=incr; } /* Skip leading zeros. */
-  for(i=0; &zNum[i]<zEnd && (c=zNum[i])>='0' && c<='9'; i+=incr){
+  while( zNum[0]=='0' ){ zNum++; } /* Skip over leading zeros. Ticket #2454 */
+  for(i=0; (c=zNum[i])>='0' && c<='9'; i++){
     v = v*10 + c - '0';
   }
   *pNum = neg ? -v : v;
-  testcase( i==18 );
-  testcase( i==19 );
-  testcase( i==20 );
-  if( (c!=0 && &zNum[i]<zEnd) || (i==0 && zStart==zNum) || i>19*incr ){
+  if( c!=0 || (i==0 && zStart==zNum) || i>19 ){
     /* zNum is empty or contains non-numeric text or is longer
-    ** than 19 digits (thus guaranteeing that it is too large) */
-    return 1;
-  }else if( i<19*incr ){
-    /* Less than 19 digits, so we know that it fits in 64 bits */
+    ** than 19 digits (thus guaranting that it is too large) */
     return 0;
+  }else if( i<19 ){
+    /* Less than 19 digits, so we know that it fits in 64 bits */
+    return 1;
   }else{
     /* 19-digit numbers must be no larger than 9223372036854775807 if positive
     ** or 9223372036854775808 if negative.  Note that 9223372036854665808
-    ** is 2^63. Return 1 if to large */
-    c=compare2pow63(zNum, incr);
-    if( c==0 && neg==0 ) return 2; /* too big, exactly 9223372036854665808 */
-    return c<neg ? 0 : 1;
+    ** is 2^63. */
+    return compare2pow63(zNum)<neg;
+  }
+}
+
+/*
+** The string zNum represents an unsigned integer.  The zNum string
+** consists of one or more digit characters and is terminated by
+** a zero character.  Any stray characters in zNum result in undefined
+** behavior.
+**
+** If the unsigned integer that zNum represents will fit in a
+** 64-bit signed integer, return TRUE.  Otherwise return FALSE.
+**
+** If the negFlag parameter is true, that means that zNum really represents
+** a negative number.  (The leading "-" is omitted from zNum.)  This
+** parameter is needed to determine a boundary case.  A string
+** of "9223373036854775808" returns false if negFlag is false or true
+** if negFlag is true.
+**
+** Leading zeros are ignored.
+*/
+int sqlite3FitsIn64Bits(const char *zNum, int negFlag){
+  int i;
+  int neg = 0;
+
+  assert( zNum[0]>='0' && zNum[0]<='9' ); /* zNum is an unsigned number */
+
+  if( negFlag ) neg = 1-neg;
+  while( *zNum=='0' ){
+    zNum++;   /* Skip leading zeros.  Ticket #2454 */
+  }
+  for(i=0; zNum[i]; i++){ assert( zNum[i]>='0' && zNum[i]<='9' ); }
+  if( i<19 ){
+    /* Guaranteed to fit if less than 19 digits */
+    return 1;
+  }else if( i>19 ){
+    /* Guaranteed to be too big if greater than 19 digits */
+    return 0;
+  }else{
+    /* Compare against 2^63. */
+    return compare2pow63(zNum)<neg;
   }
 }
 
@@ -526,11 +548,9 @@ int sqlite3GetInt32(const char *zNum, int *pValue){
   **             1234567890
   **     2^31 -> 2147483648
   */
-  testcase( i==10 );
   if( i>10 ){
     return 0;
   }
-  testcase( v-neg==2147483647 );
   if( v-neg>2147483647 ){
     return 0;
   }
@@ -619,19 +639,6 @@ int sqlite3PutVarint32(unsigned char *p, u32 v){
 }
 
 /*
-** Bitmasks used by sqlite3GetVarint().  These precomputed constants
-** are defined here rather than simply putting the constant expressions
-** inline in order to work around bugs in the RVT compiler.
-**
-** SLOT_2_0     A mask for  (0x7f<<14) | 0x7f
-**
-** SLOT_4_2_0   A mask for  (0x7f<<28) | SLOT_2_0
-*/
-#define SLOT_2_0     0x001fc07f
-#define SLOT_4_2_0   0xf01fc07f
-
-
-/*
 ** Read a 64-bit variable-length integer from memory starting at p[0].
 ** Return the number of bytes read.  The value is stored in *v.
 */
@@ -658,17 +665,13 @@ u8 sqlite3GetVarint(const unsigned char *p, u64 *v){
     return 2;
   }
 
-  /* Verify that constants are precomputed correctly */
-  assert( SLOT_2_0 == ((0x7f<<14) | (0x7f)) );
-  assert( SLOT_4_2_0 == ((0xfU<<28) | (0x7f<<14) | (0x7f)) );
-
   p++;
   a = a<<14;
   a |= *p;
   /* a: p0<<14 | p2 (unmasked) */
   if (!(a&0x80))
   {
-    a &= SLOT_2_0;
+    a &= (0x7f<<14)|(0x7f);
     b &= 0x7f;
     b = b<<7;
     a |= b;
@@ -677,14 +680,14 @@ u8 sqlite3GetVarint(const unsigned char *p, u64 *v){
   }
 
   /* CSE1 from below */
-  a &= SLOT_2_0;
+  a &= (0x7f<<14)|(0x7f);
   p++;
   b = b<<14;
   b |= *p;
   /* b: p1<<14 | p3 (unmasked) */
   if (!(b&0x80))
   {
-    b &= SLOT_2_0;
+    b &= (0x7f<<14)|(0x7f);
     /* moved CSE1 up */
     /* a &= (0x7f<<14)|(0x7f); */
     a = a<<7;
@@ -698,7 +701,7 @@ u8 sqlite3GetVarint(const unsigned char *p, u64 *v){
   /* 1:save off p0<<21 | p1<<14 | p2<<7 | p3 (masked) */
   /* moved CSE1 up */
   /* a &= (0x7f<<14)|(0x7f); */
-  b &= SLOT_2_0;
+  b &= (0x7f<<14)|(0x7f);
   s = a;
   /* s: p0<<14 | p2 (masked) */
 
@@ -731,7 +734,7 @@ u8 sqlite3GetVarint(const unsigned char *p, u64 *v){
   {
     /* we can skip this cause it was (effectively) done above in calc'ing s */
     /* b &= (0x7f<<28)|(0x7f<<14)|(0x7f); */
-    a &= SLOT_2_0;
+    a &= (0x7f<<14)|(0x7f);
     a = a<<7;
     a |= b;
     s = s>>18;
@@ -745,8 +748,8 @@ u8 sqlite3GetVarint(const unsigned char *p, u64 *v){
   /* a: p2<<28 | p4<<14 | p6 (unmasked) */
   if (!(a&0x80))
   {
-    a &= SLOT_4_2_0;
-    b &= SLOT_2_0;
+    a &= (0x1f<<28)|(0x7f<<14)|(0x7f);
+    b &= (0x7f<<14)|(0x7f);
     b = b<<7;
     a |= b;
     s = s>>11;
@@ -755,14 +758,14 @@ u8 sqlite3GetVarint(const unsigned char *p, u64 *v){
   }
 
   /* CSE2 from below */
-  a &= SLOT_2_0;
+  a &= (0x7f<<14)|(0x7f);
   p++;
   b = b<<14;
   b |= *p;
   /* b: p3<<28 | p5<<14 | p7 (unmasked) */
   if (!(b&0x80))
   {
-    b &= SLOT_4_2_0;
+    b &= (0x1f<<28)|(0x7f<<14)|(0x7f);
     /* moved CSE2 up */
     /* a &= (0x7f<<14)|(0x7f); */
     a = a<<7;
@@ -779,7 +782,7 @@ u8 sqlite3GetVarint(const unsigned char *p, u64 *v){
 
   /* moved CSE2 up */
   /* a &= (0x7f<<29)|(0x7f<<15)|(0xff); */
-  b &= SLOT_2_0;
+  b &= (0x7f<<14)|(0x7f);
   b = b<<8;
   a |= b;
 
@@ -899,9 +902,9 @@ u8 sqlite3GetVarint32(const unsigned char *p, u32 *v){
   /* a: p0<<28 | p2<<14 | p4 (unmasked) */
   if (!(a&0x80))
   {
-    /* Values  between 268435456 and 34359738367 */
-    a &= SLOT_4_2_0;
-    b &= SLOT_4_2_0;
+    /* Walues  between 268435456 and 34359738367 */
+    a &= (0x1f<<28)|(0x7f<<14)|(0x7f);
+    b &= (0x1f<<28)|(0x7f<<14)|(0x7f);
     b = b<<7;
     *v = a | b;
     return 5;
@@ -994,17 +997,64 @@ void *sqlite3HexToBlob(sqlite3 *db, const char *z, int n){
 }
 #endif /* !SQLITE_OMIT_BLOB_LITERAL || SQLITE_HAS_CODEC */
 
+
 /*
-** Log an error that is an API call on a connection pointer that should
-** not have been used.  The "type" of connection pointer is given as the
-** argument.  The zType is a word like "NULL" or "closed" or "invalid".
+** Change the sqlite.magic from SQLITE_MAGIC_OPEN to SQLITE_MAGIC_BUSY.
+** Return an error (non-zero) if the magic was not SQLITE_MAGIC_OPEN
+** when this routine is called.
+**
+** This routine is called when entering an SQLite API.  The SQLITE_MAGIC_OPEN
+** value indicates that the database connection passed into the API is
+** open and is not being used by another thread.  By changing the value
+** to SQLITE_MAGIC_BUSY we indicate that the connection is in use.
+** sqlite3SafetyOff() below will change the value back to SQLITE_MAGIC_OPEN
+** when the API exits. 
+**
+** This routine is a attempt to detect if two threads use the
+** same sqlite* pointer at the same time.  There is a race 
+** condition so it is possible that the error is not detected.
+** But usually the problem will be seen.  The result will be an
+** error which can be used to debug the application that is
+** using SQLite incorrectly.
+**
+** Ticket #202:  If db->magic is not a valid open value, take care not
+** to modify the db structure at all.  It could be that db is a stale
+** pointer.  In other words, it could be that there has been a prior
+** call to sqlite3_close(db) and db has been deallocated.  And we do
+** not want to write into deallocated memory.
 */
-static void logBadConnection(const char *zType){
-  sqlite3_log(SQLITE_MISUSE, 
-     "API call with %s database connection pointer",
-     zType
-  );
+#ifdef SQLITE_DEBUG
+int sqlite3SafetyOn(sqlite3 *db){
+  if( db->magic==SQLITE_MAGIC_OPEN ){
+    db->magic = SQLITE_MAGIC_BUSY;
+    assert( sqlite3_mutex_held(db->mutex) );
+    return 0;
+  }else if( db->magic==SQLITE_MAGIC_BUSY ){
+    db->magic = SQLITE_MAGIC_ERROR;
+    db->u1.isInterrupted = 1;
+  }
+  return 1;
 }
+#endif
+
+/*
+** Change the magic from SQLITE_MAGIC_BUSY to SQLITE_MAGIC_OPEN.
+** Return an error (non-zero) if the magic was not SQLITE_MAGIC_BUSY
+** when this routine is called.
+*/
+#ifdef SQLITE_DEBUG
+int sqlite3SafetyOff(sqlite3 *db){
+  if( db->magic==SQLITE_MAGIC_BUSY ){
+    db->magic = SQLITE_MAGIC_OPEN;
+    assert( sqlite3_mutex_held(db->mutex) );
+    return 0;
+  }else{
+    db->magic = SQLITE_MAGIC_ERROR;
+    db->u1.isInterrupted = 1;
+    return 1;
+  }
+}
+#endif
 
 /*
 ** Check to make sure we have a valid db pointer.  This test is not
@@ -1022,16 +1072,13 @@ static void logBadConnection(const char *zType){
 */
 int sqlite3SafetyCheckOk(sqlite3 *db){
   u32 magic;
-  if( db==0 ){
-    logBadConnection("NULL");
-    return 0;
-  }
+  if( db==0 ) return 0;
   magic = db->magic;
-  if( magic!=SQLITE_MAGIC_OPEN ){
-    if( sqlite3SafetyCheckSickOrOk(db) ){
-      testcase( sqlite3GlobalConfig.xLog!=0 );
-      logBadConnection("unopened");
-    }
+  if( magic!=SQLITE_MAGIC_OPEN 
+#ifdef SQLITE_DEBUG
+     && magic!=SQLITE_MAGIC_BUSY
+#endif
+  ){
     return 0;
   }else{
     return 1;
@@ -1042,11 +1089,6 @@ int sqlite3SafetyCheckSickOrOk(sqlite3 *db){
   magic = db->magic;
   if( magic!=SQLITE_MAGIC_SICK &&
       magic!=SQLITE_MAGIC_OPEN &&
-      magic!=SQLITE_MAGIC_BUSY ){
-    testcase( sqlite3GlobalConfig.xLog!=0 );
-    logBadConnection("invalid");
-    return 0;
-  }else{
-    return 1;
-  }
+      magic!=SQLITE_MAGIC_BUSY ) return 0;
+  return 1;
 }

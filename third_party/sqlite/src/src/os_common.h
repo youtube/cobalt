@@ -16,6 +16,8 @@
 **
 ** This file should be #included by the os_*.c files only.  It is not a
 ** general purpose header file.
+**
+** $Id: os_common.h,v 1.38 2009/02/24 18:40:50 danielk1977 Exp $
 */
 #ifndef _OS_COMMON_H_
 #define _OS_COMMON_H_
@@ -31,9 +33,23 @@
 
 #ifdef SQLITE_DEBUG
 int sqlite3OSTrace = 0;
-#define OSTRACE(X)          if( sqlite3OSTrace ) sqlite3DebugPrintf X
+#define OSTRACE1(X)         if( sqlite3OSTrace ) sqlite3DebugPrintf(X)
+#define OSTRACE2(X,Y)       if( sqlite3OSTrace ) sqlite3DebugPrintf(X,Y)
+#define OSTRACE3(X,Y,Z)     if( sqlite3OSTrace ) sqlite3DebugPrintf(X,Y,Z)
+#define OSTRACE4(X,Y,Z,A)   if( sqlite3OSTrace ) sqlite3DebugPrintf(X,Y,Z,A)
+#define OSTRACE5(X,Y,Z,A,B) if( sqlite3OSTrace ) sqlite3DebugPrintf(X,Y,Z,A,B)
+#define OSTRACE6(X,Y,Z,A,B,C) \
+    if(sqlite3OSTrace) sqlite3DebugPrintf(X,Y,Z,A,B,C)
+#define OSTRACE7(X,Y,Z,A,B,C,D) \
+    if(sqlite3OSTrace) sqlite3DebugPrintf(X,Y,Z,A,B,C,D)
 #else
-#define OSTRACE(X)
+#define OSTRACE1(X)
+#define OSTRACE2(X,Y)
+#define OSTRACE3(X,Y,Z)
+#define OSTRACE4(X,Y,Z,A)
+#define OSTRACE5(X,Y,Z,A,B)
+#define OSTRACE6(X,Y,Z,A,B,C)
+#define OSTRACE7(X,Y,Z,A,B,C,D)
 #endif
 
 /*

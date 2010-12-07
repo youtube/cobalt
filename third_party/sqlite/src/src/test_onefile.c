@@ -10,6 +10,8 @@
 **
 *************************************************************************
 **
+** $Id: test_onefile.c,v 1.12 2009/04/07 11:21:29 danielk1977 Exp $
+**
 ** OVERVIEW:
 **
 **   This file contains some example code demonstrating how the SQLite 
@@ -198,8 +200,7 @@ static fs_vfs_t fs_vfs = {
     fsDlClose,                                  /* xDlClose */
     fsRandomness,                               /* xRandomness */
     fsSleep,                                    /* xSleep */
-    fsCurrentTime,                              /* xCurrentTime */
-    0                                           /* xCurrentTimeInt64 */
+    fsCurrentTime                               /* xCurrentTime */
   }, 
   0,                                            /* pFileList */
   0                                             /* pParent */
@@ -218,11 +219,7 @@ static sqlite3_io_methods fs_io_methods = {
   fsCheckReservedLock,          /* xCheckReservedLock */
   fsFileControl,                /* xFileControl */
   fsSectorSize,                 /* xSectorSize */
-  fsDeviceCharacteristics,      /* xDeviceCharacteristics */
-  0,                            /* xShmMap */
-  0,                            /* xShmLock */
-  0,                            /* xShmBarrier */
-  0                             /* xShmUnmap */
+  fsDeviceCharacteristics       /* xDeviceCharacteristics */
 };
 
 
@@ -239,11 +236,7 @@ static sqlite3_io_methods tmp_io_methods = {
   tmpCheckReservedLock,         /* xCheckReservedLock */
   tmpFileControl,               /* xFileControl */
   tmpSectorSize,                /* xSectorSize */
-  tmpDeviceCharacteristics,     /* xDeviceCharacteristics */
-  0,                            /* xShmMap */
-  0,                            /* xShmLock */
-  0,                            /* xShmBarrier */
-  0                             /* xShmUnmap */
+  tmpDeviceCharacteristics      /* xDeviceCharacteristics */
 };
 
 /* Useful macros used in several places */

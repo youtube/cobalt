@@ -22,6 +22,8 @@
 **
 ** This version of the memory allocation subsystem is included
 ** in the build only if SQLITE_ENABLE_MEMSYS3 is defined.
+**
+** $Id: mem3.c,v 1.25 2008/11/19 16:52:44 danielk1977 Exp $
 */
 #include "sqliteInt.h"
 
@@ -576,7 +578,6 @@ static int memsys3Init(void *NotUsed){
 */
 static void memsys3Shutdown(void *NotUsed){
   UNUSED_PARAMETER(NotUsed);
-  mem3.mutex = 0;
   return;
 }
 

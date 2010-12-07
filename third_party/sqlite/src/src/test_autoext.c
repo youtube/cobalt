@@ -10,6 +10,8 @@
 **
 *************************************************************************
 ** Test extension for testing the sqlite3_auto_extension() function.
+**
+** $Id: test_autoext.c,v 1.5 2008/07/08 02:12:37 drh Exp $
 */
 #include "tcl.h"
 #include "sqlite3ext.h"

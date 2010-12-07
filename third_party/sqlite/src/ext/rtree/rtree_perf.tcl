@@ -72,3 +72,5 @@ set rtree_select_time [time {
   }
 }]
 puts "$rtree_select_time"
+
+

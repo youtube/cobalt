@@ -12,6 +12,8 @@
 ** This file contains routines used to translate between UTF-8, 
 ** UTF-16, UTF-16BE, and UTF-16LE.
 **
+** $Id: utf.c,v 1.73 2009/04/01 18:40:32 drh Exp $
+**
 ** Notes on UTF-8:
 **
 **   Byte-0    Byte-1    Byte-2    Byte-3    Value
@@ -105,20 +107,20 @@ static const unsigned char sqlite3Utf8Trans1[] = {
   }                                                                 \
 }
 
-#define READ_UTF16LE(zIn, TERM, c){                                   \
+#define READ_UTF16LE(zIn, c){                                         \
   c = (*zIn++);                                                       \
   c += ((*zIn++)<<8);                                                 \
-  if( c>=0xD800 && c<0xE000 && TERM ){                                \
+  if( c>=0xD800 && c<0xE000 ){                                        \
     int c2 = (*zIn++);                                                \
     c2 += ((*zIn++)<<8);                                              \
     c = (c2&0x03FF) + ((c&0x003F)<<10) + (((c&0x03C0)+0x0040)<<10);   \
   }                                                                   \
 }
 
-#define READ_UTF16BE(zIn, TERM, c){                                   \
+#define READ_UTF16BE(zIn, c){                                         \
   c = ((*zIn++)<<8);                                                  \
   c += (*zIn++);                                                      \
-  if( c>=0xD800 && c<0xE000 && TERM ){                                \
+  if( c>=0xD800 && c<0xE000 ){                                        \
     int c2 = ((*zIn++)<<8);                                           \
     c2 += (*zIn++);                                                   \
     c = (c2&0x03FF) + ((c&0x003F)<<10) + (((c&0x03C0)+0x0040)<<10);   \
@@ -303,13 +305,13 @@ int sqlite3VdbeMemTranslate(Mem *pMem, u8 desiredEnc){
     if( pMem->enc==SQLITE_UTF16LE ){
       /* UTF-16 Little-endian -> UTF-8 */
       while( zIn<zTerm ){
-        READ_UTF16LE(zIn, zIn<zTerm, c); 
+        READ_UTF16LE(zIn, c); 
         WRITE_UTF8(z, c);
       }
     }else{
       /* UTF-16 Big-endian -> UTF-8 */
       while( zIn<zTerm ){
-        READ_UTF16BE(zIn, zIn<zTerm, c); 
+        READ_UTF16BE(zIn, c); 
         WRITE_UTF8(z, c);
       }
     }
@@ -437,11 +439,11 @@ int sqlite3Utf8To8(unsigned char *zIn){
 **
 ** NULL is returned if there is an allocation error.
 */
-char *sqlite3Utf16to8(sqlite3 *db, const void *z, int nByte, u8 enc){
+char *sqlite3Utf16to8(sqlite3 *db, const void *z, int nByte){
   Mem m;
   memset(&m, 0, sizeof(m));
   m.db = db;
-  sqlite3VdbeMemSetStr(&m, z, nByte, enc, SQLITE_STATIC);
+  sqlite3VdbeMemSetStr(&m, z, nByte, SQLITE_UTF16NATIVE, SQLITE_STATIC);
   sqlite3VdbeChangeEncoding(&m, SQLITE_UTF8);
   if( db->mallocFailed ){
     sqlite3VdbeMemRelease(&m);
@@ -449,9 +451,7 @@ char *sqlite3Utf16to8(sqlite3 *db, const void *z, int nByte, u8 enc){
   }
   assert( (m.flags & MEM_Term)!=0 || db->mallocFailed );
   assert( (m.flags & MEM_Str)!=0 || db->mallocFailed );
-  assert( (m.flags & MEM_Dyn)!=0 || db->mallocFailed );
-  assert( m.z || db->mallocFailed );
-  return m.z;
+  return (m.flags & MEM_Dyn)!=0 ? m.z : sqlite3DbStrDup(db, m.z);
 }
 
 /*
@@ -481,7 +481,7 @@ char *sqlite3Utf8to16(sqlite3 *db, u8 enc, char *z, int n, int *pnOut){
 #endif
 
 /*
-** zIn is a UTF-16 encoded unicode string at least nChar characters long.
+** pZ is a UTF-16 encoded unicode string at least nChar characters long.
 ** Return the number of bytes in the first nChar unicode characters
 ** in pZ.  nChar must be non-negative.
 */
@@ -489,15 +489,23 @@ int sqlite3Utf16ByteLen(const void *zIn, int nChar){
   int c;
   unsigned char const *z = zIn;
   int n = 0;
-  
   if( SQLITE_UTF16NATIVE==SQLITE_UTF16BE ){
+    /* Using an "if (SQLITE_UTF16NATIVE==SQLITE_UTF16BE)" construct here
+    ** and in other parts of this file means that at one branch will
+    ** not be covered by coverage testing on any single host. But coverage
+    ** will be complete if the tests are run on both a little-endian and 
+    ** big-endian host. Because both the UTF16NATIVE and SQLITE_UTF16BE
+    ** macros are constant at compile time the compiler can determine
+    ** which branch will be followed. It is therefore assumed that no runtime
+    ** penalty is paid for this "if" statement.
+    */
     while( n<nChar ){
-      READ_UTF16BE(z, 1, c);
+      READ_UTF16BE(z, c);
       n++;
     }
   }else{
     while( n<nChar ){
-      READ_UTF16LE(z, 1, c);
+      READ_UTF16LE(z, c);
       n++;
     }
   }
@@ -539,7 +547,7 @@ void sqlite3UtfSelfTest(void){
     assert( n>0 && n<=4 );
     z[0] = 0;
     z = zBuf;
-    READ_UTF16LE(z, 1, c);
+    READ_UTF16LE(z, c);
     assert( c==i );
     assert( (z-zBuf)==n );
   }
@@ -551,7 +559,7 @@ void sqlite3UtfSelfTest(void){
     assert( n>0 && n<=4 );
     z[0] = 0;
     z = zBuf;
-    READ_UTF16BE(z, 1, c);
+    READ_UTF16BE(z, c);
     assert( c==i );
     assert( (z-zBuf)==n );
   }
