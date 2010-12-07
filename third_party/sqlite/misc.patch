@@ -1,7 +1,7 @@
-Index: Makefile.linux-gcc
-===================================================================
---- Makefile.linux-gcc	2009-09-03 13:32:06.000000000 -0700
-+++ Makefile.linux-gcc	2009-07-01 12:08:39.000000000 -0700
+diff --git a/third_party/sqlite/src/Makefile.linux-gcc b/third_party/sqlite/src/Makefile.linux-gcc
+index 1c9f24f..de9d717 100644
+--- a/third_party/sqlite/src/Makefile.linux-gcc
++++ b/third_party/sqlite/src/Makefile.linux-gcc
 @@ -14,7 +14,7 @@
  #### The toplevel directory of the source tree.  This is the directory
  #    that contains this "Makefile.in" and the "configure.in" script.
@@ -11,7 +11,7 @@ Index: Makefile.linux-gcc
  
  #### C Compiler and options for use in building executables that
  #    will run on the platform that is doing the build.
-@@ -33,13 +33,13 @@
+@@ -33,13 +33,13 @@ USLEEP = -DHAVE_USLEEP=1
  #    appropriately:
  #
  #THREADSAFE = -DTHREADSAFE=1
@@ -27,7 +27,7 @@ Index: Makefile.linux-gcc
  
  #### Specify any extra libraries needed to access required functions.
  #
-@@ -57,8 +57,29 @@
+@@ -57,8 +57,29 @@ TLIBS =
  #OPTS = -DSQLITE_DEBUG=2
  #OPTS = -DSQLITE_DEBUG=1
  #OPTS = 
@@ -59,32 +59,32 @@ Index: Makefile.linux-gcc
  
  #### The suffix to add to executable files.  ".exe" for windows.
  #    Nothing for unix.
-@@ -91,16 +112,16 @@
+@@ -91,16 +112,16 @@ SHPREFIX = lib
  
  #### Extra compiler options needed for programs that use the TCL library.
  #
 -#TCL_FLAGS =
 +TCL_FLAGS = -I/usr/include/tcl8.4
  #TCL_FLAGS = -DSTATIC_BUILD=1
--TCL_FLAGS = -I/home/drh/tcltk/8.4linux
-+#TCL_FLAGS = -I/home/drh/tcltk/8.4linux
- #TCL_FLAGS = -I/home/drh/tcltk/8.4win -DSTATIC_BUILD=1
+-TCL_FLAGS = -I/home/drh/tcltk/8.5linux
++#TCL_FLAGS = -I/home/drh/tcltk/8.5linux
+ #TCL_FLAGS = -I/home/drh/tcltk/8.5win -DSTATIC_BUILD=1
  #TCL_FLAGS = -I/home/drh/tcltk/8.3hpux
  
  #### Linker options needed to link against the TCL library.
  #
 -#LIBTCL = -ltcl -lm -ldl
--LIBTCL = /home/drh/tcltk/8.4linux/libtcl8.4g.a -lm -ldl
+-LIBTCL = /home/drh/tcltk/8.5linux/libtcl8.5g.a -lm -ldl
 +LIBTCL = -ltcl8.4 -lm -ldl
-+#LIBTCL = /home/drh/tcltk/8.4linux/libtcl8.4g.a -lm -ldl
- #LIBTCL = /home/drh/tcltk/8.4win/libtcl84s.a -lmsvcrt
++#LIBTCL = /home/drh/tcltk/8.5linux/libtcl8.5g.a -lm -ldl
+ #LIBTCL = /home/drh/tcltk/8.5win/libtcl85s.a -lmsvcrt
  #LIBTCL = /home/drh/tcltk/8.3hpux/libtcl8.3.a -ldld -lm -lc
  
-Index: ext/fts1/fts1.c
-===================================================================
---- ext/fts1/fts1.c	2009-09-04 13:37:41.000000000 -0700
-+++ ext/fts1/fts1.c	2009-09-14 18:16:55.000000000 -0700
-@@ -1225,10 +1225,6 @@
+diff --git a/third_party/sqlite/src/ext/fts1/fts1.c b/third_party/sqlite/src/ext/fts1/fts1.c
+index d5429ff..8ae8df4 100644
+--- a/third_party/sqlite/src/ext/fts1/fts1.c
++++ b/third_party/sqlite/src/ext/fts1/fts1.c
+@@ -1225,10 +1225,6 @@ static int sql_step_statement(fulltext_vtab *v, fulltext_statement iStmt,
      break;
    }
    return rc;
@@ -95,10 +95,10 @@ Index: ext/fts1/fts1.c
  }
  
  /* Like sql_step_statement(), but convert SQLITE_DONE to SQLITE_OK.
-Index: ext/icu/icu.c
-===================================================================
---- ext/icu/icu.c	2009-09-03 13:32:06.000000000 -0700
-+++ ext/icu/icu.c	2009-07-01 12:08:37.000000000 -0700
+diff --git a/third_party/sqlite/src/ext/icu/icu.c b/third_party/sqlite/src/ext/icu/icu.c
+index e99f142..2e2251c 100644
+--- a/third_party/sqlite/src/ext/icu/icu.c
++++ b/third_party/sqlite/src/ext/icu/icu.c
 @@ -38,6 +38,11 @@
  
  #include <assert.h>
@@ -111,106 +111,11 @@ Index: ext/icu/icu.c
  #ifndef SQLITE_CORE
    #include "sqlite3ext.h"
    SQLITE_EXTENSION_INIT1
-Index: main.mk
-===================================================================
---- main.mk	2009-09-10 12:18:17.000000000 -0700
-+++ main.mk	2009-09-15 11:45:21.000000000 -0700
-@@ -69,6 +69,16 @@
-          walker.o where.o utf.o vtab.o
- 
- 
-+LIBOBJ += fts1.o \
-+	  fts1_hash.o \
-+	  fts1_tokenizer1.o \
-+	  fts1_porter.o
-+LIBOBJ += fts2.o \
-+	  fts2_hash.o \
-+	  fts2_icu.o \
-+	  fts2_porter.o \
-+          fts2_tokenizer.o \
-+	  fts2_tokenizer1.o
- 
- # All of the source code files.
- #
-@@ -243,6 +253,25 @@
-   $(TOP)/src/test_thread.c \
-   $(TOP)/src/test_wsd.c
- 
-+TESTSRC += \
-+  $(TOP)/ext/fts1/fts1.c \
-+  $(TOP)/ext/fts1/fts1.h \
-+  $(TOP)/ext/fts1/fts1_hash.c \
-+  $(TOP)/ext/fts1/fts1_hash.h \
-+  $(TOP)/ext/fts1/fts1_porter.c \
-+  $(TOP)/ext/fts1/fts1_tokenizer.h \
-+  $(TOP)/ext/fts1/fts1_tokenizer1.c
-+TESTSRC += \
-+  $(TOP)/ext/fts2/fts2.c \
-+  $(TOP)/ext/fts2/fts2.h \
-+  $(TOP)/ext/fts2/fts2_hash.c \
-+  $(TOP)/ext/fts2/fts2_hash.h \
-+  $(TOP)/ext/fts2/fts2_icu.c \
-+  $(TOP)/ext/fts2/fts2_porter.c \
-+  $(TOP)/ext/fts2/fts2_tokenizer.h \
-+  $(TOP)/ext/fts2/fts2_tokenizer.c \
-+  $(TOP)/ext/fts2/fts2_tokenizer1.c
-+
- #TESTSRC += $(TOP)/ext/fts2/fts2_tokenizer.c
- #TESTSRC += $(TOP)/ext/fts3/fts3_tokenizer.c
- 
-@@ -314,8 +343,8 @@
- 
- sqlite3$(EXE):	$(TOP)/src/shell.c libsqlite3.a sqlite3.h
- 	$(TCCX) $(READLINE_FLAGS) -o sqlite3$(EXE)                  \
--		$(TOP)/src/shell.c                                  \
--		libsqlite3.a $(LIBREADLINE) $(TLIBS) $(THREADLIB)
-+		$(TOP)/src/shell.c $(SHELL_ICU)                     \
-+		libsqlite3.a $(LIBREADLINE) $(TLIBS) $(THREADLIB) -ldl
- 
- objects: $(LIBOBJ_ORIG)
- 
-@@ -447,6 +476,20 @@
- 	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/rtree/rtree.c
- 
- 
-+
-+
-+fts1.o:	$(TOP)/ext/fts1/fts1.c $(HDR) $(EXTHDR)
-+	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1.c
-+
-+fts1_hash.o:	$(TOP)/ext/fts1/fts1_hash.c $(HDR) $(EXTHDR)
-+	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_hash.c
-+
-+fts1_tokenizer1.o:	$(TOP)/ext/fts1/fts1_tokenizer1.c $(HDR) $(EXTHDR)
-+	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_tokenizer1.c
-+
-+fts1_porter.o:	$(TOP)/ext/fts1/fts1_porter.c $(HDR) $(EXTHDR)
-+	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_porter.c
-+
- # Rules for building test programs and for running tests
- #
- tclsqlite3:	$(TOP)/src/tclsqlite.c libsqlite3.a
-@@ -484,6 +527,15 @@
- test:	testfixture$(EXE) sqlite3$(EXE)
- 	./testfixture$(EXE) $(TOP)/test/veryquick.test
- 
-+ftstest:	testfixture$(EXE) sqlite3$(EXE)
-+	./testfixture$(EXE) $(TOP)/test/fts.test
-+
-+fts1test:	testfixture$(EXE) sqlite3$(EXE)
-+	./testfixture$(EXE) $(TOP)/test/fts1.test
-+
-+fts2test:	testfixture$(EXE) sqlite3$(EXE)
-+	./testfixture$(EXE) $(TOP)/test/fts2.test
-+
- sqlite3_analyzer$(EXE):	$(TOP)/src/tclsqlite.c sqlite3.c $(TESTSRC) \
- 			$(TOP)/tool/spaceanal.tcl
- 	sed \
-Index: src/expr.c
-===================================================================
---- src/expr.c	2009-09-08 12:16:11.000000000 -0700
-+++ src/expr.c	2009-09-23 16:58:47.000000000 -0700
-@@ -804,7 +804,9 @@
+diff --git a/third_party/sqlite/src/src/expr.c b/third_party/sqlite/src/src/expr.c
+index 41be162..30f0434 100644
+--- a/third_party/sqlite/src/src/expr.c
++++ b/third_party/sqlite/src/src/expr.c
+@@ -775,7 +775,9 @@ static Expr *exprDup(sqlite3 *db, Expr *p, int flags, u8 **pzBuffer){
        }else{
          int nSize = exprStructSize(p);
          memcpy(zAlloc, p, nSize);
@@ -221,11 +126,11 @@ Index: src/expr.c
        }
  
        /* Set the EP_Reduced, EP_TokenOnly, and EP_Static flags appropriately. */
-Index: src/func.c
-===================================================================
---- src/func.c	2009-09-04 13:37:42.000000000 -0700
-+++ src/func.c	2009-09-14 18:18:18.000000000 -0700
-@@ -1020,7 +1020,7 @@
+diff --git a/third_party/sqlite/src/src/func.c b/third_party/sqlite/src/src/func.c
+index 8b7086f..5c56a79 100644
+--- a/third_party/sqlite/src/src/func.c
++++ b/third_party/sqlite/src/src/func.c
+@@ -1114,7 +1114,7 @@ static void trimFunc(
        }
      }
      if( zCharSet ){
@@ -234,11 +139,11 @@ Index: src/func.c
      }
    }
    sqlite3_result_text(context, (char*)zIn, nIn, SQLITE_TRANSIENT);
-Index: src/os.h
-===================================================================
---- src/os.h	2009-09-04 13:37:42.000000000 -0700
-+++ src/os.h	2009-09-14 18:18:24.000000000 -0700
-@@ -29,6 +29,10 @@
+diff --git a/third_party/sqlite/src/src/os.h b/third_party/sqlite/src/src/os.h
+index 7f17c20..6d6486f 100644
+--- a/third_party/sqlite/src/src/os.h
++++ b/third_party/sqlite/src/src/os.h
+@@ -27,6 +27,10 @@
  ** will defined to either 1 or 0.  One of the four will be 1.  The other 
  ** three will be 0.
  */
@@ -249,11 +154,11 @@ Index: src/os.h
  #if defined(SQLITE_OS_OTHER)
  # if SQLITE_OS_OTHER==1
  #   undef SQLITE_OS_UNIX
-Index: src/os_unix.c
-===================================================================
---- src/os_unix.c	2009-09-10 12:14:55.000000000 -0700
-+++ src/os_unix.c	2009-09-15 16:50:43.000000000 -0700
-@@ -3215,6 +3215,7 @@
+diff --git a/third_party/sqlite/src/src/os_unix.c b/third_party/sqlite/src/src/os_unix.c
+index 2b38fd6..4717d48 100644
+--- a/third_party/sqlite/src/src/os_unix.c
++++ b/third_party/sqlite/src/src/os_unix.c
+@@ -3769,6 +3769,7 @@ static int unixShmUnmap(
  ********************** End sqlite3_file Methods *******************************
  ******************************************************************************/
  
@@ -261,7 +166,7 @@ Index: src/os_unix.c
  /*
  ** This division contains definitions of sqlite3_io_methods objects that
  ** implement various file locking strategies.  It also contains definitions
-@@ -3496,9 +3497,16 @@
+@@ -4055,9 +4056,16 @@ typedef const sqlite3_io_methods *(*finder_type)(const char*,unixFile*);
  */
  
  /*
@@ -279,11 +184,11 @@ Index: src/os_unix.c
    sqlite3_vfs *pVfs,      /* Pointer to vfs object */
    int h,                  /* Open file descriptor of file being opened */
    int dirfd,              /* Directory file descriptor */
-Index: src/os_win.c
-===================================================================
---- src/os_win.c	2009-09-10 15:08:39.000000000 -0700
-+++ src/os_win.c	2009-09-14 18:26:16.000000000 -0700
-@@ -1890,4 +1890,11 @@
+diff --git a/third_party/sqlite/src/src/os_win.c b/third_party/sqlite/src/src/os_win.c
+index 1be5149..b91ff48 100644
+--- a/third_party/sqlite/src/src/os_win.c
++++ b/third_party/sqlite/src/src/os_win.c
+@@ -2778,4 +2778,11 @@ int sqlite3_os_end(void){
    return SQLITE_OK;
  }
  
@@ -295,11 +200,11 @@ Index: src/os_win.c
 +}
 +
  #endif /* SQLITE_OS_WIN */
-Index: src/pcache.c
-===================================================================
---- src/pcache.c	2009-09-04 13:37:42.000000000 -0700
-+++ src/pcache.c	2009-09-15 16:41:55.000000000 -0700
-@@ -542,14 +542,12 @@
+diff --git a/third_party/sqlite/src/src/pcache.c b/third_party/sqlite/src/src/pcache.c
+index 242f307..6dec550 100644
+--- a/third_party/sqlite/src/src/pcache.c
++++ b/third_party/sqlite/src/src/pcache.c
+@@ -553,14 +553,12 @@ int sqlite3PcachePagecount(PCache *pCache){
    return nPage;
  }
  
@@ -314,11 +219,11 @@ Index: src/pcache.c
  
  /*
  ** Set the suggested cache-size value.
-Index: src/pcache.h
-===================================================================
---- src/pcache.h	2009-09-04 13:37:42.000000000 -0700
-+++ src/pcache.h	2009-09-15 16:41:52.000000000 -0700
-@@ -139,9 +139,7 @@
+diff --git a/third_party/sqlite/src/src/pcache.h b/third_party/sqlite/src/src/pcache.h
+index 33735d2..a9bea98 100644
+--- a/third_party/sqlite/src/src/pcache.h
++++ b/third_party/sqlite/src/src/pcache.h
+@@ -137,9 +137,7 @@ void sqlite3PcacheIterateDirty(PCache *pCache, void (*xIter)(PgHdr *));
  ** of the suggested cache-sizes.
  */
  void sqlite3PcacheSetCachesize(PCache *, int);
@@ -328,11 +233,11 @@ Index: src/pcache.h
  
  #ifdef SQLITE_ENABLE_MEMORY_MANAGEMENT
  /* Try to return memory used by the pcache module to the main memory heap */
-Index: src/shell.c
-===================================================================
---- src/shell.c	2009-09-04 13:37:43.000000000 -0700
-+++ src/shell.c	2009-09-15 11:32:08.000000000 -0700
-@@ -3007,6 +3007,18 @@
+diff --git a/third_party/sqlite/src/src/shell.c b/third_party/sqlite/src/src/shell.c
+index c5aa40c..0c2adde 100644
+--- a/third_party/sqlite/src/src/shell.c
++++ b/third_party/sqlite/src/src/shell.c
+@@ -2525,6 +2525,18 @@ int main(int argc, char **argv){
    int i;
    int rc = 0;
  
@@ -351,11 +256,11 @@ Index: src/shell.c
    Argv0 = argv[0];
    main_init(&data);
    stdin_is_interactive = isatty(0);
-Index: src/sqlite3ext.h
-===================================================================
---- src/sqlite3ext.h	2009-09-03 13:32:06.000000000 -0700
-+++ src/sqlite3ext.h	2009-09-15 11:34:43.000000000 -0700
-@@ -372,9 +372,15 @@
+diff --git a/third_party/sqlite/src/src/sqlite3ext.h b/third_party/sqlite/src/src/sqlite3ext.h
+index 0d37bbe..1530676 100644
+--- a/third_party/sqlite/src/src/sqlite3ext.h
++++ b/third_party/sqlite/src/src/sqlite3ext.h
+@@ -370,9 +370,15 @@ struct sqlite3_api_routines {
  #define sqlite3_next_stmt              sqlite3_api->next_stmt
  #define sqlite3_sql                    sqlite3_api->sql
  #define sqlite3_status                 sqlite3_api->status
@@ -372,11 +277,11 @@ Index: src/sqlite3ext.h
 +#endif /* SQLITE_CORE */
 +
  #endif /* _SQLITE3EXT_H_ */
-Index: src/test_autoext.c
-===================================================================
---- src/test_autoext.c	2009-09-03 13:32:06.000000000 -0700
-+++ src/test_autoext.c	2009-09-15 18:14:35.000000000 -0700
-@@ -17,7 +17,9 @@
+diff --git a/third_party/sqlite/src/src/test_autoext.c b/third_party/sqlite/src/src/test_autoext.c
+index 6b1e297..8ff02e1 100644
+--- a/third_party/sqlite/src/src/test_autoext.c
++++ b/third_party/sqlite/src/src/test_autoext.c
+@@ -15,7 +15,9 @@
  #include "sqlite3ext.h"
  
  #ifndef SQLITE_OMIT_LOAD_EXTENSION
@@ -386,24 +291,11 @@ Index: src/test_autoext.c
  
  /*
  ** The sqr() SQL function returns the square of its input value.
-Index: src/quick.test
-===================================================================
---- test/quick.test	2009-09-04 13:37:44.000000000 -0700
-+++ test/quick.test	2009-09-15 11:34:54.000000000 -0700
-@@ -58,6 +58,9 @@
-   crash7.test
-   delete3.test
-   fts3.test
-+  fts.test
-+  fts1.test
-+  fts2.test
-   fuzz.test
-   fuzz3.test
-   fuzz_malloc.test
-Index: src/os_symbian.cc
-===================================================================
---- src/os_symbian.cc	1969-12-31 16:00:00.000000000 -0800
-+++ src/os_symbian.cc	2009-07-01 12:08:37.000000000 -0700
+diff --git a/third_party/sqlite/src/src/os_symbian.cc b/third_party/sqlite/src/src/os_symbian.cc
+new file mode 100644
+index 0000000..5b86338
+--- /dev/null
++++ b/third_party/sqlite/src/src/os_symbian.cc
 @@ -0,0 +1,579 @@
 +// Copyright 2008, Google Inc.
 +//
@@ -984,10 +876,11 @@ Index: src/os_symbian.cc
 +}
 +
 +#endif /* OS_SYMBIAN*/
-Index: src/shell_icu_linux.c
-===================================================================
---- src/shell_icu_linux.c	1969-12-31 16:00:00.000000000 -0800
-+++ src/shell_icu_linux.c	2009-09-17 13:48:49.000000000 -0700
+diff --git a/third_party/sqlite/src/src/shell_icu_linux.c b/third_party/sqlite/src/src/shell_icu_linux.c
+new file mode 100644
+index 0000000..8194db5
+--- /dev/null
++++ b/third_party/sqlite/src/src/shell_icu_linux.c
 @@ -0,0 +1,26 @@
 +/* Copyright 2007 Google Inc. All Rights Reserved.
 +**/
@@ -1015,10 +908,11 @@ Index: src/shell_icu_linux.c
 +  udata_setFileAccess(UDATA_ONLY_PACKAGES, &err);
 +  return err == U_ZERO_ERROR;
 +}
-Index: src/shell_icu_win.c
-===================================================================
---- src/shell_icu_win.c	1969-12-31 16:00:00.000000000 -0800
-+++ src/shell_icu_win.c	2009-09-09 12:29:11.000000000 -0700
+diff --git a/third_party/sqlite/src/src/shell_icu_win.c b/third_party/sqlite/src/src/shell_icu_win.c
+new file mode 100644
+index 0000000..afea472
+--- /dev/null
++++ b/third_party/sqlite/src/src/shell_icu_win.c
 @@ -0,0 +1,34 @@
 +/* Copyright 2007 Google Inc. All Rights Reserved.
 +**/
@@ -1054,10 +948,11 @@ Index: src/shell_icu_win.c
 +
 +  return 1;
 +}
-Index: test/fts.test
-===================================================================
---- test/fts.test	1969-12-31 16:00:00.000000000 -0800
-+++ test/fts.test	2009-07-01 12:08:39.000000000 -0700
+diff --git a/third_party/sqlite/src/test/fts.test b/third_party/sqlite/src/test/fts.test
+new file mode 100644
+index 0000000..031f547
+--- /dev/null
++++ b/third_party/sqlite/src/test/fts.test
 @@ -0,0 +1,61 @@
 +#
 +#    May you do good and not evil.
@@ -1120,10 +1015,11 @@ Index: test/fts.test
 +
 +set sqlite_open_file_count 0
 +really_finish_test
-Index: test/fts1.test
-===================================================================
---- test/fts1.test	1969-12-31 16:00:00.000000000 -0800
-+++ test/fts1.test	2009-07-01 12:08:39.000000000 -0700
+diff --git a/third_party/sqlite/src/test/fts1.test b/third_party/sqlite/src/test/fts1.test
+new file mode 100644
+index 0000000..1ddb19f
+--- /dev/null
++++ b/third_party/sqlite/src/test/fts1.test
 @@ -0,0 +1,61 @@
 +#
 +#    May you do good and not evil.
