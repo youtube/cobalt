@@ -366,7 +366,7 @@ void SSLVersionToString(const char** name, int ssl_version) {
       *name = "TLS 1.2";
       break;
     default:
-      NOTREACHED();
+      NOTREACHED() << ssl_version;
       *name = "???";
       break;
   }
