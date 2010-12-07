@@ -4,14 +4,40 @@
 
 #include "net/base/keygen_handler.h"
 
+#include <openssl/ssl.h>
+
+#include "base/crypto/rsa_private_key.h"
 #include "base/logging.h"
+#include "base/openssl_util.h"
+#include "base/scoped_ptr.h"
 
 namespace net {
 
 std::string KeygenHandler::GenKeyAndSignChallenge() {
-  // TODO(bulach): implement me.
-  NOTIMPLEMENTED();
-  return "";
+  scoped_ptr<base::RSAPrivateKey> key(
+      base::RSAPrivateKey::Create(key_size_in_bits_));
+  EVP_PKEY* pkey = key->key();
+
+  if (stores_key_) {
+    // TODO(joth): Add an abstraction for persisting OpenSSL private keys.
+    // See http://crbug.com/64917
+    NOTIMPLEMENTED();
+  }
+
+  base::ScopedOpenSSL<NETSCAPE_SPKI, NETSCAPE_SPKI_free> spki(
+       NETSCAPE_SPKI_new());
+  ASN1_STRING_set(spki.get()->spkac->challenge,
+                  challenge_.data(), challenge_.size());
+  NETSCAPE_SPKI_set_pubkey(spki.get(), pkey);
+  // Using MD5 as this is what is required in HTML5, even though the SPKI
+  // structure does allow the use of a SHA-1 signature.
+  NETSCAPE_SPKI_sign(spki.get(), pkey, EVP_md5());
+  char* spkistr = NETSCAPE_SPKI_b64_encode(spki.get());
+
+  std::string result(spkistr);
+  OPENSSL_free(spkistr);
+
+  return result;
 }
 
 }  // namespace net
