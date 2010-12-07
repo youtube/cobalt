@@ -244,7 +244,7 @@ bool RegKey::OpenKey(const wchar_t* name, REGSAM access) {
   return (result == ERROR_SUCCESS);
 }
 
-DWORD RegKey::ValueCount() {
+DWORD RegKey::ValueCount() const {
   base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
   HRESULT result = RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL,
@@ -252,7 +252,7 @@ DWORD RegKey::ValueCount() {
   return (result != ERROR_SUCCESS) ? 0 : count;
 }
 
-bool RegKey::ReadName(int index, std::wstring* name) {
+bool RegKey::ReadName(int index, std::wstring* name) const {
   base::ThreadRestrictions::AssertIOAllowed();
   wchar_t buf[256];
   DWORD bufsize = arraysize(buf);
@@ -274,7 +274,7 @@ bool RegKey::ValueExists(const wchar_t* name) {
 }
 
 bool RegKey::ReadValue(const wchar_t* name, void* data,
-                       DWORD* dsize, DWORD* dtype) {
+                       DWORD* dsize, DWORD* dtype) const {
   base::ThreadRestrictions::AssertIOAllowed();
   if (!key_)
     return false;
@@ -283,7 +283,7 @@ bool RegKey::ReadValue(const wchar_t* name, void* data,
   return (result == ERROR_SUCCESS);
 }
 
-bool RegKey::ReadValue(const wchar_t* name, std::wstring* value) {
+bool RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(value);
   const size_t kMaxStringLength = 1024;  // This is after expansion.
@@ -312,7 +312,7 @@ bool RegKey::ReadValue(const wchar_t* name, std::wstring* value) {
   return false;
 }
 
-bool RegKey::ReadValueDW(const wchar_t* name, DWORD* value) {
+bool RegKey::ReadValueDW(const wchar_t* name, DWORD* value) const {
   DCHECK(value);
   DWORD type = REG_DWORD;
   DWORD size = sizeof(DWORD);

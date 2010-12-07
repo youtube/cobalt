@@ -38,10 +38,10 @@ class RegKey {
 
   void Close();
 
-  DWORD ValueCount();
+  DWORD ValueCount() const;
 
   // Determine the nth value's name.
-  bool ReadName(int index, std::wstring* name);
+  bool ReadName(int index, std::wstring* name) const;
 
   // True while the key is valid.
   bool Valid() const { return key_ != NULL; }
@@ -55,9 +55,10 @@ class RegKey {
 
   bool ValueExists(const wchar_t* name);
 
-  bool ReadValue(const wchar_t* name, void* data, DWORD* dsize, DWORD* dtype);
-  bool ReadValue(const wchar_t* name, std::wstring* value);
-  bool ReadValueDW(const wchar_t* name, DWORD* value);
+  bool ReadValue(const wchar_t* name, void* data, DWORD* dsize,
+                 DWORD* dtype) const;
+  bool ReadValue(const wchar_t* name, std::wstring* value) const;
+  bool ReadValueDW(const wchar_t* name, DWORD* value) const;
 
   bool WriteValue(const wchar_t* name, const void* data, DWORD dsize,
                   DWORD dtype);
@@ -65,7 +66,7 @@ class RegKey {
   bool WriteValue(const wchar_t* name, DWORD value);
 
   // Starts watching the key to see if any of its values have changed.
-  // The key must have been opened with the KEY_NOTIFY access privelege.
+  // The key must have been opened with the KEY_NOTIFY access privilege.
   bool StartWatching();
 
   // If StartWatching hasn't been called, always returns false.
