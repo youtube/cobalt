@@ -13,8 +13,6 @@
 ** This file contains the implementation of some Tcl commands used to
 ** test that sqlite3 database handles may be concurrently accessed by 
 ** multiple threads. Right now this only works on unix.
-**
-** $Id: test_thread.c,v 1.15 2009/03/27 12:32:56 drh Exp $
 */
 
 #include "sqliteInt.h"
@@ -60,6 +58,7 @@ static Tcl_ObjCmdProc blocking_step_proc;
 static Tcl_ObjCmdProc blocking_prepare_v2_proc;
 #endif
 int Sqlitetest1_Init(Tcl_Interp *);
+int Sqlite3_Init(Tcl_Interp *);
 
 /* Functions from test1.c */
 void *sqlite3TestTextToPtr(const char *);
@@ -126,6 +125,7 @@ static Tcl_ThreadCreateType tclScriptThread(ClientData pSqlThread){
 #endif
   Sqlitetest1_Init(interp);
   Sqlitetest_mutex_Init(interp);
+  Sqlite3_Init(interp);
 
   rc = Tcl_Eval(interp, p->zScript);
   pRes = Tcl_GetObjResult(interp);
@@ -150,6 +150,8 @@ static Tcl_ThreadCreateType tclScriptThread(ClientData pSqlThread){
   Tcl_DecrRefCount(pList);
   Tcl_DecrRefCount(pRes);
   Tcl_DeleteInterp(interp);
+  while( Tcl_DoOneEvent(TCL_ALL_EVENTS|TCL_DONT_WAIT) );
+  Tcl_ExitThread(0);
   TCL_THREAD_CREATE_RETURN;
 }
 

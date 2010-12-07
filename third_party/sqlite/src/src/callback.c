@@ -12,8 +12,6 @@
 **
 ** This file contains functions used to access the internal hash tables
 ** of user defined functions and collation sequences.
-**
-** $Id: callback.c,v 1.42 2009/06/17 00:35:31 drh Exp $
 */
 
 #include "sqliteInt.h"
@@ -355,14 +353,19 @@ FuncDef *sqlite3FindFunction(
 
   /* If no match is found, search the built-in functions.
   **
+  ** If the SQLITE_PreferBuiltin flag is set, then search the built-in
+  ** functions even if a prior app-defined function was found.  And give
+  ** priority to built-in functions.
+  **
   ** Except, if createFlag is true, that means that we are trying to
-  ** install a new function.  Whatever FuncDef structure is returned will
+  ** install a new function.  Whatever FuncDef structure is returned it will
   ** have fields overwritten with new information appropriate for the
   ** new function.  But the FuncDefs for built-in functions are read-only.
   ** So we must not search for built-ins when creating a new function.
   */ 
-  if( !createFlag && !pBest ){
+  if( !createFlag && (pBest==0 || (db->flags & SQLITE_PreferBuiltin)!=0) ){
     FuncDefHash *pHash = &GLOBAL(FuncDefHash, sqlite3GlobalFunctions);
+    bestScore = 0;
     p = functionSearch(pHash, h, zName, nName);
     while( p ){
       int score = matchQuality(p, nArg, enc);
@@ -419,10 +422,10 @@ void sqlite3SchemaFree(void *p){
   sqlite3HashInit(&pSchema->tblHash);
   for(pElem=sqliteHashFirst(&temp1); pElem; pElem=sqliteHashNext(pElem)){
     Table *pTab = sqliteHashData(pElem);
-    assert( pTab->dbMem==0 );
-    sqlite3DeleteTable(pTab);
+    sqlite3DeleteTable(0, pTab);
   }
   sqlite3HashClear(&temp1);
+  sqlite3HashClear(&pSchema->fkeyHash);
   pSchema->pSeqTab = 0;
   pSchema->flags &= ~DB_SchemaLoaded;
 }
@@ -436,7 +439,7 @@ Schema *sqlite3SchemaGet(sqlite3 *db, Btree *pBt){
   if( pBt ){
     p = (Schema *)sqlite3BtreeSchema(pBt, sizeof(Schema), sqlite3SchemaFree);
   }else{
-    p = (Schema *)sqlite3MallocZero(sizeof(Schema));
+    p = (Schema *)sqlite3DbMallocZero(0, sizeof(Schema));
   }
   if( !p ){
     db->mallocFailed = 1;
@@ -444,6 +447,7 @@ Schema *sqlite3SchemaGet(sqlite3 *db, Btree *pBt){
     sqlite3HashInit(&p->tblHash);
     sqlite3HashInit(&p->idxHash);
     sqlite3HashInit(&p->trigHash);
+    sqlite3HashInit(&p->fkeyHash);
     p->enc = SQLITE_UTF8;
   }
   return p;

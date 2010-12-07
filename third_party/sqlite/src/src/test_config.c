@@ -15,8 +15,6 @@
 ** 
 ** The focus of this file is providing the TCL testing layer
 ** access to compile-time constants.
-**
-** $Id: test_config.c,v 1.50 2009/06/19 14:06:03 drh Exp $
 */
 
 #include "sqliteLimit.h"
@@ -129,6 +127,12 @@ static void set_options(Tcl_Interp *interp){
   Tcl_SetVar2(interp, "sqlite_options", "autoinc", "1", TCL_GLOBAL_ONLY);
 #endif
 
+#ifdef SQLITE_OMIT_AUTOMATIC_INDEX
+  Tcl_SetVar2(interp, "sqlite_options", "autoindex", "0", TCL_GLOBAL_ONLY);
+#else
+  Tcl_SetVar2(interp, "sqlite_options", "autoindex", "1", TCL_GLOBAL_ONLY);
+#endif
+
 #ifdef SQLITE_OMIT_AUTOVACUUM
   Tcl_SetVar2(interp, "sqlite_options", "autovacuum", "0", TCL_GLOBAL_ONLY);
 #else
@@ -185,7 +189,11 @@ static void set_options(Tcl_Interp *interp){
               TCL_GLOBAL_ONLY);
 #endif
 
-
+#ifdef SQLITE_OMIT_COMPILEOPTION_DIAGS
+  Tcl_SetVar2(interp, "sqlite_options", "compileoption_diags", "0", TCL_GLOBAL_ONLY);
+#else
+  Tcl_SetVar2(interp, "sqlite_options", "compileoption_diags", "1", TCL_GLOBAL_ONLY);
+#endif
 
 #ifdef SQLITE_OMIT_COMPLETE
   Tcl_SetVar2(interp, "sqlite_options", "complete", "0", TCL_GLOBAL_ONLY);
@@ -275,12 +283,6 @@ static void set_options(Tcl_Interp *interp){
   Tcl_SetVar2(interp, "sqlite_options", "gettable", "0", TCL_GLOBAL_ONLY);
 #else
   Tcl_SetVar2(interp, "sqlite_options", "gettable", "1", TCL_GLOBAL_ONLY);
-#endif
-
-#ifdef SQLITE_OMIT_GLOBALRECOVER
-  Tcl_SetVar2(interp, "sqlite_options", "globalrecover", "0", TCL_GLOBAL_ONLY);
-#else
-  Tcl_SetVar2(interp, "sqlite_options", "globalrecover", "1", TCL_GLOBAL_ONLY);
 #endif
 
 #ifdef SQLITE_ENABLE_ICU
@@ -461,7 +463,7 @@ Tcl_SetVar2(interp, "sqlite_options", "long_double",
   Tcl_SetVar2(interp, "sqlite_options", "trigger", "1", TCL_GLOBAL_ONLY);
 #endif
 
-#ifdef SQLITE_OMIT_TRUCATE_OPTIMIZATION
+#ifdef SQLITE_OMIT_TRUNCATE_OPTIMIZATION
   Tcl_SetVar2(interp, "sqlite_options", "truncate_opt", "0", TCL_GLOBAL_ONLY);
 #else
   Tcl_SetVar2(interp, "sqlite_options", "truncate_opt", "1", TCL_GLOBAL_ONLY);
@@ -489,6 +491,12 @@ Tcl_SetVar2(interp, "sqlite_options", "long_double",
   Tcl_SetVar2(interp, "sqlite_options", "vtab", "0", TCL_GLOBAL_ONLY);
 #else
   Tcl_SetVar2(interp, "sqlite_options", "vtab", "1", TCL_GLOBAL_ONLY);
+#endif
+
+#ifdef SQLITE_OMIT_WAL
+  Tcl_SetVar2(interp, "sqlite_options", "wal", "0", TCL_GLOBAL_ONLY);
+#else
+  Tcl_SetVar2(interp, "sqlite_options", "wal", "1", TCL_GLOBAL_ONLY);
 #endif
 
 #ifdef SQLITE_OMIT_WSD
@@ -537,6 +545,7 @@ Tcl_SetVar2(interp, "sqlite_options", "long_double",
   LINKVAR( MAX_PAGE_SIZE );
   LINKVAR( MAX_PAGE_COUNT );
   LINKVAR( MAX_LIKE_PATTERN_LENGTH );
+  LINKVAR( MAX_TRIGGER_DEPTH );
   LINKVAR( DEFAULT_TEMP_CACHE_SIZE );
   LINKVAR( DEFAULT_CACHE_SIZE );
   LINKVAR( DEFAULT_PAGE_SIZE );
