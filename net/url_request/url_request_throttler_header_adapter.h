@@ -19,7 +19,7 @@ class URLRequestThrottlerHeaderAdapter
     : public URLRequestThrottlerHeaderInterface {
  public:
   explicit URLRequestThrottlerHeaderAdapter(net::HttpResponseHeaders* headers);
-  virtual ~URLRequestThrottlerHeaderAdapter() {}
+  virtual ~URLRequestThrottlerHeaderAdapter();
 
   // Implementation of URLRequestThrottlerHeaderInterface
   virtual std::string GetNormalizedValue(const std::string& key) const;

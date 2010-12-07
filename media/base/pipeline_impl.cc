@@ -16,6 +16,14 @@
 
 namespace media {
 
+class PipelineImpl::PipelineInitState {
+ public:
+  scoped_refptr<DataSource> data_source_;
+  scoped_refptr<Demuxer> demuxer_;
+  scoped_refptr<AudioDecoder> audio_decoder_;
+  scoped_refptr<VideoDecoder> video_decoder_;
+};
+
 PipelineImpl::PipelineImpl(MessageLoop* message_loop)
     : message_loop_(message_loop),
       clock_(new ClockImpl(&base::Time::Now)),

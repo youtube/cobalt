@@ -6,8 +6,9 @@
 
 namespace media {
 
-FilterCollection::FilterCollection() {
-}
+FilterCollection::FilterCollection() {}
+
+FilterCollection::~FilterCollection() {}
 
 void FilterCollection::AddDataSource(DataSource* filter) {
   AddFilter(DATA_SOURCE, filter);
