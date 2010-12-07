@@ -119,6 +119,10 @@ bool Value::GetAsString(string16* out_value) const {
   return false;
 }
 
+bool Value::GetAsList(ListValue** out_value) {
+  return false;
+}
+
 Value* Value::DeepCopy() const {
   // This method should only be getting called for null Values--all subclasses
   // need to provide their own implementation;.
@@ -958,6 +962,12 @@ bool ListValue::Insert(size_t index, Value* in_value) {
     return false;
 
   list_.insert(list_.begin() + index, in_value);
+  return true;
+}
+
+bool ListValue::GetAsList(ListValue** out_value) {
+  if (out_value)
+    *out_value = this;
   return true;
 }
 
