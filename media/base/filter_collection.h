@@ -17,6 +17,7 @@ namespace media {
 class FilterCollection {
  public:
   FilterCollection();
+  ~FilterCollection();
 
   // Adds a filter to the collection.
   void AddDataSource(DataSource* filter);
