@@ -451,18 +451,20 @@ void URLRequestHttpJob::StopCaching() {
 void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
-    if (policy == net::ERR_ACCESS_DENIED) {
-      request_->delegate()->OnGetCookies(request_, true);
-    } else if (policy == net::OK && request_->context()->cookie_store()) {
-      request_->delegate()->OnGetCookies(request_, false);
-      net::CookieOptions options;
-      options.set_include_httponly();
-      std::string cookies =
-          request_->context()->cookie_store()->GetCookiesWithOptions(
-              request_->url(), options);
-      if (!cookies.empty()) {
-        request_info_.extra_headers.SetHeader(
-            net::HttpRequestHeaders::kCookie, cookies);
+    if (request_->context()->cookie_store()) {
+      if (policy == net::ERR_ACCESS_DENIED) {
+        request_->delegate()->OnGetCookies(request_, true);
+      } else if (policy == net::OK) {
+        request_->delegate()->OnGetCookies(request_, false);
+        net::CookieOptions options;
+        options.set_include_httponly();
+        std::string cookies =
+            request_->context()->cookie_store()->GetCookiesWithOptions(
+                request_->url(), options);
+        if (!cookies.empty()) {
+          request_info_.extra_headers.SetHeader(
+              net::HttpRequestHeaders::kCookie, cookies);
+        }
       }
     }
     // We may have been canceled within OnGetCookies.
@@ -478,27 +480,28 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
 void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
-    if (policy == net::ERR_ACCESS_DENIED) {
-      request_->delegate()->OnSetCookie(
-          request_,
-          response_cookies_[response_cookies_save_index_],
-          net::CookieOptions(),
-          true);
-    } else if ((policy == net::OK || policy == net::OK_FOR_SESSION_ONLY) &&
-               request_->context()->cookie_store()) {
-      // OK to save the current response cookie now.
-      net::CookieOptions options;
-      options.set_include_httponly();
-      if (policy == net::OK_FOR_SESSION_ONLY)
-        options.set_force_session();
-      request_->context()->cookie_store()->SetCookieWithOptions(
-          request_->url(), response_cookies_[response_cookies_save_index_],
-          options);
-      request_->delegate()->OnSetCookie(
-          request_,
-          response_cookies_[response_cookies_save_index_],
-          options,
-          false);
+    if (request_->context()->cookie_store()) {
+      if (policy == net::ERR_ACCESS_DENIED) {
+        request_->delegate()->OnSetCookie(
+            request_,
+            response_cookies_[response_cookies_save_index_],
+            net::CookieOptions(),
+            true);
+      } else if (policy == net::OK || policy == net::OK_FOR_SESSION_ONLY) {
+        // OK to save the current response cookie now.
+        net::CookieOptions options;
+        options.set_include_httponly();
+        if (policy == net::OK_FOR_SESSION_ONLY)
+          options.set_force_session();
+        request_->context()->cookie_store()->SetCookieWithOptions(
+            request_->url(), response_cookies_[response_cookies_save_index_],
+            options);
+        request_->delegate()->OnSetCookie(
+            request_,
+            response_cookies_[response_cookies_save_index_],
+            options,
+            false);
+      }
     }
     response_cookies_save_index_++;
     // We may have been canceled within OnSetCookie.
