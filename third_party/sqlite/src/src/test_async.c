@@ -10,6 +10,8 @@
 **
 *************************************************************************
 **
+** $Id: test_async.c,v 1.62 2009/04/28 13:01:09 drh Exp $
+**
 ** This file contains a binding of the asynchronous IO extension interface
 ** (defined in ext/async/sqlite3async.h) to Tcl.
 */
@@ -84,7 +86,6 @@ static Tcl_ThreadCreateType tclWriterThread(ClientData pIsStarted){
   *((int *)pIsStarted) = 1;
   sqlite3async_run();
   Tcl_MutexUnlock(&testasync_g_writerMutex);
-  Tcl_ExitThread(0);
   TCL_THREAD_CREATE_RETURN;
 }
 
@@ -229,7 +230,7 @@ static int testAsyncControl(
 ** of this module.
 */
 int Sqlitetestasync_Init(Tcl_Interp *interp){
-#ifdef SQLITE_ENABLE_ASYNCIO
+#if SQLITE_ENABLE_ASYNCIO
   Tcl_CreateObjCommand(interp,"sqlite3async_start",testAsyncStart,0,0);
   Tcl_CreateObjCommand(interp,"sqlite3async_wait",testAsyncWait,0,0);
 

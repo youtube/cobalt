@@ -727,18 +727,15 @@ do_test incrvacuum-13.5 {
 # Verify that the incremental_vacuum pragma fails gracefully if it
 # is used against an invalid database file.
 #
-if {[permutation] == ""} {
-  do_test incrvacuum-14.1 {
-    set out [open invalid.db w]
-    puts $out "This is not an SQLite database file"
-    close $out
-    sqlite3 db3 invalid.db
-    catchsql {
-      PRAGMA incremental_vacuum(10);
-    } db3
-  } {1 {file is encrypted or is not a database}}
-  db3 close
-}
+do_test incrvacuum-14.1 {
+  set out [open invalid.db w]
+  puts $out "This is not an SQLite database file"
+  close $out
+  sqlite3 db3 invalid.db
+  catchsql {
+    PRAGMA incremental_vacuum(10);
+  } db3
+} {1 {file is encrypted or is not a database}}
 
 do_test incrvacuum-15.1 {
   db close
@@ -783,4 +780,5 @@ do_test incrvacuum-15.1 {
   }
 } {ok}
 
+db3 close
 finish_test

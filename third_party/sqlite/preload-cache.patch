@@ -1,8 +1,8 @@
-diff --git a/third_party/sqlite/src/src/build.c b/third_party/sqlite/src/src/build.c
-index 2cfb1f4..c9eed5e 100644
---- a/third_party/sqlite/src/src/build.c
-+++ b/third_party/sqlite/src/src/build.c
-@@ -24,6 +24,9 @@
+Index: src/build.c
+===================================================================
+--- src/build.c	2009-09-11 07:02:46.000000000 -0700
++++ src/build.c	2009-09-14 18:16:46.000000000 -0700
+@@ -26,6 +26,9 @@
  */
  #include "sqliteInt.h"
  
@@ -12,7 +12,7 @@ index 2cfb1f4..c9eed5e 100644
  /*
  ** This routine is called when a new SQL statement is beginning to
  ** be parsed.  Initialize the pParse structure as needed.
-@@ -3688,3 +3691,30 @@ KeyInfo *sqlite3IndexKeyinfo(Parse *pParse, Index *pIdx){
+@@ -3659,3 +3662,30 @@
    }
    return pKey;
  }
@@ -43,13 +43,39 @@ index 2cfb1f4..c9eed5e 100644
 +  return SQLITE_OK;
 +}
 +/* End preload-cache.patch for Chromium */
-diff --git a/third_party/sqlite/src/src/pager.c b/third_party/sqlite/src/src/pager.c
-index 2faeb15..ba88923 100644
---- a/third_party/sqlite/src/src/pager.c
-+++ b/third_party/sqlite/src/src/pager.c
-@@ -790,6 +790,16 @@ static int pagerUseWal(Pager *pPager){
- # define pagerBeginReadTransaction(z) SQLITE_OK
- #endif
+Index: src/sqlite3.h.in
+===================================================================
+--- src/sqlite.h.in	2009-09-09 07:03:20.000000000 -0700
++++ src/sqlite.h.in	2009-09-15 11:34:26.000000000 -0700
+@@ -4677,6 +4677,21 @@
+ */
+ int sqlite3_blob_write(sqlite3_blob *, const void *z, int n, int iOffset);
+ 
++/* Begin preload-cache.patch for Chromium */
++/*
++** Preload the databases into the pager cache, up to the maximum size of the
++** pager cache.
++**
++** For a database to be loaded successfully, the pager must be active. That is,
++** there must be an open statement on that database. See sqlite3pager_loadall
++**
++** There might be many databases attached to the given connection. We iterate
++** them all and try to load them. If none are loadable successfully, we return
++** an error. Otherwise, we return OK.
++*/
++int sqlite3Preload(sqlite3 *db);
++/* End preload-cache.patch for Chromium */
++
+ /*
+ ** CAPI3REF: Virtual File System Objects {H11200} <S20100>
+ **
+Index: src/pager.c
+===================================================================
+--- src/pager.c	2009-09-07 08:58:09.000000000 -0700
++++ src/pager.c	2009-09-15 16:43:07.000000000 -0700
+@@ -388,6 +388,16 @@
+ */
+ #define PAGER_MAX_PGNO 2147483647
  
 +/* Begin preload-cache.patch for Chromium */
 +/* See comments above the definition. */
@@ -64,7 +90,7 @@ index 2faeb15..ba88923 100644
  #ifndef NDEBUG 
  /*
  ** Usage:
-@@ -4869,6 +4879,25 @@ int sqlite3PagerAcquire(
+@@ -3788,6 +3798,25 @@
    DbPage **ppPage,    /* Write a pointer to the page here */
    int noContent       /* Do not bother reading content from disk if true */
  ){
@@ -90,7 +116,7 @@ index 2faeb15..ba88923 100644
    int rc;
    PgHdr *pPg;
  
-@@ -4944,9 +4973,17 @@ int sqlite3PagerAcquire(
+@@ -3870,9 +3899,17 @@
        IOTRACE(("ZERO %p %d\n", pPager, pgno));
      }else{
        assert( pPg->pPager==pPager );
@@ -110,8 +136,8 @@ index 2faeb15..ba88923 100644
 +        }
        }
      }
-     pager_set_pagehash(pPg);
-@@ -6318,6 +6355,91 @@ int sqlite3PagerMovepage(Pager *pPager, DbPage *pPg, Pgno pgno, int isCommit){
+ #ifdef SQLITE_CHECK_PAGES
+@@ -5221,6 +5258,91 @@
  }
  #endif
  
@@ -203,11 +229,11 @@ index 2faeb15..ba88923 100644
  /*
  ** Return a pointer to the data for the specified page.
  */
-diff --git a/third_party/sqlite/src/src/pager.h b/third_party/sqlite/src/src/pager.h
-index c12afa7..f451a47 100644
---- a/third_party/sqlite/src/src/pager.h
-+++ b/third_party/sqlite/src/src/pager.h
-@@ -153,6 +153,8 @@ const sqlite3_vfs *sqlite3PagerVfs(Pager*);
+Index: src/pager.h
+===================================================================
+--- src/pager.h	2009-09-04 13:37:42.000000000 -0700
++++ src/pager.h	2009-09-15 11:31:55.000000000 -0700
+@@ -143,6 +143,8 @@
  sqlite3_file *sqlite3PagerFile(Pager*);
  const char *sqlite3PagerJournalname(Pager*);
  int sqlite3PagerNosync(Pager*);
@@ -216,29 +242,3 @@ index c12afa7..f451a47 100644
  void *sqlite3PagerTempSpace(Pager*);
  int sqlite3PagerIsMemdb(Pager*);
  
-diff --git a/third_party/sqlite/src/src/sqlite.h.in b/third_party/sqlite/src/src/sqlite.h.in
-index 2bbd687..25012ad 100644
---- a/third_party/sqlite/src/src/sqlite.h.in
-+++ b/third_party/sqlite/src/src/sqlite.h.in
-@@ -4683,6 +4683,21 @@ int sqlite3_declare_vtab(sqlite3*, const char *zSQL);
- */
- int sqlite3_overload_function(sqlite3*, const char *zFuncName, int nArg);
- 
-+/* Begin preload-cache.patch for Chromium */
-+/*
-+** Preload the databases into the pager cache, up to the maximum size of the
-+** pager cache.
-+**
-+** For a database to be loaded successfully, the pager must be active. That is,
-+** there must be an open statement on that database. See sqlite3pager_loadall
-+**
-+** There might be many databases attached to the given connection. We iterate
-+** them all and try to load them. If none are loadable successfully, we return
-+** an error. Otherwise, we return OK.
-+*/
-+int sqlite3Preload(sqlite3 *db);
-+/* End preload-cache.patch for Chromium */
-+
- /*
- ** The interface to the virtual-table mechanism defined above (back up
- ** to a comment remarkably similar to this one) is currently considered

@@ -75,11 +75,12 @@ foreach testfile $FILELIST {
   }
   if {$LeakList!=""} {
     puts -nonewline memory-leak-test-$tail...
-    incr_ntest
+    incr ::nTest
     foreach x $LeakList {
       if {$x!=[lindex $LeakList 0]} {
          puts " failed! ($LeakList)"
-         fail_test memory-leak-test-$tail
+         incr ::nErr
+         lappend ::failList memory-leak-test-$tail
          break
        }
     }

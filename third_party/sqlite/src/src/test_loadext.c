@@ -10,6 +10,8 @@
 **
 *************************************************************************
 ** Test extension for testing the sqlite3_load_extension() function.
+**
+** $Id: test_loadext.c,v 1.3 2008/08/02 03:50:39 drh Exp $
 */
 #include <string.h>
 #include "sqlite3ext.h"

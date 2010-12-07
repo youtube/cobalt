@@ -14,6 +14,8 @@
 ** source code file "vdbe.c".  When that file became too big (over
 ** 6000 lines long) it was split up into several smaller files and
 ** this header information was factored out.
+**
+** $Id: vdbeInt.h,v 1.174 2009/06/23 14:15:04 drh Exp $
 */
 #ifndef _VDBEINT_H_
 #define _VDBEINT_H_
@@ -57,7 +59,6 @@ struct VdbeCursor {
   Bool deferredMoveto;  /* A call to sqlite3BtreeMoveto() is needed */
   Bool isTable;         /* True if a table requiring integer keys */
   Bool isIndex;         /* True if an index containing keys only - no data */
-  Bool isOrdered;       /* True if the underlying table is BTREE_UNORDERED */
   i64 movetoTarget;     /* Argument to the deferred sqlite3BtreeMoveto() */
   Btree *pBt;           /* Separate file holding temporary table */
   int pseudoTableReg;   /* Register holding pseudotable content. */
@@ -152,10 +153,6 @@ struct Mem {
   u16 flags;          /* Some combination of MEM_Null, MEM_Str, MEM_Dyn, etc. */
   u8  type;           /* One of SQLITE_NULL, SQLITE_TEXT, SQLITE_INTEGER, etc */
   u8  enc;            /* SQLITE_UTF8, SQLITE_UTF16BE, SQLITE_UTF16LE */
-#ifdef SQLITE_DEBUG
-  Mem *pScopyFrom;    /* This Mem is a shallow copy of pScopyFrom */
-  void *pFiller;      /* So that sizeof(Mem) is a multiple of 8 */
-#endif
   void (*xDel)(void *);  /* If not null, call this function to delete Mem.z */
   char *zMalloc;      /* Dynamic buffer allocated by sqlite3_malloc() */
 };
@@ -182,7 +179,6 @@ struct Mem {
 #define MEM_Blob      0x0010   /* Value is a BLOB */
 #define MEM_RowSet    0x0020   /* Value is a RowSet object */
 #define MEM_Frame     0x0040   /* Value is a VdbeFrame object */
-#define MEM_Invalid   0x0080   /* Value is undefined */
 #define MEM_TypeMask  0x00ff   /* Mask of type bits */
 
 /* Whenever Mem contains a valid string or blob representation, one of
@@ -196,24 +192,18 @@ struct Mem {
 #define MEM_Ephem     0x1000   /* Mem.z points to an ephemeral string */
 #define MEM_Agg       0x2000   /* Mem.z points to an agg function context */
 #define MEM_Zero      0x4000   /* Mem.i contains count of 0s appended to blob */
+
 #ifdef SQLITE_OMIT_INCRBLOB
   #undef MEM_Zero
   #define MEM_Zero 0x0000
 #endif
+
 
 /*
 ** Clear any existing type flags from a Mem and replace them with f
 */
 #define MemSetTypeFlag(p, f) \
    ((p)->flags = ((p)->flags&~(MEM_TypeMask|MEM_Zero))|f)
-
-/*
-** Return true if a memory cell is not marked as invalid.  This macro
-** is for use inside assert() statements only.
-*/
-#ifdef SQLITE_DEBUG
-#define memIsValid(M)  ((M)->flags & MEM_Invalid)==0
-#endif
 
 
 /* A VdbeFunc is just a FuncDef (defined in sqliteInt.h) that contains
@@ -300,7 +290,7 @@ struct Vdbe {
   VdbeCursor **apCsr;     /* One element of this array for each open cursor */
   u8 errorAction;         /* Recovery action to do in case of an error */
   u8 okVar;               /* True if azVar[] has been initialized */
-  ynVar nVar;             /* Number of entries in aVar[] */
+  u16 nVar;               /* Number of entries in aVar[] */
   Mem *aVar;              /* Values for the OP_Variable opcode. */
   char **azVar;           /* Name of variables */
   u32 magic;              /* Magic number for sanity checking */
@@ -313,7 +303,6 @@ struct Vdbe {
   u8 explain;             /* True if EXPLAIN present on SQL command */
   u8 changeCntOn;         /* True to update the change-counter */
   u8 expired;             /* True if the VM needs to be recompiled */
-  u8 runOnlyOnce;         /* Automatically expire on reset */
   u8 minWriteFileFormat;  /* Minimum file format for writable database files */
   u8 inVtabMethod;        /* See comments above */
   u8 usesStmtJournal;     /* True if uses a statement journal */
@@ -323,19 +312,15 @@ struct Vdbe {
   int btreeMask;          /* Bitmask of db->aDb[] entries referenced */
   i64 startTime;          /* Time when query started - used for profiling */
   BtreeMutexArray aMutex; /* An array of Btree used here and needing locks */
-  int aCounter[3];        /* Counters used by sqlite3_stmt_status() */
+  int aCounter[2];        /* Counters used by sqlite3_stmt_status() */
   char *zSql;             /* Text of the SQL statement that generated this */
   void *pFree;            /* Free this when deleting the vdbe */
-  i64 nFkConstraint;      /* Number of imm. FK constraints this VM */
-  i64 nStmtDefCons;       /* Number of def. constraints when stmt started */
   int iStatement;         /* Statement number (or 0 if has not opened stmt) */
 #ifdef SQLITE_DEBUG
   FILE *trace;            /* Write an execution trace here, if not NULL */
 #endif
   VdbeFrame *pFrame;      /* Parent frame */
   int nFrame;             /* Number of frames in pFrame list */
-  u32 expmask;            /* Binding to these vars invalidates VM */
-  SubProgram *pProgram;   /* Linked list of all sub-programs used by VM */
 };
 
 /*
@@ -376,11 +361,7 @@ void sqlite3VdbeMemMove(Mem*, Mem*);
 int sqlite3VdbeMemNulTerminate(Mem*);
 int sqlite3VdbeMemSetStr(Mem*, const char*, int, u8, void(*)(void*));
 void sqlite3VdbeMemSetInt64(Mem*, i64);
-#ifdef SQLITE_OMIT_FLOATING_POINT
-# define sqlite3VdbeMemSetDouble sqlite3VdbeMemSetInt64
-#else
-  void sqlite3VdbeMemSetDouble(Mem*, double);
-#endif
+void sqlite3VdbeMemSetDouble(Mem*, double);
 void sqlite3VdbeMemSetNull(Mem*);
 void sqlite3VdbeMemSetZeroBlob(Mem*,int);
 void sqlite3VdbeMemSetRowSet(Mem*);
@@ -397,20 +378,13 @@ void sqlite3VdbeMemRelease(Mem *p);
 void sqlite3VdbeMemReleaseExternal(Mem *p);
 int sqlite3VdbeMemFinalize(Mem*, FuncDef*);
 const char *sqlite3OpcodeName(int);
+int sqlite3VdbeOpcodeHasProperty(int, int);
 int sqlite3VdbeMemGrow(Mem *pMem, int n, int preserve);
 int sqlite3VdbeCloseStatement(Vdbe *, int);
 void sqlite3VdbeFrameDelete(VdbeFrame*);
 int sqlite3VdbeFrameRestore(VdbeFrame *);
-void sqlite3VdbeMemStoreType(Mem *pMem);
-
-#ifdef SQLITE_DEBUG
-void sqlite3VdbeMemPrepareToChange(Vdbe*,Mem*);
-#endif
-
-#ifndef SQLITE_OMIT_FOREIGN_KEY
-int sqlite3VdbeCheckFk(Vdbe *, int);
-#else
-# define sqlite3VdbeCheckFk(p,i) 0
+#ifdef SQLITE_ENABLE_MEMORY_MANAGEMENT
+int sqlite3VdbeReleaseBuffers(Vdbe *p);
 #endif
 
 #ifndef SQLITE_OMIT_SHARED_CACHE

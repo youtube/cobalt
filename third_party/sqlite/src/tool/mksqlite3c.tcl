@@ -66,6 +66,8 @@ puts $out [subst \
 ** if you want a wrapper to interface SQLite with your choice of programming
 ** language. The code for the "sqlite3" command-line shell is also in a
 ** separate file. This file contains only code for the core SQLite library.
+**
+** This amalgamation was generated on $today.
 */
 #define SQLITE_CORE 1
 #define SQLITE_AMALGAMATION 1}]
@@ -87,7 +89,7 @@ foreach hdr {
    btree.h
    btreeInt.h
    fts3.h
-   fts3Int.h
+   fts3_expr.h
    fts3_hash.h
    fts3_tokenizer.h
    hash.h
@@ -109,7 +111,6 @@ foreach hdr {
    sqliteLimit.h
    vdbe.h
    vdbeInt.h
-   wal.h
 } {
   set available_hdr($hdr) 1
 }
@@ -212,7 +213,6 @@ foreach file {
    sqliteInt.h
 
    global.c
-   ctime.c
    status.c
    date.c
    os.c
@@ -245,7 +245,6 @@ foreach file {
    pcache1.c
    rowset.c
    pager.c
-   wal.c
 
    btmutex.c
    btree.c
@@ -254,7 +253,6 @@ foreach file {
    vdbemem.c
    vdbeaux.c
    vdbeapi.c
-   vdbetrace.c
    vdbe.c
    vdbeblob.c
    journal.c
@@ -271,7 +269,6 @@ foreach file {
    callback.c
    delete.c
    func.c
-   fkey.c
    insert.c
    legacy.c
    loadext.c
@@ -299,8 +296,6 @@ foreach file {
    fts3_porter.c
    fts3_tokenizer.c
    fts3_tokenizer1.c
-   fts3_write.c
-   fts3_snippet.c
 
    rtree.c
    icu.c
