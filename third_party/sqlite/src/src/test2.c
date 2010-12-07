@@ -12,6 +12,8 @@
 ** Code for testing the pager.c module in SQLite.  This code
 ** is not included in the SQLite library.  It is used for automated
 ** testing of the SQLite library.
+**
+** $Id: test2.c,v 1.74 2009/07/24 19:01:20 drh Exp $
 */
 #include "sqliteInt.h"
 #include "tcl.h"
@@ -72,7 +74,7 @@ static int pager_open(
   int argc,              /* Number of arguments */
   const char **argv      /* Text of each argument */
 ){
-  u32 pageSize;
+  u16 pageSize;
   Pager *pPager;
   int nPage;
   int rc;
@@ -581,7 +583,6 @@ static int testPendingByte(
   if( argc!=2 ){
     Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
                      " PENDING-BYTE\"", (void*)0);
-    return TCL_ERROR;
   }
   if( Tcl_GetInt(interp, argv[1], &pbyte) ) return TCL_ERROR;
   rc = sqlite3_test_control(SQLITE_TESTCTRL_PENDING_BYTE, pbyte);
@@ -675,9 +676,7 @@ int Sqlitetest2_Init(Tcl_Interp *interp){
      (char*)&sqlite3_diskfull_pending, TCL_LINK_INT);
   Tcl_LinkVar(interp, "sqlite_diskfull",
      (char*)&sqlite3_diskfull, TCL_LINK_INT);
-#ifndef SQLITE_OMIT_WSD
   Tcl_LinkVar(interp, "sqlite_pending_byte",
      (char*)&sqlite3PendingByte, TCL_LINK_INT | TCL_LINK_READ_ONLY);
-#endif
   return TCL_OK;
 }

@@ -17,10 +17,6 @@
 
 set testdir [file dirname $argv0]
 source $testdir/tester.tcl
-if {[db eval {SELECT sqlite_compileoption_used('THREADSAFE=0')}]} {
-  finish_test
-  return
-}
 
 db close
 
@@ -80,3 +76,4 @@ if {$MEMDEBUG} {
 
 autoinstall_test_functions
 finish_test
+

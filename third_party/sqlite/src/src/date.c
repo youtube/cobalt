@@ -16,6 +16,8 @@
 ** sqlite3RegisterDateTimeFunctions() found at the bottom of the file.
 ** All other code has file scope.
 **
+** $Id: date.c,v 1.107 2009/05/03 20:23:53 drh Exp $
+**
 ** SQLite processes all times and dates as Julian Day numbers.  The
 ** dates and times are stored as the number of days since noon
 ** in Greenwich on November 24, 4714 B.C. according to the Gregorian
@@ -132,6 +134,12 @@ end_getDigits:
   va_end(ap);
   return cnt;
 }
+
+/*
+** Read text from z[] and convert into a floating point number.  Return
+** the number of digits converted.
+*/
+#define getValue sqlite3AtoF
 
 /*
 ** Parse a timezone extension on the end of a date-time.
@@ -308,8 +316,10 @@ static int parseYyyyMmDd(const char *zDate, DateTime *p){
 ** Set the time to the current time reported by the VFS
 */
 static void setDateTimeToCurrent(sqlite3_context *context, DateTime *p){
+  double r;
   sqlite3 *db = sqlite3_context_db_handle(context);
-  sqlite3OsCurrentTimeInt64(db->pVfs, &p->iJD);
+  sqlite3OsCurrentTime(db->pVfs, &r);
+  p->iJD = (sqlite3_int64)(r*86400000.0 + 0.5);
   p->validJD = 1;
 }
 
@@ -334,7 +344,7 @@ static int parseDateOrTime(
   const char *zDate, 
   DateTime *p
 ){
-  double r;
+  int isRealNum;    /* Return from sqlite3IsNumber().  Not used */
   if( parseYyyyMmDd(zDate,p)==0 ){
     return 0;
   }else if( parseHhMmSs(zDate, p)==0 ){
@@ -342,7 +352,9 @@ static int parseDateOrTime(
   }else if( sqlite3StrICmp(zDate,"now")==0){
     setDateTimeToCurrent(context, p);
     return 0;
-  }else if( sqlite3AtoF(zDate, &r, sqlite3Strlen30(zDate), SQLITE_UTF8) ){
+  }else if( sqlite3IsNumber(zDate, &isRealNum, SQLITE_UTF8) ){
+    double r;
+    getValue(zDate, &r);
     p->iJD = (sqlite3_int64)(r*86400000.0 + 0.5);
     p->validJD = 1;
     return 0;
@@ -448,7 +460,7 @@ static sqlite3_int64 localtimeOffset(DateTime *p){
     y.m = sLocal.tm_min;
     y.s = sLocal.tm_sec;
   }
-#elif defined(HAVE_LOCALTIME_S) && HAVE_LOCALTIME_S
+#elif defined(HAVE_LOCALTIME_S)
   {
     struct tm sLocal;
     localtime_s(&sLocal, &t);
@@ -563,9 +575,8 @@ static int parseModifier(const char *zMod, DateTime *p){
       ** weekday N where 0==Sunday, 1==Monday, and so forth.  If the
       ** date is already on the appropriate weekday, this is a no-op.
       */
-      if( strncmp(z, "weekday ", 8)==0
-               && sqlite3AtoF(&z[8], &r, sqlite3Strlen30(&z[8]), SQLITE_UTF8)
-               && (n=(int)r)==r && n>=0 && r<7 ){
+      if( strncmp(z, "weekday ", 8)==0 && getValue(&z[8],&r)>0
+                 && (n=(int)r)==r && n>=0 && r<7 ){
         sqlite3_int64 Z;
         computeYMD_HMS(p);
         p->validTZ = 0;
@@ -620,11 +631,8 @@ static int parseModifier(const char *zMod, DateTime *p){
     case '8':
     case '9': {
       double rRounder;
-      for(n=1; z[n] && z[n]!=':' && !sqlite3Isspace(z[n]); n++){}
-      if( !sqlite3AtoF(z, &r, n, SQLITE_UTF8) ){
-        rc = 1;
-        break;
-      }
+      n = getValue(z, &r);
+      assert( n>=1 );
       if( z[n]==':' ){
         /* A modifier of the form (+|-)HH:MM:SS.FFF adds (or subtracts) the
         ** specified number of hours, minutes, seconds, and fractional seconds
@@ -1032,15 +1040,22 @@ static void currentTimeFunc(
   time_t t;
   char *zFormat = (char *)sqlite3_user_data(context);
   sqlite3 *db;
-  sqlite3_int64 iT;
+  double rT;
   char zBuf[20];
 
   UNUSED_PARAMETER(argc);
   UNUSED_PARAMETER(argv);
 
   db = sqlite3_context_db_handle(context);
-  sqlite3OsCurrentTimeInt64(db->pVfs, &iT);
-  t = iT/1000 - 10000*(sqlite3_int64)21086676;
+  sqlite3OsCurrentTime(db->pVfs, &rT);
+#ifndef SQLITE_OMIT_FLOATING_POINT
+  t = 86400.0*(rT - 2440587.5) + 0.5;
+#else
+  /* without floating point support, rT will have
+  ** already lost fractional day precision.
+  */
+  t = 86400 * (rT - 2440587) - 43200;
+#endif
 #ifdef HAVE_GMTIME_R
   {
     struct tm sNow;
@@ -1079,8 +1094,8 @@ void sqlite3RegisterDateTimeFunctions(void){
     FUNCTION(current_date,      0, 0, 0, cdateFunc     ),
 #else
     STR_FUNCTION(current_time,      0, "%H:%M:%S",          0, currentTimeFunc),
-    STR_FUNCTION(current_date,      0, "%Y-%m-%d",          0, currentTimeFunc),
-    STR_FUNCTION(current_timestamp, 0, "%Y-%m-%d %H:%M:%S", 0, currentTimeFunc),
+    STR_FUNCTION(current_timestamp, 0, "%Y-%m-%d",          0, currentTimeFunc),
+    STR_FUNCTION(current_date,      0, "%Y-%m-%d %H:%M:%S", 0, currentTimeFunc),
 #endif
   };
   int i;

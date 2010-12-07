@@ -11,6 +11,8 @@
 *************************************************************************
 **
 ** This file contains code used to implement incremental BLOB I/O.
+**
+** $Id: vdbeblob.c,v 1.35 2009/07/02 07:47:33 danielk1977 Exp $
 */
 
 #include "sqliteInt.h"
@@ -95,6 +97,13 @@ int sqlite3_blob_open(
     memset(pParse, 0, sizeof(Parse));
     pParse->db = db;
 
+    if( sqlite3SafetyOn(db) ){
+      sqlite3DbFree(db, zErr);
+      sqlite3StackFree(db, pParse);
+      sqlite3_mutex_leave(db->mutex);
+      return SQLITE_MISUSE;
+    }
+
     sqlite3BtreeEnterAll(db);
     pTab = sqlite3LocateTable(pParse, 0, zTable, zDb);
     if( pTab && IsVirtual(pTab) ){
@@ -114,6 +123,7 @@ int sqlite3_blob_open(
         pParse->zErrMsg = 0;
       }
       rc = SQLITE_ERROR;
+      (void)sqlite3SafetyOff(db);
       sqlite3BtreeLeaveAll(db);
       goto blob_open_out;
     }
@@ -128,48 +138,30 @@ int sqlite3_blob_open(
       sqlite3DbFree(db, zErr);
       zErr = sqlite3MPrintf(db, "no such column: \"%s\"", zColumn);
       rc = SQLITE_ERROR;
+      (void)sqlite3SafetyOff(db);
       sqlite3BtreeLeaveAll(db);
       goto blob_open_out;
     }
 
     /* If the value is being opened for writing, check that the
-    ** column is not indexed, and that it is not part of a foreign key. 
-    ** It is against the rules to open a column to which either of these
-    ** descriptions applies for writing.  */
+    ** column is not indexed. It is against the rules to open an
+    ** indexed column for writing.
+    */
     if( flags ){
-      const char *zFault = 0;
       Index *pIdx;
-#ifndef SQLITE_OMIT_FOREIGN_KEY
-      if( db->flags&SQLITE_ForeignKeys ){
-        /* Check that the column is not part of an FK child key definition. It
-        ** is not necessary to check if it is part of a parent key, as parent
-        ** key columns must be indexed. The check below will pick up this 
-        ** case.  */
-        FKey *pFKey;
-        for(pFKey=pTab->pFKey; pFKey; pFKey=pFKey->pNextFrom){
-          int j;
-          for(j=0; j<pFKey->nCol; j++){
-            if( pFKey->aCol[j].iFrom==iCol ){
-              zFault = "foreign key";
-            }
-          }
-        }
-      }
-#endif
       for(pIdx=pTab->pIndex; pIdx; pIdx=pIdx->pNext){
         int j;
         for(j=0; j<pIdx->nColumn; j++){
           if( pIdx->aiColumn[j]==iCol ){
-            zFault = "indexed";
+            sqlite3DbFree(db, zErr);
+            zErr = sqlite3MPrintf(db,
+                             "cannot open indexed column for writing");
+            rc = SQLITE_ERROR;
+            (void)sqlite3SafetyOff(db);
+            sqlite3BtreeLeaveAll(db);
+            goto blob_open_out;
           }
         }
-      }
-      if( zFault ){
-        sqlite3DbFree(db, zErr);
-        zErr = sqlite3MPrintf(db, "cannot open %s column for writing", zFault);
-        rc = SQLITE_ERROR;
-        sqlite3BtreeLeaveAll(db);
-        goto blob_open_out;
       }
     }
 
@@ -191,14 +183,10 @@ int sqlite3_blob_open(
       sqlite3VdbeUsesBtree(v, iDb); 
 
       /* Configure the OP_TableLock instruction */
-#ifdef SQLITE_OMIT_SHARED_CACHE
-      sqlite3VdbeChangeToNoop(v, 2, 1);
-#else
       sqlite3VdbeChangeP1(v, 2, iDb);
       sqlite3VdbeChangeP2(v, 2, pTab->tnum);
       sqlite3VdbeChangeP3(v, 2, flags);
       sqlite3VdbeChangeP4(v, 2, pTab->zName, P4_TRANSIENT);
-#endif
 
       /* Remove either the OP_OpenWrite or OpenRead. Set the P2 
       ** parameter of the other to pTab->tnum.  */
@@ -221,7 +209,8 @@ int sqlite3_blob_open(
     }
    
     sqlite3BtreeLeaveAll(db);
-    if( db->mallocFailed ){
+    rc = sqlite3SafetyOff(db);
+    if( NEVER(rc!=SQLITE_OK) || db->mallocFailed ){
       goto blob_open_out;
     }
 
@@ -322,7 +311,7 @@ static int blobReadWrite(
   Vdbe *v;
   sqlite3 *db;
 
-  if( p==0 ) return SQLITE_MISUSE_BKPT;
+  if( p==0 ) return SQLITE_MISUSE;
   db = p->db;
   sqlite3_mutex_enter(db->mutex);
   v = (Vdbe*)p->pStmt;

@@ -12,6 +12,8 @@
 **
 ** This file contains code used to implement test interfaces to the
 ** memory allocation subsystem.
+**
+** $Id: test_malloc.c,v 1.55 2009/07/01 18:09:02 danielk1977 Exp $
 */
 #include "sqliteInt.h"
 #include "tcl.h"
@@ -728,10 +730,7 @@ static int test_memdebug_settitle(
   return TCL_OK;
 }
 
-#define MALLOC_LOG_FRAMES  10 
-#define MALLOC_LOG_KEYINTS (                                              \
-    10 * ((sizeof(int)>=sizeof(void*)) ? 1 : sizeof(void*)/sizeof(int))   \
-)
+#define MALLOC_LOG_FRAMES 10 
 static Tcl_HashTable aMallocLog;
 static int mallocLogEnabled = 0;
 
@@ -748,8 +747,8 @@ static void test_memdebug_callback(int nByte, int nFrame, void **aFrame){
     Tcl_HashEntry *pEntry;
     int isNew;
 
-    int aKey[MALLOC_LOG_KEYINTS];
-    int nKey = sizeof(int)*MALLOC_LOG_KEYINTS;
+    int aKey[MALLOC_LOG_FRAMES];
+    int nKey = sizeof(int)*MALLOC_LOG_FRAMES;
 
     memset(aKey, 0, nKey);
     if( (sizeof(void*)*nFrame)<nKey ){
@@ -784,7 +783,7 @@ static void test_memdebug_log_clear(void){
     Tcl_Free((char *)pLog);
   }
   Tcl_DeleteHashTable(&aMallocLog);
-  Tcl_InitHashTable(&aMallocLog, MALLOC_LOG_KEYINTS);
+  Tcl_InitHashTable(&aMallocLog, MALLOC_LOG_FRAMES);
 }
 
 static int test_memdebug_log(
@@ -807,7 +806,7 @@ static int test_memdebug_log(
         void (*xBacktrace)(int, int, void **));
     sqlite3MemdebugBacktraceCallback(test_memdebug_callback);
 #endif
-    Tcl_InitHashTable(&aMallocLog, MALLOC_LOG_KEYINTS);
+    Tcl_InitHashTable(&aMallocLog, MALLOC_LOG_FRAMES);
     isInit = 1;
   }
 
@@ -830,7 +829,7 @@ static int test_memdebug_log(
       Tcl_HashEntry *pEntry;
       Tcl_Obj *pRet = Tcl_NewObj();
 
-      assert(sizeof(Tcl_WideInt)>=sizeof(void*));
+      assert(sizeof(int)==sizeof(void*));
 
       for(
         pEntry=Tcl_FirstHashEntry(&aMallocLog, &search);
@@ -839,13 +838,13 @@ static int test_memdebug_log(
       ){
         Tcl_Obj *apElem[MALLOC_LOG_FRAMES+2];
         MallocLog *pLog = (MallocLog *)Tcl_GetHashValue(pEntry);
-        Tcl_WideInt *aKey = (Tcl_WideInt *)Tcl_GetHashKey(&aMallocLog, pEntry);
+        int *aKey = (int *)Tcl_GetHashKey(&aMallocLog, pEntry);
         int ii;
   
         apElem[0] = Tcl_NewIntObj(pLog->nCall);
         apElem[1] = Tcl_NewIntObj(pLog->nByte);
         for(ii=0; ii<MALLOC_LOG_FRAMES; ii++){
-          apElem[ii+2] = Tcl_NewWideIntObj(aKey[ii]);
+          apElem[ii+2] = Tcl_NewIntObj(aKey[ii]);
         }
 
         Tcl_ListObjAppendElement(interp, pRet,
@@ -1240,7 +1239,6 @@ static int test_status(
     { "SQLITE_STATUS_SCRATCH_OVERFLOW",    SQLITE_STATUS_SCRATCH_OVERFLOW    },
     { "SQLITE_STATUS_SCRATCH_SIZE",        SQLITE_STATUS_SCRATCH_SIZE        },
     { "SQLITE_STATUS_PARSER_STACK",        SQLITE_STATUS_PARSER_STACK        },
-    { "SQLITE_STATUS_MALLOC_COUNT",        SQLITE_STATUS_MALLOC_COUNT        },
   };
   Tcl_Obj *pResult;
   if( objc!=3 ){
@@ -1291,9 +1289,6 @@ static int test_db_status(
     int op;
   } aOp[] = {
     { "SQLITE_DBSTATUS_LOOKASIDE_USED",    SQLITE_DBSTATUS_LOOKASIDE_USED   },
-    { "SQLITE_DBSTATUS_CACHE_USED",        SQLITE_DBSTATUS_CACHE_USED       },
-    { "SQLITE_DBSTATUS_SCHEMA_USED",       SQLITE_DBSTATUS_SCHEMA_USED      },
-    { "SQLITE_DBSTATUS_STMT_USED",         SQLITE_DBSTATUS_STMT_USED        }
   };
   Tcl_Obj *pResult;
   if( objc!=4 ){
@@ -1365,25 +1360,6 @@ static int test_install_memsys3(
   return TCL_OK;
 }
 
-static int test_vfs_oom_test(
-  void * clientData,
-  Tcl_Interp *interp,
-  int objc,
-  Tcl_Obj *CONST objv[]
-){
-  extern int sqlite3_memdebug_vfs_oom_test;
-  if( objc>2 ){
-    Tcl_WrongNumArgs(interp, 1, objv, "?INTEGER?");
-    return TCL_ERROR;
-  }else if( objc==2 ){
-    int iNew;
-    if( Tcl_GetIntFromObj(interp, objv[1], &iNew) ) return TCL_ERROR;
-    sqlite3_memdebug_vfs_oom_test = iNew;
-  }
-  Tcl_SetObjResult(interp, Tcl_NewIntObj(sqlite3_memdebug_vfs_oom_test));
-  return TCL_OK;
-}
-
 /*
 ** Register commands with the TCL interpreter.
 */
@@ -1421,7 +1397,6 @@ int Sqlitetest_malloc_Init(Tcl_Interp *interp){
      { "sqlite3_dump_memsys3",       test_dump_memsys3             ,3 },
      { "sqlite3_dump_memsys5",       test_dump_memsys3             ,5 },
      { "sqlite3_install_memsys3",    test_install_memsys3          ,0 },
-     { "sqlite3_memdebug_vfs_oom_test", test_vfs_oom_test          ,0 },
   };
   int i;
   for(i=0; i<sizeof(aObjCmd)/sizeof(aObjCmd[0]); i++){
