@@ -525,16 +525,9 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
   EXPECT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
 }
 
-#if defined(USE_OPENSSL)
-// TODO(rsleevi): Not implemented for Schannel or OpenSSL. Schannel is
-// controlled by the SSL client socket factory, rather than a define, so it
-// cannot be conditionally disabled here. As Schannel is only used when
+// TODO(rsleevi): Not implemented for Schannel. As Schannel is only used when
 // performing client authentication, it will not be tested here.
-#define MAYBE_CipherSuiteDisables DISABLED_CipherSuiteDisables
-#else
-#define MAYBE_CipherSuiteDisables CipherSuiteDisables
-#endif
-TEST_F(SSLClientSocketTest, MAYBE_CipherSuiteDisables) {
+TEST_F(SSLClientSocketTest, CipherSuiteDisables) {
   // Rather than exhaustively disabling every RC4 ciphersuite defined at
   // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml,
   // only disabling those cipher suites that the test server actually
