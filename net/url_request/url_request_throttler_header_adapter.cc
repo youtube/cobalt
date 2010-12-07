@@ -13,6 +13,8 @@ URLRequestThrottlerHeaderAdapter::URLRequestThrottlerHeaderAdapter(
     : response_header_(headers) {
 }
 
+URLRequestThrottlerHeaderAdapter::~URLRequestThrottlerHeaderAdapter() {}
+
 std::string URLRequestThrottlerHeaderAdapter::GetNormalizedValue(
     const std::string& key) const {
   std::string return_value;
