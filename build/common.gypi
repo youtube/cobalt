@@ -140,6 +140,9 @@
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
 
+      # Use libjpeg-turbo as the JPEG codec used by Chromium.
+      'use_libjpeg_turbo%': 0,
+
       'library%': '<(library)',
 
       # Variable 'component' is for cases where we would like to build some
@@ -400,6 +403,13 @@
       }, {
         'use_cups%': 0,
       }],
+      # Set the relative path from this file to the GYP file of the JPEG
+      # library used by Chromium.
+      ['use_libjpeg_turbo==1', {
+        'libjpeg_gyp_path': '../third_party/libjpeg_turbo/libjpeg.gyp',
+      }, {
+        'libjpeg_gyp_path': '../third_party/libjpeg/libjpeg.gyp',
+      }],  # use_libjpeg_turbo==1
     ],
 
     # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
