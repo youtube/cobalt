@@ -17,6 +17,9 @@ const int FieldTrial::kNotParticipating = -1;
 const int FieldTrial::kAllRemainingProbability = -2;
 
 // static
+bool FieldTrial::enable_benchmarking_ = false;
+
+// static
 const char FieldTrialList::kPersistentStringSeparator('/');
 
 static const char kHistogramFieldTrialSeparator('_');
@@ -40,10 +43,13 @@ int FieldTrial::AppendGroup(const std::string& name,
   DCHECK(group_probability <= divisor_);
   DCHECK(group_probability >=0 ||
          group_probability == kAllRemainingProbability);
-  if (group_probability == kAllRemainingProbability)
+  if (group_probability == kAllRemainingProbability) {
     accumulated_group_probability_ = divisor_;
-  else
+  } else {
+    if (enable_benchmarking_)
+      group_probability = 0;
     accumulated_group_probability_ += group_probability;
+  }
   DCHECK(accumulated_group_probability_ <= divisor_);
   if (group_ == kNotParticipating && accumulated_group_probability_ > random_) {
     // This is the group that crossed the random line, so we do the assignment.
@@ -62,6 +68,12 @@ std::string FieldTrial::MakeName(const std::string& name_prefix,
   std::string big_string(name_prefix);
   big_string.append(1, kHistogramFieldTrialSeparator);
   return big_string.append(FieldTrialList::FindFullName(trial_name));
+}
+
+// static
+void FieldTrial::EnableBenchmarking() {
+  DCHECK_EQ(0u, FieldTrialList::GetFieldTrialCount());
+  enable_benchmarking_ = true;
 }
 
 FieldTrial::~FieldTrial() {}
@@ -188,6 +200,14 @@ bool FieldTrialList::StringAugmentsState(const std::string& prior_state) {
     field_trial->AppendGroup(group_name, kTotalProbability);
   }
   return true;
+}
+
+// static
+size_t FieldTrialList::GetFieldTrialCount() {
+  if (!global_)
+    return 0;
+  AutoLock auto_lock(global_->lock_);
+  return global_->registered_.size();
 }
 
 }  // namespace base
