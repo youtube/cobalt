@@ -63,6 +63,7 @@ HttpStreamRequest::HttpStreamRequest(
       force_spdy_always_(HttpStreamFactory::force_spdy_always()),
       force_spdy_over_ssl_(HttpStreamFactory::force_spdy_over_ssl()),
       spdy_certificate_error_(OK),
+      alternate_protocol_(HttpAlternateProtocols::UNINITIALIZED),
       establishing_tunnel_(false),
       was_alternate_protocol_available_(false),
       was_npn_negotiated_(false),
