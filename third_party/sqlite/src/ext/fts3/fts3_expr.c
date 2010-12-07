@@ -13,8 +13,7 @@
 ** This module contains code that implements a parser for fts3 query strings
 ** (the right-hand argument to the MATCH operator). Because the supported 
 ** syntax is relatively simple, the whole tokenizer/parser system is
-** hand-coded. The public interface to this module is declared in source
-** code file "fts3_expr.h".
+** hand-coded. 
 */
 #if !defined(SQLITE_CORE) || defined(SQLITE_ENABLE_FTS3)
 
@@ -40,7 +39,29 @@
 ** to zero causes the module to use the old syntax. If it is set to 
 ** non-zero the new syntax is activated. This is so both syntaxes can
 ** be tested using a single build of testfixture.
+**
+** The following describes the syntax supported by the fts3 MATCH
+** operator in a similar format to that used by the lemon parser
+** generator. This module does not use actually lemon, it uses a
+** custom parser.
+**
+**   query ::= andexpr (OR andexpr)*.
+**
+**   andexpr ::= notexpr (AND? notexpr)*.
+**
+**   notexpr ::= nearexpr (NOT nearexpr|-TOKEN)*.
+**   notexpr ::= LP query RP.
+**
+**   nearexpr ::= phrase (NEAR distance_opt nearexpr)*.
+**
+**   distance_opt ::= .
+**   distance_opt ::= / INTEGER.
+**
+**   phrase ::= TOKEN.
+**   phrase ::= COLUMN:TOKEN.
+**   phrase ::= "TOKEN TOKEN TOKEN...".
 */
+
 #ifdef SQLITE_TEST
 int sqlite3_fts3_enable_parentheses = 0;
 #else
@@ -56,8 +77,7 @@ int sqlite3_fts3_enable_parentheses = 0;
 */
 #define SQLITE_FTS3_DEFAULT_NEAR_PARAM 10
 
-#include "fts3_expr.h"
-#include "sqlite3.h"
+#include "fts3Int.h"
 #include <string.h>
 #include <assert.h>
 
@@ -160,7 +180,7 @@ static int getNextToken(
 ** Enlarge a memory allocation.  If an out-of-memory allocation occurs,
 ** then free the old allocation.
 */
-void *fts3ReallocOrFree(void *pOrig, int nNew){
+static void *fts3ReallocOrFree(void *pOrig, int nNew){
   void *pRet = sqlite3_realloc(pOrig, nNew);
   if( !pRet ){
     sqlite3_free(pOrig);
@@ -231,7 +251,7 @@ static int getNextString(
 
   if( rc==SQLITE_DONE ){
     int jj;
-    char *zNew;
+    char *zNew = NULL;
     int nNew = 0;
     int nByte = sizeof(Fts3Expr) + sizeof(Fts3Phrase);
     nByte += (p?(p->pPhrase->nToken-1):0) * sizeof(struct PhraseToken);
@@ -290,7 +310,7 @@ static int getNextNode(
   int *pnConsumed                         /* OUT: Number of bytes consumed */
 ){
   static const struct Fts3Keyword {
-    char z[4];                            /* Keyword text */
+    char *z;                              /* Keyword text */
     unsigned char n;                      /* Length of the keyword */
     unsigned char parenOnly;              /* Only valid in paren mode */
     unsigned char eType;                  /* Keyword code */
@@ -353,11 +373,14 @@ static int getNextNode(
        || cNext=='"' || cNext=='(' || cNext==')' || cNext==0
       ){
         pRet = (Fts3Expr *)sqlite3_malloc(sizeof(Fts3Expr));
+        if( !pRet ){
+          return SQLITE_NOMEM;
+        }
         memset(pRet, 0, sizeof(Fts3Expr));
         pRet->eType = pKey->eType;
         pRet->nNear = nNear;
         *ppExpr = pRet;
-        *pnConsumed = (zInput - z) + nKey;
+        *pnConsumed = (int)((zInput - z) + nKey);
         return SQLITE_OK;
       }
 
@@ -377,14 +400,14 @@ static int getNextNode(
       if( rc==SQLITE_OK && !*ppExpr ){
         rc = SQLITE_DONE;
       }
-      *pnConsumed = (zInput - z) + 1 + nConsumed;
+      *pnConsumed = (int)((zInput - z) + 1 + nConsumed);
       return rc;
     }
   
     /* Check for a close bracket. */
     if( *zInput==')' ){
       pParse->nNest--;
-      *pnConsumed = (zInput - z) + 1;
+      *pnConsumed = (int)((zInput - z) + 1);
       return SQLITE_DONE;
     }
   }
@@ -396,7 +419,7 @@ static int getNextNode(
   */
   if( *zInput=='"' ){
     for(ii=1; ii<nInput && zInput[ii]!='"'; ii++);
-    *pnConsumed = (zInput - z) + ii + 1;
+    *pnConsumed = (int)((zInput - z) + ii + 1);
     if( ii==nInput ){
       return SQLITE_ERROR;
     }
@@ -419,12 +442,12 @@ static int getNextNode(
   iColLen = 0;
   for(ii=0; ii<pParse->nCol; ii++){
     const char *zStr = pParse->azCol[ii];
-    int nStr = strlen(zStr);
+    int nStr = (int)strlen(zStr);
     if( nInput>nStr && zInput[nStr]==':' 
      && sqlite3_strnicmp(zStr, zInput, nStr)==0 
     ){
       iCol = ii;
-      iColLen = ((zInput - z) + nStr + 1);
+      iColLen = (int)((zInput - z) + nStr + 1);
       break;
     }
   }
@@ -690,7 +713,7 @@ int sqlite3Fts3ExprParse(
     return SQLITE_OK;
   }
   if( n<0 ){
-    n = strlen(z);
+    n = (int)strlen(z);
   }
   rc = fts3ExprParse(&sParse, z, n, ppExpr, &nParsed);
 
@@ -711,6 +734,7 @@ void sqlite3Fts3ExprFree(Fts3Expr *p){
   if( p ){
     sqlite3Fts3ExprFree(p->pLeft);
     sqlite3Fts3ExprFree(p->pRight);
+    sqlite3_free(p->aDoclist);
     sqlite3_free(p);
   }
 }
@@ -745,7 +769,7 @@ static int queryTestTokenizer(
   sqlite3_bind_text(pStmt, 1, zName, -1, SQLITE_STATIC);
   if( SQLITE_ROW==sqlite3_step(pStmt) ){
     if( sqlite3_column_type(pStmt, 0)==SQLITE_BLOB ){
-      memcpy(pp, sqlite3_column_blob(pStmt, 0), sizeof(*pp));
+      memcpy((void *)pp, sqlite3_column_blob(pStmt, 0), sizeof(*pp));
     }
   }
 
@@ -889,8 +913,8 @@ exprtest_out:
 ** Register the query expression parser test function fts3_exprtest() 
 ** with database connection db. 
 */
-void sqlite3Fts3ExprInitTestInterface(sqlite3* db){
-  sqlite3_create_function(
+int sqlite3Fts3ExprInitTestInterface(sqlite3* db){
+  return sqlite3_create_function(
       db, "fts3_exprtest", -1, SQLITE_UTF8, 0, fts3ExprTest, 0, 0
   );
 }
