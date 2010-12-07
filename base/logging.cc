@@ -56,6 +56,7 @@ typedef pthread_mutex_t* MutexHandle;
 #endif
 #include "base/process_util.h"
 #include "base/string_piece.h"
+#include "base/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 #include "base/vlog.h"
 
@@ -502,6 +503,9 @@ void DisplayDebugMessageInDialog(const std::string& str) {
   // way more retro.  We could use zenity/kdialog but then we're starting
   // to get into needing to check the desktop env and this dialog should
   // only be coming up in Very Bad situations.
+  // It is tolerable to allow IO from this function when on any thread, given
+  // we're about to core dump anyway.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
   std::vector<std::string> argv;
   argv.push_back("xmessage");
   argv.push_back(str);
