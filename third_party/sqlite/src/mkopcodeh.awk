@@ -25,17 +25,11 @@
 #
 # This script also scans for lines of the form:
 #
-#       case OP_aaaa:       /* no-push */
+#       case OP_aaaa:       /* jump, in1, in2, in3, out2-prerelease, out3 */
 #
-# When the no-push comment is found on an opcode, it means that that
-# opcode does not leave a result on the stack.  By identifying which
-# opcodes leave results on the stack it is possible to determine a
-# much smaller upper bound on the size of the stack.  This allows
-# a smaller stack to be allocated, which is important to embedded
-# systems with limited memory space.  This script generates a series
-# of "NOPUSH_MASK" defines that contain bitmaps of opcodes that leave
-# results on the stack.  The NOPUSH_MASK defines are used in vdbeaux.c
-# to help determine the maximum stack size.
+# When such comments are found on an opcode, it means that certain
+# properties apply to that opcode.  Set corresponding flags using the
+# OPFLG_INITIALIZER macro.
 #
 
 
@@ -55,6 +49,7 @@
   in1[name] = 0
   in2[name] = 0
   in3[name] = 0
+  out2[name] = 0
   out3[name] = 0
   for(i=3; i<NF; i++){
     if($i=="same" && $(i+1)=="as"){
@@ -76,10 +71,13 @@
       in2[name] = 1
     }else if(x=="in3"){
       in3[name] = 1
+    }else if(x=="out2"){
+      out2[name] = 1
     }else if(x=="out3"){
       out3[name] = 1
     }
   }
+  order[n_op++] = name;
 }
 
 # Assign numbers to all opcodes and output the result.
@@ -89,8 +87,11 @@ END {
   print "/* Automatically generated.  Do not edit */"
   print "/* See the mkopcodeh.awk script for details */"
   op["OP_Noop"] = -1;
+  order[n_op++] = "OP_Noop";
   op["OP_Explain"] = -1;
-  for(name in op){
+  order[n_op++] = "OP_Explain";
+  for(i=0; i<n_op; i++){
+    name = order[i];
     if( op[name]<0 ){
       cnt++
       while( used[cnt] ) cnt++
@@ -123,16 +124,18 @@ END {
   #  bit 2:     output to p1.  release p1 before opcode runs
   #
   for(i=0; i<=max; i++) bv[i] = 0;
-  for(name in op){
+  for(i=0; i<n_op; i++){
+    name = order[i];
     x = op[name]
     a0 = a1 = a2 = a3 = a4 = a5 = a6 = a7 = 0
-    # a8 = a9 = a10 = a11 = a12 = a13 = a14 = a15 = 0
+    # a7 = a9 = a10 = a11 = a12 = a13 = a14 = a15 = 0
     if( jump[name] ) a0 = 1;
     if( out2_prerelease[name] ) a1 = 2;
     if( in1[name] ) a2 = 4;
     if( in2[name] ) a3 = 8;
     if( in3[name] ) a4 = 16;
-    if( out3[name] ) a5 = 32;
+    if( out2[name] ) a5 = 32;
+    if( out3[name] ) a6 = 64;
     # bv[x] = a0+a1+a2+a3+a4+a5+a6+a7+a8+a9+a10+a11+a12+a13+a14+a15;
     bv[x] = a0+a1+a2+a3+a4+a5+a6+a7;
   }
@@ -146,7 +149,8 @@ END {
   print "#define OPFLG_IN1             0x0004  /* in1:   P1 is an input */"
   print "#define OPFLG_IN2             0x0008  /* in2:   P2 is an input */"
   print "#define OPFLG_IN3             0x0010  /* in3:   P3 is an input */"
-  print "#define OPFLG_OUT3            0x0020  /* out3:  P3 is an output */"
+  print "#define OPFLG_OUT2            0x0020  /* out2:  P2 is an output */"
+  print "#define OPFLG_OUT3            0x0040  /* out3:  P3 is an output */"
   print "#define OPFLG_INITIALIZER {\\"
   for(i=0; i<=max; i++){
     if( i%8==0 ) printf("/* %3d */",i)

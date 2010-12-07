@@ -9,8 +9,6 @@
 **    May you share freely, never taking more than you give.
 **
 *************************************************************************
-** $Id: btreeInt.h,v 1.52 2009/07/15 17:25:46 drh Exp $
-**
 ** This file implements a external (disk-based) database using BTrees.
 ** For a detailed discussion of BTrees, refer to
 **
@@ -48,9 +46,9 @@
 **
 ** The file is divided into pages.  The first page is called page 1,
 ** the second is page 2, and so forth.  A page number of zero indicates
-** "no such page".  The page size can be anything between 512 and 65536.
-** Each page can be either a btree page, a freelist page or an overflow
-** page.
+** "no such page".  The page size can be any power of 2 between 512 and 65536.
+** Each page can be either a btree page, a freelist page, an overflow
+** page, or a pointer-map page.
 **
 ** The first page is always a btree page.  The first 100 bytes of the first
 ** page contain a special header (the "file header") that describes the file.
@@ -329,8 +327,8 @@ struct BtLock {
 ** this structure.
 **
 ** For some database files, the same underlying database cache might be 
-** shared between multiple connections.  In that case, each contection
-** has it own pointer to this object.  But each instance of this object
+** shared between multiple connections.  In that case, each connection
+** has it own instance of this object.  But each instance of this object
 ** points to the same BtShared object.  The database cache and the
 ** schema associated with the database file are all contained within
 ** the BtShared object.
@@ -409,18 +407,23 @@ struct BtShared {
   MemPage *pPage1;      /* First page of the database */
   u8 readOnly;          /* True if the underlying file is readonly */
   u8 pageSizeFixed;     /* True if the page size can no longer be changed */
+  u8 secureDelete;      /* True if secure_delete is enabled */
+  u8 initiallyEmpty;    /* Database is empty at start of transaction */
+  u8 openFlags;         /* Flags to sqlite3BtreeOpen() */
 #ifndef SQLITE_OMIT_AUTOVACUUM
   u8 autoVacuum;        /* True if auto-vacuum is enabled */
   u8 incrVacuum;        /* True if incr-vacuum is enabled */
 #endif
-  u16 pageSize;         /* Total number of bytes on a page */
-  u16 usableSize;       /* Number of usable bytes on each page */
   u16 maxLocal;         /* Maximum local payload in non-LEAFDATA tables */
   u16 minLocal;         /* Minimum local payload in non-LEAFDATA tables */
   u16 maxLeaf;          /* Maximum local payload in a LEAFDATA table */
   u16 minLeaf;          /* Minimum local payload in a LEAFDATA table */
   u8 inTransaction;     /* Transaction state */
+  u8 doNotUseWAL;       /* If true, do not open write-ahead-log file */
+  u32 pageSize;         /* Total number of bytes on a page */
+  u32 usableSize;       /* Number of usable bytes on each page */
   int nTransaction;     /* Number of open transactions (read + write) */
+  u32 nPage;            /* Number of pages in the database */
   void *pSchema;        /* Pointer to space allocated by sqlite3BtreeSchema() */
   void (*xFreeSchema)(void*);  /* Destructor for BtShared.pSchema */
   sqlite3_mutex *mutex; /* Non-recursive mutex required to access this struct */
@@ -471,7 +474,7 @@ struct CellInfo {
 ** The entry is identified by its MemPage and the index in
 ** MemPage.aCell[] of the entry.
 **
-** When a single database file can shared by two more database connections,
+** A single database file can shared by two more database connections,
 ** but cursors cannot be shared.  Each cursor is associated with a
 ** particular database connection identified BtCursor.pBtree.db.
 **
