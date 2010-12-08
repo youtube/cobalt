@@ -150,8 +150,12 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   static const char* const kGetHeaders[] = {
     "method",
     "GET",
-    "url",
-    "http://www.google.com/",
+    "scheme",
+    "http",
+    "host",
+    "www.google.com",
+    "path",
+    "/",
     "version",
     "HTTP/1.1",
   };
@@ -189,7 +193,8 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   SpdySession::SetSSLMode(false);
 
   scoped_refptr<SpdySession> session(CreateSpdySession());
-  GURL url("http://www.google.com/");
+  const char* kStreamUrl = "http://www.google.com/";
+  GURL url(kStreamUrl);
 
   HostPortPair host_port_pair("www.google.com", 80);
   scoped_refptr<TCPSocketParams> tcp_params(
@@ -213,11 +218,17 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
       new TestSpdyStreamDelegate(stream.get(), buf.get(), &callback));
   stream->SetDelegate(delegate.get());
 
+  EXPECT_FALSE(stream->HasUrl());
+
   linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
   (*headers)["method"] = "GET";
-  (*headers)["url"] = "http://www.google.com/";
+  (*headers)["scheme"] = url.scheme();
+  (*headers)["host"] = url.host();
+  (*headers)["path"] = url.path();
   (*headers)["version"] = "HTTP/1.1";
   stream->set_spdy_headers(headers);
+  EXPECT_TRUE(stream->HasUrl());
+  EXPECT_EQ(kStreamUrl, stream->GetUrl().spec());
 
   EXPECT_EQ(ERR_IO_PENDING, stream->SendRequest(true));
 
@@ -230,5 +241,40 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   EXPECT_EQ(8, delegate->data_sent());
   EXPECT_TRUE(delegate->closed());
 }
+
+TEST_F(SpdyStreamTest, PushedStream) {
+  const char kStreamUrl[] = "http://www.google.com/";
+
+  SpdySessionDependencies session_deps;
+  session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps);
+  SpdySessionPoolPeer pool_peer_(session_->spdy_session_pool());
+  scoped_refptr<SpdySession> spdy_session(CreateSpdySession());
+  BoundNetLog net_log;
+
+  // Conjure up a stream.
+  scoped_refptr<SpdyStream> stream = new SpdyStream(spdy_session,
+                                                    2,
+                                                    true,
+                                                    net_log);
+  EXPECT_FALSE(stream->response_received());
+  EXPECT_FALSE(stream->HasUrl());
+
+  // Set a couple of headers.
+  spdy::SpdyHeaderBlock response;
+  response["url"] = kStreamUrl;
+  stream->OnResponseReceived(response);
+
+  // Send some basic headers.
+  spdy::SpdyHeaderBlock headers;
+  response["status"] = "200";
+  response["version"] = "OK";
+  stream->OnHeaders(headers);
+
+  stream->set_response_received();
+  EXPECT_TRUE(stream->response_received());
+  EXPECT_TRUE(stream->HasUrl());
+  EXPECT_EQ(kStreamUrl, stream->GetUrl().spec());
+}
+
 
 }  // namespace net
