@@ -161,13 +161,6 @@ class CommandLine {
   void CopySwitchesFrom(const CommandLine& source, const char* const switches[],
                         size_t count);
 
-  // APIs that work with wstrings are deprecated.
-  // TODO(evanm): remove all of these.
-#if defined(OS_WIN)
-  // Deprecated on non-Windows.
-  bool HasSwitch(const std::wstring& switch_string) const;
-#endif
-
  private:
   friend class InProcessBrowserTest;
 
