@@ -20,9 +20,6 @@
 #include "net/base/dns_util.h"
 #include "net/base/net_errors.h"
 
-DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverWorker);
-DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverHandle);
-
 // Life of a query:
 //
 // DnsRRResolver RRResolverJob RRResolverWorker       ...         Handle
@@ -82,7 +79,7 @@ DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverHandle);
 namespace net {
 
 static const uint16 kClassIN = 1;
-// kMaxCacheEntries is the number of RRResponse object that we'll cache.
+// kMaxCacheEntries is the number of RRResponse objects that we'll cache.
 static const unsigned kMaxCacheEntries = 32;
 // kNegativeTTLSecs is the number of seconds for which we'll cache a negative
 // cache entry.
@@ -104,6 +101,7 @@ class RRResolverHandle {
   // Cancel ensures that the result callback will never be made.
   void Cancel() {
     callback_ = NULL;
+    response_ = NULL;
   }
 
   // Post copies the contents of |response| to the caller's RRResponse and
@@ -118,11 +116,8 @@ class RRResolverHandle {
   }
 
  private:
-  friend class RRResolverWorker;
-  friend class DnsRRResolver;
-
   CompletionCallback* callback_;
-  RRResponse* const response_;
+  RRResponse* response_;
 };
 
 
@@ -248,7 +243,7 @@ class RRResolverWorker {
     Finish();
   }
 
-#endif // OS_WIN
+#endif  // OS_WIN
 
   // HandleTestCases stuffs in magic test values in the event that the query is
   // from a unittest.
@@ -277,8 +272,9 @@ class RRResolverWorker {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
     {
       // We lock here because the worker thread could still be in Finished,
-      // after the PostTask, but before unlocking |lock_|. In this case, we end
-      // up deleting a locked Lock, which can lead to memory leaks.
+      // after the PostTask, but before unlocking |lock_|. If we do not lock in
+      // this case, we will end up deleting a locked Lock, which can lead to
+      // memory leaks or worse errors.
       AutoLock locked(lock_);
       if (!canceled_)
         dnsrr_resolver_->HandleResult(name_, rrtype_, result_, response_);
@@ -453,12 +449,12 @@ class Buffer {
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(Buffer);
-
   const uint8* p_;
   const uint8* const packet_;
   unsigned len_;
   const unsigned packet_len_;
+
+  DISALLOW_COPY_AND_ASSIGN(Buffer);
 };
 
 bool RRResponse::HasExpired(const base::Time current_time) const {
@@ -558,12 +554,12 @@ bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
 // lives only on the DnsRRResolver's origin message loop.
 class RRResolverJob {
  public:
-  RRResolverJob(RRResolverWorker* worker)
+  explicit RRResolverJob(RRResolverWorker* worker)
       : worker_(worker) {
   }
 
   ~RRResolverJob() {
-    Cancel(ERR_NAME_NOT_RESOLVED);
+    Cancel(ERR_ABORTED);
   }
 
   void AddHandle(RRResolverHandle* handle) {
@@ -579,9 +575,8 @@ class RRResolverJob {
     if (worker_) {
       worker_->Cancel();
       worker_ = NULL;
+      PostAll(error, NULL);
     }
-
-    PostAll(error, NULL);
   }
 
  private:
@@ -699,11 +694,7 @@ void DnsRRResolver::OnIPAddressChanged() {
   inflight.swap(inflight_);
   cache_.clear();
 
-  for (std::map<std::pair<std::string, uint16>, RRResolverJob*>::iterator
-       i = inflight.begin(); i != inflight.end(); i++) {
-    i->second->Cancel(ERR_ABORTED);
-    delete i->second;
-  }
+  STLDeleteValues(&inflight);
 }
 
 // HandleResult is called on the origin message loop.
@@ -718,12 +709,11 @@ void DnsRRResolver::HandleResult(const std::string& name, uint16 rrtype,
   if (cache_.size() == kMaxCacheEntries) {
     // need to remove an element of the cache.
     const base::Time current_time(base::Time::Now());
-    for (std::map<std::pair<std::string, uint16>, RRResponse>::iterator
-         i = cache_.begin(); i != cache_.end(); ++i) {
-      if (i->second.HasExpired(current_time)) {
-        cache_.erase(i);
-        break;
-      }
+    std::map<std::pair<std::string, uint16>, RRResponse>::iterator i, cur;
+    for (i = cache_.begin(); i != cache_.end(); ) {
+      cur = i++;
+      if (cur->second.HasExpired(current_time))
+        cache_.erase(cur);
     }
   }
   if (cache_.size() == kMaxCacheEntries) {
@@ -748,3 +738,6 @@ void DnsRRResolver::HandleResult(const std::string& name, uint16 rrtype,
 }
 
 }  // namespace net
+
+DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverHandle);
+DISABLE_RUNNABLE_METHOD_REFCOUNT(net::RRResolverWorker);
