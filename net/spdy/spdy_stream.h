@@ -13,6 +13,7 @@
 #include "base/linked_ptr.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "googleurl/src/gurl.h"
 #include "net/base/bandwidth_metrics.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
@@ -213,6 +214,13 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   }
 
   int response_status() const { return response_status_; }
+
+  // Returns true if the URL for this stream is known.
+  bool HasUrl() const;
+
+  // Get the URL associated with this stream.  Only valid when has_url() is
+  // true.
+  GURL GetUrl() const;
 
  private:
   enum State {
