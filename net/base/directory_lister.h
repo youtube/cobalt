@@ -82,7 +82,7 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
   void set_delegate(DirectoryListerDelegate* d) { delegate_ = d; }
 
   // PlatformThread::Delegate implementation
-  void ThreadMain();
+  virtual void ThreadMain();
 
  private:
   friend class base::RefCountedThreadSafe<DirectoryLister>;
