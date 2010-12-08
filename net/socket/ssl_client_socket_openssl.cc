@@ -95,9 +95,6 @@ int MapOpenSSLErrorSSL() {
     case SSL_R_UNKNOWN_REMOTE_ERROR_TYPE:
     case SSL_R_UNKNOWN_SSL_VERSION:
       return ERR_NOT_IMPLEMENTED;
-    // SSL_R_UNKNOWN_PROTOCOL is reported if all the protocol versions
-    // supported by the server were disabled in this socket instance.
-    case SSL_R_UNKNOWN_PROTOCOL:
     case SSL_R_UNSUPPORTED_SSL_VERSION:
     case SSL_R_NO_CIPHER_MATCH:
     case SSL_R_NO_SHARED_CIPHER:
@@ -121,6 +118,12 @@ int MapOpenSSLErrorSSL() {
       return ERR_SSL_UNSAFE_NEGOTIATION;
     case SSL_R_WRONG_NUMBER_OF_KEY_BITS:
       return ERR_SSL_WEAK_SERVER_EPHEMERAL_DH_KEY;
+    // SSL_R_UNKNOWN_PROTOCOL is reported if premature application data is
+    // received (see http://crbug.com/42538), and also if all the protocol
+    // versions supported by the server were disabled in this socket instance.
+    // Mapped to ERR_SSL_PROTOCOL_ERROR for compatibility with other SSL sockets
+    // in the former scenario.
+    case SSL_R_UNKNOWN_PROTOCOL:
     case SSL_R_SSL_HANDSHAKE_FAILURE:
     case SSL_R_DECRYPTION_FAILED:
     case SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC:
