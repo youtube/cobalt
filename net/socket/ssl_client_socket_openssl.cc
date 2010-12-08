@@ -56,7 +56,7 @@ int EncodeSSLConnectionStatus(int cipher_suite,
 // Returns the net SSL version number (see ssl_connection_status_flags.h) for
 // this SSL connection.
 int GetNetSSLVersion(SSL* ssl) {
-  switch(SSL_version(ssl)) {
+  switch (SSL_version(ssl)) {
     case SSL2_VERSION:
       return SSL_CONNECTION_VERSION_SSL2;
     case SSL3_VERSION:
@@ -1125,4 +1125,4 @@ int SSLClientSocketOpenSSL::DoPayloadWrite() {
   return MapOpenSSLError(err, err_tracer);
 }
 
-} // namespace net
+}  // namespace net
