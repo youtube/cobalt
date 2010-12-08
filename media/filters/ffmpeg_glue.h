@@ -64,8 +64,11 @@ class FFmpegURLProtocol {
   DISALLOW_COPY_AND_ASSIGN(FFmpegURLProtocol);
 };
 
-class FFmpegGlue : public Singleton<FFmpegGlue> {
+class FFmpegGlue {
  public:
+  // Returns the singleton instance.
+  static FFmpegGlue* GetInstance();
+
   // Adds a FFmpegProtocol to the FFmpeg glue layer and returns a unique string
   // that can be passed to FFmpeg to identify the data source.
   std::string AddProtocol(FFmpegURLProtocol* protocol);
