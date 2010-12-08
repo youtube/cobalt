@@ -77,7 +77,7 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     scoped_ptr<const NonceGenerator> nonce_generator_;
   };
 
-  HttpAuth::AuthorizationResult HandleAnotherChallenge(
+  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
       HttpAuth::ChallengeTokenizer* challenge);
 
  protected:
