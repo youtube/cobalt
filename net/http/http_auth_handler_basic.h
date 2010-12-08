@@ -31,7 +31,7 @@ class HttpAuthHandlerBasic : public HttpAuthHandler {
                                   scoped_ptr<HttpAuthHandler>* handler);
   };
 
-  HttpAuth::AuthorizationResult HandleAnotherChallenge(
+  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
       HttpAuth::ChallengeTokenizer* challenge);
 
  protected:

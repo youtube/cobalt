@@ -19,10 +19,10 @@ class URLRequestRedirectJob : public URLRequestJob {
   URLRequestRedirectJob(net::URLRequest* request, GURL redirect_destination);
 
   virtual void Start();
-  bool IsRedirectResponse(GURL* location, int* http_status_code);
+  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
 
  private:
-  ~URLRequestRedirectJob() {}
+  virtual ~URLRequestRedirectJob();
 
   void StartAsync();
 

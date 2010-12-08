@@ -124,7 +124,7 @@ class FundamentalValue : public Value {
   explicit FundamentalValue(bool in_value);
   explicit FundamentalValue(int in_value);
   explicit FundamentalValue(double in_value);
-  ~FundamentalValue();
+  virtual ~FundamentalValue();
 
   // Subclassed methods
   virtual bool GetAsBoolean(bool* out_value) const;
@@ -151,12 +151,12 @@ class StringValue : public Value {
   // Initializes a StringValue with a string16.
   explicit StringValue(const string16& in_value);
 
-  ~StringValue();
+  virtual ~StringValue();
 
   // Subclassed methods
-  bool GetAsString(std::string* out_value) const;
-  bool GetAsString(string16* out_value) const;
-  Value* DeepCopy() const;
+  virtual bool GetAsString(std::string* out_value) const;
+  virtual bool GetAsString(string16* out_value) const;
+  virtual Value* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
  private:
@@ -178,10 +178,10 @@ class BinaryValue: public Value {
   // Returns NULL if buffer is NULL.
   static BinaryValue* CreateWithCopiedBuffer(const char* buffer, size_t size);
 
-  ~BinaryValue();
+  virtual ~BinaryValue();
 
   // Subclassed methods
-  Value* DeepCopy() const;
+  virtual Value* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
   size_t GetSize() const { return size_; }
@@ -205,10 +205,10 @@ class BinaryValue: public Value {
 class DictionaryValue : public Value {
  public:
   DictionaryValue();
-  ~DictionaryValue();
+  virtual ~DictionaryValue();
 
   // Subclassed methods
-  Value* DeepCopy() const;
+  virtual Value* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
   // Returns true if the current dictionary has a value for the given key.
@@ -368,7 +368,7 @@ class ListValue : public Value {
 
   // Subclassed methods
   virtual bool GetAsList(ListValue** out_value);
-  Value* DeepCopy() const;
+  virtual Value* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
   // Clears the contents of this ListValue
