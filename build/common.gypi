@@ -1136,6 +1136,11 @@
                 'cflags': ['-fPIC']
               }]
             ],
+            'ldflags!': [
+              # --as-needed confuses library interdependencies.
+              # See http://code.google.com/p/chromium/issues/detail?id=61430
+              '-Wl,--as-needed',
+            ],
           }],
           ['linux_use_heapchecker==1', {
             'variables': {'linux_use_tcmalloc%': 1},
