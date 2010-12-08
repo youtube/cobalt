@@ -391,7 +391,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   data_source_ = data_source;
 
   // Add ourself to Protocol list and get our unique key.
-  std::string key = FFmpegGlue::get()->AddProtocol(this);
+  std::string key = FFmpegGlue::GetInstance()->AddProtocol(this);
 
   // Open FFmpeg AVFormatContext.
   DCHECK(!format_context_);
@@ -399,7 +399,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   int result = av_open_input_file(&context, key.c_str(), NULL, 0, NULL);
 
   // Remove ourself from protocol list.
-  FFmpegGlue::get()->RemoveProtocol(this);
+  FFmpegGlue::GetInstance()->RemoveProtocol(this);
 
   if (result < 0) {
     host()->SetError(DEMUXER_ERROR_COULD_NOT_OPEN);
