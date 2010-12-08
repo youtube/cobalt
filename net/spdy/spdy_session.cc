@@ -1026,19 +1026,19 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
 
   // Server-initiated streams should have even sequence numbers.
   if ((stream_id & 0x1) != 0) {
-    LOG(ERROR) << "Received invalid OnSyn stream id " << stream_id;
+    LOG(WARNING) << "Received invalid OnSyn stream id " << stream_id;
     return;
   }
 
   if (IsStreamActive(stream_id)) {
-    LOG(ERROR) << "Received OnSyn for active stream " << stream_id;
+    LOG(WARNING) << "Received OnSyn for active stream " << stream_id;
     return;
   }
 
   if (associated_stream_id == 0) {
-    LOG(ERROR) << "Received invalid OnSyn associated stream id "
-               << associated_stream_id
-               << " for stream " << stream_id;
+    LOG(WARNING) << "Received invalid OnSyn associated stream id "
+                 << associated_stream_id
+                 << " for stream " << stream_id;
     ResetStream(stream_id, spdy::INVALID_STREAM);
     return;
   }
@@ -1047,10 +1047,9 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
 
   // TODO(mbelshe): DCHECK that this is a GET method?
 
+  // Verify that the response had a URL for us.
   const std::string& url = ContainsKey(*headers, "url") ?
       headers->find("url")->second : "";
-
-  // Verify that the response had a URL for us.
   if (url.empty()) {
     ResetStream(stream_id, spdy::PROTOCOL_ERROR);
     LOG(WARNING) << "Pushed stream did not contain a url.";
@@ -1064,19 +1063,28 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     return;
   }
 
+  // Verify we have a valid stream association.
   if (!IsStreamActive(associated_stream_id)) {
-    LOG(ERROR) << "Received OnSyn with inactive associated stream "
+    LOG(WARNING) << "Received OnSyn with inactive associated stream "
                << associated_stream_id;
     ResetStream(stream_id, spdy::INVALID_ASSOCIATED_STREAM);
     return;
   }
 
-  // TODO(erikchen): Actually do something with the associated id.
+  scoped_refptr<SpdyStream> associated_stream =
+      active_streams_[associated_stream_id];
+  GURL associated_url(associated_stream->GetUrl());
+  if (associated_url.GetOrigin() != gurl.GetOrigin()) {
+    LOG(WARNING) << "Rejected Cross Origin Push Stream "
+                 << associated_stream_id;
+    ResetStream(stream_id, spdy::REFUSED_STREAM);
+    return;
+  }
 
   // There should not be an existing pushed stream with the same path.
   PushedStreamMap::iterator it = unclaimed_pushed_streams_.find(url);
   if (it != unclaimed_pushed_streams_.end()) {
-    LOG(ERROR) << "Received duplicate pushed stream with url: " << url;
+    LOG(WARNING) << "Received duplicate pushed stream with url: " << url;
     ResetStream(stream_id, spdy::PROTOCOL_ERROR);
     return;
   }

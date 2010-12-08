@@ -397,6 +397,43 @@ bool SpdyStream::GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) {
   return session_->GetSSLCertRequestInfo(cert_request_info);
 }
 
+bool SpdyStream::HasUrl() const {
+  if (pushed_)
+    return response_received();
+  return request_.get() != NULL;
+}
+
+GURL SpdyStream::GetUrl() const {
+  DCHECK(HasUrl());
+
+  if (pushed_) {
+    // assemble from the response
+    std::string url;
+    spdy::SpdyHeaderBlock::const_iterator it;
+    it = response_->find("url");
+    if (it != (*response_).end())
+      url = it->second;
+    return GURL(url);
+  }
+
+  // assemble from the request
+  std::string scheme;
+  std::string host_port;
+  std::string path;
+  spdy::SpdyHeaderBlock::const_iterator it;
+  it = request_->find("scheme");
+  if (it != (*request_).end())
+    scheme = it->second;
+  it = request_->find("host");
+  if (it != (*request_).end())
+    host_port = it->second;
+  it = request_->find("path");
+  if (it != (*request_).end())
+    path = it->second;
+  std::string url = scheme + "://" + host_port + path;
+  return GURL(url);
+}
+
 int SpdyStream::DoLoop(int result) {
   do {
     State state = io_state_;
