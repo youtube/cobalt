@@ -5332,7 +5332,7 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushCrossOriginCorrectness) {
     'p', 'u', 's', 'h', 'e', 'd'                                 // "pushed"
   };
 
-  for (int index = 0; index < arraysize(kTestCases); index += 2) {
+  for (size_t index = 0; index < arraysize(kTestCases); index += 2) {
     const char* url_to_fetch = kTestCases[index];
     const char* url_to_push = kTestCases[index + 1];
 
