@@ -19,8 +19,6 @@
 #include "net/base/completion_callback.h"
 #include "net/base/network_change_notifier.h"
 
-class MessageLoop;
-
 namespace net {
 
 // RRResponse contains the result of a successful request for a resource record.
@@ -57,7 +55,6 @@ struct RRResponse {
 class BoundNetLog;
 class RRResolverWorker;
 class RRResolverJob;
-class RRResolverHandle;
 
 // DnsRRResolver resolves arbitary DNS resource record types. It should not be
 // confused with HostResolver and should not be used to resolve A/AAAA records.
@@ -117,11 +114,11 @@ class DnsRRResolver : public NonThreadSafe,
   void HandleResult(const std::string& name, uint16 rrtype, int result,
                     const RRResponse& response);
 
-  // cache maps from a request to a cached response. The cached answer may have
-  // expired and the size of |cache| must be <= kMaxCacheEntries.
+  // cache_ maps from a request to a cached response. The cached answer may
+  // have expired and the size of |cache_| must be <= kMaxCacheEntries.
   //                < name      , rrtype>
   std::map<std::pair<std::string, uint16>, RRResponse> cache_;
-  // inflight maps from a request to an active resolution which is taking
+  // inflight_ maps from a request to an active resolution which is taking
   // place.
   std::map<std::pair<std::string, uint16>, RRResolverJob*> inflight_;
 
@@ -136,4 +133,4 @@ class DnsRRResolver : public NonThreadSafe,
 
 }  // namespace net
 
-#endif // NET_BASE_DNSRR_RESOLVER_H_
+#endif  // NET_BASE_DNSRR_RESOLVER_H_
