@@ -46,16 +46,16 @@ const char kInputPath[] = "input";
 const char kOutputPath[] = "output";
 
 // Dumps the file headers to stdout.
-const wchar_t kDumpHeaders[] = L"dump-headers";
+const char kDumpHeaders[] = "dump-headers";
 
 // Dumps all entries to stdout.
-const wchar_t kDumpContents[] = L"dump-contents";
+const char kDumpContents[] = "dump-contents";
 
 // Convert the cache to files.
-const wchar_t kDumpToFiles[] = L"dump-to-files";
+const char kDumpToFiles[] = "dump-to-files";
 
 // Upgrade an old version to the current one.
-const wchar_t kUpgrade[] = L"upgrade";
+const char kUpgrade[] = "upgrade";
 
 // Internal use:
 const char kSlave[] = "slave";
