@@ -27,3 +27,4 @@ bool URLRequestRedirectJob::IsRedirectResponse(GURL* location,
   return true;
 }
 
+URLRequestRedirectJob::~URLRequestRedirectJob() {}
