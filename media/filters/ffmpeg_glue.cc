@@ -16,7 +16,7 @@ media::FFmpegURLProtocol* ToProtocol(void* data) {
 // FFmpeg protocol interface.
 int OpenContext(URLContext* h, const char* filename, int flags) {
   media::FFmpegURLProtocol* protocol;
-  media::FFmpegGlue::get()->GetProtocol(filename, &protocol);
+  media::FFmpegGlue::GetInstance()->GetProtocol(filename, &protocol);
   if (!protocol)
     return AVERROR_IO;
 
@@ -143,6 +143,11 @@ FFmpegGlue::FFmpegGlue() {
 
 FFmpegGlue::~FFmpegGlue() {
   av_lockmgr_register(NULL);
+}
+
+// static
+FFmpegGlue* FFmpegGlue::GetInstance() {
+  return Singleton<FFmpegGlue>::get();
 }
 
 std::string FFmpegGlue::AddProtocol(FFmpegURLProtocol* protocol) {

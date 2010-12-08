@@ -43,7 +43,7 @@ class FFmpegGlueTest : public ::testing::Test {
     MockFFmpeg::set(&mock_ffmpeg_);
 
     // Singleton should initialize FFmpeg.
-    CHECK(FFmpegGlue::get());
+    CHECK(FFmpegGlue::GetInstance());
 
     // Assign our static copy of URLProtocol for the rest of the tests.
     protocol_ = MockFFmpeg::protocol();
@@ -61,10 +61,10 @@ class FFmpegGlueTest : public ::testing::Test {
     EXPECT_CALL(*protocol, IsStreaming()).WillOnce(Return(true));
 
     // Add the protocol to the glue layer and open a context.
-    std::string key = FFmpegGlue::get()->AddProtocol(protocol);
+    std::string key = FFmpegGlue::GetInstance()->AddProtocol(protocol);
     memset(context, 0, sizeof(*context));
     EXPECT_EQ(0, protocol_->url_open(context, key.c_str(), 0));
-    FFmpegGlue::get()->RemoveProtocol(protocol);
+    FFmpegGlue::GetInstance()->RemoveProtocol(protocol);
   }
 
  protected:
@@ -90,7 +90,7 @@ TEST_F(FFmpegGlueTest, InitializeFFmpeg) {
 
 TEST_F(FFmpegGlueTest, AddRemoveGetProtocol) {
   // Prepare testing data.
-  FFmpegGlue* glue = FFmpegGlue::get();
+  FFmpegGlue* glue = FFmpegGlue::GetInstance();
 
   // Create our protocols and add them to the glue layer.
   scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol_a(
@@ -144,7 +144,7 @@ TEST_F(FFmpegGlueTest, AddRemoveGetProtocol) {
 
 TEST_F(FFmpegGlueTest, OpenClose) {
   // Prepare testing data.
-  FFmpegGlue* glue = FFmpegGlue::get();
+  FFmpegGlue* glue = FFmpegGlue::GetInstance();
 
   // Create our protocol and add them to the glue layer.
   scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol(
@@ -311,7 +311,7 @@ TEST_F(FFmpegGlueTest, Destroy) {
   // Create our protocol and add them to the glue layer.
   scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol(
       new StrictMock<Destroyable<MockProtocol> >());
-  std::string key = FFmpegGlue::get()->AddProtocol(protocol.get());
+  std::string key = FFmpegGlue::GetInstance()->AddProtocol(protocol.get());
 
   // We should expect the protocol to get destroyed when the unit test
   // exits.
