@@ -75,7 +75,7 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   virtual const MediaFormat& media_format();
   virtual void Read(Callback1<Buffer*>::Type* read_callback);
   // Bitstream converter to convert input packet.
-  void EnableBitstreamConverter();
+  virtual void EnableBitstreamConverter();
 
   // AVStreamProvider implementation.
   virtual AVStream* GetAVStream() { return stream_; }
