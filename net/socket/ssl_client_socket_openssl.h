@@ -54,7 +54,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerAddress(AddressList*) const;
+  virtual int GetPeerAddress(AddressList* address) const;
   virtual const BoundNetLog& NetLog() const;
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
@@ -151,5 +151,5 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
 
 }  // namespace net
 
-#endif // NET_SOCKET_SSL_CLIENT_SOCKET_OPENSSL_H_
+#endif  // NET_SOCKET_SSL_CLIENT_SOCKET_OPENSSL_H_
 
