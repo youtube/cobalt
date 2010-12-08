@@ -25,10 +25,8 @@ def ReadFile(filename):
     file = open(filename, 'r')
   except IOError, e:
     print >> sys.stderr, ('I/O Error reading file %s(%s): %s' %
-                         (filename, e.errno, e.strerror))
+                          (filename, e.errno, e.strerror))
     raise e
-  if not file:
-    return None
   contents = file.read()
   file.close()
   return contents
