@@ -398,7 +398,7 @@ class SpdyNetworkTransactionTest
 
   void RunServerPushTest(OrderedSocketData* data,
                          HttpResponseInfo* response,
-                         HttpResponseInfo* response2,
+                         HttpResponseInfo* push_response,
                          std::string& expected) {
     NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                        BoundNetLog(), GetParam());
@@ -443,7 +443,7 @@ class SpdyNetworkTransactionTest
     // Verify the SYN_REPLY.
     // Copy the response info, because trans goes away.
     *response = *trans->GetResponseInfo();
-    *response2 = *trans2->GetResponseInfo();
+    *push_response = *trans2->GetResponseInfo();
 
     VerifyStreamsClosed(helper);
   }
@@ -2958,7 +2958,6 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyHeaders) {
       "cookie: val2\n"
       "hello: bye\n"
       "status: 200\n"
-      "url: /index.php\n"
       "version: HTTP/1.1\n"
     },
     // This is the minimalist set of headers.
@@ -2966,7 +2965,6 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyHeaders) {
       { NULL },
       "hello: bye\n"
       "status: 200\n"
-      "url: /index.php\n"
       "version: HTTP/1.1\n"
     },
     // Headers with a comma separated list.
@@ -2977,7 +2975,6 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyHeaders) {
       "cookie: val1,val2\n"
       "hello: bye\n"
       "status: 200\n"
-      "url: /index.php\n"
       "version: HTTP/1.1\n"
     }
   };
@@ -5301,6 +5298,118 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyWithDuplicateLateHeaders) {
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
+}
+
+TEST_P(SpdyNetworkTransactionTest, ServerPushCrossOriginCorrectness) {
+  // In this test we want to verify that we can't accidentally push content
+  // which can't be pushed by this content server.
+  // This test assumes that:
+  //   - if we're requesting http://www.foo.com/barbaz
+  //   - the browser has made a connection to "www.foo.com".
+
+  // A list of the URL to fetch, followed by the URL being pushed.
+  static const char* const kTestCases[] = {
+    "http://www.google.com/foo.html",
+    "http://www.google.com:81/foo.js",     // Bad port
+
+    "http://www.google.com/foo.html",
+    "https://www.google.com/foo.js",       // Bad protocol
+
+    "http://www.google.com/foo.html",
+    "ftp://www.google.com/foo.js",         // Invalid Protocol
+
+    "http://www.google.com/foo.html",
+    "http://blat.www.google.com/foo.js",   // Cross subdomain
+
+    "http://www.google.com/foo.html",
+    "http://www.foo.com/foo.js",           // Cross domain
+  };
+
+
+  static const unsigned char kPushBodyFrame[] = {
+    0x00, 0x00, 0x00, 0x02,                                      // header, ID
+    0x01, 0x00, 0x00, 0x06,                                      // FIN, length
+    'p', 'u', 's', 'h', 'e', 'd'                                 // "pushed"
+  };
+
+  for (int index = 0; index < arraysize(kTestCases); index += 2) {
+    const char* url_to_fetch = kTestCases[index];
+    const char* url_to_push = kTestCases[index + 1];
+
+    scoped_ptr<spdy::SpdyFrame>
+        stream1_syn(ConstructSpdyGet(url_to_fetch, false, 1, LOWEST));
+    scoped_ptr<spdy::SpdyFrame>
+        stream1_body(ConstructSpdyBodyFrame(1, true));
+    scoped_ptr<spdy::SpdyFrame> push_rst(
+        ConstructSpdyRstStream(2, spdy::REFUSED_STREAM));
+    MockWrite writes[] = {
+      CreateMockWrite(*stream1_syn, 1),
+      CreateMockWrite(*push_rst, 4),
+    };
+
+    scoped_ptr<spdy::SpdyFrame>
+        stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+    scoped_ptr<spdy::SpdyFrame>
+        stream2_syn(ConstructSpdyPush(NULL,
+                                      0,
+                                      2,
+                                      1,
+                                      url_to_push));
+    scoped_ptr<spdy::SpdyFrame> rst(
+        ConstructSpdyRstStream(2, spdy::CANCEL));
+
+    MockRead reads[] = {
+      CreateMockRead(*stream1_reply, 2),
+      CreateMockRead(*stream2_syn, 3),
+      CreateMockRead(*stream1_body, 5, false),
+      MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+               arraysize(kPushBodyFrame), 6),
+      MockRead(true, ERR_IO_PENDING, 7),  // Force a pause
+    };
+
+    HttpResponseInfo response;
+    scoped_refptr<OrderedSocketData> data(new OrderedSocketData(
+        reads,
+        arraysize(reads),
+        writes,
+        arraysize(writes)));
+
+    HttpRequestInfo request;
+    request.method = "GET";
+    request.url = GURL(url_to_fetch);
+    request.load_flags = 0;
+    NormalSpdyTransactionHelper helper(request,
+                                       BoundNetLog(), GetParam());
+    helper.RunPreTestSetup();
+    helper.AddData(data);
+
+    HttpNetworkTransaction* trans = helper.trans();
+
+    // Start the transaction with basic parameters.
+    TestCompletionCallback callback;
+
+    int rv = trans->Start(&request, &callback, BoundNetLog());
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+    rv = callback.WaitForResult();
+
+    // Read the response body.
+    std::string result;
+    ReadResult(trans, data, &result);
+
+    // Verify that we consumed all test data.
+    EXPECT_TRUE(data->at_read_eof());
+    EXPECT_TRUE(data->at_write_eof());
+
+    // Verify the SYN_REPLY.
+    // Copy the response info, because trans goes away.
+    response = *trans->GetResponseInfo();
+
+    VerifyStreamsClosed(helper);
+
+    // Verify the SYN_REPLY.
+    EXPECT_TRUE(response.headers != NULL);
+    EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
+  }
 }
 
 }  // namespace net
