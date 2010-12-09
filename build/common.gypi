@@ -320,7 +320,7 @@
     # Use GConf, the GNOME configuration system.
     'use_gconf%': 1,
 
-    # Use OpenSSL instead of NSS. Currently in development.
+    # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
     'use_openssl%': 0,
 
     'conditions': [

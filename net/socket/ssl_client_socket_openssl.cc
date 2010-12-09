@@ -764,7 +764,7 @@ int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
                                                     unsigned int inlen) {
 #if defined(OPENSSL_NPN_NEGOTIATED)
   if (ssl_config_.next_protos.empty()) {
-    *out = "http/1.1";
+    *out = reinterpret_cast<uint8*>(const_cast<char*>("http/1.1"));
     *outlen = 8;
     npn_status_ = SSLClientSocket::kNextProtoUnsupported;
     return SSL_TLSEXT_ERR_OK;
@@ -790,6 +790,7 @@ int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
       NOTREACHED() << status;
       break;
   }
+  DVLOG(2) << "next protocol: '" << npn_proto_ << "' status: " << npn_status_;
 #endif
   return SSL_TLSEXT_ERR_OK;
 }
