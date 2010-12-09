@@ -1329,6 +1329,20 @@ void SpdySession::SendSettings() {
     return;
   HandleSettings(settings);
 
+  // Record Histogram Data
+  for (spdy::SpdySettings::const_iterator i = settings.begin(),
+           end = settings.end(); i != end; ++i) {
+    const uint32 id = i->first.id();
+    const uint32 val = i->second;
+    switch (id) {
+      case spdy::SETTINGS_CURRENT_CWND:
+          UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwndSent",
+                                      val,
+                                      1, 200, 100);
+        break;
+    }
+  }
+
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_SETTINGS,
       make_scoped_refptr(new NetLogSpdySettingsParameter(settings)));
