@@ -591,6 +591,7 @@
         'socket/socks_client_socket.h',
         'socket/socks_client_socket_pool.cc',
         'socket/socks_client_socket_pool.h',
+        'socket/ssl_client_socket.cc',
         'socket/ssl_client_socket.h',
         'socket/ssl_client_socket_mac.cc',
         'socket/ssl_client_socket_mac.h',

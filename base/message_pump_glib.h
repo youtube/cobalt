@@ -62,7 +62,7 @@ class MessagePumpForUI : public MessagePump {
   // is ready for processing.
   virtual bool RunOnce(GMainContext* context, bool block);
 
-  virtual void Run(Delegate* delegate) { RunWithDispatcher(delegate, NULL); }
+  virtual void Run(Delegate* delegate);
   virtual void Quit();
   virtual void ScheduleWork();
   virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);

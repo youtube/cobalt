@@ -170,6 +170,10 @@ FtpDirectoryListingParserVms::FtpDirectoryListingParserVms()
 
 FtpDirectoryListingParserVms::~FtpDirectoryListingParserVms() {}
 
+FtpServerType FtpDirectoryListingParserVms::GetServerType() const {
+  return SERVER_VMS;
+}
+
 bool FtpDirectoryListingParserVms::ConsumeLine(const string16& line) {
   switch (state_) {
     case STATE_INITIAL:

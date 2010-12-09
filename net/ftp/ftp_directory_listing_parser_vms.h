@@ -19,7 +19,7 @@ class FtpDirectoryListingParserVms : public FtpDirectoryListingParser {
   virtual ~FtpDirectoryListingParserVms();
 
   // FtpDirectoryListingParser methods:
-  virtual FtpServerType GetServerType() const { return SERVER_VMS; }
+  virtual FtpServerType GetServerType() const;
   virtual bool ConsumeLine(const string16& line);
   virtual bool OnEndOfInput();
   virtual bool EntryAvailable() const;

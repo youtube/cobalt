@@ -55,20 +55,12 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
                                int buf_len,
                                CompletionCallback* callback);
   virtual void Close(bool not_reusable);
-  virtual HttpStream* RenewStreamForAuth() { return NULL; }
-  virtual bool IsResponseBodyComplete() const {
-    if (!stream_)
-      return false;
-    return stream_->closed();
-  }
-  virtual bool CanFindEndOfResponse() const { return true; }
-  virtual bool IsMoreDataBuffered() const { return false; }
-  virtual bool IsConnectionReused() const {
-    return spdy_session_->IsReused();
-  }
-  virtual void SetConnectionReused() {
-    // SPDY doesn't need an indicator here.
-  }
+  virtual HttpStream* RenewStreamForAuth();
+  virtual bool IsResponseBodyComplete() const;
+  virtual bool CanFindEndOfResponse() const;
+  virtual bool IsMoreDataBuffered() const;
+  virtual bool IsConnectionReused() const;
+  virtual void SetConnectionReused();
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 

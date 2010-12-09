@@ -69,11 +69,9 @@ class HttpStreamRequest : public StreamRequest {
                                          const string16& password);
   virtual LoadState GetLoadState() const;
 
-  virtual bool was_alternate_protocol_available() const {
-      return was_alternate_protocol_available_;
-  }
-  virtual bool was_npn_negotiated() const { return was_npn_negotiated_; }
-  virtual bool using_spdy() const { return using_spdy_; }
+  virtual bool was_alternate_protocol_available() const;
+  virtual bool was_npn_negotiated() const;
+  virtual bool using_spdy() const;
 
  private:
   enum AlternateProtocolMode {

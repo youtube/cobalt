@@ -42,6 +42,10 @@ FtpDirectoryListingParserNetware::FtpDirectoryListingParserNetware(
 
 FtpDirectoryListingParserNetware::~FtpDirectoryListingParserNetware() {}
 
+FtpServerType FtpDirectoryListingParserNetware::GetServerType() const {
+  return SERVER_NETWARE;
+}
+
 bool FtpDirectoryListingParserNetware::ConsumeLine(const string16& line) {
   if (!received_first_line_) {
     received_first_line_ = true;
