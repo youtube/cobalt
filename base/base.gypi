@@ -446,7 +446,7 @@
             ],
             [ 'use_openssl==1', {
                 'dependencies': [
-                  '../build/linux/system.gyp:openssl',
+                  '../third_party/openssl/openssl.gyp:openssl',
                 ],
               }, {  # use_openssl==0
                 'dependencies': [
