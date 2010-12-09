@@ -311,6 +311,13 @@ class SSLContext {
     SSL_CTX_set_timeout(ssl_ctx_.get(), kSessionCacheTimeoutSeconds);
     SSL_CTX_sess_set_cache_size(ssl_ctx_.get(), kSessionCacheMaxEntires);
     SSL_CTX_set_client_cert_cb(ssl_ctx_.get(), ClientCertCallback);
+#if defined(OPENSSL_NPN_NEGOTIATED)
+    // TODO(kristianm): Only select this if ssl_config_.next_proto is not empty.
+    // It would be better if the callback were not a global setting,
+    // but that is an OpenSSL issue.
+    SSL_CTX_set_next_proto_select_cb(ssl_ctx_.get(), SelectNextProtoCallback,
+                                     NULL);
+#endif
   }
 
   static int NewSessionCallbackStatic(SSL* ssl, SSL_SESSION* session) {
@@ -336,6 +343,14 @@ class SSLContext {
     SSLClientSocketOpenSSL* socket = Get()->GetClientSocketFromSSL(ssl);
     CHECK(socket);
     return socket->ClientCertRequestCallback(ssl, x509, pkey);
+  }
+
+  static int SelectNextProtoCallback(SSL* ssl,
+                                     unsigned char** out, unsigned char* outlen,
+                                     const unsigned char* in,
+                                     unsigned int inlen, void* arg) {
+    SSLClientSocketOpenSSL* socket = Get()->GetClientSocketFromSSL(ssl);
+    return socket->SelectNextProtoCallback(out, outlen, in, inlen);
   }
 
   // This is the index used with SSL_get_ex_data to retrieve the owner
@@ -384,6 +399,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
       trying_cached_session_(false),
+      npn_status_(kNextProtoUnsupported),
       net_log_(transport_socket->socket()->NetLog()) {
 }
 
@@ -567,8 +583,8 @@ void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
 
 SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
     std::string* proto) {
-  proto->clear();
-  return kNextProtoUnsupported;
+  *proto = npn_proto_;
+  return npn_status_;
 }
 
 void SSLClientSocketOpenSSL::DoReadCallback(int rv) {
@@ -740,6 +756,42 @@ int SSLClientSocketOpenSSL::DoHandshake() {
     }
   }
   return net_error;
+}
+
+int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
+                                                    unsigned char* outlen,
+                                                    const unsigned char* in,
+                                                    unsigned int inlen) {
+#if defined(OPENSSL_NPN_NEGOTIATED)
+  if (ssl_config_.next_protos.empty()) {
+    *out = "http/1.1";
+    *outlen = 8;
+    npn_status_ = SSLClientSocket::kNextProtoUnsupported;
+    return SSL_TLSEXT_ERR_OK;
+  }
+
+  int status = SSL_select_next_proto(
+      out, outlen, in, inlen,
+      reinterpret_cast<const unsigned char*>(ssl_config_.next_protos.data()),
+      ssl_config_.next_protos.size());
+
+  npn_proto_.assign(reinterpret_cast<const char*>(*out), *outlen);
+  switch (status) {
+    case OPENSSL_NPN_UNSUPPORTED:
+      npn_status_ = SSLClientSocket::kNextProtoUnsupported;
+      break;
+    case OPENSSL_NPN_NEGOTIATED:
+      npn_status_ = SSLClientSocket::kNextProtoNegotiated;
+      break;
+    case OPENSSL_NPN_NO_OVERLAP:
+      npn_status_ = SSLClientSocket::kNextProtoNoOverlap;
+      break;
+    default:
+      NOTREACHED() << status;
+      break;
+  }
+#endif
+  return SSL_TLSEXT_ERR_OK;
 }
 
 int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
