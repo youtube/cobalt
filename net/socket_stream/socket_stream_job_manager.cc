@@ -4,12 +4,19 @@
 
 #include "net/socket_stream/socket_stream_job_manager.h"
 
+#include "base/singleton.h"
+
 namespace net {
 
 SocketStreamJobManager::SocketStreamJobManager() {
 }
 
 SocketStreamJobManager::~SocketStreamJobManager() {
+}
+
+// static
+SocketStreamJobManager* SocketStreamJobManager::GetInstance() {
+  return Singleton<SocketStreamJobManager>::get();
 }
 
 SocketStreamJob* SocketStreamJobManager::CreateJob(

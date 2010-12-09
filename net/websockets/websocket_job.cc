@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/singleton.h"
 #include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
@@ -144,8 +145,8 @@ void WebSocketJob::RestartWithAuth(
 
 void WebSocketJob::DetachDelegate() {
   state_ = CLOSED;
-  Singleton<WebSocketThrottle>::get()->RemoveFromQueue(this);
-  Singleton<WebSocketThrottle>::get()->WakeupSocketIfNecessary();
+  WebSocketThrottle::GetInstance()->RemoveFromQueue(this);
+  WebSocketThrottle::GetInstance()->WakeupSocketIfNecessary();
 
   scoped_refptr<WebSocketJob> protect(this);
 
@@ -165,7 +166,7 @@ int WebSocketJob::OnStartOpenConnection(
   DCHECK(!callback_);
   state_ = CONNECTING;
   addresses_.Copy(socket->address_list().head(), true);
-  Singleton<WebSocketThrottle>::get()->PutInQueue(this);
+  WebSocketThrottle::GetInstance()->PutInQueue(this);
   if (!waiting_)
     return OK;
   callback_ = callback;
@@ -237,8 +238,8 @@ void WebSocketJob::OnReceivedData(
 
 void WebSocketJob::OnClose(SocketStream* socket) {
   state_ = CLOSED;
-  Singleton<WebSocketThrottle>::get()->RemoveFromQueue(this);
-  Singleton<WebSocketThrottle>::get()->WakeupSocketIfNecessary();
+  WebSocketThrottle::GetInstance()->RemoveFromQueue(this);
+  WebSocketThrottle::GetInstance()->WakeupSocketIfNecessary();
 
   scoped_refptr<WebSocketJob> protect(this);
 
@@ -405,8 +406,8 @@ void WebSocketJob::SaveNextCookie() {
 
     handshake_response_.reset();
 
-    Singleton<WebSocketThrottle>::get()->RemoveFromQueue(this);
-    Singleton<WebSocketThrottle>::get()->WakeupSocketIfNecessary();
+    WebSocketThrottle::GetInstance()->RemoveFromQueue(this);
+    WebSocketThrottle::GetInstance()->WakeupSocketIfNecessary();
     return;
   }
 

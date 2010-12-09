@@ -29,10 +29,6 @@ namespace {
 // Max number of http redirects to follow.  Same number as gecko.
 const int kMaxRedirects = 20;
 
-URLRequestJobManager* GetJobManager() {
-  return Singleton<URLRequestJobManager>::get();
-}
-
 // Discard headers which have meaning in POST (Content-Length, Content-Type,
 // Origin).
 void StripPostSpecificHeaders(net::HttpRequestHeaders* headers) {
@@ -130,17 +126,19 @@ URLRequest::~URLRequest() {
 // static
 URLRequest::ProtocolFactory* URLRequest::RegisterProtocolFactory(
     const string& scheme, ProtocolFactory* factory) {
-  return GetJobManager()->RegisterProtocolFactory(scheme, factory);
+  return URLRequestJobManager::GetInstance()->RegisterProtocolFactory(scheme,
+                                                                      factory);
 }
 
 // static
 void URLRequest::RegisterRequestInterceptor(Interceptor* interceptor) {
-  GetJobManager()->RegisterRequestInterceptor(interceptor);
+  URLRequestJobManager::GetInstance()->RegisterRequestInterceptor(interceptor);
 }
 
 // static
 void URLRequest::UnregisterRequestInterceptor(Interceptor* interceptor) {
-  GetJobManager()->UnregisterRequestInterceptor(interceptor);
+  URLRequestJobManager::GetInstance()->UnregisterRequestInterceptor(
+      interceptor);
 }
 
 void URLRequest::AppendBytesToUpload(const char* bytes, int bytes_len) {
@@ -264,7 +262,7 @@ int URLRequest::GetResponseCode() {
 
 // static
 bool URLRequest::IsHandledProtocol(const std::string& scheme) {
-  return GetJobManager()->SupportsScheme(scheme);
+  return URLRequestJobManager::GetInstance()->SupportsScheme(scheme);
 }
 
 // static
@@ -279,12 +277,12 @@ bool URLRequest::IsHandledURL(const GURL& url) {
 
 // static
 void URLRequest::AllowFileAccess() {
-  GetJobManager()->set_enable_file_access(true);
+  URLRequestJobManager::GetInstance()->set_enable_file_access(true);
 }
 
 // static
 bool URLRequest::IsFileAccessAllowed() {
-  return GetJobManager()->enable_file_access();
+  return URLRequestJobManager::GetInstance()->enable_file_access();
 }
 
 
@@ -318,7 +316,7 @@ GURL URLRequest::GetSanitizedReferrer() const {
 }
 
 void URLRequest::Start() {
-  StartJob(GetJobManager()->CreateJob(this));
+  StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -353,7 +351,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
 void URLRequest::Restart() {
   // Should only be called if the original job didn't make any progress.
   DCHECK(job_ && !job_->has_response_started());
-  RestartWithJob(GetJobManager()->CreateJob(this));
+  RestartWithJob(URLRequestJobManager::GetInstance()->CreateJob(this));
 }
 
 void URLRequest::RestartWithJob(URLRequestJob *job) {
@@ -427,7 +425,9 @@ void URLRequest::StopCaching() {
 }
 
 void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
-  URLRequestJob* job = GetJobManager()->MaybeInterceptRedirect(this, location);
+  URLRequestJob* job =
+      URLRequestJobManager::GetInstance()->MaybeInterceptRedirect(this,
+                                                                  location);
   if (job) {
     RestartWithJob(job);
   } else if (delegate_) {
@@ -441,7 +441,8 @@ void URLRequest::ResponseStarted() {
     params = new net::NetLogIntegerParameter("net_error", status_.os_error());
   net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START_JOB, params);
 
-  URLRequestJob* job = GetJobManager()->MaybeInterceptResponse(this);
+  URLRequestJob* job =
+      URLRequestJobManager::GetInstance()->MaybeInterceptResponse(this);
   if (job) {
     RestartWithJob(job);
   } else if (delegate_) {

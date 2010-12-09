@@ -937,7 +937,7 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
     // At this point, we have a request for opportunistic encryption over HTTP.
     // In this case we need to probe to check that we can make HTTPS
     // connections to that host.
-    net::HTTPSProber* const prober = Singleton<net::HTTPSProber>::get();
+    net::HTTPSProber* const prober = net::HTTPSProber::GetInstance();
     if (prober->HaveProbed(request_info_.url.host()) ||
         prober->InFlight(request_info_.url.host())) {
       continue;
