@@ -94,7 +94,7 @@ class VideoFrame : public StreamSample {
   static void CreateBlackFrame(int width, int height,
                                scoped_refptr<VideoFrame>* frame_out);
 
-  virtual SurfaceType type() const { return type_; }
+  SurfaceType type() const { return type_; }
 
   Format format() const { return format_; }
 

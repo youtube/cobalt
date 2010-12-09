@@ -85,7 +85,7 @@ class Buffer : public StreamSample {
   virtual size_t GetDataSize() const = 0;
 
   // If there's no data in this buffer, it represents end of stream.
-  virtual bool IsEndOfStream() const { return GetData() == NULL; }
+  virtual bool IsEndOfStream() const;
 
  protected:
   virtual ~Buffer() {}

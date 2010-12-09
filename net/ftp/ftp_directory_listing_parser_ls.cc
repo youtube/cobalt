@@ -91,6 +91,10 @@ FtpDirectoryListingParserLs::FtpDirectoryListingParserLs(
 
 FtpDirectoryListingParserLs::~FtpDirectoryListingParserLs() {}
 
+FtpServerType FtpDirectoryListingParserLs::GetServerType() const {
+  return SERVER_LS;
+}
+
 bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
   if (line.empty() && !received_nonempty_line_) {
     // Allow empty lines only at the beginning of the listing. For example VMS

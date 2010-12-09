@@ -99,6 +99,14 @@ int HttpAuthHandler::GenerateAuthToken(const string16* username,
   return rv;
 }
 
+bool HttpAuthHandler::NeedsIdentity() {
+  return true;
+}
+
+bool HttpAuthHandler::AllowsDefaultCredentials() {
+  return false;
+}
+
 void HttpAuthHandler::OnGenerateAuthTokenComplete(int rv) {
   CompletionCallback* callback = original_callback_;
   FinishGenerateAuthToken();

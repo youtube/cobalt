@@ -44,8 +44,8 @@ class DNSSECProvider {
 //
 class SSLClientSocket : public ClientSocket {
  public:
-  SSLClientSocket() : was_npn_negotiated_(false), was_spdy_negotiated_(false) {
-  }
+  SSLClientSocket();
+
   // Next Protocol Negotiation (NPN) allows a TLS client and server to come to
   // an agreement about the application level protocol to speak over a
   // connection.
@@ -84,52 +84,19 @@ class SSLClientSocket : public ClientSocket {
   //                          supported list.
   virtual NextProtoStatus GetNextProto(std::string* proto) = 0;
 
-  static NextProto NextProtoFromString(const std::string& proto_string) {
-    if (proto_string == "http1.1" || proto_string == "http/1.1") {
-      return kProtoHTTP11;
-    } else if (proto_string == "spdy/1") {
-      return kProtoSPDY1;
-    } else if (proto_string == "spdy/2") {
-      return kProtoSPDY2;
-    } else {
-      return kProtoUnknown;
-    }
-  }
+  static NextProto NextProtoFromString(const std::string& proto_string);
 
-  static bool IgnoreCertError(int error, int load_flags) {
-    if (error == OK || load_flags & LOAD_IGNORE_ALL_CERT_ERRORS)
-      return true;
+  static bool IgnoreCertError(int error, int load_flags);
 
-    if (error == ERR_CERT_COMMON_NAME_INVALID &&
-        (load_flags & LOAD_IGNORE_CERT_COMMON_NAME_INVALID))
-      return true;
-    if(error == ERR_CERT_DATE_INVALID &&
-            (load_flags & LOAD_IGNORE_CERT_DATE_INVALID))
-      return true;
-    if(error == ERR_CERT_AUTHORITY_INVALID &&
-            (load_flags & LOAD_IGNORE_CERT_AUTHORITY_INVALID))
-      return true;
+  virtual bool was_npn_negotiated() const;
 
-    return false;
-  }
-
-  virtual bool was_npn_negotiated() const {
-    return was_npn_negotiated_;
-  }
-
-  virtual bool set_was_npn_negotiated(bool negotiated) {
-    return was_npn_negotiated_ = negotiated;
-  }
+  virtual bool set_was_npn_negotiated(bool negotiated);
 
   virtual void UseDNSSEC(DNSSECProvider*) { }
 
-  virtual bool was_spdy_negotiated() const {
-    return was_spdy_negotiated_;
-  }
+  virtual bool was_spdy_negotiated() const;
 
-  virtual bool set_was_spdy_negotiated(bool negotiated) {
-    return was_spdy_negotiated_ = negotiated;
-  }
+  virtual bool set_was_spdy_negotiated(bool negotiated);
 
  private:
   // True if NPN was responded to, independent of selecting SPDY or HTTP.
