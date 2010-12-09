@@ -10,7 +10,8 @@
 #include <string>
 
 #include "base/hash_tables.h"
-#include "base/singleton.h"
+
+template <typename T> struct DefaultSingletonTraits;
 
 namespace net {
 
@@ -27,6 +28,9 @@ class WebSocketJob;
 //        for that connection to have failed.
 class WebSocketThrottle {
  public:
+  // Returns the singleton instance.
+  static WebSocketThrottle* GetInstance();
+
   // Puts |job| in |queue_| and queues for the destination addresses
   // of |job|.
   // If other job is using the same destination address, set |job| waiting.

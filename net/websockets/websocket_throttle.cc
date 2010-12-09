@@ -54,6 +54,11 @@ WebSocketThrottle::~WebSocketThrottle() {
   DCHECK(addr_map_.empty());
 }
 
+// static
+WebSocketThrottle* WebSocketThrottle::GetInstance() {
+  return Singleton<WebSocketThrottle>::get();
+}
+
 void WebSocketThrottle::PutInQueue(WebSocketJob* job) {
   queue_.push_back(job);
   const AddressList& address_list = job->address_list();
