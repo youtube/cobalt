@@ -28,7 +28,7 @@ struct HttpRequestInfo;
 // factory.
 class HttpCache::Transaction : public HttpTransaction {
  public:
-  Transaction(HttpCache* cache, bool enable_range_support);
+  Transaction(HttpCache* cache);
   virtual ~Transaction();
 
   // HttpTransaction methods:
@@ -339,7 +339,6 @@ class HttpCache::Transaction : public HttpTransaction {
   State target_state_;
   bool reading_;  // We are already reading.
   bool invalid_range_;  // We may bypass the cache for this request.
-  bool enable_range_support_;
   bool truncated_;  // We don't have all the response data.
   bool is_sparse_;  // The data is stored in sparse byte ranges.
   bool server_responded_206_;
