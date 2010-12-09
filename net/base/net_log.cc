@@ -194,4 +194,27 @@ Value* NetLogSourceParameter::ToValue() const {
   return dict;
 }
 
+ScopedNetLogEvent::ScopedNetLogEvent(
+    const BoundNetLog& net_log,
+    NetLog::EventType event_type,
+    const scoped_refptr<NetLog::EventParameters>& params)
+    : net_log_(net_log),
+      event_type_(event_type) {
+  net_log_.BeginEvent(event_type, params);
+}
+
+ScopedNetLogEvent::~ScopedNetLogEvent() {
+  net_log_.EndEvent(event_type_, end_event_params_);
+}
+
+void ScopedNetLogEvent::SetEndEventParameters(
+    const scoped_refptr<NetLog::EventParameters>& end_event_params) {
+  DCHECK(!end_event_params_.get());
+  end_event_params_ = end_event_params;
+}
+
+const BoundNetLog& ScopedNetLogEvent::net_log() const {
+  return net_log_;
+}
+
 }  // namespace net
