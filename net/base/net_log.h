@@ -270,6 +270,30 @@ class NetLogSourceParameter : public NetLog::EventParameters {
   const NetLog::Source value_;
 };
 
+// ScopedNetLogEvent logs a begin event on creation, and the corresponding end
+// event on destruction.
+class ScopedNetLogEvent {
+ public:
+  ScopedNetLogEvent(const BoundNetLog& net_log,
+                    NetLog::EventType event_type,
+                    const scoped_refptr<NetLog::EventParameters>& params);
+
+  ~ScopedNetLogEvent();
+
+  // Sets the parameters that will logged on object destruction.  Can be called
+  // at most once for a given ScopedNetLogEvent object.  If not called, the end
+  // event will have no parameters.
+  void SetEndEventParameters(
+      const scoped_refptr<NetLog::EventParameters>& end_event_params);
+
+  const BoundNetLog& net_log() const;
+
+ private:
+  BoundNetLog net_log_;
+  const NetLog::EventType event_type_;
+  scoped_refptr<NetLog::EventParameters> end_event_params_;
+};
+
 }  // namespace net
 
 #endif  // NET_BASE_NET_LOG_H_
