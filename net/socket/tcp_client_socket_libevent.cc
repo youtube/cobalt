@@ -609,6 +609,10 @@ int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
   return OK;
 }
 
+const BoundNetLog& TCPClientSocketLibevent::NetLog() const {
+  return net_log_;
+}
+
 void TCPClientSocketLibevent::SetSubresourceSpeculation() {
   use_history_.set_subresource_speculation();
 }

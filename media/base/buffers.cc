@@ -13,4 +13,8 @@ StreamSample::StreamSample() {}
 
 StreamSample::~StreamSample() {}
 
+bool Buffer::IsEndOfStream() const {
+  return GetData() == NULL;
+}
+
 }  // namespace media

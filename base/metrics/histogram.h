@@ -403,13 +403,13 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   //----------------------------------------------------------------------------
   // Accessors for factory constuction, serialization and testing.
   //----------------------------------------------------------------------------
-  virtual ClassType histogram_type() const { return HISTOGRAM; }
+  virtual ClassType histogram_type() const;
   const std::string& histogram_name() const { return histogram_name_; }
   Sample declared_min() const { return declared_min_; }
   Sample declared_max() const { return declared_max_; }
-  virtual Sample ranges(size_t i) const { return ranges_[i];}
+  virtual Sample ranges(size_t i) const;
   Sample range_checksum() const { return range_checksum_; }
-  virtual size_t bucket_count() const { return bucket_count_; }
+  virtual size_t bucket_count() const;
   // Snapshot the current complete set of sample data.
   // Override with atomic/locked snapshot if needed.
   virtual void SnapshotSample(SampleSet* sample) const;

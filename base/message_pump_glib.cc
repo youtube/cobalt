@@ -315,6 +315,10 @@ void MessagePumpForUI::DidProcessEvent(GdkEvent* event) {
   FOR_EACH_OBSERVER(Observer, observers_, DidProcessEvent(event));
 }
 
+void MessagePumpForUI::Run(Delegate* delegate) {
+  RunWithDispatcher(delegate, NULL);
+}
+
 void MessagePumpForUI::Quit() {
   if (state_) {
     state_->should_quit = true;

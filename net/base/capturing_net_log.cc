@@ -38,6 +38,10 @@ uint32 CapturingNetLog::NextID() {
   return base::subtle::NoBarrier_AtomicIncrement(&last_id_, 1);
 }
 
+NetLog::LogLevel CapturingNetLog::GetLogLevel() const {
+  return LOG_ALL_BUT_BYTES;
+}
+
 void CapturingNetLog::GetEntries(EntryList* entry_list) const {
   AutoLock lock(lock_);
   *entry_list = entries_;
