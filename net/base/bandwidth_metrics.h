@@ -121,9 +121,7 @@ class BandwidthMetrics {
 // ensure we always stop them.
 class ScopedBandwidthMetrics {
  public:
-  explicit ScopedBandwidthMetrics(BandwidthMetrics* metrics)
-      : metrics_(metrics), started_(false) {
-  }
+  ScopedBandwidthMetrics();
 
   ~ScopedBandwidthMetrics() {
     if (started_)

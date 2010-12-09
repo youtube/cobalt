@@ -14,6 +14,8 @@
 #include "base/platform_thread.h"
 #include "net/url_request/url_request.h"
 
+template <typename T> struct DefaultSingletonTraits;
+
 // This class is responsible for managing the set of protocol factories and
 // request interceptors that determine how an URLRequestJob gets created to
 // handle an net::URLRequest.
@@ -27,8 +29,8 @@
 //
 class URLRequestJobManager {
  public:
-  URLRequestJobManager();
-  ~URLRequestJobManager();
+  // Returns the singleton instance.
+  static URLRequestJobManager* GetInstance();
 
   // Instantiate an URLRequestJob implementation based on the registered
   // interceptors and protocol factories.  This will always succeed in
@@ -67,6 +69,10 @@ class URLRequestJobManager {
  private:
   typedef std::map<std::string, net::URLRequest::ProtocolFactory*> FactoryMap;
   typedef std::vector<net::URLRequest::Interceptor*> InterceptorList;
+  friend struct DefaultSingletonTraits<URLRequestJobManager>;
+
+  URLRequestJobManager();
+  ~URLRequestJobManager();
 
   mutable Lock lock_;
   FactoryMap factories_;

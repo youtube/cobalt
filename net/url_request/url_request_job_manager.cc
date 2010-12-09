@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "build/build_config.h"
+#include "base/singleton.h"
 #include "base/string_util.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -44,6 +45,11 @@ URLRequestJobManager::URLRequestJobManager() : enable_file_access_(false) {
 }
 
 URLRequestJobManager::~URLRequestJobManager() {}
+
+// static
+URLRequestJobManager* URLRequestJobManager::GetInstance() {
+  return Singleton<URLRequestJobManager>::get();
+}
 
 URLRequestJob* URLRequestJobManager::CreateJob(net::URLRequest* request) const {
 #ifndef NDEBUG

@@ -29,6 +29,8 @@
         'base/address_list_net_log_param.h',
         'base/auth.cc',
         'base/auth.h',
+        'base/bandwidth_metrics.cc',
+        'base/bandwidth_metrics.h',
         'base/cache_type.h',
         'base/capturing_net_log.cc',
         'base/capturing_net_log.h',
