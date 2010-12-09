@@ -148,6 +148,18 @@ LoadState HttpStreamRequest::GetLoadState() const {
   }
 }
 
+bool HttpStreamRequest::was_alternate_protocol_available() const {
+  return was_alternate_protocol_available_;
+}
+
+bool HttpStreamRequest::was_npn_negotiated() const {
+  return was_npn_negotiated_;
+}
+
+bool HttpStreamRequest::using_spdy() const {
+  return using_spdy_;
+}
+
 void HttpStreamRequest::GetSSLInfo() {
   DCHECK(using_ssl_);
   DCHECK(!establishing_tunnel_);

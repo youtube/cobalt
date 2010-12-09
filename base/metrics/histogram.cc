@@ -571,6 +571,18 @@ Histogram::Inconsistencies Histogram::FindCorruption(
   return static_cast<Inconsistencies>(inconsistencies);
 }
 
+Histogram::ClassType Histogram::histogram_type() const {
+  return HISTOGRAM;
+}
+
+Histogram::Sample Histogram::ranges(size_t i) const {
+  return ranges_[i];
+}
+
+size_t Histogram::bucket_count() const {
+  return bucket_count_;
+}
+
 //------------------------------------------------------------------------------
 // Methods for the Histogram::SampleSet class
 //------------------------------------------------------------------------------

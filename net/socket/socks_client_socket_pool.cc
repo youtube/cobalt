@@ -236,6 +236,10 @@ void SOCKSClientSocketPool::CloseIdleSockets() {
   base_.CloseIdleSockets();
 }
 
+int SOCKSClientSocketPool::IdleSocketCount() const {
+  return base_.idle_socket_count();
+}
+
 int SOCKSClientSocketPool::IdleSocketCountInGroup(
     const std::string& group_name) const {
   return base_.IdleSocketCountInGroup(group_name);
@@ -260,5 +264,13 @@ DictionaryValue* SOCKSClientSocketPool::GetInfoAsValue(
   }
   return dict;
 }
+
+base::TimeDelta SOCKSClientSocketPool::ConnectionTimeout() const {
+  return base_.ConnectionTimeout();
+}
+
+ClientSocketPoolHistograms* SOCKSClientSocketPool::histograms() const {
+  return base_.histograms();
+};
 
 }  // namespace net
