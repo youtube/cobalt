@@ -141,6 +141,32 @@ void SpdyHttpStream::Close(bool not_reusable) {
   Cancel();
 }
 
+HttpStream* SpdyHttpStream::RenewStreamForAuth() {
+  return NULL;
+}
+
+bool SpdyHttpStream::IsResponseBodyComplete() const {
+  if (!stream_)
+    return false;
+  return stream_->closed();
+}
+
+bool SpdyHttpStream::CanFindEndOfResponse() const {
+  return true;
+}
+
+bool SpdyHttpStream::IsMoreDataBuffered() const {
+  return false;
+}
+
+bool SpdyHttpStream::IsConnectionReused() const {
+  return spdy_session_->IsReused();
+}
+
+void SpdyHttpStream::SetConnectionReused() {
+  // SPDY doesn't need an indicator here.
+}
+
 int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
                                 UploadDataStream* request_body,
                                 HttpResponseInfo* response,

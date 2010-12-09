@@ -45,7 +45,7 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
   virtual int GetPeerAddress(AddressList* address) const;
-  virtual const BoundNetLog& NetLog() const { return net_log_; }
+  virtual const BoundNetLog& NetLog() const;
   virtual void SetSubresourceSpeculation();
   virtual void SetOmniboxSpeculation();
   virtual bool WasEverUsed() const;

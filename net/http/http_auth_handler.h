@@ -123,14 +123,14 @@ class HttpAuthHandler {
   // requires an identity.
   // TODO(wtc): Find a better way to handle a multi-round challenge-response
   // sequence used by a connection-based authentication scheme.
-  virtual bool NeedsIdentity() { return true; }
+  virtual bool NeedsIdentity();
 
   // Returns whether the default credentials may be used for the |origin| passed
   // into |InitFromChallenge|. If true, the user does not need to be prompted
   // for username and password to establish credentials.
   // NOTE: SSO is a potential security risk.
   // TODO(cbentzel): Add a pointer to Firefox documentation about risk.
-  virtual bool AllowsDefaultCredentials() { return false; }
+  virtual bool AllowsDefaultCredentials();
 
  protected:
   enum Property {

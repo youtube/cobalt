@@ -76,6 +76,10 @@ FtpDirectoryListingParserWindows::FtpDirectoryListingParserWindows() {}
 
 FtpDirectoryListingParserWindows::~FtpDirectoryListingParserWindows() {}
 
+FtpServerType FtpDirectoryListingParserWindows::GetServerType() const {
+  return SERVER_WINDOWS;
+}
+
 bool FtpDirectoryListingParserWindows::ConsumeLine(const string16& line) {
   std::vector<string16> columns;
   base::SplitString(CollapseWhitespace(line, false), ' ', &columns);

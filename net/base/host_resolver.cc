@@ -25,6 +25,14 @@ HostResolver::HostResolver() {
 HostResolver::~HostResolver() {
 }
 
+AddressFamily HostResolver::GetDefaultAddressFamily() const {
+  return net::ADDRESS_FAMILY_UNSPECIFIED;
+}
+
+HostResolverImpl* HostResolver::GetAsHostResolverImpl() {
+  return NULL;
+}
+
 SingleRequestHostResolver::SingleRequestHostResolver(HostResolver* resolver)
     : resolver_(resolver),
       cur_request_(NULL),
