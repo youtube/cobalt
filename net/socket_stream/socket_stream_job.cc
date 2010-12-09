@@ -9,20 +9,17 @@
 
 namespace net {
 
-static SocketStreamJobManager* GetJobManager() {
-  return Singleton<SocketStreamJobManager>::get();
-}
-
 // static
 SocketStreamJob::ProtocolFactory* SocketStreamJob::RegisterProtocolFactory(
     const std::string& scheme, ProtocolFactory* factory) {
-  return GetJobManager()->RegisterProtocolFactory(scheme, factory);
+  return SocketStreamJobManager::GetInstance()->RegisterProtocolFactory(
+      scheme, factory);
 }
 
 // static
 SocketStreamJob* SocketStreamJob::CreateSocketStreamJob(
     const GURL& url, SocketStream::Delegate* delegate) {
-  return GetJobManager()->CreateJob(url, delegate);
+  return SocketStreamJobManager::GetInstance()->CreateJob(url, delegate);
 }
 
 SocketStreamJob::SocketStreamJob() {}

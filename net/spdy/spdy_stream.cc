@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/singleton.h"
 #include "base/values.h"
 #include "net/spdy/spdy_session.h"
 
@@ -47,7 +46,6 @@ SpdyStream::SpdyStream(SpdySession* session,
       send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       pushed_(pushed),
-      metrics_(Singleton<BandwidthMetrics>::get()),
       response_received_(false),
       session_(session),
       delegate_(NULL),
