@@ -237,7 +237,7 @@
             'conditions': [
               ['use_openssl==1', {
                 'dependencies': [
-                  '../build/linux/system.gyp:openssl',
+                  '../third_party/openssl/openssl.gyp:openssl',
                 ],
               }, {  # else: not using openssl. Use NSS.
                 'dependencies': [
@@ -755,7 +755,7 @@
             'conditions': [
               ['use_openssl==1', {
                 'dependencies': [
-                  '../build/linux/system.gyp:openssl',
+                  '../third_party/openssl/openssl.gyp:openssl',
                 ],
               },
               {  # else use_openssl==0, use NSS
@@ -1198,7 +1198,7 @@
           'conditions': [
             ['use_openssl==1', {
               'dependencies': [
-                '../build/linux/system.gyp:openssl',
+                '../third_party/openssl/openssl.gyp:openssl',
               ]
             }, {
               'dependencies': [

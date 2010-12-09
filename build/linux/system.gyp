@@ -346,29 +346,6 @@
         ],
       },
     },
-    {
-      'target_name': 'openssl',
-      'type': 'settings',
-      'conditions': [
-        ['use_openssl==1', {
-          'direct_dependent_settings': {
-            'defines': [
-              # OpenSSL support is incomplete: http://crbug.com/62803.
-              # Defining USE_OPENSSL disables USE_NSS.
-              'USE_OPENSSL',
-            ],
-            'include_dirs': [
-              '<!@(<(pkg-config) --cflags openssl)',
-            ],
-          },
-          'link_settings': {
-            'libraries': [
-              '<!@(<(pkg-config) --libs-only-l openssl)',
-            ],
-          },
-        },],
-      ],
-    },
   ],
 }
 
