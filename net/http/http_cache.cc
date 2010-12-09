@@ -297,8 +297,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
           ssl_host_info_factory_.get(),
           proxy_service, ssl_config_service,
           http_auth_handler_factory, network_delegate, net_log)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      enable_range_support_(true) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
 }
 
 HttpCache::HttpCache(HttpNetworkSession* session,
@@ -307,8 +306,7 @@ HttpCache::HttpCache(HttpNetworkSession* session,
       building_backend_(false),
       mode_(NORMAL),
       network_layer_(HttpNetworkLayer::CreateFactory(session)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      enable_range_support_(true) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
 }
 
 HttpCache::HttpCache(HttpTransactionFactory* network_layer,
@@ -317,8 +315,7 @@ HttpCache::HttpCache(HttpTransactionFactory* network_layer,
       building_backend_(false),
       mode_(NORMAL),
       network_layer_(network_layer),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      enable_range_support_(true) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
 }
 
 HttpCache::~HttpCache() {
@@ -385,7 +382,7 @@ int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   if (!disk_cache_.get())
     CreateBackend(NULL, NULL);  // We don't care about the result.
 
-  trans->reset(new HttpCache::Transaction(this, enable_range_support_));
+  trans->reset(new HttpCache::Transaction(this));
   return OK;
 }
 
@@ -421,8 +418,7 @@ void HttpCache::WriteMetadata(const GURL& url,
   if (!disk_cache_.get())
     CreateBackend(NULL, NULL);  // We don't care about the result.
 
-  HttpCache::Transaction* trans =
-      new HttpCache::Transaction(this, enable_range_support_);
+  HttpCache::Transaction* trans = new HttpCache::Transaction(this);
   MetadataWriter* writer = new MetadataWriter(trans);
 
   // The writer will self destruct when done.
