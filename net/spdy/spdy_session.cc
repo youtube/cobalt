@@ -62,17 +62,6 @@ namespace {
 
 const int kReadBufferSize = 8 * 1024;
 
-void AdjustSocketBufferSizes(ClientSocket* socket) {
-  // Adjust socket buffer sizes.
-  // SPDY uses one socket, and we want a really big buffer.
-  // This greatly helps on links with packet loss - we can even
-  // outperform Vista's dynamic window sizing algorithm.
-  // TODO(mbelshe): more study.
-  const int kSocketBufferSize = 512 * 1024;
-  socket->SetReceiveBufferSize(kSocketBufferSize);
-  socket->SetSendBufferSize(kSocketBufferSize);
-}
-
 class NetLogSpdySessionParameter : public NetLog::EventParameters {
  public:
   NetLogSpdySessionParameter(const HostPortProxyPair& host_pair)
@@ -293,8 +282,6 @@ net::Error SpdySession::InitializeWithSocket(
     int certificate_error_code) {
   static base::StatsCounter spdy_sessions("spdy.sessions");
   spdy_sessions.Increment();
-
-  AdjustSocketBufferSizes(connection->socket());
 
   state_ = CONNECTED;
   connection_.reset(connection);
