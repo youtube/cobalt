@@ -179,10 +179,6 @@ class HttpCache : public HttpTransactionFactory,
   // immediately, but they will not be reusable. This is for debugging.
   void CloseCurrentConnections();
 
-  void set_enable_range_support(bool value) {
-    enable_range_support_ = value;
-  }
-
  protected:
   // Disk cache entry data indices.
   enum {
@@ -367,8 +363,6 @@ class HttpCache : public HttpTransactionFactory,
   PendingOpsMap pending_ops_;
 
   ScopedRunnableMethodFactory<HttpCache> task_factory_;
-
-  bool enable_range_support_;
 
   typedef base::hash_map<std::string, int> PlaybackCacheMap;
   scoped_ptr<PlaybackCacheMap> playback_cache_map_;

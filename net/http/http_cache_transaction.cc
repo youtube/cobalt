@@ -97,7 +97,7 @@ static bool HeaderMatches(const HttpRequestHeaders& headers,
 
 //-----------------------------------------------------------------------------
 
-HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
+HttpCache::Transaction::Transaction(HttpCache* cache)
     : next_state_(STATE_NONE),
       request_(NULL),
       cache_(cache->AsWeakPtr()),
@@ -110,7 +110,6 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
       target_state_(STATE_NONE),
       reading_(false),
       invalid_range_(false),
-      enable_range_support_(enable_range_support),
       truncated_(false),
       is_sparse_(false),
       server_responded_206_(false),
@@ -139,7 +138,7 @@ HttpCache::Transaction::~Transaction() {
 
   if (cache_) {
     if (entry_) {
-      bool cancel_request = reading_ && enable_range_support_;
+      bool cancel_request = reading_;
       if (cancel_request) {
         if (partial_.get()) {
           entry_->disk_entry->CancelSparseIO();
@@ -683,7 +682,7 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     DoneWritingToEntry(false);
   }
 
-  if (enable_range_support_ && new_response_->headers->response_code() == 416) {
+  if (new_response_->headers->response_code() == 416) {
     DCHECK_EQ(NONE, mode_);
     response_ = *new_response_;
     return OK;
@@ -1284,13 +1283,8 @@ void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
   bool range_found = false;
   bool external_validation_error = false;
 
-  if (request_->extra_headers.HasHeader(HttpRequestHeaders::kRange)) {
-    if (enable_range_support_) {
-      range_found = true;
-    } else {
-      effective_load_flags_ |= LOAD_DISABLE_CACHE;
-    }
-  }
+  if (request_->extra_headers.HasHeader(HttpRequestHeaders::kRange))
+    range_found = true;
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kSpecialHeaders); ++i) {
     if (HeaderMatches(request_->extra_headers, kSpecialHeaders[i].search)) {
@@ -1429,9 +1423,6 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
       !truncated_)
     return BeginCacheValidation();
 
-  if (!enable_range_support_)
-    return BeginCacheValidation();
-
   bool byte_range_requested = partial_.get() != NULL;
   if (byte_range_requested) {
     next_state_ = STATE_CACHE_QUERY_DATA;
@@ -1552,9 +1543,6 @@ bool HttpCache::Transaction::RequiresValidation() {
   if (effective_load_flags_ & LOAD_VALIDATE_CACHE)
     return true;
 
-  if (response_.headers->response_code() == 206 && !enable_range_support_)
-    return true;
-
   if (response_.headers->RequiresValidation(
           response_.request_time, response_.response_time, Time::Now()))
     return true;
@@ -1569,11 +1557,6 @@ bool HttpCache::Transaction::RequiresValidation() {
 
 bool HttpCache::Transaction::ConditionalizeRequest() {
   DCHECK(response_.headers);
-
-  if (!enable_range_support_ && response_.headers->response_code() != 200) {
-    // This only makes sense for cached 200 responses.
-    return false;
-  }
 
   // This only makes sense for cached 200 or 206 responses.
   if (response_.headers->response_code() != 200 &&
@@ -1653,7 +1636,7 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
 bool HttpCache::Transaction::ValidatePartialResponse(bool* partial_content) {
   const HttpResponseHeaders* headers = new_response_->headers;
   int response_code = headers->response_code();
-  bool partial_response = enable_range_support_ ? response_code == 206 : false;
+  bool partial_response = (response_code == 206);
   *partial_content = false;
 
   if (!entry_)
