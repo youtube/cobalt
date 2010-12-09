@@ -258,10 +258,5 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       LOG(DFATAL) << "Unrecognized spdy option: " << option;
     }
   }
-
-  // TODO(willchan): Re-enable SPDY after a canary release goes out
-  // with SPDY off.
-  HttpStreamFactory::set_spdy_enabled(false);
 }
-
 }  // namespace net
