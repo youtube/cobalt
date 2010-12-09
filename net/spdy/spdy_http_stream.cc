@@ -259,7 +259,10 @@ int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
   }
 
   response_headers_received_ = true;
-  stream_->GetSSLInfo(&response_info_->ssl_info,
+  // Don't store the SSLInfo in the response here, HttpNetworkTransaction
+  // will take care of that part.
+  SSLInfo ssl_info;
+  stream_->GetSSLInfo(&ssl_info,
                       &response_info_->was_npn_negotiated);
   response_info_->request_time = stream_->GetRequestTime();
   response_info_->vary_data.Init(*request_info_, *response_info_->headers);
