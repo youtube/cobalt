@@ -235,6 +235,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       streams_pushed_and_claimed_count_(0),
       streams_abandoned_count_(0),
       frames_received_(0),
+      bytes_received_(0),
       sent_settings_(false),
       received_settings_(false),
       stalled_streams_(0),
@@ -583,6 +584,8 @@ void SpdySession::OnReadComplete(int bytes_read) {
     CloseSessionOnError(error, true);
     return;
   }
+
+  bytes_received_ += bytes_read;
 
   // The SpdyFramer will use callbacks onto |this| as it parses frames.
   // When errors occur, those callbacks can lead to teardown of all references
@@ -1401,9 +1404,31 @@ void SpdySession::RecordHistograms() {
       const spdy::SpdySetting setting = *it;
       switch (setting.first.id()) {
         case spdy::SETTINGS_CURRENT_CWND:
+          // Record several different histograms to see if cwnd converges
+          // for larger volumes of data being sent.
           UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd",
                                       setting.second,
                                       1, 200, 100);
+          if (bytes_received_ > 10 * 1024) {
+            UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd10K",
+                                        setting.second,
+                                        1, 200, 100);
+            if (bytes_received_ > 25 * 1024) {
+              UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd25K",
+                                          setting.second,
+                                          1, 200, 100);
+              if (bytes_received_ > 50 * 1024) {
+                UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd50K",
+                                            setting.second,
+                                            1, 200, 100);
+                if (bytes_received_ > 100 * 1024) {
+                  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd100K",
+                                              setting.second,
+                                              1, 200, 100);
+                }
+              }
+            }
+          }
           break;
         case spdy::SETTINGS_ROUND_TRIP_TIME:
           UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsRTT",
