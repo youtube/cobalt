@@ -142,6 +142,8 @@
         'base/network_config_watcher_mac.h',
         'base/nss_memio.c',
         'base/nss_memio.h',
+        'base/openssl_memory_private_key_store.cc',
+        'base/openssl_private_key_store.h',
         'base/pem_tokenizer.cc',
         'base/pem_tokenizer.h',
         'base/platform_mime_util.h',
@@ -285,6 +287,8 @@
             'sources!': [
               'base/cert_database_openssl.cc',
               'base/keygen_handler_openssl.cc',
+              'base/openssl_memory_private_key_store.cc',
+              'base/openssl_private_key_store.h',
               'base/x509_certificate_openssl.cc',
               'base/x509_openssl_util.cc',
               'base/x509_openssl_util.h',
