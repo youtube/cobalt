@@ -4,7 +4,11 @@
 
 #include "net/base/cert_database.h"
 
+#include <openssl/x509.h>
+
+#include "base/logging.h"
 #include "net/base/net_errors.h"
+#include "net/base/openssl_private_key_store.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
@@ -18,22 +22,28 @@ int CertDatabase::CheckUserCert(X509Certificate* cert) {
   if (cert->HasExpired())
     return ERR_CERT_DATE_INVALID;
 
-  // TODO(bulach): implement me.
-  return ERR_NOT_IMPLEMENTED;
+  if (!OpenSSLPrivateKeyStore::GetInstance()->FetchPrivateKey(
+      X509_PUBKEY_get(X509_get_X509_PUBKEY(cert->os_cert_handle()))))
+    return ERR_NO_PRIVATE_KEY_FOR_CERT;
+
+  return OK;
 }
 
 int CertDatabase::AddUserCert(X509Certificate* cert) {
   // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }
 
 void CertDatabase::ListCerts(CertificateList* certs) {
   // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
 }
 
 int CertDatabase::ImportFromPKCS12(const std::string& data,
                                    const string16& password) {
   // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }
 
@@ -41,18 +51,20 @@ int CertDatabase::ExportToPKCS12(const CertificateList& certs,
                                  const string16& password,
                                  std::string* output) const {
   // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
   return 0;
 }
 
 bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
   // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
   return false;
 }
 
 unsigned int CertDatabase::GetCertTrust(const X509Certificate* cert,
                                         CertType type) const {
   // TODO(bulach): implement me.
-  // NOTE: This method is currently only declared for USE_NSS builds.
+  NOTIMPLEMENTED();
   return 0;
 }
 
@@ -60,7 +72,7 @@ bool CertDatabase::SetCertTrust(const X509Certificate* cert,
                                 CertType type,
                                 unsigned int trust_bits) {
   // TODO(bulach): implement me.
-  // NOTE: This method is currently only declared for USE_NSS builds.
+  NOTIMPLEMENTED();
   return false;
 }
 
