@@ -71,7 +71,7 @@ extern const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname;
 extern const FormatUrlType kFormatUrlOmitAll;
 
 // Holds a list of ports that should be accepted despite bans.
-extern std::set<int> explicitly_allowed_ports;
+extern std::multiset<int> explicitly_allowed_ports;
 
 // Given the full path to a file name, creates a file: URL. The returned URL
 // may not be valid if the input is malformed.
@@ -337,6 +337,17 @@ bool CanStripTrailingSlash(const GURL& url);
 GURL SimplifyUrlForRequest(const GURL& url);
 
 void SetExplicitlyAllowedPorts(const std::string& allowed_ports);
+
+class ScopedPortException {
+ public:
+  ScopedPortException(int port);
+  ~ScopedPortException();
+
+ private:
+  int port_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedPortException);
+};
 
 // Perform a simplistic test to see if IPv6 is supported by trying to create an
 // IPv6 socket.
