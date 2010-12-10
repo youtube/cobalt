@@ -306,7 +306,7 @@ MultiThreadedProxyResolver::Executor::Executor(
   std::string thread_name =
       base::StringPrintf("PAC thread #%d", thread_number);
   thread_.reset(new base::Thread(thread_name.c_str()));
-  thread_->Start();
+  CHECK(thread_->Start());
 }
 
 void MultiThreadedProxyResolver::Executor::StartJob(Job* job) {
