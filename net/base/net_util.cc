@@ -1052,7 +1052,7 @@ const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
     kFormatUrlOmitHTTP | kFormatUrlOmitTrailingSlashOnBareHostname;
 
 // TODO(viettrungluu): We don't want non-POD globals; change this.
-std::set<int> explicitly_allowed_ports;
+std::multiset<int> explicitly_allowed_ports;
 
 GURL FilePathToFileURL(const FilePath& path) {
   // Produce a URL like "file:///C:/foo" for a regular file, or
@@ -1496,12 +1496,7 @@ bool IsPortAllowedByOverride(int port) {
   if (explicitly_allowed_ports.empty())
     return false;
 
-  std::set<int>::const_iterator it =
-      std::find(explicitly_allowed_ports.begin(),
-                explicitly_allowed_ports.end(),
-                port);
-
-  return it != explicitly_allowed_ports.end();
+  return explicitly_allowed_ports.count(port) > 0;
 }
 
 int SetNonBlocking(int fd) {
@@ -1726,7 +1721,7 @@ void SetExplicitlyAllowedPorts(const std::string& allowed_ports) {
   if (allowed_ports.empty())
     return;
 
-  std::set<int> ports;
+  std::multiset<int> ports;
   size_t last = 0;
   size_t size = allowed_ports.size();
   // The comma delimiter.
@@ -1750,6 +1745,18 @@ void SetExplicitlyAllowedPorts(const std::string& allowed_ports) {
     }
   }
   explicitly_allowed_ports = ports;
+}
+
+ScopedPortException::ScopedPortException(int port) : port_(port) {
+  explicitly_allowed_ports.insert(port);
+}
+
+ScopedPortException::~ScopedPortException() {
+  std::multiset<int>::iterator it = explicitly_allowed_ports.find(port_);
+  if (it != explicitly_allowed_ports.end())
+    explicitly_allowed_ports.erase(it);
+  else
+    NOTREACHED();
 }
 
 enum IPv6SupportStatus {

@@ -17,6 +17,7 @@
 #include "base/file_util.h"
 #include "base/process_util.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/net_util.h"
 
 #if defined(OS_WIN)
 #include "base/scoped_handle_win.h"
@@ -179,6 +180,8 @@ class TestServer {
 
   // Handle of the Python process running the test server.
   base::ProcessHandle process_handle_;
+
+  scoped_ptr<net::ScopedPortException> allowed_port_;
 
 #if defined(OS_WIN)
   // JobObject used to clean up orphaned child processes.
