@@ -45,5 +45,11 @@ Patches:
   * Add OCSP stapling support
     patches/ocspstapling.patch
 
+  * Don't send a client certificate when renegotiating if the peer does not
+    request one. This only happened if the previous key exchange algorithm
+    was non-RSA.
+    patches/dheclientauth.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=616757
+
 The ssl/bodge directory contains files taken from the NSS repo that we required
 for building libssl outside of its usual build environment.
