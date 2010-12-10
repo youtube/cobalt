@@ -16,6 +16,7 @@
 #include "base/singleton.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/net_errors.h"
+#include "net/base/openssl_private_key_store.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
@@ -528,10 +529,18 @@ int SSLClientSocketOpenSSL::ClientCertRequestCallback(SSL* ssl,
 
   // Second pass: a client certificate should have been selected.
   if (ssl_config_.client_cert) {
-    // TODO(joth): We need a way to lookup the private key this
-    // certificate. See http://crbug.com/64951 and example code in
-    // http://codereview.chromium.org/5195001/diff/6001/net/socket/ssl_client_socket_openssl.cc
-    NOTIMPLEMENTED();
+    EVP_PKEY* privkey = OpenSSLPrivateKeyStore::GetInstance()->FetchPrivateKey(
+        X509_PUBKEY_get(X509_get_X509_PUBKEY(
+            ssl_config_.client_cert->os_cert_handle())));
+    if (privkey) {
+      // TODO(joth): (copied from NSS) We should wait for server certificate
+      // verification before sending our credentials. See http://crbug.com/13934
+      *x509 = X509Certificate::DupOSCertHandle(
+          ssl_config_.client_cert->os_cert_handle());
+      *pkey = privkey;
+      return 1;
+    }
+    LOG(WARNING) << "Client cert found without private key";
   }
 
   // Send no client certificate.

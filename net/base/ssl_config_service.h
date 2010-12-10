@@ -33,7 +33,7 @@ struct SSLConfig {
   bool dns_cert_provenance_checking_enabled;
 
   // Cipher suites which should be explicitly prevented from being used in
-  // addition to those disabled by the net built in policy -- by default, all
+  // addition to those disabled by the net built-in policy -- by default, all
   // cipher suites supported by the underlying SSL implementation will be
   // enabled except for:
   // - Null encryption cipher suites.
