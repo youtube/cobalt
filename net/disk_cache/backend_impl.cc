@@ -179,12 +179,7 @@ bool SetFieldTrialInfo(int size_group) {
   std::string group1 = base::StringPrintf("CacheSizeGroup_%d", size_group);
   trial1->AppendGroup(group1, base::FieldTrial::kAllRemainingProbability);
 
-  scoped_refptr<base::FieldTrial> trial2(
-      new base::FieldTrial("CacheThrottle", 100));
-  int group2a = trial2->AppendGroup("CacheThrottle_On", 10);  // 10 % in.
-  trial2->AppendGroup("CacheThrottle_Off", 10);  // 10 % control.
-
-  return trial2->group() == group2a;
+  return false;
 }
 
 // ------------------------------------------------------------------------
@@ -1218,10 +1213,6 @@ void BackendImpl::OnOperationCompleted(base::TimeDelta elapsed_time) {
 
   if (cache_type() != net::DISK_CACHE)
     return;
-
-  UMA_HISTOGRAM_TIMES(base::FieldTrial::MakeName("DiskCache.TotalIOTime",
-                                                 "CacheThrottle").data(),
-                      elapsed_time);
 
   if (!throttle_requests_)
     return;
