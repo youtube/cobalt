@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/openssl_util.h"
 #include "base/scoped_ptr.h"
+#include "net/base/openssl_private_key_store.h"
 
 namespace net {
 
@@ -18,11 +19,8 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
       base::RSAPrivateKey::Create(key_size_in_bits_));
   EVP_PKEY* pkey = key->key();
 
-  if (stores_key_) {
-    // TODO(joth): Add an abstraction for persisting OpenSSL private keys.
-    // See http://crbug.com/64917
-    NOTIMPLEMENTED();
-  }
+  if (stores_key_)
+    OpenSSLPrivateKeyStore::GetInstance()->StorePrivateKey(url_, pkey);
 
   base::ScopedOpenSSL<NETSCAPE_SPKI, NETSCAPE_SPKI_free> spki(
        NETSCAPE_SPKI_new());
