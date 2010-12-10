@@ -371,9 +371,6 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
     case COMMAND_CWD:
       rv = ProcessResponseCWD(response);
       break;
-    case COMMAND_MLSD:
-      rv = ProcessResponseMLSD(response);
-      break;
     case COMMAND_LIST:
       rv = ProcessResponseLIST(response);
       break;
@@ -393,9 +390,6 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
     switch (command_sent_) {
       case COMMAND_RETR:
         rv = ProcessResponseRETR(response);
-        break;
-      case COMMAND_MLSD:
-        rv = ProcessResponseMLSD(response);
         break;
       case COMMAND_LIST:
         rv = ProcessResponseLIST(response);
@@ -572,10 +566,6 @@ int FtpNetworkTransaction::DoLoop(int result) {
       case STATE_CTRL_WRITE_CWD:
         DCHECK(rv == OK);
         rv = DoCtrlWriteCWD();
-        break;
-      case STATE_CTRL_WRITE_MLSD:
-        DCHECK(rv == 0);
-        rv = DoCtrlWriteMLSD();
         break;
       case STATE_CTRL_WRITE_LIST:
         DCHECK(rv == OK);
@@ -1073,7 +1063,7 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
-      next_state_ = STATE_CTRL_WRITE_MLSD;
+      next_state_ = STATE_CTRL_WRITE_LIST;
       break;
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
@@ -1097,41 +1087,6 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
       }
 
       return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
-    default:
-      NOTREACHED();
-      return Stop(ERR_UNEXPECTED);
-  }
-  return OK;
-}
-
-// MLSD command
-int FtpNetworkTransaction::DoCtrlWriteMLSD() {
-  next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand("MLSD", COMMAND_MLSD);
-}
-
-int FtpNetworkTransaction::ProcessResponseMLSD(
-    const FtpCtrlResponse& response) {
-  switch (GetErrorClass(response.status_code)) {
-    case ERROR_CLASS_INITIATED:
-      // We want the client to start reading the response at this point.
-      // It got here either through Start or RestartWithAuth. We want that
-      // method to complete. Not setting next state here will make DoLoop exit
-      // and in turn make Start/RestartWithAuth complete.
-      response_.is_directory_listing = true;
-      break;
-    case ERROR_CLASS_OK:
-      response_.is_directory_listing = true;
-      next_state_ = STATE_CTRL_WRITE_QUIT;
-      break;
-    case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_INVALID_RESPONSE);
-    case ERROR_CLASS_TRANSIENT_ERROR:
-    case ERROR_CLASS_PERMANENT_ERROR:
-      // Fallback to the LIST command, more widely supported,
-      // but without a specified output format.
-      next_state_ = STATE_CTRL_WRITE_LIST;
-      break;
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
