@@ -296,6 +296,7 @@
             '../net/net.gyp:net_unittests',
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
+            '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_unit_tests',
             '../chrome/chrome.gyp:unit_tests',
             '../chrome/chrome.gyp:ui_tests',
