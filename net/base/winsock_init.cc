@@ -6,8 +6,8 @@
 
 #include "net/base/winsock_init.h"
 
+#include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/singleton.h"
 
 namespace {
 
@@ -37,12 +37,15 @@ class WinsockInitSingleton {
   }
 };
 
+static base::LazyInstance<WinsockInitSingleton> g_winsock_init_singleton(
+    base::LINKER_INITIALIZED);
+
 }  // namespace
 
 namespace net {
 
 void EnsureWinsockInit() {
-  Singleton<WinsockInitSingleton>::get();
+  g_winsock_init_singleton.Get();
 }
 
 }  // namespace net
