@@ -13,9 +13,9 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/hash_tables.h"
-#include "base/lazy_instance.h"
 #include "base/lock.h"
 #include "base/logging.h"
+#include "base/singleton.h"
 
 namespace base {
   bool PathProvider(int key, FilePath* result);
@@ -118,10 +118,8 @@ struct PathData {
   }
 };
 
-static base::LazyInstance<PathData> g_path_data(base::LINKER_INITIALIZED);
-
 static PathData* GetPathData() {
-  return g_path_data.Pointer();
+  return Singleton<PathData>::get();
 }
 
 }  // namespace
