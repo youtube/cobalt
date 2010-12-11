@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-#include "base/singleton.h"
+#include "base/lazy_instance.h"
 #include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
@@ -40,12 +40,15 @@ net::SocketStreamJob* WebSocketJobFactory(
 
 class WebSocketJobInitSingleton {
  private:
-  friend struct DefaultSingletonTraits<WebSocketJobInitSingleton>;
+  friend struct base::DefaultLazyInstanceTraits<WebSocketJobInitSingleton>;
   WebSocketJobInitSingleton() {
     net::SocketStreamJob::RegisterProtocolFactory("ws", WebSocketJobFactory);
     net::SocketStreamJob::RegisterProtocolFactory("wss", WebSocketJobFactory);
   }
 };
+
+static base::LazyInstance<WebSocketJobInitSingleton> g_websocket_job_init(
+    base::LINKER_INITIALIZED);
 
 }  // anonymous namespace
 
@@ -53,7 +56,7 @@ namespace net {
 
 // static
 void WebSocketJob::EnsureInit() {
-  Singleton<WebSocketJobInitSingleton>::get();
+  g_websocket_job_init.Get();
 }
 
 WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
