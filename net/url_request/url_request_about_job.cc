@@ -10,14 +10,16 @@
 
 #include "base/message_loop.h"
 
+namespace net {
+
 // static
-net::URLRequestJob* URLRequestAboutJob::Factory(net::URLRequest* request,
-                                                const std::string& scheme) {
+URLRequestJob* URLRequestAboutJob::Factory(URLRequest* request,
+                                           const std::string& scheme) {
   return new URLRequestAboutJob(request);
 }
 
-URLRequestAboutJob::URLRequestAboutJob(net::URLRequest* request)
-    : net::URLRequestJob(request) {
+URLRequestAboutJob::URLRequestAboutJob(URLRequest* request)
+    : URLRequestJob(request) {
 }
 
 void URLRequestAboutJob::Start() {
@@ -38,3 +40,5 @@ URLRequestAboutJob::~URLRequestAboutJob() {
 void URLRequestAboutJob::StartAsync() {
   NotifyHeadersComplete();
 }
+
+}  // namespace net
