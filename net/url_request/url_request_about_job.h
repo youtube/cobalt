@@ -11,7 +11,7 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
-class URLRequestAboutJob : public URLRequestJob {
+class URLRequestAboutJob : public net::URLRequestJob {
  public:
   explicit URLRequestAboutJob(net::URLRequest* request);
 

@@ -8,7 +8,7 @@
 
 URLRequestRedirectJob::URLRequestRedirectJob(net::URLRequest* request,
                                              GURL redirect_destination)
-    : URLRequestJob(request), redirect_destination_(redirect_destination) {
+    : net::URLRequestJob(request), redirect_destination_(redirect_destination) {
 }
 
 void URLRequestRedirectJob::Start() {

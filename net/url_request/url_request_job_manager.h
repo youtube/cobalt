@@ -17,7 +17,7 @@
 template <typename T> struct DefaultSingletonTraits;
 
 // This class is responsible for managing the set of protocol factories and
-// request interceptors that determine how an URLRequestJob gets created to
+// request interceptors that determine how an net::URLRequestJob gets created to
 // handle an net::URLRequest.
 //
 // MULTI-THREADING NOTICE:
@@ -32,7 +32,7 @@ class URLRequestJobManager {
   // Returns the singleton instance.
   static URLRequestJobManager* GetInstance();
 
-  // Instantiate an URLRequestJob implementation based on the registered
+  // Instantiate an net::URLRequestJob implementation based on the registered
   // interceptors and protocol factories.  This will always succeed in
   // returning a job unless we are--in the extreme case--out of memory.
   net::URLRequestJob* CreateJob(net::URLRequest* request) const;
