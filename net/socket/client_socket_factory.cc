@@ -4,7 +4,7 @@
 
 #include "net/socket/client_socket_factory.h"
 
-#include "base/lazy_instance.h"
+#include "base/singleton.h"
 #include "build/build_config.h"
 #include "net/socket/client_socket_handle.h"
 #if defined(OS_WIN)
@@ -71,14 +71,11 @@ class DefaultClientSocketFactory : public ClientSocketFactory {
   }
 };
 
-static base::LazyInstance<DefaultClientSocketFactory>
-    g_default_client_socket_factory(base::LINKER_INITIALIZED);
-
 }  // namespace
 
 // static
 ClientSocketFactory* ClientSocketFactory::GetDefaultFactory() {
-  return g_default_client_socket_factory.Pointer();
+  return Singleton<DefaultClientSocketFactory>::get();
 }
 
 // static

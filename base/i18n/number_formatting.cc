@@ -6,8 +6,7 @@
 
 #include "base/format_macros.h"
 #include "base/logging.h"
-#include "base/lazy_instance.h"
-#include "base/scoped_ptr.h"
+#include "base/singleton.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "unicode/numfmt.h"
@@ -17,26 +16,25 @@ namespace base {
 
 namespace {
 
-struct NumberFormatWrapper {
-  NumberFormatWrapper() {
-    // There's no ICU call to destroy a NumberFormat object other than
-    // operator delete, so use the default Delete, which calls operator delete.
-    // This can cause problems if a different allocator is used by this file
-    // than by ICU.
+struct NumberFormatSingletonTraits
+    : public DefaultSingletonTraits<icu::NumberFormat> {
+  static icu::NumberFormat* New() {
     UErrorCode status = U_ZERO_ERROR;
-    number_format.reset(icu::NumberFormat::createInstance(status));
+    icu::NumberFormat* formatter = icu::NumberFormat::createInstance(status);
     DCHECK(U_SUCCESS(status));
+    return formatter;
   }
-
-  scoped_ptr<icu::NumberFormat> number_format;
+  // There's no ICU call to destroy a NumberFormat object other than
+  // operator delete, so use the default Delete, which calls operator delete.
+  // This can cause problems if a different allocator is used by this file than
+  // by ICU.
 };
 
 }  // namespace
 
-static LazyInstance<NumberFormatWrapper> g_number_format(LINKER_INITIALIZED);
-
 string16 FormatNumber(int64 number) {
-  icu::NumberFormat* number_format = g_number_format.Get().number_format.get();
+  icu::NumberFormat* number_format =
+      Singleton<icu::NumberFormat, NumberFormatSingletonTraits>::get();
 
   if (!number_format) {
     // As a fallback, just return the raw number in a string.
