@@ -11,19 +11,23 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
-class URLRequestAboutJob : public net::URLRequestJob {
+namespace net {
+
+class URLRequestAboutJob : public URLRequestJob {
  public:
-  explicit URLRequestAboutJob(net::URLRequest* request);
+  explicit URLRequestAboutJob(URLRequest* request);
 
   virtual void Start();
   virtual bool GetMimeType(std::string* mime_type) const;
 
-  static net::URLRequest::ProtocolFactory Factory;
+  static URLRequest::ProtocolFactory Factory;
 
  private:
   ~URLRequestAboutJob();
 
   void StartAsync();
 };
+
+}  // namespace net
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_ABOUT_JOB_H_
