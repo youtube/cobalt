@@ -8,8 +8,8 @@
 #include <map>
 
 #include "base/compiler_specific.h"
-#include "base/lazy_instance.h"
 #include "base/lock.h"
+#include "base/singleton.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -194,9 +194,6 @@ class CredHandleTable {
   CredHandleMap client_cert_creds_;
 };
 
-static base::LazyInstance<CredHandleTable> g_cred_handle_table(
-    base::LINKER_INITIALIZED);
-
 // static
 int CredHandleTable::InitializeHandle(CredHandle* handle,
                                       PCCERT_CONTEXT client_cert,
@@ -288,9 +285,9 @@ static int GetCredHandle(PCCERT_CONTEXT client_cert,
     NOTREACHED();
     return ERR_UNEXPECTED;
   }
-  return g_cred_handle_table.Get().GetHandle(client_cert,
-                                             ssl_version_mask,
-                                             handle_ptr);
+  return Singleton<CredHandleTable>::get()->GetHandle(client_cert,
+                                                      ssl_version_mask,
+                                                      handle_ptr);
 }
 
 //-----------------------------------------------------------------------------
@@ -358,9 +355,6 @@ class ClientCertStore {
  private:
   HCERTSTORE store_;
 };
-
-static base::LazyInstance<ClientCertStore> g_client_cert_store(
-    base::LINKER_INITIALIZED);
 
 //-----------------------------------------------------------------------------
 
@@ -513,7 +507,7 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
     // Copy it to our own certificate store, so that we can close the "MY"
     // certificate store before returning from this function.
     PCCERT_CONTEXT cert_context2 =
-        g_client_cert_store.Get().CopyCertContext(cert_context);
+        Singleton<ClientCertStore>::get()->CopyCertContext(cert_context);
     if (!cert_context2) {
       NOTREACHED();
       continue;
