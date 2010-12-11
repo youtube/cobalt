@@ -51,7 +51,8 @@ URLRequestJobManager* URLRequestJobManager::GetInstance() {
   return Singleton<URLRequestJobManager>::get();
 }
 
-URLRequestJob* URLRequestJobManager::CreateJob(net::URLRequest* request) const {
+net::URLRequestJob* URLRequestJobManager::CreateJob(
+    net::URLRequest* request) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
@@ -73,7 +74,7 @@ URLRequestJob* URLRequestJobManager::CreateJob(net::URLRequest* request) const {
   if (!(request->load_flags() & net::LOAD_DISABLE_INTERCEPT)) {
     InterceptorList::const_iterator i;
     for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-      URLRequestJob* job = (*i)->MaybeIntercept(request);
+      net::URLRequestJob* job = (*i)->MaybeIntercept(request);
       if (job)
         return job;
     }
@@ -84,7 +85,7 @@ URLRequestJob* URLRequestJobManager::CreateJob(net::URLRequest* request) const {
   // built-in protocol factory.
   FactoryMap::const_iterator i = factories_.find(scheme);
   if (i != factories_.end()) {
-    URLRequestJob* job = i->second(request, scheme);
+    net::URLRequestJob* job = i->second(request, scheme);
     if (job)
       return job;
   }
@@ -92,7 +93,7 @@ URLRequestJob* URLRequestJobManager::CreateJob(net::URLRequest* request) const {
   // See if the request should be handled by a built-in protocol factory.
   for (size_t i = 0; i < arraysize(kBuiltinFactories); ++i) {
     if (scheme == kBuiltinFactories[i].scheme) {
-      URLRequestJob* job = (kBuiltinFactories[i].factory)(request, scheme);
+      net::URLRequestJob* job = (kBuiltinFactories[i].factory)(request, scheme);
       DCHECK(job);  // The built-in factories are not expected to fail!
       return job;
     }
@@ -105,7 +106,7 @@ URLRequestJob* URLRequestJobManager::CreateJob(net::URLRequest* request) const {
   return new URLRequestErrorJob(request, net::ERR_FAILED);
 }
 
-URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
+net::URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
     net::URLRequest* request,
     const GURL& location) const {
 #ifndef NDEBUG
@@ -119,14 +120,14 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
 
   InterceptorList::const_iterator i;
   for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-    URLRequestJob* job = (*i)->MaybeInterceptRedirect(request, location);
+    net::URLRequestJob* job = (*i)->MaybeInterceptRedirect(request, location);
     if (job)
       return job;
   }
   return NULL;
 }
 
-URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
+net::URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
     net::URLRequest* request) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
@@ -139,7 +140,7 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
 
   InterceptorList::const_iterator i;
   for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-    URLRequestJob* job = (*i)->MaybeInterceptResponse(request);
+    net::URLRequestJob* job = (*i)->MaybeInterceptResponse(request);
     if (job)
       return job;
   }

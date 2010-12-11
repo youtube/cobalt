@@ -40,8 +40,8 @@ static const char kAvailDictionaryHeader[] = "Avail-Dictionary";
 
 // TODO(darin): make sure the port blocking code is not lost
 // static
-URLRequestJob* URLRequestHttpJob::Factory(net::URLRequest* request,
-                                          const std::string& scheme) {
+net::URLRequestJob* URLRequestHttpJob::Factory(net::URLRequest* request,
+                                               const std::string& scheme) {
   DCHECK(scheme == "http" || scheme == "https");
 
   int port = request->url().IntPort();
@@ -78,7 +78,7 @@ URLRequestJob* URLRequestHttpJob::Factory(net::URLRequest* request,
 }
 
 URLRequestHttpJob::URLRequestHttpJob(net::URLRequest* request)
-    : URLRequestJob(request),
+    : net::URLRequestJob(request),
       response_info_(NULL),
       response_cookies_save_index_(0),
       proxy_auth_state_(net::AUTH_STATE_DONT_NEED_AUTH),
@@ -168,7 +168,7 @@ void URLRequestHttpJob::Kill() {
     return;
 
   DestroyTransaction();
-  URLRequestJob::Kill();
+  net::URLRequestJob::Kill();
 }
 
 net::LoadState URLRequestHttpJob::GetLoadState() const {
@@ -622,7 +622,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
     return;
   }
 
-  URLRequestJob::NotifyHeadersComplete();
+  net::URLRequestJob::NotifyHeadersComplete();
 }
 
 void URLRequestHttpJob::DestroyTransaction() {

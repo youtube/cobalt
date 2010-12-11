@@ -21,11 +21,11 @@
 using base::Time;
 using base::TimeTicks;
 
+namespace net {
+
 // Buffer size allocated when de-compressing data.
 // static
 const int URLRequestJob::kFilterBufSize = 32 * 1024;
-
-namespace net {
 
 URLRequestJob::URLRequestJob(URLRequest* request)
     : request_(request),
