@@ -33,7 +33,7 @@ static const SchemeToFactory kBuiltinFactories[] = {
   { "https", URLRequestHttpJob::Factory },
   { "file", URLRequestFileJob::Factory },
   { "ftp", URLRequestFtpJob::Factory },
-  { "about", URLRequestAboutJob::Factory },
+  { "about", net::URLRequestAboutJob::Factory },
   { "data", URLRequestDataJob::Factory },
 };
 
