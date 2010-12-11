@@ -8,6 +8,7 @@
 #include "base/linked_ptr.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/metrics/field_trial.h"
 #include "base/metrics/stats_counters.h"
 #include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
@@ -1326,25 +1327,54 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
   QueueFrame(window_update_frame.get(), stream->priority(), stream);
 }
 
+// Given a cwnd that we would have sent to the server, modify it based on the
+// field trial policy.
+uint32 ApplyCwndFieldTrialPolicy(int cwnd) {
+  base::FieldTrial* trial = base::FieldTrialList::Find("SpdyCwnd");
+  if (trial->group_name() == "cwnd32")
+    return 32;
+  else if (trial->group_name() == "cwnd16")
+    return 16;
+  else if (trial->group_name() == "cwndMin16")
+    return std::max(cwnd, 16);
+  else if (trial->group_name() == "cwndMin10")
+    return std::max(cwnd, 10);
+  else if (trial->group_name() == "cwndDynamic")
+    return cwnd;
+  NOTREACHED();
+  return cwnd;
+}
+
 void SpdySession::SendSettings() {
-  const spdy::SpdySettings& settings = spdy_settings_->Get(host_port_pair());
+  // Note:  we're copying the settings here, so that we can potentially modify
+  // the settings for the field trial.  When removing the field trial, make
+  // this a reference to the const SpdySettings again.
+  spdy::SpdySettings settings = spdy_settings_->Get(host_port_pair());
   if (settings.empty())
     return;
-  HandleSettings(settings);
 
-  // Record Histogram Data
-  for (spdy::SpdySettings::const_iterator i = settings.begin(),
+  // Record Histogram Data and Apply the SpdyCwnd FieldTrial if applicable.
+  for (spdy::SpdySettings::iterator i = settings.begin(),
            end = settings.end(); i != end; ++i) {
     const uint32 id = i->first.id();
     const uint32 val = i->second;
     switch (id) {
       case spdy::SETTINGS_CURRENT_CWND:
-          UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwndSent",
-                                      val,
-                                      1, 200, 100);
+        uint32 cwnd = 0;
+        cwnd = ApplyCwndFieldTrialPolicy(val);
+        UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwndSent",
+                                    cwnd,
+                                    1, 200, 100);
+        if (cwnd != val) {
+          i->second = cwnd;
+          i->first.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+          spdy_settings_->Set(host_port_pair(), settings);
+        }
         break;
     }
   }
+
+  HandleSettings(settings);
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_SETTINGS,
