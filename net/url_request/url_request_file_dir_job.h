@@ -15,12 +15,12 @@
 #include "net/url_request/url_request_job.h"
 
 class URLRequestFileDirJob
-  : public URLRequestJob,
+  : public net::URLRequestJob,
     public net::DirectoryLister::DirectoryListerDelegate {
  public:
   URLRequestFileDirJob(net::URLRequest* request, const FilePath& dir_path);
 
-  // URLRequestJob methods:
+  // net::URLRequestJob methods:
   virtual void Start();
   virtual void StartAsync();
   virtual void Kill();

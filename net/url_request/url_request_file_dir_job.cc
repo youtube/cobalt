@@ -23,7 +23,7 @@ using std::string;
 
 URLRequestFileDirJob::URLRequestFileDirJob(net::URLRequest* request,
                                            const FilePath& dir_path)
-    : URLRequestJob(request),
+    : net::URLRequestJob(request),
       dir_path_(dir_path),
       canceled_(false),
       list_complete_(false),
@@ -75,7 +75,7 @@ void URLRequestFileDirJob::Kill() {
   if (lister_)
     lister_->Cancel();
 
-  URLRequestJob::Kill();
+  net::URLRequestJob::Kill();
 
   method_factory_.RevokeAll();
 }
