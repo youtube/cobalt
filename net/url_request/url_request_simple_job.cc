@@ -10,7 +10,7 @@
 #include "net/url_request/url_request_status.h"
 
 URLRequestSimpleJob::URLRequestSimpleJob(net::URLRequest* request)
-    : URLRequestJob(request),
+    : net::URLRequestJob(request),
       data_offset_(0) {
 }
 

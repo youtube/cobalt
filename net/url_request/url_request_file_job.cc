@@ -83,8 +83,8 @@ class URLRequestFileJob::AsyncResolver
 #endif
 
 // static
-URLRequestJob* URLRequestFileJob::Factory(net::URLRequest* request,
-                                          const std::string& scheme) {
+net::URLRequestJob* URLRequestFileJob::Factory(net::URLRequest* request,
+                                               const std::string& scheme) {
 
   FilePath file_path;
   const bool is_file = net::FileURLToFilePath(request->url(), &file_path);
@@ -113,7 +113,7 @@ URLRequestJob* URLRequestFileJob::Factory(net::URLRequest* request,
 
 URLRequestFileJob::URLRequestFileJob(net::URLRequest* request,
                                      const FilePath& file_path)
-    : URLRequestJob(request),
+    : net::URLRequestJob(request),
       file_path_(file_path),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &URLRequestFileJob::DidRead)),
@@ -166,7 +166,7 @@ void URLRequestFileJob::Kill() {
   }
 #endif
 
-  URLRequestJob::Kill();
+  net::URLRequestJob::Kill();
   method_factory_.RevokeAll();
 }
 

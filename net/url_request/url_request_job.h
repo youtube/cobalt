@@ -426,6 +426,4 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
 
 }  // namespace net
 
-typedef net::URLRequestJob URLRequestJob;
-
 #endif  // NET_URL_REQUEST_URL_REQUEST_JOB_H_

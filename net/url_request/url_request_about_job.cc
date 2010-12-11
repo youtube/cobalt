@@ -11,13 +11,13 @@
 #include "base/message_loop.h"
 
 // static
-URLRequestJob* URLRequestAboutJob::Factory(net::URLRequest* request,
-                                           const std::string& scheme) {
+net::URLRequestJob* URLRequestAboutJob::Factory(net::URLRequest* request,
+                                                const std::string& scheme) {
   return new URLRequestAboutJob(request);
 }
 
 URLRequestAboutJob::URLRequestAboutJob(net::URLRequest* request)
-    : URLRequestJob(request) {
+    : net::URLRequestJob(request) {
 }
 
 void URLRequestAboutJob::Start() {
