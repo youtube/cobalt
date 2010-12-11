@@ -11,8 +11,8 @@
 
 #include <algorithm>
 
+#include "base/lazy_instance.h"
 #include "base/mac/scoped_cftyperef.h"
-#include "base/singleton.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_verifier.h"
@@ -475,7 +475,7 @@ class EnabledCipherSuites {
   const std::vector<SSLCipherSuite>& ciphers() const { return ciphers_; }
 
  private:
-  friend struct DefaultSingletonTraits<EnabledCipherSuites>;
+  friend struct base::DefaultLazyInstanceTraits<EnabledCipherSuites>;
   EnabledCipherSuites();
   ~EnabledCipherSuites() {}
 
@@ -483,6 +483,9 @@ class EnabledCipherSuites {
 
   DISALLOW_COPY_AND_ASSIGN(EnabledCipherSuites);
 };
+
+static base::LazyInstance<EnabledCipherSuites> g_enabled_cipher_suites(
+    base::LINKER_INITIALIZED);
 
 EnabledCipherSuites::EnabledCipherSuites() {
   SSLContextRef ssl_context;
@@ -786,7 +789,7 @@ int SSLClientSocketMac::InitializeSSLContext() {
     return NetErrorFromOSStatus(status);
 
   std::vector<SSLCipherSuite> enabled_ciphers =
-      Singleton<EnabledCipherSuites>::get()->ciphers();
+      g_enabled_cipher_suites.Get().ciphers();
 
   CipherSuiteIsDisabledFunctor is_disabled_cipher(
       ssl_config_.disabled_cipher_suites);

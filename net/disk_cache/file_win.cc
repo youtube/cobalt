@@ -5,8 +5,8 @@
 #include "net/disk_cache/file.h"
 
 #include "base/file_path.h"
+#include "base/lazy_instance.h"
 #include "base/message_loop.h"
-#include "base/singleton.h"
 #include "net/disk_cache/disk_cache.h"
 
 namespace {
@@ -33,6 +33,9 @@ class CompletionHandler : public MessageLoopForIO::IOHandler {
                              DWORD actual_bytes, DWORD error);
 };
 
+static base::LazyInstance<CompletionHandler> g_completion_handler(
+    base::LINKER_INITIALIZED);
+
 void CompletionHandler::OnIOCompleted(MessageLoopForIO::IOContext* context,
                                       DWORD actual_bytes, DWORD error) {
   MyOverlapped* data = reinterpret_cast<MyOverlapped*>(context);
@@ -52,7 +55,7 @@ void CompletionHandler::OnIOCompleted(MessageLoopForIO::IOContext* context,
 MyOverlapped::MyOverlapped(disk_cache::File* file, size_t offset,
                            disk_cache::FileIOCallback* callback) {
   memset(this, 0, sizeof(*this));
-  context_.handler = Singleton<CompletionHandler>::get();
+  context_.handler = g_completion_handler.Pointer();
   context_.overlapped.Offset = static_cast<DWORD>(offset);
   file_ = file;
   callback_ = callback;
@@ -81,7 +84,7 @@ bool File::Init(const FilePath& name) {
     return false;
 
   MessageLoopForIO::current()->RegisterIOHandler(
-      platform_file_, Singleton<CompletionHandler>::get());
+      platform_file_, g_completion_handler.Pointer());
 
   init_ = true;
   sync_platform_file_  = CreateFile(name.value().c_str(), access, sharing, NULL,
@@ -255,7 +258,7 @@ void File::WaitForPendingIO(int* num_pending_io) {
   while (*num_pending_io) {
     // Asynchronous IO operations may be in flight and the completion may end
     // up calling us back so let's wait for them.
-    MessageLoopForIO::IOHandler* handler = Singleton<CompletionHandler>::get();
+    MessageLoopForIO::IOHandler* handler = g_completion_handler.Pointer();
     MessageLoopForIO::current()->WaitForIOCompletion(100, handler);
   }
 }

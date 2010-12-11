@@ -4,9 +4,9 @@
 
 #include "net/base/x509_certificate.h"
 
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/pickle.h"
-#include "base/singleton.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -529,7 +529,7 @@ class GlobalCertStore {
   }
 
  private:
-  friend struct DefaultSingletonTraits<GlobalCertStore>;
+  friend struct base::DefaultLazyInstanceTraits<GlobalCertStore>;
 
   GlobalCertStore()
       : cert_store_(CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL)) {
@@ -544,9 +544,12 @@ class GlobalCertStore {
   DISALLOW_COPY_AND_ASSIGN(GlobalCertStore);
 };
 
+static base::LazyInstance<GlobalCertStore> g_cert_store(
+    base::LINKER_INITIALIZED);
+
 // static
 HCERTSTORE X509Certificate::cert_store() {
-  return Singleton<GlobalCertStore>::get()->cert_store();
+  return g_cert_store.Get().cert_store();
 }
 
 int X509Certificate::Verify(const std::string& hostname,
