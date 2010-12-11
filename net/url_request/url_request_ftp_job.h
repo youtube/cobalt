@@ -18,23 +18,23 @@
 
 class URLRequestContext;
 
-// A URLRequestJob subclass that is built on top of FtpTransaction. It
+// A net::URLRequestJob subclass that is built on top of FtpTransaction. It
 // provides an implementation for FTP.
-class URLRequestFtpJob : public URLRequestJob {
+class URLRequestFtpJob : public net::URLRequestJob {
  public:
 
   explicit URLRequestFtpJob(net::URLRequest* request);
 
-  static URLRequestJob* Factory(net::URLRequest* request,
-                                const std::string& scheme);
+  static net::URLRequestJob* Factory(net::URLRequest* request,
+                                     const std::string& scheme);
 
-  // URLRequestJob methods:
+  // net::URLRequestJob methods:
   virtual bool GetMimeType(std::string* mime_type) const;
 
  private:
   virtual ~URLRequestFtpJob();
 
-  // URLRequestJob methods:
+  // net::URLRequestJob methods:
   virtual void Start();
   virtual void Kill();
   virtual net::LoadState GetLoadState() const;

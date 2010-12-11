@@ -468,8 +468,8 @@ EVENT_TYPE(SOCKET_POOL_CONNECTING_N_SOCKETS)
 // net::URLRequest
 // ------------------------------------------------------------------------
 
-// Measures the time it took a URLRequestJob to start. For the most part this
-// corresponds with the time between net::URLRequest::Start() and
+// Measures the time it took a net::URLRequestJob to start. For the most part
+// this corresponds with the time between net::URLRequest::Start() and
 // net::URLRequest::ResponseStarted(), however it is also repeated for every
 // redirect, and every intercepted job that handles the request.
 //

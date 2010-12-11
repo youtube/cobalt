@@ -24,17 +24,17 @@ class HttpTransaction;
 }
 class URLRequestContext;
 
-// A URLRequestJob subclass that is built on top of HttpTransaction.  It
+// A net::URLRequestJob subclass that is built on top of HttpTransaction.  It
 // provides an implementation for both HTTP and HTTPS.
-class URLRequestHttpJob : public URLRequestJob {
+class URLRequestHttpJob : public net::URLRequestJob {
  public:
-  static URLRequestJob* Factory(net::URLRequest* request,
-                                const std::string& scheme);
+  static net::URLRequestJob* Factory(net::URLRequest* request,
+                                     const std::string& scheme);
 
  protected:
   explicit URLRequestHttpJob(net::URLRequest* request);
 
-  // URLRequestJob methods:
+  // net::URLRequestJob methods:
   virtual void SetUpload(net::UploadData* upload);
   virtual void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers);
   virtual void Start();
@@ -61,7 +61,7 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual bool ReadRawData(net::IOBuffer* buf, int buf_size, int *bytes_read);
   virtual void StopCaching();
 
-  // Shadows URLRequestJob's version of this method so we can grab cookies.
+  // Shadows net::URLRequestJob's version of this method so we can grab cookies.
   void NotifyHeadersComplete();
 
   void DestroyTransaction();

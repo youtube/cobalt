@@ -9,7 +9,7 @@
 #include "net/url_request/url_request_status.h"
 
 URLRequestErrorJob::URLRequestErrorJob(net::URLRequest* request, int error)
-    : URLRequestJob(request), error_(error) {
+    : net::URLRequestJob(request), error_(error) {
 }
 
 void URLRequestErrorJob::Start() {

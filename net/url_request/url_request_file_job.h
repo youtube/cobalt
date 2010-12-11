@@ -22,7 +22,7 @@ struct FileInfo;
 }
 
 // A request job that handles reading file URLs
-class URLRequestFileJob : public URLRequestJob {
+class URLRequestFileJob : public net::URLRequestJob {
  public:
   URLRequestFileJob(net::URLRequest* request, const FilePath& file_path);
 

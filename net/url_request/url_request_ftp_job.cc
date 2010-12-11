@@ -17,7 +17,7 @@
 #include "net/url_request/url_request_error_job.h"
 
 URLRequestFtpJob::URLRequestFtpJob(net::URLRequest* request)
-    : URLRequestJob(request),
+    : net::URLRequestJob(request),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           start_callback_(this, &URLRequestFtpJob::OnStartCompleted)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -31,8 +31,8 @@ URLRequestFtpJob::~URLRequestFtpJob() {
 }
 
 // static
-URLRequestJob* URLRequestFtpJob::Factory(net::URLRequest* request,
-                                         const std::string& scheme) {
+net::URLRequestJob* URLRequestFtpJob::Factory(net::URLRequest* request,
+                                              const std::string& scheme) {
   DCHECK_EQ(scheme, "ftp");
 
   int port = request->url().IntPort();
@@ -63,7 +63,7 @@ void URLRequestFtpJob::Kill() {
   if (!transaction_.get())
     return;
   transaction_.reset();
-  URLRequestJob::Kill();
+  net::URLRequestJob::Kill();
   method_factory_.RevokeAll();
 }
 

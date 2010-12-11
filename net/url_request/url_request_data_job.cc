@@ -10,8 +10,8 @@
 #include "net/url_request/url_request.h"
 
 // static
-URLRequestJob* URLRequestDataJob::Factory(net::URLRequest* request,
-                                          const std::string& scheme) {
+net::URLRequestJob* URLRequestDataJob::Factory(net::URLRequest* request,
+                                               const std::string& scheme) {
   return new URLRequestDataJob(request);
 }
 

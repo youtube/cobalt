@@ -10,10 +10,10 @@
 
 class GURL;
 
-// A URLRequestJob that will redirect the request to the specified
+// A net::URLRequestJob that will redirect the request to the specified
 // URL.  This is useful to restart a request at a different URL based
 // on the result of another job.
-class URLRequestRedirectJob : public URLRequestJob {
+class URLRequestRedirectJob : public net::URLRequestJob {
  public:
   // Constructs a job that redirects to the specified URL.
   URLRequestRedirectJob(net::URLRequest* request, GURL redirect_destination);

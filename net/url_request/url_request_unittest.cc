@@ -1879,7 +1879,7 @@ class TestInterceptor : net::URLRequest::Interceptor {
     net::URLRequest::UnregisterRequestInterceptor(this);
   }
 
-  virtual URLRequestJob* MaybeIntercept(net::URLRequest* request) {
+  virtual net::URLRequestJob* MaybeIntercept(net::URLRequest* request) {
     if (restart_main_request_) {
       restart_main_request_ = false;
       did_restart_main_ = true;
@@ -1911,8 +1911,8 @@ class TestInterceptor : net::URLRequest::Interceptor {
                                  true);
   }
 
-  virtual URLRequestJob* MaybeInterceptRedirect(net::URLRequest* request,
-                                                const GURL& location) {
+  virtual net::URLRequestJob* MaybeInterceptRedirect(net::URLRequest* request,
+                                                     const GURL& location) {
     if (cancel_redirect_request_) {
       cancel_redirect_request_ = false;
       did_cancel_redirect_ = true;
@@ -1928,7 +1928,7 @@ class TestInterceptor : net::URLRequest::Interceptor {
                                  true);
   }
 
-  virtual URLRequestJob* MaybeInterceptResponse(net::URLRequest* request) {
+  virtual net::URLRequestJob* MaybeInterceptResponse(net::URLRequest* request) {
     if (cancel_final_request_) {
       cancel_final_request_ = false;
       did_cancel_final_ = true;
