@@ -163,6 +163,7 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text) {
 }
 #endif
 
+#if defined(OS_WIN)
 bool AdjustStringForLocaleDirection(string16* text) {
   if (!IsRTL() || text->empty())
     return false;
@@ -177,6 +178,57 @@ bool AdjustStringForLocaleDirection(string16* text) {
 
   return true;
 }
+#else
+bool AdjustStringForLocaleDirection(string16* text) {
+  // On OS X & GTK the directionality of a label is determined by the first
+  // strongly directional character.
+  // However, we want to make sure that in an LTR-language-UI all strings are
+  // left aligned and vice versa.
+  // A problem can arise if we display a string which starts with user input.
+  // User input may be of the opposite directionality to the UI. So the whole
+  // string will be displayed in the opposite directionality, e.g. if we want to
+  // display in an LTR UI [such as US English]:
+  //
+  // EMAN_NOISNETXE is now installed.
+  //
+  // Since EXTENSION_NAME begins with a strong RTL char, the label's
+  // directionality will be set to RTL and the string will be displayed visually
+  // as:
+  //
+  // .is now installed EMAN_NOISNETXE
+  //
+  // In order to solve this issue, we prepend an LRM to the string. An LRM is a
+  // strongly directional LTR char.
+  // We also append an LRM at the end, which ensures that we're in an LTR
+  // context.
+
+  // Unlike Windows, Linux and OS X can correctly display RTL glyphs out of the
+  // box so there is no issue with displaying zero-width bidi control characters
+  // on any system.  Thus no need for the !IsRTL() check here.
+  if (text->empty())
+    return false;
+
+  bool ui_direction_is_rtl = IsRTL();
+
+  bool has_rtl_chars = StringContainsStrongRTLChars(*text);
+  if (!ui_direction_is_rtl && has_rtl_chars) {
+    WrapStringWithRTLFormatting(text);
+    text->insert(0, 1, kLeftToRightMark);
+    text->push_back(kLeftToRightMark);
+  } else if (ui_direction_is_rtl && has_rtl_chars) {
+    WrapStringWithRTLFormatting(text);
+    text->insert(0, 1, kRightToLeftMark);
+    text->push_back(kRightToLeftMark);
+  } else if (ui_direction_is_rtl) {
+    WrapStringWithLTRFormatting(text);
+    text->insert(0, 1, kRightToLeftMark);
+    text->push_back(kRightToLeftMark);
+  }
+
+  return true;
+}
+
+#endif  // !OS_WIN
 
 #if defined(WCHAR_T_IS_UTF32)
 bool AdjustStringForLocaleDirection(std::wstring* text) {

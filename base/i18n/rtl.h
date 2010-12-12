@@ -84,6 +84,7 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
 // string is always treated as a right-to-left string. This is done by
 // inserting certain Unicode formatting marks into the returned string.
 //
+// ** Notes about the Windows version of this function:
 // TODO(idana) bug 6806: this function adjusts the string in question only
 // if the current locale is right-to-left. The function does not take care of
 // the opposite case (an RTL string displayed in an LTR context) since
