@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,6 +39,8 @@
 #if defined(OS_WIN)
 #include "base/worker_pool.h"
 #endif
+
+namespace net {
 
 #if defined(OS_WIN)
 class URLRequestFileJob::AsyncResolver
@@ -83,16 +85,16 @@ class URLRequestFileJob::AsyncResolver
 #endif
 
 // static
-net::URLRequestJob* URLRequestFileJob::Factory(net::URLRequest* request,
-                                               const std::string& scheme) {
+URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
+                                          const std::string& scheme) {
 
   FilePath file_path;
-  const bool is_file = net::FileURLToFilePath(request->url(), &file_path);
+  const bool is_file = FileURLToFilePath(request->url(), &file_path);
 
 #if defined(OS_CHROMEOS)
   // Check file access.
   if (AccessDisabled(file_path))
-    return new URLRequestErrorJob(request, net::ERR_ACCESS_DENIED);
+    return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
 #endif
 
   // We need to decide whether to create URLRequestFileJob for file access or
@@ -111,9 +113,9 @@ net::URLRequestJob* URLRequestFileJob::Factory(net::URLRequest* request,
   return new URLRequestFileJob(request, file_path);
 }
 
-URLRequestFileJob::URLRequestFileJob(net::URLRequest* request,
+URLRequestFileJob::URLRequestFileJob(URLRequest* request,
                                      const FilePath& file_path)
-    : net::URLRequestJob(request),
+    : URLRequestJob(request),
       file_path_(file_path),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &URLRequestFileJob::DidRead)),
@@ -166,11 +168,11 @@ void URLRequestFileJob::Kill() {
   }
 #endif
 
-  net::URLRequestJob::Kill();
+  URLRequestJob::Kill();
   method_factory_.RevokeAll();
 }
 
-bool URLRequestFileJob::ReadRawData(net::IOBuffer* dest, int dest_size,
+bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
                                     int *bytes_read) {
   DCHECK_NE(dest_size, 0);
   DCHECK(bytes_read);
@@ -196,7 +198,7 @@ bool URLRequestFileJob::ReadRawData(net::IOBuffer* dest, int dest_size,
   }
 
   // Otherwise, a read error occured.  We may just need to wait...
-  if (rv == net::ERR_IO_PENDING) {
+  if (rv == ERR_IO_PENDING) {
     SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
   } else {
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, rv));
@@ -221,16 +223,16 @@ bool URLRequestFileJob::GetMimeType(std::string* mime_type) const {
   //   http://code.google.com/p/chromium/issues/detail?id=59849
   base::ThreadRestrictions::ScopedAllowIO allow_io;
   DCHECK(request_);
-  return net::GetMimeTypeFromFile(file_path_, mime_type);
+  return GetMimeTypeFromFile(file_path_, mime_type);
 }
 
 void URLRequestFileJob::SetExtraRequestHeaders(
-    const net::HttpRequestHeaders& headers) {
+    const HttpRequestHeaders& headers) {
   std::string range_header;
-  if (headers.GetHeader(net::HttpRequestHeaders::kRange, &range_header)) {
+  if (headers.GetHeader(HttpRequestHeaders::kRange, &range_header)) {
     // We only care about "Range" header here.
-    std::vector<net::HttpByteRange> ranges;
-    if (net::HttpUtil::ParseRangeHeader(range_header, &ranges)) {
+    std::vector<HttpByteRange> ranges;
+    if (HttpUtil::ParseRangeHeader(range_header, &ranges)) {
       if (ranges.size() == 1) {
         byte_range_ = ranges[0];
       } else {
@@ -239,7 +241,7 @@ void URLRequestFileJob::SetExtraRequestHeaders(
         // TODO(hclam): decide whether we want to support multiple range
         // requests.
         NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
-                                    net::ERR_REQUEST_RANGE_NOT_SATISFIABLE));
+                                    ERR_REQUEST_RANGE_NOT_SATISFIABLE));
       }
     }
   }
@@ -257,7 +259,7 @@ void URLRequestFileJob::DidResolve(
 
   is_directory_ = file_info.is_directory;
 
-  int rv = net::OK;
+  int rv = OK;
   // We use URLRequestFileJob to handle files as well as directories without
   // trailing slash.
   // If a directory does not exist, we return ERR_FILE_NOT_FOUND. Otherwise,
@@ -267,7 +269,7 @@ void URLRequestFileJob::DidResolve(
   // So what happens is we append it with trailing slash and redirect it to
   // FileDirJob where it is resolved as invalid.
   if (!exists) {
-    rv = net::ERR_FILE_NOT_FOUND;
+    rv = ERR_FILE_NOT_FOUND;
   } else if (!is_directory_) {
     // URL requests should not block on the disk!
     //   http://code.google.com/p/chromium/issues/detail?id=59849
@@ -279,14 +281,14 @@ void URLRequestFileJob::DidResolve(
     rv = stream_.Open(file_path_, flags);
   }
 
-  if (rv != net::OK) {
+  if (rv != OK) {
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, rv));
     return;
   }
 
   if (!byte_range_.ComputeBounds(file_info.size)) {
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
-               net::ERR_REQUEST_RANGE_NOT_SATISFIABLE));
+               ERR_REQUEST_RANGE_NOT_SATISFIABLE));
     return;
   }
 
@@ -298,9 +300,9 @@ void URLRequestFileJob::DidResolve(
   if (remaining_bytes_ > 0 &&
       byte_range_.first_byte_position() != 0 &&
       byte_range_.first_byte_position() !=
-          stream_.Seek(net::FROM_BEGIN, byte_range_.first_byte_position())) {
+          stream_.Seek(FROM_BEGIN, byte_range_.first_byte_position())) {
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
-               net::ERR_REQUEST_RANGE_NOT_SATISFIABLE));
+               ERR_REQUEST_RANGE_NOT_SATISFIABLE));
     return;
   }
 
@@ -352,7 +354,7 @@ bool URLRequestFileJob::IsRedirectResponse(GURL* location,
   if (!resolved)
     return false;
 
-  *location = net::FilePathToFileURL(new_path);
+  *location = FilePathToFileURL(new_path);
   *http_status_code = 301;
   return true;
 #else
@@ -371,7 +373,7 @@ static const char* const kLocalAccessWhiteList[] = {
 
 // static
 bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
-  if (net::URLRequest::IsFileAccessAllowed()) {  // for tests.
+  if (URLRequest::IsFileAccessAllowed()) {  // for tests.
     return false;
   }
 
@@ -386,3 +388,5 @@ bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
   return true;
 }
 #endif
+
+}  // namespace net
