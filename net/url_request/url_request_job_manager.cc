@@ -34,7 +34,7 @@ static const SchemeToFactory kBuiltinFactories[] = {
   { "file", net::URLRequestFileJob::Factory },
   { "ftp", net::URLRequestFtpJob::Factory },
   { "about", net::URLRequestAboutJob::Factory },
-  { "data", URLRequestDataJob::Factory },
+  { "data", net::URLRequestDataJob::Factory },
 };
 
 URLRequestJobManager::URLRequestJobManager() : enable_file_access_(false) {
