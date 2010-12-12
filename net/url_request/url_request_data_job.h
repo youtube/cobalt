@@ -12,23 +12,25 @@
 #include "net/url_request/url_request_simple_job.h"
 
 namespace net {
+
 class URLRequest;
-}  // namespace net
 
 class URLRequestDataJob : public URLRequestSimpleJob {
  public:
-  explicit URLRequestDataJob(net::URLRequest* request);
+  explicit URLRequestDataJob(URLRequest* request);
 
   virtual bool GetData(std::string* mime_type,
                        std::string* charset,
                        std::string* data) const;
 
-  static net::URLRequest::ProtocolFactory Factory;
+  static URLRequest::ProtocolFactory Factory;
 
  private:
   ~URLRequestDataJob();
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestDataJob);
 };
+
+}  // namespace net
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_DATA_JOB_H_
