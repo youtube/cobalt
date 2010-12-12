@@ -21,21 +21,23 @@ namespace file_util {
 struct FileInfo;
 }
 
+namespace net {
+
 // A request job that handles reading file URLs
-class URLRequestFileJob : public net::URLRequestJob {
+class URLRequestFileJob : public URLRequestJob {
  public:
-  URLRequestFileJob(net::URLRequest* request, const FilePath& file_path);
+  URLRequestFileJob(URLRequest* request, const FilePath& file_path);
 
   virtual void Start();
   virtual void Kill();
-  virtual bool ReadRawData(net::IOBuffer* buf, int buf_size, int* bytes_read);
+  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int* bytes_read);
   virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
   virtual bool GetContentEncodings(
       std::vector<Filter::FilterType>* encoding_type);
   virtual bool GetMimeType(std::string* mime_type) const;
-  virtual void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers);
+  virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
 
-  static net::URLRequest::ProtocolFactory Factory;
+  static URLRequest::ProtocolFactory Factory;
 
 #if defined(OS_CHROMEOS)
   static bool AccessDisabled(const FilePath& file_path);
@@ -51,11 +53,11 @@ class URLRequestFileJob : public net::URLRequestJob {
   void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
   void DidRead(int result);
 
-  net::CompletionCallbackImpl<URLRequestFileJob> io_callback_;
-  net::FileStream stream_;
+  CompletionCallbackImpl<URLRequestFileJob> io_callback_;
+  FileStream stream_;
   bool is_directory_;
 
-  net::HttpByteRange byte_range_;
+  HttpByteRange byte_range_;
   int64 remaining_bytes_;
 
 #if defined(OS_WIN)
@@ -68,5 +70,7 @@ class URLRequestFileJob : public net::URLRequestJob {
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFileJob);
 };
+
+}  // namespace net
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_FILE_JOB_H_
