@@ -7,15 +7,16 @@
 #include "net/url_request/url_request_data_job.h"
 
 #include "net/base/data_url.h"
-#include "net/url_request/url_request.h"
+
+namespace net {
 
 // static
-net::URLRequestJob* URLRequestDataJob::Factory(net::URLRequest* request,
-                                               const std::string& scheme) {
+URLRequestJob* URLRequestDataJob::Factory(URLRequest* request,
+                                          const std::string& scheme) {
   return new URLRequestDataJob(request);
 }
 
-URLRequestDataJob::URLRequestDataJob(net::URLRequest* request)
+URLRequestDataJob::URLRequestDataJob(URLRequest* request)
     : URLRequestSimpleJob(request) {
 }
 
@@ -27,8 +28,10 @@ bool URLRequestDataJob::GetData(std::string* mime_type,
   const GURL& url = request_->url();
   if (!url.is_valid())
     return false;
-  return net::DataURL::Parse(url, mime_type, charset, data);
+  return DataURL::Parse(url, mime_type, charset, data);
 }
 
 URLRequestDataJob::~URLRequestDataJob() {
 }
+
+}  // namespace net
