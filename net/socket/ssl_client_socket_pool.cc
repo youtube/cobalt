@@ -479,6 +479,10 @@ void SSLClientSocketPool::CloseIdleSockets() {
   base_.CloseIdleSockets();
 }
 
+int SSLClientSocketPool::IdleSocketCount() const {
+  return base_.idle_socket_count();
+}
+
 int SSLClientSocketPool::IdleSocketCountInGroup(
     const std::string& group_name) const {
   return base_.IdleSocketCountInGroup(group_name);
@@ -518,6 +522,14 @@ DictionaryValue* SSLClientSocketPool::GetInfoAsValue(
     dict->Set("nested_pools", list);
   }
   return dict;
+}
+
+base::TimeDelta SSLClientSocketPool::ConnectionTimeout() const {
+  return base_.ConnectionTimeout();
+}
+
+ClientSocketPoolHistograms* SSLClientSocketPool::histograms() const {
+  return base_.histograms();
 }
 
 }  // namespace net

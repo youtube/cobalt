@@ -393,6 +393,14 @@ void HttpAuthController::ResetAuth(const string16& username,
   }
 }
 
+bool HttpAuthController::HaveAuthHandler() const {
+  return handler_.get() != NULL;
+}
+
+bool HttpAuthController::HaveAuth() const {
+  return handler_.get() && !identity_.invalid;
+}
+
 void HttpAuthController::InvalidateCurrentHandler() {
   DCHECK(CalledOnValidThread());
 

@@ -63,13 +63,9 @@ class HttpAuthController : public base::RefCounted<HttpAuthController>,
   virtual void ResetAuth(const string16& username,
                          const string16& password);
 
-  virtual bool HaveAuthHandler() const {
-    return handler_.get() != NULL;
-  }
+  virtual bool HaveAuthHandler() const;
 
-  virtual bool HaveAuth() const {
-    return handler_.get() && !identity_.invalid;
-  }
+  virtual bool HaveAuth() const;
 
   virtual scoped_refptr<AuthChallengeInfo> auth_info();
 
