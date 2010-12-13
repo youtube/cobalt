@@ -422,6 +422,10 @@ void HttpProxyClientSocketPool::CloseIdleSockets() {
   base_.CloseIdleSockets();
 }
 
+int HttpProxyClientSocketPool::IdleSocketCount() const {
+  return base_.idle_socket_count();
+}
+
 int HttpProxyClientSocketPool::IdleSocketCountInGroup(
     const std::string& group_name) const {
   return base_.IdleSocketCountInGroup(group_name);
@@ -452,6 +456,14 @@ DictionaryValue* HttpProxyClientSocketPool::GetInfoAsValue(
     dict->Set("nested_pools", list);
   }
   return dict;
+}
+
+base::TimeDelta HttpProxyClientSocketPool::ConnectionTimeout() const {
+  return base_.ConnectionTimeout();
+}
+
+ClientSocketPoolHistograms* HttpProxyClientSocketPool::histograms() const {
+  return base_.histograms();
 }
 
 }  // namespace net

@@ -209,9 +209,7 @@ class SSLClientSocketPool : public ClientSocketPool,
 
   virtual void CloseIdleSockets();
 
-  virtual int IdleSocketCount() const {
-    return base_.idle_socket_count();
-  }
+  virtual int IdleSocketCount() const;
 
   virtual int IdleSocketCountInGroup(const std::string& group_name) const;
 
@@ -222,13 +220,9 @@ class SSLClientSocketPool : public ClientSocketPool,
                                           const std::string& type,
                                           bool include_nested_pools) const;
 
-  virtual base::TimeDelta ConnectionTimeout() const {
-    return base_.ConnectionTimeout();
-  }
+  virtual base::TimeDelta ConnectionTimeout() const;
 
-  virtual ClientSocketPoolHistograms* histograms() const {
-    return base_.histograms();
-  };
+  virtual ClientSocketPoolHistograms* histograms() const;
 
  private:
   // SSLConfigService::Observer methods:

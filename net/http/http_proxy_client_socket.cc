@@ -162,6 +162,10 @@ bool HttpProxyClientSocket::IsConnectedAndIdle() const {
     transport_->socket()->IsConnectedAndIdle();
 }
 
+const BoundNetLog& HttpProxyClientSocket::NetLog() const {
+  return net_log_;
+}
+
 void HttpProxyClientSocket::SetSubresourceSpeculation() {
   if (transport_.get() && transport_->socket()) {
     transport_->socket()->SetSubresourceSpeculation();

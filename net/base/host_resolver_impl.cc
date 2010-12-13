@@ -1132,6 +1132,10 @@ void HostResolverImpl::ProbeIPv6Support() {
   OnIPAddressChanged();  // Give initial setup call.
 }
 
+HostResolverImpl* HostResolverImpl::GetAsHostResolverImpl() {
+  return this;
+}
+
 void HostResolverImpl::Shutdown() {
   DCHECK(CalledOnValidThread());
 
