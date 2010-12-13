@@ -38,7 +38,7 @@ enum LinuxDistroState {
 class LinuxDistroHelper {
  public:
   // Retrieves the Singleton.
-  static LinuxDistroHelper* Get() {
+  static LinuxDistroHelper* GetInstance() {
     return Singleton<LinuxDistroHelper>::get();
   }
 
@@ -141,7 +141,7 @@ std::string GetLinuxDistro() {
 #if defined(OS_CHROMEOS)
   return g_linux_distro;
 #elif defined(OS_LINUX)
-  LinuxDistroHelper* distro_state_singleton = LinuxDistroHelper::Get();
+  LinuxDistroHelper* distro_state_singleton = LinuxDistroHelper::GetInstance();
   LinuxDistroState state = distro_state_singleton->State();
   if (STATE_DID_NOT_CHECK == state) {
     // We do this check only once per process. If it fails, there's
