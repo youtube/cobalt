@@ -18,8 +18,8 @@ namespace net {
 // deduce the back-off time for every request.
 // The back-off algorithm consists of two parts. Firstly, exponential back-off
 // is used when receiving 5XX server errors or malformed response bodies.
-// The exponential back-off rule is enforced by URLRequestHttpJob. Any request
-// sent during the back-off period will be cancelled.
+// The exponential back-off rule is enforced by URLRequestHttpJob. Any
+// request sent during the back-off period will be cancelled.
 // Secondly, a sliding window is used to count recent requests to a given
 // destination and provide guidance (to the application level only) on whether
 // too many requests have been sent and when a good time to send the next one

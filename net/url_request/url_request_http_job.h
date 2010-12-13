@@ -18,32 +18,33 @@
 #include "net/url_request/url_request_job.h"
 #include "net/url_request/url_request_throttler_entry_interface.h"
 
+class URLRequestContext;
+
 namespace net {
+
 class HttpResponseInfo;
 class HttpTransaction;
-}
-class URLRequestContext;
 
 // A net::URLRequestJob subclass that is built on top of HttpTransaction.  It
 // provides an implementation for both HTTP and HTTPS.
-class URLRequestHttpJob : public net::URLRequestJob {
+class URLRequestHttpJob : public URLRequestJob {
  public:
-  static net::URLRequestJob* Factory(net::URLRequest* request,
-                                     const std::string& scheme);
+  static URLRequestJob* Factory(URLRequest* request,
+                                const std::string& scheme);
 
  protected:
-  explicit URLRequestHttpJob(net::URLRequest* request);
+  explicit URLRequestHttpJob(URLRequest* request);
 
-  // net::URLRequestJob methods:
-  virtual void SetUpload(net::UploadData* upload);
-  virtual void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers);
+  // Overridden from URLRequestJob:
+  virtual void SetUpload(UploadData* upload);
+  virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
   virtual void Start();
   virtual void Kill();
-  virtual net::LoadState GetLoadState() const;
+  virtual LoadState GetLoadState() const;
   virtual uint64 GetUploadProgress() const;
   virtual bool GetMimeType(std::string* mime_type) const;
   virtual bool GetCharset(std::string* charset);
-  virtual void GetResponseInfo(net::HttpResponseInfo* info);
+  virtual void GetResponseInfo(HttpResponseInfo* info);
   virtual bool GetResponseCookies(std::vector<std::string>* cookies);
   virtual int GetResponseCode() const;
   virtual bool GetContentEncodings(
@@ -52,16 +53,16 @@ class URLRequestHttpJob : public net::URLRequestJob {
   virtual bool IsSdchResponse() const;
   virtual bool IsSafeRedirect(const GURL& location);
   virtual bool NeedsAuth();
-  virtual void GetAuthChallengeInfo(scoped_refptr<net::AuthChallengeInfo>*);
+  virtual void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*);
   virtual void SetAuth(const string16& username,
                        const string16& password);
   virtual void CancelAuth();
-  virtual void ContinueWithCertificate(net::X509Certificate* client_cert);
+  virtual void ContinueWithCertificate(X509Certificate* client_cert);
   virtual void ContinueDespiteLastError();
-  virtual bool ReadRawData(net::IOBuffer* buf, int buf_size, int *bytes_read);
+  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
   virtual void StopCaching();
 
-  // Shadows net::URLRequestJob's version of this method so we can grab cookies.
+  // Shadows URLRequestJob's version of this method so we can grab cookies.
   void NotifyHeadersComplete();
 
   void DestroyTransaction();
@@ -70,7 +71,7 @@ class URLRequestHttpJob : public net::URLRequestJob {
   void AddCookieHeaderAndStart();
   void SaveCookiesAndNotifyHeadersComplete();
   void SaveNextCookie();
-  void FetchResponseCookies(const net::HttpResponseInfo* response_info,
+  void FetchResponseCookies(const HttpResponseInfo* response_info,
                             std::vector<std::string>* cookies);
 
   // Process the Strict-Transport-Security header, if one exists.
@@ -90,33 +91,33 @@ class URLRequestHttpJob : public net::URLRequestJob {
   // before us.
   scoped_refptr<URLRequestContext> context_;
 
-  net::HttpRequestInfo request_info_;
-  const net::HttpResponseInfo* response_info_;
+  HttpRequestInfo request_info_;
+  const HttpResponseInfo* response_info_;
 
   std::vector<std::string> response_cookies_;
   size_t response_cookies_save_index_;
 
   // Auth states for proxy and origin server.
-  net::AuthState proxy_auth_state_;
-  net::AuthState server_auth_state_;
+  AuthState proxy_auth_state_;
+  AuthState server_auth_state_;
 
   string16 username_;
   string16 password_;
 
-  net::CompletionCallbackImpl<URLRequestHttpJob> can_get_cookies_callback_;
-  net::CompletionCallbackImpl<URLRequestHttpJob> can_set_cookie_callback_;
-  net::CompletionCallbackImpl<URLRequestHttpJob> start_callback_;
-  net::CompletionCallbackImpl<URLRequestHttpJob> read_callback_;
+  CompletionCallbackImpl<URLRequestHttpJob> can_get_cookies_callback_;
+  CompletionCallbackImpl<URLRequestHttpJob> can_set_cookie_callback_;
+  CompletionCallbackImpl<URLRequestHttpJob> start_callback_;
+  CompletionCallbackImpl<URLRequestHttpJob> read_callback_;
 
   bool read_in_progress_;
 
   // An URL for an SDCH dictionary as suggested in a Get-Dictionary HTTP header.
   GURL sdch_dictionary_url_;
 
-  scoped_ptr<net::HttpTransaction> transaction_;
+  scoped_ptr<HttpTransaction> transaction_;
 
   // This is used to supervise traffic and enforce exponential back-off.
-  scoped_refptr<net::URLRequestThrottlerEntryInterface> throttling_entry_;
+  scoped_refptr<URLRequestThrottlerEntryInterface> throttling_entry_;
 
   // Indicated if an SDCH dictionary was advertised, and hence an SDCH
   // compressed response is expected.  We use this to help detect (accidental?)
@@ -140,5 +141,7 @@ class URLRequestHttpJob : public net::URLRequestJob {
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
 };
+
+}  // namespace net
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_HTTP_JOB_H_

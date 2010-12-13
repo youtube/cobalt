@@ -21,8 +21,8 @@ class URLRequestThrottlerEntryInterface
 
   // Returns true when we have encountered server errors and are doing
   // exponential back-off.
-  // URLRequestHttpJob checks this method prior to every request; it cancels
-  // requests if this method returns true.
+  // net::URLRequestHttpJob checks this method prior to every request; it
+  // cancels requests if this method returns true.
   virtual bool IsDuringExponentialBackoff() const = 0;
 
   // Calculates a recommended sending time for the next request and reserves it.
