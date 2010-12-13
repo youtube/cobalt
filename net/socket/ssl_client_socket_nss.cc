@@ -905,6 +905,7 @@ void SSLClientSocketNSS::Disconnect() {
   completed_handshake_   = false;
   pseudo_connected_      = false;
   eset_mitm_detected_    = false;
+  start_cert_verification_time_ = base::TimeTicks();
   predicted_cert_chain_correct_ = false;
   peername_initialized_  = false;
   nss_bufs_              = NULL;
@@ -1634,7 +1635,8 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
       if (common_name) {
         if (strcmp(common_name, "ESET_RootSslCert") == 0)
           that->eset_mitm_detected_ = true;
-        if (strcmp(common_name, "ContentWatch Root Certificate Authority") == 0) {
+        if (strcmp(common_name,
+                   "ContentWatch Root Certificate Authority") == 0) {
           // This is NetNanny. NetNanny are updating their product so we
           // silently disable False Start for now.
           rv = SSL_OptionSet(socket, SSL_ENABLE_FALSE_START, PR_FALSE);
@@ -2429,6 +2431,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   DCHECK(server_cert_);
 
   GotoState(STATE_VERIFY_CERT_COMPLETE);
+  start_cert_verification_time_ = base::TimeTicks::Now();
 
   if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty() &&
       predicted_cert_chain_correct_) {
@@ -2463,6 +2466,15 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
 // mozilla/source/security/manager/ssl/src/nsNSSCallbacks.cpp.
 int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   verifier_.reset();
+
+  if (!start_cert_verification_time_.is_null()) {
+    base::TimeDelta verify_time =
+        base::TimeTicks::Now() - start_cert_verification_time_;
+    if (result == OK)
+        UMA_HISTOGRAM_TIMES("Net.SSLCertVerificationTime", verify_time);
+    else
+        UMA_HISTOGRAM_TIMES("Net.SSLCertVerificationTimeError", verify_time);
+  }
 
   // We used to remember the intermediate CA certs in the NSS database
   // persistently.  However, NSS opens a connection to the SQLite database
