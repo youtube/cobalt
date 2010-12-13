@@ -29,8 +29,8 @@ struct SchemeToFactory {
 }  // namespace
 
 static const SchemeToFactory kBuiltinFactories[] = {
-  { "http", URLRequestHttpJob::Factory },
-  { "https", URLRequestHttpJob::Factory },
+  { "http", net::URLRequestHttpJob::Factory },
+  { "https", net::URLRequestHttpJob::Factory },
   { "file", net::URLRequestFileJob::Factory },
   { "ftp", net::URLRequestFtpJob::Factory },
   { "about", net::URLRequestAboutJob::Factory },
