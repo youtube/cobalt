@@ -36,7 +36,7 @@ namespace {
 // just ignore it.
 class SymbolContext {
  public:
-  static SymbolContext* Get() {
+  static SymbolContext* GetInstance() {
     // We use a leaky singleton because code may call this during process
     // termination.
     return
@@ -179,7 +179,7 @@ void StackTrace::PrintBacktrace() {
 }
 
 void StackTrace::OutputToStream(std::ostream* os) {
-  SymbolContext* context = SymbolContext::Get();
+  SymbolContext* context = SymbolContext::GetInstance();
   DWORD error = context->init_error();
   if (error != ERROR_SUCCESS) {
     (*os) << "Error initializing symbols (" << error
