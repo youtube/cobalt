@@ -49,7 +49,7 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual int GetResponseCode() const;
   virtual bool GetContentEncodings(
       std::vector<Filter::FilterType>* encoding_type);
-  virtual bool IsCachedContent() const { return is_cached_content_; }
+  virtual bool IsCachedContent() const;
   virtual bool IsSdchResponse() const;
   virtual bool IsSafeRedirect(const GURL& location);
   virtual bool NeedsAuth();

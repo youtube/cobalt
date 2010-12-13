@@ -94,9 +94,7 @@ class VideoRendererBase : public VideoRenderer,
   // class executes on.
   virtual void OnFrameAvailable() = 0;
 
-  virtual VideoDecoder* GetDecoder() {
-    return decoder_.get();
-  }
+  virtual VideoDecoder* GetDecoder();
 
   int width() { return width_; }
   int height() { return height_; }

@@ -293,6 +293,10 @@ bool URLRequestHttpJob::GetContentEncodings(
   return !encoding_types->empty();
 }
 
+bool URLRequestHttpJob::IsCachedContent() const {
+  return is_cached_content_;
+}
+
 bool URLRequestHttpJob::IsSdchResponse() const {
   return sdch_dictionary_advertised_;
 }

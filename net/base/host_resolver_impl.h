@@ -105,7 +105,7 @@ class HostResolverImpl : public HostResolver,
   // address family to IPv4 iff IPv6 is not supported.
   void ProbeIPv6Support();
 
-  virtual HostResolverImpl* GetAsHostResolverImpl() { return this; }
+  virtual HostResolverImpl* GetAsHostResolverImpl();
 
   // TODO(eroman): hack for http://crbug.com/15513
   virtual void Shutdown();
