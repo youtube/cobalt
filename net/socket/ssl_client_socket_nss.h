@@ -249,6 +249,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   std::string predicted_npn_proto_;
   bool predicted_npn_proto_used_;
 
+  base::TimeTicks start_cert_verification_time_;
+
   scoped_ptr<SSLHostInfo> ssl_host_info_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
 };
