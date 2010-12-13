@@ -430,6 +430,10 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
   }
 }
 
+VideoDecoder* VideoRendererBase::GetDecoder() {
+  return decoder_.get();
+}
+
 void VideoRendererBase::ReadInput(scoped_refptr<VideoFrame> frame) {
   // We should never return empty frames or EOS frame.
   DCHECK(frame.get() && !frame->IsEndOfStream());
