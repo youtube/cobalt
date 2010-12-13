@@ -11,7 +11,7 @@
 /^Check dependencies/d
 /^    setenv /d
 /^    cd /d
-/^make: nothing to be done/d
+/^make: Nothing to be done/d
 
 # Xcode prints a short "compiling foobar.o" line followed by the lengthy
 # full command line.  These deletions drop the command line.
