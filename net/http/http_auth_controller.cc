@@ -52,9 +52,35 @@ std::string AuthChallengeLogMessage(HttpResponseHeaders* headers) {
 
 enum AuthEvent {
   AUTH_EVENT_START = 0,
-  AUTH_EVENT_REJECT = 1,
-  AUTH_EVENT_MAX = 2,
+  AUTH_EVENT_REJECT,
+  AUTH_EVENT_MAX,
 };
+
+enum AuthTarget {
+  AUTH_TARGET_PROXY = 0,
+  AUTH_TARGET_SECURE_PROXY,
+  AUTH_TARGET_SERVER,
+  AUTH_TARGET_SECURE_SERVER,
+  AUTH_TARGET_MAX,
+};
+
+AuthTarget DetermineAuthTarget(const HttpAuthHandler* handler) {
+  switch (handler->target()) {
+    case HttpAuth::AUTH_PROXY:
+      if (handler->origin().SchemeIsSecure())
+        return AUTH_TARGET_SECURE_PROXY;
+      else
+        return AUTH_TARGET_PROXY;
+    case HttpAuth::AUTH_SERVER:
+      if (handler->origin().SchemeIsSecure())
+        return AUTH_TARGET_SECURE_SERVER;
+      else
+        return AUTH_TARGET_SERVER;
+    default:
+      NOTREACHED();
+      return AUTH_TARGET_MAX;
+  }
+}
 
 // Records the number of authentication events per authentication scheme.
 void HistogramAuthEvent(HttpAuthHandler* handler, AuthEvent auth_event) {
@@ -68,8 +94,12 @@ void HistogramAuthEvent(HttpAuthHandler* handler, AuthEvent auth_event) {
   DCHECK_EQ(first_thread, PlatformThread::CurrentId());
 #endif
 
-  // This assumes that the schemes maintain a consistent score from
-  // 1 to 4 inclusive. The results map to:
+  HttpAuthHandler::AuthScheme auth_scheme = handler->auth_scheme();
+  DCHECK(auth_scheme >= 0 && auth_scheme < HttpAuthHandler::AUTH_SCHEME_MAX);
+
+  // Record start and rejection events for authentication.
+  //
+  // The results map to:
   //   Basic Start: 0
   //   Basic Reject: 1
   //   Digest Start: 2
@@ -78,12 +108,41 @@ void HistogramAuthEvent(HttpAuthHandler* handler, AuthEvent auth_event) {
   //   NTLM Reject: 5
   //   Negotiate Start: 6
   //   Negotiate Reject: 7
-  static const int kScoreMin = 1;
-  static const int kScoreMax = 4;
-  static const int kBucketsMax = kScoreMax * AUTH_EVENT_MAX + 1;
-  DCHECK(handler->score() >= kScoreMin && handler->score() <= kScoreMax);
-  int bucket = (handler->score() - kScoreMin) * AUTH_EVENT_MAX + auth_event;
-  UMA_HISTOGRAM_ENUMERATION("Net.HttpAuthCount", bucket, kBucketsMax);
+  static const int kEventBucketsEnd =
+      HttpAuthHandler::AUTH_SCHEME_MAX * AUTH_EVENT_MAX;
+  int event_bucket = auth_scheme * AUTH_EVENT_MAX + auth_event;
+  DCHECK(event_bucket >= 0 && event_bucket < kEventBucketsEnd);
+  UMA_HISTOGRAM_ENUMERATION("Net.HttpAuthCount", event_bucket,
+                            kEventBucketsEnd);
+
+  // Record the target of the authentication.
+  //
+  // The results map to:
+  //   Basic Proxy: 0
+  //   Basic Secure Proxy: 1
+  //   Basic Server: 2
+  //   Basic Secure Server: 3
+  //   Digest Proxy: 4
+  //   Digest Secure Proxy: 5
+  //   Digest Server: 6
+  //   Digest Secure Server: 7
+  //   NTLM Proxy: 8
+  //   NTLM Secure Proxy: 9
+  //   NTLM Server: 10
+  //   NTLM Secure Server: 11
+  //   Negotiate Proxy: 12
+  //   Negotiate Secure Proxy: 13
+  //   Negotiate Server: 14
+  //   Negotiate Secure Server: 15
+  if (auth_event != AUTH_EVENT_START)
+    return;
+  static const int kTargetBucketsEnd =
+      HttpAuthHandler::AUTH_SCHEME_MAX * AUTH_TARGET_MAX;
+  AuthTarget auth_target = DetermineAuthTarget(handler);
+  int target_bucket = auth_scheme * AUTH_TARGET_MAX + auth_target;
+  DCHECK(target_bucket >= 0 && target_bucket < kTargetBucketsEnd);
+  UMA_HISTOGRAM_ENUMERATION("Net.HttpAuthTarget", target_bucket,
+                            kTargetBucketsEnd);
 }
 
 }  // namespace

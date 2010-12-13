@@ -13,7 +13,8 @@
 namespace net {
 
 HttpAuthHandler::HttpAuthHandler()
-    : score_(-1),
+    : auth_scheme_(AUTH_SCHEME_MAX),
+      score_(-1),
       target_(HttpAuth::AUTH_NONE),
       properties_(-1),
       original_callback_(NULL),
@@ -50,6 +51,7 @@ bool HttpAuthHandler::InitFromChallenge(
   DCHECK(!ok || !scheme().empty());
   DCHECK(!ok || score_ != -1);
   DCHECK(!ok || properties_ != -1);
+  DCHECK(!ok || auth_scheme_ != AUTH_SCHEME_MAX);
 
   if (ok)
     histogram_ = base::Histogram::FactoryTimeGet(
