@@ -29,7 +29,7 @@ class MockAuthHandler : public HttpAuthHandler {
     properties_ = 0;
   }
 
-  HttpAuth::AuthorizationResult HandleAnotherChallenge(
+  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
       HttpAuth::ChallengeTokenizer* challenge) {
     return HttpAuth::AUTHORIZATION_RESULT_REJECT;
   }
