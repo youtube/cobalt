@@ -30,6 +30,20 @@ namespace {
 // System pagesize. This value remains constant on x86/64 architectures.
 const int PAGESIZE_KB = 4;
 
+// Exit codes with special meanings on Windows.
+const DWORD kNormalTerminationExitCode = 0;
+const DWORD kDebuggerInactiveExitCode = 0xC0000354;
+const DWORD kKeyboardInterruptExitCode = 0xC000013A;
+const DWORD kDebuggerTerminatedExitCode = 0x40010004;
+
+// This exit code is used by the Windows task manager when it kills a
+// process.  It's value is obviously not that unique, and it's
+// surprising to me that the task manager uses this value, but it
+// seems to be common practice on Windows to test for it as an
+// indication that the task manager has killed something if the
+// process goes away.
+const DWORD kProcessKilledExitCode = 1;
+
 // HeapSetInformation function pointer.
 typedef BOOL (WINAPI* HeapSetFn)(HANDLE, HEAP_INFORMATION_CLASS, PVOID, SIZE_T);
 
@@ -105,10 +119,10 @@ bool OpenProcessHandle(ProcessId pid, ProcessHandle* handle) {
 
 bool OpenPrivilegedProcessHandle(ProcessId pid, ProcessHandle* handle) {
   ProcessHandle result = OpenProcess(PROCESS_DUP_HANDLE |
-                                         PROCESS_TERMINATE |
-                                         PROCESS_QUERY_INFORMATION |
-                                         PROCESS_VM_READ |
-                                         SYNCHRONIZE,
+                                     PROCESS_TERMINATE |
+                                     PROCESS_QUERY_INFORMATION |
+                                     PROCESS_VM_READ |
+                                     SYNCHRONIZE,
                                      FALSE, pid);
 
   if (result == INVALID_HANDLE_VALUE)
@@ -394,22 +408,33 @@ bool KillProcess(ProcessHandle process, int exit_code, bool wait) {
   return result;
 }
 
-bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
-  DWORD exitcode = 0;
+TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
+  DWORD tmp_exit_code = 0;
 
-  if (!::GetExitCodeProcess(handle, &exitcode)) {
+  if (!::GetExitCodeProcess(handle, &tmp_exit_code)) {
     NOTREACHED();
-    // Assume the child has exited.
-    if (child_exited)
-      *child_exited = true;
-    return false;
+    if (exit_code) {
+      // This really is a random number.  We haven't received any
+      // information about the exit code, presumably because this
+      // process doesn't have permission to get the exit code, or
+      // because of some other cause for GetExitCodeProcess to fail
+      // (MSDN docs don't give the possible failure error codes for
+      // this function, so it could be anything).  But we don't want
+      // to leave exit_code uninitialized, since that could cause
+      // random interpretations of the exit code.  So we assume it
+      // terminated "normally" in this case.
+      *exit_code = kNormalTerminationExitCode;
+    }
+    // Assume the child has exited normally if we can't get the exit
+    // code.
+    return TERMINATION_STATUS_NORMAL_TERMINATION;
   }
-  if (exitcode == STILL_ACTIVE) {
+  if (tmp_exit_code == STILL_ACTIVE) {
     DWORD wait_result = WaitForSingleObject(handle, 0);
     if (wait_result == WAIT_TIMEOUT) {
-      if (child_exited)
-        *child_exited = false;
-      return false;
+      if (exit_code)
+        *exit_code = wait_result;
+      return TERMINATION_STATUS_STILL_RUNNING;
     }
 
     DCHECK_EQ(WAIT_OBJECT_0, wait_result);
@@ -417,27 +442,24 @@ bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
     // Strange, the process used 0x103 (STILL_ACTIVE) as exit code.
     NOTREACHED();
 
-    return false;
+    return TERMINATION_STATUS_ABNORMAL_TERMINATION;
   }
 
-  // We're sure the child has exited.
-  if (child_exited)
-    *child_exited = true;
+  if (exit_code)
+    *exit_code = tmp_exit_code;
 
-  // Warning, this is not generic code; it heavily depends on the way
-  // the rest of the code kills a process.
-
-  if (exitcode == PROCESS_END_NORMAL_TERMINATION ||
-      exitcode == PROCESS_END_KILLED_BY_USER ||
-      exitcode == PROCESS_END_PROCESS_WAS_HUNG ||
-      exitcode == 0xC0000354 ||     // STATUS_DEBUGGER_INACTIVE.
-      exitcode == 0xC000013A ||     // Control-C/end session.
-      exitcode == 0x40010004) {     // Debugger terminated process/end session.
-    return false;
+  switch (tmp_exit_code) {
+    case kNormalTerminationExitCode:
+      return TERMINATION_STATUS_NORMAL_TERMINATION;
+    case kDebuggerInactiveExitCode:  // STATUS_DEBUGGER_INACTIVE.
+    case kKeyboardInterruptExitCode:  // Control-C/end session.
+    case kDebuggerTerminatedExitCode:  // Debugger terminated process.
+    case kProcessKilledExitCode:  // Task manager kill.
+      return TERMINATION_STATUS_PROCESS_WAS_KILLED;
+    default:
+      // All other exit codes indicate crashes.
+      return TERMINATION_STATUS_PROCESS_CRASHED;
   }
-
-  // All other exit codes indicate crashes.
-  return true;
 }
 
 bool WaitForExitCode(ProcessHandle handle, int* exit_code) {

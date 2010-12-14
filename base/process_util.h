@@ -118,13 +118,15 @@ const uint32 kProcessAccessQueryLimitedInfomation = 0;
 const uint32 kProcessAccessWaitForTermination     = 0;
 #endif  // defined(OS_POSIX)
 
-// A minimalistic but hopefully cross-platform set of exit codes.
-// Do not change the enumeration values or you will break third-party
-// installers.
-enum {
-  PROCESS_END_NORMAL_TERMINATION = 0,
-  PROCESS_END_KILLED_BY_USER     = 1,
-  PROCESS_END_PROCESS_WAS_HUNG   = 2
+// Return status values from GetTerminationStatus.  Don't use these as
+// exit code arguments to KillProcess*(), use platform/application
+// specific values instead.
+enum TerminationStatus {
+  TERMINATION_STATUS_NORMAL_TERMINATION,   // zero exit status
+  TERMINATION_STATUS_ABNORMAL_TERMINATION, // non-zero exit status
+  TERMINATION_STATUS_PROCESS_WAS_KILLED,   // e.g. SIGKILL or task manager kill
+  TERMINATION_STATUS_PROCESS_CRASHED,      // e.g. Segmentation fault
+  TERMINATION_STATUS_STILL_RUNNING         // child hasn't exited yet
 };
 
 // Returns the id of the current process.
@@ -180,7 +182,7 @@ bool AdjustOOMScore(ProcessId process, int score);
 #endif
 
 #if defined(OS_POSIX)
-// Close all file descriptors, expect those which are a destination in the
+// Close all file descriptors, except those which are a destination in the
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
 void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
@@ -347,10 +349,15 @@ bool KillProcessGroup(ProcessHandle process_group_id);
 bool KillProcessById(ProcessId process_id, int exit_code, bool wait);
 #endif
 
-// Get the termination status (exit code) of the process and return true if the
-// status indicates the process crashed. |child_exited| is set to true iff the
-// child process has terminated. (|child_exited| may be NULL.)
-bool DidProcessCrash(bool* child_exited, ProcessHandle handle);
+// Get the termination status of the process by interpreting the
+// circumstances of the child process' death. |exit_code| is set to
+// the status returned by waitpid() on POSIX, and from
+// GetExitCodeProcess() on Windows.  |exit_code| may be NULL if the
+// caller is not interested in it.  Note that on Linux, this function
+// will only return a useful result the first time it is called after
+// the child exits (because it will reap the child and the information
+// will no longer be available).
+TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code);
 
 // Waits for process to exit. In POSIX systems, if the process hasn't been
 // signaled then puts the exit code in |exit_code|; otherwise it's considered
