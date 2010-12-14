@@ -21,6 +21,10 @@ class OpenSSLMemoryKeyStore : public OpenSSLPrivateKeyStore {
  public:
   OpenSSLMemoryKeyStore() {}
 
+  static OpenSSLMemoryKeyStore* GetInstance() {
+    return Singleton<OpenSSLMemoryKeyStore>::get();
+  }
+
   virtual ~OpenSSLMemoryKeyStore() {
     AutoLock lock(lock_);
     for (std::vector<EVP_PKEY*>::iterator it = keys_.begin();
@@ -57,7 +61,7 @@ class OpenSSLMemoryKeyStore : public OpenSSLPrivateKeyStore {
 
 // static
 OpenSSLPrivateKeyStore* OpenSSLPrivateKeyStore::GetInstance() {
-  return Singleton<OpenSSLMemoryKeyStore>::get();
+  return OpenSSLMemoryKeyStore::GetInstance();
 }
 
 } // namespace net
