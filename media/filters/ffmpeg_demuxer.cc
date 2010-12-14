@@ -149,6 +149,10 @@ void FFmpegDemuxerStream::Stop() {
   stopped_ = true;
 }
 
+base::TimeDelta FFmpegDemuxerStream::duration() {
+  return duration_;
+}
+
 const MediaFormat& FFmpegDemuxerStream::media_format() {
   return media_format_;
 }
@@ -217,6 +221,10 @@ void FFmpegDemuxerStream::EnableBitstreamConverter() {
         new FFmpegBitstreamConverter(filter_name, stream_->codec));
     CHECK(bitstream_converter_->Initialize());
   }
+}
+
+AVStream* FFmpegDemuxerStream::GetAVStream() {
+  return stream_;
 }
 
 // static

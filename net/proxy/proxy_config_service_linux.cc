@@ -1255,4 +1255,16 @@ ProxyConfigServiceLinux::ProxyConfigServiceLinux(
     : delegate_(new Delegate(env_var_getter, gconf_getter)) {
 }
 
+void ProxyConfigServiceLinux::AddObserver(Observer* observer) {
+  delegate_->AddObserver(observer);
+}
+
+void ProxyConfigServiceLinux::RemoveObserver(Observer* observer) {
+  delegate_->RemoveObserver(observer);
+}
+
+bool ProxyConfigServiceLinux::GetLatestProxyConfig(ProxyConfig* config) {
+  return delegate_->GetLatestProxyConfig(config);
+}
+
 }  // namespace net

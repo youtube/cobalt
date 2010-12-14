@@ -37,7 +37,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   // Decoder implementation.
   virtual void Initialize(DemuxerStream* demuxer_stream,
                           FilterCallback* callback);
-  virtual const MediaFormat& media_format() { return media_format_; }
+  virtual const MediaFormat& media_format();
   virtual void ProduceVideoFrame(scoped_refptr<VideoFrame> video_frame);
   virtual bool ProvidesBuffer();
 

@@ -106,6 +106,10 @@ bool SOCKS5ClientSocket::IsConnectedAndIdle() const {
   return completed_handshake_ && transport_->socket()->IsConnectedAndIdle();
 }
 
+const BoundNetLog& SOCKS5ClientSocket::NetLog() const {
+  return net_log_;
+}
+
 void SOCKS5ClientSocket::SetSubresourceSpeculation() {
   if (transport_.get() && transport_->socket()) {
     transport_->socket()->SetSubresourceSpeculation();

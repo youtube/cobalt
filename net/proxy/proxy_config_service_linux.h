@@ -237,18 +237,9 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
 
   // ProxyConfigService methods:
   // Called from IO thread.
-
-  virtual void AddObserver(Observer* observer) {
-    delegate_->AddObserver(observer);
-  }
-
-  virtual void RemoveObserver(Observer* observer) {
-    delegate_->RemoveObserver(observer);
-  }
-
-  virtual bool GetLatestProxyConfig(ProxyConfig* config) {
-    return delegate_->GetLatestProxyConfig(config);
-  }
+  virtual void AddObserver(Observer* observer);
+  virtual void RemoveObserver(Observer* observer);
+  virtual bool GetLatestProxyConfig(ProxyConfig* config);
 
  private:
   scoped_refptr<Delegate> delegate_;

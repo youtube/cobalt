@@ -291,6 +291,10 @@ void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
   decode_engine_->ConsumeVideoSample(buffer);
 }
 
+const MediaFormat& FFmpegVideoDecoder::media_format() {
+  return media_format_;
+}
+
 void FFmpegVideoDecoder::ProduceVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
   if (MessageLoop::current() != message_loop()) {

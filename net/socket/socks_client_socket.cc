@@ -140,6 +140,10 @@ bool SOCKSClientSocket::IsConnectedAndIdle() const {
   return completed_handshake_ && transport_->socket()->IsConnectedAndIdle();
 }
 
+const BoundNetLog& SOCKSClientSocket::NetLog() const {
+  return net_log_;
+}
+
 void SOCKSClientSocket::SetSubresourceSpeculation() {
   if (transport_.get() && transport_->socket()) {
     transport_->socket()->SetSubresourceSpeculation();
