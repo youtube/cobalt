@@ -281,7 +281,7 @@ class SSLSessionCache {
 
 class SSLContext {
  public:
-  static SSLContext* Get() { return Singleton<SSLContext>::get(); }
+  static SSLContext* GetInstance() { return Singleton<SSLContext>::get(); }
   SSL_CTX* ssl_ctx() { return ssl_ctx_.get(); }
   SSLSessionCache* session_cache() { return &session_cache_; }
 
@@ -322,7 +322,7 @@ class SSLContext {
   }
 
   static int NewSessionCallbackStatic(SSL* ssl, SSL_SESSION* session) {
-    return Get()->NewSessionCallback(ssl, session);
+    return GetInstance()->NewSessionCallback(ssl, session);
   }
 
   int NewSessionCallback(SSL* ssl, SSL_SESSION* session) {
@@ -332,7 +332,7 @@ class SSLContext {
   }
 
   static void RemoveSessionCallbackStatic(SSL_CTX* ctx, SSL_SESSION* session) {
-    return Get()->RemoveSessionCallback(ctx, session);
+    return GetInstance()->RemoveSessionCallback(ctx, session);
   }
 
   void RemoveSessionCallback(SSL_CTX* ctx, SSL_SESSION* session) {
@@ -341,7 +341,7 @@ class SSLContext {
   }
 
   static int ClientCertCallback(SSL* ssl, X509** x509, EVP_PKEY** pkey) {
-    SSLClientSocketOpenSSL* socket = Get()->GetClientSocketFromSSL(ssl);
+    SSLClientSocketOpenSSL* socket = GetInstance()->GetClientSocketFromSSL(ssl);
     CHECK(socket);
     return socket->ClientCertRequestCallback(ssl, x509, pkey);
   }
@@ -350,7 +350,7 @@ class SSLContext {
                                      unsigned char** out, unsigned char* outlen,
                                      const unsigned char* in,
                                      unsigned int inlen, void* arg) {
-    SSLClientSocketOpenSSL* socket = Get()->GetClientSocketFromSSL(ssl);
+    SSLClientSocketOpenSSL* socket = GetInstance()->GetClientSocketFromSSL(ssl);
     return socket->SelectNextProtoCallback(out, outlen, in, inlen);
   }
 
@@ -412,7 +412,7 @@ bool SSLClientSocketOpenSSL::Init() {
   DCHECK(!ssl_);
   DCHECK(!transport_bio_);
 
-  SSLContext* context = SSLContext::Get();
+  SSLContext* context = SSLContext::GetInstance();
   base::OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   ssl_ = SSL_new(context->ssl_ctx());
