@@ -121,6 +121,10 @@ void URLRequestFtpJob::CancelAuth() {
           &URLRequestFtpJob::OnStartCompleted, OK));
 }
 
+uint64 URLRequestFtpJob::GetUploadProgress() const {
+  return 0;
+}
+
 bool URLRequestFtpJob::ReadRawData(IOBuffer* buf,
                                    int buf_size,
                                    int *bytes_read) {

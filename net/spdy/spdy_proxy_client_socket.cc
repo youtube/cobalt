@@ -108,6 +108,10 @@ bool SpdyProxyClientSocket::IsConnectedAndIdle() const {
   return IsConnected() && !spdy_stream_->is_idle();
 }
 
+const BoundNetLog& SpdyProxyClientSocket::NetLog() const {
+  return net_log_;
+}
+
 void SpdyProxyClientSocket::SetSubresourceSpeculation() {
   // TODO(rch): what should this implementation be?
 }

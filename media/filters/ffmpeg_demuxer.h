@@ -69,7 +69,7 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   virtual void Stop();
 
   // Returns the duration of this stream.
-  virtual base::TimeDelta duration() { return duration_; }
+  virtual base::TimeDelta duration();
 
   // DemuxerStream implementation.
   virtual const MediaFormat& media_format();
@@ -78,7 +78,7 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   virtual void EnableBitstreamConverter();
 
   // AVStreamProvider implementation.
-  virtual AVStream* GetAVStream() { return stream_; }
+  virtual AVStream* GetAVStream();
 
 
 
