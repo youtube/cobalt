@@ -43,9 +43,9 @@
 #include <secerr.h>
 
 #include "base/crypto/scoped_nss_types.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/nss_util_internal.h"
-#include "base/singleton.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
@@ -252,10 +252,13 @@ class PKCS12InitSingleton {
   }
 };
 
+static base::LazyInstance<PKCS12InitSingleton> g_pkcs12_init_singleton(
+    base::LINKER_INITIALIZED);
+
 }  // namespace
 
 void EnsurePKCS12Init() {
-  Singleton<PKCS12InitSingleton>::get();
+  g_pkcs12_init_singleton.Get();
 }
 
 // Based on nsPKCS12Blob::ImportFromFile.

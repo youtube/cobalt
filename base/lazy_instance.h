@@ -127,7 +127,8 @@ class LazyInstance : public LazyInstanceHelper {
         NeedsInstance()) {
       // Create the instance in the space provided by |buf_|.
       instance_ = Traits::New(buf_);
-      CompleteInstance(instance_, Traits::Delete);
+      // Traits::Delete will be null for LeakyLazyInstannceTraits
+      CompleteInstance(this, (Traits::Delete == NULL) ? NULL : OnExit);
     }
 
     // This annotation helps race detectors recognize correct lock-less
@@ -140,6 +141,17 @@ class LazyInstance : public LazyInstanceHelper {
   }
 
  private:
+  // Adapter function for use with AtExit.  This should be called single
+  // threaded, so don't use atomic operations.
+  // Calling OnExit while the instance is in use by other threads is a mistake.
+  static void OnExit(void* lazy_instance) {
+    LazyInstance<Type, Traits>* me =
+        reinterpret_cast<LazyInstance<Type, Traits>*>(lazy_instance);
+    Traits::Delete(me->instance_);
+    me->instance_ = NULL;
+    base::subtle::Release_Store(&me->state_, STATE_EMPTY);
+  }
+
   int8 buf_[sizeof(Type)];  // Preallocate the space for the Type instance.
   Type *instance_;
 
