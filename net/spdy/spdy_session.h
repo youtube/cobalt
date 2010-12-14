@@ -207,7 +207,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
     CLOSED
   };
 
-  enum { kDefaultMaxConcurrentStreams = 6 };  // TODO(mbelshe) remove this
+  enum { kDefaultMaxConcurrentStreams = 10 };
 
   struct PendingCreateStream {
     const GURL* url;
