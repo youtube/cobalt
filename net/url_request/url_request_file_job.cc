@@ -365,6 +365,7 @@ bool URLRequestFileJob::IsRedirectResponse(GURL* location,
 #if defined(OS_CHROMEOS)
 static const char* const kLocalAccessWhiteList[] = {
   "/home/chronos/user/Downloads",
+  "/media",
   "/mnt/partner_partition",
   "/usr/share/chromeos-assets",
   "/tmp",
