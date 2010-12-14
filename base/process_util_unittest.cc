@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "base/command_line.h"
+#include "base/debug_util.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
@@ -15,6 +16,7 @@
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
 #include "base/test/multiprocess_test.h"
+#include "base/test/test_timeouts.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -27,6 +29,7 @@
 #if defined(OS_POSIX)
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #endif
@@ -41,10 +44,24 @@
 namespace {
 
 #if defined(OS_WIN)
-const wchar_t* const kProcessName = L"base_unittests.exe";
+const wchar_t kProcessName[] = L"base_unittests.exe";
 #else
-const wchar_t* const kProcessName = L"base_unittests";
+const wchar_t kProcessName[] = L"base_unittests";
 #endif  // defined(OS_WIN)
+
+const char kSignalFileSlow[] = "SlowChildProcess.die";
+const char kSignalFileCrash[] = "CrashingChildProcess.die";
+const char kSignalFileKill[] = "KilledChildProcess.die";
+
+#if defined(OS_WIN)
+const int kExpectedStillRunningExitCode = 0x102;
+const int kExpectedKilledExitCode = 1;
+#else
+const int kExpectedStillRunningExitCode = 0;
+#endif
+
+// The longest we'll wait for a process, in milliseconds.
+const int kMaxWaitTimeMs = TestTimeouts::action_max_timeout_ms();
 
 // Sleeps until file filename is created.
 void WaitToDie(const char* filename) {
@@ -60,6 +77,27 @@ void WaitToDie(const char* filename) {
 void SignalChildren(const char* filename) {
   FILE *fp = fopen(filename, "w");
   fclose(fp);
+}
+
+// Using a pipe to the child to wait for an event was considered, but
+// there were cases in the past where pipes caused problems (other
+// libraries closing the fds, child deadlocking). This is a simple
+// case, so it's not worth the risk.  Using wait loops is discouraged
+// in most instances.
+base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
+                                                int* exit_code) {
+  // Now we wait until the result is something other than STILL_RUNNING.
+  base::TerminationStatus status = base::TERMINATION_STATUS_STILL_RUNNING;
+  const int kIntervalMs = 20;
+  int waited = 0;
+  do {
+    status = base::GetTerminationStatus(handle, exit_code);
+    PlatformThread::Sleep(kIntervalMs);
+    waited += kIntervalMs;
+  } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
+           waited < kMaxWaitTimeMs);
+
+  return status;
 }
 
 }  // namespace
@@ -79,40 +117,140 @@ MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
 TEST_F(ProcessUtilTest, SpawnChild) {
   base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
-  EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
+  EXPECT_TRUE(base::WaitForSingleProcess(handle, kMaxWaitTimeMs));
   base::CloseProcessHandle(handle);
 }
 
 MULTIPROCESS_TEST_MAIN(SlowChildProcess) {
-  WaitToDie("SlowChildProcess.die");
+  WaitToDie(kSignalFileSlow);
   return 0;
 }
 
 TEST_F(ProcessUtilTest, KillSlowChild) {
-  remove("SlowChildProcess.die");
+  remove(kSignalFileSlow);
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
-  SignalChildren("SlowChildProcess.die");
-  EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
+  SignalChildren(kSignalFileSlow);
+  EXPECT_TRUE(base::WaitForSingleProcess(handle, kMaxWaitTimeMs));
   base::CloseProcessHandle(handle);
-  remove("SlowChildProcess.die");
+  remove(kSignalFileSlow);
 }
 
-TEST_F(ProcessUtilTest, DidProcessCrash) {
-  remove("SlowChildProcess.die");
+TEST_F(ProcessUtilTest, GetTerminationStatusExit) {
+  remove(kSignalFileSlow);
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
 
-  bool child_exited = true;
-  EXPECT_FALSE(base::DidProcessCrash(&child_exited, handle));
-  EXPECT_FALSE(child_exited);
+  int exit_code = 42;
+  EXPECT_EQ(base::TERMINATION_STATUS_STILL_RUNNING,
+            base::GetTerminationStatus(handle, &exit_code));
+  EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
 
-  SignalChildren("SlowChildProcess.die");
-  EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
-
-  EXPECT_FALSE(base::DidProcessCrash(&child_exited, handle));
+  SignalChildren(kSignalFileSlow);
+  exit_code = 42;
+  base::TerminationStatus status =
+      WaitForChildTermination(handle, &exit_code);
+  EXPECT_EQ(base::TERMINATION_STATUS_NORMAL_TERMINATION, status);
+  EXPECT_EQ(0, exit_code);
   base::CloseProcessHandle(handle);
-  remove("SlowChildProcess.die");
+  remove(kSignalFileSlow);
+}
+
+#if !defined(OS_MACOSX)
+// This test is disabled on Mac, since it's flaky due to ReportCrash
+// taking a variable amount of time to parse and load the debug and
+// symbol data for this unit test's executable before firing the
+// signal handler.
+//
+// TODO(gspencer): turn this test process into a very small program
+// with no symbols (instead of using the multiprocess testing
+// framework) to reduce the ReportCrash overhead.
+
+MULTIPROCESS_TEST_MAIN(CrashingChildProcess) {
+  WaitToDie(kSignalFileCrash);
+#if defined(OS_POSIX)
+  // Have to disable to signal handler for segv so we can get a crash
+  // instead of an abnormal termination through the crash dump handler.
+  ::signal(SIGSEGV, SIG_DFL);
+#endif
+  // Make this process have a segmentation fault.
+  int* oops = NULL;
+  *oops = 0xDEAD;
+  return 1;
+}
+
+TEST_F(ProcessUtilTest, GetTerminationStatusCrash) {
+  remove(kSignalFileCrash);
+  base::ProcessHandle handle = this->SpawnChild("CrashingChildProcess",
+                                                false);
+  ASSERT_NE(base::kNullProcessHandle, handle);
+
+  int exit_code = 42;
+  EXPECT_EQ(base::TERMINATION_STATUS_STILL_RUNNING,
+            base::GetTerminationStatus(handle, &exit_code));
+  EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
+
+  SignalChildren(kSignalFileCrash);
+  exit_code = 42;
+  base::TerminationStatus status =
+      WaitForChildTermination(handle, &exit_code);
+  EXPECT_EQ(base::TERMINATION_STATUS_PROCESS_CRASHED, status);
+
+#if defined(OS_WIN)
+  EXPECT_EQ(0xc0000005, exit_code);
+#elif defined(OS_POSIX)
+  int signaled = WIFSIGNALED(exit_code);
+  EXPECT_NE(0, signaled);
+  int signal = WTERMSIG(exit_code);
+  EXPECT_EQ(SIGSEGV, signal);
+#endif
+  base::CloseProcessHandle(handle);
+
+  // Reset signal handlers back to "normal".
+  base::EnableInProcessStackDumping();
+  remove(kSignalFileCrash);
+}
+#endif // !defined(OS_MACOSX)
+
+MULTIPROCESS_TEST_MAIN(KilledChildProcess) {
+  WaitToDie(kSignalFileKill);
+#if defined(OS_WIN)
+  // Kill ourselves.
+  HANDLE handle = ::OpenProcess(PROCESS_ALL_ACCESS, 0, ::GetCurrentProcessId());
+  ::TerminateProcess(handle, kExpectedKilledExitCode);
+#elif defined(OS_POSIX)
+  // Send a SIGKILL to this process, just like the OOM killer would.
+  ::kill(getpid(), SIGKILL);
+#endif
+  return 1;
+}
+
+TEST_F(ProcessUtilTest, GetTerminationStatusKill) {
+  remove(kSignalFileKill);
+  base::ProcessHandle handle = this->SpawnChild("KilledChildProcess",
+                                                false);
+  ASSERT_NE(base::kNullProcessHandle, handle);
+
+  int exit_code = 42;
+  EXPECT_EQ(base::TERMINATION_STATUS_STILL_RUNNING,
+            base::GetTerminationStatus(handle, &exit_code));
+  EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
+
+  SignalChildren(kSignalFileKill);
+  exit_code = 42;
+  base::TerminationStatus status =
+      WaitForChildTermination(handle, &exit_code);
+  EXPECT_EQ(base::TERMINATION_STATUS_PROCESS_WAS_KILLED, status);
+#if defined(OS_WIN)
+  EXPECT_EQ(kExpectedKilledExitCode, exit_code);
+#elif defined(OS_POSIX)
+  int signaled = WIFSIGNALED(exit_code);
+  EXPECT_NE(0, signaled);
+  int signal = WTERMSIG(exit_code);
+  EXPECT_EQ(SIGKILL, signal);
+#endif
+  base::CloseProcessHandle(handle);
+  remove(kSignalFileKill);
 }
 
 // Ensure that the priority of a process is restored correctly after
