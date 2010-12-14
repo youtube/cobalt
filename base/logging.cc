@@ -51,14 +51,18 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/debug/stack_trace.h"
 #include "base/eintr_wrapper.h"
 #include "base/lock_impl.h"
-#if defined(OS_POSIX)
-#include "base/safe_strerror_posix.h"
-#endif
 #include "base/process_util.h"
 #include "base/string_piece.h"
 #include "base/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 #include "base/vlog.h"
+#if defined(OS_POSIX)
+#include "base/safe_strerror_posix.h"
+#endif
+#if defined(OS_MACOSX)
+#include "base/mac/scoped_cftyperef.h"
+#include "base/sys_string_conversions.h"
+#endif
 
 namespace logging {
 
@@ -511,6 +515,12 @@ void DisplayDebugMessageInDialog(const std::string& str) {
   argv.push_back(str);
   base::LaunchApp(argv, base::file_handle_mapping_vector(), true /* wait */,
                   NULL);
+#elif defined(OS_MACOSX)
+  base::mac::ScopedCFTypeRef<CFStringRef> message(
+      base::SysUTF8ToCFStringRef(str));
+  CFUserNotificationDisplayNotice(0, kCFUserNotificationStopAlertLevel,
+                                  NULL, NULL, NULL, CFSTR("Fatal Error"),
+                                  message, NULL);
 #else
   // http://code.google.com/p/chromium/issues/detail?id=37026
   NOTIMPLEMENTED();
