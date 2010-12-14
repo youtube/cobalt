@@ -48,7 +48,7 @@ class URLRequestFtpJob : public URLRequestJob {
   virtual void CancelAuth();
 
   // TODO(ibrar):  Yet to give another look at this function.
-  virtual uint64 GetUploadProgress() const { return 0; }
+  virtual uint64 GetUploadProgress() const;
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
 
   void StartTransaction();
