@@ -382,6 +382,32 @@
           ],
         },
       ],  # targets
+      'conditions': [
+        ['(branding=="Chrome" and buildtype=="Official")', {
+          'targets': [
+            {
+              'target_name': 'chrome_official_builder',
+              'type': 'none',
+              'dependencies': [
+                '../chrome/app/locales/locales.gyp:*',
+                '../chrome/chrome.gyp:crash_service',
+                '../chrome/chrome.gyp:page_cycler_tests',
+                '../chrome/chrome.gyp:pyautolib',
+                '../chrome/chrome.gyp:reliability_tests',
+                '../chrome/chrome.gyp:startup_tests',
+                '../chrome/chrome.gyp:automated_ui_tests',
+                '../chrome/installer/mini_installer.gyp:mini_installer',
+                '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
+                '../chrome_frame/chrome_frame.gyp:npchrome_frame',
+                '../courgette/courgette.gyp:courgette',
+                '../pdf/pdf.gyp:pdf',
+                '../third_party/adobe/flash/flash_player.gyp:flash_player',
+                '../webkit/webkit.gyp:test_shell.gyp',
+              ],
+            },
+          ], # targets
+        }], # (branding=="Chrome" and buildtype=="Official")
+       ], # conditions
     }], # OS="win"
     ['chromeos==1', {
       'targets': [
