@@ -9,8 +9,8 @@
 #include "net/base/platform_mime_util.h"
 
 #include "base/hash_tables.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/singleton.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -51,7 +51,7 @@ class MimeUtil : public PlatformMimeUtil {
       const std::vector<std::string>& codecs) const;
 
  private:
-  friend struct DefaultSingletonTraits<MimeUtil>;
+  friend struct base::DefaultLazyInstanceTraits<MimeUtil>;
   MimeUtil() {
     InitializeMimeTypeMaps();
   }
@@ -70,6 +70,8 @@ class MimeUtil : public PlatformMimeUtil {
   typedef std::map<std::string, base::hash_set<std::string> > StrictMappings;
   StrictMappings strict_format_map_;
 };  // class MimeUtil
+
+static base::LazyInstance<MimeUtil> g_mime_util(base::LINKER_INITIALIZED);
 
 struct MimeInfo {
   const char* mime_type;
@@ -473,70 +475,67 @@ bool MimeUtil::IsSupportedStrictMediaMimeType(const std::string& mime_type,
 // Wrappers for the singleton
 //----------------------------------------------------------------------------
 
-static MimeUtil* GetMimeUtil() {
-  return Singleton<MimeUtil>::get();
-}
-
 bool GetMimeTypeFromExtension(const FilePath::StringType& ext,
                               std::string* mime_type) {
-  return GetMimeUtil()->GetMimeTypeFromExtension(ext, mime_type);
+  return g_mime_util.Get().GetMimeTypeFromExtension(ext, mime_type);
 }
 
 bool GetMimeTypeFromFile(const FilePath& file_path, std::string* mime_type) {
-  return GetMimeUtil()->GetMimeTypeFromFile(file_path, mime_type);
+  return g_mime_util.Get().GetMimeTypeFromFile(file_path, mime_type);
 }
 
 bool GetPreferredExtensionForMimeType(const std::string& mime_type,
                                       FilePath::StringType* extension) {
-  return GetMimeUtil()->GetPreferredExtensionForMimeType(mime_type, extension);
+  return g_mime_util.Get().GetPreferredExtensionForMimeType(mime_type,
+                                                            extension);
 }
 
 bool IsSupportedImageMimeType(const char* mime_type) {
-  return GetMimeUtil()->IsSupportedImageMimeType(mime_type);
+  return g_mime_util.Get().IsSupportedImageMimeType(mime_type);
 }
 
 bool IsSupportedMediaMimeType(const char* mime_type) {
-  return GetMimeUtil()->IsSupportedMediaMimeType(mime_type);
+  return g_mime_util.Get().IsSupportedMediaMimeType(mime_type);
 }
 
 bool IsSupportedNonImageMimeType(const char* mime_type) {
-  return GetMimeUtil()->IsSupportedNonImageMimeType(mime_type);
+  return g_mime_util.Get().IsSupportedNonImageMimeType(mime_type);
 }
 
 bool IsSupportedJavascriptMimeType(const char* mime_type) {
-  return GetMimeUtil()->IsSupportedJavascriptMimeType(mime_type);
+  return g_mime_util.Get().IsSupportedJavascriptMimeType(mime_type);
 }
 
 bool IsViewSourceMimeType(const char* mime_type) {
-  return GetMimeUtil()->IsViewSourceMimeType(mime_type);
+  return g_mime_util.Get().IsViewSourceMimeType(mime_type);
 }
 
 bool IsSupportedMimeType(const std::string& mime_type) {
-  return GetMimeUtil()->IsSupportedMimeType(mime_type);
+  return g_mime_util.Get().IsSupportedMimeType(mime_type);
 }
 
 bool MatchesMimeType(const std::string &mime_type_pattern,
                      const std::string &mime_type) {
-  return GetMimeUtil()->MatchesMimeType(mime_type_pattern, mime_type);
+  return g_mime_util.Get().MatchesMimeType(mime_type_pattern, mime_type);
 }
 
 bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs) {
-  return GetMimeUtil()->AreSupportedMediaCodecs(codecs);
+  return g_mime_util.Get().AreSupportedMediaCodecs(codecs);
 }
 
 bool IsStrictMediaMimeType(const std::string& mime_type) {
-  return GetMimeUtil()->IsStrictMediaMimeType(mime_type);
+  return g_mime_util.Get().IsStrictMediaMimeType(mime_type);
 }
 
 bool IsSupportedStrictMediaMimeType(const std::string& mime_type,
                                     const std::vector<std::string>& codecs) {
-  return GetMimeUtil()->IsSupportedStrictMediaMimeType(mime_type, codecs);
+  return g_mime_util.Get().IsSupportedStrictMediaMimeType(mime_type, codecs);
 }
 
 void ParseCodecString(const std::string& codecs,
                       std::vector<std::string>* codecs_out,
                       const bool strip) {
-  GetMimeUtil()->ParseCodecString(codecs, codecs_out, strip);
+  g_mime_util.Get().ParseCodecString(codecs, codecs_out, strip);
 }
 
 namespace {
