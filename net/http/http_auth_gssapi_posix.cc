@@ -13,6 +13,7 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/thread_restrictions.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
@@ -446,6 +447,10 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
   for (size_t i = 0; i < num_lib_names; ++i) {
     const char* library_name = library_names[i];
     FilePath file_path(library_name);
+
+    // TODO(asanka): Move library loading to a separate thread.
+    //               http://crbug.com/66702
+    base::ThreadRestrictions::ScopedAllowIO allow_io_temporarily;
     base::NativeLibrary lib = base::LoadNativeLibrary(file_path);
     if (lib) {
       // Only return this library if we can bind the functions we need.
