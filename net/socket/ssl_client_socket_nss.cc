@@ -63,9 +63,9 @@
 
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/nss_util.h"
-#include "base/singleton.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -185,6 +185,9 @@ class NSSSSLInitSingleton {
   }
 };
 
+static base::LazyInstance<NSSSSLInitSingleton> g_nss_ssl_init_singleton(
+    base::LINKER_INITIALIZED);
+
 // Initialize the NSS SSL library if it isn't already initialized.  This must
 // be called before any other NSS SSL functions.  This function is
 // thread-safe, and the NSS SSL library will only ever be initialized once.
@@ -195,7 +198,7 @@ void EnsureNSSSSLInit() {
   //   http://code.google.com/p/chromium/issues/detail?id=59847
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  Singleton<NSSSSLInitSingleton>::get();
+  g_nss_ssl_init_singleton.Get();
 }
 
 // The default error mapping function.
