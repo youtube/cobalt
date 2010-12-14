@@ -128,7 +128,8 @@ class LazyInstance : public LazyInstanceHelper {
       // Create the instance in the space provided by |buf_|.
       instance_ = Traits::New(buf_);
       // Traits::Delete will be null for LeakyLazyInstannceTraits
-      CompleteInstance(this, (Traits::Delete == NULL) ? NULL : OnExit);
+      void (*dtor)(void*) = Traits::Delete;
+      CompleteInstance(this, (dtor == NULL) ? NULL : OnExit);
     }
 
     // This annotation helps race detectors recognize correct lock-less
