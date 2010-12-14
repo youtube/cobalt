@@ -122,30 +122,16 @@ class BandwidthMetrics {
 class ScopedBandwidthMetrics {
  public:
   ScopedBandwidthMetrics();
+  ~ScopedBandwidthMetrics();
 
-  ~ScopedBandwidthMetrics() {
-    if (started_)
-      metrics_->StopStream();
-  }
-
-  void StartStream() {
-    started_ = true;
-    metrics_->StartStream();
-  }
-
-  void StopStream() {
-    started_ = false;
-    metrics_->StopStream();
-  }
-
-  void RecordBytes(int bytes) { metrics_->RecordBytes(bytes); }
+  void StartStream();
+  void StopStream();
+  void RecordBytes(int bytes);
 
  private:
-  BandwidthMetrics* metrics_;
   bool started_;
 };
 
 }  // namespace net
 
 #endif  // NET_BASE_BANDWIDTH_METRICS_H_
-
