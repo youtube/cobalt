@@ -402,7 +402,7 @@
                 '../courgette/courgette.gyp:courgette',
                 '../pdf/pdf.gyp:pdf',
                 '../third_party/adobe/flash/flash_player.gyp:flash_player',
-                '../webkit/webkit.gyp:test_shell.gyp',
+                '../webkit/webkit.gyp:test_shell',
               ],
             },
           ], # targets
