@@ -81,6 +81,8 @@ class PlatformUtility(object):
     cert_file = google.path_utils.FindUpward(self._base_dir, 'tools',
                                              'python', 'google',
                                              'httpd_config', 'httpd2.pem')
+    ssl_enabled = os.path.exists('/etc/apache2/mods-enabled/ssl.conf')
+
     httpd_vars = {
       "httpd_executable_path":
           os.path.join(self._UnixRoot(), "usr", "sbin", exe_name),
@@ -91,6 +93,8 @@ class PlatformUtility(object):
       "mime_types_path": mime_types_path,
       "output_dir": output_dir,
       "ssl_mutex": "file:"+os.path.join(output_dir, "ssl_mutex"),
+      "ssl_session_cache":
+          "shmcb:" + os.path.join(output_dir, "ssl_scache") + "(512000)",
       "user": os.environ.get("USER", "#%d" % os.geteuid()),
       "lock_file": os.path.join(output_dir, "accept.lock"),
     }
@@ -112,12 +116,18 @@ class PlatformUtility(object):
       ' -C \'User "%(user)s"\''
       ' -C \'ServerRoot "%(server_root)s"\''
       ' -c \'LockFile "%(lock_file)s"\''
-      ' -c \'SSLCertificateFile "%(ssl_certificate_file)s"\''
-      ' -c \'SSLMutex "%(ssl_mutex)s"\''
     )
 
     if document_root:
       httpd_cmd_string += ' -C \'DocumentRoot "%(document_root)s"\''
+
+    if ssl_enabled:
+      httpd_cmd_string += (
+        ' -c \'SSLCertificateFile "%(ssl_certificate_file)s"\''
+        ' -c \'SSLMutex "%(ssl_mutex)s"\''
+        ' -c \'SSLSessionCache "%(ssl_session_cache)s"\''
+      )
+
     # Save a copy of httpd_cmd_string to use for stopping httpd
     self._httpd_cmd_string = httpd_cmd_string % httpd_vars
 
