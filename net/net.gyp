@@ -338,7 +338,6 @@
         '../third_party/zlib/zlib.gyp:zlib',
         'net_base',
         'net_resources',
-        'ssl_host_info',
       ],
       'sources': [
         'disk_cache/addr.cc',
@@ -609,6 +608,8 @@
         'socket/ssl_client_socket_win.h',
         'socket/ssl_error_params.cc',
         'socket/ssl_error_params.h',
+        'socket/ssl_host_info.cc',
+        'socket/ssl_host_info.h',
         'socket/tcp_client_socket.cc',
         'socket/tcp_client_socket.h',
         'socket/tcp_client_socket_libevent.cc',
@@ -1037,46 +1038,6 @@
             ],
           },
         ],
-      ],
-    },
-    {
-      # This is a separate target in order to limit the scope of the protobuf
-      # includes.
-      'target_name': 'ssl_host_info',
-      'type': '<(library)',
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../third_party/protobuf/protobuf.gyp:protobuf_lite',
-        '../third_party/protobuf/protobuf.gyp:protoc#host',
-      ],
-      'sources': [
-        'socket/ssl_host_info.proto',
-        'socket/ssl_host_info.cc',
-        'socket/ssl_host_info.h',
-      ],
-      'rules': [
-        {
-          'rule_name': 'genproto',
-          'extension': 'proto',
-          'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/protoc_out/net/socket/<(RULE_INPUT_ROOT).pb.h',
-            '<(SHARED_INTERMEDIATE_DIR)/protoc_out/net/socket/<(RULE_INPUT_ROOT).pb.cc',
-          ],
-          'action': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
-            'socket/<(RULE_INPUT_ROOT)<(RULE_INPUT_EXT)',
-            '--cpp_out=<(SHARED_INTERMEDIATE_DIR)/protoc_out/net',
-          ],
-          'message': 'Generating C++ code from <(RULE_INPUT_PATH)',
-          'process_outputs_as_sources': 1,
-        },
-      ],
-      'include_dirs': [
-        '<(SHARED_INTERMEDIATE_DIR)/protoc_out/net',
-        '<(SHARED_INTERMEDIATE_DIR)/protoc_out',
       ],
     },
     {
