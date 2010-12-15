@@ -2448,9 +2448,11 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     // verification to finish rather than start our own.
     net_log_.AddEvent(NetLog::TYPE_SSL_VERIFICATION_MERGED, NULL);
     UMA_HISTOGRAM_ENUMERATION("Net.SSLVerificationMerged", 1 /* true */, 2);
-    base::TimeTicks now = base::TimeTicks::Now();
+    base::TimeTicks end_time = ssl_host_info_->verification_end_time();
+    if (end_time.is_null())
+      end_time = base::TimeTicks::Now();
     UMA_HISTOGRAM_TIMES("Net.SSLVerificationMergedMsSaved",
-                        now - ssl_host_info_->verification_start_time());
+                        end_time - ssl_host_info_->verification_start_time());
     server_cert_verify_result_ = &ssl_host_info_->cert_verify_result();
     return ssl_host_info_->WaitForCertVerification(&handshake_io_callback_);
   } else {
