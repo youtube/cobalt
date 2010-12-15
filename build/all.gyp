@@ -197,7 +197,15 @@
            ],
         }],
       ],
-     }
+    },
+    {
+      'target_name': 'chromium_gpu_builder',
+      'type': 'none',
+      'dependencies': [
+        '../chrome/chrome.gyp:gpu_tests',
+        '../third_party/WebKit/WebKit/chromium/WebKit.gyp:DumpRenderTree',
+      ],
+    }
   ],
   'conditions': [
     ['OS=="mac"', {
