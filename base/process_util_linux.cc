@@ -319,13 +319,20 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  FilePath stat_file =
-      FilePath("/proc").Append(base::IntToString(process_)).Append("smaps");
+  FilePath proc_dir = FilePath("/proc").Append(base::IntToString(process_));
   std::string smaps;
   int private_kb = 0;
   int pss_kb = 0;
   bool have_pss = false;
-  if (file_util::ReadFileToString(stat_file, &smaps) && smaps.length() > 0) {
+  bool ret;
+
+  {
+    FilePath smaps_file = proc_dir.Append("smaps");
+    // Synchronously reading files in /proc is safe.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    ret = file_util::ReadFileToString(smaps_file, &smaps);
+  }
+  if (ret && smaps.length() > 0) {
     const std::string private_prefix = "Private_";
     const std::string pss_prefix = "Pss";
     StringTokenizer tokenizer(smaps, ":\n");
@@ -363,10 +370,14 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
     if (page_size_kb <= 0)
       return false;
 
-    stat_file =
-        FilePath("/proc").Append(base::IntToString(process_)).Append("statm");
     std::string statm;
-    if (!file_util::ReadFileToString(stat_file, &statm) || statm.length() == 0)
+    {
+      FilePath statm_file = proc_dir.Append("statm");
+      // Synchronously reading files in /proc is safe.
+      base::ThreadRestrictions::ScopedAllowIO allow_io;
+      ret = file_util::ReadFileToString(statm_file, &statm);
+    }
+    if (!ret || statm.length() == 0)
       return false;
 
     std::vector<std::string> statm_vec;
