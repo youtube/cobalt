@@ -8,8 +8,10 @@
 #include "net/base/net_errors.h"
 #include "net/url_request/url_request_status.h"
 
-URLRequestErrorJob::URLRequestErrorJob(net::URLRequest* request, int error)
-    : net::URLRequestJob(request), error_(error) {
+namespace net {
+
+URLRequestErrorJob::URLRequestErrorJob(URLRequest* request, int error)
+    : URLRequestJob(request), error_(error) {
 }
 
 void URLRequestErrorJob::Start() {
@@ -20,3 +22,5 @@ void URLRequestErrorJob::Start() {
 void URLRequestErrorJob::StartAsync() {
   NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, error_));
 }
+
+}  // namespace net

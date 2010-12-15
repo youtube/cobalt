@@ -59,12 +59,12 @@ net::URLRequestJob* URLRequestJobManager::CreateJob(
 
   // If we are given an invalid URL, then don't even try to inspect the scheme.
   if (!request->url().is_valid())
-    return new URLRequestErrorJob(request, net::ERR_INVALID_URL);
+    return new net::URLRequestErrorJob(request, net::ERR_INVALID_URL);
 
   // We do this here to avoid asking interceptors about unsupported schemes.
   const std::string& scheme = request->url().scheme();  // already lowercase
   if (!SupportsScheme(scheme))
-    return new URLRequestErrorJob(request, net::ERR_UNKNOWN_URL_SCHEME);
+    return new net::URLRequestErrorJob(request, net::ERR_UNKNOWN_URL_SCHEME);
 
   // THREAD-SAFETY NOTICE:
   //   We do not need to acquire the lock here since we are only reading our
@@ -103,7 +103,7 @@ net::URLRequestJob* URLRequestJobManager::CreateJob(
   // wasn't interested in handling the URL.  That is fairly unexpected, and we
   // don't know have a specific error to report here :-(
   LOG(WARNING) << "Failed to map: " << request->url().spec();
-  return new URLRequestErrorJob(request, net::ERR_FAILED);
+  return new net::URLRequestErrorJob(request, net::ERR_FAILED);
 }
 
 net::URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(

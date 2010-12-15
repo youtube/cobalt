@@ -11,9 +11,11 @@
 
 #include "net/url_request/url_request_job.h"
 
-class URLRequestErrorJob : public net::URLRequestJob {
+namespace net {
+
+class URLRequestErrorJob : public URLRequestJob {
  public:
-  URLRequestErrorJob(net::URLRequest* request, int error);
+  URLRequestErrorJob(URLRequest* request, int error);
 
   virtual void Start();
 
@@ -24,5 +26,7 @@ class URLRequestErrorJob : public net::URLRequestJob {
 
   int error_;
 };
+
+}  // namespace net
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_ERROR_JOB_H_
