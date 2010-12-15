@@ -31,6 +31,8 @@
         'base',
       ],
       'sources': [
+        'i18n/break_iterator.cc',
+        'i18n/break_iterator.h',
         'i18n/char_iterator.cc',
         'i18n/char_iterator.h',
         'i18n/file_util_icu.cc',
@@ -47,8 +49,6 @@
         'i18n/rtl.h',
         'i18n/time_formatting.cc',
         'i18n/time_formatting.h',
-        'i18n/word_iterator.cc',
-        'i18n/word_iterator.h',
       ],
     },
     {
@@ -87,11 +87,11 @@
         'gmock_unittest.cc',
         'hmac_unittest.cc',
         'id_map_unittest.cc',
+        'i18n/break_iterator_unittest.cc',
         'i18n/char_iterator_unittest.cc',
         'i18n/file_util_icu_unittest.cc',
         'i18n/icu_string_conversions_unittest.cc',
         'i18n/rtl_unittest.cc',
-        'i18n/word_iterator_unittest.cc',
         'json/json_reader_unittest.cc',
         'json/json_writer_unittest.cc',
         'json/string_escape_unittest.cc',
@@ -172,11 +172,6 @@
         'win/scoped_comptr_unittest.cc',
         'win/scoped_variant_unittest.cc',
         'worker_pool_unittest.cc',
-      ],
-      'include_dirs': [
-        # word_iterator.h (used by word_iterator_unittest.cc) leaks an ICU
-        # #include for unicode/uchar.h.  This should probably be cleaned up.
-        '../third_party/icu/public/common',
       ],
       'dependencies': [
         'base',
