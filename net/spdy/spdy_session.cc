@@ -938,9 +938,7 @@ scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
     used_push_streams.Increment();
     return stream;
   }
-  else {
-    return NULL;
-  }
+  return NULL;
 }
 
 bool SpdySession::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
