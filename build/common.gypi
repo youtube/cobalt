@@ -1123,9 +1123,6 @@
             'cflags': [ '-g' ],
             'defines': ['USE_LINUX_BREAKPAD'],
           }],
-          ['linux_use_seccomp_sandbox==1 and buildtype!="Official"', {
-            'defines': ['USE_SECCOMP_SANDBOX'],
-          }],
           ['library=="shared_library"', {
             # When building with shared libraries, remove the visiblity-hiding
             # flag.
