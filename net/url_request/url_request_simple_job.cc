@@ -9,8 +9,10 @@
 #include "net/base/net_errors.h"
 #include "net/url_request/url_request_status.h"
 
-URLRequestSimpleJob::URLRequestSimpleJob(net::URLRequest* request)
-    : net::URLRequestJob(request),
+namespace net {
+
+URLRequestSimpleJob::URLRequestSimpleJob(URLRequest* request)
+    : URLRequestJob(request),
       data_offset_(0) {
 }
 
@@ -31,7 +33,7 @@ bool URLRequestSimpleJob::GetCharset(std::string* charset) {
   return true;
 }
 
-bool URLRequestSimpleJob::ReadRawData(net::IOBuffer* buf, int buf_size,
+bool URLRequestSimpleJob::ReadRawData(IOBuffer* buf, int buf_size,
                                       int* bytes_read) {
   DCHECK(bytes_read);
   int remaining = static_cast<int>(data_.size()) - data_offset_;
@@ -53,6 +55,8 @@ void URLRequestSimpleJob::StartAsync() {
   } else {
     // what should the error code be?
     NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED,
-                                      net::ERR_INVALID_URL));
+                                      ERR_INVALID_URL));
   }
 }
+
+}  // namespace net
