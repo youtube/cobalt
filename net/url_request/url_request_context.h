@@ -21,6 +21,7 @@
 #include "net/socket/dns_cert_provenance_checker.h"
 
 namespace net {
+class CertVerifier;
 class CookiePolicy;
 class CookieStore;
 class DnsCertProvenanceChecker;
@@ -48,6 +49,10 @@ class URLRequestContext
 
   net::HostResolver* host_resolver() const {
     return host_resolver_;
+  }
+
+  net::CertVerifier* cert_verifier() const {
+    return cert_verifier_;
   }
 
   net::DnsRRResolver* dnsrr_resolver() const {
@@ -130,6 +135,7 @@ class URLRequestContext
   // subclasses.
   net::NetLog* net_log_;
   net::HostResolver* host_resolver_;
+  net::CertVerifier* cert_verifier_;
   net::DnsRRResolver* dnsrr_resolver_;
   scoped_ptr<net::DnsCertProvenanceChecker> dns_cert_checker_;
   scoped_refptr<net::ProxyService> proxy_service_;

@@ -520,7 +520,8 @@ EnabledCipherSuites::EnabledCipherSuites() {
 
 SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
                                        const HostPortPair& host_and_port,
-                                       const SSLConfig& ssl_config)
+                                       const SSLConfig& ssl_config,
+                                       CertVerifier* cert_verifier)
     : handshake_io_callback_(this, &SSLClientSocketMac::OnHandshakeIOComplete),
       transport_read_callback_(this,
                                &SSLClientSocketMac::OnTransportReadComplete),
@@ -535,6 +536,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
       user_read_buf_len_(0),
       user_write_buf_len_(0),
       next_handshake_state_(STATE_NONE),
+      cert_verifier_(cert_verifier),
       renegotiating_(false),
       client_cert_requested_(false),
       ssl_context_(NULL),
@@ -1066,7 +1068,7 @@ int SSLClientSocketMac::DoVerifyCert() {
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
-  verifier_.reset(new CertVerifier);
+  verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
                            &server_cert_verify_result_,
                            &handshake_io_callback_);

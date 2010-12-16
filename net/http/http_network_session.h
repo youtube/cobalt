@@ -28,6 +28,7 @@ class Value;
 
 namespace net {
 
+class CertVerifier;
 class ClientSocketFactory;
 class DnsCertProvenanceChecker;
 class DnsRRResolver;
@@ -48,6 +49,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
  public:
   HttpNetworkSession(
       HostResolver* host_resolver,
+      CertVerifier* cert_verifier,
       DnsRRResolver* dnsrr_resolver,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
@@ -109,6 +111,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   // SSL sockets come from the socket_factory().
   ClientSocketFactory* socket_factory() { return socket_factory_; }
   HostResolver* host_resolver() { return host_resolver_; }
+  CertVerifier* cert_verifier() { return cert_verifier_; }
   DnsRRResolver* dnsrr_resolver() { return dnsrr_resolver_; }
   DnsCertProvenanceChecker* dns_cert_checker() {
     return dns_cert_checker_;
@@ -152,6 +155,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
   HostResolver* const host_resolver_;
+  CertVerifier* cert_verifier_;
   DnsRRResolver* dnsrr_resolver_;
   DnsCertProvenanceChecker* dns_cert_checker_;
   scoped_refptr<ProxyService> proxy_service_;

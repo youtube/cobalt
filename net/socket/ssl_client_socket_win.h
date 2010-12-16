@@ -28,6 +28,7 @@ class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
 class HostPortPair;
+class SingleRequestCertVerifier;
 
 // An SSL client socket implemented with the Windows Schannel.
 class SSLClientSocketWin : public SSLClientSocket {
@@ -40,7 +41,8 @@ class SSLClientSocketWin : public SSLClientSocket {
   // the SSL settings.
   SSLClientSocketWin(ClientSocketHandle* transport_socket,
                      const HostPortPair& host_and_port,
-                     const SSLConfig& ssl_config);
+                     const SSLConfig& ssl_config,
+                     CertVerifier* cert_verifier);
   ~SSLClientSocketWin();
 
   // SSLClientSocket methods:
@@ -145,7 +147,8 @@ class SSLClientSocketWin : public SSLClientSocket {
 
   SecPkgContext_StreamSizes stream_sizes_;
   scoped_refptr<X509Certificate> server_cert_;
-  scoped_ptr<CertVerifier> verifier_;
+  CertVerifier* const cert_verifier_;
+  scoped_ptr<SingleRequestCertVerifier> verifier_;
   CertVerifyResult server_cert_verify_result_;
 
   CredHandle* creds_;
