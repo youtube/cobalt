@@ -302,11 +302,12 @@ class TestPageHandler(BasePageHandler):
 
     self._mime_types = {
       'crx' : 'application/x-chrome-extension',
+      'exe' : 'application/octet-stream',
       'gif': 'image/gif',
       'jpeg' : 'image/jpeg',
       'jpg' : 'image/jpeg',
-      'xml' : 'text/xml',
-      'pdf' : 'application/pdf'
+      'pdf' : 'application/pdf',
+      'xml' : 'text/xml'
     }
     self._default_mime_type = 'text/html'
 
