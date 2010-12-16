@@ -139,8 +139,7 @@ MessageLoop::MessageLoop(Type type)
 #define MESSAGE_PUMP_UI base::MessagePumpMac::Create()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #elif defined(TOUCH_UI)
-// TODO(sadrul): enable the new message pump when ready
-#define MESSAGE_PUMP_UI new base::MessagePumpForUI()
+#define MESSAGE_PUMP_UI new base::MessagePumpGlibX()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #elif defined(OS_NACL)
 // Currently NaCl doesn't have a UI or an IO MessageLoop.
