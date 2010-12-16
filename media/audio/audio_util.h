@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,6 +48,19 @@ bool FoldChannels(void* buf,
                   int channels,
                   int bytes_per_sample,
                   float volume);
+
+// DeinterleaveAudioChannel() takes interleaved audio buffer |source|
+// of the given |sample_fmt| and |number_of_channels| and extracts
+// |number_of_frames| data for the given |channel_index| and
+// puts it in the floating point |destination|.
+// It returns |true| on success, or |false| if the |sample_fmt| is
+// not recognized.
+bool DeinterleaveAudioChannel(void* source,
+                              float* destination,
+                              int channels,
+                              int channel_index,
+                              int bytes_per_sample,
+                              size_t number_of_frames);
 
 }  // namespace media
 
