@@ -6,7 +6,9 @@
 #define NET_BASE_CERT_TEST_UTIL_H_
 #pragma once
 
-#include "build/build_config.h"
+#include <string>
+
+#include "base/ref_counted.h"
 
 class FilePath;
 
@@ -14,11 +16,16 @@ namespace net {
 
 class X509Certificate;
 
-#if defined(USE_NSS) || defined(OS_MACOSX) || defined(USE_OPENSSL)
-// Loads and trusts a root CA certificate (stored in a file) temporarily.
-// TODO(wtc): Implement this function on Windows (http://crbug.com/8470).
-X509Certificate* LoadTemporaryRootCert(const FilePath& filename);
-#endif
+// Returns a FilePath object representing the src/net/data/ssl/certificates
+// directory in the source tree.
+FilePath GetTestCertsDirectory();
+
+// Imports a certificate file in the src/net/data/ssl/certificates directory.
+// certs_dir represents the test certificates directory.  cert_file is the
+// name of the certificate file. If cert_file contains multiple certificates,
+// the first certificate found will be returned.
+scoped_refptr<X509Certificate> ImportCertFromFile(const FilePath& certs_dir,
+                                                  const std::string& cert_file);
 
 }  // namespace net
 

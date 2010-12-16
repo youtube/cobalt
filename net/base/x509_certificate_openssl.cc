@@ -216,16 +216,20 @@ class X509InitSingleton {
   int der_cache_ex_index() const { return der_cache_ex_index_; }
   X509_STORE* store() const { return store_.get(); }
 
- private:
-  friend struct DefaultSingletonTraits<X509InitSingleton>;
-  X509InitSingleton()
-      :   der_cache_ex_index_((base::EnsureOpenSSLInit(),
-                               X509_get_ex_new_index(0, 0, 0, 0,
-                                                     DERCache_free))),
-        store_(X509_STORE_new()) {
-    DCHECK_NE(der_cache_ex_index_, -1);
+  void ResetCertStore() {
+    store_.reset(X509_STORE_new());
+    DCHECK(store_.get());
     X509_STORE_set_default_paths(store_.get());
     // TODO(joth): Enable CRL (see X509_STORE_set_flags(X509_V_FLAG_CRL_CHECK)).
+  }
+
+ private:
+  friend struct DefaultSingletonTraits<X509InitSingleton>;
+  X509InitSingleton() {
+    base::EnsureOpenSSLInit();
+    der_cache_ex_index_ = X509_get_ex_new_index(0, 0, 0, 0, DERCache_free);
+    DCHECK_NE(der_cache_ex_index_, -1);
+    ResetCertStore();
   }
 
   int der_cache_ex_index_;
@@ -310,6 +314,11 @@ void X509Certificate::Initialize() {
   ParsePrincipal(cert_handle_, X509_get_issuer_name(cert_handle_), &issuer_);
   nxou::ParseDate(X509_get_notBefore(cert_handle_), &valid_start_);
   nxou::ParseDate(X509_get_notAfter(cert_handle_), &valid_expiry_);
+}
+
+// static
+void X509Certificate::ResetCertStore() {
+  X509InitSingleton::Get()->ResetCertStore();
 }
 
 SHA1Fingerprint X509Certificate::CalculateFingerprint(OSCertHandle cert) {

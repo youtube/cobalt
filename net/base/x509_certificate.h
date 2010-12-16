@@ -283,6 +283,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
+  friend class TestRootCerts;  // For unit tests
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, Cache);
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, IntermediateCertificates);
 
@@ -301,6 +302,12 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
                const char* policy_oid) const;
 #endif
   bool VerifyEV() const;
+
+#if defined(USE_OPENSSL)
+  // Resets the store returned by cert_store() to default state. Used by
+  // TestRootCerts to undo modifications.
+  static void ResetCertStore();
+#endif
 
   // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
   // (all zero) fingerprint on failure.
