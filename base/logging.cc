@@ -51,9 +51,7 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/debug/stack_trace.h"
 #include "base/eintr_wrapper.h"
 #include "base/lock_impl.h"
-#include "base/process_util.h"
 #include "base/string_piece.h"
-#include "base/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 #include "base/vlog.h"
 #if defined(OS_POSIX)
@@ -462,6 +460,9 @@ template std::string* MakeCheckOpString<std::string, std::string>(
 
 // Displays a message box to the user with the error message in it.
 // Used for fatal messages, where we close the app simultaneously.
+// This is for developers only; we don't use this in circumstances
+// (like release builds) where users could see it, since users don't
+// understand these messages anyway.
 void DisplayDebugMessageInDialog(const std::string& str) {
   if (str.empty())
     return;
@@ -502,19 +503,6 @@ void DisplayDebugMessageInDialog(const std::string& str) {
     MessageBoxW(NULL, &cmdline[0], L"Fatal error",
                 MB_OK | MB_ICONHAND | MB_TOPMOST);
   }
-#elif defined(USE_X11) && !defined(OS_CHROMEOS)
-  // Shell out to xmessage, which behaves like debug_message.exe, but is
-  // way more retro.  We could use zenity/kdialog but then we're starting
-  // to get into needing to check the desktop env and this dialog should
-  // only be coming up in Very Bad situations.
-  // It is tolerable to allow IO from this function when on any thread, given
-  // we're about to core dump anyway.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
-  std::vector<std::string> argv;
-  argv.push_back("xmessage");
-  argv.push_back(str);
-  base::LaunchApp(argv, base::file_handle_mapping_vector(), true /* wait */,
-                  NULL);
 #elif defined(OS_MACOSX)
   base::mac::ScopedCFTypeRef<CFStringRef> message(
       base::SysUTF8ToCFStringRef(str));
@@ -522,8 +510,8 @@ void DisplayDebugMessageInDialog(const std::string& str) {
                                   NULL, NULL, NULL, CFSTR("Fatal Error"),
                                   message, NULL);
 #else
-  // http://code.google.com/p/chromium/issues/detail?id=37026
-  NOTIMPLEMENTED();
+  // We intentionally don't implement a dialog on other platforms.
+  // You can just look at stderr.
 #endif
 }
 
