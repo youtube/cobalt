@@ -20,6 +20,7 @@ namespace net {
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(
     HostResolver* host_resolver,
+    CertVerifier* cert_verifier,
     DnsRRResolver* dnsrr_resolver,
     DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
@@ -32,6 +33,7 @@ HttpNetworkSession::HttpNetworkSession(
     NetLog* net_log)
     : socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
+      cert_verifier_(cert_verifier),
       dnsrr_resolver_(dnsrr_resolver),
       dns_cert_checker_(dns_cert_checker),
       proxy_service_(proxy_service),
@@ -39,6 +41,7 @@ HttpNetworkSession::HttpNetworkSession(
       socket_pool_manager_(net_log,
                            client_socket_factory,
                            host_resolver,
+                           cert_verifier,
                            dnsrr_resolver,
                            dns_cert_checker,
                            ssl_host_info_factory,

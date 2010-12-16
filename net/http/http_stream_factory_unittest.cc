@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service_defaults.h"
@@ -27,6 +28,7 @@ struct SessionDependencies {
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver),
+        cert_verifier(new CertVerifier),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
@@ -34,6 +36,7 @@ struct SessionDependencies {
         net_log(NULL) {}
 
   scoped_ptr<MockHostResolverBase> host_resolver;
+  scoped_ptr<CertVerifier> cert_verifier;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
@@ -43,6 +46,7 @@ struct SessionDependencies {
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(session_deps->host_resolver.get(),
+                                session_deps->cert_verifier.get(),
                                 NULL /* dnsrr_resolver */,
                                 NULL /* dns_cert_checker */,
                                 NULL /* ssl_host_info_factory */,
@@ -170,7 +174,8 @@ CapturePreconnectsHttpProxySocketPool::CapturePreconnectsSocketPool(
 template<>
 CapturePreconnectsSSLSocketPool::CapturePreconnectsSocketPool(
     HttpNetworkSession* session)
-    : SSLClientSocketPool(0, 0, NULL, session->host_resolver(), NULL, NULL,
+    : SSLClientSocketPool(0, 0, NULL, session->host_resolver(),
+                          session->cert_verifier(), NULL, NULL,
                           NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
 
 TEST(HttpStreamFactoryTest, PreconnectDirect) {
