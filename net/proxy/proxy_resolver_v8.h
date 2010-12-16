@@ -47,6 +47,7 @@ class ProxyResolverV8 : public ProxyResolver {
                              RequestHandle* /*request*/,
                              const BoundNetLog& net_log);
   virtual void CancelRequest(RequestHandle request);
+  virtual void CancelSetPacScript();
   virtual void PurgeMemory();
   virtual void Shutdown();
   virtual int SetPacScript(

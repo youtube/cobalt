@@ -48,7 +48,7 @@ class ProxyScriptFetcher {
 
   // Returns the request context that this fetcher uses to issue downloads,
   // or NULL.
-  virtual URLRequestContext* GetRequestContext() { return NULL; }
+  virtual URLRequestContext* GetRequestContext() = 0;
 };
 
 }  // namespace net

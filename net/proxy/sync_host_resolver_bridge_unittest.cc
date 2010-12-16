@@ -109,6 +109,10 @@ class SyncProxyResolver : public ProxyResolver {
     host_resolver_->Shutdown();
   }
 
+  virtual void CancelSetPacScript() {
+    NOTREACHED();
+  }
+
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
       CompletionCallback* callback) {

@@ -124,6 +124,10 @@ void ProxyResolverWinHttp::CancelRequest(RequestHandle request) {
   NOTREACHED();
 }
 
+void ProxyResolverWinHttp::CancelSetPacScript() {
+  NOTREACHED();
+}
+
 int ProxyResolverWinHttp::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
     CompletionCallback* /*callback*/) {

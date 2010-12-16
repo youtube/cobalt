@@ -541,6 +541,7 @@
         'proxy/proxy_config.cc',
         'proxy/proxy_config.h',
         'proxy/proxy_config_service.h',
+        'proxy/proxy_config_service_fixed.cc',
         'proxy/proxy_config_service_fixed.h',
         'proxy/proxy_config_service_linux.cc',
         'proxy/proxy_config_service_linux.h',

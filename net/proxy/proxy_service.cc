@@ -113,6 +113,10 @@ class ProxyResolverNull : public ProxyResolver {
     NOTREACHED();
   }
 
+  virtual void CancelSetPacScript() {
+    NOTREACHED();
+  }
+
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& /*script_data*/,
       CompletionCallback* /*callback*/) {
@@ -138,6 +142,10 @@ class ProxyResolverFromPacString : public ProxyResolver {
   }
 
   virtual void CancelRequest(RequestHandle request) {
+    NOTREACHED();
+  }
+
+  virtual void CancelSetPacScript() {
     NOTREACHED();
   }
 

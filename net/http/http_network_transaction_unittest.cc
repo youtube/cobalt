@@ -6478,6 +6478,10 @@ class CapturingProxyResolver : public ProxyResolver {
     NOTREACHED();
   }
 
+  virtual void CancelSetPacScript() {
+    NOTREACHED();
+  }
+
   virtual int SetPacScript(const scoped_refptr<ProxyResolverScriptData>&,
                            CompletionCallback* /*callback*/) {
     return OK;
