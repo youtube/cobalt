@@ -880,6 +880,7 @@
         'base/transport_security_state_unittest.cc',
         'base/test_certificate_data.h',
         'base/test_completion_callback_unittest.cc',
+        'base/test_root_certs_unittest.cc',
         'base/upload_data_stream_unittest.cc',
         'base/x509_certificate_unittest.cc',
         'base/x509_cert_types_mac_unittest.cc',
