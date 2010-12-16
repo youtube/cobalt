@@ -721,6 +721,10 @@ void ProxyResolverV8::CancelRequest(RequestHandle request) {
   NOTREACHED();
 }
 
+void ProxyResolverV8::CancelSetPacScript() {
+  NOTREACHED();
+}
+
 void ProxyResolverV8::PurgeMemory() {
   context_->PurgeMemory();
 }

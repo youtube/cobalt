@@ -54,10 +54,7 @@ class ProxyResolver {
   // contain the actual script bytes rather than just the URL.
   bool expects_pac_bytes() const { return expects_pac_bytes_; }
 
-  // TODO(eroman): Make this =0.
-  virtual void CancelSetPacScript() {
-    NOTREACHED();
-  }
+  virtual void CancelSetPacScript() = 0;
 
   // Frees any unneeded memory held by the resolver, e.g. garbage in the JS
   // engine.  Most subclasses don't need to do anything, so we provide a default

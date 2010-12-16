@@ -16,7 +16,8 @@ namespace net {
 // proxies.
 class ProxyResolverMac : public ProxyResolver {
  public:
-  ProxyResolverMac() : ProxyResolver(false /*expects_pac_bytes*/) {}
+  ProxyResolverMac();
+  virtual ~ProxyResolverMac();
 
   // ProxyResolver methods:
   virtual int GetProxyForURL(const GURL& url,
@@ -25,16 +26,13 @@ class ProxyResolverMac : public ProxyResolver {
                              RequestHandle* request,
                              const BoundNetLog& net_log);
 
-  virtual void CancelRequest(RequestHandle request) {
-    NOTREACHED();
-  }
+  virtual void CancelRequest(RequestHandle request);
+
+  virtual void CancelSetPacScript();
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* /*callback*/) {
-    script_data_ = script_data;
-    return OK;
-  }
+      CompletionCallback* /*callback*/);
 
  private:
   scoped_refptr<ProxyResolverScriptData> script_data_;
