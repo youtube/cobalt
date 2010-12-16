@@ -77,6 +77,7 @@ tags
 /third_party/hunspell_dictionaries
 /third_party/icu
 /third_party/libjingle/source
+/third_party/libjpeg_turbo
 /third_party/libsrtp/src
 /third_party/libvpx
 /third_party/libvpx/include
