@@ -318,7 +318,7 @@ void X509Certificate::Initialize() {
 
 // static
 void X509Certificate::ResetCertStore() {
-  X509InitSingleton::Get()->ResetCertStore();
+  X509InitSingleton::GetInstance()->ResetCertStore();
 }
 
 SHA1Fingerprint X509Certificate::CalculateFingerprint(OSCertHandle cert) {
