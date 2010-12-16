@@ -53,6 +53,12 @@ void ResultCallback(void* client, CFArrayRef proxies, CFErrorRef error) {
 
 namespace net {
 
+ProxyResolverMac::ProxyResolverMac()
+    : ProxyResolver(false /*expects_pac_bytes*/) {
+}
+
+ProxyResolverMac::~ProxyResolverMac() {}
+
 // Gets the proxy information for a query URL from a PAC. Implementation
 // inspired by http://developer.apple.com/samplecode/CFProxySupportTool/
 int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
@@ -168,6 +174,21 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
     results->UseNamedProxy(proxy_uri_list);
   // Else do nothing (results is already guaranteed to be in the default state).
 
+  return OK;
+}
+
+void ProxyResolverMac::CancelRequest(RequestHandle request) {
+  NOTREACHED();
+}
+
+void ProxyResolverMac::CancelSetPacScript() {
+  NOTREACHED();
+}
+
+int ProxyResolverMac::SetPacScript(
+    const scoped_refptr<ProxyResolverScriptData>& script_data,
+    CompletionCallback* /*callback*/) {
+  script_data_ = script_data;
   return OK;
 }
 

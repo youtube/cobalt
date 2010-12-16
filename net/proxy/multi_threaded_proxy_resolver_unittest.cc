@@ -60,6 +60,10 @@ class MockProxyResolver : public ProxyResolver {
     NOTREACHED();
   }
 
+  virtual void CancelSetPacScript() {
+    NOTREACHED();
+  }
+
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
       CompletionCallback* callback) {
@@ -167,6 +171,10 @@ class ForwardingProxyResolver : public ProxyResolver {
 
   virtual void CancelRequest(RequestHandle request) {
     impl_->CancelRequest(request);
+  }
+
+  virtual void CancelSetPacScript() {
+    impl_->CancelSetPacScript();
   }
 
   virtual int SetPacScript(
