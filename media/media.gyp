@@ -115,6 +115,8 @@
         'ffmpeg/ffmpeg_util.h',
         'ffmpeg/file_protocol.cc',
         'ffmpeg/file_protocol.h',
+        'filters/audio_file_reader.cc',
+        'filters/audio_file_reader.h',
         'filters/audio_renderer_algorithm_base.cc',
         'filters/audio_renderer_algorithm_base.h',
         'filters/audio_renderer_algorithm_default.cc',
