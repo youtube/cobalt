@@ -196,7 +196,7 @@ int SSLConnectJob::DoLoop(int result) {
 int SSLConnectJob::DoTCPConnect() {
   DCHECK(tcp_pool_);
 
-  if (ssl_host_info_factory_) {
+  if (ssl_host_info_factory_ && SSLConfigService::snap_start_enabled()) {
       ssl_host_info_.reset(
           ssl_host_info_factory_->GetForHost(params_->host_and_port().host(),
                                              params_->ssl_config()));
