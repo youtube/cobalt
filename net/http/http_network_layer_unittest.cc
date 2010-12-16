@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/base/cert_verifier.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service_defaults.h"
@@ -21,9 +22,11 @@ class HttpNetworkLayerTest : public PlatformTest {
 
 TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
   MockHostResolver host_resolver;
+  net::CertVerifier cert_verifier;
   net::HttpNetworkLayer factory(
       NULL,
       &host_resolver,
+      &cert_verifier,
       NULL /* dnsrr_resolver */,
       NULL /* dns_cert_checker */,
       NULL /* ssl_host_info_factory */,
@@ -41,9 +44,11 @@ TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
 
 TEST_F(HttpNetworkLayerTest, Suspend) {
   MockHostResolver host_resolver;
+  net::CertVerifier cert_verifier;
   net::HttpNetworkLayer factory(
       NULL,
       &host_resolver,
+      &cert_verifier,
       NULL /* dnsrr_resolver */,
       NULL /* dns_cert_checker */,
       NULL /* ssl_host_info_factory */,
@@ -90,9 +95,11 @@ TEST_F(HttpNetworkLayerTest, GET) {
   mock_socket_factory.AddSocketDataProvider(&data);
 
   MockHostResolver host_resolver;
+  net::CertVerifier cert_verifier;
   net::HttpNetworkLayer factory(
       &mock_socket_factory,
       &host_resolver,
+      &cert_verifier,
       NULL /* dnsrr_resolver */,
       NULL /* dns_cert_checker */,
       NULL /* ssl_host_info_factory */,

@@ -30,19 +30,21 @@ SSLClientSocket* DefaultSSLClientSocketFactory(
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,
+    CertVerifier* cert_verifier,
     DnsCertProvenanceChecker* dns_cert_checker) {
   scoped_ptr<SSLHostInfo> shi(ssl_host_info);
 #if defined(OS_WIN)
-  return new SSLClientSocketWin(transport_socket, host_and_port, ssl_config);
+  return new SSLClientSocketWin(transport_socket, host_and_port, ssl_config,
+                                cert_verifier);
 #elif defined(USE_OPENSSL)
   return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
-                                    ssl_config);
+                                    ssl_config, cert_verifier);
 #elif defined(USE_NSS)
   return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                shi.release(), dns_cert_checker);
+                                shi.release(), cert_verifier, dns_cert_checker);
 #elif defined(OS_MACOSX)
   return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                shi.release(), dns_cert_checker);
+                                shi.release(), cert_verifier, dns_cert_checker);
 #else
   NOTIMPLEMENTED();
   return NULL;
@@ -65,9 +67,10 @@ class DefaultClientSocketFactory : public ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
+      CertVerifier* cert_verifier,
       DnsCertProvenanceChecker* dns_cert_checker) {
     return g_ssl_factory(transport_socket, host_and_port, ssl_config,
-                         ssl_host_info, dns_cert_checker);
+                         ssl_host_info, cert_verifier, dns_cert_checker);
   }
 };
 
@@ -92,11 +95,12 @@ SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
     ClientSocket* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info) {
+    SSLHostInfo* ssl_host_info,
+    CertVerifier* cert_verifier) {
   ClientSocketHandle* socket_handle = new ClientSocketHandle();
   socket_handle->set_socket(transport_socket);
   return CreateSSLClientSocket(socket_handle, host_and_port, ssl_config,
-                               ssl_host_info,
+                               ssl_host_info, cert_verifier,
                                NULL /* DnsCertProvenanceChecker */);
 }
 

@@ -841,6 +841,7 @@
       'sources': [
         'base/address_list_unittest.cc',
         'base/cert_database_nss_unittest.cc',
+        'base/cert_verifier_unittest.cc',
         'base/cookie_monster_unittest.cc',
         'base/data_url_unittest.cc',
         'base/directory_lister_unittest.cc',

@@ -50,6 +50,8 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       url_(url),
       max_pending_send_allowed_(kMaxPendingSendAllowed),
       next_state_(STATE_NONE),
+      host_resolver_(NULL),
+      cert_verifier_(NULL),
       http_auth_handler_factory_(NULL),
       factory_(ClientSocketFactory::GetDefaultFactory()),
       proxy_mode_(kDirectConnection),
@@ -119,6 +121,7 @@ void SocketStream::set_context(URLRequestContext* context) {
 
   if (context_) {
     host_resolver_ = context_->host_resolver();
+    cert_verifier_ = context_->cert_verifier();
     http_auth_handler_factory_ = context_->http_auth_handler_factory();
   }
 }
@@ -800,7 +803,8 @@ int SocketStream::DoSSLConnect() {
   socket_.reset(factory_->CreateSSLClientSocket(socket_.release(),
                                                 HostPortPair::FromURL(url_),
                                                 ssl_config_,
-                                                NULL /* ssl_host_info */));
+                                                NULL /* ssl_host_info */,
+                                                cert_verifier_));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   metrics_->OnSSLConnection();
   return socket_->Connect(&io_callback_);

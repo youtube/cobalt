@@ -408,6 +408,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                                        const HostPortPair& host_and_port,
                                        const SSLConfig& ssl_config,
                                        SSLHostInfo* ssl_host_info,
+                                       CertVerifier* cert_verifier,
                                        DnsCertProvenanceChecker* dns_ctx)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketNSS::BufferSendComplete)),
@@ -430,6 +431,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       server_cert_verify_result_(NULL),
       ssl_connection_status_(0),
       client_auth_cert_needed_(false),
+      cert_verifier_(cert_verifier),
       handshake_callback_called_(false),
       completed_handshake_(false),
       pseudo_connected_(false),
@@ -2464,7 +2466,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
-  verifier_.reset(new CertVerifier);
+  verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   server_cert_verify_result_ = &local_server_cert_verify_result_;
   return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
                            &local_server_cert_verify_result_,

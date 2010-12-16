@@ -6,8 +6,8 @@
 // simple container for all of them.  Most importantly, it handles the lifetime
 // and destruction order properly.
 
-#ifndef NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_
-#define NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_
+#ifndef NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_H_
+#define NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_H_
 #pragma once
 
 #include <map>
@@ -23,6 +23,7 @@ class Value;
 
 namespace net {
 
+class CertVerifier;
 class ClientSocketFactory;
 class ClientSocketPoolHistograms;
 class DnsCertProvenanceChecker;
@@ -54,13 +55,14 @@ class OwnedPoolMap : public std::map<Key, Value> {
   }
 };
 
-}  // internal
+}  // namespace internal
 
 class ClientSocketPoolManager : public NonThreadSafe {
  public:
   ClientSocketPoolManager(NetLog* net_log,
                           ClientSocketFactory* socket_factory,
                           HostResolver* host_resolver,
+                          CertVerifier* cert_verifier,
                           DnsRRResolver* dnsrr_resolver,
                           DnsCertProvenanceChecker* dns_cert_checker,
                           SSLHostInfoFactory* ssl_host_info_factory,
@@ -106,6 +108,7 @@ class ClientSocketPoolManager : public NonThreadSafe {
   NetLog* const net_log_;
   ClientSocketFactory* const socket_factory_;
   HostResolver* const host_resolver_;
+  CertVerifier* const cert_verifier_;
   DnsRRResolver* const dnsrr_resolver_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
   SSLHostInfoFactory* const ssl_host_info_factory_;
@@ -146,4 +149,4 @@ class ClientSocketPoolManager : public NonThreadSafe {
 
 }  // namespace net
 
-#endif // NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_
+#endif  // NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_H_

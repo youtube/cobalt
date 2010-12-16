@@ -24,6 +24,7 @@ typedef struct x509_st X509;
 namespace net {
 
 class CertVerifier;
+class SingleRequestCertVerifier;
 class SSLCertRequestInfo;
 class SSLConfig;
 class SSLInfo;
@@ -37,7 +38,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   // settings.
   SSLClientSocketOpenSSL(ClientSocketHandle* transport_socket,
                          const HostPortPair& host_and_port,
-                         const SSLConfig& ssl_config);
+                         const SSLConfig& ssl_config,
+                         CertVerifier* cert_verifier);
   ~SSLClientSocketOpenSSL();
 
   const HostPortPair& host_and_port() const { return host_and_port_; }
@@ -131,7 +133,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   std::vector<scoped_refptr<X509Certificate> > client_certs_;
   bool client_auth_cert_needed_;
 
-  scoped_ptr<CertVerifier> verifier_;
+  CertVerifier* const cert_verifier_;
+  scoped_ptr<SingleRequestCertVerifier> verifier_;
   CompletionCallbackImpl<SSLClientSocketOpenSSL> handshake_io_callback_;
 
   // OpenSSL stuff
