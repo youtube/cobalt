@@ -77,6 +77,7 @@ SSLConnectJob::SSLConnectJob(
     HttpProxyClientSocketPool* http_proxy_pool,
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
+    CertVerifier* cert_verifier,
     DnsRRResolver* dnsrr_resolver,
     DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
@@ -89,7 +90,8 @@ SSLConnectJob::SSLConnectJob(
       socks_pool_(socks_pool),
       http_proxy_pool_(http_proxy_pool),
       client_socket_factory_(client_socket_factory),
-      resolver_(host_resolver),
+      host_resolver_(host_resolver),
+      cert_verifier_(cert_verifier),
       dnsrr_resolver_(dnsrr_resolver),
       dns_cert_checker_(dns_cert_checker),
       ssl_host_info_factory_(ssl_host_info_factory),
@@ -289,7 +291,8 @@ int SSLConnectJob::DoSSLConnect() {
 
   ssl_socket_.reset(client_socket_factory_->CreateSSLClientSocket(
       transport_socket_handle_.release(), params_->host_and_port(),
-      params_->ssl_config(), ssl_host_info_.release(), dns_cert_checker_));
+      params_->ssl_config(), ssl_host_info_.release(), cert_verifier_,
+      dns_cert_checker_));
   return ssl_socket_->Connect(&callback_);
 }
 
@@ -360,7 +363,7 @@ ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
   return new SSLConnectJob(group_name, request.params(), ConnectionTimeout(),
                            tcp_pool_, socks_pool_, http_proxy_pool_,
                            client_socket_factory_, host_resolver_,
-                           dnsrr_resolver_, dns_cert_checker_,
+                           cert_verifier_, dnsrr_resolver_, dns_cert_checker_,
                            ssl_host_info_factory_, delegate, net_log_);
 }
 
@@ -370,6 +373,7 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
     HttpProxyClientSocketPool* http_proxy_pool,
     ClientSocketFactory* client_socket_factory,
     HostResolver* host_resolver,
+    CertVerifier* cert_verifier,
     DnsRRResolver* dnsrr_resolver,
     DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
@@ -379,6 +383,7 @@ SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
       http_proxy_pool_(http_proxy_pool),
       client_socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
+      cert_verifier_(cert_verifier),
       dnsrr_resolver_(dnsrr_resolver),
       dns_cert_checker_(dns_cert_checker),
       ssl_host_info_factory_(ssl_host_info_factory),
@@ -406,6 +411,7 @@ SSLClientSocketPool::SSLClientSocketPool(
     int max_sockets_per_group,
     ClientSocketPoolHistograms* histograms,
     HostResolver* host_resolver,
+    CertVerifier* cert_verifier,
     DnsRRResolver* dnsrr_resolver,
     DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
@@ -424,8 +430,8 @@ SSLClientSocketPool::SSLClientSocketPool(
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
             new SSLConnectJobFactory(tcp_pool, socks_pool, http_proxy_pool,
                                      client_socket_factory, host_resolver,
-                                     dnsrr_resolver, dns_cert_checker,
-                                     ssl_host_info_factory,
+                                     cert_verifier, dnsrr_resolver,
+                                     dns_cert_checker, ssl_host_info_factory,
                                      net_log)),
       ssl_config_service_(ssl_config_service) {
   if (ssl_config_service_)

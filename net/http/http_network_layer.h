@@ -15,6 +15,7 @@
 
 namespace net {
 
+class CertVerifier;
 class ClientSocketFactory;
 class DnsCertProvenanceChecker;
 class DnsRRResolver;
@@ -30,10 +31,12 @@ class SSLHostInfoFactory;
 
 class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
  public:
-  // |socket_factory|, |proxy_service| and |host_resolver| must remain valid for
-  // the lifetime of HttpNetworkLayer.
+  // |socket_factory|, |proxy_service|, |host_resolver|, etc. must remain
+  // valid for the lifetime of HttpNetworkLayer.
+  // TODO(wtc): we only need the next constructor.
   HttpNetworkLayer(ClientSocketFactory* socket_factory,
                    HostResolver* host_resolver,
+                   CertVerifier* cert_verifier,
                    DnsRRResolver* dnsrr_resolver,
                    DnsCertProvenanceChecker* dns_cert_checker,
                    SSLHostInfoFactory* ssl_host_info_factory,
@@ -42,11 +45,10 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
                    HttpAuthHandlerFactory* http_auth_handler_factory,
                    HttpNetworkDelegate* network_delegate,
                    NetLog* net_log);
-  // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
-  // contains a valid ProxyService.
   HttpNetworkLayer(
       ClientSocketFactory* socket_factory,
       HostResolver* host_resolver,
+      CertVerifier* cert_verifier,
       DnsRRResolver* dnsrr_resolver,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
@@ -57,6 +59,8 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
       HttpNetworkDelegate* network_delegate,
       NetLog* net_log);
 
+  // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
+  // contains a valid ProxyService.
   explicit HttpNetworkLayer(HttpNetworkSession* session);
   ~HttpNetworkLayer();
 
@@ -64,6 +68,7 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   // and allows other implementations to be substituted.
   static HttpTransactionFactory* CreateFactory(
       HostResolver* host_resolver,
+      CertVerifier* cert_verifier,
       DnsRRResolver* dnsrr_resolver,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
@@ -100,9 +105,10 @@ class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
   // The factory we will use to create network sockets.
   ClientSocketFactory* socket_factory_;
 
-  // The host resolver and proxy service that will be used when lazily
+  // The host resolver, proxy service, etc. that will be used when lazily
   // creating |session_|.
   HostResolver* host_resolver_;
+  CertVerifier* cert_verifier_;
   DnsRRResolver* dnsrr_resolver_;
   DnsCertProvenanceChecker* dns_cert_checker_;
   SSLHostInfoFactory* ssl_host_info_factory_;

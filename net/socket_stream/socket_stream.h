@@ -274,6 +274,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   State next_state_;
   HostResolver* host_resolver_;
+  CertVerifier* cert_verifier_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   ClientSocketFactory* factory_;
 

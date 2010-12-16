@@ -14,6 +14,7 @@
 namespace net {
 
 class AddressList;
+class CertVerifier;
 class ClientSocket;
 class ClientSocketHandle;
 class DnsCertProvenanceChecker;
@@ -28,6 +29,7 @@ typedef SSLClientSocket* (*SSLClientSocketFactory)(
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
     SSLHostInfo* ssl_host_info,
+    CertVerifier* cert_verifier,
     DnsCertProvenanceChecker* dns_cert_checker);
 
 // An interface used to instantiate ClientSocket objects.  Used to facilitate
@@ -48,6 +50,7 @@ class ClientSocketFactory {
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
       SSLHostInfo* ssl_host_info,
+      CertVerifier* cert_verifier,
       DnsCertProvenanceChecker* dns_cert_checker) = 0;
 
   // Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
@@ -55,7 +58,8 @@ class ClientSocketFactory {
       ClientSocket* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info);
+      SSLHostInfo* ssl_host_info,
+      CertVerifier* cert_verifier);
 
   // Returns the default ClientSocketFactory.
   static ClientSocketFactory* GetDefaultFactory();
