@@ -22,6 +22,7 @@
 
 namespace net {
 
+class CertVerifier;
 class ClientSocketFactory;
 class ConnectJobFactory;
 class DnsCertProvenanceChecker;
@@ -95,6 +96,7 @@ class SSLConnectJob : public ConnectJob {
       HttpProxyClientSocketPool* http_proxy_pool,
       ClientSocketFactory* client_socket_factory,
       HostResolver* host_resolver,
+      CertVerifier* cert_verifier,
       DnsRRResolver* dnsrr_resolver,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
@@ -144,7 +146,8 @@ class SSLConnectJob : public ConnectJob {
   SOCKSClientSocketPool* const socks_pool_;
   HttpProxyClientSocketPool* const http_proxy_pool_;
   ClientSocketFactory* const client_socket_factory_;
-  HostResolver* const resolver_;
+  HostResolver* const host_resolver_;
+  CertVerifier* const cert_verifier_;
   DnsRRResolver* const dnsrr_resolver_;
   DnsCertProvenanceChecker* dns_cert_checker_;
   SSLHostInfoFactory* const ssl_host_info_factory_;
@@ -173,6 +176,7 @@ class SSLClientSocketPool : public ClientSocketPool,
       int max_sockets_per_group,
       ClientSocketPoolHistograms* histograms,
       HostResolver* host_resolver,
+      CertVerifier* cert_verifier,
       DnsRRResolver* dnsrr_resolver,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
@@ -241,6 +245,7 @@ class SSLClientSocketPool : public ClientSocketPool,
         HttpProxyClientSocketPool* http_proxy_pool,
         ClientSocketFactory* client_socket_factory,
         HostResolver* host_resolver,
+        CertVerifier* cert_verifier,
         DnsRRResolver* dnsrr_resolver,
         DnsCertProvenanceChecker* dns_cert_checker,
         SSLHostInfoFactory* ssl_host_info_factory,
@@ -262,6 +267,7 @@ class SSLClientSocketPool : public ClientSocketPool,
     HttpProxyClientSocketPool* const http_proxy_pool_;
     ClientSocketFactory* const client_socket_factory_;
     HostResolver* const host_resolver_;
+    CertVerifier* const cert_verifier_;
     DnsRRResolver* const dnsrr_resolver_;
     DnsCertProvenanceChecker* const dns_cert_checker_;
     SSLHostInfoFactory* const ssl_host_info_factory_;

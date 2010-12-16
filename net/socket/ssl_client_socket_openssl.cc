@@ -380,7 +380,8 @@ struct SslSetClearMask {
 SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     ClientSocketHandle* transport_socket,
     const HostPortPair& host_and_port,
-    const SSLConfig& ssl_config)
+    const SSLConfig& ssl_config,
+    CertVerifier* cert_verifier)
     : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
           this, &SSLClientSocketOpenSSL::BufferSendComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
@@ -392,6 +393,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       user_write_callback_(NULL),
       completed_handshake_(false),
       client_auth_cert_needed_(false),
+      cert_verifier_(cert_verifier),
       ALLOW_THIS_IN_INITIALIZER_LIST(handshake_io_callback_(
           this, &SSLClientSocketOpenSSL::OnHandshakeIOComplete)),
       ssl_(NULL),
@@ -813,7 +815,7 @@ int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
-  verifier_.reset(new CertVerifier);
+  verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   return verifier_->Verify(server_cert_, host_and_port_.host(), flags,
                            &server_cert_verify_result_,
                            &handshake_io_callback_);

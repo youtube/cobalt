@@ -74,6 +74,7 @@ struct SessionDependencies {
   // Default set of dependencies -- "null" proxy service.
   SessionDependencies()
       : host_resolver(new MockHostResolver),
+        cert_verifier(new CertVerifier),
         proxy_service(ProxyService::CreateDirect()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
@@ -83,6 +84,7 @@ struct SessionDependencies {
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver),
+        cert_verifier(new CertVerifier),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
@@ -90,6 +92,7 @@ struct SessionDependencies {
         net_log(NULL) {}
 
   scoped_ptr<MockHostResolverBase> host_resolver;
+  scoped_ptr<CertVerifier> cert_verifier;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
@@ -99,6 +102,7 @@ struct SessionDependencies {
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(session_deps->host_resolver.get(),
+                                session_deps->cert_verifier.get(),
                                 NULL /* dnsrr_resolver */,
                                 NULL /* dns_cert_checker */,
                                 NULL /* ssl_host_info_factory */,
@@ -310,7 +314,8 @@ CaptureGroupNameHttpProxySocketPool::CaptureGroupNameSocketPool(
 template<>
 CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
     HttpNetworkSession* session)
-    : SSLClientSocketPool(0, 0, NULL, session->host_resolver(), NULL, NULL,
+    : SSLClientSocketPool(0, 0, NULL, session->host_resolver(),
+                          session->cert_verifier(), NULL, NULL,
                           NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
 
 //-----------------------------------------------------------------------------
@@ -6679,7 +6684,8 @@ TEST_F(HttpNetworkTransactionTest,
   session->ssl_config_service()->GetSSLConfig(&ssl_config);
   ClientSocket* socket = connection->release_socket();
   socket = session->socket_factory()->CreateSSLClientSocket(
-      socket, HostPortPair("" , 443), ssl_config, NULL /* ssl_host_info */);
+      socket, HostPortPair("" , 443), ssl_config, NULL /* ssl_host_info */,
+      session->cert_verifier());
   connection->set_socket(socket);
   EXPECT_EQ(ERR_IO_PENDING, socket->Connect(&callback));
   EXPECT_EQ(OK, callback.WaitForResult());
