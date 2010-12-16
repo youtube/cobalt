@@ -177,6 +177,12 @@
         'base/ssl_info.h',
         'base/static_cookie_policy.cc',
         'base/static_cookie_policy.h',
+        'base/test_root_certs.cc',
+        'base/test_root_certs.h',
+        'base/test_root_certs_mac.cc',
+        'base/test_root_certs_nss.cc',
+        'base/test_root_certs_openssl.cc',
+        'base/test_root_certs_win.cc',
         'base/transport_security_state.cc',
         'base/transport_security_state.h',
         'base/sys_addrinfo.h',
@@ -252,6 +258,7 @@
             'sources!': [
               'base/cert_database_nss.cc',
               'base/keygen_handler_nss.cc',
+              'base/test_root_certs_nss.cc',
               'base/x509_certificate_nss.cc',
               'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
               'third_party/mozilla_security_manager/nsKeygenHandler.h',
@@ -272,6 +279,7 @@
               'base/keygen_handler_nss.cc',
               'base/nss_memio.c',
               'base/nss_memio.h',
+              'base/test_root_certs_nss.cc',
               'base/x509_certificate_nss.cc',
               'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
               'third_party/mozilla_security_manager/nsKeygenHandler.h',
@@ -289,6 +297,7 @@
               'base/keygen_handler_openssl.cc',
               'base/openssl_memory_private_key_store.cc',
               'base/openssl_private_key_store.h',
+              'base/test_root_certs_openssl.cc',
               'base/x509_certificate_openssl.cc',
               'base/x509_openssl_util.cc',
               'base/x509_openssl_util.h',
@@ -1158,7 +1167,7 @@
             ['use_openssl==1', {
               'dependencies': [
                 '../third_party/openssl/openssl.gyp:openssl',
-              ]
+              ],
             }, {
               'dependencies': [
                 '../build/linux/system.gyp:nss',
