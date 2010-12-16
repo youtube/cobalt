@@ -15,15 +15,13 @@ namespace net {
 // Implementation of ProxyConfigService that returns a fixed result.
 class ProxyConfigServiceFixed : public ProxyConfigService {
  public:
-  explicit ProxyConfigServiceFixed(const ProxyConfig& pc) : pc_(pc) {}
+  explicit ProxyConfigServiceFixed(const ProxyConfig& pc);
+  virtual ~ProxyConfigServiceFixed();
 
   // ProxyConfigService methods:
   virtual void AddObserver(Observer* observer) {}
   virtual void RemoveObserver(Observer* observer) {}
-  virtual bool GetLatestProxyConfig(ProxyConfig* config) {
-    *config = pc_;
-    return true;
-  }
+  virtual bool GetLatestProxyConfig(ProxyConfig* config);
 
  private:
   ProxyConfig pc_;

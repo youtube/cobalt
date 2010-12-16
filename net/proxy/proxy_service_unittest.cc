@@ -98,6 +98,8 @@ class MockProxyScriptFetcher : public ProxyScriptFetcher {
 
   virtual void Cancel() {}
 
+  virtual URLRequestContext* GetRequestContext() { return NULL; }
+
   const GURL& pending_request_url() const {
     return pending_request_url_;
   }

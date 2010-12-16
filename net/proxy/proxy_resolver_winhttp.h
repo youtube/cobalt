@@ -27,6 +27,9 @@ class ProxyResolverWinHttp : public ProxyResolver {
                              RequestHandle* /*request*/,
                              const BoundNetLog& /*net_log*/);
   virtual void CancelRequest(RequestHandle request);
+
+  virtual void CancelSetPacScript();
+
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
       CompletionCallback* /*callback*/);
