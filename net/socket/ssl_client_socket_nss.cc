@@ -481,6 +481,11 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
   if (!ssl_host_info_.get())
     return;
 
+  // If the SSLHostInfo hasn't managed to load from disk yet then we can't save
+  // anything.
+  if (ssl_host_info_->WaitForDataReady(NULL) != OK)
+    return;
+
   SECStatus rv;
   SSLSnapStartResult snap_start_type;
   rv = SSL_GetSnapStartResult(nss_fd_, &snap_start_type);
@@ -490,8 +495,6 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
   }
   net_log_.AddEvent(NetLog::TYPE_SSL_SNAP_START,
                     new NetLogIntegerParameter("type", snap_start_type));
-  LOG(ERROR) << "Snap Start: " << snap_start_type << " "
-             << host_and_port_.ToString();
   if (snap_start_type == SSL_SNAP_START_FULL ||
       snap_start_type == SSL_SNAP_START_RESUME) {
     // If we did a successful Snap Start then our information was correct and
@@ -530,7 +533,6 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
           certs[i]->derCert.len));
   }
 
-  LOG(ERROR) << "Setting Snap Start info " << host_and_port_.ToString();
   ssl_host_info_->Persist();
 }
 
