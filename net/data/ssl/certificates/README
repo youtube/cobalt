@@ -20,13 +20,6 @@ unit tests.
 - dod_root_ca_2_cert.der : A certificate chain for regression tests of
      http://crbug.com/31497.
 
-- expired_cert.pem : An expired certificate, used by test_server.cc.
-
-- ok_cert.pem : A valid certificate, used by test_server.cc
-
-- root_ca_cert.crt : The testing root CA used to sign the test_server.cc's
-     certificates.
-
 - unosoft_hu_cert : Certificate used by X509CertificateTest.UnoSoftCertParsing.
 
 - client.p12 : A PKCS #12 file containing a client certificate and a private
@@ -34,3 +27,44 @@ unit tests.
 
 - punycodetest.der : A test self-signed server certificate with punycode name.
      The common name is "xn--wgv71a119e.com" (日本語.com)
+
+=====
+Generated Test Certificates:
+=====
+The following certificates were generated locally, and are primarily used
+by test_server.cc and test_server.py. Each file contains the certificate
+and associated private key.
+  - expired_cert.pem : An expired certificate, used by test_server.cc.
+  - ok_cert.pem : A valid certificate, used by test_server.cc and others
+  - root_ca_cert.pem : The test root CA certificate, used to sign the test
+    certificates.
+
+In addition, two support files are provided to make it easy to make
+modifications or regenerate these certificates.
+  - openssl_ca.cnf : The configuration file used to generate the test CA
+    certificate and sign certificate requests.
+  - openssl_cert.cnf : The configuration file used to generate the certificate
+    requests for the ok and expired certificates.
+
+The following commands were used to generated the test root certificates
+Note: Be sure to adjust path slashes as appropriate for your platform.
+
+mkdir root_ca
+mkdir root_ca\private
+mkdir root_ca\newcerts
+echo 01 > root_ca\serial
+[On Windows]
+  copy nul: root_ca\index.txt
+  copy nul: root_ca\index.txt.attr
+[On POSIX]
+  touch root_ca\index.txt
+  touch root_ca\index.txt.attr
+
+openssl req -new -x509 -days 18250 -keyout root_ca\private\cacert.key -out root_ca\cacert.pem -config openssl_ca.cnf
+openssl req -new -keyout expired_cert.key -out expired_cert.req -config openssl_cert.cnf
+openssl req -new -keyout ok_cert.key -out ok_cert.req -config openssl_cert.cnf
+openssl ca -name CA_root -extensions user_cert -startdate 060101000000Z -enddate 070101000000Z -in expired_cert.req -out expired_cert.pem -config openssl_ca.cnf
+openssl ca -name CA_root -extensions user_cert -days 18250 -in ok_cert.req -out ok_cert.pem -config openssl_ca.cnf 
+
+  Each generated certificate (.pem) and private key (.key) were then combined
+  into a single file matching the naming scheme described above.
