@@ -11,6 +11,7 @@ namespace switches {
 // alongside the definition of their values in the .cc file.
 extern const char kLiveOperationTimeout[];
 extern const char kTestLargeTimeout[];
+extern const char kTestTinyTimeout[];
 extern const char kUiTestActionTimeout[];
 extern const char kUiTestActionMaxTimeout[];
 extern const char kUiTestCommandExecutionTimeout[];

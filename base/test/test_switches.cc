@@ -10,6 +10,7 @@ const char switches::kLiveOperationTimeout[] = "live-operation-timeout";
 // Time (in milliseconds) that the tests should wait before timing out.
 // TODO(phajdan.jr): Clean up the switch names.
 const char switches::kTestLargeTimeout[] = "test-large-timeout";
+const char switches::kTestTinyTimeout[] = "test-tiny-timeout";
 const char switches::kUiTestActionTimeout[] = "ui-test-action-timeout";
 const char switches::kUiTestActionMaxTimeout[] = "ui-test-action-max-timeout";
 const char switches::kUiTestCommandExecutionTimeout[] = "ui-test-timeout";
