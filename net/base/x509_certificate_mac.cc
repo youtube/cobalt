@@ -17,6 +17,7 @@
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
+#include "net/base/test_root_certs.h"
 
 using base::mac::ScopedCFTypeRef;
 using base::Time;
@@ -24,62 +25,6 @@ using base::Time;
 namespace net {
 
 namespace {
-
-class MacTrustedCertificates {
- public:
-  // Sets the trusted root certificate used by tests. Call with |cert| set
-  // to NULL to clear the test certificate.
-  void SetTestCertificate(X509Certificate* cert) {
-    AutoLock lock(lock_);
-    test_certificate_ = cert;
-  }
-
-  // Returns an array containing the trusted certificates for use with
-  // SecTrustSetAnchorCertificates(). Returns NULL if the system-supplied
-  // list of trust anchors is acceptable (that is, there is not test
-  // certificate available). Ownership follows the Create Rule (caller
-  // is responsible for calling CFRelease on the non-NULL result).
-  CFArrayRef CopyTrustedCertificateArray() {
-    AutoLock lock(lock_);
-
-    if (!test_certificate_)
-      return NULL;
-
-    // Failure to copy the anchor certificates or add the test certificate
-    // is non-fatal; SecTrustEvaluate() will use the system anchors instead.
-    CFArrayRef anchor_array;
-    OSStatus status = SecTrustCopyAnchorCertificates(&anchor_array);
-    if (status)
-      return NULL;
-    ScopedCFTypeRef<CFArrayRef> scoped_anchor_array(anchor_array);
-    CFMutableArrayRef merged_array = CFArrayCreateMutableCopy(
-        kCFAllocatorDefault, 0, anchor_array);
-    if (!merged_array)
-      return NULL;
-    CFArrayAppendValue(merged_array, test_certificate_->os_cert_handle());
-
-    return merged_array;
-  }
- private:
-  friend struct base::DefaultLazyInstanceTraits<MacTrustedCertificates>;
-
-  // Obtain an instance of MacTrustedCertificates via the singleton
-  // interface.
-  MacTrustedCertificates() : test_certificate_(NULL) { }
-
-  // An X509Certificate object that may be appended to the list of
-  // system trusted anchors.
-  scoped_refptr<X509Certificate> test_certificate_;
-
-  // The trusted cache may be accessed from multiple threads.
-  mutable Lock lock_;
-
-  DISALLOW_COPY_AND_ASSIGN(MacTrustedCertificates);
-};
-
-base::LazyInstance<MacTrustedCertificates,
-    base::LeakyLazyInstanceTraits<MacTrustedCertificates> >
-    g_mac_trusted_certificates(base::LINKER_INITIALIZED);
 
 typedef OSStatus (*SecTrustCopyExtendedResultFuncPtr)(SecTrustRef,
                                                       CFDictionaryRef*);
@@ -426,10 +371,6 @@ void AddCertificatesFromBytes(const char* data, size_t length,
 
 }  // namespace
 
-void SetMacTestCertificate(X509Certificate* cert) {
-  g_mac_trusted_certificates.Get().SetTestCertificate(cert);
-}
-
 void X509Certificate::Initialize() {
   const CSSM_X509_NAME* name;
   OSStatus status = SecCertificateGetSubject(cert_handle_, &name);
@@ -528,13 +469,8 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
     return NetErrorFromOSStatus(status);
   ScopedCFTypeRef<SecTrustRef> scoped_trust_ref(trust_ref);
 
-  // Set the trusted anchor certificates for the SecTrustRef by merging the
-  // system trust anchors and the test root certificate.
-  CFArrayRef anchor_array =
-      g_mac_trusted_certificates.Get().CopyTrustedCertificateArray();
-  ScopedCFTypeRef<CFArrayRef> scoped_anchor_array(anchor_array);
-  if (anchor_array) {
-    status = SecTrustSetAnchorCertificates(trust_ref, anchor_array);
+  if (TestRootCerts::HasInstance()) {
+    status = TestRootCerts::GetInstance()->FixupSecTrustRef(trust_ref);
     if (status)
       return NetErrorFromOSStatus(status);
   }
