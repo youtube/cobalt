@@ -59,6 +59,11 @@ SpdyProxyClientSocket::~SpdyProxyClientSocket() {
   Disconnect();
 }
 
+HttpStream* SpdyProxyClientSocket::CreateConnectResponseStream() {
+  DCHECK(response_stream_.get());
+  return response_stream_.release();
+}
+
 // Sends a SYN_STREAM frame to the proxy with a CONNECT request
 // for the specified endpoint.  Waits for the server to send back
 // a SYN_REPLY frame.  OK will be returned if the status is 200.
@@ -357,10 +362,22 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
         make_scoped_refptr(new NetLogHttpResponseParameter(response_.headers)));
   }
 
-  if (response_.headers->response_code() == 200)
+  if (response_.headers->response_code() == 200) {
     return OK;
-  else
+  } else if (response_.headers->response_code() == 407) {
     return ERR_TUNNEL_CONNECTION_FAILED;
+  } else {
+    // Immediately hand off our SpdyStream to a newly created SpdyHttpStream
+    // so that any subsequent SpdyFrames are processed in the context of
+    // the HttpStream, not the socket.
+    DCHECK(spdy_stream_);
+    SpdyStream* stream = spdy_stream_;
+    spdy_stream_ = NULL;
+    response_stream_.reset(new SpdyHttpStream(NULL, false));
+    response_stream_->InitializeWithExistingStream(stream);
+    next_state_ = STATE_DISCONNECTED;
+    return ERR_HTTPS_PROXY_TUNNEL_RESPONSE;
+  }
 }
 
 // SpdyStream::Delegate methods:

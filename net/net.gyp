@@ -527,6 +527,7 @@
         'http/md4.h',
         'http/partial_data.cc',
         'http/partial_data.h',
+        'http/proxy_client_socket.h',
         'http/stream_factory.h',
         'ocsp/nss_ocsp.cc',
         'ocsp/nss_ocsp.h',

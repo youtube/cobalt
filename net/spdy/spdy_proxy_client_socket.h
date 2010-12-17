@@ -18,7 +18,8 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
-#include "net/socket/client_socket.h"
+#include "net/http/proxy_client_socket.h"
+#include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_stream.h"
@@ -35,7 +36,8 @@ class IOBuffer;
 class SpdySession;
 class SpdyStream;
 
-class SpdyProxyClientSocket : public ClientSocket, public SpdyStream::Delegate {
+class SpdyProxyClientSocket : public ProxyClientSocket,
+                              public SpdyStream::Delegate {
  public:
   // Create a socket on top of the |spdy_stream| by sending a SYN_STREAM
   // CONNECT frame for |endpoint|.  After the SYN_REPLY is received,
@@ -57,9 +59,16 @@ class SpdyProxyClientSocket : public ClientSocket, public SpdyStream::Delegate {
     return auth_;
   }
 
-  const HttpResponseInfo* GetConnectResponseInfo() const {
+  // ProxyClientSocket methods:
+
+  virtual const HttpResponseInfo* GetConnectResponseInfo() const {
     return response_.headers ? &response_ : NULL;
   }
+
+  // In the event of a non-200 response to the CONNECT request, this
+  // method may be called to return an HttpStream in order to read
+  // the response body.
+  virtual HttpStream* CreateConnectResponseStream();
 
   // ClientSocket methods:
   virtual int Connect(CompletionCallback* callback);
@@ -151,6 +160,8 @@ class SpdyProxyClientSocket : public ClientSocket, public SpdyStream::Delegate {
   bool eof_has_been_read_;
   // True if the transport socket has ever sent data.
   bool was_ever_used_;
+
+  scoped_ptr<SpdyHttpStream> response_stream_;
 
   const BoundNetLog net_log_;
 

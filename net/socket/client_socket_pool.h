@@ -45,8 +45,8 @@ class ClientSocketPool {
   // The caller must recover from the error before using the connection, or
   // Disconnect the socket before releasing or resetting the |handle|.
   // The current recoverable errors are: the errors accepted by
-  // IsCertificateError(err) and PROXY_AUTH_REQUESTED when reported by
-  // HttpProxyClientSocketPool.
+  // IsCertificateError(err) and PROXY_AUTH_REQUESTED, or
+  // HTTPS_PROXY_TUNNEL_RESPONSE when reported by HttpProxyClientSocketPool.
   //
   // If this function returns OK, then |handle| is initialized upon return.
   // The |handle|'s is_initialized method will return true in this case.  If a

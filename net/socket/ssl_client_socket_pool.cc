@@ -258,11 +258,12 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
   // |GetAdditionalErrorState|, we can easily set the state.
   if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     error_response_info_ = transport_socket_handle_->ssl_error_response_info();
-  } else if (result == ERR_PROXY_AUTH_REQUESTED) {
+  } else if (result == ERR_PROXY_AUTH_REQUESTED ||
+             result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
     ClientSocket* socket = transport_socket_handle_->socket();
     HttpProxyClientSocket* tunnel_socket =
         static_cast<HttpProxyClientSocket*>(socket);
-    error_response_info_ = *tunnel_socket->GetResponseInfo();
+    error_response_info_ = *tunnel_socket->GetConnectResponseInfo();
   }
   if (result < 0)
     return result;

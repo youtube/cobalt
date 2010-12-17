@@ -65,6 +65,8 @@ class HttpNetworkTransaction : public HttpTransaction,
       const HttpResponseInfo& response_info,
       HttpAuthController* auth_controller);
   virtual void OnNeedsClientAuth(SSLCertRequestInfo* cert_info);
+  virtual void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
+                                          HttpStream* stream);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, ResetStateForRestart);

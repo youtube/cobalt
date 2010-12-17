@@ -215,6 +215,11 @@ NET_ERROR(NETWORK_ACCESS_DENIED, -138)
 // The request throttler module cancelled this request to avoid DDOS.
 NET_ERROR(TEMPORARILY_THROTTLED, -139)
 
+// A request to create an SSL tunnel connection through the HTTPS proxy
+// received a non-200 (OK) and non-407 (Proxy Auth) response.  The response
+// body might include a description of why the request failed.
+NET_ERROR(HTTPS_PROXY_TUNNEL_RESPONSE, -140)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

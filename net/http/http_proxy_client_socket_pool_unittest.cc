@@ -502,9 +502,18 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelSetupError) {
 
   data_->RunFor(2);
 
-  EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, callback_.WaitForResult());
-  EXPECT_FALSE(handle_.is_initialized());
-  EXPECT_FALSE(handle_.socket());
+  rv = callback_.WaitForResult();
+  if (GetParam() == HTTP) {
+    // HTTP Proxy CONNECT responses are not trustworthy
+    EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
+    EXPECT_FALSE(handle_.is_initialized());
+    EXPECT_FALSE(handle_.socket());
+  } else {
+    // HTTPS or SPDY Proxy CONNECT responses are trustworthy
+    EXPECT_EQ(ERR_HTTPS_PROXY_TUNNEL_RESPONSE, rv);
+    EXPECT_TRUE(handle_.is_initialized());
+    EXPECT_TRUE(handle_.socket());
+  }
 }
 
 // It would be nice to also test the timeouts in HttpProxyClientSocketPool.
