@@ -5,6 +5,8 @@
 #include "net/base/x509_certificate.h"
 
 #include <cert.h>
+#include <cryptohi.h>
+#include <keyhi.h>
 #include <nss.h>
 #include <pk11pub.h>
 #include <prerror.h>
@@ -14,6 +16,7 @@
 #include <sechash.h>
 #include <sslerr.h>
 
+#include "base/crypto/rsa_private_key.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/scoped_ptr.h"
@@ -602,6 +605,108 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
     return NULL;
 
   return CreateFromBytes(data, length);
+}
+
+// static
+X509Certificate* X509Certificate::CreateSelfSigned(
+    base::RSAPrivateKey* key,
+    const std::string& subject,
+    uint32 serial_number,
+    base::TimeDelta valid_duration) {
+  DCHECK(key);
+
+  // Create info about public key.
+  CERTSubjectPublicKeyInfo* spki =
+      SECKEY_CreateSubjectPublicKeyInfo(key->public_key());
+  if (!spki)
+    return NULL;
+
+  // Create the certificate request.
+  CERTName* subject_name =
+      CERT_AsciiToName(const_cast<char*>(subject.c_str()));
+  CERTCertificateRequest* cert_request =
+      CERT_CreateCertificateRequest(subject_name, spki, NULL);
+  SECKEY_DestroySubjectPublicKeyInfo(spki);
+
+  if (!cert_request) {
+    PRErrorCode prerr = PR_GetError();
+    LOG(ERROR) << "Failed to create certificate request: " << prerr;
+    CERT_DestroyName(subject_name);
+    return NULL;
+  }
+
+  PRTime now = PR_Now();
+  PRTime not_after = now + valid_duration.InMicroseconds();
+
+  // Note that the time is now in micro-second unit.
+  CERTValidity* validity = CERT_CreateValidity(now, not_after);
+  CERTCertificate* cert = CERT_CreateCertificate(serial_number, subject_name,
+                                                 validity, cert_request);
+  if (!cert) {
+    PRErrorCode prerr = PR_GetError();
+    LOG(ERROR) << "Failed to create certificate: " << prerr;
+  }
+
+  // Cleanup for resources used to generate the cert.
+  CERT_DestroyName(subject_name);
+  CERT_DestroyValidity(validity);
+  CERT_DestroyCertificateRequest(cert_request);
+
+  // Sign the cert here. The logic of this method references SignCert() in NSS
+  // utility certutil: http://mxr.mozilla.org/security/ident?i=SignCert.
+
+  // |arena| is used to encode the cert.
+  PRArenaPool* arena = cert->arena;
+  SECOidTag algo_id = SEC_GetSignatureAlgorithmOidTag(key->key()->keyType,
+                                                      SEC_OID_SHA1);
+  if (algo_id == SEC_OID_UNKNOWN) {
+    CERT_DestroyCertificate(cert);
+    return NULL;
+  }
+
+  SECStatus rv = SECOID_SetAlgorithmID(arena, &cert->signature, algo_id, 0);
+  if (rv != SECSuccess) {
+    CERT_DestroyCertificate(cert);
+    return NULL;
+  }
+
+  // Generate a cert of version 3.
+  *(cert->version.data) = 2;
+  cert->version.len = 1;
+
+  SECItem der;
+  der.len = 0;
+  der.data = NULL;
+
+  // Use ASN1 DER to encode the cert.
+  void* encode_result = SEC_ASN1EncodeItem(
+      arena, &der, cert, SEC_ASN1_GET(CERT_CertificateTemplate));
+  if (!encode_result) {
+    CERT_DestroyCertificate(cert);
+    return NULL;
+  }
+
+  // Allocate space to contain the signed cert.
+  SECItem* result = SECITEM_AllocItem(arena, NULL, 0);
+  if (!result) {
+    CERT_DestroyCertificate(cert);
+    return NULL;
+  }
+
+  // Sign the ASN1 encoded cert and save it to |result|.
+  rv = SEC_DerSignData(arena, result, der.data, der.len, key->key(), algo_id);
+  if (rv != SECSuccess) {
+    CERT_DestroyCertificate(cert);
+    return NULL;
+  }
+
+  // Save the signed result to the cert.
+  cert->derCert = *result;
+
+  X509Certificate* x509_cert =
+      CreateFromHandle(cert, SOURCE_LONE_CERT_IMPORT, OSCertHandles());
+  CERT_DestroyCertificate(cert);
+  return x509_cert;
 }
 
 void X509Certificate::Persist(Pickle* pickle) {
