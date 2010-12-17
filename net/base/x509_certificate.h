@@ -36,6 +36,10 @@ struct CERTCertificateStr;
 
 class Pickle;
 
+namespace base {
+class RSAPrivateKey;
+}  // namespace base
+
 namespace net {
 
 class CertVerifyResult;
@@ -147,6 +151,31 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   static CertificateList CreateCertificateListFromBytes(const char* data,
                                                         int length,
                                                         int format);
+
+#if defined(USE_NSS)
+  // Create a self-signed certificate containing the public key in |key|.
+  // Subject, serial number and validity period are given as parameters.
+  // The certificate is signed by the private key in |key|. The hashing
+  // algorithm for the signature is SHA-1.
+  //
+  // |subject| is a distinguished name defined in RFC4514.
+  //
+  // An example:
+  // CN=Michael Wong,O=FooBar Corporation,DC=foobar,DC=com
+  //
+  // SECURUITY WARNING
+  //
+  // Using self-signed certificates has the following security risks:
+  // 1. Encryption without authentication and thus vulnerable to
+  //    man-in-the-middle attacks.
+  // 2. Self-signed certificates cannot be revoked.
+  //
+  // Use this certificate only after the above risks are acknowledged.
+  static X509Certificate* CreateSelfSigned(base::RSAPrivateKey* key,
+                                           const std::string& subject,
+                                           uint32 serial_number,
+                                           base::TimeDelta valid_duration);
+#endif
 
   // Creates a X509Certificate from the ground up.  Used by tests that simulate
   // SSL connections.

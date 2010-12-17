@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/crypto/rsa_private_key.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
@@ -657,6 +658,21 @@ TEST(X509CertificateTest, IsIssuedBy) {
   EXPECT_FALSE(mit_davidben_cert->IsIssuedBy(foaf_issuers));
 }
 #endif  // defined(OS_MACOSX)
+
+#if defined(USE_NSS)
+// CreateSelfSigned() is only implemented using NSS.
+// This test creates a signed cert from a private key and then
+TEST(X509CertificateTest, CreateSelfSigned) {
+  scoped_ptr<base::RSAPrivateKey> private_key(
+      base::RSAPrivateKey::Create(1024));
+  scoped_refptr<net::X509Certificate> cert =
+      net::X509Certificate::CreateSelfSigned(
+          private_key.get(), "CN=subject", 1, base::TimeDelta::FromDays(1));
+
+  EXPECT_EQ("subject", cert->subject().GetDisplayName());
+  EXPECT_FALSE(cert->HasExpired());
+}
+#endif
 
 class X509CertificateParseTest
     : public testing::TestWithParam<CertificateFormatTestData> {
