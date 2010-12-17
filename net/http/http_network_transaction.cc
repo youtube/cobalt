@@ -285,11 +285,13 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
   scoped_refptr<HttpResponseHeaders> headers(GetResponseHeaders());
   if (headers_valid_ && headers.get() && stream_request_.get()) {
     // We're trying to read the body of the response but we're still trying
-    // to establish an SSL tunnel through the proxy.  We can't read these
+    // to establish an SSL tunnel through an HTTP proxy.  We can't read these
     // bytes when establishing a tunnel because they might be controlled by
     // an active network attacker.  We don't worry about this for HTTP
     // because an active network attacker can already control HTTP sessions.
-    // We reach this case when the user cancels a 407 proxy auth prompt.
+    // We reach this case when the user cancels a 407 proxy auth prompt.  We
+    // also don't worry about this for an HTTPS Proxy, because the
+    // communication with the proxy is secure.
     // See http://crbug.com/8473.
     DCHECK(proxy_info_.is_http() || proxy_info_.is_https());
     DCHECK_EQ(headers->response_code(), 407);
@@ -301,7 +303,6 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
 
   // Are we using SPDY or HTTP?
   next_state = STATE_READ_BODY;
-  DCHECK(stream_->GetResponseInfo()->headers);
 
   read_buf_ = buf;
   read_buf_len_ = buf_len;
@@ -408,6 +409,18 @@ void HttpNetworkTransaction::OnNeedsClientAuth(
 
   response_.cert_request_info = cert_info;
   OnIOComplete(ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
+}
+
+void HttpNetworkTransaction::OnHttpsProxyTunnelResponse(
+    const HttpResponseInfo& response_info,
+    HttpStream* stream) {
+  DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
+
+  headers_valid_ = true;
+  response_ = response_info;
+  stream_.reset(stream);
+  stream_request_.reset();  // we're done with the stream request
+  OnIOComplete(ERR_HTTPS_PROXY_TUNNEL_RESPONSE);
 }
 
 bool HttpNetworkTransaction::is_https_request() const {
@@ -535,6 +548,10 @@ int HttpNetworkTransaction::DoCreateStreamComplete(int result) {
     DCHECK(stream_.get());
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     result = HandleCertificateRequest(result);
+  } else if (result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
+    // Return OK and let the caller read the proxy's error page
+    next_state_ = STATE_NONE;
+    return OK;
   }
 
   // At this point we are done with the stream_request_.

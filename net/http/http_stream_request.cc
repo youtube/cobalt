@@ -206,6 +206,12 @@ void HttpStreamRequest::OnNeedsClientAuthCallback(
   delegate_->OnNeedsClientAuth(cert_info);
 }
 
+void HttpStreamRequest::OnHttpsProxyTunnelResponseCallback(
+    const HttpResponseInfo& response_info,
+    HttpStream* stream) {
+  delegate_->OnHttpsProxyTunnelResponse(response_info, stream);
+}
+
 void HttpStreamRequest::OnPreconnectsComplete(int result) {
   preconnect_delegate_->OnPreconnectsComplete(this, result);
 }
@@ -253,7 +259,7 @@ int HttpStreamRequest::RunLoop(int result) {
         HttpProxyClientSocket* http_proxy_socket =
             static_cast<HttpProxyClientSocket*>(connection_->socket());
         const HttpResponseInfo* tunnel_auth_response =
-            http_proxy_socket->GetResponseInfo();
+            http_proxy_socket->GetConnectResponseInfo();
 
         next_state_ = STATE_WAITING_USER_ACTION;
         MessageLoop::current()->PostTask(
@@ -272,6 +278,23 @@ int HttpStreamRequest::RunLoop(int result) {
               &HttpStreamRequest::OnNeedsClientAuthCallback,
               connection_->ssl_error_response_info().cert_request_info));
       return ERR_IO_PENDING;
+
+    case ERR_HTTPS_PROXY_TUNNEL_RESPONSE:
+      {
+        DCHECK(connection_.get());
+        DCHECK(connection_->socket());
+        DCHECK(establishing_tunnel_);
+
+        ProxyClientSocket* proxy_socket =
+            static_cast<ProxyClientSocket*>(connection_->socket());
+        MessageLoop::current()->PostTask(
+            FROM_HERE,
+            method_factory_.NewRunnableMethod(
+                &HttpStreamRequest::OnHttpsProxyTunnelResponseCallback,
+                *proxy_socket->GetConnectResponseInfo(),
+                proxy_socket->CreateConnectResponseStream()));
+        return ERR_IO_PENDING;
+      }
 
     case OK:
       next_state_ = STATE_DONE;
@@ -662,13 +685,15 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
   if (!force_spdy_over_ssl_ && force_spdy_always_)
     SwitchToSpdyMode();
 
-  if (result == ERR_PROXY_AUTH_REQUESTED) {
+  if (result == ERR_PROXY_AUTH_REQUESTED ||
+      result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
     DCHECK(!ssl_started);
     // Other state (i.e. |using_ssl_|) suggests that |connection_| will have an
     // SSL socket, but there was an error before that could happen.  This
     // puts the in progress HttpProxy socket into |connection_| in order to
-    // complete the auth.  The tunnel restart code is careful to remove it
-    // before returning control to the rest of this class.
+    // complete the auth (or read the response body).  The tunnel restart code
+    // is careful to remove it before returning control to the rest of this
+    // class.
     connection_.reset(connection_->release_pending_http_proxy_connection());
     return result;
   }
@@ -744,7 +769,8 @@ int HttpStreamRequest::DoCreateStream() {
   if (!using_spdy_) {
     bool using_proxy = (proxy_info()->is_http() || proxy_info()->is_https()) &&
         request_info().url.SchemeIs("http");
-    stream_.reset(new HttpBasicStream(connection_.release(), using_proxy));
+    stream_.reset(new HttpBasicStream(connection_.release(), NULL,
+                                      using_proxy));
     return OK;
   }
 
@@ -792,8 +818,8 @@ int HttpStreamRequest::DoCreateStream() {
   if (spdy_session->IsClosed())
     return ERR_CONNECTION_CLOSED;
 
-  bool useRelativeUrl = direct || request_info().url.SchemeIs("https");
-  stream_.reset(new SpdyHttpStream(spdy_session, useRelativeUrl));
+  bool use_relative_url = direct || request_info().url.SchemeIs("https");
+  stream_.reset(new SpdyHttpStream(spdy_session, use_relative_url));
   return OK;
 }
 

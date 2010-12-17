@@ -17,7 +17,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
-#include "net/socket/client_socket.h"
+#include "net/http/proxy_client_socket.h"
 
 class GURL;
 
@@ -32,7 +32,7 @@ class HttpStream;
 class HttpStreamParser;
 class IOBuffer;
 
-class HttpProxyClientSocket : public ClientSocket {
+class HttpProxyClientSocket : public ProxyClientSocket {
  public:
   // Takes ownership of |transport_socket|, which should already be connected
   // by the time Connect() is called.  If tunnel is true then on Connect()
@@ -45,7 +45,8 @@ class HttpProxyClientSocket : public ClientSocket {
                         HttpAuthCache* http_auth_cache,
                         HttpAuthHandlerFactory* http_auth_handler_factory,
                         bool tunnel,
-                        bool using_spdy);
+                        bool using_spdy,
+                        bool is_https_proxy);
 
   // On destruction Disconnect() is called.
   virtual ~HttpProxyClientSocket();
@@ -55,9 +56,11 @@ class HttpProxyClientSocket : public ClientSocket {
   // RestartWithAuth.
   int RestartWithAuth(CompletionCallback* callback);
 
-  const HttpResponseInfo* GetResponseInfo() const {
+  const HttpResponseInfo* GetConnectResponseInfo() const {
     return response_.headers ? &response_ : NULL;
   }
+
+  virtual HttpStream* CreateConnectResponseStream();
 
   const scoped_refptr<HttpAuthController>& auth_controller() {
     return auth_;
@@ -146,7 +149,7 @@ class HttpProxyClientSocket : public ClientSocket {
   scoped_refptr<IOBuffer> drain_buf_;
 
   // Stores the underlying socket.
-  const scoped_ptr<ClientSocketHandle> transport_;
+  scoped_ptr<ClientSocketHandle> transport_;
 
   // The hostname and port of the endpoint.  This is not necessarily the one
   // specified by the URL, due to Alternate-Protocol or fixed testing ports.
@@ -155,6 +158,8 @@ class HttpProxyClientSocket : public ClientSocket {
   const bool tunnel_;
   // If true, then the connection to the proxy is a SPDY connection.
   const bool using_spdy_;
+  // If true, then SSL is used to communicate with this proxy
+  const bool is_https_proxy_;
 
   std::string request_line_;
   HttpRequestHeaders request_headers_;
