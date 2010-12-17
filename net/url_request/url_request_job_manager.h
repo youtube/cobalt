@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H__
-#define NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H__
+#ifndef NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H_
+#define NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H_
 #pragma once
 
 #include <map>
@@ -15,6 +15,8 @@
 #include "net/url_request/url_request.h"
 
 template <typename T> struct DefaultSingletonTraits;
+
+namespace net {
 
 // This class is responsible for managing the set of protocol factories and
 // request interceptors that determine how an net::URLRequestJob gets created to
@@ -113,4 +115,6 @@ class URLRequestJobManager {
   DISALLOW_COPY_AND_ASSIGN(URLRequestJobManager);
 };
 
-#endif  // NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H__
+}  // namespace net
+
+#endif  // NET_URL_REQUEST_URL_REQUEST_JOB_MANAGER_H_
