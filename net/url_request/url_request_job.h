@@ -17,20 +17,18 @@
 #include "net/base/filter.h"
 #include "net/base/load_states.h"
 
+class URLRequestStatus;
+
 namespace net {
+
 class AuthChallengeInfo;
 class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
-class UploadData;
 class URLRequest;
-class X509Certificate;
-}  // namespace net
-
-class URLRequestStatus;
 class URLRequestJobMetrics;
-
-namespace net {
+class UploadData;
+class X509Certificate;
 
 class URLRequestJob : public base::RefCounted<URLRequestJob>,
                       public FilterContext {
