@@ -30,7 +30,13 @@ class UploadDataStream;
 
 class HttpBasicStream : public HttpStream {
  public:
-  HttpBasicStream(ClientSocketHandle* connection, bool using_proxy);
+  // Constructs a new HttpBasicStream.  If |parser| is NULL, then
+  // InitializeStream should be called to initialize it correctly.  If
+  // |parser| is non-null, then InitializeStream should not be called,
+  // as the stream is already initialized.
+  HttpBasicStream(ClientSocketHandle* connection,
+                  HttpStreamParser* parser,
+                  bool using_proxy);
   virtual ~HttpBasicStream();
 
   // HttpStream methods:

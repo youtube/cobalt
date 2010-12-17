@@ -318,13 +318,16 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
                                 params_->http_auth_cache(),
                                 params_->http_auth_handler_factory(),
                                 params_->tunnel(),
-                                using_spdy_));
+                                using_spdy_,
+                                params_->ssl_params() != NULL));
   return transport_socket_->Connect(&callback_);
 }
 
 int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
-  if (result == OK || result == ERR_PROXY_AUTH_REQUESTED)
+  if (result == OK || result == ERR_PROXY_AUTH_REQUESTED ||
+      result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
       set_socket(transport_socket_.release());
+  }
 
   return result;
 }
