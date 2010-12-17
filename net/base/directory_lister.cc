@@ -151,6 +151,9 @@ void DirectoryLister::Cancel() {
   canceled_.Set();
 
   if (thread_) {
+    // This is a bug and we should stop joining this thread.
+    // http://crbug.com/65331
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
     PlatformThread::Join(thread_);
     thread_ = kNullThreadHandle;
   }
