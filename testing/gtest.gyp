@@ -102,7 +102,21 @@
           'gtest/include',  # So that gtest headers can find themselves.
         ],
         'target_conditions': [
-          ['_type=="executable"', {'test': 1}],
+          ['_type=="executable"', {
+            'test': 1,
+            'conditions': [
+              ['OS=="mac"', {
+                'run_as': {
+                  'action????': ['${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}'],
+                },
+              }],
+              ['OS=="win"', {
+                'run_as': {
+                  'action????': ['$(TargetPath)', '--gtest_print_time'],
+                },
+              }],
+            ],
+          }],
         ],
         'msvs_disabled_warnings': [4800],
       },
