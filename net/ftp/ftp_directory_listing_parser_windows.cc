@@ -15,7 +15,7 @@ namespace {
 
 bool WindowsDateListingToTime(const std::vector<string16>& columns,
                               base::Time* time) {
-  DCHECK_LE(4U, columns.size());
+  DCHECK_LE(3U, columns.size());
 
   base::Time::Exploded time_exploded = { 0 };
 
@@ -84,15 +84,18 @@ bool FtpDirectoryListingParserWindows::ConsumeLine(const string16& line) {
   std::vector<string16> columns;
   base::SplitString(CollapseWhitespace(line, false), ' ', &columns);
 
-  // We may receive file names containing spaces, which can make the number of
-  // columns arbitrarily large. We will handle that later. For now just make
-  // sure we have all the columns that should normally be there.
-  if (columns.size() < 4)
+  // Every line of the listing consists of the following:
+  //
+  //   1. date
+  //   2. time
+  //   3. size in bytes (or "<DIR>" for directories)
+  //   4. filename (may be empty or contain spaces)
+  //
+  // For now, make sure we have 1-3, and handle 4 later.
+  if (columns.size() < 3)
     return false;
 
   FtpDirectoryListingEntry entry;
-  entry.name = FtpUtil::GetStringPartAfterColumns(line, 3);
-
   if (EqualsASCII(columns[2], "<DIR>")) {
     entry.type = FtpDirectoryListingEntry::DIRECTORY;
     entry.size = -1;
@@ -106,6 +109,14 @@ bool FtpDirectoryListingParserWindows::ConsumeLine(const string16& line) {
 
   if (!WindowsDateListingToTime(columns, &entry.last_modified))
     return false;
+
+  entry.name = FtpUtil::GetStringPartAfterColumns(line, 3);
+  if (entry.name.empty()) {
+    // Some FTP servers send listing entries with empty names. It's not obvious
+    // how to display such an entry, so we ignore them. We don't want to make
+    // the parsing fail at this point though. Other entries can still be useful.
+    return true;
+  }
 
   entries_.push(entry);
   return true;
