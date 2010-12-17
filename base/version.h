@@ -12,14 +12,12 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 
-// Version represents a dotted version number, like "1.2.3.4", supporting
-// parsing and comparison.
-// Each component is limited to a uint16.
 class Version {
  public:
   // The version string must be made up of 1 or more uint16's separated
   // by '.'. Returns NULL if string is not in this format.
   // Caller is responsible for freeing the Version object once done.
+  static Version* GetVersionFromString(const std::wstring& version_str);
   static Version* GetVersionFromString(const std::string& version_str);
 
   // Exposed only so that a Version can be stored in STL containers;
