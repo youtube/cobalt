@@ -64,15 +64,42 @@ TEST_F(FtpDirectoryListingParserWindowsTest, Good) {
   }
 }
 
+TEST_F(FtpDirectoryListingParserWindowsTest, Ignored) {
+  const char* ignored_cases[] = {
+    "12-07-10  12:05AM       <DIR>    ",  // http://crbug.com/66097
+    "12-07-10  12:05AM       1234    ",
+  };
+  for (size_t i = 0; i < arraysize(ignored_cases); i++) {
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
+                                    ignored_cases[i]));
+
+    net::FtpDirectoryListingParserWindows parser;
+    EXPECT_TRUE(parser.ConsumeLine(UTF8ToUTF16(ignored_cases[i])));
+    EXPECT_FALSE(parser.EntryAvailable());
+    EXPECT_TRUE(parser.OnEndOfInput());
+    EXPECT_FALSE(parser.EntryAvailable());
+  }
+}
+
 TEST_F(FtpDirectoryListingParserWindowsTest, Bad) {
   const char* bad_cases[] = {
     "",
     "garbage",
+    "11-02-09  05:32PM       <GARBAGE>",
     "11-02-09  05:32PM       <GARBAGE>      NT",
+    "11-02-09  05:32         <DIR>",
+    "11-FEB-09 05:32PM       <DIR>",
+    "11-02     05:32PM       <DIR>",
+    "11-02-09  05:32PM                 -1",
     "11-02-09  05:32         <DIR>          NT",
     "11-FEB-09 05:32PM       <DIR>          NT",
     "11-02     05:32PM       <DIR>          NT",
     "11-02-09  05:32PM                 -1   NT",
+    "99-25-10  12:00AM                  0",
+    "12-99-10  12:00AM                  0",
+    "12-25-10  99:00AM                  0",
+    "12-25-10  12:99AM                  0",
+    "12-25-10  12:00ZM                  0",
     "99-25-10  12:00AM                  0   months out of range",
     "12-99-10  12:00AM                  0   days out of range",
     "12-25-10  99:00AM                  0   hours out of range",
