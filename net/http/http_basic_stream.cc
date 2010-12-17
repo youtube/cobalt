@@ -16,8 +16,10 @@
 namespace net {
 
 HttpBasicStream::HttpBasicStream(ClientSocketHandle* connection,
+                                 HttpStreamParser* parser,
                                  bool using_proxy)
     : read_buf_(new GrowableIOBuffer()),
+      parser_(parser),
       connection_(connection),
       using_proxy_(using_proxy),
       request_info_(NULL) {
@@ -26,6 +28,7 @@ HttpBasicStream::HttpBasicStream(ClientSocketHandle* connection,
 int HttpBasicStream::InitializeStream(const HttpRequestInfo* request_info,
                                       const BoundNetLog& net_log,
                                       CompletionCallback* callback) {
+  DCHECK(!parser_.get());
   request_info_ = request_info;
   parser_.reset(new HttpStreamParser(connection_.get(), request_info,
                                      read_buf_, net_log));
@@ -38,6 +41,7 @@ int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
                                  HttpResponseInfo* response,
                                  CompletionCallback* callback) {
   DCHECK(parser_.get());
+  DCHECK(request_info_);
   const std::string path = using_proxy_ ?
                            HttpUtil::SpecForRequest(request_info_->url) :
                            HttpUtil::PathForRequest(request_info_->url);
@@ -75,7 +79,7 @@ HttpStream* HttpBasicStream::RenewStreamForAuth() {
   DCHECK(IsResponseBodyComplete());
   DCHECK(!IsMoreDataBuffered());
   parser_.reset();
-  return new HttpBasicStream(connection_.release(), using_proxy_);
+  return new HttpBasicStream(connection_.release(), NULL, using_proxy_);
 }
 
 bool HttpBasicStream::IsResponseBodyComplete() const {
