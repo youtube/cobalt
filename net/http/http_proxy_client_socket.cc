@@ -12,6 +12,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/http/http_basic_stream.h"
 #include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_utils.h"
@@ -31,7 +32,8 @@ HttpProxyClientSocket::HttpProxyClientSocket(
     HttpAuthCache* http_auth_cache,
     HttpAuthHandlerFactory* http_auth_handler_factory,
     bool tunnel,
-    bool using_spdy)
+    bool using_spdy,
+    bool is_https_proxy)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
       next_state_(STATE_NONE),
@@ -46,6 +48,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
           : NULL),
       tunnel_(tunnel),
       using_spdy_(using_spdy),
+      is_https_proxy_(is_https_proxy),
       net_log_(transport_socket->socket()->NetLog()) {
   // Synthesize the bits of a request that we actually use.
   request_.url = request_url;
@@ -58,6 +61,12 @@ HttpProxyClientSocket::HttpProxyClientSocket(
 HttpProxyClientSocket::~HttpProxyClientSocket() {
   Disconnect();
 }
+
+HttpStream* HttpProxyClientSocket::CreateConnectResponseStream() {
+  return new HttpBasicStream(transport_.release(),
+                             http_stream_parser_.release(), false);
+}
+
 
 int HttpProxyClientSocket::Connect(CompletionCallback* callback) {
   DCHECK(transport_.get());
@@ -145,7 +154,8 @@ void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
 }
 
 void HttpProxyClientSocket::Disconnect() {
-  transport_->socket()->Disconnect();
+  if (transport_.get())
+    transport_->socket()->Disconnect();
 
   // Reset other states to make sure they aren't mistakenly used later.
   // These are the states initialized by Connect().
@@ -409,6 +419,8 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
       return HandleAuthChallenge();
 
     default:
+      if (is_https_proxy_)
+        return ERR_HTTPS_PROXY_TUNNEL_RESPONSE;
       // For all other status codes, we conservatively fail the CONNECT
       // request.
       // We lose something by doing this.  We have seen proxy 403, 404, and

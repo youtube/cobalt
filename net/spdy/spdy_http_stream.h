@@ -31,9 +31,11 @@ class UploadDataStream;
 // The SpdyHttpStream is a HTTP-specific type of stream known to a SpdySession.
 class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
  public:
-  // SpdyHttpStream constructor
   SpdyHttpStream(SpdySession* spdy_session, bool direct);
   virtual ~SpdyHttpStream();
+
+  // Initializes this SpdyHttpStream by wraping an existing SpdyStream.
+  void InitializeWithExistingStream(SpdyStream* spdy_stream);
 
   SpdyStream* stream() { return stream_.get(); }
 

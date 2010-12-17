@@ -15,6 +15,7 @@
 #include "net/base/host_port_pair.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_response_info.h"
+#include "net/http/proxy_client_socket.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
@@ -157,7 +158,7 @@ class HttpProxyConnectJob : public ConnectJob {
   State next_state_;
   CompletionCallbackImpl<HttpProxyConnectJob> callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
-  scoped_ptr<ClientSocket> transport_socket_;
+  scoped_ptr<ProxyClientSocket> transport_socket_;
   bool using_spdy_;
 
   HttpResponseInfo error_response_info_;

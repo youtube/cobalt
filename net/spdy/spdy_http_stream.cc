@@ -21,7 +21,8 @@
 
 namespace net {
 
-SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session, bool direct)
+SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session,
+                               bool direct)
     : ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_factory_(this)),
       stream_(NULL),
       spdy_session_(spdy_session),
@@ -34,6 +35,12 @@ SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session, bool direct)
       more_read_data_pending_(false),
       direct_(direct) { }
 
+void SpdyHttpStream::InitializeWithExistingStream(SpdyStream* spdy_stream) {
+  stream_ = spdy_stream;
+  stream_->SetDelegate(this);
+  response_headers_received_ = true;
+}
+
 SpdyHttpStream::~SpdyHttpStream() {
   if (stream_)
     stream_->DetachDelegate();
@@ -42,6 +49,7 @@ SpdyHttpStream::~SpdyHttpStream() {
 int SpdyHttpStream::InitializeStream(const HttpRequestInfo* request_info,
                                      const BoundNetLog& stream_net_log,
                                      CompletionCallback* callback) {
+  DCHECK(!stream_.get());
   if (spdy_session_->IsClosed())
    return ERR_CONNECTION_CLOSED;
 
