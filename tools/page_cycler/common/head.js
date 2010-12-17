@@ -26,10 +26,20 @@ function __pages() {  // fetch lazily
   return this.data;
 }
 function __get_timings() {
-  return __get_cookie("__pc_timings");
+  if (sessionStorage == null)
+    return __get_cookie("__pc_timings");
+  else {
+    if (sessionStorage.getItem("__pc_timings") == null)
+      return "";
+    else
+      return sessionStorage["__pc_timings"];
+  }
 }
 function __set_timings(timings) {
-  document.cookie = "__pc_timings=" + timings + "; path=/";
+  if (sessionStorage == null)
+    document.cookie = "__pc_timings=" + timings + "; path=/";
+  else
+    sessionStorage["__pc_timings"]=timings;
 }
 function __ontimeout() {
   var doc;
