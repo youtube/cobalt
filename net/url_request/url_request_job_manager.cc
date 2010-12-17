@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,13 +28,15 @@ struct SchemeToFactory {
 
 }  // namespace
 
+namespace net {
+
 static const SchemeToFactory kBuiltinFactories[] = {
-  { "http", net::URLRequestHttpJob::Factory },
-  { "https", net::URLRequestHttpJob::Factory },
-  { "file", net::URLRequestFileJob::Factory },
-  { "ftp", net::URLRequestFtpJob::Factory },
-  { "about", net::URLRequestAboutJob::Factory },
-  { "data", net::URLRequestDataJob::Factory },
+  { "http", URLRequestHttpJob::Factory },
+  { "https", URLRequestHttpJob::Factory },
+  { "file", URLRequestFileJob::Factory },
+  { "ftp", URLRequestFtpJob::Factory },
+  { "about", URLRequestAboutJob::Factory },
+  { "data", URLRequestDataJob::Factory },
 };
 
 URLRequestJobManager::URLRequestJobManager() : enable_file_access_(false) {
@@ -212,3 +214,5 @@ void URLRequestJobManager::UnregisterRequestInterceptor(
   DCHECK(i != interceptors_.end());
   interceptors_.erase(i);
 }
+
+}  // namespace net
