@@ -6,11 +6,13 @@
 
 #include "base/values.h"
 
+namespace net {
+
 URLRequestStartEventParameters::URLRequestStartEventParameters(
     const GURL& url,
     const std::string& method,
     int load_flags,
-    net::RequestPriority priority)
+    RequestPriority priority)
     : url_(url),
       method_(method),
       load_flags_(load_flags),
@@ -25,3 +27,5 @@ Value* URLRequestStartEventParameters::ToValue() const {
   dict->SetInteger("priority", static_cast<int>(priority_));
   return dict;
 }
+
+}  // namespace net
