@@ -13,13 +13,15 @@
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 
-// Holds the parameters to emit to the NetLog when starting a net::URLRequest.
-class URLRequestStartEventParameters : public net::NetLog::EventParameters {
+namespace net {
+
+// Holds the parameters to emit to the NetLog when starting a URLRequest.
+class URLRequestStartEventParameters : public NetLog::EventParameters {
  public:
   URLRequestStartEventParameters(const GURL& url,
                                  const std::string& method,
                                  int load_flags,
-                                 net::RequestPriority priority);
+                                 RequestPriority priority);
 
   const GURL& url() const {
     return url_;
@@ -35,9 +37,11 @@ class URLRequestStartEventParameters : public net::NetLog::EventParameters {
   const GURL url_;
   const std::string method_;
   const int load_flags_;
-  const net::RequestPriority priority_;
+  const RequestPriority priority_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestStartEventParameters);
 };
+
+}  // namespace net
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_NETLOG_PARAMS_H_
