@@ -172,6 +172,7 @@
         'win/scoped_bstr_unittest.cc',
         'win/scoped_comptr_unittest.cc',
         'win/scoped_variant_unittest.cc',
+        'worker_pool_posix_unittest.cc',
         'worker_pool_unittest.cc',
       ],
       'dependencies': [
@@ -185,7 +186,6 @@
         ['OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
           'sources!': [
             'file_version_info_unittest.cc',
-            'worker_pool_linux_unittest.cc',
           ],
           'sources': [
             'nix/xdg_util_unittest.cc',
@@ -218,6 +218,7 @@
           'sources!': [
             'dir_reader_posix_unittest.cc',
             'file_descriptor_shuffle_unittest.cc',
+            'worker_pool_posix_unittest.cc',
           ],
         }, {  # OS != "win"
           'sources/': [
