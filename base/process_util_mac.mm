@@ -596,7 +596,7 @@ void EnableTerminationOnOutOfMemory() {
         !g_old_valloc_purgeable && !g_old_realloc_purgeable &&
         !g_old_memalign_purgeable) << "Old allocators unexpectedly non-null";
 
-  // See http://trac.webkit.org/changeset/53362/trunk/WebKitTools/DumpRenderTree/mac
+  // See http://trac.webkit.org/changeset/53362/trunk/Tools/DumpRenderTree/mac
   bool zone_allocators_protected = darwin_version > 10;
 
   ChromeMallocZone* default_zone =
