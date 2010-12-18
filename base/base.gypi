@@ -41,8 +41,6 @@
           'callback.h',
           'cancellation_flag.cc',
           'cancellation_flag.h',
-          'chrome_application_mac.h',
-          'chrome_application_mac.mm',
           'cocoa_protocols_mac.h',
           'command_line.cc',
           'command_line.h',
