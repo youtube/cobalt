@@ -8,8 +8,9 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/file_version_info.h"
-#include "base/scoped_nsobject.h"
+#include "base/scoped_ptr.h"
 
 #ifdef __OBJC__
 @class NSBundle;
@@ -24,6 +25,7 @@ class NSBundle;
 class FileVersionInfoMac : public FileVersionInfo {
  public:
   explicit FileVersionInfoMac(NSBundle *bundle);
+  ~FileVersionInfoMac();
 
   // Accessors to the different version properties.
   // Returns an empty string if the property is not found.
@@ -45,13 +47,14 @@ class FileVersionInfoMac : public FileVersionInfo {
   virtual bool is_official_build();
 
  private:
+  // Lets you access other properties not covered above.
+  bool GetValue(const wchar_t* name, std::wstring* value);
 
+  // Similar to GetValue but returns a wstring (empty string if the property
+  // does not exist).
+  std::wstring GetStringValue(const wchar_t* name);
 
-  // Returns a wstring value for a property name.
-  // Returns the empty string if the property does not exist.
-  std::wstring GetWStringValue(CFStringRef name);
-
-  scoped_nsobject<NSBundle> bundle_;
+  NSBundle *bundle_;
 
   DISALLOW_COPY_AND_ASSIGN(FileVersionInfoMac);
 };
