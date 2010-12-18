@@ -36,11 +36,20 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
 
-#if defined(__OBJC__)
-@class NSAutoreleasePool;
-#else  // defined(__OBJC__)
+#if !defined(__OBJC__)
 class NSAutoreleasePool;
-#endif  // defined(__OBJC__)
+#else  // !defined(__OBJC__)
+#import <AppKit/AppKit.h>
+
+// Clients must subclass NSApplication and implement this protocol if they use
+// MessagePumpMac.
+@protocol CrAppProtocol
+// Must return true if -[NSApplication sendEvent:] is currently on the stack.
+// See the comment for |CreateAutoreleasePool()| in the cc file for why this is
+// necessary.
+- (BOOL)isHandlingSendEvent;
+@end
+#endif  // !defined(__OBJC__)
 
 namespace base {
 
