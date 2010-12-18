@@ -24,10 +24,13 @@ class FileVersionInfo {
   // goes wrong (typically the file does not exit or cannot be opened). The
   // returned object should be deleted when you are done with it.
   static FileVersionInfo* CreateFileVersionInfo(const FilePath& file_path);
+#endif  // OS_WIN || OS_MACOSX
+
+#if defined(OS_WIN)
   // This version, taking a wstring, is deprecated and only kept around
   // until we can fix all callers.
   static FileVersionInfo* CreateFileVersionInfo(const std::wstring& file_path);
-#endif
+#endif  // OS_WIN
 
   // Creates a FileVersionInfo for the current module. Returns NULL in case
   // of error. The returned object should be deleted when you are done with it.
