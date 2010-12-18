@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // This file input format is based loosely on
-// WebKitTools/DumpRenderTree/ImageDiff.m
+// Tools/DumpRenderTree/ImageDiff.m
 
 // The exact format of this tool's output to stdout is important, to match
 // what the run-webkit-tests script expects.
