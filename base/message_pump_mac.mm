@@ -11,7 +11,6 @@
 
 #include <limits>
 
-#import "base/chrome_application_mac.h"
 #include "base/logging.h"
 #include "base/time.h"
 
@@ -673,10 +672,6 @@ MessagePumpNSApplication::MessagePumpNSApplication()
 void MessagePumpNSApplication::DoRun(Delegate* delegate) {
   bool last_running_own_loop_ = running_own_loop_;
 
-  // TODO(dmaclach): Get rid of this gratuitous sharedApplication.
-  // Tests should be setting up their applications on their own.
-  [CrApplication sharedApplication];
-
   if (![NSApp isRunning]) {
     running_own_loop_ = false;
     // NSApplication manages autorelease pools itself when run this way.
@@ -749,12 +744,12 @@ void MessagePumpNSApplication::Quit() {
 // autorelease pool stack.
 //
 // CrApplication is responsible for setting handlingSendEvent to true just
-// before it sends the event throught the event handling mechanism, and
+// before it sends the event through the event handling mechanism, and
 // returning it to its previous value once the event has been sent.
 NSAutoreleasePool* MessagePumpNSApplication::CreateAutoreleasePool() {
   NSAutoreleasePool* pool = nil;
-  DCHECK([NSApp isKindOfClass:[CrApplication class]]);
-  if (![static_cast<CrApplication*>(NSApp) isHandlingSendEvent]) {
+  DCHECK([NSApp conformsToProtocol:@protocol(CrAppProtocol)]);
+  if (![NSApp isHandlingSendEvent]) {
     pool = MessagePumpCFRunLoopBase::CreateAutoreleasePool();
   }
   return pool;
