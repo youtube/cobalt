@@ -4,33 +4,43 @@
 
 #include "base/file_version_info_mac.h"
 
-#import <Foundation/Foundation.h>
+#import <Cocoa/Cocoa.h>
 
+#include "base/basictypes.h"
 #include "base/file_path.h"
-#include "base/logging.h"
-#include "base/sys_string_conversions.h"
-#include "base/mac_util.h"
+#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 
 FileVersionInfoMac::FileVersionInfoMac(NSBundle *bundle) : bundle_(bundle) {
+  [bundle_ retain];
+}
+
+FileVersionInfoMac::~FileVersionInfoMac() {
+  [bundle_ release];
 }
 
 // static
 FileVersionInfo* FileVersionInfo::CreateFileVersionInfoForCurrentModule() {
-  return CreateFileVersionInfo(mac_util::MainAppBundlePath());
+  // TODO(erikkay): this should really use bundleForClass, but we don't have
+  // a class to hang onto yet.
+  NSBundle* bundle = [NSBundle mainBundle];
+  return new FileVersionInfoMac(bundle);
+}
+
+// static
+FileVersionInfo* FileVersionInfo::CreateFileVersionInfo(
+    const std::wstring& file_path) {
+  NSString* path = [NSString stringWithCString:
+      reinterpret_cast<const char*>(file_path.c_str())
+        encoding:NSUTF32StringEncoding];
+  return new FileVersionInfoMac([NSBundle bundleWithPath:path]);
 }
 
 // static
 FileVersionInfo* FileVersionInfo::CreateFileVersionInfo(
     const FilePath& file_path) {
-  NSString* path = base::SysUTF8ToNSString(file_path.value());
-  NSBundle *bundle = [NSBundle bundleWithPath:path];
-  NSString *identifier = [bundle bundleIdentifier];
-  if (!identifier) {
-    NOTREACHED() << "Unable to create file version for " << file_path.value();
-    return NULL;
-  } else {
-    return new FileVersionInfoMac(bundle);
-  }
+  NSString* path = [NSString stringWithUTF8String:file_path.value().c_str()];
+  return new FileVersionInfoMac([NSBundle bundleWithPath:path]);
 }
 
 std::wstring FileVersionInfoMac::company_name() {
@@ -46,11 +56,11 @@ std::wstring FileVersionInfoMac::internal_name() {
 }
 
 std::wstring FileVersionInfoMac::product_name() {
-  return GetWStringValue(kCFBundleNameKey);
+  return GetStringValue(L"CFBundleName");
 }
 
 std::wstring FileVersionInfoMac::product_short_name() {
-  return GetWStringValue(kCFBundleNameKey);
+  return GetStringValue(L"CFBundleName");
 }
 
 std::wstring FileVersionInfoMac::comments() {
@@ -58,11 +68,11 @@ std::wstring FileVersionInfoMac::comments() {
 }
 
 std::wstring FileVersionInfoMac::legal_copyright() {
-  return GetWStringValue(CFSTR("CFBundleGetInfoString"));
+  return GetStringValue(L"CFBundleGetInfoString");
 }
 
 std::wstring FileVersionInfoMac::product_version() {
-  return GetWStringValue(CFSTR("CFBundleShortVersionString"));
+  return GetStringValue(L"CFBundleShortVersionString");
 }
 
 std::wstring FileVersionInfoMac::file_description() {
@@ -82,7 +92,7 @@ std::wstring FileVersionInfoMac::file_version() {
 }
 
 std::wstring FileVersionInfoMac::original_filename() {
-  return GetWStringValue(kCFBundleNameKey);
+  return GetStringValue(L"CFBundleName");
 }
 
 std::wstring FileVersionInfoMac::special_build() {
@@ -90,7 +100,7 @@ std::wstring FileVersionInfoMac::special_build() {
 }
 
 std::wstring FileVersionInfoMac::last_change() {
-  return GetWStringValue(CFSTR("SVNRevision"));
+  return GetStringValue(L"SVNRevision");
 }
 
 bool FileVersionInfoMac::is_official_build() {
@@ -101,13 +111,23 @@ bool FileVersionInfoMac::is_official_build() {
 #endif
 }
 
-std::wstring FileVersionInfoMac::GetWStringValue(CFStringRef name) {
+bool FileVersionInfoMac::GetValue(const wchar_t* name,
+                                  std::wstring* value_str) {
   if (bundle_) {
-    NSString *ns_name = mac_util::CFToNSCast(name);
-    NSString* value = [bundle_ objectForInfoDictionaryKey:ns_name];
+    NSString* value = [bundle_ objectForInfoDictionaryKey:
+        [NSString stringWithUTF8String:WideToUTF8(name).c_str()]];
     if (value) {
-      return base::SysNSStringToWide(value);
+      *value_str = reinterpret_cast<const wchar_t*>(
+          [value cStringUsingEncoding:NSUTF32StringEncoding]);
+      return true;
     }
   }
+  return false;
+}
+
+std::wstring FileVersionInfoMac::GetStringValue(const wchar_t* name) {
+  std::wstring str;
+  if (GetValue(name, &str))
+    return str;
   return std::wstring();
 }
