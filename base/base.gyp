@@ -257,6 +257,8 @@
       ],
       'sources': [
         'perftimer.cc',
+        'test/mock_chrome_application_mac.h',
+        'test/mock_chrome_application_mac.mm',
         'test/multiprocess_test.cc',
         'test/multiprocess_test.h',
         'test/perf_test_suite.cc',
