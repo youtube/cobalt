@@ -320,10 +320,8 @@
           'win_util.cc',
           'win_util.h',
           'worker_pool.h',
-          'worker_pool_linux.cc',
-          'worker_pool_linux.h',
-          'worker_pool_mac.h',
-          'worker_pool_mac.mm',
+          'worker_pool_posix.cc',
+          'worker_pool_posix.h',
           'worker_pool_win.cc',
           'nix/xdg_util.h',
           'nix/xdg_util.cc',
@@ -358,13 +356,6 @@
                 'setproctitle_linux.c',
                 'setproctitle_linux.h',
               ],
-            },
-          ],
-          # Temporarily include linux implementation while debugging a
-          # workerpool issue.  See http://crbug.com/20471 and
-          # http://crbug.com/60426
-          [ 'OS == "mac"', {
-              'sources/': [ ['include', '(^|/)worker_pool_linux\.cc$'] ],
             },
           ],
           [ 'OS != "mac"', {
