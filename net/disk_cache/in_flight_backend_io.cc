@@ -287,6 +287,7 @@ InFlightBackendIO::InFlightBackendIO(BackendImpl* backend,
                     base::MessageLoopProxy* background_thread)
     : backend_(backend),
       background_thread_(background_thread),
+      max_queue_len_(0),
       queue_entry_ops_(false) {
 }
 
@@ -445,10 +446,16 @@ void InFlightBackendIO::WaitForPendingIO() {
 
 void InFlightBackendIO::StartQueingOperations() {
   queue_entry_ops_ = true;
+  CACHE_UMA(COUNTS_10000, "InitialQueuedOperations", 0, pending_ops_.size());
+  if (!pending_ops_.size()) {
+    queueing_start_ = base::TimeTicks::Now();
+    max_queue_len_ = 0;
+  }
 }
 
 void InFlightBackendIO::StopQueingOperations() {
   queue_entry_ops_ = false;
+  CACHE_UMA(COUNTS_10000, "FinalQueuedOperations", 0, pending_ops_.size());
 }
 
 void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
@@ -461,13 +468,10 @@ void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
       // Process the next request. Note that invoking the callback may result
       // in the backend destruction (and with it this object), so we should deal
       // with the next operation before invoking the callback.
-      if (queue_entry_ops_) {
-        PostQueuedOperation();
-      } else {
-        // If we are not throttling requests anymore, dispatch the whole queue.
-        CACHE_UMA(COUNTS_10000, "FinalQueuedOperations", 0,
-                  pending_ops_.size());
-        PostAllQueuedOperations();
+      PostQueuedOperation();
+      if (!pending_ops_.size() && !queue_entry_ops_) {
+        CACHE_UMA(AGE_MS, "ThrottleTime", 0, queueing_start_);
+        CACHE_UMA(COUNTS_10000, "MaxQueuedOperations", 0, max_queue_len_);
       }
     }
   }
@@ -498,6 +502,7 @@ void InFlightBackendIO::QueueOperation(BackendIO* operation) {
   // We keep the operation that we are executing in the list so that we know
   // when it completes.
   pending_ops_.push_back(operation);
+  max_queue_len_ = std::max(max_queue_len_, pending_ops_.size());
   if (empty_list)
     PostOperation(operation);
 }
@@ -515,14 +520,6 @@ void InFlightBackendIO::PostQueuedOperation() {
   // Keep it in the list until it's done.
   scoped_refptr<BackendIO> next_op = pending_ops_.front();
   PostOperation(next_op);
-}
-
-void InFlightBackendIO::PostAllQueuedOperations() {
-  for (OperationList::iterator it = pending_ops_.begin();
-       it != pending_ops_.end(); ++it) {
-    PostOperation(*it);
-  }
-  pending_ops_.clear();
 }
 
 bool InFlightBackendIO::RemoveFirstQueuedOperation(BackendIO* operation) {

@@ -200,12 +200,13 @@ class InFlightBackendIO : public InFlightIO {
   void QueueOperation(BackendIO* operation);
   void PostOperation(BackendIO* operation);
   void PostQueuedOperation();
-  void PostAllQueuedOperations();
   bool RemoveFirstQueuedOperation(BackendIO* operation);
 
   BackendImpl* backend_;
   scoped_refptr<base::MessageLoopProxy> background_thread_;
   OperationList pending_ops_;  // Entry (async) operations to be posted.
+  base::TimeTicks queueing_start_;
+  size_t max_queue_len_;
   bool queue_entry_ops_;  // True if we are queuing entry (async) operations.
 
   DISALLOW_COPY_AND_ASSIGN(InFlightBackendIO);
