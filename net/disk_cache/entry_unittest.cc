@@ -515,7 +515,7 @@ TEST_F(DiskCacheEntryTest, RequestThrottling) {
     int ret = entry->WriteData(0, 0, buffer, kSize, &cb, false);
     EXPECT_EQ(net::ERR_IO_PENDING, ret);
   }
-  // We have 9 queued requests, lets dispatch them all at once.
+  // We have 9 queued requests, let's dispatch them all.
   cache_impl_->ThrottleRequestsForTest(false);
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
 
@@ -858,7 +858,7 @@ void DiskCacheEntryTest::ZeroLengthIO() {
   EXPECT_EQ(0, ReadData(entry, 0, 50000, NULL, 0));
   EXPECT_EQ(100000, entry->GetDataSize(0));
 
-  // Lets verify the actual content.
+  // Let's verify the actual content.
   const int kSize = 20;
   const char zeros[kSize] = {};
   scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
