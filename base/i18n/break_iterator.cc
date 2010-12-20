@@ -23,7 +23,7 @@ BreakIterator::BreakIterator(const string16* str, BreakType break_type)
 
 BreakIterator::~BreakIterator() {
   if (iter_)
-    ubrk_close(iter_);
+    ubrk_close(static_cast<UBreakIterator*>(iter_));
 }
 
 bool BreakIterator::Init() {
@@ -47,13 +47,14 @@ bool BreakIterator::Init() {
     NOTREACHED() << "ubrk_open failed";
     return false;
   }
-  ubrk_first(iter_);  // Move the iterator to the beginning of the string.
+  // Move the iterator to the beginning of the string.
+  ubrk_first(static_cast<UBreakIterator*>(iter_));
   return true;
 }
 
 bool BreakIterator::Advance() {
   prev_ = pos_;
-  const int32_t pos = ubrk_next(iter_);
+  const int32_t pos = ubrk_next(static_cast<UBreakIterator*>(iter_));
   if (pos == UBRK_DONE) {
     pos_ = npos;
     return false;
@@ -65,7 +66,8 @@ bool BreakIterator::Advance() {
 
 bool BreakIterator::IsWord() const {
   return (break_type_ == BREAK_WORD &&
-          ubrk_getRuleStatus(iter_) != UBRK_WORD_NONE);
+          ubrk_getRuleStatus(static_cast<UBreakIterator*>(iter_)) !=
+          UBRK_WORD_NONE);
 }
 
 string16 BreakIterator::GetString() const {
