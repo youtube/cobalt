@@ -27,7 +27,6 @@
 #include "base/message_pump_glib_x.h"
 #endif
 
-using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
 
@@ -347,9 +346,9 @@ void MessageLoop::PostTask_Helper(
       // res timers for any timer which is within 2x of the granularity.
       // This is a tradeoff between accuracy and power management.
       bool needs_high_res_timers =
-          delay_ms < (2 * Time::kMinLowResolutionThresholdMs);
+          delay_ms < (2 * base::Time::kMinLowResolutionThresholdMs);
       if (needs_high_res_timers) {
-        Time::ActivateHighResolutionTimer(true);
+        base::Time::ActivateHighResolutionTimer(true);
         high_resolution_timer_expiration_ = TimeTicks::Now() +
             TimeDelta::FromMilliseconds(kHighResolutionTimerModeLeaseTimeMs);
       }
@@ -362,7 +361,7 @@ void MessageLoop::PostTask_Helper(
 #if defined(OS_WIN)
   if (!high_resolution_timer_expiration_.is_null()) {
     if (TimeTicks::Now() > high_resolution_timer_expiration_) {
-      Time::ActivateHighResolutionTimer(false);
+      base::Time::ActivateHighResolutionTimer(false);
       high_resolution_timer_expiration_ = TimeTicks();
     }
   }
