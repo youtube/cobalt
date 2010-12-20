@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,18 +6,16 @@
 
 #include "base/message_loop.h"
 
-URLRequestRedirectJob::URLRequestRedirectJob(net::URLRequest* request,
+namespace net {
+
+URLRequestRedirectJob::URLRequestRedirectJob(URLRequest* request,
                                              GURL redirect_destination)
-    : net::URLRequestJob(request), redirect_destination_(redirect_destination) {
+    : URLRequestJob(request), redirect_destination_(redirect_destination) {
 }
 
 void URLRequestRedirectJob::Start() {
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       this, &URLRequestRedirectJob::StartAsync));
-}
-
-void URLRequestRedirectJob::StartAsync() {
-  NotifyHeadersComplete();
 }
 
 bool URLRequestRedirectJob::IsRedirectResponse(GURL* location,
@@ -28,3 +26,9 @@ bool URLRequestRedirectJob::IsRedirectResponse(GURL* location,
 }
 
 URLRequestRedirectJob::~URLRequestRedirectJob() {}
+
+void URLRequestRedirectJob::StartAsync() {
+  NotifyHeadersComplete();
+}
+
+}  // namespace net
