@@ -430,6 +430,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {21, false, "\003www\013noisebridge\003net"},
     {10, false, "\004neg9\003org"},
     {12, true, "\006riseup\003net"},
+    {11, false, "\006factor\002cc"},
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
