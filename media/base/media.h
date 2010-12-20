@@ -25,18 +25,6 @@ bool InitializeMediaLibrary(const FilePath& module_dir);
 // Returns true if OpenMAX was successfully initialized and loaded.
 bool InitializeOpenMaxLibrary(const FilePath& module_dir);
 
-// This is temporary to get the address of vpx_codec_vp8_cx_algo in FFmpeg.
-// This method should only be called after media library is loaded.
-// TODO(hclam): Remove this after we have a getter function for the same
-// purpose in libvpx.
-void* GetVp8CxAlgoAddress();
-
-// This is temporary to get the address of vpx_codec_vp8_dx_algo in FFmpeg.
-// This method should only be called after media library is loaded.
-// TODO(hclam): Remove this after we have a getter function for the same
-// purpose in libvpx.
-void* GetVp8DxAlgoAddress();
-
 }  // namespace media
 
 #endif  // MEDIA_BASE_MEDIA_H_
