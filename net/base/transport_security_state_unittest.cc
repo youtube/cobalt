@@ -357,6 +357,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "riseup.net"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "foo.riseup.net"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "factor.cc"));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "www.factor.cc"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
