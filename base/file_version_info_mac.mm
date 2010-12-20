@@ -4,43 +4,27 @@
 
 #include "base/file_version_info_mac.h"
 
-#import <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
 
-#include "base/basictypes.h"
 #include "base/file_path.h"
-#include "base/string_util.h"
-#include "base/utf_string_conversions.h"
+#include "base/logging.h"
+#include "base/sys_string_conversions.h"
+#include "base/mac_util.h"
 
 FileVersionInfoMac::FileVersionInfoMac(NSBundle *bundle) : bundle_(bundle) {
-  [bundle_ retain];
-}
-
-FileVersionInfoMac::~FileVersionInfoMac() {
-  [bundle_ release];
 }
 
 // static
 FileVersionInfo* FileVersionInfo::CreateFileVersionInfoForCurrentModule() {
-  // TODO(erikkay): this should really use bundleForClass, but we don't have
-  // a class to hang onto yet.
-  NSBundle* bundle = [NSBundle mainBundle];
-  return new FileVersionInfoMac(bundle);
-}
-
-// static
-FileVersionInfo* FileVersionInfo::CreateFileVersionInfo(
-    const std::wstring& file_path) {
-  NSString* path = [NSString stringWithCString:
-      reinterpret_cast<const char*>(file_path.c_str())
-        encoding:NSUTF32StringEncoding];
-  return new FileVersionInfoMac([NSBundle bundleWithPath:path]);
+  return CreateFileVersionInfo(mac_util::MainAppBundlePath());
 }
 
 // static
 FileVersionInfo* FileVersionInfo::CreateFileVersionInfo(
     const FilePath& file_path) {
-  NSString* path = [NSString stringWithUTF8String:file_path.value().c_str()];
-  return new FileVersionInfoMac([NSBundle bundleWithPath:path]);
+  NSString* path = base::SysUTF8ToNSString(file_path.value());
+  NSBundle* bundle = [NSBundle bundleWithPath:path];
+  return new FileVersionInfoMac(bundle);
 }
 
 std::wstring FileVersionInfoMac::company_name() {
@@ -56,11 +40,11 @@ std::wstring FileVersionInfoMac::internal_name() {
 }
 
 std::wstring FileVersionInfoMac::product_name() {
-  return GetStringValue(L"CFBundleName");
+  return GetWStringValue(kCFBundleNameKey);
 }
 
 std::wstring FileVersionInfoMac::product_short_name() {
-  return GetStringValue(L"CFBundleName");
+  return GetWStringValue(kCFBundleNameKey);
 }
 
 std::wstring FileVersionInfoMac::comments() {
@@ -68,11 +52,11 @@ std::wstring FileVersionInfoMac::comments() {
 }
 
 std::wstring FileVersionInfoMac::legal_copyright() {
-  return GetStringValue(L"CFBundleGetInfoString");
+  return GetWStringValue(CFSTR("CFBundleGetInfoString"));
 }
 
 std::wstring FileVersionInfoMac::product_version() {
-  return GetStringValue(L"CFBundleShortVersionString");
+  return GetWStringValue(CFSTR("CFBundleShortVersionString"));
 }
 
 std::wstring FileVersionInfoMac::file_description() {
@@ -92,7 +76,7 @@ std::wstring FileVersionInfoMac::file_version() {
 }
 
 std::wstring FileVersionInfoMac::original_filename() {
-  return GetStringValue(L"CFBundleName");
+  return GetWStringValue(kCFBundleNameKey);
 }
 
 std::wstring FileVersionInfoMac::special_build() {
@@ -100,7 +84,7 @@ std::wstring FileVersionInfoMac::special_build() {
 }
 
 std::wstring FileVersionInfoMac::last_change() {
-  return GetStringValue(L"SVNRevision");
+  return GetWStringValue(CFSTR("SVNRevision"));
 }
 
 bool FileVersionInfoMac::is_official_build() {
@@ -111,23 +95,13 @@ bool FileVersionInfoMac::is_official_build() {
 #endif
 }
 
-bool FileVersionInfoMac::GetValue(const wchar_t* name,
-                                  std::wstring* value_str) {
+std::wstring FileVersionInfoMac::GetWStringValue(CFStringRef name) {
   if (bundle_) {
-    NSString* value = [bundle_ objectForInfoDictionaryKey:
-        [NSString stringWithUTF8String:WideToUTF8(name).c_str()]];
+    NSString *ns_name = mac_util::CFToNSCast(name);
+    NSString* value = [bundle_ objectForInfoDictionaryKey:ns_name];
     if (value) {
-      *value_str = reinterpret_cast<const wchar_t*>(
-          [value cStringUsingEncoding:NSUTF32StringEncoding]);
-      return true;
+      return base::SysNSStringToWide(value);
     }
   }
-  return false;
-}
-
-std::wstring FileVersionInfoMac::GetStringValue(const wchar_t* name) {
-  std::wstring str;
-  if (GetValue(name, &str))
-    return str;
   return std::wstring();
 }
