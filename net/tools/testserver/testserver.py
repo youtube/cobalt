@@ -151,17 +151,22 @@ class SyncHTTPServer(StoppableHTTPServer):
     """This is a merge of asyncore.loop() and SocketServer.serve_forever().
     """
 
-    def RunDispatcherHandler(dispatcher, handler):
-      """Handles a single event for an asyncore.dispatcher.
+    def HandleXmppSocket(fd, socket_map, handler):
+      """Runs the handler for the xmpp connection for fd.
 
       Adapted from asyncore.read() et al.
       """
+      xmpp_connection = socket_map.get(fd)
+      # This could happen if a previous handler call caused fd to get
+      # removed from socket_map.
+      if xmpp_connection is None:
+        return
       try:
-        handler(dispatcher)
+        handler(xmpp_connection)
       except (asyncore.ExitNow, KeyboardInterrupt, SystemExit):
         raise
       except:
-        dispatcher.handle_error()
+        xmpp_connection.handle_error()
 
     while True:
       read_fds = [ self.fileno() ]
@@ -191,19 +196,16 @@ class SyncHTTPServer(StoppableHTTPServer):
         if fd == self.fileno():
           self.HandleRequestNoBlock()
           continue
-        xmpp_connection = self._xmpp_socket_map.get(fd)
-        RunDispatcherHandler(xmpp_connection,
-                             asyncore.dispatcher.handle_read_event)
+        HandleXmppSocket(fd, self._xmpp_socket_map,
+                         asyncore.dispatcher.handle_read_event)
 
       for fd in write_fds:
-        xmpp_connection = self._xmpp_socket_map.get(fd)
-        RunDispatcherHandler(xmpp_connection,
-                             asyncore.dispatcher.handle_write_event)
+        HandleXmppSocket(fd, self._xmpp_socket_map,
+                         asyncore.dispatcher.handle_write_event)
 
       for fd in exceptional_fds:
-        xmpp_connection = self._xmpp_socket_map.get(fd)
-        RunDispatcherHandler(xmpp_connection,
-                             asyncore.dispatcher.handle_expt_event)
+        HandleXmppSocket(fd, self._xmpp_socket_map,
+                         asyncore.dispatcher.handle_expt_event)
 
 
 class BasePageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
