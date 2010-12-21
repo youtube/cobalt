@@ -9,21 +9,27 @@
 #include "base/basictypes.h"
 #include "base/string16.h"
 
-// The BreakIterator class iterates through the words and word breaks
-// in a UTF-16 string.
+// The BreakIterator class iterates through the words, word breaks, and
+// line breaks in a UTF-16 string.
 //
-// It provides two modes, BREAK_WORD and BREAK_SPACE, which modify how
-// trailing non-word characters are aggregated into the returned word.
+// It provides several modes, BREAK_WORD, BREAK_SPACE, and BREAK_NEWLINE,
+// which modify how characters are aggregated into the returned string.
 //
-// Under BREAK_WORD mode (more common), the non-word characters are
-// not included with a returned word (e.g. in the UTF-16 equivalent of
-// the string " foo bar! ", the word breaks are at the periods in
-// ". .foo. .bar.!. .").
+// Under BREAK_WORD mode, once a word is encountered any non-word
+// characters are not included in the returned string (e.g. in the
+// UTF-16 equivalent of the string " foo bar! ", the word breaks are at
+// the periods in ". .foo. .bar.!. .").
 //
-// Under BREAK_SPACE mode (less common), the non-word characters are
-// included in the word, breaking only when a space-equivalent character
-// is encountered (e.g. in the UTF16-equivalent of the string " foo bar! ",
-// the word breaks are at the periods in ". .foo .bar! .").
+// Under BREAK_SPACE mode, once a word is encountered, any non-word
+// characters are included in the returned string, breaking only when a
+// space-equivalent character is encountered (e.g. in the
+// UTF16-equivalent of the string " foo bar! ", the word breaks are at
+//   the periods in ". .foo .bar! .").
+//
+// Under BREAK_NEWLINE mode, all characters are included in the returned
+// string, breking only when a newline-equivalent character is encountered
+// (eg. in the UTF-16 equivalent of the string "foo\nbar!\n\n", the line
+// breaks are at the periods in ".foo\n.bar\n.\n.").
 //
 // To extract the words from a string, move a BREAK_WORD BreakIterator
 // through the string and test whether IsWord() is true.  E.g.,
@@ -42,7 +48,8 @@ class BreakIterator {
  public:
   enum BreakType {
     BREAK_WORD,
-    BREAK_SPACE
+    BREAK_SPACE,
+    BREAK_NEWLINE,
   };
 
   // Requires |str| to live as long as the BreakIterator does.
@@ -56,19 +63,20 @@ class BreakIterator {
   // Return the current break position within the string,
   // or BreakIterator::npos when done.
   size_t pos() const { return pos_; }
+
   // Return the value of pos() returned before Advance() was last called.
   size_t prev() const { return prev_; }
 
   // Advance to the next break.  Returns false if we've run past the end of
-  // the string.  (Note that the very last "word break" is after the final
+  // the string.  (Note that the very last "break" is after the final
   // character in the string, and when we advance to that position it's the
   // last time Advance() returns true.)
   bool Advance();
 
   // Under BREAK_WORD mode, returns true if the break we just hit is the
   // end of a word. (Otherwise, the break iterator just skipped over e.g.
-  // whitespace or punctuation.)  Under BREAK_SPACE mode, this distinction
-  // doesn't apply and it always retuns false.
+  // whitespace or punctuation.)  Under BREAK_SPACE and BREAK_NEWLINE modes,
+  // this distinction doesn't apply and it always retuns false.
   bool IsWord() const;
 
   // Return the string between prev() and pos().
@@ -86,7 +94,7 @@ class BreakIterator {
   // The string we're iterating over.
   const string16* string_;
 
-  // The breaking style (word/line).
+  // The breaking style (word/space/newline).
   BreakType break_type_;
 
   // Previous and current iterator positions.
