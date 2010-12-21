@@ -10,6 +10,8 @@
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_init.h>
+#include <mach/mach_vm.h>
+#include <mach/shared_region.h>
 #include <mach/task.h>
 #include <malloc/malloc.h>
 #import <objc/runtime.h>
@@ -25,6 +27,7 @@
 
 #include "base/debug/debugger.h"
 #include "base/eintr_wrapper.h"
+#include "base/hash_tables.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
@@ -235,13 +238,130 @@ size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   return 0;
 }
 
-// OSX appears to use a different system to get its memory.
+static bool GetCPUTypeForProcess(pid_t pid, cpu_type_t* cpu_type) {
+  size_t len = sizeof(*cpu_type);
+  int result = sysctlbyname("sysctl.proc_cputype",
+                            cpu_type,
+                            &len,
+                            NULL,
+                            0);
+  if (result != 0) {
+    PLOG(ERROR) << "sysctlbyname(""sysctl.proc_cputype"")";
+    return false;
+  }
+
+  return true;
+}
+
+static bool IsAddressInSharedRegion(mach_vm_address_t addr, cpu_type_t type) {
+  if (type == CPU_TYPE_I386)
+    return addr >= SHARED_REGION_BASE_I386 &&
+           addr < (SHARED_REGION_BASE_I386 + SHARED_REGION_SIZE_I386);
+  else if (type == CPU_TYPE_X86_64)
+    return addr >= SHARED_REGION_BASE_X86_64 &&
+           addr < (SHARED_REGION_BASE_X86_64 + SHARED_REGION_SIZE_X86_64);
+  else
+    return false;
+}
+
+// This is a rough approximation of the algorithm that libtop uses.
+// private_bytes is the size of private resident memory.
+// shared_bytes is the size of shared resident memory.
 bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
                                     size_t* shared_bytes) {
+  kern_return_t kr;
+  size_t private_pages_count = 0;
+  size_t shared_pages_count = 0;
+
+  if (!private_bytes && !shared_bytes)
+    return true;
+
+  mach_port_t task = TaskForPid(process_);
+  if (task == MACH_PORT_NULL) {
+    LOG(ERROR) << "Invalid process";
+    return false;
+  }
+
+  cpu_type_t cpu_type;
+  if (!GetCPUTypeForProcess(process_, &cpu_type))
+    return false;
+
+  // The same region can be referenced multiple times. To avoid double counting
+  // we need to keep track of which regions we've already counted.
+  base::hash_set<int> seen_objects;
+
+  // We iterate through each VM region in the task's address map. For shared
+  // memory we add up all the pages that are marked as shared. Like libtop we
+  // try to avoid counting pages that are also referenced by other tasks. Since
+  // we don't have access to the VM regions of other tasks the only hint we have
+  // is if the address is in the shared region area.
+  //
+  // Private memory is much simpler. We simply count the pages that are marked
+  // as private or copy on write (COW).
+  //
+  // See libtop_update_vm_regions in
+  // http://www.opensource.apple.com/source/top/top-67/libtop.c
+  mach_vm_size_t size = 0;
+  for (mach_vm_address_t address = MACH_VM_MIN_ADDRESS;; address += size) {
+    vm_region_top_info_data_t info;
+    mach_msg_type_number_t info_count = VM_REGION_TOP_INFO_COUNT;
+    mach_port_t object_name;
+    kr = mach_vm_region(task,
+                        &address,
+                        &size,
+                        VM_REGION_TOP_INFO,
+                        (vm_region_info_t)&info,
+                        &info_count,
+                        &object_name);
+    if (kr == KERN_INVALID_ADDRESS) {
+      // We're at the end of the address space.
+      break;
+    } else if (kr != KERN_SUCCESS) {
+      LOG(ERROR) << "Calling mach_vm_region failed with error: "
+                 << mach_error_string(kr);
+      return false;
+    }
+
+    if (IsAddressInSharedRegion(address, cpu_type) &&
+        info.share_mode != SM_PRIVATE)
+      continue;
+
+    if (info.share_mode == SM_COW && info.ref_count == 1)
+      info.share_mode = SM_PRIVATE;
+
+    switch (info.share_mode) {
+      case SM_PRIVATE:
+        private_pages_count += info.private_pages_resident;
+        private_pages_count += info.shared_pages_resident;
+        break;
+      case SM_COW:
+        private_pages_count += info.private_pages_resident;
+        // Fall through
+      case SM_SHARED:
+        if (seen_objects.count(info.obj_id) == 0) {
+          // Only count the first reference to this region.
+          seen_objects.insert(info.obj_id);
+          shared_pages_count += info.shared_pages_resident;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  vm_size_t page_size;
+  kr = host_page_size(task, &page_size);
+  if (kr != KERN_SUCCESS) {
+    LOG(ERROR) << "Failed to fetch host page size, error: "
+               << mach_error_string(kr);
+    return false;
+  }
+
   if (private_bytes)
-    *private_bytes = 0;
+    *private_bytes = private_pages_count * page_size;
   if (shared_bytes)
-    *shared_bytes = 0;
+    *shared_bytes = shared_pages_count * page_size;
+
   return true;
 }
 
