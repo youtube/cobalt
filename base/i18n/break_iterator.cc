@@ -34,11 +34,12 @@ bool BreakIterator::Init() {
       break_type = UBRK_WORD;
       break;
     case BREAK_SPACE:
+    case BREAK_NEWLINE:
       break_type = UBRK_LINE;
       break;
     default:
-      NOTREACHED();
-      break_type = UBRK_LINE;
+      NOTREACHED() << "invalid break_type_";
+      return false;
   }
   iter_ = ubrk_open(break_type, NULL,
                     string_->data(), static_cast<int32_t>(string_->size()),
@@ -53,14 +54,36 @@ bool BreakIterator::Init() {
 }
 
 bool BreakIterator::Advance() {
+  int32_t pos;
+  int32_t status;
   prev_ = pos_;
-  const int32_t pos = ubrk_next(static_cast<UBreakIterator*>(iter_));
-  if (pos == UBRK_DONE) {
-    pos_ = npos;
-    return false;
-  } else {
-    pos_ = static_cast<size_t>(pos);
-    return true;
+  switch (break_type_) {
+    case BREAK_WORD:
+    case BREAK_SPACE:
+      pos = ubrk_next(static_cast<UBreakIterator*>(iter_));
+      if (pos == UBRK_DONE) {
+        pos_ = npos;
+        return false;
+      }
+      pos_ = static_cast<size_t>(pos);
+      return true;
+    case BREAK_NEWLINE:
+      do {
+        pos = ubrk_next(static_cast<UBreakIterator*>(iter_));
+        if (pos == UBRK_DONE) {
+          break;
+        }
+        pos_ = static_cast<size_t>(pos);
+        status = ubrk_getRuleStatus(static_cast<UBreakIterator*>(iter_));
+      } while (status >= UBRK_LINE_SOFT && status < UBRK_LINE_SOFT_LIMIT);
+      if (pos == UBRK_DONE && prev_ == pos_) {
+        pos_ = npos;
+        return false;
+      }
+      return true;
+    default:
+      NOTREACHED() << "invalid break_type_";
+      return false;
   }
 }
 
