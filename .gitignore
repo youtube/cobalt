@@ -104,6 +104,7 @@ tags
 /third_party/valgrind
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
+/third_party/yasm/binaries
 /third_party/yasm/source/patched-yasm
 /tools/distcc
 /tools/grit/grit/test/data
