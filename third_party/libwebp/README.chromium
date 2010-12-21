@@ -1,7 +1,12 @@
 Name: libwebpdecode
 URL: http://code.google.com/speed/webp
 
-This contains a copy of libwebp-decode-0.1
+Here is a copy of libwebp-decode, from the repository:
+  git://review.webmproject.org/libwebp.git
+This code was pulled from MASTER on Dec 20th 2010, with the most recent
+Change-Id: I943a335b92b5ee6c2980c2ba9d4092f0b79f9a6b, "handle corner case of
+zero-dimensions".
+
 
 The project files do not include from the distribution:
   examples/
