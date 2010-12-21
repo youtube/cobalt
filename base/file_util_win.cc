@@ -163,6 +163,14 @@ bool Delete(const FilePath& path, bool recursive) {
   if (!recursive)
     file_operation.fFlags |= FOF_NORECURSION | FOF_FILESONLY;
   int err = SHFileOperation(&file_operation);
+
+  // Since we're passing flags to the operation telling it to be silent,
+  // it's possible for the operation to be aborted/cancelled without err
+  // being set (although MSDN doesn't give any scenarios for how this can
+  // happen).  See MSDN for SHFileOperation and SHFILEOPTSTRUCT.
+  if (file_operation.fAnyOperationsAborted)
+    return false;
+
   // Some versions of Windows return ERROR_FILE_NOT_FOUND (0x2) when deleting
   // an empty directory and some return 0x402 when they should be returning
   // ERROR_FILE_NOT_FOUND. MSDN says Vista and up won't return 0x402.
