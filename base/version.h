@@ -27,6 +27,9 @@ class Version {
 
   ~Version();
 
+  // Creates a copy of this version. Caller takes ownership.
+  Version* Clone() const;
+
   bool Equals(const Version& other) const;
 
   // Returns -1, 0, 1 for <, ==, >.

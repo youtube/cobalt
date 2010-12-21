@@ -4,6 +4,8 @@
 
 #include "base/version.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
@@ -31,6 +33,14 @@ Version* Version::GetVersionFromString(const std::string& version_str) {
 Version::Version() : is_valid_(false) {}
 
 Version::~Version() {}
+
+Version* Version::Clone() const {
+  DCHECK(is_valid_);
+  Version* copy = new Version();
+  copy->components_ = components_;
+  copy->is_valid_ = true;
+  return copy;
+}
 
 bool Version::Equals(const Version& that) const {
   DCHECK(is_valid_);
