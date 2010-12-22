@@ -152,7 +152,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
                                                         int length,
                                                         int format);
 
-#if defined(USE_NSS)
   // Create a self-signed certificate containing the public key in |key|.
   // Subject, serial number and validity period are given as parameters.
   // The certificate is signed by the private key in |key|. The hashing
@@ -175,7 +174,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
                                            const std::string& subject,
                                            uint32 serial_number,
                                            base::TimeDelta valid_duration);
-#endif
 
   // Creates a X509Certificate from the ground up.  Used by tests that simulate
   // SSL connections.
