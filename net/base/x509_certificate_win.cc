@@ -4,6 +4,7 @@
 
 #include "net/base/x509_certificate.h"
 
+#include "base/crypto/rsa_private_key.h"
 #include "base/crypto/scoped_capi_types.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -493,6 +494,70 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
       CERT_STORE_ADD_USE_EXISTING, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
       NULL, reinterpret_cast<const void **>(&cert_handle)))
     return NULL;
+
+  X509Certificate* cert = CreateFromHandle(cert_handle,
+                                           SOURCE_LONE_CERT_IMPORT,
+                                           OSCertHandles());
+  FreeOSCertHandle(cert_handle);
+  return cert;
+}
+
+// static
+X509Certificate* X509Certificate::CreateSelfSigned(
+    base::RSAPrivateKey* key,
+    const std::string& subject,
+    uint32 serial_number,
+    base::TimeDelta valid_duration) {
+  // Get the ASN.1 encoding of the certificate subject.
+  std::wstring w_subject = ASCIIToWide(subject);
+  DWORD encoded_subject_length = 0;
+  if (!CertStrToName(
+          X509_ASN_ENCODING,
+          const_cast<wchar_t*>(w_subject.c_str()),
+          CERT_X500_NAME_STR, NULL, NULL, &encoded_subject_length, NULL)) {
+    return NULL;
+  }
+
+  scoped_array<char> encoded_subject(new char[encoded_subject_length]);
+  if (!CertStrToName(
+          X509_ASN_ENCODING,
+          const_cast<wchar_t*>(w_subject.c_str()),
+          CERT_X500_NAME_STR, NULL,
+          reinterpret_cast<BYTE*>(encoded_subject.get()),
+          &encoded_subject_length, NULL)) {
+    return NULL;
+  }
+
+  CERT_NAME_BLOB subject_name;
+  memset(&subject_name, 0, sizeof(subject_name));
+  subject_name.cbData = encoded_subject_length;
+  subject_name.pbData = reinterpret_cast<BYTE*>(encoded_subject.get());
+
+  CRYPT_ALGORITHM_IDENTIFIER sign_algo;
+  memset(&sign_algo, 0, sizeof(sign_algo));
+  sign_algo.pszObjId = szOID_RSA_SHA1RSA;
+
+  base::Time not_valid = base::Time::Now() + valid_duration;
+  base::Time::Exploded exploded;
+  not_valid.UTCExplode(&exploded);
+
+  // Create the system time struct representing our exploded time.
+  SYSTEMTIME system_time;
+  system_time.wYear = exploded.year;
+  system_time.wMonth = exploded.month;
+  system_time.wDayOfWeek = exploded.day_of_week;
+  system_time.wDay = exploded.day_of_month;
+  system_time.wHour = exploded.hour;
+  system_time.wMinute = exploded.minute;
+  system_time.wSecond = exploded.second;
+  system_time.wMilliseconds = exploded.millisecond;
+
+  PCCERT_CONTEXT cert_handle =
+      CertCreateSelfSignCertificate(key->provider(), &subject_name,
+                                    CERT_CREATE_SELFSIGN_NO_KEY_INFO,
+                                    NULL, &sign_algo, 0, &system_time, 0);
+  DCHECK(cert_handle) << "Failed to create self-signed certificate: "
+                      << logging::GetLastSystemErrorCode();
 
   X509Certificate* cert = CreateFromHandle(cert_handle,
                                            SOURCE_LONE_CERT_IMPORT,
