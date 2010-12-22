@@ -1362,7 +1362,7 @@ std::string GetDirectoryListingEntry(const string16& name,
   string16 modified_str;
   // |modified| can be NULL in FTP listings.
   if (!modified.is_null()) {
-    modified_str = WideToUTF16Hack(base::TimeFormatShortDateAndTime(modified));
+    modified_str = base::TimeFormatShortDateAndTime(modified);
   }
   base::JsonDoubleQuote(modified_str, true, &result);
 
