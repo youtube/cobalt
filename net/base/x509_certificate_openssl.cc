@@ -382,6 +382,16 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
   return CreateFromBytes(data, length);
 }
 
+// static
+X509Certificate* X509Certificate::CreateSelfSigned(
+    base::RSAPrivateKey* key,
+    const std::string& subject,
+    uint32 serial_number,
+    base::TimeDelta valid_duration) {
+  // TODO(port): Implement.
+  return NULL;
+}
+
 void X509Certificate::Persist(Pickle* pickle) {
   DERCache der_cache;
   if (!GetDERAndCacheIfNeeded(cert_handle_, &der_cache))
