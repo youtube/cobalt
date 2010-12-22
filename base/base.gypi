@@ -269,7 +269,6 @@
           'tracked_objects.cc',
           'tracked_objects.h',
           'tuple.h',
-          'unix_domain_socket_posix.cc',
           'utf_offset_string_conversions.cc',
           'utf_offset_string_conversions.h',
           'utf_string_conversion_utils.cc',
