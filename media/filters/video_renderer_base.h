@@ -144,6 +144,7 @@ class VideoRendererBase : public VideoRenderer,
   VideoFrameQueue frames_queue_ready_;
   VideoFrameQueue frames_queue_done_;
   scoped_refptr<VideoFrame> current_frame_;
+  scoped_refptr<VideoFrame> last_available_frame_;
 
   // Used to signal |thread_| as frames are added to |frames_|.  Rule of thumb:
   // always check |state_| to see if it was set to STOPPED after waking up!
@@ -200,6 +201,7 @@ class VideoRendererBase : public VideoRenderer,
   // renderer provides buffer, |pending_reads_| is always non-negative.
   int pending_reads_;
   bool pending_paint_;
+  bool pending_paint_with_last_available_;
 
   float playback_rate_;
 

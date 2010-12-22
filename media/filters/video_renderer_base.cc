@@ -33,6 +33,7 @@ VideoRendererBase::VideoRendererBase()
       thread_(kNullThreadHandle),
       pending_reads_(0),
       pending_paint_(false),
+      pending_paint_with_last_available_(false),
       playback_rate_(0) {
 }
 
@@ -325,17 +326,28 @@ void VideoRendererBase::ThreadMain() {
 
 void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
   AutoLock auto_lock(lock_);
-  DCHECK(!pending_paint_);
+  DCHECK(!pending_paint_ && !pending_paint_with_last_available_);
 
   if (!current_frame_.get() || current_frame_->IsEndOfStream()) {
-    *frame_out = NULL;
-    return;
+    if (!last_available_frame_.get() ||
+        last_available_frame_->IsEndOfStream()) {
+      *frame_out = NULL;
+      return;
+    }
   }
 
   // We should have initialized and have the current frame.
   DCHECK(state_ != kUninitialized && state_ != kStopped && state_ != kError);
-  *frame_out = current_frame_;
-  pending_paint_ = true;
+
+  if (current_frame_) {
+    *frame_out = current_frame_;
+    last_available_frame_ = current_frame_;
+    pending_paint_ = true;
+  } else {
+    DCHECK(last_available_frame_.get() != NULL);
+    *frame_out = last_available_frame_;
+    pending_paint_with_last_available_ = true;
+  }
 }
 
 void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
@@ -343,10 +355,17 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
 
   // Note that we do not claim |pending_paint_| when we return NULL frame, in
   // that case, |current_frame_| could be changed before PutCurrentFrame.
-  DCHECK(pending_paint_ || frame.get() == NULL);
-  DCHECK(current_frame_.get() == frame.get() || frame.get() == NULL);
+  if (pending_paint_) {
+    DCHECK(current_frame_.get() == frame.get());
+    DCHECK(pending_paint_with_last_available_ == false);
+    pending_paint_ = false;
+  } else if (pending_paint_with_last_available_) {
+    DCHECK(last_available_frame_.get() == frame.get());
+    pending_paint_with_last_available_ = false;
+  } else {
+    DCHECK(frame.get() == NULL);
+  }
 
-  pending_paint_ = false;
   // We had cleared the |pending_paint_| flag, there are chances that current
   // frame is timed-out. We will wake up our main thread to advance the current
   // frame when this is true.
