@@ -364,6 +364,7 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "members.mayfirst.org"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "support.mayfirst.org"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "id.mayfirst.org"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "lists.mayfirst.org"));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "www.mayfirst.org"));
 }
 
