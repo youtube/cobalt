@@ -14,24 +14,21 @@ using base::Time;
 
 namespace {
 
-std::wstring TimeFormat(const icu::DateFormat* formatter,
-                        const Time& time) {
+string16 TimeFormat(const icu::DateFormat* formatter,
+                    const Time& time) {
   DCHECK(formatter);
   icu::UnicodeString date_string;
 
   formatter->format(static_cast<UDate>(time.ToDoubleT() * 1000), date_string);
-  std::wstring output;
-  bool success = UTF16ToWide(date_string.getBuffer(), date_string.length(),
-      &output);
-  DCHECK(success);
-  return output;
+  return string16(date_string.getBuffer(),
+                  static_cast<size_t>(date_string.length()));
 }
 
 }  // namespace
 
 namespace base {
 
-std::wstring TimeFormatTimeOfDay(const Time& time) {
+string16 TimeFormatTimeOfDay(const Time& time) {
   // We can omit the locale parameter because the default should match
   // Chrome's application locale.
   scoped_ptr<icu::DateFormat> formatter(
@@ -39,31 +36,31 @@ std::wstring TimeFormatTimeOfDay(const Time& time) {
   return TimeFormat(formatter.get(), time);
 }
 
-std::wstring TimeFormatShortDate(const Time& time) {
+string16 TimeFormatShortDate(const Time& time) {
   scoped_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateInstance(icu::DateFormat::kMedium));
   return TimeFormat(formatter.get(), time);
 }
 
-std::wstring TimeFormatShortDateNumeric(const Time& time) {
+string16 TimeFormatShortDateNumeric(const Time& time) {
   scoped_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateInstance(icu::DateFormat::kShort));
   return TimeFormat(formatter.get(), time);
 }
 
-std::wstring TimeFormatShortDateAndTime(const Time& time) {
+string16 TimeFormatShortDateAndTime(const Time& time) {
   scoped_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateTimeInstance(icu::DateFormat::kShort));
   return TimeFormat(formatter.get(), time);
 }
 
-std::wstring TimeFormatFriendlyDateAndTime(const Time& time) {
+string16 TimeFormatFriendlyDateAndTime(const Time& time) {
   scoped_ptr<icu::DateFormat> formatter(
       icu::DateFormat::createDateTimeInstance(icu::DateFormat::kFull));
   return TimeFormat(formatter.get(), time);
 }
 
-std::wstring TimeFormatFriendlyDate(const Time& time) {
+string16 TimeFormatFriendlyDate(const Time& time) {
   scoped_ptr<icu::DateFormat> formatter(icu::DateFormat::createDateInstance(
       icu::DateFormat::kFull));
   return TimeFormat(formatter.get(), time);
