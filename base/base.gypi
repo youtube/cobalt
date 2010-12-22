@@ -631,8 +631,6 @@
         'message_pump_mac.mm',
         'metrics/field_trial.cc',
         'metrics/field_trial.h',
-        'nsimage_cache_mac.h',
-        'nsimage_cache_mac.mm',
         'nss_util.cc',
         'nss_util.h',
         'openssl_util.cc',
