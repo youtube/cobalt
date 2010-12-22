@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "media/audio/audio_input_controller.h"
+
+#include "base/thread_restrictions.h"
 #include "media/base/limits.h"
 
 namespace {
@@ -68,6 +70,15 @@ void AudioInputController::Close() {
   thread_.message_loop()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &AudioInputController::DoClose));
+
+  // A ScopedAllowIO object is required to join the thread when calling Stop.
+  // This is because as joining threads may be a long operation it's now
+  // not allowed in threads without IO access, which is the case of the IO
+  // thread (it is missnamed) being used here. This object overrides
+  // temporarily this restriction and should be used only in specific
+  // infrequent cases where joining is guaranteed to be fast.
+  // Bug: http://code.google.com/p/chromium/issues/detail?id=67806
+  base::ThreadRestrictions::ScopedAllowIO allow_io_for_thread_join;
   thread_.Stop();
 }
 
