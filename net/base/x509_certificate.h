@@ -287,6 +287,11 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
              int flags,
              CertVerifyResult* verify_result) const;
 
+  // This method returns the DER encoded certificate.
+  // If the return value is true then the DER encoded certificate is available.
+  // The content of the DER encoded certificate is written to |encoded|.
+  bool GetDEREncoded(std::string* encoded);
+
   OSCertHandle os_cert_handle() const { return cert_handle_; }
 
   // Returns true if two OSCertHandles refer to identical certificates.

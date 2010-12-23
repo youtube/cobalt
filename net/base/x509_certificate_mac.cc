@@ -651,6 +651,17 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
   return OK;
 }
 
+bool X509Certificate::GetDEREncoded(std::string* encoded) {
+  encoded->clear();
+  CSSM_DATA der_data;
+  if(SecCertificateGetData(cert_handle_, &der_data) == noErr) {
+    encoded->append(reinterpret_cast<char*>(der_data.Data),
+                    der_data.Length);
+    return true;
+  }
+  return false;
+}
+
 bool X509Certificate::VerifyEV() const {
   // We don't call this private method, but we do need to implement it because
   // it's defined in x509_certificate.h. We perform EV checking in the
