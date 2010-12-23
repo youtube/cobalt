@@ -18,6 +18,7 @@ class AudioManagerBase : public AudioManager {
   AudioManagerBase();
 
   virtual void Init();
+  virtual void Cleanup();
 
   virtual MessageLoop* GetMessageLoop();
 

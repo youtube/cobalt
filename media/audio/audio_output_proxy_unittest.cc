@@ -38,6 +38,7 @@ class MockAudioManager : public AudioManager {
   MockAudioManager() { };
 
   MOCK_METHOD0(Init, void());
+  MOCK_METHOD0(Cleanup, void());
   MOCK_METHOD0(HasAudioOutputDevices, bool());
   MOCK_METHOD0(HasAudioInputDevices, bool());
   MOCK_METHOD0(GetAudioInputDeviceModel, string16());
