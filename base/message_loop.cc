@@ -639,7 +639,7 @@ void MessageLoop::EnableHistogrammer(bool enable) {
 
 void MessageLoop::StartHistogrammer() {
   if (enable_histogrammer_ && !message_histogram_.get()
-      && base::StatisticsRecorder::WasStarted()) {
+      && base::StatisticsRecorder::IsActive()) {
     DCHECK(!thread_name_.empty());
     message_histogram_ = base::LinearHistogram::FactoryGet(
         "MsgLoop:" + thread_name_,
