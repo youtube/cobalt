@@ -34,3 +34,8 @@ unit tests.
 
 - punycodetest.der : A test self-signed server certificate with punycode name.
      The common name is "xn--wgv71a119e.com" (日本語.com)
+
+- unittest.selfsigned.der : A self-signed certificate generated using private
+     key in unittest.key.bin. The common name is "unittest".
+
+- unittest.key.bin : private key stored unencrypted.
