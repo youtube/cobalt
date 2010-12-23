@@ -193,6 +193,8 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
   // Creates a proxy service that uses a DIRECT connection for all requests.
   static ProxyService* CreateDirect();
+  // |net_log|'s lifetime must exceed ProxyService.
+  static ProxyService* CreateDirectWithNetLog(NetLog* net_log);
 
   // This method is used by tests to create a ProxyService that returns a
   // hardcoded proxy fallback list (|pac_string|) for every URL.
