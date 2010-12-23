@@ -877,7 +877,7 @@ bool GetAppOutputRestricted(const CommandLine& cl,
   return GetAppOutputInternal(cl, &empty_environ, output, max_output, false);
 }
 
-bool WaitForProcessesToExit(const std::wstring& executable_name,
+bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
                             int64 wait_milliseconds,
                             const ProcessFilter* filter) {
   bool result = false;
@@ -899,7 +899,7 @@ bool WaitForProcessesToExit(const std::wstring& executable_name,
   return result;
 }
 
-bool CleanupProcesses(const std::wstring& executable_name,
+bool CleanupProcesses(const FilePath::StringType& executable_name,
                       int64 wait_milliseconds,
                       int exit_code,
                       const ProcessFilter* filter) {

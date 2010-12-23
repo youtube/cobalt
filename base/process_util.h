@@ -34,10 +34,10 @@ typedef struct _malloc_zone_t malloc_zone_t;
 #include <vector>
 
 #include "base/file_descriptor_shuffle.h"
+#include "base/file_path.h"
 #include "base/process.h"
 
 class CommandLine;
-class FilePath;
 
 namespace base {
 
@@ -322,7 +322,7 @@ class ProcessFilter {
 // Returns the number of processes on the machine that are running from the
 // given executable name.  If filter is non-null, then only processes selected
 // by the filter will be counted.
-int GetProcessCount(const std::wstring& executable_name,
+int GetProcessCount(const FilePath::StringType& executable_name,
                     const ProcessFilter* filter);
 
 // Attempts to kill all the processes on the current machine that were launched
@@ -330,7 +330,7 @@ int GetProcessCount(const std::wstring& executable_name,
 // filter is non-null, then only processes selected by the filter are killed.
 // Returns true if all processes were able to be killed off, false if at least
 // one couldn't be killed.
-bool KillProcesses(const std::wstring& executable_name, int exit_code,
+bool KillProcesses(const FilePath::StringType& executable_name, int exit_code,
                    const ProcessFilter* filter);
 
 // Attempts to kill the process identified by the given process
@@ -377,7 +377,7 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
 // is non-null, then only processes selected by the filter are waited on.
 // Returns after all processes have exited or wait_milliseconds have expired.
 // Returns true if all the processes exited, false otherwise.
-bool WaitForProcessesToExit(const std::wstring& executable_name,
+bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
                             int64 wait_milliseconds,
                             const ProcessFilter* filter);
 
@@ -396,7 +396,7 @@ bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds);
 // on.  Killed processes are ended with the given exit code.  Returns false if
 // any processes needed to be killed, true if they all exited cleanly within
 // the wait_milliseconds delay.
-bool CleanupProcesses(const std::wstring& executable_name,
+bool CleanupProcesses(const FilePath::StringType& executable_name,
                       int64 wait_milliseconds,
                       int exit_code,
                       const ProcessFilter* filter);
@@ -457,7 +457,7 @@ class ProcessIterator {
 // until it returns false.
 class NamedProcessIterator : public ProcessIterator {
  public:
-  NamedProcessIterator(const std::wstring& executable_name,
+  NamedProcessIterator(const FilePath::StringType& executable_name,
                        const ProcessFilter* filter);
   virtual ~NamedProcessIterator();
 
@@ -465,7 +465,7 @@ class NamedProcessIterator : public ProcessIterator {
   virtual bool IncludeEntry();
 
  private:
-  std::wstring executable_name_;
+  FilePath::StringType executable_name_;
 
   DISALLOW_COPY_AND_ASSIGN(NamedProcessIterator);
 };
