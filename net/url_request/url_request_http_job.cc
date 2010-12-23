@@ -696,7 +696,9 @@ void URLRequestHttpJob::StartTransaction() {
     rv = request_->context()->http_transaction_factory()->CreateTransaction(
         &transaction_);
     if (rv == OK) {
-      if (!throttling_entry_->IsDuringExponentialBackoff()) {
+      if (!throttling_entry_->IsDuringExponentialBackoff() ||
+          !net::URLRequestThrottlerManager::GetInstance()->
+              enforce_throttling()) {
         rv = transaction_->Start(
             &request_info_, &start_callback_, request_->net_log());
       } else {

@@ -49,6 +49,12 @@ class URLRequestThrottlerManager {
   // It is only used by unit tests.
   void EraseEntryForTests(const GURL& url);
 
+  void set_enforce_throttling(bool enforce_throttling) {
+    enforce_throttling_ = enforce_throttling;
+  }
+
+  bool enforce_throttling() const { return enforce_throttling_; }
+
  protected:
   URLRequestThrottlerManager();
   ~URLRequestThrottlerManager();
@@ -92,6 +98,10 @@ class URLRequestThrottlerManager {
   unsigned int requests_since_last_gc_;
 
   mutable scoped_ptr<GURL::Replacements> url_id_replacements_;
+
+  // Whether we would like to reject outgoing HTTP requests during the back-off
+  // period.
+  bool enforce_throttling_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };

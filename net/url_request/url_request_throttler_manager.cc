@@ -32,7 +32,8 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
 }
 
 URLRequestThrottlerManager::URLRequestThrottlerManager()
-    : requests_since_last_gc_(0) {
+    : requests_since_last_gc_(0),
+      enforce_throttling_(true) {
 }
 
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
