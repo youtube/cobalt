@@ -325,6 +325,9 @@ EVENT_TYPE(SOCKS_UNKNOWN_ADDRESS_TYPE)
 // The start/end of a SSL connect().
 EVENT_TYPE(SSL_CONNECT)
 
+// The start/end of a SSL accept().
+EVENT_TYPE(SSL_ACCEPT)
+
 // An SSL error occurred while trying to do the indicated activity.
 // The following parameters are attached to the event:
 //   {
