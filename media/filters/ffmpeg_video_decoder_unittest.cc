@@ -160,12 +160,15 @@ class FFmpegVideoDecoderTest : public testing::Test {
   }
 
   virtual ~FFmpegVideoDecoderTest() {
-    // We had to set this because not all tests had initialized the engine.
-    engine_->event_handler_ = decoder_.get();
     EXPECT_CALL(callback_, OnFilterCallback());
     EXPECT_CALL(callback_, OnCallbackDestroyed());
-    EXPECT_CALL(*engine_, Uninitialize())
-        .WillOnce(EngineUninitialize(engine_));
+
+    // The presence of an event handler means we need to uninitialize.
+    if (engine_->event_handler_) {
+      EXPECT_CALL(*engine_, Uninitialize())
+          .WillOnce(EngineUninitialize(engine_));
+    }
+
     decoder_->Stop(callback_.NewCallback());
 
     // Finish up any remaining tasks.
