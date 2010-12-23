@@ -751,6 +751,8 @@
               'ocsp/nss_ocsp.h',
               'socket/dns_cert_provenance_check.cc',
               'socket/dns_cert_provenance_check.h',
+              'socket/nss_ssl_util.cc',
+              'socket/nss_ssl_util.h',
               'socket/ssl_client_socket_nss.cc',
               'socket/ssl_client_socket_nss.h',
               'socket/ssl_client_socket_nss_factory.cc',
