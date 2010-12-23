@@ -605,7 +605,6 @@
         'auto_reset.h',
         'base64.cc',
         'base64.h',
-        'data_pack.cc',
         'event_recorder.cc',
         'event_recorder.h',
         'event_recorder_stubs.cc',
