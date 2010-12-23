@@ -904,12 +904,21 @@ double CustomHistogram::GetBucketSize(Count current, size_t i) const {
 // provide support for all future calls.
 StatisticsRecorder::StatisticsRecorder() {
   DCHECK(!histograms_);
-  lock_ = new Lock;
+  if (lock_ == NULL) {
+    // This will leak on purpose. It's the only way to make sure we won't race
+    // against the static uninitialization of the module while one of our
+    // static methods relying on the lock get called at an inappropriate time
+    // during the termination phase. Since it's a static data member, we will
+    // leak one per process, which would be similar to the instance allocated
+    // during static initialization and released only on  process termination.
+    lock_ = new Lock;
+  }
+  AutoLock auto_lock(*lock_);
   histograms_ = new HistogramMap;
 }
 
 StatisticsRecorder::~StatisticsRecorder() {
-  DCHECK(histograms_);
+  DCHECK(histograms_ && lock_);
 
   if (dump_on_exit_) {
     std::string output;
@@ -917,14 +926,22 @@ StatisticsRecorder::~StatisticsRecorder() {
     LOG(INFO) << output;
   }
   // Clean up.
-  delete histograms_;
-  histograms_ = NULL;
-  delete lock_;
-  lock_ = NULL;
+  HistogramMap* histograms = NULL;
+  {
+    AutoLock auto_lock(*lock_);
+    histograms = histograms_;
+    histograms_ = NULL;
+  }
+  delete histograms;
+  // We don't delete lock_ on purpose to avoid having to properly protect
+  // against it going away after we checked for NULL in the static methods.
 }
 
 // static
-bool StatisticsRecorder::WasStarted() {
+bool StatisticsRecorder::IsActive() {
+  if (lock_ == NULL)
+    return false;
+  AutoLock auto_lock(*lock_);
   return NULL != histograms_;
 }
 
@@ -935,10 +952,12 @@ bool StatisticsRecorder::WasStarted() {
 // destroyed before assignment (when value was returned by new).
 // static
 void StatisticsRecorder::Register(Histogram* histogram) {
+  if (lock_ == NULL)
+    return;
+  AutoLock auto_lock(*lock_);
   if (!histograms_)
     return;
   const std::string name = histogram->histogram_name();
-  AutoLock auto_lock(*lock_);
   // Avoid overwriting a previous registration.
   if (histograms_->end() == histograms_->find(name))
     (*histograms_)[name] = histogram;
@@ -947,7 +966,7 @@ void StatisticsRecorder::Register(Histogram* histogram) {
 // static
 void StatisticsRecorder::WriteHTMLGraph(const std::string& query,
                                         std::string* output) {
-  if (!histograms_)
+  if (!IsActive())
     return;
   output->append("<html><head><title>About Histograms");
   if (!query.empty())
@@ -971,7 +990,7 @@ void StatisticsRecorder::WriteHTMLGraph(const std::string& query,
 // static
 void StatisticsRecorder::WriteGraph(const std::string& query,
                                     std::string* output) {
-  if (!histograms_)
+  if (!IsActive())
     return;
   if (query.length())
     StringAppendF(output, "Collections of histograms for %s\n", query.c_str());
@@ -990,9 +1009,11 @@ void StatisticsRecorder::WriteGraph(const std::string& query,
 
 // static
 void StatisticsRecorder::GetHistograms(Histograms* output) {
-  if (!histograms_)
+  if (lock_ == NULL)
     return;
   AutoLock auto_lock(*lock_);
+  if (!histograms_)
+    return;
   for (HistogramMap::iterator it = histograms_->begin();
        histograms_->end() != it;
        ++it) {
@@ -1003,9 +1024,11 @@ void StatisticsRecorder::GetHistograms(Histograms* output) {
 
 bool StatisticsRecorder::FindHistogram(const std::string& name,
                                        scoped_refptr<Histogram>* histogram) {
-  if (!histograms_)
+  if (lock_ == NULL)
     return false;
   AutoLock auto_lock(*lock_);
+  if (!histograms_)
+    return false;
   HistogramMap::iterator it = histograms_->find(name);
   if (histograms_->end() == it)
     return false;
@@ -1016,7 +1039,11 @@ bool StatisticsRecorder::FindHistogram(const std::string& name,
 // private static
 void StatisticsRecorder::GetSnapshot(const std::string& query,
                                      Histograms* snapshot) {
+  if (lock_ == NULL)
+    return;
   AutoLock auto_lock(*lock_);
+  if (!histograms_)
+    return;
   for (HistogramMap::iterator it = histograms_->begin();
        histograms_->end() != it;
        ++it) {

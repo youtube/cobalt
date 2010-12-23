@@ -643,7 +643,7 @@ class StatisticsRecorder {
   ~StatisticsRecorder();
 
   // Find out if histograms can now be registered into our list.
-  static bool WasStarted();
+  static bool IsActive();
 
   // Register, or add a new histogram to the collection of statistics.
   static void Register(Histogram* histogram);
