@@ -11,7 +11,7 @@ ProcessEntry::ProcessEntry() {}
 ProcessEntry::~ProcessEntry() {}
 #endif
 
-int GetProcessCount(const std::wstring& executable_name,
+int GetProcessCount(const FilePath::StringType& executable_name,
                     const ProcessFilter* filter) {
   int count = 0;
   NamedProcessIterator iter(executable_name, filter);
@@ -20,7 +20,7 @@ int GetProcessCount(const std::wstring& executable_name,
   return count;
 }
 
-bool KillProcesses(const std::wstring& executable_name, int exit_code,
+bool KillProcesses(const FilePath::StringType& executable_name, int exit_code,
                    const ProcessFilter* filter) {
   bool result = true;
   NamedProcessIterator iter(executable_name, filter);
@@ -56,10 +56,10 @@ ProcessIterator::ProcessEntries ProcessIterator::Snapshot() {
   return found;
 }
 
-NamedProcessIterator::NamedProcessIterator(const std::wstring& executable_name,
-                                           const ProcessFilter* filter)
-    : ProcessIterator(filter),
-      executable_name_(executable_name) {
+NamedProcessIterator::NamedProcessIterator(
+    const FilePath::StringType& executable_name,
+    const ProcessFilter* filter) : ProcessIterator(filter),
+                                   executable_name_(executable_name) {
 }
 
 NamedProcessIterator::~NamedProcessIterator() {

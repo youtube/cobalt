@@ -77,70 +77,63 @@ FileVersionInfo* FileVersionInfo::CreateFileVersionInfo(
   }
 }
 
-// static
-FileVersionInfo* FileVersionInfo::CreateFileVersionInfo(
-    const std::wstring& file_path) {
-  FilePath file_path_fp = FilePath::FromWStringHack(file_path);
-  return CreateFileVersionInfo(file_path_fp);
-}
-
-std::wstring FileVersionInfoWin::company_name() {
+string16 FileVersionInfoWin::company_name() {
   return GetStringValue(L"CompanyName");
 }
 
-std::wstring FileVersionInfoWin::company_short_name() {
+string16 FileVersionInfoWin::company_short_name() {
   return GetStringValue(L"CompanyShortName");
 }
 
-std::wstring FileVersionInfoWin::internal_name() {
+string16 FileVersionInfoWin::internal_name() {
   return GetStringValue(L"InternalName");
 }
 
-std::wstring FileVersionInfoWin::product_name() {
+string16 FileVersionInfoWin::product_name() {
   return GetStringValue(L"ProductName");
 }
 
-std::wstring FileVersionInfoWin::product_short_name() {
+string16 FileVersionInfoWin::product_short_name() {
   return GetStringValue(L"ProductShortName");
 }
 
-std::wstring FileVersionInfoWin::comments() {
+string16 FileVersionInfoWin::comments() {
   return GetStringValue(L"Comments");
 }
 
-std::wstring FileVersionInfoWin::legal_copyright() {
+string16 FileVersionInfoWin::legal_copyright() {
   return GetStringValue(L"LegalCopyright");
 }
 
-std::wstring FileVersionInfoWin::product_version() {
+string16 FileVersionInfoWin::product_version() {
   return GetStringValue(L"ProductVersion");
 }
 
-std::wstring FileVersionInfoWin::file_description() {
+string16 FileVersionInfoWin::file_description() {
   return GetStringValue(L"FileDescription");
 }
 
-std::wstring FileVersionInfoWin::legal_trademarks() {
+string16 FileVersionInfoWin::legal_trademarks() {
   return GetStringValue(L"LegalTrademarks");
 }
 
-std::wstring FileVersionInfoWin::private_build() {
+string16 FileVersionInfoWin::private_build() {
   return GetStringValue(L"PrivateBuild");
 }
 
-std::wstring FileVersionInfoWin::file_version() {
+string16 FileVersionInfoWin::file_version() {
   return GetStringValue(L"FileVersion");
 }
 
-std::wstring FileVersionInfoWin::original_filename() {
+string16 FileVersionInfoWin::original_filename() {
   return GetStringValue(L"OriginalFilename");
 }
 
-std::wstring FileVersionInfoWin::special_build() {
+string16 FileVersionInfoWin::special_build() {
   return GetStringValue(L"SpecialBuild");
 }
 
-std::wstring FileVersionInfoWin::last_change() {
+string16 FileVersionInfoWin::last_change() {
   return GetStringValue(L"LastChange");
 }
 
