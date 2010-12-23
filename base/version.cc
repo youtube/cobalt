@@ -13,13 +13,6 @@
 #include "base/utf_string_conversions.h"
 
 // static
-Version* Version::GetVersionFromString(const std::wstring& version_str) {
-  if (!IsStringASCII(version_str))
-    return NULL;
-  return GetVersionFromString(WideToUTF8(version_str));
-}
-
-// static
 Version* Version::GetVersionFromString(const std::string& version_str) {
   Version* vers = new Version();
   if (vers->InitFromString(version_str)) {
