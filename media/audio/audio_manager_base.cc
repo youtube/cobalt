@@ -16,10 +16,18 @@ AudioManagerBase::AudioManagerBase()
 }
 
 AudioManagerBase::~AudioManagerBase() {
+  DCHECK(!audio_thread_.IsRunning());
 }
 
 void AudioManagerBase::Init() {
   initialized_ = audio_thread_.Start();
+}
+
+void AudioManagerBase::Cleanup() {
+  if (initialized_) {
+    initialized_ = false;
+    audio_thread_.Stop();
+  }
 }
 
 string16 AudioManagerBase::GetAudioInputDeviceModel() {

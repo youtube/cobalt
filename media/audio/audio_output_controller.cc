@@ -48,6 +48,9 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
   if (!CheckParameters(params))
     return NULL;
 
+  if (!AudioManager::GetAudioManager())
+    return NULL;
+
   // Starts the audio controller thread.
   scoped_refptr<AudioOutputController> controller(new AudioOutputController(
       event_handler, buffer_capacity, NULL));
@@ -70,6 +73,9 @@ scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
   DCHECK(sync_reader);
 
   if (!CheckParameters(params))
+    return NULL;
+
+  if (!AudioManager::GetAudioManager())
     return NULL;
 
   // Starts the audio controller thread.
@@ -141,6 +147,9 @@ void AudioOutputController::DoCreate(AudioParameters params) {
   if (state_ == kClosed)
     return;
   DCHECK(state_ == kEmpty);
+
+  if (!AudioManager::GetAudioManager())
+    return;
 
   stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStreamProxy(params);
   if (!stream_) {

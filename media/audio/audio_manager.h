@@ -93,6 +93,9 @@ class AudioManager {
   // Called from GetAudioManager() to initialiaze the instance.
   virtual void Init() = 0;
 
+  // Called by Destroy() to cleanup the instance before destruction.
+  virtual void Cleanup() = 0;
+
  private:
   static void Destroy(void*);
 

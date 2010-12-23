@@ -9,6 +9,7 @@
 
 namespace {
 
+bool g_destroy_called = false;
 AudioManager* g_audio_manager = NULL;
 
 // NullAudioManager is the audio manager used on the systems that have no
@@ -40,13 +41,18 @@ class NullAudioManager : public AudioManager {
 
 // static
 void AudioManager::Destroy(void* not_used) {
-  delete g_audio_manager;
+  g_destroy_called = true;
+
+  g_audio_manager->Cleanup();
+
+  AudioManager* audio_manager = g_audio_manager;
   g_audio_manager = NULL;
+  delete audio_manager;
 }
 
 // static
 AudioManager* AudioManager::GetAudioManager() {
-  if (!g_audio_manager) {
+  if (!g_audio_manager && !g_destroy_called) {
     g_audio_manager = CreateAudioManager();
     g_audio_manager->Init();
     base::AtExitManager::RegisterCallback(&AudioManager::Destroy, NULL);
