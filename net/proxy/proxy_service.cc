@@ -468,9 +468,13 @@ ProxyService* ProxyService::CreateFixed(const std::string& proxy) {
 
 // static
 ProxyService* ProxyService::CreateDirect() {
+  return CreateDirectWithNetLog(NULL);
+}
+
+ProxyService* ProxyService::CreateDirectWithNetLog(NetLog* net_log) {
   // Use direct connections.
   return new ProxyService(new ProxyConfigServiceDirect, new ProxyResolverNull,
-                          NULL);
+                          net_log);
 }
 
 // static
