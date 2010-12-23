@@ -169,7 +169,7 @@ bool ProcessIterator::CheckForNextProcess() {
 }
 
 bool NamedProcessIterator::IncludeEntry() {
-  return (SysWideToUTF8(executable_name_) == entry().exe_file() &&
+  return (executable_name_ == entry().exe_file() &&
           ProcessIterator::IncludeEntry());
 }
 
