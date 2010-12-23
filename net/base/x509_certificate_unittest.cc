@@ -672,6 +672,18 @@ TEST(X509CertificateTest, CreateSelfSigned) {
   EXPECT_EQ("subject", cert->subject().GetDisplayName());
   EXPECT_FALSE(cert->HasExpired());
 }
+
+TEST(X509CertificateTest, GetDEREncoded) {
+  scoped_ptr<base::RSAPrivateKey> private_key(
+      base::RSAPrivateKey::Create(1024));
+  scoped_refptr<net::X509Certificate> cert =
+      net::X509Certificate::CreateSelfSigned(
+          private_key.get(), "CN=subject", 0, base::TimeDelta::FromDays(1));
+
+  std::string der_cert;
+  EXPECT_TRUE(cert->GetDEREncoded(&der_cert));
+  EXPECT_FALSE(der_cert.empty());
+}
 #endif
 
 class X509CertificateParseTest

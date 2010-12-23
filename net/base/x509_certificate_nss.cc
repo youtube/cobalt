@@ -829,6 +829,15 @@ bool X509Certificate::VerifyEV() const {
   return true;
 }
 
+bool X509Certificate::GetDEREncoded(std::string* encoded) {
+  if (!cert_handle_->derCert.len)
+    return false;
+  encoded->clear();
+  encoded->append(reinterpret_cast<char*>(cert_handle_->derCert.data),
+                  cert_handle_->derCert.len);
+  return true;
+}
+
 // static
 bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
                                    X509Certificate::OSCertHandle b) {

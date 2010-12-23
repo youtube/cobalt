@@ -462,6 +462,11 @@ int X509Certificate::Verify(const std::string& hostname,
   return OK;
 }
 
+bool X509Certificate::GetDEREncoded(std::string* encoded) {
+  // TODO(port): Implement.
+  return false;
+}
+
 // static
 bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
                                    X509Certificate::OSCertHandle b) {

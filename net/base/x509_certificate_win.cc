@@ -843,6 +843,15 @@ int X509Certificate::Verify(const std::string& hostname,
   return OK;
 }
 
+bool X509Certificate::GetDEREncoded(std::string* encoded) {
+  if (!cert_handle_->pbCertEncoded || !cert_handle_->cbCertEncoded)
+    return false;
+  encoded->clear();
+  encoded->append(reinterpret_cast<char*>(cert_handle_->pbCertEncoded),
+                  cert_handle_->cbCertEncoded);
+  return true;
+}
+
 // Returns true if the certificate is an extended-validation certificate.
 //
 // This function checks the certificatePolicies extensions of the
