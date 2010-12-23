@@ -74,7 +74,6 @@
         'crypto/signature_creator_unittest.cc',
         'crypto/signature_verifier_unittest.cc',
         'crypto/symmetric_key_unittest.cc',
-        'data_pack_unittest.cc',
         'debug/leak_tracker_unittest.cc',
         'debug/stack_trace_unittest.cc',
         'debug/trace_event_win_unittest.cc',
