@@ -29,3 +29,7 @@ const std::string& URLRequestContext::GetUserAgent(const GURL& url) const {
 
 URLRequestContext::~URLRequestContext() {
 }
+
+void URLRequestContext::set_cookie_store(net::CookieStore* cookie_store) {
+  cookie_store_ = cookie_store;
+}
