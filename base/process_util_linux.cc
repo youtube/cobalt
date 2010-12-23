@@ -220,8 +220,7 @@ bool ProcessIterator::CheckForNextProcess() {
 }
 
 bool NamedProcessIterator::IncludeEntry() {
-  // TODO(port): make this also work for non-ASCII filenames
-  if (WideToASCII(executable_name_) != entry().exe_file())
+  if (executable_name_ != entry().exe_file())
     return false;
   return ProcessIterator::IncludeEntry();
 }

@@ -27,64 +27,64 @@ FileVersionInfo* FileVersionInfo::CreateFileVersionInfo(
   return new FileVersionInfoMac(bundle);
 }
 
-std::wstring FileVersionInfoMac::company_name() {
-  return std::wstring();
+string16 FileVersionInfoMac::company_name() {
+  return string16();
 }
 
-std::wstring FileVersionInfoMac::company_short_name() {
-  return std::wstring();
+string16 FileVersionInfoMac::company_short_name() {
+  return string16();
 }
 
-std::wstring FileVersionInfoMac::internal_name() {
-  return std::wstring();
+string16 FileVersionInfoMac::internal_name() {
+  return string16();
 }
 
-std::wstring FileVersionInfoMac::product_name() {
-  return GetWStringValue(kCFBundleNameKey);
+string16 FileVersionInfoMac::product_name() {
+  return GetString16Value(kCFBundleNameKey);
 }
 
-std::wstring FileVersionInfoMac::product_short_name() {
-  return GetWStringValue(kCFBundleNameKey);
+string16 FileVersionInfoMac::product_short_name() {
+  return GetString16Value(kCFBundleNameKey);
 }
 
-std::wstring FileVersionInfoMac::comments() {
-  return std::wstring();
+string16 FileVersionInfoMac::comments() {
+  return string16();
 }
 
-std::wstring FileVersionInfoMac::legal_copyright() {
-  return GetWStringValue(CFSTR("CFBundleGetInfoString"));
+string16 FileVersionInfoMac::legal_copyright() {
+  return GetString16Value(CFSTR("CFBundleGetInfoString"));
 }
 
-std::wstring FileVersionInfoMac::product_version() {
-  return GetWStringValue(CFSTR("CFBundleShortVersionString"));
+string16 FileVersionInfoMac::product_version() {
+  return GetString16Value(CFSTR("CFBundleShortVersionString"));
 }
 
-std::wstring FileVersionInfoMac::file_description() {
-  return std::wstring();
+string16 FileVersionInfoMac::file_description() {
+  return string16();
 }
 
-std::wstring FileVersionInfoMac::legal_trademarks() {
-  return std::wstring();
+string16 FileVersionInfoMac::legal_trademarks() {
+  return string16();
 }
 
-std::wstring FileVersionInfoMac::private_build() {
-  return std::wstring();
+string16 FileVersionInfoMac::private_build() {
+  return string16();
 }
 
-std::wstring FileVersionInfoMac::file_version() {
+string16 FileVersionInfoMac::file_version() {
   return product_version();
 }
 
-std::wstring FileVersionInfoMac::original_filename() {
-  return GetWStringValue(kCFBundleNameKey);
+string16 FileVersionInfoMac::original_filename() {
+  return GetString16Value(kCFBundleNameKey);
 }
 
-std::wstring FileVersionInfoMac::special_build() {
-  return std::wstring();
+string16 FileVersionInfoMac::special_build() {
+  return string16();
 }
 
-std::wstring FileVersionInfoMac::last_change() {
-  return GetWStringValue(CFSTR("SVNRevision"));
+string16 FileVersionInfoMac::last_change() {
+  return GetString16Value(CFSTR("SVNRevision"));
 }
 
 bool FileVersionInfoMac::is_official_build() {
@@ -95,13 +95,13 @@ bool FileVersionInfoMac::is_official_build() {
 #endif
 }
 
-std::wstring FileVersionInfoMac::GetWStringValue(CFStringRef name) {
+string16 FileVersionInfoMac::GetString16Value(CFStringRef name) {
   if (bundle_) {
     NSString *ns_name = mac_util::CFToNSCast(name);
     NSString* value = [bundle_ objectForInfoDictionaryKey:ns_name];
     if (value) {
-      return base::SysNSStringToWide(value);
+      return base::SysNSStringToUTF16(value);
     }
   }
-  return std::wstring();
+  return string16();
 }
