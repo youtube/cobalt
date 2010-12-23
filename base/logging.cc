@@ -592,7 +592,7 @@ void LogMessage::Init(const char* file, int line) {
   else
     stream_ << "VERBOSE" << -severity_;
 
-  stream_ << ":" << file << "(" << line << ")] ";
+  stream_ << ":" << filename << "(" << line << ")] ";
 
   message_start_ = stream_.tellp();
 }
