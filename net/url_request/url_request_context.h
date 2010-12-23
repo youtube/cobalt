@@ -47,16 +47,32 @@ class URLRequestContext
     return net_log_;
   }
 
+  void set_net_log(net::NetLog* net_log) {
+    net_log_ = net_log;
+  }
+
   net::HostResolver* host_resolver() const {
     return host_resolver_;
+  }
+
+  void set_host_resolver(net::HostResolver* host_resolver) {
+    host_resolver_ = host_resolver;
   }
 
   net::CertVerifier* cert_verifier() const {
     return cert_verifier_;
   }
 
+  void set_cert_verifier(net::CertVerifier* cert_verifier) {
+    cert_verifier_ = cert_verifier;
+  }
+
   net::DnsRRResolver* dnsrr_resolver() const {
     return dnsrr_resolver_;
+  }
+
+  void set_dnsrr_resolver(net::DnsRRResolver* dnsrr_resolver) {
+    dnsrr_resolver_ = dnsrr_resolver;
   }
 
   net::DnsCertProvenanceChecker* dns_cert_checker() const {
@@ -68,14 +84,31 @@ class URLRequestContext
     return proxy_service_;
   }
 
+  void set_proxy_service(net::ProxyService* proxy_service) {
+    proxy_service_ = proxy_service;
+  }
+
   // Get the ssl config service for this context.
   net::SSLConfigService* ssl_config_service() const {
     return ssl_config_service_;
   }
 
+  // Gets the HTTP Authentication Handler Factory for this context.
+  // The factory is only valid for the lifetime of this URLRequestContext
+  net::HttpAuthHandlerFactory* http_auth_handler_factory() {
+    return http_auth_handler_factory_;
+  }
+  void set_http_auth_handler_factory(net::HttpAuthHandlerFactory* factory) {
+    http_auth_handler_factory_ = factory;
+  }
+
   // Gets the http transaction factory for this context.
   net::HttpTransactionFactory* http_transaction_factory() const {
     return http_transaction_factory_;
+  }
+
+  void set_http_transaction_factory(net::HttpTransactionFactory* factory) {
+    http_transaction_factory_ = factory;
   }
 
   // Gets the ftp transaction factory for this context.
@@ -87,6 +120,8 @@ class URLRequestContext
   // cookies are not stored).
   net::CookieStore* cookie_store() { return cookie_store_.get(); }
 
+  void set_cookie_store(net::CookieStore* cookie_store);
+
   // Gets the cookie policy for this context (may be null, in which case
   // cookies are allowed).
   net::CookiePolicy* cookie_policy() { return cookie_policy_; }
@@ -96,12 +131,6 @@ class URLRequestContext
 
   // Gets the FTP authentication cache for this context.
   net::FtpAuthCache* ftp_auth_cache() { return &ftp_auth_cache_; }
-
-  // Gets the HTTP Authentication Handler Factory for this context.
-  // The factory is only valid for the lifetime of this URLRequestContext
-  net::HttpAuthHandlerFactory* http_auth_handler_factory() {
-    return http_auth_handler_factory_;
-  }
 
   // Gets the value of 'Accept-Charset' header field.
   const std::string& accept_charset() const { return accept_charset_; }
