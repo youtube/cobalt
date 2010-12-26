@@ -30,7 +30,6 @@ class GURL;
 
 namespace net {
 class URLRequestJob;
-}  // namespace net
 
 class URLRequestFilter {
  public:
@@ -88,5 +87,7 @@ class URLRequestFilter {
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFilter);
 };
+
+}  // namespace net
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_FILTER_H_
