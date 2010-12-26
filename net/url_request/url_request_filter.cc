@@ -8,16 +8,18 @@
 
 #include "base/logging.h"
 
+namespace net {
+
 URLRequestFilter* URLRequestFilter::shared_instance_ = NULL;
 
-/* static */
+// static
 URLRequestFilter* URLRequestFilter::GetInstance() {
   if (!shared_instance_)
     shared_instance_ = new URLRequestFilter;
   return shared_instance_;
 }
 
-/* static */
+// static
 net::URLRequestJob* URLRequestFilter::Factory(net::URLRequest* request,
                                               const std::string& scheme) {
   // Returning null here just means that the built-in handler will be used.
@@ -142,3 +144,5 @@ net::URLRequestJob* URLRequestFilter::FindRequestHandler(
   }
   return job;
 }
+
+}  // namespace net
