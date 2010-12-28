@@ -312,9 +312,6 @@ class HttpCache::Transaction : public HttpTransaction {
   // working with range requests.
   int DoPartialCacheReadCompleted(int result);
 
-  // Sends a histogram with info about the response headers.
-  void HistogramHeaders(const HttpResponseHeaders* headers);
-
   // Called to signal completion of asynchronous IO.
   void OnIOComplete(int result);
 
