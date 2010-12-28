@@ -354,6 +354,19 @@ int HttpCache::Transaction::WriteMetadata(IOBuffer* buf, int buf_len,
                                        callback, true);
 }
 
+// Histogram data from the end of 2010 show the following distribution of
+// response headers:
+//
+//   Content-Length............... 87%
+//   Date......................... 98%
+//   Last-Modified................ 49%
+//   Etag......................... 19%
+//   Accept-Ranges: bytes......... 25%
+//   Accept-Ranges: none.......... 0.4%
+//   Strong Validator............. 50%
+//   Strong Validator + ranges.... 24%
+//   Strong Validator + CL........ 49%
+//
 bool HttpCache::Transaction::AddTruncatedFlag() {
   DCHECK(mode_ & WRITE);
 
@@ -687,8 +700,6 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     response_ = *new_response_;
     return OK;
   }
-
-  HistogramHeaders(new_response->headers);
 
   // Are we expecting a response to a conditional query?
   if (mode_ == READ_WRITE || mode_ == UPDATE) {
@@ -1855,47 +1866,6 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
     next_state_ = STATE_START_PARTIAL_CACHE_VALIDATION;
   }
   return result;
-}
-
-// For a 200 response we'll add a histogram with one bit set per header:
-//   0x01 Content-Length
-//   0x02 Date
-//   0x04 Last-Modified
-//   0x08 Etag
-//   0x10 Accept-Ranges: bytes
-//   0x20 Accept-Ranges: none
-//
-// TODO(rvargas): remove after having some results.
-void HttpCache::Transaction::HistogramHeaders(
-    const HttpResponseHeaders* headers) {
-  if (headers->response_code() != 200)
-    return;
-
-  int64 content_length = headers->GetContentLength();
-  int value = 0;
-  if (content_length > 0)
-    value = 1;
-
-  Time date;
-  if (headers->GetDateValue(&date))
-    value += 2;
-  if (headers->GetLastModifiedValue(&date))
-    value += 4;
-
-  std::string etag;
-  headers->EnumerateHeader(NULL, "etag", &etag);
-  if (!etag.empty())
-    value += 8;
-
-  std::string accept_ranges("Accept-Ranges");
-  if (headers->HasHeaderValue(accept_ranges, "bytes"))
-    value += 0x10;
-  if (headers->HasHeaderValue(accept_ranges, "none"))
-    value += 0x20;
-
-  // |value| goes from 0 to 63. Actually, the max value should be 47 (0x2f)
-  // but we'll see.
-  UMA_HISTOGRAM_ENUMERATION("HttpCache.ResponseHeaders", value, 65);
 }
 
 void HttpCache::Transaction::OnIOComplete(int result) {
