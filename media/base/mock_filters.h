@@ -50,7 +50,12 @@ class Destroyable : public MockClass {
 // gmock will track the number of times the methods are executed.
 class MockFilterCallback {
  public:
-  MockFilterCallback() {}
+  MockFilterCallback() : run_destroy_callback_(true) {
+  }
+
+  MockFilterCallback(bool run_destroy_callback) :
+    run_destroy_callback_(run_destroy_callback) {
+  }
   virtual ~MockFilterCallback() {}
 
   MOCK_METHOD0(OnCallbackDestroyed, void());
@@ -61,7 +66,7 @@ class MockFilterCallback {
   // destroyed.  Clients should use NiceMock<> or StrictMock<> depending on the
   // test.
   FilterCallback* NewCallback() {
-    return new CallbackImpl(this);
+    return new CallbackImpl(this, run_destroy_callback_);
   }
 
  private:
@@ -69,12 +74,15 @@ class MockFilterCallback {
   // MockFilterCallback.
   class CallbackImpl : public CallbackRunner<Tuple0> {
    public:
-    explicit CallbackImpl(MockFilterCallback* mock_callback)
-        : mock_callback_(mock_callback) {
+    explicit CallbackImpl(MockFilterCallback* mock_callback,
+                          bool run_destroy_callback)
+        : mock_callback_(mock_callback),
+          run_destroy_callback_(run_destroy_callback) {
     }
 
     virtual ~CallbackImpl() {
-      mock_callback_->OnCallbackDestroyed();
+      if (run_destroy_callback_)
+        mock_callback_->OnCallbackDestroyed();
     }
 
     virtual void RunWithParams(const Tuple0& params) {
@@ -83,11 +91,39 @@ class MockFilterCallback {
 
    private:
     MockFilterCallback* mock_callback_;
+    bool run_destroy_callback_;
 
     DISALLOW_COPY_AND_ASSIGN(CallbackImpl);
   };
 
+  bool run_destroy_callback_;
   DISALLOW_COPY_AND_ASSIGN(MockFilterCallback);
+};
+
+class MockFilter : public Filter {
+ public:
+  MockFilter();
+  MockFilter(bool requires_message_loop);
+
+  // Filter implementation.
+  virtual bool requires_message_loop() const;
+  virtual const char* message_loop_name() const;
+
+  MOCK_METHOD1(Play, void(FilterCallback* callback));
+  MOCK_METHOD1(Pause, void(FilterCallback* callback));
+  MOCK_METHOD1(Flush, void(FilterCallback* callback));
+  MOCK_METHOD1(Stop, void(FilterCallback* callback));
+  MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
+  MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD0(OnAudioRendererDisabled, void());
+
+ protected:
+  virtual ~MockFilter();
+
+ private:
+  bool requires_message_loop_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockFilter);
 };
 
 class MockDataSource : public DataSource {
