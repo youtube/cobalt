@@ -304,7 +304,6 @@
           'win/pe_image.h',
           'win/registry.cc',
           'win/registry.h',
-          'win/rgs_helper.h',
           'win/scoped_bstr.cc',
           'win/scoped_bstr.h',
           'win/scoped_comptr.h',
