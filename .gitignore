@@ -17,8 +17,9 @@
 .gdbinit
 .metadata
 .project
-v8.log
 tags
+Thumbs.db
+v8.log
 /Makefile
 /_out
 /breakpad/src/
