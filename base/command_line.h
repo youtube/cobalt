@@ -17,13 +17,12 @@
 #define BASE_COMMAND_LINE_H_
 #pragma once
 
-#include "build/build_config.h"
-
 #include <map>
 #include <string>
 #include <vector>
 
 #include "base/basictypes.h"
+#include "build/build_config.h"
 
 class FilePath;
 class InProcessBrowserTest;
@@ -65,13 +64,6 @@ class CommandLine {
   // directly) because we don't trust the CRT's parsing of the command
   // line, but it still must be called to set up the command line.
   static void Init(int argc, const char* const* argv);
-
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
-  // Sets the current process' arguments that show in "ps" etc. to those
-  // in |current_process_commandline_|. Used by the zygote host so that
-  // renderers show up with --type=renderer.
-  static void SetProcTitle();
-#endif
 
   // Destroys the current process CommandLine singleton. This is necessary if
   // you want to reset the base library to its initial state (for example in an
