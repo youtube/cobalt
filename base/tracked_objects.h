@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "base/lock.h"
-#include "base/thread_local_storage.h"
 #include "base/tracked.h"
+#include "base/threading/thread_local_storage.h"
 
 // TrackedObjects provides a database of stats about objects (generally Tasks)
 // that are tracked.  Tracking means their birth, death, duration, birth thread,
@@ -571,7 +571,7 @@ class ThreadData {
   static void ShutdownDisablingFurtherTracking();
 
   // We use thread local store to identify which ThreadData to interact with.
-  static TLSSlot tls_index_;
+  static base::ThreadLocalStorage::Slot tls_index_;
 
   // Link to the most recently created instance (starts a null terminated list).
   static ThreadData* first_;

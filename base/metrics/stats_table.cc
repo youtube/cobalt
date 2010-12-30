@@ -11,7 +11,7 @@
 #include "base/shared_memory.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
-#include "base/thread_local_storage.h"
+#include "base/threading/thread_local_storage.h"
 #include "base/utf_string_conversions.h"
 
 #if defined(OS_POSIX)

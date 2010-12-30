@@ -18,7 +18,7 @@ namespace tracked_objects {
 
 // A TLS slot to the TrackRegistry for the current thread.
 // static
-TLSSlot ThreadData::tls_index_(base::LINKER_INITIALIZED);
+base::ThreadLocalStorage::Slot ThreadData::tls_index_(base::LINKER_INITIALIZED);
 
 // A global state variable to prevent repeated initialization during tests.
 // static
