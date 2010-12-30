@@ -11,7 +11,7 @@
 #include "base/logging.h"
 #include "base/message_pump_default.h"
 #include "base/metrics/histogram.h"
-#include "base/thread_local.h"
+#include "base/threading/thread_local.h"
 
 #if defined(OS_MACOSX)
 #include "base/message_pump_mac.h"
