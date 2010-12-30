@@ -757,9 +757,8 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
                                           0,
                                           NULL));
   if (!file) {
-    LOG(WARNING) << "CreateFile failed for path " << filename.value() <<
-        " error code=" << GetLastError() <<
-        " error text=" << win_util::FormatLastWin32Error();
+    LOG(WARNING) << "CreateFile failed for path " << filename.value()
+                 << " error code=" << GetLastError();
     return -1;
   }
 
@@ -770,9 +769,8 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
 
   if (!result) {
     // WriteFile failed.
-    LOG(WARNING) << "writing file " << filename.value() <<
-        " failed, error code=" << GetLastError() <<
-        " description=" << win_util::FormatLastWin32Error();
+    LOG(WARNING) << "writing file " << filename.value()
+                 << " failed, error code=" << GetLastError();
   } else {
     // Didn't write all the bytes.
     LOG(WARNING) << "wrote" << written << " bytes to " <<
