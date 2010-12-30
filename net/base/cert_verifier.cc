@@ -8,7 +8,7 @@
 #include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/stl_util-inl.h"
-#include "base/worker_pool.h"
+#include "base/threading/worker_pool.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 
@@ -136,9 +136,9 @@ class CertVerifierWorker {
   bool Start() {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
 
-    return WorkerPool::PostTask(
-               FROM_HERE, NewRunnableMethod(this, &CertVerifierWorker::Run),
-               true /* task is slow */);
+    return base::WorkerPool::PostTask(
+        FROM_HERE, NewRunnableMethod(this, &CertVerifierWorker::Run),
+        true /* task is slow */);
   }
 
   // Cancel is called from the origin loop when the CertVerifier is getting

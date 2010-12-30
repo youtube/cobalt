@@ -7,7 +7,7 @@
 #include <fcntl.h>
 
 #include "base/logging.h"
-#include "base/worker_pool.h"
+#include "base/threading/worker_pool.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/in_flight_io.h"
 
@@ -113,7 +113,7 @@ void FileInFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
       new FileBackgroundIO(file, buf, buf_len, offset, callback, this));
   file->AddRef();  // Balanced on OnOperationComplete()
 
-  WorkerPool::PostTask(FROM_HERE,
+  base::WorkerPool::PostTask(FROM_HERE,
       NewRunnableMethod(operation.get(), &FileBackgroundIO::Read), true);
   OnOperationPosted(operation);
 }
@@ -125,7 +125,7 @@ void FileInFlightIO::PostWrite(disk_cache::File* file, const void* buf,
       new FileBackgroundIO(file, buf, buf_len, offset, callback, this));
   file->AddRef();  // Balanced on OnOperationComplete()
 
-  WorkerPool::PostTask(FROM_HERE,
+  base::WorkerPool::PostTask(FROM_HERE,
       NewRunnableMethod(operation.get(), &FileBackgroundIO::Write), true);
   OnOperationPosted(operation);
 }
