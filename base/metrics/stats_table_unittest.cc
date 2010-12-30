@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/platform_thread.h"
-#include "base/simple_thread.h"
-#include "base/shared_memory.h"
-#include "base/metrics/stats_table.h"
 #include "base/metrics/stats_counters.h"
+#include "base/metrics/stats_table.h"
+#include "base/platform_thread.h"
+#include "base/shared_memory.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/test/multiprocess_test.h"
+#include "base/threading/simple_thread.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"

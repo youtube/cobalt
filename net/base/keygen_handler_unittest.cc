@@ -11,9 +11,9 @@
 #include "base/logging.h"
 #include "base/nss_util.h"
 #include "base/task.h"
+#include "base/threading/worker_pool.h"
 #include "base/thread_restrictions.h"
 #include "base/waitable_event.h"
-#include "base/worker_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(USE_NSS)
@@ -124,10 +124,10 @@ TEST_F(KeygenHandlerTest, ConcurrencyTest) {
   std::string results[NUM_HANDLERS];
   for (int i = 0; i < NUM_HANDLERS; i++) {
     events[i] = new base::WaitableEvent(false, false);
-    WorkerPool::PostTask(FROM_HERE,
-                         new ConcurrencyTestTask(events[i], "some challenge",
-                                                 &results[i]),
-                         true);
+    base::WorkerPool::PostTask(
+        FROM_HERE,
+        new ConcurrencyTestTask(events[i], "some challenge", &results[i]),
+        true);
   }
 
   for (int i = 0; i < NUM_HANDLERS; i++) {

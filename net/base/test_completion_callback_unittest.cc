@@ -1,13 +1,13 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Illustrates how to use worker threads that issue completion callbacks
 
-#include "testing/gtest/include/gtest/gtest.h"
+#include "base/threading/worker_pool.h"
 #include "net/base/completion_callback.h"
 #include "net/base/test_completion_callback.h"
-#include "base/worker_pool.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
 typedef PlatformTest TestCompletionCallbackTest;
@@ -102,7 +102,7 @@ bool ExampleEmployer::DoSomething(CompletionCallback* callback) {
   request_ = new ExampleWorker(this, callback);
 
   // Dispatch to worker thread...
-  if (!WorkerPool::PostTask(FROM_HERE,
+  if (!base::WorkerPool::PostTask(FROM_HERE,
           NewRunnableMethod(request_.get(), &ExampleWorker::DoWork), true)) {
     NOTREACHED();
     request_ = NULL;
