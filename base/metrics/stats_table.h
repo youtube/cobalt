@@ -26,7 +26,7 @@
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
 #include "base/lock.h"
-#include "base/thread_local_storage.h"
+#include "base/threading/thread_local_storage.h"
 
 namespace base {
 
@@ -184,7 +184,7 @@ class StatsTable {
   // we don't have a counter in our hash table, another process may
   // have created it.
   CountersMap counters_;
-  TLSSlot tls_index_;
+  ThreadLocalStorage::Slot tls_index_;
 
   static StatsTable* global_table_;
 
