@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,11 +19,11 @@
 #include <sys/stat.h>
 #endif
 
-using std::string;
+namespace net {
 
-URLRequestFileDirJob::URLRequestFileDirJob(net::URLRequest* request,
+URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
                                            const FilePath& dir_path)
-    : net::URLRequestJob(request),
+    : URLRequestJob(request),
       dir_path_(dir_path),
       canceled_(false),
       list_complete_(false),
@@ -57,7 +57,7 @@ void URLRequestFileDirJob::StartAsync() {
   // is trying to feed us data.
 
   AddRef();
-  lister_ = new net::DirectoryLister(dir_path_, this);
+  lister_ = new DirectoryLister(dir_path_, this);
   lister_->Start();
 
   NotifyHeadersComplete();
@@ -69,18 +69,18 @@ void URLRequestFileDirJob::Kill() {
 
   canceled_ = true;
 
-  // Don't call CloseLister or dispatch an error to the net::URLRequest because
+  // Don't call CloseLister or dispatch an error to the URLRequest because
   // we want OnListDone to be called to also write the error to the output
-  // stream. OnListDone will notify the net::URLRequest at this time.
+  // stream. OnListDone will notify the URLRequest at this time.
   if (lister_)
     lister_->Cancel();
 
-  net::URLRequestJob::Kill();
+  URLRequestJob::Kill();
 
   method_factory_.RevokeAll();
 }
 
-bool URLRequestFileDirJob::ReadRawData(net::IOBuffer* buf, int buf_size,
+bool URLRequestFileDirJob::ReadRawData(IOBuffer* buf, int buf_size,
                                        int *bytes_read) {
   DCHECK(bytes_read);
   *bytes_read = 0;
@@ -99,19 +99,19 @@ bool URLRequestFileDirJob::ReadRawData(net::IOBuffer* buf, int buf_size,
   return false;
 }
 
-bool URLRequestFileDirJob::GetMimeType(string* mime_type) const {
+bool URLRequestFileDirJob::GetMimeType(std::string* mime_type) const {
   *mime_type = "text/html";
   return true;
 }
 
-bool URLRequestFileDirJob::GetCharset(string* charset) {
+bool URLRequestFileDirJob::GetCharset(std::string* charset) {
   // All the filenames are converted to UTF-8 before being added.
   *charset = "utf-8";
   return true;
 }
 
 void URLRequestFileDirJob::OnListFile(
-    const net::DirectoryLister::DirectoryListerData& data) {
+    const DirectoryLister::DirectoryListerData& data) {
   // We wait to write out the header until we get the first file, so that we
   // can catch errors from DirectoryLister and show an error page.
   if (!wrote_header_) {
@@ -126,7 +126,7 @@ void URLRequestFileDirJob::OnListFile(
     const string16& title = WideToUTF16(
         base::SysNativeMBToWide(dir_path_.value()));
 #endif
-    data_.append(net::GetDirectoryListingHeader(title));
+    data_.append(GetDirectoryListingHeader(title));
     wrote_header_ = true;
   }
 
@@ -137,7 +137,7 @@ void URLRequestFileDirJob::OnListFile(
   // Note that we should not convert ftLastWriteTime to the local time because
   // ICU's datetime formatting APIs expect time in UTC and take into account
   // the timezone before formatting.
-  data_.append(net::GetDirectoryListingEntry(
+  data_.append(GetDirectoryListingEntry(
       data.info.cFileName, std::string(),
       (data.info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? true : false,
       size,
@@ -145,7 +145,7 @@ void URLRequestFileDirJob::OnListFile(
 
 #elif defined(OS_POSIX)
   // TOOD(jungshik): The same issue as for the directory name.
-  data_.append(net::GetDirectoryListingEntry(
+  data_.append(GetDirectoryListingEntry(
       WideToUTF16(base::SysNativeMBToWide(data.info.filename)),
       data.info.filename,
       S_ISDIR(data.info.stat.st_mode),
@@ -220,3 +220,5 @@ void URLRequestFileDirJob::CompleteRead() {
     }
   }
 }
+
+}  // namespace net
