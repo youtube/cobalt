@@ -15,7 +15,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_piece.h"
 #include "base/task.h"
-#include "base/worker_pool.h"
+#include "base/threading/worker_pool.h"
 #include "net/base/dns_reload_timer.h"
 #include "net/base/dns_util.h"
 #include "net/base/net_errors.h"
@@ -139,9 +139,9 @@ class RRResolverWorker {
   bool Start() {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
 
-    return WorkerPool::PostTask(
-               FROM_HERE, NewRunnableMethod(this, &RRResolverWorker::Run),
-               true /* task is slow */);
+    return base::WorkerPool::PostTask(
+        FROM_HERE, NewRunnableMethod(this, &RRResolverWorker::Run),
+        true /* task is slow */);
   }
 
   // Cancel is called from the origin loop when the DnsRRResolver is getting

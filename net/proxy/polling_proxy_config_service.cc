@@ -8,7 +8,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/observer_list.h"
 #include "base/scoped_ptr.h"
-#include "base/worker_pool.h"
+#include "base/threading/worker_pool.h"
 #include "net/proxy/proxy_config.h"
 
 namespace net {
@@ -88,10 +88,10 @@ class PollingProxyConfigService::Core
     last_poll_time_ = base::TimeTicks::Now();
     poll_task_outstanding_ = true;
     poll_task_queued_ = false;
-    WorkerPool::PostTask(
+    base::WorkerPool::PostTask(
         FROM_HERE,
-        NewRunnableMethod(
-            this, &Core::PollOnWorkerThread, get_config_func_), true);
+        NewRunnableMethod(this, &Core::PollOnWorkerThread, get_config_func_),
+        true);
   }
 
  private:
