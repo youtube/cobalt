@@ -24,10 +24,10 @@
 #include "base/metrics/histogram.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/threading/worker_pool.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
-#include "base/worker_pool.h"
 #include "net/base/address_list.h"
 #include "net/base/address_list_net_log_param.h"
 #include "net/base/host_port_pair.h"
@@ -382,7 +382,7 @@ class HostResolverImpl::Job
     start_time_ = base::TimeTicks::Now();
 
     // Dispatch the job to a worker thread.
-    if (!WorkerPool::PostTask(FROM_HERE,
+    if (!base::WorkerPool::PostTask(FROM_HERE,
             NewRunnableMethod(this, &Job::DoLookup), true)) {
       NOTREACHED();
 
@@ -650,7 +650,7 @@ class HostResolverImpl::IPv6ProbeJob
       return;
     DCHECK(IsOnOriginThread());
     const bool kIsSlow = true;
-    WorkerPool::PostTask(
+    base::WorkerPool::PostTask(
         FROM_HERE, NewRunnableMethod(this, &IPv6ProbeJob::DoProbe), kIsSlow);
   }
 

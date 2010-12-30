@@ -13,10 +13,10 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/sys_info.h"
+#include "base/threading/worker_pool.h"
 #include "base/thread_restrictions.h"
 #include "base/time.h"
 #include "base/timer.h"
-#include "base/worker_pool.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/entry_impl.h"
@@ -142,7 +142,7 @@ bool DelayedCacheCleanup(const FilePath& full_path) {
     return false;
   }
 
-  WorkerPool::PostTask(FROM_HERE, new CleanupTask(path, name_str), true);
+  base::WorkerPool::PostTask(FROM_HERE, new CleanupTask(path, name_str), true);
   return true;
 }
 
