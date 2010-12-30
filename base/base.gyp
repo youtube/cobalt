@@ -217,7 +217,7 @@
           'sources!': [
             'dir_reader_posix_unittest.cc',
             'file_descriptor_shuffle_unittest.cc',
-            'worker_pool_posix_unittest.cc',
+            'threading/worker_pool_posix_unittest.cc',
           ],
         }, {  # OS != "win"
           'sources/': [
