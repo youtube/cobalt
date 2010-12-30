@@ -23,6 +23,7 @@
 #include "base/message_loop.h"
 #include "base/platform_file.h"
 #include "base/string_util.h"
+#include "base/threading/worker_pool.h"
 #include "base/thread_restrictions.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
@@ -35,10 +36,6 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
-
-#if defined(OS_WIN)
-#include "base/worker_pool.h"
-#endif
 
 namespace net {
 
@@ -136,7 +133,7 @@ void URLRequestFileJob::Start() {
   if (!file_path_.value().compare(0, 2, L"\\\\")) {
     DCHECK(!async_resolver_);
     async_resolver_ = new AsyncResolver(this);
-    WorkerPool::PostTask(FROM_HERE, NewRunnableMethod(
+    base::WorkerPool::PostTask(FROM_HERE, NewRunnableMethod(
         async_resolver_.get(), &AsyncResolver::Resolve, file_path_), true);
     return;
   }
