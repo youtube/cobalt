@@ -23,7 +23,7 @@
 
 #include "base/condition_variable.h"
 #include "base/lock.h"
-#include "base/platform_thread.h"
+#include "base/threading/platform_thread.h"
 #include "base/time.h"
 
 namespace base {

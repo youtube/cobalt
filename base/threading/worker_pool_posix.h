@@ -31,9 +31,9 @@
 #include "base/basictypes.h"
 #include "base/condition_variable.h"
 #include "base/lock.h"
-#include "base/platform_thread.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/platform_thread.h"
 
 class Task;
 

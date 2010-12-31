@@ -8,8 +8,8 @@
 
 #include "base/condition_variable.h"
 #include "base/lock.h"
-#include "base/platform_thread.h"
 #include "base/task.h"
+#include "base/threading/platform_thread.h"
 #include "base/waitable_event.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

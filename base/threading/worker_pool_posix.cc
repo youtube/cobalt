@@ -6,10 +6,10 @@
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/platform_thread.h"
 #include "base/ref_counted.h"
 #include "base/stringprintf.h"
 #include "base/task.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/worker_pool.h"
 
 namespace base {

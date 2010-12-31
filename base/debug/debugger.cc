@@ -4,7 +4,7 @@
 
 #include "base/debug/debugger.h"
 
-#include "base/platform_thread.h"
+#include "base/threading/platform_thread.h"
 
 namespace base {
 namespace debug {
