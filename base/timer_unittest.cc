@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -267,7 +267,7 @@ void RunTest_DelayTimer_Deleted(MessageLoop::Type message_loop_type) {
 
   // When the timer is deleted, the DelayTimerFatalTarget should never be
   // called.
-  PlatformThread::Sleep(100);
+  base::PlatformThread::Sleep(100);
 }
 
 }  // namespace

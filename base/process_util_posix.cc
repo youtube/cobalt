@@ -22,10 +22,10 @@
 #include "base/dir_reader_posix.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
-#include "base/platform_thread.h"
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
 #include "base/stringprintf.h"
+#include "base/threading/platform_thread.h"
 #include "base/thread_restrictions.h"
 #include "base/time.h"
 #include "base/waitable_event.h"
@@ -893,7 +893,7 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
       result = true;
       break;
     }
-    PlatformThread::Sleep(100);
+    base::PlatformThread::Sleep(100);
   } while ((base::Time::Now() - end_time) > base::TimeDelta());
 
   return result;
