@@ -4,11 +4,11 @@
 
 #include "base/metrics/stats_counters.h"
 #include "base/metrics/stats_table.h"
-#include "base/platform_thread.h"
 #include "base/shared_memory.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/test/multiprocess_test.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "base/message_loop.h"
-#include "base/platform_thread.h"
 #include "base/ref_counted.h"
 #include "base/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

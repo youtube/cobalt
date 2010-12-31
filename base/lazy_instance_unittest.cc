@@ -26,7 +26,8 @@ class ConstructAndDestructLogger {
 class SlowConstructor {
  public:
   SlowConstructor() : some_int_(0) {
-    PlatformThread::Sleep(1000);  // Sleep for 1 second to try to cause a race.
+    // Sleep for 1 second to try to cause a race.
+    base::PlatformThread::Sleep(1000);
     ++constructed;
     some_int_ = 12;
   }

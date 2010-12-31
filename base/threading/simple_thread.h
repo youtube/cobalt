@@ -47,8 +47,8 @@
 
 #include "base/basictypes.h"
 #include "base/lock.h"
+#include "base/threading/platform_thread.h"
 #include "base/waitable_event.h"
-#include "base/platform_thread.h"
 
 namespace base {
 

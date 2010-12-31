@@ -16,7 +16,9 @@
 #include "net/disk_cache/addr.h"
 #include "net/disk_cache/mapped_file.h"
 
+namespace base {
 class ThreadChecker;
+}
 
 namespace disk_cache {
 
@@ -87,7 +89,7 @@ class BlockFiles {
   char* zero_buffer_;  // Buffer to speed-up cleaning deleted entries.
   FilePath path_;  // Path to the backing folder.
   std::vector<MappedFile*> block_files_;  // The actual files.
-  scoped_ptr<ThreadChecker> thread_checker_;
+  scoped_ptr<base::ThreadChecker> thread_checker_;
 
   FRIEND_TEST_ALL_PREFIXES(DiskCacheTest, BlockFiles_ZeroSizeFile);
   FRIEND_TEST_ALL_PREFIXES(DiskCacheTest, BlockFiles_InvalidFile);
