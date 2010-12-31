@@ -12,11 +12,11 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/platform_thread.h"
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
+#include "base/threading/platform_thread.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -67,7 +67,7 @@ const int kMaxWaitTimeMs = TestTimeouts::action_max_timeout_ms();
 void WaitToDie(const char* filename) {
   FILE *fp;
   do {
-    PlatformThread::Sleep(10);
+    base::PlatformThread::Sleep(10);
     fp = fopen(filename, "r");
   } while (!fp);
   fclose(fp);
@@ -92,7 +92,7 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
   int waited = 0;
   do {
     status = base::GetTerminationStatus(handle, exit_code);
-    PlatformThread::Sleep(kIntervalMs);
+    base::PlatformThread::Sleep(kIntervalMs);
     waited += kIntervalMs;
   } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
            waited < kMaxWaitTimeMs);

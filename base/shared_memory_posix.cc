@@ -12,7 +12,7 @@
 
 #include "base/file_util.h"
 #include "base/logging.h"
-#include "base/platform_thread.h"
+#include "base/threading/platform_thread.h"
 #include "base/safe_strerror_posix.h"
 #include "base/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
@@ -299,7 +299,7 @@ void SharedMemory::LockOrUnlockCommon(int function) {
       continue;
     } else if (errno == ENOLCK) {
       // temporary kernel resource exaustion
-      PlatformThread::Sleep(500);
+      base::PlatformThread::Sleep(500);
       continue;
     } else {
       NOTREACHED() << "lockf() failed."

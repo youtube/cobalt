@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,7 @@
 #endif
 
 #include "base/eintr_wrapper.h"
+#include "base/threading/platform_thread.h"
 #include "net/base/net_util.h"
 #include "net/base/listen_socket.h"
 
@@ -231,7 +232,7 @@ void ListenSocket::SendInternal(const char* bytes, int len) {
       send_buf += sent;
       len_left -= sent;
     }
-    PlatformThread::YieldCurrentThread();
+    base::PlatformThread::YieldCurrentThread();
   }
 }
 

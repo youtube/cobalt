@@ -7,9 +7,9 @@
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/platform_thread.h"
 #include "base/ref_counted.h"
 #include "base/task.h"
+#include "base/threading/platform_thread.h"
 #include "base/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -21,6 +21,7 @@
 #include "base/message_pump_libevent.h"
 #endif
 
+using base::PlatformThread;
 using base::Thread;
 using base::Time;
 using base::TimeDelta;

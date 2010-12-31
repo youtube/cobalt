@@ -6,6 +6,7 @@
 
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
+#include "base/threading/platform_thread.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
 #include "net/base/host_resolver.h"
@@ -90,8 +91,9 @@ void HistogramAuthEvent(HttpAuthHandler* handler, AuthEvent auth_event) {
   // used on the same thread, in which case there are no race conditions. If
   // there are race conditions (say, a read completes during a partial write),
   // the DCHECK will correctly fail.
-  static PlatformThreadId first_thread = PlatformThread::CurrentId();
-  DCHECK_EQ(first_thread, PlatformThread::CurrentId());
+  static base::PlatformThreadId first_thread =
+      base::PlatformThread::CurrentId();
+  DCHECK_EQ(first_thread, base::PlatformThread::CurrentId());
 #endif
 
   HttpAuthHandler::AuthScheme auth_scheme = handler->auth_scheme();
