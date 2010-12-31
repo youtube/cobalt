@@ -23,7 +23,7 @@ const char kFullMemoryCrashReport[]         = "full-memory-crash-report";
 // Suppresses all error dialogs when present.
 const char kNoErrorDialogs[]                = "noerrdialogs";
 
-// Disable win_util::MessageBox.  This is useful when running as part of
+// Disable app::win::MessageBox.  This is useful when running as part of
 // scripts that do not have a user interface.
 const char kNoMessageBox[]                  = "no-message-box";
 
