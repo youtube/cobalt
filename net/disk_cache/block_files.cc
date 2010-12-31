@@ -8,7 +8,7 @@
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "base/thread_checker.h"
+#include "base/threading/thread_checker.h"
 #include "base/time.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/file_lock.h"
@@ -201,7 +201,7 @@ bool BlockFiles::Init(bool create_files) {
   if (init_)
     return false;
 
-  thread_checker_.reset(new ThreadChecker);
+  thread_checker_.reset(new base::ThreadChecker);
 
   block_files_.resize(kFirstAdditionalBlockFile);
   for (int i = 0; i < kFirstAdditionalBlockFile; i++) {

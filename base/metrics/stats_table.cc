@@ -5,12 +5,12 @@
 #include "base/metrics/stats_table.h"
 
 #include "base/logging.h"
-#include "base/platform_thread.h"
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
 #include "base/shared_memory.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/thread_local_storage.h"
 #include "base/utf_string_conversions.h"
 

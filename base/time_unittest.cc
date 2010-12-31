@@ -1,10 +1,10 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <time.h>
 
-#include "base/platform_thread.h"
+#include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -106,7 +106,7 @@ TEST(Time, LocalMidnight) {
 TEST(TimeTicks, Deltas) {
   for (int index = 0; index < 50; index++) {
     TimeTicks ticks_start = TimeTicks::Now();
-    PlatformThread::Sleep(10);
+    base::PlatformThread::Sleep(10);
     TimeTicks ticks_stop = TimeTicks::Now();
     TimeDelta delta = ticks_stop - ticks_start;
     // Note:  Although we asked for a 10ms sleep, if the

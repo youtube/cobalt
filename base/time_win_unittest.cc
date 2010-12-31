@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 #include <mmsystem.h>
 #include <process.h>
 
-#include "base/platform_thread.h"
+#include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -220,7 +220,7 @@ TEST(TimeTicks, Drift) {
     // Sleep for a few milliseconds (note that it means 1000 microseconds).
     // If we check the drift too frequently, it's going to increase
     // monotonically, making our measurement less realistic.
-    PlatformThread::Sleep((i % 2 == 0) ? 1 : 2);
+    base::PlatformThread::Sleep((i % 2 == 0) ? 1 : 2);
 
     total_drift += drift_microseconds;
   }

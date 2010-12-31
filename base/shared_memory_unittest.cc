@@ -4,10 +4,10 @@
 
 #include "base/basictypes.h"
 #include "base/mac/scoped_nsautorelease_pool.h"
-#include "base/platform_thread.h"
 #include "base/shared_memory.h"
 #include "base/scoped_ptr.h"
 #include "base/test/multiprocess_test.h"
+#include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -327,7 +327,7 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
 
 // On POSIX it is especially important we test shmem across processes,
 // not just across threads.  But the test is enabled on all platforms.
-class SharedMemoryProcessTest : public base::MultiProcessTest {
+class SharedMemoryProcessTest : public MultiProcessTest {
  public:
 
   static void CleanUp() {
@@ -380,14 +380,14 @@ const char* const SharedMemoryProcessTest::s_test_name_ = "MPMem";
 TEST_F(SharedMemoryProcessTest, MAYBE_Tasks) {
   SharedMemoryProcessTest::CleanUp();
 
-  base::ProcessHandle handles[kNumTasks];
+  ProcessHandle handles[kNumTasks];
   for (int index = 0; index < kNumTasks; ++index) {
     handles[index] = SpawnChild("SharedMemoryTestMain", false);
   }
 
   int exit_code = 0;
   for (int index = 0; index < kNumTasks; ++index) {
-    EXPECT_TRUE(base::WaitForExitCode(handles[index], &exit_code));
+    EXPECT_TRUE(WaitForExitCode(handles[index], &exit_code));
     EXPECT_TRUE(exit_code == 0);
   }
 

@@ -25,7 +25,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "base/thread_checker.h"
+#include "base/threading/thread_checker.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/io_buffer.h"
@@ -80,7 +80,7 @@ class OCSPIOLoop {
   bool used_;  // Protected by |lock_|.
   // This should not be modified after |used_|.
   MessageLoopForIO* io_loop_;  // Protected by |lock_|.
-  ThreadChecker thread_checker_;
+  base::ThreadChecker thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(OCSPIOLoop);
 };

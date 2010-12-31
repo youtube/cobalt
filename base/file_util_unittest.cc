@@ -19,9 +19,9 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
-#include "base/platform_thread.h"
 #include "base/scoped_handle.h"
 #include "base/scoped_temp_dir.h"
+#include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -347,11 +347,11 @@ TEST_F(FileUtilTest, FLAKY_CountFilesCreatedAfter) {
 
   // Age to perfection
 #if defined(OS_WIN)
-  PlatformThread::Sleep(100);
+  base::PlatformThread::Sleep(100);
 #elif defined(OS_POSIX)
   // We need to wait at least one second here because the precision of
   // file creation time is one second.
-  PlatformThread::Sleep(1500);
+  base::PlatformThread::Sleep(1500);
 #endif
 
   // Establish our cutoff time

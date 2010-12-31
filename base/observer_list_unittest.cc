@@ -8,16 +8,14 @@
 #include <vector>
 
 #include "base/message_loop.h"
-#include "base/platform_thread.h"
 #include "base/ref_counted.h"
+#include "base/threading/platform_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using base::PlatformThread;
 using base::Time;
 
 namespace {
-
-class ObserverListTest : public testing::Test {
-};
 
 class Foo {
  public:
@@ -291,7 +289,7 @@ static void ThreadSafeObserverHarness(int num_threads,
   observer_list->AddObserver(&b);
 
   AddRemoveThread* threaded_observer[kMaxThreads];
-  PlatformThreadHandle threads[kMaxThreads];
+  base::PlatformThreadHandle threads[kMaxThreads];
   for (int index = 0; index < num_threads; index++) {
     threaded_observer[index] = new AddRemoveThread(observer_list.get(), false);
     EXPECT_TRUE(PlatformThread::Create(0,
