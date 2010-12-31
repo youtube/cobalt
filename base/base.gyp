@@ -163,7 +163,6 @@
         'waitable_event_unittest.cc',
         'waitable_event_watcher_unittest.cc',
         'weak_ptr_unittest.cc',
-        'win_util_unittest.cc',
         'win/event_trace_consumer_unittest.cc',
         'win/event_trace_controller_unittest.cc',
         'win/event_trace_provider_unittest.cc',
@@ -173,6 +172,7 @@
         'win/scoped_bstr_unittest.cc',
         'win/scoped_comptr_unittest.cc',
         'win/scoped_variant_unittest.cc',
+        'win/win_util_unittest.cc',
       ],
       'dependencies': [
         'base',
