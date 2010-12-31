@@ -22,8 +22,8 @@
 #include "base/thread_restrictions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
-#include "base/win_util.h"
 #include "base/win/scoped_comptr.h"
+#include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 
 namespace file_util {
@@ -447,7 +447,7 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
     if (FAILED(property_store.QueryFrom(i_shell_link)))
       return false;
 
-    if (!win_util::SetAppIdForPropertyStore(property_store, app_id))
+    if (!base::win::SetAppIdForPropertyStore(property_store, app_id))
       return false;
   }
 
@@ -499,7 +499,7 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
     if (FAILED(property_store.QueryFrom(i_shell_link)))
       return false;
 
-    if (!win_util::SetAppIdForPropertyStore(property_store, app_id))
+    if (!base::win::SetAppIdForPropertyStore(property_store, app_id))
       return false;
   }
 
