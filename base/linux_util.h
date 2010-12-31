@@ -19,8 +19,7 @@ static const char kFindInodeSwitch[] = "--find-inode";
 // in compromised context without going through the standard library.
 extern char g_linux_distro[];
 
-// Get the Linux Distro if we can, or return "Unknown", similar to
-// GetWinVersion() in base/win_util.h.
+// Get the Linux Distro if we can, or return "Unknown".
 std::string GetLinuxDistro();
 
 // Set the Linux Distro string.
