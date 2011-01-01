@@ -6,9 +6,10 @@
 
 namespace switches {
 
-// If the program includes chrome/common/debug_on_start.h, the process will
-// start the JIT system-registered debugger on itself and will wait for 60
-// seconds for the debugger to attach to itself. Then a break point will be hit.
+// If the program includes base/debug/debug_on_start_win.h, the process will
+// (on Windows only) start the JIT system-registered debugger on itself and
+// will wait for 60 seconds for the debugger to attach to itself. Then a break
+// point will be hit.
 const char kDebugOnStart[]                  = "debug-on-start";
 
 // Disables the crash reporting.
