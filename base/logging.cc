@@ -50,8 +50,8 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
 #include "base/eintr_wrapper.h"
-#include "base/lock_impl.h"
 #include "base/string_piece.h"
+#include "base/synchronization/lock_impl.h"
 #include "base/utf_string_conversions.h"
 #include "base/vlog.h"
 #if defined(OS_POSIX)
@@ -243,7 +243,7 @@ class LoggingLock {
       }
 #endif
     } else {
-      log_lock = new LockImpl();
+      log_lock = new base::internal::LockImpl();
     }
     initialized = true;
   }
@@ -282,7 +282,7 @@ class LoggingLock {
   // The lock is used if log file locking is false. It helps us avoid problems
   // with multiple threads writing to the log file at the same time.  Use
   // LockImpl directly instead of using Lock, because Lock makes logging calls.
-  static LockImpl* log_lock;
+  static base::internal::LockImpl* log_lock;
 
   // When we don't use a lock, we are using a global mutex. We need to do this
   // because LockFileEx is not thread safe.
@@ -299,7 +299,7 @@ class LoggingLock {
 // static
 bool LoggingLock::initialized = false;
 // static
-LockImpl* LoggingLock::log_lock = NULL;
+base::internal::LockImpl* LoggingLock::log_lock = NULL;
 // static
 LogLockingState LoggingLock::lock_log_file = LOCK_LOG_FILE;
 

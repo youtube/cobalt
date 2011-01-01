@@ -41,10 +41,11 @@
 #include "base/logging.h"
 #include "base/time.h"
 
-class Lock;
 class Pickle;
 
 namespace base {
+
+class Lock;
 
 //------------------------------------------------------------------------------
 // Provide easy general purpose histogram in a macro, just like stats counters.
@@ -681,7 +682,7 @@ class StatisticsRecorder {
   static HistogramMap* histograms_;
 
   // lock protects access to the above map.
-  static Lock* lock_;
+  static base::Lock* lock_;
 
   // Dump all known histograms to log.
   static bool dump_on_exit_;
