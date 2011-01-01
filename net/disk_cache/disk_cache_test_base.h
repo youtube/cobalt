@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "base/thread.h"
+#include "base/threading/thread.h"
 #include "net/base/cache_type.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"

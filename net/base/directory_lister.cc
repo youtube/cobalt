@@ -11,7 +11,7 @@
 #include "base/i18n/file_util_icu.h"
 #include "base/message_loop.h"
 #include "base/platform_thread.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "net/base/net_errors.h"
 
 namespace net {

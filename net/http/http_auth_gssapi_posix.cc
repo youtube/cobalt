@@ -13,7 +13,7 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
