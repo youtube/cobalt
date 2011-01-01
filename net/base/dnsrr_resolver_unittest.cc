@@ -5,8 +5,7 @@
 #include "net/base/dnsrr_resolver.h"
 
 #include "base/callback.h"
-#include "base/condition_variable.h"
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 #include "net/base/dns_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
