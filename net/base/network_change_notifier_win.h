@@ -9,13 +9,13 @@
 #include <windows.h>
 
 #include "base/basictypes.h"
-#include "base/object_watcher.h"
+#include "base/win/object_watcher.h"
 #include "net/base/network_change_notifier.h"
 
 namespace net {
 
 class NetworkChangeNotifierWin : public NetworkChangeNotifier,
-                                 public base::ObjectWatcher::Delegate {
+                                 public base::win::ObjectWatcher::Delegate {
  public:
   NetworkChangeNotifierWin();
 
@@ -31,7 +31,7 @@ class NetworkChangeNotifierWin : public NetworkChangeNotifier,
   // Begins listening for a single subsequent address change.
   void WatchForAddressChange();
 
-  base::ObjectWatcher addr_watcher_;
+  base::win::ObjectWatcher addr_watcher_;
   OVERLAPPED addr_overlapped_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);

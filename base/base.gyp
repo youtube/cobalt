@@ -106,7 +106,6 @@
         'metrics/field_trial_unittest.cc',
         'metrics/histogram_unittest.cc',
         'metrics/stats_table_unittest.cc',
-        'object_watcher_unittest.cc',
         'observer_list_unittest.cc',
         'path_service_unittest.cc',
         'pickle_unittest.cc',
@@ -167,6 +166,7 @@
         'win/event_trace_controller_unittest.cc',
         'win/event_trace_provider_unittest.cc',
         'win/i18n_unittest.cc',
+        'win/object_watcher_unittest.cc',
         'win/pe_image_unittest.cc',
         'win/registry_unittest.cc',
         'win/scoped_bstr_unittest.cc',
@@ -224,7 +224,6 @@
             ['exclude', '^win/'],
           ],
           'sources!': [
-            'object_watcher_unittest.cc',
             'system_monitor_unittest.cc',
             'time_win_unittest.cc',
             'trace_event_win_unittest.cc',
