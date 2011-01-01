@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "base/object_watcher.h"
+#include "base/win/object_watcher.h"
 #include "net/proxy/polling_proxy_config_service.h"
 
 namespace net {
@@ -40,7 +40,7 @@ namespace net {
 // change, or in case we got it wrong (and are not checking all possible
 // registry dependencies).
 class ProxyConfigServiceWin : public PollingProxyConfigService,
-                              public base::ObjectWatcher::Delegate {
+                              public base::win::ObjectWatcher::Delegate {
  public:
   ProxyConfigServiceWin();
   virtual ~ProxyConfigServiceWin();
