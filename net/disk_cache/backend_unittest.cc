@@ -4,10 +4,10 @@
 
 #include "base/basictypes.h"
 #include "base/file_util.h"
-#include "base/platform_thread.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
+#include "base/threading/platform_thread.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -877,7 +877,7 @@ void DiskCacheBackendTest::BackendEnumerations2() {
   entry2->Close();
 
   // Make sure that the timestamp is not the same.
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
   ASSERT_EQ(net::OK, OpenEntry(second, &entry1));
   void* iter = NULL;
   ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry2));
@@ -1053,7 +1053,7 @@ void DiskCacheBackendTest::BackendDoomRecent() {
   ASSERT_EQ(net::OK, CreateEntry("second", &entry));
   entry->Close();
 
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
   Time middle = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("third", &entry));
@@ -1061,7 +1061,7 @@ void DiskCacheBackendTest::BackendDoomRecent() {
   ASSERT_EQ(net::OK, CreateEntry("fourth", &entry));
   entry->Close();
 
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
   Time final = Time::Now();
 
   ASSERT_EQ(4, cache_->GetEntryCount());
@@ -1097,7 +1097,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   ASSERT_EQ(net::OK, CreateEntry("first", &entry));
   entry->Close();
 
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
   Time middle_start = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("second", &entry));
@@ -1105,7 +1105,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   ASSERT_EQ(net::OK, CreateEntry("third", &entry));
   entry->Close();
 
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
   Time middle_end = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("fourth", &entry));
@@ -1113,7 +1113,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   ASSERT_EQ(net::OK, OpenEntry("fourth", &entry));
   entry->Close();
 
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
   Time final = Time::Now();
 
   ASSERT_EQ(4, cache_->GetEntryCount());

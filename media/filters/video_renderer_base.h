@@ -19,8 +19,8 @@
 
 #include "base/condition_variable.h"
 #include "base/lock.h"
-#include "base/platform_thread.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/platform_thread.h"
 #include "media/base/filters.h"
 #include "media/base/video_frame.h"
 
@@ -29,7 +29,7 @@ namespace media {
 // TODO(scherkus): to avoid subclasses, consider using a peer/delegate interface
 // and pass in a reference to the constructor.
 class VideoRendererBase : public VideoRenderer,
-                          public PlatformThread::Delegate {
+                          public base::PlatformThread::Delegate {
  public:
   VideoRendererBase();
   virtual ~VideoRendererBase();
@@ -189,7 +189,7 @@ class VideoRendererBase : public VideoRenderer,
   State state_;
 
   // Video thread handle.
-  PlatformThreadHandle thread_;
+  base::PlatformThreadHandle thread_;
 
   // Previous time returned from the pipeline.
   base::TimeDelta previous_time_;

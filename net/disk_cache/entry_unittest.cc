@@ -1,9 +1,9 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
-#include "base/platform_thread.h"
+#include "base/threading/platform_thread.h"
 #include "base/timer.h"
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"
@@ -634,7 +634,7 @@ void DiskCacheEntryTest::GetTimes() {
   EXPECT_TRUE(entry->GetLastModified() >= t1);
   EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
 
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
   Time t2 = Time::Now();
   EXPECT_TRUE(t2 > t1);
   EXPECT_EQ(0, WriteData(entry, 0, 200, NULL, 0, false));
@@ -645,7 +645,7 @@ void DiskCacheEntryTest::GetTimes() {
   }
   EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
 
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
   Time t3 = Time::Now();
   EXPECT_TRUE(t3 > t2);
   const int kSize = 200;
@@ -1286,7 +1286,7 @@ void DiskCacheEntryTest::DoomedEntry() {
   FlushQueueForTest();
   EXPECT_EQ(0, cache_->GetEntryCount());
   Time initial = Time::Now();
-  PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(20);
 
   const int kSize1 = 2000;
   const int kSize2 = 2000;
@@ -1746,7 +1746,7 @@ void DiskCacheEntryTest::DoomSparseEntry() {
       // Most likely we are waiting for the result of reading the sparse info
       // (it's always async on Posix so it is easy to miss). Unfortunately we
       // don't have any signal to watch for so we can only wait.
-      PlatformThread::Sleep(500);
+      base::PlatformThread::Sleep(500);
       MessageLoop::current()->RunAllPending();
     }
     EXPECT_EQ(0, cache_->GetEntryCount());

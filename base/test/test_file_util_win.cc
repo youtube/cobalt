@@ -12,8 +12,8 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
-#include "base/platform_thread.h"
 #include "base/scoped_handle.h"
+#include "base/threading/platform_thread.h"
 
 namespace file_util {
 
@@ -32,7 +32,7 @@ bool DieFileDie(const FilePath& file, bool recurse) {
   for (int i = 0; i < 25; ++i) {
     if (file_util::Delete(file, recurse))
       return true;
-    PlatformThread::Sleep(kTimeoutMs / 25);
+    base::PlatformThread::Sleep(kTimeoutMs / 25);
   }
   return false;
 }
@@ -203,7 +203,7 @@ bool HasInternetZoneIdentifier(const FilePath& full_path) {
   // Windows does not guarantee that we will get the same contents even after
   // the other process closes the handle, flushes the buffers, etc.
   for (int i = 0; i < 20; i++) {
-    PlatformThread::Sleep(1000);
+    base::PlatformThread::Sleep(1000);
 
     const DWORD kShare = FILE_SHARE_READ |
         FILE_SHARE_WRITE |
