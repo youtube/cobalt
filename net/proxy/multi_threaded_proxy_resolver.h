@@ -10,9 +10,9 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/proxy/proxy_resolver.h"
 
 namespace base {
@@ -71,7 +71,8 @@ class ProxyResolverFactory {
 //     a global counter and using that to make a decision. In the
 //     multi-threaded model, each thread may have a different value for this
 //     counter, so it won't globally be seen as monotonically increasing!
-class MultiThreadedProxyResolver : public ProxyResolver, public NonThreadSafe {
+class MultiThreadedProxyResolver : public ProxyResolver,
+                                   public base::NonThreadSafe {
  public:
   // Creates an asynchronous ProxyResolver that runs requests on up to
   // |max_num_threads|.

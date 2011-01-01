@@ -23,9 +23,9 @@
 #include "base/file_path.h"
 #include "base/hash_tables.h"
 #include "base/message_loop_proxy.h"
-#include "base/non_thread_safe.h"
 #include "base/scoped_ptr.h"
 #include "base/task.h"
+#include "base/threading/non_thread_safe.h"
 #include "base/weak_ptr.h"
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
@@ -58,7 +58,7 @@ class ViewCacheHelper;
 
 class HttpCache : public HttpTransactionFactory,
                   public base::SupportsWeakPtr<HttpCache>,
-                  public NonThreadSafe {
+                  public base::NonThreadSafe {
  public:
   ~HttpCache();
 

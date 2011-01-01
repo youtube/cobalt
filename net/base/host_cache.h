@@ -10,8 +10,8 @@
 #include <string>
 
 #include "base/gtest_prod_util.h"
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
+#include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "net/base/address_family.h"
 #include "net/base/address_list.h"
@@ -19,7 +19,7 @@
 namespace net {
 
 // Cache used by HostResolver to map hostnames to their resolved result.
-class HostCache : public NonThreadSafe {
+class HostCache : public base::NonThreadSafe {
  public:
   // Stores the latest address list that was looked up for a hostname.
   struct Entry : public base::RefCounted<Entry> {
