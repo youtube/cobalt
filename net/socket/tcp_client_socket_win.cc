@@ -10,6 +10,7 @@
 #include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
+#include "base/win/object_watcher.h"
 #include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
@@ -170,7 +171,7 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
  private:
   friend class base::RefCounted<Core>;
 
-  class ReadDelegate : public base::ObjectWatcher::Delegate {
+  class ReadDelegate : public base::win::ObjectWatcher::Delegate {
    public:
     explicit ReadDelegate(Core* core) : core_(core) {}
     virtual ~ReadDelegate() {}
@@ -182,7 +183,7 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
     Core* const core_;
   };
 
-  class WriteDelegate : public base::ObjectWatcher::Delegate {
+  class WriteDelegate : public base::win::ObjectWatcher::Delegate {
    public:
     explicit WriteDelegate(Core* core) : core_(core) {}
     virtual ~WriteDelegate() {}
@@ -205,9 +206,9 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   WriteDelegate writer_;
 
   // |read_watcher_| watches for events from Connect() and Read().
-  base::ObjectWatcher read_watcher_;
+  base::win::ObjectWatcher read_watcher_;
   // |write_watcher_| watches for events from Write();
-  base::ObjectWatcher write_watcher_;
+  base::win::ObjectWatcher write_watcher_;
 
   // When doing reads from the socket, we try to mirror TCP's slow start.
   // We do this because otherwise the async IO subsystem artifically delays
