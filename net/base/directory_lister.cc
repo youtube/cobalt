@@ -10,7 +10,7 @@
 #include "base/file_util.h"
 #include "base/i18n/file_util_icu.h"
 #include "base/message_loop.h"
-#include "base/platform_thread.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "net/base/net_errors.h"
 
@@ -104,7 +104,7 @@ DirectoryLister::DirectoryLister(const FilePath& dir,
       delegate_(delegate),
       sort_(ALPHA_DIRS_FIRST),
       message_loop_(NULL),
-      thread_(kNullThreadHandle) {
+      thread_(base::kNullThreadHandle) {
   DCHECK(!dir.value().empty());
 }
 
@@ -117,7 +117,7 @@ DirectoryLister::DirectoryLister(const FilePath& dir,
       delegate_(delegate),
       sort_(sort),
       message_loop_(NULL),
-      thread_(kNullThreadHandle) {
+      thread_(base::kNullThreadHandle) {
   DCHECK(!dir.value().empty());
 }
 
@@ -126,7 +126,7 @@ DirectoryLister::~DirectoryLister() {
     // This is a bug and we should stop joining this thread.
     // http://crbug.com/65331
     base::ThreadRestrictions::ScopedAllowIO allow_io;
-    PlatformThread::Join(thread_);
+    base::PlatformThread::Join(thread_);
   }
 }
 
@@ -139,7 +139,7 @@ bool DirectoryLister::Start() {
 
   AddRef();  // the thread will release us when it is done
 
-  if (!PlatformThread::Create(0, this, &thread_)) {
+  if (!base::PlatformThread::Create(0, this, &thread_)) {
     Release();
     return false;
   }
@@ -154,8 +154,8 @@ void DirectoryLister::Cancel() {
     // This is a bug and we should stop joining this thread.
     // http://crbug.com/65331
     base::ThreadRestrictions::ScopedAllowIO allow_io;
-    PlatformThread::Join(thread_);
-    thread_ = kNullThreadHandle;
+    base::PlatformThread::Join(thread_);
+    thread_ = base::kNullThreadHandle;
   }
 }
 

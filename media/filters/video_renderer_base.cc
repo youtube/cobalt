@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/callback.h"
+#include "base/threading/platform_thread.h"
 #include "media/base/buffers.h"
 #include "media/base/callback.h"
 #include "media/base/filter_host.h"
@@ -30,7 +31,7 @@ VideoRendererBase::VideoRendererBase()
       height_(0),
       frame_available_(&lock_),
       state_(kUninitialized),
-      thread_(kNullThreadHandle),
+      thread_(base::kNullThreadHandle),
       pending_reads_(0),
       pending_paint_(false),
       pending_paint_with_last_available_(false),
@@ -116,9 +117,9 @@ void VideoRendererBase::Stop(FilterCallback* callback) {
       frame_available_.Signal();
       {
         AutoUnlock auto_unlock(lock_);
-        PlatformThread::Join(thread_);
+        base::PlatformThread::Join(thread_);
       }
-      thread_ = kNullThreadHandle;
+      thread_ = base::kNullThreadHandle;
     }
 
   }
@@ -193,7 +194,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   state_ = kFlushed;
 
   // Create our video thread.
-  if (!PlatformThread::Create(0, this, &thread_)) {
+  if (!base::PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
     host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
     state_ = kError;
@@ -215,7 +216,7 @@ bool VideoRendererBase::HasEnded() {
 
 // PlatformThread::Delegate implementation.
 void VideoRendererBase::ThreadMain() {
-  PlatformThread::SetName("CrVideoRenderer");
+  base::PlatformThread::SetName("CrVideoRenderer");
   base::TimeDelta remaining_time;
 
   for (;;) {
