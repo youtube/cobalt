@@ -14,10 +14,10 @@
 #include <algorithm>
 #include <string>
 
-#include "base/lock.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/lock.h"
 
 namespace base {
 
@@ -911,9 +911,9 @@ StatisticsRecorder::StatisticsRecorder() {
     // during the termination phase. Since it's a static data member, we will
     // leak one per process, which would be similar to the instance allocated
     // during static initialization and released only on  process termination.
-    lock_ = new Lock;
+    lock_ = new base::Lock;
   }
-  AutoLock auto_lock(*lock_);
+  base::AutoLock auto_lock(*lock_);
   histograms_ = new HistogramMap;
 }
 
@@ -928,7 +928,7 @@ StatisticsRecorder::~StatisticsRecorder() {
   // Clean up.
   HistogramMap* histograms = NULL;
   {
-    AutoLock auto_lock(*lock_);
+    base::AutoLock auto_lock(*lock_);
     histograms = histograms_;
     histograms_ = NULL;
   }
@@ -941,7 +941,7 @@ StatisticsRecorder::~StatisticsRecorder() {
 bool StatisticsRecorder::IsActive() {
   if (lock_ == NULL)
     return false;
-  AutoLock auto_lock(*lock_);
+  base::AutoLock auto_lock(*lock_);
   return NULL != histograms_;
 }
 
@@ -954,7 +954,7 @@ bool StatisticsRecorder::IsActive() {
 void StatisticsRecorder::Register(Histogram* histogram) {
   if (lock_ == NULL)
     return;
-  AutoLock auto_lock(*lock_);
+  base::AutoLock auto_lock(*lock_);
   if (!histograms_)
     return;
   const std::string name = histogram->histogram_name();
@@ -1011,7 +1011,7 @@ void StatisticsRecorder::WriteGraph(const std::string& query,
 void StatisticsRecorder::GetHistograms(Histograms* output) {
   if (lock_ == NULL)
     return;
-  AutoLock auto_lock(*lock_);
+  base::AutoLock auto_lock(*lock_);
   if (!histograms_)
     return;
   for (HistogramMap::iterator it = histograms_->begin();
@@ -1026,7 +1026,7 @@ bool StatisticsRecorder::FindHistogram(const std::string& name,
                                        scoped_refptr<Histogram>* histogram) {
   if (lock_ == NULL)
     return false;
-  AutoLock auto_lock(*lock_);
+  base::AutoLock auto_lock(*lock_);
   if (!histograms_)
     return false;
   HistogramMap::iterator it = histograms_->find(name);
@@ -1041,7 +1041,7 @@ void StatisticsRecorder::GetSnapshot(const std::string& query,
                                      Histograms* snapshot) {
   if (lock_ == NULL)
     return;
-  AutoLock auto_lock(*lock_);
+  base::AutoLock auto_lock(*lock_);
   if (!histograms_)
     return;
   for (HistogramMap::iterator it = histograms_->begin();
@@ -1055,7 +1055,7 @@ void StatisticsRecorder::GetSnapshot(const std::string& query,
 // static
 StatisticsRecorder::HistogramMap* StatisticsRecorder::histograms_ = NULL;
 // static
-Lock* StatisticsRecorder::lock_ = NULL;
+base::Lock* StatisticsRecorder::lock_ = NULL;
 // static
 bool StatisticsRecorder::dump_on_exit_ = false;
 

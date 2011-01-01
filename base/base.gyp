@@ -1,4 +1,4 @@
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -67,7 +67,6 @@
         'callback_unittest.cc',
         'cancellation_flag_unittest.cc',
         'command_line_unittest.cc',
-        'condition_variable_unittest.cc',
         'crypto/encryptor_unittest.cc',
         'crypto/rsa_private_key_unittest.cc',
         'crypto/rsa_private_key_nss_unittest.cc',
@@ -97,7 +96,6 @@
         'lazy_instance_unittest.cc',
         'linked_list_unittest.cc',
         'linked_ptr_unittest.cc',
-        'lock_unittest.cc',
         'logging_unittest.cc',
         'mac/mac_util_unittest.mm',
         'message_loop_proxy_impl_unittest.cc',
@@ -132,6 +130,8 @@
         'string_util_unittest.cc',
         'stringize_macros_unittest.cc',
         'stringprintf_unittest.cc',
+        'synchronization/condition_variable_unittest.cc',
+        'synchronization/lock_unittest.cc',
         'sys_info_unittest.cc',
         'sys_string_conversions_mac_unittest.mm',
         'sys_string_conversions_unittest.cc',
