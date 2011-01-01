@@ -5,8 +5,8 @@
 #include "base/basictypes.h"
 #include "base/environment.h"
 #include "base/message_loop.h"
-#include "base/platform_thread.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/platform_thread.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -81,7 +81,7 @@ class TestInputCallbackBlocking : public TestInputCallback {
     // Call the base, which increments the callback_count_.
     TestInputCallback::OnData(stream, data, size);
     if (callback_count() > block_after_callback_)
-      PlatformThread::Sleep(block_for_ms_);
+      base::PlatformThread::Sleep(block_for_ms_);
   }
 
  private:

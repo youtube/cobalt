@@ -11,9 +11,9 @@
 #include "base/cancellation_flag.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/platform_thread.h"
 #include "base/ref_counted.h"
 #include "base/task.h"
+#include "base/threading/platform_thread.h"
 
 class MessageLoop;
 
@@ -27,7 +27,7 @@ namespace net {
 // is insulated from any of the multi-threading details.
 //
 class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
-                        public PlatformThread::Delegate {
+                        public base::PlatformThread::Delegate {
  public:
   // Represents one file found.
   struct DirectoryListerData {
@@ -106,7 +106,7 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
   DirectoryListerDelegate* delegate_;
   SORT_TYPE sort_;
   MessageLoop* message_loop_;
-  PlatformThreadHandle thread_;
+  base::PlatformThreadHandle thread_;
   base::CancellationFlag canceled_;
 };
 

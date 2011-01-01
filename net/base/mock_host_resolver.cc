@@ -5,8 +5,8 @@
 #include "net/base/mock_host_resolver.h"
 
 #include "base/string_util.h"
-#include "base/platform_thread.h"
 #include "base/ref_counted.h"
+#include "base/threading/platform_thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
@@ -231,7 +231,7 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
     if (matches_flags && matches_address_family &&
         MatchPattern(host, r->host_pattern)) {
       if (r->latency_ms != 0)
-        PlatformThread::Sleep(r->latency_ms);
+        base::PlatformThread::Sleep(r->latency_ms);
 
       // Remap to a new host.
       const std::string& effective_host =
