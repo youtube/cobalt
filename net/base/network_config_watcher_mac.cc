@@ -9,7 +9,7 @@
 #include <algorithm>
 
 #include "base/compiler_specific.h"
-#include "base/thread.h"
+#include "base/threading/thread.h"
 #include "base/mac/scoped_cftyperef.h"
 
 namespace net {

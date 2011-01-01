@@ -22,7 +22,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 
 namespace {
 

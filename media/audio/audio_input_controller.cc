@@ -4,7 +4,7 @@
 
 #include "media/audio/audio_input_controller.h"
 
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "media/base/limits.h"
 
 namespace {

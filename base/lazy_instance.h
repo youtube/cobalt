@@ -41,7 +41,7 @@
 #include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 
 namespace base {
 

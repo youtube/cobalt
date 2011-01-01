@@ -14,7 +14,7 @@
 #include "base/logging.h"
 #include "base/threading/platform_thread.h"
 #include "base/safe_strerror_posix.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
 namespace base {

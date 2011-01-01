@@ -10,7 +10,7 @@
 #include "base/logging.h"
 #include "base/safe_strerror_posix.h"
 #include "base/scoped_ptr.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 
 #if defined(OS_MACOSX)
 #include <mach/mach.h>

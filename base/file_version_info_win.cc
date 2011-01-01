@@ -10,7 +10,7 @@
 #include "base/file_version_info.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 
 // This has to be last.
 #include <strsafe.h>
