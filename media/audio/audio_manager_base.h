@@ -7,7 +7,7 @@
 
 #include <map>
 
-#include "base/thread.h"
+#include "base/threading/thread.h"
 #include "media/audio/audio_manager.h"
 
 class AudioOutputDispatcher;

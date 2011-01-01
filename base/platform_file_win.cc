@@ -6,7 +6,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 
 namespace base {
 

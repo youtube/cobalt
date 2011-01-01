@@ -10,7 +10,7 @@
 #include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
-#include "base/thread.h"
+#include "base/threading/thread.h"
 #include "media/audio/audio_manager_base.h"
 
 class AlsaPcmOutputStream;
