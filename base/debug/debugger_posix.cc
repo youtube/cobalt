@@ -137,7 +137,7 @@ bool BeingDebugged() {
 
 #elif defined(OS_FREEBSD)
 
-bool DebugUtil::BeingDebugged() {
+bool BeingDebugged() {
   // TODO(benl): can we determine this under FreeBSD?
   NOTIMPLEMENTED();
   return false;

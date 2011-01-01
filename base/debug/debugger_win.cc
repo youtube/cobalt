@@ -8,7 +8,6 @@
 #include <dbghelp.h>
 
 #include "base/basictypes.h"
-#include "base/debug_util.h"
 #include "base/logging.h"
 
 namespace base {
@@ -103,7 +102,7 @@ bool BeingDebugged() {
 }
 
 void BreakDebugger() {
-  if (DebugUtil::AreDialogsSuppressed())
+  if (IsDebugUISuppressed())
     _exit(1);
   __debugbreak();
 }

@@ -9,6 +9,8 @@
 namespace base {
 namespace debug {
 
+static bool is_debug_ui_suppressed = false;
+
 bool WaitForDebugger(int wait_seconds, bool silent) {
   for (int i = 0; i < wait_seconds * 10; ++i) {
     if (BeingDebugged()) {
@@ -19,6 +21,14 @@ bool WaitForDebugger(int wait_seconds, bool silent) {
     PlatformThread::Sleep(100);
   }
   return false;
+}
+
+void SetSuppressDebugUI(bool suppress) {
+  is_debug_ui_suppressed = suppress;
+}
+
+bool IsDebugUISuppressed() {
+  return is_debug_ui_suppressed;
 }
 
 }  // namespace debug

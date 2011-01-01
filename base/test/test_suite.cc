@@ -9,8 +9,6 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/debug_on_start.h"
-#include "base/debug_util.h"
-#include "base/debug/debugger.h"
 #include "base/debug/debugger.h"
 #include "base/file_path.h"
 #include "base/i18n/icu_util.h"
@@ -196,7 +194,7 @@ void TestSuite::Initialize() {
   if (!base::debug::BeingDebugged() &&
       !CommandLine::ForCurrentProcess()->HasSwitch("show-error-dialogs")) {
     SuppressErrorDialogs();
-    DebugUtil::SuppressDialogs();
+    base::debug::SetSuppressDebugUI(true);
     logging::SetLogAssertHandler(UnitTestAssertHandler);
   }
 
