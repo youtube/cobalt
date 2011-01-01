@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "base/lock.h"
-#include "base/platform_thread.h"
+#include "base/threading/platform_thread.h"
 #include "net/url_request/url_request.h"
 
 template <typename T> struct DefaultSingletonTraits;
@@ -84,7 +84,7 @@ class URLRequestJobManager {
 #ifndef NDEBUG
   // We use this to assert that CreateJob and the registration functions all
   // run on the same thread.
-  mutable PlatformThreadId allowed_thread_;
+  mutable base::PlatformThreadId allowed_thread_;
   mutable bool allowed_thread_initialized_;
 
   // The first guy to call this function sets the allowed thread.  This way we
@@ -94,10 +94,10 @@ class URLRequestJobManager {
   bool IsAllowedThread() const {
 #if 0
     if (!allowed_thread_initialized_) {
-      allowed_thread_ = PlatformThread::CurrentId();
+      allowed_thread_ = base::PlatformThread::CurrentId();
       allowed_thread_initialized_ = true;
     }
-    return allowed_thread_ == PlatformThread::CurrentId();
+    return allowed_thread_ == base::PlatformThread::CurrentId();
 #else
     // The previous version of this check used GetCurrentThread on Windows to
     // get thread handles to compare. Unfortunately, GetCurrentThread returns
