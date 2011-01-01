@@ -16,7 +16,6 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/condition_variable.h"
 #include "base/lazy_instance.h"
 #include "base/lock.h"
 #include "base/logging.h"
@@ -25,6 +24,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/condition_variable.h"
 #include "base/threading/thread_checker.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
@@ -46,7 +46,7 @@ class OCSPRequestSession;
 class OCSPIOLoop {
  public:
   void StartUsing() {
-    AutoLock autolock(lock_);
+    base::AutoLock autolock(lock_);
     used_ = true;
   }
 
@@ -54,7 +54,7 @@ class OCSPIOLoop {
   void Shutdown();
 
   bool used() const {
-    AutoLock autolock(lock_);
+    base::AutoLock autolock(lock_);
     return used_;
   }
 
@@ -74,7 +74,7 @@ class OCSPIOLoop {
 
   void CancelAllRequests();
 
-  mutable Lock lock_;
+  mutable base::Lock lock_;
   bool shutdown_;  // Protected by |lock_|.
   std::set<OCSPRequestSession*> requests_;  // Protected by |lock_|.
   bool used_;  // Protected by |lock_|.
@@ -188,18 +188,18 @@ class OCSPRequestSession
 
   void Cancel() {
     // IO thread may set |io_loop_| to NULL, so protect by |lock_|.
-    AutoLock autolock(lock_);
+    base::AutoLock autolock(lock_);
     CancelLocked();
   }
 
   bool Finished() const {
-    AutoLock autolock(lock_);
+    base::AutoLock autolock(lock_);
     return finished_;
   }
 
   bool Wait() {
     base::TimeDelta timeout = timeout_;
-    AutoLock autolock(lock_);
+    base::AutoLock autolock(lock_);
     while (!finished_) {
       base::TimeTicks last_time = base::TimeTicks::Now();
       cv_.TimedWait(timeout);
@@ -290,7 +290,7 @@ class OCSPRequestSession
       request_ = NULL;
       g_ocsp_io_loop.Get().RemoveRequest(this);
       {
-        AutoLock autolock(lock_);
+        base::AutoLock autolock(lock_);
         finished_ = true;
         io_loop_ = NULL;
       }
@@ -303,7 +303,7 @@ class OCSPRequestSession
   void CancelURLRequest() {
 #ifndef NDEBUG
     {
-      AutoLock autolock(lock_);
+      base::AutoLock autolock(lock_);
       if (io_loop_)
         DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
     }
@@ -314,7 +314,7 @@ class OCSPRequestSession
       request_ = NULL;
       g_ocsp_io_loop.Get().RemoveRequest(this);
       {
-        AutoLock autolock(lock_);
+        base::AutoLock autolock(lock_);
         finished_ = true;
         io_loop_ = NULL;
       }
@@ -356,7 +356,7 @@ class OCSPRequestSession
       return;
 
     {
-      AutoLock autolock(lock_);
+      base::AutoLock autolock(lock_);
       DCHECK(!io_loop_);
       io_loop_ = MessageLoopForIO::current();
       g_ocsp_io_loop.Get().AddRequest(this);
@@ -401,8 +401,8 @@ class OCSPRequestSession
   std::string data_;              // Results of the requst
 
   // |lock_| protects |finished_| and |io_loop_|.
-  mutable Lock lock_;
-  ConditionVariable cv_;
+  mutable base::Lock lock_;
+  base::ConditionVariable cv_;
 
   MessageLoop* io_loop_;          // Message loop of the IO thread
   bool finished_;
@@ -462,7 +462,7 @@ OCSPIOLoop::~OCSPIOLoop() {
   // IO thread was already deleted before the singleton is deleted
   // in AtExitManager.
   {
-    AutoLock autolock(lock_);
+    base::AutoLock autolock(lock_);
     DCHECK(!io_loop_);
     DCHECK(!used_);
     DCHECK(shutdown_);
@@ -479,7 +479,7 @@ void OCSPIOLoop::Shutdown() {
 
   // Prevent the worker thread from trying to access |io_loop_|.
   {
-    AutoLock autolock(lock_);
+    base::AutoLock autolock(lock_);
     io_loop_ = NULL;
     used_ = false;
     shutdown_ = true;
@@ -494,13 +494,13 @@ void OCSPIOLoop::Shutdown() {
 
 void OCSPIOLoop::PostTaskToIOLoop(
     const tracked_objects::Location& from_here, Task* task) {
-  AutoLock autolock(lock_);
+  base::AutoLock autolock(lock_);
   if (io_loop_)
     io_loop_->PostTask(from_here, task);
 }
 
 void OCSPIOLoop::EnsureIOLoop() {
-  AutoLock autolock(lock_);
+  base::AutoLock autolock(lock_);
   DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 }
 
@@ -512,7 +512,7 @@ void OCSPIOLoop::AddRequest(OCSPRequestSession* request) {
 void OCSPIOLoop::RemoveRequest(OCSPRequestSession* request) {
   {
     // Ignore if we've already shutdown.
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     if (shutdown_)
       return;
   }

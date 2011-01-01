@@ -7,8 +7,8 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/condition_variable.h"
 #include "base/stl_util-inl.h"
+#include "base/synchronization/condition_variable.h"
 #include "media/base/clock_impl.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_format.h"

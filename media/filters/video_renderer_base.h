@@ -17,9 +17,9 @@
 
 #include <deque>
 
-#include "base/condition_variable.h"
-#include "base/lock.h"
 #include "base/scoped_ptr.h"
+#include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "media/base/filters.h"
 #include "media/base/video_frame.h"
@@ -129,7 +129,7 @@ class VideoRendererBase : public VideoRenderer,
                                          float playback_rate);
 
   // Used for accessing data members.
-  Lock lock_;
+  base::Lock lock_;
 
   scoped_refptr<VideoDecoder> decoder_;
 
@@ -148,7 +148,7 @@ class VideoRendererBase : public VideoRenderer,
 
   // Used to signal |thread_| as frames are added to |frames_|.  Rule of thumb:
   // always check |state_| to see if it was set to STOPPED after waking up!
-  ConditionVariable frame_available_;
+  base::ConditionVariable frame_available_;
 
   // State transition Diagram of this class:
   //       [kUninitialized] -------> [kError]
