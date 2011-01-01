@@ -11,7 +11,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
-#include "base/mac_util.h"
+#include "base/mac/mac_util.h"
 #include "base/path_service.h"
 #include "base/string_util.h"
 
@@ -48,15 +48,15 @@ bool PathProviderMac(int key, FilePath* result) {
       return GetNSExecutablePath(result);
     }
     case base::DIR_CACHE:
-      return mac_util::GetUserDirectory(NSCachesDirectory, result);
+      return base::mac::GetUserDirectory(NSCachesDirectory, result);
     case base::DIR_APP_DATA:
-      return mac_util::GetUserDirectory(NSApplicationSupportDirectory, result);
+      return base::mac::GetUserDirectory(NSApplicationSupportDirectory, result);
     case base::DIR_SOURCE_ROOT: {
       // Go through PathService to catch overrides.
       if (PathService::Get(base::FILE_EXE, result)) {
         // Start with the executable's directory.
         *result = result->DirName();
-        if (mac_util::AmIBundled()) {
+        if (base::mac::AmIBundled()) {
           // The bundled app executables (Chromium, TestShell, etc) live five
           // levels down, eg:
           // src/xcodebuild/{Debug|Release}/Chromium.app/Contents/MacOS/Chromium

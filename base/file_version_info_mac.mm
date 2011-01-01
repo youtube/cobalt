@@ -8,15 +8,15 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/mac/mac_util.h"
 #include "base/sys_string_conversions.h"
-#include "base/mac_util.h"
 
 FileVersionInfoMac::FileVersionInfoMac(NSBundle *bundle) : bundle_(bundle) {
 }
 
 // static
 FileVersionInfo* FileVersionInfo::CreateFileVersionInfoForCurrentModule() {
-  return CreateFileVersionInfo(mac_util::MainAppBundlePath());
+  return CreateFileVersionInfo(base::mac::MainAppBundlePath());
 }
 
 // static
@@ -97,7 +97,7 @@ bool FileVersionInfoMac::is_official_build() {
 
 string16 FileVersionInfoMac::GetString16Value(CFStringRef name) {
   if (bundle_) {
-    NSString *ns_name = mac_util::CFToNSCast(name);
+    NSString *ns_name = base::mac::CFToNSCast(name);
     NSString* value = [bundle_ objectForInfoDictionaryKey:ns_name];
     if (value) {
       return base::SysNSStringToUTF16(value);

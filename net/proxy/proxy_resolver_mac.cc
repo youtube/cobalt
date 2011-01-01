@@ -7,7 +7,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 #include "base/logging.h"
-#include "base/mac_util.h"
+#include "base/mac/mac_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
@@ -154,7 +154,7 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
     //                                     PAC file, I'm going home.
 
     CFStringRef proxy_type =
-        (CFStringRef)mac_util::GetValueFromDictionary(proxy_dictionary,
+        (CFStringRef)base::mac::GetValueFromDictionary(proxy_dictionary,
                                                       kCFProxyTypeKey,
                                                       CFStringGetTypeID());
     ProxyServer proxy_server = ProxyServer::FromDictionary(
