@@ -24,7 +24,7 @@
 #include "base/platform_file.h"
 #include "base/string_util.h"
 #include "base/threading/worker_pool.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/io_buffer.h"

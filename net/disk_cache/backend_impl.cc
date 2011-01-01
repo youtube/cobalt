@@ -14,7 +14,7 @@
 #include "base/stringprintf.h"
 #include "base/sys_info.h"
 #include "base/threading/worker_pool.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "base/timer.h"
 #include "net/base/net_errors.h"

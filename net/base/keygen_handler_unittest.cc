@@ -12,7 +12,7 @@
 #include "base/nss_util.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/waitable_event.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
