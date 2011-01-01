@@ -10,7 +10,7 @@
 #include "base/compiler_specific.h"
 #include "base/eintr_wrapper.h"
 #include "base/task.h"
-#include "base/thread.h"
+#include "base/threading/thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier_netlink_linux.h"
 
@@ -91,7 +91,8 @@ void NetworkChangeNotifierLinux::Thread::OnFileCanReadWithoutBlocking(int fd) {
   ListenForNotifications();
 }
 
-void NetworkChangeNotifierLinux::Thread::OnFileCanWriteWithoutBlocking(int /* fd */) {
+void NetworkChangeNotifierLinux::Thread::OnFileCanWriteWithoutBlocking(
+    int /* fd */) {
   NOTREACHED();
 }
 

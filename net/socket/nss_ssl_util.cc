@@ -13,7 +13,7 @@
 #include "base/logging.h"
 #include "base/nss_util.h"
 #include "base/singleton.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"

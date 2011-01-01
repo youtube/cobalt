@@ -5,7 +5,7 @@
 #include "base/threading/platform_thread.h"
 
 #include "base/logging.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/win/windows_version.h"
 
 namespace base {

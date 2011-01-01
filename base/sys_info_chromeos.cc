@@ -9,7 +9,7 @@
 #include "base/file_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
-#include "base/thread_restrictions.h"
+#include "base/threading/thread_restrictions.h"
 
 namespace base {
 

@@ -7,7 +7,7 @@
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "base/thread.h"
+#include "base/threading/thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/proxy/proxy_info.h"

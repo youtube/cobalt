@@ -10,7 +10,7 @@
 #include "base/ref_counted.h"
 #include "base/task.h"
 #include "base/threading/platform_thread.h"
-#include "base/thread.h"
+#include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)

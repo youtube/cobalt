@@ -12,7 +12,7 @@
 
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
-#include "base/thread.h"
+#include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
