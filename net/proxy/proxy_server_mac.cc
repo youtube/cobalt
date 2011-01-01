@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/logging.h"
-#include "base/mac_util.h"
+#include "base/mac/mac_util.h"
 #include "base/sys_string_conversions.h"
 
 namespace net {
@@ -25,7 +25,7 @@ ProxyServer ProxyServer::FromDictionary(Scheme scheme,
   }
 
   CFStringRef host_ref =
-      (CFStringRef)mac_util::GetValueFromDictionary(dict, host_key,
+      (CFStringRef)base::mac::GetValueFromDictionary(dict, host_key,
                                                     CFStringGetTypeID());
   if (!host_ref) {
     LOG(WARNING) << "Could not find expected key "
@@ -36,7 +36,7 @@ ProxyServer ProxyServer::FromDictionary(Scheme scheme,
   std::string host = base::SysCFStringRefToUTF8(host_ref);
 
   CFNumberRef port_ref =
-      (CFNumberRef)mac_util::GetValueFromDictionary(dict, port_key,
+      (CFNumberRef)base::mac::GetValueFromDictionary(dict, port_key,
                                                     CFNumberGetTypeID());
   int port;
   if (port_ref) {
