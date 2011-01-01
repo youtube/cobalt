@@ -1,4 +1,4 @@
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -44,9 +44,6 @@
           'command_line.cc',
           'command_line.h',
           'compiler_specific.h',
-          'condition_variable.h',
-          'condition_variable_posix.cc',
-          'condition_variable_win.cc',
           'cpu.cc',
           'cpu.h',
           'debug/debug_on_start_win.cc',
@@ -103,11 +100,7 @@
           'lazy_instance.h',
           'linked_list.h',
           'linked_ptr.h',
-          'lock.cc',
           'lock.h',
-          'lock_impl.h',
-          'lock_impl_posix.cc',
-          'lock_impl_win.cc',
           'logging.cc',
           'logging.h',
           'logging_win.cc',
@@ -216,6 +209,14 @@
           'stringize_macros.h',
           'stringprintf.cc',
           'stringprintf.h',
+          'synchronization/condition_variable.h',
+          'synchronization/condition_variable_posix.cc',
+          'synchronization/condition_variable_win.cc',
+          'synchronization/lock.cc',
+          'synchronization/lock.h',
+          'synchronization/lock_impl.h',
+          'synchronization/lock_impl_posix.cc',
+          'synchronization/lock_impl_win.cc',
           'sys_info.h',
           'sys_info_chromeos.cc',
           'sys_info_freebsd.cc',

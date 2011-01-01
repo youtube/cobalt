@@ -21,8 +21,8 @@
 
 #include <string>
 
-#include "base/condition_variable.h"
-#include "base/lock.h"
+#include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/time.h"
 
@@ -31,15 +31,15 @@ namespace base {
 class Watchdog {
  public:
   // Constructor specifies how long the Watchdog will wait before alarming.
-  Watchdog(const base::TimeDelta& duration,
+  Watchdog(const TimeDelta& duration,
            const std::string& thread_watched_name,
            bool enabled);
   virtual ~Watchdog();
 
   // Start timing, and alarm when time expires (unless we're disarm()ed.)
   void Arm();  // Arm  starting now.
-  void ArmSomeTimeDeltaAgo(const base::TimeDelta& time_delta);
-  void ArmAtStartTime(const base::TimeTicks start_time);
+  void ArmSomeTimeDeltaAgo(const TimeDelta& time_delta);
+  void ArmAtStartTime(const TimeTicks start_time);
 
   // Reset time, and do not set off the alarm.
   void Disarm();
@@ -71,12 +71,12 @@ class Watchdog {
   Lock lock_;  // Mutex for state_.
   ConditionVariable condition_variable_;
   State state_;
-  const base::TimeDelta duration_;  // How long after start_time_ do we alarm?
+  const TimeDelta duration_;  // How long after start_time_ do we alarm?
   const std::string thread_watched_name_;
   PlatformThreadHandle handle_;
   ThreadDelegate delegate_;  // Store it, because it must outlive the thread.
 
-  base::TimeTicks start_time_;  // Start of epoch, and alarm after duration_.
+  TimeTicks start_time_;  // Start of epoch, and alarm after duration_.
 
   // When the debugger breaks (when we alarm), all the other alarms that are
   // armed will expire (also alarm).  To diminish this effect, we track any
@@ -86,9 +86,9 @@ class Watchdog {
   // on alarms from callers that specify old times.
   static Lock static_lock_;  // Lock for access of static data...
   // When did we last alarm and get stuck (for a while) in a debugger?
-  static base::TimeTicks last_debugged_alarm_time_;
+  static TimeTicks last_debugged_alarm_time_;
   // How long did we sit on a break in the debugger?
-  static base::TimeDelta last_debugged_alarm_delay_;
+  static TimeDelta last_debugged_alarm_delay_;
 
   DISALLOW_COPY_AND_ASSIGN(Watchdog);
 };
