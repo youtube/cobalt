@@ -10,8 +10,8 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/non_thread_safe.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
@@ -46,7 +46,7 @@ struct CachedCertVerifyResult {
 // request at a time is to create a SingleRequestCertVerifier wrapper around
 // CertVerifier (which will automatically cancel the single request when it
 // goes out of scope).
-class CertVerifier : public NonThreadSafe {
+class CertVerifier : public base::NonThreadSafe {
  public:
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;

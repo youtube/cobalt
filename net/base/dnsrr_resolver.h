@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
+#include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "build/build_config.h"
 #include "net/base/completion_callback.h"
@@ -66,7 +66,7 @@ class RRResolverJob;
 // the name is a fully qualified DNS domain.
 //
 // A DnsRRResolver must be used from the MessageLoop which created it.
-class DnsRRResolver : public NonThreadSafe,
+class DnsRRResolver : public base::NonThreadSafe,
                       public NetworkChangeNotifier::Observer {
  public:
   enum {

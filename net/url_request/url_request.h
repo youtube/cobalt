@@ -13,9 +13,9 @@
 #include "base/debug/leak_tracker.h"
 #include "base/linked_ptr.h"
 #include "base/logging.h"
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/string16.h"
+#include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/load_states.h"
 #include "net/base/net_log.h"
@@ -57,7 +57,7 @@ namespace net {
 //
 // NOTE: All usage of all instances of this class should be on the same thread.
 //
-class URLRequest : public NonThreadSafe {
+class URLRequest : public base::NonThreadSafe {
  public:
   // Derive from this class and add your own data members to associate extra
   // information with a URLRequest. Use GetUserData(key) and SetUserData()

@@ -12,11 +12,11 @@
 
 #include <map>
 #include "base/basictypes.h"
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
-#include "base/template_util.h"
 #include "base/stl_util-inl.h"
+#include "base/template_util.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/socket/client_socket_pool_histograms.h"
 
 class Value;
@@ -57,7 +57,7 @@ class OwnedPoolMap : public std::map<Key, Value> {
 
 }  // namespace internal
 
-class ClientSocketPoolManager : public NonThreadSafe {
+class ClientSocketPoolManager : public base::NonThreadSafe {
  public:
   ClientSocketPoolManager(NetLog* net_log,
                           ClientSocketFactory* socket_factory,
