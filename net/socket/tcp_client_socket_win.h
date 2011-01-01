@@ -8,8 +8,8 @@
 
 #include <winsock2.h>
 
-#include "base/non_thread_safe.h"
 #include "base/object_watcher.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
@@ -19,7 +19,7 @@ namespace net {
 
 class BoundNetLog;
 
-class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
+class TCPClientSocketWin : public ClientSocket, base::NonThreadSafe {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a

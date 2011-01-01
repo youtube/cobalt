@@ -8,9 +8,9 @@
 
 #include <map>
 #include <set>
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/host_resolver.h"
 #include "net/base/ssl_client_auth_cache.h"
@@ -45,7 +45,7 @@ class TCPClientSocketPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
 class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
-                           public NonThreadSafe {
+                           public base::NonThreadSafe {
  public:
   HttpNetworkSession(
       HostResolver* host_resolver,
