@@ -8,7 +8,7 @@
 #include <SystemConfiguration/SystemConfiguration.h>
 
 #include "base/logging.h"
-#include "base/mac_util.h"
+#include "base/mac/mac_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
 #include "net/base/net_errors.h"
@@ -27,7 +27,7 @@ const int kPollIntervalSec = 5;
 bool GetBoolFromDictionary(CFDictionaryRef dict,
                            CFStringRef key,
                            bool default_value) {
-  CFNumberRef number = (CFNumberRef)mac_util::GetValueFromDictionary(
+  CFNumberRef number = (CFNumberRef)base::mac::GetValueFromDictionary(
       dict, key, CFNumberGetTypeID());
   if (!number)
     return default_value;
@@ -59,7 +59,7 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
   if (GetBoolFromDictionary(config_dict.get(),
                             kSCPropNetProxiesProxyAutoConfigEnable,
                             false)) {
-    CFStringRef pac_url_ref = (CFStringRef)mac_util::GetValueFromDictionary(
+    CFStringRef pac_url_ref = (CFStringRef)base::mac::GetValueFromDictionary(
         config_dict.get(),
         kSCPropNetProxiesProxyAutoConfigURLString,
         CFStringGetTypeID());
@@ -129,7 +129,7 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
   // proxy bypass list
 
   CFArrayRef bypass_array_ref =
-      (CFArrayRef)mac_util::GetValueFromDictionary(
+      (CFArrayRef)base::mac::GetValueFromDictionary(
           config_dict.get(),
           kSCPropNetProxiesExceptionsList,
           CFArrayGetTypeID());
