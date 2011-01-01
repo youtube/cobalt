@@ -8,8 +8,8 @@
 
 #include <vector>
 
-#include "base/non_thread_safe.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/base/capturing_net_log.h"
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
@@ -50,7 +50,7 @@ namespace net {
 // Requests are ordered in the queue based on their priority.
 
 class HostResolverImpl : public HostResolver,
-                         public NonThreadSafe,
+                         public base::NonThreadSafe,
                          public NetworkChangeNotifier::Observer {
  public:
   // The index into |job_pools_| for the various job pools. Pools with a higher

@@ -7,9 +7,9 @@
 #pragma once
 
 #include "base/message_loop.h"
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
@@ -22,7 +22,7 @@ namespace net {
 class BoundNetLog;
 
 // A client socket that uses TCP as the transport layer.
-class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
+class TCPClientSocketLibevent : public ClientSocket, base::NonThreadSafe {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a

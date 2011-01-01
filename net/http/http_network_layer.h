@@ -8,9 +8,9 @@
 
 #include <string>
 
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/http/http_transaction_factory.h"
 
 namespace net {
@@ -29,7 +29,8 @@ class SpdySessionPool;
 class SSLConfigService;
 class SSLHostInfoFactory;
 
-class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
+class HttpNetworkLayer : public HttpTransactionFactory,
+                         public base::NonThreadSafe {
  public:
   // |socket_factory|, |proxy_service|, |host_resolver|, etc. must remain
   // valid for the lifetime of HttpNetworkLayer.

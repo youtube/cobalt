@@ -11,8 +11,8 @@
 #define NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
 #pragma once
 
-#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
+#include "base/threading/non_thread_safe.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
@@ -39,7 +39,7 @@ class URLRequest;
 // instances.
 class URLRequestContext
     : public base::RefCountedThreadSafe<URLRequestContext>,
-      public NonThreadSafe {
+      public base::NonThreadSafe {
  public:
   URLRequestContext();
 
