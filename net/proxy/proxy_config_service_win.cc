@@ -39,7 +39,7 @@ void FreeIEConfig(WINHTTP_CURRENT_USER_IE_PROXY_CONFIG* ie_config) {
 // RegKey and ObjectWatcher pair.
 class ProxyConfigServiceWin::KeyEntry {
  public:
-  bool StartWatching(base::ObjectWatcher::Delegate* delegate) {
+  bool StartWatching(base::win::ObjectWatcher::Delegate* delegate) {
     // Try to create a watch event for the registry key (which watches the
     // sibling tree as well).
     if (!key_.StartWatching())
@@ -63,7 +63,7 @@ class ProxyConfigServiceWin::KeyEntry {
 
  private:
   base::win::RegKey key_;
-  base::ObjectWatcher watcher_;
+  base::win::ObjectWatcher watcher_;
 };
 
 ProxyConfigServiceWin::ProxyConfigServiceWin()
