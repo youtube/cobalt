@@ -8,7 +8,7 @@
 
 #include "base/message_pump.h"
 #include "base/time.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 
 namespace base {
 

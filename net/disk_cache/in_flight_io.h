@@ -9,7 +9,7 @@
 #include <set>
 
 #include "base/message_loop_proxy.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 
 namespace disk_cache {
 

@@ -25,10 +25,10 @@
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
-#include "base/waitable_event.h"
 
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
