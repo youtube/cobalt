@@ -8,7 +8,7 @@
 #include "base/logging.h"
 #include "base/lock.h"
 #include "base/message_loop.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 
