@@ -8,7 +8,7 @@
 
 #include <list>
 
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "net/base/host_resolver_impl.h"
 #include "net/base/host_resolver_proc.h"
 

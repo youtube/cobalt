@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/task.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/worker_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
