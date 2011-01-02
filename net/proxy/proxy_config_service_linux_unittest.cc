@@ -16,7 +16,7 @@
 #include "base/stringprintf.h"
 #include "base/task.h"
 #include "base/threading/thread.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service_common_unittest.h"
 #include "testing/gtest/include/gtest/gtest.h"
