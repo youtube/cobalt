@@ -7,7 +7,7 @@
 #include "base/lazy_instance.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_local.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 
 namespace base {
 

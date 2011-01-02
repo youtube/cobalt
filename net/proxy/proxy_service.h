@@ -11,7 +11,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "net/base/completion_callback.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/net_log.h"

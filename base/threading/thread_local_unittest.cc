@@ -5,7 +5,7 @@
 #include "base/logging.h"
 #include "base/threading/simple_thread.h"
 #include "base/threading/thread_local.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

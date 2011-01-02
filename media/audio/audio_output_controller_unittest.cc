@@ -6,7 +6,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/task.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "media/audio/audio_output_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

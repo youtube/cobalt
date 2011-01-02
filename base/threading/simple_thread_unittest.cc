@@ -5,7 +5,7 @@
 #include "base/atomic_sequence_num.h"
 #include "base/string_number_conversions.h"
 #include "base/threading/simple_thread.h"
-#include "base/waitable_event.h"
+#include "base/synchronization/waitable_event.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
