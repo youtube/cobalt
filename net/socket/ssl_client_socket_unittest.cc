@@ -543,7 +543,8 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
 
 // TODO(rsleevi): Not implemented for Schannel. As Schannel is only used when
 // performing client authentication, it will not be tested here.
-TEST_F(SSLClientSocketTest, CipherSuiteDisables) {
+// Flaky, http://crbug.com/64843.
+TEST_F(SSLClientSocketTest, FLAKY_CipherSuiteDisables) {
   // Rather than exhaustively disabling every RC4 ciphersuite defined at
   // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml,
   // only disabling those cipher suites that the test server actually
