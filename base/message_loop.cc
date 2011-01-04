@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/message_pump_default.h"
 #include "base/metrics/histogram.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_local.h"
 
 #if defined(OS_MACOSX)
@@ -18,7 +19,6 @@
 #endif
 #if defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
-#include "base/third_party/valgrind/valgrind.h"
 #endif
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
 #include "base/message_pump_glib.h"
@@ -483,8 +483,8 @@ bool MessageLoop::DeletePendingTasks() {
       // Valgrind.
 #if defined(PURIFY) || defined(USE_HEAPCHECKER)
       delete pending_task.task;
-#elif defined(OS_POSIX)
-      if (RUNNING_ON_VALGRIND)
+#else
+      if (RunningOnValgrind())
         delete pending_task.task;
 #endif  // defined(OS_POSIX)
     }
@@ -496,8 +496,8 @@ bool MessageLoop::DeletePendingTasks() {
     Task* task = NULL;
 #if defined(PURIFY) || defined(USE_HEAPCHECKER)
     task = deferred_non_nestable_work_queue_.front().task;
-#elif defined(OS_POSIX)
-    if (RUNNING_ON_VALGRIND)
+#else
+    if (RunningOnValgrind())
       task = deferred_non_nestable_work_queue_.front().task;
 #endif
     deferred_non_nestable_work_queue_.pop();
