@@ -95,6 +95,9 @@ TEST_F(FtpDirectoryListingParserLsTest, Ignored) {
   const char* ignored_cases[] = {
     "drwxr-xr-x 2 0 0 4096 Mar 18  2007  ",  // http://crbug.com/60065
 
+    "ftpd: .: Permission denied",
+    "ftpd-BSD: .: Permission denied",
+
     // Tests important for security: verify that after we detect the column
     // offset we don't try to access invalid memory on malformed input.
     "drwxr-xr-x 3 ftp ftp 4096 May 15 18:11",
