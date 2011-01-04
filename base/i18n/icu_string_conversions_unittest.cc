@@ -9,8 +9,10 @@
 #include <sstream>
 
 #include "base/basictypes.h"
+#include "base/format_macros.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
+#include "base/stringprintf.h"
 #include "base/string_piece.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -72,6 +74,9 @@ const wchar_t* const kConvertRoundtripCases[] = {
 TEST(ICUStringConversionsTest, ConvertCodepageUTF8) {
   // Make sure WideToCodepage works like WideToUTF8.
   for (size_t i = 0; i < arraysize(kConvertRoundtripCases); ++i) {
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %ls",
+                                    i, kConvertRoundtripCases[i]));
+
     std::string expected(WideToUTF8(kConvertRoundtripCases[i]));
     std::string utf8;
     EXPECT_TRUE(WideToCodepage(kConvertRoundtripCases[i], kCodepageUTF8,
@@ -237,6 +242,11 @@ static const struct {
 
 TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndWide) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kConvertCodepageCases); ++i) {
+    SCOPED_TRACE(base::StringPrintf(
+                     "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
+                     kConvertCodepageCases[i].encoded,
+                     kConvertCodepageCases[i].codepage_name));
+
     std::wstring wide;
     bool success = CodepageToWide(kConvertCodepageCases[i].encoded,
                                   kConvertCodepageCases[i].codepage_name,
@@ -299,6 +309,11 @@ TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndWide) {
 
 TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kConvertCodepageCases); ++i) {
+    SCOPED_TRACE(base::StringPrintf(
+                     "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
+                     kConvertCodepageCases[i].encoded,
+                     kConvertCodepageCases[i].codepage_name));
+
     string16 utf16;
     bool success = CodepageToUTF16(kConvertCodepageCases[i].encoded,
                                    kConvertCodepageCases[i].codepage_name,
@@ -347,6 +362,11 @@ static const struct {
 TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
   std::string result;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kConvertAndNormalizeCases); ++i) {
+    SCOPED_TRACE(base::StringPrintf(
+                     "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
+                     kConvertAndNormalizeCases[i].encoded,
+                     kConvertAndNormalizeCases[i].codepage_name));
+
     bool success = ConvertToUtf8AndNormalize(
         kConvertAndNormalizeCases[i].encoded,
         kConvertAndNormalizeCases[i].codepage_name, &result);
