@@ -26,9 +26,9 @@
 //      |                       (origin loop)    (worker loop)
 //      |
 //   Resolve()
-//      |---->----<creates>
-//      |
 //      |---->-------------------<creates>
+//      |
+//      |---->----<creates>
 //      |
 //      |---->---------------------------------------------------<creates>
 //      |
@@ -58,11 +58,9 @@
 //
 // A cache hit:
 //
-// DnsRRResolver CacheHitCallbackTask  Handle
+// DnsRRResolver                       Handle
 //      |
 //   Resolve()
-//      |---->----<creates>
-//      |
 //      |---->------------------------<creates>
 //      |
 //      |
@@ -70,9 +68,7 @@
 //
 // (MessageLoop cycles)
 //
-//                   Run
-//                    |
-//                    |----->-----------Post
+//                                      Post
 
 
 
@@ -559,7 +555,11 @@ class RRResolverJob {
   }
 
   ~RRResolverJob() {
-    Cancel(ERR_ABORTED);
+    if (worker_) {
+      worker_->Cancel();
+      worker_ = NULL;
+      PostAll(ERR_ABORTED, NULL);
+    }
   }
 
   void AddHandle(RRResolverHandle* handle) {
@@ -569,14 +569,6 @@ class RRResolverJob {
   void HandleResult(int result, const RRResponse& response) {
     worker_ = NULL;
     PostAll(result, &response);
-  }
-
-  void Cancel(int error) {
-    if (worker_) {
-      worker_->Cancel();
-      worker_ = NULL;
-      PostAll(error, NULL);
-    }
   }
 
  private:
@@ -669,6 +661,7 @@ intptr_t DnsRRResolver::Resolve(const std::string& name, uint16 rrtype,
     job = new RRResolverJob(worker);
     inflight_.insert(make_pair(key, job));
     if (!worker->Start()) {
+      inflight_.erase(key);
       delete job;
       delete worker;
       return kInvalidHandle;
