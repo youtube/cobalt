@@ -45,6 +45,21 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
           (text.substr(10).empty() || text.substr(10) == ASCIIToUTF16("+")));
 }
 
+bool LooksLikePermissionDeniedError(const string16& text) {
+  // Try to recognize a three-part colon-separated error message:
+  //
+  //   1. ftpd server name
+  //   2. directory name (often just ".")
+  //   3. message text (usually "Permission denied")
+  std::vector<string16> parts;
+  base::SplitString(CollapseWhitespace(text, false), ':', &parts);
+
+  if (parts.size() != 3)
+    return false;
+
+  return parts[2] == ASCIIToUTF16("Permission denied");
+}
+
 bool DetectColumnOffset(const std::vector<string16>& columns,
                         const base::Time& current_time, int* offset) {
   base::Time time;
@@ -125,8 +140,12 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
   }
 
   int column_offset;
-  if (!DetectColumnOffset(columns, current_time_, &column_offset))
-    return false;
+  if (!DetectColumnOffset(columns, current_time_, &column_offset)) {
+    // If we can't recognize a normal listing line, maybe it's an error?
+    // In that case, just ignore the error, but still recognize the data
+    // as valid listing.
+    return LooksLikePermissionDeniedError(line);
+  }
 
   // We may receive file names containing spaces, which can make the number of
   // columns arbitrarily large. We will handle that later. For now just make
