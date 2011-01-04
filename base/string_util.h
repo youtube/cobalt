@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -276,7 +276,7 @@ bool WideToLatin1(const std::wstring& wide, std::string* latin1);
 // first case) or characters that use only 8-bits and whose 8-bit
 // representation looks like a UTF-8 string (the second case).
 //
-// Note that IsStringUTF8 checks not only if the input is structrually
+// Note that IsStringUTF8 checks not only if the input is structurally
 // valid but also if it doesn't contain any non-character codepoint
 // (e.g. U+FFFE). It's done on purpose because all the existing callers want
 // to have the maximum 'discriminating' power from other encodings. If
