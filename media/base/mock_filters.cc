@@ -6,12 +6,16 @@
 
 namespace media {
 
-MockFilterCallback::MockFilterCallback() {}
+MockFilterCallback::MockFilterCallback() : run_destroy_callback_(true) {}
+
+MockFilterCallback::MockFilterCallback(bool run_destroy_callback) :
+    run_destroy_callback_(run_destroy_callback) {
+}
 
 MockFilterCallback::~MockFilterCallback() {}
 
 FilterCallback* MockFilterCallback::NewCallback() {
-  return new CallbackImpl(this);
+  return new CallbackImpl(this, run_destroy_callback_);
 }
 
 MockDataSource::MockDataSource() {}
@@ -81,5 +85,24 @@ void RunStopFilterCallback(FilterCallback* callback) {
   callback->Run();
   delete callback;
 }
+
+MockFilter::MockFilter() :
+    requires_message_loop_(false) {
+}
+
+MockFilter::MockFilter(bool requires_message_loop) :
+    requires_message_loop_(requires_message_loop) {
+}
+
+MockFilter::~MockFilter() {}
+
+bool MockFilter::requires_message_loop() const {
+  return requires_message_loop_;
+}
+
+const char* MockFilter::message_loop_name() const {
+  return "MockFilter";
+}
+
 
 }  // namespace media

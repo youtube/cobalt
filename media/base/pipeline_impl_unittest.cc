@@ -180,10 +180,17 @@ class PipelineImplTest : public ::testing::Test {
   }
 
   // Sets up expectations to allow the audio renderer to initialize.
-  void InitializeAudioRenderer() {
-    EXPECT_CALL(*mocks_->audio_renderer(),
-                Initialize(mocks_->audio_decoder(), NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback));
+  void InitializeAudioRenderer(bool disable_after_init_callback = false) {
+    if (disable_after_init_callback) {
+      EXPECT_CALL(*mocks_->audio_renderer(),
+                  Initialize(mocks_->audio_decoder(), NotNull()))
+          .WillOnce(DoAll(Invoke(&RunFilterCallback),
+                          DisableAudioRenderer(mocks_->audio_renderer())));
+    } else {
+      EXPECT_CALL(*mocks_->audio_renderer(),
+                  Initialize(mocks_->audio_decoder(), NotNull()))
+          .WillOnce(Invoke(&RunFilterCallback));
+    }
     EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->audio_renderer(), SetVolume(1.0f));
     EXPECT_CALL(*mocks_->audio_renderer(), Seek(base::TimeDelta(), NotNull()))
@@ -632,6 +639,47 @@ TEST_F(PipelineImplTest, DisableAudioRenderer) {
               OnAudioRendererDisabled());
 
   mocks_->audio_renderer()->SetPlaybackRate(1.0f);
+
+  // Verify that ended event is fired when video ends.
+  EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
+      .WillOnce(Return(true));
+  EXPECT_CALL(callbacks_, OnEnded());
+  FilterHost* host = pipeline_;
+  host->NotifyEnded();
+}
+
+TEST_F(PipelineImplTest, DisableAudioRendererDuringInit) {
+  CreateAudioStream();
+  CreateVideoStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(audio_stream());
+  streams.push_back(video_stream());
+
+  InitializeDataSource();
+  InitializeDemuxer(&streams, base::TimeDelta());
+  InitializeAudioDecoder(audio_stream());
+  InitializeAudioRenderer(true);
+  InitializeVideoDecoder(video_stream());
+  InitializeVideoRenderer();
+
+  EXPECT_CALL(*mocks_->data_source(),
+              OnAudioRendererDisabled());
+  EXPECT_CALL(*mocks_->demuxer(),
+              OnAudioRendererDisabled());
+  EXPECT_CALL(*mocks_->audio_decoder(),
+              OnAudioRendererDisabled());
+  EXPECT_CALL(*mocks_->audio_renderer(),
+              OnAudioRendererDisabled());
+  EXPECT_CALL(*mocks_->video_decoder(),
+              OnAudioRendererDisabled());
+  EXPECT_CALL(*mocks_->video_renderer(),
+              OnAudioRendererDisabled());
+
+  InitializePipeline();
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
+  EXPECT_FALSE(pipeline_->IsRendered(mime_type::kMajorTypeAudio));
+  EXPECT_TRUE(pipeline_->IsRendered(mime_type::kMajorTypeVideo));
 
   // Verify that ended event is fired when video ends.
   EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
