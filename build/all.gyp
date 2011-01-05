@@ -400,6 +400,7 @@
                 '../chrome/app/locales/locales.gyp:*',
                 '../chrome/chrome.gyp:crash_service',
                 '../chrome/chrome.gyp:page_cycler_tests',
+                '../chrome/chrome.gyp:policy_templates',
                 '../chrome/chrome.gyp:pyautolib',
                 '../chrome/chrome.gyp:reliability_tests',
                 '../chrome/chrome.gyp:startup_tests',
