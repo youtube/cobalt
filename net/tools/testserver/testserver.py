@@ -913,8 +913,18 @@ class TestPageHandler(BasePageHandler):
       return False
 
     username = userpass = password = b64str = ""
+    expected_password = 'secret'
+    realm = 'testrealm'
+    set_cookie_if_challenged = False
 
-    set_cookie_if_challenged = self.path.find('?set-cookie-if-challenged') > 0
+    _, _, url_path, _, query, _ = urlparse.urlparse(self.path)
+    query_params = cgi.parse_qs(query, True)
+    if 'set-cookie-if-challenged' in query_params:
+      set_cookie_if_challenged = True
+    if 'password' in query_params:
+      expected_password = query_params['password'][0]
+    if 'realm' in query_params:
+      realm = query_params['realm'][0]
 
     auth = self.headers.getheader('authorization')
     try:
@@ -923,12 +933,12 @@ class TestPageHandler(BasePageHandler):
       b64str = re.findall(r'Basic (\S+)', auth)[0]
       userpass = base64.b64decode(b64str)
       username, password = re.findall(r'([^:]+):(\S+)', userpass)[0]
-      if password != 'secret':
+      if password != expected_password:
         raise Exception('wrong password')
     except Exception, e:
       # Authentication failed.
       self.send_response(401)
-      self.send_header('WWW-Authenticate', 'Basic realm="testrealm"')
+      self.send_header('WWW-Authenticate', 'Basic realm="%s"' % realm)
       self.send_header('Content-type', 'text/html')
       if set_cookie_if_challenged:
         self.send_header('Set-Cookie', 'got_challenged=true')
@@ -951,6 +961,24 @@ class TestPageHandler(BasePageHandler):
     if if_none_match == "abc":
       self.send_response(304)
       self.end_headers()
+    elif url_path.endswith(".gif"):
+      # Using chrome/test/data/google/logo.gif as the test image
+      test_image_path = ['google', 'logo.gif']
+      gif_path = os.path.join(self.server.data_dir, *test_image_path)
+      if not os.path.isfile(gif_path):
+        self.send_error(404)
+        return True
+
+      f = open(gif_path, "rb")
+      data = f.read()
+      f.close()
+
+      self.send_response(200)
+      self.send_header('Content-type', 'image/gif')
+      self.send_header('Cache-control', 'max-age=60000')
+      self.send_header('Etag', 'abc')
+      self.end_headers()
+      self.wfile.write(data)
     else:
       self.send_response(200)
       self.send_header('Content-type', 'text/html')
