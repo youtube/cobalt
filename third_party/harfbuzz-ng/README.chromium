@@ -1,0 +1,9 @@
+Name: HarfBuzz
+URL: http://freedesktop.org/wiki/Software/HarfBuzz
+
+This is harfbuzz-ng, a new implementation of harfbuzz with a different
+API from the old one.
+
+This code was taken from b0d396aa88b3cdf8cea896bfeeba197656e1cdb1
+(git://anongit.freedesktop.org/harfbuzz).  I also deleted all
+unneeded files from the root directory (but left src/ alone).
