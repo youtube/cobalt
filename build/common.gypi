@@ -323,6 +323,10 @@
     # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
     'use_openssl%': 0,
 
+    # Use Harfbuzz-NG instead of Harfbuzz.
+    # Under development: http://crbug.com/68551
+    'use_harfbuzz_ng%': 0,
+
     'conditions': [
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
