@@ -1,4 +1,4 @@
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -211,6 +211,7 @@
       'type': 'executable',
       'dependencies': [
         'media',
+        'media_test_support',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_base',
@@ -246,6 +247,7 @@
       'msvs_guid': 'C8C6183C-B03C-11DD-B471-DFD256D89593',
       'dependencies': [
         'media',
+        'media_test_support',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_base',
@@ -275,10 +277,8 @@
         'base/filter_collection_unittest.cc',
         'base/mock_ffmpeg.cc',
         'base/mock_ffmpeg.h',
-        'base/mock_filter_host.h',
-        'base/mock_filters.cc',
-        'base/mock_filters.h',
         'base/mock_reader.h',
+        'base/mock_task.cc',
         'base/mock_task.h',
         'base/pipeline_impl_unittest.cc',
         'base/pts_heap_unittest.cc',
@@ -328,10 +328,16 @@
       'dependencies': [
         'media',
         '../base/base.gyp:base',
+        '../testing/gmock.gyp:gmock',
+        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'audio/test_audio_input_controller_factory.cc',
         'audio/test_audio_input_controller_factory.h',
+        'base/mock_filter_host.cc',
+        'base/mock_filter_host.h',
+        'base/mock_filters.cc',
+        'base/mock_filters.h',
       ],
     },
     {
