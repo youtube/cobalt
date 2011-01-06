@@ -366,6 +366,10 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "id.mayfirst.org"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "lists.mayfirst.org"));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "www.mayfirst.org"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "splendidbacon.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.splendidbacon.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "foo.splendidbacon.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
