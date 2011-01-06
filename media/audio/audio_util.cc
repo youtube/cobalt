@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -93,7 +93,8 @@ bool AdjustVolume(void* buf,
                   int bytes_per_sample,
                   float volume) {
   DCHECK(buf);
-  DCHECK(volume >= 0.0f && volume <= 1.0f);
+  if (volume < 0.0f || volume > 1.0f)
+      return false;
   if (volume == 1.0f) {
     return true;
   } else if (volume == 0.0f) {
@@ -129,7 +130,8 @@ bool FoldChannels(void* buf,
                   int bytes_per_sample,
                   float volume) {
   DCHECK(buf);
-  DCHECK(volume >= 0.0f && volume <= 1.0f);
+  if (volume < 0.0f || volume > 1.0f)
+      return false;
   if (channels > 2 && channels <= 8 && bytes_per_sample > 0) {
     int sample_count = buflen / (channels * bytes_per_sample);
     if (bytes_per_sample == 1) {
