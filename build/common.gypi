@@ -6,29 +6,51 @@
 # Please don't directly include this file if you are building via gyp_chromium,
 # since gyp_chromium is automatically forcing its inclusion.
 {
+  # Variables expected to be overriden on the GYP command line (-D) or by
+  # ~/.gyp/include.gypi.
   'variables': {
-    # .gyp files or targets should set chromium_code to 1 if they build
-    # Chromium-specific code, as opposed to external code.  This variable is
-    # used to control such things as the set of warnings to enable, and
-    # whether warnings are treated as errors.
-    'chromium_code%': 0,
-
-    'internal_pdf%': 0,
-
-    # This allows to use libcros from the current system, ie. /usr/lib/
-    # The cros_api will be pulled in as a static library, and all headers
-    # from the system include dirs.
-    'system_libcros%': '0',
-
-    # Variables expected to be overriden on the GYP command line (-D) or by
-    # ~/.gyp/include.gypi.
-
     # Putting a variables dict inside another variables dict looks kind of
-    # weird.  This is done so that "branding" and "buildtype" are defined as
+    # weird.  This is done so that 'host_arch', 'chromeos', etc are defined as
     # variables within the outer variables dict here.  This is necessary
     # to get these variables defined for the conditions within this variables
-    # dict that operate on these variables.
+    # dict that operate on these variables (e.g., for setting 'toolkit_views',
+    # we need to have 'chromeos' already set).
     'variables': {
+      'variables': {
+        # Whether we're building a ChromeOS build.
+        'chromeos%': '0',
+
+        # Disable touch support by default.
+        'touchui%': 0,
+
+        # To do a shared build on linux we need to be able to choose between
+        # type static_library and shared_library. We default to doing a static
+        # build but you can override this with "gyp -Dlibrary=shared_library"
+        # or you can add the following line (without the #) to
+        # ~/.gyp/include.gypi {'variables': {'library': 'shared_library'}}
+        # to compile as shared by default
+        'library%': 'static_library',
+
+        # Compute the architecture that we're building on.
+        'conditions': [
+          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+            # This handles the Linux platforms we generally deal with. Anything
+            # else gets passed through, which probably won't work very well; such
+            # hosts should pass an explicit target_arch to gyp.
+            'host_arch%':
+              '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/")',
+          }, {  # OS!="linux"
+            'host_arch%': 'ia32',
+          }],
+        ],
+      },
+
+      # Copy conditionally-set variables out one scope.
+      'chromeos%': '<(chromeos)',
+      'touchui%': '<(touchui)',
+      'host_arch%': '<(host_arch)',
+      'library%': '<(library)',
+
       # Override branding to select the desired branding flavor.
       'branding%': 'Chromium',
 
@@ -42,39 +64,44 @@
       # builds).
       'buildtype%': 'Dev',
 
-      'variables': {
-        # Compute the architecture that we're building on.
-        'conditions': [
-          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
-            # This handles the Linux platforms we generally deal with. Anything
-            # else gets passed through, which probably won't work very well; such
-            # hosts should pass an explicit target_arch to gyp.
-            'host_arch%':
-              '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/")',
-          }, {  # OS!="linux"
-            'host_arch%': 'ia32',
-          }],
-        ],
+      # Default architecture we're building for is the architecture we're
+      # building on.
+      'target_arch%': '<(host_arch)',
 
-        # Whether we're building a ChromeOS build.  We set the initial
-        # value at this level of nesting so it's available for the
-        # toolkit_views test below.
-        'chromeos%': '0',
+      # This variable tells WebCore.gyp and JavaScriptCore.gyp whether they are
+      # are built under a chromium full build (1) or a webkit.org chromium
+      # build (0).
+      'inside_chromium_build%': 1,
 
-        # Disable touch support by default.
-        'touchui%': 0,
+      # Set to 1 to enable fast builds. It disables debug info for fastest
+      # compilation.
+      'fastbuild%': 0,
 
-        # To do a shared build on linux we need to be able to choose between
-        # type static_library and shared_library. We default to doing a static
-        # build but you can override this with "gyp -Dlibrary=shared_library"
-        # or you can add the following line (without the #) to
-        # ~/.gyp/include.gypi {'variables': {'library': 'shared_library'}}
-        # to compile as shared by default
-        'library%': 'static_library',
-      },
+      # Python version.
+      'python_ver%': '2.5',
 
-      # We set those at this level of nesting so the values are available for
-      # other conditionals below.
+      # Set ARM-v7 compilation flags
+      'armv7%': 0,
+
+      # Set Neon compilation flags (only meaningful if armv7==1).
+      'arm_neon%': 1,
+
+      # The system root for cross-compiles. Default: none.
+      'sysroot%': '',
+
+      # On Linux, we build with sse2 for Chromium builds.
+      'disable_sse2%': 0,
+
+      # Use libjpeg-turbo as the JPEG codec used by Chromium.
+      'use_libjpeg_turbo%': 0,
+
+      # Variable 'component' is for cases where we would like to build some
+      # components as dynamic shared libraries but still need variable
+      # 'library' for static libraries.
+      # By default, component is set to whatever library is set to and
+      # it can be overriden by the GYP command line or by ~/.gyp/include.gypi.
+      'component%': '<(library)',
+
       'conditions': [
         # Set default value of toolkit_views on for Windows, Chrome OS
         # and the touch UI.
@@ -102,59 +129,9 @@
           'linux_fpic%': 1,
         }],
       ],
-
-      'host_arch%': '<(host_arch)',
-
-      # Default architecture we're building for is the architecture we're
-      # building on.
-      'target_arch%': '<(host_arch)',
-
-      # Copy conditionally-set variables out one scope.
-      'chromeos%': '<(chromeos)',
-      'touchui%': '<(touchui)',
-
-      # This variable tells WebCore.gyp and JavaScriptCore.gyp whether they are
-      # are built under a chromium full build (1) or a webkit.org chromium
-      # build (0).
-      'inside_chromium_build%': 1,
-
-      # Set to 1 to enable fast builds. It disables debug info for fastest
-      # compilation.
-      'fastbuild%': 0,
-
-      # Python version.
-      'python_ver%': '2.5',
-
-      # Set ARM-v7 compilation flags
-      'armv7%': 0,
-
-      # Set Neon compilation flags (only meaningful if armv7==1).
-      'arm_neon%': 1,
-
-      # The system root for cross-compiles. Default: none.
-      'sysroot%': '',
-
-      # On Linux, we build with sse2 for Chromium builds.
-      'disable_sse2%': 0,
-
-      # Remoting compilation is enabled by default. Set to 0 to disable.
-      'remoting%': 1,
-
-      # Use libjpeg-turbo as the JPEG codec used by Chromium.
-      'use_libjpeg_turbo%': 0,
-
-      'library%': '<(library)',
-
-      # Variable 'component' is for cases where we would like to build some
-      # components as dynamic shared libraries but still need variable
-      # 'library' for static libraries.
-      # By default, component is set to whatever library is set to and
-      # it can be overriden by the GYP command line or by ~/.gyp/include.gypi.
-      'component%': '<(library)',
     },
 
-    # Define branding and buildtype on the basis of their settings within the
-    # variables sub-dict above, unless overridden.
+    # Copy conditionally-set variables out one scope.
     'branding%': '<(branding)',
     'buildtype%': '<(buildtype)',
     'target_arch%': '<(target_arch)',
@@ -171,7 +148,6 @@
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
     'disable_sse2%': '<(disable_sse2)',
-    'remoting%': '<(remoting)',
     'library%': '<(library)',
     'component%': '<(component)',
 
@@ -323,6 +299,34 @@
     # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
     'use_openssl%': 0,
 
+    # .gyp files or targets should set chromium_code to 1 if they build
+    # Chromium-specific code, as opposed to external code.  This variable is
+    # used to control such things as the set of warnings to enable, and
+    # whether warnings are treated as errors.
+    'chromium_code%': 0,
+
+    # Set to 1 to compile with the built in pdf viewer.
+    'internal_pdf%': 0,
+
+    # This allows to use libcros from the current system, ie. /usr/lib/
+    # The cros_api will be pulled in as a static library, and all headers
+    # from the system include dirs.
+    'system_libcros%': '0',
+
+    # Remoting compilation is enabled by default. Set to 0 to disable.
+    'remoting%': 1,
+
+    # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
+    # so Cocoa is happy (http://crbug.com/20441).
+    'locales': [
+      'am', 'ar', 'bg', 'bn', 'ca', 'cs', 'da', 'de', 'el', 'en-GB',
+      'en-US', 'es-419', 'es', 'et', 'fa', 'fi', 'fil', 'fr', 'gu', 'he',
+      'hi', 'hr', 'hu', 'id', 'it', 'ja', 'kn', 'ko', 'lt', 'lv',
+      'ml', 'mr', 'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'ro', 'ru',
+      'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk',
+      'vi', 'zh-CN', 'zh-TW',
+    ],
+
     # Use Harfbuzz-NG instead of Harfbuzz.
     # Under development: http://crbug.com/68551
     'use_harfbuzz_ng%': 0,
@@ -414,17 +418,6 @@
       }, {
         'libjpeg_gyp_path': '../third_party/libjpeg/libjpeg.gyp',
       }],  # use_libjpeg_turbo==1
-    ],
-
-    # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
-    # so Cocoa is happy (http://crbug.com/20441).
-    'locales': [
-      'am', 'ar', 'bg', 'bn', 'ca', 'cs', 'da', 'de', 'el', 'en-GB',
-      'en-US', 'es-419', 'es', 'et', 'fa', 'fi', 'fil', 'fr', 'gu', 'he',
-      'hi', 'hr', 'hu', 'id', 'it', 'ja', 'kn', 'ko', 'lt', 'lv',
-      'ml', 'mr', 'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'ro', 'ru',
-      'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk',
-      'vi', 'zh-CN', 'zh-TW',
     ],
   },
   'target_defaults': {
