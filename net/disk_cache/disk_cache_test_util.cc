@@ -94,7 +94,7 @@ bool CopyTestCache(const std::string& name) {
 
 bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
   scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(
-      path, base::MessageLoopProxy::CreateForCurrentThread(), NULL));
+      path, base::MessageLoopProxy::CreateForCurrentThread()));
   if (!cache.get())
     return false;
   if (new_eviction)
