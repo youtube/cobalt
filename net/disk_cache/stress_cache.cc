@@ -104,7 +104,7 @@ void StressTheCache(int iteration) {
   int rv = disk_cache::BackendImpl::CreateBackend(
                path, false, cache_size, net::DISK_CACHE,
                disk_cache::kNoLoadProtection | disk_cache::kNoRandom,
-               cache_thread.message_loop_proxy(), &cache, &cb);
+               cache_thread.message_loop_proxy(), NULL, &cache, &cb);
 
   if (cb.GetResult(rv) != net::OK) {
     printf("Unable to initialize cache.\n");
