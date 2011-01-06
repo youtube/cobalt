@@ -226,7 +226,7 @@ TEST_F(DiskCacheTest, CreateBackend) {
 
 TEST_F(DiskCacheBackendTest, ExternalFiles) {
   InitCache();
-  // First, lets create a file on the folder.
+  // First, let's create a file on the folder.
   FilePath filename = GetCacheFilePath().AppendASCII("f_000001");
 
   const int kSize = 50;
