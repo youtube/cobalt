@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,6 @@
 #include "net/base/filter.h"
 #include "net/base/load_states.h"
 
-class URLRequestStatus;
 
 namespace net {
 
@@ -28,6 +27,7 @@ class IOBuffer;
 class URLRequest;
 class URLRequestJobMetrics;
 class UploadData;
+class URLRequestStatus;
 class X509Certificate;
 
 class URLRequestJob : public base::RefCounted<URLRequestJob>,
@@ -225,13 +225,13 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   void NotifyReadComplete(int bytes_read);
 
   // Notifies the request that a start error has occurred.
-  void NotifyStartError(const URLRequestStatus& status);
+  void NotifyStartError(const net::URLRequestStatus& status);
 
   // NotifyDone marks when we are done with a request.  It is really
   // a glorified set_status, but also does internal state checking and
   // job tracking.  It should be called once per request, when the job is
   // finished doing all IO.
-  void NotifyDone(const URLRequestStatus& status);
+  void NotifyDone(const net::URLRequestStatus& status);
 
   // Some work performed by NotifyDone must be completed on a separate task
   // so as to avoid re-entering the delegate.  This method exists to perform
@@ -282,10 +282,10 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   net::URLRequest* request_;
 
   // The status of the job.
-  const URLRequestStatus GetStatus();
+  const net::URLRequestStatus GetStatus();
 
   // Set the status of the job.
-  void SetStatus(const URLRequestStatus& status);
+  void SetStatus(const net::URLRequestStatus& status);
 
   // Whether the job is doing performance profiling
   bool is_profiling_;
