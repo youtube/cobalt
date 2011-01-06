@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,6 +8,8 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_STATUS_H_
 #define NET_URL_REQUEST_URL_REQUEST_STATUS_H_
 #pragma once
+
+namespace net {
 
 // Represents the result of a URL request. It encodes errors and various
 // types of success.
@@ -63,5 +65,10 @@ class URLRequestStatus {
   // encountered
   int os_error_;
 };
+
+}  // namespace net
+
+// TODO(tfarina): Fix the callers and remove this!
+typedef net::URLRequestStatus URLRequestStatus;
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_STATUS_H_

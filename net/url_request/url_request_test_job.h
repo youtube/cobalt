@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,8 @@
 
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
+
+namespace net {
 
 // This job type is designed to help with simple unit tests. To use, you
 // probably want to inherit from it to set up the state you want. Then install
@@ -33,20 +35,20 @@
 //
 // Optionally, you can also construct test jobs that advance automatically
 // without having to call ProcessOnePendingMessage.
-class URLRequestTestJob : public net::URLRequestJob {
+class URLRequestTestJob : public URLRequestJob {
  public:
   // Constructs a job to return one of the canned responses depending on the
   // request url, with auto advance disabled.
-  explicit URLRequestTestJob(net::URLRequest* request);
+  explicit URLRequestTestJob(URLRequest* request);
 
   // Constructs a job to return one of the canned responses depending on the
   // request url, optionally with auto advance enabled.
-  explicit URLRequestTestJob(net::URLRequest* request, bool auto_advance);
+  explicit URLRequestTestJob(URLRequest* request, bool auto_advance);
 
   // Constructs a job to return the given response regardless of the request
   // url. The headers should include the HTTP status line and be formatted as
-  // expected by net::HttpResponseHeaders.
-  explicit URLRequestTestJob(net::URLRequest* request,
+  // expected by HttpResponseHeaders.
+  explicit URLRequestTestJob(URLRequest* request,
                              const std::string& response_headers,
                              const std::string& response_data,
                              bool auto_advance);
@@ -86,14 +88,14 @@ class URLRequestTestJob : public net::URLRequestJob {
   void set_auto_advance(bool auto_advance) { auto_advance_ = auto_advance; }
 
   // Factory method for protocol factory registration if callers don't subclass
-  static net::URLRequest::ProtocolFactory Factory;
+  static URLRequest::ProtocolFactory Factory;
 
   // Job functions
   virtual void Start();
-  virtual bool ReadRawData(net::IOBuffer* buf, int buf_size, int *bytes_read);
+  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
   virtual void Kill();
   virtual bool GetMimeType(std::string* mime_type) const;
-  virtual void GetResponseInfo(net::HttpResponseInfo* info);
+  virtual void GetResponseInfo(HttpResponseInfo* info);
   virtual int GetResponseCode() const;
   virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
 
@@ -120,7 +122,7 @@ class URLRequestTestJob : public net::URLRequestJob {
 
   // The headers the job should return, will be set in Start() if not provided
   // in the explicit ctor.
-  scoped_refptr<net::HttpResponseHeaders> response_headers_;
+  scoped_refptr<HttpResponseHeaders> response_headers_;
 
   // The data to send, will be set in Start() if not provided in the explicit
   // ctor.
@@ -130,8 +132,13 @@ class URLRequestTestJob : public net::URLRequestJob {
   int offset_;
 
   // Holds the buffer for an asynchronous ReadRawData call
-  net::IOBuffer* async_buf_;
+  IOBuffer* async_buf_;
   int async_buf_size_;
 };
+
+}  // namespace net
+
+// TODO(tfarina): Fix the callers and remove this!
+typedef net::URLRequestTestJob URLRequestTestJob;
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_TEST_JOB_H_
