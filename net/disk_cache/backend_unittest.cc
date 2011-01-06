@@ -195,7 +195,7 @@ TEST_F(DiskCacheTest, CreateBackend) {
     disk_cache::Backend* cache = NULL;
     int rv = disk_cache::BackendImpl::CreateBackend(
                  path, false, 0, net::DISK_CACHE, disk_cache::kNoRandom,
-                 cache_thread.message_loop_proxy(), NULL, &cache, &cb);
+                 cache_thread.message_loop_proxy(), &cache, &cb);
     ASSERT_EQ(net::OK, cb.GetResult(rv));
     ASSERT_TRUE(cache);
     delete cache;
@@ -208,14 +208,14 @@ TEST_F(DiskCacheTest, CreateBackend) {
     // Now test the public API.
     rv = disk_cache::CreateCacheBackend(net::DISK_CACHE, path, 0, false,
                                         cache_thread.message_loop_proxy(),
-                                        NULL, &cache, &cb);
+                                        &cache, &cb);
     ASSERT_EQ(net::OK, cb.GetResult(rv));
     ASSERT_TRUE(cache);
     delete cache;
     cache = NULL;
 
     rv = disk_cache::CreateCacheBackend(net::MEMORY_CACHE, FilePath(), 0, false,
-                                        NULL, NULL, &cache, &cb);
+                                        NULL, &cache, &cb);
     ASSERT_EQ(net::OK, cb.GetResult(rv));
     ASSERT_TRUE(cache);
     delete cache;
@@ -260,8 +260,7 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
     disk_cache::Backend* cache;
     int rv = disk_cache::BackendImpl::CreateBackend(
                  path, false, 0, net::DISK_CACHE, disk_cache::kNoRandom,
-                 base::MessageLoopProxy::CreateForCurrentThread(), NULL,
-                 &cache, &cb);
+                 base::MessageLoopProxy::CreateForCurrentThread(), &cache, &cb);
     ASSERT_EQ(net::OK, cb.GetResult(rv));
 
     disk_cache::EntryImpl* entry;
@@ -312,7 +311,7 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO2) {
     disk_cache::Backend* cache;
     int rv = disk_cache::BackendImpl::CreateBackend(
                  path, false, 0, net::DISK_CACHE, disk_cache::kNoRandom,
-                 cache_thread.message_loop_proxy(), NULL, &cache, &cb);
+                 cache_thread.message_loop_proxy(), &cache, &cb);
     ASSERT_EQ(net::OK, cb.GetResult(rv));
 
     disk_cache::Entry* entry;
@@ -349,7 +348,7 @@ TEST_F(DiskCacheTest, TruncatedIndex) {
   disk_cache::Backend* backend = NULL;
   int rv = disk_cache::BackendImpl::CreateBackend(
                path, false, 0, net::DISK_CACHE, disk_cache::kNone,
-               cache_thread.message_loop_proxy(), NULL, &backend, &cb);
+               cache_thread.message_loop_proxy(), &backend, &cb);
   ASSERT_NE(net::OK, cb.GetResult(rv));
 
   ASSERT_TRUE(backend == NULL);
@@ -1279,7 +1278,7 @@ TEST_F(DiskCacheTest, DeleteOld) {
   disk_cache::Backend* cache;
   int rv = disk_cache::BackendImpl::CreateBackend(
                path, true, 0, net::DISK_CACHE, disk_cache::kNoRandom,
-               cache_thread.message_loop_proxy(), NULL, &cache, &cb);
+               cache_thread.message_loop_proxy(), &cache, &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 
   MessageLoopHelper helper;
@@ -1652,8 +1651,7 @@ TEST_F(DiskCacheTest, Backend_UsageStats) {
   ASSERT_TRUE(DeleteCache(path));
   scoped_ptr<disk_cache::BackendImpl> cache;
   cache.reset(new disk_cache::BackendImpl(
-                  path, base::MessageLoopProxy::CreateForCurrentThread(),
-                  NULL));
+                  path, base::MessageLoopProxy::CreateForCurrentThread()));
   ASSERT_TRUE(NULL != cache.get());
   cache->SetUnitTestMode();
   ASSERT_EQ(net::OK, cache->SyncInit());
@@ -1771,11 +1769,11 @@ TEST_F(DiskCacheTest, MultipleInstances) {
 
   int rv = disk_cache::BackendImpl::CreateBackend(
                store1.path(), false, 0, net::DISK_CACHE, disk_cache::kNone,
-               cache_thread.message_loop_proxy(), NULL, &cache[0], &cb);
+               cache_thread.message_loop_proxy(), &cache[0], &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
   rv = disk_cache::BackendImpl::CreateBackend(
            store2.path(), false, 0, net::MEDIA_CACHE, disk_cache::kNone,
-           cache_thread.message_loop_proxy(), NULL, &cache[1], &cb);
+           cache_thread.message_loop_proxy(), &cache[1], &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 
   ASSERT_TRUE(cache[0] != NULL && cache[1] != NULL);
