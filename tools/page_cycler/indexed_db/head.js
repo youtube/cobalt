@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,20 +27,21 @@ function getPropertyValue(name) {
   return '';
 }
 
-/**
- * Returns the value of the '__pc_timings' property.
- * @return {string} The list of all timings we got so far.
- */
-function getTimings() {
-  return getPropertyValue('__pc_timings');
+function __get_timings() {
+  if (sessionStorage == null)
+    return __get_cookie("__pc_timings");
+  else {
+    if (sessionStorage.getItem("__pc_timings") == null)
+      return "";
+    else
+      return sessionStorage["__pc_timings"];
+  }
 }
-
-/**
- * Sets the value of the '__pc_timings' property in the cookie.
- * @param {string} timings A comma-separated list of timings.
- */
-function setTimings(timings) {
-  document.cookie = '__pc_timings=' + timings + '; path=/';
+function __set_timings(timings) {
+  if (sessionStorage == null)
+    document.cookie = "__pc_timings=" + timings + "; path=/";
+  else
+    sessionStorage["__pc_timings"]=timings;
 }
 
 /**
@@ -66,10 +67,10 @@ function nextCycleOrResults() {
   }
 
   var timings = elapsedTime;
-  var oldTimings = getTimings();
+  var oldTimings = __get_timings();
   if (oldTimings != '')
     timings = oldTimings + ',' + timings;
-  setTimings(timings);
+  __set_timings(timings);
 
   var url = doc + '?n=' + iterations + '&i=' + cycle +
       '&td=' + totalTime + '&tf=' + fudgeTime;
