@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,14 +11,14 @@
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 
-class URLRequestContext;
-
 namespace disk_cache {
 class Backend;
 class Entry;
-}
+}  // namespace disk_cache
 
 namespace net {
+
+class URLRequestContext;
 
 class ViewCacheHelper {
  public:
@@ -29,16 +29,20 @@ class ViewCacheHelper {
   // If this method returns ERR_IO_PENDING, |callback| will be notified when the
   // operation completes. |out| must remain valid until this operation completes
   // or the object is destroyed.
-  int GetEntryInfoHTML(const std::string& key, URLRequestContext* context,
-                       std::string* out, CompletionCallback* callback);
+  int GetEntryInfoHTML(const std::string& key,
+                       net::URLRequestContext* context,
+                       std::string* out,
+                       CompletionCallback* callback);
 
   // Formats the cache contents as HTML. Returns a net error code.
   // If this method returns ERR_IO_PENDING, |callback| will be notified when the
   // operation completes. |out| must remain valid until this operation completes
   // or the object is destroyed. |url_prefix| will be prepended to each entry
   // key as a link to the entry.
-  int GetContentsHTML(URLRequestContext* context, const std::string& url_prefix,
-                      std::string* out, CompletionCallback* callback);
+  int GetContentsHTML(net::URLRequestContext* context,
+                      const std::string& url_prefix,
+                      std::string* out,
+                      CompletionCallback* callback);
 
  private:
   enum State {
@@ -56,8 +60,10 @@ class ViewCacheHelper {
   };
 
   // Implements GetEntryInfoHTML and GetContentsHTML.
-  int GetInfoHTML(const std::string& key, URLRequestContext* context,
-                  const std::string& url_prefix, std::string* out,
+  int GetInfoHTML(const std::string& key,
+                  net::URLRequestContext* context,
+                  const std::string& url_prefix,
+                  std::string* out,
                   CompletionCallback* callback);
 
   // This is a helper function used to trigger a completion callback. It may
@@ -87,7 +93,7 @@ class ViewCacheHelper {
   // Called to signal completion of asynchronous IO.
   void OnIOComplete(int result);
 
-  scoped_refptr<URLRequestContext> context_;
+  scoped_refptr<net::URLRequestContext> context_;
   disk_cache::Backend* disk_cache_;
   disk_cache::Entry* entry_;
   void* iter_;
