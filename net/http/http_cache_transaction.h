@@ -110,6 +110,8 @@ class HttpCache::Transaction : public HttpTransaction {
 
   CompletionCallback* io_callback() { return &io_callback_; }
 
+  const BoundNetLog& net_log() const;
+
  private:
   static const size_t kNumValidationHeaders = 2;
   // Helper struct to pair a header name with its value, for
