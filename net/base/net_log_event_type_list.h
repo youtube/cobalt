@@ -501,22 +501,85 @@ EVENT_TYPE(URL_REQUEST_REDIRECTED)
 // HttpCache
 // ------------------------------------------------------------------------
 
+// Measures the time while getting a reference to the back end.
+EVENT_TYPE(HTTP_CACHE_GET_BACKEND)
+
 // Measures the time while opening a disk cache entry.
 EVENT_TYPE(HTTP_CACHE_OPEN_ENTRY)
 
 // Measures the time while creating a disk cache entry.
 EVENT_TYPE(HTTP_CACHE_CREATE_ENTRY)
 
+// Measures the time it takes to add a HttpCache::Transaction to an http cache
+// entry's list of active Transactions.
+EVENT_TYPE(HTTP_CACHE_ADD_TO_ENTRY)
+
 // Measures the time while deleting a disk cache entry.
 EVENT_TYPE(HTTP_CACHE_DOOM_ENTRY)
 
-// Measures the time while reading the response info from a disk cache entry.
+// Measures the time while reading/writing a disk cache entry's response headers
+// or metadata.
 EVENT_TYPE(HTTP_CACHE_READ_INFO)
+EVENT_TYPE(HTTP_CACHE_WRITE_INFO)
 
-// Measures the time that an HttpCache::Transaction is stalled waiting for
-// the cache entry to become available (for example if we are waiting for
-// exclusive access to an existing entry).
-EVENT_TYPE(HTTP_CACHE_WAITING)
+// Measures the time while reading/writing a disk cache entry's body.
+EVENT_TYPE(HTTP_CACHE_READ_DATA)
+EVENT_TYPE(HTTP_CACHE_WRITE_DATA)
+
+// ------------------------------------------------------------------------
+// Disk Cache
+// ------------------------------------------------------------------------
+
+// The creation/destruction of a disk_cache::EntryImpl object.  The "creation"
+// is considered to be the point at which an Entry is first considered to be
+// good and associated with a key.
+//
+// For the BEGIN phase, the following parameters are attached:
+//   {
+//     "created": <true if the Entry was created, rather than being opened>;
+//     "key": <The Entry's key>;
+//   }
+EVENT_TYPE(DISK_CACHE_ENTRY)
+
+// Logs the time required to read/write data from/to a cache entry.
+//
+// For the BEGIN phase, the following parameters are attached:
+//   {
+//     "index": <Index being read/written>;
+//     "offset": <Offset being read/written>;
+//     "buf_len": <Length of buffer being read to/written from>;
+//     "truncate": <If present for a write, the truncate flag is set to true.
+//                  Not present in reads or writes where it is false>
+//   }
+//
+// For the END phase, the following parameters are attached:
+//   {
+//     "bytes_copied": <Number of bytes copied.  Not present on error>;
+//     "net_error": <Network error code.  Only present on error>;
+//   }
+EVENT_TYPE(DISK_CACHE_READ_DATA)
+EVENT_TYPE(DISK_CACHE_WRITE_DATA)
+
+// Logged when SparseControl starts/stops handling IO for an Entry.
+EVENT_TYPE(SPARSE_CONTROL)
+
+// Logged when SparseControl starts/stops reading/writing a child Entry's data
+//
+// For the BEGIN phase, the following parameters are attached:
+//   {
+//     "source_dependency": <Source id of the child entry>
+//   }
+EVENT_TYPE(SPARSE_CONTROL_READ)
+EVENT_TYPE(SPARSE_CONTROL_WRITE)
+
+// Indicates the time taken by a sparse control to get a range.
+EVENT_TYPE(SPARSE_CONTROL_GET_RANGE)
+
+// Logged when an entry is closed.
+EVENT_TYPE(DISK_CACHE_CLOSE)
+
+// Logged when an entry is doomed.
+EVENT_TYPE(DISK_CACHE_DOOM)
 
 // ------------------------------------------------------------------------
 // HttpNetworkTransaction

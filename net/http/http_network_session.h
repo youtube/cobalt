@@ -130,6 +130,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     return &http_stream_factory_;
   }
 
+  NetLog* net_log() {
+    return net_log_;
+  }
+
   // Creates a Value summary of the state of the socket pools. The caller is
   // responsible for deleting the returned value.
   Value* SocketPoolInfoToValue() const {
