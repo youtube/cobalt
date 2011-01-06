@@ -80,7 +80,7 @@ void DumpBlockHeader(const std::wstring& name) {
   if (!ReadHeader(name, reinterpret_cast<char*>(&header), sizeof(header)))
     return;
 
-  std::wstring file_name = file_util::GetFilenameFromPath(name);
+  std::wstring file_name = FilePath(name).BaseName().value();
 
   printf("Block file: %ls\n", file_name.c_str());
   printf("magic: %x\n", header.magic);
