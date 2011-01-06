@@ -20,6 +20,7 @@ struct OnDiskStats {
   int data_sizes[disk_cache::Stats::kDataSizesLength];
   int64 counters[disk_cache::Stats::MAX_COUNTER];
 };
+COMPILE_ASSERT(sizeof(OnDiskStats) < 512, needs_more_than_2_blocks);
 
 // Returns the "floor" (as opposed to "ceiling") of log base 2 of number.
 int LogBase2(int32 number) {
@@ -37,6 +38,7 @@ int LogBase2(int32 number) {
   return static_cast<int>(result);
 }
 
+// WARNING: Add new stats only at the end, or change LoadStats().
 static const char* kCounterNames[] = {
   "Open miss",
   "Open hit",
@@ -57,7 +59,8 @@ static const char* kCounterNames[] = {
   "Get rankings",
   "Fatal error",
   "Last report",
-  "Last report timer"
+  "Last report timer",
+  "Doom recent entries"
 };
 COMPILE_ASSERT(arraysize(kCounterNames) == disk_cache::Stats::MAX_COUNTER,
                update_the_names);
@@ -73,6 +76,7 @@ bool LoadStats(BackendImpl* backend, Addr address, OnDiskStats* stats) {
 
   size_t offset = address.start_block() * address.BlockSize() +
                   kBlockHeaderSize;
+  memset(stats, 0, sizeof(*stats));
   if (!file->Read(stats, sizeof(*stats), offset))
     return false;
 
@@ -80,9 +84,10 @@ bool LoadStats(BackendImpl* backend, Addr address, OnDiskStats* stats) {
     return false;
 
   // We don't want to discard the whole cache every time we have one extra
-  // counter; just reset them to zero.
-  if (stats->size != sizeof(*stats))
+  // counter; we keep old data if we can.
+  if (static_cast<unsigned int>(stats->size) > sizeof(*stats)) {
     memset(stats, 0, sizeof(*stats));
+  }
 
   return true;
 }

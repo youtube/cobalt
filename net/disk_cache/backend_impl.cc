@@ -667,16 +667,15 @@ int BackendImpl::SyncDoomEntry(const std::string& key) {
 int BackendImpl::SyncDoomAllEntries() {
   // This is not really an error, but it is an interesting condition.
   ReportError(ERR_CACHE_DOOMED);
+  stats_.OnEvent(Stats::DOOM_CACHE);
   if (!num_refs_) {
-    PrepareForRestart();
-    DeleteCache(path_, false);
-    return SyncInit();
+    RestartCache(false);
+    return disabled_ ? net::ERR_FAILED : net::OK;
   } else {
     if (disabled_)
       return net::ERR_FAILED;
 
     eviction_.TrimCache(true);
-    stats_.OnEvent(Stats::DOOM_CACHE);
     return net::OK;
   }
 }
@@ -725,6 +724,7 @@ int BackendImpl::SyncDoomEntriesSince(const base::Time initial_time) {
   if (disabled_)
     return net::ERR_FAILED;
 
+  stats_.OnEvent(Stats::DOOM_RECENT);
   for (;;) {
     void* iter = NULL;
     EntryImpl* entry = OpenNextEntryImpl(&iter);
@@ -1178,6 +1178,7 @@ void BackendImpl::CriticalError(int error) {
   if (disabled_)
     return;
 
+  stats_.OnEvent(Stats::FATAL_ERROR);
   LogStats();
   ReportError(error);
 
@@ -1188,7 +1189,7 @@ void BackendImpl::CriticalError(int error) {
 
   if (!num_refs_)
     MessageLoop::current()->PostTask(FROM_HERE,
-        factory_.NewRunnableMethod(&BackendImpl::RestartCache));
+        factory_.NewRunnableMethod(&BackendImpl::RestartCache, true));
 }
 
 void BackendImpl::ReportError(int error) {
@@ -1439,22 +1440,29 @@ void BackendImpl::AdjustMaxCacheSize(int table_len) {
     max_size_= current_max_size;
 }
 
-// We always execute this method from the message loop so that we can freely
-// release files, memory pointers etc.
-void BackendImpl::RestartCache() {
-  DCHECK(!num_refs_);
-  DCHECK(!open_entries_.size());
-  PrepareForRestart();
-  DelayedCacheCleanup(path_);
-
+void BackendImpl::RestartCache(bool failure) {
   int64 errors = stats_.GetCounter(Stats::FATAL_ERROR);
+  int64 full_dooms = stats_.GetCounter(Stats::DOOM_CACHE);
+  int64 partial_dooms = stats_.GetCounter(Stats::DOOM_RECENT);
+
+  PrepareForRestart();
+  if (failure) {
+    DCHECK(!num_refs_);
+    DCHECK(!open_entries_.size());
+    DelayedCacheCleanup(path_);
+  } else {
+    DeleteCache(path_, false);
+  }
 
   // Don't call Init() if directed by the unit test: we are simulating a failure
   // trying to re-enable the cache.
   if (unit_test_)
     init_ = true;  // Let the destructor do proper cleanup.
-  else if (SyncInit())
-    stats_.SetCounter(Stats::FATAL_ERROR, errors + 1);
+  else if (SyncInit() == net::OK) {
+    stats_.SetCounter(Stats::FATAL_ERROR, errors);
+    stats_.SetCounter(Stats::DOOM_CACHE, full_dooms);
+    stats_.SetCounter(Stats::DOOM_RECENT, partial_dooms);
+  }
 }
 
 void BackendImpl::PrepareForRestart() {
@@ -1465,6 +1473,7 @@ void BackendImpl::PrepareForRestart() {
   if (!(user_flags_ & kNewEviction))
     new_eviction_ = false;
 
+  disabled_ = true;
   data_->header.crash = 0;
   index_ = NULL;
   data_ = NULL;
@@ -1827,7 +1836,7 @@ void BackendImpl::DecreaseNumRefs() {
 
   if (!num_refs_ && disabled_)
     MessageLoop::current()->PostTask(FROM_HERE,
-        factory_.NewRunnableMethod(&BackendImpl::RestartCache));
+        factory_.NewRunnableMethod(&BackendImpl::RestartCache, true));
 }
 
 void BackendImpl::IncreaseNumEntries() {
@@ -1868,18 +1877,26 @@ void BackendImpl::ReportStats() {
             static_cast<int>(stats_.GetCounter(Stats::MAX_ENTRIES)));
   stats_.SetCounter(Stats::MAX_ENTRIES, 0);
 
+  CACHE_UMA(COUNTS_10000, "TotalFatalErrors", 0,
+            static_cast<int>(stats_.GetCounter(Stats::FATAL_ERROR)));
+  CACHE_UMA(COUNTS_10000, "TotalDoomCache", 0,
+            static_cast<int>(stats_.GetCounter(Stats::DOOM_CACHE)));
+  CACHE_UMA(COUNTS_10000, "TotalDoomRecentEntries", 0,
+            static_cast<int>(stats_.GetCounter(Stats::DOOM_RECENT)));
+
+  int64 total_hours = stats_.GetCounter(Stats::TIMER) / 120;
   if (!data_->header.create_time || !data_->header.lru.filled) {
     int cause = data_->header.create_time ? 0 : 1;
     if (!data_->header.lru.filled)
       cause |= 2;
     CACHE_UMA(CACHE_ERROR, "ShortReport", 0, cause);
+    CACHE_UMA(HOURS, "TotalTimeNotFull", 0, static_cast<int>(total_hours));
     return;
   }
 
   // This is an up to date client that will report FirstEviction() data. After
   // that event, start reporting this:
 
-  int64 total_hours = stats_.GetCounter(Stats::TIMER) / 120;
   CACHE_UMA(HOURS, "TotalTime", 0, static_cast<int>(total_hours));
 
   int64 use_hours = stats_.GetCounter(Stats::LAST_REPORT_TIMER) / 120;
