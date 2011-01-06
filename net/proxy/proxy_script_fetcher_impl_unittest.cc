@@ -47,6 +47,7 @@ class RequestContext : public URLRequestContext {
         net::HttpNetworkLayer::CreateFactory(host_resolver_, cert_verifier_,
             NULL, NULL, NULL, proxy_service_, ssl_config_service_, NULL, NULL,
             NULL),
+        NULL,
         net::HttpCache::DefaultBackend::InMemory(0));
   }
 
