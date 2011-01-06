@@ -94,7 +94,7 @@ bool AdjustVolume(void* buf,
                   float volume) {
   DCHECK(buf);
   if (volume < 0.0f || volume > 1.0f)
-      return false;
+    return false;
   if (volume == 1.0f) {
     return true;
   } else if (volume == 0.0f) {
@@ -131,7 +131,7 @@ bool FoldChannels(void* buf,
                   float volume) {
   DCHECK(buf);
   if (volume < 0.0f || volume > 1.0f)
-      return false;
+    return false;
   if (channels > 2 && channels <= 8 && bytes_per_sample > 0) {
     int sample_count = buflen / (channels * bytes_per_sample);
     if (bytes_per_sample == 1) {
