@@ -386,12 +386,6 @@ std::wstring GetFileExtensionFromPath(const std::wstring& path) {
       GetFileExtensionFromPath(FilePath::FromWStringHack(path));
   return extension;
 }
-std::wstring GetFilenameFromPath(const std::wstring& path) {
-  if (path.empty() || EndsWithSeparator(FilePath::FromWStringHack(path)))
-    return std::wstring();
-
-  return FilePath::FromWStringHack(path).BaseName().ToWStringHack();
-}
 FILE* OpenFile(const std::wstring& filename, const char* mode) {
   return OpenFile(FilePath::FromWStringHack(filename), mode);
 }
