@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,8 @@
 #include "base/string_util.h"
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
+
+namespace net {
 
 URLRequestContext::URLRequestContext()
     : net_log_(NULL),
@@ -30,6 +32,8 @@ const std::string& URLRequestContext::GetUserAgent(const GURL& url) const {
 URLRequestContext::~URLRequestContext() {
 }
 
-void URLRequestContext::set_cookie_store(net::CookieStore* cookie_store) {
+void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
   cookie_store_ = cookie_store;
 }
+
+}  // namespace net

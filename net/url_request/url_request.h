@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,17 +28,7 @@ namespace base {
 class Time;
 }  // namespace base
 
-namespace net {
-class CookieOptions;
-class IOBuffer;
-class SSLCertRequestInfo;
-class UploadData;
-class URLRequestJob;
-class X509Certificate;
-}  // namespace net
-
 class FilePath;
-class URLRequestContext;
 
 // This stores the values of the Set-Cookie headers received during the request.
 // Each item in the vector corresponds to a Set-Cookie: line received,
@@ -46,6 +36,15 @@ class URLRequestContext;
 typedef std::vector<std::string> ResponseCookies;
 
 namespace net {
+
+class CookieOptions;
+class IOBuffer;
+class SSLCertRequestInfo;
+class UploadData;
+class URLRequestContext;
+class URLRequestJob;
+class X509Certificate;
+
 //-----------------------------------------------------------------------------
 // A class  representing the asynchronous load of a data stream from an URL.
 //
@@ -435,7 +434,7 @@ class URLRequest : public base::NonThreadSafe {
   bool is_pending() const { return is_pending_; }
 
   // Returns the error status of the request.
-  const URLRequestStatus& status() const { return status_; }
+  const net::URLRequestStatus& status() const { return status_; }
 
   // This method is called to start the request.  The delegate will receive
   // a OnResponseStarted callback when the request is started.
@@ -550,7 +549,7 @@ class URLRequest : public base::NonThreadSafe {
   void set_is_pending(bool value) { is_pending_ = value; }
 
   // Allow the URLRequestJob class to set our status too
-  void set_status(const URLRequestStatus& value) { status_ = value; }
+  void set_status(const net::URLRequestStatus& value) { status_ = value; }
 
   // Allow the URLRequestJob to redirect this request.  Returns net::OK if
   // successful, otherwise an error code is returned.
@@ -610,7 +609,7 @@ class URLRequest : public base::NonThreadSafe {
   // Current error status of the job. When no error has been encountered, this
   // will be SUCCESS. If multiple errors have been encountered, this will be
   // the first non-SUCCESS status seen.
-  URLRequestStatus status_;
+  net::URLRequestStatus status_;
 
   // The HTTP response info, lazily initialized.
   net::HttpResponseInfo response_info_;
