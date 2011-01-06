@@ -265,7 +265,7 @@ class BackendImpl : public Backend {
   void AdjustMaxCacheSize(int table_len);
 
   // Deletes the cache and starts again.
-  void RestartCache();
+  void RestartCache(bool failure);
   void PrepareForRestart();
 
   // Creates a new entry object and checks to see if it is dirty. Returns zero
