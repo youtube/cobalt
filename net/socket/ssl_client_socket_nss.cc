@@ -52,6 +52,7 @@
 #include <keyhi.h>
 #include <nspr.h>
 #include <nss.h>
+#include <ocsp.h>
 #include <pk11pub.h>
 #include <secerr.h>
 #include <sechash.h>
@@ -110,6 +111,29 @@ static const int kRecvBufferSize = 4096;
 // Finished message from being sent, the server sees an incomplete handshake
 // and some will time out such sockets quite aggressively.
 static const int kCorkTimeoutMs = 200;
+
+#if defined(OS_LINUX)
+// On Linux, we dynamically link against the system version of libnss3.so. In
+// order to continue working on systems without up-to-date versions of NSS we
+// declare CERT_CacheOCSPResponseFromSideChannel to be a weak symbol. If, at
+// run time, we find that the symbol didn't resolve then we can avoid calling
+// the function.
+extern SECStatus
+CERT_CacheOCSPResponseFromSideChannel(
+    CERTCertDBHandle *handle, CERTCertificate *cert, PRTime time,
+    SECItem *encodedResponse, void *pwArg) __attribute__((weak));
+
+static bool HaveCacheOCSPResponseFromSideChannelFunction() {
+  return CERT_CacheOCSPResponseFromSideChannel != NULL;
+}
+#else
+// On other platforms we use the system's certificate validation functions.
+// Thus we need, in the future, to plumb the OCSP response into those system
+// functions. Until then, we act as if we didn't support OCSP stapling.
+static bool HaveCacheOCSPResponseFromSideChannelFunction() {
+  return false;
+}
+#endif
 
 namespace net {
 
@@ -630,6 +654,15 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
        ssl_config_.next_protos.size());
     if (rv != SECSuccess)
       LogFailedNSSFunction(net_log_, "SSL_SetNextProtoNego", "");
+  }
+#endif
+
+#ifdef SSL_ENABLE_OCSP_STAPLING
+  if (HaveCacheOCSPResponseFromSideChannelFunction() &&
+      !ssl_config_.snap_start_enabled) {
+    rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OCSP_STAPLING, PR_TRUE);
+    if (rv != SECSuccess)
+      LogFailedNSSFunction(net_log_, "SSL_OptionSet (OCSP stapling)", "");
   }
 #endif
 
@@ -1954,6 +1987,32 @@ int SSLClientSocketNSS::DoHandshake() {
             }
           }
         }
+
+#if defined(SSL_ENABLE_OCSP_STAPLING)
+        // TODO: we need to be able to plumb an OCSP response into the system
+        // libraries. When we do, HaveCacheOCSPResponseFromSideChannelFunction
+        // needs to be updated for those platforms.
+        if (!predicted_cert_chain_correct_ &&
+            HaveCacheOCSPResponseFromSideChannelFunction()) {
+          unsigned int len = 0;
+          SSL_GetStapledOCSPResponse(nss_fd_, NULL, &len);
+          if (len) {
+            const unsigned int orig_len = len;
+            scoped_array<uint8> ocsp_response(new uint8[orig_len]);
+            SSL_GetStapledOCSPResponse(nss_fd_, ocsp_response.get(), &len);
+            DCHECK_EQ(orig_len, len);
+
+            SECItem ocsp_response_item;
+            ocsp_response_item.type = siBuffer;
+            ocsp_response_item.data = ocsp_response.get();
+            ocsp_response_item.len = len;
+
+            CERT_CacheOCSPResponseFromSideChannel(
+                CERT_GetDefaultCertDB(), server_cert_nss_, PR_Now(),
+                &ocsp_response_item, NULL);
+          }
+        }
+#endif
 
         SaveSnapStartInfo();
         // SSL handshake is completed. It's possible that we mispredicted the
