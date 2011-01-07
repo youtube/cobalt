@@ -1224,7 +1224,8 @@
           'action':
             ['<@(grit_cmd)',
              '-i', '<(RULE_INPUT_PATH)', 'build',
-             '-o', '<(SHARED_INTERMEDIATE_DIR)/net'],
+             '-o', '<(SHARED_INTERMEDIATE_DIR)/net',
+             '<@(grit_defines)'],
           'message': 'Generating resources from <(RULE_INPUT_PATH)',
         },
       ],
