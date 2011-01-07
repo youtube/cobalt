@@ -9,14 +9,9 @@
 #include <string>
 
 #include "base/string16.h"
-#include "base/time.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/http/http_auth.h"
-
-namespace base {
-class Histogram;
-}
 
 namespace net {
 
@@ -206,13 +201,9 @@ class HttpAuthHandler {
  private:
   void OnGenerateAuthTokenComplete(int rv);
   void FinishGenerateAuthToken();
-  static std::string GenerateHistogramNameFromScheme(const std::string& scheme);
 
   CompletionCallback* original_callback_;
   CompletionCallbackImpl<HttpAuthHandler> wrapper_callback_;
-  // When GenerateAuthToken was called.
-  base::TimeTicks generate_auth_token_start_;
-  scoped_refptr<base::Histogram> histogram_;
 };
 
 }  // namespace net
