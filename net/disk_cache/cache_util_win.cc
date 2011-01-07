@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,10 @@
 
 #include <windows.h>
 
+#include "base/file_util.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/file_util.h"
+#include "base/win/scoped_handle.h"
 
 namespace {
 
@@ -66,8 +67,8 @@ bool DeleteCacheFile(const FilePath& name) {
     // us from opening the file again (unless it was deleted).
     DWORD sharing = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
     DWORD access = SYNCHRONIZE;
-    ScopedHandle file(CreateFile(name.value().c_str(), access, sharing, NULL,
-                                 OPEN_EXISTING, 0, NULL));
+    base::win::ScopedHandle file(CreateFile(
+        name.value().c_str(), access, sharing, NULL, OPEN_EXISTING, 0, NULL));
     if (file.IsValid())
       return false;
 
