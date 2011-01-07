@@ -25,7 +25,7 @@ class TestURLRequestContext : public URLRequestContext {
 };
 
 TestURLRequestContext::TestURLRequestContext()
-    : cache_(reinterpret_cast<net::HttpTransactionFactory*>(NULL),
+    : cache_(reinterpret_cast<net::HttpTransactionFactory*>(NULL), NULL,
              net::HttpCache::DefaultBackend::InMemory(0)) {
   http_transaction_factory_ = &cache_;
 }
