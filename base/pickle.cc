@@ -140,12 +140,6 @@ bool Pickle::ReadLong(void** iter, long* result) const {
   return true;
 }
 
-bool Pickle::ReadLength(void** iter, int* result) const {
-  if (!ReadInt(iter, result))
-    return false;
-  return ((*result) >= 0);
-}
-
 bool Pickle::ReadSize(void** iter, size_t* result) const {
   DCHECK(iter);
   if (!*iter)
@@ -256,6 +250,19 @@ bool Pickle::ReadString16(void** iter, string16* result) const {
   return true;
 }
 
+bool Pickle::ReadData(void** iter, const char** data, int* length) const {
+  DCHECK(iter);
+  DCHECK(data);
+  DCHECK(length);
+  *length = 0;
+  *data = 0;
+
+  if (!ReadLength(iter, length))
+    return false;
+
+  return ReadBytes(iter, data, *length);
+}
+
 bool Pickle::ReadBytes(void** iter, const char** data, int length) const {
   DCHECK(iter);
   DCHECK(data);
@@ -272,54 +279,10 @@ bool Pickle::ReadBytes(void** iter, const char** data, int length) const {
   return true;
 }
 
-bool Pickle::ReadData(void** iter, const char** data, int* length) const {
-  DCHECK(iter);
-  DCHECK(data);
-  DCHECK(length);
-  *length = 0;
-  *data = 0;
-
-  if (!ReadLength(iter, length))
+bool Pickle::ReadLength(void** iter, int* result) const {
+  if (!ReadInt(iter, result))
     return false;
-
-  return ReadBytes(iter, data, *length);
-}
-
-char* Pickle::BeginWrite(size_t length) {
-  // write at a uint32-aligned offset from the beginning of the header
-  size_t offset = AlignInt(header_->payload_size, sizeof(uint32));
-
-  size_t new_size = offset + length;
-  size_t needed_size = header_size_ + new_size;
-  if (needed_size > capacity_ && !Resize(std::max(capacity_ * 2, needed_size)))
-    return NULL;
-
-#ifdef ARCH_CPU_64_BITS
-  DCHECK_LE(length, std::numeric_limits<uint32>::max());
-#endif
-
-  header_->payload_size = static_cast<uint32>(new_size);
-  return payload() + offset;
-}
-
-void Pickle::EndWrite(char* dest, int length) {
-  // Zero-pad to keep tools like purify from complaining about uninitialized
-  // memory.
-  if (length % sizeof(uint32))
-    memset(dest + length, 0, sizeof(uint32) - (length % sizeof(uint32)));
-}
-
-bool Pickle::WriteBytes(const void* data, int data_len) {
-  DCHECK(capacity_ != kCapacityReadOnly) << "oops: pickle is readonly";
-
-  char* dest = BeginWrite(data_len);
-  if (!dest)
-    return false;
-
-  memcpy(dest, data, data_len);
-
-  EndWrite(dest, data_len);
-  return true;
+  return ((*result) >= 0);
 }
 
 bool Pickle::WriteString(const std::string& value) {
@@ -347,6 +310,19 @@ bool Pickle::WriteString16(const string16& value) {
 
 bool Pickle::WriteData(const char* data, int length) {
   return length >= 0 && WriteInt(length) && WriteBytes(data, length);
+}
+
+bool Pickle::WriteBytes(const void* data, int data_len) {
+  DCHECK(capacity_ != kCapacityReadOnly) << "oops: pickle is readonly";
+
+  char* dest = BeginWrite(data_len);
+  if (!dest)
+    return false;
+
+  memcpy(dest, data, data_len);
+
+  EndWrite(dest, data_len);
+  return true;
 }
 
 char* Pickle::BeginWriteData(int length) {
@@ -384,6 +360,30 @@ void Pickle::TrimWriteData(int new_length) {
   // Update the payload size and variable buffer size
   header_->payload_size -= (*cur_length - new_length);
   *cur_length = new_length;
+}
+
+char* Pickle::BeginWrite(size_t length) {
+  // write at a uint32-aligned offset from the beginning of the header
+  size_t offset = AlignInt(header_->payload_size, sizeof(uint32));
+
+  size_t new_size = offset + length;
+  size_t needed_size = header_size_ + new_size;
+  if (needed_size > capacity_ && !Resize(std::max(capacity_ * 2, needed_size)))
+    return NULL;
+
+#ifdef ARCH_CPU_64_BITS
+  DCHECK_LE(length, std::numeric_limits<uint32>::max());
+#endif
+
+  header_->payload_size = static_cast<uint32>(new_size);
+  return payload() + offset;
+}
+
+void Pickle::EndWrite(char* dest, int length) {
+  // Zero-pad to keep tools like purify from complaining about uninitialized
+  // memory.
+  if (length % sizeof(uint32))
+    memset(dest + length, 0, sizeof(uint32) - (length % sizeof(uint32)));
 }
 
 bool Pickle::Resize(size_t new_capacity) {

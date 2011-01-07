@@ -263,6 +263,12 @@ bool StringValue::Equals(const Value* other) const {
 
 ///////////////////// BinaryValue ////////////////////
 
+BinaryValue::~BinaryValue() {
+  DCHECK(buffer_);
+  if (buffer_)
+    delete[] buffer_;
+}
+
 // static
 BinaryValue* BinaryValue::Create(char* buffer, size_t size) {
   if (!buffer)
@@ -282,20 +288,6 @@ BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
   return new BinaryValue(buffer_copy, size);
 }
 
-
-BinaryValue::BinaryValue(char* buffer, size_t size)
-  : Value(TYPE_BINARY),
-    buffer_(buffer),
-    size_(size) {
-  DCHECK(buffer_);
-}
-
-BinaryValue::~BinaryValue() {
-  DCHECK(buffer_);
-  if (buffer_)
-    delete[] buffer_;
-}
-
 Value* BinaryValue::DeepCopy() const {
   return CreateWithCopiedBuffer(buffer_, size_);
 }
@@ -309,6 +301,13 @@ bool BinaryValue::Equals(const Value* other) const {
   return !memcmp(buffer_, other_binary->buffer_, size_);
 }
 
+BinaryValue::BinaryValue(char* buffer, size_t size)
+  : Value(TYPE_BINARY),
+    buffer_(buffer),
+    size_(size) {
+  DCHECK(buffer_);
+}
+
 ///////////////////// DictionaryValue ////////////////////
 
 DictionaryValue::DictionaryValue()
@@ -317,44 +316,6 @@ DictionaryValue::DictionaryValue()
 
 DictionaryValue::~DictionaryValue() {
   Clear();
-}
-
-Value* DictionaryValue::DeepCopy() const {
-  DictionaryValue* result = new DictionaryValue;
-
-  for (ValueMap::const_iterator current_entry(dictionary_.begin());
-       current_entry != dictionary_.end(); ++current_entry) {
-    result->SetWithoutPathExpansion(current_entry->first,
-                                    current_entry->second->DeepCopy());
-  }
-
-  return result;
-}
-
-bool DictionaryValue::Equals(const Value* other) const {
-  if (other->GetType() != GetType())
-    return false;
-
-  const DictionaryValue* other_dict =
-      static_cast<const DictionaryValue*>(other);
-  key_iterator lhs_it(begin_keys());
-  key_iterator rhs_it(other_dict->begin_keys());
-  while (lhs_it != end_keys() && rhs_it != other_dict->end_keys()) {
-    Value* lhs;
-    Value* rhs;
-    if (*lhs_it != *rhs_it ||
-        !GetWithoutPathExpansion(*lhs_it, &lhs) ||
-        !other_dict->GetWithoutPathExpansion(*rhs_it, &rhs) ||
-        !lhs->Equals(rhs)) {
-      return false;
-    }
-    ++lhs_it;
-    ++rhs_it;
-  }
-  if (lhs_it != end_keys() || rhs_it != other_dict->end_keys())
-    return false;
-
-  return true;
 }
 
 bool DictionaryValue::HasKey(const std::string& key) const {
@@ -683,6 +644,44 @@ void DictionaryValue::MergeDictionary(const DictionaryValue* dictionary) {
       SetWithoutPathExpansion(*key, merge_value->DeepCopy());
     }
   }
+}
+
+Value* DictionaryValue::DeepCopy() const {
+  DictionaryValue* result = new DictionaryValue;
+
+  for (ValueMap::const_iterator current_entry(dictionary_.begin());
+       current_entry != dictionary_.end(); ++current_entry) {
+    result->SetWithoutPathExpansion(current_entry->first,
+                                    current_entry->second->DeepCopy());
+  }
+
+  return result;
+}
+
+bool DictionaryValue::Equals(const Value* other) const {
+  if (other->GetType() != GetType())
+    return false;
+
+  const DictionaryValue* other_dict =
+      static_cast<const DictionaryValue*>(other);
+  key_iterator lhs_it(begin_keys());
+  key_iterator rhs_it(other_dict->begin_keys());
+  while (lhs_it != end_keys() && rhs_it != other_dict->end_keys()) {
+    Value* lhs;
+    Value* rhs;
+    if (*lhs_it != *rhs_it ||
+        !GetWithoutPathExpansion(*lhs_it, &lhs) ||
+        !other_dict->GetWithoutPathExpansion(*rhs_it, &rhs) ||
+        !lhs->Equals(rhs)) {
+      return false;
+    }
+    ++lhs_it;
+    ++rhs_it;
+  }
+  if (lhs_it != end_keys() || rhs_it != other_dict->end_keys())
+    return false;
+
+  return true;
 }
 
 ///////////////////// ListValue ////////////////////
