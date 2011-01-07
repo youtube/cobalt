@@ -55,17 +55,18 @@ HttpCache::BackendFactory* HttpCache::DefaultBackend::InMemory(int max_bytes) {
   return new DefaultBackend(MEMORY_CACHE, FilePath(), max_bytes, NULL);
 }
 
-int HttpCache::DefaultBackend::CreateBackend(disk_cache::Backend** backend,
+int HttpCache::DefaultBackend::CreateBackend(NetLog* net_log,
+                                             disk_cache::Backend** backend,
                                              CompletionCallback* callback) {
   DCHECK_GE(max_bytes_, 0);
   return disk_cache::CreateCacheBackend(type_, path_, max_bytes_, true,
-                                        thread_, backend, callback);
+                                        thread_, net_log, backend, callback);
 }
 
 //-----------------------------------------------------------------------------
 
-HttpCache::ActiveEntry::ActiveEntry(disk_cache::Entry* e)
-    : disk_entry(e),
+HttpCache::ActiveEntry::ActiveEntry(disk_cache::Entry* entry)
+    : disk_entry(entry),
       writer(NULL),
       will_process_pending_queue(false),
       doomed(false) {
@@ -288,7 +289,8 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                      HttpNetworkDelegate* network_delegate,
                      NetLog* net_log,
                      BackendFactory* backend_factory)
-    : backend_factory_(backend_factory),
+    : net_log_(net_log),
+      backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
       ssl_host_info_factory_(new SSLHostInfoFactoryAdaptor(
@@ -303,7 +305,8 @@ HttpCache::HttpCache(HostResolver* host_resolver,
 
 HttpCache::HttpCache(HttpNetworkSession* session,
                      BackendFactory* backend_factory)
-    : backend_factory_(backend_factory),
+    : net_log_(session->net_log()),
+      backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
       network_layer_(HttpNetworkLayer::CreateFactory(session)),
@@ -311,8 +314,10 @@ HttpCache::HttpCache(HttpNetworkSession* session,
 }
 
 HttpCache::HttpCache(HttpTransactionFactory* network_layer,
+                     NetLog* net_log,
                      BackendFactory* backend_factory)
-    : backend_factory_(backend_factory),
+    : net_log_(net_log),
+      backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
       network_layer_(network_layer),
@@ -464,7 +469,8 @@ int HttpCache::CreateBackend(disk_cache::Backend** backend,
   BackendCallback* my_callback = new BackendCallback(this, pending_op);
   pending_op->callback = my_callback;
 
-  int rv = backend_factory_->CreateBackend(&pending_op->backend, my_callback);
+  int rv = backend_factory_->CreateBackend(net_log_, &pending_op->backend,
+                                           my_callback);
   if (rv != ERR_IO_PENDING) {
     pending_op->writer->ClearCallback();
     my_callback->Run(rv);
