@@ -61,6 +61,8 @@ class CapturingNetLog : public NetLog {
 
   void Clear();
 
+  void SetLogLevel(NetLog::LogLevel log_level);
+
  private:
   // Needs to be "mutable" so can use it in GetEntries().
   mutable Lock lock_;
@@ -70,6 +72,8 @@ class CapturingNetLog : public NetLog {
 
   size_t max_num_entries_;
   EntryList entries_;
+
+  NetLog::LogLevel log_level_;
 
   DISALLOW_COPY_AND_ASSIGN(CapturingNetLog);
 };
@@ -96,6 +100,9 @@ class CapturingBoundNetLog {
   void GetEntries(CapturingNetLog::EntryList* entry_list) const;
 
   void Clear();
+
+  // Sets the log level of the underlying CapturingNetLog.
+  void SetLogLevel(NetLog::LogLevel log_level);
 
  private:
   NetLog::Source source_;

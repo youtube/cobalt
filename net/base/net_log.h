@@ -34,6 +34,8 @@ namespace net {
 // TODO(eroman): Remove the 'const' qualitifer from the BoundNetLog methods.
 // TODO(eroman): Start a new Source each time net::URLRequest redirects
 //               (simpler to reason about each as a separate entity).
+// TODO(mmenke): Replace EndEvent calls with EndEventWithNetErrorCode, where
+//               appropriate.
 
 class NetLog {
  public:
@@ -192,6 +194,13 @@ class BoundNetLog {
                   const scoped_refptr<NetLog::EventParameters>& params) const;
   void EndEvent(NetLog::EventType event_type,
                 const scoped_refptr<NetLog::EventParameters>& params) const;
+
+  // Just like EndEvent, except |net_error| is a net error code.  If it's
+  // negative, a parameter called "net_error" with a value of |net_error| is
+  // associated with the event.  Otherwise, the end event has no parameters.
+  // |net_error| must not be ERR_IO_PENDING, as it's not a true error.
+  void EndEventWithNetErrorCode(NetLog::EventType event_type,
+                                int net_error) const;
 
   NetLog::LogLevel GetLogLevel() const;
 
