@@ -27,6 +27,16 @@ namespace net {
 class HttpResponseHeaders
     : public base::RefCountedThreadSafe<HttpResponseHeaders> {
  public:
+  // Persist options.
+  typedef int PersistOptions;
+  static const PersistOptions PERSIST_RAW = -1;  // Raw, unparsed headers.
+  static const PersistOptions PERSIST_ALL = 0;  // Parsed headers.
+  static const PersistOptions PERSIST_SANS_COOKIES = 1 << 0;
+  static const PersistOptions PERSIST_SANS_CHALLENGES = 1 << 1;
+  static const PersistOptions PERSIST_SANS_HOP_BY_HOP = 1 << 2;
+  static const PersistOptions PERSIST_SANS_NON_CACHEABLE = 1 << 3;
+  static const PersistOptions PERSIST_SANS_RANGES = 1 << 4;
+
   // Parses the given raw_headers.  raw_headers should be formatted thus:
   // includes the http status response line, each line is \0-terminated, and
   // it's terminated by an empty line (ie, 2 \0s in a row).
@@ -44,16 +54,6 @@ class HttpResponseHeaders
   // for this object is found relative to the given pickle_iter, which should
   // be passed to the pickle's various Read* methods.
   HttpResponseHeaders(const Pickle& pickle, void** pickle_iter);
-
-  // Persist options.
-  typedef int PersistOptions;
-  static const PersistOptions PERSIST_RAW = -1;  // Raw, unparsed headers.
-  static const PersistOptions PERSIST_ALL = 0;  // Parsed headers.
-  static const PersistOptions PERSIST_SANS_COOKIES = 1 << 0;
-  static const PersistOptions PERSIST_SANS_CHALLENGES = 1 << 1;
-  static const PersistOptions PERSIST_SANS_HOP_BY_HOP = 1 << 2;
-  static const PersistOptions PERSIST_SANS_NON_CACHEABLE = 1 << 3;
-  static const PersistOptions PERSIST_SANS_RANGES = 1 << 4;
 
   // Appends a representation of this object to the given pickle.
   // The options argument can be a combination of PersistOptions.
@@ -253,6 +253,19 @@ class HttpResponseHeaders
 
   typedef base::hash_set<std::string> HeaderSet;
 
+  // The members of this structure point into raw_headers_.
+  struct ParsedHeader {
+    std::string::const_iterator name_begin;
+    std::string::const_iterator name_end;
+    std::string::const_iterator value_begin;
+    std::string::const_iterator value_end;
+
+    // A header "continuation" contains only a subsequent value for the
+    // preceding header.  (Header values are comma separated.)
+    bool is_continuation() const { return name_begin == name_end; }
+  };
+  typedef std::vector<ParsedHeader> HeaderList;
+
   HttpResponseHeaders();
   ~HttpResponseHeaders();
 
@@ -318,19 +331,6 @@ class HttpResponseHeaders
 
   // Adds the set of content range response headers.
   static void AddHopContentRangeHeaders(HeaderSet* header_names);
-
-  // The members of this structure point into raw_headers_.
-  struct ParsedHeader {
-    std::string::const_iterator name_begin;
-    std::string::const_iterator name_end;
-    std::string::const_iterator value_begin;
-    std::string::const_iterator value_end;
-
-    // A header "continuation" contains only a subsequent value for the
-    // preceding header.  (Header values are comma separated.)
-    bool is_continuation() const { return name_begin == name_end; }
-  };
-  typedef std::vector<ParsedHeader> HeaderList;
 
   // We keep a list of ParsedHeader objects.  These tell us where to locate the
   // header-value pairs within raw_headers_.

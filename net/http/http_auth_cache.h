@@ -28,6 +28,13 @@ class HttpAuthCache {
  public:
   class Entry;
 
+  // Prevent unbounded memory growth. These are safeguards for abuse; it is
+  // not expected that the limits will be reached in ordinary usage.
+  // This also defines the worst-case lookup times (which grow linearly
+  // with number of elements in the cache).
+  enum { kMaxNumPathsPerRealmEntry = 10 };
+  enum { kMaxNumRealmEntries = 10 };
+
   HttpAuthCache();
   ~HttpAuthCache();
 
@@ -93,13 +100,6 @@ class HttpAuthCache {
                             const std::string& scheme,
                             const std::string& auth_challenge);
 
-  // Prevent unbounded memory growth. These are safeguards for abuse; it is
-  // not expected that the limits will be reached in ordinary usage.
-  // This also defines the worst-case lookup times (which grow linearly
-  // with number of elements in the cache).
-  enum { kMaxNumPathsPerRealmEntry = 10 };
-  enum { kMaxNumRealmEntries = 10 };
-
  private:
   typedef std::list<Entry> EntryList;
   EntryList entries_;
@@ -108,6 +108,8 @@ class HttpAuthCache {
 // An authentication realm entry.
 class HttpAuthCache::Entry {
  public:
+  ~Entry();
+
   const GURL& origin() const {
     return origin_;
   }
@@ -143,12 +145,12 @@ class HttpAuthCache::Entry {
 
   void UpdateStaleChallenge(const std::string& auth_challenge);
 
-  ~Entry();
-
  private:
   friend class HttpAuthCache;
   FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddPath);
   FRIEND_TEST_ALL_PREFIXES(HttpAuthCacheTest, AddToExistingEntry);
+
+  typedef std::list<std::string> PathList;
 
   Entry();
 
@@ -172,7 +174,6 @@ class HttpAuthCache::Entry {
   int nonce_count_;
 
   // List of paths that define the realm's protection space.
-  typedef std::list<std::string> PathList;
   PathList paths_;
 };
 

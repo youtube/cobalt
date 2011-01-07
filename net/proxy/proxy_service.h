@@ -277,15 +277,15 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
                               int result_code,
                               const BoundNetLog& net_log);
 
+  // Start initialization using |fetched_config_|.
+  void InitializeUsingLastFetchedConfig();
+
   // NetworkChangeNotifier::Observer
   // When this is called, we re-fetch PAC scripts and re-run WPAD.
   virtual void OnIPAddressChanged();
 
   // ProxyConfigService::Observer
   virtual void OnProxyConfigChanged(const ProxyConfig& config);
-
-  // Start initialization using |fetched_config_|.
-  void InitializeUsingLastFetchedConfig();
 
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
