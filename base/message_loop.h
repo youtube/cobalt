@@ -103,6 +103,9 @@ class MessageLoop : public base::MessagePump::Delegate {
   explicit MessageLoop(Type type = TYPE_DEFAULT);
   ~MessageLoop();
 
+  // Returns the MessageLoop object for the current thread, or null if none.
+  static MessageLoop* current();
+
   static void EnableHistogrammer(bool enable_histogrammer);
 
   // A DestructionObserver is notified when the current MessageLoop is being
@@ -228,9 +231,6 @@ class MessageLoop : public base::MessagePump::Delegate {
     thread_name_ = thread_name;
   }
   const std::string& thread_name() const { return thread_name_; }
-
-  // Returns the MessageLoop object for the current thread, or null if none.
-  static MessageLoop* current();
 
   // Enables or disables the recursive task processing. This happens in the case
   // of recursive message loops. Some unwanted message loop may occurs when
@@ -390,18 +390,6 @@ class MessageLoop : public base::MessagePump::Delegate {
 
   // Called to process any delayed non-nestable tasks.
   bool ProcessNextDelayedNonNestableTask();
-
-  //----------------------------------------------------------------------------
-  // Run a work_queue_ task or new_task, and delete it (if it was processed by
-  // PostTask). If there are queued tasks, the oldest one is executed and
-  // new_task is queued. new_task is optional and can be NULL. In this NULL
-  // case, the method will run one pending task (if any exist). Returns true if
-  // it executes a task.  Queued tasks accumulate only when there is a
-  // non-nestable task currently processing, in which case the new_task is
-  // appended to the list work_queue_.  Such re-entrancy generally happens when
-  // an unrequested message pump (typical of a native dialog) is executing in
-  // the context of a task.
-  bool QueueOrRunTask(Task* new_task);
 
   // Runs the specified task and deletes it.
   void RunTask(Task* task);
