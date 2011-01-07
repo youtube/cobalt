@@ -1,17 +1,16 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_AUDIO_WIN_WAVEOUT_OUTPUT_WIN_H_
 #define MEDIA_AUDIO_WIN_WAVEOUT_OUTPUT_WIN_H_
-#pragma once
 
 #include <windows.h>
 #include <mmsystem.h>
 #include <mmreg.h>
 
 #include "base/basictypes.h"
-#include "base/win/scoped_handle.h"
+#include "base/scoped_handle_win.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -111,7 +110,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   WAVEHDR* buffer_;
 
   // An event that is signaled when the callback thread is ready to stop.
-  base::win::ScopedHandle stopped_event_;
+  ScopedHandle stopped_event_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMWaveOutAudioOutputStream);
 };
