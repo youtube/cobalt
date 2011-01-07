@@ -39,9 +39,10 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
     CLOSING = 2,
     CLOSED = 3,
   };
-  static void EnsureInit();
 
   explicit WebSocketJob(SocketStream::Delegate* delegate);
+
+  static void EnsureInit();
 
   State state() const { return state_; }
   virtual void Connect();

@@ -41,16 +41,6 @@ class MockHostResolverBase : public HostResolver {
  public:
   virtual ~MockHostResolverBase();
 
-  // HostResolver methods:
-  virtual int Resolve(const RequestInfo& info,
-                      AddressList* addresses,
-                      CompletionCallback* callback,
-                      RequestHandle* out_req,
-                      const BoundNetLog& net_log);
-  virtual void CancelRequest(RequestHandle req);
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
-
   RuleBasedHostResolverProc* rules() { return rules_; }
 
   // Controls whether resolutions complete synchronously or asynchronously.
@@ -67,6 +57,16 @@ class MockHostResolverBase : public HostResolver {
     impl_->SetPoolConstraints(
         pool_index, max_outstanding_jobs, max_pending_requests);
   }
+
+  // HostResolver methods:
+  virtual int Resolve(const RequestInfo& info,
+                      AddressList* addresses,
+                      CompletionCallback* callback,
+                      RequestHandle* out_req,
+                      const BoundNetLog& net_log);
+  virtual void CancelRequest(RequestHandle req);
+  virtual void AddObserver(Observer* observer);
+  virtual void RemoveObserver(Observer* observer);
 
  protected:
   MockHostResolverBase(bool use_caching);
@@ -143,10 +143,10 @@ class RuleBasedHostResolverProc : public HostResolverProc {
                       int* os_error);
 
  private:
-  ~RuleBasedHostResolverProc();
-
   struct Rule;
   typedef std::list<Rule> RuleList;
+
+  ~RuleBasedHostResolverProc();
 
   RuleList rules_;
 };

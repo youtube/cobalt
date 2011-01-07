@@ -71,7 +71,7 @@ class WebSocketHandshakeRequestHandler {
 class WebSocketHandshakeResponseHandler {
  public:
   WebSocketHandshakeResponseHandler();
-  ~WebSocketHandshakeResponseHandler() {}
+  ~WebSocketHandshakeResponseHandler();
 
   // Parses WebSocket handshake response from WebSocket server.
   // Returns number of bytes in |data| used for WebSocket handshake response

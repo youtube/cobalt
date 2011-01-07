@@ -28,6 +28,14 @@ class HttpResponseInfo {
   // Even though we could get away with the copy ctor and default operator=,
   // that would prevent us from doing a bunch of forward declaration.
 
+  // Initializes from the representation stored in the given pickle.
+  bool InitFromPickle(const Pickle& pickle, bool* response_truncated);
+
+  // Call this method to persist the response info.
+  void Persist(Pickle* pickle,
+               bool skip_transient_headers,
+               bool response_truncated) const;
+
   // The following is only defined if the request_time member is set.
   // If this response was resurrected from cache, then this bool is set, and
   // request_time may corresponds to a time "far" in the past.  Note that
@@ -81,14 +89,6 @@ class HttpResponseInfo {
 
   // Any metadata asociated with this resource's cached data.
   scoped_refptr<IOBufferWithSize> metadata;
-
-  // Initializes from the representation stored in the given pickle.
-  bool InitFromPickle(const Pickle& pickle, bool* response_truncated);
-
-  // Call this method to persist the response info.
-  void Persist(Pickle* pickle,
-               bool skip_transient_headers,
-               bool response_truncated) const;
 };
 
 }  // namespace net

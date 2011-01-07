@@ -18,11 +18,11 @@ namespace disk_cache {
 // This interface is used to support asynchronous ReadData and WriteData calls.
 class FileIOCallback {
  public:
+  virtual ~FileIOCallback() {}
+
   // Notified of the actual number of bytes read or written. This value is
   // negative if an error occurred.
   virtual void OnFileIOComplete(int bytes_copied) = 0;
-
-  virtual ~FileIOCallback() {}
 };
 
 // Simple wrapper around a file that allows asynchronous operations.

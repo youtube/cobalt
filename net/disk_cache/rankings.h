@@ -93,11 +93,12 @@ class Rankings {
   // If we have multiple lists, we have to iterate through all at the same time.
   // This structure keeps track of where we are on the iteration.
   struct Iterator {
+    explicit Iterator(Rankings* rankings);
+    ~Iterator();
+
     List list;                     // Which entry was returned to the user.
     CacheRankingsBlock* nodes[3];  // Nodes on the first three lists.
     Rankings* my_rankings;
-    explicit Iterator(Rankings* rankings);
-    ~Iterator();
   };
 
   Rankings();

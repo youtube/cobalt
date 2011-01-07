@@ -29,6 +29,17 @@ typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 
 class CertDatabase {
  public:
+  // Stores per-certificate error codes for import failures.
+  struct ImportCertFailure {
+   public:
+    ImportCertFailure(X509Certificate* cert, int err);
+    ~ImportCertFailure();
+
+    scoped_refptr<X509Certificate> certificate;
+    int net_error;
+  };
+  typedef std::vector<ImportCertFailure> ImportCertFailureList;
+
   // Constants that define which usages a certificate is trusted for.
   // They are used in combination with CertType to specify trust for each type
   // of certificate.
@@ -44,17 +55,6 @@ class CertDatabase {
     TRUSTED_EMAIL    = 1 << 1,
     TRUSTED_OBJ_SIGN = 1 << 2,
   };
-
-  // Stores per-certificate error codes for import failures.
-  struct ImportCertFailure {
-   public:
-    ImportCertFailure(X509Certificate* cert, int err);
-    ~ImportCertFailure();
-
-    scoped_refptr<X509Certificate> certificate;
-    int net_error;
-  };
-  typedef std::vector<ImportCertFailure> ImportCertFailureList;
 
   CertDatabase();
 
