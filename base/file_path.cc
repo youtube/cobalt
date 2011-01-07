@@ -174,6 +174,23 @@ FilePath& FilePath::operator=(const FilePath& that) {
   return *this;
 }
 
+bool FilePath::operator==(const FilePath& that) const {
+#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+  return EqualDriveLetterCaseInsensitive(this->path_, that.path_);
+#else  // defined(FILE_PATH_USES_DRIVE_LETTERS)
+  return path_ == that.path_;
+#endif  // defined(FILE_PATH_USES_DRIVE_LETTERS)
+}
+
+bool FilePath::operator!=(const FilePath& that) const {
+#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+  return !EqualDriveLetterCaseInsensitive(this->path_, that.path_);
+#else  // defined(FILE_PATH_USES_DRIVE_LETTERS)
+  return path_ != that.path_;
+#endif  // defined(FILE_PATH_USES_DRIVE_LETTERS)
+}
+
+// static
 bool FilePath::IsSeparator(CharType character) {
   for (size_t i = 0; i < arraysize(kSeparators) - 1; ++i) {
     if (character == kSeparators[i]) {
@@ -217,22 +234,6 @@ void FilePath::GetComponents(std::vector<StringType>* components) const {
   }
 
   *components = std::vector<StringType>(ret_val.rbegin(), ret_val.rend());
-}
-
-bool FilePath::operator==(const FilePath& that) const {
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
-  return EqualDriveLetterCaseInsensitive(this->path_, that.path_);
-#else  // defined(FILE_PATH_USES_DRIVE_LETTERS)
-  return path_ == that.path_;
-#endif  // defined(FILE_PATH_USES_DRIVE_LETTERS)
-}
-
-bool FilePath::operator!=(const FilePath& that) const {
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
-  return !EqualDriveLetterCaseInsensitive(this->path_, that.path_);
-#else  // defined(FILE_PATH_USES_DRIVE_LETTERS)
-  return path_ != that.path_;
-#endif  // defined(FILE_PATH_USES_DRIVE_LETTERS)
 }
 
 bool FilePath::IsParent(const FilePath& child) const {
@@ -487,6 +488,87 @@ FilePath FilePath::AppendASCII(const base::StringPiece& component) const {
 
 bool FilePath::IsAbsolute() const {
   return IsPathAbsolute(path_);
+}
+
+FilePath FilePath::StripTrailingSeparators() const {
+  FilePath new_path(path_);
+  new_path.StripTrailingSeparatorsInternal();
+
+  return new_path;
+}
+
+bool FilePath::ReferencesParent() const {
+  std::vector<StringType> components;
+  GetComponents(&components);
+
+  std::vector<StringType>::const_iterator it = components.begin();
+  for (; it != components.end(); ++it) {
+    const StringType& component = *it;
+    if (component == kParentDirectory)
+      return true;
+  }
+  return false;
+}
+
+#if defined(OS_POSIX)
+
+// See file_path.h for a discussion of the encoding of paths on POSIX
+// platforms.  These *Hack() functions are not quite correct, but they're
+// only temporary while we fix the remainder of the code.
+// Remember to remove the #includes at the top when you remove these.
+
+// static
+FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
+  return FilePath(base::SysWideToNativeMB(wstring));
+}
+std::wstring FilePath::ToWStringHack() const {
+  return base::SysNativeMBToWide(path_);
+}
+#elif defined(OS_WIN)
+// static
+FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
+  return FilePath(wstring);
+}
+std::wstring FilePath::ToWStringHack() const {
+  return path_;
+}
+#endif
+
+// static.
+void FilePath::WriteStringTypeToPickle(Pickle* pickle,
+                                       const StringType& path) {
+#if defined(WCHAR_T_IS_UTF16)
+  pickle->WriteWString(path);
+#elif defined(WCHAR_T_IS_UTF32)
+  pickle->WriteString(path);
+#else
+  NOTIMPLEMENTED() << "Impossible encoding situation!";
+#endif
+}
+
+// static.
+bool FilePath::ReadStringTypeFromPickle(Pickle* pickle, void** iter,
+                                        StringType* path) {
+#if defined(WCHAR_T_IS_UTF16)
+  if (!pickle->ReadWString(iter, path))
+    return false;
+#elif defined(WCHAR_T_IS_UTF32)
+  if (!pickle->ReadString(iter, path))
+    return false;
+#else
+  NOTIMPLEMENTED() << "Impossible encoding situation!";
+  return false;
+#endif
+
+  return true;
+}
+
+void FilePath::WriteToPickle(Pickle* pickle) {
+  WriteStringTypeToPickle(pickle, value());
+}
+
+bool FilePath::ReadFromPickle(Pickle* pickle, void** iter) {
+  return ReadStringTypeFromPickle(pickle, iter, &path_);
 }
 
 #if defined(OS_WIN)
@@ -1078,73 +1160,6 @@ int FilePath::CompareIgnoreCase(const StringType& string1,
 
 #endif  // OS versions of CompareIgnoreCase()
 
-#if defined(OS_POSIX)
-
-// See file_path.h for a discussion of the encoding of paths on POSIX
-// platforms.  These *Hack() functions are not quite correct, but they're
-// only temporary while we fix the remainder of the code.
-// Remember to remove the #includes at the top when you remove these.
-
-// static
-FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
-  return FilePath(base::SysWideToNativeMB(wstring));
-}
-std::wstring FilePath::ToWStringHack() const {
-  return base::SysNativeMBToWide(path_);
-}
-#elif defined(OS_WIN)
-// static
-FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
-  return FilePath(wstring);
-}
-std::wstring FilePath::ToWStringHack() const {
-  return path_;
-}
-#endif
-
-FilePath FilePath::StripTrailingSeparators() const {
-  FilePath new_path(path_);
-  new_path.StripTrailingSeparatorsInternal();
-
-  return new_path;
-}
-
-// static.
-void FilePath::WriteStringTypeToPickle(Pickle* pickle,
-                                       const StringType& path) {
-#if defined(WCHAR_T_IS_UTF16)
-  pickle->WriteWString(path);
-#elif defined(WCHAR_T_IS_UTF32)
-  pickle->WriteString(path);
-#else
-  NOTIMPLEMENTED() << "Impossible encoding situation!";
-#endif
-}
-
-// static.
-bool FilePath::ReadStringTypeFromPickle(Pickle* pickle, void** iter,
-                                        StringType* path) {
-#if defined(WCHAR_T_IS_UTF16)
-  if (!pickle->ReadWString(iter, path))
-    return false;
-#elif defined(WCHAR_T_IS_UTF32)
-  if (!pickle->ReadString(iter, path))
-    return false;
-#else
-  NOTIMPLEMENTED() << "Impossible encoding situation!";
-  return false;
-#endif
-
-  return true;
-}
-
-void FilePath::WriteToPickle(Pickle* pickle) {
-  WriteStringTypeToPickle(pickle, value());
-}
-
-bool FilePath::ReadFromPickle(Pickle* pickle, void** iter) {
-  return ReadStringTypeFromPickle(pickle, iter, &path_);
-}
 
 void FilePath::StripTrailingSeparatorsInternal() {
   // If there is no drive letter, start will be 1, which will prevent stripping
@@ -1166,19 +1181,6 @@ void FilePath::StripTrailingSeparatorsInternal() {
       last_stripped = pos;
     }
   }
-}
-
-bool FilePath::ReferencesParent() const {
-  std::vector<StringType> components;
-  GetComponents(&components);
-
-  std::vector<StringType>::const_iterator it = components.begin();
-  for (; it != components.end(); ++it) {
-    const StringType& component = *it;
-    if (component == kParentDirectory)
-      return true;
-  }
-  return false;
 }
 
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
