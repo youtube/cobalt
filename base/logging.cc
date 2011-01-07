@@ -64,7 +64,7 @@ typedef pthread_mutex_t* MutexHandle;
 
 namespace logging {
 
-DcheckState g_dcheck_state = DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
+bool g_enable_dcheck = false;
 VlogInfo* g_vlog_info = NULL;
 
 const char* const log_severity_names[LOG_NUM_SEVERITIES] = {
@@ -353,10 +353,10 @@ bool InitializeLogFileHandle() {
 bool BaseInitLoggingImpl(const PathChar* new_log_file,
                          LoggingDestination logging_dest,
                          LogLockingState lock_log,
-                         OldFileDeletionState delete_old,
-                         DcheckState dcheck_state) {
+                         OldFileDeletionState delete_old) {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-  g_dcheck_state = dcheck_state;
+  g_enable_dcheck =
+      command_line->HasSwitch(switches::kEnableDCHECK);
   delete g_vlog_info;
   g_vlog_info = NULL;
   // Don't bother initializing g_vlog_info unless we use one of the
