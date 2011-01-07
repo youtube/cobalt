@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -307,6 +307,8 @@ class DataCollector {
   void AddListOfLivingObjects();
 
  private:
+  typedef std::map<const BirthOnThread*, int> BirthCount;
+
   // This instance may be provided to several threads to contribute data.  The
   // following counter tracks how many more threads will contribute.  When it is
   // zero, then all asynchronous contributions are complete, and locked access
@@ -318,7 +320,6 @@ class DataCollector {
 
   // The total number of births recorded at each location for which we have not
   // seen a death count.
-  typedef std::map<const BirthOnThread*, int> BirthCount;
   BirthCount global_birth_count_;
 
   Lock accumulation_lock_;  // Protects access during accumulation phase.

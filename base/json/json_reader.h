@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -69,6 +69,11 @@ class JSONReader {
     Token(Type t, const wchar_t* b, int len)
       : type(t), begin(b), length(len) {}
 
+    // Get the character that's one past the end of this token.
+    wchar_t NextChar() {
+      return *(begin + length);
+    }
+
     Type type;
 
     // A pointer into JSONReader::json_pos_ that's the beginning of this token.
@@ -76,11 +81,6 @@ class JSONReader {
 
     // End should be one char past the end of the token.
     int length;
-
-    // Get the character that's one past the end of this token.
-    wchar_t NextChar() {
-      return *(begin + length);
-    }
   };
 
   // Error codes during parsing.

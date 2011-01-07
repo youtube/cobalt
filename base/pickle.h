@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,8 +32,6 @@
 //
 class Pickle {
  public:
-  virtual ~Pickle();
-
   // Initialize a Pickle object using the default header size.
   Pickle();
 
@@ -50,6 +48,8 @@ class Pickle {
 
   // Initializes a Pickle as a deep copy of another Pickle.
   Pickle(const Pickle& other);
+
+  virtual ~Pickle();
 
   // Performs a deep copy.
   Pickle& operator=(const Pickle& other);

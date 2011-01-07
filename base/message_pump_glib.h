@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -62,11 +62,6 @@ class MessagePumpForUI : public MessagePump {
   // is ready for processing.
   virtual bool RunOnce(GMainContext* context, bool block);
 
-  virtual void Run(Delegate* delegate);
-  virtual void Quit();
-  virtual void ScheduleWork();
-  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);
-
   // Internal methods used for processing the pump callbacks.  They are
   // public for simplicity but should not be used directly.  HandlePrepare
   // is called during the prepare step of glib, and returns a timeout that
@@ -87,6 +82,12 @@ class MessagePumpForUI : public MessagePump {
   // Dispatch an available GdkEvent. Essentially this allows a subclass to do
   // some task before/after calling the default handler (EventDispatcher).
   virtual void DispatchEvents(GdkEvent* event);
+
+  // Overridden from MessagePump:
+  virtual void Run(Delegate* delegate);
+  virtual void Quit();
+  virtual void ScheduleWork();
+  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);
 
  protected:
   // Returns the dispatcher for the current run state (|state_->dispatcher|).

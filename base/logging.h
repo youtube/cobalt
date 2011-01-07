@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -803,10 +803,10 @@ class Win32ErrorLogMessage {
                        LogSeverity severity,
                        SystemErrorCode err);
 
-  std::ostream& stream() { return log_message_.stream(); }
-
   // Appends the error message before destructing the encapsulated class.
   ~Win32ErrorLogMessage();
+
+  std::ostream& stream() { return log_message_.stream(); }
 
  private:
   SystemErrorCode err_;
@@ -825,10 +825,10 @@ class ErrnoLogMessage {
                   LogSeverity severity,
                   SystemErrorCode err);
 
-  std::ostream& stream() { return log_message_.stream(); }
-
   // Appends the error message before destructing the encapsulated class.
   ~ErrnoLogMessage();
+
+  std::ostream& stream() { return log_message_.stream(); }
 
  private:
   SystemErrorCode err_;

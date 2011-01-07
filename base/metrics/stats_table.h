@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -132,6 +132,7 @@ class StatsTable {
  private:
   class Private;
   struct TLSData;
+  typedef hash_map<std::string, int> CountersMap;
 
   // Returns the space occupied by a thread in the table.  Generally used
   // if a thread terminates but the process continues.  This function
@@ -170,8 +171,6 @@ class StatsTable {
   // Get the TLS data for the calling thread.  Returns NULL if none is
   // initialized.
   TLSData* GetTLSData() const;
-
-  typedef hash_map<std::string, int> CountersMap;
 
   Private* impl_;
 
