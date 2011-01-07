@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,17 +17,17 @@
 // Each component is limited to a uint16.
 class Version {
  public:
-  // The version string must be made up of 1 or more uint16's separated
-  // by '.'. Returns NULL if string is not in this format.
-  // Caller is responsible for freeing the Version object once done.
-  static Version* GetVersionFromString(const std::string& version_str);
-
   // Exposed only so that a Version can be stored in STL containers;
   // any call to the methods below on a default-constructed Version
   // will DCHECK.
   Version();
 
   ~Version();
+
+  // The version string must be made up of 1 or more uint16's separated
+  // by '.'. Returns NULL if string is not in this format.
+  // Caller is responsible for freeing the Version object once done.
+  static Version* GetVersionFromString(const std::string& version_str);
 
   // Creates a copy of this version. Caller takes ownership.
   Version* Clone() const;

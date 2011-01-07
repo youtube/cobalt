@@ -118,11 +118,11 @@ class AsyncCallbackTask : public Task {
 };
 
 WaitableEventWatcher::WaitableEventWatcher()
-    : event_(NULL),
-      message_loop_(NULL),
+    : message_loop_(NULL),
       cancel_flag_(NULL),
       waiter_(NULL),
       callback_task_(NULL),
+      event_(NULL),
       delegate_(NULL) {
 }
 
