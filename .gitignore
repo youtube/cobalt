@@ -8,6 +8,10 @@
 *.suo
 *.user
 *.vcproj
+*.vpj
+*.vpw
+*.vpwhistu
+*.vtg
 *.xcodeproj
 *~
 .*.sw?
