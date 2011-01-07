@@ -194,12 +194,11 @@ class CacheCreator {
  public:
   CacheCreator(const FilePath& path, bool force, int max_bytes,
                net::CacheType type, uint32 flags,
-               base::MessageLoopProxy* thread, net::NetLog* net_log,
-               disk_cache::Backend** backend,
+               base::MessageLoopProxy* thread, disk_cache::Backend** backend,
                net::CompletionCallback* callback)
       : path_(path), force_(force), retry_(false), max_bytes_(max_bytes),
         type_(type), flags_(flags), thread_(thread), backend_(backend),
-        callback_(callback), cache_(NULL), net_log_(net_log),
+        callback_(callback), cache_(NULL),
         ALLOW_THIS_IN_INITIALIZER_LIST(
             my_callback_(this, &CacheCreator::OnIOComplete)) {
   }
@@ -224,14 +223,13 @@ class CacheCreator {
   disk_cache::Backend** backend_;
   net::CompletionCallback* callback_;
   disk_cache::BackendImpl* cache_;
-  net::NetLog* net_log_;
   net::CompletionCallbackImpl<CacheCreator> my_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(CacheCreator);
 };
 
 int CacheCreator::Run() {
-  cache_ = new disk_cache::BackendImpl(path_, thread_, net_log_);
+  cache_ = new disk_cache::BackendImpl(path_, thread_);
   cache_->SetMaxSize(max_bytes_);
   cache_->SetType(type_);
   cache_->SetFlags(flags_);
@@ -297,8 +295,7 @@ namespace disk_cache {
 
 int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
                        bool force, base::MessageLoopProxy* thread,
-                       net::NetLog* net_log, Backend** backend,
-                       CompletionCallback* callback) {
+                       Backend** backend, CompletionCallback* callback) {
   DCHECK(callback);
   if (type == net::MEMORY_CACHE) {
     *backend = MemBackendImpl::CreateBackend(max_bytes);
@@ -307,7 +304,7 @@ int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
   DCHECK(thread);
 
   return BackendImpl::CreateBackend(path, force, max_bytes, type, kNone, thread,
-                                    net_log, backend, callback);
+                                    backend, callback);
 }
 
 // Returns the preferred maximum number of bytes for the cache given the
@@ -354,12 +351,11 @@ int PreferedCacheSize(int64 available) {
 int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
                                int max_bytes, net::CacheType type,
                                uint32 flags, base::MessageLoopProxy* thread,
-                               net::NetLog* net_log, Backend** backend,
+                               Backend** backend,
                                CompletionCallback* callback) {
   DCHECK(callback);
   CacheCreator* creator = new CacheCreator(full_path, force, max_bytes, type,
-                                           flags, thread, net_log, backend,
-                                           callback);
+                                           flags, thread, backend, callback);
   // This object will self-destroy when finished.
   return creator->Run();
 }
@@ -370,8 +366,7 @@ int BackendImpl::Init(CompletionCallback* callback) {
 }
 
 BackendImpl::BackendImpl(const FilePath& path,
-                         base::MessageLoopProxy* cache_thread,
-                         net::NetLog* net_log)
+                         base::MessageLoopProxy* cache_thread)
     : ALLOW_THIS_IN_INITIALIZER_LIST(background_queue_(this, cache_thread)),
       path_(path),
       block_files_(path),
@@ -388,7 +383,6 @@ BackendImpl::BackendImpl(const FilePath& path,
       new_eviction_(false),
       first_timer_(true),
       throttle_requests_(false),
-      net_log_(net_log),
       done_(true, false),
       ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
@@ -396,8 +390,7 @@ BackendImpl::BackendImpl(const FilePath& path,
 
 BackendImpl::BackendImpl(const FilePath& path,
                          uint32 mask,
-                         base::MessageLoopProxy* cache_thread,
-                         net::NetLog* net_log)
+                         base::MessageLoopProxy* cache_thread)
     : ALLOW_THIS_IN_INITIALIZER_LIST(background_queue_(this, cache_thread)),
       path_(path),
       block_files_(path),
@@ -414,7 +407,6 @@ BackendImpl::BackendImpl(const FilePath& path,
       new_eviction_(false),
       first_timer_(true),
       throttle_requests_(false),
-      net_log_(net_log),
       done_(true, false),
       ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
@@ -855,8 +847,6 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
     stats_.OnEvent(Stats::CREATE_ERROR);
     return NULL;
   }
-
-  cache_entry->BeginLogging(net_log_, true);
 
   // We are not failing the operation; let's add this to the map.
   open_entries_[entry_address.value()] = cache_entry;
@@ -1547,7 +1537,6 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry, bool* dirty) {
     open_entries_[address.value()] = cache_entry;
   }
 
-  cache_entry->BeginLogging(net_log_, false);
   cache_entry.swap(entry);
   return 0;
 }

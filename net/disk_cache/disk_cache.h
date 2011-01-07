@@ -25,7 +25,6 @@ class MessageLoopProxy;
 
 namespace net {
 class IOBuffer;
-class NetLog;
 }
 
 namespace disk_cache {
@@ -51,8 +50,7 @@ typedef net::CompletionCallback CompletionCallback;
 // completes (the callback is notified).
 int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
                        bool force, base::MessageLoopProxy* thread,
-                       net::NetLog* net_log, Backend** backend,
-                       CompletionCallback* callback);
+                       Backend** backend, CompletionCallback* callback);
 
 // The root interface for a disk cache instance.
 class Backend {
