@@ -4,16 +4,14 @@
 //
 // Unit tests for event trace consumer_ base class.
 #include "base/win/event_trace_consumer.h"
-
 #include <list>
-
 #include "base/basictypes.h"
+#include "base/win/event_trace_controller.h"
+#include "base/win/event_trace_provider.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
-#include "base/win/event_trace_controller.h"
-#include "base/win/event_trace_provider.h"
-#include "base/win/scoped_handle.h"
+#include "base/scoped_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include <initguid.h>  // NOLINT - has to be last
@@ -65,14 +63,14 @@ class TestConsumer: public EtwTraceConsumerBase<TestConsumer> {
     ::SetEvent(sank_event_.Get());
   }
 
-  static base::win::ScopedHandle sank_event_;
+  static ScopedHandle sank_event_;
   static EventQueue events_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TestConsumer);
 };
 
-base::win::ScopedHandle TestConsumer::sank_event_;
+ScopedHandle TestConsumer::sank_event_;
 EventQueue TestConsumer::events_;
 
 const wchar_t* const kTestSessionName = L"TestLogSession";
@@ -177,8 +175,8 @@ class EtwTraceConsumerRealtimeTest: public testing::Test {
   }
 
   TestConsumer consumer_;
-  base::win::ScopedHandle consumer_ready_;
-  base::win::ScopedHandle consumer_thread_;
+  ScopedHandle consumer_ready_;
+  ScopedHandle consumer_thread_;
 };
 }  // namespace
 
