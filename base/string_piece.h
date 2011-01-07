@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 // Copied from strings/stringpiece.h with modifications
@@ -29,11 +29,19 @@ namespace base {
 
 class StringPiece {
  public:
+  // standard STL container boilerplate
   typedef size_t size_type;
+  typedef char value_type;
+  typedef const char* pointer;
+  typedef const char& reference;
+  typedef const char& const_reference;
+  typedef ptrdiff_t difference_type;
+  typedef const char* const_iterator;
+  typedef const char* iterator;
+  typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+  typedef std::reverse_iterator<iterator> reverse_iterator;
 
- private:
-  const char*   ptr_;
-  size_type     length_;
+  static const size_type npos;
 
  public:
   // We provide non-explicit singleton constructors so users can pass
@@ -113,17 +121,6 @@ class StringPiece {
             (wordmemcmp(ptr_ + (length_-x.length_), x.ptr_, x.length_) == 0));
   }
 
-  // standard STL container boilerplate
-  typedef char value_type;
-  typedef const char* pointer;
-  typedef const char& reference;
-  typedef const char& const_reference;
-  typedef ptrdiff_t difference_type;
-  static const size_type npos;
-  typedef const char* const_iterator;
-  typedef const char* iterator;
-  typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-  typedef std::reverse_iterator<iterator> reverse_iterator;
   iterator begin() const { return ptr_; }
   iterator end() const { return ptr_ + length_; }
   const_reverse_iterator rbegin() const {
@@ -161,6 +158,10 @@ class StringPiece {
   static int wordmemcmp(const char* p, const char* p2, size_type N) {
     return memcmp(p, p2, N);
   }
+
+ private:
+  const char*   ptr_;
+  size_type     length_;
 };
 
 bool operator==(const StringPiece& x, const StringPiece& y);

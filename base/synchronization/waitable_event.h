@@ -155,20 +155,21 @@ class WaitableEvent {
     std::list<Waiter*> waiters_;
   };
 
-  scoped_refptr<WaitableEventKernel> kernel_;
-
-  bool SignalAll();
-  bool SignalOne();
-  void Enqueue(Waiter* waiter);
+  typedef std::pair<WaitableEvent*, size_t> WaiterAndIndex;
 
   // When dealing with arrays of WaitableEvent*, we want to sort by the address
   // of the WaitableEvent in order to have a globally consistent locking order.
   // In that case we keep them, in sorted order, in an array of pairs where the
   // second element is the index of the WaitableEvent in the original,
   // unsorted, array.
-  typedef std::pair<WaitableEvent*, size_t> WaiterAndIndex;
   static size_t EnqueueMany(WaiterAndIndex* waitables,
                             size_t count, Waiter* waiter);
+
+  bool SignalAll();
+  bool SignalOne();
+  void Enqueue(Waiter* waiter);
+
+  scoped_refptr<WaitableEventKernel> kernel_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(WaitableEvent);

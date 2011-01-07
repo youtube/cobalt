@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -462,10 +462,10 @@ class FileEnumerator {
   WIN32_FIND_DATA find_data_;
   HANDLE find_handle_;
 #elif defined(OS_POSIX)
-  typedef struct {
+  struct DirectoryEntryInfo {
     FilePath filename;
     struct stat stat;
-  } DirectoryEntryInfo;
+  };
 
   // Read the filenames in source into the vector of DirectoryEntryInfo's
   static bool ReadDirectory(std::vector<DirectoryEntryInfo>* entries,

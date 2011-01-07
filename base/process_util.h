@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -76,12 +76,6 @@ struct ProcessEntry {
   ProcessEntry();
   ~ProcessEntry();
 
-  ProcessId pid_;
-  ProcessId ppid_;
-  ProcessId gid_;
-  std::string exe_file_;
-  std::vector<std::string> cmd_line_args_;
-
   ProcessId pid() const { return pid_; }
   ProcessId parent_pid() const { return ppid_; }
   ProcessId gid() const { return gid_; }
@@ -89,6 +83,12 @@ struct ProcessEntry {
   const std::vector<std::string>& cmd_line_args() const {
     return cmd_line_args_;
   }
+
+  ProcessId pid_;
+  ProcessId ppid_;
+  ProcessId gid_;
+  std::string exe_file_;
+  std::vector<std::string> cmd_line_args_;
 };
 
 struct IoCounters {
@@ -528,6 +528,8 @@ int64 TimeValToMicroseconds(const struct timeval& tv);
 // methods.
 class ProcessMetrics {
  public:
+  ~ProcessMetrics();
+
   // Creates a ProcessMetrics for the specified process.
   // The caller owns the returned object.
 #if !defined(OS_MACOSX)
@@ -548,8 +550,6 @@ class ProcessMetrics {
   static ProcessMetrics* CreateProcessMetrics(ProcessHandle process,
                                               PortProvider* port_provider);
 #endif  // !defined(OS_MACOSX)
-
-  ~ProcessMetrics();
 
   // Returns the current space allocated for the pagefile, in bytes (these pages
   // may or may not be in memory).  On Linux, this returns the total virtual
