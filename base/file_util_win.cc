@@ -77,19 +77,6 @@ bool DevicePathToDriveLetterPath(const FilePath& device_path,
 
 }  // namespace
 
-std::wstring GetDirectoryFromPath(const std::wstring& path) {
-  base::ThreadRestrictions::AssertIOAllowed();
-  wchar_t path_buffer[MAX_PATH];
-  wchar_t* file_ptr = NULL;
-  if (GetFullPathName(path.c_str(), MAX_PATH, path_buffer, &file_ptr) == 0)
-    return L"";
-
-  std::wstring::size_type length =
-      file_ptr ? file_ptr - path_buffer : path.length();
-  std::wstring directory(path, 0, length);
-  return FilePath(directory).StripTrailingSeparators().value();
-}
-
 bool AbsolutePath(FilePath* path) {
   base::ThreadRestrictions::AssertIOAllowed();
   wchar_t file_path_buf[MAX_PATH];
