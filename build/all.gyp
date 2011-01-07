@@ -391,7 +391,7 @@
         },
       ],  # targets
       'conditions': [
-        ['(branding=="Chrome" and buildtype=="Official")', {
+        ['branding=="Chrome"', {
           'targets': [
             {
               'target_name': 'chrome_official_builder',
@@ -409,13 +409,19 @@
                 '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
                 '../chrome_frame/chrome_frame.gyp:npchrome_frame',
                 '../courgette/courgette.gyp:courgette',
-                '../pdf/pdf.gyp:pdf',
                 '../third_party/adobe/flash/flash_player.gyp:flash_player',
                 '../webkit/webkit.gyp:test_shell',
               ],
+              'conditions': [
+                ['internal_pdf', {
+                  'dependencies': [
+                    '../pdf/pdf.gyp:pdf',
+                  ],
+                }], # internal_pdf
+              ]
             },
           ], # targets
-        }], # (branding=="Chrome" and buildtype=="Official")
+        }], # branding=="Chrome"
        ], # conditions
     }], # OS="win"
     ['chromeos==1', {
