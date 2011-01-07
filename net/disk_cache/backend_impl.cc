@@ -435,102 +435,6 @@ BackendImpl::~BackendImpl() {
 
 // ------------------------------------------------------------------------
 
-int32 BackendImpl::GetEntryCount() const {
-  if (!index_ || disabled_)
-    return 0;
-  // num_entries includes entries already evicted.
-  int32 not_deleted = data_->header.num_entries -
-                      data_->header.lru.sizes[Rankings::DELETED];
-
-  if (not_deleted < 0) {
-    NOTREACHED();
-    not_deleted = 0;
-  }
-
-  return not_deleted;
-}
-
-int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
-                           CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.OpenEntry(key, entry, callback);
-  return net::ERR_IO_PENDING;
-}
-
-int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
-                             CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.CreateEntry(key, entry, callback);
-  return net::ERR_IO_PENDING;
-}
-
-int BackendImpl::DoomEntry(const std::string& key,
-                           CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.DoomEntry(key, callback);
-  return net::ERR_IO_PENDING;
-}
-
-int BackendImpl::DoomAllEntries(CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.DoomAllEntries(callback);
-  return net::ERR_IO_PENDING;
-}
-
-int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
-                                    const base::Time end_time,
-                                    CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.DoomEntriesBetween(initial_time, end_time, callback);
-  return net::ERR_IO_PENDING;
-}
-
-int BackendImpl::DoomEntriesSince(const base::Time initial_time,
-                                  CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.DoomEntriesSince(initial_time, callback);
-  return net::ERR_IO_PENDING;
-}
-
-int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
-                               CompletionCallback* callback) {
-  DCHECK(callback);
-  background_queue_.OpenNextEntry(iter, next_entry, callback);
-  return net::ERR_IO_PENDING;
-}
-
-void BackendImpl::EndEnumeration(void** iter) {
-  background_queue_.EndEnumeration(*iter);
-  *iter = NULL;
-}
-
-void BackendImpl::GetStats(StatsItems* stats) {
-  if (disabled_)
-    return;
-
-  std::pair<std::string, std::string> item;
-
-  item.first = "Entries";
-  item.second = base::StringPrintf("%d", data_->header.num_entries);
-  stats->push_back(item);
-
-  item.first = "Pending IO";
-  item.second = base::StringPrintf("%d", num_pending_io_);
-  stats->push_back(item);
-
-  item.first = "Max size";
-  item.second = base::StringPrintf("%d", max_size_);
-  stats->push_back(item);
-
-  item.first = "Current size";
-  item.second = base::StringPrintf("%d", data_->header.num_bytes);
-  stats->push_back(item);
-
-  stats_.GetItems(stats);
-}
-
-// ------------------------------------------------------------------------
-
 int BackendImpl::SyncInit() {
   DCHECK(!init_);
   if (init_)
@@ -1351,6 +1255,102 @@ int BackendImpl::SelfCheck() {
   }
 
   return CheckAllEntries();
+}
+
+// ------------------------------------------------------------------------
+
+int32 BackendImpl::GetEntryCount() const {
+  if (!index_ || disabled_)
+    return 0;
+  // num_entries includes entries already evicted.
+  int32 not_deleted = data_->header.num_entries -
+                      data_->header.lru.sizes[Rankings::DELETED];
+
+  if (not_deleted < 0) {
+    NOTREACHED();
+    not_deleted = 0;
+  }
+
+  return not_deleted;
+}
+
+int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
+                           CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.OpenEntry(key, entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
+                             CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.CreateEntry(key, entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomEntry(const std::string& key,
+                           CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomEntry(key, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomAllEntries(CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomAllEntries(callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
+                                    const base::Time end_time,
+                                    CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomEntriesBetween(initial_time, end_time, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::DoomEntriesSince(const base::Time initial_time,
+                                  CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomEntriesSince(initial_time, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
+                               CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.OpenNextEntry(iter, next_entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+void BackendImpl::EndEnumeration(void** iter) {
+  background_queue_.EndEnumeration(*iter);
+  *iter = NULL;
+}
+
+void BackendImpl::GetStats(StatsItems* stats) {
+  if (disabled_)
+    return;
+
+  std::pair<std::string, std::string> item;
+
+  item.first = "Entries";
+  item.second = base::StringPrintf("%d", data_->header.num_entries);
+  stats->push_back(item);
+
+  item.first = "Pending IO";
+  item.second = base::StringPrintf("%d", num_pending_io_);
+  stats->push_back(item);
+
+  item.first = "Max size";
+  item.second = base::StringPrintf("%d", max_size_);
+  stats->push_back(item);
+
+  item.first = "Current size";
+  item.second = base::StringPrintf("%d", data_->header.num_bytes);
+  stats->push_back(item);
+
+  stats_.GetItems(stats);
 }
 
 // ------------------------------------------------------------------------

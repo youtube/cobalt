@@ -109,6 +109,11 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
                   FORMAT_PKCS7,
   };
 
+  // Creates a X509Certificate from the ground up.  Used by tests that simulate
+  // SSL connections.
+  X509Certificate(const std::string& subject, const std::string& issuer,
+                  base::Time start_date, base::Time expiration_date);
+
   // Create an X509Certificate from a handle to the certificate object in the
   // underlying crypto library. |source| specifies where |cert_handle| comes
   // from.  Given two certificate handles for the same certificate, our
@@ -174,11 +179,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
                                            const std::string& subject,
                                            uint32 serial_number,
                                            base::TimeDelta valid_duration);
-
-  // Creates a X509Certificate from the ground up.  Used by tests that simulate
-  // SSL connections.
-  X509Certificate(const std::string& subject, const std::string& issuer,
-                  base::Time start_date, base::Time expiration_date);
 
   // Appends a representation of this object to the given pickle.
   void Persist(Pickle* pickle);

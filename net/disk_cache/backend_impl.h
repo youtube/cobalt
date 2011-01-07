@@ -60,24 +60,6 @@ class BackendImpl : public Backend {
   // Performs general initialization for this current instance of the cache.
   int Init(CompletionCallback* callback);
 
-  // Backend interface.
-  virtual int32 GetEntryCount() const;
-  virtual int OpenEntry(const std::string& key, Entry** entry,
-                        CompletionCallback* callback);
-  virtual int CreateEntry(const std::string& key, Entry** entry,
-                          CompletionCallback* callback);
-  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
-  virtual int DoomAllEntries(CompletionCallback* callback);
-  virtual int DoomEntriesBetween(const base::Time initial_time,
-                                 const base::Time end_time,
-                                 CompletionCallback* callback);
-  virtual int DoomEntriesSince(const base::Time initial_time,
-                               CompletionCallback* callback);
-  virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            CompletionCallback* callback);
-  virtual void EndEnumeration(void** iter);
-  virtual void GetStats(StatsItems* stats);
-
   // Performs the actual initialization and final cleanup on destruction.
   int SyncInit();
   void CleanupCache();
@@ -261,6 +243,24 @@ class BackendImpl : public Backend {
   // Peforms a simple self-check, and returns the number of dirty items
   // or an error code (negative value).
   int SelfCheck();
+
+  // Backend interface.
+  virtual int32 GetEntryCount() const;
+  virtual int OpenEntry(const std::string& key, Entry** entry,
+                        CompletionCallback* callback);
+  virtual int CreateEntry(const std::string& key, Entry** entry,
+                          CompletionCallback* callback);
+  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
+  virtual int DoomAllEntries(CompletionCallback* callback);
+  virtual int DoomEntriesBetween(const base::Time initial_time,
+                                 const base::Time end_time,
+                                 CompletionCallback* callback);
+  virtual int DoomEntriesSince(const base::Time initial_time,
+                               CompletionCallback* callback);
+  virtual int OpenNextEntry(void** iter, Entry** next_entry,
+                            CompletionCallback* callback);
+  virtual void EndEnumeration(void** iter);
+  virtual void GetStats(StatsItems* stats);
 
  private:
   typedef base::hash_map<CacheAddr, EntryImpl*> EntriesMap;

@@ -806,6 +806,8 @@ HttpUtil::NameValuePairsIterator::NameValuePairsIterator(
       value_is_quoted_(false) {
 }
 
+HttpUtil::NameValuePairsIterator::~NameValuePairsIterator() {}
+
 // We expect properties to be formatted as one of:
 //   name="value"
 //   name='value'

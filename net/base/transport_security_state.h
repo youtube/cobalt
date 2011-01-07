@@ -43,13 +43,13 @@ class TransportSecurityState :
       //   * Certificate issues are fatal.
       MODE_SPDY_ONLY = 2,
     };
-    Mode mode;
 
     DomainState()
         : mode(MODE_STRICT),
           created(base::Time::Now()),
           include_subdomains(false) { }
 
+    Mode mode;
     base::Time created;  // when this host entry was first created
     base::Time expiry;  // the absolute time (UTC) when this record expires
     bool include_subdomains;  // subdomains included?
@@ -101,6 +101,10 @@ class TransportSecurityState :
   // our state is dirty.
   void DirtyNotify();
 
+  static std::string CanonicaliseHost(const std::string& host);
+  static bool IsPreloadedSTS(const std::string& canonicalised_host,
+                             bool* out_include_subdomains);
+
   // The set of hosts that have enabled TransportSecurity. The keys here
   // are SHA256(DNSForm(domain)) where DNSForm converts from dotted form
   // ('www.google.com') to the form used in DNS: "\x03www\x06google\x03com"
@@ -108,10 +112,6 @@ class TransportSecurityState :
 
   // Our delegate who gets notified when we are dirtied, or NULL.
   Delegate* delegate_;
-
-  static std::string CanonicaliseHost(const std::string& host);
-  static bool IsPreloadedSTS(const std::string& canonicalised_host,
-                             bool* out_include_subdomains);
 
   DISALLOW_COPY_AND_ASSIGN(TransportSecurityState);
 };

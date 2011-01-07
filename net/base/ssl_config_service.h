@@ -22,6 +22,9 @@ struct SSLConfig {
   SSLConfig();
   ~SSLConfig();
 
+  // Returns true if |cert| is one of the certs in |allowed_bad_certs|.
+  bool IsAllowedBadCert(X509Certificate* cert) const;
+
   bool rev_checking_enabled;  // True if server certificate revocation
                               // checking is enabled.
   // SSL 2.0 is not supported.
@@ -78,9 +81,6 @@ struct SSLConfig {
     scoped_refptr<X509Certificate> cert;
     int cert_status;
   };
-
-  // Returns true if |cert| is one of the certs in |allowed_bad_certs|.
-  bool IsAllowedBadCert(X509Certificate* cert) const;
 
   // Add any known-bad SSL certificate (with its cert status) to
   // |allowed_bad_certs| that should not trigger an ERR_CERT_* error when
