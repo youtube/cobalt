@@ -315,18 +315,6 @@ static const struct dir_case {
 #endif
 };
 
-#if defined(OS_WIN)
-// This function is deprecated, and only exists on Windows anymore.
-TEST_F(FileUtilTest, GetDirectoryFromPath) {
-  for (unsigned int i = 0; i < arraysize(dir_cases); ++i) {
-    const dir_case& dir = dir_cases[i];
-    const std::wstring parent =
-        file_util::GetDirectoryFromPath(dir.full_path);
-    EXPECT_EQ(dir.directory, parent);
-  }
-}
-#endif
-
 // Flaky, http://crbug.com/46246
 TEST_F(FileUtilTest, FLAKY_CountFilesCreatedAfter) {
   // Create old file (that we don't want to count)
