@@ -165,11 +165,6 @@ enum LogLockingState { LOCK_LOG_FILE, DONT_LOCK_LOG_FILE };
 // Defaults to APPEND_TO_OLD_LOG_FILE.
 enum OldFileDeletionState { DELETE_OLD_LOG_FILE, APPEND_TO_OLD_LOG_FILE };
 
-enum DcheckState {
-  DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS,
-  ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS
-};
-
 // TODO(avi): do we want to do a unification of character types here?
 #if defined(OS_WIN)
 typedef wchar_t PathChar;
@@ -193,8 +188,7 @@ typedef char PathChar;
 bool BaseInitLoggingImpl(const PathChar* log_file,
                          LoggingDestination logging_dest,
                          LogLockingState lock_log,
-                         OldFileDeletionState delete_old,
-                         DcheckState dcheck_state);
+                         OldFileDeletionState delete_old);
 
 // Sets the log file name and other global logging state. Calling this function
 // is recommended, and is normally done at the beginning of application init.
@@ -209,10 +203,8 @@ bool BaseInitLoggingImpl(const PathChar* log_file,
 inline bool InitLogging(const PathChar* log_file,
                         LoggingDestination logging_dest,
                         LogLockingState lock_log,
-                        OldFileDeletionState delete_old,
-                        DcheckState dcheck_state) {
-  return BaseInitLoggingImpl(log_file, logging_dest, lock_log,
-                             delete_old, dcheck_state);
+                        OldFileDeletionState delete_old) {
+  return BaseInitLoggingImpl(log_file, logging_dest, lock_log, delete_old);
 }
 
 // Sets the log level. Anything at or above this level will be written to the
@@ -608,11 +600,10 @@ enum { DEBUG_MODE = ENABLE_DLOG };
   COMPACT_GOOGLE_LOG_EX_ERROR_REPORT(ClassName , ##__VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_DCHECK COMPACT_GOOGLE_LOG_ERROR_REPORT
 const LogSeverity LOG_DCHECK = LOG_ERROR_REPORT;
-extern DcheckState g_dcheck_state;
-#define DCHECK_IS_ON()                                  \
-  ((::logging::g_dcheck_state ==                        \
-    ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS) &&   \
-   LOG_IS_ON(DCHECK))
+// This is set to true in InitLogging when we want to enable the
+// DCHECKs in release.
+extern bool g_enable_dcheck;
+#define DCHECK_IS_ON() (::logging::g_enable_dcheck && LOG_IS_ON(DCHECK))
 
 #else  // defined(NDEBUG)
 
