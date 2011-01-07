@@ -5,7 +5,6 @@
 #include "net/http/http_auth_handler.h"
 
 #include "base/logging.h"
-#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/base/net_errors.h"
@@ -24,12 +23,6 @@ HttpAuthHandler::HttpAuthHandler()
 }
 
 HttpAuthHandler::~HttpAuthHandler() {
-}
-
-//static
-std::string HttpAuthHandler::GenerateHistogramNameFromScheme(
-    const std::string& scheme) {
-  return base::StringPrintf("Net.AuthGenerateToken_%s", scheme.c_str());
 }
 
 bool HttpAuthHandler::InitFromChallenge(
@@ -52,13 +45,6 @@ bool HttpAuthHandler::InitFromChallenge(
   DCHECK(!ok || score_ != -1);
   DCHECK(!ok || properties_ != -1);
   DCHECK(!ok || auth_scheme_ != AUTH_SCHEME_MAX);
-
-  if (ok)
-    histogram_ = base::Histogram::FactoryTimeGet(
-        GenerateHistogramNameFromScheme(scheme()),
-        base::TimeDelta::FromMilliseconds(1),
-        base::TimeDelta::FromSeconds(10), 50,
-        base::Histogram::kUmaTargetedHistogramFlag);
 
   return ok;
 }
@@ -90,10 +76,8 @@ int HttpAuthHandler::GenerateAuthToken(const string16* username,
   DCHECK(username != NULL || AllowsDefaultCredentials());
   DCHECK(auth_token != NULL);
   DCHECK(original_callback_ == NULL);
-  DCHECK(histogram_.get());
   original_callback_ = callback;
   net_log_.BeginEvent(EventTypeFromAuthTarget(target_), NULL);
-  generate_auth_token_start_ =  base::TimeTicks::Now();
   int rv = GenerateAuthTokenImpl(username, password, request,
                                  &wrapper_callback_, auth_token);
   if (rv != ERR_IO_PENDING)
@@ -118,10 +102,6 @@ void HttpAuthHandler::OnGenerateAuthTokenComplete(int rv) {
 
 void HttpAuthHandler::FinishGenerateAuthToken() {
   // TOOD(cbentzel): Should this be done in OK case only?
-  DCHECK(histogram_.get());
-  base::TimeDelta generate_auth_token_duration =
-      base::TimeTicks::Now() - generate_auth_token_start_;
-  histogram_->AddTime(generate_auth_token_duration);
   net_log_.EndEvent(EventTypeFromAuthTarget(target_), NULL);
   original_callback_ = NULL;
 }
