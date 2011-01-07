@@ -536,8 +536,7 @@ class MockDiskCache : public disk_cache::Backend {
 
 class MockBackendFactory : public net::HttpCache::BackendFactory {
  public:
-  virtual int CreateBackend(net::NetLog*  /* net_log */,
-                            disk_cache::Backend** backend,
+  virtual int CreateBackend(disk_cache::Backend** backend,
                             net::CompletionCallback* callback) {
     *backend = new MockDiskCache();
     return net::OK;
@@ -547,11 +546,11 @@ class MockBackendFactory : public net::HttpCache::BackendFactory {
 class MockHttpCache {
  public:
   MockHttpCache()
-      : http_cache_(new MockNetworkLayer(), NULL, new MockBackendFactory()) {
+      : http_cache_(new MockNetworkLayer(), new MockBackendFactory()) {
   }
 
   explicit MockHttpCache(net::HttpCache::BackendFactory* disk_cache_factory)
-      : http_cache_(new MockNetworkLayer(), NULL, disk_cache_factory) {
+      : http_cache_(new MockNetworkLayer(), disk_cache_factory) {
   }
 
   net::HttpCache* http_cache() { return &http_cache_; }
@@ -611,8 +610,7 @@ class MockHttpCache {
   }
 
   // Helper function to synchronously create a backend entry.
-  bool CreateBackendEntry(const std::string& key, disk_cache::Entry** entry,
-                          net::NetLog*  /* net_log */) {
+  bool CreateBackendEntry(const std::string& key, disk_cache::Entry** entry) {
     TestCompletionCallback cb;
     int rv = disk_cache()->CreateEntry(key, entry, &cb);
     return (cb.GetResult(rv) == net::OK);
@@ -632,8 +630,7 @@ class MockDiskCacheNoCB : public MockDiskCache {
 
 class MockBackendNoCbFactory : public net::HttpCache::BackendFactory {
  public:
-  virtual int CreateBackend(net::NetLog*  /* net_log */,
-                            disk_cache::Backend** backend,
+  virtual int CreateBackend(disk_cache::Backend** backend,
                             net::CompletionCallback* callback) {
     *backend = new MockDiskCacheNoCB();
     return net::OK;
@@ -646,8 +643,7 @@ class MockBlockingBackendFactory : public net::HttpCache::BackendFactory {
   MockBlockingBackendFactory()
       : backend_(NULL), callback_(NULL), block_(true), fail_(false) {}
 
-  virtual int CreateBackend(net::NetLog*  /* net_log */,
-                            disk_cache::Backend** backend,
+  virtual int CreateBackend(disk_cache::Backend** backend,
                             net::CompletionCallback* callback) {
     if (!block_) {
       if (!fail_)
@@ -1041,7 +1037,6 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
   cache.disk_cache()->set_fail_requests();
 
   net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
-  log.SetLogLevel(net::NetLog::LOG_BASIC);
 
   // Read from the network, and don't use the cache.
   RunTransactionTestWithLog(cache.http_cache(), kSimpleGET_Transaction,
@@ -1054,9 +1049,9 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
   EXPECT_EQ(6u, entries.size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      entries, 0, net::NetLog::TYPE_HTTP_CACHE_GET_BACKEND));
+      entries, 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      entries, 1, net::NetLog::TYPE_HTTP_CACHE_GET_BACKEND));
+      entries, 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
       entries, 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
@@ -1148,9 +1143,6 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
 
   net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
 
-  // This prevents a number of write events from being logged.
-  log.SetLogLevel(net::NetLog::LOG_BASIC);
-
   // write to the cache
   RunTransactionTestWithLog(cache.http_cache(), kSimpleGET_Transaction,
                             log.bound());
@@ -1161,9 +1153,9 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
 
   EXPECT_EQ(8u, entries.size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      entries, 0, net::NetLog::TYPE_HTTP_CACHE_GET_BACKEND));
+      entries, 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      entries, 1, net::NetLog::TYPE_HTTP_CACHE_GET_BACKEND));
+      entries, 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
       entries, 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
@@ -1173,9 +1165,9 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   EXPECT_TRUE(net::LogContainsEndEvent(
       entries, 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      entries, 6, net::NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY));
+      entries, 6, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      entries, 7, net::NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY));
+      entries, 7, net::NetLog::TYPE_HTTP_CACHE_WAITING));
 
   // force this transaction to read from the cache
   MockTransaction transaction(kSimpleGET_Transaction);
@@ -1190,17 +1182,17 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
 
   EXPECT_EQ(8u, entries.size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      entries, 0, net::NetLog::TYPE_HTTP_CACHE_GET_BACKEND));
+      entries, 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      entries, 1, net::NetLog::TYPE_HTTP_CACHE_GET_BACKEND));
+      entries, 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
       entries, 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
       entries, 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      entries, 4, net::NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY));
+      entries, 4, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      entries, 5, net::NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY));
+      entries, 5, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
       entries, 6, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
   EXPECT_TRUE(net::LogContainsEndEvent(
@@ -1281,9 +1273,6 @@ TEST(HttpCache, SimpleGET_LoadBypassCache) {
 
   net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
 
-  // This prevents a number of write events from being logged.
-  log.SetLogLevel(net::NetLog::LOG_BASIC);
-
   RunTransactionTestWithLog(cache.http_cache(), transaction, log.bound());
 
   // Check that the NetLog was filled as expected.
@@ -1292,9 +1281,9 @@ TEST(HttpCache, SimpleGET_LoadBypassCache) {
 
   EXPECT_EQ(8u, entries.size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      entries, 0, net::NetLog::TYPE_HTTP_CACHE_GET_BACKEND));
+      entries, 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      entries, 1, net::NetLog::TYPE_HTTP_CACHE_GET_BACKEND));
+      entries, 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
       entries, 2, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
@@ -1304,9 +1293,9 @@ TEST(HttpCache, SimpleGET_LoadBypassCache) {
   EXPECT_TRUE(net::LogContainsEndEvent(
       entries, 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      entries, 6, net::NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY));
+      entries, 6, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      entries, 7, net::NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY));
+      entries, 7, net::NetLog::TYPE_HTTP_CACHE_WAITING));
 
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
@@ -3313,8 +3302,7 @@ TEST(HttpCache, GET_Previous206_NotSparse) {
 
   // Create a disk cache entry that stores 206 headers while not being sparse.
   disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kSimpleGET_Transaction.url, &entry,
-                                       NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kSimpleGET_Transaction.url, &entry));
 
   std::string raw_headers(kRangeGET_TransactionOK.status);
   raw_headers.append("\n");
@@ -3357,8 +3345,7 @@ TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
 
   // Create a disk cache entry that stores 206 headers while not being sparse.
   disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   std::string raw_headers(kRangeGET_TransactionOK.status);
   raw_headers.append("\n");
@@ -3956,8 +3943,7 @@ TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
 TEST(HttpCache, WriteResponseInfo_Truncated) {
   MockHttpCache cache;
   disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry("http://www.google.com", &entry,
-                                       NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry("http://www.google.com", &entry));
 
   std::string headers("HTTP/1.1 200 OK");
   headers = net::HttpUtil::AssembleRawHeaders(headers.data(), headers.size());
@@ -4156,8 +4142,7 @@ TEST(HttpCache, GET_IncompleteResource) {
 
   // Create a disk cache entry that stores an incomplete resource.
   disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   std::string raw_headers("HTTP/1.1 200 OK\n"
                           "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
@@ -4217,8 +4202,7 @@ TEST(HttpCache, GET_IncompleteResource2) {
 
   // Create a disk cache entry that stores an incomplete resource.
   disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
 
   // Content-length will be intentionally bad.
@@ -4277,8 +4261,7 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
 
   // Create a disk cache entry that stores an incomplete resource.
   disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   std::string raw_headers("HTTP/1.1 200 OK\n"
                           "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
@@ -4343,8 +4326,7 @@ TEST(HttpCache, RangeGET_IncompleteResource) {
 
   // Create a disk cache entry that stores an incomplete resource.
   disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   // Content-length will be intentionally bogus.
   std::string raw_headers("HTTP/1.1 200 OK\n"

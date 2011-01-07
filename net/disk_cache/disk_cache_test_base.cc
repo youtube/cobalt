@@ -75,7 +75,7 @@ void DiskCacheTestWithCache::InitDiskCache() {
   TestCompletionCallback cb;
   int rv = disk_cache::BackendImpl::CreateBackend(
                path, force_creation_, size_, type_,
-               disk_cache::kNoRandom, thread, NULL, &cache_, &cb);
+               disk_cache::kNoRandom, thread, &cache_, &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 }
 
@@ -84,9 +84,9 @@ void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
       use_current_thread_ ? base::MessageLoopProxy::CreateForCurrentThread() :
                             cache_thread_.message_loop_proxy();
   if (mask_)
-    cache_impl_ = new disk_cache::BackendImpl(path, mask_, thread, NULL);
+    cache_impl_ = new disk_cache::BackendImpl(path, mask_, thread);
   else
-    cache_impl_ = new disk_cache::BackendImpl(path, thread, NULL);
+    cache_impl_ = new disk_cache::BackendImpl(path, thread);
 
   cache_ = cache_impl_;
   ASSERT_TRUE(NULL != cache_);
