@@ -156,6 +156,11 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   Delegate* delegate_;
 
  private:
+  friend class WebSocketThrottleTest;
+
+  typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
+  typedef std::deque< scoped_refptr<IOBufferWithSize> > PendingDataQueue;
+
   class RequestHeaders : public IOBuffer {
    public:
     RequestHeaders() : IOBuffer() {}
@@ -212,9 +217,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     kSOCKSProxy,  // If using a SOCKS proxy
   };
 
-  typedef std::deque< scoped_refptr<IOBufferWithSize> > PendingDataQueue;
-
-  friend class WebSocketThrottleTest;
+  // Use the same number as HttpNetworkTransaction::kMaxHeaderBufSize.
+  enum { kMaxTunnelResponseHeadersSize = 32768 };  // 32 kilobytes.
 
   // Copies the given addrinfo list in |addresses_|.
   // Used for WebSocketThrottleTest.
@@ -269,7 +273,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   int max_pending_send_allowed_;
   scoped_refptr<URLRequestContext> context_;
 
-  typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
   UserDataMap user_data_;
 
   State next_state_;
@@ -294,9 +297,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   scoped_refptr<ResponseHeaders> tunnel_response_headers_;
   int tunnel_response_headers_capacity_;
   int tunnel_response_headers_len_;
-
-  // Use the same number as HttpNetworkTransaction::kMaxHeaderBufSize.
-  enum { kMaxTunnelResponseHeadersSize = 32768 };  // 32 kilobytes.
 
   scoped_ptr<SingleRequestHostResolver> resolver_;
   AddressList addresses_;

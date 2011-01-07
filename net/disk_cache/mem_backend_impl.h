@@ -34,25 +34,6 @@ class MemBackendImpl : public Backend {
   // Performs general initialization for this current instance of the cache.
   bool Init();
 
-  // Backend interface.
-  virtual int32 GetEntryCount() const;
-  virtual int OpenEntry(const std::string& key, Entry** entry,
-                        CompletionCallback* callback);
-  virtual int CreateEntry(const std::string& key, Entry** entry,
-                          CompletionCallback* callback);
-  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
-  virtual int DoomAllEntries(CompletionCallback* callback);
-  virtual int DoomEntriesBetween(const base::Time initial_time,
-                                 const base::Time end_time,
-                                 CompletionCallback* callback);
-  virtual int DoomEntriesSince(const base::Time initial_time,
-                               CompletionCallback* callback);
-  virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            CompletionCallback* callback);
-  virtual void EndEnumeration(void** iter);
-  virtual void GetStats(
-      std::vector<std::pair<std::string, std::string> >* stats) {}
-
   // Sets the maximum size for the total amount of data stored by this instance.
   bool SetMaxSize(int max_bytes);
 
@@ -77,7 +58,28 @@ class MemBackendImpl : public Backend {
   // MemEntryImpl to remove a child entry from the ranking list.
   void RemoveFromRankingList(MemEntryImpl* entry);
 
+  // Backend interface.
+  virtual int32 GetEntryCount() const;
+  virtual int OpenEntry(const std::string& key, Entry** entry,
+                        CompletionCallback* callback);
+  virtual int CreateEntry(const std::string& key, Entry** entry,
+                          CompletionCallback* callback);
+  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
+  virtual int DoomAllEntries(CompletionCallback* callback);
+  virtual int DoomEntriesBetween(const base::Time initial_time,
+                                 const base::Time end_time,
+                                 CompletionCallback* callback);
+  virtual int DoomEntriesSince(const base::Time initial_time,
+                               CompletionCallback* callback);
+  virtual int OpenNextEntry(void** iter, Entry** next_entry,
+                            CompletionCallback* callback);
+  virtual void EndEnumeration(void** iter);
+  virtual void GetStats(
+      std::vector<std::pair<std::string, std::string> >* stats) {}
+
  private:
+  typedef base::hash_map<std::string, MemEntryImpl*> EntryMap;
+
   // Old Backend interface.
   bool OpenEntry(const std::string& key, Entry** entry);
   bool CreateEntry(const std::string& key, Entry** entry);
@@ -96,8 +98,6 @@ class MemBackendImpl : public Backend {
   // Handles the used storage count.
   void AddStorageSize(int32 bytes);
   void SubstractStorageSize(int32 bytes);
-
-  typedef base::hash_map<std::string, MemEntryImpl*> EntryMap;
 
   EntryMap entries_;
   MemRankings rankings_;  // Rankings to be able to trim the cache.

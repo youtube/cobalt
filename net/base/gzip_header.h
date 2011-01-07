@@ -20,9 +20,16 @@
 
 class GZipHeader {
  public:
+  enum Status {
+    INCOMPLETE_HEADER,    // don't have all the bits yet...
+    COMPLETE_HEADER,      // complete, valid header
+    INVALID_HEADER,       // found something invalid in the header
+  };
+
   GZipHeader() {
     Reset();
   }
+
   ~GZipHeader() {
   }
 
@@ -32,12 +39,6 @@ class GZipHeader {
     flags_        = 0;
     extra_length_ = 0;
   }
-
-  enum Status {
-    INCOMPLETE_HEADER,    // don't have all the bits yet...
-    COMPLETE_HEADER,      // complete, valid header
-    INVALID_HEADER,       // found something invalid in the header
-  };
 
   // Attempt to parse the given buffer as the next installment of
   // bytes from a gzip header. If the bytes we've seen so far do not
@@ -49,9 +50,6 @@ class GZipHeader {
   Status ReadMore(const char* inbuf, int inbuf_len,
                   const char** header_end);
  private:
-
-  static const uint8 magic[];  // gzip magic header
-
   enum {                       // flags (see RFC)
     FLAG_FTEXT        = 0x01,  // bit 0 set: file probably ascii text
     FLAG_FHCRC        = 0x02,  // bit 1 set: header CRC present
@@ -87,6 +85,8 @@ class GZipHeader {
 
     IN_DONE,
   };
+
+  static const uint8 magic[];  // gzip magic header
 
   int    state_;  // our current State in the parsing FSM: an int so we can ++
   uint8  flags_;         // the flags byte of the header ("FLG" in the RFC)

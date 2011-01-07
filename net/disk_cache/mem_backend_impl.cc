@@ -28,6 +28,17 @@ int LowWaterAdjust(int high_water) {
 
 namespace disk_cache {
 
+MemBackendImpl::MemBackendImpl() : max_size_(0), current_size_(0) {}
+
+MemBackendImpl::~MemBackendImpl() {
+  EntryMap::iterator it = entries_.begin();
+  while (it != entries_.end()) {
+    it->second->Doom();
+    it = entries_.begin();
+  }
+  DCHECK(!current_size_);
+}
+
 // Static.
 Backend* MemBackendImpl::CreateBackend(int max_bytes) {
   MemBackendImpl* cache = new MemBackendImpl();
@@ -62,17 +73,6 @@ bool MemBackendImpl::Init() {
   return true;
 }
 
-MemBackendImpl::MemBackendImpl() : max_size_(0), current_size_(0) {}
-
-MemBackendImpl::~MemBackendImpl() {
-  EntryMap::iterator it = entries_.begin();
-  while (it != entries_.end()) {
-    it->second->Doom();
-    it = entries_.begin();
-  }
-  DCHECK(!current_size_);
-}
-
 bool MemBackendImpl::SetMaxSize(int max_bytes) {
   COMPILE_ASSERT(sizeof(max_bytes) == sizeof(max_size_), unsupported_int_model);
   if (max_bytes < 0)
@@ -86,8 +86,105 @@ bool MemBackendImpl::SetMaxSize(int max_bytes) {
   return true;
 }
 
+void MemBackendImpl::InternalDoomEntry(MemEntryImpl* entry) {
+  // Only parent entries can be passed into this method.
+  DCHECK(entry->type() == MemEntryImpl::kParentEntry);
+
+  rankings_.Remove(entry);
+  EntryMap::iterator it = entries_.find(entry->GetKey());
+  if (it != entries_.end())
+    entries_.erase(it);
+  else
+    NOTREACHED();
+
+  entry->InternalDoom();
+}
+
+void MemBackendImpl::UpdateRank(MemEntryImpl* node) {
+  rankings_.UpdateRank(node);
+}
+
+void MemBackendImpl::ModifyStorageSize(int32 old_size, int32 new_size) {
+  if (old_size >= new_size)
+    SubstractStorageSize(old_size - new_size);
+  else
+    AddStorageSize(new_size - old_size);
+}
+
+int MemBackendImpl::MaxFileSize() const {
+  return max_size_ / 8;
+}
+
+void MemBackendImpl::InsertIntoRankingList(MemEntryImpl* entry) {
+  rankings_.Insert(entry);
+}
+
+void MemBackendImpl::RemoveFromRankingList(MemEntryImpl* entry) {
+  rankings_.Remove(entry);
+}
+
 int32 MemBackendImpl::GetEntryCount() const {
   return static_cast<int32>(entries_.size());
+}
+
+int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
+                              CompletionCallback* callback) {
+  if (OpenEntry(key, entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
+                                CompletionCallback* callback) {
+  if (CreateEntry(key, entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+int MemBackendImpl::DoomEntry(const std::string& key,
+                              CompletionCallback* callback) {
+  if (DoomEntry(key))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+int MemBackendImpl::DoomAllEntries(CompletionCallback* callback) {
+  if (DoomAllEntries())
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
+                                       const base::Time end_time,
+                                       CompletionCallback* callback) {
+  if (DoomEntriesBetween(initial_time, end_time))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
+                                     CompletionCallback* callback) {
+  if (DoomEntriesSince(initial_time))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
+                                  CompletionCallback* callback) {
+  if (OpenNextEntry(iter, next_entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+void MemBackendImpl::EndEnumeration(void** iter) {
+  *iter = NULL;
 }
 
 bool MemBackendImpl::OpenEntry(const std::string& key, Entry** entry) {
@@ -99,14 +196,6 @@ bool MemBackendImpl::OpenEntry(const std::string& key, Entry** entry) {
 
   *entry = it->second;
   return true;
-}
-
-int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
-                              CompletionCallback* callback) {
-  if (OpenEntry(key, entry))
-    return net::OK;
-
-  return net::ERR_FAILED;
 }
 
 bool MemBackendImpl::CreateEntry(const std::string& key, Entry** entry) {
@@ -127,14 +216,6 @@ bool MemBackendImpl::CreateEntry(const std::string& key, Entry** entry) {
   return true;
 }
 
-int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
-                                CompletionCallback* callback) {
-  if (CreateEntry(key, entry))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
 bool MemBackendImpl::DoomEntry(const std::string& key) {
   Entry* entry;
   if (!OpenEntry(key, &entry))
@@ -145,38 +226,9 @@ bool MemBackendImpl::DoomEntry(const std::string& key) {
   return true;
 }
 
-int MemBackendImpl::DoomEntry(const std::string& key,
-                              CompletionCallback* callback) {
-  if (DoomEntry(key))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
-void MemBackendImpl::InternalDoomEntry(MemEntryImpl* entry) {
-  // Only parent entries can be passed into this method.
-  DCHECK(entry->type() == MemEntryImpl::kParentEntry);
-
-  rankings_.Remove(entry);
-  EntryMap::iterator it = entries_.find(entry->GetKey());
-  if (it != entries_.end())
-    entries_.erase(it);
-  else
-    NOTREACHED();
-
-  entry->InternalDoom();
-}
-
 bool MemBackendImpl::DoomAllEntries() {
   TrimCache(true);
   return true;
-}
-
-int MemBackendImpl::DoomAllEntries(CompletionCallback* callback) {
-  if (DoomAllEntries())
-    return net::OK;
-
-  return net::ERR_FAILED;
 }
 
 bool MemBackendImpl::DoomEntriesBetween(const Time initial_time,
@@ -205,15 +257,6 @@ bool MemBackendImpl::DoomEntriesBetween(const Time initial_time,
   return true;
 }
 
-int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
-                                       const base::Time end_time,
-                                       CompletionCallback* callback) {
-  if (DoomEntriesBetween(initial_time, end_time))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
 bool MemBackendImpl::DoomEntriesSince(const Time initial_time) {
   for (;;) {
     // Get the entry in the front.
@@ -224,14 +267,6 @@ bool MemBackendImpl::DoomEntriesSince(const Time initial_time) {
       return true;
     entry->Doom();
   }
-}
-
-int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
-                                     CompletionCallback* callback) {
-  if (DoomEntriesSince(initial_time))
-    return net::OK;
-
-  return net::ERR_FAILED;
 }
 
 bool MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry) {
@@ -249,18 +284,6 @@ bool MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry) {
     node->Open();
 
   return NULL != node;
-}
-
-int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
-                                  CompletionCallback* callback) {
-  if (OpenNextEntry(iter, next_entry))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
-void MemBackendImpl::EndEnumeration(void** iter) {
-  *iter = NULL;
 }
 
 void MemBackendImpl::TrimCache(bool empty) {
@@ -291,29 +314,6 @@ void MemBackendImpl::AddStorageSize(int32 bytes) {
 void MemBackendImpl::SubstractStorageSize(int32 bytes) {
   current_size_ -= bytes;
   DCHECK(current_size_ >= 0);
-}
-
-void MemBackendImpl::ModifyStorageSize(int32 old_size, int32 new_size) {
-  if (old_size >= new_size)
-    SubstractStorageSize(old_size - new_size);
-  else
-    AddStorageSize(new_size - old_size);
-}
-
-void MemBackendImpl::UpdateRank(MemEntryImpl* node) {
-  rankings_.UpdateRank(node);
-}
-
-int MemBackendImpl::MaxFileSize() const {
-  return max_size_ / 8;
-}
-
-void MemBackendImpl::InsertIntoRankingList(MemEntryImpl* entry) {
-  rankings_.Insert(entry);
-}
-
-void MemBackendImpl::RemoveFromRankingList(MemEntryImpl* entry) {
-  rankings_.Remove(entry);
 }
 
 }  // namespace disk_cache

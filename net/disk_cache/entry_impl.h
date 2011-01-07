@@ -33,28 +33,6 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
 
   EntryImpl(BackendImpl* backend, Addr address, bool read_only);
 
-  // Entry interface.
-  virtual void Doom();
-  virtual void Close();
-  virtual std::string GetKey() const;
-  virtual base::Time GetLastUsed() const;
-  virtual base::Time GetLastModified() const;
-  virtual int32 GetDataSize(int index) const;
-  virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       net::CompletionCallback* completion_callback);
-  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* completion_callback,
-                        bool truncate);
-  virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::CompletionCallback* completion_callback);
-  virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* completion_callback);
-  virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                CompletionCallback* callback);
-  virtual bool CouldBeSparse() const;
-  virtual void CancelSparseIO();
-  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
-
   // Background implementation of the Entry interface.
   void DoomImpl();
   int ReadDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
@@ -137,6 +115,28 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   void BeginLogging(net::NetLog* net_log, bool created);
 
   const net::BoundNetLog& net_log() const;
+
+  // Entry interface.
+  virtual void Doom();
+  virtual void Close();
+  virtual std::string GetKey() const;
+  virtual base::Time GetLastUsed() const;
+  virtual base::Time GetLastModified() const;
+  virtual int32 GetDataSize(int index) const;
+  virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
+                       net::CompletionCallback* completion_callback);
+  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
+                        net::CompletionCallback* completion_callback,
+                        bool truncate);
+  virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
+                             net::CompletionCallback* completion_callback);
+  virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
+                              net::CompletionCallback* completion_callback);
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                CompletionCallback* callback);
+  virtual bool CouldBeSparse() const;
+  virtual void CancelSparseIO();
+  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
 
  private:
   enum {

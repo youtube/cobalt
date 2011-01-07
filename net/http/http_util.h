@@ -283,6 +283,7 @@ class HttpUtil {
     NameValuePairsIterator(std::string::const_iterator begin,
                            std::string::const_iterator end,
                            char delimiter);
+    ~NameValuePairsIterator();
 
     // Advances the iterator to the next pair, if any.  Returns true if there
     // is a next pair.  Use name* and value* methods to access the resultant
