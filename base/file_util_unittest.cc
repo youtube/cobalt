@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,16 +19,13 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
+#include "base/scoped_handle.h"
 #include "base/scoped_temp_dir.h"
 #include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
-
-#if defined(OS_WIN)
-#include "base/win/scoped_handle.h"
-#endif
 
 // This macro helps avoid wrapped lines in the test structs.
 #define FPL(x) FILE_PATH_LITERAL(x)
@@ -474,7 +471,7 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
 
   FilePath to_sub_a = base_b.Append(FPL("to_sub_a"));
   ASSERT_TRUE(file_util::CreateDirectory(to_sub_a));
-  base::win::ScopedHandle reparse_to_sub_a(
+  ScopedHandle reparse_to_sub_a(
       ::CreateFile(to_sub_a.value().c_str(),
                    FILE_ALL_ACCESS,
                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -487,7 +484,7 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
 
   FilePath to_base_b = base_b.Append(FPL("to_base_b"));
   ASSERT_TRUE(file_util::CreateDirectory(to_base_b));
-  base::win::ScopedHandle reparse_to_base_b(
+  ScopedHandle reparse_to_base_b(
       ::CreateFile(to_base_b.value().c_str(),
                    FILE_ALL_ACCESS,
                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -500,7 +497,7 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
 
   FilePath to_sub_long = base_b.Append(FPL("to_sub_long"));
   ASSERT_TRUE(file_util::CreateDirectory(to_sub_long));
-  base::win::ScopedHandle reparse_to_sub_long(
+  ScopedHandle reparse_to_sub_long(
       ::CreateFile(to_sub_long.value().c_str(),
                    FILE_ALL_ACCESS,
                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,

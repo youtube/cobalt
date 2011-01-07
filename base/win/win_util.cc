@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,11 +13,11 @@
 
 #include "base/logging.h"
 #include "base/win/registry.h"
+#include "base/scoped_handle.h"
 #include "base/scoped_ptr.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
 
 namespace base {
@@ -47,7 +47,7 @@ bool GetUserSidString(std::wstring* user_sid) {
   HANDLE token = NULL;
   if (!::OpenProcessToken(::GetCurrentProcess(), TOKEN_QUERY, &token))
     return false;
-  base::win::ScopedHandle token_scoped(token);
+  ScopedHandle token_scoped(token);
 
   DWORD size = sizeof(TOKEN_USER) + SECURITY_MAX_SID_SIZE;
   scoped_array<BYTE> user_bytes(new BYTE[size]);
