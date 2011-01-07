@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 #include "net/base/net_log.h"
+
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
+#include "net/base/net_errors.h"
 
 namespace net {
 
@@ -155,6 +157,18 @@ void BoundNetLog::EndEvent(
     NetLog::EventType event_type,
     const scoped_refptr<NetLog::EventParameters>& params) const {
   AddEntry(event_type, NetLog::PHASE_END, params);
+}
+
+void BoundNetLog::EndEventWithNetErrorCode(NetLog::EventType event_type,
+                                           int net_error) const {
+  DCHECK_NE(net_error, net::ERR_IO_PENDING);
+  if (net_error >= 0) {
+    EndEvent(event_type, NULL);
+  } else {
+    EndEvent(
+        event_type,
+        make_scoped_refptr(new NetLogIntegerParameter("net_error", net_error)));
+  }
 }
 
 // static
