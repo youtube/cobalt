@@ -147,6 +147,7 @@
           'path_service.h',
           'pickle.cc',
           'pickle.h',
+          'platform_file.cc',
           'platform_file.h',
           'platform_file_posix.cc',
           'platform_file_win.cc',

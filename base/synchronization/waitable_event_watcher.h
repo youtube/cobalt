@@ -115,8 +115,6 @@ class WaitableEventWatcher
   }
 
  private:
-  WaitableEvent* event_;
-
 #if defined(OS_WIN)
   // ---------------------------------------------------------------------------
   // The helper class exists because, if WaitableEventWatcher were to inherit
@@ -153,6 +151,8 @@ class WaitableEventWatcher
   AsyncCallbackTask* callback_task_;
   scoped_refptr<WaitableEvent::WaitableEventKernel> kernel_;
 #endif
+
+  WaitableEvent* event_;
 
   Delegate* delegate_;
 };

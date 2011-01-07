@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -66,23 +66,42 @@ class Histogram;
 //
 class MessageLoop : public base::MessagePump::Delegate {
  public:
-  // A TaskObserver is an object that receives task notifications from the
-  // MessageLoop.
+#if defined(OS_WIN)
+  typedef base::MessagePumpWin::Dispatcher Dispatcher;
+  typedef base::MessagePumpForUI::Observer Observer;
+#elif !defined(OS_MACOSX)
+#if defined(TOUCH_UI)
+  typedef base::MessagePumpGlibXDispatcher Dispatcher;
+#else
+  typedef base::MessagePumpForUI::Dispatcher Dispatcher;
+#endif
+  typedef base::MessagePumpForUI::Observer Observer;
+#endif
+
+  // A MessageLoop has a particular type, which indicates the set of
+  // asynchronous events it may process in addition to tasks and timers.
   //
-  // NOTE: A TaskObserver implementation should be extremely fast!
-  class TaskObserver {
-   public:
-    TaskObserver();
-
-    // This method is called before processing a task.
-    virtual void WillProcessTask(const Task* task) = 0;
-
-    // This method is called after processing a task.
-    virtual void DidProcessTask(const Task* task) = 0;
-
-   protected:
-    virtual ~TaskObserver();
+  // TYPE_DEFAULT
+  //   This type of ML only supports tasks and timers.
+  //
+  // TYPE_UI
+  //   This type of ML also supports native UI events (e.g., Windows messages).
+  //   See also MessageLoopForUI.
+  //
+  // TYPE_IO
+  //   This type of ML also supports asynchronous IO.  See also
+  //   MessageLoopForIO.
+  //
+  enum Type {
+    TYPE_DEFAULT,
+    TYPE_UI,
+    TYPE_IO
   };
+
+  // Normally, it is not necessary to instantiate a MessageLoop.  Instead, it
+  // is typical to make use of the current thread's MessageLoop instance.
+  explicit MessageLoop(Type type = TYPE_DEFAULT);
+  ~MessageLoop();
 
   static void EnableHistogrammer(bool enable_histogrammer);
 
@@ -200,31 +219,6 @@ class MessageLoop : public base::MessagePump::Delegate {
     }
   };
 
-  // A MessageLoop has a particular type, which indicates the set of
-  // asynchronous events it may process in addition to tasks and timers.
-  //
-  // TYPE_DEFAULT
-  //   This type of ML only supports tasks and timers.
-  //
-  // TYPE_UI
-  //   This type of ML also supports native UI events (e.g., Windows messages).
-  //   See also MessageLoopForUI.
-  //
-  // TYPE_IO
-  //   This type of ML also supports asynchronous IO.  See also
-  //   MessageLoopForIO.
-  //
-  enum Type {
-    TYPE_DEFAULT,
-    TYPE_UI,
-    TYPE_IO
-  };
-
-  // Normally, it is not necessary to instantiate a MessageLoop.  Instead, it
-  // is typical to make use of the current thread's MessageLoop instance.
-  explicit MessageLoop(Type type = TYPE_DEFAULT);
-  ~MessageLoop();
-
   // Returns the type passed to the constructor.
   Type type() const { return type_; }
 
@@ -284,22 +278,28 @@ class MessageLoop : public base::MessagePump::Delegate {
   // Returns true if we are currently running a nested message loop.
   bool IsNested();
 
+  // A TaskObserver is an object that receives task notifications from the
+  // MessageLoop.
+  //
+  // NOTE: A TaskObserver implementation should be extremely fast!
+  class TaskObserver {
+   public:
+    TaskObserver();
+
+    // This method is called before processing a task.
+    virtual void WillProcessTask(const Task* task) = 0;
+
+    // This method is called after processing a task.
+    virtual void DidProcessTask(const Task* task) = 0;
+
+   protected:
+    virtual ~TaskObserver();
+  };
+
   // These functions can only be called on the same thread that |this| is
   // running on.
   void AddTaskObserver(TaskObserver* task_observer);
   void RemoveTaskObserver(TaskObserver* task_observer);
-
-#if defined(OS_WIN)
-  typedef base::MessagePumpWin::Dispatcher Dispatcher;
-  typedef base::MessagePumpForUI::Observer Observer;
-#elif !defined(OS_MACOSX)
-#if defined(TOUCH_UI)
-  typedef base::MessagePumpGlibXDispatcher Dispatcher;
-#else
-  typedef base::MessagePumpForUI::Dispatcher Dispatcher;
-#endif
-  typedef base::MessagePumpForUI::Observer Observer;
-#endif
 
   // Returns true if the message loop has high resolution timers enabled.
   // Provided for testing.
@@ -341,17 +341,17 @@ class MessageLoop : public base::MessagePump::Delegate {
 
   // This structure is copied around by value.
   struct PendingTask {
-    Task* task;                        // The task to run.
-    base::TimeTicks delayed_run_time;  // The time when the task should be run.
-    int sequence_num;                  // Secondary sort key for run time.
-    bool nestable;                     // OK to dispatch from a nested loop.
-
     PendingTask(Task* task, bool nestable)
         : task(task), sequence_num(0), nestable(nestable) {
     }
 
     // Used to support sorting.
     bool operator<(const PendingTask& other) const;
+
+    Task* task;                        // The task to run.
+    base::TimeTicks delayed_run_time;  // The time when the task should be run.
+    int sequence_num;                  // Secondary sort key for run time.
+    bool nestable;                     // OK to dispatch from a nested loop.
   };
 
   class TaskQueue : public std::queue<PendingTask> {
@@ -427,11 +427,6 @@ class MessageLoop : public base::MessagePump::Delegate {
   void PostTask_Helper(const tracked_objects::Location& from_here, Task* task,
                        int64 delay_ms, bool nestable);
 
-  // base::MessagePump::Delegate methods:
-  virtual bool DoWork();
-  virtual bool DoDelayedWork(base::TimeTicks* next_delayed_work_time);
-  virtual bool DoIdleWork();
-
   // Start recording histogram info about events and action IF it was enabled
   // and IF the statistics recorder can accept a registration of our histogram.
   void StartHistogrammer();
@@ -440,6 +435,11 @@ class MessageLoop : public base::MessagePump::Delegate {
   // done in a specific MessageLoop instance (i.e., specific thread).
   // If message_histogram_ is NULL, this is a no-op.
   void HistogramEvent(int event);
+
+  // base::MessagePump::Delegate methods:
+  virtual bool DoWork();
+  virtual bool DoDelayedWork(base::TimeTicks* next_delayed_work_time);
+  virtual bool DoIdleWork();
 
   Type type_;
 

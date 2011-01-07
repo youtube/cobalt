@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,35 +29,43 @@ class InProcessBrowserTest;
 
 class CommandLine {
  public:
+#if defined(OS_WIN)
+  // The type of native command line arguments.
+  typedef std::wstring StringType;
+#elif defined(OS_POSIX)
+  // The type of native command line arguments.
+  typedef std::string StringType;
+#endif
+
+  // The type of map for parsed-out switch key and values.
+  typedef std::map<std::string, StringType> SwitchMap;
+
   // A constructor for CommandLines that are used only to carry switches and
   // arguments.
   enum NoProgram { NO_PROGRAM };
   explicit CommandLine(NoProgram no_program);
+
+  // Construct a new, empty command line.
+  // |program| is the name of the program to run (aka argv[0]).
+  explicit CommandLine(const FilePath& program);
+
+#if defined(OS_POSIX)
+  CommandLine(int argc, const char* const* argv);
+  explicit CommandLine(const std::vector<std::string>& argv);
+#endif
+
   ~CommandLine();
 
 #if defined(OS_WIN)
-  // The type of native command line arguments.
-  typedef std::wstring StringType;
-
   // Initialize by parsing the given command-line string.
   // The program name is assumed to be the first item in the string.
   void ParseFromString(const std::wstring& command_line);
   static CommandLine FromString(const std::wstring& command_line);
 #elif defined(OS_POSIX)
-  // The type of native command line arguments.
-  typedef std::string StringType;
-
   // Initialize from an argv vector.
   void InitFromArgv(int argc, const char* const* argv);
   void InitFromArgv(const std::vector<std::string>& argv);
-
-  CommandLine(int argc, const char* const* argv);
-  explicit CommandLine(const std::vector<std::string>& argv);
 #endif
-
-  // Construct a new, empty command line.
-  // |program| is the name of the program to run (aka argv[0]).
-  explicit CommandLine(const FilePath& program);
 
   // Initialize the current process CommandLine singleton.  On Windows,
   // ignores its arguments (we instead parse GetCommandLineW()
@@ -90,9 +98,6 @@ class CommandLine {
 
   // Get the number of switches in this process.
   size_t GetSwitchCount() const { return switches_.size(); }
-
-  // The type of map for parsed-out switch key and values.
-  typedef std::map<std::string, StringType> SwitchMap;
 
   // Get a copy of all switches, along with their values
   const SwitchMap& GetSwitches() const {
@@ -161,6 +166,12 @@ class CommandLine {
   // Used by InProcessBrowserTest.
   static CommandLine* ForCurrentProcessMutable();
 
+  // Returns true and fills in |switch_string| and |switch_value|
+  // if |parameter_string| represents a switch.
+  static bool IsSwitch(const StringType& parameter_string,
+                       std::string* switch_string,
+                       StringType* switch_value);
+
   // The singleton CommandLine instance representing the current process's
   // command line.
   static CommandLine* current_process_commandline_;
@@ -177,12 +188,6 @@ class CommandLine {
   // The argv array, with the program name in argv_[0].
   std::vector<std::string> argv_;
 #endif
-
-  // Returns true and fills in |switch_string| and |switch_value|
-  // if |parameter_string| represents a switch.
-  static bool IsSwitch(const StringType& parameter_string,
-                       std::string* switch_string,
-                       StringType* switch_value);
 
   // Parsed-out values.
   SwitchMap switches_;

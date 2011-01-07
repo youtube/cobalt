@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -86,14 +86,14 @@ class MessagePumpLibevent : public MessagePump {
     DISALLOW_COPY_AND_ASSIGN(FileDescriptorWatcher);
   };
 
-  MessagePumpLibevent();
-  virtual ~MessagePumpLibevent();
-
   enum Mode {
     WATCH_READ = 1 << 0,
     WATCH_WRITE = 1 << 1,
     WATCH_READ_WRITE = WATCH_READ | WATCH_WRITE
   };
+
+  MessagePumpLibevent();
+  virtual ~MessagePumpLibevent();
 
   // Have the current thread's message loop watch for a a situation in which
   // reading/writing to the FD can be performed without blocking.
@@ -128,6 +128,14 @@ class MessagePumpLibevent : public MessagePump {
   // Risky part of constructor.  Returns true on success.
   bool Init();
 
+  // Called by libevent to tell us a registered FD can be read/written to.
+  static void OnLibeventNotification(int fd, short flags,
+                                     void* context);
+
+  // Unix pipe used to implement ScheduleWork()
+  // ... callback; called by libevent inside Run() when pipe is ready to read
+  static void OnWakeup(int socket, short flags, void* context);
+
   // This flag is set to false when Run should return.
   bool keep_running_;
 
@@ -141,13 +149,6 @@ class MessagePumpLibevent : public MessagePump {
   // readiness callbacks when a socket is ready for I/O.
   event_base* event_base_;
 
-  // Called by libevent to tell us a registered FD can be read/written to.
-  static void OnLibeventNotification(int fd, short flags,
-                                     void* context);
-
-  // Unix pipe used to implement ScheduleWork()
-  // ... callback; called by libevent inside Run() when pipe is ready to read
-  static void OnWakeup(int socket, short flags, void* context);
   // ... write end; ScheduleWork() writes a single byte to it
   int wakeup_pipe_in_;
   // ... read end; OnWakeup reads it and then breaks Run() out of its sleep

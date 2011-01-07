@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,14 +33,27 @@ class FileUtilProxy {
   // StatusCallback, in which case the operation will complete silently.
   typedef Callback1<PlatformFileError /* error code */>::Type StatusCallback;
 
+  typedef Callback3<PlatformFileError /* error code */,
+                    PassPlatformFile,
+                    bool /* created */>::Type CreateOrOpenCallback;
+  typedef Callback3<PlatformFileError /* error code */,
+                    PassPlatformFile,
+                    FilePath>::Type CreateTemporaryCallback;
+  typedef Callback2<PlatformFileError /* error code */,
+                    bool /* created */>::Type EnsureFileExistsCallback;
+  typedef Callback2<PlatformFileError /* error code */,
+                    const PlatformFileInfo& /* file_info */
+                    >::Type GetFileInfoCallback;
+  typedef Callback2<PlatformFileError /* error code */,
+                    const std::vector<Entry>&>::Type ReadDirectoryCallback;
+  typedef Callback2<PlatformFileError /* error code */,
+                    int /* bytes read/written */>::Type ReadWriteCallback;
+
   // Creates or opens a file with the given flags.  It is invalid to pass NULL
   // for the callback.
   // If PLATFORM_FILE_CREATE is set in |file_flags| it always tries to create
   // a new file at the given |file_path| and calls back with
   // PLATFORM_FILE_ERROR_FILE_EXISTS if the |file_path| already exists.
-  typedef Callback3<PlatformFileError /* error code */,
-                    PassPlatformFile,
-                    bool /* created */>::Type CreateOrOpenCallback;
   static bool CreateOrOpen(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                            const FilePath& file_path,
                            int file_flags,
@@ -48,9 +61,6 @@ class FileUtilProxy {
 
   // Creates a temporary file for writing.  The path and an open file handle
   // are returned.  It is invalid to pass NULL for the callback.
-  typedef Callback3<PlatformFileError /* error code */,
-                    PassPlatformFile,
-                    FilePath>::Type CreateTemporaryCallback;
   static bool CreateTemporary(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       CreateTemporaryCallback* callback);
@@ -69,8 +79,6 @@ class FileUtilProxy {
   // is set PLATFORM_FILE_OK.
   // If the file hasn't existed but it couldn't be created for some other
   // reasons, |created| is set false and |error code| indicates the error.
-  typedef Callback2<PlatformFileError /* error code */,
-                    bool /* created */>::Type EnsureFileExistsCallback;
   static bool EnsureFileExists(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
@@ -78,9 +86,6 @@ class FileUtilProxy {
 
   // Retrieves the information about a file. It is invalid to pass NULL for the
   // callback.
-  typedef Callback2<PlatformFileError /* error code */,
-                    const PlatformFileInfo& /* file_info */
-                    >::Type GetFileInfoCallback;
   static bool GetFileInfo(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       const FilePath& file_path,
@@ -91,8 +96,6 @@ class FileUtilProxy {
       PlatformFile file,
       GetFileInfoCallback* callback);
 
-  typedef Callback2<PlatformFileError /* error code */,
-      const std::vector<Entry>&>::Type ReadDirectoryCallback;
   static bool ReadDirectory(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                             const FilePath& file_path,
                             ReadDirectoryCallback* callback);
@@ -142,8 +145,6 @@ class FileUtilProxy {
 
   // Reads from a file. On success, the file pointer is moved to position
   // |offset + bytes_to_read| in the file. The callback can be NULL.
-  typedef Callback2<PlatformFileError /* error code */,
-                    int /* bytes read/written */>::Type ReadWriteCallback;
   static bool Read(
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
