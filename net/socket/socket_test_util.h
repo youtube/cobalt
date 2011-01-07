@@ -168,12 +168,6 @@ class StaticSocketDataProvider : public SocketDataProvider {
                            MockWrite* writes, size_t writes_count);
   virtual ~StaticSocketDataProvider();
 
-  // SocketDataProvider methods:
-  virtual MockRead GetNextRead();
-  virtual MockWriteResult OnWrite(const std::string& data);
-  virtual void Reset();
-  virtual void CompleteRead() {}
-
   // These functions get access to the next available read and write data.
   const MockRead& PeekRead() const;
   const MockWrite& PeekWrite() const;
@@ -187,6 +181,12 @@ class StaticSocketDataProvider : public SocketDataProvider {
 
   bool at_read_eof() const { return read_index_ >= read_count_; }
   bool at_write_eof() const { return write_index_ >= write_count_; }
+
+  // SocketDataProvider methods:
+  virtual MockRead GetNextRead();
+  virtual MockWriteResult OnWrite(const std::string& data);
+  virtual void Reset();
+  virtual void CompleteRead() {}
 
  private:
   MockRead* reads_;

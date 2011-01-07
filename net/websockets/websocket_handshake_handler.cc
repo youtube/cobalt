@@ -284,6 +284,8 @@ WebSocketHandshakeResponseHandler::WebSocketHandshakeResponseHandler()
     : original_header_length_(0) {
 }
 
+WebSocketHandshakeResponseHandler::~WebSocketHandshakeResponseHandler() {}
+
 size_t WebSocketHandshakeResponseHandler::ParseRawResponse(
     const char* data, int length) {
   DCHECK_GT(length, 0);

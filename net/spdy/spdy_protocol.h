@@ -302,9 +302,6 @@ struct SpdyWindowUpdateControlFrameBlock : SpdyFrameBlock {
 
 // A structure for the 8 bit flags and 24 bit ID fields.
 union SettingsFlagsAndId {
-  uint8 flags_[4];  // 8 bits
-  uint32 id_;       // 24 bits
-
   SettingsFlagsAndId(uint32 val) : id_(val) {}
   uint8 flags() const { return flags_[0]; }
   void set_flags(uint8 flags) { flags_[0] = flags; }
@@ -314,6 +311,9 @@ union SettingsFlagsAndId {
     id = htonl(id & kSettingsIdMask);
     id_ = flags() | id;
   }
+
+  uint8 flags_[4];  // 8 bits
+  uint32 id_;       // 24 bits
 };
 
 #pragma pack(pop)
