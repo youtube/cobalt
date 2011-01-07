@@ -17,11 +17,16 @@
     # we need to have 'chromeos' already set).
     'variables': {
       'variables': {
-        # Whether we're building a ChromeOS build.
-        'chromeos%': '0',
+        'variables': {
+          # Whether we're building a ChromeOS build.
+          'chromeos%': 0,
 
-        # Disable touch support by default.
-        'touchui%': 0,
+          # Disable touch support by default.
+          'touchui%': 0,
+        },
+        # Copy conditionally-set variables out one scope.
+        'chromeos%': '<(chromeos)',
+        'touchui%': '<(touchui)',
 
         # To do a shared build on linux we need to be able to choose between
         # type static_library and shared_library. We default to doing a static
@@ -42,6 +47,14 @@
           }, {  # OS!="linux"
             'host_arch%': 'ia32',
           }],
+
+          # Set default value of toolkit_views on for Windows, Chrome OS
+          # and the touch UI.
+          ['OS=="win" or chromeos==1 or touchui==1', {
+            'toolkit_views%': 1,
+          }, {
+            'toolkit_views%': 0,
+          }],
         ],
       },
 
@@ -50,6 +63,7 @@
       'touchui%': '<(touchui)',
       'host_arch%': '<(host_arch)',
       'library%': '<(library)',
+      'toolkit_views%': '<(toolkit_views)',
 
       # Override branding to select the desired branding flavor.
       'branding%': 'Chromium',
@@ -102,15 +116,10 @@
       # it can be overriden by the GYP command line or by ~/.gyp/include.gypi.
       'component%': '<(library)',
 
-      'conditions': [
-        # Set default value of toolkit_views on for Windows, Chrome OS
-        # and the touch UI.
-        ['OS=="win" or chromeos==1 or touchui==1', {
-          'toolkit_views%': 1,
-        }, {
-          'toolkit_views%': 0,
-        }],
+      # Set to select the Title Case versions of strings in GRD files.
+      'use_titlecase_in_grd_files%': 0,
 
+      'conditions': [
         # A flag to enable or disable our compile-time dependency
         # on gnome-keyring. If that dependency is disabled, no gnome-keyring
         # support will be available. This option is useful
@@ -127,6 +136,11 @@
           'linux_fpic%': 0,
         }, {
           'linux_fpic%': 1,
+        }],
+
+        ['toolkit_views==0 or OS=="mac"', {
+          # GTK+ and Mac wants Title Case strings
+          'use_titlecase_in_grd_files%': 1,
         }],
 
         # Enable some hacks to support Flapper only on Chrome OS.
@@ -158,6 +172,7 @@
     'disable_sse2%': '<(disable_sse2)',
     'library%': '<(library)',
     'component%': '<(component)',
+    'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -277,9 +292,6 @@
     # Set to 1 to link against libgnome-keyring instead of using dlopen().
     'linux_link_gnome_keyring%': 0,
 
-    # Set to select the Title Case versions of strings in GRD files.
-    'use_titlecase_in_grd_files%': 0,
-
     # Used to disable Native Client at compile time, for platforms where it
     # isn't supported
     'disable_nacl%': 0,
@@ -319,7 +331,7 @@
     # This allows to use libcros from the current system, ie. /usr/lib/
     # The cros_api will be pulled in as a static library, and all headers
     # from the system include dirs.
-    'system_libcros%': '0',
+    'system_libcros%': 0,
 
     # Remoting compilation is enabled by default. Set to 0 to disable.
     'remoting%': 1,
@@ -334,6 +346,8 @@
       'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk',
       'vi', 'zh-CN', 'zh-TW',
     ],
+
+    'grit_defines': [],
 
     # Use Harfbuzz-NG instead of Harfbuzz.
     # Under development: http://crbug.com/68551
@@ -355,15 +369,10 @@
           ['(branding=="Chrome" and buildtype=="Official")', {
             'linux_dump_symbols%': 1,
           }],
-          ['toolkit_views==0', {
-            # GTK wants Title Case strings
-            'use_titlecase_in_grd_files%': 1,
-          }],
         ],
       }],  # OS=="linux" or OS=="freebsd" or OS=="openbsd"
+
       ['OS=="mac"', {
-        # Mac wants Title Case strings
-        'use_titlecase_in_grd_files%': 1,
         'conditions': [
           # mac_product_name is set to the name of the .app bundle as it should
           # appear on disk.  This duplicates data from
@@ -388,6 +397,7 @@
           }],
         ],
       }],  # OS=="mac"
+
       # Whether to use multiple cores to compile with visual studio. This is
       # optional because it sometimes causes corruption on VS 2005.
       # It is on by default on VS 2008 and off on VS 2005.
@@ -414,11 +424,13 @@
           'NACL_WIN64',
         ],
       }],
+
       ['OS=="mac" or (OS=="linux" and chromeos==0 and target_arch!="arm")', {
         'use_cups%': 1,
       }, {
         'use_cups%': 0,
       }],
+
       # Set the relative path from this file to the GYP file of the JPEG
       # library used by Chromium.
       ['use_libjpeg_turbo==1', {
@@ -426,6 +438,20 @@
       }, {
         'libjpeg_gyp_path': '../third_party/libjpeg/libjpeg.gyp',
       }],  # use_libjpeg_turbo==1
+
+      # Setup -D flags passed into grit.
+      ['chromeos==1', {
+        'grit_defines': ['-D', 'chromeos'],
+      }],
+      ['toolkit_views==1', {
+        'grit_defines': ['-D', 'toolkit_views'],
+      }],
+      ['touchui==1', {
+        'grit_defines': ['-D', 'touchui'],
+      }],
+      ['use_titlecase_in_grd_files==1', {
+        'grit_defines': ['-D', 'use_titlecase'],
+      }],
     ],
   },
   'target_defaults': {
