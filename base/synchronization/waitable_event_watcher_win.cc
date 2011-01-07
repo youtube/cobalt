@@ -21,8 +21,8 @@ void WaitableEventWatcher::ObjectWatcherHelper::OnObjectSignaled(HANDLE h) {
 
 
 WaitableEventWatcher::WaitableEventWatcher()
-    : event_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(helper_(this)),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(helper_(this)),
+      event_(NULL),
       delegate_(NULL) {
 }
 

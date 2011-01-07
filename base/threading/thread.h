@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,6 +29,10 @@ namespace base {
 class Thread : PlatformThread::Delegate {
  public:
   struct Options {
+    Options() : message_loop_type(MessageLoop::TYPE_DEFAULT), stack_size(0) {}
+    Options(MessageLoop::Type type, size_t size)
+        : message_loop_type(type), stack_size(size) {}
+
     // Specifies the type of message loop that will be allocated on the thread.
     MessageLoop::Type message_loop_type;
 
@@ -36,10 +40,6 @@ class Thread : PlatformThread::Delegate {
     // This does not necessarily correspond to the thread's initial stack size.
     // A value of 0 indicates that the default maximum should be used.
     size_t stack_size;
-
-    Options() : message_loop_type(MessageLoop::TYPE_DEFAULT), stack_size(0) {}
-    Options(MessageLoop::Type type, size_t size)
-        : message_loop_type(type), stack_size(size) {}
   };
 
   // Constructor.
@@ -152,10 +152,10 @@ class Thread : PlatformThread::Delegate {
   }
 
  private:
+  bool thread_was_started() const { return started_; }
+
   // PlatformThread::Delegate methods:
   virtual void ThreadMain();
-
-  bool thread_was_started() const { return started_; }
 
   // Whether we successfully started the thread.
   bool started_;

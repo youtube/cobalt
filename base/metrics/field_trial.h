@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -217,11 +217,11 @@ class FieldTrialList {
   static size_t GetFieldTrialCount();
 
  private:
-  // Helper function should be called only while holding lock_.
-  FieldTrial* PreLockedFind(const std::string& name);
-
   // A map from FieldTrial names to the actual instances.
   typedef std::map<std::string, FieldTrial*> RegistrationList;
+
+  // Helper function should be called only while holding lock_.
+  FieldTrial* PreLockedFind(const std::string& name);
 
   static FieldTrialList* global_;  // The singleton of this class.
 
