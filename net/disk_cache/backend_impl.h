@@ -19,10 +19,6 @@
 #include "net/disk_cache/stats.h"
 #include "net/disk_cache/trace.h"
 
-namespace net {
-class NetLog;
-}  // namespace net
-
 namespace disk_cache {
 
 enum BackendFlags {
@@ -42,11 +38,10 @@ enum BackendFlags {
 class BackendImpl : public Backend {
   friend class Eviction;
  public:
-  BackendImpl(const FilePath& path, base::MessageLoopProxy* cache_thread,
-              net::NetLog* net_log);
+  BackendImpl(const FilePath& path, base::MessageLoopProxy* cache_thread);
   // mask can be used to limit the usable size of the hash table, for testing.
   BackendImpl(const FilePath& path, uint32 mask,
-              base::MessageLoopProxy* cache_thread, net::NetLog* net_log);
+              base::MessageLoopProxy* cache_thread);
   ~BackendImpl();
 
   // Returns a new backend with the desired flags. See the declaration of
@@ -54,8 +49,7 @@ class BackendImpl : public Backend {
   static int CreateBackend(const FilePath& full_path, bool force,
                            int max_bytes, net::CacheType type,
                            uint32 flags, base::MessageLoopProxy* thread,
-                           net::NetLog* net_log, Backend** backend,
-                           CompletionCallback* callback);
+                           Backend** backend, CompletionCallback* callback);
 
   // Performs general initialization for this current instance of the cache.
   int Init(CompletionCallback* callback);
@@ -362,8 +356,6 @@ class BackendImpl : public Backend {
   bool new_eviction_;  // What eviction algorithm should be used.
   bool first_timer_;  // True if the timer has not been called.
   bool throttle_requests_;
-
-  net::NetLog* net_log_;
 
   Stats stats_;  // Usage statistcs.
   base::RepeatingTimer<BackendImpl> timer_;  // Usage timer.
