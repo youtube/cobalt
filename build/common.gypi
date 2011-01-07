@@ -128,6 +128,13 @@
         }, {
           'linux_fpic%': 1,
         }],
+
+        # Enable some hacks to support Flapper only on Chrome OS.
+        ['chromeos==1', {
+          'enable_flapper_hacks%': 1,
+        }, {
+          'enable_flapper_hacks%': 0,
+        }],
       ],
     },
 
@@ -139,6 +146,7 @@
     'toolkit_views%': '<(toolkit_views)',
     'use_gnome_keyring%': '<(use_gnome_keyring)',
     'linux_fpic%': '<(linux_fpic)',
+    'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
     'inside_chromium_build%': '<(inside_chromium_build)',
@@ -487,6 +495,9 @@
       }],
       ['proprietary_codecs==1', {
         'defines': ['USE_PROPRIETARY_CODECS'],
+      }],
+      ['enable_flapper_hacks==1', {
+        'defines': ['ENABLE_FLAPPER_HACKS=1'],
       }],
       ['fastbuild!=0', {
         'conditions': [
