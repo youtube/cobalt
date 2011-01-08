@@ -5,6 +5,7 @@
 #ifndef NET_HTTP_HTTP_STREAM_FACTORY_H_
 #define NET_HTTP_HTTP_STREAM_FACTORY_H_
 
+#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -12,6 +13,7 @@
 #include "base/scoped_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_mapping_rules.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_controller.h"
@@ -91,6 +93,17 @@ class HttpStreamFactory : public StreamFactory,
   }
   static bool force_spdy_always() { return force_spdy_always_; }
 
+  // Add a URL to exclude from forced SPDY.
+  static void add_forced_spdy_exclusion(const std::string& value) {
+    HostPortPair pair = HostPortPair::FromURL(GURL(value));
+    if (!forced_spdy_exclusions_)
+        forced_spdy_exclusions_ = new std::list<HostPortPair>();
+    forced_spdy_exclusions_->push_back(pair);
+  }
+  static std::list<HostPortPair>* forced_spdy_exclusions() {
+    return forced_spdy_exclusions_;
+  }
+
   // Sets the next protocol negotiation value used during the SSL handshake.
   static void set_next_protos(const std::string& value) {
     delete next_protos_;
@@ -120,6 +133,7 @@ class HttpStreamFactory : public StreamFactory,
   static bool use_alternate_protocols_;
   static bool force_spdy_over_ssl_;
   static bool force_spdy_always_;
+  static std::list<HostPortPair>* forced_spdy_exclusions_;
   static bool ignore_certificate_errors_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamFactory);

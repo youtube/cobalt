@@ -28,6 +28,8 @@ bool HttpStreamFactory::force_spdy_over_ssl_ = true;
 // static
 bool HttpStreamFactory::force_spdy_always_ = false;
 // static
+std::list<HostPortPair>* HttpStreamFactory::forced_spdy_exclusions_ = NULL;
+// static
 bool HttpStreamFactory::ignore_certificate_errors_ = false;
 
 // static
