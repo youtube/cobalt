@@ -451,6 +451,29 @@ int HttpStreamRequest::DoResolveProxyComplete(int result) {
   return OK;
 }
 
+bool HasSpdyExclusion(const HostPortPair& endpoint) {
+  std::list<HostPortPair>* exclusions =
+      HttpStreamFactory::forced_spdy_exclusions();
+  if (!exclusions)
+    return false;
+
+  std::list<HostPortPair>::const_iterator it;
+  for (it = exclusions->begin(); it != exclusions->end(); it++)
+    if (it->Equals(endpoint))
+      return true;
+  return false;
+}
+
+bool HttpStreamRequest::ShouldForceSpdySSL() {
+  bool rv = force_spdy_always_ && force_spdy_over_ssl_;
+  return rv && !HasSpdyExclusion(endpoint_);
+}
+
+bool HttpStreamRequest::ShouldForceSpdyWithoutSSL() {
+   bool rv = force_spdy_always_ && !force_spdy_over_ssl_;
+  return rv && !HasSpdyExclusion(endpoint_);
+}
+
 int HttpStreamRequest::DoInitConnection() {
   DCHECK(!connection_->is_initialized());
   DCHECK(proxy_info()->proxy_server().is_valid());
@@ -460,8 +483,7 @@ int HttpStreamRequest::DoInitConnection() {
       alternate_protocol_mode_ == kUsingAlternateProtocol &&
       alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_2;
   using_ssl_ = request_info().url.SchemeIs("https") ||
-      (force_spdy_always_ && force_spdy_over_ssl_) ||
-      want_spdy_over_npn;
+      ShouldForceSpdySSL() || want_spdy_over_npn;
   using_spdy_ = false;
 
   // If spdy has been turned off on-the-fly, then there may be SpdySessions
@@ -669,7 +691,7 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
       if (ssl_socket->was_spdy_negotiated())
         SwitchToSpdyMode();
     }
-    if (force_spdy_over_ssl_ && force_spdy_always_)
+    if (ShouldForceSpdySSL())
       SwitchToSpdyMode();
   } else if (proxy_info()->is_https() && connection_->socket() &&
         result == OK) {
@@ -682,7 +704,7 @@ int HttpStreamRequest::DoInitConnectionComplete(int result) {
   }
 
   // We may be using spdy without SSL
-  if (!force_spdy_over_ssl_ && force_spdy_always_)
+  if (ShouldForceSpdyWithoutSSL())
     SwitchToSpdyMode();
 
   if (result == ERR_PROXY_AUTH_REQUESTED ||
@@ -905,7 +927,7 @@ scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSSLParams(
       new SSLSocketParams(tcp_params, socks_params, http_proxy_params,
                           proxy_scheme, host_and_port,
                           *ssl_config(), load_flags,
-                          force_spdy_always_ && force_spdy_over_ssl_,
+                          ShouldForceSpdySSL(),
                           want_spdy_over_npn));
 
   return ssl_params;
