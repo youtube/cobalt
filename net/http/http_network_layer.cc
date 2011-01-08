@@ -5,6 +5,7 @@
 #include "net/http/http_network_layer.h"
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "net/http/http_network_session.h"
@@ -188,6 +189,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kOff[] = "off";
   static const char kSSL[] = "ssl";
   static const char kDisableSSL[] = "no-ssl";
+  static const char kExclude[] = "exclude";  // Hosts to exclude
   static const char kDisableCompression[] = "no-compress";
   static const char kDisableAltProtocols[] = "no-alt-protocols";
   static const char kEnableVersionOne[] = "v1";
@@ -228,7 +230,12 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
 
   for (std::vector<std::string>::iterator it = spdy_options.begin();
        it != spdy_options.end(); ++it) {
-    const std::string& option = *it;
+    const std::string& element = *it;
+    std::vector<std::string> name_value;
+    base::SplitString(element, '=', &name_value);
+    const std::string& option = name_value[0];
+    const std::string value = name_value.size() > 1 ? name_value[1] : "";
+
     if (option == kOff) {
       HttpStreamFactory::set_spdy_enabled(false);
     } else if (option == kDisableSSL) {
@@ -238,6 +245,8 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kSSL) {
       HttpStreamFactory::set_force_spdy_over_ssl(true);
       HttpStreamFactory::set_force_spdy_always(true);
+    } else if (option == kExclude) {
+      HttpStreamFactory::add_forced_spdy_exclusion(value);
     } else if (option == kDisableCompression) {
       spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {

@@ -180,6 +180,12 @@ class HttpStreamRequest : public StreamRequest {
   // Moves this stream request into SPDY mode.
   void SwitchToSpdyMode();
 
+  // Should we force SPDY to run over SSL for this stream request.
+  bool ShouldForceSpdySSL();
+
+  // Should we force SPDY to run without SSL for this stream request.
+  bool ShouldForceSpdyWithoutSSL();
+
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
 
