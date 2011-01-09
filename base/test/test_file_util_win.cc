@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
-#include "base/scoped_handle.h"
+#include "base/win/scoped_handle.h"
 #include "base/threading/platform_thread.h"
 
 namespace file_util {
@@ -39,7 +39,7 @@ bool DieFileDie(const FilePath& file, bool recurse) {
 
 bool EvictFileFromSystemCache(const FilePath& file) {
   // Request exclusive access to the file and overwrite it with no buffering.
-  ScopedHandle file_handle(
+  base::win::ScopedHandle file_handle(
       CreateFile(file.value().c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL,
                  OPEN_EXISTING, FILE_FLAG_NO_BUFFERING, NULL));
   if (!file_handle)

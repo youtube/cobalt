@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@
 
 #if defined(OS_WIN)
 #include "base/message_pump_win.h"
-#include "base/scoped_handle.h"
+#include "base/win/scoped_handle.h"
 #endif
 #if defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
@@ -937,7 +937,7 @@ void RunTest_RecursiveDenial2(MessageLoop::Type message_loop_type) {
   options.message_loop_type = message_loop_type;
   ASSERT_EQ(true, worker.StartWithOptions(options));
   TaskList order;
-  ScopedHandle event(CreateEvent(NULL, FALSE, FALSE, NULL));
+  base::win::ScopedHandle event(CreateEvent(NULL, FALSE, FALSE, NULL));
   worker.message_loop()->PostTask(FROM_HERE,
                                   new Recursive2Tasks(MessageLoop::current(),
                                                       event,
@@ -980,7 +980,7 @@ void RunTest_RecursiveSupport2(MessageLoop::Type message_loop_type) {
   options.message_loop_type = message_loop_type;
   ASSERT_EQ(true, worker.StartWithOptions(options));
   TaskList order;
-  ScopedHandle event(CreateEvent(NULL, FALSE, FALSE, NULL));
+  base::win::ScopedHandle event(CreateEvent(NULL, FALSE, FALSE, NULL));
   worker.message_loop()->PostTask(FROM_HERE,
                                   new Recursive2Tasks(MessageLoop::current(),
                                                       event,
@@ -1187,7 +1187,7 @@ class TestIOHandler : public MessageLoopForIO::IOHandler {
   char buffer_[48];
   MessageLoopForIO::IOContext context_;
   HANDLE signal_;
-  ScopedHandle file_;
+  base::win::ScopedHandle file_;
   bool wait_;
 };
 
@@ -1235,12 +1235,12 @@ class IOHandlerTask : public Task {
 };
 
 void RunTest_IOHandler() {
-  ScopedHandle callback_called(CreateEvent(NULL, TRUE, FALSE, NULL));
+  base::win::ScopedHandle callback_called(CreateEvent(NULL, TRUE, FALSE, NULL));
   ASSERT_TRUE(callback_called.IsValid());
 
   const wchar_t* kPipeName = L"\\\\.\\pipe\\iohandler_pipe";
-  ScopedHandle server(CreateNamedPipe(kPipeName, PIPE_ACCESS_OUTBOUND, 0, 1,
-                                      0, 0, 0, NULL));
+  base::win::ScopedHandle server(
+      CreateNamedPipe(kPipeName, PIPE_ACCESS_OUTBOUND, 0, 1, 0, 0, 0, NULL));
   ASSERT_TRUE(server.IsValid());
 
   Thread thread("IOHandler test");
@@ -1267,17 +1267,19 @@ void RunTest_IOHandler() {
 }
 
 void RunTest_WaitForIO() {
-  ScopedHandle callback1_called(CreateEvent(NULL, TRUE, FALSE, NULL));
-  ScopedHandle callback2_called(CreateEvent(NULL, TRUE, FALSE, NULL));
+  base::win::ScopedHandle callback1_called(
+      CreateEvent(NULL, TRUE, FALSE, NULL));
+  base::win::ScopedHandle callback2_called(
+      CreateEvent(NULL, TRUE, FALSE, NULL));
   ASSERT_TRUE(callback1_called.IsValid());
   ASSERT_TRUE(callback2_called.IsValid());
 
   const wchar_t* kPipeName1 = L"\\\\.\\pipe\\iohandler_pipe1";
   const wchar_t* kPipeName2 = L"\\\\.\\pipe\\iohandler_pipe2";
-  ScopedHandle server1(CreateNamedPipe(kPipeName1, PIPE_ACCESS_OUTBOUND, 0, 1,
-                                       0, 0, 0, NULL));
-  ScopedHandle server2(CreateNamedPipe(kPipeName2, PIPE_ACCESS_OUTBOUND, 0, 1,
-                                       0, 0, 0, NULL));
+  base::win::ScopedHandle server1(
+      CreateNamedPipe(kPipeName1, PIPE_ACCESS_OUTBOUND, 0, 1, 0, 0, 0, NULL));
+  base::win::ScopedHandle server2(
+      CreateNamedPipe(kPipeName2, PIPE_ACCESS_OUTBOUND, 0, 1, 0, 0, 0, NULL));
   ASSERT_TRUE(server1.IsValid());
   ASSERT_TRUE(server2.IsValid());
 
