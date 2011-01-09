@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,8 +13,8 @@
 #include "base/basictypes.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
-#include "base/scoped_handle.h"
 #include "base/time.h"
+#include "base/win/scoped_handle.h"
 
 namespace base {
 
@@ -356,7 +356,7 @@ class MessagePumpForIO : public MessagePumpWin {
   void DidProcessIOEvent();
 
   // The completion port associated with this thread.
-  ScopedHandle port_;
+  win::ScopedHandle port_;
   // This list will be empty almost always. It stores IO completions that have
   // not been delivered yet because somebody was doing cleanup.
   std::list<IOItem> completed_io_;
