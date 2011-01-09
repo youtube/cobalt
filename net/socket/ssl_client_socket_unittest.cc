@@ -58,8 +58,8 @@ class SSLClientSocketTest : public PlatformTest {
 // write.
 static bool LogContainsSSLConnectEndEvent(
     const net::CapturingNetLog::EntryList& log, int i) {
-  return  net::LogContainsEndEvent(log, -1, net::NetLog::TYPE_SSL_CONNECT) ||
-          net::LogContainsEvent(log, -1, net::NetLog::TYPE_SOCKET_BYTES_SENT,
+  return net::LogContainsEndEvent(log, i, net::NetLog::TYPE_SSL_CONNECT) ||
+         net::LogContainsEvent(log, i, net::NetLog::TYPE_SOCKET_BYTES_SENT,
                                 net::NetLog::PHASE_NONE);
 };
 
@@ -543,8 +543,7 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
 
 // TODO(rsleevi): Not implemented for Schannel. As Schannel is only used when
 // performing client authentication, it will not be tested here.
-// Flaky, http://crbug.com/64843.
-TEST_F(SSLClientSocketTest, FLAKY_CipherSuiteDisables) {
+TEST_F(SSLClientSocketTest, CipherSuiteDisables) {
   // Rather than exhaustively disabling every RC4 ciphersuite defined at
   // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml,
   // only disabling those cipher suites that the test server actually
@@ -609,5 +608,14 @@ TEST_F(SSLClientSocketTest, FLAKY_CipherSuiteDisables) {
   // We cannot test sock->IsConnected(), as the NSS implementation disconnects
   // the socket when it encounters an error, whereas other implementations
   // leave it connected.
-  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
+  // Because this an error that the test server is mutually aware of, as opposed
+  // to being an error such as a certificate name mismatch, which is
+  // client-only, the exact index of the SSL connect end depends on how
+  // quickly the test server closes the underlying socket. If the test server
+  // closes before the IO message loop pumps messages, there may be a 0-byte
+  // Read event in the NetLog due to TCPClientSocket picking up the EOF. As a
+  // result, the SSL connect end event will be the second-to-last entry,
+  // rather than the last entry.
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1) ||
+              LogContainsSSLConnectEndEvent(entries, -2));
 }
