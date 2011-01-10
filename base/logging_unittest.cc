@@ -197,7 +197,7 @@ TEST_F(LoggingTest, DcheckStreamsAreLazy) {
 
 #if !defined(LOGGING_IS_OFFICIAL_BUILD) && defined(NDEBUG)
   // Unofficial release build.
-  g_dcheck_state = DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
+  logging::g_enable_dcheck = false;
   DCHECK(mock_log_source.Log()) << mock_log_source.Log();
   DPCHECK(mock_log_source.Log()) << mock_log_source.Log();
   DCHECK_EQ(0, 0) << mock_log_source.Log();
@@ -213,13 +213,13 @@ TEST_F(LoggingTest, Dcheck) {
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
 #elif defined(NDEBUG)
   // Unofficial release build.
-  g_dcheck_state = ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
-  SetLogReportHandler(&LogSink);
+  logging::g_enable_dcheck = true;
+  logging::SetLogReportHandler(&LogSink);
   EXPECT_TRUE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
 #else
   // Unofficial debug build.
-  SetLogAssertHandler(&LogSink);
+  logging::SetLogAssertHandler(&LogSink);
   EXPECT_TRUE(DCHECK_IS_ON());
   EXPECT_TRUE(DLOG_IS_ON(DCHECK));
 #endif  // defined(LOGGING_IS_OFFICIAL_BUILD)
