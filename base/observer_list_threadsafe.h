@@ -60,13 +60,6 @@ class ObserverListThreadSafe
       : type_(ObserverListBase<ObserverType>::NOTIFY_ALL) {}
   explicit ObserverListThreadSafe(NotificationType type) : type_(type) {}
 
-  ~ObserverListThreadSafe() {
-    typename ObserversListMap::const_iterator it;
-    for (it = observer_lists_.begin(); it != observer_lists_.end(); ++it)
-      delete (*it).second;
-    observer_lists_.clear();
-  }
-
   // Add an observer to the list.
   void AddObserver(ObserverType* obs) {
     ObserverList<ObserverType>* list = NULL;
@@ -137,6 +130,15 @@ class ObserverListThreadSafe
   // TODO(mbelshe):  Add more wrappers for Notify() with more arguments.
 
  private:
+  friend class
+      base::RefCountedThreadSafe<ObserverListThreadSafe<ObserverType> >;
+  ~ObserverListThreadSafe() {
+    typename ObserversListMap::const_iterator it;
+    for (it = observer_lists_.begin(); it != observer_lists_.end(); ++it)
+      delete (*it).second;
+    observer_lists_.clear();
+  }
+
   template <class Method, class Params>
   void Notify(const UnboundMethod<ObserverType, Method, Params>& method) {
     AutoLock lock(list_lock_);
