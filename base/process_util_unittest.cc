@@ -485,12 +485,15 @@ std::string TestLaunchApp(const base::environment_vector& env_changes) {
 
   fds_to_remap.push_back(std::make_pair(fds[1], 1));
   EXPECT_TRUE(base::LaunchApp(args, env_changes, fds_to_remap,
-                        true /* wait for exit */, &handle));
-  PCHECK(close(fds[1]) == 0);
+                              true /* wait for exit */, &handle));
+  PCHECK(HANDLE_EINTR(close(fds[1])) == 0);
 
   char buf[512];
   const ssize_t n = HANDLE_EINTR(read(fds[0], buf, sizeof(buf)));
   PCHECK(n > 0);
+
+  PCHECK(HANDLE_EINTR(close(fds[0])) == 0);
+
   return std::string(buf, n);
 }
 
