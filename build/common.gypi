@@ -253,6 +253,9 @@
     # but that doesn't work as we'd like.
     'msvs_debug_link_incremental%': '2',
 
+    # Needed for some of the largest modules.
+    'msvs_debug_link_nonincremental%': '1',
+
     # This is the location of the sandbox binary. Chrome looks for this before
     # running the zygote process. If found, and SUID, it will be used to
     # sandbox the zygote process and, thus, all renderer processes.
