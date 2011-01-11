@@ -24,10 +24,12 @@ int main(int argc, const char* argv[]) {
   CommandLine::Init(argc, argv);
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 
-  if (!logging::InitLogging(FILE_PATH_LITERAL("testserver.log"),
-                            logging::LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG,
-                            logging::LOCK_LOG_FILE,
-                            logging::APPEND_TO_OLD_LOG_FILE)) {
+  if (!logging::InitLogging(
+          FILE_PATH_LITERAL("testserver.log"),
+          logging::LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG,
+          logging::LOCK_LOG_FILE,
+          logging::APPEND_TO_OLD_LOG_FILE,
+          logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS)) {
     printf("Error: could not initialize logging. Exiting.\n");
     return -1;
   }
