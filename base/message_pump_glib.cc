@@ -303,16 +303,15 @@ void MessagePumpForUI::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-MessagePumpForUI::Dispatcher* MessagePumpForUI::GetDispatcher() {
-  return state_ ? state_->dispatcher : NULL;
-}
-
-void MessagePumpForUI::WillProcessEvent(GdkEvent* event) {
-  FOR_EACH_OBSERVER(Observer, observers_, WillProcessEvent(event));
-}
-
-void MessagePumpForUI::DidProcessEvent(GdkEvent* event) {
-  FOR_EACH_OBSERVER(Observer, observers_, DidProcessEvent(event));
+void MessagePumpForUI::DispatchEvents(GdkEvent* event) {
+  WillProcessEvent(event);
+  if (state_ && state_->dispatcher) { // state_ may be null during tests.
+    if (!state_->dispatcher->Dispatch(event))
+      state_->should_quit = true;
+  } else {
+    gtk_main_do_event(event);
+  }
+  DidProcessEvent(event);
 }
 
 void MessagePumpForUI::Run(Delegate* delegate) {
@@ -344,15 +343,16 @@ void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
   ScheduleWork();
 }
 
-void MessagePumpForUI::DispatchEvents(GdkEvent* event) {
-  WillProcessEvent(event);
-  if (state_ && state_->dispatcher) { // state_ may be null during tests.
-    if (!state_->dispatcher->Dispatch(event))
-      state_->should_quit = true;
-  } else {
-    gtk_main_do_event(event);
-  }
-  DidProcessEvent(event);
+MessagePumpForUI::Dispatcher* MessagePumpForUI::GetDispatcher() {
+  return state_ ? state_->dispatcher : NULL;
+}
+
+void MessagePumpForUI::WillProcessEvent(GdkEvent* event) {
+  FOR_EACH_OBSERVER(Observer, observers_, WillProcessEvent(event));
+}
+
+void MessagePumpForUI::DidProcessEvent(GdkEvent* event) {
+  FOR_EACH_OBSERVER(Observer, observers_, DidProcessEvent(event));
 }
 
 // static

@@ -146,13 +146,11 @@ class JSONReader {
                      bool allow_trailing_comma);
 
  private:
-  static std::string FormatErrorMessage(int line, int column,
-                                        const std::string& description);
-
-  DISALLOW_COPY_AND_ASSIGN(JSONReader);
-
   FRIEND_TEST(JSONReaderTest, Reading);
   FRIEND_TEST(JSONReaderTest, ErrorMessages);
+
+  static std::string FormatErrorMessage(int line, int column,
+                                        const std::string& description);
 
   // Recursively build Value.  Returns NULL if we don't have a valid JSON
   // string.  If |is_root| is true, we verify that the root element is either
@@ -213,6 +211,8 @@ class JSONReader {
   JsonParseError error_code_;
   int error_line_;
   int error_col_;
+
+  DISALLOW_COPY_AND_ASSIGN(JSONReader);
 };
 
 }  // namespace base

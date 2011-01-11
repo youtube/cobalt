@@ -7,11 +7,6 @@
 
 namespace base {
 
-MessageLoopProxyImpl::MessageLoopProxyImpl()
-    : target_message_loop_(MessageLoop::current()) {
-  target_message_loop_->AddDestructionObserver(this);
-}
-
 MessageLoopProxyImpl::~MessageLoopProxyImpl() {
   AutoLock lock(message_loop_lock_);
   // If the target message loop still exists, the d'tor WILL execute on the
@@ -56,25 +51,10 @@ bool MessageLoopProxyImpl::BelongsToCurrentThread() {
           (MessageLoop::current() == target_message_loop_));
 }
 
-bool MessageLoopProxyImpl::PostTaskHelper(
-    const tracked_objects::Location& from_here, Task* task, int64 delay_ms,
-    bool nestable) {
-  bool ret = false;
-  {
-    AutoLock lock(message_loop_lock_);
-    if (target_message_loop_) {
-      if (nestable) {
-        target_message_loop_->PostDelayedTask(from_here, task, delay_ms);
-      } else {
-        target_message_loop_->PostNonNestableDelayedTask(from_here, task,
-                                                         delay_ms);
-      }
-      ret = true;
-    }
-  }
-  if (!ret)
-    delete task;
-  return ret;
+// MessageLoop::DestructionObserver implementation
+void MessageLoopProxyImpl::WillDestroyCurrentMessageLoop() {
+  AutoLock lock(message_loop_lock_);
+  target_message_loop_ = NULL;
 }
 
 void MessageLoopProxyImpl::OnDestruct() const {
@@ -96,10 +76,30 @@ void MessageLoopProxyImpl::OnDestruct() const {
     delete this;
 }
 
-// MessageLoop::DestructionObserver implementation
-void MessageLoopProxyImpl::WillDestroyCurrentMessageLoop() {
-  AutoLock lock(message_loop_lock_);
-  target_message_loop_ = NULL;
+MessageLoopProxyImpl::MessageLoopProxyImpl()
+    : target_message_loop_(MessageLoop::current()) {
+  target_message_loop_->AddDestructionObserver(this);
+}
+
+bool MessageLoopProxyImpl::PostTaskHelper(
+    const tracked_objects::Location& from_here, Task* task, int64 delay_ms,
+    bool nestable) {
+  bool ret = false;
+  {
+    AutoLock lock(message_loop_lock_);
+    if (target_message_loop_) {
+      if (nestable) {
+        target_message_loop_->PostDelayedTask(from_here, task, delay_ms);
+      } else {
+        target_message_loop_->PostNonNestableDelayedTask(from_here, task,
+                                                         delay_ms);
+      }
+      ret = true;
+    }
+  }
+  if (!ret)
+    delete task;
+  return ret;
 }
 
 scoped_refptr<MessageLoopProxy>
