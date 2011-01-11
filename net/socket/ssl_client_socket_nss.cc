@@ -359,13 +359,14 @@ void SSLClientSocketNSS::SaveSnapStartInfo() {
   if (hello_data_len > std::numeric_limits<uint16>::max())
     return;
   SSLHostInfo::State* state = ssl_host_info_->mutable_state();
-  state->server_hello =
-      std::string(reinterpret_cast<const char *>(hello_data), hello_data_len);
 
   if (hello_data_len > 0) {
+    state->server_hello =
+        std::string(reinterpret_cast<const char *>(hello_data), hello_data_len);
     state->npn_valid = true;
     state->npn_status = GetNextProto(&state->npn_protocol);
   } else {
+    state->server_hello.clear();
     state->npn_valid = false;
   }
 
