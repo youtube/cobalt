@@ -87,6 +87,17 @@ bool ShouldUpdateHeader(const std::string::const_iterator& name_begin,
 
 }  // namespace
 
+struct HttpResponseHeaders::ParsedHeader {
+  // A header "continuation" contains only a subsequent value for the
+  // preceding header.  (Header values are comma separated.)
+  bool is_continuation() const { return name_begin == name_end; }
+
+  std::string::const_iterator name_begin;
+  std::string::const_iterator name_end;
+  std::string::const_iterator value_begin;
+  std::string::const_iterator value_end;
+};
+
 //-----------------------------------------------------------------------------
 
 HttpResponseHeaders::HttpResponseHeaders(const std::string& raw_input)

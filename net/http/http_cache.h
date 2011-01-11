@@ -60,8 +60,6 @@ class HttpCache : public HttpTransactionFactory,
                   public base::SupportsWeakPtr<HttpCache>,
                   public base::NonThreadSafe {
  public:
-  ~HttpCache();
-
   // The cache mode of operation.
   enum Mode {
     // Normal mode just behaves like a standard web cache.
@@ -145,6 +143,8 @@ class HttpCache : public HttpTransactionFactory,
             NetLog* net_log,
             BackendFactory* backend_factory);
 
+  ~HttpCache();
+
   HttpTransactionFactory* network_layer() { return network_layer_.get(); }
 
   // Retrieves the cache backend for this HttpCache instance. If the backend
@@ -156,12 +156,6 @@ class HttpCache : public HttpTransactionFactory,
 
   // Returns the current backend (can be NULL).
   disk_cache::Backend* GetCurrentBackend();
-
-  // HttpTransactionFactory implementation:
-  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
-  virtual HttpCache* GetCache();
-  virtual HttpNetworkSession* GetSession();
-  virtual void Suspend(bool suspend);
 
   // Given a header data blob, convert it to a response info object.
   static bool ParseResponseInfo(const char* data, int len,
@@ -183,6 +177,12 @@ class HttpCache : public HttpTransactionFactory,
   // recycled connections.  For sockets currently in use, they may not close
   // immediately, but they will not be reusable. This is for debugging.
   void CloseCurrentConnections();
+
+  // HttpTransactionFactory implementation:
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
+  virtual HttpCache* GetCache();
+  virtual HttpNetworkSession* GetSession();
+  virtual void Suspend(bool suspend);
 
  protected:
   // Disk cache entry data indices.
@@ -211,15 +211,15 @@ class HttpCache : public HttpTransactionFactory,
   typedef std::list<WorkItem*> WorkItemList;
 
   struct ActiveEntry {
+    explicit ActiveEntry(disk_cache::Entry* entry);
+    ~ActiveEntry();
+
     disk_cache::Entry* disk_entry;
     Transaction*       writer;
     TransactionList    readers;
     TransactionList    pending_queue;
     bool               will_process_pending_queue;
     bool               doomed;
-
-    explicit ActiveEntry(disk_cache::Entry* entry);
-    ~ActiveEntry();
   };
 
   typedef base::hash_map<std::string, ActiveEntry*> ActiveEntriesMap;

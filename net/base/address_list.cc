@@ -101,18 +101,6 @@ struct AddressList::Data : public base::RefCountedThreadSafe<Data> {
 AddressList::AddressList() {
 }
 
-AddressList::AddressList(const AddressList& addresslist)
-    : data_(addresslist.data_) {
-}
-
-AddressList::~AddressList() {
-}
-
-AddressList& AddressList::operator=(const AddressList& addresslist) {
-  data_ = addresslist.data_;
-  return *this;
-}
-
 AddressList::AddressList(const IPAddressNumber& address, int port,
                          bool canonicalize_name) {
   struct addrinfo* ai = new addrinfo;
@@ -160,6 +148,18 @@ AddressList::AddressList(const IPAddressNumber& address, int port,
   SetPort(port);
 }
 
+AddressList::AddressList(const AddressList& addresslist)
+    : data_(addresslist.data_) {
+}
+
+AddressList::~AddressList() {
+}
+
+AddressList& AddressList::operator=(const AddressList& addresslist) {
+  data_ = addresslist.data_;
+  return *this;
+}
+
 void AddressList::Adopt(struct addrinfo* head) {
   data_ = new Data(head, true /*is_system_created*/);
 }
@@ -195,14 +195,6 @@ int AddressList::GetPort() const {
   return GetPortFromAddrinfo(data_->head);
 }
 
-bool AddressList::GetCanonicalName(std::string* canonical_name) const {
-  DCHECK(canonical_name);
-  if (!data_ || !data_->head->ai_canonname)
-    return false;
-  canonical_name->assign(data_->head->ai_canonname);
-  return true;
-}
-
 void AddressList::SetFrom(const AddressList& src, int port) {
   if (src.GetPort() == port) {
     // We can reference the data from |src| directly.
@@ -212,6 +204,14 @@ void AddressList::SetFrom(const AddressList& src, int port) {
     Copy(src.head(), true);
     SetPort(port);
   }
+}
+
+bool AddressList::GetCanonicalName(std::string* canonical_name) const {
+  DCHECK(canonical_name);
+  if (!data_ || !data_->head->ai_canonname)
+    return false;
+  canonical_name->assign(data_->head->ai_canonname);
+  return true;
 }
 
 void AddressList::Reset() {

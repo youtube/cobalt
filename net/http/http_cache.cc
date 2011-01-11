@@ -383,29 +383,6 @@ disk_cache::Backend* HttpCache::GetCurrentBackend() {
   return disk_cache_.get();
 }
 
-int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
-  // Do lazy initialization of disk cache if needed.
-  if (!disk_cache_.get())
-    CreateBackend(NULL, NULL);  // We don't care about the result.
-
-  trans->reset(new HttpCache::Transaction(this));
-  return OK;
-}
-
-HttpCache* HttpCache::GetCache() {
-  return this;
-}
-
-HttpNetworkSession* HttpCache::GetSession() {
-  net::HttpNetworkLayer* network =
-      static_cast<net::HttpNetworkLayer*>(network_layer_.get());
-  return network->GetSession();
-}
-
-void HttpCache::Suspend(bool suspend) {
-  network_layer_->Suspend(suspend);
-}
-
 // static
 bool HttpCache::ParseResponseInfo(const char* data, int len,
                                   HttpResponseInfo* response_info,
@@ -440,6 +417,29 @@ void HttpCache::CloseCurrentConnections() {
     if (session->spdy_session_pool())
       session->spdy_session_pool()->CloseCurrentSessions();
   }
+}
+
+int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
+  // Do lazy initialization of disk cache if needed.
+  if (!disk_cache_.get())
+    CreateBackend(NULL, NULL);  // We don't care about the result.
+
+  trans->reset(new HttpCache::Transaction(this));
+  return OK;
+}
+
+HttpCache* HttpCache::GetCache() {
+  return this;
+}
+
+HttpNetworkSession* HttpCache::GetSession() {
+  net::HttpNetworkLayer* network =
+      static_cast<net::HttpNetworkLayer*>(network_layer_.get());
+  return network->GetSession();
+}
+
+void HttpCache::Suspend(bool suspend) {
+  network_layer_->Suspend(suspend);
 }
 
 //-----------------------------------------------------------------------------
