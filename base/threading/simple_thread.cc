@@ -10,6 +10,22 @@
 
 namespace base {
 
+SimpleThread::SimpleThread(const std::string& name_prefix)
+    : name_prefix_(name_prefix), name_(name_prefix),
+      thread_(), event_(true, false), tid_(0), joined_(false) {
+}
+
+SimpleThread::SimpleThread(const std::string& name_prefix,
+                           const Options& options)
+    : name_prefix_(name_prefix), name_(name_prefix), options_(options),
+      thread_(), event_(true, false), tid_(0), joined_(false) {
+}
+
+SimpleThread::~SimpleThread() {
+  DCHECK(HasBeenStarted()) << "SimpleThread was never started.";
+  DCHECK(HasBeenJoined()) << "SimpleThread destroyed without being Join()ed.";
+}
+
 void SimpleThread::Start() {
   DCHECK(!HasBeenStarted()) << "Tried to Start a thread multiple times.";
   bool success = PlatformThread::Create(options_.stack_size(), this, &thread_);
@@ -35,22 +51,6 @@ void SimpleThread::ThreadMain() {
   event_.Signal();
 
   Run();
-}
-
-SimpleThread::SimpleThread(const std::string& name_prefix)
-    : name_prefix_(name_prefix), name_(name_prefix),
-      thread_(), event_(true, false), tid_(0), joined_(false) {
-}
-
-SimpleThread::SimpleThread(const std::string& name_prefix,
-                           const Options& options)
-    : name_prefix_(name_prefix), name_(name_prefix), options_(options),
-      thread_(), event_(true, false), tid_(0), joined_(false) {
-}
-
-SimpleThread::~SimpleThread() {
-  DCHECK(HasBeenStarted()) << "SimpleThread was never started.";
-  DCHECK(HasBeenJoined()) << "SimpleThread destroyed without being Join()ed.";
 }
 
 DelegateSimpleThread::DelegateSimpleThread(Delegate* delegate,

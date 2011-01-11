@@ -81,6 +81,11 @@ const char* JSONReader::kUnsupportedEncoding =
 const char* JSONReader::kUnquotedDictionaryKey =
     "Dictionary keys must be quoted.";
 
+JSONReader::JSONReader()
+    : start_pos_(NULL), json_pos_(NULL), stack_depth_(0),
+      allow_trailing_comma_(false),
+      error_code_(JSON_NO_ERROR), error_line_(0), error_col_(0) {}
+
 /* static */
 Value* JSONReader::Read(const std::string& json,
                         bool allow_trailing_comma) {
@@ -103,16 +108,6 @@ Value* JSONReader::ReadAndReturnError(const std::string& json,
     *error_msg_out = reader.GetErrorMessage();
 
   return NULL;
-}
-
-/* static */
-std::string JSONReader::FormatErrorMessage(int line, int column,
-                                           const std::string& description) {
-  if (line || column) {
-    return StringPrintf("Line: %i, column: %i, %s",
-                        line, column, description.c_str());
-  }
-  return description;
 }
 
 /* static */
@@ -146,11 +141,6 @@ std::string JSONReader::GetErrorMessage() const {
   return FormatErrorMessage(error_line_, error_col_,
                             ErrorCodeToString(error_code_));
 }
-
-JSONReader::JSONReader()
-    : start_pos_(NULL), json_pos_(NULL), stack_depth_(0),
-      allow_trailing_comma_(false),
-      error_code_(JSON_NO_ERROR), error_line_(0), error_col_(0) {}
 
 Value* JSONReader::JsonToValue(const std::string& json, bool check_root,
                                bool allow_trailing_comma) {
@@ -193,6 +183,16 @@ Value* JSONReader::JsonToValue(const std::string& json, bool check_root,
     SetErrorCode(JSON_SYNTAX_ERROR, json_pos_);
 
   return NULL;
+}
+
+/* static */
+std::string JSONReader::FormatErrorMessage(int line, int column,
+                                           const std::string& description) {
+  if (line || column) {
+    return StringPrintf("Line: %i, column: %i, %s",
+                        line, column, description.c_str());
+  }
+  return description;
 }
 
 Value* JSONReader::BuildValue(bool is_root) {
@@ -580,16 +580,6 @@ JSONReader::Token JSONReader::ParseToken() {
   return token;
 }
 
-bool JSONReader::NextStringMatch(const std::wstring& str) {
-  for (size_t i = 0; i < str.length(); ++i) {
-    if ('\0' == *json_pos_)
-      return false;
-    if (*(json_pos_ + i) != str[i])
-      return false;
-  }
-  return true;
-}
-
 void JSONReader::EatWhitespaceAndComments() {
   while ('\0' != *json_pos_) {
     switch (*json_pos_) {
@@ -641,6 +631,16 @@ bool JSONReader::EatComment() {
     }
   } else {
     return false;
+  }
+  return true;
+}
+
+bool JSONReader::NextStringMatch(const std::wstring& str) {
+  for (size_t i = 0; i < str.length(); ++i) {
+    if ('\0' == *json_pos_)
+      return false;
+    if (*(json_pos_ + i) != str[i])
+      return false;
   }
   return true;
 }

@@ -14,6 +14,19 @@
 
 namespace base {
 
+struct timespec TimeDelta::ToTimeSpec() const {
+  int64 microseconds = InMicroseconds();
+  time_t seconds = 0;
+  if (microseconds >= Time::kMicrosecondsPerSecond) {
+    seconds = InSeconds();
+    microseconds -= seconds * Time::kMicrosecondsPerSecond;
+  }
+  struct timespec result =
+      {seconds,
+       microseconds * Time::kNanosecondsPerMicrosecond};
+  return result;
+}
+
 #if !defined(OS_MACOSX)
 // The Time routines in this file use standard POSIX routines, or almost-
 // standard routines in the case of timegm.  We need to use a Mach-specific
@@ -58,6 +71,30 @@ Time Time::Now() {
 Time Time::NowFromSystemTime() {
   // Just use Now() because Now() returns the system time.
   return Now();
+}
+
+void Time::Explode(bool is_local, Exploded* exploded) const {
+  // Time stores times with microsecond resolution, but Exploded only carries
+  // millisecond resolution, so begin by being lossy.  Adjust from Windows
+  // epoch (1601) to Unix epoch (1970);
+  int64 milliseconds = (us_ - kWindowsEpochDeltaMicroseconds) /
+      kMicrosecondsPerMillisecond;
+  time_t seconds = milliseconds / kMillisecondsPerSecond;
+
+  struct tm timestruct;
+  if (is_local)
+    localtime_r(&seconds, &timestruct);
+  else
+    gmtime_r(&seconds, &timestruct);
+
+  exploded->year         = timestruct.tm_year + 1900;
+  exploded->month        = timestruct.tm_mon + 1;
+  exploded->day_of_week  = timestruct.tm_wday;
+  exploded->day_of_month = timestruct.tm_mday;
+  exploded->hour         = timestruct.tm_hour;
+  exploded->minute       = timestruct.tm_min;
+  exploded->second       = timestruct.tm_sec;
+  exploded->millisecond  = milliseconds % kMillisecondsPerSecond;
 }
 
 // static
@@ -119,30 +156,6 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
       kWindowsEpochDeltaMicroseconds);
 }
 
-void Time::Explode(bool is_local, Exploded* exploded) const {
-  // Time stores times with microsecond resolution, but Exploded only carries
-  // millisecond resolution, so begin by being lossy.  Adjust from Windows
-  // epoch (1601) to Unix epoch (1970);
-  int64 milliseconds = (us_ - kWindowsEpochDeltaMicroseconds) /
-      kMicrosecondsPerMillisecond;
-  time_t seconds = milliseconds / kMillisecondsPerSecond;
-
-  struct tm timestruct;
-  if (is_local)
-    localtime_r(&seconds, &timestruct);
-  else
-    gmtime_r(&seconds, &timestruct);
-
-  exploded->year         = timestruct.tm_year + 1900;
-  exploded->month        = timestruct.tm_mon + 1;
-  exploded->day_of_week  = timestruct.tm_wday;
-  exploded->day_of_month = timestruct.tm_mday;
-  exploded->hour         = timestruct.tm_hour;
-  exploded->minute       = timestruct.tm_min;
-  exploded->second       = timestruct.tm_sec;
-  exploded->millisecond  = milliseconds % kMillisecondsPerSecond;
-}
-
 // TimeTicks ------------------------------------------------------------------
 // FreeBSD 6 has CLOCK_MONOLITHIC but defines _POSIX_MONOTONIC_CLOCK to -1.
 #if (defined(OS_POSIX) &&                                               \
@@ -176,19 +189,6 @@ TimeTicks TimeTicks::HighResNow() {
 }
 
 #endif  // !OS_MACOSX
-
-struct timespec TimeDelta::ToTimeSpec() const {
-  int64 microseconds = InMicroseconds();
-  time_t seconds = 0;
-  if (microseconds >= Time::kMicrosecondsPerSecond) {
-    seconds = InSeconds();
-    microseconds -= seconds * Time::kMicrosecondsPerSecond;
-  }
-  struct timespec result =
-      {seconds,
-       microseconds * Time::kNanosecondsPerMicrosecond};
-  return result;
-}
 
 struct timeval Time::ToTimeVal() const {
   struct timeval result;

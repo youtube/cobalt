@@ -11,6 +11,17 @@
 
 namespace base {
 
+namespace {
+
+// We use this thread-local variable to record whether or not a thread exited
+// because its Stop method was called.  This allows us to catch cases where
+// MessageLoop::Quit() is called directly, which is unexpected when using a
+// Thread to setup and run a MessageLoop.
+base::LazyInstance<base::ThreadLocalBoolean> lazy_tls_bool(
+    base::LINKER_INITIALIZED);
+
+}  // namespace
+
 // This task is used to trigger the message loop to exit.
 class ThreadQuitTask : public Task {
  public:
@@ -46,29 +57,6 @@ Thread::Thread(const char* name)
 
 Thread::~Thread() {
   Stop();
-}
-
-namespace {
-
-// We use this thread-local variable to record whether or not a thread exited
-// because its Stop method was called.  This allows us to catch cases where
-// MessageLoop::Quit() is called directly, which is unexpected when using a
-// Thread to setup and run a MessageLoop.
-base::LazyInstance<base::ThreadLocalBoolean> lazy_tls_bool(
-    base::LINKER_INITIALIZED);
-
-}  // namespace
-
-void Thread::SetThreadWasQuitProperly(bool flag) {
-  lazy_tls_bool.Pointer()->Set(flag);
-}
-
-bool Thread::GetThreadWasQuitProperly() {
-  bool quit_properly = true;
-#ifndef NDEBUG
-  quit_properly = lazy_tls_bool.Pointer()->Get();
-#endif
-  return quit_properly;
 }
 
 bool Thread::Start() {
@@ -138,6 +126,18 @@ void Thread::StopSoon() {
 
 void Thread::Run(MessageLoop* message_loop) {
   message_loop->Run();
+}
+
+void Thread::SetThreadWasQuitProperly(bool flag) {
+  lazy_tls_bool.Pointer()->Set(flag);
+}
+
+bool Thread::GetThreadWasQuitProperly() {
+  bool quit_properly = true;
+#ifndef NDEBUG
+  quit_properly = lazy_tls_bool.Pointer()->Get();
+#endif
+  return quit_properly;
 }
 
 void Thread::ThreadMain() {
