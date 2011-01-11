@@ -28,14 +28,14 @@ struct CachedCertVerifyResult {
   CachedCertVerifyResult();
   ~CachedCertVerifyResult();
 
+  // Returns true if |current_time| is greater than or equal to |expiry|.
+  bool HasExpired(base::Time current_time) const;
+
   int error;  // The return value of CertVerifier::Verify.
   CertVerifyResult result;  // The output of CertVerifier::Verify.
 
   // The time at which the certificate verification result expires.
   base::Time expiry;
-
-  // Returns true if |current_time| is greater than or equal to |expiry|.
-  bool HasExpired(base::Time current_time) const;
 };
 
 // CertVerifier represents a service for verifying certificates.

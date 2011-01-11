@@ -158,13 +158,13 @@ class ClientSocketPoolBaseHelper
     : public ConnectJob::Delegate,
       public NetworkChangeNotifier::Observer {
  public:
+  typedef uint32 Flags;
+
   // Used to specify specific behavior for the ClientSocketPool.
   enum Flag {
     NORMAL = 0,  // Normal behavior.
     NO_IDLE_SOCKETS = 0x1,  // Do not return an idle socket. Create a new one.
   };
-
-  typedef uint32 Flags;
 
   class Request {
    public:
@@ -261,12 +261,6 @@ class ClientSocketPoolBaseHelper
     return ClientSocketPool::kMaxConnectRetryIntervalMs;
   }
 
-  // ConnectJob::Delegate methods:
-  virtual void OnConnectJobComplete(int result, ConnectJob* job);
-
-  // NetworkChangeNotifier::Observer methods:
-  virtual void OnIPAddressChanged();
-
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return group_map_.find(group_name)->second->jobs().size();
   }
@@ -291,6 +285,12 @@ class ClientSocketPoolBaseHelper
 
   static void set_connect_backup_jobs_enabled(bool enabled);
   void EnableConnectBackupJobs();
+
+  // ConnectJob::Delegate methods:
+  virtual void OnConnectJobComplete(int result, ConnectJob* job);
+
+  // NetworkChangeNotifier::Observer methods:
+  virtual void OnIPAddressChanged();
 
  private:
   friend class base::RefCounted<ClientSocketPoolBaseHelper>;
