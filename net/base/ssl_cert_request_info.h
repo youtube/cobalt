@@ -22,6 +22,9 @@ class SSLCertRequestInfo
  public:
   SSLCertRequestInfo();
 
+  // Resets the SSLCertRequestInfo as if no certificate had been requested.
+  void Reset();
+
   // The host and port of the SSL server that requested client authentication.
   std::string host_and_port;
 
