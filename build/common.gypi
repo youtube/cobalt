@@ -119,6 +119,9 @@
       # Set to select the Title Case versions of strings in GRD files.
       'use_titlecase_in_grd_files%': 0,
 
+      # Remoting compilation is enabled by default. Set to 0 to disable.
+      'remoting%': 1,
+
       'conditions': [
         # A flag to enable or disable our compile-time dependency
         # on gnome-keyring. If that dependency is disabled, no gnome-keyring
@@ -173,6 +176,7 @@
     'library%': '<(library)',
     'component%': '<(component)',
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
+    'remoting%': '<(remoting)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -333,9 +337,6 @@
     # from the system include dirs.
     'system_libcros%': 0,
 
-    # Remoting compilation is enabled by default. Set to 0 to disable.
-    'remoting%': 1,
-
     # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
     # so Cocoa is happy (http://crbug.com/20441).
     'locales': [
@@ -448,6 +449,9 @@
       }],
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
+      }],
+      ['remoting==1', {
+        'grit_defines': ['-D', 'remoting'],
       }],
       ['use_titlecase_in_grd_files==1', {
         'grit_defines': ['-D', 'use_titlecase'],
