@@ -641,26 +641,6 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
 FileEnumerator::~FileEnumerator() {
 }
 
-void FileEnumerator::GetFindInfo(FindInfo* info) {
-  DCHECK(info);
-
-  if (current_directory_entry_ >= directory_entries_.size())
-    return;
-
-  DirectoryEntryInfo* cur_entry = &directory_entries_[current_directory_entry_];
-  memcpy(&(info->stat), &(cur_entry->stat), sizeof(info->stat));
-  info->filename.assign(cur_entry->filename.value());
-}
-
-bool FileEnumerator::IsDirectory(const FindInfo& info) {
-  return S_ISDIR(info.stat.st_mode);
-}
-
-// static
-FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
-  return FilePath(find_info.filename);
-}
-
 FilePath FileEnumerator::Next() {
   ++current_directory_entry_;
 
@@ -700,6 +680,26 @@ FilePath FileEnumerator::Next() {
 
   return root_path_.Append(directory_entries_[current_directory_entry_
       ].filename);
+}
+
+void FileEnumerator::GetFindInfo(FindInfo* info) {
+  DCHECK(info);
+
+  if (current_directory_entry_ >= directory_entries_.size())
+    return;
+
+  DirectoryEntryInfo* cur_entry = &directory_entries_[current_directory_entry_];
+  memcpy(&(info->stat), &(cur_entry->stat), sizeof(info->stat));
+  info->filename.assign(cur_entry->filename.value());
+}
+
+bool FileEnumerator::IsDirectory(const FindInfo& info) {
+  return S_ISDIR(info.stat.st_mode);
+}
+
+// static
+FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
+  return FilePath(find_info.filename);
 }
 
 bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,

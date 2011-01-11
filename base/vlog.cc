@@ -13,6 +13,18 @@ namespace logging {
 
 const int VlogInfo::kDefaultVlogLevel = 0;
 
+struct VlogInfo::VmodulePattern {
+  enum MatchTarget { MATCH_MODULE, MATCH_FILE };
+
+  explicit VmodulePattern(const std::string& pattern);
+
+  VmodulePattern();
+
+  std::string pattern;
+  int vlog_level;
+  MatchTarget match_target;
+};
+
 VlogInfo::VmodulePattern::VmodulePattern(const std::string& pattern)
     : pattern(pattern),
       vlog_level(VlogInfo::kDefaultVlogLevel),
@@ -64,15 +76,6 @@ VlogInfo::VlogInfo(const std::string& v_switch,
 
 VlogInfo::~VlogInfo() {}
 
-void VlogInfo::SetMaxVlogLevel(int level) {
-  // Log severity is the negative verbosity.
-  *min_log_level_ = -level;
-}
-
-int VlogInfo::GetMaxVlogLevel() const {
-  return -*min_log_level_;
-}
-
 namespace {
 
 // Given a path, returns the basename with the extension chopped off
@@ -107,6 +110,15 @@ int VlogInfo::GetVlogLevel(const base::StringPiece& file) const {
     }
   }
   return GetMaxVlogLevel();
+}
+
+void VlogInfo::SetMaxVlogLevel(int level) {
+  // Log severity is the negative verbosity.
+  *min_log_level_ = -level;
+}
+
+int VlogInfo::GetMaxVlogLevel() const {
+  return -*min_log_level_;
 }
 
 bool MatchVlogPattern(const base::StringPiece& string,

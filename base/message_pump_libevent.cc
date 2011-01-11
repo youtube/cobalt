@@ -62,6 +62,19 @@ MessagePumpLibevent::FileDescriptorWatcher::~FileDescriptorWatcher() {
   }
 }
 
+bool MessagePumpLibevent::FileDescriptorWatcher::StopWatchingFileDescriptor() {
+  event* e = ReleaseEvent();
+  if (e == NULL)
+    return true;
+
+  // event_del() is a no-op if the event isn't active.
+  int rv = event_del(e);
+  delete e;
+  pump_ = NULL;
+  watcher_ = NULL;
+  return (rv == 0);
+}
+
 void MessagePumpLibevent::FileDescriptorWatcher::Init(event *e,
                                                       bool is_persistent) {
   DCHECK(e);
@@ -75,19 +88,6 @@ event *MessagePumpLibevent::FileDescriptorWatcher::ReleaseEvent() {
   struct event *e = event_;
   event_ = NULL;
   return e;
-}
-
-bool MessagePumpLibevent::FileDescriptorWatcher::StopWatchingFileDescriptor() {
-  event* e = ReleaseEvent();
-  if (e == NULL)
-    return true;
-
-  // event_del() is a no-op if the event isn't active.
-  int rv = event_del(e);
-  delete e;
-  pump_ = NULL;
-  watcher_ = NULL;
-  return (rv == 0);
 }
 
 void MessagePumpLibevent::FileDescriptorWatcher::OnFileCanReadWithoutBlocking(
@@ -104,20 +104,6 @@ void MessagePumpLibevent::FileDescriptorWatcher::OnFileCanWriteWithoutBlocking(
   pump->DidProcessIOEvent();
 }
 
-// Called if a byte is received on the wakeup pipe.
-void MessagePumpLibevent::OnWakeup(int socket, short flags, void* context) {
-  base::MessagePumpLibevent* that =
-              static_cast<base::MessagePumpLibevent*>(context);
-  DCHECK(that->wakeup_pipe_out_ == socket);
-
-  // Remove and discard the wakeup byte.
-  char buf;
-  int nread = HANDLE_EINTR(read(socket, &buf, 1));
-  DCHECK_EQ(nread, 1);
-  // Tell libevent to break out of inner loop.
-  event_base_loopbreak(that->event_base_);
-}
-
 MessagePumpLibevent::MessagePumpLibevent()
     : keep_running_(true),
       in_run_(false),
@@ -126,33 +112,6 @@ MessagePumpLibevent::MessagePumpLibevent()
       wakeup_pipe_out_(-1) {
   if (!Init())
      NOTREACHED();
-}
-
-bool MessagePumpLibevent::Init() {
-  int fds[2];
-  if (pipe(fds)) {
-    DLOG(ERROR) << "pipe() failed, errno: " << errno;
-    return false;
-  }
-  if (SetNonBlocking(fds[0])) {
-    DLOG(ERROR) << "SetNonBlocking for pipe fd[0] failed, errno: " << errno;
-    return false;
-  }
-  if (SetNonBlocking(fds[1])) {
-    DLOG(ERROR) << "SetNonBlocking for pipe fd[1] failed, errno: " << errno;
-    return false;
-  }
-  wakeup_pipe_out_ = fds[0];
-  wakeup_pipe_in_ = fds[1];
-
-  wakeup_event_ = new event;
-  event_set(wakeup_event_, wakeup_pipe_out_, EV_READ | EV_PERSIST,
-            OnWakeup, this);
-  event_base_set(event_base_, wakeup_event_);
-
-  if (event_add(wakeup_event_, 0))
-    return false;
-  return true;
 }
 
 MessagePumpLibevent::~MessagePumpLibevent() {
@@ -234,19 +193,12 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
   return true;
 }
 
-void MessagePumpLibevent::OnLibeventNotification(int fd, short flags,
-                                                 void* context) {
-  FileDescriptorWatcher* controller =
-      static_cast<FileDescriptorWatcher*>(context);
+void MessagePumpLibevent::AddIOObserver(IOObserver *obs) {
+  io_observers_.AddObserver(obs);
+}
 
-  MessagePumpLibevent* pump = controller->pump();
-
-  if (flags & EV_WRITE) {
-    controller->OnFileCanWriteWithoutBlocking(fd, pump);
-  }
-  if (flags & EV_READ) {
-    controller->OnFileCanReadWithoutBlocking(fd, pump);
-  }
+void MessagePumpLibevent::RemoveIOObserver(IOObserver *obs) {
+  io_observers_.RemoveObserver(obs);
 }
 
 // Tell libevent to break out of inner loop.
@@ -334,20 +286,70 @@ void MessagePumpLibevent::ScheduleDelayedWork(
   delayed_work_time_ = delayed_work_time;
 }
 
-void MessagePumpLibevent::AddIOObserver(IOObserver *obs) {
-  io_observers_.AddObserver(obs);
-}
-
-void MessagePumpLibevent::RemoveIOObserver(IOObserver *obs) {
-  io_observers_.RemoveObserver(obs);
-}
-
 void MessagePumpLibevent::WillProcessIOEvent() {
   FOR_EACH_OBSERVER(IOObserver, io_observers_, WillProcessIOEvent());
 }
 
 void MessagePumpLibevent::DidProcessIOEvent() {
   FOR_EACH_OBSERVER(IOObserver, io_observers_, DidProcessIOEvent());
+}
+
+bool MessagePumpLibevent::Init() {
+  int fds[2];
+  if (pipe(fds)) {
+    DLOG(ERROR) << "pipe() failed, errno: " << errno;
+    return false;
+  }
+  if (SetNonBlocking(fds[0])) {
+    DLOG(ERROR) << "SetNonBlocking for pipe fd[0] failed, errno: " << errno;
+    return false;
+  }
+  if (SetNonBlocking(fds[1])) {
+    DLOG(ERROR) << "SetNonBlocking for pipe fd[1] failed, errno: " << errno;
+    return false;
+  }
+  wakeup_pipe_out_ = fds[0];
+  wakeup_pipe_in_ = fds[1];
+
+  wakeup_event_ = new event;
+  event_set(wakeup_event_, wakeup_pipe_out_, EV_READ | EV_PERSIST,
+            OnWakeup, this);
+  event_base_set(event_base_, wakeup_event_);
+
+  if (event_add(wakeup_event_, 0))
+    return false;
+  return true;
+}
+
+// static
+void MessagePumpLibevent::OnLibeventNotification(int fd, short flags,
+                                                 void* context) {
+  FileDescriptorWatcher* controller =
+      static_cast<FileDescriptorWatcher*>(context);
+
+  MessagePumpLibevent* pump = controller->pump();
+
+  if (flags & EV_WRITE) {
+    controller->OnFileCanWriteWithoutBlocking(fd, pump);
+  }
+  if (flags & EV_READ) {
+    controller->OnFileCanReadWithoutBlocking(fd, pump);
+  }
+}
+
+// Called if a byte is received on the wakeup pipe.
+// static
+void MessagePumpLibevent::OnWakeup(int socket, short flags, void* context) {
+  base::MessagePumpLibevent* that =
+              static_cast<base::MessagePumpLibevent*>(context);
+  DCHECK(that->wakeup_pipe_out_ == socket);
+
+  // Remove and discard the wakeup byte.
+  char buf;
+  int nread = HANDLE_EINTR(read(socket, &buf, 1));
+  DCHECK_EQ(nread, 1);
+  // Tell libevent to break out of inner loop.
+  event_base_loopbreak(that->event_base_);
 }
 
 }  // namespace base

@@ -747,17 +747,6 @@ bool FileUtilProxy::CreateTemporary(
 }
 
 // static
-bool FileUtilProxy::CreateDirectory(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& file_path,
-    bool exclusive,
-    bool recursive,
-    StatusCallback* callback) {
-  return Start(FROM_HERE, message_loop_proxy, new RelayCreateDirectory(
-      file_path, exclusive, recursive, callback));
-}
-
-// static
 bool FileUtilProxy::Close(scoped_refptr<MessageLoopProxy> message_loop_proxy,
                           base::PlatformFile file_handle,
                           StatusCallback* callback) {
@@ -774,13 +763,43 @@ bool FileUtilProxy::EnsureFileExists(
       message_loop_proxy, file_path, callback));
 }
 
+// Retrieves the information about a file. It is invalid to pass NULL for the
+// callback.
+bool FileUtilProxy::GetFileInfo(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    GetFileInfoCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayGetFileInfo(
+               file_path, callback));
+}
+
 // static
-bool FileUtilProxy::Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
-                           const FilePath& file_path,
-                           bool recursive,
-                           StatusCallback* callback) {
+bool FileUtilProxy::GetFileInfoFromPlatformFile(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    PlatformFile file,
+    GetFileInfoCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy,
-               new RelayDelete(file_path, recursive, callback));
+               new RelayGetFileInfoFromPlatformFile(file, callback));
+}
+
+// static
+bool FileUtilProxy::ReadDirectory(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    ReadDirectoryCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayReadDirectory(
+               file_path, callback));
+}
+
+// static
+bool FileUtilProxy::CreateDirectory(
+    scoped_refptr<MessageLoopProxy> message_loop_proxy,
+    const FilePath& file_path,
+    bool exclusive,
+    bool recursive,
+    StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy, new RelayCreateDirectory(
+      file_path, exclusive, recursive, callback));
 }
 
 // static
@@ -802,22 +821,12 @@ bool FileUtilProxy::Move(scoped_refptr<MessageLoopProxy> message_loop_proxy,
 }
 
 // static
-bool FileUtilProxy::ReadDirectory(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& file_path,
-    ReadDirectoryCallback* callback) {
-  return Start(FROM_HERE, message_loop_proxy, new RelayReadDirectory(
-               file_path, callback));
-}
-
-// Retrieves the information about a file. It is invalid to pass NULL for the
-// callback.
-bool FileUtilProxy::GetFileInfo(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    const FilePath& file_path,
-    GetFileInfoCallback* callback) {
-  return Start(FROM_HERE, message_loop_proxy, new RelayGetFileInfo(
-               file_path, callback));
+bool FileUtilProxy::Delete(scoped_refptr<MessageLoopProxy> message_loop_proxy,
+                           const FilePath& file_path,
+                           bool recursive,
+                           StatusCallback* callback) {
+  return Start(FROM_HERE, message_loop_proxy,
+               new RelayDelete(file_path, recursive, callback));
 }
 
 // static
@@ -827,15 +836,6 @@ bool FileUtilProxy::RecursiveDelete(
     StatusCallback* callback) {
   return Start(FROM_HERE, message_loop_proxy,
                new RelayDelete(file_path, true, callback));
-}
-
-// static
-bool FileUtilProxy::GetFileInfoFromPlatformFile(
-    scoped_refptr<MessageLoopProxy> message_loop_proxy,
-    PlatformFile file,
-    GetFileInfoCallback* callback) {
-  return Start(FROM_HERE, message_loop_proxy,
-               new RelayGetFileInfoFromPlatformFile(file, callback));
 }
 
 // static
