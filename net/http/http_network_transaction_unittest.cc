@@ -8407,4 +8407,104 @@ TEST_F(HttpNetworkTransactionTest, ClientAuthCertCache_Direct_FalseStart) {
                                                         &client_cert));
 }
 
+// Ensure that a client certificate is removed from the SSL client auth
+// cache when:
+//  1) An HTTPS proxy is involved.
+//  3) The HTTPS proxy requests a client certificate.
+//  4) The client supplies an invalid/unacceptable certificate for the
+//     proxy.
+// The test is repeated twice, first for connecting to an HTTPS endpoint,
+// then for connecting to an HTTP endpoint.
+TEST_F(HttpNetworkTransactionTest, ClientAuthCertCache_Proxy_Fail) {
+  SessionDependencies session_deps(
+      ProxyService::CreateFixed("https://proxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+
+  scoped_refptr<SSLCertRequestInfo> cert_request(new SSLCertRequestInfo());
+  cert_request->host_and_port = "proxy:70";
+
+  // See ClientAuthCertCache_Direct_NoFalseStart for the explanation of
+  // [ssl_]data[1-3]. Rather than represending the endpoint
+  // (www.example.com:443), they represent failures with the HTTPS proxy
+  // (proxy:70).
+  SSLSocketDataProvider ssl_data1(true /* async */,
+                                  net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
+  ssl_data1.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data1);
+  net::StaticSocketDataProvider data1(NULL, 0, NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+
+  SSLSocketDataProvider ssl_data2(true /* async */,
+                                  net::ERR_SSL_PROTOCOL_ERROR);
+  ssl_data2.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data2);
+  net::StaticSocketDataProvider data2(NULL, 0, NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+
+  SSLSocketDataProvider ssl_data3(true /* async */,
+                                  net::ERR_SSL_PROTOCOL_ERROR);
+  ssl_data3.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data3);
+  net::StaticSocketDataProvider data3(NULL, 0, NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data3);
+
+  net::HttpRequestInfo requests[2];
+  requests[0].url = GURL("https://www.example.com/");
+  requests[0].method = "GET";
+  requests[0].load_flags = net::LOAD_NORMAL;
+
+  requests[1].url = GURL("http://www.example.com/");
+  requests[1].method = "GET";
+  requests[1].load_flags = net::LOAD_NORMAL;
+
+  for (size_t i = 0; i < arraysize(requests); ++i) {
+    session_deps.socket_factory.ResetNextMockIndexes();
+    scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+    scoped_ptr<HttpNetworkTransaction> trans(
+        new HttpNetworkTransaction(session));
+
+    // Begin the SSL handshake with the proxy.
+    TestCompletionCallback callback;
+    int rv = trans->Start(&requests[i], &callback, net::BoundNetLog());
+    ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+    // Complete the SSL handshake, which should abort due to requiring a
+    // client certificate.
+    rv = callback.WaitForResult();
+    ASSERT_EQ(net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED, rv);
+
+    // Indicate that no certificate should be supplied. From the perspective
+    // of SSLClientCertCache, NULL is just as meaningful as a real
+    // certificate, so this is the same as supply a
+    // legitimate-but-unacceptable certificate.
+    rv = trans->RestartWithCertificate(NULL, &callback);
+    ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+    // Ensure the certificate was added to the client auth cache before
+    // allowing the connection to continue restarting.
+    scoped_refptr<X509Certificate> client_cert;
+    ASSERT_TRUE(session->ssl_client_auth_cache()->Lookup("proxy:70",
+                                                         &client_cert));
+    ASSERT_EQ(NULL, client_cert.get());
+    // Ensure the certificate was NOT cached for the endpoint. This only
+    // applies to HTTPS requests, but is fine to check for HTTP requests.
+    ASSERT_FALSE(session->ssl_client_auth_cache()->Lookup("www.example.com:443",
+                                                          &client_cert));
+
+    // Restart the handshake. This will consume ssl_data2, which fails, and
+    // then consume ssl_data3, which should also fail. The result code is
+    // checked against what ssl_data3 should return.
+    rv = callback.WaitForResult();
+    ASSERT_EQ(net::ERR_PROXY_CONNECTION_FAILED, rv);
+
+    // Now that the new handshake has failed, ensure that the client
+    // certificate was removed from the client auth cache.
+    ASSERT_FALSE(session->ssl_client_auth_cache()->Lookup("proxy:70",
+                                                          &client_cert));
+    ASSERT_FALSE(session->ssl_client_auth_cache()->Lookup("www.example.com:443",
+                                                          &client_cert));
+  }
+}
+
 }  // namespace net
