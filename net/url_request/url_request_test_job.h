@@ -138,7 +138,4 @@ class URLRequestTestJob : public URLRequestJob {
 
 }  // namespace net
 
-// TODO(tfarina): Fix the callers and remove this!
-typedef net::URLRequestTestJob URLRequestTestJob;
-
 #endif  // NET_URL_REQUEST_URL_REQUEST_TEST_JOB_H_
