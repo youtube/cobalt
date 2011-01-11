@@ -909,6 +909,18 @@ scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSSLParams(
     ssl_config()->tls1_enabled = false;
   }
 
+  if (proxy_info()->is_https() && ssl_config()->send_client_cert) {
+    // When connecting through an HTTPS proxy, disable TLS False Start so
+    // that client authentication errors can be distinguished between those
+    // originating from the proxy server (ERR_PROXY_CONNECTION_FAILED) and
+    // those originating from the endpoint (ERR_SSL_PROTOCOL_ERROR /
+    // ERR_BAD_SSL_CLIENT_AUTH_CERT).
+    // TODO(rch): This assumes that the HTTPS proxy will only request a
+    // client certificate during the initial handshake.
+    // http://crbug.com/FIXME
+    ssl_config()->false_start_enabled = false;
+  }
+
   UMA_HISTOGRAM_ENUMERATION("Net.ConnectionUsedSSLv3Fallback",
                             static_cast<int>(ssl_config()->ssl3_fallback), 2);
 
@@ -995,6 +1007,11 @@ int HttpStreamRequest::ReconsiderProxyAfterError(int error) {
 
   if (request_info().load_flags & LOAD_BYPASS_PROXY) {
     return error;
+  }
+
+  if (proxy_info()->is_https() && ssl_config_->send_client_cert) {
+    session_->ssl_client_auth_cache()->Remove(
+        proxy_info()->proxy_server().host_port_pair().ToString());
   }
 
   int rv = session_->proxy_service()->ReconsiderProxyAfterError(
