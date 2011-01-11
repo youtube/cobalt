@@ -152,16 +152,6 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
   // registry factory is destroyed.
   HttpAuthHandlerFactory* GetSchemeFactory(const std::string& scheme) const;
 
-  // Creates an auth handler by dispatching out to the registered factories
-  // based on the first token in |challenge|.
-  virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                HttpAuth::Target target,
-                                const GURL& origin,
-                                CreateReason reason,
-                                int digest_nonce_count,
-                                const BoundNetLog& net_log,
-                                scoped_ptr<HttpAuthHandler>* handler);
-
   // Creates an HttpAuthHandlerRegistryFactory.
   //
   // |supported_schemes| is a list of authentication schemes. Valid values
@@ -188,6 +178,16 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
       const std::string& gssapi_library_name,
       bool negotiate_disable_cname_lookup,
       bool negotiate_enable_port);
+
+  // Creates an auth handler by dispatching out to the registered factories
+  // based on the first token in |challenge|.
+  virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
+                                HttpAuth::Target target,
+                                const GURL& origin,
+                                CreateReason reason,
+                                int digest_nonce_count,
+                                const BoundNetLog& net_log,
+                                scoped_ptr<HttpAuthHandler>* handler);
 
  private:
   typedef std::map<std::string, HttpAuthHandlerFactory*> FactoryMap;

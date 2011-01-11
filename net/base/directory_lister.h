@@ -88,6 +88,8 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
   friend class base::RefCountedThreadSafe<DirectoryLister>;
   friend class DirectoryDataEvent;
 
+  ~DirectoryLister();
+
   // Comparison methods for sorting, chosen based on |sort_|.
   static bool CompareAlphaDirsFirst(const DirectoryListerData& a,
                                     const DirectoryListerData& b);
@@ -95,8 +97,6 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
                           const DirectoryListerData& b);
   static bool CompareFullPath(const DirectoryListerData& a,
                               const DirectoryListerData& b);
-
-  ~DirectoryLister();
 
   void OnReceivedData(const DirectoryListerData* data, int count);
   void OnDone(int error);
