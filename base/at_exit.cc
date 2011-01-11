@@ -18,11 +18,6 @@ AtExitManager::AtExitManager() : next_manager_(NULL) {
   g_top_manager = this;
 }
 
-AtExitManager::AtExitManager(bool shadow) : next_manager_(g_top_manager) {
-  DCHECK(shadow || !g_top_manager);
-  g_top_manager = this;
-}
-
 AtExitManager::~AtExitManager() {
   if (!g_top_manager) {
     NOTREACHED() << "Tried to ~AtExitManager without an AtExitManager";
@@ -62,6 +57,11 @@ void AtExitManager::ProcessCallbacksNow() {
 
     callback_and_param.func_(callback_and_param.param_);
   }
+}
+
+AtExitManager::AtExitManager(bool shadow) : next_manager_(g_top_manager) {
+  DCHECK(shadow || !g_top_manager);
+  g_top_manager = this;
 }
 
 }  // namespace base

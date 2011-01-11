@@ -411,10 +411,6 @@ class Time {
   int64 us_;
 };
 
-inline Time TimeDelta::operator+(Time t) const {
-  return Time(t.us_ + delta_);
-}
-
 // Inline the TimeDelta factory methods, for fast TimeDelta construction.
 
 // static
@@ -445,6 +441,10 @@ inline TimeDelta TimeDelta::FromMilliseconds(int64 ms) {
 // static
 inline TimeDelta TimeDelta::FromMicroseconds(int64 us) {
   return TimeDelta(us);
+}
+
+inline Time TimeDelta::operator+(Time t) const {
+  return Time(t.us_ + delta_);
 }
 
 // TimeTicks ------------------------------------------------------------------

@@ -530,6 +530,16 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
   Init(file, line);
 }
 
+LogMessage::LogMessage(const char* file, int line)
+    : severity_(LOG_INFO), file_(file), line_(line) {
+  Init(file, line);
+}
+
+LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
+    : severity_(severity), file_(file), line_(line) {
+  Init(file, line);
+}
+
 LogMessage::LogMessage(const char* file, int line, const CheckOpString& result)
     : severity_(LOG_FATAL), file_(file), line_(line) {
   Init(file, line);
@@ -541,60 +551,6 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
     : severity_(severity), file_(file), line_(line) {
   Init(file, line);
   stream_ << "Check failed: " << (*result.str_);
-}
-
-LogMessage::LogMessage(const char* file, int line)
-    : severity_(LOG_INFO), file_(file), line_(line) {
-  Init(file, line);
-}
-
-LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
-    : severity_(severity), file_(file), line_(line) {
-  Init(file, line);
-}
-
-// writes the common header info to the stream
-void LogMessage::Init(const char* file, int line) {
-  base::StringPiece filename(file);
-  size_t last_slash_pos = filename.find_last_of("\\/");
-  if (last_slash_pos != base::StringPiece::npos)
-    filename.remove_prefix(last_slash_pos + 1);
-
-  // TODO(darin): It might be nice if the columns were fixed width.
-
-  stream_ <<  '[';
-  if (log_process_id)
-    stream_ << CurrentProcessId() << ':';
-  if (log_thread_id)
-    stream_ << CurrentThreadId() << ':';
-  if (log_timestamp) {
-    time_t t = time(NULL);
-    struct tm local_time = {0};
-#if _MSC_VER >= 1400
-    localtime_s(&local_time, &t);
-#else
-    localtime_r(&t, &local_time);
-#endif
-    struct tm* tm_time = &local_time;
-    stream_ << std::setfill('0')
-            << std::setw(2) << 1 + tm_time->tm_mon
-            << std::setw(2) << tm_time->tm_mday
-            << '/'
-            << std::setw(2) << tm_time->tm_hour
-            << std::setw(2) << tm_time->tm_min
-            << std::setw(2) << tm_time->tm_sec
-            << ':';
-  }
-  if (log_tickcount)
-    stream_ << TickCount() << ':';
-  if (severity_ >= 0)
-    stream_ << log_severity_names[severity_];
-  else
-    stream_ << "VERBOSE" << -severity_;
-
-  stream_ << ":" << filename << "(" << line << ")] ";
-
-  message_start_ = stream_.tellp();
 }
 
 LogMessage::~LogMessage() {
@@ -688,6 +644,50 @@ LogMessage::~LogMessage() {
       DisplayDebugMessageInDialog(stream_.str());
     }
   }
+}
+
+// writes the common header info to the stream
+void LogMessage::Init(const char* file, int line) {
+  base::StringPiece filename(file);
+  size_t last_slash_pos = filename.find_last_of("\\/");
+  if (last_slash_pos != base::StringPiece::npos)
+    filename.remove_prefix(last_slash_pos + 1);
+
+  // TODO(darin): It might be nice if the columns were fixed width.
+
+  stream_ <<  '[';
+  if (log_process_id)
+    stream_ << CurrentProcessId() << ':';
+  if (log_thread_id)
+    stream_ << CurrentThreadId() << ':';
+  if (log_timestamp) {
+    time_t t = time(NULL);
+    struct tm local_time = {0};
+#if _MSC_VER >= 1400
+    localtime_s(&local_time, &t);
+#else
+    localtime_r(&t, &local_time);
+#endif
+    struct tm* tm_time = &local_time;
+    stream_ << std::setfill('0')
+            << std::setw(2) << 1 + tm_time->tm_mon
+            << std::setw(2) << tm_time->tm_mday
+            << '/'
+            << std::setw(2) << tm_time->tm_hour
+            << std::setw(2) << tm_time->tm_min
+            << std::setw(2) << tm_time->tm_sec
+            << ':';
+  }
+  if (log_tickcount)
+    stream_ << TickCount() << ':';
+  if (severity_ >= 0)
+    stream_ << log_severity_names[severity_];
+  else
+    stream_ << "VERBOSE" << -severity_;
+
+  stream_ << ":" << filename << "(" << line << ")] ";
+
+  message_start_ = stream_.tellp();
 }
 
 #if defined(OS_WIN)

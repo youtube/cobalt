@@ -18,6 +18,8 @@ namespace logging {
 // A helper class containing all the settings for vlogging.
 class VlogInfo {
  public:
+  static const int kDefaultVlogLevel;
+
   // |v_switch| gives the default maximal active V-logging level; 0 is
   // the default.  Normally positive values are used for V-logging
   // levels.
@@ -45,26 +47,13 @@ class VlogInfo {
   // __FILE__).
   int GetVlogLevel(const base::StringPiece& file) const;
 
-  static const int kDefaultVlogLevel;
-
  private:
   void SetMaxVlogLevel(int level);
   int GetMaxVlogLevel() const;
 
   // VmodulePattern holds all the information for each pattern parsed
   // from |vmodule_switch|.
-  struct VmodulePattern {
-    enum MatchTarget { MATCH_MODULE, MATCH_FILE };
-
-    explicit VmodulePattern(const std::string& pattern);
-
-    VmodulePattern();
-
-    std::string pattern;
-    int vlog_level;
-    MatchTarget match_target;
-  };
-
+  struct VmodulePattern;
   std::vector<VmodulePattern> vmodule_levels_;
   int* min_log_level_;
 

@@ -315,6 +315,18 @@ MemoryMappedFile::~MemoryMappedFile() {
   CloseHandles();
 }
 
+bool MemoryMappedFile::Initialize(const FilePath& file_name) {
+  if (IsValid())
+    return false;
+
+  if (!MapFileToMemory(file_name)) {
+    CloseHandles();
+    return false;
+  }
+
+  return true;
+}
+
 bool MemoryMappedFile::Initialize(base::PlatformFile file) {
   if (IsValid())
     return false;
@@ -329,16 +341,8 @@ bool MemoryMappedFile::Initialize(base::PlatformFile file) {
   return true;
 }
 
-bool MemoryMappedFile::Initialize(const FilePath& file_name) {
-  if (IsValid())
-    return false;
-
-  if (!MapFileToMemory(file_name)) {
-    CloseHandles();
-    return false;
-  }
-
-  return true;
+bool MemoryMappedFile::IsValid() {
+  return data_ != NULL;
 }
 
 bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
@@ -352,10 +356,6 @@ bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
   }
 
   return MapFileToMemoryInternal();
-}
-
-bool MemoryMappedFile::IsValid() {
-  return data_ != NULL;
 }
 
 // Deprecated functions ----------------------------------------------------
