@@ -28,22 +28,6 @@ static const char* kEventTypeNames[] = {
 static const FilePath::CharType* kLogFileName =
     FILE_PATH_LITERAL("trace_%d.log");
 
-TraceLog::TraceLog() : enabled_(false), log_file_(NULL) {
-  base::ProcessHandle proc = base::GetCurrentProcessHandle();
-#if !defined(OS_MACOSX)
-  process_metrics_.reset(base::ProcessMetrics::CreateProcessMetrics(proc));
-#else
-  // The default port provider is sufficient to get data for the current
-  // process.
-  process_metrics_.reset(base::ProcessMetrics::CreateProcessMetrics(proc,
-                                                                    NULL));
-#endif
-}
-
-TraceLog::~TraceLog() {
-  Stop();
-}
-
 // static
 TraceLog* TraceLog::GetInstance() {
   return Singleton<TraceLog, DefaultSingletonTraits<TraceLog> >::get();
@@ -59,59 +43,9 @@ bool TraceLog::StartTracing() {
   return TraceLog::GetInstance()->Start();
 }
 
-bool TraceLog::Start() {
-  if (enabled_)
-    return true;
-  enabled_ = OpenLogFile();
-  if (enabled_) {
-    Log("var raw_trace_events = [\n");
-    trace_start_time_ = TimeTicks::Now();
-    timer_.Start(TimeDelta::FromMilliseconds(250), this, &TraceLog::Heartbeat);
-  }
-  return enabled_;
-}
-
 // static
 void TraceLog::StopTracing() {
   return TraceLog::GetInstance()->Stop();
-}
-
-void TraceLog::Stop() {
-  if (enabled_) {
-    enabled_ = false;
-    Log("];\n");
-    CloseLogFile();
-    timer_.Stop();
-  }
-}
-
-void TraceLog::Heartbeat() {
-  std::string cpu = StringPrintf("%.0f", process_metrics_->GetCPUUsage());
-  TRACE_EVENT_INSTANT("heartbeat.cpu", 0, cpu);
-}
-
-void TraceLog::CloseLogFile() {
-  if (log_file_) {
-    file_util::CloseFile(log_file_);
-  }
-}
-
-bool TraceLog::OpenLogFile() {
-  FilePath::StringType pid_filename =
-      StringPrintf(kLogFileName, base::GetCurrentProcId());
-  FilePath log_file_path;
-  if (!PathService::Get(base::DIR_EXE, &log_file_path))
-    return false;
-  log_file_path = log_file_path.Append(pid_filename);
-  log_file_ = file_util::OpenFile(log_file_path, "a");
-  if (!log_file_) {
-    // try the current directory
-    log_file_ = file_util::OpenFile(FilePath(pid_filename), "a");
-    if (!log_file_) {
-      return false;
-    }
-  }
-  return true;
 }
 
 void TraceLog::Trace(const std::string& name,
@@ -156,6 +90,72 @@ void TraceLog::Trace(const std::string& name,
                  usec);
 
   Log(msg);
+}
+
+TraceLog::TraceLog() : enabled_(false), log_file_(NULL) {
+  base::ProcessHandle proc = base::GetCurrentProcessHandle();
+#if !defined(OS_MACOSX)
+  process_metrics_.reset(base::ProcessMetrics::CreateProcessMetrics(proc));
+#else
+  // The default port provider is sufficient to get data for the current
+  // process.
+  process_metrics_.reset(base::ProcessMetrics::CreateProcessMetrics(proc,
+                                                                    NULL));
+#endif
+}
+
+TraceLog::~TraceLog() {
+  Stop();
+}
+
+bool TraceLog::OpenLogFile() {
+  FilePath::StringType pid_filename =
+      StringPrintf(kLogFileName, base::GetCurrentProcId());
+  FilePath log_file_path;
+  if (!PathService::Get(base::DIR_EXE, &log_file_path))
+    return false;
+  log_file_path = log_file_path.Append(pid_filename);
+  log_file_ = file_util::OpenFile(log_file_path, "a");
+  if (!log_file_) {
+    // try the current directory
+    log_file_ = file_util::OpenFile(FilePath(pid_filename), "a");
+    if (!log_file_) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void TraceLog::CloseLogFile() {
+  if (log_file_) {
+    file_util::CloseFile(log_file_);
+  }
+}
+
+bool TraceLog::Start() {
+  if (enabled_)
+    return true;
+  enabled_ = OpenLogFile();
+  if (enabled_) {
+    Log("var raw_trace_events = [\n");
+    trace_start_time_ = TimeTicks::Now();
+    timer_.Start(TimeDelta::FromMilliseconds(250), this, &TraceLog::Heartbeat);
+  }
+  return enabled_;
+}
+
+void TraceLog::Stop() {
+  if (enabled_) {
+    enabled_ = false;
+    Log("];\n");
+    CloseLogFile();
+    timer_.Stop();
+  }
+}
+
+void TraceLog::Heartbeat() {
+  std::string cpu = StringPrintf("%.0f", process_metrics_->GetCPUUsage());
+  TRACE_EVENT_INSTANT("heartbeat.cpu", 0, cpu);
 }
 
 void TraceLog::Log(const std::string& msg) {

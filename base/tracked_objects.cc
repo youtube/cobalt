@@ -743,11 +743,6 @@ void Comparator::Clear() {
   selector_ = NIL;
 }
 
-void Comparator::Sort(DataCollector::Collection* collection) const {
-  std::sort(collection->begin(), collection->end(), *this);
-}
-
-
 bool Comparator::operator()(const Snapshot& left,
                             const Snapshot& right) const {
   switch (selector_) {
@@ -814,6 +809,10 @@ bool Comparator::operator()(const Snapshot& left,
   if (tiebreaker_)
     return tiebreaker_->operator()(left, right);
   return false;
+}
+
+void Comparator::Sort(DataCollector::Collection* collection) const {
+  std::sort(collection->begin(), collection->end(), *this);
 }
 
 bool Comparator::Equivalent(const Snapshot& left,

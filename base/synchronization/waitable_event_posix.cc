@@ -149,6 +149,10 @@ class SyncWaiter : public WaitableEvent::Waiter {
   base::ConditionVariable cv_;
 };
 
+bool WaitableEvent::Wait() {
+  return TimedWait(TimeDelta::FromSeconds(-1));
+}
+
 bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
   const Time end_time(Time::Now() + max_time);
   const bool finite_time = max_time.ToInternalValue() >= 0;
@@ -203,13 +207,6 @@ bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
     }
   }
 }
-
-bool WaitableEvent::Wait() {
-  return TimedWait(TimeDelta::FromSeconds(-1));
-}
-
-// -----------------------------------------------------------------------------
-
 
 // -----------------------------------------------------------------------------
 // Synchronous waiting on multiple objects.

@@ -117,6 +117,14 @@ void FieldTrialList::Register(FieldTrial* trial) {
 }
 
 // static
+FieldTrial* FieldTrialList::Find(const std::string& name) {
+  if (!global_)
+    return NULL;
+  AutoLock auto_lock(global_->lock_);
+  return global_->PreLockedFind(name);
+}
+
+// static
 int FieldTrialList::FindValue(const std::string& name) {
   FieldTrial* field_trial = Find(name);
   if (field_trial)
@@ -130,21 +138,6 @@ std::string FieldTrialList::FindFullName(const std::string& name) {
   if (field_trial)
     return field_trial->group_name();
   return "";
-}
-
-// static
-FieldTrial* FieldTrialList::Find(const std::string& name) {
-  if (!global_)
-    return NULL;
-  AutoLock auto_lock(global_->lock_);
-  return global_->PreLockedFind(name);
-}
-
-FieldTrial* FieldTrialList::PreLockedFind(const std::string& name) {
-  RegistrationList::iterator it = registered_.find(name);
-  if (registered_.end() == it)
-    return NULL;
-  return it->second;
 }
 
 // static
@@ -208,6 +201,13 @@ size_t FieldTrialList::GetFieldTrialCount() {
     return 0;
   AutoLock auto_lock(global_->lock_);
   return global_->registered_.size();
+}
+
+FieldTrial* FieldTrialList::PreLockedFind(const std::string& name) {
+  RegistrationList::iterator it = registered_.find(name);
+  if (registered_.end() == it)
+    return NULL;
+  return it->second;
 }
 
 }  // namespace base
