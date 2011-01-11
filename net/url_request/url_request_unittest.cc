@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1820,10 +1820,10 @@ TEST_F(URLRequestTestHTTP, Post307RedirectPost) {
 }
 
 // Custom URLRequestJobs for use with interceptor tests
-class RestartTestJob : public URLRequestTestJob {
+class RestartTestJob : public net::URLRequestTestJob {
  public:
   explicit RestartTestJob(net::URLRequest* request)
-    : URLRequestTestJob(request, true) {}
+    : net::URLRequestTestJob(request, true) {}
  protected:
   virtual void StartAsync() {
     this->NotifyRestartRequired();
@@ -1832,10 +1832,10 @@ class RestartTestJob : public URLRequestTestJob {
   ~RestartTestJob() {}
 };
 
-class CancelTestJob : public URLRequestTestJob {
+class CancelTestJob : public net::URLRequestTestJob {
  public:
   explicit CancelTestJob(net::URLRequest* request)
-    : URLRequestTestJob(request, true) {}
+    : net::URLRequestTestJob(request, true) {}
  protected:
   virtual void StartAsync() {
     request_->Cancel();
@@ -1844,10 +1844,10 @@ class CancelTestJob : public URLRequestTestJob {
   ~CancelTestJob() {}
 };
 
-class CancelThenRestartTestJob : public URLRequestTestJob {
+class CancelThenRestartTestJob : public net::URLRequestTestJob {
  public:
   explicit CancelThenRestartTestJob(net::URLRequest* request)
-      : URLRequestTestJob(request, true) {
+      : net::URLRequestTestJob(request, true) {
   }
  protected:
   virtual void StartAsync() {
@@ -1899,16 +1899,16 @@ class TestInterceptor : net::URLRequest::Interceptor {
       simulate_main_network_error_ = false;
       did_simulate_error_main_ = true;
       // will error since the requeted url is not one of its canned urls
-      return new URLRequestTestJob(request, true);
+      return new net::URLRequestTestJob(request, true);
     }
     if (!intercept_main_request_)
       return NULL;
     intercept_main_request_ = false;
     did_intercept_main_ = true;
-    return new URLRequestTestJob(request,
-                                 main_headers_,
-                                 main_data_,
-                                 true);
+    return new net::URLRequestTestJob(request,
+                                      main_headers_,
+                                      main_data_,
+                                      true);
   }
 
   virtual net::URLRequestJob* MaybeInterceptRedirect(net::URLRequest* request,
@@ -1922,10 +1922,10 @@ class TestInterceptor : net::URLRequest::Interceptor {
       return NULL;
     intercept_redirect_ = false;
     did_intercept_redirect_ = true;
-    return new URLRequestTestJob(request,
-                                 redirect_headers_,
-                                 redirect_data_,
-                                 true);
+    return new net::URLRequestTestJob(request,
+                                      redirect_headers_,
+                                      redirect_data_,
+                                      true);
   }
 
   virtual net::URLRequestJob* MaybeInterceptResponse(net::URLRequest* request) {
@@ -1938,10 +1938,10 @@ class TestInterceptor : net::URLRequest::Interceptor {
       return NULL;
     intercept_final_response_ = false;
     did_intercept_final_ = true;
-    return new URLRequestTestJob(request,
-                                 final_headers_,
-                                 final_data_,
-                                 true);
+    return new net::URLRequestTestJob(request,
+                                      final_headers_,
+                                      final_data_,
+                                      true);
   }
 
   // Whether to intercept the main request, and if so the response to return.
@@ -1985,11 +1985,11 @@ class TestInterceptor : net::URLRequest::Interceptor {
   // Static getters for canned response header and data strings
 
   static std::string ok_data() {
-    return URLRequestTestJob::test_data_1();
+    return net::URLRequestTestJob::test_data_1();
   }
 
   static std::string ok_headers() {
-    return URLRequestTestJob::test_headers();
+    return net::URLRequestTestJob::test_headers();
   }
 
   static std::string redirect_data() {
@@ -1997,7 +1997,7 @@ class TestInterceptor : net::URLRequest::Interceptor {
   }
 
   static std::string redirect_headers() {
-    return URLRequestTestJob::test_redirect_headers();
+    return net::URLRequestTestJob::test_redirect_headers();
   }
 
   static std::string error_data() {
@@ -2005,7 +2005,7 @@ class TestInterceptor : net::URLRequest::Interceptor {
   }
 
   static std::string error_headers() {
-    return URLRequestTestJob::test_error_headers();
+    return net::URLRequestTestJob::test_error_headers();
   }
 };
 

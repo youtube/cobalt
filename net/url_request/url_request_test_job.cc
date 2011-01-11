@@ -13,12 +13,12 @@
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
 
+namespace net {
+
 // This emulates the global message loop for the test URL request class, since
 // this is only test code, it's probably not too dangerous to have this static
 // object.
 static std::vector< scoped_refptr<URLRequestTestJob> > g_pending_jobs;
-
-namespace net {
 
 // static getters for known URLs
 GURL URLRequestTestJob::test_url_1() {
