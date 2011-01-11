@@ -20,6 +20,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/request_priority.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
@@ -8205,6 +8206,205 @@ TEST_F(HttpNetworkTransactionTest, NPNMispredict) {
   rv = ReadTransaction(trans.get(), &contents);
   EXPECT_EQ(net::OK, rv);
   EXPECT_EQ("hello world", contents);
+}
+
+// Ensure that a client certificate is removed from the SSL client auth
+// cache when:
+//  1) No proxy is involved.
+//  2) TLS False Start is disabled.
+//  3) The initial TLS handshake requests a client certificate.
+//  4) The client supplies an invalid/unacceptable certificate.
+TEST_F(HttpNetworkTransactionTest, ClientAuthCertCache_Direct_NoFalseStart) {
+  SessionDependencies session_deps;
+
+  scoped_refptr<SSLCertRequestInfo> cert_request(new SSLCertRequestInfo());
+  cert_request->host_and_port = "www.example.com:443";
+
+  // [ssl_]data1 contains the data for the first SSL handshake. When a
+  // CertificateRequest is received for the first time, the handshake will
+  // be aborted to allow the caller to provide a certificate.
+  SSLSocketDataProvider ssl_data1(true /* async */,
+                                  net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
+  ssl_data1.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data1);
+  net::StaticSocketDataProvider data1(NULL, 0, NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+
+  // [ssl_]data2 contains the data for the second SSL handshake. When TLS
+  // False Start is not being used, the result of the SSL handshake will be
+  // returned as part of the SSLClientSocket::Connect() call. This test
+  // matches the result of a server sending a handshake_failure alert,
+  // rather than a Finished message, because it requires a client
+  // certificate and none was supplied.
+  SSLSocketDataProvider ssl_data2(true /* async */,
+                                  net::ERR_SSL_PROTOCOL_ERROR);
+  ssl_data2.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data2);
+  net::StaticSocketDataProvider data2(NULL, 0, NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+
+  // [ssl_]data3 contains the data for the third SSL handshake. When a
+  // connection to a server fails during an SSL handshake,
+  // HttpNetworkTransaction will attempt to fallback to SSLv3 if the initial
+  // connection was attempted with TLSv1. This is transparent to the caller
+  // of the HttpNetworkTransaction. Because this test failure is due to
+  // requiring a client certificate, this fallback handshake should also
+  // fail.
+  SSLSocketDataProvider ssl_data3(true /* async */,
+                                  net::ERR_SSL_PROTOCOL_ERROR);
+  ssl_data3.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data3);
+  net::StaticSocketDataProvider data3(NULL, 0, NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data3);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  net::HttpRequestInfo request_info;
+  request_info.url = GURL("https://www.example.com/");
+  request_info.method = "GET";
+  request_info.load_flags = net::LOAD_NORMAL;
+
+  // Begin the SSL handshake with the peer. This consumes ssl_data1.
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request_info, &callback, net::BoundNetLog());
+  ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+  // Complete the SSL handshake, which should abort due to requiring a
+  // client certificate.
+  rv = callback.WaitForResult();
+  ASSERT_EQ(net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED, rv);
+
+  // Indicate that no certificate should be supplied. From the perspective
+  // of SSLClientCertCache, NULL is just as meaningful as a real
+  // certificate, so this is the same as supply a
+  // legitimate-but-unacceptable certificate.
+  rv = trans->RestartWithCertificate(NULL, &callback);
+  ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+  // Ensure the certificate was added to the client auth cache before
+  // allowing the connection to continue restarting.
+  scoped_refptr<X509Certificate> client_cert;
+  ASSERT_TRUE(session->ssl_client_auth_cache()->Lookup("www.example.com:443",
+                                                       &client_cert));
+  ASSERT_EQ(NULL, client_cert.get());
+
+  // Restart the handshake. This will consume ssl_data2, which fails, and
+  // then consume ssl_data3, which should also fail. The result code is
+  // checked against what ssl_data3 should return.
+  rv = callback.WaitForResult();
+  ASSERT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
+
+  // Ensure that the client certificate is removed from the cache on a
+  // handshake failure.
+  ASSERT_FALSE(session->ssl_client_auth_cache()->Lookup("www.example.com:443",
+                                                        &client_cert));
+}
+
+// Ensure that a client certificate is removed from the SSL client auth
+// cache when:
+//  1) No proxy is involved.
+//  2) TLS False Start is enabled.
+//  3) The initial TLS handshake requests a client certificate.
+//  4) The client supplies an invalid/unacceptable certificate.
+TEST_F(HttpNetworkTransactionTest, ClientAuthCertCache_Direct_FalseStart) {
+  SessionDependencies session_deps;
+
+  scoped_refptr<SSLCertRequestInfo> cert_request(new SSLCertRequestInfo());
+  cert_request->host_and_port = "www.example.com:443";
+
+  // When TLS False Start is used, SSLClientSocket::Connect() calls will
+  // return successfully after reading up to the peer's Certificate message.
+  // This is to allow the caller to call SSLClientSocket::Write(), which can
+  // enqueue application data to be sent in the same packet as the
+  // ChangeCipherSpec and Finished messages.
+  // The actual handshake will be finished when SSLClientSocket::Read() is
+  // called, which expects to process the peer's ChangeCipherSpec and
+  // Finished messages. If there was an error negotiating with the peer,
+  // such as due to the peer requiring a client certificate when none was
+  // supplied, the alert sent by the peer won't be processed until Read() is
+  // called.
+
+  // Like the non-False Start case, when a client certificate is requested by
+  // the peer, the handshake is aborted during the Connect() call.
+  // [ssl_]data1 represents the initial SSL handshake with the peer.
+  SSLSocketDataProvider ssl_data1(true /* async */,
+                                  net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
+  ssl_data1.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data1);
+  net::StaticSocketDataProvider data1(NULL, 0, NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+
+  // When a client certificate is supplied, Connect() will not be aborted
+  // when the peer requests the certificate. Instead, the handshake will
+  // artificially succeed, allowing the caller to write the HTTP request to
+  // the socket. The handshake messages are not processed until Read() is
+  // called, which then detects that the handshake was aborted, due to the
+  // peer sending a handshake_failure because it requires a client
+  // certificate.
+  SSLSocketDataProvider ssl_data2(true /* async */, net::OK);
+  ssl_data2.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data2);
+  net::MockRead data2_reads[] = {
+    net::MockRead(true /* async */, net::ERR_SSL_PROTOCOL_ERROR),
+  };
+  net::StaticSocketDataProvider data2(
+      data2_reads, arraysize(data2_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+
+  // As described in ClientAuthCertCache_Direct_NoFalseStart, [ssl_]data3 is
+  // the data for the SSL handshake once the TLSv1 connection falls back to
+  // SSLv3. It has the same behaviour as [ssl_]data2.
+  SSLSocketDataProvider ssl_data3(true /* async */, net::OK);
+  ssl_data3.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data3);
+  net::StaticSocketDataProvider data3(
+      data2_reads, arraysize(data2_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data3);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  net::HttpRequestInfo request_info;
+  request_info.url = GURL("https://www.example.com/");
+  request_info.method = "GET";
+  request_info.load_flags = net::LOAD_NORMAL;
+
+  // Begin the initial SSL handshake.
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request_info, &callback, net::BoundNetLog());
+  ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+  // Complete the SSL handshake, which should abort due to requiring a
+  // client certificate.
+  rv = callback.WaitForResult();
+  ASSERT_EQ(net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED, rv);
+
+  // Indicate that no certificate should be supplied. From the perspective
+  // of SSLClientCertCache, NULL is just as meaningful as a real
+  // certificate, so this is the same as supply a
+  // legitimate-but-unacceptable certificate.
+  rv = trans->RestartWithCertificate(NULL, &callback);
+  ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+  // Ensure the certificate was added to the client auth cache before
+  // allowing the connection to continue restarting.
+  scoped_refptr<X509Certificate> client_cert;
+  ASSERT_TRUE(session->ssl_client_auth_cache()->Lookup("www.example.com:443",
+                                                       &client_cert));
+  ASSERT_EQ(NULL, client_cert.get());
+
+
+  // Restart the handshake. This will consume ssl_data2, which fails, and
+  // then consume ssl_data3, which should also fail. The result code is
+  // checked against what ssl_data3 should return.
+  rv = callback.WaitForResult();
+  ASSERT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
+
+  // Ensure that the client certificate is removed from the cache on a
+  // handshake failure.
+  ASSERT_FALSE(session->ssl_client_auth_cache()->Lookup("www.example.com:443",
+                                                        &client_cert));
 }
 
 }  // namespace net
