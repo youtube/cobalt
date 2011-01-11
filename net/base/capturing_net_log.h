@@ -47,6 +47,13 @@ class CapturingNetLog : public NetLog {
   explicit CapturingNetLog(size_t max_num_entries);
   virtual ~CapturingNetLog();
 
+  // Returns the list of all entries in the log.
+  void GetEntries(EntryList* entry_list) const;
+
+  void Clear();
+
+  void SetLogLevel(NetLog::LogLevel log_level);
+
   // NetLog implementation:
   virtual void AddEntry(EventType type,
                         const base::TimeTicks& time,
@@ -55,13 +62,6 @@ class CapturingNetLog : public NetLog {
                         EventParameters* extra_parameters);
   virtual uint32 NextID();
   virtual LogLevel GetLogLevel() const;
-
-  // Returns the list of all entries in the log.
-  void GetEntries(EntryList* entry_list) const;
-
-  void Clear();
-
-  void SetLogLevel(NetLog::LogLevel log_level);
 
  private:
   // Needs to be "mutable" so can use it in GetEntries().

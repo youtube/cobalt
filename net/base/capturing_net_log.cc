@@ -25,6 +25,21 @@ CapturingNetLog::CapturingNetLog(size_t max_num_entries)
 
 CapturingNetLog::~CapturingNetLog() {}
 
+void CapturingNetLog::GetEntries(EntryList* entry_list) const {
+  AutoLock lock(lock_);
+  *entry_list = entries_;
+}
+
+void CapturingNetLog::Clear() {
+  AutoLock lock(lock_);
+  entries_.clear();
+}
+
+void CapturingNetLog::SetLogLevel(NetLog::LogLevel log_level) {
+  AutoLock lock(lock_);
+  log_level_ = log_level;
+}
+
 void CapturingNetLog::AddEntry(EventType type,
                                const base::TimeTicks& time,
                                const Source& source,
@@ -43,21 +58,6 @@ uint32 CapturingNetLog::NextID() {
 NetLog::LogLevel CapturingNetLog::GetLogLevel() const {
   AutoLock lock(lock_);
   return log_level_;
-}
-
-void CapturingNetLog::GetEntries(EntryList* entry_list) const {
-  AutoLock lock(lock_);
-  *entry_list = entries_;
-}
-
-void CapturingNetLog::Clear() {
-  AutoLock lock(lock_);
-  entries_.clear();
-}
-
-void CapturingNetLog::SetLogLevel(NetLog::LogLevel log_level) {
-  AutoLock lock(lock_);
-  log_level_ = log_level;
 }
 
 CapturingBoundNetLog::CapturingBoundNetLog(const NetLog::Source& source,
