@@ -5,8 +5,6 @@
 #include "net/http/http_auth_handler.h"
 
 #include "base/logging.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
 #include "net/base/net_errors.h"
 
 namespace net {
