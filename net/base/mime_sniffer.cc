@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -146,6 +146,8 @@ static const MagicNumber kMagicNumbers[] = {
   MAGIC_NUMBER("image/tiff", "II*")
   MAGIC_NUMBER("image/tiff", "MM\x00*")
   MAGIC_NUMBER("audio/mpeg", "ID3")
+  MAGIC_NUMBER("image/webp", "RIFF....WEBPVP8 ")
+  MAGIC_NUMBER("video/webm", "\x1A\x45\xDF\xA3")
   // TODO(abarth): we don't handle partial byte matches yet
   // MAGIC_NUMBER("video/mpeg", "\x00\x00\x01\xB")
   // MAGIC_NUMBER("audio/mpeg", "\xFF\xE")
@@ -215,6 +217,19 @@ static scoped_refptr<base::Histogram> UMASnifferHistogramGet(const char* name,
   return counter;
 }
 
+// Compare content header to a magic number where magic_entry can contain '.'
+// for single character of anything, allowing some bytes to be skipped.
+static bool MagicCmp(const char* magic_entry, const char* content, size_t len) {
+  while (len) {
+    if ((*magic_entry != '.') && (*magic_entry != *content))
+      return false;
+    ++magic_entry;
+    ++content;
+    --len;
+  }
+  return true;
+}
+
 static bool MatchMagicNumber(const char* content, size_t size,
                              const MagicNumber* magic_entry,
                              std::string* result) {
@@ -239,7 +254,7 @@ static bool MatchMagicNumber(const char* content, size_t size,
     }
   } else {
     if (size >= len)
-      match = (memcmp(magic_entry->magic, content, len) == 0);
+      match = MagicCmp(magic_entry->magic, content, len);
   }
 
   if (match) {
@@ -251,7 +266,8 @@ static bool MatchMagicNumber(const char* content, size_t size,
 
 static bool CheckForMagicNumbers(const char* content, size_t size,
                                  const MagicNumber* magic, size_t magic_len,
-                                 base::Histogram* counter, std::string* result) {
+                                 base::Histogram* counter,
+                                 std::string* result) {
   for (size_t i = 0; i < magic_len; ++i) {
     if (MatchMagicNumber(content, size, &(magic[i]), result)) {
       if (counter) counter->Add(static_cast<int>(i));
