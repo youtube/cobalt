@@ -23,10 +23,17 @@ namespace net {
 //
 class StaticCookiePolicy : public CookiePolicy {
  public:
+  // Do not change the order of these types as they are persisted in
+  // preferences.
   enum Type {
-    ALLOW_ALL_COOKIES = 0,      // Do not perform any cookie blocking.
-    BLOCK_THIRD_PARTY_COOKIES,  // Prevent third-party cookies from being set.
-    BLOCK_ALL_COOKIES           // Disable cookies.
+    // Do not perform any cookie blocking.
+    ALLOW_ALL_COOKIES = 0,
+    // Prevent only third-party cookies from being set.
+    BLOCK_SETTING_THIRD_PARTY_COOKIES,
+    // Block all cookies (third-party or not) from begin set or read.
+    BLOCK_ALL_COOKIES,
+    // Prevent only third-party cookies from being set or read.
+    BLOCK_ALL_THIRD_PARTY_COOKIES
   };
 
   StaticCookiePolicy()
