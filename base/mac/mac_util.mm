@@ -359,21 +359,31 @@ bool ShouldWindowsMiniaturizeOnDoubleClick() {
 void GrabWindowSnapshot(NSWindow* window,
     std::vector<unsigned char>* png_representation,
     int* width, int* height) {
+  png_representation->clear();
+  *width = 0;
+  *height = 0;
+
   // Make sure to grab the "window frame" view so we get current tab +
   // tabstrip.
   NSView* view = [[window contentView] superview];
-  NSBitmapImageRep* rep =
-      [view bitmapImageRepForCachingDisplayInRect:[view bounds]];
-  [view cacheDisplayInRect:[view bounds] toBitmapImageRep:rep];
+  ScopedCFTypeRef<CGImageRef> windowSnapshot(CGWindowListCreateImage(
+      CGRectNull, kCGWindowListOptionIncludingWindow,
+      [[view window] windowNumber], kCGWindowImageBoundsIgnoreFraming));
+  if (CGImageGetWidth(windowSnapshot) <= 0)
+    return;
+
+  scoped_nsobject<NSBitmapImageRep> rep(
+      [[NSBitmapImageRep alloc] initWithCGImage:windowSnapshot]);
   NSData* data = [rep representationUsingType:NSPNGFileType properties:nil];
   const unsigned char* buf = static_cast<const unsigned char*>([data bytes]);
   NSUInteger length = [data length];
-  if (buf != NULL && length > 0){
-    *width = static_cast<int>([rep pixelsWide]);
-    *height = static_cast<int>([rep pixelsHigh]);
-    png_representation->assign(buf, buf + length);
-    DCHECK(png_representation->size() > 0);
-  }
+  if (buf == NULL || length == 0)
+    return;
+
+  *width = static_cast<int>([rep pixelsWide]);
+  *height = static_cast<int>([rep pixelsHigh]);
+  png_representation->assign(buf, buf + length);
+  DCHECK(png_representation->size() > 0);
 }
 
 void ActivateProcess(pid_t pid) {
