@@ -228,6 +228,7 @@ void AudioOutputController::DoFlush() {
   if (!sync_reader_) {
     if (state_ != kPaused)
       return;
+    AutoLock auto_lock(lock_);
     buffer_.Clear();
   }
 }
