@@ -80,6 +80,15 @@ class HttpAuth {
     IDENT_SRC_DEFAULT_CREDENTIALS,
   };
 
+  enum Scheme {
+    AUTH_SCHEME_BASIC = 0,
+    AUTH_SCHEME_DIGEST,
+    AUTH_SCHEME_NTLM,
+    AUTH_SCHEME_NEGOTIATE,
+    AUTH_SCHEME_MOCK,
+    AUTH_SCHEME_MAX,
+  };
+
   // Helper structure used by HttpNetworkTransaction to track
   // the current identity being used for authorization.
   struct Identity {
@@ -103,6 +112,9 @@ class HttpAuth {
   // messages.
   static std::string GetAuthTargetString(Target target);
 
+  // Returns a string representation of an authentication Scheme.
+  static const char* SchemeToString(Scheme scheme);
+
   // Iterate through the challenge headers, and pick the best one that
   // we support. Obtains the implementation class for handling the challenge,
   // and passes it back in |*handler|. If no supported challenge was found,
@@ -117,7 +129,7 @@ class HttpAuth {
       const HttpResponseHeaders* headers,
       Target target,
       const GURL& origin,
-      const std::set<std::string>& disabled_schemes,
+      const std::set<Scheme>& disabled_schemes,
       const BoundNetLog& net_log,
       scoped_ptr<HttpAuthHandler>* handler);
 
@@ -146,7 +158,7 @@ class HttpAuth {
       HttpAuthHandler* handler,
       const HttpResponseHeaders* headers,
       Target target,
-      const std::set<std::string>& disabled_schemes,
+      const std::set<Scheme>& disabled_schemes,
       std::string* challenge_used);
 
   // Breaks up a challenge string into the the auth scheme and parameter list,

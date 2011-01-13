@@ -93,8 +93,7 @@ bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
 #endif
   if (CanDelegate())
     auth_system_.Delegate();
-  auth_scheme_ = AUTH_SCHEME_NEGOTIATE;
-  scheme_ = "negotiate";
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_NEGOTIATE;
   score_ = 4;
   properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
   HttpAuth::AuthorizationResult auth_result =

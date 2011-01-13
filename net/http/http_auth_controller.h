@@ -69,8 +69,8 @@ class HttpAuthController : public base::RefCounted<HttpAuthController>,
 
   virtual scoped_refptr<AuthChallengeInfo> auth_info();
 
-  virtual bool IsAuthSchemeDisabled(const std::string& scheme) const;
-  virtual void DisableAuthScheme(const std::string& scheme);
+  virtual bool IsAuthSchemeDisabled(HttpAuth::Scheme scheme) const;
+  virtual void DisableAuthScheme(HttpAuth::Scheme scheme);
 
  private:
   // So that we can mock this object.
@@ -146,7 +146,7 @@ class HttpAuthController : public base::RefCounted<HttpAuthController>,
   HttpAuthCache* const http_auth_cache_;
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
 
-  std::set<std::string> disabled_schemes_;
+  std::set<HttpAuth::Scheme> disabled_schemes_;
 
   CompletionCallbackImpl<HttpAuthController> io_callback_;
   CompletionCallback* user_callback_;

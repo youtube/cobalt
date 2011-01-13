@@ -22,14 +22,6 @@ struct HttpRequestInfo;
 // HttpAuthHandler objects are typically created by an HttpAuthHandlerFactory.
 class HttpAuthHandler {
  public:
-  enum AuthScheme {
-    AUTH_SCHEME_BASIC = 0,
-    AUTH_SCHEME_DIGEST,
-    AUTH_SCHEME_NTLM,
-    AUTH_SCHEME_NEGOTIATE,
-    AUTH_SCHEME_MAX,
-  };
-
   HttpAuthHandler();
   virtual ~HttpAuthHandler();
 
@@ -84,13 +76,8 @@ class HttpAuthHandler {
                         std::string* auth_token);
 
   // The authentication scheme as an enumerated value.
-  AuthScheme auth_scheme() const {
+  HttpAuth::Scheme auth_scheme() const {
     return auth_scheme_;
-  }
-
-  // Lowercase name of the auth scheme
-  const std::string& scheme() const {
-    return scheme_;
   }
 
   // The realm value that was parsed during Init().
@@ -171,10 +158,7 @@ class HttpAuthHandler {
                                     std::string* auth_token) = 0;
 
   // The auth-scheme as an enumerated value.
-  AuthScheme auth_scheme_;
-
-  // The lowercase auth-scheme {"basic", "digest", "ntlm", "negotiate"}
-  std::string scheme_;
+  HttpAuth::Scheme auth_scheme_;
 
   // The realm.  Used by "basic" and "digest".
   std::string realm_;

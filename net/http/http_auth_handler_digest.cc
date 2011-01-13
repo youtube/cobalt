@@ -266,8 +266,7 @@ HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
 // webserver was not sending the realm with a BASIC challenge).
 bool HttpAuthHandlerDigest::ParseChallenge(
     HttpAuth::ChallengeTokenizer* challenge) {
-  auth_scheme_ = AUTH_SCHEME_DIGEST;
-  scheme_ = "digest";
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_DIGEST;
   score_ = 2;
   properties_ = ENCRYPTS_IDENTITY;
 
