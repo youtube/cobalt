@@ -17,8 +17,6 @@ namespace net {
 class DnsRRResolverTest : public testing::Test {
 };
 
-#if defined(OS_LINUX)
-
 class ExplodingCallback : public CallbackRunner<Tuple1<int> > {
  public:
   virtual void RunWithParams(const Tuple1<int>& params) {
@@ -26,8 +24,39 @@ class ExplodingCallback : public CallbackRunner<Tuple1<int> > {
   }
 };
 
-// This test is disabled because it depends on the external network to pass.
-// However, it may be useful when chaging the code.
+// These tests are disabled because they depend on the external network to
+// pass. However, they may be useful when chaging the code.
+TEST_F(DnsRRResolverTest, DISABLED_ResolveReal) {
+  RRResponse response;
+  TestCompletionCallback callback;
+  DnsRRResolver resolver;
+  DnsRRResolver::Handle handle;
+
+  handle = resolver.Resolve("test.imperialviolet.org", 13172, 0,
+                            &callback, &response, 0, BoundNetLog());
+  ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
+  ASSERT_EQ(OK, callback.WaitForResult());
+  ASSERT_EQ(1u, response.rrdatas.size());
+  LOG(ERROR) << "result length " << response.rrdatas[0].size();
+  LOG(ERROR) << "result is " << response.rrdatas[0];
+}
+
+TEST_F(DnsRRResolverTest, DISABLED_ResolveReal2) {
+  RRResponse response;
+  TestCompletionCallback callback;
+  DnsRRResolver resolver;
+  DnsRRResolver::Handle handle;
+
+  handle = resolver.Resolve("google.com", kDNS_TXT, 0,
+                            &callback, &response, 0, BoundNetLog());
+  ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
+  ASSERT_EQ(OK, callback.WaitForResult());
+  ASSERT_EQ(1u, response.rrdatas.size());
+  LOG(ERROR) << "result length " << response.rrdatas[0].size();
+  LOG(ERROR) << "result is " << response.rrdatas[0];
+}
+
+
 TEST_F(DnsRRResolverTest, Resolve) {
   RRResponse response;
   TestCompletionCallback callback;
@@ -55,7 +84,7 @@ TEST_F(DnsRRResolverTest, Resolve) {
   ASSERT_EQ(1u, resolver.cache_hits());
   ASSERT_EQ(0u, resolver.inflight_joins());
 
-  // Test that a callback is never made. This depends on there before another
+  // Test that a callback is never made. This depends on there being another
   // test after this one which will pump the MessageLoop.
   ExplodingCallback callback3;
   handle = resolver.Resolve("www.testing.notatld", kDNS_TESTING, 0,
@@ -94,6 +123,7 @@ TEST_F(DnsRRResolverTest, Resolve) {
   ASSERT_EQ(1u, resolver.inflight_joins());
 }
 
+#if defined(OS_POSIX)
 // This is a DNS packet resulting from querying a recursive resolver for a TXT
 // record for agl._pka.imperialviolet.org. You should be able to get a
 // replacement from a packet capture should it ever be needed.
@@ -178,7 +208,6 @@ TEST_F(DnsRRResolverTest, FuzzCorruption) {
     response.ParseFromResponse(copy, sizeof(copy), kDNS_TXT);
   }
 }
-
-#endif  // OS_LINUX
+#endif
 
 }  // namespace net
