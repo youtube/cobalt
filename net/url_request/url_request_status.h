@@ -68,7 +68,4 @@ class URLRequestStatus {
 
 }  // namespace net
 
-// TODO(tfarina): Fix the callers and remove this!
-typedef net::URLRequestStatus URLRequestStatus;
-
 #endif  // NET_URL_REQUEST_URL_REQUEST_STATUS_H_
