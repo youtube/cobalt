@@ -14,7 +14,6 @@
 #include "base/lazy_instance.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
-#include "base/sys_info.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
@@ -140,27 +139,6 @@ enum {
   TLS_ECDH_anon_WITH_AES_256_CBC_SHA     = 0xC019,
 };
 #endif
-
-// On OS X 10.5.x, SSLHandshake() is broken with respect to renegotiation
-// handshakes, and the only way to advance the handshake state machine is
-// to use SSLRead(), which transparently re-handshakes and then reads
-// application data. Using SSLRead() to pump the handshake, rather than
-// SSLHandshake(), is not presently implemented, so on 10.5.x, SSL
-// renegotiation is disabled entirely. On 10.6.x, SSLHandshake() behaves as
-// expected/documented, so renegotiation is supported.
-struct RenegotiationBroken {
-  RenegotiationBroken() : broken(false) {
-    int32 major, minor, bugfix;
-    base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
-    if (major < 10 || (major == 10 && minor < 6))
-      broken = true;
-  }
-
-  bool broken;
-};
-
-base::LazyInstance<RenegotiationBroken> g_renegotiation_broken(
-    base::LINKER_INITIALIZED);
 
 // For an explanation of the Mac OS X error codes, please refer to:
 // http://developer.apple.com/mac/library/documentation/Security/Reference/secureTransportRef/Reference/reference.html
@@ -562,6 +540,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocketHandle* transport_socket,
       renegotiating_(false),
       client_cert_requested_(false),
       ssl_context_(NULL),
+      bytes_read_after_renegotiation_(0),
       pending_send_error_(OK),
       net_log_(transport_socket->socket()->NetLog()) {
   // Sort the list of ciphers to disable, since disabling ciphers on Mac
@@ -1024,7 +1003,55 @@ int SSLClientSocketMac::DoHandshakeLoop(int last_io_result) {
 int SSLClientSocketMac::DoHandshake() {
   client_cert_requested_ = false;
 
-  OSStatus status = SSLHandshake(ssl_context_);
+  OSStatus status;
+  if (!renegotiating_) {
+    status = SSLHandshake(ssl_context_);
+  } else {
+    // Renegotiation can only be detected by a call to DoPayloadRead(),
+    // which means |user_read_buf_| should be valid.
+    DCHECK(user_read_buf_);
+
+    // On OS X 10.5.x, SSLSetSessionOption with
+    // kSSLSessionOptionBreakOnServerAuth is broken for renegotiation, as
+    // SSLRead() does not internally handle errSSLServerAuthCompleted being
+    // returned during handshake. In order to support certificate validation
+    // after a renegotiation, SSLRead() sets |renegotiating_| to be true and
+    // returns errSSLWouldBlock when it detects an attempt to read the
+    // ServerHello after responding to a HelloRequest. It would be
+    // appropriate to call SSLHandshake() at this point to restart the
+    // handshake state machine, however, on 10.5.x, SSLHandshake() is buggy
+    // and will always return noErr (indicating handshake completion),
+    // without doing any actual work. Because of this, the only way to
+    // advance SecureTransport's internal handshake state machine is to
+    // continuously call SSLRead() until the handshake is marked complete.
+    // Once the handshake is completed, if it completed successfully, the
+    // user read callback is invoked with |bytes_read_after_renegotiation_|
+    // as the callback result. On 10.6.0+, both errSSLServerAuthCompleted
+    // and SSLHandshake() work as expected, so this strange workaround is
+    // only necessary while OS X 10.5.x is still supported.
+    bytes_read_after_renegotiation_ = 0;
+    status = SSLRead(ssl_context_, user_read_buf_->data(),
+                     user_read_buf_len_, &bytes_read_after_renegotiation_);
+    if (bytes_read_after_renegotiation_ > 0) {
+      // With SecureTransport, as of 10.6.5, if application data is read,
+      // then the handshake should be completed. This is because
+      // SecureTransport does not (yet) support exchanging application data
+      // in the midst of handshakes. This is permitted in the TLS
+      // specification, as peers may exchange messages using the previous
+      // cipher spec up until they exchange ChangeCipherSpec messages.
+      // However, in addition to SecureTransport not supporting this, we do
+      // not permit callers to enter Read() or Write() when a handshake is
+      // occurring, in part due to the deception that happens in
+      // SSLWriteCallback(). Thus we need to make sure the handshake is
+      // truly completed before processing application data, and if any was
+      // read before the handshake is completed, it will be dropped and the
+      // connection aborted.
+      SSLSessionState session_state = kSSLIdle;
+      status = SSLGetSessionState(ssl_context_, &session_state);
+      if (session_state != kSSLConnected)
+        status = errSSLProtocol;
+    }
+  }
 
   SSLClientCertificateState client_cert_state;
   if (SSLGetClientCertificateState(ssl_context_, &client_cert_state) != noErr)
@@ -1141,9 +1168,6 @@ int SSLClientSocketMac::DoPayloadRead() {
   OSStatus status = SSLRead(ssl_context_, user_read_buf_->data(),
                             user_read_buf_len_, &processed);
   if (status == errSSLWouldBlock && renegotiating_) {
-    if (g_renegotiation_broken.Get().broken)
-      return ERR_SSL_RENEGOTIATION_REQUESTED;
-
     CHECK_EQ(static_cast<size_t>(0), processed);
     next_handshake_state_ = STATE_HANDSHAKE;
     return DoHandshakeLoop(OK);
@@ -1190,12 +1214,13 @@ int SSLClientSocketMac::DoPayloadWrite() {
 }
 
 int SSLClientSocketMac::DoCompletedRenegotiation(int result) {
-  // The user had a read in progress, which was usurped by the renegotiation.
-  // Restart the read sequence.
+  // The user had a read in progress, which was interrupted by the
+  // renegotiation. Return the application data that was processed after the
+  // handshake completed.
   next_handshake_state_ = STATE_COMPLETED_HANDSHAKE;
   if (result != OK)
     return result;
-  return DoPayloadRead();
+  return bytes_read_after_renegotiation_;
 }
 
 void SSLClientSocketMac::DidCompleteRenegotiation() {
