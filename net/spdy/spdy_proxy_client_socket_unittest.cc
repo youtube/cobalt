@@ -84,8 +84,13 @@ class SpdyProxyClientSocketTest : public PlatformTest {
   void AddAuthToCache() {
     const string16 kFoo(ASCIIToUTF16("foo"));
     const string16 kBar(ASCIIToUTF16("bar"));
-    session_->auth_cache()->Add(GURL(kProxyUrl), "MyRealm1", "Basic",
-                                "Basic realm=MyRealm1", kFoo, kBar, "/");
+    session_->auth_cache()->Add(GURL(kProxyUrl),
+                                "MyRealm1",
+                                HttpAuth::AUTH_SCHEME_BASIC,
+                                "Basic realm=MyRealm1",
+                                kFoo,
+                                kBar,
+                                "/");
   }
 
   void Run(int steps) {
