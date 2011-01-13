@@ -10,7 +10,7 @@
 namespace net {
 
 HttpAuthHandler::HttpAuthHandler()
-    : auth_scheme_(AUTH_SCHEME_MAX),
+    : auth_scheme_(HttpAuth::AUTH_SCHEME_MAX),
       score_(-1),
       target_(HttpAuth::AUTH_NONE),
       properties_(-1),
@@ -39,10 +39,9 @@ bool HttpAuthHandler::InitFromChallenge(
 
   // Init() is expected to set the scheme, realm, score, and properties.  The
   // realm may be empty.
-  DCHECK(!ok || !scheme().empty());
   DCHECK(!ok || score_ != -1);
   DCHECK(!ok || properties_ != -1);
-  DCHECK(!ok || auth_scheme_ != AUTH_SCHEME_MAX);
+  DCHECK(!ok || auth_scheme_ != HttpAuth::AUTH_SCHEME_MAX);
 
   return ok;
 }

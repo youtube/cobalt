@@ -23,8 +23,7 @@ namespace net {
 // We allow it to be compatibility with certain embedded webservers that don't
 // include a realm (see http://crbug.com/20984.)
 bool HttpAuthHandlerBasic::Init(HttpAuth::ChallengeTokenizer* challenge) {
-  auth_scheme_ = AUTH_SCHEME_BASIC;
-  scheme_ = "basic";
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_BASIC;
   score_ = 1;
   properties_ = 0;
   return ParseChallenge(challenge);
