@@ -1385,6 +1385,7 @@
           'VCLinkerTool': {
             'AdditionalDependencies': [
               'wininet.lib',
+              'dnsapi.lib',
               'version.lib',
               'msimg32.lib',
               'ws2_32.lib',
