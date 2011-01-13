@@ -565,6 +565,7 @@
         'crypto/encryptor_nss.cc',
         'crypto/encryptor_openssl.cc',
         'crypto/encryptor_win.cc',
+        'crypto/pk11_blocking_password_delegate.h',
         'crypto/rsa_private_key.h',
         'crypto/rsa_private_key.cc',
         'crypto/rsa_private_key_mac.cc',

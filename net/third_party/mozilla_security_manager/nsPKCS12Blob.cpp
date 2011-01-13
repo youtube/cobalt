@@ -262,17 +262,13 @@ void EnsurePKCS12Init() {
 }
 
 // Based on nsPKCS12Blob::ImportFromFile.
-int nsPKCS12Blob_Import(const char* pkcs12_data,
+int nsPKCS12Blob_Import(PK11SlotInfo* slot,
+                        const char* pkcs12_data,
                         size_t pkcs12_len,
                         const string16& password) {
-  base::ScopedPK11Slot slot(base::GetDefaultNSSKeySlot());
-  if (!slot.get()) {
-    LOG(ERROR) << "Couldn't get Internal key slot!";
-    return net::ERR_PKCS12_IMPORT_FAILED;
-  }
 
   int rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password, false,
-                                     slot.get());
+                                     slot);
 
   // When the user entered a zero length password:
   //   An empty password should be represented as an empty
@@ -283,7 +279,7 @@ int nsPKCS12Blob_Import(const char* pkcs12_data,
   //   without giving a user prompt when trying the different empty password flavors.
   if (rv == net::ERR_PKCS12_IMPORT_BAD_PASSWORD && password.size() == 0) {
     rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password, true,
-                                   slot.get());
+                                   slot);
   }
   return rv;
 }
