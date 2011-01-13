@@ -300,6 +300,7 @@ void PipelineImpl::ResetState() {
   stop_pending_     = false;
   seek_pending_     = false;
   tearing_down_     = false;
+  error_caused_teardown_ = false;
   duration_         = kZero;
   buffered_time_    = kZero;
   buffered_bytes_   = 0;
@@ -323,16 +324,6 @@ void PipelineImpl::set_state(State next_state) {
 
 bool PipelineImpl::IsPipelineOk() {
   return PIPELINE_OK == GetError();
-}
-
-bool PipelineImpl::IsPipelineInitializing() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  return state_ == kInitDataSource ||
-         state_ == kInitDemuxer ||
-         state_ == kInitAudioDecoder ||
-         state_ == kInitAudioRenderer ||
-         state_ == kInitVideoDecoder ||
-         state_ == kInitVideoRenderer;
 }
 
 bool PipelineImpl::IsPipelineStopped() {
@@ -393,7 +384,7 @@ PipelineImpl::State PipelineImpl::FindNextState(State current) {
   } else if (current == kStarting) {
     return kStarted;
   } else if (current == kStopping) {
-    return kStopped;
+    return error_caused_teardown_ ? kError : kStopped;
   } else {
     return current;
   }
@@ -572,7 +563,13 @@ void PipelineImpl::InitializeTask() {
     return;
   }
 
-  DCHECK(state_ == kCreated || IsPipelineInitializing());
+  DCHECK(state_ == kCreated ||
+         state_ == kInitDataSource ||
+         state_ == kInitDemuxer ||
+         state_ == kInitAudioDecoder ||
+         state_ == kInitAudioRenderer ||
+         state_ == kInitVideoDecoder ||
+         state_ == kInitVideoRenderer);
 
   // Just created, create data source.
   if (state_ == kCreated) {
@@ -670,28 +667,33 @@ void PipelineImpl::InitializeTask() {
 // additional calls, however most of this logic will be changing.
 void PipelineImpl::StopTask(PipelineCallback* stop_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  PipelineError error = GetError();
+  DCHECK(!IsPipelineStopPending());
+  DCHECK_NE(state_, kStopped);
 
-  if (state_ == kStopped || (IsPipelineStopPending() && error == PIPELINE_OK)) {
-    // If we are already stopped or stopping normally, return immediately.
+  if (state_ == kStopped) {
+    // Already stopped so just run callback.
+    stop_callback->Run();
     delete stop_callback;
     return;
-  } else if (state_ == kError ||
-             (IsPipelineStopPending() && error != PIPELINE_OK)) {
+  }
+
+  if (IsPipelineTearingDown() && error_caused_teardown_) {
     // If we are stopping due to SetError(), stop normally instead of
-    // going to error state.
+    // going to error state and calling |error_callback_|. This converts
+    // the teardown in progress from an error teardown into one that acts
+    // like the error never occurred.
     AutoLock auto_lock(lock_);
     error_ = PIPELINE_OK;
+    error_caused_teardown_ = false;
   }
 
   stop_callback_.reset(stop_callback);
 
   stop_pending_ = true;
-  if (!IsPipelineSeeking()) {
+  if (!IsPipelineSeeking() && !IsPipelineTearingDown()) {
     // We will tear down pipeline immediately when there is no seek operation
-    // pending. This should include the case where we are partially initialized.
-    // Ideally this case should use SetError() rather than Stop() to tear down.
-    DCHECK(!IsPipelineTearingDown());
+    // pending and no teardown in progress. This should include the case where
+    // we are partially initialized.
     TearDownPipeline();
   }
 }
@@ -710,6 +712,7 @@ void PipelineImpl::ErrorChangedTask(PipelineError error) {
   AutoLock auto_lock(lock_);
   error_ = error;
 
+  error_caused_teardown_ = true;
   TearDownPipeline();
 }
 
@@ -915,11 +918,12 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
 
   pipeline_filter_ = NULL;
 
-  stop_pending_ = false;
-  tearing_down_ = false;
+  if (error_caused_teardown_ && GetError() != PIPELINE_OK &&
+      error_callback_.get()) {
+    error_callback_->Run();
+  }
 
-  if (PIPELINE_OK == GetError()) {
-    // Destroying filters due to Stop().
+  if (stop_pending_) {
     ResetState();
 
     // Notify the client that stopping has finished.
@@ -927,14 +931,11 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
       stop_callback_->Run();
       stop_callback_.reset();
     }
-  } else {
-    // Destroying filters due to SetError().
-    set_state(kError);
-    // If our owner has requested to be notified of an error.
-    if (error_callback_.get()) {
-      error_callback_->Run();
-    }
   }
+
+  stop_pending_ = false;
+  tearing_down_ = false;
+  error_caused_teardown_ = false;
 }
 
 bool PipelineImpl::PrepareFilter(scoped_refptr<Filter> filter) {
@@ -1119,25 +1120,54 @@ void PipelineImpl::TearDownPipeline() {
   // Mark that we already start tearing down operation.
   tearing_down_ = true;
 
-  if (IsPipelineInitializing()) {
-    // Make it look like initialization was successful.
-    pipeline_filter_ = pipeline_init_state_->composite_;
-    pipeline_init_state_.reset();
+  switch(state_) {
+    case kCreated:
+    case kError:
+      set_state(kStopped);
+      message_loop_->PostTask(FROM_HERE,
+          NewRunnableMethod(this, &PipelineImpl::FinishDestroyingFiltersTask));
+      break;
 
-    set_state(kStopping);
-    pipeline_filter_->Stop(NewCallback(
-        this, &PipelineImpl::OnFilterStateTransition));
+    case kInitDataSource:
+    case kInitDemuxer:
+    case kInitAudioDecoder:
+    case kInitAudioRenderer:
+    case kInitVideoDecoder:
+    case kInitVideoRenderer:
+      // Make it look like initialization was successful.
+      pipeline_filter_ = pipeline_init_state_->composite_;
+      pipeline_init_state_.reset();
 
-    FinishInitialization();
-  } else if (pipeline_filter_.get()) {
-    set_state(kPausing);
-    pipeline_filter_->Pause(NewCallback(
-        this, &PipelineImpl::OnFilterStateTransition));
-  } else {
-    set_state(kStopped);
-    message_loop_->PostTask(FROM_HERE,
-        NewRunnableMethod(this, &PipelineImpl::FinishDestroyingFiltersTask));
-  }
+      set_state(kStopping);
+      pipeline_filter_->Stop(
+          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+
+      FinishInitialization();
+      break;
+
+    case kPausing:
+    case kSeeking:
+    case kFlushing:
+    case kStarting:
+      set_state(kStopping);
+      pipeline_filter_->Stop(
+          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+      break;
+
+    case kStarted:
+    case kEnded:
+      set_state(kPausing);
+      pipeline_filter_->Pause(
+          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+      break;
+
+    case kStopping:
+    case kStopped:
+      NOTREACHED() << "Unexpected state for teardown: " << state_;
+      break;
+    // default: intentionally left out to force new states to cause compiler
+    // errors.
+  };
 }
 
 }  // namespace media
