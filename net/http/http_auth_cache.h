@@ -122,7 +122,7 @@ class HttpAuthCache::Entry {
   }
 
   // The authentication scheme of the challenge.
-  const HttpAuth::Scheme scheme() const {
+  HttpAuth::Scheme scheme() const {
     return scheme_;
   }
 
