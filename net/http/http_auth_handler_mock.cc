@@ -72,8 +72,7 @@ void HttpAuthHandlerMock::SetGenerateExpectation(bool async, int rv) {
 }
 
 bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
-  auth_scheme_ = AUTH_SCHEME_BASIC;
-  scheme_ = "mock";
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_MOCK;
   score_ = 1;
   properties_ = connection_based_ ? IS_CONNECTION_BASED : 0;
   return true;
