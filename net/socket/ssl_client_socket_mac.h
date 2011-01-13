@@ -149,6 +149,10 @@ class SSLClientSocketMac : public SSLClientSocket {
   bool client_cert_requested_;
   SSLContextRef ssl_context_;
 
+  // During a renegotiation, the amount of application data read following
+  // the handshake's completion.
+  size_t bytes_read_after_renegotiation_;
+
   // These buffers hold data retrieved from/sent to the underlying transport
   // before it's fed to the SSL engine.
   std::vector<char> send_buffer_;
