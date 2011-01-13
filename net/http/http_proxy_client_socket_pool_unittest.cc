@@ -107,8 +107,13 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   void AddAuthToCache() {
     const string16 kFoo(ASCIIToUTF16("foo"));
     const string16 kBar(ASCIIToUTF16("bar"));
-    session_->auth_cache()->Add(GURL("http://proxy/"), "MyRealm1", "Basic",
-                                "Basic realm=MyRealm1", kFoo, kBar, "/");
+    session_->auth_cache()->Add(GURL("http://proxy/"),
+                                "MyRealm1",
+                                HttpAuth::AUTH_SCHEME_BASIC,
+                                "Basic realm=MyRealm1",
+                                kFoo,
+                                kBar,
+                                "/");
   }
 
   scoped_refptr<TCPSocketParams> GetTcpParams() {

@@ -26,7 +26,7 @@ namespace {
 HttpAuthHandlerMock* CreateMockHandler(bool connection_based) {
   HttpAuthHandlerMock* auth_handler = new HttpAuthHandlerMock();
   auth_handler->set_connection_based(connection_based);
-  std::string challenge_text = "Mock";
+  std::string challenge_text = "Basic";
   HttpAuth::ChallengeTokenizer challenge(challenge_text.begin(),
                                          challenge_text.end());
   GURL origin("www.example.com");
@@ -48,7 +48,7 @@ HttpAuth::AuthorizationResult HandleChallengeResponse(
     std::string* challenge_used) {
   scoped_ptr<HttpAuthHandlerMock> mock_handler(
       CreateMockHandler(connection_based));
-  std::set<std::string> disabled_schemes;
+  std::set<HttpAuth::Scheme> disabled_schemes;
   scoped_refptr<HttpResponseHeaders> headers(
       HeadersFromResponseText(headers_text));
   return HttpAuth::HandleChallengeResponse(
@@ -64,56 +64,57 @@ HttpAuth::AuthorizationResult HandleChallengeResponse(
 TEST(HttpAuthTest, ChooseBestChallenge) {
   static const struct {
     const char* headers;
-    const char* challenge_scheme;
+    HttpAuth::Scheme challenge_scheme;
     const char* challenge_realm;
   } tests[] = {
     {
+      // Basic is the only challenge type, pick it.
       "Y: Digest realm=\"X\", nonce=\"aaaaaaaaaa\"\n"
       "www-authenticate: Basic realm=\"BasicRealm\"\n",
 
-      // Basic is the only challenge type, pick it.
-      "basic",
+      HttpAuth::AUTH_SCHEME_BASIC,
       "BasicRealm",
     },
     {
+      // Fake is the only challenge type, but it is unsupported.
       "Y: Digest realm=\"FooBar\", nonce=\"aaaaaaaaaa\"\n"
       "www-authenticate: Fake realm=\"FooBar\"\n",
 
-      // Fake is the only challenge type, but it is unsupported.
-      "",
+      HttpAuth::AUTH_SCHEME_MAX,
       "",
     },
     {
+      // Pick Digest over Basic.
       "www-authenticate: Basic realm=\"FooBar\"\n"
       "www-authenticate: Fake realm=\"FooBar\"\n"
       "www-authenticate: nonce=\"aaaaaaaaaa\"\n"
       "www-authenticate: Digest realm=\"DigestRealm\", nonce=\"aaaaaaaaaa\"\n",
 
-      // Pick Digset over Basic
-      "digest",
+      HttpAuth::AUTH_SCHEME_DIGEST,
       "DigestRealm",
     },
     {
+      // Handle an empty header correctly.
       "Y: Digest realm=\"X\", nonce=\"aaaaaaaaaa\"\n"
       "www-authenticate:\n",
 
-      // Handle null header value.
-      "",
+      HttpAuth::AUTH_SCHEME_MAX,
       "",
     },
     {
-      "WWW-Authenticate: Negotiate\n"
-      "WWW-Authenticate: NTLM\n",
-
+      // Choose Negotiate over NTLM on all platforms.
       // TODO(ahendrickson): This may be flaky on Linux and OSX as it
       // relies on being able to load one of the known .so files
       // for gssapi.
-      "negotiate",
+      "WWW-Authenticate: Negotiate\n"
+      "WWW-Authenticate: NTLM\n",
+
+      HttpAuth::AUTH_SCHEME_NEGOTIATE,
       "",
     }
   };
   GURL origin("http://www.example.com");
-  std::set<std::string> disabled_schemes;
+  std::set<HttpAuth::Scheme> disabled_schemes;
   URLSecurityManagerAllow url_security_manager;
   scoped_ptr<HostResolver> host_resolver(new MockHostResolver());
   scoped_ptr<HttpAuthHandlerRegistryFactory> http_auth_handler_factory(
@@ -138,10 +139,10 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
                                   &handler);
 
     if (handler.get()) {
-      EXPECT_STREQ(tests[i].challenge_scheme, handler->scheme().c_str());
+      EXPECT_EQ(tests[i].challenge_scheme, handler->auth_scheme());
       EXPECT_STREQ(tests[i].challenge_realm, handler->realm().c_str());
     } else {
-      EXPECT_STREQ("", tests[i].challenge_scheme);
+      EXPECT_EQ(HttpAuth::AUTH_SCHEME_MAX, tests[i].challenge_scheme);
       EXPECT_STREQ("", tests[i].challenge_realm);
     }
   }

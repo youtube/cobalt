@@ -614,7 +614,8 @@ int SocketStream::DoWriteTunnelHeaders() {
     // Support basic authentication scheme only, because we don't have
     // HttpRequestInfo.
     // TODO(ukai): Add support other authentication scheme.
-    if (auth_handler_.get() && auth_handler_->scheme() == "basic") {
+    if (auth_handler_.get() &&
+        auth_handler_->auth_scheme() == HttpAuth::AUTH_SCHEME_BASIC) {
       HttpRequestInfo request_info;
       std::string auth_token;
       int rv = auth_handler_->GenerateAuthToken(
@@ -749,7 +750,8 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
         auth_info_->is_proxy = true;
         auth_info_->host_and_port =
             ASCIIToWide(proxy_info_.proxy_server().host_port_pair().ToString());
-        auth_info_->scheme = ASCIIToWide(auth_handler_->scheme());
+        auth_info_->scheme = ASCIIToWide(
+            HttpAuth::SchemeToString(auth_handler_->auth_scheme()));
         auth_info_->realm = ASCIIToWide(auth_handler_->realm());
         // Wait until RestartWithAuth or Close is called.
         MessageLoop::current()->PostTask(
@@ -944,7 +946,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
     if (auth_identity_.source != HttpAuth::IDENT_SRC_PATH_LOOKUP)
       auth_cache_.Remove(auth_origin,
                          auth_handler_->realm(),
-                         auth_handler_->scheme(),
+                         auth_handler_->auth_scheme(),
                          auth_identity_.username,
                          auth_identity_.password);
     auth_handler_.reset();
@@ -952,7 +954,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
   }
 
   auth_identity_.invalid = true;
-  std::set<std::string> disabled_schemes;
+  std::set<HttpAuth::Scheme> disabled_schemes;
   HttpAuth::ChooseBestChallenge(http_auth_handler_factory_, headers,
                                 HttpAuth::AUTH_PROXY,
                                 auth_origin, disabled_schemes,
@@ -964,8 +966,8 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
   if (auth_handler_->NeedsIdentity()) {
     // We only support basic authentication scheme now.
     // TODO(ukai): Support other authentication scheme.
-    HttpAuthCache::Entry* entry =
-      auth_cache_.Lookup(auth_origin, auth_handler_->realm(), "basic");
+    HttpAuthCache::Entry* entry = auth_cache_.Lookup(
+        auth_origin, auth_handler_->realm(), HttpAuth::AUTH_SCHEME_BASIC);
     if (entry) {
       auth_identity_.source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
       auth_identity_.invalid = false;
@@ -991,7 +993,7 @@ void SocketStream::DoRestartWithAuth() {
   DCHECK_EQ(next_state_, STATE_AUTH_REQUIRED);
   auth_cache_.Add(ProxyAuthOrigin(),
                   auth_handler_->realm(),
-                  auth_handler_->scheme(),
+                  auth_handler_->auth_scheme(),
                   auth_handler_->challenge(),
                   auth_identity_.username,
                   auth_identity_.password,

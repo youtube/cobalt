@@ -93,8 +93,7 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
 }
 
 bool HttpAuthHandlerNTLM::Init(HttpAuth::ChallengeTokenizer* tok) {
-  auth_scheme_ = AUTH_SCHEME_NTLM;
-  scheme_ = "ntlm";
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_NTLM;
   score_ = 3;
   properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
 
