@@ -49,9 +49,7 @@
 
 #include "base/base64.h"
 #include "base/logging.h"
-#include "base/nss_util_internal.h"
 #include "base/nss_util.h"
-#include "base/string_util.h"
 #include "googleurl/src/gurl.h"
 
 namespace {
@@ -97,13 +95,13 @@ namespace mozilla_security_manager {
 std::string GenKeyAndSignChallenge(int key_size_in_bits,
                                    const std::string& challenge,
                                    const GURL& url,
+                                   PK11SlotInfo* slot,
                                    bool stores_key) {
   // Key pair generation mechanism - only RSA is supported at present.
   PRUint32 keyGenMechanism = CKM_RSA_PKCS_KEY_PAIR_GEN;  // from nss/pkcs11t.h
 
   // Temporary structures used for generating the result
   // in the right format.
-  PK11SlotInfo *slot = NULL;
   PK11RSAGenParams rsaKeyGenParams;  // Keygen parameters.
   SECOidTag algTag;  // used by SEC_DerSignData().
   SECKEYPrivateKey *privateKey = NULL;
@@ -120,16 +118,6 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
 
   std::string result_blob;  // the result.
 
-  // Ensure NSS is initialized.
-  base::EnsureNSSInit();
-
-  slot = base::GetDefaultNSSKeySlot();
-  if (!slot) {
-    LOG(ERROR) << "Couldn't get Internal key slot!";
-    isSuccess = false;
-    goto failure;
-  }
-
   switch (keyGenMechanism) {
     case CKM_RSA_PKCS_KEY_PAIR_GEN:
       rsaKeyGenParams.keySizeInBits = key_size_in_bits;
@@ -144,15 +132,6 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
       LOG(ERROR) << "Only RSA keygen mechanism is supported";
       isSuccess = false;
       goto failure;
-  }
-
-  // Need to make sure that the token was initialized.
-  // Assume a null password.
-  sec_rv = PK11_Authenticate(slot, PR_TRUE, NULL);
-  if (SECSuccess != sec_rv) {
-    LOG(ERROR) << "Couldn't initialze PK11 token!";
-    isSuccess = false;
-    goto failure;
   }
 
   VLOG(1) << "Creating key pair...";
@@ -274,9 +253,6 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
   }
   if (arena) {
     PORT_FreeArena(arena, PR_TRUE);
-  }
-  if (slot != NULL) {
-    PK11_FreeSlot(slot);
   }
 
   return (isSuccess ? result_blob : std::string());
