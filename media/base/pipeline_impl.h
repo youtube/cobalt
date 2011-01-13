@@ -126,9 +126,6 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Simple method used to make sure the pipeline is running normally.
   bool IsPipelineOk();
 
-  // Helper method to tell whether we are in the state of initializing.
-  bool IsPipelineInitializing();
-
   // Helper method to tell whether we are stopped or in error.
   bool IsPipelineStopped();
 
@@ -293,6 +290,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Whether or not the pipeline is perform a stop operation.
   bool tearing_down_;
+
+  // Whether or not an error triggered the teardown.
+  bool error_caused_teardown_;
 
   // Duration of the media in microseconds.  Set by filters.
   base::TimeDelta duration_;
