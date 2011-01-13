@@ -28,6 +28,8 @@ std::string TrimEndingDot(const std::string& host);
 
 // DNS resource record types. See
 // http://www.iana.org/assignments/dns-parameters
+// WARNING: if you're adding any new values here you may need to add them to
+// dnsrr_resolver.cc:DnsRRIsParsedByWindows.
 
 static const uint16 kDNS_CNAME = 5;
 static const uint16 kDNS_TXT = 16;
