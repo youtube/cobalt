@@ -197,7 +197,7 @@ TEST_F(URLRequestTestHTTP, ProxyTunnelRedirectTest) {
 
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
+    EXPECT_EQ(net::URLRequestStatus::FAILED, r.status().status());
     EXPECT_EQ(net::ERR_TUNNEL_CONNECTION_FAILED, r.status().os_error());
     EXPECT_EQ(1, d.response_started_count());
     // We should not have followed the redirect.
@@ -222,7 +222,7 @@ TEST_F(URLRequestTestHTTP, UnexpectedServerAuthTest) {
 
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
+    EXPECT_EQ(net::URLRequestStatus::FAILED, r.status().status());
     EXPECT_EQ(net::ERR_TUNNEL_CONNECTION_FAILED, r.status().os_error());
   }
 }
@@ -475,7 +475,7 @@ TEST_F(URLRequestTestHTTP, CancelTest2) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_EQ(0, d.bytes_received());
     EXPECT_FALSE(d.received_data_before_response());
-    EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
+    EXPECT_EQ(net::URLRequestStatus::CANCELED, r.status().status());
   }
 }
 
@@ -499,7 +499,7 @@ TEST_F(URLRequestTestHTTP, CancelTest3) {
     // or it could have been all the bytes.
     // EXPECT_EQ(0, d.bytes_received());
     EXPECT_FALSE(d.received_data_before_response());
-    EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
+    EXPECT_EQ(net::URLRequestStatus::CANCELED, r.status().status());
   }
 }
 
@@ -540,7 +540,7 @@ TEST_F(URLRequestTestHTTP, CancelTest5) {
     r.set_context(context);
     r.Start();
     MessageLoop::current()->Run();
-    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
+    EXPECT_EQ(net::URLRequestStatus::SUCCESS, r.status().status());
   }
 
   // cancel read from cache (see bug 990242)
@@ -552,7 +552,7 @@ TEST_F(URLRequestTestHTTP, CancelTest5) {
     r.Cancel();
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
+    EXPECT_EQ(net::URLRequestStatus::CANCELED, r.status().status());
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_EQ(0, d.bytes_received());
     EXPECT_FALSE(d.received_data_before_response());
@@ -1031,7 +1031,7 @@ TEST_F(URLRequestTestHTTP, RestrictRedirects) {
   req.Start();
   MessageLoop::current()->Run();
 
-  EXPECT_EQ(URLRequestStatus::FAILED, req.status().status());
+  EXPECT_EQ(net::URLRequestStatus::FAILED, req.status().status());
   EXPECT_EQ(net::ERR_UNSAFE_REDIRECT, req.status().os_error());
 }
 
@@ -1044,7 +1044,7 @@ TEST_F(URLRequestTestHTTP, RedirectToInvalidURL) {
   req.Start();
   MessageLoop::current()->Run();
 
-  EXPECT_EQ(URLRequestStatus::FAILED, req.status().status());
+  EXPECT_EQ(net::URLRequestStatus::FAILED, req.status().status());
   EXPECT_EQ(net::ERR_INVALID_URL, req.status().os_error());
 }
 
@@ -1075,7 +1075,7 @@ TEST_F(URLRequestTestHTTP, CancelRedirect) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_EQ(0, d.bytes_received());
     EXPECT_FALSE(d.received_data_before_response());
-    EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+    EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
   }
 }
 
@@ -1097,7 +1097,7 @@ TEST_F(URLRequestTestHTTP, DeferredRedirect) {
 
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
-    EXPECT_EQ(URLRequestStatus::SUCCESS, req.status().status());
+    EXPECT_EQ(net::URLRequestStatus::SUCCESS, req.status().status());
 
     FilePath path;
     PathService::Get(base::DIR_SOURCE_ROOT, &path);
@@ -1131,7 +1131,7 @@ TEST_F(URLRequestTestHTTP, CancelDeferredRedirect) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_EQ(0, d.bytes_received());
     EXPECT_FALSE(d.received_data_before_response());
-    EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+    EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
   }
 }
 
@@ -1678,7 +1678,7 @@ TEST_F(URLRequestTest, CancelTest_During_OnGetCookies) {
 
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+    EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
 
     EXPECT_EQ(1, d.blocked_get_cookies_count());
     EXPECT_EQ(0, d.blocked_set_cookie_count());
@@ -1707,7 +1707,7 @@ TEST_F(URLRequestTest, CancelTest_During_OnSetCookie) {
 
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+    EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
 
     // Even though the response will contain 3 set-cookie headers, we expect
     // only one to be blocked as that first one will cause OnSetCookie to be
@@ -2192,7 +2192,7 @@ TEST_F(URLRequestTest, InterceptRespectsCancelMain) {
 
   // Check we see a canceled request
   EXPECT_FALSE(req.status().is_success());
-  EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+  EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
 }
 
 TEST_F(URLRequestTest, InterceptRespectsCancelRedirect) {
@@ -2224,7 +2224,7 @@ TEST_F(URLRequestTest, InterceptRespectsCancelRedirect) {
 
   // Check we see a canceled request
   EXPECT_FALSE(req.status().is_success());
-  EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+  EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
 }
 
 TEST_F(URLRequestTest, InterceptRespectsCancelFinal) {
@@ -2248,7 +2248,7 @@ TEST_F(URLRequestTest, InterceptRespectsCancelFinal) {
 
   // Check we see a canceled request
   EXPECT_FALSE(req.status().is_success());
-  EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+  EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
 }
 
 TEST_F(URLRequestTest, InterceptRespectsCancelInRestart) {
@@ -2274,7 +2274,7 @@ TEST_F(URLRequestTest, InterceptRespectsCancelInRestart) {
 
   // Check we see a canceled request
   EXPECT_FALSE(req.status().is_success());
-  EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+  EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
 }
 
 class URLRequestTestFTP : public URLRequestTest {
