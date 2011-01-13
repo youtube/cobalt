@@ -54,6 +54,8 @@
         'base/cookie_policy.h',
         'base/cookie_store.cc',
         'base/cookie_store.h',
+        'base/crypto_module.h',
+        'base/crypto_module_nss.cc',
         'base/data_url.cc',
         'base/data_url.h',
         'base/directory_lister.cc',
@@ -96,6 +98,7 @@
         'base/host_resolver_proc.h',
         'base/io_buffer.cc',
         'base/io_buffer.h',
+        'base/keygen_handler.cc',
         'base/keygen_handler.h',
         'base/keygen_handler_mac.cc',
         'base/keygen_handler_nss.cc',
@@ -257,6 +260,7 @@
           {  # else: OS is not in the above list
             'sources!': [
               'base/cert_database_nss.cc',
+              'base/crypto_module_nss.cc',
               'base/keygen_handler_nss.cc',
               'base/test_root_certs_nss.cc',
               'base/x509_certificate_nss.cc',
@@ -274,6 +278,7 @@
         [ 'use_openssl==1', {
             'sources!': [
               'base/cert_database_nss.cc',
+              'base/crypto_module_nss.cc',
               'base/dnssec_keyset.cc',
               'base/dnssec_keyset.h',
               'base/keygen_handler_nss.cc',

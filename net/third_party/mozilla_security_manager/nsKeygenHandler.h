@@ -43,6 +43,7 @@
 #include <string>
 
 class GURL;
+typedef struct PK11SlotInfoStr PK11SlotInfo;
 
 namespace mozilla_security_manager {
 
@@ -55,10 +56,12 @@ namespace mozilla_security_manager {
 //   key_size_in_bits: key size in bits (usually 2048)
 //   challenge: challenge string sent by server
 //   url: the URL which requested the SPKAC
+//   slot: a slot to generate the key in, should be authenticated
 //   stores_key: should the generated key pair be stored persistently?
 std::string GenKeyAndSignChallenge(int key_size_in_bits,
                                    const std::string& challenge,
                                    const GURL& url,
+                                   PK11SlotInfo* slot,
                                    bool stores_key);
 
 }  // namespace mozilla_security_manager

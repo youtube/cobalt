@@ -12,7 +12,9 @@
 
 #include "base/logging.h"
 #include "base/nss_util.h"
+#include "base/nss_util_internal.h"
 #include "base/scoped_ptr.h"
+#include "net/base/crypto_module.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 #include "net/third_party/mozilla_security_manager/nsNSSCertificateDB.h"
@@ -106,9 +108,23 @@ void CertDatabase::ListCerts(CertificateList* certs) {
   CERT_DestroyCertList(cert_list);
 }
 
+CryptoModule* CertDatabase::GetDefaultModule() const {
+  CryptoModule* module =
+      CryptoModule::CreateFromHandle(base::GetDefaultNSSKeySlot());
+  // The module is already referenced when returned from GetDefaultNSSKeymodule,
+  // so we need to deref it once.
+  PK11_FreeSlot(module->os_module_handle());
+
+  return module;
+}
+
 int CertDatabase::ImportFromPKCS12(
-    const std::string& data, const string16& password) {
-  return psm::nsPKCS12Blob_Import(data.data(), data.size(), password);
+    net::CryptoModule* module,
+    const std::string& data,
+    const string16& password) {
+  return psm::nsPKCS12Blob_Import(module->os_module_handle(),
+                                  data.data(), data.size(),
+                                  password);
 }
 
 int CertDatabase::ExportToPKCS12(

@@ -45,6 +45,7 @@
 #include "base/ref_counted.h"
 
 typedef struct CERTCertificateStr CERTCertificate;
+typedef struct PK11SlotInfoStr PK11SlotInfo;
 namespace net {
 class X509Certificate;
 typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
@@ -55,9 +56,10 @@ namespace mozilla_security_manager {
 // Initialize NSS PKCS#12 libs.
 void EnsurePKCS12Init();
 
-// Import certificate from PKCS#12 blob.
+// Import certificate from PKCS#12 blob into the slot.
 // Returns a net error code.
-int nsPKCS12Blob_Import(const char* pkcs12_data,
+int nsPKCS12Blob_Import(PK11SlotInfo* slot,
+                        const char* pkcs12_data,
                         size_t pkcs12_len,
                         const string16& password);
 

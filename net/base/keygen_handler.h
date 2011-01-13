@@ -8,7 +8,15 @@
 
 #include <string>
 
+#include "base/scoped_ptr.h"
+#include "build/build_config.h"
 #include "googleurl/src/gurl.h"
+
+#if defined(USE_NSS)
+namespace base {
+class PK11BlockingPasswordDelegate;
+};
+#endif  // defined(USE_NSS)
 
 namespace net {
 
@@ -22,9 +30,10 @@ class KeygenHandler {
   // Creates a handler that will generate a key with the given key size and
   // incorporate the |challenge| into the Netscape SPKAC structure. The request
   // for the key originated from |url|.
-  inline KeygenHandler(int key_size_in_bits,
-                       const std::string& challenge,
-                       const GURL& url);
+  KeygenHandler(int key_size_in_bits,
+                const std::string& challenge,
+                const GURL& url);
+  ~KeygenHandler();
 
   // Actually generates the key-pair and the cert request (SPKAC), and returns
   // a base64-encoded string suitable for use as the form value of <keygen>.
@@ -33,21 +42,24 @@ class KeygenHandler {
   // Exposed only for unit tests.
   void set_stores_key(bool store) { stores_key_ = store;}
 
+#if defined(USE_NSS)
+  // Register the password delegate to be used if the token is unauthenticated.
+  // GenKeyAndSignChallenge runs on a worker thread, so using the blocking
+  // password callback is okay here.
+  // Takes ownership of the delegate.
+  void set_pk11_password_delegate(base::PK11BlockingPasswordDelegate* delegate);
+#endif  // defined(USE_NSS)
+
  private:
   int key_size_in_bits_;  // key size in bits (usually 2048)
   std::string challenge_;  // challenge string sent by server
   GURL url_;  // the URL that requested the key
   bool stores_key_;  // should the generated key-pair be stored persistently?
+#if defined(USE_NSS)
+  // The callback for requesting a password to the PKCS#11 token.
+  scoped_ptr<base::PK11BlockingPasswordDelegate> pk11_password_delegate_;
+#endif  // defined(USE_NSS)
 };
-
-KeygenHandler::KeygenHandler(int key_size_in_bits,
-                             const std::string& challenge,
-                             const GURL& url)
-    : key_size_in_bits_(key_size_in_bits),
-      challenge_(challenge),
-      url_(url),
-      stores_key_(true) {
-}
 
 }  // namespace net
 
