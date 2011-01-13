@@ -917,7 +917,7 @@ scoped_refptr<SSLSocketParams> HttpStreamRequest::GenerateSSLParams(
     // ERR_BAD_SSL_CLIENT_AUTH_CERT).
     // TODO(rch): This assumes that the HTTPS proxy will only request a
     // client certificate during the initial handshake.
-    // http://crbug.com/FIXME
+    // http://crbug.com/59292
     ssl_config()->false_start_enabled = false;
   }
 
@@ -1009,7 +1009,7 @@ int HttpStreamRequest::ReconsiderProxyAfterError(int error) {
     return error;
   }
 
-  if (proxy_info()->is_https() && ssl_config_->send_client_cert) {
+  if (proxy_info()->is_https() && ssl_config()->send_client_cert) {
     session_->ssl_client_auth_cache()->Remove(
         proxy_info()->proxy_server().host_port_pair().ToString());
   }
