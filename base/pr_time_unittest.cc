@@ -136,7 +136,7 @@ TEST_F(PRTimeTest, ParseTimeTest9) {
 TEST_F(PRTimeTest, ParseTimeTest10) {
   Time parsed_time;
   bool result = Time::FromString(L"15/10/07 12:45", &parsed_time);
-  EXPECT_EQ(true, result);
+  EXPECT_TRUE(result);
 
   time_t computed_time = parsed_time.ToTimeT();
   time_t time_to_compare = comparison_time_local_ /
@@ -149,7 +149,7 @@ TEST_F(PRTimeTest, ParseTimeTest11) {
   Time parsed_time;
   bool result = Time::FromString(L"Mon, 15 Oct 2007 19:45:00 GMT",
                                  &parsed_time);
-  EXPECT_EQ(true, result);
+  EXPECT_TRUE(result);
 
   time_t computed_time = parsed_time.ToTimeT();
   time_t time_to_compare = comparison_time_pdt / Time::kMicrosecondsPerSecond;
@@ -161,11 +161,11 @@ TEST_F(PRTimeTest, ParseTimeTestEpoch0) {
   Time parsed_time;
 
   // time_t == epoch == 0
-  EXPECT_EQ(true, Time::FromString(L"Thu Jan 01 01:00:00 +0100 1970",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Thu Jan 01 01:00:00 +0100 1970",
+                               &parsed_time));
   EXPECT_EQ(0, parsed_time.ToTimeT());
-  EXPECT_EQ(true, Time::FromString(L"Thu Jan 01 00:00:00 GMT 1970",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Thu Jan 01 00:00:00 GMT 1970",
+                               &parsed_time));
   EXPECT_EQ(0, parsed_time.ToTimeT());
 }
 
@@ -173,11 +173,11 @@ TEST_F(PRTimeTest, ParseTimeTestEpoch1) {
   Time parsed_time;
 
   // time_t == 1 second after epoch == 1
-  EXPECT_EQ(true, Time::FromString(L"Thu Jan 01 01:00:01 +0100 1970",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Thu Jan 01 01:00:01 +0100 1970",
+                               &parsed_time));
   EXPECT_EQ(1, parsed_time.ToTimeT());
-  EXPECT_EQ(true, Time::FromString(L"Thu Jan 01 00:00:01 GMT 1970",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Thu Jan 01 00:00:01 GMT 1970",
+                               &parsed_time));
   EXPECT_EQ(1, parsed_time.ToTimeT());
 }
 
@@ -185,11 +185,11 @@ TEST_F(PRTimeTest, ParseTimeTestEpoch2) {
   Time parsed_time;
 
   // time_t == 2 seconds after epoch == 2
-  EXPECT_EQ(true, Time::FromString(L"Thu Jan 01 01:00:02 +0100 1970",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Thu Jan 01 01:00:02 +0100 1970",
+                               &parsed_time));
   EXPECT_EQ(2, parsed_time.ToTimeT());
-  EXPECT_EQ(true, Time::FromString(L"Thu Jan 01 00:00:02 GMT 1970",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Thu Jan 01 00:00:02 GMT 1970",
+                               &parsed_time));
   EXPECT_EQ(2, parsed_time.ToTimeT());
 }
 
@@ -197,11 +197,11 @@ TEST_F(PRTimeTest, ParseTimeTestEpochNeg1) {
   Time parsed_time;
 
   // time_t == 1 second before epoch == -1
-  EXPECT_EQ(true, Time::FromString(L"Thu Jan 01 00:59:59 +0100 1970",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Thu Jan 01 00:59:59 +0100 1970",
+                               &parsed_time));
   EXPECT_EQ(-1, parsed_time.ToTimeT());
-  EXPECT_EQ(true, Time::FromString(L"Wed Dec 31 23:59:59 GMT 1969",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Wed Dec 31 23:59:59 GMT 1969",
+                               &parsed_time));
   EXPECT_EQ(-1, parsed_time.ToTimeT());
 }
 
@@ -211,8 +211,8 @@ TEST_F(PRTimeTest, ParseTimeTestEpochNeg1) {
 TEST_F(PRTimeTest, ParseTimeTestEpochNotNeg1) {
   Time parsed_time;
 
-  EXPECT_EQ(true, Time::FromString(L"Wed Dec 31 23:59:59 GMT 2100",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Wed Dec 31 23:59:59 GMT 2100",
+                               &parsed_time));
   EXPECT_NE(-1, parsed_time.ToTimeT());
 }
 
@@ -220,11 +220,11 @@ TEST_F(PRTimeTest, ParseTimeTestEpochNeg2) {
   Time parsed_time;
 
   // time_t == 2 seconds before epoch == -2
-  EXPECT_EQ(true, Time::FromString(L"Thu Jan 01 00:59:58 +0100 1970",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Thu Jan 01 00:59:58 +0100 1970",
+                               &parsed_time));
   EXPECT_EQ(-2, parsed_time.ToTimeT());
-  EXPECT_EQ(true, Time::FromString(L"Wed Dec 31 23:59:58 GMT 1969",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Wed Dec 31 23:59:58 GMT 1969",
+                               &parsed_time));
   EXPECT_EQ(-2, parsed_time.ToTimeT());
 }
 
@@ -232,14 +232,14 @@ TEST_F(PRTimeTest, ParseTimeTestEpoch1960) {
   Time parsed_time;
 
   // time_t before Epoch, in 1960
-  EXPECT_EQ(true, Time::FromString(L"Wed Jun 29 19:40:01 +0100 1960",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Wed Jun 29 19:40:01 +0100 1960",
+                               &parsed_time));
   EXPECT_EQ(-299999999, parsed_time.ToTimeT());
-  EXPECT_EQ(true, Time::FromString(L"Wed Jun 29 18:40:01 GMT 1960",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Wed Jun 29 18:40:01 GMT 1960",
+                               &parsed_time));
   EXPECT_EQ(-299999999, parsed_time.ToTimeT());
-  EXPECT_EQ(true, Time::FromString(L"Wed Jun 29 17:40:01 GMT 1960",
-                                   &parsed_time));
+  EXPECT_TRUE(Time::FromString(L"Wed Jun 29 17:40:01 GMT 1960",
+                               &parsed_time));
   EXPECT_EQ(-300003599, parsed_time.ToTimeT());
 }
 
