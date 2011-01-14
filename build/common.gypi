@@ -1136,13 +1136,8 @@
           }],
           ['clang==1', {
             'cflags': [
-              # Don't warn about unused variables, due to a common pattern:
-              #   scoped_deleter unused_variable(&thing_to_delete);
-              '-Wno-unused-variable',
               # Clang spots more unused functions.
               '-Wno-unused-function',
-              # gtest confuses clang.
-              '-Wno-bool-conversions',
               # Don't die on dtoa code that uses a char as an array index.
               '-Wno-char-subscripts',
               # Survive EXPECT_EQ(unnamed_enum, unsigned int) -- see
