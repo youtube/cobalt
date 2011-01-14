@@ -45,7 +45,6 @@ class EventInjector {
   bool HandleCheck() {
     if (events_.empty())
       return false;
-    Event event = events_[0];
     return events_[0].time <= base::Time::NowFromSystemTime();
   }
 
