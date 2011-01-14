@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,136 +14,7 @@
 namespace base {
 namespace win {
 
-RegistryValueIterator::RegistryValueIterator(HKEY root_key,
-                                             const wchar_t* folder_key) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
-  LONG result = RegOpenKeyEx(root_key, folder_key, 0, KEY_READ, &key_);
-  if (result != ERROR_SUCCESS) {
-    key_ = NULL;
-  } else {
-    DWORD count = 0;
-    result = ::RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL, &count,
-                               NULL, NULL, NULL, NULL);
-
-    if (result != ERROR_SUCCESS) {
-      ::RegCloseKey(key_);
-      key_ = NULL;
-    } else {
-      index_ = count - 1;
-    }
-  }
-
-  Read();
-}
-
-RegistryValueIterator::~RegistryValueIterator() {
-  base::ThreadRestrictions::AssertIOAllowed();
-  if (key_)
-    ::RegCloseKey(key_);
-}
-
-bool RegistryValueIterator::Valid() const {
-  return key_ != NULL && index_ >= 0;
-}
-
-void RegistryValueIterator::operator++() {
-  --index_;
-  Read();
-}
-
-bool RegistryValueIterator::Read() {
-  base::ThreadRestrictions::AssertIOAllowed();
-  if (Valid()) {
-    DWORD ncount = arraysize(name_);
-    value_size_ = sizeof(value_);
-    LRESULT r = ::RegEnumValue(key_, index_, name_, &ncount, NULL, &type_,
-                               reinterpret_cast<BYTE*>(value_), &value_size_);
-    if (ERROR_SUCCESS == r)
-      return true;
-  }
-
-  name_[0] = '\0';
-  value_[0] = '\0';
-  value_size_ = 0;
-  return false;
-}
-
-DWORD RegistryValueIterator::ValueCount() const {
-  base::ThreadRestrictions::AssertIOAllowed();
-  DWORD count = 0;
-  HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL,
-                                     &count, NULL, NULL, NULL, NULL);
-
-  if (result != ERROR_SUCCESS)
-    return 0;
-
-  return count;
-}
-
-RegistryKeyIterator::RegistryKeyIterator(HKEY root_key,
-                                         const wchar_t* folder_key) {
-  base::ThreadRestrictions::AssertIOAllowed();
-  LONG result = RegOpenKeyEx(root_key, folder_key, 0, KEY_READ, &key_);
-  if (result != ERROR_SUCCESS) {
-    key_ = NULL;
-  } else {
-    DWORD count = 0;
-    HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
-                                       NULL, NULL, NULL, NULL, NULL);
-
-    if (result != ERROR_SUCCESS) {
-      ::RegCloseKey(key_);
-      key_ = NULL;
-    } else {
-      index_ = count - 1;
-    }
-  }
-
-  Read();
-}
-
-RegistryKeyIterator::~RegistryKeyIterator() {
-  base::ThreadRestrictions::AssertIOAllowed();
-  if (key_)
-    ::RegCloseKey(key_);
-}
-
-bool RegistryKeyIterator::Valid() const {
-  return key_ != NULL && index_ >= 0;
-}
-
-void RegistryKeyIterator::operator++() {
-  --index_;
-  Read();
-}
-
-bool RegistryKeyIterator::Read() {
-  base::ThreadRestrictions::AssertIOAllowed();
-  if (Valid()) {
-    DWORD ncount = arraysize(name_);
-    FILETIME written;
-    LRESULT r = ::RegEnumKeyEx(key_, index_, name_, &ncount, NULL, NULL,
-                               NULL, &written);
-    if (ERROR_SUCCESS == r)
-      return true;
-  }
-
-  name_[0] = '\0';
-  return false;
-}
-
-DWORD RegistryKeyIterator::SubkeyCount() const {
-  base::ThreadRestrictions::AssertIOAllowed();
-  DWORD count = 0;
-  HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
-                                     NULL, NULL, NULL, NULL, NULL);
-
-  if (result != ERROR_SUCCESS)
-    return 0;
-
-  return count;
-}
+// RegKey ----------------------------------------------------------------------
 
 RegKey::RegKey()
     : key_(NULL),
@@ -166,15 +37,6 @@ RegKey::RegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access)
 
 RegKey::~RegKey() {
   Close();
-}
-
-void RegKey::Close() {
-  base::ThreadRestrictions::AssertIOAllowed();
-  StopWatching();
-  if (key_) {
-    ::RegCloseKey(key_);
-    key_ = NULL;
-  }
 }
 
 bool RegKey::Create(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
@@ -244,6 +106,15 @@ bool RegKey::OpenKey(const wchar_t* name, REGSAM access) {
   return (result == ERROR_SUCCESS);
 }
 
+void RegKey::Close() {
+  base::ThreadRestrictions::AssertIOAllowed();
+  StopWatching();
+  if (key_) {
+    ::RegCloseKey(key_);
+    key_ = NULL;
+  }
+}
+
 DWORD RegKey::ValueCount() const {
   base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
@@ -263,6 +134,23 @@ bool RegKey::ReadName(int index, std::wstring* name) const {
   if (name)
     *name = buf;
   return true;
+}
+
+bool RegKey::DeleteKey(const wchar_t* name) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (!key_)
+    return false;
+  LSTATUS ret = SHDeleteKey(key_, name);
+  if (ERROR_SUCCESS != ret)
+    SetLastError(ret);
+  return ERROR_SUCCESS == ret;
+}
+
+bool RegKey::DeleteValue(const wchar_t* value_name) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  DCHECK(value_name);
+  HRESULT result = RegDeleteValue(key_, value_name);
+  return (result == ERROR_SUCCESS);
 }
 
 bool RegKey::ValueExists(const wchar_t* name) {
@@ -355,23 +243,6 @@ bool RegKey::WriteValue(const wchar_t* name, DWORD value) {
       static_cast<DWORD>(sizeof(value)), REG_DWORD);
 }
 
-bool RegKey::DeleteKey(const wchar_t* name) {
-  base::ThreadRestrictions::AssertIOAllowed();
-  if (!key_)
-    return false;
-  LSTATUS ret = SHDeleteKey(key_, name);
-  if (ERROR_SUCCESS != ret)
-    SetLastError(ret);
-  return ERROR_SUCCESS == ret;
-}
-
-bool RegKey::DeleteValue(const wchar_t* value_name) {
-  base::ThreadRestrictions::AssertIOAllowed();
-  DCHECK(value_name);
-  HRESULT result = RegDeleteValue(key_, value_name);
-  return (result == ERROR_SUCCESS);
-}
-
 bool RegKey::StartWatching() {
   if (!watch_event_)
     watch_event_ = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -393,6 +264,16 @@ bool RegKey::StartWatching() {
   }
 }
 
+bool RegKey::HasChanged() {
+  if (watch_event_) {
+    if (WaitForSingleObject(watch_event_, 0) == WAIT_OBJECT_0) {
+      StartWatching();
+      return true;
+    }
+  }
+  return false;
+}
+
 bool RegKey::StopWatching() {
   if (watch_event_) {
     CloseHandle(watch_event_);
@@ -402,13 +283,138 @@ bool RegKey::StopWatching() {
   return false;
 }
 
-bool RegKey::HasChanged() {
-  if (watch_event_) {
-    if (WaitForSingleObject(watch_event_, 0) == WAIT_OBJECT_0) {
-      StartWatching();
-      return true;
+// RegistryValueIterator ------------------------------------------------------
+
+RegistryValueIterator::RegistryValueIterator(HKEY root_key,
+                                             const wchar_t* folder_key) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
+  LONG result = RegOpenKeyEx(root_key, folder_key, 0, KEY_READ, &key_);
+  if (result != ERROR_SUCCESS) {
+    key_ = NULL;
+  } else {
+    DWORD count = 0;
+    result = ::RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL, &count,
+                               NULL, NULL, NULL, NULL);
+
+    if (result != ERROR_SUCCESS) {
+      ::RegCloseKey(key_);
+      key_ = NULL;
+    } else {
+      index_ = count - 1;
     }
   }
+
+  Read();
+}
+
+RegistryValueIterator::~RegistryValueIterator() {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (key_)
+    ::RegCloseKey(key_);
+}
+
+DWORD RegistryValueIterator::ValueCount() const {
+  base::ThreadRestrictions::AssertIOAllowed();
+  DWORD count = 0;
+  HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL,
+                                     &count, NULL, NULL, NULL, NULL);
+
+  if (result != ERROR_SUCCESS)
+    return 0;
+
+  return count;
+}
+
+bool RegistryValueIterator::Valid() const {
+  return key_ != NULL && index_ >= 0;
+}
+
+void RegistryValueIterator::operator++() {
+  --index_;
+  Read();
+}
+
+bool RegistryValueIterator::Read() {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (Valid()) {
+    DWORD ncount = arraysize(name_);
+    value_size_ = sizeof(value_);
+    LRESULT r = ::RegEnumValue(key_, index_, name_, &ncount, NULL, &type_,
+                               reinterpret_cast<BYTE*>(value_), &value_size_);
+    if (ERROR_SUCCESS == r)
+      return true;
+  }
+
+  name_[0] = '\0';
+  value_[0] = '\0';
+  value_size_ = 0;
+  return false;
+}
+
+// RegistryKeyIterator --------------------------------------------------------
+
+RegistryKeyIterator::RegistryKeyIterator(HKEY root_key,
+                                         const wchar_t* folder_key) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  LONG result = RegOpenKeyEx(root_key, folder_key, 0, KEY_READ, &key_);
+  if (result != ERROR_SUCCESS) {
+    key_ = NULL;
+  } else {
+    DWORD count = 0;
+    HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
+                                       NULL, NULL, NULL, NULL, NULL);
+
+    if (result != ERROR_SUCCESS) {
+      ::RegCloseKey(key_);
+      key_ = NULL;
+    } else {
+      index_ = count - 1;
+    }
+  }
+
+  Read();
+}
+
+RegistryKeyIterator::~RegistryKeyIterator() {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (key_)
+    ::RegCloseKey(key_);
+}
+
+DWORD RegistryKeyIterator::SubkeyCount() const {
+  base::ThreadRestrictions::AssertIOAllowed();
+  DWORD count = 0;
+  HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
+                                     NULL, NULL, NULL, NULL, NULL);
+
+  if (result != ERROR_SUCCESS)
+    return 0;
+
+  return count;
+}
+
+bool RegistryKeyIterator::Valid() const {
+  return key_ != NULL && index_ >= 0;
+}
+
+void RegistryKeyIterator::operator++() {
+  --index_;
+  Read();
+}
+
+bool RegistryKeyIterator::Read() {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (Valid()) {
+    DWORD ncount = arraysize(name_);
+    FILETIME written;
+    LRESULT r = ::RegEnumKeyEx(key_, index_, name_, &ncount, NULL, NULL,
+                               NULL, &written);
+    if (ERROR_SUCCESS == r)
+      return true;
+  }
+
+  name_[0] = '\0';
   return false;
 }
 
