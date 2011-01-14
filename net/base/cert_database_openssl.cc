@@ -40,7 +40,14 @@ void CertDatabase::ListCerts(CertificateList* certs) {
   NOTIMPLEMENTED();
 }
 
-int CertDatabase::ImportFromPKCS12(const std::string& data,
+CryptoModule* CertDatabase::GetDefaultModule() const {
+  // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+int CertDatabase::ImportFromPKCS12(net::CryptoModule* module,
+                                   const std::string& data,
                                    const string16& password) {
   // TODO(bulach): implement me.
   NOTIMPLEMENTED();
