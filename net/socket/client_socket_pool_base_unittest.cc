@@ -2928,6 +2928,13 @@ TEST_F(ClientSocketPoolBaseTest, RequestSocketsSynchronousError) {
                         BoundNetLog());
 
   ASSERT_FALSE(pool_->HasGroup("a"));
+
+  connect_job_factory_->set_job_type(
+      TestConnectJob::kMockAdditionalErrorStateJob);
+  pool_->RequestSockets("a", &params_, kDefaultMaxSocketsPerGroup,
+                        BoundNetLog());
+
+  ASSERT_FALSE(pool_->HasGroup("a"));
 }
 
 TEST_F(ClientSocketPoolBaseTest, RequestSocketsMultipleTimesDoesNothing) {
