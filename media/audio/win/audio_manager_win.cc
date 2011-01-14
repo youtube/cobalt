@@ -177,6 +177,9 @@ string16 AudioManagerWin::GetAudioInputDeviceModel() {
   waveInMessage(reinterpret_cast<HWAVEIN>(device_id),
                 DRV_QUERYDEVICEINTERFACESIZE,
                 reinterpret_cast<DWORD_PTR>(&device_interface_name_size), 0);
+  if (device_interface_name_size == 0)  // No audio capture device?
+    return string16();
+
   string16 device_interface_name;
   string16::value_type* name_ptr = WriteInto(&device_interface_name,
       device_interface_name_size / sizeof(string16::value_type));
