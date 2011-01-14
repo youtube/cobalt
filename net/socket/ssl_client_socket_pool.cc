@@ -202,10 +202,10 @@ int SSLConnectJob::DoTCPConnect() {
                                              params_->ssl_config()));
   }
 
-  if (dnsrr_resolver_)
-    ssl_host_info_->StartDnsLookup(dnsrr_resolver_);
-
   if (ssl_host_info_.get()) {
+    if (dnsrr_resolver_)
+      ssl_host_info_->StartDnsLookup(dnsrr_resolver_);
+
     // This starts fetching the SSL host info from the disk cache for Snap
     // Start.
     ssl_host_info_->Start();
