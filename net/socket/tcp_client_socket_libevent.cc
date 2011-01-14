@@ -45,6 +45,29 @@ int DisableNagle(int fd) {
   return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 }
 
+// SetTCPKeepAlive sets SO_KEEPALIVE.
+void SetTCPKeepAlive(int fd) {
+  int optval = 1;
+  socklen_t optlen = sizeof(optval);
+  if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen)) {
+    PLOG(ERROR) << "Failed to set SO_KEEPALIVE on fd: " << fd;
+    return;
+  }
+#if defined(OS_LINUX)
+  // Set seconds until first TCP keep alive.
+  optval = 45;
+  if (setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &optval, optlen)) {
+    PLOG(ERROR) << "Failed to set TCP_KEEPIDLE on fd: " << fd;
+    return;
+  }
+  // Set seconds between TCP keep alives.
+  if (setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &optval, optlen)) {
+    PLOG(ERROR) << "Failed to set TCP_KEEPINTVL on fd: " << fd;
+    return;
+  }
+#endif
+}
+
 // Convert values from <errno.h> to values from "net/base/net_errors.h"
 int MapPosixError(int os_error) {
   // There are numerous posix error codes, but these are the ones we thus far
@@ -493,6 +516,7 @@ int TCPClientSocketLibevent::SetupSocket() {
   // This mirrors the behaviour on Windows. See the comment in
   // tcp_client_socket_win.cc after searching for "NODELAY".
   DisableNagle(socket_);  // If DisableNagle fails, we don't care.
+  SetTCPKeepAlive(socket_);
 
   return 0;
 }
