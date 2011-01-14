@@ -313,9 +313,9 @@ static void TestOneNewWithoutExceptions(void* (*func)(size_t),
   try {
     void* rv = (*func)(kTooBig);
     EXPECT_EQ(NULL, rv);
-    EXPECT_EQ(false, should_throw) << "allocation should have thrown.";
+    EXPECT_FALSE(should_throw) << "allocation should have thrown.";
   } catch(...) {
-    EXPECT_EQ(true, should_throw) << "allocation threw unexpected exception.";
+    EXPECT_TRUE(should_throw) << "allocation threw unexpected exception.";
   }
 }
 
@@ -359,7 +359,7 @@ TEST(Allocators, Malloc) {
     unsigned char* ptr = reinterpret_cast<unsigned char*>(malloc(size));
     CheckAlignment(ptr, 2);  // Should be 2 byte aligned
     Fill(ptr, size);
-    EXPECT_EQ(true, Valid(ptr, size));
+    EXPECT_TRUE(Valid(ptr, size));
     free(ptr);
   }
 }
@@ -420,9 +420,9 @@ TEST(Allocators, Realloc2) {
       Fill(src, src_size);
       unsigned char* dst =
           reinterpret_cast<unsigned char*>(realloc(src, dst_size));
-      EXPECT_EQ(true, Valid(dst, min(src_size, dst_size)));
+      EXPECT_TRUE(Valid(dst, min(src_size, dst_size)));
       Fill(dst, dst_size);
-      EXPECT_EQ(true, Valid(dst, dst_size));
+      EXPECT_TRUE(Valid(dst, dst_size));
       if (dst != NULL) free(dst);
     }
   }
@@ -468,13 +468,13 @@ TEST(Allocators, Recalloc) {
     for (int dst_size = 0; dst_size >= 0; dst_size = NextSize(dst_size)) {
       unsigned char* src =
           reinterpret_cast<unsigned char*>(_recalloc(NULL, 1, src_size));
-      EXPECT_EQ(true, IsZeroed(src, src_size));
+      EXPECT_TRUE(IsZeroed(src, src_size));
       Fill(src, src_size);
       unsigned char* dst =
           reinterpret_cast<unsigned char*>(_recalloc(src, 1, dst_size));
-      EXPECT_EQ(true, Valid(dst, min(src_size, dst_size)));
+      EXPECT_TRUE(Valid(dst, min(src_size, dst_size)));
       Fill(dst, dst_size);
-      EXPECT_EQ(true, Valid(dst, dst_size));
+      EXPECT_TRUE(Valid(dst, dst_size));
       if (dst != NULL)
         free(dst);
     }

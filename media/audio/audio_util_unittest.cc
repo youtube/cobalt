@@ -22,7 +22,7 @@ TEST(AudioUtilTest, AdjustVolume_u8) {
                                        1,  // channels.
                                        sizeof(samples_u8[0]),
                                        0.5f);
-  EXPECT_EQ(true, result_u8);
+  EXPECT_TRUE(result_u8);
   int expected_test = memcmp(samples_u8, expected_u8, sizeof(expected_u8));
   EXPECT_EQ(0, expected_test);
 }
@@ -35,7 +35,7 @@ TEST(AudioUtilTest, AdjustVolume_s16) {
                                         2,  // channels.
                                         sizeof(samples_s16[0]),
                                         0.25f);
-  EXPECT_EQ(true, result_s16);
+  EXPECT_TRUE(result_s16);
   int expected_test = memcmp(samples_s16, expected_s16, sizeof(expected_s16));
   EXPECT_EQ(0, expected_test);
 }
@@ -48,7 +48,7 @@ TEST(AudioUtilTest, AdjustVolume_s16_zero) {
                                         2,  // channels.
                                         sizeof(samples_s16[0]),
                                         0.0f);
-  EXPECT_EQ(true, result_s16);
+  EXPECT_TRUE(result_s16);
   int expected_test = memcmp(samples_s16, expected_s16, sizeof(expected_s16));
   EXPECT_EQ(0, expected_test);
 }
@@ -61,7 +61,7 @@ TEST(AudioUtilTest, AdjustVolume_s16_one) {
                                         2,  // channels.
                                         sizeof(samples_s16[0]),
                                         1.0f);
-  EXPECT_EQ(true, result_s16);
+  EXPECT_TRUE(result_s16);
   int expected_test = memcmp(samples_s16, expected_s16, sizeof(expected_s16));
   EXPECT_EQ(0, expected_test);
 }
@@ -74,7 +74,7 @@ TEST(AudioUtilTest, AdjustVolume_s32) {
                                         4,  // channels.
                                         sizeof(samples_s32[0]),
                                         0.25f);
-  EXPECT_EQ(true, result_s32);
+  EXPECT_TRUE(result_s32);
   int expected_test = memcmp(samples_s32, expected_s32, sizeof(expected_s32));
   EXPECT_EQ(0, expected_test);
 }
@@ -90,7 +90,7 @@ TEST(AudioUtilTest, FoldChannels_u8) {
                                         6,  // channels.
                                         sizeof(samples_u8[0]),
                                         1.0f);
-  EXPECT_EQ(true, result_u8);
+  EXPECT_TRUE(result_u8);
   int expected_test = memcmp(samples_u8, expected_u8, sizeof(expected_u8));
   EXPECT_EQ(0, expected_test);
 }
@@ -104,7 +104,7 @@ TEST(AudioUtilTest, FoldChannels_s16) {
                                         6,  // channels.
                                         sizeof(samples_s16[0]),
                                         1.00f);
-  EXPECT_EQ(true, result_s16);
+  EXPECT_TRUE(result_s16);
   int expected_test = memcmp(samples_s16, expected_s16, sizeof(expected_s16));
   EXPECT_EQ(0, expected_test);
 }
@@ -118,7 +118,7 @@ TEST(AudioUtilTest, FoldChannels_s32) {
                                         6,  // channels.
                                         sizeof(samples_s32[0]),
                                         1.00f);
-  EXPECT_EQ(true, result_s32);
+  EXPECT_TRUE(result_s32);
   int expected_test = memcmp(samples_s32, expected_s32, sizeof(expected_s32));
   EXPECT_EQ(0, expected_test);
 }
@@ -133,7 +133,7 @@ TEST(AudioUtilTest, FoldChannels71_s16) {
                                         8,  // channels.
                                         sizeof(samples_s16[0]),
                                         1.00f);
-  EXPECT_EQ(true, result_s16);
+  EXPECT_TRUE(result_s16);
   int expected_test = memcmp(samples_s16, expected_s16, sizeof(expected_s16));
   EXPECT_EQ(0, expected_test);
 }
