@@ -5,6 +5,8 @@
 #ifndef MEDIA_AUDIO_AUDIO_UTIL_H_
 #define MEDIA_AUDIO_AUDIO_UTIL_H_
 
+#include <vector>
+
 #include "base/basictypes.h"
 
 namespace media {
@@ -61,6 +63,16 @@ bool DeinterleaveAudioChannel(void* source,
                               int channel_index,
                               int bytes_per_sample,
                               size_t number_of_frames);
+
+// InterleaveFloatToInt16 scales, clips, and interleaves the planar
+// floating-point audio contained in |source| to the int16 |destination|.
+// The floating-point data is in a canonical range of -1.0 -> +1.0.
+// The size of the |source| vector determines the number of channels.
+// The |destination| buffer is assumed to be large enough to hold the
+// result. Thus it must be at least size: number_of_frames * source.size()
+void InterleaveFloatToInt16(const std::vector<float*>& source,
+                            int16* destination,
+                            size_t number_of_frames);
 
 }  // namespace media
 
