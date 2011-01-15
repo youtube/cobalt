@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -98,7 +98,7 @@ class MockProxyScriptFetcher : public ProxyScriptFetcher {
 
   virtual void Cancel() {}
 
-  virtual URLRequestContext* GetRequestContext() { return NULL; }
+  virtual net::URLRequestContext* GetRequestContext() { return NULL; }
 
   const GURL& pending_request_url() const {
     return pending_request_url_;
