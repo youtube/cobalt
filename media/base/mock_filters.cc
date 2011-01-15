@@ -74,23 +74,9 @@ void RunStopFilterCallback(FilterCallback* callback) {
   delete callback;
 }
 
-MockFilter::MockFilter() :
-    requires_message_loop_(false) {
-}
-
-MockFilter::MockFilter(bool requires_message_loop) :
-    requires_message_loop_(requires_message_loop) {
+MockFilter::MockFilter() {
 }
 
 MockFilter::~MockFilter() {}
-
-bool MockFilter::requires_message_loop() const {
-  return requires_message_loop_;
-}
-
-const char* MockFilter::message_loop_name() const {
-  return "MockFilter";
-}
-
 
 }  // namespace media
