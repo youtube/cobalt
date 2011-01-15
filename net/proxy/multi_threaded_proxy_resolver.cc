@@ -8,6 +8,7 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/proxy/proxy_info.h"
@@ -336,8 +337,13 @@ void MultiThreadedProxyResolver::Executor::Destroy() {
   // to avoid deadlocks.
   resolver_->Shutdown();
 
-  // Join the worker thread.
-  thread_.reset();
+  {
+    // See http://crbug.com/69710.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+
+    // Join the worker thread.
+    thread_.reset();
+  }
 
   // Cancel any outstanding job.
   if (outstanding_job_) {
