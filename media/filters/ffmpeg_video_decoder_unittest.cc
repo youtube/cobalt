@@ -71,8 +71,9 @@ class MockVideoDecodeEngine : public VideoDecodeEngine {
 // Class that just mocks the private functions.
 class DecoderPrivateMock : public FFmpegVideoDecoder {
  public:
-  explicit DecoderPrivateMock(VideoDecodeContext* context)
-      : FFmpegVideoDecoder(context) {
+  DecoderPrivateMock(MessageLoop* message_loop,
+                     VideoDecodeContext* context)
+      : FFmpegVideoDecoder(message_loop, context) {
   }
 
   // change access qualifier for test: used in actions.
@@ -125,7 +126,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     // Create an FFmpegVideoDecoder, and MockVideoDecodeEngine.
     //
     // TODO(ajwong): Break the test's dependency on FFmpegVideoDecoder.
-    decoder_ = new DecoderPrivateMock(NULL);
+    decoder_ = new DecoderPrivateMock(&message_loop_, NULL);
     renderer_ = new MockVideoRenderer();
     engine_ = new StrictMock<MockVideoDecodeEngine>();
 
@@ -133,7 +134,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
 
     // Inject mocks and prepare a demuxer stream.
     decoder_->set_host(&host_);
-    decoder_->set_message_loop(&message_loop_);
     decoder_->SetVideoDecodeEngineForTest(engine_);
     demuxer_ = new StrictMock<MockFFmpegDemuxerStream>();
 

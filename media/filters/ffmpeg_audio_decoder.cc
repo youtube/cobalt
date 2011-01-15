@@ -27,8 +27,9 @@ namespace media {
 const size_t FFmpegAudioDecoder::kOutputBufferSize =
     AVCODEC_MAX_AUDIO_FRAME_SIZE;
 
-FFmpegAudioDecoder::FFmpegAudioDecoder()
-    : codec_context_(NULL),
+FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
+    : DecoderBase<AudioDecoder, Buffer>(message_loop),
+      codec_context_(NULL),
       estimated_next_timestamp_(kNoTimestamp) {
 }
 

@@ -65,12 +65,11 @@ class FFmpegDemuxerTest : public testing::Test {
 
   FFmpegDemuxerTest() {
     // Create an FFmpegDemuxer.
-    demuxer_ = new FFmpegDemuxer();
+    demuxer_ = new FFmpegDemuxer(&message_loop_);
     DCHECK(demuxer_);
 
     // Inject a filter host and message loop and prepare a data source.
     demuxer_->set_host(&host_);
-    demuxer_->set_message_loop(&message_loop_);
     data_source_ = new StrictMock<MockDataSource>();
 
     // Initialize FFmpeg fixtures.
@@ -619,7 +618,9 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
 
 class MockFFmpegDemuxer : public FFmpegDemuxer {
  public:
-  MockFFmpegDemuxer() {}
+  explicit MockFFmpegDemuxer(MessageLoop* message_loop)
+      : FFmpegDemuxer(message_loop) {
+  }
   virtual ~MockFFmpegDemuxer() {}
 
   MOCK_METHOD0(WaitForRead, size_t());
@@ -638,10 +639,10 @@ void RunCallback(size_t size, DataSource::ReadCallback* callback) {
 
 TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   // Creates a demuxer.
-  scoped_refptr<MockFFmpegDemuxer> demuxer(new MockFFmpegDemuxer());
+  scoped_refptr<MockFFmpegDemuxer> demuxer(
+      new MockFFmpegDemuxer(&message_loop_));
   ASSERT_TRUE(demuxer);
   demuxer->set_host(&host_);
-  demuxer->set_message_loop(&message_loop_);
   demuxer->data_source_ = data_source_;
 
   uint8 kBuffer[1];
