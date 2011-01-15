@@ -206,4 +206,23 @@ bool DeinterleaveAudioChannel(void* source,
   return false;
 }
 
+void InterleaveFloatToInt16(const std::vector<float*>& source,
+                            int16* destination,
+                            size_t number_of_frames) {
+  const float kScale = 32768.0f;
+  int channels = source.size();
+  for (int i = 0; i < channels; ++i) {
+    float* channel_data = source[i];
+    for (size_t j = 0; j < number_of_frames; ++j) {
+      float sample = kScale * channel_data[j];
+      if (sample < -32768.0)
+        sample = -32768.0;
+      else if (sample > 32767.0)
+        sample = 32767.0;
+
+      destination[j * channels + i] = static_cast<int16>(sample);
+    }
+  }
+}
+
 }  // namespace media
