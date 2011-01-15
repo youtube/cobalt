@@ -337,6 +337,8 @@
       'sources': [
         'audio/test_audio_input_controller_factory.cc',
         'audio/test_audio_input_controller_factory.h',
+        'base/mock_callback.cc',
+        'base/mock_callback.h',
         'base/mock_filter_host.cc',
         'base/mock_filter_host.h',
         'base/mock_filters.cc',
