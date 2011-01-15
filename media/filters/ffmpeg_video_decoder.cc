@@ -21,8 +21,10 @@
 
 namespace media {
 
-FFmpegVideoDecoder::FFmpegVideoDecoder(VideoDecodeContext* decode_context)
-    : width_(0),
+FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop,
+                                       VideoDecodeContext* decode_context)
+    : message_loop_(message_loop),
+      width_(0),
       height_(0),
       time_base_(new AVRational()),
       state_(kUnInitialized),
@@ -36,8 +38,8 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
                                     FilterCallback* callback) {
-  if (MessageLoop::current() != message_loop()) {
-    message_loop()->PostTask(
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(
         FROM_HERE,
         NewRunnableMethod(this,
                           &FFmpegVideoDecoder::Initialize,
@@ -46,7 +48,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
     return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!demuxer_stream_);
   DCHECK(!initialize_callback_.get());
 
@@ -98,11 +100,11 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   config.width = width_;
   config.height = height_;
   state_ = kInitializing;
-  decode_engine_->Initialize(message_loop(), this, NULL, config);
+  decode_engine_->Initialize(message_loop_, this, NULL, config);
 }
 
 void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(initialize_callback_.get());
 
   info_ = info;  // Save a copy.
@@ -128,15 +130,15 @@ void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
 }
 
 void FFmpegVideoDecoder::Stop(FilterCallback* callback) {
-  if (MessageLoop::current() != message_loop()) {
-    message_loop()->PostTask(FROM_HERE,
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(FROM_HERE,
                              NewRunnableMethod(this,
                                                &FFmpegVideoDecoder::Stop,
                                                callback));
     return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!uninitialize_callback_.get());
 
   uninitialize_callback_.reset(callback);
@@ -147,7 +149,7 @@ void FFmpegVideoDecoder::Stop(FilterCallback* callback) {
 }
 
 void FFmpegVideoDecoder::OnUninitializeComplete() {
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(uninitialize_callback_.get());
 
   AutoCallbackRunner done_runner(uninitialize_callback_.release());
@@ -157,8 +159,8 @@ void FFmpegVideoDecoder::OnUninitializeComplete() {
 }
 
 void FFmpegVideoDecoder::Pause(FilterCallback* callback) {
-  if (MessageLoop::current() != message_loop()) {
-    message_loop()->PostTask(FROM_HERE,
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(FROM_HERE,
                              NewRunnableMethod(this,
                                                &FFmpegVideoDecoder::Pause,
                                                callback));
@@ -170,15 +172,15 @@ void FFmpegVideoDecoder::Pause(FilterCallback* callback) {
 }
 
 void FFmpegVideoDecoder::Flush(FilterCallback* callback) {
-  if (MessageLoop::current() != message_loop()) {
-    message_loop()->PostTask(FROM_HERE,
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(FROM_HERE,
                              NewRunnableMethod(this,
                                                &FFmpegVideoDecoder::Flush,
                                                callback));
     return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!flush_callback_.get());
 
   state_ = kFlushing;
@@ -191,7 +193,7 @@ void FFmpegVideoDecoder::Flush(FilterCallback* callback) {
 }
 
 void FFmpegVideoDecoder::OnFlushComplete() {
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(flush_callback_.get());
 
   AutoCallbackRunner done_runner(flush_callback_.release());
@@ -206,8 +208,8 @@ void FFmpegVideoDecoder::OnFlushComplete() {
 
 void FFmpegVideoDecoder::Seek(base::TimeDelta time,
                               FilterCallback* callback) {
-  if (MessageLoop::current() != message_loop()) {
-     message_loop()->PostTask(FROM_HERE,
+  if (MessageLoop::current() != message_loop_) {
+     message_loop_->PostTask(FROM_HERE,
                               NewRunnableMethod(this,
                                                 &FFmpegVideoDecoder::Seek,
                                                 time,
@@ -215,7 +217,7 @@ void FFmpegVideoDecoder::Seek(base::TimeDelta time,
      return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!seek_callback_.get());
 
   seek_callback_.reset(callback);
@@ -223,7 +225,7 @@ void FFmpegVideoDecoder::Seek(base::TimeDelta time,
 }
 
 void FFmpegVideoDecoder::OnSeekComplete() {
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(seek_callback_.get());
 
   AutoCallbackRunner done_runner(seek_callback_.release());
@@ -239,7 +241,7 @@ void FFmpegVideoDecoder::OnFormatChange(VideoStreamInfo stream_info) {
 
 void FFmpegVideoDecoder::OnReadComplete(Buffer* buffer_in) {
   scoped_refptr<Buffer> buffer(buffer_in);
-  message_loop()->PostTask(
+  message_loop_->PostTask(
       FROM_HERE,
       NewRunnableMethod(this,
                         &FFmpegVideoDecoder::OnReadCompleteTask,
@@ -247,7 +249,7 @@ void FFmpegVideoDecoder::OnReadComplete(Buffer* buffer_in) {
 }
 
 void FFmpegVideoDecoder::OnReadCompleteTask(scoped_refptr<Buffer> buffer) {
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kStopped);  // because of Flush() before Stop().
 
   // During decode, because reads are issued asynchronously, it is possible to
@@ -301,15 +303,15 @@ const MediaFormat& FFmpegVideoDecoder::media_format() {
 
 void FFmpegVideoDecoder::ProduceVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
-  if (MessageLoop::current() != message_loop()) {
-    message_loop()->PostTask(
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(
         FROM_HERE,
         NewRunnableMethod(this,
                           &FFmpegVideoDecoder::ProduceVideoFrame, video_frame));
     return;
   }
 
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // Synchronized flushing before stop should prevent this.
   DCHECK_NE(state_, kStopped);
@@ -330,7 +332,7 @@ void FFmpegVideoDecoder::ProduceVideoFrame(
 
 void FFmpegVideoDecoder::ConsumeVideoFrame(
     scoped_refptr<VideoFrame> video_frame) {
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kStopped);
 
   if (video_frame.get()) {
@@ -365,7 +367,7 @@ void FFmpegVideoDecoder::ConsumeVideoFrame(
 
 void FFmpegVideoDecoder::ProduceVideoSample(
     scoped_refptr<Buffer> buffer) {
-  DCHECK_EQ(MessageLoop::current(), message_loop());
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kStopped);
 
   demuxer_stream_->Read(

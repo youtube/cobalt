@@ -46,12 +46,8 @@ class Destroyable : public MockClass {
 class MockFilter : public Filter {
  public:
   MockFilter();
-  MockFilter(bool requires_message_loop);
 
   // Filter implementation.
-  virtual bool requires_message_loop() const;
-  virtual const char* message_loop_name() const;
-
   MOCK_METHOD1(Play, void(FilterCallback* callback));
   MOCK_METHOD1(Pause, void(FilterCallback* callback));
   MOCK_METHOD1(Flush, void(FilterCallback* callback));
@@ -64,9 +60,6 @@ class MockFilter : public Filter {
   virtual ~MockFilter();
 
  private:
-
-  bool requires_message_loop_;
-
   DISALLOW_COPY_AND_ASSIGN(MockFilter);
 };
 
