@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -70,7 +70,7 @@ void ConvertResponseToUTF16(const std::string& charset,
 }  // namespace
 
 ProxyScriptFetcherImpl::ProxyScriptFetcherImpl(
-    URLRequestContext* url_request_context)
+    net::URLRequestContext* url_request_context)
     : ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       url_request_context_(url_request_context),
       buf_(new net::IOBuffer(kBufSize)),
@@ -134,7 +134,7 @@ void ProxyScriptFetcherImpl::Cancel() {
   ResetCurRequestState();
 }
 
-URLRequestContext* ProxyScriptFetcherImpl::GetRequestContext() {
+net::URLRequestContext* ProxyScriptFetcherImpl::GetRequestContext() {
   return url_request_context_;
 }
 
@@ -260,9 +260,9 @@ void ProxyScriptFetcherImpl::FetchCompleted() {
   int result_code = result_code_;
   CompletionCallback* callback = callback_;
 
-  // Hold a reference to the URLRequestContext to prevent re-entrancy from
-  // ~URLRequestContext.
-  scoped_refptr<URLRequestContext> context(cur_request_->context());
+  // Hold a reference to the net::URLRequestContext to prevent re-entrancy from
+  // ~net::URLRequestContext.
+  scoped_refptr<net::URLRequestContext> context(cur_request_->context());
   ResetCurRequestState();
 
   callback->Run(result_code);
