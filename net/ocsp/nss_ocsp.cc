@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,7 +39,7 @@ namespace {
 
 // Protects |g_request_context|.
 pthread_mutex_t g_request_context_lock = PTHREAD_MUTEX_INITIALIZER;
-static URLRequestContext* g_request_context = NULL;
+static net::URLRequestContext* g_request_context = NULL;
 
 class OCSPRequestSession;
 
@@ -349,7 +349,7 @@ class OCSPRequestSession
     DCHECK(!request_);
 
     pthread_mutex_lock(&g_request_context_lock);
-    URLRequestContext* url_request_context = g_request_context;
+    net::URLRequestContext* url_request_context = g_request_context;
     pthread_mutex_unlock(&g_request_context_lock);
 
     if (url_request_context == NULL)
@@ -575,7 +575,7 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
                             SEC_HTTP_SERVER_SESSION* pSession) {
   VLOG(1) << "OCSP create session: host=" << host << " port=" << portnum;
   pthread_mutex_lock(&g_request_context_lock);
-  URLRequestContext* request_context = g_request_context;
+  net::URLRequestContext* request_context = g_request_context;
   pthread_mutex_unlock(&g_request_context_lock);
   if (request_context == NULL) {
     LOG(ERROR) << "No URLRequestContext for OCSP handler.";

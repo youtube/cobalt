@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -112,8 +112,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   Delegate* delegate() const { return delegate_; }
   int max_pending_send_allowed() const { return max_pending_send_allowed_; }
 
-  URLRequestContext* context() const { return context_.get(); }
-  void set_context(URLRequestContext* context);
+  net::URLRequestContext* context() const { return context_.get(); }
+  void set_context(net::URLRequestContext* context);
 
   BoundNetLog* net_log() { return &net_log_; }
 
@@ -271,7 +271,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   GURL url_;
   int max_pending_send_allowed_;
-  scoped_refptr<URLRequestContext> context_;
+  scoped_refptr<net::URLRequestContext> context_;
 
   UserDataMap user_data_;
 

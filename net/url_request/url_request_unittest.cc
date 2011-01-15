@@ -150,7 +150,7 @@ class URLRequestTestHTTP : public URLRequestTest {
     }
     uploadBytes[kMsgSize] = '\0';
 
-    scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+    scoped_refptr<net::URLRequestContext> context(new TestURLRequestContext());
 
     for (int i = 0; i < kIterations; ++i) {
       TestDelegate d;
@@ -531,7 +531,7 @@ TEST_F(URLRequestTestHTTP, CancelTest4) {
 TEST_F(URLRequestTestHTTP, CancelTest5) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+  scoped_refptr<net::URLRequestContext> context(new TestURLRequestContext());
 
   // populate cache
   {
@@ -1138,7 +1138,7 @@ TEST_F(URLRequestTestHTTP, CancelDeferredRedirect) {
 TEST_F(URLRequestTestHTTP, VaryHeader) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+  scoped_refptr<net::URLRequestContext> context(new TestURLRequestContext());
 
   // populate the cache
   {
@@ -1184,7 +1184,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
 TEST_F(URLRequestTestHTTP, BasicAuth) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+  scoped_refptr<net::URLRequestContext> context(new TestURLRequestContext());
 
   // populate the cache
   {
@@ -1234,7 +1234,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   // Request a page that will give a 401 containing a Set-Cookie header.
   // Verify that when the transaction is restarted, it includes the new cookie.
   {
-    scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+    scoped_refptr<net::URLRequestContext> context(new TestURLRequestContext());
     TestDelegate d;
     d.set_username(kUser);
     d.set_password(kSecret);
@@ -1255,7 +1255,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   // Same test as above, except this time the restart is initiated earlier
   // (without user intervention since identity is embedded in the URL).
   {
-    scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+    scoped_refptr<net::URLRequestContext> context(new TestURLRequestContext());
     TestDelegate d;
 
     GURL::Replacements replacements;
@@ -1283,7 +1283,7 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
   net::TestServer test_server(net::TestServer::TYPE_HTTP, FilePath());
   ASSERT_TRUE(test_server.Start());
 
-  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+  scoped_refptr<net::URLRequestContext> context(new TestURLRequestContext());
 
   // Set up a cookie.
   {
@@ -1332,7 +1332,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
   net::TestServer test_server(net::TestServer::TYPE_HTTP, FilePath());
   ASSERT_TRUE(test_server.Start());
 
-  scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
+  scoped_refptr<net::URLRequestContext> context(new TestURLRequestContext());
 
   // Set up a cookie.
   {
