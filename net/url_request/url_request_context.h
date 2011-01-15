@@ -192,7 +192,4 @@ class URLRequestContext
 
 }  // namespace net
 
-// TODO(tfarina): Fix the callers and remove this!
-typedef net::URLRequestContext URLRequestContext;
-
 #endif  // NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
