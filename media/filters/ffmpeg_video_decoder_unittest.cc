@@ -1,14 +1,14 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <deque>
 
-#include "base/callback.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
 #include "media/base/data_buffer.h"
 #include "media/base/filters.h"
+#include "media/base/mock_callback.h"
 #include "media/base/mock_ffmpeg.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
@@ -160,16 +160,13 @@ class FFmpegVideoDecoderTest : public testing::Test {
   }
 
   virtual ~FFmpegVideoDecoderTest() {
-    EXPECT_CALL(callback_, OnFilterCallback());
-    EXPECT_CALL(callback_, OnCallbackDestroyed());
-
     // The presence of an event handler means we need to uninitialize.
     if (engine_->event_handler_) {
       EXPECT_CALL(*engine_, Uninitialize())
           .WillOnce(EngineUninitialize(engine_));
     }
 
-    decoder_->Stop(callback_.NewCallback());
+    decoder_->Stop(NewExpectedCallback());
 
     // Finish up any remaining tasks.
     message_loop_.RunAllPending();
@@ -189,10 +186,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     EXPECT_CALL(*engine_, Initialize(_, _, _, _))
         .WillOnce(EngineInitialize(engine_, true));
 
-    EXPECT_CALL(callback_, OnFilterCallback());
-    EXPECT_CALL(callback_, OnCallbackDestroyed());
-
-    decoder_->Initialize(demuxer_, callback_.NewCallback());
+    decoder_->Initialize(demuxer_, NewExpectedCallback());
     message_loop_.RunAllPending();
   }
   // Fixture members.
@@ -203,7 +197,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
   scoped_refptr<DataBuffer> buffer_;
   scoped_refptr<DataBuffer> end_of_stream_buffer_;
   StrictMock<MockFilterHost> host_;
-  StrictMock<MockFilterCallback> callback_;
   MessageLoop message_loop_;
 
   // FFmpeg fixtures.
@@ -235,10 +228,8 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_QueryInterfaceFails) {
   EXPECT_CALL(*demuxer_, QueryInterface(AVStreamProvider::interface_id()))
       .WillOnce(ReturnNull());
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  decoder_->Initialize(demuxer_, callback_.NewCallback());
+  decoder_->Initialize(demuxer_, NewExpectedCallback());
   message_loop_.RunAllPending();
 }
 
@@ -255,10 +246,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_EngineFails) {
 
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
 
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
-
-  decoder_->Initialize(demuxer_, callback_.NewCallback());
+  decoder_->Initialize(demuxer_, NewExpectedCallback());
   message_loop_.RunAllPending();
 }
 
@@ -494,19 +482,12 @@ TEST_F(FFmpegVideoDecoderTest, DoSeek) {
     // Expect a flush.
     EXPECT_CALL(*engine_, Flush())
         .WillOnce(EngineFlush(engine_));
-    StrictMock<MockFilterCallback>  flush_done_cb;
-    EXPECT_CALL(flush_done_cb, OnFilterCallback());
-    EXPECT_CALL(flush_done_cb, OnCallbackDestroyed());
-    decoder_->Flush(flush_done_cb.NewCallback());
+    decoder_->Flush(NewExpectedCallback());
 
     // Expect Seek and verify the results.
     EXPECT_CALL(*engine_, Seek())
         .WillOnce(EngineSeek(engine_));
-    StrictMock<MockFilterCallback>  seek_done_cb;
-    EXPECT_CALL(seek_done_cb, OnFilterCallback());
-    EXPECT_CALL(seek_done_cb, OnCallbackDestroyed());
-    decoder_->Seek(kZero, seek_done_cb.NewCallback());
-
+    decoder_->Seek(kZero, NewExpectedCallback());
 
     EXPECT_TRUE(decoder_->pts_heap_.IsEmpty());
     EXPECT_EQ(FFmpegVideoDecoder::kNormal, decoder_->state_);

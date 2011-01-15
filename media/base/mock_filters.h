@@ -15,7 +15,6 @@
 
 #include <string>
 
-#include "base/callback.h"
 #include "media/base/filters.h"
 #include "media/base/filter_collection.h"
 #include "media/base/video_frame.h"
@@ -42,56 +41,6 @@ class Destroyable : public MockClass {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Destroyable);
-};
-
-// Helper class used to test that callbacks are executed.  It is recommend you
-// combine this class with StrictMock<> to verify that the callback is executed.
-// You can reuse the same instance of a MockFilterCallback many times since
-// gmock will track the number of times the methods are executed.
-class MockFilterCallback {
- public:
-  MockFilterCallback();
-  MockFilterCallback(bool run_destroy_callback);
-  virtual ~MockFilterCallback();
-
-  MOCK_METHOD0(OnCallbackDestroyed, void());
-  MOCK_METHOD0(OnFilterCallback, void());
-
-  // Helper method to create a new callback for this mock.  The callback will
-  // call OnFilterCallback() when executed and OnCallbackDestroyed() when
-  // destroyed.  Clients should use NiceMock<> or StrictMock<> depending on the
-  // test.
-  FilterCallback* NewCallback();
-
- private:
-  // Private implementation of CallbackRunner used to trigger expectations on
-  // MockFilterCallback.
-  class CallbackImpl : public CallbackRunner<Tuple0> {
-   public:
-    explicit CallbackImpl(MockFilterCallback* mock_callback,
-                          bool run_destroy_callback)
-        : mock_callback_(mock_callback),
-          run_destroy_callback_(run_destroy_callback) {
-    }
-
-    virtual ~CallbackImpl() {
-      if (run_destroy_callback_)
-        mock_callback_->OnCallbackDestroyed();
-    }
-
-    virtual void RunWithParams(const Tuple0& params) {
-      mock_callback_->OnFilterCallback();
-    }
-
-   private:
-    MockFilterCallback* mock_callback_;
-    bool run_destroy_callback_;
-
-    DISALLOW_COPY_AND_ASSIGN(CallbackImpl);
-  };
-
-  bool run_destroy_callback_;
-  DISALLOW_COPY_AND_ASSIGN(MockFilterCallback);
 };
 
 class MockFilter : public Filter {
