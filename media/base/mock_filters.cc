@@ -6,18 +6,6 @@
 
 namespace media {
 
-MockFilterCallback::MockFilterCallback() : run_destroy_callback_(true) {}
-
-MockFilterCallback::MockFilterCallback(bool run_destroy_callback) :
-    run_destroy_callback_(run_destroy_callback) {
-}
-
-MockFilterCallback::~MockFilterCallback() {}
-
-FilterCallback* MockFilterCallback::NewCallback() {
-  return new CallbackImpl(this, run_destroy_callback_);
-}
-
 MockDataSource::MockDataSource() {}
 
 MockDataSource::~MockDataSource() {}

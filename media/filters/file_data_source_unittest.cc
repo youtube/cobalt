@@ -1,14 +1,14 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <string>
 
 #include "base/base_paths.h"
-#include "base/callback.h"
 #include "base/file_path.h"
 #include "base/path_service.h"
 #include "base/utf_string_conversions.h"
+#include "media/base/mock_callback.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
 #include "media/filters/file_data_source.h"
@@ -20,8 +20,7 @@ namespace {
 
 class ReadCallbackHandler {
  public:
-  ReadCallbackHandler() {
-  }
+  ReadCallbackHandler() {}
 
   MOCK_METHOD1(ReadCallback, void(size_t size));
 
@@ -56,19 +55,14 @@ std::string TestFileURL() {
 // Test that FileDataSource call the appropriate methods on its filter host.
 TEST(FileDataSourceTest, OpenFile) {
   StrictMock<MockFilterHost> host;
-  StrictMock<MockFilterCallback> callback;
   EXPECT_CALL(host, SetTotalBytes(10));
   EXPECT_CALL(host, SetBufferedBytes(10));
-  EXPECT_CALL(callback, OnFilterCallback());
-  EXPECT_CALL(callback, OnCallbackDestroyed());
 
   scoped_refptr<FileDataSource> filter(new FileDataSource());
   filter->set_host(&host);
-  filter->Initialize(TestFileURL(), callback.NewCallback());
+  filter->Initialize(TestFileURL(), NewExpectedCallback());
 
-  EXPECT_CALL(callback, OnFilterCallback());
-  EXPECT_CALL(callback, OnCallbackDestroyed());
-  filter->Stop(callback.NewCallback());
+  filter->Stop(NewExpectedCallback());
 }
 
 // Use the mock filter host to directly call the Read and GetPosition methods.
@@ -78,11 +72,10 @@ TEST(FileDataSourceTest, ReadData) {
 
   // Create our mock filter host and initialize the data source.
   NiceMock<MockFilterHost> host;
-  NiceMock<MockFilterCallback> callback;
   scoped_refptr<FileDataSource> filter(new FileDataSource());
 
   filter->set_host(&host);
-  filter->Initialize(TestFileURL(), callback.NewCallback());
+  filter->Initialize(TestFileURL(), NewExpectedCallback());
 
   EXPECT_TRUE(filter->GetSize(&size));
   EXPECT_EQ(10, size);
@@ -104,24 +97,17 @@ TEST(FileDataSourceTest, ReadData) {
                NewCallback(&handler, &ReadCallbackHandler::ReadCallback));
   EXPECT_EQ('5', ten_bytes[0]);
 
-  EXPECT_CALL(callback, OnFilterCallback());
-  EXPECT_CALL(callback, OnCallbackDestroyed());
-  filter->Stop(callback.NewCallback());
+  filter->Stop(NewExpectedCallback());
 }
 
 // Test that FileDataSource does nothing on Seek().
 TEST(FileDataSourceTest, Seek) {
-  StrictMock<MockFilterCallback> callback;
-  EXPECT_CALL(callback, OnFilterCallback());
-  EXPECT_CALL(callback, OnCallbackDestroyed());
   const base::TimeDelta kZero;
 
   scoped_refptr<FileDataSource> filter(new FileDataSource());
-  filter->Seek(kZero, callback.NewCallback());
+  filter->Seek(kZero, NewExpectedCallback());
 
-  EXPECT_CALL(callback, OnFilterCallback());
-  EXPECT_CALL(callback, OnCallbackDestroyed());
-  filter->Stop(callback.NewCallback());
+  filter->Stop(NewExpectedCallback());
 }
 
 }  // namespace media

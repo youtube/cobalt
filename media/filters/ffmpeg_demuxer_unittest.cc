@@ -1,12 +1,12 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <deque>
 
-#include "base/callback.h"
 #include "base/threading/thread.h"
 #include "media/base/filters.h"
+#include "media/base/mock_callback.h"
 #include "media/base/mock_ffmpeg.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
@@ -113,9 +113,7 @@ class FFmpegDemuxerTest : public testing::Test {
 
   virtual ~FFmpegDemuxerTest() {
     // Call Stop() to shut down internal threads.
-    EXPECT_CALL(callback_, OnFilterCallback());
-    EXPECT_CALL(callback_, OnCallbackDestroyed());
-    demuxer_->Stop(callback_.NewCallback());
+    demuxer_->Stop(NewExpectedCallback());
 
     // Finish up any remaining tasks.
     message_loop_.RunAllPending();
@@ -140,17 +138,13 @@ class FFmpegDemuxerTest : public testing::Test {
   void InitializeDemuxer() {
     InitializeDemuxerMocks();
 
-    // We expect a successful initialization.
-    EXPECT_CALL(callback_, OnFilterCallback());
-    EXPECT_CALL(callback_, OnCallbackDestroyed());
-
     // Since we ignore data streams, the duration should be equal to the longest
     // supported stream's duration (audio, in this case).
     base::TimeDelta expected_duration =
         base::TimeDelta::FromMicroseconds(kDurations[AV_STREAM_AUDIO]);
     EXPECT_CALL(host_, SetDuration(expected_duration));
 
-    demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+    demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
     message_loop_.RunAllPending();
   }
 
@@ -158,7 +152,6 @@ class FFmpegDemuxerTest : public testing::Test {
   scoped_refptr<FFmpegDemuxer> demuxer_;
   scoped_refptr<StrictMock<MockDataSource> > data_source_;
   StrictMock<MockFilterHost> host_;
-  StrictMock<MockFilterCallback> callback_;
   MessageLoop message_loop_;
 
   // FFmpeg fixtures.
@@ -190,10 +183,8 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   EXPECT_CALL(*MockFFmpeg::get(), AVOpenInputFile(_, _, NULL, 0, NULL))
       .WillOnce(Return(-1));
   EXPECT_CALL(host_, SetError(DEMUXER_ERROR_COULD_NOT_OPEN));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+  demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
   message_loop_.RunAllPending();
 }
 
@@ -205,10 +196,8 @@ TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
       .WillOnce(Return(AVERROR_IO));
   EXPECT_CALL(*MockFFmpeg::get(), AVCloseInputFile(&format_context_));
   EXPECT_CALL(host_, SetError(DEMUXER_ERROR_COULD_NOT_PARSE));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+  demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
   message_loop_.RunAllPending();
 }
 
@@ -219,11 +208,9 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
     InitializeDemuxerMocks();
   }
   EXPECT_CALL(host_, SetError(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
   format_context_.nb_streams = 0;
 
-  demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+  demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
   message_loop_.RunAllPending();
 }
 
@@ -234,12 +221,10 @@ TEST_F(FFmpegDemuxerTest, Initialize_DataStreamOnly) {
     InitializeDemuxerMocks();
   }
   EXPECT_CALL(host_, SetError(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
   EXPECT_EQ(format_context_.streams[0], &streams_[AV_STREAM_DATA]);
   format_context_.nb_streams = 1;
 
-  demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+  demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
   message_loop_.RunAllPending();
 }
 
@@ -447,9 +432,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
       .WillOnce(Return(0));
 
   // ...then our callback will be executed...
-  StrictMock<MockFilterCallback> seek_callback;
-  EXPECT_CALL(seek_callback, OnFilterCallback());
-  EXPECT_CALL(seek_callback, OnCallbackDestroyed());
+  FilterCallback* seek_callback = NewExpectedCallback();
   EXPECT_CALL(*MockFFmpeg::get(), CheckPoint(2));
 
   // ...followed by two audio packet reads we'll trigger...
@@ -492,7 +475,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
   // Issue a simple forward seek, which should discard queued packets.
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(kExpectedTimestamp),
-                 seek_callback.NewCallback());
+                 seek_callback);
   message_loop_.RunAllPending();
   MockFFmpeg::get()->CheckPoint(2);
 
@@ -578,9 +561,7 @@ TEST_F(FFmpegDemuxerTest, Stop) {
   ASSERT_TRUE(audio);
 
   // Stop the demuxer.
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
-  demuxer_->Stop(callback_.NewCallback());
+  demuxer_->Stop(NewExpectedCallback());
 
   // Expect all calls in sequence.
   InSequence s;
@@ -705,9 +686,7 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
 
   // This read complete signal is generated when demuxer is stopped.
   EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
-  demuxer->Stop(callback_.NewCallback());
+  demuxer->Stop(NewExpectedCallback());
   message_loop_.RunAllPending();
 }
 
