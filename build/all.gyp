@@ -44,7 +44,7 @@
         '../third_party/ots/ots.gyp:*',
         '../third_party/qcms/qcms.gyp:*',
         '../third_party/sqlite/sqlite.gyp:*',
-        '../third_party/WebKit/WebKit/chromium/WebKit.gyp:*',
+        '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
         '../webkit/support/webkit_support.gyp:*',
         '../webkit/webkit.gyp:*',
@@ -188,7 +188,7 @@
             '../sandbox/sandbox.gyp:sbox_unittests',
             '../sandbox/sandbox.gyp:sbox_validation_tests',
             '../views/views.gyp:views_unittests',
-            '../third_party/WebKit/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
+            '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
             # This should:
             # 1) not be the case. OR.
@@ -203,7 +203,7 @@
       'type': 'none',
       'dependencies': [
         '../chrome/chrome.gyp:gpu_tests',
-        '../third_party/WebKit/WebKit/chromium/WebKit.gyp:DumpRenderTree',
+        '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:DumpRenderTree',
       ],
     }
   ],
@@ -353,7 +353,7 @@
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../third_party/WebKit/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
+            '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
             # This should:
             # 1) not be the case. OR.
