@@ -75,6 +75,7 @@ v8.log
 /third_party/cros
 /third_party/cygwin
 /third_party/directxsdk
+/third_party/flac
 /third_party/ffmpeg
 /third_party/gles2_conform
 /third_party/googlemac
