@@ -1141,7 +1141,7 @@ void BackendImpl::OnOperationCompleted(base::TimeDelta elapsed_time) {
   if (!throttle_requests_)
     return;
 
-  const int kMaxNormalDelayMS = 100;
+  const int kMaxNormalDelayMS = 460;
 
   bool throttling = io_delay_ > kMaxNormalDelayMS;
 
