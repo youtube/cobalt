@@ -49,7 +49,8 @@ class VideoRendererBaseTest : public ::testing::Test {
  public:
   VideoRendererBaseTest()
       : renderer_(new MockVideoRendererBase()),
-        decoder_(new MockVideoDecoder()) {
+        decoder_(new MockVideoDecoder()),
+        seeking_(false) {
     renderer_->set_host(&host_);
 
     // Queue all reads from the decoder.
@@ -80,9 +81,81 @@ class VideoRendererBaseTest : public ::testing::Test {
     renderer_->Stop(NewExpectedCallback());
   }
 
+  void Initialize() {
+    // Who knows how many times ThreadMain() will execute!
+    //
+    // TODO(scherkus): really, really, really need to inject a thread into
+    // VideoRendererBase... it makes mocking much harder.
+    EXPECT_CALL(host_, GetTime()).WillRepeatedly(Return(base::TimeDelta()));
+
+    // Expects the video renderer to get duration from the host.
+    EXPECT_CALL(host_, GetDuration())
+        .WillRepeatedly(Return(base::TimeDelta()));
+
+    InSequence s;
+
+    // We expect the video size to be set.
+    EXPECT_CALL(host_, SetVideoSize(kWidth, kHeight));
+
+    // Then our subclass will be asked to initialize.
+    EXPECT_CALL(*renderer_, OnInitialize(_))
+        .WillOnce(Return(true));
+
+    // Initialize, we shouldn't have any reads.
+    renderer_->Initialize(decoder_, NewExpectedCallback());
+    EXPECT_EQ(0u, read_queue_.size());
+
+    // Now seek to trigger prerolling.
+    Seek(0);
+  }
+
+  void Seek(int64 timestamp) {
+    EXPECT_CALL(*renderer_, OnFrameAvailable());
+    EXPECT_FALSE(seeking_);
+
+    // Now seek to trigger prerolling.
+    seeking_ = true;
+    renderer_->Seek(base::TimeDelta::FromMicroseconds(timestamp),
+                    NewCallback(this, &VideoRendererBaseTest::OnSeekComplete));
+
+    // Now satisfy the read requests.  The callback must be executed in order
+    // to exit the loop since VideoRendererBase can read a few extra frames
+    // after |timestamp| in order to preroll.
+    for (int64 i = 0; seeking_; ++i) {
+      CreateFrame(i * kDuration, kDuration);
+    }
+  }
+
+  void Flush() {
+    renderer_->Pause(NewExpectedCallback());
+
+    EXPECT_CALL(*decoder_, ProvidesBuffer())
+        .WillRepeatedly(Return(true));
+
+    renderer_->Flush(NewExpectedCallback());
+  }
+
+  void CreateFrame(int64 timestamp, int64 duration) {
+    const base::TimeDelta kZero;
+    scoped_refptr<VideoFrame> frame;
+    VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight,
+                            base::TimeDelta::FromMicroseconds(timestamp),
+                            base::TimeDelta::FromMicroseconds(duration),
+                            &frame);
+    decoder_->VideoFrameReady(frame);
+  }
+
+  void ExpectCurrentTimestamp(int64 timestamp) {
+    scoped_refptr<VideoFrame> frame;
+    renderer_->GetCurrentFrame(&frame);
+    EXPECT_EQ(timestamp, frame->GetTimestamp().InMicroseconds());
+    renderer_->PutCurrentFrame(frame);
+  }
+
  protected:
   static const size_t kWidth;
   static const size_t kHeight;
+  static const int64 kDuration;
 
   // Fixture members.
   scoped_refptr<MockVideoRendererBase> renderer_;
@@ -98,11 +171,19 @@ class VideoRendererBaseTest : public ::testing::Test {
     read_queue_.push_back(frame);
   }
 
+  void OnSeekComplete() {
+    EXPECT_TRUE(seeking_);
+    seeking_ = false;
+  }
+
+  bool seeking_;
+
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
 
 const size_t VideoRendererBaseTest::kWidth = 16u;
 const size_t VideoRendererBaseTest::kHeight = 16u;
+const int64 VideoRendererBaseTest::kDuration = 10;
 
 // Test initialization where the decoder's media format is malformed.
 TEST_F(VideoRendererBaseTest, Initialize_BadMediaFormat) {
@@ -143,58 +224,39 @@ TEST_F(VideoRendererBaseTest, Initialize_Failed) {
 
 // Test successful initialization and preroll.
 TEST_F(VideoRendererBaseTest, Initialize_Successful) {
-  // Who knows how many times ThreadMain() will execute!
-  //
-  // TODO(scherkus): really, really, really need to inject a thread into
-  // VideoRendererBase... it makes mocking much harder.
-  EXPECT_CALL(host_, GetTime()).WillRepeatedly(Return(base::TimeDelta()));
+  Initialize();
+  ExpectCurrentTimestamp(0);
+  Flush();
+}
 
-  // Expects the video renderer to get duration from the host.
-  EXPECT_CALL(host_, GetDuration())
-      .WillRepeatedly(Return(base::TimeDelta()));
-
-  InSequence s;
-
-  // We expect the video size to be set.
-  EXPECT_CALL(host_, SetVideoSize(kWidth, kHeight));
-
-  // Then our subclass will be asked to initialize.
-  EXPECT_CALL(*renderer_, OnInitialize(_))
-      .WillOnce(Return(true));
-
-  // Initialize, we shouldn't have any reads.
-  renderer_->Initialize(decoder_, NewExpectedCallback());
-  EXPECT_EQ(0u, read_queue_.size());
-
-  // Verify the following expectations haven't run until we complete the reads.
-  EXPECT_CALL(*renderer_, CheckPoint(0));
-
-  // We'll expect to get notified once due preroll completing.
-  EXPECT_CALL(*renderer_, OnFrameAvailable());
-
-  // Now seek to trigger prerolling.
-  renderer_->Seek(base::TimeDelta(), NewExpectedCallback());
-
-  // Verify our seek callback hasn't been executed yet.
-  renderer_->CheckPoint(0);
-
-  // Now satisfy the read requests.  Our callback should be executed after
-  // exiting this loop.
-  for (unsigned int i = 0; i < Limits::kMaxVideoFrames; i++) {
-    const base::TimeDelta kZero;
-    scoped_refptr<VideoFrame> frame;
-    VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight, kZero,
-                            kZero, &frame);
-    decoder_->VideoFrameReady(frame);
-  }
-
+TEST_F(VideoRendererBaseTest, Play) {
+  Initialize();
   renderer_->Play(NewExpectedCallback());
-  renderer_->Pause(NewExpectedCallback());
+  Flush();
+}
 
-  EXPECT_CALL(*decoder_, ProvidesBuffer())
-      .WillRepeatedly(Return(true));
+TEST_F(VideoRendererBaseTest, Seek_Exact) {
+  Initialize();
+  Flush();
+  Seek(kDuration * 6);
+  ExpectCurrentTimestamp(kDuration * 6);
+  Flush();
+}
 
-  renderer_->Flush(NewExpectedCallback());
+TEST_F(VideoRendererBaseTest, Seek_RoundUp) {
+  Initialize();
+  Flush();
+  Seek(kDuration * 6 - 1);
+  ExpectCurrentTimestamp(kDuration * 6);
+  Flush();
+}
+
+TEST_F(VideoRendererBaseTest, Seek_RoundDown) {
+  Initialize();
+  Flush();
+  Seek(kDuration * 6 + 1);
+  ExpectCurrentTimestamp(kDuration * 6);
+  Flush();
 }
 
 }  // namespace media
