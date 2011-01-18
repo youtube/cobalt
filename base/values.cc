@@ -70,27 +70,27 @@ Value* Value::CreateNullValue() {
 }
 
 // static
-Value* Value::CreateBooleanValue(bool in_value) {
+FundamentalValue* Value::CreateBooleanValue(bool in_value) {
   return new FundamentalValue(in_value);
 }
 
 // static
-Value* Value::CreateIntegerValue(int in_value) {
+FundamentalValue* Value::CreateIntegerValue(int in_value) {
   return new FundamentalValue(in_value);
 }
 
 // static
-Value* Value::CreateRealValue(double in_value) {
+FundamentalValue* Value::CreateRealValue(double in_value) {
   return new FundamentalValue(in_value);
 }
 
 // static
-Value* Value::CreateStringValue(const std::string& in_value) {
+StringValue* Value::CreateStringValue(const std::string& in_value) {
   return new StringValue(in_value);
 }
 
 // static
-Value* Value::CreateStringValue(const string16& in_value) {
+StringValue* Value::CreateStringValue(const string16& in_value) {
   return new StringValue(in_value);
 }
 
@@ -182,7 +182,7 @@ bool FundamentalValue::GetAsReal(double* out_value) const {
   return (IsType(TYPE_REAL));
 }
 
-Value* FundamentalValue::DeepCopy() const {
+FundamentalValue* FundamentalValue::DeepCopy() const {
   switch (GetType()) {
     case TYPE_BOOLEAN:
       return CreateBooleanValue(boolean_value_);
@@ -250,7 +250,7 @@ bool StringValue::GetAsString(string16* out_value) const {
   return true;
 }
 
-Value* StringValue::DeepCopy() const {
+StringValue* StringValue::DeepCopy() const {
   return CreateStringValue(value_);
 }
 
@@ -288,7 +288,7 @@ BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
   return new BinaryValue(buffer_copy, size);
 }
 
-Value* BinaryValue::DeepCopy() const {
+BinaryValue* BinaryValue::DeepCopy() const {
   return CreateWithCopiedBuffer(buffer_, size_);
 }
 
@@ -646,7 +646,7 @@ void DictionaryValue::MergeDictionary(const DictionaryValue* dictionary) {
   }
 }
 
-Value* DictionaryValue::DeepCopy() const {
+DictionaryValue* DictionaryValue::DeepCopy() const {
   DictionaryValue* result = new DictionaryValue;
 
   for (ValueMap::const_iterator current_entry(dictionary_.begin());
@@ -862,7 +862,7 @@ bool ListValue::GetAsList(ListValue** out_value) {
   return true;
 }
 
-Value* ListValue::DeepCopy() const {
+ListValue* ListValue::DeepCopy() const {
   ListValue* result = new ListValue;
 
   for (ValueVector::const_iterator i(list_.begin()); i != list_.end(); ++i)

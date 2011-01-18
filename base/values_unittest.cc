@@ -323,15 +323,16 @@ TEST_F(ValuesTest, DeepCopy) {
   DictionaryValue original_dict;
   Value* original_null = Value::CreateNullValue();
   original_dict.Set("null", original_null);
-  Value* original_bool = Value::CreateBooleanValue(true);
+  FundamentalValue* original_bool = Value::CreateBooleanValue(true);
   original_dict.Set("bool", original_bool);
-  Value* original_int = Value::CreateIntegerValue(42);
+  FundamentalValue* original_int = Value::CreateIntegerValue(42);
   original_dict.Set("int", original_int);
-  Value* original_real = Value::CreateRealValue(3.14);
+  FundamentalValue* original_real = Value::CreateRealValue(3.14);
   original_dict.Set("real", original_real);
-  Value* original_string = Value::CreateStringValue("hello");
+  StringValue* original_string = Value::CreateStringValue("hello");
   original_dict.Set("string", original_string);
-  Value* original_string16 = Value::CreateStringValue(ASCIIToUTF16("hello16"));
+  StringValue* original_string16 =
+      Value::CreateStringValue(ASCIIToUTF16("hello16"));
   original_dict.Set("string16", original_string16);
 
   char* original_buffer = new char[42];
@@ -340,14 +341,13 @@ TEST_F(ValuesTest, DeepCopy) {
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
-  Value* original_list_element_0 = Value::CreateIntegerValue(0);
+  FundamentalValue* original_list_element_0 = Value::CreateIntegerValue(0);
   original_list->Append(original_list_element_0);
-  Value* original_list_element_1 = Value::CreateIntegerValue(1);
+  FundamentalValue* original_list_element_1 = Value::CreateIntegerValue(1);
   original_list->Append(original_list_element_1);
   original_dict.Set("list", original_list);
 
-  scoped_ptr<DictionaryValue> copy_dict(
-      static_cast<DictionaryValue*>(original_dict.DeepCopy()));
+  scoped_ptr<DictionaryValue> copy_dict(original_dict.DeepCopy());
   ASSERT_TRUE(copy_dict.get());
   ASSERT_NE(copy_dict.get(), &original_dict);
 
@@ -465,7 +465,7 @@ TEST_F(ValuesTest, Equals) {
   dv.Set("e", Value::CreateNullValue());
 
   scoped_ptr<DictionaryValue> copy;
-  copy.reset(static_cast<DictionaryValue*>(dv.DeepCopy()));
+  copy.reset(dv.DeepCopy());
   EXPECT_TRUE(dv.Equals(copy.get()));
 
   ListValue* list = new ListValue;
@@ -481,7 +481,7 @@ TEST_F(ValuesTest, Equals) {
   EXPECT_FALSE(dv.Equals(copy.get()));
 
   // Check if Equals detects differences in only the keys.
-  copy.reset(static_cast<DictionaryValue*>(dv.DeepCopy()));
+  copy.reset(dv.DeepCopy());
   EXPECT_TRUE(dv.Equals(copy.get()));
   copy->Remove("a", NULL);
   copy->SetBoolean("aa", false);
@@ -509,6 +509,62 @@ TEST_F(ValuesTest, StaticEquals) {
   // ownership of the pointer.
   EXPECT_FALSE(Value::Equals(null1.get(), NULL));
   EXPECT_FALSE(Value::Equals(NULL, null1.get()));
+}
+
+TEST_F(ValuesTest, DeepCopyCovariantReturnTypes) {
+  DictionaryValue original_dict;
+  Value* original_null = Value::CreateNullValue();
+  original_dict.Set("null", original_null);
+  FundamentalValue* original_bool = Value::CreateBooleanValue(true);
+  original_dict.Set("bool", original_bool);
+  FundamentalValue* original_int = Value::CreateIntegerValue(42);
+  original_dict.Set("int", original_int);
+  FundamentalValue* original_real = Value::CreateRealValue(3.14);
+  original_dict.Set("real", original_real);
+  StringValue* original_string = Value::CreateStringValue("hello");
+  original_dict.Set("string", original_string);
+  StringValue* original_string16 =
+      Value::CreateStringValue(ASCIIToUTF16("hello16"));
+  original_dict.Set("string16", original_string16);
+
+  char* original_buffer = new char[42];
+  memset(original_buffer, '!', 42);
+  BinaryValue* original_binary = Value::CreateBinaryValue(original_buffer, 42);
+  original_dict.Set("binary", original_binary);
+
+  ListValue* original_list = new ListValue();
+  FundamentalValue* original_list_element_0 = Value::CreateIntegerValue(0);
+  original_list->Append(original_list_element_0);
+  FundamentalValue* original_list_element_1 = Value::CreateIntegerValue(1);
+  original_list->Append(original_list_element_1);
+  original_dict.Set("list", original_list);
+
+  Value* original_dict_value = &original_dict;
+  Value* original_bool_value = original_bool;
+  Value* original_int_value = original_int;
+  Value* original_real_value = original_real;
+  Value* original_string_value = original_string;
+  Value* original_string16_value = original_string16;
+  Value* original_binary_value = original_binary;
+  Value* original_list_value = original_list;
+
+  scoped_ptr<Value> copy_dict_value(original_dict_value->DeepCopy());
+  scoped_ptr<Value> copy_bool_value(original_bool_value->DeepCopy());
+  scoped_ptr<Value> copy_int_value(original_int_value->DeepCopy());
+  scoped_ptr<Value> copy_real_value(original_real_value->DeepCopy());
+  scoped_ptr<Value> copy_string_value(original_string_value->DeepCopy());
+  scoped_ptr<Value> copy_string16_value(original_string16_value->DeepCopy());
+  scoped_ptr<Value> copy_binary_value(original_binary_value->DeepCopy());
+  scoped_ptr<Value> copy_list_value(original_list_value->DeepCopy());
+
+  EXPECT_TRUE(original_dict_value->Equals(copy_dict_value.get()));
+  EXPECT_TRUE(original_bool_value->Equals(copy_bool_value.get()));
+  EXPECT_TRUE(original_int_value->Equals(copy_int_value.get()));
+  EXPECT_TRUE(original_real_value->Equals(copy_real_value.get()));
+  EXPECT_TRUE(original_string_value->Equals(copy_string_value.get()));
+  EXPECT_TRUE(original_string16_value->Equals(copy_string16_value.get()));
+  EXPECT_TRUE(original_binary_value->Equals(copy_binary_value.get()));
+  EXPECT_TRUE(original_list_value->Equals(copy_list_value.get()));
 }
 
 TEST_F(ValuesTest, RemoveEmptyChildren) {
