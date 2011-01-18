@@ -63,11 +63,11 @@ class Value {
   // kinds of values without thinking about which class implements them.
   // These can always be expected to return a valid Value*.
   static Value* CreateNullValue();
-  static Value* CreateBooleanValue(bool in_value);
-  static Value* CreateIntegerValue(int in_value);
-  static Value* CreateRealValue(double in_value);
-  static Value* CreateStringValue(const std::string& in_value);
-  static Value* CreateStringValue(const string16& in_value);
+  static FundamentalValue* CreateBooleanValue(bool in_value);
+  static FundamentalValue* CreateIntegerValue(int in_value);
+  static FundamentalValue* CreateRealValue(double in_value);
+  static StringValue* CreateStringValue(const std::string& in_value);
+  static StringValue* CreateStringValue(const string16& in_value);
 
   // This one can return NULL if the input isn't valid.  If the return value
   // is non-null, the new object has taken ownership of the buffer pointer.
@@ -96,6 +96,9 @@ class Value {
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
+  //
+  // Subclasses return their own type directly in their overrides;
+  // this works because C++ supports covariant return types.
   virtual Value* DeepCopy() const;
 
   // Compares if two Value objects have equal contents.
@@ -130,7 +133,7 @@ class FundamentalValue : public Value {
   virtual bool GetAsBoolean(bool* out_value) const;
   virtual bool GetAsInteger(int* out_value) const;
   virtual bool GetAsReal(double* out_value) const;
-  virtual Value* DeepCopy() const;
+  virtual FundamentalValue* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
  private:
@@ -156,7 +159,7 @@ class StringValue : public Value {
   // Subclassed methods
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(string16* out_value) const;
-  virtual Value* DeepCopy() const;
+  virtual StringValue* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
  private:
@@ -185,7 +188,7 @@ class BinaryValue: public Value {
   const char* GetBuffer() const { return buffer_; }
 
   // Overridden from Value:
-  virtual Value* DeepCopy() const;
+  virtual BinaryValue* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
  private:
@@ -330,7 +333,7 @@ class DictionaryValue : public Value {
   key_iterator end_keys() const { return key_iterator(dictionary_.end()); }
 
   // Overridden from Value:
-  virtual Value* DeepCopy() const;
+  virtual DictionaryValue* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
  private:
@@ -417,7 +420,7 @@ class ListValue : public Value {
 
   // Overridden from Value:
   virtual bool GetAsList(ListValue** out_value);
-  virtual Value* DeepCopy() const;
+  virtual ListValue* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
  private:
