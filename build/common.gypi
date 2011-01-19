@@ -549,6 +549,14 @@
               'debug_extra_cflags': '-g1',
             },
           }],
+          # Clang creates chubby debug information, which makes linking very
+          # slow. For now, don't create debug information with clang.  See
+          # http://crbug.com/70000
+          ['OS=="linux" and clang==1', {
+            'variables': {
+              'debug_extra_cflags': '-g0',
+            },
+          }],
         ],  # conditions for fastbuild.
       }],  # fastbuild!=0
       ['selinux==1', {
