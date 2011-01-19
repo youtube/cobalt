@@ -96,8 +96,8 @@ void SocketStream::SetUserData(const void* key, UserData* data) {
   user_data_[key] = linked_ptr<UserData>(data);
 }
 
-void SocketStream::set_context(net::URLRequestContext* context) {
-  scoped_refptr<net::URLRequestContext> prev_context = context_;
+void SocketStream::set_context(URLRequestContext* context) {
+  scoped_refptr<URLRequestContext> prev_context = context_;
 
   context_ = context;
 
@@ -264,7 +264,7 @@ void SocketStream::Finish(int result) {
   if (result == OK)
     result = ERR_CONNECTION_CLOSED;
   DCHECK_EQ(next_state_, STATE_NONE);
-  DVLOG(1) << "Finish result=" << net::ErrorToString(result);
+  DVLOG(1) << "Finish result=" << ErrorToString(result);
   if (delegate_)
     delegate_->OnError(this, result);
 
@@ -535,7 +535,7 @@ int SocketStream::DoResolveHostComplete(int result) {
   if (result == OK && delegate_) {
     next_state_ = STATE_TCP_CONNECT;
     result = delegate_->OnStartOpenConnection(this, &io_callback_);
-    if (result == net::ERR_IO_PENDING)
+    if (result == ERR_IO_PENDING)
       metrics_->OnWaitConnection();
   } else {
     next_state_ = STATE_CLOSE;
@@ -986,7 +986,7 @@ void SocketStream::DoAuthRequired() {
   if (delegate_ && auth_info_.get())
     delegate_->OnAuthRequired(this, auth_info_.get());
   else
-    DoLoop(net::ERR_UNEXPECTED);
+    DoLoop(ERR_UNEXPECTED);
 }
 
 void SocketStream::DoRestartWithAuth() {

@@ -25,7 +25,7 @@ class URLRequestContext;
 // Implementation of ProxyScriptFetcher that downloads scripts using the
 // specified request context.
 class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
-                               public net::URLRequest::Delegate {
+                               public URLRequest::Delegate {
  public:
   // Creates a ProxyScriptFetcher that issues requests through
   // |url_request_context|. |url_request_context| must remain valid for the
@@ -33,7 +33,7 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   // Note that while a request is in progress, we will be holding a reference
   // to |url_request_context|. Be careful not to create cycles between the
   // fetcher and the context; you can break such cycles by calling Cancel().
-  explicit ProxyScriptFetcherImpl(net::URLRequestContext* url_request_context);
+  explicit ProxyScriptFetcherImpl(URLRequestContext* url_request_context);
 
   virtual ~ProxyScriptFetcherImpl();
 
@@ -42,16 +42,16 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   virtual int Fetch(const GURL& url, string16* text,
                     CompletionCallback* callback);
   virtual void Cancel();
-  virtual net::URLRequestContext* GetRequestContext();
+  virtual URLRequestContext* GetRequestContext();
 
-  // net::URLRequest::Delegate methods:
-  virtual void OnAuthRequired(net::URLRequest* request,
+  // URLRequest::Delegate methods:
+  virtual void OnAuthRequired(URLRequest* request,
                               AuthChallengeInfo* auth_info);
-  virtual void OnSSLCertificateError(net::URLRequest* request, int cert_error,
+  virtual void OnSSLCertificateError(URLRequest* request, int cert_error,
                                      X509Certificate* cert);
-  virtual void OnResponseStarted(net::URLRequest* request);
-  virtual void OnReadCompleted(net::URLRequest* request, int num_bytes);
-  virtual void OnResponseCompleted(net::URLRequest* request);
+  virtual void OnResponseStarted(URLRequest* request);
+  virtual void OnReadCompleted(URLRequest* request, int num_bytes);
+  virtual void OnResponseCompleted(URLRequest* request);
 
   // Used by unit-tests to modify the default limits.
   base::TimeDelta SetTimeoutConstraint(base::TimeDelta timeout);
@@ -59,11 +59,11 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
  private:
   // Read more bytes from the response.
-  void ReadBody(net::URLRequest* request);
+  void ReadBody(URLRequest* request);
 
   // Handles a response from Read(). Returns true if we should continue trying
   // to read. |num_bytes| is 0 for EOF, and < 0 on errors.
-  bool ConsumeBytesRead(net::URLRequest* request, int num_bytes);
+  bool ConsumeBytesRead(URLRequest* request, int num_bytes);
 
   // Called once the request has completed to notify the caller of
   // |response_code_| and |response_text_|.
@@ -80,17 +80,17 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   ScopedRunnableMethodFactory<ProxyScriptFetcherImpl> task_factory_;
 
   // The context used for making network requests.
-  net::URLRequestContext* url_request_context_;
+  URLRequestContext* url_request_context_;
 
-  // Buffer that net::URLRequest writes into.
+  // Buffer that URLRequest writes into.
   enum { kBufSize = 4096 };
-  scoped_refptr<net::IOBuffer> buf_;
+  scoped_refptr<IOBuffer> buf_;
 
   // The next ID to use for |cur_request_| (monotonically increasing).
   int next_id_;
 
   // The current (in progress) request, or NULL.
-  scoped_ptr<net::URLRequest> cur_request_;
+  scoped_ptr<URLRequest> cur_request_;
 
   // State for current request (only valid when |cur_request_| is not NULL):
 

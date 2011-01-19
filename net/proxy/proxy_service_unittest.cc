@@ -98,7 +98,7 @@ class MockProxyScriptFetcher : public ProxyScriptFetcher {
 
   virtual void Cancel() {}
 
-  virtual net::URLRequestContext* GetRequestContext() { return NULL; }
+  virtual URLRequestContext* GetRequestContext() { return NULL; }
 
   const GURL& pending_request_url() const {
     return pending_request_url_;
@@ -132,7 +132,7 @@ TEST(ProxyServiceTest, Direct) {
   EXPECT_TRUE(info.is_direct());
 
   // Check the NetLog was filled correctly.
-  net::CapturingNetLog::EntryList entries;
+  CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(3u, entries.size());
@@ -179,7 +179,7 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
 
   // Check the NetLog was filled correctly.
-  net::CapturingNetLog::EntryList entries;
+  CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(5u, entries.size());
@@ -1157,7 +1157,7 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   EXPECT_FALSE(callback1.have_result());  // Cancelled.
   EXPECT_FALSE(callback2.have_result());  // Cancelled.
 
-  net::CapturingNetLog::EntryList entries1;
+  CapturingNetLog::EntryList entries1;
   log1.GetEntries(&entries1);
 
   // Check the NetLog for request 1 (which was cancelled) got filled properly.
@@ -1690,7 +1690,7 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // In particular, PROXY_CONFIG_CHANGED should have only been emitted once
   // (for the initial setup), and NOT a second time when the IP address
   // changed.
-  net::CapturingNetLog::EntryList entries;
+  CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_TRUE(LogContainsEntryWithType(entries, 0,
