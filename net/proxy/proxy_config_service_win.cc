@@ -42,7 +42,7 @@ class ProxyConfigServiceWin::KeyEntry {
   bool StartWatching(base::win::ObjectWatcher::Delegate* delegate) {
     // Try to create a watch event for the registry key (which watches the
     // sibling tree as well).
-    if (!key_.StartWatching())
+    if (key_.StartWatching() != ERROR_SUCCESS)
       return false;
 
     // Now setup an ObjectWatcher for this event, so we get OnObjectSignaled()
@@ -54,7 +54,7 @@ class ProxyConfigServiceWin::KeyEntry {
   }
 
   bool CreateRegKey(HKEY rootkey, const wchar_t* subkey) {
-    return key_.Create(rootkey, subkey, KEY_NOTIFY);
+    return key_.Create(rootkey, subkey, KEY_NOTIFY) == ERROR_SUCCESS;
   }
 
   HANDLE watch_event() const {
