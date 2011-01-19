@@ -7,14 +7,15 @@
 #include "base/logging.h"
 #include "base/rand_util.h"
 #include "base/stringprintf.h"
+#include "base/utf_string_conversions.h"
 
 namespace base {
 
 // static
-const int FieldTrial::kNotParticipating = -1;
+const int FieldTrial::kNotFinalized = -1;
 
 // static
-const int FieldTrial::kAllRemainingProbability = -2;
+const int FieldTrial::kDefaultGroupNumber = 0;
 
 // static
 bool FieldTrial::enable_benchmarking_ = false;
@@ -28,30 +29,53 @@ static const char kHistogramFieldTrialSeparator('_');
 // FieldTrial methods and members.
 
 FieldTrial::FieldTrial(const std::string& name,
-                       const Probability total_probability)
+                       const Probability total_probability,
+                       const std::string& default_group_name,
+                       const int year,
+                       const int month,
+                       const int day_of_month)
   : name_(name),
     divisor_(total_probability),
+    default_group_name_(default_group_name),
     random_(static_cast<Probability>(divisor_ * base::RandDouble())),
     accumulated_group_probability_(0),
-    next_group_number_(0),
-    group_(kNotParticipating) {
+    next_group_number_(kDefaultGroupNumber+1),
+    group_(kNotFinalized) {
+  DCHECK(!default_group_name_.empty());
   FieldTrialList::Register(this);
+
+  DCHECK_GT(year, 1970);
+  DCHECK_GT(month, 0);
+  DCHECK_LT(month, 13);
+  DCHECK_GT(day_of_month, 0);
+  DCHECK_LT(day_of_month, 32);
+
+  base::Time::Exploded exploded;
+  exploded.year = year;
+  exploded.month = month;
+  exploded.day_of_week = 0;  // Should be unusued.
+  exploded.day_of_month = day_of_month;
+  exploded.hour = 0;
+  exploded.minute = 0;
+  exploded.second = 0;
+  exploded.millisecond = 0;
+
+  base::Time expiration_time = Time::FromLocalExploded(exploded);
+  disable_field_trial_ = (GetBuildTime() > expiration_time) ? true : false;
 }
 
 int FieldTrial::AppendGroup(const std::string& name,
                             Probability group_probability) {
   DCHECK(group_probability <= divisor_);
-  DCHECK(group_probability >=0 ||
-         group_probability == kAllRemainingProbability);
-  if (group_probability == kAllRemainingProbability) {
-    accumulated_group_probability_ = divisor_;
-  } else {
-    if (enable_benchmarking_)
-      group_probability = 0;
-    accumulated_group_probability_ += group_probability;
-  }
+  DCHECK_GE(group_probability, 0);
+
+  if (enable_benchmarking_ || disable_field_trial_)
+    group_probability = 0;
+
+  accumulated_group_probability_ += group_probability;
+
   DCHECK(accumulated_group_probability_ <= divisor_);
-  if (group_ == kNotParticipating && accumulated_group_probability_ > random_) {
+  if (group_ == kNotFinalized && accumulated_group_probability_ > random_) {
     // This is the group that crossed the random line, so we do the assignment.
     group_ = next_group_number_;
     if (name.empty())
@@ -60,6 +84,20 @@ int FieldTrial::AppendGroup(const std::string& name,
       group_name_ = name;
   }
   return next_group_number_++;
+}
+
+int FieldTrial::group() {
+  if (group_ == kNotFinalized) {
+    accumulated_group_probability_ = divisor_;
+    group_ = kDefaultGroupNumber;
+    group_name_ = default_group_name_;
+  }
+  return group_;
+}
+
+std::string FieldTrial::group_name() {
+  group();  // call group() to make group assignment was done.
+  return group_name_;
 }
 
 // static
@@ -74,6 +112,16 @@ std::string FieldTrial::MakeName(const std::string& name_prefix,
 void FieldTrial::EnableBenchmarking() {
   DCHECK_EQ(0u, FieldTrialList::GetFieldTrialCount());
   enable_benchmarking_ = true;
+}
+
+// static
+Time FieldTrial::GetBuildTime() {
+  Time integral_build_time;
+  const char* kDateTime = __DATE__ " " __TIME__;
+  bool result = Time::FromString(ASCIIToWide(kDateTime).c_str(),
+                                 &integral_build_time);
+  DCHECK(result);
+  return integral_build_time;
 }
 
 FieldTrial::~FieldTrial() {}
@@ -129,7 +177,7 @@ int FieldTrialList::FindValue(const std::string& name) {
   FieldTrial* field_trial = Find(name);
   if (field_trial)
     return field_trial->group();
-  return FieldTrial::kNotParticipating;
+  return FieldTrial::kNotFinalized;
 }
 
 // static
@@ -149,9 +197,11 @@ void FieldTrialList::StatesToString(std::string* output) {
   for (RegistrationList::iterator it = global_->registered_.begin();
        it != global_->registered_.end(); ++it) {
     const std::string name = it->first;
-    const std::string group_name = it->second->group_name();
+    std::string group_name = it->second->group_name_internal();
     if (group_name.empty())
-      continue;  // No definitive winner in this trial.
+      // No definitive winner in this trial, use default_group_name as the
+      // group_name.
+      group_name = it->second->default_group_name();
     DCHECK_EQ(name.find(kPersistentStringSeparator), std::string::npos);
     DCHECK_EQ(group_name.find(kPersistentStringSeparator), std::string::npos);
     output->append(name);
@@ -162,34 +212,43 @@ void FieldTrialList::StatesToString(std::string* output) {
 }
 
 // static
-bool FieldTrialList::StringAugmentsState(const std::string& prior_state) {
+bool FieldTrialList::CreateTrialsInChildProcess(
+    const std::string& parent_trials) {
   DCHECK(global_);
-  if (prior_state.empty() || !global_)
+  if (parent_trials.empty() || !global_)
     return true;
 
+  Time::Exploded exploded;
+  Time two_years_from_now =
+      Time::NowFromSystemTime() + TimeDelta::FromDays(730);
+  two_years_from_now.LocalExplode(&exploded);
+  const int kTwoYearsFromNow = exploded.year;
+
   size_t next_item = 0;
-  while (next_item < prior_state.length()) {
-    size_t name_end = prior_state.find(kPersistentStringSeparator, next_item);
-    if (name_end == prior_state.npos || next_item == name_end)
+  while (next_item < parent_trials.length()) {
+    size_t name_end = parent_trials.find(kPersistentStringSeparator, next_item);
+    if (name_end == parent_trials.npos || next_item == name_end)
       return false;
-    size_t group_name_end = prior_state.find(kPersistentStringSeparator,
-                                             name_end + 1);
-    if (group_name_end == prior_state.npos || name_end + 1 == group_name_end)
+    size_t group_name_end = parent_trials.find(kPersistentStringSeparator,
+                                               name_end + 1);
+    if (group_name_end == parent_trials.npos || name_end + 1 == group_name_end)
       return false;
-    std::string name(prior_state, next_item, name_end - next_item);
-    std::string group_name(prior_state, name_end + 1,
+    std::string name(parent_trials, next_item, name_end - next_item);
+    std::string group_name(parent_trials, name_end + 1,
                            group_name_end - name_end - 1);
     next_item = group_name_end + 1;
 
     FieldTrial *field_trial(FieldTrialList::Find(name));
     if (field_trial) {
       // In single process mode, we may have already created the field trial.
-      if (field_trial->group_name() != group_name)
+      if ((field_trial->group_name_internal() != group_name) &&
+          (field_trial->default_group_name() != group_name))
         return false;
       continue;
     }
     const int kTotalProbability = 100;
-    field_trial = new FieldTrial(name, kTotalProbability);
+    field_trial = new FieldTrial(name, kTotalProbability, group_name,
+                                 kTwoYearsFromNow, 1, 1);
     field_trial->AppendGroup(group_name, kTotalProbability);
   }
   return true;
