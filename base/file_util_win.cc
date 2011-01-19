@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -667,9 +667,10 @@ bool CreateDirectory(const FilePath& full_path) {
   if (!::CreateDirectory(full_path_str, NULL)) {
     DWORD error_code = ::GetLastError();
     if (error_code == ERROR_ALREADY_EXISTS && DirectoryExists(full_path)) {
-      // This error code doesn't indicate whether we were racing with someone
-      // creating the same directory, or a file with the same path, therefore
-      // we check.
+      // This error code ERROR_ALREADY_EXISTS doesn't indicate whether we
+      // were racing with someone creating the same directory, or a file
+      // with the same path.  If DirectoryExists() returns true, we lost the
+      // race to create the same directory.
       return true;
     } else {
       LOG(WARNING) << "Failed to create directory " << full_path_str
