@@ -283,9 +283,6 @@ TEST_F(SSLServerSocketTest, Initialize) {
 TEST_F(SSLServerSocketTest, Handshake) {
   Initialize();
 
-  if (!base::CheckNSSVersion("3.12.8"))
-    return;
-
   TestCompletionCallback connect_callback;
   TestCompletionCallback accept_callback;
 
@@ -306,24 +303,21 @@ TEST_F(SSLServerSocketTest, Handshake) {
 TEST_F(SSLServerSocketTest, DataTransfer) {
   Initialize();
 
-  if (!base::CheckNSSVersion("3.12.8"))
-    return;
-
   TestCompletionCallback connect_callback;
   TestCompletionCallback accept_callback;
 
   // Establish connection.
   int client_ret = client_socket_->Connect(&connect_callback);
-  EXPECT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
+  ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
   int server_ret = server_socket_->Accept(&accept_callback);
-  EXPECT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
+  ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   if (client_ret == net::ERR_IO_PENDING) {
-    EXPECT_EQ(net::OK, connect_callback.WaitForResult());
+    ASSERT_EQ(net::OK, connect_callback.WaitForResult());
   }
   if (server_ret == net::ERR_IO_PENDING) {
-    EXPECT_EQ(net::OK, accept_callback.WaitForResult());
+    ASSERT_EQ(net::OK, accept_callback.WaitForResult());
   }
 
   const int kReadBufSize = 1024;
