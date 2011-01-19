@@ -76,19 +76,19 @@ GURL GetTestFileUrl(const std::string& relpath) {
 class ProxyScriptFetcherImplTest : public PlatformTest {
  public:
   ProxyScriptFetcherImplTest()
-      : test_server_(net::TestServer::TYPE_HTTP, FilePath(kDocRoot)) {
+      : test_server_(TestServer::TYPE_HTTP, FilePath(kDocRoot)) {
   }
 
   static void SetUpTestCase() {
-    net::URLRequest::AllowFileAccess();
+    URLRequest::AllowFileAccess();
   }
 
  protected:
-  net::TestServer test_server_;
+  TestServer test_server_;
 };
 
 TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
-  scoped_refptr<net::URLRequestContext> context(new RequestContext);
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   ProxyScriptFetcherImpl pac_fetcher(context);
 
   { // Fetch a non-existent file.
@@ -116,7 +116,7 @@ TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
 TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<net::URLRequestContext> context(new RequestContext);
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   ProxyScriptFetcherImpl pac_fetcher(context);
 
   { // Fetch a PAC with mime type "text/plain"
@@ -151,7 +151,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
 TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<net::URLRequestContext> context(new RequestContext);
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   ProxyScriptFetcherImpl pac_fetcher(context);
 
   { // Fetch a PAC which gives a 500 -- FAIL
@@ -177,7 +177,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
 TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<net::URLRequestContext> context(new RequestContext);
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Fetch PAC scripts via HTTP with a Content-Disposition header -- should
@@ -194,7 +194,7 @@ TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
 TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<net::URLRequestContext> context(new RequestContext);
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Fetch a PAC script whose HTTP headers make it cacheable for 1 hour.
@@ -226,7 +226,7 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
 TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<net::URLRequestContext> context(new RequestContext);
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Set the maximum response size to 50 bytes.
@@ -267,7 +267,7 @@ TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
 TEST_F(ProxyScriptFetcherImplTest, Hang) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<net::URLRequestContext> context(new RequestContext);
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Set the timeout period to 0.5 seconds.
@@ -305,7 +305,7 @@ TEST_F(ProxyScriptFetcherImplTest, Hang) {
 TEST_F(ProxyScriptFetcherImplTest, Encodings) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<net::URLRequestContext> context(new RequestContext);
+  scoped_refptr<URLRequestContext> context(new RequestContext);
   ProxyScriptFetcherImpl pac_fetcher(context);
 
   // Test a response that is gzip-encoded -- should get inflated.
