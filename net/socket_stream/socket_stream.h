@@ -112,8 +112,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   Delegate* delegate() const { return delegate_; }
   int max_pending_send_allowed() const { return max_pending_send_allowed_; }
 
-  net::URLRequestContext* context() const { return context_.get(); }
-  void set_context(net::URLRequestContext* context);
+  URLRequestContext* context() const { return context_.get(); }
+  void set_context(URLRequestContext* context);
 
   BoundNetLog* net_log() { return &net_log_; }
 
@@ -271,7 +271,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   GURL url_;
   int max_pending_send_allowed_;
-  scoped_refptr<net::URLRequestContext> context_;
+  scoped_refptr<URLRequestContext> context_;
 
   UserDataMap user_data_;
 
