@@ -28,8 +28,8 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
 bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
     const std::string& mime_type, FilePath::StringType* ext) const {
   std::wstring key(L"MIME\\Database\\Content Type\\" + UTF8ToWide(mime_type));
-  if (!base::win::RegKey(HKEY_CLASSES_ROOT, key.c_str(), KEY_READ).ReadValue(
-          L"Extension", ext)) {
+  if (base::win::RegKey(HKEY_CLASSES_ROOT, key.c_str(), KEY_READ).ReadValue(
+          L"Extension", ext) != ERROR_SUCCESS) {
     return false;
   }
   // Strip off the leading dot, this should always be the case.

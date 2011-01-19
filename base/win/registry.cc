@@ -39,48 +39,33 @@ RegKey::~RegKey() {
   Close();
 }
 
-bool RegKey::Create(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
+GONG RegKey::Create(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
   DWORD disposition_value;
   return CreateWithDisposition(rootkey, subkey, &disposition_value, access);
 }
 
-bool RegKey::CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
+GONG RegKey::CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
                                    DWORD* disposition, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(rootkey && subkey && access && disposition);
   Close();
 
-  LONG result = RegCreateKeyEx(rootkey,
-                               subkey,
-                               0,
-                               NULL,
-                               REG_OPTION_NON_VOLATILE,
-                               access,
-                               NULL,
-                               &key_,
+  LONG result = RegCreateKeyEx(rootkey, subkey, 0, NULL,
+                               REG_OPTION_NON_VOLATILE, access, NULL, &key_,
                                disposition);
-  if (result != ERROR_SUCCESS) {
-    key_ = NULL;
-    return false;
-  }
-
-  return true;
+  return result;
 }
 
-bool RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
+GONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(rootkey && subkey && access);
   Close();
 
   LONG result = RegOpenKeyEx(rootkey, subkey, 0, access, &key_);
-  if (result != ERROR_SUCCESS) {
-    key_ = NULL;
-    return false;
-  }
-  return true;
+  return result;
 }
 
-bool RegKey::CreateKey(const wchar_t* name, REGSAM access) {
+GONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(name && access);
 
@@ -90,10 +75,10 @@ bool RegKey::CreateKey(const wchar_t* name, REGSAM access) {
   Close();
 
   key_ = subkey;
-  return (result == ERROR_SUCCESS);
+  return result;
 }
 
-bool RegKey::OpenKey(const wchar_t* name, REGSAM access) {
+GONG RegKey::OpenKey(const wchar_t* name, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(name && access);
 
@@ -103,7 +88,7 @@ bool RegKey::OpenKey(const wchar_t* name, REGSAM access) {
   Close();
 
   key_ = subkey;
-  return (result == ERROR_SUCCESS);
+  return result;
 }
 
 void RegKey::Close() {
@@ -118,67 +103,61 @@ void RegKey::Close() {
 DWORD RegKey::ValueCount() const {
   base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
-  HRESULT result = RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL,
-                                   NULL, &count, NULL, NULL, NULL, NULL);
+  LONG result = RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL, &count,
+                                NULL, NULL, NULL, NULL);
   return (result != ERROR_SUCCESS) ? 0 : count;
 }
 
-bool RegKey::ReadName(int index, std::wstring* name) const {
+GONG RegKey::ReadName(int index, std::wstring* name) const {
   base::ThreadRestrictions::AssertIOAllowed();
   wchar_t buf[256];
   DWORD bufsize = arraysize(buf);
-  LRESULT r = ::RegEnumValue(key_, index, buf, &bufsize, NULL, NULL,
-                             NULL, NULL);
-  if (r != ERROR_SUCCESS)
-    return false;
-  if (name)
+  LONG r = ::RegEnumValue(key_, index, buf, &bufsize, NULL, NULL, NULL, NULL);
+  if (r == ERROR_SUCCESS)
     *name = buf;
-  return true;
+
+  return r;
 }
 
-bool RegKey::DeleteKey(const wchar_t* name) {
+GONG RegKey::DeleteKey(const wchar_t* name) {
   base::ThreadRestrictions::AssertIOAllowed();
-  if (!key_)
-    return false;
-  LSTATUS ret = SHDeleteKey(key_, name);
-  if (ERROR_SUCCESS != ret)
-    SetLastError(ret);
-  return ERROR_SUCCESS == ret;
+  DCHECK(key_);
+  DCHECK(name);
+  LONG result = SHDeleteKey(key_, name);
+  return result;
 }
 
-bool RegKey::DeleteValue(const wchar_t* value_name) {
+GONG RegKey::DeleteValue(const wchar_t* value_name) {
   base::ThreadRestrictions::AssertIOAllowed();
+  DCHECK(key_);
   DCHECK(value_name);
-  HRESULT result = RegDeleteValue(key_, value_name);
-  return (result == ERROR_SUCCESS);
+  LONG result = RegDeleteValue(key_, value_name);
+  return result;
 }
 
-bool RegKey::ValueExists(const wchar_t* name) {
+bool RegKey::ValueExists(const wchar_t* name) const {
   base::ThreadRestrictions::AssertIOAllowed();
-  if (!key_)
-    return false;
-  HRESULT result = RegQueryValueEx(key_, name, 0, NULL, NULL, NULL);
-  return (result == ERROR_SUCCESS);
+  LONG result = RegQueryValueEx(key_, name, 0, NULL, NULL, NULL);
+  return result == ERROR_SUCCESS;
 }
 
-bool RegKey::ReadValue(const wchar_t* name, void* data,
-                       DWORD* dsize, DWORD* dtype) const {
+GONG RegKey::ReadValue(const wchar_t* name, void* data, DWORD* dsize,
+                       DWORD* dtype) const {
   base::ThreadRestrictions::AssertIOAllowed();
-  if (!key_)
-    return false;
-  HRESULT result = RegQueryValueEx(key_, name, 0, dtype,
-                                   reinterpret_cast<LPBYTE>(data), dsize);
-  return (result == ERROR_SUCCESS);
+  LONG result = RegQueryValueEx(key_, name, 0, dtype,
+                                reinterpret_cast<LPBYTE>(data), dsize);
+  return result;
 }
 
-bool RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
+GONG RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(value);
   const size_t kMaxStringLength = 1024;  // This is after expansion.
   // Use the one of the other forms of ReadValue if 1024 is too small for you.
   wchar_t raw_value[kMaxStringLength];
   DWORD type = REG_SZ, size = sizeof(raw_value);
-  if (ReadValue(name, raw_value, &size, &type)) {
+  LONG result = ReadValue(name, raw_value, &size, &type);
+  if (result == ERROR_SUCCESS) {
     if (type == REG_SZ) {
       *value = raw_value;
     } else if (type == REG_EXPAND_SZ) {
@@ -187,63 +166,77 @@ bool RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
       // Success: returns the number of wchar_t's copied
       // Fail: buffer too small, returns the size required
       // Fail: other, returns 0
-      if (size == 0 || size > kMaxStringLength)
-        return false;
-      *value = expanded;
+      if (size == 0 || size > kMaxStringLength) {
+        result = ERROR_MORE_DATA;
+      } else {
+        *value = expanded;
+      }
     } else {
       // Not a string. Oops.
-      return false;
+      result = ERROR_CANTREAD;
     }
-    return true;
   }
 
-  return false;
+  return result;
 }
 
-bool RegKey::ReadValueDW(const wchar_t* name, DWORD* value) const {
+GONG RegKey::ReadValueDW(const wchar_t* name, DWORD* value) const {
   DCHECK(value);
   DWORD type = REG_DWORD;
   DWORD size = sizeof(DWORD);
-  DWORD result = 0;
-  if (ReadValue(name, &result, &size, &type) &&
-      (type == REG_DWORD || type == REG_BINARY) &&
-      size == sizeof(DWORD)) {
-    *value = result;
-    return true;
+  DWORD local_value = 0;
+  LONG result = ReadValue(name, &local_value, &size, &type);
+  if (result == ERROR_SUCCESS) {
+    if ((type == REG_DWORD || type == REG_BINARY) && size == sizeof(DWORD)) {
+      *value = local_value;
+    } else {
+      result = ERROR_CANTREAD;
+    }
   }
 
-  return false;
+  return result;
 }
 
-bool RegKey::WriteValue(const wchar_t* name, const void * data,
+GONG RegKey::ReadInt64(const wchar_t* name, int64* value) const {
+  DCHECK(value);
+  DWORD type = REG_QWORD;
+  int64 local_value = 0;
+  DWORD size = sizeof(local_value);
+  LONG result = ReadValue(name, &local_value, &size, &type);
+  if (result == ERROR_SUCCESS) {
+    if ((type == REG_QWORD || type == REG_BINARY) &&
+        size == sizeof(local_value)) {
+      *value = local_value;
+    } else {
+      result = ERROR_CANTREAD;
+    }
+  }
+
+  return result;
+}
+
+GONG RegKey::WriteValue(const wchar_t* name, const void * data,
                         DWORD dsize, DWORD dtype) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(data);
+  DCHECK(key_);
 
-  if (!key_)
-    return false;
-
-  HRESULT result = RegSetValueEx(
-      key_,
-      name,
-      0,
-      dtype,
-      reinterpret_cast<LPBYTE>(const_cast<void*>(data)),
-      dsize);
-  return (result == ERROR_SUCCESS);
+  LONG result = RegSetValueEx(key_, name, 0, dtype,
+      reinterpret_cast<LPBYTE>(const_cast<void*>(data)), dsize);
+  return result;
 }
 
-bool RegKey::WriteValue(const wchar_t * name, const wchar_t* value) {
+GONG RegKey::WriteValue(const wchar_t * name, const wchar_t* value) {
   return WriteValue(name, value,
       static_cast<DWORD>(sizeof(*value) * (wcslen(value) + 1)), REG_SZ);
 }
 
-bool RegKey::WriteValue(const wchar_t* name, DWORD value) {
-  return WriteValue(name, &value,
-      static_cast<DWORD>(sizeof(value)), REG_DWORD);
+GONG RegKey::WriteValue(const wchar_t* name, DWORD value) {
+  return WriteValue(name, &value, static_cast<DWORD>(sizeof(value)), REG_DWORD);
 }
 
-bool RegKey::StartWatching() {
+GONG RegKey::StartWatching() {
+  DCHECK(key_);
   if (!watch_event_)
     watch_event_ = CreateEvent(NULL, TRUE, FALSE, NULL);
 
@@ -253,15 +246,13 @@ bool RegKey::StartWatching() {
                  REG_NOTIFY_CHANGE_SECURITY;
 
   // Watch the registry key for a change of value.
-  HRESULT result = RegNotifyChangeKeyValue(key_, TRUE, filter,
-                                           watch_event_, TRUE);
-  if (SUCCEEDED(result)) {
-    return true;
-  } else {
+  LONG result = RegNotifyChangeKeyValue(key_, TRUE, filter, watch_event_, TRUE);
+  if (result != ERROR_SUCCESS) {
     CloseHandle(watch_event_);
     watch_event_ = 0;
-    return false;
   }
+
+  return result;
 }
 
 bool RegKey::HasChanged() {
@@ -274,13 +265,14 @@ bool RegKey::HasChanged() {
   return false;
 }
 
-bool RegKey::StopWatching() {
+GONG RegKey::StopWatching() {
+  LONG result = ERROR_INVALID_HANDLE;
   if (watch_event_) {
     CloseHandle(watch_event_);
     watch_event_ = 0;
-    return true;
+    result = ERROR_SUCCESS;
   }
-  return false;
+  return result;
 }
 
 // RegistryValueIterator ------------------------------------------------------
@@ -317,9 +309,8 @@ RegistryValueIterator::~RegistryValueIterator() {
 DWORD RegistryValueIterator::ValueCount() const {
   base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
-  HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL,
-                                     &count, NULL, NULL, NULL, NULL);
-
+  LONG result = ::RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL,
+                                  &count, NULL, NULL, NULL, NULL);
   if (result != ERROR_SUCCESS)
     return 0;
 
@@ -340,8 +331,8 @@ bool RegistryValueIterator::Read() {
   if (Valid()) {
     DWORD ncount = arraysize(name_);
     value_size_ = sizeof(value_);
-    LRESULT r = ::RegEnumValue(key_, index_, name_, &ncount, NULL, &type_,
-                               reinterpret_cast<BYTE*>(value_), &value_size_);
+    LONG r = ::RegEnumValue(key_, index_, name_, &ncount, NULL, &type_,
+                            reinterpret_cast<BYTE*>(value_), &value_size_);
     if (ERROR_SUCCESS == r)
       return true;
   }
@@ -362,8 +353,8 @@ RegistryKeyIterator::RegistryKeyIterator(HKEY root_key,
     key_ = NULL;
   } else {
     DWORD count = 0;
-    HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
-                                       NULL, NULL, NULL, NULL, NULL);
+    LONG result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
+                                    NULL, NULL, NULL, NULL, NULL);
 
     if (result != ERROR_SUCCESS) {
       ::RegCloseKey(key_);
@@ -385,9 +376,8 @@ RegistryKeyIterator::~RegistryKeyIterator() {
 DWORD RegistryKeyIterator::SubkeyCount() const {
   base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
-  HRESULT result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
-                                     NULL, NULL, NULL, NULL, NULL);
-
+  LONG result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
+                                  NULL, NULL, NULL, NULL, NULL);
   if (result != ERROR_SUCCESS)
     return 0;
 
@@ -408,8 +398,8 @@ bool RegistryKeyIterator::Read() {
   if (Valid()) {
     DWORD ncount = arraysize(name_);
     FILETIME written;
-    LRESULT r = ::RegEnumKeyEx(key_, index_, name_, &ncount, NULL, NULL,
-                               NULL, &written);
+    LONG r = ::RegEnumKeyEx(key_, index_, name_, &ncount, NULL, NULL,
+                            NULL, &written);
     if (ERROR_SUCCESS == r)
       return true;
   }
