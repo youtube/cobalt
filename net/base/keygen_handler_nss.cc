@@ -4,7 +4,7 @@
 
 #include "net/base/keygen_handler.h"
 
-#include "base/crypto/pk11_blocking_password_delegate.h"
+#include "base/crypto/crypto_module_blocking_password_delegate.h"
 #include "base/crypto/scoped_nss_types.h"
 #include "base/logging.h"
 #include "base/nss_util.h"
@@ -29,7 +29,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
 
   // Authenticate to the token.
   if (SECSuccess != PK11_Authenticate(slot.get(), PR_TRUE,
-                                      pk11_password_delegate_.get())) {
+                                      crypto_module_password_delegate_.get())) {
     LOG(ERROR) << "Couldn't authenticate to internal key slot!";
     return std::string();
   }
@@ -38,9 +38,9 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
                                      slot.get(), stores_key_);
 }
 
-void KeygenHandler::set_pk11_password_delegate(
-    base::PK11BlockingPasswordDelegate* delegate) {
-  pk11_password_delegate_.reset(delegate);
+void KeygenHandler::set_crypto_module_password_delegate(
+    base::CryptoModuleBlockingPasswordDelegate* delegate) {
+  crypto_module_password_delegate_.reset(delegate);
 }
 
 }  // namespace net
