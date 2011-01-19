@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -125,8 +125,8 @@ std::string EscapeQueryParamValue(const std::string& text, bool use_plus);
 bool EscapeQueryParamValue(const string16& text, const char* codepage,
                            bool use_plus, string16* escaped);
 
-// A specialized version of EscapeQueryParamValue for wide strings that
+// A specialized version of EscapeQueryParamValue for string16s that
 // assumes the codepage is UTF8.  This is provided as a convenience.
-std::wstring EscapeQueryParamValueUTF8(const std::wstring& text, bool use_plus);
+string16 EscapeQueryParamValueUTF8(const string16& text, bool use_plus);
 
 #endif  // NET_BASE_ESCAPE_H_
