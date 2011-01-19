@@ -349,9 +349,15 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
   der_private_key_info.data =
       const_cast<unsigned char*>(&key_vector.front());
   der_private_key_info.len = key_vector.size();
+  // The server's RSA private key must be imported into NSS with the
+  // following key usage bits:
+  // - KU_KEY_ENCIPHERMENT, required for the RSA key exchange algorithm.
+  // - KU_DIGITAL_SIGNATURE, required for the DHE_RSA and ECDHE_RSA key
+  //   exchange algorithms.
+  const unsigned int key_usage = KU_KEY_ENCIPHERMENT | KU_DIGITAL_SIGNATURE;
   rv =  PK11_ImportDERPrivateKeyInfoAndReturnKey(
       slot, &der_private_key_info, NULL, NULL, PR_FALSE, PR_FALSE,
-      KU_DIGITAL_SIGNATURE, &private_key, NULL);
+      key_usage, &private_key, NULL);
   PK11_FreeSlot(slot);
   if (rv != SECSuccess) {
     CERT_DestroyCertificate(cert);
