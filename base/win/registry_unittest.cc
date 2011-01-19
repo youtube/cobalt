@@ -21,14 +21,14 @@ class RegistryTest : public testing::Test {
     // Create a temporary key.
     RegKey key(HKEY_CURRENT_USER, L"", KEY_ALL_ACCESS);
     key.DeleteKey(kRootKey);
-    ASSERT_FALSE(key.Open(HKEY_CURRENT_USER, kRootKey, KEY_READ));
-    ASSERT_TRUE(key.Create(HKEY_CURRENT_USER, kRootKey, KEY_READ));
+    ASSERT_NE(ERROR_SUCCESS, key.Open(HKEY_CURRENT_USER, kRootKey, KEY_READ));
+    ASSERT_EQ(ERROR_SUCCESS, key.Create(HKEY_CURRENT_USER, kRootKey, KEY_READ));
   }
 
   virtual void TearDown() {
     // Clean up the temporary key.
     RegKey key(HKEY_CURRENT_USER, L"", KEY_SET_VALUE);
-    ASSERT_TRUE(key.DeleteKey(kRootKey));
+    ASSERT_EQ(ERROR_SUCCESS, key.DeleteKey(kRootKey));
   }
 
  private:
@@ -40,22 +40,59 @@ TEST_F(RegistryTest, ValueTest) {
 
   std::wstring foo_key(kRootKey);
   foo_key += L"\\Foo";
-  ASSERT_TRUE(key.Create(HKEY_CURRENT_USER, foo_key.c_str(), KEY_READ));
+  ASSERT_EQ(ERROR_SUCCESS, key.Create(HKEY_CURRENT_USER, foo_key.c_str(),
+                                      KEY_READ));
 
   {
-    ASSERT_TRUE(key.Open(HKEY_CURRENT_USER, foo_key.c_str(),
-                         KEY_READ | KEY_SET_VALUE));
+    ASSERT_EQ(ERROR_SUCCESS, key.Open(HKEY_CURRENT_USER, foo_key.c_str(),
+                                      KEY_READ | KEY_SET_VALUE));
+    ASSERT_TRUE(key.Valid());
 
-    const wchar_t* kName = L"Bar";
-    const wchar_t* kValue = L"bar";
-    EXPECT_TRUE(key.WriteValue(kName, kValue));
-    EXPECT_TRUE(key.ValueExists(kName));
-    std::wstring out_value;
-    EXPECT_TRUE(key.ReadValue(kName, &out_value));
-    EXPECT_NE(out_value, L"");
-    EXPECT_STREQ(out_value.c_str(), kValue);
-    EXPECT_EQ(1U, key.ValueCount());
-    EXPECT_TRUE(key.DeleteValue(kName));
+    const wchar_t* kStringValueName = L"StringValue";
+    const wchar_t* kDWORDValueName = L"DWORDValue";
+    const wchar_t* kInt64ValueName = L"Int64Value";
+    const wchar_t* kStringData = L"string data";
+    const DWORD kDWORDData = 0xdeadbabe;
+    const int64 kInt64Data = 0xdeadbabedeadbabeLL;
+
+    // Test value creation
+    ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(kStringValueName, kStringData));
+    ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(kDWORDValueName, kDWORDData));
+    ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(kInt64ValueName, &kInt64Data,
+                                            sizeof(kInt64Data), REG_QWORD));
+    EXPECT_EQ(3U, key.ValueCount());
+    EXPECT_TRUE(key.ValueExists(kStringValueName));
+    EXPECT_TRUE(key.ValueExists(kDWORDValueName));
+    EXPECT_TRUE(key.ValueExists(kInt64ValueName));
+
+    // Test Read
+    std::wstring string_value;
+    DWORD dword_value = 0;
+    int64 int64_value = 0;
+    ASSERT_EQ(ERROR_SUCCESS, key.ReadValue(kStringValueName, &string_value));
+    ASSERT_EQ(ERROR_SUCCESS, key.ReadValueDW(kDWORDValueName, &dword_value));
+    ASSERT_EQ(ERROR_SUCCESS, key.ReadInt64(kInt64ValueName, &int64_value));
+    EXPECT_STREQ(kStringData, string_value.c_str());
+    EXPECT_EQ(kDWORDData, dword_value);
+    EXPECT_EQ(kInt64Data, int64_value);
+
+    // Make sure out args are not touched if ReadValue fails
+    const wchar_t* kNonExistent = L"NonExistent";
+    ASSERT_NE(ERROR_SUCCESS, key.ReadValue(kNonExistent, &string_value));
+    ASSERT_NE(ERROR_SUCCESS, key.ReadValueDW(kNonExistent, &dword_value));
+    ASSERT_NE(ERROR_SUCCESS, key.ReadInt64(kNonExistent, &int64_value));
+    EXPECT_STREQ(kStringData, string_value.c_str());
+    EXPECT_EQ(kDWORDData, dword_value);
+    EXPECT_EQ(kInt64Data, int64_value);
+
+    // Test delete
+    ASSERT_EQ(ERROR_SUCCESS, key.DeleteValue(kStringValueName));
+    ASSERT_EQ(ERROR_SUCCESS, key.DeleteValue(kDWORDValueName));
+    ASSERT_EQ(ERROR_SUCCESS, key.DeleteValue(kInt64ValueName));
+    EXPECT_EQ(0U, key.ValueCount());
+    EXPECT_FALSE(key.ValueExists(kStringValueName));
+    EXPECT_FALSE(key.ValueExists(kDWORDValueName));
+    EXPECT_FALSE(key.ValueExists(kInt64ValueName));
   }
 }
 

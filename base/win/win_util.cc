@@ -93,7 +93,7 @@ bool UserAccountControlIsEnabled() {
       L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
       KEY_READ);
   DWORD uac_enabled;
-  if (!key.ReadValueDW(L"EnableLUA", &uac_enabled))
+  if (key.ReadValueDW(L"EnableLUA", &uac_enabled) != ERROR_SUCCESS)
     return true;
   // Users can set the EnableLUA value to something arbitrary, like 2, which
   // Vista will treat as UAC enabled, so we make sure it is not set to 0.
@@ -128,12 +128,13 @@ static const char16 kAutoRunKeyPath[] =
 bool AddCommandToAutoRun(HKEY root_key, const string16& name,
                          const string16& command) {
   base::win::RegKey autorun_key(root_key, kAutoRunKeyPath, KEY_SET_VALUE);
-  return autorun_key.WriteValue(name.c_str(), command.c_str());
+  return (autorun_key.WriteValue(name.c_str(), command.c_str()) ==
+      ERROR_SUCCESS);
 }
 
 bool RemoveCommandFromAutoRun(HKEY root_key, const string16& name) {
   base::win::RegKey autorun_key(root_key, kAutoRunKeyPath, KEY_SET_VALUE);
-  return autorun_key.DeleteValue(name.c_str());
+  return (autorun_key.DeleteValue(name.c_str()) == ERROR_SUCCESS);
 }
 
 }  // namespace win
