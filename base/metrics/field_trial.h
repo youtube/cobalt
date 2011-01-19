@@ -66,11 +66,14 @@
 #include <map>
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/time.h"
 
 namespace base {
+
+class FieldTrialList;
 
 class FieldTrial : public RefCounted<FieldTrial> {
  public:
@@ -78,24 +81,25 @@ class FieldTrial : public RefCounted<FieldTrial> {
 
   // A return value to indicate that a given instance has not yet had a group
   // assignment (and hence is not yet participating in the trial).
-  static const int kNotParticipating;
+  static const int kNotFinalized;
 
-  // Provide an easy way to assign all remaining probability to a group.  Note
-  // that this will force an instance to participate, and make it illegal to
-  // attempt to probabalistically add any other groups to the trial.  When doing
-  // A/B tests with timings, it is often best to define all groups, so that
-  // histograms will get unique names via the MakeName() methods.
-  static const Probability kAllRemainingProbability;
+  // This is the group number of the 'default' group. This provides an easy way
+  // to assign all the remaining probability to a group ('default').
+  static const int kDefaultGroupNumber;
 
   // The name is used to register the instance with the FieldTrialList class,
   // and can be used to find the trial (only one trial can be present for each
   // name).
   // Group probabilities that are later supplied must sum to less than or equal
-  // to the total_probability.
-  FieldTrial(const std::string& name, Probability total_probability);
+  // to the total_probability. Arguments year, month and day_of_month specify
+  // the expiration time. If the build time is after the expiration time then
+  // the field trial reverts to the 'default' group.
+  FieldTrial(const std::string& name, Probability total_probability,
+             const std::string& default_group_name, const int year,
+             const int month, const int day_of_month);
 
   // Establish the name and probability of the next group in this trial.
-  // Sometimes, based on construction randomization, this call may causes the
+  // Sometimes, based on construction randomization, this call may cause the
   // provided group to be *THE* group selected for use in this instance.
   int AppendGroup(const std::string& name, Probability group_probability);
 
@@ -103,14 +107,18 @@ class FieldTrial : public RefCounted<FieldTrial> {
   std::string name() const { return name_; }
 
   // Return the randomly selected group number that was assigned.
-  // Return kNotParticipating if the instance is not participating in the
-  // experiment.
-  int group() const { return group_; }
+  // Return kDefaultGroupNumber if the instance is in the 'default' group.
+  // Note that this will force an instance to participate, and make it illegal
+  // to attempt to probabalistically add any other groups to the trial.
+  int group();
 
   // If the field trial is not in an experiment, this returns the empty string.
   // if the group's name is empty, a name of "_" concatenated with the group
   // number is used as the group name.
-  std::string group_name() const { return group_name_; }
+  std::string group_name();
+
+  // Return the default group name of the FieldTrial.
+  std::string default_group_name() const { return default_group_name_; }
 
   // Helper function for the most common use: as an argument to specifiy the
   // name of a HISTOGRAM.  Use the original histogram name as the name_prefix.
@@ -121,9 +129,29 @@ class FieldTrial : public RefCounted<FieldTrial> {
   static void EnableBenchmarking();
 
  private:
+  // Allow tests to access our innards for testing purposes.
+  FRIEND_TEST(FieldTrialTest, Registration);
+  FRIEND_TEST(FieldTrialTest, AbsoluteProbabilities);
+  FRIEND_TEST(FieldTrialTest, RemainingProbability);
+  FRIEND_TEST(FieldTrialTest, FiftyFiftyProbability);
+  FRIEND_TEST(FieldTrialTest, MiddleProbabilities);
+  FRIEND_TEST(FieldTrialTest, OneWinner);
+  FRIEND_TEST(FieldTrialTest, DisableProbability);
+  FRIEND_TEST(FieldTrialTest, Save);
+  FRIEND_TEST(FieldTrialTest, DuplicateRestore);
+  FRIEND_TEST(FieldTrialTest, MakeName);
+
+  friend class base::FieldTrialList;
+
   friend class RefCounted<FieldTrial>;
 
   virtual ~FieldTrial();
+
+  // Returns the group_name. A winner need not have been chosen.
+  std::string group_name_internal() const { return group_name_; }
+
+  // Get build time.
+  static Time GetBuildTime();
 
   // The name of the field trial, as can be found via the FieldTrialList.
   // This is empty of the trial is not in the experiment.
@@ -131,7 +159,10 @@ class FieldTrial : public RefCounted<FieldTrial> {
 
   // The maximum sum of all probabilities supplied, which corresponds to 100%.
   // This is the scaling factor used to adjust supplied probabilities.
-  Probability divisor_;
+  const Probability divisor_;
+
+  // The name of the default group.
+  const std::string default_group_name_;
 
   // The randomly selected probability that is used to select a group (or have
   // the instance not participate).  It is the product of divisor_ and a random
@@ -144,15 +175,19 @@ class FieldTrial : public RefCounted<FieldTrial> {
   int next_group_number_;
 
   // The pseudo-randomly assigned group number.
-  // This is kNotParticipating if no group has been assigned.
+  // This is kNotFinalized if no group has been assigned.
   int group_;
 
-  // A textual name for the randomly selected group, including the Trial name.
-  // If this Trial is not a member of an group, this string is empty.
+  // A textual name for the randomly selected group. If this Trial is not a
+  // member of an group, this string is empty.
   std::string group_name_;
 
+  // When disable_field_trial_ is true, field trial reverts to the 'default'
+  // group.
+  bool disable_field_trial_;
+
   // When benchmarking is enabled, field trials all revert to the 'default'
-  // bucket.
+  // group.
   static bool enable_benchmarking_;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrial);
@@ -199,7 +234,7 @@ class FieldTrialList {
   // is commonly used in a sub-process, to carry randomly selected state in a
   // parent process into this sub-process.
   //  Currently only the group_name_ and name_ are restored.
-  static bool StringAugmentsState(const std::string& prior_state);
+  static bool CreateTrialsInChildProcess(const std::string& prior_trials);
 
   // The time of construction of the global map is recorded in a static variable
   // and is commonly used by experiments to identify the time since the start
