@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -192,9 +192,9 @@ std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
 
 // Convert the string to a sequence of bytes and then % escape anything
 // except alphanumerics and !'()*-._~
-std::wstring EscapeQueryParamValueUTF8(const std::wstring& text,
-                                       bool use_plus) {
-  return UTF8ToWide(Escape(WideToUTF8(text), kQueryCharmap, use_plus));
+string16 EscapeQueryParamValueUTF8(const string16& text,
+                                   bool use_plus) {
+  return UTF8ToUTF16(Escape(UTF16ToUTF8(text), kQueryCharmap, use_plus));
 }
 
 // non-printable, non-7bit, and (including space)  "#%:<>?[\]^`{|}
