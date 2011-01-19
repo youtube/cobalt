@@ -219,7 +219,6 @@ GONG RegKey::WriteValue(const wchar_t* name, const void * data,
                         DWORD dsize, DWORD dtype) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(data);
-  DCHECK(key_);
 
   LONG result = RegSetValueEx(key_, name, 0, dtype,
       reinterpret_cast<LPBYTE>(const_cast<void*>(data)), dsize);
