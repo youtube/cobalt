@@ -5,14 +5,14 @@
 #include "net/base/keygen_handler.h"
 
 #if defined(USE_NSS)
-#include "base/crypto/pk11_blocking_password_delegate.h"
+#include "base/crypto/crypto_module_blocking_password_delegate.h"
 #endif
 
 namespace net {
 
 // The constructor and destructor must be defined in a .cc file so that
-// PK11BlockingPasswordDelegate can be forward-declared on platforms which use
-// NSS.
+// CryptoModuleBlockingPasswordDelegate can be forward-declared on platforms
+// which use NSS.
 
 KeygenHandler::KeygenHandler(int key_size_in_bits,
                              const std::string& challenge,
