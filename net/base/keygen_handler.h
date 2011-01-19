@@ -14,7 +14,7 @@
 
 #if defined(USE_NSS)
 namespace base {
-class PK11BlockingPasswordDelegate;
+class CryptoModuleBlockingPasswordDelegate;
 };
 #endif  // defined(USE_NSS)
 
@@ -47,7 +47,8 @@ class KeygenHandler {
   // GenKeyAndSignChallenge runs on a worker thread, so using the blocking
   // password callback is okay here.
   // Takes ownership of the delegate.
-  void set_pk11_password_delegate(base::PK11BlockingPasswordDelegate* delegate);
+  void set_crypto_module_password_delegate(
+      base::CryptoModuleBlockingPasswordDelegate* delegate);
 #endif  // defined(USE_NSS)
 
  private:
@@ -57,7 +58,8 @@ class KeygenHandler {
   bool stores_key_;  // should the generated key-pair be stored persistently?
 #if defined(USE_NSS)
   // The callback for requesting a password to the PKCS#11 token.
-  scoped_ptr<base::PK11BlockingPasswordDelegate> pk11_password_delegate_;
+  scoped_ptr<base::CryptoModuleBlockingPasswordDelegate>
+      crypto_module_password_delegate_;
 #endif  // defined(USE_NSS)
 };
 
