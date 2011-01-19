@@ -60,12 +60,17 @@
 #include <sslerr.h>
 #include <sslproto.h>
 
+#if defined(OS_LINUX) || defined(USE_SYSTEM_SSL)
+#include <dlfcn.h>
+#endif
+
 #include <limits>
 
 #include "base/compiler_specific.h"
-#include "base/metrics/histogram.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/nss_util.h"
+#include "base/singleton.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -92,9 +97,6 @@
 #include "net/socket/ssl_error_params.h"
 #include "net/socket/ssl_host_info.h"
 
-#if defined(USE_SYSTEM_SSL)
-#include <dlfcn.h>
-#endif
 #if defined(OS_WIN)
 #include <windows.h>
 #include <wincrypt.h>
@@ -112,26 +114,54 @@ static const int kRecvBufferSize = 4096;
 // and some will time out such sockets quite aggressively.
 static const int kCorkTimeoutMs = 200;
 
+typedef SECStatus
+(*CacheOCSPResponseFromSideChannelFunction)(
+    CERTCertDBHandle *handle, CERTCertificate *cert, PRTime time,
+    SECItem *encodedResponse, void *pwArg);
+
 #if defined(OS_LINUX)
 // On Linux, we dynamically link against the system version of libnss3.so. In
 // order to continue working on systems without up-to-date versions of NSS we
-// declare CERT_CacheOCSPResponseFromSideChannel to be a weak symbol. If, at
-// run time, we find that the symbol didn't resolve then we can avoid calling
-// the function.
-extern SECStatus
-CERT_CacheOCSPResponseFromSideChannel(
-    CERTCertDBHandle *handle, CERTCertificate *cert, PRTime time,
-    SECItem *encodedResponse, void *pwArg) __attribute__((weak));
+// lookup CERT_CacheOCSPResponseFromSideChannel with dlsym.
 
-static bool HaveCacheOCSPResponseFromSideChannelFunction() {
-  return CERT_CacheOCSPResponseFromSideChannel != NULL;
+// RuntimeLibNSSFunctionPointers is a singleton which caches the results of any
+// runtime symbol resolution that we need.
+class RuntimeLibNSSFunctionPointers {
+ public:
+  CacheOCSPResponseFromSideChannelFunction
+  GetCacheOCSPResponseFromSideChannelFunction() {
+    return cache_ocsp_response_from_side_channel_;
+  }
+
+  static RuntimeLibNSSFunctionPointers* GetInstance() {
+    return Singleton<RuntimeLibNSSFunctionPointers>::get();
+  }
+
+ private:
+  friend struct DefaultSingletonTraits<RuntimeLibNSSFunctionPointers>;
+
+  RuntimeLibNSSFunctionPointers() {
+    cache_ocsp_response_from_side_channel_ =
+        (CacheOCSPResponseFromSideChannelFunction)
+        dlsym(RTLD_DEFAULT, "CERT_CacheOCSPResponseFromSideChannel");
+  }
+
+  CacheOCSPResponseFromSideChannelFunction
+      cache_ocsp_response_from_side_channel_;
+};
+
+static CacheOCSPResponseFromSideChannelFunction
+GetCacheOCSPResponseFromSideChannelFunction() {
+  return RuntimeLibNSSFunctionPointers::GetInstance()
+    ->GetCacheOCSPResponseFromSideChannelFunction();
 }
 #else
 // On other platforms we use the system's certificate validation functions.
 // Thus we need, in the future, to plumb the OCSP response into those system
 // functions. Until then, we act as if we didn't support OCSP stapling.
-static bool HaveCacheOCSPResponseFromSideChannelFunction() {
-  return false;
+static CacheOCSPResponseFromSideChannelFunction
+GetCacheOCSPResponseFromSideChannelFunction() {
+  return NULL;
 }
 #endif
 
@@ -659,7 +689,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_OCSP_STAPLING
-  if (HaveCacheOCSPResponseFromSideChannelFunction() &&
+  if (GetCacheOCSPResponseFromSideChannelFunction() &&
       !ssl_config_.snap_start_enabled) {
     rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OCSP_STAPLING, PR_TRUE);
     if (rv != SECSuccess)
@@ -1990,11 +2020,12 @@ int SSLClientSocketNSS::DoHandshake() {
         }
 
 #if defined(SSL_ENABLE_OCSP_STAPLING)
+        const CacheOCSPResponseFromSideChannelFunction cache_ocsp_response =
+            GetCacheOCSPResponseFromSideChannelFunction();
         // TODO: we need to be able to plumb an OCSP response into the system
-        // libraries. When we do, HaveCacheOCSPResponseFromSideChannelFunction
+        // libraries. When we do, GetOCSPResponseFromSideChannelFunction
         // needs to be updated for those platforms.
-        if (!predicted_cert_chain_correct_ &&
-            HaveCacheOCSPResponseFromSideChannelFunction()) {
+        if (!predicted_cert_chain_correct_ && cache_ocsp_response) {
           unsigned int len = 0;
           SSL_GetStapledOCSPResponse(nss_fd_, NULL, &len);
           if (len) {
@@ -2008,7 +2039,7 @@ int SSLClientSocketNSS::DoHandshake() {
             ocsp_response_item.data = ocsp_response.get();
             ocsp_response_item.len = len;
 
-            CERT_CacheOCSPResponseFromSideChannel(
+            cache_ocsp_response(
                 CERT_GetDefaultCertDB(), server_cert_nss_, PR_Now(),
                 &ocsp_response_item, NULL);
           }
