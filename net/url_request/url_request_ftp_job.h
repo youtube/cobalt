@@ -24,7 +24,6 @@ class URLRequestContext;
 // provides an implementation for FTP.
 class URLRequestFtpJob : public URLRequestJob {
  public:
-
   explicit URLRequestFtpJob(URLRequest* request);
 
   static URLRequestJob* Factory(URLRequest* request,
@@ -35,6 +34,15 @@ class URLRequestFtpJob : public URLRequestJob {
 
  private:
   virtual ~URLRequestFtpJob();
+
+  void StartTransaction();
+
+  void OnStartCompleted(int result);
+  void OnReadCompleted(int result);
+
+  void RestartTransactionWithAuth();
+
+  void LogFtpServerType(char server_type);
 
   // Overridden from URLRequestJob:
   virtual void Start();
@@ -50,15 +58,6 @@ class URLRequestFtpJob : public URLRequestJob {
   // TODO(ibrar):  Yet to give another look at this function.
   virtual uint64 GetUploadProgress() const;
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
-
-  void StartTransaction();
-
-  void OnStartCompleted(int result);
-  void OnReadCompleted(int result);
-
-  void RestartTransactionWithAuth();
-
-  void LogFtpServerType(char server_type);
 
   FtpRequestInfo request_info_;
   scoped_ptr<FtpTransaction> transaction_;

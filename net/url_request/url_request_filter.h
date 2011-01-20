@@ -39,12 +39,12 @@ class URLRequestFilter {
   typedef base::hash_map<std::string, net::URLRequest::ProtocolFactory*>
       UrlHandlerMap;
 
-  // Singleton instance for use.
-  static URLRequestFilter* GetInstance();
+  ~URLRequestFilter();
 
   static net::URLRequest::ProtocolFactory Factory;
 
-  ~URLRequestFilter();
+  // Singleton instance for use.
+  static URLRequestFilter* GetInstance();
 
   void AddHostnameHandler(const std::string& scheme,
                           const std::string& hostname,

@@ -29,9 +29,6 @@ URLRequestFtpJob::URLRequestFtpJob(URLRequest* request)
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
-URLRequestFtpJob::~URLRequestFtpJob() {
-}
-
 // static
 URLRequestJob* URLRequestFtpJob::Factory(URLRequest* request,
                                          const std::string& scheme) {
@@ -53,6 +50,105 @@ bool URLRequestFtpJob::GetMimeType(std::string* mime_type) const {
     return true;
   }
   return false;
+}
+
+URLRequestFtpJob::~URLRequestFtpJob() {
+}
+
+void URLRequestFtpJob::StartTransaction() {
+  // Create a transaction.
+  DCHECK(!transaction_.get());
+  DCHECK(request_->context());
+  DCHECK(request_->context()->ftp_transaction_factory());
+
+  transaction_.reset(
+      request_->context()->ftp_transaction_factory()->CreateTransaction());
+
+  // No matter what, we want to report our status as IO pending since we will
+  // be notifying our consumer asynchronously via OnStartCompleted.
+  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
+  int rv;
+  if (transaction_.get()) {
+    rv = transaction_->Start(
+        &request_info_, &start_callback_, request_->net_log());
+    if (rv == ERR_IO_PENDING)
+      return;
+  } else {
+    rv = ERR_FAILED;
+  }
+  // The transaction started synchronously, but we need to notify the
+  // URLRequest delegate via the message loop.
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestFtpJob::OnStartCompleted, rv));
+}
+
+void URLRequestFtpJob::OnStartCompleted(int result) {
+  // Clear the IO_PENDING status
+  SetStatus(URLRequestStatus());
+
+  // FTP obviously doesn't have HTTP Content-Length header. We have to pass
+  // the content size information manually.
+  set_expected_content_size(
+      transaction_->GetResponseInfo()->expected_content_size);
+
+  if (result == OK) {
+    NotifyHeadersComplete();
+  } else if (transaction_->GetResponseInfo()->needs_auth) {
+    GURL origin = request_->url().GetOrigin();
+    if (server_auth_ && server_auth_->state == AUTH_STATE_HAVE_AUTH) {
+      request_->context()->ftp_auth_cache()->Remove(origin,
+                                                    server_auth_->username,
+                                                    server_auth_->password);
+    } else if (!server_auth_) {
+      server_auth_ = new AuthData();
+    }
+    server_auth_->state = AUTH_STATE_NEED_AUTH;
+
+    FtpAuthCache::Entry* cached_auth =
+        request_->context()->ftp_auth_cache()->Lookup(origin);
+
+    if (cached_auth) {
+      // Retry using cached auth data.
+      SetAuth(cached_auth->username, cached_auth->password);
+    } else {
+      // Prompt for a username/password.
+      NotifyHeadersComplete();
+    }
+  } else {
+    NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, result));
+  }
+}
+
+void URLRequestFtpJob::OnReadCompleted(int result) {
+  read_in_progress_ = false;
+  if (result == 0) {
+    NotifyDone(URLRequestStatus());
+  } else if (result < 0) {
+    NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, result));
+  } else {
+    // Clear the IO_PENDING status
+    SetStatus(URLRequestStatus());
+  }
+  NotifyReadComplete(result);
+}
+
+void URLRequestFtpJob::RestartTransactionWithAuth() {
+  DCHECK(server_auth_ && server_auth_->state == AUTH_STATE_HAVE_AUTH);
+
+  // No matter what, we want to report our status as IO pending since we will
+  // be notifying our consumer asynchronously via OnStartCompleted.
+  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
+
+  int rv = transaction_->RestartWithAuth(server_auth_->username,
+                                         server_auth_->password,
+                                         &start_callback_);
+  if (rv == ERR_IO_PENDING)
+    return;
+
+  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
+      this, &URLRequestFtpJob::OnStartCompleted, rv));
 }
 
 void URLRequestFtpJob::Start() {
@@ -145,102 +241,6 @@ bool URLRequestFtpJob::ReadRawData(IOBuffer* buf,
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, rv));
   }
   return false;
-}
-
-void URLRequestFtpJob::OnStartCompleted(int result) {
-  // Clear the IO_PENDING status
-  SetStatus(URLRequestStatus());
-
-  // FTP obviously doesn't have HTTP Content-Length header. We have to pass
-  // the content size information manually.
-  set_expected_content_size(
-      transaction_->GetResponseInfo()->expected_content_size);
-
-  if (result == OK) {
-    NotifyHeadersComplete();
-  } else if (transaction_->GetResponseInfo()->needs_auth) {
-    GURL origin = request_->url().GetOrigin();
-    if (server_auth_ && server_auth_->state == AUTH_STATE_HAVE_AUTH) {
-      request_->context()->ftp_auth_cache()->Remove(origin,
-                                                    server_auth_->username,
-                                                    server_auth_->password);
-    } else if (!server_auth_) {
-      server_auth_ = new AuthData();
-    }
-    server_auth_->state = AUTH_STATE_NEED_AUTH;
-
-    FtpAuthCache::Entry* cached_auth =
-        request_->context()->ftp_auth_cache()->Lookup(origin);
-
-    if (cached_auth) {
-      // Retry using cached auth data.
-      SetAuth(cached_auth->username, cached_auth->password);
-    } else {
-      // Prompt for a username/password.
-      NotifyHeadersComplete();
-    }
-  } else {
-    NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, result));
-  }
-}
-
-void URLRequestFtpJob::OnReadCompleted(int result) {
-  read_in_progress_ = false;
-  if (result == 0) {
-    NotifyDone(URLRequestStatus());
-  } else if (result < 0) {
-    NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, result));
-  } else {
-    // Clear the IO_PENDING status
-    SetStatus(URLRequestStatus());
-  }
-  NotifyReadComplete(result);
-}
-
-void URLRequestFtpJob::RestartTransactionWithAuth() {
-  DCHECK(server_auth_ && server_auth_->state == AUTH_STATE_HAVE_AUTH);
-
-  // No matter what, we want to report our status as IO pending since we will
-  // be notifying our consumer asynchronously via OnStartCompleted.
-  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
-
-  int rv = transaction_->RestartWithAuth(server_auth_->username,
-                                         server_auth_->password,
-                                         &start_callback_);
-  if (rv == ERR_IO_PENDING)
-    return;
-
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestFtpJob::OnStartCompleted, rv));
-}
-
-void URLRequestFtpJob::StartTransaction() {
-  // Create a transaction.
-  DCHECK(!transaction_.get());
-  DCHECK(request_->context());
-  DCHECK(request_->context()->ftp_transaction_factory());
-
-  transaction_.reset(
-      request_->context()->ftp_transaction_factory()->CreateTransaction());
-
-  // No matter what, we want to report our status as IO pending since we will
-  // be notifying our consumer asynchronously via OnStartCompleted.
-  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
-  int rv;
-  if (transaction_.get()) {
-    rv = transaction_->Start(
-        &request_info_, &start_callback_, request_->net_log());
-    if (rv == ERR_IO_PENDING)
-      return;
-  } else {
-    rv = ERR_FAILED;
-  }
-  // The transaction started synchronously, but we need to notify the
-  // URLRequest delegate via the message loop.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestFtpJob::OnStartCompleted, rv));
 }
 
 }  // namespace net

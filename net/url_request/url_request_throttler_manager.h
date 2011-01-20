@@ -70,6 +70,7 @@ class URLRequestThrottlerManager {
   // which garbage collecting happens is adjustable with the
   // kRequestBetweenCollecting constant.
   void GarbageCollectEntriesIfNecessary();
+
   // Method that does the actual work of garbage collecting.
   void GarbageCollectEntries();
 

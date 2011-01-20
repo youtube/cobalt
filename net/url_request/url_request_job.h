@@ -129,13 +129,6 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   virtual bool GetContentEncodings(
       std::vector<Filter::FilterType>* encoding_types);
 
-  // Find out if this is a download.
-  virtual bool IsDownload() const;
-
-  // Find out if this is a response to a request that advertised an SDCH
-  // dictionary.  Only makes sense for some types of requests.
-  virtual bool IsSdchResponse() const;
-
   // Called to setup stream filter for this request. An example of filter is
   // content encoding/decoding.
   void SetupFilter();
@@ -208,6 +201,8 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   virtual bool GetMimeType(std::string* mime_type) const;
   virtual bool GetURL(GURL* gurl) const;
   virtual base::Time GetRequestTime() const;
+  virtual bool IsDownload() const;
+  virtual bool IsSdchResponse() const;
   virtual bool IsCachedContent() const;
   virtual int64 GetByteReadCount() const;
   virtual int GetResponseCode() const;
@@ -277,15 +272,15 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   // to get SDCH to emit stats.
   void DestroyFilters() { filter_.reset(); }
 
-  // The request that initiated this job. This value MAY BE NULL if the
-  // request was released by DetachRequest().
-  net::URLRequest* request_;
-
   // The status of the job.
   const net::URLRequestStatus GetStatus();
 
   // Set the status of the job.
   void SetStatus(const net::URLRequestStatus& status);
+
+  // The request that initiated this job. This value MAY BE NULL if the
+  // request was released by DetachRequest().
+  net::URLRequest* request_;
 
   // Whether the job is doing performance profiling
   bool is_profiling_;

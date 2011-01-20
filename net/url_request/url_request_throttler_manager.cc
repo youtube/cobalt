@@ -31,6 +31,27 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
   return entry;
 }
 
+void URLRequestThrottlerManager::OverrideEntryForTests(
+    const GURL& url,
+    URLRequestThrottlerEntry* entry) {
+  if (entry == NULL)
+    return;
+
+  // Normalize the url.
+  std::string url_id = GetIdFromUrl(url);
+
+  // Periodically garbage collect old entries.
+  GarbageCollectEntriesIfNecessary();
+
+  url_entries_[url_id] = entry;
+}
+
+void URLRequestThrottlerManager::EraseEntryForTests(const GURL& url) {
+  // Normalize the url.
+  std::string url_id = GetIdFromUrl(url);
+  url_entries_.erase(url_id);
+}
+
 URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
       enforce_throttling_(true) {
@@ -58,6 +79,15 @@ std::string URLRequestThrottlerManager::GetIdFromUrl(const GURL& url) const {
   return StringToLowerASCII(id.spec());
 }
 
+void URLRequestThrottlerManager::GarbageCollectEntriesIfNecessary() {
+  requests_since_last_gc_++;
+  if (requests_since_last_gc_ < kRequestsBetweenCollecting)
+    return;
+
+  requests_since_last_gc_ = 0;
+  GarbageCollectEntries();
+}
+
 void URLRequestThrottlerManager::GarbageCollectEntries() {
   UrlEntryMap::iterator i = url_entries_.begin();
 
@@ -73,36 +103,6 @@ void URLRequestThrottlerManager::GarbageCollectEntries() {
   while (url_entries_.size() > kMaximumNumberOfEntries) {
     url_entries_.erase(url_entries_.begin());
   }
-}
-
-void URLRequestThrottlerManager::GarbageCollectEntriesIfNecessary() {
-  requests_since_last_gc_++;
-  if (requests_since_last_gc_ < kRequestsBetweenCollecting)
-    return;
-
-  requests_since_last_gc_ = 0;
-  GarbageCollectEntries();
-}
-
-void URLRequestThrottlerManager::OverrideEntryForTests(
-    const GURL& url,
-    URLRequestThrottlerEntry* entry) {
-  if (entry == NULL)
-    return;
-
-  // Normalize the url.
-  std::string url_id = GetIdFromUrl(url);
-
-  // Periodically garbage collect old entries.
-  GarbageCollectEntriesIfNecessary();
-
-  url_entries_[url_id] = entry;
-}
-
-void URLRequestThrottlerManager::EraseEntryForTests(const GURL& url) {
-  // Normalize the url.
-  std::string url_id = GetIdFromUrl(url);
-  url_entries_.erase(url_id);
 }
 
 }  // namespace net

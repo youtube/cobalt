@@ -65,17 +65,36 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
   Initialize();
 }
 
-URLRequestThrottlerEntry::~URLRequestThrottlerEntry() {
-}
+bool URLRequestThrottlerEntry::IsEntryOutdated() const {
+  if (entry_lifetime_ms_ == -1)
+    return false;
 
-void URLRequestThrottlerEntry::Initialize() {
-  // Since this method is called by the constructors, GetTimeNow() (a virtual
-  // method) is not used.
-  exponential_backoff_release_time_ = base::TimeTicks::Now();
-  failure_count_ = 0;
-  latest_response_was_failure_ = false;
+  base::TimeTicks now = GetTimeNow();
 
-  sliding_window_release_time_ = base::TimeTicks::Now();
+  // If there are send events in the sliding window period, we still need this
+  // entry.
+  if (send_log_.size() > 0 &&
+      send_log_.back() + sliding_window_period_ > now) {
+    return false;
+  }
+
+  int64 unused_since_ms =
+      (now - exponential_backoff_release_time_).InMilliseconds();
+
+  // Release time is further than now, we are managing it.
+  if (unused_since_ms < 0)
+    return false;
+
+  // latest_response_was_failure_ is true indicates that the latest one or
+  // more requests encountered server errors or had malformed response bodies.
+  // In that case, we don't want to collect the entry unless it hasn't been used
+  // for longer than the maximum allowed back-off.
+  if (latest_response_was_failure_)
+    return unused_since_ms > std::max(maximum_backoff_ms_, entry_lifetime_ms_);
+
+  // Otherwise, consider the entry is outdated if it hasn't been used for the
+  // specified lifetime period.
+  return unused_since_ms > entry_lifetime_ms_;
 }
 
 bool URLRequestThrottlerEntry::IsDuringExponentialBackoff() const {
@@ -153,38 +172,6 @@ void URLRequestThrottlerEntry::UpdateWithResponse(
   }
 }
 
-bool URLRequestThrottlerEntry::IsEntryOutdated() const {
-  if (entry_lifetime_ms_ == -1)
-    return false;
-
-  base::TimeTicks now = GetTimeNow();
-
-  // If there are send events in the sliding window period, we still need this
-  // entry.
-  if (send_log_.size() > 0 &&
-      send_log_.back() + sliding_window_period_ > now) {
-    return false;
-  }
-
-  int64 unused_since_ms =
-      (now - exponential_backoff_release_time_).InMilliseconds();
-
-  // Release time is further than now, we are managing it.
-  if (unused_since_ms < 0)
-    return false;
-
-  // latest_response_was_failure_ is true indicates that the latest one or
-  // more requests encountered server errors or had malformed response bodies.
-  // In that case, we don't want to collect the entry unless it hasn't been used
-  // for longer than the maximum allowed back-off.
-  if (latest_response_was_failure_)
-    return unused_since_ms > std::max(maximum_backoff_ms_, entry_lifetime_ms_);
-
-  // Otherwise, consider the entry is outdated if it hasn't been used for the
-  // specified lifetime period.
-  return unused_since_ms > entry_lifetime_ms_;
-}
-
 void URLRequestThrottlerEntry::ReceivedContentWasMalformed() {
   // For any response that is marked as malformed now, we have probably
   // considered it as a success when receiving it and decreased the failure
@@ -197,6 +184,19 @@ void URLRequestThrottlerEntry::ReceivedContentWasMalformed() {
   failure_count_ += 2;
   latest_response_was_failure_ = true;
   exponential_backoff_release_time_ = CalculateExponentialBackoffReleaseTime();
+}
+
+URLRequestThrottlerEntry::~URLRequestThrottlerEntry() {
+}
+
+void URLRequestThrottlerEntry::Initialize() {
+  // Since this method is called by the constructors, GetTimeNow() (a virtual
+  // method) is not used.
+  exponential_backoff_release_time_ = base::TimeTicks::Now();
+  failure_count_ = 0;
+  latest_response_was_failure_ = false;
+
+  sliding_window_release_time_ = base::TimeTicks::Now();
 }
 
 base::TimeTicks
