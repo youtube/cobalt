@@ -31,6 +31,8 @@
         'base',
       ],
       'sources': [
+	'i18n/bidi_line_iterator.cc',
+	'i18n/bidi_line_iterator.h',
         'i18n/break_iterator.cc',
         'i18n/break_iterator.h',
         'i18n/char_iterator.cc',
