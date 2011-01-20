@@ -19,11 +19,12 @@ class URLRequestDataJob : public URLRequestSimpleJob {
  public:
   explicit URLRequestDataJob(URLRequest* request);
 
+  static URLRequest::ProtocolFactory Factory;
+
+  // URLRequestSimpleJob
   virtual bool GetData(std::string* mime_type,
                        std::string* charset,
                        std::string* data) const;
-
-  static URLRequest::ProtocolFactory Factory;
 
  private:
   ~URLRequestDataJob();
