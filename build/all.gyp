@@ -344,6 +344,12 @@
             # mini_installer_tests depends on mini_installer. This should be
             # defined in installer.gyp.
             '../chrome/installer/mini_installer.gyp:mini_installer',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_perftests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_reliability_tests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
+            '../chrome_frame/chrome_frame.gyp:npchrome_frame',
             '../courgette/courgette.gyp:courgette_unittests',
             '../gfx/gfx.gyp:gfx_unittests',
             '../gpu/gpu.gyp:gpu_unittests',
@@ -354,18 +360,13 @@
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
+            '../views/views.gyp:views_unittests',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
             # This should:
             # 1) not be the case. OR.
             # 2) be expressed in the ui tests dependencies.
             '../webkit/webkit.gyp:test_shell_common',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
-            '../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
-            '../chrome_frame/chrome_frame.gyp:chrome_frame_perftests',
-            '../chrome_frame/chrome_frame.gyp:chrome_frame_reliability_tests',
-            '../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
-            '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
-            '../chrome_frame/chrome_frame.gyp:npchrome_frame',
           ],
         },
         {
