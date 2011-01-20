@@ -87,28 +87,9 @@ class HostResolverImpl : public HostResolver,
   // be called.
   virtual ~HostResolverImpl();
 
-  // HostResolver methods:
-  virtual int Resolve(const RequestInfo& info,
-                      AddressList* addresses,
-                      CompletionCallback* callback,
-                      RequestHandle* out_req,
-                      const BoundNetLog& source_net_log);
-  virtual void CancelRequest(RequestHandle req);
-  virtual void AddObserver(HostResolver::Observer* observer);
-  virtual void RemoveObserver(HostResolver::Observer* observer);
-
-  // Set address family, and disable IPv6 probe support.
-  virtual void SetDefaultAddressFamily(AddressFamily address_family);
-  virtual AddressFamily GetDefaultAddressFamily() const;
-
   // Continuously observe whether IPv6 is supported, and set the allowable
   // address family to IPv4 iff IPv6 is not supported.
   void ProbeIPv6Support();
-
-  virtual HostResolverImpl* GetAsHostResolverImpl();
-
-  // TODO(eroman): hack for http://crbug.com/15513
-  virtual void Shutdown();
 
   // Returns the cache this resolver uses, or NULL if caching is disabled.
   HostCache* cache() { return cache_.get(); }
@@ -127,6 +108,25 @@ class HostResolverImpl : public HostResolver,
   void SetPoolConstraints(JobPoolIndex pool_index,
                           size_t max_outstanding_jobs,
                           size_t max_pending_requests);
+
+  // HostResolver methods:
+  virtual int Resolve(const RequestInfo& info,
+                      AddressList* addresses,
+                      CompletionCallback* callback,
+                      RequestHandle* out_req,
+                      const BoundNetLog& source_net_log);
+  virtual void CancelRequest(RequestHandle req);
+  virtual void AddObserver(HostResolver::Observer* observer);
+  virtual void RemoveObserver(HostResolver::Observer* observer);
+
+  // Set address family, and disable IPv6 probe support.
+  virtual void SetDefaultAddressFamily(AddressFamily address_family);
+  virtual AddressFamily GetDefaultAddressFamily() const;
+
+  virtual HostResolverImpl* GetAsHostResolverImpl();
+
+  // TODO(eroman): hack for http://crbug.com/15513
+  virtual void Shutdown();
 
  private:
   class Job;
@@ -185,9 +185,6 @@ class HostResolverImpl : public HostResolver,
                        int request_id,
                        const RequestInfo& info);
 
-  // NetworkChangeNotifier::Observer methods:
-  virtual void OnIPAddressChanged();
-
   // Notify IPv6ProbeJob not to call back, and discard reference to the job.
   void DiscardIPv6ProbeJob();
 
@@ -225,6 +222,9 @@ class HostResolverImpl : public HostResolver,
 
   // Aborts all in progress jobs (but might start new ones).
   void AbortAllInProgressJobs();
+
+  // NetworkChangeNotifier::Observer methods:
+  virtual void OnIPAddressChanged();
 
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;

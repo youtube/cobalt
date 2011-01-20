@@ -62,6 +62,24 @@ HttpProxyClientSocket::~HttpProxyClientSocket() {
   Disconnect();
 }
 
+int HttpProxyClientSocket::RestartWithAuth(CompletionCallback* callback) {
+  DCHECK_EQ(STATE_NONE, next_state_);
+  DCHECK(!user_callback_);
+
+  int rv = PrepareForAuthRestart();
+  if (rv != OK)
+    return rv;
+
+  rv = DoLoop(OK);
+  if (rv == ERR_IO_PENDING)
+    user_callback_ = callback;
+  return rv;
+}
+
+const HttpResponseInfo* HttpProxyClientSocket::GetConnectResponseInfo() const {
+  return response_.headers ? &response_ : NULL;
+}
+
 HttpStream* HttpProxyClientSocket::CreateConnectResponseStream() {
   return new HttpBasicStream(transport_.release(),
                              http_stream_parser_.release(), false);
@@ -90,67 +108,6 @@ int HttpProxyClientSocket::Connect(CompletionCallback* callback) {
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
   return rv;
-}
-
-int HttpProxyClientSocket::RestartWithAuth(CompletionCallback* callback) {
-  DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!user_callback_);
-
-  int rv = PrepareForAuthRestart();
-  if (rv != OK)
-    return rv;
-
-  rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
-  return rv;
-}
-
-int HttpProxyClientSocket::PrepareForAuthRestart() {
-  if (!response_.headers.get())
-    return ERR_CONNECTION_RESET;
-
-  bool keep_alive = false;
-  if (response_.headers->IsKeepAlive() &&
-      http_stream_parser_->CanFindEndOfResponse()) {
-    if (!http_stream_parser_->IsResponseBodyComplete()) {
-      next_state_ = STATE_DRAIN_BODY;
-      drain_buf_ = new IOBuffer(kDrainBodyBufferSize);
-      return OK;
-    }
-    keep_alive = true;
-  }
-
-  // We don't need to drain the response body, so we act as if we had drained
-  // the response body.
-  return DidDrainBodyForAuthRestart(keep_alive);
-}
-
-int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
-  if (keep_alive && transport_->socket()->IsConnectedAndIdle()) {
-    next_state_ = STATE_GENERATE_AUTH_TOKEN;
-    transport_->set_is_reused(true);
-  } else {
-    // This assumes that the underlying transport socket is a TCP socket,
-    // since only TCP sockets are restartable.
-    next_state_ = STATE_TCP_RESTART;
-    transport_->socket()->Disconnect();
-  }
-
-  // Reset the other member variables.
-  drain_buf_ = NULL;
-  parser_buf_ = NULL;
-  http_stream_parser_.reset();
-  request_line_.clear();
-  request_headers_.Clear();
-  response_ = HttpResponseInfo();
-  return OK;
-}
-
-void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
-  LOG(WARNING) << "Blocked proxy response with status " << response_code
-               << " to CONNECT request for "
-               << GetHostAndPort(request_.url) << ".";
 }
 
 void HttpProxyClientSocket::Disconnect() {
@@ -246,6 +203,64 @@ bool HttpProxyClientSocket::SetSendBufferSize(int32 size) {
 
 int HttpProxyClientSocket::GetPeerAddress(AddressList* address) const {
   return transport_->socket()->GetPeerAddress(address);
+}
+
+int HttpProxyClientSocket::PrepareForAuthRestart() {
+  if (!response_.headers.get())
+    return ERR_CONNECTION_RESET;
+
+  bool keep_alive = false;
+  if (response_.headers->IsKeepAlive() &&
+      http_stream_parser_->CanFindEndOfResponse()) {
+    if (!http_stream_parser_->IsResponseBodyComplete()) {
+      next_state_ = STATE_DRAIN_BODY;
+      drain_buf_ = new IOBuffer(kDrainBodyBufferSize);
+      return OK;
+    }
+    keep_alive = true;
+  }
+
+  // We don't need to drain the response body, so we act as if we had drained
+  // the response body.
+  return DidDrainBodyForAuthRestart(keep_alive);
+}
+
+int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
+  if (keep_alive && transport_->socket()->IsConnectedAndIdle()) {
+    next_state_ = STATE_GENERATE_AUTH_TOKEN;
+    transport_->set_is_reused(true);
+  } else {
+    // This assumes that the underlying transport socket is a TCP socket,
+    // since only TCP sockets are restartable.
+    next_state_ = STATE_TCP_RESTART;
+    transport_->socket()->Disconnect();
+  }
+
+  // Reset the other member variables.
+  drain_buf_ = NULL;
+  parser_buf_ = NULL;
+  http_stream_parser_.reset();
+  request_line_.clear();
+  request_headers_.Clear();
+  response_ = HttpResponseInfo();
+  return OK;
+}
+
+int HttpProxyClientSocket::HandleAuthChallenge() {
+  DCHECK(response_.headers);
+
+  int rv = auth_->HandleAuthChallenge(response_.headers, false, true, net_log_);
+  response_.auth_challenge = auth_->auth_info();
+  if (rv == OK)
+    return ERR_PROXY_AUTH_REQUESTED;
+
+  return rv;
+}
+
+void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
+  LOG(WARNING) << "Blocked proxy response with status " << response_code
+               << " to CONNECT request for "
+               << GetHostAndPort(request_.url) << ".";
 }
 
 void HttpProxyClientSocket::DoCallback(int result) {
@@ -463,17 +478,6 @@ int HttpProxyClientSocket::DoTCPRestartComplete(int result) {
 
   next_state_ = STATE_GENERATE_AUTH_TOKEN;
   return result;
-}
-
-int HttpProxyClientSocket::HandleAuthChallenge() {
-  DCHECK(response_.headers);
-
-  int rv = auth_->HandleAuthChallenge(response_.headers, false, true, net_log_);
-  response_.auth_challenge = auth_->auth_info();
-  if (rv == OK)
-    return ERR_PROXY_AUTH_REQUESTED;
-
-  return rv;
 }
 
 }  // namespace net

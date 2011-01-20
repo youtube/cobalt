@@ -229,13 +229,13 @@ class SSLClientSocketPool : public ClientSocketPool,
   virtual ClientSocketPoolHistograms* histograms() const;
 
  private:
+  typedef ClientSocketPoolBase<SSLSocketParams> PoolBase;
+
   // SSLConfigService::Observer methods:
 
   // When the user changes the SSL config, we flush all idle sockets so they
   // won't get re-used.
   virtual void OnSSLConfigChanged();
-
-  typedef ClientSocketPoolBase<SSLSocketParams> PoolBase;
 
   class SSLConnectJobFactory : public PoolBase::ConnectJobFactory {
    public:

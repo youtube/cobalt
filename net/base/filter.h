@@ -199,9 +199,10 @@ class Filter {
                                  std::vector<FilterType>* encoding_types);
 
  protected:
+  FRIEND_TEST_ALL_PREFIXES(SdchFilterTest, ContentTypeId);
+
   explicit Filter(const FilterContext& filter_context);
 
-  FRIEND_TEST_ALL_PREFIXES(SdchFilterTest, ContentTypeId);
   // Filters the data stored in stream_buffer_ and writes the output into the
   // dest_buffer passed in.
   //

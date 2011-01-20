@@ -26,6 +26,14 @@ struct RRResponse {
   RRResponse();
   ~RRResponse();
 
+  // HasExpired returns true if |fetch_time| + |ttl| is less than
+  // |current_time|.
+  bool HasExpired(base::Time current_time) const;
+
+  // For testing only
+  bool ParseFromResponse(const uint8* data, unsigned len,
+                         uint16 rrtype_requested);
+
   // name contains the canonical name of the resulting domain. If the queried
   // name was a CNAME then this can differ.
   std::string name;
@@ -42,14 +50,6 @@ struct RRResponse {
   // negative is true if this is a negative cache entry, i.e. is a placeholder
   // to remember that a given RR doesn't exist.
   bool negative;
-
-  // HasExpired returns true if |fetch_time| + |ttl| is less than
-  // |current_time|.
-  bool HasExpired(base::Time current_time) const;
-
-  // For testing only
-  bool ParseFromResponse(const uint8* data, unsigned len,
-                         uint16 rrtype_requested);
 };
 
 class BoundNetLog;
@@ -69,6 +69,8 @@ class RRResolverJob;
 class DnsRRResolver : public base::NonThreadSafe,
                       public NetworkChangeNotifier::Observer {
  public:
+  typedef intptr_t Handle;
+
   enum {
     kInvalidHandle = 0,
   };
@@ -78,8 +80,6 @@ class DnsRRResolver : public base::NonThreadSafe,
     // RRResponse will always have the dnssec bit set.
     FLAG_WANT_DNSSEC = 1,
   };
-
-  typedef intptr_t Handle;
 
   DnsRRResolver();
   ~DnsRRResolver();

@@ -25,17 +25,6 @@ class MappedHostResolver : public HostResolver {
   explicit MappedHostResolver(HostResolver* impl);
   virtual ~MappedHostResolver();
 
-  // HostResolver methods:
-  virtual int Resolve(const RequestInfo& info,
-                      AddressList* addresses,
-                      CompletionCallback* callback,
-                      RequestHandle* out_req,
-                      const BoundNetLog& net_log);
-  virtual void CancelRequest(RequestHandle req);
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
-  virtual HostResolverImpl* GetAsHostResolverImpl();
-
   // Adds a rule to this mapper. The format of the rule can be one of:
   //
   //   "MAP" <hostname_pattern> <replacement_host> [":" <replacement_port>]
@@ -52,6 +41,17 @@ class MappedHostResolver : public HostResolver {
   void SetRulesFromString(const std::string& rules_string) {
     rules_.SetRulesFromString(rules_string);
   }
+
+  // HostResolver methods:
+  virtual int Resolve(const RequestInfo& info,
+                      AddressList* addresses,
+                      CompletionCallback* callback,
+                      RequestHandle* out_req,
+                      const BoundNetLog& net_log);
+  virtual void CancelRequest(RequestHandle req);
+  virtual void AddObserver(Observer* observer);
+  virtual void RemoveObserver(Observer* observer);
+  virtual HostResolverImpl* GetAsHostResolverImpl();
 
  private:
   scoped_ptr<HostResolver> impl_;
