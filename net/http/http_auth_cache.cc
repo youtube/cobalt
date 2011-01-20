@@ -143,6 +143,12 @@ HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
 HttpAuthCache::Entry::~Entry() {
 }
 
+void HttpAuthCache::Entry::UpdateStaleChallenge(
+    const std::string& auth_challenge) {
+  auth_challenge_ = auth_challenge;
+  nonce_count_ = 1;
+}
+
 HttpAuthCache::Entry::Entry()
     : nonce_count_(0) {
 }
@@ -173,12 +179,6 @@ bool HttpAuthCache::Entry::HasEnclosingPath(const std::string& dir) {
       return true;
   }
   return false;
-}
-
-void HttpAuthCache::Entry::UpdateStaleChallenge(
-    const std::string& auth_challenge) {
-  auth_challenge_ = auth_challenge;
-  nonce_count_ = 1;
 }
 
 bool HttpAuthCache::Remove(const GURL& origin,

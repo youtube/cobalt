@@ -52,11 +52,6 @@ DrainableIOBuffer::DrainableIOBuffer(IOBuffer* base, int size)
       used_(0) {
 }
 
-DrainableIOBuffer::~DrainableIOBuffer() {
-  // The buffer is owned by the |base_| instance.
-  data_ = NULL;
-}
-
 void DrainableIOBuffer::DidConsume(int bytes) {
   SetOffset(used_ + bytes);
 }
@@ -76,14 +71,15 @@ void DrainableIOBuffer::SetOffset(int bytes) {
   data_ = base_->data() + used_;
 }
 
+DrainableIOBuffer::~DrainableIOBuffer() {
+  // The buffer is owned by the |base_| instance.
+  data_ = NULL;
+}
+
 GrowableIOBuffer::GrowableIOBuffer()
     : IOBuffer(),
       capacity_(0),
       offset_(0) {
-}
-
-GrowableIOBuffer::~GrowableIOBuffer() {
-  data_ = NULL;
 }
 
 void GrowableIOBuffer::SetCapacity(int capacity) {
@@ -111,14 +107,17 @@ char* GrowableIOBuffer::StartOfBuffer() {
   return real_data_.get();
 }
 
-PickledIOBuffer::PickledIOBuffer() : IOBuffer() {}
+GrowableIOBuffer::~GrowableIOBuffer() {
+  data_ = NULL;
+}
 
-PickledIOBuffer::~PickledIOBuffer() { data_ = NULL; }
+PickledIOBuffer::PickledIOBuffer() : IOBuffer() {}
 
 void PickledIOBuffer::Done() {
   data_ = const_cast<char*>(static_cast<const char*>(pickle_.data()));
 }
 
+PickledIOBuffer::~PickledIOBuffer() { data_ = NULL; }
 
 WrappedIOBuffer::WrappedIOBuffer(const char* data)
     : IOBuffer(const_cast<char*>(data)) {

@@ -127,20 +127,6 @@ void BoundNetLog::AddEntryWithTime(
   }
 }
 
-NetLog::LogLevel BoundNetLog::GetLogLevel() const {
-  if (net_log_)
-    return net_log_->GetLogLevel();
-  return NetLog::LOG_BASIC;
-}
-
-bool BoundNetLog::IsLoggingBytes() const {
-  return GetLogLevel() == NetLog::LOG_ALL;
-}
-
-bool BoundNetLog::IsLoggingAllEvents() const {
-  return GetLogLevel() <= NetLog::LOG_ALL_BUT_BYTES;
-}
-
 void BoundNetLog::AddEvent(
     NetLog::EventType event_type,
     const scoped_refptr<NetLog::EventParameters>& params) const {
@@ -169,6 +155,20 @@ void BoundNetLog::EndEventWithNetErrorCode(NetLog::EventType event_type,
         event_type,
         make_scoped_refptr(new NetLogIntegerParameter("net_error", net_error)));
   }
+}
+
+NetLog::LogLevel BoundNetLog::GetLogLevel() const {
+  if (net_log_)
+    return net_log_->GetLogLevel();
+  return NetLog::LOG_BASIC;
+}
+
+bool BoundNetLog::IsLoggingBytes() const {
+  return GetLogLevel() == NetLog::LOG_ALL;
+}
+
+bool BoundNetLog::IsLoggingAllEvents() const {
+  return GetLogLevel() <= NetLog::LOG_ALL_BUT_BYTES;
 }
 
 // static

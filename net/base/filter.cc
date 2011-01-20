@@ -39,6 +39,8 @@ const char kTextHtml[]             = "text/html";
 FilterContext::~FilterContext() {
 }
 
+Filter::~Filter() {}
+
 Filter* Filter::Factory(const std::vector<FilterType>& filter_types,
                         const FilterContext& filter_context) {
   DCHECK_GT(filter_context.GetInputStreamBufferSize(), 0);
@@ -54,6 +56,59 @@ Filter* Filter::Factory(const std::vector<FilterType>& filter_types,
       return NULL;
   }
   return filter_list;
+}
+
+Filter::FilterStatus Filter::ReadData(char* dest_buffer, int* dest_len) {
+  const int dest_buffer_capacity = *dest_len;
+  if (last_status_ == FILTER_ERROR)
+    return last_status_;
+  if (!next_filter_.get())
+    return last_status_ = ReadFilteredData(dest_buffer, dest_len);
+  if (last_status_ == FILTER_NEED_MORE_DATA && !stream_data_len())
+    return next_filter_->ReadData(dest_buffer, dest_len);
+
+  do {
+    if (next_filter_->last_status() == FILTER_NEED_MORE_DATA) {
+      PushDataIntoNextFilter();
+      if (FILTER_ERROR == last_status_)
+        return FILTER_ERROR;
+    }
+    *dest_len = dest_buffer_capacity;  // Reset the input/output parameter.
+    next_filter_->ReadData(dest_buffer, dest_len);
+    if (FILTER_NEED_MORE_DATA == last_status_)
+        return next_filter_->last_status();
+
+    // In the case where this filter has data internally, and is indicating such
+    // with a last_status_ of FILTER_OK, but at the same time the next filter in
+    // the chain indicated it FILTER_NEED_MORE_DATA, we have to be cautious
+    // about confusing the caller.  The API confusion can appear if we return
+    // FILTER_OK (suggesting we have more data in aggregate), but yet we don't
+    // populate our output buffer.  When that is the case, we need to
+    // alternately call our filter element, and the next_filter element until we
+    // get out of this state (by pumping data into the next filter until it
+    // outputs data, or it runs out of data and reports that it NEED_MORE_DATA.)
+  } while (FILTER_OK == last_status_ &&
+           FILTER_NEED_MORE_DATA == next_filter_->last_status() &&
+           0 == *dest_len);
+
+  if (next_filter_->last_status() == FILTER_ERROR)
+    return FILTER_ERROR;
+  return FILTER_OK;
+}
+
+bool Filter::FlushStreamBuffer(int stream_data_len) {
+  DCHECK(stream_data_len <= stream_buffer_size_);
+  if (stream_data_len <= 0 || stream_data_len > stream_buffer_size_)
+    return false;
+
+  DCHECK(stream_buffer());
+  // Bail out if there is more data in the stream buffer to be filtered.
+  if (!stream_buffer() || stream_data_len_)
+    return false;
+
+  next_stream_data_ = stream_buffer()->data();
+  stream_data_len_ = stream_data_len;
+  return true;
 }
 
 // static
@@ -232,6 +287,42 @@ void Filter::FixupEncodingTypes(
   return;
 }
 
+Filter::Filter(const FilterContext& filter_context)
+    : stream_buffer_(NULL),
+      stream_buffer_size_(0),
+      next_stream_data_(NULL),
+      stream_data_len_(0),
+      next_filter_(NULL),
+      last_status_(FILTER_NEED_MORE_DATA),
+      filter_context_(filter_context) {
+}
+
+Filter::FilterStatus Filter::ReadFilteredData(char* dest_buffer,
+                                              int* dest_len) {
+  return Filter::FILTER_ERROR;
+}
+
+Filter::FilterStatus Filter::CopyOut(char* dest_buffer, int* dest_len) {
+  int out_len;
+  int input_len = *dest_len;
+  *dest_len = 0;
+
+  if (0 == stream_data_len_)
+    return Filter::FILTER_NEED_MORE_DATA;
+
+  out_len = std::min(input_len, stream_data_len_);
+  memcpy(dest_buffer, next_stream_data_, out_len);
+  *dest_len += out_len;
+  stream_data_len_ -= out_len;
+  if (0 == stream_data_len_) {
+    next_stream_data_ = NULL;
+    return Filter::FILTER_NEED_MORE_DATA;
+  } else {
+    next_stream_data_ += out_len;
+    return Filter::FILTER_OK;
+  }
+}
+
 // static
 Filter* Filter::PrependNewFilter(FilterType type_id,
                                  const FilterContext& filter_context,
@@ -274,18 +365,6 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
   return first_filter;
 }
 
-Filter::Filter(const FilterContext& filter_context)
-    : stream_buffer_(NULL),
-      stream_buffer_size_(0),
-      next_stream_data_(NULL),
-      stream_data_len_(0),
-      next_filter_(NULL),
-      last_status_(FILTER_NEED_MORE_DATA),
-      filter_context_(filter_context) {
-}
-
-Filter::~Filter() {}
-
 bool Filter::InitBuffer() {
   int buffer_size = filter_context_.GetInputStreamBufferSize();
   DCHECK_GT(buffer_size, 0);
@@ -302,92 +381,10 @@ bool Filter::InitBuffer() {
   return false;
 }
 
-
-Filter::FilterStatus Filter::CopyOut(char* dest_buffer, int* dest_len) {
-  int out_len;
-  int input_len = *dest_len;
-  *dest_len = 0;
-
-  if (0 == stream_data_len_)
-    return Filter::FILTER_NEED_MORE_DATA;
-
-  out_len = std::min(input_len, stream_data_len_);
-  memcpy(dest_buffer, next_stream_data_, out_len);
-  *dest_len += out_len;
-  stream_data_len_ -= out_len;
-  if (0 == stream_data_len_) {
-    next_stream_data_ = NULL;
-    return Filter::FILTER_NEED_MORE_DATA;
-  } else {
-    next_stream_data_ += out_len;
-    return Filter::FILTER_OK;
-  }
-}
-
-
-Filter::FilterStatus Filter::ReadFilteredData(char* dest_buffer,
-                                              int* dest_len) {
-  return Filter::FILTER_ERROR;
-}
-
-Filter::FilterStatus Filter::ReadData(char* dest_buffer, int* dest_len) {
-  const int dest_buffer_capacity = *dest_len;
-  if (last_status_ == FILTER_ERROR)
-    return last_status_;
-  if (!next_filter_.get())
-    return last_status_ = ReadFilteredData(dest_buffer, dest_len);
-  if (last_status_ == FILTER_NEED_MORE_DATA && !stream_data_len())
-    return next_filter_->ReadData(dest_buffer, dest_len);
-
-  do {
-    if (next_filter_->last_status() == FILTER_NEED_MORE_DATA) {
-      PushDataIntoNextFilter();
-      if (FILTER_ERROR == last_status_)
-        return FILTER_ERROR;
-    }
-    *dest_len = dest_buffer_capacity;  // Reset the input/output parameter.
-    next_filter_->ReadData(dest_buffer, dest_len);
-    if (FILTER_NEED_MORE_DATA == last_status_)
-        return next_filter_->last_status();
-
-    // In the case where this filter has data internally, and is indicating such
-    // with a last_status_ of FILTER_OK, but at the same time the next filter in
-    // the chain indicated it FILTER_NEED_MORE_DATA, we have to be cautious
-    // about confusing the caller.  The API confusion can appear if we return
-    // FILTER_OK (suggesting we have more data in aggregate), but yet we don't
-    // populate our output buffer.  When that is the case, we need to
-    // alternately call our filter element, and the next_filter element until we
-    // get out of this state (by pumping data into the next filter until it
-    // outputs data, or it runs out of data and reports that it NEED_MORE_DATA.)
-  } while (FILTER_OK == last_status_ &&
-           FILTER_NEED_MORE_DATA == next_filter_->last_status() &&
-           0 == *dest_len);
-
-  if (next_filter_->last_status() == FILTER_ERROR)
-    return FILTER_ERROR;
-  return FILTER_OK;
-}
-
 void Filter::PushDataIntoNextFilter() {
   net::IOBuffer* next_buffer = next_filter_->stream_buffer();
   int next_size = next_filter_->stream_buffer_size();
   last_status_ = ReadFilteredData(next_buffer->data(), &next_size);
   if (FILTER_ERROR != last_status_)
     next_filter_->FlushStreamBuffer(next_size);
-}
-
-
-bool Filter::FlushStreamBuffer(int stream_data_len) {
-  DCHECK(stream_data_len <= stream_buffer_size_);
-  if (stream_data_len <= 0 || stream_data_len > stream_buffer_size_)
-    return false;
-
-  DCHECK(stream_buffer());
-  // Bail out if there is more data in the stream buffer to be filtered.
-  if (!stream_buffer() || stream_data_len_)
-    return false;
-
-  next_stream_data_ = stream_buffer()->data();
-  stream_data_len_ = stream_data_len;
-  return true;
 }

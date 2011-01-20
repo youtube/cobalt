@@ -59,6 +59,10 @@ SpdyProxyClientSocket::~SpdyProxyClientSocket() {
   Disconnect();
 }
 
+const HttpResponseInfo* SpdyProxyClientSocket::GetConnectResponseInfo() const {
+  return response_.headers ? &response_ : NULL;
+}
+
 HttpStream* SpdyProxyClientSocket::CreateConnectResponseStream() {
   DCHECK(response_stream_.get());
   return response_stream_.release();
