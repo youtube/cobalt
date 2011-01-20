@@ -32,14 +32,6 @@ std::list<HostPortPair>* HttpStreamFactory::forced_spdy_exclusions_ = NULL;
 // static
 bool HttpStreamFactory::ignore_certificate_errors_ = false;
 
-// static
-void HttpStreamFactory::SetHostMappingRules(const std::string& rules) {
-  HostMappingRules* host_mapping_rules = new HostMappingRules();
-  host_mapping_rules->SetRulesFromString(rules);
-  delete host_mapping_rules_;
-  host_mapping_rules_ = host_mapping_rules;
-}
-
 HttpStreamFactory::HttpStreamFactory() {
 }
 
@@ -51,6 +43,14 @@ HttpStreamFactory::~HttpStreamFactory() {
     delete it->first;
     // We don't invoke the callback in the destructor.
   }
+}
+
+// static
+void HttpStreamFactory::SetHostMappingRules(const std::string& rules) {
+  HostMappingRules* host_mapping_rules = new HostMappingRules();
+  host_mapping_rules->SetRulesFromString(rules);
+  delete host_mapping_rules_;
+  host_mapping_rules_ = host_mapping_rules;
 }
 
 StreamRequest* HttpStreamFactory::RequestStream(

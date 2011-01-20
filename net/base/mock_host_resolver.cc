@@ -45,36 +45,7 @@ int CreateIPAddress(const std::string& host,
 
 }  // namespace
 
-MockHostResolverBase::MockHostResolverBase(bool use_caching)
-    : use_caching_(use_caching) {
-  Reset(NULL);
-}
-
 MockHostResolverBase::~MockHostResolverBase() {}
-
-int MockHostResolverBase::Resolve(const RequestInfo& info,
-                                  AddressList* addresses,
-                                  CompletionCallback* callback,
-                                  RequestHandle* out_req,
-                                  const BoundNetLog& net_log) {
-  if (synchronous_mode_) {
-    callback = NULL;
-    out_req = NULL;
-  }
-  return impl_->Resolve(info, addresses, callback, out_req, net_log);
-}
-
-void MockHostResolverBase::CancelRequest(RequestHandle req) {
-  impl_->CancelRequest(req);
-}
-
-void MockHostResolverBase::AddObserver(Observer* observer) {
-  impl_->AddObserver(observer);
-}
-
-void MockHostResolverBase::RemoveObserver(Observer* observer) {
-  impl_->RemoveObserver(observer);
-}
 
 void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
   synchronous_mode_ = false;
@@ -105,6 +76,35 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
   }
 
   impl_.reset(new HostResolverImpl(proc, cache, 50u, NULL));
+}
+
+int MockHostResolverBase::Resolve(const RequestInfo& info,
+                                  AddressList* addresses,
+                                  CompletionCallback* callback,
+                                  RequestHandle* out_req,
+                                  const BoundNetLog& net_log) {
+  if (synchronous_mode_) {
+    callback = NULL;
+    out_req = NULL;
+  }
+  return impl_->Resolve(info, addresses, callback, out_req, net_log);
+}
+
+void MockHostResolverBase::CancelRequest(RequestHandle req) {
+  impl_->CancelRequest(req);
+}
+
+void MockHostResolverBase::AddObserver(Observer* observer) {
+  impl_->AddObserver(observer);
+}
+
+void MockHostResolverBase::RemoveObserver(Observer* observer) {
+  impl_->RemoveObserver(observer);
+}
+
+MockHostResolverBase::MockHostResolverBase(bool use_caching)
+    : use_caching_(use_caching) {
+  Reset(NULL);
 }
 
 //-----------------------------------------------------------------------------
@@ -142,9 +142,6 @@ struct RuleBasedHostResolverProc::Rule {
 
 RuleBasedHostResolverProc::RuleBasedHostResolverProc(HostResolverProc* previous)
     : HostResolverProc(previous) {
-}
-
-RuleBasedHostResolverProc::~RuleBasedHostResolverProc() {
 }
 
 void RuleBasedHostResolverProc::AddRule(const std::string& host_pattern,
@@ -256,6 +253,9 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
   }
   return ResolveUsingPrevious(host, address_family,
                               host_resolver_flags, addrlist, os_error);
+}
+
+RuleBasedHostResolverProc::~RuleBasedHostResolverProc() {
 }
 
 //-----------------------------------------------------------------------------

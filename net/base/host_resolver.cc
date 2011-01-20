@@ -19,9 +19,6 @@ HostResolver::RequestInfo::RequestInfo(const HostPortPair& host_port_pair)
       priority_(MEDIUM) {
 }
 
-HostResolver::HostResolver() {
-}
-
 HostResolver::~HostResolver() {
 }
 
@@ -31,6 +28,9 @@ AddressFamily HostResolver::GetDefaultAddressFamily() const {
 
 HostResolverImpl* HostResolver::GetAsHostResolverImpl() {
   return NULL;
+}
+
+HostResolver::HostResolver() {
 }
 
 SingleRequestHostResolver::SingleRequestHostResolver(HostResolver* resolver)

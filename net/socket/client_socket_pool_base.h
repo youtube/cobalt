@@ -298,8 +298,6 @@ class ClientSocketPoolBaseHelper
   // Entry for a persistent socket which became idle at time |start_time|.
   struct IdleSocket {
     IdleSocket() : socket(NULL) {}
-    ClientSocket* socket;
-    base::TimeTicks start_time;
 
     // An idle socket should be removed if it can't be reused, or has been idle
     // for too long. |now| is the current time value (TimeTicks::Now()).
@@ -310,6 +308,9 @@ class ClientSocketPoolBaseHelper
     // mistaken for the beginning of the next response if we were to reuse the
     // socket for a new request.
     bool ShouldCleanup(base::TimeTicks now, base::TimeDelta timeout) const;
+
+    ClientSocket* socket;
+    base::TimeTicks start_time;
   };
 
   typedef std::deque<const Request* > RequestQueue;

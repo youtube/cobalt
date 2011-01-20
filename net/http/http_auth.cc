@@ -87,6 +87,24 @@ HttpAuth::AuthorizationResult HttpAuth::HandleChallengeResponse(
   return HttpAuth::AUTHORIZATION_RESULT_REJECT;
 }
 
+HttpUtil::NameValuePairsIterator HttpAuth::ChallengeTokenizer::param_pairs()
+    const {
+  return HttpUtil::NameValuePairsIterator(params_begin_, params_end_, ',');
+}
+
+std::string HttpAuth::ChallengeTokenizer::base64_param() const {
+  // Strip off any padding.
+  // (See https://bugzilla.mozilla.org/show_bug.cgi?id=230351.)
+  //
+  // Our base64 decoder requires that the length be a multiple of 4.
+  int encoded_length = params_end_ - params_begin_;
+  while (encoded_length > 0 && encoded_length % 4 != 0 &&
+         params_begin_[encoded_length - 1] == '=') {
+    --encoded_length;
+  }
+  return std::string(params_begin_, params_begin_ + encoded_length);
+}
+
 void HttpAuth::ChallengeTokenizer::Init(std::string::const_iterator begin,
                                         std::string::const_iterator end) {
   // The first space-separated token is the auth-scheme.
@@ -105,24 +123,6 @@ void HttpAuth::ChallengeTokenizer::Init(std::string::const_iterator begin,
   params_begin_ = scheme_end_;
   params_end_ = end;
   HttpUtil::TrimLWS(&params_begin_, &params_end_);
-}
-
-HttpUtil::NameValuePairsIterator HttpAuth::ChallengeTokenizer::param_pairs()
-    const {
-  return HttpUtil::NameValuePairsIterator(params_begin_, params_end_, ',');
-}
-
-std::string HttpAuth::ChallengeTokenizer::base64_param() const {
-  // Strip off any padding.
-  // (See https://bugzilla.mozilla.org/show_bug.cgi?id=230351.)
-  //
-  // Our base64 decoder requires that the length be a multiple of 4.
-  int encoded_length = params_end_ - params_begin_;
-  while (encoded_length > 0 && encoded_length % 4 != 0 &&
-         params_begin_[encoded_length - 1] == '=') {
-    --encoded_length;
-  }
-  return std::string(params_begin_, params_begin_ + encoded_length);
 }
 
 // static

@@ -154,16 +154,6 @@ class PollingProxyConfigService::Core
   bool poll_task_queued_;
 };
 
-PollingProxyConfigService::PollingProxyConfigService(
-    base::TimeDelta poll_interval,
-    GetConfigFunction get_config_func)
-    : core_(new Core(poll_interval, get_config_func)) {
-}
-
-PollingProxyConfigService::~PollingProxyConfigService() {
-  core_->Orphan();
-}
-
 void PollingProxyConfigService::AddObserver(Observer* observer) {
   core_->AddObserver(observer);
 }
@@ -178,6 +168,16 @@ bool PollingProxyConfigService::GetLatestProxyConfig(ProxyConfig* config) {
 
 void PollingProxyConfigService::OnLazyPoll() {
   core_->OnLazyPoll();
+}
+
+PollingProxyConfigService::PollingProxyConfigService(
+    base::TimeDelta poll_interval,
+    GetConfigFunction get_config_func)
+    : core_(new Core(poll_interval, get_config_func)) {
+}
+
+PollingProxyConfigService::~PollingProxyConfigService() {
+  core_->Orphan();
 }
 
 void PollingProxyConfigService::CheckForChangesNow() {
