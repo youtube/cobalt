@@ -68,6 +68,10 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
                            double jitter_factor,
                            int maximum_backoff_ms);
 
+  // Used by the manager, returns true if the entry needs to be garbage
+  // collected.
+  bool IsEntryOutdated() const;
+
   // Implementation of URLRequestThrottlerEntryInterface.
   virtual bool IsDuringExponentialBackoff() const;
   virtual int64 ReserveSendingTimeForNextRequest(
@@ -76,10 +80,6 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   virtual void UpdateWithResponse(
       const URLRequestThrottlerHeaderInterface* response);
   virtual void ReceivedContentWasMalformed();
-
-  // Used by the manager, returns true if the entry needs to be garbage
-  // collected.
-  bool IsEntryOutdated() const;
 
  protected:
   virtual ~URLRequestThrottlerEntry();

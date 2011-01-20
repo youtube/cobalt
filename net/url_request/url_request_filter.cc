@@ -12,12 +12,7 @@ namespace net {
 
 URLRequestFilter* URLRequestFilter::shared_instance_ = NULL;
 
-// static
-URLRequestFilter* URLRequestFilter::GetInstance() {
-  if (!shared_instance_)
-    shared_instance_ = new URLRequestFilter;
-  return shared_instance_;
-}
+URLRequestFilter::~URLRequestFilter() {}
 
 // static
 net::URLRequestJob* URLRequestFilter::Factory(net::URLRequest* request,
@@ -26,7 +21,12 @@ net::URLRequestJob* URLRequestFilter::Factory(net::URLRequest* request,
   return GetInstance()->FindRequestHandler(request, scheme);
 }
 
-URLRequestFilter::~URLRequestFilter() {}
+// static
+URLRequestFilter* URLRequestFilter::GetInstance() {
+  if (!shared_instance_)
+    shared_instance_ = new URLRequestFilter;
+  return shared_instance_;
+}
 
 void URLRequestFilter::AddHostnameHandler(const std::string& scheme,
     const std::string& hostname, net::URLRequest::ProtocolFactory* factory) {
