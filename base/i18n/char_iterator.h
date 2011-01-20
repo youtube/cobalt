@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,12 +25,13 @@ typedef unsigned char uint8_t;
 #endif
 
 namespace base {
+namespace i18n {
 
 class UTF8CharIterator {
  public:
   // Requires |str| to live as long as the UTF8CharIterator does.
   UTF8CharIterator(const std::string* str);
-  ~UTF8CharIterator() {}
+  ~UTF8CharIterator();
 
   // Return the starting array index of the current character within the
   // string.
@@ -77,7 +78,7 @@ class UTF16CharIterator {
   // Requires |str| to live as long as the UTF16CharIterator does.
   UTF16CharIterator(const string16* str);
   UTF16CharIterator(const char16* str, size_t str_len);
-  ~UTF16CharIterator() {}
+  ~UTF16CharIterator();
 
   // Return the starting array index of the current character within the
   // string.
@@ -123,6 +124,7 @@ class UTF16CharIterator {
   DISALLOW_COPY_AND_ASSIGN(UTF16CharIterator);
 };
 
+}  // namespace i18n
 }  // namespace base
 
 #endif  // BASE_I18N_CHAR_ITERATOR_H_
