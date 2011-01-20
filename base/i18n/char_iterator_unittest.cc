@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,16 +7,19 @@
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace base {
+namespace i18n {
+
 TEST(CharIteratorsTest, TestUTF8) {
   std::string empty("");
-  base::UTF8CharIterator empty_iter(&empty);
+  UTF8CharIterator empty_iter(&empty);
   ASSERT_TRUE(empty_iter.end());
   ASSERT_EQ(0, empty_iter.array_pos());
   ASSERT_EQ(0, empty_iter.char_pos());
   ASSERT_FALSE(empty_iter.Advance());
 
   std::string str("s\303\273r");  // [u with circumflex]
-  base::UTF8CharIterator iter(&str);
+  UTF8CharIterator iter(&str);
   ASSERT_FALSE(iter.end());
   ASSERT_EQ(0, iter.array_pos());
   ASSERT_EQ(0, iter.char_pos());
@@ -47,7 +50,7 @@ TEST(CharIteratorsTest, TestUTF8) {
 
 TEST(CharIteratorsTest, TestUTF16) {
   string16 empty = UTF8ToUTF16("");
-  base::UTF16CharIterator empty_iter(&empty);
+  UTF16CharIterator empty_iter(&empty);
   ASSERT_TRUE(empty_iter.end());
   ASSERT_EQ(0, empty_iter.array_pos());
   ASSERT_EQ(0, empty_iter.char_pos());
@@ -59,7 +62,7 @@ TEST(CharIteratorsTest, TestUTF16) {
   //   math double-struck A - 4 bytes in UTF8, 2 codewords in UTF16
   //   z
   string16 str = UTF8ToUTF16("x\303\273\360\235\224\270z");
-  base::UTF16CharIterator iter(&str);
+  UTF16CharIterator iter(&str);
   ASSERT_FALSE(iter.end());
   ASSERT_EQ(0, iter.array_pos());
   ASSERT_EQ(0, iter.char_pos());
@@ -93,3 +96,6 @@ TEST(CharIteratorsTest, TestUTF16) {
 
   ASSERT_FALSE(iter.Advance());
 }
+
+}  // namespace i18n
+}  // namespace base
