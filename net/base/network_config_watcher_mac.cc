@@ -11,6 +11,7 @@
 #include "base/compiler_specific.h"
 #include "base/threading/thread.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "base/threading/thread_restrictions.h"
 
 namespace net {
 
@@ -54,10 +55,18 @@ NetworkConfigWatcherMacThread::NetworkConfigWatcherMacThread(
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
 
 NetworkConfigWatcherMacThread::~NetworkConfigWatcherMacThread() {
+  // Allow IO because Stop() calls PlatformThread::Join(), which is a blocking
+  // operation. This is expected during shutdown.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   Stop();
 }
 
 void NetworkConfigWatcherMacThread::Init() {
+  // Disallow IO to make sure NetworkConfigWatcherMacThread's helper thread does
+  // not perform blocking operations.
+  base::ThreadRestrictions::SetIOAllowed(false);
+
   // TODO(willchan): Look to see if there's a better signal for when it's ok to
   // initialize this, rather than just delaying it by a fixed time.
   const int kInitializationDelayMS = 1000;
