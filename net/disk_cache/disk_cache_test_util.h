@@ -61,8 +61,8 @@ class CallbackTest : public CallbackRunner< Tuple1<int> >  {
   explicit CallbackTest(bool reuse);
   virtual ~CallbackTest();
 
-  virtual void RunWithParams(const Tuple1<int>& params);
   int result() const { return result_; }
+  virtual void RunWithParams(const Tuple1<int>& params);
 
  private:
   int result_;

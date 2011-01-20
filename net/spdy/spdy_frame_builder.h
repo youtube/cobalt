@@ -33,13 +33,14 @@ namespace spdy {
 class SpdyFrameBuilder {
  public:
   SpdyFrameBuilder();
-  ~SpdyFrameBuilder();
 
   // Initializes a SpdyFrameBuilder from a const block of data.  The data is
   // not copied; instead the data is merely referenced by this
   // SpdyFrameBuilder.  Only const methods should be used when initialized
   // this way.
   SpdyFrameBuilder(const char* data, int data_len);
+
+  ~SpdyFrameBuilder();
 
   // Returns the size of the SpdyFrameBuilder's data.
   int length() const { return length_; }

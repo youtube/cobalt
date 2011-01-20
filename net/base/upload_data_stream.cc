@@ -12,6 +12,9 @@
 
 namespace net {
 
+UploadDataStream::~UploadDataStream() {
+}
+
 UploadDataStream* UploadDataStream::Create(UploadData* data, int* error_code) {
   scoped_ptr<UploadDataStream> stream(new UploadDataStream(data));
   int rv = stream->FillBuf();
@@ -21,21 +24,6 @@ UploadDataStream* UploadDataStream::Create(UploadData* data, int* error_code) {
     return NULL;
 
   return stream.release();
-}
-
-UploadDataStream::UploadDataStream(UploadData* data)
-    : data_(data),
-      buf_(new IOBuffer(kBufSize)),
-      buf_len_(0),
-      next_element_(data->elements()->begin()),
-      next_element_offset_(0),
-      next_element_remaining_(0),
-      total_size_(data->GetContentLength()),
-      current_position_(0),
-      eof_(false) {
-}
-
-UploadDataStream::~UploadDataStream() {
 }
 
 void UploadDataStream::DidConsume(size_t num_bytes) {
@@ -49,6 +37,18 @@ void UploadDataStream::DidConsume(size_t num_bytes) {
   FillBuf();
 
   current_position_ += num_bytes;
+}
+
+UploadDataStream::UploadDataStream(UploadData* data)
+    : data_(data),
+      buf_(new IOBuffer(kBufSize)),
+      buf_len_(0),
+      next_element_(data->elements()->begin()),
+      next_element_offset_(0),
+      next_element_remaining_(0),
+      total_size_(data->GetContentLength()),
+      current_position_(0),
+      eof_(false) {
 }
 
 int UploadDataStream::FillBuf() {

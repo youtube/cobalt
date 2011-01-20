@@ -32,17 +32,6 @@ ProxyConfig::ProxyRules::ProxyRules()
 ProxyConfig::ProxyRules::~ProxyRules() {
 }
 
-bool ProxyConfig::ProxyRules::Equals(const ProxyRules& other) const {
-  return type == other.type &&
-         single_proxy == other.single_proxy &&
-         proxy_for_http == other.proxy_for_http &&
-         proxy_for_https == other.proxy_for_https &&
-         proxy_for_ftp == other.proxy_for_ftp &&
-         fallback_proxy == other.fallback_proxy &&
-         bypass_rules.Equals(other.bypass_rules) &&
-         reverse_bypass == other.reverse_bypass;
-}
-
 void ProxyConfig::ProxyRules::Apply(const GURL& url, ProxyInfo* result) {
   if (empty()) {
     result->UseDirect();
@@ -144,6 +133,17 @@ const ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxy(
   if (fallback_proxy.is_valid())
     return &fallback_proxy;
   return NULL;  // No mapping for this scheme. Use direct.
+}
+
+bool ProxyConfig::ProxyRules::Equals(const ProxyRules& other) const {
+  return type == other.type &&
+         single_proxy == other.single_proxy &&
+         proxy_for_http == other.proxy_for_http &&
+         proxy_for_https == other.proxy_for_https &&
+         proxy_for_ftp == other.proxy_for_ftp &&
+         fallback_proxy == other.fallback_proxy &&
+         bypass_rules.Equals(other.bypass_rules) &&
+         reverse_bypass == other.reverse_bypass;
 }
 
 ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxyNoFallback(
