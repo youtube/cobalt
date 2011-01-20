@@ -490,7 +490,6 @@ void URLRequest::PrepareToRestart() {
   // one.
   net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START_JOB, NULL);
 
-  job_->Kill();
   OrphanJob();
 
   response_info_ = net::HttpResponseInfo();
