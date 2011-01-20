@@ -130,6 +130,7 @@ class FileStream {
   //
   // This method should not be called if the stream was opened READ_ONLY.
   int Flush();
+
  private:
   class AsyncContext;
   friend class AsyncContext;

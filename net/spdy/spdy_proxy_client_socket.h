@@ -60,10 +60,7 @@ class SpdyProxyClientSocket : public ProxyClientSocket,
   }
 
   // ProxyClientSocket methods:
-
-  virtual const HttpResponseInfo* GetConnectResponseInfo() const {
-    return response_.headers ? &response_ : NULL;
-  }
+  virtual const HttpResponseInfo* GetConnectResponseInfo() const;
 
   // In the event of a non-200 response to the CONNECT request, this
   // method may be called to return an HttpStream in order to read

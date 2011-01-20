@@ -103,19 +103,14 @@ bool SpdyFrameBuilder::ReadData(void** iter, const char** data,
   return ReadBytes(iter, data, *length);
 }
 
-char* SpdyFrameBuilder::BeginWrite(size_t length) {
-  size_t needed_size = length_ + length;
-  if (needed_size > capacity_ && !Resize(std::max(capacity_ * 2, needed_size)))
-    return NULL;
+bool SpdyFrameBuilder::WriteString(const std::string& value) {
+  if (value.size() > 0xffff)
+    return false;
 
-#ifdef ARCH_CPU_64_BITS
-  DCHECK_LE(length, std::numeric_limits<uint32>::max());
-#endif
+  if (!WriteUInt16(static_cast<int>(value.size())))
+    return false;
 
-  return buffer_ + length_;
-}
-
-void SpdyFrameBuilder::EndWrite(char* dest, int length) {
+  return WriteBytes(value.data(), static_cast<uint16>(value.size()));
 }
 
 bool SpdyFrameBuilder::WriteBytes(const void* data, uint16 data_len) {
@@ -130,16 +125,6 @@ bool SpdyFrameBuilder::WriteBytes(const void* data, uint16 data_len) {
   EndWrite(dest, data_len);
   length_ += data_len;
   return true;
-}
-
-bool SpdyFrameBuilder::WriteString(const std::string& value) {
-  if (value.size() > 0xffff)
-    return false;
-
-  if (!WriteUInt16(static_cast<int>(value.size())))
-    return false;
-
-  return WriteBytes(value.data(), static_cast<uint16>(value.size()));
 }
 
 char* SpdyFrameBuilder::BeginWriteData(uint16 length) {
@@ -159,6 +144,21 @@ char* SpdyFrameBuilder::BeginWriteData(uint16 length) {
   // so we call it here to pad out what the caller will eventually write.
   EndWrite(data_ptr, length);
   return data_ptr;
+}
+
+char* SpdyFrameBuilder::BeginWrite(size_t length) {
+  size_t needed_size = length_ + length;
+  if (needed_size > capacity_ && !Resize(std::max(capacity_ * 2, needed_size)))
+    return NULL;
+
+#ifdef ARCH_CPU_64_BITS
+  DCHECK_LE(length, std::numeric_limits<uint32>::max());
+#endif
+
+  return buffer_ + length_;
+}
+
+void SpdyFrameBuilder::EndWrite(char* dest, int length) {
 }
 
 bool SpdyFrameBuilder::Resize(size_t new_capacity) {

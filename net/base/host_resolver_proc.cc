@@ -64,6 +64,25 @@ HostResolverProc::HostResolverProc(HostResolverProc* previous) {
     SetPreviousProc(default_proc_);
 }
 
+HostResolverProc::~HostResolverProc() {
+}
+
+int HostResolverProc::ResolveUsingPrevious(
+    const std::string& host,
+    AddressFamily address_family,
+    HostResolverFlags host_resolver_flags,
+    AddressList* addrlist,
+    int* os_error) {
+  if (previous_proc_) {
+    return previous_proc_->Resolve(host, address_family, host_resolver_flags,
+                                   addrlist, os_error);
+  }
+
+  // Final fallback is the system resolver.
+  return SystemHostResolverProc(host, address_family, host_resolver_flags,
+                                addrlist, os_error);
+}
+
 void HostResolverProc::SetPreviousProc(HostResolverProc* proc) {
   HostResolverProc* current_previous = previous_proc_;
   previous_proc_ = NULL;
@@ -96,25 +115,6 @@ HostResolverProc* HostResolverProc::SetDefault(HostResolverProc* proc) {
 // static
 HostResolverProc* HostResolverProc::GetDefault() {
   return default_proc_;
-}
-
-HostResolverProc::~HostResolverProc() {
-}
-
-int HostResolverProc::ResolveUsingPrevious(
-    const std::string& host,
-    AddressFamily address_family,
-    HostResolverFlags host_resolver_flags,
-    AddressList* addrlist,
-    int* os_error) {
-  if (previous_proc_) {
-    return previous_proc_->Resolve(host, address_family, host_resolver_flags,
-                                   addrlist, os_error);
-  }
-
-  // Final fallback is the system resolver.
-  return SystemHostResolverProc(host, address_family, host_resolver_flags,
-                                addrlist, os_error);
 }
 
 int SystemHostResolverProc(const std::string& host,

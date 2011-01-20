@@ -34,35 +34,6 @@ class HttpStreamFactory : public StreamFactory,
   HttpStreamFactory();
   virtual ~HttpStreamFactory();
 
-  // StreamFactory Interface
-  virtual StreamRequest* RequestStream(const HttpRequestInfo* info,
-                                       SSLConfig* ssl_config,
-                                       ProxyInfo* proxy_info,
-                                       HttpNetworkSession* session,
-                                       StreamRequest::Delegate* delegate,
-                                       const BoundNetLog& net_log);
-
-  virtual int PreconnectStreams(int num_streams,
-                                const HttpRequestInfo* info,
-                                SSLConfig* ssl_config,
-                                ProxyInfo* proxy_info,
-                                HttpNetworkSession* session,
-                                const BoundNetLog& net_log,
-                                CompletionCallback* callback);
-
-  virtual void AddTLSIntolerantServer(const GURL& url);
-  virtual bool IsTLSIntolerantServer(const GURL& url);
-
-  virtual void ProcessAlternateProtocol(
-      HttpAlternateProtocols* alternate_protocols,
-      const std::string& alternate_protocol_str,
-      const HostPortPair& http_host_port_pair);
-
-  virtual GURL ApplyHostMappingRules(const GURL& url, HostPortPair* endpoint);
-
-  // HttpStreamRequest::PreconnectDelegate API
-  virtual void OnPreconnectsComplete(HttpStreamRequest* request, int result);
-
   // Static settings
 
   // Turns spdy on or off.
@@ -121,6 +92,31 @@ class HttpStreamFactory : public StreamFactory,
   }
 
   static void SetHostMappingRules(const std::string& rules);
+
+  // StreamFactory Interface
+  virtual StreamRequest* RequestStream(const HttpRequestInfo* info,
+                                       SSLConfig* ssl_config,
+                                       ProxyInfo* proxy_info,
+                                       HttpNetworkSession* session,
+                                       StreamRequest::Delegate* delegate,
+                                       const BoundNetLog& net_log);
+  virtual int PreconnectStreams(int num_streams,
+                                const HttpRequestInfo* info,
+                                SSLConfig* ssl_config,
+                                ProxyInfo* proxy_info,
+                                HttpNetworkSession* session,
+                                const BoundNetLog& net_log,
+                                CompletionCallback* callback);
+  virtual void AddTLSIntolerantServer(const GURL& url);
+  virtual bool IsTLSIntolerantServer(const GURL& url);
+  virtual void ProcessAlternateProtocol(
+      HttpAlternateProtocols* alternate_protocols,
+      const std::string& alternate_protocol_str,
+      const HostPortPair& http_host_port_pair);
+  virtual GURL ApplyHostMappingRules(const GURL& url, HostPortPair* endpoint);
+
+  // HttpStreamRequest::PreconnectDelegate API
+  virtual void OnPreconnectsComplete(HttpStreamRequest* request, int result);
 
  private:
   typedef std::map<HttpStreamRequest*, CompletionCallback*> RequestCallbackMap;

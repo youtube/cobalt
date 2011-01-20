@@ -100,6 +100,23 @@ bool TransportSecurityState::IsEnabledForHost(DomainState* result,
   return false;
 }
 
+void TransportSecurityState::DeleteSince(const base::Time& time) {
+  bool dirtied = false;
+
+  std::map<std::string, DomainState>::iterator i = enabled_hosts_.begin();
+  while (i != enabled_hosts_.end()) {
+    if (i->second.created >= time) {
+      dirtied = true;
+      enabled_hosts_.erase(i++);
+    } else {
+      i++;
+    }
+  }
+
+  if (dirtied)
+    DirtyNotify();
+}
+
 // MaxAgeToInt converts a string representation of a number of seconds into a
 // int. We use strtol in order to handle overflow correctly. The string may
 // contain an arbitary number which we should truncate correctly rather than
@@ -348,23 +365,6 @@ bool TransportSecurityState::Deserialise(const std::string& input,
 
   *dirty = dirtied;
   return true;
-}
-
-void TransportSecurityState::DeleteSince(const base::Time& time) {
-  bool dirtied = false;
-
-  std::map<std::string, DomainState>::iterator i = enabled_hosts_.begin();
-  while (i != enabled_hosts_.end()) {
-    if (i->second.created >= time) {
-      dirtied = true;
-      enabled_hosts_.erase(i++);
-    } else {
-      i++;
-    }
-  }
-
-  if (dirtied)
-    DirtyNotify();
 }
 
 TransportSecurityState::~TransportSecurityState() {
