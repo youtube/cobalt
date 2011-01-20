@@ -34,6 +34,31 @@ class URLRequestHttpJob : public URLRequestJob {
  protected:
   explicit URLRequestHttpJob(URLRequest* request);
 
+  // Shadows URLRequestJob's version of this method so we can grab cookies.
+  void NotifyHeadersComplete();
+
+  void DestroyTransaction();
+  void StartTransaction();
+  void AddExtraHeaders();
+  void AddCookieHeaderAndStart();
+  void SaveCookiesAndNotifyHeadersComplete();
+  void SaveNextCookie();
+  void FetchResponseCookies(const HttpResponseInfo* response_info,
+                            std::vector<std::string>* cookies);
+
+  // Process the Strict-Transport-Security header, if one exists.
+  void ProcessStrictTransportSecurityHeader();
+
+  void OnCanGetCookiesCompleted(int result);
+  void OnCanSetCookieCompleted(int result);
+  void OnStartCompleted(int result);
+  void OnReadCompleted(int result);
+
+  bool ShouldTreatAsCertificateError(int result);
+
+  void RestartTransactionWithAuth(const string16& username,
+                                  const string16& password);
+
   // Overridden from URLRequestJob:
   virtual void SetUpload(UploadData* upload);
   virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
@@ -60,31 +85,6 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual void ContinueDespiteLastError();
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
   virtual void StopCaching();
-
-  // Shadows URLRequestJob's version of this method so we can grab cookies.
-  void NotifyHeadersComplete();
-
-  void DestroyTransaction();
-  void StartTransaction();
-  void AddExtraHeaders();
-  void AddCookieHeaderAndStart();
-  void SaveCookiesAndNotifyHeadersComplete();
-  void SaveNextCookie();
-  void FetchResponseCookies(const HttpResponseInfo* response_info,
-                            std::vector<std::string>* cookies);
-
-  // Process the Strict-Transport-Security header, if one exists.
-  void ProcessStrictTransportSecurityHeader();
-
-  void OnCanGetCookiesCompleted(int result);
-  void OnCanSetCookieCompleted(int result);
-  void OnStartCompleted(int result);
-  void OnReadCompleted(int result);
-
-  bool ShouldTreatAsCertificateError(int result);
-
-  void RestartTransactionWithAuth(const string16& username,
-                                  const string16& password);
 
   // Keep a reference to the url request context to be sure it's not deleted
   // before us.
