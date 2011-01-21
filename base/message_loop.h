@@ -10,10 +10,10 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/lock.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
 #include "base/ref_counted.h"
+#include "base/synchronization/lock.h"
 #include "base/task.h"
 
 #if defined(OS_WIN)
@@ -466,7 +466,7 @@ class MessageLoop : public base::MessagePump::Delegate {
   // will be handled by the TimerManager.
   TaskQueue incoming_queue_;
   // Protect access to incoming_queue_.
-  Lock incoming_queue_lock_;
+  base::Lock incoming_queue_lock_;
 
   RunState* state_;
 

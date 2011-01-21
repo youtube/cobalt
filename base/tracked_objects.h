@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 #include "base/tracked.h"
 #include "base/threading/thread_local_storage.h"
 
@@ -322,7 +322,7 @@ class DataCollector {
   // seen a death count.
   BirthCount global_birth_count_;
 
-  Lock accumulation_lock_;  // Protects access during accumulation phase.
+  base::Lock accumulation_lock_;  // Protects access during accumulation phase.
 
   DISALLOW_COPY_AND_ASSIGN(DataCollector);
 };
@@ -577,7 +577,7 @@ class ThreadData {
   // Link to the most recently created instance (starts a null terminated list).
   static ThreadData* first_;
   // Protection for access to first_.
-  static Lock list_lock_;
+  static base::Lock list_lock_;
 
   // We set status_ to SHUTDOWN when we shut down the tracking service. This
   // setting is redundantly established by all participating threads so that we
@@ -613,7 +613,7 @@ class ThreadData {
   // thread, or reading from another thread.  For reading from this thread we
   // don't need a lock, as there is no potential for a conflict since the
   // writing is only done from this thread.
-  mutable Lock lock_;
+  mutable base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadData);
 };

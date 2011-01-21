@@ -41,10 +41,10 @@
 #include <mmsystem.h>
 
 #include "base/basictypes.h"
-#include "base/lock.h"
 #include "base/logging.h"
 #include "base/cpu.h"
 #include "base/singleton.h"
+#include "base/synchronization/lock.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -262,7 +262,7 @@ DWORD last_seen_now = 0;
 // easy to use a Singleton without even knowing it, and that may lead to many
 // gotchas). Its impact on startup time should be negligible due to low-level
 // nature of time code.
-Lock rollover_lock;
+base::Lock rollover_lock;
 
 // We use timeGetTime() to implement TimeTicks::Now().  This can be problematic
 // because it returns the number of milliseconds since Windows has started,
@@ -270,7 +270,7 @@ Lock rollover_lock;
 // rollover ourselves, which works if TimeTicks::Now() is called at least every
 // 49 days.
 TimeDelta RolloverProtectedNow() {
-  AutoLock locked(rollover_lock);
+  base::AutoLock locked(rollover_lock);
   // We should hold the lock while calling tick_function to make sure that
   // we keep last_seen_now stay correctly in sync.
   DWORD now = tick_function();

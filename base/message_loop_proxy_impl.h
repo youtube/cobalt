@@ -6,9 +6,9 @@
 #define BASE_MESSAGE_LOOP_PROXY_IMPL_H_
 #pragma once
 
-#include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
+#include "base/synchronization/lock.h"
 
 namespace base {
 
@@ -50,7 +50,7 @@ class MessageLoopProxyImpl : public MessageLoopProxy,
   friend class MessageLoopProxy;
 
   // The lock that protects access to target_message_loop_.
-  mutable Lock message_loop_lock_;
+  mutable base::Lock message_loop_lock_;
   MessageLoop* target_message_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(MessageLoopProxyImpl);

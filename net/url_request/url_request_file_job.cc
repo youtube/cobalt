@@ -23,6 +23,7 @@
 #include "base/message_loop.h"
 #include "base/platform_file.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/worker_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
@@ -50,7 +51,7 @@ class URLRequestFileJob::AsyncResolver
   void Resolve(const FilePath& file_path) {
     base::PlatformFileInfo file_info;
     bool exists = file_util::GetFileInfo(file_path, &file_info);
-    AutoLock locked(lock_);
+    base::AutoLock locked(lock_);
     if (owner_loop_) {
       owner_loop_->PostTask(FROM_HERE, NewRunnableMethod(
           this, &AsyncResolver::ReturnResults, exists, file_info));
@@ -60,7 +61,7 @@ class URLRequestFileJob::AsyncResolver
   void Cancel() {
     owner_ = NULL;
 
-    AutoLock locked(lock_);
+    base::AutoLock locked(lock_);
     owner_loop_ = NULL;
   }
 
@@ -76,7 +77,7 @@ class URLRequestFileJob::AsyncResolver
 
   URLRequestFileJob* owner_;
 
-  Lock lock_;
+  base::Lock lock_;
   MessageLoop* owner_loop_;
 };
 #endif

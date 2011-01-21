@@ -35,7 +35,7 @@ PipelineImpl::PipelineImpl(MessageLoop* message_loop)
 }
 
 PipelineImpl::~PipelineImpl() {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   DCHECK(!running_) << "Stop() must complete before destroying object";
   DCHECK(!stop_pending_);
   DCHECK(!seek_pending_);
@@ -55,7 +55,7 @@ void PipelineImpl::Init(PipelineCallback* ended_callback,
 bool PipelineImpl::Start(FilterCollection* collection,
                          const std::string& url,
                          PipelineCallback* start_callback) {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   scoped_ptr<PipelineCallback> callback(start_callback);
   scoped_ptr<FilterCollection> filter_collection(collection);
 
@@ -81,7 +81,7 @@ bool PipelineImpl::Start(FilterCollection* collection,
 }
 
 void PipelineImpl::Stop(PipelineCallback* stop_callback) {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   scoped_ptr<PipelineCallback> callback(stop_callback);
   if (!running_) {
     VLOG(1) << "Media pipeline has already stopped";
@@ -95,7 +95,7 @@ void PipelineImpl::Stop(PipelineCallback* stop_callback) {
 
 void PipelineImpl::Seek(base::TimeDelta time,
                         PipelineCallback* seek_callback) {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   scoped_ptr<PipelineCallback> callback(seek_callback);
   if (!running_) {
     VLOG(1) << "Media pipeline must be running";
@@ -108,7 +108,7 @@ void PipelineImpl::Seek(base::TimeDelta time,
 }
 
 bool PipelineImpl::IsRunning() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return running_;
 }
 
@@ -116,7 +116,7 @@ bool PipelineImpl::IsInitialized() const {
   // TODO(scherkus): perhaps replace this with a bool that is set/get under the
   // lock, because this is breaching the contract that |state_| is only accessed
   // on |message_loop_|.
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   switch (state_) {
     case kPausing:
     case kFlushing:
@@ -131,19 +131,19 @@ bool PipelineImpl::IsInitialized() const {
 }
 
 bool PipelineImpl::IsNetworkActive() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return network_activity_;
 }
 
 bool PipelineImpl::IsRendered(const std::string& major_mime_type) const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   bool is_rendered = (rendered_mime_types_.find(major_mime_type) !=
                       rendered_mime_types_.end());
   return is_rendered;
 }
 
 float PipelineImpl::GetPlaybackRate() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return playback_rate_;
 }
 
@@ -152,7 +152,7 @@ void PipelineImpl::SetPlaybackRate(float playback_rate) {
     return;
   }
 
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
   if (running_) {
     message_loop_->PostTask(FROM_HERE,
@@ -162,7 +162,7 @@ void PipelineImpl::SetPlaybackRate(float playback_rate) {
 }
 
 float PipelineImpl::GetVolume() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return volume_;
 }
 
@@ -171,7 +171,7 @@ void PipelineImpl::SetVolume(float volume) {
     return;
   }
 
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   volume_ = volume;
   if (running_) {
     message_loop_->PostTask(FROM_HERE,
@@ -184,7 +184,7 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
   // TODO(scherkus): perhaps replace checking state_ == kEnded with a bool that
   // is set/get under the lock, because this is breaching the contract that
   // |state_| is only accessed on |message_loop_|.
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return GetCurrentTime_Locked();
 }
 
@@ -197,7 +197,7 @@ base::TimeDelta PipelineImpl::GetCurrentTime_Locked() const {
 }
 
 base::TimeDelta PipelineImpl::GetBufferedTime() {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
 
   // If media is fully loaded, then return duration.
   if (loaded_ || total_bytes_ == buffered_bytes_) {
@@ -237,45 +237,45 @@ base::TimeDelta PipelineImpl::GetBufferedTime() {
 }
 
 base::TimeDelta PipelineImpl::GetMediaDuration() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return duration_;
 }
 
 int64 PipelineImpl::GetBufferedBytes() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return buffered_bytes_;
 }
 
 int64 PipelineImpl::GetTotalBytes() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return total_bytes_;
 }
 
 void PipelineImpl::GetVideoSize(size_t* width_out, size_t* height_out) const {
   CHECK(width_out);
   CHECK(height_out);
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   *width_out = video_width_;
   *height_out = video_height_;
 }
 
 bool PipelineImpl::IsStreaming() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return streaming_;
 }
 
 bool PipelineImpl::IsLoaded() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return loaded_;
 }
 
 PipelineError PipelineImpl::GetError() const {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return error_;
 }
 
 void PipelineImpl::SetCurrentReadPosition(int64 offset) {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
 
   // The current read position should never be ahead of the buffered byte
   // position but threading issues between BufferedDataSource::DoneRead_Locked()
@@ -289,12 +289,12 @@ void PipelineImpl::SetCurrentReadPosition(int64 offset) {
 }
 
 int64 PipelineImpl::GetCurrentReadPosition() {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return current_bytes_;
 }
 
 void PipelineImpl::ResetState() {
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   const base::TimeDelta kZero;
   running_          = false;
   stop_pending_     = false;
@@ -411,7 +411,7 @@ base::TimeDelta PipelineImpl::GetDuration() const {
 
 void PipelineImpl::SetTime(base::TimeDelta time) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
 
   // If we were waiting for a valid timestamp and such timestamp arrives, we
   // need to clear the flag for waiting and start the clock.
@@ -428,25 +428,25 @@ void PipelineImpl::SetTime(base::TimeDelta time) {
 
 void PipelineImpl::SetDuration(base::TimeDelta duration) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   duration_ = duration;
 }
 
 void PipelineImpl::SetBufferedTime(base::TimeDelta buffered_time) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   buffered_time_ = buffered_time;
 }
 
 void PipelineImpl::SetTotalBytes(int64 total_bytes) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   total_bytes_ = total_bytes;
 }
 
 void PipelineImpl::SetBufferedBytes(int64 buffered_bytes) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
 
   // See comments in SetCurrentReadPosition() about capping.
   if (buffered_bytes < current_bytes_)
@@ -456,14 +456,14 @@ void PipelineImpl::SetBufferedBytes(int64 buffered_bytes) {
 
 void PipelineImpl::SetVideoSize(size_t width, size_t height) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   video_width_ = width;
   video_height_ = height;
 }
 
 void PipelineImpl::SetStreaming(bool streaming) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   streaming_ = streaming;
 }
 
@@ -475,14 +475,14 @@ void PipelineImpl::NotifyEnded() {
 
 void PipelineImpl::SetLoaded(bool loaded) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   loaded_ = loaded;
 }
 
 void PipelineImpl::SetNetworkActivity(bool network_activity) {
   DCHECK(IsRunning());
   {
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     network_activity_ = network_activity;
   }
   message_loop_->PostTask(FROM_HERE,
@@ -499,13 +499,13 @@ void PipelineImpl::DisableAudioRenderer() {
 
 void PipelineImpl::InsertRenderedMimeType(const std::string& major_mime_type) {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   rendered_mime_types_.insert(major_mime_type);
 }
 
 bool PipelineImpl::HasRenderedMimeTypes() const {
   DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   return !rendered_mime_types_.empty();
 }
 
@@ -682,7 +682,7 @@ void PipelineImpl::StopTask(PipelineCallback* stop_callback) {
     // going to error state and calling |error_callback_|. This converts
     // the teardown in progress from an error teardown into one that acts
     // like the error never occurred.
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     error_ = PIPELINE_OK;
     error_caused_teardown_ = false;
   }
@@ -709,7 +709,7 @@ void PipelineImpl::ErrorChangedTask(PipelineError error) {
     return;
   }
 
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   error_ = error;
 
   error_caused_teardown_ = true;
@@ -719,7 +719,7 @@ void PipelineImpl::ErrorChangedTask(PipelineError error) {
 void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   {
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     clock_->SetPlaybackRate(playback_rate);
   }
 
@@ -770,7 +770,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
 
   // Kick off seeking!
   {
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     // If we are waiting for a clock update, the clock hasn't been played yet.
     if (!waiting_for_clock_update_)
       clock_->Pause();
@@ -826,7 +826,7 @@ void PipelineImpl::DisableAudioRendererTask() {
 
   // |rendered_mime_types_| is read through public methods so we need to lock
   // this variable.
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   rendered_mime_types_.erase(mime_type::kMajorTypeAudio);
 
   audio_disabled_ = true;
@@ -857,7 +857,7 @@ void PipelineImpl::FilterStateTransitionTask() {
   // to the next state if needed.
   set_state(FindNextState(state_));
   if (state_ == kSeeking) {
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     clock_->SetTime(seek_timestamp_);
   }
 
@@ -888,7 +888,7 @@ void PipelineImpl::FilterStateTransitionTask() {
     seek_timestamp_ = base::TimeDelta();
     seek_pending_ = false;
 
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     // We use audio stream to update the clock. So if there is such a stream,
     // we pause the clock until we receive a valid timestamp.
     waiting_for_clock_update_ =

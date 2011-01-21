@@ -471,7 +471,7 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
   // of sporadic crashes in the SecTrustEvaluate call below, way down inside
   // Apple's cert code, which we suspect are caused by a thread-safety issue.
   // So as a speculative fix allow only one thread to use SecTrust on this cert.
-  AutoLock lock(verification_lock_);
+  base::AutoLock lock(verification_lock_);
 
   SecTrustRef trust_ref = NULL;
   status = SecTrustCreateWithCertificates(cert_array, ssl_policy, &trust_ref);

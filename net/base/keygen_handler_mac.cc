@@ -10,10 +10,10 @@
 
 #include "base/base64.h"
 #include "base/crypto/cssm_init.h"
-#include "base/lock.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/sys_string_conversions.h"
 
 // These are in Security.framework but not declared in a public header.
@@ -234,7 +234,7 @@ static OSStatus CreateRSAKeyPair(int size_in_bits,
   }
   base::mac::ScopedCFTypeRef<SecKeychainRef> scoped_keychain(keychain);
   {
-    AutoLock locked(base::GetMacSecurityServicesLock());
+    base::AutoLock locked(base::GetMacSecurityServicesLock());
     err = SecKeyCreatePair(
         keychain,
         CSSM_ALGID_RSA,
@@ -261,7 +261,7 @@ static OSStatus CreateSignatureContext(SecKeyRef key,
   OSStatus err;
   const CSSM_ACCESS_CREDENTIALS* credentials = NULL;
   {
-    AutoLock locked(base::GetMacSecurityServicesLock());
+    base::AutoLock locked(base::GetMacSecurityServicesLock());
     err = SecKeyGetCredentials(key,
                                CSSM_ACL_AUTHORIZATION_SIGN,
                                kSecCredentialTypeDefault,
@@ -274,7 +274,7 @@ static OSStatus CreateSignatureContext(SecKeyRef key,
 
   CSSM_CSP_HANDLE csp_handle = 0;
   {
-    AutoLock locked(base::GetMacSecurityServicesLock());
+    base::AutoLock locked(base::GetMacSecurityServicesLock());
     err = SecKeyGetCSPHandle(key, &csp_handle);
   }
   if (err) {
@@ -284,7 +284,7 @@ static OSStatus CreateSignatureContext(SecKeyRef key,
 
   const CSSM_KEY* cssm_key = NULL;
   {
-    AutoLock locked(base::GetMacSecurityServicesLock());
+    base::AutoLock locked(base::GetMacSecurityServicesLock());
     err = SecKeyGetCSSMKey(key, &cssm_key);
   }
   if (err) {

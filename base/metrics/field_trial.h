@@ -67,8 +67,8 @@
 #include <string>
 
 #include "base/gtest_prod_util.h"
-#include "base/lock.h"
 #include "base/ref_counted.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 
 namespace base {
@@ -271,7 +271,7 @@ class FieldTrialList {
   TimeTicks application_start_time_;
 
   // Lock for access to registered_.
-  Lock lock_;
+  base::Lock lock_;
   RegistrationList registered_;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrialList);

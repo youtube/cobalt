@@ -15,8 +15,8 @@
 #if defined(OS_POSIX)
 #include <list>
 #include <utility>
-#include "base/lock.h"
 #include "base/ref_counted.h"
+#include "base/synchronization/lock.h"
 #endif
 
 namespace base {
@@ -149,7 +149,7 @@ class WaitableEvent {
 
     bool Dequeue(Waiter* waiter, void* tag);
 
-    Lock lock_;
+    base::Lock lock_;
     const bool manual_reset_;
     bool signaled_;
     std::list<Waiter*> waiters_;

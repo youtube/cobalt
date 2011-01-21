@@ -14,8 +14,8 @@
 #include "base/file_util.h"
 #include "base/hash_tables.h"
 #include "base/lazy_instance.h"
-#include "base/lock.h"
 #include "base/logging.h"
+#include "base/synchronization/lock.h"
 
 namespace base {
   bool PathProvider(int key, FilePath* result);
@@ -92,9 +92,9 @@ static Provider base_provider_posix = {
 
 
 struct PathData {
-  Lock      lock;
-  PathMap   cache;      // Cache mappings from path key to path value.
-  PathMap   overrides;  // Track path overrides.
+  base::Lock lock;
+  PathMap cache;        // Cache mappings from path key to path value.
+  PathMap overrides;    // Track path overrides.
   Provider* providers;  // Linked list of path service providers.
 
   PathData() {
@@ -130,7 +130,7 @@ static PathData* GetPathData() {
 // static
 bool PathService::GetFromCache(int key, FilePath* result) {
   PathData* path_data = GetPathData();
-  AutoLock scoped_lock(path_data->lock);
+  base::AutoLock scoped_lock(path_data->lock);
 
   // check for a cached version
   PathMap::const_iterator it = path_data->cache.find(key);
@@ -144,7 +144,7 @@ bool PathService::GetFromCache(int key, FilePath* result) {
 // static
 bool PathService::GetFromOverrides(int key, FilePath* result) {
   PathData* path_data = GetPathData();
-  AutoLock scoped_lock(path_data->lock);
+  base::AutoLock scoped_lock(path_data->lock);
 
   // check for an overriden version.
   PathMap::const_iterator it = path_data->overrides.find(key);
@@ -158,7 +158,7 @@ bool PathService::GetFromOverrides(int key, FilePath* result) {
 // static
 void PathService::AddToCache(int key, const FilePath& path) {
   PathData* path_data = GetPathData();
-  AutoLock scoped_lock(path_data->lock);
+  base::AutoLock scoped_lock(path_data->lock);
   // Save the computed path in our cache.
   path_data->cache[key] = path;
 }
@@ -225,7 +225,7 @@ bool PathService::Override(int key, const FilePath& path) {
   if (!file_util::AbsolutePath(&file_path))
     return false;
 
-  AutoLock scoped_lock(path_data->lock);
+  base::AutoLock scoped_lock(path_data->lock);
 
   // Clear the cache now. Some of its entries could have depended
   // on the value we are overriding, and are now out of sync with reality.
@@ -243,7 +243,7 @@ void PathService::RegisterProvider(ProviderFunc func, int key_start,
   DCHECK(path_data);
   DCHECK(key_end > key_start);
 
-  AutoLock scoped_lock(path_data->lock);
+  base::AutoLock scoped_lock(path_data->lock);
 
   Provider* p;
 

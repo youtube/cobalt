@@ -9,7 +9,7 @@
 #include <stack>
 
 #include "base/basictypes.h"
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 
 namespace base {
 
@@ -60,7 +60,7 @@ class AtExitManager {
     void* param_;
   };
 
-  Lock lock_;
+  base::Lock lock_;
   std::stack<CallbackAndParam> stack_;
   AtExitManager* next_manager_;  // Stack of managers to allow shadowing.
 

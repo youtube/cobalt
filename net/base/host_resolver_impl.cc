@@ -18,12 +18,12 @@
 #include "base/compiler_specific.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
-#include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/worker_pool.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
@@ -405,7 +405,7 @@ class HostResolverImpl::Job
     // Mark the job as cancelled, so when worker thread completes it will
     // not try to post completion to origin loop.
     {
-      AutoLock locked(origin_loop_lock_);
+      base::AutoLock locked(origin_loop_lock_);
       origin_loop_ = NULL;
     }
 
@@ -482,7 +482,7 @@ class HostResolverImpl::Job
     // The origin loop could go away while we are trying to post to it, so we
     // need to call its PostTask method inside a lock.  See ~HostResolver.
     {
-      AutoLock locked(origin_loop_lock_);
+      base::AutoLock locked(origin_loop_lock_);
       if (origin_loop_) {
         origin_loop_->PostTask(FROM_HERE,
                                NewRunnableMethod(this, &Job::OnLookupComplete));
@@ -603,7 +603,7 @@ class HostResolverImpl::Job
   RequestsList requests_;  // The requests waiting on this job.
 
   // Used to post ourselves onto the origin thread.
-  Lock origin_loop_lock_;
+  base::Lock origin_loop_lock_;
   MessageLoop* origin_loop_;
 
   // Hold an owning reference to the HostResolverProc that we are going to use.
@@ -661,7 +661,7 @@ class HostResolverImpl::IPv6ProbeJob
     DCHECK(IsOnOriginThread());
     resolver_ = NULL;  // Read/write ONLY on origin thread.
     {
-      AutoLock locked(origin_loop_lock_);
+      base::AutoLock locked(origin_loop_lock_);
       // Origin loop may be destroyed before we can use it!
       origin_loop_ = NULL;  // Write ONLY on origin thread.
     }
@@ -695,7 +695,7 @@ class HostResolverImpl::IPv6ProbeJob
     // The origin loop could go away while we are trying to post to it, so we
     // need to call its PostTask method inside a lock.  See ~HostResolver.
     {
-      AutoLock locked(origin_loop_lock_);
+      base::AutoLock locked(origin_loop_lock_);
       if (origin_loop_) {
         origin_loop_->PostTask(FROM_HERE, reply);
         return;
@@ -722,7 +722,7 @@ class HostResolverImpl::IPv6ProbeJob
   HostResolverImpl* resolver_;
 
   // Used to post ourselves onto the origin thread.
-  Lock origin_loop_lock_;
+  base::Lock origin_loop_lock_;
   MessageLoop* origin_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(IPv6ProbeJob);

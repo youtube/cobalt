@@ -17,12 +17,12 @@
 
 #include "base/command_line.h"
 #include "base/file_util.h"
-#include "base/lock.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/singleton.h"
 #include "base/scoped_ptr.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 
 namespace {
 
@@ -51,7 +51,7 @@ class LinuxDistroHelper {
   // we automatically move to STATE_CHECK_STARTED so nobody else will
   // do the check.
   LinuxDistroState State() {
-    AutoLock scoped_lock(lock_);
+    base::AutoLock scoped_lock(lock_);
     if (STATE_DID_NOT_CHECK == state_) {
       state_ = STATE_CHECK_STARTED;
       return STATE_DID_NOT_CHECK;
@@ -61,13 +61,13 @@ class LinuxDistroHelper {
 
   // Indicate the check finished, move to STATE_CHECK_FINISHED.
   void CheckFinished() {
-    AutoLock scoped_lock(lock_);
+    base::AutoLock scoped_lock(lock_);
     DCHECK(state_ == STATE_CHECK_STARTED);
     state_ = STATE_CHECK_FINISHED;
   }
 
  private:
-  Lock lock_;
+  base::Lock lock_;
   LinuxDistroState state_;
 };
 #endif  // if defined(OS_LINUX)

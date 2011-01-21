@@ -4,12 +4,12 @@
 //
 // The purpose of this file is to supply the macro definintions necessary
 // to make third_party/dmg_fp/dtoa.cc threadsafe.
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 #include "base/logging.h"
 
 // We need two locks because they're sometimes grabbed at the same time.
 // A single lock would lead to an attempted recursive grab.
-static Lock dtoa_locks[2];
+static base::Lock dtoa_locks[2];
 
 /*
  * This define and the code below is to trigger thread-safe behavior

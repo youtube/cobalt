@@ -85,7 +85,7 @@ Births::Births(const Location& location)
 // static
 ThreadData* ThreadData::first_ = NULL;
 // static
-Lock ThreadData::list_lock_;
+base::Lock ThreadData::list_lock_;
 
 // static
 ThreadData::Status ThreadData::status_ = ThreadData::UNINITIALIZED;
@@ -111,7 +111,7 @@ ThreadData* ThreadData::current() {
     bool too_late_to_create = false;
     {
       registry = new ThreadData;
-      AutoLock lock(list_lock_);
+      base::AutoLock lock(list_lock_);
       // Use lock to insure we have most recent status.
       if (!IsActive()) {
         too_late_to_create = true;
@@ -285,7 +285,7 @@ Births* ThreadData::TallyABirth(const Location& location) {
   Births* tracker = new Births(location);
   // Lock since the map may get relocated now, and other threads sometimes
   // snapshot it (but they lock before copying it).
-  AutoLock lock(lock_);
+  base::AutoLock lock(lock_);
   birth_map_[location] = tracker;
   return tracker;
 }
@@ -305,13 +305,13 @@ void ThreadData::TallyADeath(const Births& lifetimes,
     return;
   }
 
-  AutoLock lock(lock_);  // Lock since the map may get relocated now.
+  base::AutoLock lock(lock_);  // Lock since the map may get relocated now.
   death_map_[&lifetimes].RecordDeath(duration);
 }
 
 // static
 ThreadData* ThreadData::first() {
-  AutoLock lock(list_lock_);
+  base::AutoLock lock(list_lock_);
   return first_;
 }
 
@@ -323,7 +323,7 @@ const std::string ThreadData::ThreadName() const {
 
 // This may be called from another thread.
 void ThreadData::SnapshotBirthMap(BirthMap *output) const {
-  AutoLock lock(lock_);
+  base::AutoLock lock(lock_);
   for (BirthMap::const_iterator it = birth_map_.begin();
        it != birth_map_.end(); ++it)
     (*output)[it->first] = it->second;
@@ -331,7 +331,7 @@ void ThreadData::SnapshotBirthMap(BirthMap *output) const {
 
 // This may be called from another thread.
 void ThreadData::SnapshotDeathMap(DeathMap *output) const {
-  AutoLock lock(lock_);
+  base::AutoLock lock(lock_);
   for (DeathMap::const_iterator it = death_map_.begin();
        it != death_map_.end(); ++it)
     (*output)[it->first] = it->second;
@@ -348,7 +348,7 @@ void ThreadData::ResetAllThreadData() {
 }
 
 void ThreadData::Reset() {
-  AutoLock lock(lock_);
+  base::AutoLock lock(lock_);
   for (DeathMap::iterator it = death_map_.begin();
        it != death_map_.end(); ++it)
     it->second.Clear();
@@ -372,7 +372,7 @@ class ThreadData::ThreadSafeDownCounter {
 
  private:
   size_t remaining_count_;
-  Lock lock_;  // protect access to remaining_count_.
+  base::Lock lock_;  // protect access to remaining_count_.
 };
 
 ThreadData::ThreadSafeDownCounter::ThreadSafeDownCounter(size_t count)
@@ -382,7 +382,7 @@ ThreadData::ThreadSafeDownCounter::ThreadSafeDownCounter(size_t count)
 
 bool ThreadData::ThreadSafeDownCounter::LastCaller() {
   {
-    AutoLock lock(lock_);
+    base::AutoLock lock(lock_);
     if (--remaining_count_)
       return false;
   }  // Release lock, so we can delete everything in this instance.
@@ -461,12 +461,12 @@ bool ThreadData::StartTracking(bool status) {
 #endif
 
   if (!status) {
-    AutoLock lock(list_lock_);
+    base::AutoLock lock(list_lock_);
     DCHECK(status_ == ACTIVE || status_ == SHUTDOWN);
     status_ = SHUTDOWN;
     return true;
   }
-  AutoLock lock(list_lock_);
+  base::AutoLock lock(list_lock_);
   DCHECK(status_ == UNINITIALIZED);
   CHECK(tls_index_.Initialize(NULL));
   status_ = ACTIVE;
@@ -504,7 +504,7 @@ void ThreadData::ShutdownSingleThreadedCleanup() {
     return;
   ThreadData* thread_data_list;
   {
-    AutoLock lock(list_lock_);
+    base::AutoLock lock(list_lock_);
     thread_data_list = first_;
     first_ = NULL;
   }
@@ -614,7 +614,7 @@ void DataCollector::Append(const ThreadData& thread_data) {
   thread_data.SnapshotDeathMap(&death_map);
 
   // Use our lock to protect our accumulation activity.
-  AutoLock lock(accumulation_lock_);
+  base::AutoLock lock(accumulation_lock_);
 
   DCHECK(count_of_contributing_threads_);
 

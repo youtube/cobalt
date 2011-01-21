@@ -9,9 +9,9 @@
 
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
-#include "base/lock.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
@@ -149,7 +149,7 @@ class CredHandleTable {
     DCHECK(0 < ssl_version_mask &&
            ssl_version_mask < arraysize(anonymous_creds_));
     CredHandleClass* handle;
-    AutoLock lock(lock_);
+    base::AutoLock lock(lock_);
     if (client_cert) {
       CredHandleMapKey key = std::make_pair(client_cert, ssl_version_mask);
       CredHandleMap::const_iterator it = client_cert_creds_.find(key);
@@ -184,7 +184,7 @@ class CredHandleTable {
                               PCCERT_CONTEXT client_cert,
                               int ssl_version_mask);
 
-  Lock lock_;
+  base::Lock lock_;
 
   // Anonymous (no client certificate) CredHandles for all possible
   // combinations of SSL versions.  Defined as an array for fast lookup.
