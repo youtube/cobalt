@@ -6,8 +6,6 @@
 #define NET_DISK_CACHE_BITMAP_H_
 #pragma once
 
-#include <algorithm>
-
 #include "base/basictypes.h"
 
 namespace disk_cache {
@@ -19,30 +17,14 @@ class Bitmap {
 
   // This constructor will allocate on a uint32 boundary. If |clear_bits| is
   // false, the bitmap bits will not be initialized.
-  Bitmap(int num_bits, bool clear_bits)
-     : num_bits_(num_bits), array_size_(RequiredArraySize(num_bits)),
-       alloc_(true) {
-    map_ = new uint32[array_size_];
-
-    // Initialize all of the bits.
-    if (clear_bits)
-      Clear();
-  }
+  Bitmap(int num_bits, bool clear_bits);
 
   // Constructs a Bitmap with the actual storage provided by the caller. |map|
   // has to be valid until this object destruction. |num_bits| is the number of
   // bits in the bitmap, and |num_words| is the size of |map| in 32-bit words.
-  Bitmap(uint32* map, int num_bits, int num_words)
-     : map_(map), num_bits_(num_bits),
-       // If size is larger than necessary, trim because array_size_ is used
-       // as a bound by various methods.
-       array_size_(std::min(RequiredArraySize(num_bits), num_words)),
-       alloc_(false) {}
+  Bitmap(uint32* map, int num_bits, int num_words);
 
-  ~Bitmap() {
-    if (alloc_)
-      delete[] map_;
-  }
+  ~Bitmap();
 
   // Resizes the bitmap.
   // If |num_bits| < Size(), the extra bits will be discarded.

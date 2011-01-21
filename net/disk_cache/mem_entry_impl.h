@@ -52,28 +52,6 @@ class MemEntryImpl : public Entry {
 
   explicit MemEntryImpl(MemBackendImpl* backend);
 
-  // Entry interface.
-  virtual void Doom();
-  virtual void Close();
-  virtual std::string GetKey() const;
-  virtual base::Time GetLastUsed() const;
-  virtual base::Time GetLastModified() const;
-  virtual int32 GetDataSize(int index) const;
-  virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       net::CompletionCallback* completion_callback);
-  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* completion_callback,
-                        bool truncate);
-  virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::CompletionCallback* completion_callback);
-  virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* completion_callback);
-  virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                CompletionCallback* callback);
-  virtual bool CouldBeSparse() const;
-  virtual void CancelSparseIO() {}
-  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
-
   // Performs the initialization of a EntryImpl that will be added to the
   // cache.
   bool CreateEntry(const std::string& key);
@@ -103,6 +81,28 @@ class MemEntryImpl : public Entry {
   EntryType type() const {
     return parent_ ? kChildEntry : kParentEntry;
   }
+
+  // Entry interface.
+  virtual void Doom();
+  virtual void Close();
+  virtual std::string GetKey() const;
+  virtual base::Time GetLastUsed() const;
+  virtual base::Time GetLastModified() const;
+  virtual int32 GetDataSize(int index) const;
+  virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
+                       net::CompletionCallback* completion_callback);
+  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
+                        net::CompletionCallback* completion_callback,
+                        bool truncate);
+  virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
+                             net::CompletionCallback* completion_callback);
+  virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
+                              net::CompletionCallback* completion_callback);
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                CompletionCallback* callback);
+  virtual bool CouldBeSparse() const;
+  virtual void CancelSparseIO() {}
+  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
 
  private:
   typedef base::hash_map<int, MemEntryImpl*> EntryMap;

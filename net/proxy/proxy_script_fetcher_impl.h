@@ -37,8 +37,13 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
   virtual ~ProxyScriptFetcherImpl();
 
-  // ProxyScriptFetcher methods:
+  // Used by unit-tests to modify the default limits.
+  base::TimeDelta SetTimeoutConstraint(base::TimeDelta timeout);
+  size_t SetSizeConstraint(size_t size_bytes);
 
+  virtual void OnResponseCompleted(URLRequest* request);
+
+  // ProxyScriptFetcher methods:
   virtual int Fetch(const GURL& url, string16* text,
                     CompletionCallback* callback);
   virtual void Cancel();
@@ -51,13 +56,10 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
                                      X509Certificate* cert);
   virtual void OnResponseStarted(URLRequest* request);
   virtual void OnReadCompleted(URLRequest* request, int num_bytes);
-  virtual void OnResponseCompleted(URLRequest* request);
-
-  // Used by unit-tests to modify the default limits.
-  base::TimeDelta SetTimeoutConstraint(base::TimeDelta timeout);
-  size_t SetSizeConstraint(size_t size_bytes);
 
  private:
+  enum { kBufSize = 4096 };
+
   // Read more bytes from the response.
   void ReadBody(URLRequest* request);
 
@@ -83,7 +85,6 @@ class ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   URLRequestContext* url_request_context_;
 
   // Buffer that URLRequest writes into.
-  enum { kBufSize = 4096 };
   scoped_refptr<IOBuffer> buf_;
 
   // The next ID to use for |cur_request_| (monotonically increasing).
