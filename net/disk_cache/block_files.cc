@@ -220,6 +220,91 @@ bool BlockFiles::Init(bool create_files) {
   return true;
 }
 
+MappedFile* BlockFiles::GetFile(Addr address) {
+  DCHECK(thread_checker_->CalledOnValidThread());
+  DCHECK(block_files_.size() >= 4);
+  DCHECK(address.is_block_file() || !address.is_initialized());
+  if (!address.is_initialized())
+    return NULL;
+
+  int file_index = address.FileNumber();
+  if (static_cast<unsigned int>(file_index) >= block_files_.size() ||
+      !block_files_[file_index]) {
+    // We need to open the file
+    if (!OpenBlockFile(file_index))
+      return NULL;
+  }
+  DCHECK(block_files_.size() >= static_cast<unsigned int>(file_index));
+  return block_files_[file_index];
+}
+
+bool BlockFiles::CreateBlock(FileType block_type, int block_count,
+                             Addr* block_address) {
+  DCHECK(thread_checker_->CalledOnValidThread());
+  if (block_type < RANKINGS || block_type > BLOCK_4K ||
+      block_count < 1 || block_count > 4)
+    return false;
+  if (!init_)
+    return false;
+
+  MappedFile* file = FileForNewBlock(block_type, block_count);
+  if (!file)
+    return false;
+
+  BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
+
+  int target_size = 0;
+  for (int i = block_count; i <= 4; i++) {
+    if (header->empty[i - 1]) {
+      target_size = i;
+      break;
+    }
+  }
+
+  DCHECK(target_size);
+  int index;
+  if (!CreateMapBlock(target_size, block_count, header, &index))
+    return false;
+
+  Addr address(block_type, block_count, header->this_file, index);
+  block_address->set_value(address.value());
+  Trace("CreateBlock 0x%x", address.value());
+  return true;
+}
+
+void BlockFiles::DeleteBlock(Addr address, bool deep) {
+  DCHECK(thread_checker_->CalledOnValidThread());
+  if (!address.is_initialized() || address.is_separate_file())
+    return;
+
+  if (!zero_buffer_) {
+    zero_buffer_ = new char[Addr::BlockSizeForFileType(BLOCK_4K) * 4];
+    memset(zero_buffer_, 0, Addr::BlockSizeForFileType(BLOCK_4K) * 4);
+  }
+  MappedFile* file = GetFile(address);
+  if (!file)
+    return;
+
+  Trace("DeleteBlock 0x%x", address.value());
+
+  BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
+  DeleteMapBlock(address.start_block(), address.num_blocks(), header);
+
+  size_t size = address.BlockSize() * address.num_blocks();
+  size_t offset = address.start_block() * address.BlockSize() +
+                  kBlockHeaderSize;
+  if (deep)
+    file->Write(zero_buffer_, size, offset);
+
+  if (!header->num_entries) {
+    // This file is now empty. Let's try to delete it.
+    FileType type = Addr::RequiredFileType(header->entry_size);
+    if (Addr::BlockSizeForFileType(RANKINGS) == header->entry_size)
+      type = RANKINGS;
+    RemoveEmptyFile(type);
+  }
+}
+
 void BlockFiles::CloseFiles() {
   if (init_) {
     DCHECK(thread_checker_->CalledOnValidThread());
@@ -346,24 +431,6 @@ bool BlockFiles::OpenBlockFile(int index) {
   return true;
 }
 
-MappedFile* BlockFiles::GetFile(Addr address) {
-  DCHECK(thread_checker_->CalledOnValidThread());
-  DCHECK(block_files_.size() >= 4);
-  DCHECK(address.is_block_file() || !address.is_initialized());
-  if (!address.is_initialized())
-    return NULL;
-
-  int file_index = address.FileNumber();
-  if (static_cast<unsigned int>(file_index) >= block_files_.size() ||
-      !block_files_[file_index]) {
-    // We need to open the file
-    if (!OpenBlockFile(file_index))
-      return NULL;
-  }
-  DCHECK(block_files_.size() >= static_cast<unsigned int>(file_index));
-  return block_files_[file_index];
-}
-
 bool BlockFiles::GrowBlockFile(MappedFile* file, BlockFileHeader* header) {
   if (kMaxBlocks == header->max_entries)
     return false;
@@ -486,73 +553,6 @@ void BlockFiles::RemoveEmptyFile(FileType block_type) {
 
     header = next_header;
     file = next_file;
-  }
-}
-
-bool BlockFiles::CreateBlock(FileType block_type, int block_count,
-                             Addr* block_address) {
-  DCHECK(thread_checker_->CalledOnValidThread());
-  if (block_type < RANKINGS || block_type > BLOCK_4K ||
-      block_count < 1 || block_count > 4)
-    return false;
-  if (!init_)
-    return false;
-
-  MappedFile* file = FileForNewBlock(block_type, block_count);
-  if (!file)
-    return false;
-
-  BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
-
-  int target_size = 0;
-  for (int i = block_count; i <= 4; i++) {
-    if (header->empty[i - 1]) {
-      target_size = i;
-      break;
-    }
-  }
-
-  DCHECK(target_size);
-  int index;
-  if (!CreateMapBlock(target_size, block_count, header, &index))
-    return false;
-
-  Addr address(block_type, block_count, header->this_file, index);
-  block_address->set_value(address.value());
-  Trace("CreateBlock 0x%x", address.value());
-  return true;
-}
-
-void BlockFiles::DeleteBlock(Addr address, bool deep) {
-  DCHECK(thread_checker_->CalledOnValidThread());
-  if (!address.is_initialized() || address.is_separate_file())
-    return;
-
-  if (!zero_buffer_) {
-    zero_buffer_ = new char[Addr::BlockSizeForFileType(BLOCK_4K) * 4];
-    memset(zero_buffer_, 0, Addr::BlockSizeForFileType(BLOCK_4K) * 4);
-  }
-  MappedFile* file = GetFile(address);
-  if (!file)
-    return;
-
-  Trace("DeleteBlock 0x%x", address.value());
-
-  BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
-  DeleteMapBlock(address.start_block(), address.num_blocks(), header);
-
-  size_t size = address.BlockSize() * address.num_blocks();
-  size_t offset = address.start_block() * address.BlockSize() +
-                  kBlockHeaderSize;
-  if (deep)
-    file->Write(zero_buffer_, size, offset);
-
-  if (!header->num_entries) {
-    // This file is now empty. Let's try to delete it.
-    FileType type = Addr::RequiredFileType(header->entry_size);
-    if (Addr::BlockSizeForFileType(RANKINGS) == header->entry_size)
-      type = RANKINGS;
-    RemoveEmptyFile(type);
   }
 }
 

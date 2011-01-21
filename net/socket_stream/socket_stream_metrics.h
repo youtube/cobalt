@@ -18,6 +18,22 @@ namespace net {
 
 class SocketStreamMetrics {
  public:
+  enum ProtocolType {
+    PROTOCOL_UNKNOWN,
+    PROTOCOL_WEBSOCKET,
+    PROTOCOL_WEBSOCKET_SECURE,
+    NUM_PROTOCOL_TYPES,
+  };
+
+  enum ConnectionType {
+    CONNECTION_NONE,
+    ALL_CONNECTIONS,
+    TUNNEL_CONNECTION,
+    SOCKS_CONNECTION,
+    SSL_CONNECTION,
+    NUM_CONNECTION_TYPES,
+  };
+
   explicit SocketStreamMetrics(const GURL& url);
   ~SocketStreamMetrics();
 
@@ -30,21 +46,6 @@ class SocketStreamMetrics {
   void OnRead(int len);
   void OnWrite(int len);
   void OnClose();
-
-  enum ProtocolType {
-    PROTOCOL_UNKNOWN,
-    PROTOCOL_WEBSOCKET,
-    PROTOCOL_WEBSOCKET_SECURE,
-    NUM_PROTOCOL_TYPES,
-  };
-  enum ConnectionType {
-    CONNECTION_NONE,
-    ALL_CONNECTIONS,
-    TUNNEL_CONNECTION,
-    SOCKS_CONNECTION,
-    SSL_CONNECTION,
-    NUM_CONNECTION_TYPES,
-  };
 
  private:
   void CountProtocolType(ProtocolType protocol_type);

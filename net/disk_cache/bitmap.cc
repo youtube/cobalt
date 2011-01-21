@@ -4,6 +4,8 @@
 
 #include "net/disk_cache/bitmap.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 
 namespace {
@@ -37,6 +39,31 @@ int FindLSBNonEmpty(uint32 word, bool value) {
 }
 
 namespace disk_cache {
+
+Bitmap::Bitmap(int num_bits, bool clear_bits)
+    : num_bits_(num_bits),
+      array_size_(RequiredArraySize(num_bits)),
+      alloc_(true) {
+  map_ = new uint32[array_size_];
+
+  // Initialize all of the bits.
+  if (clear_bits)
+    Clear();
+}
+
+Bitmap::Bitmap(uint32* map, int num_bits, int num_words)
+    : map_(map),
+      num_bits_(num_bits),
+      // If size is larger than necessary, trim because array_size_ is used
+      // as a bound by various methods.
+      array_size_(std::min(RequiredArraySize(num_bits), num_words)),
+      alloc_(false) {
+}
+
+Bitmap::~Bitmap() {
+  if (alloc_)
+    delete [] map_;
+}
 
 void Bitmap::Resize(int num_bits, bool clear_bits) {
   DCHECK(alloc_ || !map_);
@@ -103,24 +130,6 @@ uint32 Bitmap::GetMapElement(int array_index) const {
 
 void Bitmap::SetMap(const uint32* map, int size) {
   memcpy(map_, map, std::min(size, array_size_) * sizeof(*map_));
-}
-
-void Bitmap::SetWordBits(int start, int len, bool value) {
-  DCHECK_LT(len, kIntBits);
-  DCHECK_GE(len, 0);
-  if (!len)
-    return;
-
-  int word = start / kIntBits;
-  int offset = start % kIntBits;
-
-  uint32 to_add = 0xffffffff << len;
-  to_add = (~to_add) << offset;
-  if (value) {
-    map_[word] |= to_add;
-  } else {
-    map_[word] &= ~to_add;
-  }
 }
 
 void Bitmap::SetRange(int begin, int end, bool value) {
@@ -279,6 +288,24 @@ int Bitmap::FindBits(int* index, int limit, bool value) const {
     return limit - *index;
 
   return end - *index;
+}
+
+void Bitmap::SetWordBits(int start, int len, bool value) {
+  DCHECK_LT(len, kIntBits);
+  DCHECK_GE(len, 0);
+  if (!len)
+    return;
+
+  int word = start / kIntBits;
+  int offset = start % kIntBits;
+
+  uint32 to_add = 0xffffffff << len;
+  to_add = (~to_add) << offset;
+  if (value) {
+    map_[word] |= to_add;
+  } else {
+    map_[word] &= ~to_add;
+  }
 }
 
 }  // namespace disk_cache
