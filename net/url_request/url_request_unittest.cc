@@ -2642,3 +2642,32 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptCharset) {
   MessageLoop::current()->Run();
   EXPECT_EQ(std::string("koi-8r"), d.data_received());
 }
+
+// Check that default User-Agent header is sent.
+TEST_F(URLRequestTestHTTP, DefaultUserAgent) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  TestURLRequest req(test_server_.GetURL("echoheader?User-Agent"), &d);
+  req.set_context(new TestURLRequestContext());
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ(req.context()->GetUserAgent(req.url()), d.data_received());
+}
+
+// Check that if request overrides the User-Agent header,
+// the default is not appended.
+TEST_F(URLRequestTestHTTP, OverrideUserAgent) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  TestURLRequest
+      req(test_server_.GetURL("echoheaderoverride?User-Agent"), &d);
+  req.set_context(new TestURLRequestContext());
+  net::HttpRequestHeaders headers;
+  headers.SetHeader(net::HttpRequestHeaders::kUserAgent, "Lynx (textmode)");
+  req.SetExtraRequestHeaders(headers);
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ(std::string("Lynx (textmode)"), d.data_received());
+}
