@@ -95,6 +95,12 @@ class HttpRequestHeaders {
   // in the vector remains the same.  When comparing |key|, case is ignored.
   void SetHeader(const base::StringPiece& key, const base::StringPiece& value);
 
+  // Sets the header value pair for |key| and |value|, if |key| does not exist.
+  // If |key| already exists, the call is a no-op.
+  // When comparing |key|, case is ignored.
+  void SetHeaderIfMissing(const base::StringPiece& key,
+                          const base::StringPiece& value);
+
   // Removes the first header that matches (case insensitive) |key|.
   void RemoveHeader(const base::StringPiece& key);
 

@@ -303,18 +303,12 @@ void URLRequestHttpJob::AddExtraHeaders() {
   if (context) {
     // Only add default Accept-Language and Accept-Charset if the request
     // didn't have them specified.
-    if (!request_info_.extra_headers.HasHeader(
-        HttpRequestHeaders::kAcceptLanguage)) {
-      request_info_.extra_headers.SetHeader(
-          HttpRequestHeaders::kAcceptLanguage,
-          context->accept_language());
-    }
-    if (!request_info_.extra_headers.HasHeader(
-        HttpRequestHeaders::kAcceptCharset)) {
-      request_info_.extra_headers.SetHeader(
-          HttpRequestHeaders::kAcceptCharset,
-          context->accept_charset());
-    }
+    request_info_.extra_headers.SetHeaderIfMissing(
+        HttpRequestHeaders::kAcceptLanguage,
+        context->accept_language());
+    request_info_.extra_headers.SetHeaderIfMissing(
+        HttpRequestHeaders::kAcceptCharset,
+        context->accept_charset());
   }
 }
 
@@ -660,7 +654,7 @@ void URLRequestHttpJob::Start() {
   request_info_.priority = request_->priority();
 
   if (request_->context()) {
-    request_info_.extra_headers.SetHeader(
+    request_info_.extra_headers.SetHeaderIfMissing(
         HttpRequestHeaders::kUserAgent,
         request_->context()->GetUserAgent(request_->url()));
   }
