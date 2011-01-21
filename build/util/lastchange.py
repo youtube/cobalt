@@ -71,11 +71,13 @@ def main(argv=None):
   if argv is None:
     argv = sys.argv
 
-  parser = optparse.OptionParser(usage="lastchange.py [-h] [[-o] FILE]")
+  parser = optparse.OptionParser(usage="lastchange.py [options]")
   parser.add_option("-d", "--default-lastchange", metavar="FILE",
                     help="default last change input FILE")
   parser.add_option("-o", "--output", metavar="FILE",
                     help="write last change to FILE")
+  parser.add_option("--revision-only", action='store_true',
+                    help="just print the SVN revision number")
   opts, args = parser.parse_args(argv[1:])
 
   out_file = opts.output
@@ -90,12 +92,14 @@ def main(argv=None):
 
   change = FetchChange(opts.default_lastchange)
 
-  contents = "LASTCHANGE=%s\n" % change
-
-  if out_file:
-    WriteIfChanged(out_file, contents)
+  if opts.revision_only:
+    print change
   else:
-    sys.stdout.write(contents)
+    contents = "LASTCHANGE=%s\n" % change
+    if out_file:
+      WriteIfChanged(out_file, contents)
+    else:
+      sys.stdout.write(contents)
 
   return 0
 
