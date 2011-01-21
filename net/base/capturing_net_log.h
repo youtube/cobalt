@@ -10,9 +10,9 @@
 
 #include "base/atomicops.h"
 #include "base/basictypes.h"
-#include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "net/base/net_log.h"
 
@@ -65,7 +65,7 @@ class CapturingNetLog : public NetLog {
 
  private:
   // Needs to be "mutable" so can use it in GetEntries().
-  mutable Lock lock_;
+  mutable base::Lock lock_;
 
   // Last assigned source ID.  Incremented to get the next one.
   base::subtle::Atomic32 last_id_;

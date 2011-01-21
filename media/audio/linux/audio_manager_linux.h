@@ -7,9 +7,9 @@
 
 #include <map>
 
-#include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "media/audio/audio_manager_base.h"
 
@@ -40,7 +40,7 @@ class AudioManagerLinux : public AudioManagerBase {
  private:
   scoped_ptr<AlsaWrapper> wrapper_;
 
-  Lock lock_;
+  base::Lock lock_;
   std::map<AlsaPcmOutputStream*, scoped_refptr<AlsaPcmOutputStream> >
       active_streams_;
 

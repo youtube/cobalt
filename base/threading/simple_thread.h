@@ -46,8 +46,8 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/lock.h"
 #include "base/threading/platform_thread.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 
 namespace base {
@@ -173,7 +173,7 @@ class DelegateSimpleThreadPool : public DelegateSimpleThread::Delegate {
   int num_threads_;
   std::vector<DelegateSimpleThread*> threads_;
   std::queue<Delegate*> delegates_;
-  Lock lock_;            // Locks delegates_
+  base::Lock lock_;            // Locks delegates_
   WaitableEvent dry_;    // Not signaled when there is no work to do.
 };
 

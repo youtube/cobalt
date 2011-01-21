@@ -5,9 +5,9 @@
 #ifndef MEDIA_AUDIO_AUDIO_INPUT_CONTROLLER_H_
 #define MEDIA_AUDIO_AUDIO_INPUT_CONTROLLER_H_
 
-#include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
@@ -121,7 +121,7 @@ class AudioInputController :
   // is not required for reading on the audio input controller thread.
   State state_;
 
-  Lock lock_;
+  base::Lock lock_;
 
   // The audio input controller thread that this object runs on.
   base::Thread thread_;

@@ -55,7 +55,7 @@ class ExampleEmployer::ExampleWorker
   ExampleEmployer* employer_;
   CompletionCallback* callback_;
   // Used to post ourselves onto the origin thread.
-  Lock origin_loop_lock_;
+  base::Lock origin_loop_lock_;
   MessageLoop* origin_loop_;
 };
 
@@ -68,7 +68,7 @@ void ExampleEmployer::ExampleWorker::DoWork() {
   // The origin loop could go away while we are trying to post to it, so we
   // need to call its PostTask method inside a lock.  See ~ExampleEmployer.
   {
-    AutoLock locked(origin_loop_lock_);
+    base::AutoLock locked(origin_loop_lock_);
     if (origin_loop_) {
       origin_loop_->PostTask(FROM_HERE, reply);
       reply = NULL;

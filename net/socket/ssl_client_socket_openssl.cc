@@ -10,10 +10,10 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-#include "base/lock.h"
 #include "base/metrics/histogram.h"
 #include "base/openssl_util.h"
 #include "base/singleton.h"
+#include "base/synchronization/lock.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/net_errors.h"
 #include "net/base/openssl_private_key_store.h"
@@ -207,7 +207,7 @@ class SSLSessionCache {
     // Declare the session cleaner-upper before the lock, so any call into
     // OpenSSL to free the session will happen after the lock is released.
     base::ScopedOpenSSL<SSL_SESSION, SSL_SESSION_free> session_to_free;
-    AutoLock lock(lock_);
+    base::AutoLock lock(lock_);
 
     DCHECK_EQ(0U, session_map_.count(session));
     std::pair<HostPortMap::iterator, bool> res =
@@ -229,7 +229,7 @@ class SSLSessionCache {
     // Declare the session cleaner-upper before the lock, so any call into
     // OpenSSL to free the session will happen after the lock is released.
     base::ScopedOpenSSL<SSL_SESSION, SSL_SESSION_free> session_to_free;
-    AutoLock lock(lock_);
+    base::AutoLock lock(lock_);
 
     SessionMap::iterator it = session_map_.find(session);
     if (it == session_map_.end())
@@ -246,7 +246,7 @@ class SSLSessionCache {
   // Looks up the host:port in the cache, and if a session is found it is added
   // to |ssl|, returning true on success.
   bool SetSSLSession(SSL* ssl, const HostPortPair& host_and_port) {
-    AutoLock lock(lock_);
+    base::AutoLock lock(lock_);
     HostPortMap::iterator it = host_port_map_.find(host_and_port);
     if (it == host_port_map_.end())
       return false;
@@ -274,7 +274,7 @@ class SSLSessionCache {
   SessionMap session_map_;
 
   // Protects access to both the above maps.
-  Lock lock_;
+  base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(SSLSessionCache);
 };

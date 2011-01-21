@@ -10,9 +10,9 @@
 #include <iostream>
 
 #include "base/basictypes.h"
-#include "base/lock.h"
 #include "base/logging.h"
 #include "base/singleton.h"
+#include "base/synchronization/lock.h"
 
 namespace base {
 namespace debug {
@@ -59,7 +59,7 @@ class SymbolContext {
   void OutputTraceToStream(const void* const* trace,
                            int count,
                            std::ostream* os) {
-    AutoLock lock(lock_);
+    base::AutoLock lock(lock_);
 
     for (size_t i = 0; (i < count) && os->good(); ++i) {
       const int kMaxNameLength = 256;
@@ -129,7 +129,7 @@ class SymbolContext {
   }
 
   DWORD init_error_;
-  Lock lock_;
+  base::Lock lock_;
   DISALLOW_COPY_AND_ASSIGN(SymbolContext);
 };
 

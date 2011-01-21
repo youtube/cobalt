@@ -93,7 +93,7 @@ class ObserverListThreadSafe
     if (!loop)
       return;  // Some unittests may access this without a message loop.
     {
-      AutoLock lock(list_lock_);
+      base::AutoLock lock(list_lock_);
       if (observer_lists_.find(loop) == observer_lists_.end())
         observer_lists_[loop] = new ObserverList<ObserverType>(type_);
       list = observer_lists_[loop];
@@ -112,7 +112,7 @@ class ObserverListThreadSafe
     if (!loop)
       return;  // On shutdown, it is possible that current() is already null.
     {
-      AutoLock lock(list_lock_);
+      base::AutoLock lock(list_lock_);
       list = observer_lists_[loop];
       if (!list) {
         NOTREACHED() << "RemoveObserver called on for unknown thread";
@@ -165,7 +165,7 @@ class ObserverListThreadSafe
 
   template <class Method, class Params>
   void Notify(const UnboundMethod<ObserverType, Method, Params>& method) {
-    AutoLock lock(list_lock_);
+    base::AutoLock lock(list_lock_);
     typename ObserversListMap::iterator it;
     for (it = observer_lists_.begin(); it != observer_lists_.end(); ++it) {
       MessageLoop* loop = (*it).first;
@@ -187,7 +187,7 @@ class ObserverListThreadSafe
 
     // Check that this list still needs notifications.
     {
-      AutoLock lock(list_lock_);
+      base::AutoLock lock(list_lock_);
       typename ObserversListMap::iterator it =
           observer_lists_.find(MessageLoop::current());
 
@@ -209,7 +209,7 @@ class ObserverListThreadSafe
     // If there are no more observers on the list, we can now delete it.
     if (list->size() == 0) {
       {
-        AutoLock lock(list_lock_);
+        base::AutoLock lock(list_lock_);
         // Remove |list| if it's not already removed.
         // This can happen if multiple observers got removed in a notification.
         // See http://crbug.com/55725.
@@ -225,7 +225,7 @@ class ObserverListThreadSafe
   typedef std::map<MessageLoop*, ObserverList<ObserverType>*> ObserversListMap;
 
   // These are marked mutable to facilitate having NotifyAll be const.
-  Lock list_lock_;  // Protects the observer_lists_.
+  base::Lock list_lock_;  // Protects the observer_lists_.
   ObserversListMap observer_lists_;
   const NotificationType type_;
 

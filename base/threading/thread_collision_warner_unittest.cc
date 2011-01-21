@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "base/compiler_specific.h"
-#include "base/lock.h"
 #include "base/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/threading/thread_collision_warner.h"
@@ -266,30 +266,30 @@ TEST(ThreadCollisionTest, MTSynchedScopedBookCriticalSectionTest) {
   // a lock.
   class QueueUser : public base::DelegateSimpleThread::Delegate {
    public:
-    QueueUser(NonThreadSafeQueue& queue, Lock& lock)
+    QueueUser(NonThreadSafeQueue& queue, base::Lock& lock)
         : queue_(queue),
           lock_(lock) {}
 
     virtual void Run() {
       {
-        AutoLock auto_lock(lock_);
+        base::AutoLock auto_lock(lock_);
         queue_.push(0);
       }
       {
-        AutoLock auto_lock(lock_);
+        base::AutoLock auto_lock(lock_);
         queue_.pop();
       }
     }
    private:
     NonThreadSafeQueue& queue_;
-    Lock& lock_;
+    base::Lock& lock_;
   };
 
   AssertReporter* local_reporter = new AssertReporter();
 
   NonThreadSafeQueue queue(local_reporter);
 
-  Lock lock;
+  base::Lock lock;
 
   QueueUser queue_user_a(queue, lock);
   QueueUser queue_user_b(queue, lock);
@@ -340,34 +340,34 @@ TEST(ThreadCollisionTest, MTSynchedScopedRecursiveBookCriticalSectionTest) {
   // a lock.
   class QueueUser : public base::DelegateSimpleThread::Delegate {
    public:
-    QueueUser(NonThreadSafeQueue& queue, Lock& lock)
+    QueueUser(NonThreadSafeQueue& queue, base::Lock& lock)
         : queue_(queue),
           lock_(lock) {}
 
     virtual void Run() {
       {
-        AutoLock auto_lock(lock_);
+        base::AutoLock auto_lock(lock_);
         queue_.push(0);
       }
       {
-        AutoLock auto_lock(lock_);
+        base::AutoLock auto_lock(lock_);
         queue_.bar();
       }
       {
-        AutoLock auto_lock(lock_);
+        base::AutoLock auto_lock(lock_);
         queue_.pop();
       }
     }
    private:
     NonThreadSafeQueue& queue_;
-    Lock& lock_;
+    base::Lock& lock_;
   };
 
   AssertReporter* local_reporter = new AssertReporter();
 
   NonThreadSafeQueue queue(local_reporter);
 
-  Lock lock;
+  base::Lock lock;
 
   QueueUser queue_user_a(queue, lock);
   QueueUser queue_user_b(queue, lock);

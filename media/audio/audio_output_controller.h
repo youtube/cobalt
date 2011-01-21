@@ -5,9 +5,9 @@
 #ifndef MEDIA_AUDIO_AUDIO_OUTPUT_CONTROLLER_H_
 #define MEDIA_AUDIO_AUDIO_OUTPUT_CONTROLLER_H_
 
-#include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "media/audio/audio_buffers_state.h"
 #include "media/audio/audio_io.h"
@@ -187,7 +187,7 @@ class AudioOutputController
   AudioBuffersState buffers_state_;
 
   // The |lock_| must be acquired whenever we access |buffer_|.
-  Lock lock_;
+  base::Lock lock_;
 
   media::SeekableBuffer buffer_;
 

@@ -62,7 +62,7 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
       new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this,
                               GetMessageLoop());
 
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   active_streams_[stream] = scoped_refptr<AlsaPcmOutputStream>(stream);
   return stream;
 }
@@ -125,7 +125,7 @@ void AudioManagerLinux::UnMuteAll() {
 
 void AudioManagerLinux::ReleaseOutputStream(AlsaPcmOutputStream* stream) {
   if (stream) {
-    AutoLock l(lock_);
+    base::AutoLock l(lock_);
     active_streams_.erase(stream);
   }
 }

@@ -24,7 +24,7 @@
 #include <CoreFoundation/CFArray.h>
 #include <Security/SecBase.h>
 
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 #elif defined(USE_OPENSSL)
 // Forward declaration; real one in <x509.h>
 struct x509_st;
@@ -370,7 +370,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 #if defined(OS_MACOSX)
   // Blocks multiple threads from verifying the cert simultaneously.
   // (Marked mutable because it's used in a const method.)
-  mutable Lock verification_lock_;
+  mutable base::Lock verification_lock_;
 #endif
 
   // Where the certificate comes from.

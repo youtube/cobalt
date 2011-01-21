@@ -90,7 +90,7 @@ class LocaleAwareComparator {
   int Compare(const string16& a, const string16& b) {
     // We are not sure if Collator::compare is thread-safe.
     // Use an AutoLock just in case.
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
 
     UErrorCode error_code = U_ZERO_ERROR;
     UCollationResult result = collator_->compare(
@@ -120,7 +120,7 @@ class LocaleAwareComparator {
   }
 
   scoped_ptr<icu::Collator> collator_;
-  Lock lock_;
+  base::Lock lock_;
   friend struct DefaultSingletonTraits<LocaleAwareComparator>;
 
   DISALLOW_COPY_AND_ASSIGN(LocaleAwareComparator);

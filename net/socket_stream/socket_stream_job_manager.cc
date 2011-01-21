@@ -31,7 +31,7 @@ SocketStreamJob* SocketStreamJobManager::CreateJob(
 
   const std::string& scheme = url.scheme();  // already lowercase
 
-  AutoLock locked(lock_);
+  base::AutoLock locked(lock_);
   FactoryMap::const_iterator found = factories_.find(scheme);
   if (found != factories_.end()) {
     SocketStreamJob* job = found->second(url, delegate);
@@ -46,7 +46,7 @@ SocketStreamJob* SocketStreamJobManager::CreateJob(
 SocketStreamJob::ProtocolFactory*
 SocketStreamJobManager::RegisterProtocolFactory(
     const std::string& scheme, SocketStreamJob::ProtocolFactory* factory) {
-  AutoLock locked(lock_);
+  base::AutoLock locked(lock_);
 
   SocketStreamJob::ProtocolFactory* old_factory;
   FactoryMap::iterator found = factories_.find(scheme);

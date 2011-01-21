@@ -6,8 +6,8 @@
 
 #include <set>
 
-#include "base/lock.h"
 #include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
 #include "base/task.h"
 #include "base/threading/platform_thread.h"
 #include "base/synchronization/waitable_event.h"
@@ -61,12 +61,12 @@ class IncrementingTask : public Task {
 
   virtual void Run() {
     AddSelfToUniqueThreadSet();
-    AutoLock locked(*counter_lock_);
+    base::AutoLock locked(*counter_lock_);
     (*counter_)++;
   }
 
   void AddSelfToUniqueThreadSet() {
-    AutoLock locked(*unique_threads_lock_);
+    base::AutoLock locked(*unique_threads_lock_);
     unique_threads_->insert(PlatformThread::CurrentId());
   }
 
@@ -100,7 +100,7 @@ class BlockingIncrementingTask : public Task {
 
   virtual void Run() {
     {
-      AutoLock num_waiting_to_start_locked(*num_waiting_to_start_lock_);
+      base::AutoLock num_waiting_to_start_locked(*num_waiting_to_start_lock_);
       (*num_waiting_to_start_)++;
     }
     num_waiting_to_start_cv_->Signal();
@@ -138,14 +138,14 @@ class PosixDynamicThreadPoolTest : public testing::Test {
   }
 
   void WaitForTasksToStart(int num_tasks) {
-    AutoLock num_waiting_to_start_locked(num_waiting_to_start_lock_);
+    base::AutoLock num_waiting_to_start_locked(num_waiting_to_start_lock_);
     while (num_waiting_to_start_ < num_tasks) {
       num_waiting_to_start_cv_.Wait();
     }
   }
 
   void WaitForIdleThreads(int num_idle_threads) {
-    AutoLock pool_locked(*peer_.lock());
+    base::AutoLock pool_locked(*peer_.lock());
     while (peer_.num_idle_threads() < num_idle_threads) {
       peer_.num_idle_threads_cv()->Wait();
     }
@@ -249,7 +249,7 @@ TEST_F(PosixDynamicThreadPoolTest, Complex) {
 
   // Wake up all idle threads so they can exit.
   {
-    AutoLock locked(*peer_.lock());
+    base::AutoLock locked(*peer_.lock());
     while (peer_.num_idle_threads() > 0) {
       peer_.tasks_available_cv()->Signal();
       peer_.num_idle_threads_cv()->Wait();

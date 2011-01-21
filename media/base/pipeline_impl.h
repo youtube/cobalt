@@ -277,7 +277,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   MessageLoop* message_loop_;
 
   // Lock used to serialize access for the following data members.
-  mutable Lock lock_;
+  mutable base::Lock lock_;
 
   // Whether or not the pipeline is running.
   bool running_;
