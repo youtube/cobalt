@@ -174,6 +174,9 @@ bool BeingDebugged() {
 
 void BreakDebugger() {
   DEBUG_BREAK();
+#if defined(NDEBUG)
+  _exit(1);
+#endif
 }
 
 }  // namespace debug
