@@ -23,6 +23,7 @@
 #include "base/process_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
+#include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/cookie_monster.h"
@@ -2669,5 +2670,8 @@ TEST_F(URLRequestTestHTTP, OverrideUserAgent) {
   req.SetExtraRequestHeaders(headers);
   req.Start();
   MessageLoop::current()->Run();
-  EXPECT_EQ(std::string("Lynx (textmode)"), d.data_received());
+  // If the net tests are being run with ChromeFrame then we need to allow for
+  // the 'chromeframe' suffix which is added to the user agent in outgoing HTTP
+  // requests.
+  EXPECT_TRUE(StartsWithASCII(d.data_received(), "Lynx (textmode)", true));
 }
