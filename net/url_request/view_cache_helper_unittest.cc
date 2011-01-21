@@ -5,6 +5,7 @@
 #include "net/url_request/view_cache_helper.h"
 
 #include "base/pickle.h"
+#include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"

@@ -200,28 +200,19 @@ class SpdySession : public base::RefCounted<SpdySession>,
   friend class base::RefCounted<SpdySession>;
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, GetActivePushStream);
 
-  enum State {
-    IDLE,
-    CONNECTING,
-    CONNECTED,
-    CLOSED
-  };
-
-  enum { kDefaultMaxConcurrentStreams = 10 };
-
   struct PendingCreateStream {
-    const GURL* url;
-    RequestPriority priority;
-    scoped_refptr<SpdyStream>* spdy_stream;
-    const BoundNetLog* stream_net_log;
-    CompletionCallback* callback;
-
     PendingCreateStream(const GURL& url, RequestPriority priority,
                         scoped_refptr<SpdyStream>* spdy_stream,
                         const BoundNetLog& stream_net_log,
                         CompletionCallback* callback)
         : url(&url), priority(priority), spdy_stream(spdy_stream),
           stream_net_log(&stream_net_log), callback(callback) { }
+
+    const GURL* url;
+    RequestPriority priority;
+    scoped_refptr<SpdyStream>* spdy_stream;
+    const BoundNetLog* stream_net_log;
+    CompletionCallback* callback;
   };
   typedef std::queue<PendingCreateStream, std::list< PendingCreateStream> >
       PendingCreateStreamQueue;
@@ -242,6 +233,15 @@ class SpdySession : public base::RefCounted<SpdySession>,
   typedef std::map<const scoped_refptr<SpdyStream>*, CallbackResultPair>
       PendingCallbackMap;
 
+  enum State {
+    IDLE,
+    CONNECTING,
+    CONNECTED,
+    CLOSED
+  };
+
+  enum { kDefaultMaxConcurrentStreams = 10 };
+
   virtual ~SpdySession();
 
   void ProcessPendingCreateStreams();
@@ -250,13 +250,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
       RequestPriority priority,
       scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log);
-
-  // SpdyFramerVisitorInterface
-  virtual void OnError(spdy::SpdyFramer*);
-  virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
-                                 const char* data,
-                                 size_t len);
-  virtual void OnControl(const spdy::SpdyControlFrame* frame);
 
   // Control frame handlers.
   void OnSyn(const spdy::SpdySynStreamControlFrame& frame,
@@ -324,6 +317,13 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Invokes a user callback for stream creation.  We provide this method so it
   // can be deferred to the MessageLoop, so we avoid re-entrancy problems.
   void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
+
+  // SpdyFramerVisitorInterface:
+  virtual void OnError(spdy::SpdyFramer*);
+  virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
+                                 const char* data,
+                                 size_t len);
+  virtual void OnControl(const spdy::SpdyControlFrame* frame);
 
   // Callbacks for the Spdy session.
   CompletionCallbackImpl<SpdySession> read_callback_;
@@ -439,11 +439,11 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
                          spdy::SpdyStreamId id,
                          spdy::SpdyStreamId associated_stream);
 
-  virtual Value* ToValue() const;
-
   const linked_ptr<spdy::SpdyHeaderBlock>& GetHeaders() const {
     return headers_;
   }
+
+  virtual Value* ToValue() const;
 
  private:
   virtual ~NetLogSpdySynParameter();
