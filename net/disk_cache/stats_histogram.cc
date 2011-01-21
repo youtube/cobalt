@@ -15,6 +15,12 @@ using base::StatisticsRecorder;
 // Static.
 const Stats* StatsHistogram::stats_ = NULL;
 
+StatsHistogram::~StatsHistogram() {
+  // Only cleanup what we set.
+  if (init_)
+    stats_ = NULL;
+}
+
 scoped_refptr<StatsHistogram> StatsHistogram::StatsHistogramFactoryGet(
     const std::string& name) {
   scoped_refptr<Histogram> histogram(NULL);
@@ -57,12 +63,6 @@ bool StatsHistogram::Init(const Stats* stats) {
   init_ = true;
   stats_ = stats;
   return true;
-}
-
-StatsHistogram::~StatsHistogram() {
-  // Only cleanup what we set.
-  if (init_)
-    stats_ = NULL;
 }
 
 Histogram::Sample StatsHistogram::ranges(size_t i) const {

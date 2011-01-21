@@ -48,11 +48,65 @@ MemEntryImpl::MemEntryImpl(MemBackendImpl* backend) {
     data_size_[i] = 0;
 }
 
-MemEntryImpl::~MemEntryImpl() {
-  for (int i = 0; i < NUM_STREAMS; i++)
-    backend_->ModifyStorageSize(data_size_[i], 0);
-  backend_->ModifyStorageSize(static_cast<int32>(key_.size()), 0);
+// ------------------------------------------------------------------------
+
+bool MemEntryImpl::CreateEntry(const std::string& key) {
+  key_ = key;
+  Time current = Time::Now();
+  last_modified_ = current;
+  last_used_ = current;
+  Open();
+  backend_->ModifyStorageSize(0, static_cast<int32>(key.size()));
+  return true;
 }
+
+void MemEntryImpl::InternalDoom() {
+  doomed_ = true;
+  if (!ref_count_) {
+    if (type() == kParentEntry) {
+      // If this is a parent entry, we need to doom all the child entries.
+      if (children_.get()) {
+        EntryMap children;
+        children.swap(*children_);
+        for (EntryMap::iterator i = children.begin();
+             i != children.end(); ++i) {
+          // Since a pointer to this object is also saved in the map, avoid
+          // dooming it.
+          if (i->second != this)
+            i->second->Doom();
+        }
+        DCHECK(children_->size() == 0);
+      }
+    } else {
+      // If this is a child entry, detach it from the parent.
+      parent_->DetachChild(child_id_);
+    }
+    delete this;
+  }
+}
+
+void MemEntryImpl::Open() {
+  // Only a parent entry can be opened.
+  // TODO(hclam): make sure it's correct to not apply the concept of ref
+  // counting to child entry.
+  DCHECK(type() == kParentEntry);
+  ref_count_++;
+  DCHECK(ref_count_ >= 0);
+  DCHECK(!doomed_);
+}
+
+bool MemEntryImpl::InUse() {
+  if (type() == kParentEntry) {
+    return ref_count_ > 0;
+  } else {
+    // A child entry is always not in use. The consequence is that a child entry
+    // can always be evicted while the associated parent entry is currently in
+    // used (i.e. opened).
+    return false;
+  }
+}
+
+// ------------------------------------------------------------------------
 
 void MemEntryImpl::Doom() {
   if (doomed_)
@@ -263,6 +317,29 @@ int MemEntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   return io_buf->BytesConsumed();
 }
 
+int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
+                                    CompletionCallback* callback) {
+  return GetAvailableRange(offset, len, start);
+}
+
+bool MemEntryImpl::CouldBeSparse() const {
+  DCHECK_EQ(kParentEntry, type());
+  return (children_.get() != NULL);
+}
+
+int MemEntryImpl::ReadyForSparseIO(
+    net::CompletionCallback* completion_callback) {
+  return net::OK;
+}
+
+// ------------------------------------------------------------------------
+
+MemEntryImpl::~MemEntryImpl() {
+  for (int i = 0; i < NUM_STREAMS; i++)
+    backend_->ModifyStorageSize(data_size_[i], 0);
+  backend_->ModifyStorageSize(static_cast<int32>(key_.size()), 0);
+}
+
 int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
   DCHECK(type() == kParentEntry);
   DCHECK(start);
@@ -306,81 +383,6 @@ int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
   *start = offset;
   return 0;
 }
-
-int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
-                                    CompletionCallback* callback) {
-  return GetAvailableRange(offset, len, start);
-}
-
-bool MemEntryImpl::CouldBeSparse() const {
-  DCHECK_EQ(kParentEntry, type());
-  return (children_.get() != NULL);
-}
-
-int MemEntryImpl::ReadyForSparseIO(
-    net::CompletionCallback* completion_callback) {
-  return net::OK;
-}
-
-// ------------------------------------------------------------------------
-
-bool MemEntryImpl::CreateEntry(const std::string& key) {
-  key_ = key;
-  Time current = Time::Now();
-  last_modified_ = current;
-  last_used_ = current;
-  Open();
-  backend_->ModifyStorageSize(0, static_cast<int32>(key.size()));
-  return true;
-}
-
-void MemEntryImpl::InternalDoom() {
-  doomed_ = true;
-  if (!ref_count_) {
-    if (type() == kParentEntry) {
-      // If this is a parent entry, we need to doom all the child entries.
-      if (children_.get()) {
-        EntryMap children;
-        children.swap(*children_);
-        for (EntryMap::iterator i = children.begin();
-             i != children.end(); ++i) {
-          // Since a pointer to this object is also saved in the map, avoid
-          // dooming it.
-          if (i->second != this)
-            i->second->Doom();
-        }
-        DCHECK(children_->size() == 0);
-      }
-    } else {
-      // If this is a child entry, detach it from the parent.
-      parent_->DetachChild(child_id_);
-    }
-    delete this;
-  }
-}
-
-void MemEntryImpl::Open() {
-  // Only a parent entry can be opened.
-  // TODO(hclam): make sure it's correct to not apply the concept of ref
-  // counting to child entry.
-  DCHECK(type() == kParentEntry);
-  ref_count_++;
-  DCHECK(ref_count_ >= 0);
-  DCHECK(!doomed_);
-}
-
-bool MemEntryImpl::InUse() {
-  if (type() == kParentEntry) {
-    return ref_count_ > 0;
-  } else {
-    // A child entry is always not in use. The consequence is that a child entry
-    // can always be evicted while the associated parent entry is currently in
-    // used (i.e. opened).
-    return false;
-  }
-}
-
-// ------------------------------------------------------------------------
 
 void MemEntryImpl::PrepareTarget(int index, int offset, int buf_len) {
   int entry_size = GetDataSize(index);
