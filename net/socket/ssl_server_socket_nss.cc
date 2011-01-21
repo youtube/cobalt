@@ -292,12 +292,6 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
     return ERR_UNEXPECTED;
   }
 
-  rv = SSL_OptionSet(nss_fd_, SSL_NO_CACHE, PR_TRUE);
-  if (rv != SECSuccess) {
-    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_NO_CACHE");
-    return ERR_UNEXPECTED;
-  }
-
   rv = SSL_ConfigServerSessionIDCache(1024, 5, 5, NULL);
   if (rv != SECSuccess) {
     LogFailedNSSFunction(net_log_, "SSL_ConfigureServerSessionIDCache", "");
