@@ -64,7 +64,7 @@ class X509CertificateCache {
 
   // You must acquire this lock before using any private data of this object.
   // You must not block while holding this lock.
-  Lock lock_;
+  base::Lock lock_;
 
   // The certificate cache.  You must acquire |lock_| before using |cache_|.
   CertMap cache_;
@@ -79,7 +79,7 @@ base::LazyInstance<X509CertificateCache,
 // Insert |cert| into the cache.  The cache does NOT AddRef |cert|.
 // Any existing certificate with the same fingerprint will be replaced.
 void X509CertificateCache::Insert(X509Certificate* cert) {
-  AutoLock lock(lock_);
+  base::AutoLock lock(lock_);
 
   DCHECK(!IsNullFingerprint(cert->fingerprint())) <<
       "Only insert certs with real fingerprints.";
@@ -89,7 +89,7 @@ void X509CertificateCache::Insert(X509Certificate* cert) {
 // Remove |cert| from the cache.  The cache does not assume that |cert| is
 // already in the cache.
 void X509CertificateCache::Remove(X509Certificate* cert) {
-  AutoLock lock(lock_);
+  base::AutoLock lock(lock_);
 
   CertMap::iterator pos(cache_.find(cert->fingerprint()));
   if (pos == cache_.end())
@@ -101,7 +101,7 @@ void X509CertificateCache::Remove(X509Certificate* cert) {
 // not exist, this method returns NULL.
 X509Certificate* X509CertificateCache::Find(
     const SHA1Fingerprint& fingerprint) {
-  AutoLock lock(lock_);
+  base::AutoLock lock(lock_);
 
   CertMap::iterator pos(cache_.find(fingerprint));
   if (pos == cache_.end())

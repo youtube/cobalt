@@ -31,9 +31,9 @@
 
 #include <string>
 
-#include "base/lock.h"
 #include "base/scoped_ptr.h"
 #include "base/singleton.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "base/timer.h"
 
@@ -135,7 +135,7 @@ class TraceLog {
 
   bool enabled_;
   FILE* log_file_;
-  Lock file_lock_;
+  base::Lock file_lock_;
   TimeTicks trace_start_time_;
   scoped_ptr<base::ProcessMetrics> process_metrics_;
   RepeatingTimer<TraceLog> timer_;

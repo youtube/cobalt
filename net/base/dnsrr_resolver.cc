@@ -12,12 +12,12 @@
 #include <windns.h>
 #endif
 
-#include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/scoped_ptr.h"
 #include "base/singleton.h"
 #include "base/stl_util-inl.h"
 #include "base/string_piece.h"
+#include "base/synchronization/lock.h"
 #include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/dns_reload_timer.h"
@@ -168,7 +168,7 @@ class RRResolverWorker {
   // deleted.
   void Cancel() {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
-    AutoLock locked(lock_);
+    base::AutoLock locked(lock_);
     canceled_ = true;
   }
 
@@ -353,7 +353,7 @@ class RRResolverWorker {
       // after the PostTask, but before unlocking |lock_|. If we do not lock in
       // this case, we will end up deleting a locked Lock, which can lead to
       // memory leaks or worse errors.
-      AutoLock locked(lock_);
+      base::AutoLock locked(lock_);
       if (!canceled_)
         dnsrr_resolver_->HandleResult(name_, rrtype_, result_, response_);
     }
@@ -373,7 +373,7 @@ class RRResolverWorker {
 
     bool canceled;
     {
-      AutoLock locked(lock_);
+      base::AutoLock locked(lock_);
       canceled = canceled_;
       if (!canceled) {
         origin_loop_->PostTask(
@@ -391,7 +391,7 @@ class RRResolverWorker {
   MessageLoop* const origin_loop_;
   DnsRRResolver* const dnsrr_resolver_;
 
-  Lock lock_;
+  base::Lock lock_;
   bool canceled_;
 
   int result_;
