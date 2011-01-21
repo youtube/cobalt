@@ -39,11 +39,12 @@ static const int kReadBufferSize = 4096;
 namespace net {
 
 SocketStream::ResponseHeaders::ResponseHeaders() : IOBuffer() {}
-SocketStream::ResponseHeaders::~ResponseHeaders() { data_ = NULL; }
 
 void SocketStream::ResponseHeaders::Realloc(size_t new_size) {
   headers_.reset(static_cast<char*>(realloc(headers_.release(), new_size)));
 }
+
+SocketStream::ResponseHeaders::~ResponseHeaders() { data_ = NULL; }
 
 SocketStream::SocketStream(const GURL& url, Delegate* delegate)
     : delegate_(delegate),
@@ -78,12 +79,6 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
   DCHECK(delegate_);
 }
 
-SocketStream::~SocketStream() {
-  set_context(NULL);
-  DCHECK(!delegate_);
-  DCHECK(!pac_request_);
-}
-
 SocketStream::UserData* SocketStream::GetUserData(
     const void* key) const {
   UserDataMap::const_iterator found = user_data_.find(key);
@@ -94,6 +89,10 @@ SocketStream::UserData* SocketStream::GetUserData(
 
 void SocketStream::SetUserData(const void* key, UserData* data) {
   user_data_[key] = linked_ptr<UserData>(data);
+}
+
+bool SocketStream::is_secure() const {
+  return url_.SchemeIs("wss");
 }
 
 void SocketStream::set_context(URLRequestContext* context) {
@@ -200,26 +199,6 @@ void SocketStream::Close() {
       NewRunnableMethod(this, &SocketStream::DoClose));
 }
 
-void SocketStream::DoClose() {
-  closing_ = true;
-  // If next_state_ is STATE_TCP_CONNECT, it's waiting other socket establishing
-  // connection.  If next_state_ is STATE_AUTH_REQUIRED, it's waiting for
-  // restarting.  In these states, we'll close the SocketStream now.
-  if (next_state_ == STATE_TCP_CONNECT || next_state_ == STATE_AUTH_REQUIRED) {
-    DoLoop(ERR_ABORTED);
-    return;
-  }
-  // If next_state_ is STATE_READ_WRITE, we'll run DoLoop and close
-  // the SocketStream.
-  // If it's writing now, we should defer the closing after the current
-  // writing is completed.
-  if (next_state_ == STATE_READ_WRITE && !current_write_buf_)
-    DoLoop(ERR_ABORTED);
-
-  // In other next_state_, we'll wait for callback of other APIs, such as
-  // ResolveProxy().
-}
-
 void SocketStream::RestartWithAuth(
     const string16& username, const string16& password) {
   DCHECK(MessageLoop::current()) <<
@@ -255,6 +234,47 @@ void SocketStream::DetachDelegate() {
   Close();
 }
 
+void SocketStream::SetHostResolver(HostResolver* host_resolver) {
+  DCHECK(host_resolver);
+  host_resolver_ = host_resolver;
+}
+
+void SocketStream::SetClientSocketFactory(
+    ClientSocketFactory* factory) {
+  DCHECK(factory);
+  factory_ = factory;
+}
+
+SocketStream::~SocketStream() {
+  set_context(NULL);
+  DCHECK(!delegate_);
+  DCHECK(!pac_request_);
+}
+
+void SocketStream::CopyAddrInfo(struct addrinfo* head) {
+  addresses_.Copy(head, true);
+}
+
+void SocketStream::DoClose() {
+  closing_ = true;
+  // If next_state_ is STATE_TCP_CONNECT, it's waiting other socket establishing
+  // connection.  If next_state_ is STATE_AUTH_REQUIRED, it's waiting for
+  // restarting.  In these states, we'll close the SocketStream now.
+  if (next_state_ == STATE_TCP_CONNECT || next_state_ == STATE_AUTH_REQUIRED) {
+    DoLoop(ERR_ABORTED);
+    return;
+  }
+  // If next_state_ is STATE_READ_WRITE, we'll run DoLoop and close
+  // the SocketStream.
+  // If it's writing now, we should defer the closing after the current
+  // writing is completed.
+  if (next_state_ == STATE_READ_WRITE && !current_write_buf_)
+    DoLoop(ERR_ABORTED);
+
+  // In other next_state_, we'll wait for callback of other APIs, such as
+  // ResolveProxy().
+}
+
 void SocketStream::Finish(int result) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
@@ -275,21 +295,6 @@ void SocketStream::Finish(int result) {
     delegate->OnClose(this);
   }
   Release();
-}
-
-void SocketStream::SetHostResolver(HostResolver* host_resolver) {
-  DCHECK(host_resolver);
-  host_resolver_ = host_resolver;
-}
-
-void SocketStream::SetClientSocketFactory(
-    ClientSocketFactory* factory) {
-  DCHECK(factory);
-  factory_ = factory;
-}
-
-void SocketStream::CopyAddrInfo(struct addrinfo* head) {
-  addresses_.Copy(head, true);
 }
 
 int SocketStream::DidEstablishConnection() {
@@ -1021,10 +1026,6 @@ int SocketStream::HandleCertificateError(int result) {
       break;
   }
   return result;
-}
-
-bool SocketStream::is_secure() const {
-  return url_.SchemeIs("wss");
 }
 
 SSLConfigService* SocketStream::ssl_config_service() const {

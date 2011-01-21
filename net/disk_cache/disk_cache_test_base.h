@@ -40,15 +40,10 @@ class DiskCacheTest : public PlatformTest {
 // Provides basic support for cache related tests.
 class DiskCacheTestWithCache : public DiskCacheTest {
  protected:
-  DiskCacheTestWithCache()
-      : cache_(NULL), cache_impl_(NULL), mem_cache_(NULL), mask_(0), size_(0),
-        type_(net::DISK_CACHE), memory_only_(false), implementation_(false),
-        force_creation_(false), new_eviction_(false), first_cleanup_(true),
-        integrity_(true), use_current_thread_(false),
-        cache_thread_("CacheThread") {}
+  DiskCacheTestWithCache();
+  virtual ~DiskCacheTestWithCache();
 
   void InitCache();
-  virtual void TearDown();
   void SimulateCrash();
   void SetTestMode();
 
@@ -111,6 +106,9 @@ class DiskCacheTestWithCache : public DiskCacheTest {
                      int len);
   int WriteSparseData(disk_cache::Entry* entry, int64 offset,
                       net::IOBuffer* buf, int len);
+
+  // DiskCacheTest:
+  virtual void TearDown();
 
   // cache_ will always have a valid object, regardless of how the cache was
   // initialized. The implementation pointers can be NULL.
