@@ -35,7 +35,7 @@ class SocketStreamJobManager {
   SocketStreamJobManager();
   ~SocketStreamJobManager();
 
-  mutable Lock lock_;
+  mutable base::Lock lock_;
   FactoryMap factories_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStreamJobManager);

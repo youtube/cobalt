@@ -8,11 +8,11 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/synchronization/condition_variable.h"
-#include "base/lock.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "base/spin_wait.h"
+#include "base/synchronization/condition_variable.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_collision_warner.h"
 #include "base/time.h"
@@ -198,7 +198,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
   Time start_time;  // Used to time task processing.
 
   {
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     while (!queue.EveryIdWasAllocated())
       queue.all_threads_have_ids()->Wait();
   }
@@ -209,7 +209,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
 
   {
     // Since we have no tasks yet, all threads should be waiting by now.
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(0, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(0, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -232,7 +232,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
 
   {
     // Wait until all 10 work tasks have at least been assigned.
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     while (queue.task_count())
       queue.no_more_tasks()->Wait();
     // The last of the tasks *might* still be running, but... all but one should
@@ -252,7 +252,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
 
   {
     // Check that all work was done by one thread id.
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(1, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(1, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -278,7 +278,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
 
   {
     // Wait until all work tasks have at least been assigned.
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     while (queue.task_count())
       queue.no_more_tasks()->Wait();
 
@@ -301,7 +301,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
   queue.SpinUntilAllThreadsAreWaiting();
 
   {
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(3, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(3, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -322,7 +322,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
   queue.SpinUntilAllThreadsAreWaiting();
 
   {
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(3, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(3, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -343,7 +343,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
   queue.SpinUntilAllThreadsAreWaiting();  // Should take about 60 ms.
 
   {
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(10, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(10, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -362,7 +362,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
   queue.SpinUntilAllThreadsAreWaiting();  // Should take about 60 ms.
 
   {
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(10, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(10, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -381,11 +381,11 @@ TEST_F(ConditionVariableTest, LargeFastTaskTest) {
   WorkQueue queue(kThreadCount);  // Start the threads.
 
   Lock private_lock;  // Used locally for master to wait.
-  AutoLock private_held_lock(private_lock);
+  base::AutoLock private_held_lock(private_lock);
   ConditionVariable private_cv(&private_lock);
 
   {
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     while (!queue.EveryIdWasAllocated())
       queue.all_threads_have_ids()->Wait();
   }
@@ -395,7 +395,7 @@ TEST_F(ConditionVariableTest, LargeFastTaskTest) {
 
   {
     // Since we have no tasks, all threads should be waiting by now.
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(0, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(0, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -412,7 +412,7 @@ TEST_F(ConditionVariableTest, LargeFastTaskTest) {
   queue.work_is_available()->Broadcast();  // Start up all threads.
   // Wait until we've handed out all tasks.
   {
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     while (queue.task_count() != 0)
       queue.no_more_tasks()->Wait();
   }
@@ -423,7 +423,7 @@ TEST_F(ConditionVariableTest, LargeFastTaskTest) {
   {
     // With Broadcast(), every thread should have participated.
     // but with racing.. they may not all have done equal numbers of tasks.
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(kThreadCount, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(kThreadCount, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -440,7 +440,7 @@ TEST_F(ConditionVariableTest, LargeFastTaskTest) {
 
   // Wait until we've handed out all tasks
   {
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     while (queue.task_count() != 0)
       queue.no_more_tasks()->Wait();
   }
@@ -451,7 +451,7 @@ TEST_F(ConditionVariableTest, LargeFastTaskTest) {
   {
     // With Signal(), every thread should have participated.
     // but with racing.. they may not all have done four tasks.
-    AutoLock auto_lock(*queue.lock());
+    base::AutoLock auto_lock(*queue.lock());
     EXPECT_EQ(kThreadCount, queue.GetNumThreadsTakingAssignments());
     EXPECT_EQ(kThreadCount, queue.GetNumThreadsCompletingTasks());
     EXPECT_EQ(0, queue.task_count());
@@ -500,7 +500,7 @@ WorkQueue::WorkQueue(int thread_count)
 
 WorkQueue::~WorkQueue() {
   {
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     SetShutdown();
   }
   work_is_available_.Broadcast();  // Tell them all to terminate.
@@ -558,7 +558,7 @@ bool WorkQueue::shutdown() const {
 // lock already acquired.
 bool WorkQueue::ThreadSafeCheckShutdown(int thread_count) {
   bool all_shutdown;
-  AutoLock auto_lock(lock_);
+  base::AutoLock auto_lock(lock_);
   {
     // Declare in scope so DFAKE is guranteed to be destroyed before AutoLock.
     DFAKE_SCOPED_RECURSIVE_LOCK(locked_methods_);
@@ -657,7 +657,7 @@ void WorkQueue::SetShutdown() {
 void WorkQueue::SpinUntilAllThreadsAreWaiting() {
   while (true) {
     {
-      AutoLock auto_lock(lock_);
+      base::AutoLock auto_lock(lock_);
       if (waiting_thread_count_ == thread_count_)
         break;
     }
@@ -668,7 +668,7 @@ void WorkQueue::SpinUntilAllThreadsAreWaiting() {
 void WorkQueue::SpinUntilTaskCountLessThan(int task_count) {
   while (true) {
     {
-      AutoLock auto_lock(lock_);
+      base::AutoLock auto_lock(lock_);
       if (task_count_ < task_count)
         break;
     }
@@ -698,7 +698,7 @@ void WorkQueue::SpinUntilTaskCountLessThan(int task_count) {
 void WorkQueue::ThreadMain() {
   int thread_id;
   {
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     thread_id = GetThreadId();
     if (EveryIdWasAllocated())
       all_threads_have_ids()->Signal();  // Tell creator we're ready.
@@ -709,7 +709,7 @@ void WorkQueue::ThreadMain() {
     TimeDelta work_time;
     bool could_use_help;
     {
-      AutoLock auto_lock(lock_);
+      base::AutoLock auto_lock(lock_);
       while (0 == task_count() && !shutdown()) {
         ++waiting_thread_count_;
         work_is_available()->Wait();
@@ -732,13 +732,13 @@ void WorkQueue::ThreadMain() {
     if (work_time > TimeDelta::FromMilliseconds(0)) {
       // We could just sleep(), but we'll instead further exercise the
       // condition variable class, and do a timed wait.
-      AutoLock auto_lock(private_lock);
+      base::AutoLock auto_lock(private_lock);
       ConditionVariable private_cv(&private_lock);
       private_cv.TimedWait(work_time);  // Unsynchronized waiting.
     }
 
     {
-      AutoLock auto_lock(lock_);
+      base::AutoLock auto_lock(lock_);
       // Send notification that we completed our "work."
       WorkIsCompleted(thread_id);
     }

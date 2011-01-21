@@ -7,7 +7,7 @@
 #pragma once
 
 #ifndef NDEBUG
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #endif // NDEBUG
 
@@ -51,7 +51,7 @@ class ThreadChecker {
  private:
   void EnsureThreadIdAssigned() const;
 
-  mutable Lock lock_;
+  mutable base::Lock lock_;
   // This is mutable so that CalledOnValidThread can set it.
   // It's guarded by |lock_|.
   mutable PlatformThreadId valid_thread_id_;

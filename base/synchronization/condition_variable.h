@@ -75,7 +75,7 @@
 #endif
 
 #include "base/basictypes.h"
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 
 namespace base {
 
@@ -156,10 +156,10 @@ class ConditionVariable {
   RunState run_state_;
 
   // Private critical section for access to member data.
-  Lock internal_lock_;
+  base::Lock internal_lock_;
 
   // Lock that is acquired before calling Wait().
-  Lock& user_lock_;
+  base::Lock& user_lock_;
 
   // Events that threads are blocked on.
   Event waiting_list_;
@@ -176,7 +176,7 @@ class ConditionVariable {
   pthread_cond_t condition_;
   pthread_mutex_t* user_mutex_;
 #if !defined(NDEBUG)
-  Lock* user_lock_;     // Needed to adjust shadow lock state on wait.
+  base::Lock* user_lock_;     // Needed to adjust shadow lock state on wait.
 #endif
 
 #endif
