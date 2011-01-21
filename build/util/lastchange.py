@@ -14,61 +14,35 @@ import subprocess
 import sys
 
 
-def svn_fetch_revision():
+def FetchSVNRevision(command):
   """
   Fetch the Subversion revision for the local tree.
 
   Errors are swallowed.
   """
   try:
-    p = subprocess.Popen(['svn', 'info'],
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         shell=(sys.platform=='win32'))
-  except OSError, e:
-    # 'svn' is apparently either not installed or not executable.
-    return None
-  revision = None
-  if p:
-    svn_re = re.compile('^Revision:\s+(\d+)', re.M)
-    m = svn_re.search(p.stdout.read())
-    if m:
-      revision = m.group(1)
-  return revision
-
-
-def git_fetch_id():
-  """
-  Fetch the GIT identifier for the local tree.
-
-  Errors are swallowed.
-  """
-  git_re = re.compile('^\s*git-svn-id:\s+(\S+)@(\d+)', re.M)
-  try:
-    proc = subprocess.Popen(['git', 'log', '-999'],
+    proc = subprocess.Popen(command,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             shell=(sys.platform=='win32'))
-    for line in proc.stdout:
-      match = git_re.search(line)
-      if match:
-        id = match.group(2)
-        if id:
-          proc.stdout.close()  # Cut pipe.
-          return id
   except OSError:
-    # 'git' is apparently either not installed or not executable.
-    pass
+    # command is apparently either not installed or not executable.
+    return None
+  if proc:
+    svn_re = re.compile('^Revision:\s+(\d+)', re.M)
+    match = svn_re.search(proc.stdout.read())
+    if match:
+      return match.group(1)
   return None
 
 
-def fetch_change(default_lastchange):
+def FetchChange(default_lastchange):
   """
   Returns the last change, from some appropriate revision control system.
   """
-  change = svn_fetch_revision()
+  change = FetchSVNRevision(['svn', 'info'])
   if not change and sys.platform in ('linux2',):
-    change = git_fetch_id()
+    change = FetchSVNRevision(['git', 'svn', 'info'])
   if not change:
     if default_lastchange and os.path.exists(default_lastchange):
       change = open(default_lastchange, 'r').read().strip()
@@ -77,7 +51,7 @@ def fetch_change(default_lastchange):
   return change
 
 
-def write_if_changed(file_name, contents):
+def WriteIfChanged(file_name, contents):
   """
   Writes the specified contents to the specified file_name
   iff the contents are different than the current contents.
@@ -114,12 +88,12 @@ def main(argv=None):
     parser.print_help()
     sys.exit(2)
 
-  change = fetch_change(opts.default_lastchange)
+  change = FetchChange(opts.default_lastchange)
 
   contents = "LASTCHANGE=%s\n" % change
 
   if out_file:
-    write_if_changed(out_file, contents)
+    WriteIfChanged(out_file, contents)
   else:
     sys.stdout.write(contents)
 
