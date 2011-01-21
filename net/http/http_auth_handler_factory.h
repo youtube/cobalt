@@ -28,6 +28,11 @@ class HttpAuthHandlerRegistryFactory;
 // objects that it creates.
 class HttpAuthHandlerFactory {
  public:
+  enum CreateReason {
+    CREATE_CHALLENGE,     // Create a handler in response to a challenge.
+    CREATE_PREEMPTIVE,    // Create a handler preemptively.
+  };
+
   HttpAuthHandlerFactory() : url_security_manager_(NULL) {}
   virtual ~HttpAuthHandlerFactory() {}
 
@@ -41,11 +46,6 @@ class HttpAuthHandlerFactory {
   URLSecurityManager* url_security_manager() {
     return url_security_manager_;
   }
-
-  enum CreateReason {
-    CREATE_CHALLENGE,  // Create a handler in response to a challenge.
-    CREATE_PREEMPTIVE,    // Create a handler preemptively.
-  };
 
   // Creates an HttpAuthHandler object based on the authentication
   // challenge specified by |*challenge|. |challenge| must point to a valid

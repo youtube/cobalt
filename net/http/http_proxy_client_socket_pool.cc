@@ -105,12 +105,11 @@ LoadState HttpProxyConnectJob::GetLoadState() const {
   }
 }
 
-int HttpProxyConnectJob::ConnectInternal() {
-  if (params_->tcp_params())
-    next_state_ = STATE_TCP_CONNECT;
-  else
-    next_state_ = STATE_SSL_CONNECT;
-  return DoLoop(OK);
+void HttpProxyConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
+  if (error_response_info_.cert_request_info) {
+    handle->set_ssl_error_response_info(error_response_info_);
+    handle->set_is_ssl_error(true);
+  }
 }
 
 void HttpProxyConnectJob::OnIOComplete(int result) {
@@ -248,11 +247,33 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
   return result;
 }
 
-void HttpProxyConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
-  if (error_response_info_.cert_request_info) {
-    handle->set_ssl_error_response_info(error_response_info_);
-    handle->set_is_ssl_error(true);
+int HttpProxyConnectJob::DoHttpProxyConnect() {
+  next_state_ = STATE_HTTP_PROXY_CONNECT_COMPLETE;
+  const HostResolver::RequestInfo& tcp_destination = params_->destination();
+  const HostPortPair& proxy_server = tcp_destination.host_port_pair();
+
+  // Add a HttpProxy connection on top of the tcp socket.
+  transport_socket_.reset(
+      new HttpProxyClientSocket(transport_socket_handle_.release(),
+                                params_->request_url(),
+                                params_->user_agent(),
+                                params_->endpoint(),
+                                proxy_server,
+                                params_->http_auth_cache(),
+                                params_->http_auth_handler_factory(),
+                                params_->tunnel(),
+                                using_spdy_,
+                                params_->ssl_params() != NULL));
+  return transport_socket_->Connect(&callback_);
+}
+
+int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
+  if (result == OK || result == ERR_PROXY_AUTH_REQUESTED ||
+      result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
+      set_socket(transport_socket_.release());
   }
+
+  return result;
 }
 
 int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
@@ -303,33 +324,12 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStreamComplete(int result) {
   return transport_socket_->Connect(&callback_);
 }
 
-int HttpProxyConnectJob::DoHttpProxyConnect() {
-  next_state_ = STATE_HTTP_PROXY_CONNECT_COMPLETE;
-  const HostResolver::RequestInfo& tcp_destination = params_->destination();
-  const HostPortPair& proxy_server = tcp_destination.host_port_pair();
-
-  // Add a HttpProxy connection on top of the tcp socket.
-  transport_socket_.reset(
-      new HttpProxyClientSocket(transport_socket_handle_.release(),
-                                params_->request_url(),
-                                params_->user_agent(),
-                                params_->endpoint(),
-                                proxy_server,
-                                params_->http_auth_cache(),
-                                params_->http_auth_handler_factory(),
-                                params_->tunnel(),
-                                using_spdy_,
-                                params_->ssl_params() != NULL));
-  return transport_socket_->Connect(&callback_);
-}
-
-int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
-  if (result == OK || result == ERR_PROXY_AUTH_REQUESTED ||
-      result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
-      set_socket(transport_socket_.release());
-  }
-
-  return result;
+int HttpProxyConnectJob::ConnectInternal() {
+  if (params_->tcp_params())
+    next_state_ = STATE_TCP_CONNECT;
+  else
+    next_state_ = STATE_SSL_CONNECT;
+  return DoLoop(OK);
 }
 
 HttpProxyClientSocketPool::

@@ -121,24 +121,16 @@ LoadState SSLConnectJob::GetLoadState() const {
   }
 }
 
-int SSLConnectJob::ConnectInternal() {
-  switch (params_->proxy()) {
-    case ProxyServer::SCHEME_DIRECT:
-      next_state_ = STATE_TCP_CONNECT;
-      break;
-    case ProxyServer::SCHEME_HTTP:
-    case ProxyServer::SCHEME_HTTPS:
-      next_state_ = STATE_TUNNEL_CONNECT;
-      break;
-    case ProxyServer::SCHEME_SOCKS4:
-    case ProxyServer::SCHEME_SOCKS5:
-      next_state_ = STATE_SOCKS_CONNECT;
-      break;
-    default:
-      NOTREACHED() << "unknown proxy type";
-      break;
+void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
+  // Headers in |error_response_info_| indicate a proxy tunnel setup
+  // problem. See DoTunnelConnectComplete.
+  if (error_response_info_.headers) {
+    handle->set_pending_http_proxy_connection(
+        transport_socket_handle_.release());
   }
-  return DoLoop(OK);
+  handle->set_ssl_error_response_info(error_response_info_);
+  if (!ssl_connect_start_time_.is_null())
+    handle->set_is_ssl_error(true);
 }
 
 void SSLConnectJob::OnIOComplete(int result) {
@@ -276,18 +268,6 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
   return result;
 }
 
-void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
-  // Headers in |error_response_info_| indicate a proxy tunnel setup
-  // problem. See DoTunnelConnectComplete.
-  if (error_response_info_.headers) {
-    handle->set_pending_http_proxy_connection(
-        transport_socket_handle_.release());
-  }
-  handle->set_ssl_error_response_info(error_response_info_);
-  if (!ssl_connect_start_time_.is_null())
-    handle->set_is_ssl_error(true);
-}
-
 int SSLConnectJob::DoSSLConnect() {
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   // Reset the timeout to just the time allowed for the SSL handshake.
@@ -361,15 +341,24 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
   return result;
 }
 
-ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
-    const std::string& group_name,
-    const PoolBase::Request& request,
-    ConnectJob::Delegate* delegate) const {
-  return new SSLConnectJob(group_name, request.params(), ConnectionTimeout(),
-                           tcp_pool_, socks_pool_, http_proxy_pool_,
-                           client_socket_factory_, host_resolver_,
-                           cert_verifier_, dnsrr_resolver_, dns_cert_checker_,
-                           ssl_host_info_factory_, delegate, net_log_);
+int SSLConnectJob::ConnectInternal() {
+  switch (params_->proxy()) {
+    case ProxyServer::SCHEME_DIRECT:
+      next_state_ = STATE_TCP_CONNECT;
+      break;
+    case ProxyServer::SCHEME_HTTP:
+    case ProxyServer::SCHEME_HTTPS:
+      next_state_ = STATE_TUNNEL_CONNECT;
+      break;
+    case ProxyServer::SCHEME_SOCKS4:
+    case ProxyServer::SCHEME_SOCKS5:
+      next_state_ = STATE_SOCKS_CONNECT;
+      break;
+    default:
+      NOTREACHED() << "unknown proxy type";
+      break;
+  }
+  return DoLoop(OK);
 }
 
 SSLClientSocketPool::SSLConnectJobFactory::SSLConnectJobFactory(
@@ -448,6 +437,17 @@ SSLClientSocketPool::~SSLClientSocketPool() {
     ssl_config_service_->RemoveObserver(this);
 }
 
+ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
+    const std::string& group_name,
+    const PoolBase::Request& request,
+    ConnectJob::Delegate* delegate) const {
+  return new SSLConnectJob(group_name, request.params(), ConnectionTimeout(),
+                           tcp_pool_, socks_pool_, http_proxy_pool_,
+                           client_socket_factory_, host_resolver_,
+                           cert_verifier_, dnsrr_resolver_, dns_cert_checker_,
+                           ssl_host_info_factory_, delegate, net_log_);
+}
+
 int SSLClientSocketPool::RequestSocket(const std::string& group_name,
                                        const void* socket_params,
                                        RequestPriority priority,
@@ -504,10 +504,6 @@ LoadState SSLClientSocketPool::GetLoadState(
   return base_.GetLoadState(group_name, handle);
 }
 
-void SSLClientSocketPool::OnSSLConfigChanged() {
-  Flush();
-}
-
 DictionaryValue* SSLClientSocketPool::GetInfoAsValue(
     const std::string& name,
     const std::string& type,
@@ -541,6 +537,10 @@ base::TimeDelta SSLClientSocketPool::ConnectionTimeout() const {
 
 ClientSocketPoolHistograms* SSLClientSocketPool::histograms() const {
   return base_.histograms();
+}
+
+void SSLClientSocketPool::OnSSLConfigChanged() {
+  Flush();
 }
 
 }  // namespace net

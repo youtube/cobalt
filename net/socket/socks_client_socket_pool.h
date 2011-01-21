@@ -75,11 +75,6 @@ class SOCKSConnectJob : public ConnectJob {
     STATE_NONE,
   };
 
-  // Begins the tcp connection and the SOCKS handshake.  Returns OK on success
-  // and ERR_IO_PENDING if it cannot immediately service the request.
-  // Otherwise, it returns a net error code.
-  virtual int ConnectInternal();
-
   void OnIOComplete(int result);
 
   // Runs the state transition loop.
@@ -89,6 +84,11 @@ class SOCKSConnectJob : public ConnectJob {
   int DoTCPConnectComplete(int result);
   int DoSOCKSConnect();
   int DoSOCKSConnectComplete(int result);
+
+  // Begins the tcp connection and the SOCKS handshake.  Returns OK on success
+  // and ERR_IO_PENDING if it cannot immediately service the request.
+  // Otherwise, it returns a net error code.
+  virtual int ConnectInternal();
 
   scoped_refptr<SOCKSSocketParams> socks_params_;
   TCPClientSocketPool* const tcp_pool_;
