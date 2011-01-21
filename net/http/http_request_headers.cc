@@ -76,6 +76,13 @@ void HttpRequestHeaders::Clear() {
   headers_.clear();
 }
 
+void HttpRequestHeaders::SetHeaderIfMissing(const base::StringPiece& key,
+                                            const base::StringPiece& value) {
+  HeaderVector::iterator it = FindHeader(key);
+  if (it == headers_.end())
+    headers_.push_back(HeaderKeyValuePair(key.as_string(), value.as_string()));
+}
+
 void HttpRequestHeaders::SetHeader(const base::StringPiece& key,
                                    const base::StringPiece& value) {
   HeaderVector::iterator it = FindHeader(key);
