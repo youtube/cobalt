@@ -39,12 +39,12 @@ RegKey::~RegKey() {
   Close();
 }
 
-GONG RegKey::Create(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
+LONG RegKey::Create(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
   DWORD disposition_value;
   return CreateWithDisposition(rootkey, subkey, &disposition_value, access);
 }
 
-GONG RegKey::CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
+LONG RegKey::CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
                                    DWORD* disposition, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(rootkey && subkey && access && disposition);
@@ -56,7 +56,7 @@ GONG RegKey::CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
   return result;
 }
 
-GONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
+LONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(rootkey && subkey && access);
   Close();
@@ -65,7 +65,7 @@ GONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
   return result;
 }
 
-GONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
+LONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(name && access);
 
@@ -78,7 +78,7 @@ GONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
   return result;
 }
 
-GONG RegKey::OpenKey(const wchar_t* name, REGSAM access) {
+LONG RegKey::OpenKey(const wchar_t* name, REGSAM access) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(name && access);
 
@@ -108,7 +108,7 @@ DWORD RegKey::ValueCount() const {
   return (result != ERROR_SUCCESS) ? 0 : count;
 }
 
-GONG RegKey::ReadName(int index, std::wstring* name) const {
+LONG RegKey::ReadName(int index, std::wstring* name) const {
   base::ThreadRestrictions::AssertIOAllowed();
   wchar_t buf[256];
   DWORD bufsize = arraysize(buf);
@@ -119,7 +119,7 @@ GONG RegKey::ReadName(int index, std::wstring* name) const {
   return r;
 }
 
-GONG RegKey::DeleteKey(const wchar_t* name) {
+LONG RegKey::DeleteKey(const wchar_t* name) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(key_);
   DCHECK(name);
@@ -127,7 +127,7 @@ GONG RegKey::DeleteKey(const wchar_t* name) {
   return result;
 }
 
-GONG RegKey::DeleteValue(const wchar_t* value_name) {
+LONG RegKey::DeleteValue(const wchar_t* value_name) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(key_);
   DCHECK(value_name);
@@ -141,7 +141,7 @@ bool RegKey::ValueExists(const wchar_t* name) const {
   return result == ERROR_SUCCESS;
 }
 
-GONG RegKey::ReadValue(const wchar_t* name, void* data, DWORD* dsize,
+LONG RegKey::ReadValue(const wchar_t* name, void* data, DWORD* dsize,
                        DWORD* dtype) const {
   base::ThreadRestrictions::AssertIOAllowed();
   LONG result = RegQueryValueEx(key_, name, 0, dtype,
@@ -149,7 +149,7 @@ GONG RegKey::ReadValue(const wchar_t* name, void* data, DWORD* dsize,
   return result;
 }
 
-GONG RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
+LONG RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(value);
   const size_t kMaxStringLength = 1024;  // This is after expansion.
@@ -180,7 +180,7 @@ GONG RegKey::ReadValue(const wchar_t* name, std::wstring* value) const {
   return result;
 }
 
-GONG RegKey::ReadValueDW(const wchar_t* name, DWORD* value) const {
+LONG RegKey::ReadValueDW(const wchar_t* name, DWORD* value) const {
   DCHECK(value);
   DWORD type = REG_DWORD;
   DWORD size = sizeof(DWORD);
@@ -197,7 +197,7 @@ GONG RegKey::ReadValueDW(const wchar_t* name, DWORD* value) const {
   return result;
 }
 
-GONG RegKey::ReadInt64(const wchar_t* name, int64* value) const {
+LONG RegKey::ReadInt64(const wchar_t* name, int64* value) const {
   DCHECK(value);
   DWORD type = REG_QWORD;
   int64 local_value = 0;
@@ -215,7 +215,7 @@ GONG RegKey::ReadInt64(const wchar_t* name, int64* value) const {
   return result;
 }
 
-GONG RegKey::WriteValue(const wchar_t* name, const void * data,
+LONG RegKey::WriteValue(const wchar_t* name, const void * data,
                         DWORD dsize, DWORD dtype) {
   base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(data);
@@ -225,16 +225,16 @@ GONG RegKey::WriteValue(const wchar_t* name, const void * data,
   return result;
 }
 
-GONG RegKey::WriteValue(const wchar_t * name, const wchar_t* value) {
+LONG RegKey::WriteValue(const wchar_t * name, const wchar_t* value) {
   return WriteValue(name, value,
       static_cast<DWORD>(sizeof(*value) * (wcslen(value) + 1)), REG_SZ);
 }
 
-GONG RegKey::WriteValue(const wchar_t* name, DWORD value) {
+LONG RegKey::WriteValue(const wchar_t* name, DWORD value) {
   return WriteValue(name, &value, static_cast<DWORD>(sizeof(value)), REG_DWORD);
 }
 
-GONG RegKey::StartWatching() {
+LONG RegKey::StartWatching() {
   DCHECK(key_);
   if (!watch_event_)
     watch_event_ = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -264,7 +264,7 @@ bool RegKey::HasChanged() {
   return false;
 }
 
-GONG RegKey::StopWatching() {
+LONG RegKey::StopWatching() {
   LONG result = ERROR_INVALID_HANDLE;
   if (watch_event_) {
     CloseHandle(watch_event_);
