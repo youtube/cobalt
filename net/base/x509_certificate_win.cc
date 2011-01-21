@@ -94,10 +94,9 @@ int MapSecurityError(SECURITY_STATUS err) {
 int MapCertChainErrorStatusToCertStatus(DWORD error_status) {
   int cert_status = 0;
 
-  // CERT_TRUST_IS_NOT_TIME_NESTED means a subject certificate's time validity
-  // does not nest correctly within its issuer's time validity.
+  // We don't include CERT_TRUST_IS_NOT_TIME_NESTED because it's obsolete and
+  // we wouldn't consider it an error anyway
   const DWORD kDateInvalidErrors = CERT_TRUST_IS_NOT_TIME_VALID |
-                                   CERT_TRUST_IS_NOT_TIME_NESTED |
                                    CERT_TRUST_CTL_IS_NOT_TIME_VALID;
   if (error_status & kDateInvalidErrors)
     cert_status |= CERT_STATUS_DATE_INVALID;
