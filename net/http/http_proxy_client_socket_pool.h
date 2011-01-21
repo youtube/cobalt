@@ -123,15 +123,6 @@ class HttpProxyConnectJob : public ConnectJob {
     STATE_NONE,
   };
 
-  // Begins the tcp connection and the optional Http proxy tunnel.  If the
-  // request is not immediately servicable (likely), the request will return
-  // ERR_IO_PENDING. An OK return from this function or the callback means
-  // that the connection is established; ERR_PROXY_AUTH_REQUESTED means
-  // that the tunnel needs authentication credentials, the socket will be
-  // returned in this case, and must be release back to the pool; or
-  // a standard net error code will be returned.
-  virtual int ConnectInternal();
-
   void OnIOComplete(int result);
 
   // Runs the state transition loop.
@@ -149,6 +140,15 @@ class HttpProxyConnectJob : public ConnectJob {
 
   int DoSpdyProxyCreateStream();
   int DoSpdyProxyCreateStreamComplete(int result);
+
+  // Begins the tcp connection and the optional Http proxy tunnel.  If the
+  // request is not immediately servicable (likely), the request will return
+  // ERR_IO_PENDING. An OK return from this function or the callback means
+  // that the connection is established; ERR_PROXY_AUTH_REQUESTED means
+  // that the tunnel needs authentication credentials, the socket will be
+  // returned in this case, and must be release back to the pool; or
+  // a standard net error code will be returned.
+  virtual int ConnectInternal();
 
   scoped_refptr<HttpProxySocketParams> params_;
   TCPClientSocketPool* const tcp_pool_;
