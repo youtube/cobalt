@@ -7,9 +7,6 @@
 #pragma once
 
 #include "base/callback.h"
-#include "base/message_loop.h"
-#include "net/base/completion_callback.h"
-#include "net/base/net_errors.h"
 
 //-----------------------------------------------------------------------------
 // completion callback helper
@@ -24,37 +21,16 @@
 //
 class TestCompletionCallback : public CallbackRunner< Tuple1<int> > {
  public:
-  TestCompletionCallback()
-      : result_(0),
-        have_result_(false),
-        waiting_for_result_(false) {
-  }
+  TestCompletionCallback();
+  virtual ~TestCompletionCallback();
 
-  int WaitForResult() {
-    DCHECK(!waiting_for_result_);
-    while (!have_result_) {
-      waiting_for_result_ = true;
-      MessageLoop::current()->Run();
-      waiting_for_result_ = false;
-    }
-    have_result_ = false;  // auto-reset for next callback
-    return result_;
-  }
+  int WaitForResult();
 
-  int GetResult(int result) {
-    if (net::ERR_IO_PENDING != result)
-      return result;
-    return WaitForResult();
-  }
+  int GetResult(int result);
 
   bool have_result() const { return have_result_; }
 
-  virtual void RunWithParams(const Tuple1<int>& params) {
-    result_ = params.a;
-    have_result_ = true;
-    if (waiting_for_result_)
-      MessageLoop::current()->Quit();
-  }
+  virtual void RunWithParams(const Tuple1<int>& params);
 
  private:
   int result_;

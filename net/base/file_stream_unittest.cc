@@ -4,6 +4,7 @@
 
 #include "base/callback.h"
 #include "base/file_util.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/platform_file.h"
 #include "net/base/file_stream.h"

@@ -225,6 +225,7 @@ class HttpCache : public HttpTransactionFactory,
   typedef base::hash_map<std::string, ActiveEntry*> ActiveEntriesMap;
   typedef base::hash_map<std::string, PendingOp*> PendingOpsMap;
   typedef std::set<ActiveEntry*> ActiveEntriesSet;
+  typedef base::hash_map<std::string, int> PlaybackCacheMap;
 
   // Methods ------------------------------------------------------------------
 
@@ -371,7 +372,6 @@ class HttpCache : public HttpTransactionFactory,
 
   ScopedRunnableMethodFactory<HttpCache> task_factory_;
 
-  typedef base::hash_map<std::string, int> PlaybackCacheMap;
   scoped_ptr<PlaybackCacheMap> playback_cache_map_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpCache);

@@ -4,6 +4,9 @@
 
 // Illustrates how to use worker threads that issue completion callbacks
 
+#include "base/logging.h"
+#include "base/message_loop.h"
+#include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/completion_callback.h"
 #include "net/base/test_completion_callback.h"
