@@ -11,39 +11,6 @@
 
 #include "base/basictypes.h"
 
-// Please ignore this part. This temporary hack exists
-// to detect if the return value is used as 'bool'.
-// Todo(amit): remove this before (or soon after) checkin.
-struct CatchBoolChecks {
-  CatchBoolChecks(LONG l) : l_(l) {}
-  LONG l_;
-  operator LONG() { return l_; }
-  LONG value() const { return l_; }
-  bool operator == (LONG l) const { return l == l_; }
-  bool operator != (LONG l) const { return l != l_; }
- private:
-  // If you hit a compile error here, you most likely attempting to use the
-  // return value of a RegKey helper as a bool. Please note that RegKey
-  // methods return LONG now instead of bool.
-  operator bool () { return false; }
-};
-
-inline bool operator == (const LONG& l, const CatchBoolChecks& g) {
-  return g.value() == l;
-}
-
-inline bool operator != (const LONG& l, const CatchBoolChecks& g) {
-  return g.value() != l;
-}
-
-using std::ostream;
-inline ostream& operator <<(ostream &os, const CatchBoolChecks& g) {
-  os << g.value();
-  return os;
-}
-
-typedef CatchBoolChecks GONG;
-
 namespace base {
 namespace win {
 
@@ -60,52 +27,52 @@ class RegKey {
   RegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
   ~RegKey();
 
-  GONG Create(HKEY rootkey, const wchar_t* subkey, REGSAM access);
+  LONG Create(HKEY rootkey, const wchar_t* subkey, REGSAM access);
 
-  GONG CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
+  LONG CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
                              DWORD* disposition, REGSAM access);
 
-  GONG Open(HKEY rootkey, const wchar_t* subkey, REGSAM access);
+  LONG Open(HKEY rootkey, const wchar_t* subkey, REGSAM access);
 
   // Creates a subkey or open it if it already exists.
-  GONG CreateKey(const wchar_t* name, REGSAM access);
+  LONG CreateKey(const wchar_t* name, REGSAM access);
 
   // Opens a subkey
-  GONG OpenKey(const wchar_t* name, REGSAM access);
+  LONG OpenKey(const wchar_t* name, REGSAM access);
 
   void Close();
 
   DWORD ValueCount() const;
 
   // Determine the nth value's name.
-  GONG ReadName(int index, std::wstring* name) const;
+  LONG ReadName(int index, std::wstring* name) const;
 
   // True while the key is valid.
   bool Valid() const { return key_ != NULL; }
 
   // Kill a key and everything that live below it; please be careful when using
   // it.
-  GONG DeleteKey(const wchar_t* name);
+  LONG DeleteKey(const wchar_t* name);
 
   // Deletes a single value within the key.
-  GONG DeleteValue(const wchar_t* name);
+  LONG DeleteValue(const wchar_t* name);
 
   bool ValueExists(const wchar_t* name) const;
 
-  GONG ReadValue(const wchar_t* name, void* data, DWORD* dsize,
+  LONG ReadValue(const wchar_t* name, void* data, DWORD* dsize,
                  DWORD* dtype) const;
-  GONG ReadValue(const wchar_t* name, std::wstring* value) const;
-  GONG ReadValueDW(const wchar_t* name, DWORD* value) const;
-  GONG ReadInt64(const wchar_t* name, int64* value) const;
+  LONG ReadValue(const wchar_t* name, std::wstring* value) const;
+  LONG ReadValueDW(const wchar_t* name, DWORD* value) const;
+  LONG ReadInt64(const wchar_t* name, int64* value) const;
 
-  GONG WriteValue(const wchar_t* name, const void* data, DWORD dsize,
+  LONG WriteValue(const wchar_t* name, const void* data, DWORD dsize,
                   DWORD dtype);
-  GONG WriteValue(const wchar_t* name, const wchar_t* value);
-  GONG WriteValue(const wchar_t* name, DWORD value);
+  LONG WriteValue(const wchar_t* name, const wchar_t* value);
+  LONG WriteValue(const wchar_t* name, DWORD value);
 
   // Starts watching the key to see if any of its values have changed.
   // The key must have been opened with the KEY_NOTIFY access privilege.
-  GONG StartWatching();
+  LONG StartWatching();
 
   // If StartWatching hasn't been called, always returns false.
   // Otherwise, returns true if anything under the key has changed.
@@ -114,7 +81,7 @@ class RegKey {
 
   // Will automatically be called by destructor if not manually called
   // beforehand.  Returns true if it was watching, false otherwise.
-  GONG StopWatching();
+  LONG StopWatching();
 
   inline bool IsWatching() const { return watch_event_ != 0; }
   HANDLE watch_event() const { return watch_event_; }
