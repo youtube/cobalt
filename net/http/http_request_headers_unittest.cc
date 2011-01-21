@@ -67,6 +67,14 @@ TEST(HttpRequestHeaders, SetEmptyHeader) {
   EXPECT_EQ("Foo: Bar\r\nBar:\r\n\r\n", headers.ToString());
 }
 
+TEST(HttpRequestHeaders, SetHeaderIfMissing) {
+  HttpRequestHeaders headers;
+  headers.SetHeaderIfMissing("Foo", "Bar");
+  EXPECT_EQ("Foo: Bar\r\n\r\n", headers.ToString());
+  headers.SetHeaderIfMissing("Foo", "Baz");
+  EXPECT_EQ("Foo: Bar\r\n\r\n", headers.ToString());
+}
+
 TEST(HttpRequestHeaders, RemoveHeader) {
   HttpRequestHeaders headers;
   headers.SetHeader("Foo", "bar");
