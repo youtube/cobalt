@@ -35,11 +35,6 @@ struct SSLConfig {
   // True if we'll do async checks for certificate provenance using DNS.
   bool dns_cert_provenance_checking_enabled;
 
-  // TODO(hclam): This option is used to simplify the SSLServerSocketNSS
-  // implementation and should be removed when session caching is implemented.
-  // See http://crbug.com/67236 for more details.
-  bool session_resume_disabled;  // Don't allow session resume.
-
   // Cipher suites which should be explicitly prevented from being used in
   // addition to those disabled by the net built-in policy -- by default, all
   // cipher suites supported by the underlying SSL implementation will be

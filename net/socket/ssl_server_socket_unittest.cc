@@ -241,7 +241,6 @@ class SSLServerSocketTest : public PlatformTest {
     ssl_config.snap_start_enabled = false;
     ssl_config.ssl3_enabled = true;
     ssl_config.tls1_enabled = true;
-    ssl_config.session_resume_disabled = true;
 
     // Certificate provided by the host doesn't need authority.
     net::SSLConfig::CertAndStatus cert_and_status;
