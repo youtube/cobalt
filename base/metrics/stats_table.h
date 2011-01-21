@@ -25,7 +25,7 @@
 
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread_local_storage.h"
 
 namespace base {
@@ -175,7 +175,7 @@ class StatsTable {
   Private* impl_;
 
   // The counters_lock_ protects the counters_ hash table.
-  Lock counters_lock_;
+  base::Lock counters_lock_;
 
   // The counters_ hash map is an in-memory hash of the counters.
   // It is used for quick lookup of counters, but is cannot be used

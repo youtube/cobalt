@@ -50,7 +50,7 @@ void FileDataSource::Initialize(const std::string& url,
 }
 
 void FileDataSource::Stop(FilterCallback* callback) {
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   if (file_) {
     file_util::CloseFile(file_);
     file_ = NULL;
@@ -69,7 +69,7 @@ const MediaFormat& FileDataSource::media_format() {
 void FileDataSource::Read(int64 position, size_t size, uint8* data,
                           ReadCallback* read_callback) {
   DCHECK(file_);
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   scoped_ptr<ReadCallback> callback(read_callback);
   if (file_) {
 #if defined(OS_WIN)
@@ -101,7 +101,7 @@ void FileDataSource::Read(int64 position, size_t size, uint8* data,
 bool FileDataSource::GetSize(int64* size_out) {
   DCHECK(size_out);
   DCHECK(file_);
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   *size_out = file_size_;
   return (NULL != file_);
 }

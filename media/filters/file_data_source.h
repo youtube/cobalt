@@ -8,7 +8,7 @@
 #include <string>
 
 #include "base/gtest_prod_util.h"
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 #include "media/base/filters.h"
 
 namespace media {
@@ -54,7 +54,7 @@ class FileDataSource : public DataSource {
   // TODO(ralphl): Ideally this would use asynchronous I/O or we will know
   // that we will block for a short period of time in reads.  Otherwise, we can
   // hang the pipeline Stop.
-  Lock lock_;
+  base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(FileDataSource);
 };

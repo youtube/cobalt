@@ -40,9 +40,9 @@
 #include <string>
 
 #include "base/gtest_prod_util.h"
-#include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -193,7 +193,7 @@ class AlsaPcmOutputStream :
     void set_source_callback(AudioSourceCallback* callback);
 
    private:
-    Lock lock_;
+    base::Lock lock_;
 
     InternalState state_;
     float volume_;  // Volume level from 0.0 to 1.0.

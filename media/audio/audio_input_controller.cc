@@ -110,7 +110,7 @@ void AudioInputController::DoRecord() {
     return;
 
   {
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     state_ = kRecording;
   }
 
@@ -143,7 +143,7 @@ void AudioInputController::DoReportError(int code) {
 void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
                                   uint32 size) {
   {
-    AutoLock auto_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     if (state_ != kRecording)
       return;
   }

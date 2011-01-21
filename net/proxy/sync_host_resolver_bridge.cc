@@ -6,8 +6,8 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/lock.h"
 #include "base/message_loop.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -26,7 +26,7 @@ class SyncHostResolverBridge::Core
 
   // Returns true if Shutdown() has been called.
   bool HasShutdown() const {
-    AutoLock l(lock_);
+    base::AutoLock l(lock_);
     return HasShutdownLocked();
   }
 
@@ -66,7 +66,7 @@ class SyncHostResolverBridge::Core
   bool has_shutdown_;
 
   // Mutex to guard accesses to |has_shutdown_|.
-  mutable Lock lock_;
+      mutable base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(Core);
 };
@@ -121,7 +121,7 @@ int SyncHostResolverBridge::Core::WaitForResolveCompletion() {
   event_.Wait();
 
   {
-    AutoLock l(lock_);
+    base::AutoLock l(lock_);
     if (HasShutdownLocked())
       return ERR_ABORTED;
     event_.Reset();
@@ -139,7 +139,7 @@ void SyncHostResolverBridge::Core::Shutdown() {
   }
 
   {
-    AutoLock l(lock_);
+    base::AutoLock l(lock_);
     has_shutdown_ = true;
   }
 

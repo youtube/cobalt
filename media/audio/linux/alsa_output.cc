@@ -837,7 +837,7 @@ AlsaPcmOutputStream::SharedData::SharedData(
 }
 
 bool AlsaPcmOutputStream::SharedData::CanTransitionTo(InternalState to) {
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   return CanTransitionTo_Locked(to);
 }
 
@@ -874,7 +874,7 @@ AlsaPcmOutputStream::InternalState
 AlsaPcmOutputStream::SharedData::TransitionTo(InternalState to) {
   DCHECK_EQ(MessageLoop::current(), state_transition_loop_);
 
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   if (!CanTransitionTo_Locked(to)) {
     NOTREACHED() << "Cannot transition from: " << state_ << " to: " << to;
     state_ = kInError;
@@ -885,24 +885,24 @@ AlsaPcmOutputStream::SharedData::TransitionTo(InternalState to) {
 }
 
 AlsaPcmOutputStream::InternalState AlsaPcmOutputStream::SharedData::state() {
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   return state_;
 }
 
 float AlsaPcmOutputStream::SharedData::volume() {
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   return volume_;
 }
 
 void AlsaPcmOutputStream::SharedData::set_volume(float v) {
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   volume_ = v;
 }
 
 uint32 AlsaPcmOutputStream::SharedData::OnMoreData(
     AudioOutputStream* stream, uint8* dest, uint32 max_size,
     AudioBuffersState buffers_state) {
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   if (source_callback_) {
     return source_callback_->OnMoreData(stream, dest, max_size, buffers_state);
   }
@@ -912,7 +912,7 @@ uint32 AlsaPcmOutputStream::SharedData::OnMoreData(
 
 void AlsaPcmOutputStream::SharedData::OnError(AudioOutputStream* stream,
                                               int code) {
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   if (source_callback_) {
     source_callback_->OnError(stream, code);
   }
@@ -923,6 +923,6 @@ void AlsaPcmOutputStream::SharedData::OnError(AudioOutputStream* stream,
 void AlsaPcmOutputStream::SharedData::set_source_callback(
     AudioSourceCallback* callback) {
   DCHECK_EQ(MessageLoop::current(), state_transition_loop_);
-  AutoLock l(lock_);
+  base::AutoLock l(lock_);
   source_callback_ = callback;
 }

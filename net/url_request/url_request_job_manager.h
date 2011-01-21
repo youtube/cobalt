@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "base/lock.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "net/url_request/url_request.h"
 
@@ -76,7 +76,7 @@ class URLRequestJobManager {
   URLRequestJobManager();
   ~URLRequestJobManager();
 
-  mutable Lock lock_;
+  mutable base::Lock lock_;
   FactoryMap factories_;
   InterceptorList interceptors_;
   bool enable_file_access_;

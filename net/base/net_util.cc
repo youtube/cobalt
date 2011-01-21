@@ -38,7 +38,6 @@
 #include "base/i18n/icu_string_conversions.h"
 #include "base/i18n/time_formatting.h"
 #include "base/json/string_escape.h"
-#include "base/lock.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
@@ -51,6 +50,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/lock.h"
 #include "base/sys_string_conversions.h"
 #include "base/time.h"
 #include "base/utf_offset_string_conversions.h"
@@ -550,7 +550,7 @@ void SetExemplarSetForLang(const std::string& lang,
   map.insert(std::make_pair(lang, lang_set));
 }
 
-static Lock lang_set_lock;
+static base::Lock lang_set_lock;
 
 // Returns true if all the characters in component_characters are used by
 // the language |lang|.
@@ -560,7 +560,7 @@ bool IsComponentCoveredByLang(const icu::UnicodeSet& component_characters,
   icu::UnicodeSet* lang_set;
   // We're called from both the UI thread and the history thread.
   {
-    AutoLock lock(lang_set_lock);
+    base::AutoLock lock(lang_set_lock);
     if (!GetExemplarSetForLang(lang, &lang_set)) {
       UErrorCode status = U_ZERO_ERROR;
       ULocaleData* uld = ulocdata_open(lang.c_str(), &status);

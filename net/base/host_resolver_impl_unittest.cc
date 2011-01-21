@@ -92,7 +92,7 @@ class CapturingHostResolverProc : public HostResolverProc {
                       int* os_error) {
     event_.Wait();
     {
-      AutoLock l(lock_);
+      base::AutoLock l(lock_);
       capture_list_.push_back(CaptureEntry(hostname, address_family));
     }
     return ResolveUsingPrevious(hostname, address_family,
@@ -102,7 +102,7 @@ class CapturingHostResolverProc : public HostResolverProc {
   CaptureList GetCaptureList() const {
     CaptureList copy;
     {
-      AutoLock l(lock_);
+      base::AutoLock l(lock_);
       copy = capture_list_;
     }
     return copy;
@@ -112,7 +112,7 @@ class CapturingHostResolverProc : public HostResolverProc {
   ~CapturingHostResolverProc() {}
 
   CaptureList capture_list_;
-  mutable Lock lock_;
+  mutable base::Lock lock_;
   base::WaitableEvent event_;
 };
 
