@@ -243,15 +243,15 @@ TEST_F(VideoRendererBaseTest, Seek_Exact) {
   Flush();
 }
 
-TEST_F(VideoRendererBaseTest, Seek_RoundUp) {
+TEST_F(VideoRendererBaseTest, Seek_RightBefore) {
   Initialize();
   Flush();
   Seek(kDuration * 6 - 1);
-  ExpectCurrentTimestamp(kDuration * 6);
+  ExpectCurrentTimestamp(kDuration * 5);
   Flush();
 }
 
-TEST_F(VideoRendererBaseTest, Seek_RoundDown) {
+TEST_F(VideoRendererBaseTest, Seek_RightAfter) {
   Initialize();
   Flush();
   Seek(kDuration * 6 + 1);
