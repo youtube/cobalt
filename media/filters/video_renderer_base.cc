@@ -408,7 +408,7 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
 
   // Discard frames until we reach our desired seek timestamp.
   if (state_ == kSeeking && !frame->IsEndOfStream() &&
-      (frame->GetTimestamp() + frame->GetDuration() / 2) < seek_timestamp_) {
+      (frame->GetTimestamp() + frame->GetDuration()) <= seek_timestamp_) {
     frames_queue_done_.push_back(frame);
     ScheduleRead_Locked();
   } else {
