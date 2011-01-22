@@ -9,46 +9,71 @@ lastchange.py -- Chromium revision fetching utility.
 
 import optparse
 import os
-import re
 import subprocess
 import sys
 
+class VersionInfo(object):
+  def __init__(self, url, root, revision):
+    self.url = url
+    self.root = root
+    self.revision = revision
 
-def FetchSVNRevision(command):
+
+def FetchSVNRevision(command, directory):
   """
-  Fetch the Subversion revision for the local tree.
+  Fetch the Subversion branch and revision for the a given directory
+  by running the given command (e.g. "svn info").
 
   Errors are swallowed.
+
+  Returns:
+    a VersionInfo object or None on error.
   """
   try:
     proc = subprocess.Popen(command,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
+                            cwd=directory,
                             shell=(sys.platform=='win32'))
   except OSError:
     # command is apparently either not installed or not executable.
     return None
-  if proc:
-    svn_re = re.compile('^Revision:\s+(\d+)', re.M)
-    match = svn_re.search(proc.stdout.read())
-    if match:
-      return match.group(1)
-  return None
+  if not proc:
+    return None
+
+  attrs = {}
+  for line in proc.stdout:
+    line = line.strip()
+    if not line:
+      continue
+    key, val = line.split(': ', 1)
+    attrs[key] = val
+
+  try:
+    url = attrs['URL']
+    root = attrs['Repository Root']
+    revision = attrs['Revision']
+  except KeyError:
+    return None
+
+  return VersionInfo(url, root, revision)
 
 
-def FetchChange(default_lastchange):
+def FetchVersionInfo(default_lastchange, directory=None):
   """
-  Returns the last change, from some appropriate revision control system.
+  Returns the last change (in the form of a branch, revision tuple),
+  from some appropriate revision control system.
   """
-  change = FetchSVNRevision(['svn', 'info'])
-  if not change and sys.platform in ('linux2',):
-    change = FetchSVNRevision(['git', 'svn', 'info'])
-  if not change:
+  version_info = FetchSVNRevision(['svn', 'info'], directory)
+  if not version_info and sys.platform in ('linux2',):
+    version_info = FetchSVNRevision(['git', 'svn', 'info'], directory)
+  if not version_info:
     if default_lastchange and os.path.exists(default_lastchange):
-      change = open(default_lastchange, 'r').read().strip()
+      revision = open(default_lastchange, 'r').read().strip()
+      version_info = VersionInfo(None, None, revision)
     else:
-      change = '0'
-  return change
+      version_info = VersionInfo('', '', '0')
+  return version_info
 
 
 def WriteIfChanged(file_name, contents):
@@ -90,12 +115,12 @@ def main(argv=None):
     parser.print_help()
     sys.exit(2)
 
-  change = FetchChange(opts.default_lastchange)
+  version_info = FetchVersionInfo(opts.default_lastchange)
 
   if opts.revision_only:
-    print change
+    print version_info.revision
   else:
-    contents = "LASTCHANGE=%s\n" % change
+    contents = "LASTCHANGE=%s\n" % version_info.revision
     if out_file:
       WriteIfChanged(out_file, contents)
     else:
