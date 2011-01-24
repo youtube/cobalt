@@ -19,6 +19,19 @@ class VersionInfo(object):
     self.revision = revision
 
 
+def IsGitSVN(directory):
+  """Return true if the directory is managed by git-svn."""
+
+  # To test whether git-svn has been set up, query the config for any
+  # svn-related configuration.  This command exits with an error code
+  # if there aren't any matches, so ignore its output.
+  status = subprocess.call(['git', 'config', '--get-regexp', '^svn'],
+                           stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE,
+                           cwd=directory)
+  return status == 0
+
+
 def FetchSVNRevision(command, directory):
   """
   Fetch the Subversion branch and revision for the a given directory
@@ -35,7 +48,7 @@ def FetchSVNRevision(command, directory):
   # We can't just pass shell=True to Popen, as under win32 this will
   # cause CMD to be used, while we explicitly want a cygwin shell.
   if sys.platform in ('cygwin', 'win32'):
-    command = [ 'sh', '-c', ' '.join(command) ];
+    command = ['sh', '-c', ' '.join(command)]
   try:
     proc = subprocess.Popen(command,
                             stdout=subprocess.PIPE,
@@ -71,14 +84,16 @@ def FetchVersionInfo(default_lastchange, directory=None):
   from some appropriate revision control system.
   """
   version_info = FetchSVNRevision(['svn', 'info'], directory)
-  if not version_info:
+  # N.B. test for git-svn before trying 'git svn info', as the info
+  # command will hang if git-svn hasn't been set up.
+  if not version_info and IsGitSVN(directory):
     version_info = FetchSVNRevision(['git', 'svn', 'info'], directory)
   if not version_info:
     if default_lastchange and os.path.exists(default_lastchange):
       revision = open(default_lastchange, 'r').read().strip()
       version_info = VersionInfo(None, None, revision)
     else:
-      version_info = VersionInfo('', '', '0')
+      version_info = VersionInfo('unknown', '', '0')
   return version_info
 
 
