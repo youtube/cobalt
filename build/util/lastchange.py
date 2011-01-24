@@ -29,12 +29,18 @@ def FetchSVNRevision(command, directory):
   Returns:
     a VersionInfo object or None on error.
   """
+
+  # Force shell usage under cygwin & win32. This is a workaround for
+  # mysterious loss of cwd while invoking cygwin's git.
+  # We can't just pass shell=True to Popen, as under win32 this will
+  # cause CMD to be used, while we explicitly want a cygwin shell.
+  if sys.platform in ('cygwin', 'win32'):
+    command = [ 'sh', '-c', ' '.join(command) ];
   try:
     proc = subprocess.Popen(command,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
-                            cwd=directory,
-                            shell=(sys.platform=='win32'))
+                            cwd=directory)
   except OSError:
     # command is apparently either not installed or not executable.
     return None
@@ -65,7 +71,7 @@ def FetchVersionInfo(default_lastchange, directory=None):
   from some appropriate revision control system.
   """
   version_info = FetchSVNRevision(['svn', 'info'], directory)
-  if not version_info and sys.platform in ('linux2',):
+  if not version_info:
     version_info = FetchSVNRevision(['git', 'svn', 'info'], directory)
   if not version_info:
     if default_lastchange and os.path.exists(default_lastchange):
