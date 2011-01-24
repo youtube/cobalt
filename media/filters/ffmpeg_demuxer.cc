@@ -336,11 +336,11 @@ int FFmpegDemuxer::Read(int size, uint8* data) {
   if (read_has_failed_)
     return AVERROR_IO;
 
-  // If the read position exceeds the size of the data source. We should return
-  // end-of-file directly.
+  // Even though FFmpeg defines AVERROR_EOF, it's not to be used with I/O
+  // routines.  Instead return 0 for any read at or past EOF.
   int64 file_size;
   if (data_source_->GetSize(&file_size) && read_position_ >= file_size)
-    return AVERROR_EOF;
+    return 0;
 
   // Asynchronous read from data source.
   data_source_->Read(read_position_, size, data,
