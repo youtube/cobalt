@@ -1214,21 +1214,12 @@ TEST(NetUtilTest, GetSuggestedFilename) {
 #endif
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
-#if defined(OS_WIN)
-    FilePath default_name(test_cases[i].default_filename);
-#else
-    FilePath default_name(
-        base::SysWideToNativeMB(test_cases[i].default_filename));
-#endif
-    FilePath filename = net::GetSuggestedFilename(
+    std::wstring default_name = test_cases[i].default_filename;
+    string16 filename = net::GetSuggestedFilename(
         GURL(test_cases[i].url), test_cases[i].content_disp_header,
-        test_cases[i].referrer_charset, default_name);
-#if defined(OS_WIN)
-    EXPECT_EQ(std::wstring(test_cases[i].expected_filename), filename.value())
-#else
-    EXPECT_EQ(base::SysWideToNativeMB(test_cases[i].expected_filename),
-              filename.value())
-#endif
+        test_cases[i].referrer_charset, WideToUTF16(default_name));
+    EXPECT_EQ(std::wstring(test_cases[i].expected_filename),
+              UTF16ToWide(filename))
       << "Iteration " << i << ": " << test_cases[i].url;
   }
 }
