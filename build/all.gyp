@@ -142,7 +142,7 @@
           ],
         }],
       ],
-    },
+    }, # target_name: All
     {
       'target_name': 'chromium_builder_tests',
       'type': 'none',
@@ -197,7 +197,20 @@
            ],
         }],
       ],
-    },
+    }, # target_name: chromium_builder_tests
+    {
+      'target_name': 'chromium_builder_perf',
+      'type': 'none',
+      'dependencies': [
+        '../chrome/chrome.gyp:memory_test',
+        '../chrome/chrome.gyp:page_cycler_tests',
+        '../chrome/chrome.gyp:plugin_tests',
+        '../chrome/chrome.gyp:startup_tests',
+        '../chrome/chrome.gyp:tab_switching_test',
+        '../chrome/chrome.gyp:ui_tests', # needed for dromaeo, sunspider, v8
+        '../chrome/chrome.gyp:url_fetch_test',
+      ],
+    }, # target_name: chromium_builder_perf
     {
       'target_name': 'chromium_gpu_builder',
       'type': 'none',
