@@ -63,7 +63,9 @@ def FetchSVNRevision(command, directory):
   attrs = {}
   for line in proc.stdout:
     line = line.strip()
-    if not line:
+    # git-svn can print out extra "Rebuilding ..." lines, which we don't
+    # care about and want to skip over.
+    if not line or ': ' not in line:
       continue
     key, val = line.split(': ', 1)
     attrs[key] = val
