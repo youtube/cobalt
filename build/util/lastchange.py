@@ -25,11 +25,14 @@ def IsGitSVN(directory):
   # To test whether git-svn has been set up, query the config for any
   # svn-related configuration.  This command exits with an error code
   # if there aren't any matches, so ignore its output.
-  status = subprocess.call(['git', 'config', '--get-regexp', '^svn'],
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE,
-                           cwd=directory)
-  return status == 0
+  try:
+    status = subprocess.call(['git', 'config', '--get-regexp', '^svn'],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             cwd=directory)
+    return status == 0
+  except OSError:
+    return False
 
 
 def FetchSVNRevision(command, directory):
