@@ -682,8 +682,8 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   EXPECT_TRUE(demuxer->GetPosition(&position));
   EXPECT_EQ(1024, position);
 
-  // Third read will get an end-of-file error.
-  EXPECT_EQ(AVERROR_EOF, demuxer->Read(512, kBuffer));
+  // Third read will get an end-of-file error, which is represented as zero.
+  EXPECT_EQ(0, demuxer->Read(512, kBuffer));
 
   // This read complete signal is generated when demuxer is stopped.
   EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
