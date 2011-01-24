@@ -259,10 +259,10 @@ string16 StripWWW(const string16& text);
 // file:///). referrer_charset is used as one of charsets
 // to interpret a raw 8bit string in C-D header (after interpreting
 // as UTF-8 fails). See the comment for GetFilenameFromCD for more details.
-FilePath GetSuggestedFilename(const GURL& url,
+string16 GetSuggestedFilename(const GURL& url,
                               const std::string& content_disposition,
                               const std::string& referrer_charset,
-                              const FilePath& default_name);
+                              const string16& default_name);
 
 // Checks the given port against a list of ports which are restricted by
 // default.  Returns true if the port is allowed, false if it is restricted.
