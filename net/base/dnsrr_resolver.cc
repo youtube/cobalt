@@ -499,6 +499,7 @@ class Buffer {
         if (offset >= packet_len_)
           return false;
         p = &packet_[offset];
+        len = packet_len_ - offset;
       } else if ((d & 0xc0) == 0) {
         uint8 label_len = d;
         if (len < label_len)
