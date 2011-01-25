@@ -68,6 +68,39 @@ bool GetProcCmdline(pid_t pid, std::vector<std::string>* proc_cmd_line_args) {
   return true;
 }
 
+// Get the total CPU of a single process.  Return value is number of jiffies
+// on success or -1 on error.
+int GetProcessCPU(pid_t pid) {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
+  // Use /proc/<pid>/task to find all threads and parse their /stat file.
+  FilePath path = FilePath(StringPrintf("/proc/%d/task/", pid));
+
+  DIR* dir = opendir(path.value().c_str());
+  if (!dir) {
+    PLOG(ERROR) << "opendir(" << path.value() << ")";
+    return -1;
+  }
+
+  int total_cpu = 0;
+  while (struct dirent* ent = readdir(dir)) {
+    if (ent->d_name[0] == '.')
+      continue;
+
+    FilePath stat_path = path.AppendASCII(ent->d_name).AppendASCII("stat");
+    std::string stat;
+    if (file_util::ReadFileToString(stat_path, &stat)) {
+      int cpu = base::ParseProcStatCPU(stat);
+      if (cpu > 0)
+        total_cpu += cpu;
+    }
+  }
+  closedir(dir);
+
+  return total_cpu;
+}
+
 }  // namespace
 
 namespace base {
@@ -225,14 +258,6 @@ bool NamedProcessIterator::IncludeEntry() {
   return ProcessIterator::IncludeEntry();
 }
 
-
-ProcessMetrics::ProcessMetrics(ProcessHandle process)
-    : process_(process),
-      last_time_(0),
-      last_system_time_(0),
-      last_cpu_(0) {
-  processor_count_ = base::SysInfo::NumberOfProcessors();
-}
 
 // static
 ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
@@ -399,6 +424,49 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   return true;
 }
 
+double ProcessMetrics::GetCPUUsage() {
+  // This queries the /proc-specific scaling factor which is
+  // conceptually the system hertz.  To dump this value on another
+  // system, try
+  //   od -t dL /proc/self/auxv
+  // and look for the number after 17 in the output; mine is
+  //   0000040          17         100           3   134512692
+  // which means the answer is 100.
+  // It may be the case that this value is always 100.
+  static const int kHertz = sysconf(_SC_CLK_TCK);
+
+  struct timeval now;
+  int retval = gettimeofday(&now, NULL);
+  if (retval)
+    return 0;
+  int64 time = TimeValToMicroseconds(now);
+
+  if (last_time_ == 0) {
+    // First call, just set the last values.
+    last_time_ = time;
+    last_cpu_ = GetProcessCPU(process_);
+    return 0;
+  }
+
+  int64 time_delta = time - last_time_;
+  DCHECK_NE(time_delta, 0);
+  if (time_delta == 0)
+    return 0;
+
+  int cpu = GetProcessCPU(process_);
+
+  // We have the number of jiffies in the time period.  Convert to percentage.
+  // Note this means we will go *over* 100 in the case where multiple threads
+  // are together adding to more than one CPU's worth.
+  int percentage = 100 * (cpu - last_cpu_) /
+      (kHertz * TimeDelta::FromMicroseconds(time_delta).InSecondsF());
+
+  last_time_ = time;
+  last_cpu_ = cpu;
+
+  return percentage;
+}
+
 // To have /proc/self/io file you must enable CONFIG_TASK_IO_ACCOUNTING
 // in your kernel configuration.
 bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
@@ -446,6 +514,14 @@ bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
   return true;
 }
 
+ProcessMetrics::ProcessMetrics(ProcessHandle process)
+    : process_(process),
+      last_time_(0),
+      last_system_time_(0),
+      last_cpu_(0) {
+  processor_count_ = base::SysInfo::NumberOfProcessors();
+}
+
 
 // Exposed for testing.
 int ParseProcStatCPU(const std::string& input) {
@@ -467,82 +543,6 @@ int ParseProcStatCPU(const std::string& input) {
   base::StringToInt(fields[11], &fields11);
   base::StringToInt(fields[12], &fields12);
   return fields11 + fields12;
-}
-
-// Get the total CPU of a single process.  Return value is number of jiffies
-// on success or -1 on error.
-static int GetProcessCPU(pid_t pid) {
-  // Synchronously reading files in /proc is safe.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
-
-  // Use /proc/<pid>/task to find all threads and parse their /stat file.
-  FilePath path = FilePath(StringPrintf("/proc/%d/task/", pid));
-
-  DIR* dir = opendir(path.value().c_str());
-  if (!dir) {
-    PLOG(ERROR) << "opendir(" << path.value() << ")";
-    return -1;
-  }
-
-  int total_cpu = 0;
-  while (struct dirent* ent = readdir(dir)) {
-    if (ent->d_name[0] == '.')
-      continue;
-
-    FilePath stat_path = path.AppendASCII(ent->d_name).AppendASCII("stat");
-    std::string stat;
-    if (file_util::ReadFileToString(stat_path, &stat)) {
-      int cpu = ParseProcStatCPU(stat);
-      if (cpu > 0)
-        total_cpu += cpu;
-    }
-  }
-  closedir(dir);
-
-  return total_cpu;
-}
-
-double ProcessMetrics::GetCPUUsage() {
-  // This queries the /proc-specific scaling factor which is
-  // conceptually the system hertz.  To dump this value on another
-  // system, try
-  //   od -t dL /proc/self/auxv
-  // and look for the number after 17 in the output; mine is
-  //   0000040          17         100           3   134512692
-  // which means the answer is 100.
-  // It may be the case that this value is always 100.
-  static const int kHertz = sysconf(_SC_CLK_TCK);
-
-  struct timeval now;
-  int retval = gettimeofday(&now, NULL);
-  if (retval)
-    return 0;
-  int64 time = TimeValToMicroseconds(now);
-
-  if (last_time_ == 0) {
-    // First call, just set the last values.
-    last_time_ = time;
-    last_cpu_ = GetProcessCPU(process_);
-    return 0;
-  }
-
-  int64 time_delta = time - last_time_;
-  DCHECK_NE(time_delta, 0);
-  if (time_delta == 0)
-    return 0;
-
-  int cpu = GetProcessCPU(process_);
-
-  // We have the number of jiffies in the time period.  Convert to percentage.
-  // Note this means we will go *over* 100 in the case where multiple threads
-  // are together adding to more than one CPU's worth.
-  int percentage = 100 * (cpu - last_cpu_) /
-      (kHertz * TimeDelta::FromMicroseconds(time_delta).InSecondsF());
-
-  last_time_ = time;
-  last_cpu_ = cpu;
-
-  return percentage;
 }
 
 namespace {

@@ -44,16 +44,16 @@ const ProcessEntry* ProcessIterator::NextProcessEntry() {
   return NULL;
 }
 
-bool ProcessIterator::IncludeEntry() {
-  return !filter_ || filter_->Includes(entry_);
-}
-
 ProcessIterator::ProcessEntries ProcessIterator::Snapshot() {
   ProcessEntries found;
   while (const ProcessEntry* process_entry = NextProcessEntry()) {
     found.push_back(*process_entry);
   }
   return found;
+}
+
+bool ProcessIterator::IncludeEntry() {
+  return !filter_ || filter_->Includes(entry_);
 }
 
 NamedProcessIterator::NamedProcessIterator(
