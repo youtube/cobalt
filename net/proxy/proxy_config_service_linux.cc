@@ -26,6 +26,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/task.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/timer.h"
 #include "base/nix/xdg_util.h"
 #include "googleurl/src/url_canon.h"
@@ -435,6 +436,9 @@ class GConfSettingGetterImplKDE
       : inotify_fd_(-1), notify_delegate_(NULL), indirect_manual_(false),
         auto_no_pac_(false), reversed_bypass_list_(false),
         env_var_getter_(env_var_getter), file_loop_(NULL) {
+    // This has to be called on the UI thread (http://crbug.com/69057).
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+
     // Derive the location of the kde config dir from the environment.
     std::string home;
     if (env_var_getter->GetVar("KDEHOME", &home) && !home.empty()) {
@@ -502,6 +506,8 @@ class GConfSettingGetterImplKDE
 
   virtual bool Init(MessageLoop* glib_default_loop,
                     MessageLoopForIO* file_loop) {
+    // This has to be called on the UI thread (http://crbug.com/69057).
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
     DCHECK(inotify_fd_ < 0);
     inotify_fd_ = inotify_init();
     if (inotify_fd_ < 0) {
