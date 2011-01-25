@@ -320,6 +320,20 @@ class URLRequest : public base::NonThreadSafe {
     AppendFileRangeToUpload(file_path, 0, kuint64max, base::Time());
   }
 
+  // Indicates that the request body should be sent using chunked transfer
+  // encoding. This method may only be called before Start() is called.
+  void EnableChunkedUpload();
+
+  // Appends the given bytes to the request's upload data to be sent
+  // immediately via chunked transfer encoding. When all data has been sent,
+  // call MarkEndOfChunks() to indicate the end of upload data.
+  //
+  // This method may be called only after calling EnableChunkedUpload().
+  void AppendChunkToUpload(const char* bytes, int bytes_len);
+
+  // Indicates the end of a chunked transfer encoded request body.
+  void MarkEndOfChunks();
+
   // Set the upload data directly.
   void set_upload(net::UploadData* upload);
 
