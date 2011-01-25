@@ -160,6 +160,27 @@ void URLRequest::AppendFileRangeToUpload(
                            expected_modification_time);
 }
 
+void URLRequest::EnableChunkedUpload() {
+  DCHECK(!upload_ || upload_->is_chunked());
+  if (!upload_) {
+    upload_ = new UploadData();
+    upload_->set_is_chunked(true);
+  }
+}
+
+void URLRequest::AppendChunkToUpload(const char* bytes, int bytes_len) {
+  DCHECK(upload_);
+  DCHECK(upload_->is_chunked());
+  DCHECK_GT(bytes_len, 0);
+  upload_->AppendChunk(bytes, bytes_len);
+}
+
+void URLRequest::MarkEndOfChunks() {
+  DCHECK(upload_);
+  DCHECK(upload_->is_chunked());
+  upload_->AppendChunk(NULL, 0);
+}
+
 void URLRequest::set_upload(net::UploadData* upload) {
   upload_ = upload;
 }

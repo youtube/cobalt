@@ -674,9 +674,14 @@ void HttpUtil::BuildRequestHeaders(const HttpRequestInfo* request_info,
 
   // Add a content length header?
   if (upload_data_stream) {
-    request_headers->SetHeader(
-        HttpRequestHeaders::kContentLength,
-        base::Uint64ToString(upload_data_stream->size()));
+    if (upload_data_stream->is_chunked()) {
+      request_headers->SetHeader(
+          HttpRequestHeaders::kTransferEncoding, "chunked");
+    } else {
+      request_headers->SetHeader(
+          HttpRequestHeaders::kContentLength,
+          base::Uint64ToString(upload_data_stream->size()));
+    }
   } else if (request_info->method == "POST" || request_info->method == "PUT" ||
              request_info->method == "HEAD") {
     // An empty POST/PUT request still needs a content length.  As for HEAD,

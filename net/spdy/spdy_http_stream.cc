@@ -264,7 +264,7 @@ int SpdyHttpStream::OnSendBody() {
 
 bool SpdyHttpStream::OnSendBodyComplete(int status) {
   CHECK(request_body_stream_.get());
-  request_body_stream_->DidConsume(status);
+  request_body_stream_->MarkConsumedAndFillBuffer(status);
   return request_body_stream_->eof();
 }
 

@@ -19,12 +19,27 @@ namespace net {
 
 class FileStream;
 
+// Interface implemented by callers who require callbacks when new chunks
+// of data are added.
+class ChunkCallback {
+ public:
+  // Invoked when a new data chunk was given for a chunked transfer upload.
+  virtual void OnChunkAvailable() = 0;
+
+ protected:
+  virtual ~ChunkCallback() {}
+};
+
 class UploadData : public base::RefCounted<UploadData> {
  public:
   enum Type {
     TYPE_BYTES,
     TYPE_FILE,
-    TYPE_BLOB
+    TYPE_BLOB,
+
+    // A block of bytes to be sent in chunked encoding immediately, without
+    // waiting for rest of the data.
+    TYPE_CHUNK,
   };
 
   class Element {
@@ -72,6 +87,13 @@ class UploadData : public base::RefCounted<UploadData> {
       blob_url_ = blob_url;
     }
 
+    // Though similar to bytes, a chunk indicates that the element is sent via
+    // chunked transfer encoding and not buffered until the full upload data
+    // is available.
+    void SetToChunk(const char* bytes, int bytes_len);
+
+    bool is_last_chunk() const { return is_last_chunk_; }
+
     // Returns the byte-length of the element.  For files that do not exist, 0
     // is returned.  This is done for consistency with Mozilla.
     // Once called, this function will always return the same value.
@@ -97,6 +119,7 @@ class UploadData : public base::RefCounted<UploadData> {
     uint64 file_range_length_;
     base::Time expected_file_modification_time_;
     GURL blob_url_;
+    bool is_last_chunk_;
     bool override_content_length_;
     bool content_length_computed_;
     uint64 content_length_;
@@ -118,6 +141,18 @@ class UploadData : public base::RefCounted<UploadData> {
                        const base::Time& expected_modification_time);
 
   void AppendBlob(const GURL& blob_url);
+
+  // Adds the given chunk of bytes to be sent immediately with chunked transfer
+  // encoding. Set bytes_len to zero for the last chunk.
+  void AppendChunk(const char* bytes, int bytes_len);
+
+  // Sets the callback to be invoked when a new chunk is available to upload.
+  void set_chunk_callback(ChunkCallback* callback);
+
+  // Initializes the object to send chunks of upload data over time rather
+  // than all at once.
+  void set_is_chunked(bool set) { is_chunked_ = set; }
+  bool is_chunked() const { return is_chunked_; }
 
   // Returns the total size in bytes of the data to upload.
   uint64 GetContentLength();
@@ -145,6 +180,8 @@ class UploadData : public base::RefCounted<UploadData> {
 
   std::vector<Element> elements_;
   int64 identifier_;
+  ChunkCallback* chunk_callback_;
+  bool is_chunked_;
 
   DISALLOW_COPY_AND_ASSIGN(UploadData);
 };

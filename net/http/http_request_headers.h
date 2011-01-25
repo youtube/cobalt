@@ -73,6 +73,7 @@ class HttpRequestHeaders {
   static const char kRange[];
   static const char kReferer[];
   static const char kUserAgent[];
+  static const char kTransferEncoding[];
 
   HttpRequestHeaders();
   ~HttpRequestHeaders();
