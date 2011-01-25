@@ -10,7 +10,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_request_info.h"
-#include "net/http/mock_allow_url_security_manager.h"
 #if defined(OS_WIN)
 #include "net/http/mock_sspi_library_win.h"
 #elif defined(OS_POSIX)
@@ -37,7 +36,7 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
     resolver_->rules()->AddIPLiteralRule("alias", "10.0.0.2",
                                            "canonical.example.com");
 
-    url_security_manager_.reset(new MockAllowURLSecurityManager());
+    url_security_manager_.reset(new URLSecurityManagerAllow());
     factory_.reset(new HttpAuthHandlerNegotiate::Factory());
     factory_->set_url_security_manager(url_security_manager_.get());
     factory_->set_library(auth_library_);
