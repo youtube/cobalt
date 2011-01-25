@@ -20,8 +20,8 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/scoped_ptr.h"
+#include "net/base/filter_unittest.h"
 #include "net/base/gzip_filter.h"
-#include "net/base/mock_filter_context.h"
 #include "net/base/io_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -243,7 +243,7 @@ TEST_F(GZipUnitTest, DecodeDeflate) {
   // Decode the compressed data with filter
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_DEFLATE);
-  net::MockFilterContext filter_context(kDefaultBufferSize);
+  MockFilterContext filter_context(kDefaultBufferSize);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   memcpy(filter->stream_buffer()->data(), deflate_encode_buffer_,
@@ -264,7 +264,7 @@ TEST_F(GZipUnitTest, DecodeGZip) {
   // Decode the compressed data with filter
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_GZIP);
-  net::MockFilterContext filter_context(kDefaultBufferSize);
+  MockFilterContext filter_context(kDefaultBufferSize);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   memcpy(filter->stream_buffer()->data(), gzip_encode_buffer_,
@@ -286,7 +286,7 @@ TEST_F(GZipUnitTest, DecodeGZip) {
 TEST_F(GZipUnitTest, DecodeWithSmallBuffer) {
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_DEFLATE);
-  net::MockFilterContext filter_context(kSmallBufferSize);
+  MockFilterContext filter_context(kSmallBufferSize);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   DecodeAndCompareWithFilter(filter.get(), source_buffer(), source_len(),
@@ -301,7 +301,7 @@ TEST_F(GZipUnitTest, DecodeWithSmallBuffer) {
 TEST_F(GZipUnitTest, DecodeWithOneByteBuffer) {
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_GZIP);
-  net::MockFilterContext filter_context(1);
+  MockFilterContext filter_context(1);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   DecodeAndCompareWithFilter(filter.get(), source_buffer(), source_len(),
@@ -313,7 +313,7 @@ TEST_F(GZipUnitTest, DecodeWithOneByteBuffer) {
 TEST_F(GZipUnitTest, DecodeWithSmallOutputBuffer) {
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_DEFLATE);
-  net::MockFilterContext filter_context(kDefaultBufferSize);
+  MockFilterContext filter_context(kDefaultBufferSize);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   DecodeAndCompareWithFilter(filter.get(), source_buffer(), source_len(),
@@ -326,7 +326,7 @@ TEST_F(GZipUnitTest, DecodeWithSmallOutputBuffer) {
 TEST_F(GZipUnitTest, DecodeWithOneByteInputAndOutputBuffer) {
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_GZIP);
-  net::MockFilterContext filter_context(1);
+  MockFilterContext filter_context(1);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   DecodeAndCompareWithFilter(filter.get(), source_buffer(), source_len(),
@@ -345,7 +345,7 @@ TEST_F(GZipUnitTest, DecodeCorruptedData) {
   // Decode the corrupted data with filter
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_DEFLATE);
-  net::MockFilterContext filter_context(kDefaultBufferSize);
+  MockFilterContext filter_context(kDefaultBufferSize);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   char corrupt_decode_buffer[kDefaultBufferSize];
@@ -372,7 +372,7 @@ TEST_F(GZipUnitTest, DecodeMissingData) {
   // Decode the corrupted data with filter
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_DEFLATE);
-  net::MockFilterContext filter_context(kDefaultBufferSize);
+  MockFilterContext filter_context(kDefaultBufferSize);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   char corrupt_decode_buffer[kDefaultBufferSize];
@@ -396,7 +396,7 @@ TEST_F(GZipUnitTest, DecodeCorruptedHeader) {
   // Decode the corrupted data with filter
   std::vector<Filter::FilterType> filter_types;
   filter_types.push_back(Filter::FILTER_TYPE_GZIP);
-  net::MockFilterContext filter_context(kDefaultBufferSize);
+  MockFilterContext filter_context(kDefaultBufferSize);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
   ASSERT_TRUE(filter.get());
   char corrupt_decode_buffer[kDefaultBufferSize];

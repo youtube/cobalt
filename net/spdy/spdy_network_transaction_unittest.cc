@@ -13,7 +13,7 @@
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_test_util.h"
-#include "net/url_request/url_request_test_util.h"
+#include "net/url_request/url_request_unittest.h"
 #include "testing/platform_test.h"
 
 //-----------------------------------------------------------------------------
