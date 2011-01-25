@@ -14,7 +14,7 @@
 #include "net/base/test_completion_callback.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket_stream/socket_stream.h"
-#include "net/url_request/url_request_test_util.h"
+#include "net/url_request/url_request_unittest.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
