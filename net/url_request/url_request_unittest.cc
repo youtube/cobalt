@@ -177,6 +177,31 @@ class URLRequestTestHTTP : public URLRequestTest {
     delete[] uploadBytes;
   }
 
+  void AddChunksToUpload(TestURLRequest* r) {
+    r->AppendChunkToUpload("a", 1);
+    r->AppendChunkToUpload("bcd", 3);
+    r->AppendChunkToUpload("this is a longer chunk than before.", 35);
+    r->AppendChunkToUpload("\r\n\r\n", 4);
+    r->AppendChunkToUpload("0", 1);
+    r->AppendChunkToUpload("2323", 4);
+    r->MarkEndOfChunks();
+  }
+
+  void VerifyReceivedDataMatchesChunks(TestURLRequest* r, TestDelegate* d) {
+    // This should match the chunks sent by AddChunksToUpload().
+    const char* expected_data =
+        "abcdthis is a longer chunk than before.\r\n\r\n02323";
+
+    ASSERT_EQ(1, d->response_started_count()) << "request failed: " <<
+        (int) r->status().status() << ", os error: " << r->status().os_error();
+
+    EXPECT_FALSE(d->received_data_before_response());
+
+    ASSERT_EQ(strlen(expected_data), static_cast<size_t>(d->bytes_received()));
+    EXPECT_EQ(0, memcmp(d->data_received().c_str(), expected_data,
+                        strlen(expected_data)));
+  }
+
   net::TestServer test_server_;
 };
 
@@ -636,6 +661,43 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
 
     ASSERT_EQ(size, d.bytes_received());
     EXPECT_EQ(0, memcmp(d.data_received().c_str(), buf.get(), size));
+  }
+}
+
+TEST_F(URLRequestTestHTTP, TestPostChunkedDataBeforeStart) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  {
+    TestURLRequest r(test_server_.GetURL("echo"), &d);
+    r.EnableChunkedUpload();
+    r.set_method("POST");
+    AddChunksToUpload(&r);
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    VerifyReceivedDataMatchesChunks(&r, &d);
+  }
+}
+
+TEST_F(URLRequestTestHTTP, TestPostChunkedDataAfterStart) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  {
+    TestURLRequest r(test_server_.GetURL("echo"), &d);
+    r.EnableChunkedUpload();
+    r.set_method("POST");
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->RunAllPending();
+    AddChunksToUpload(&r);
+    MessageLoop::current()->Run();
+
+    VerifyReceivedDataMatchesChunks(&r, &d);
   }
 }
 
