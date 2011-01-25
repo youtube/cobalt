@@ -451,6 +451,7 @@
           'dependencies': [
             '../app/app.gyp:app_unittests',
             '../base/base.gyp:base_unittests',
+            '../chrome/browser/chromeos/input_method/candidate_window.gyp:candidate_window',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:interactive_ui_tests',
@@ -473,8 +474,8 @@
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
+            '../views/views.gyp:views_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
-            '../chrome/browser/chromeos/input_method/candidate_window.gyp:candidate_window',
           ],
         },
       ],  # targets
