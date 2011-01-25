@@ -4,6 +4,8 @@
 
 #include "net/socket/tcp_client_socket_win.h"
 
+#include <mstcpip.h>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory_debug.h"
@@ -731,10 +733,26 @@ int TCPClientSocketWin::SetupSocket() {
   //    http://technet.microsoft.com/en-us/library/bb726981.aspx
   const BOOL kDisableNagle = TRUE;
   int rv = setsockopt(socket_, IPPROTO_TCP, TCP_NODELAY,
-      reinterpret_cast<const char*>(&kDisableNagle), sizeof(kDisableNagle));
+                      reinterpret_cast<const char*>(&kDisableNagle),
+                      sizeof(kDisableNagle));
   DCHECK(!rv) << "Could not disable nagle";
 
-  // Disregard any failure in disabling nagle.
+  // Enable TCP Keep-Alive to prevent NAT routers from timing out TCP
+  // connections. See http://crbug.com/27400 for details.
+
+  struct tcp_keepalive keepalive_vals = {
+    1, // TCP keep-alive on.
+    45000,  // Wait 45s until sending first TCP keep-alive packet.
+    45000,  // Wait 45s between sending TCP keep-alive packets.
+  };
+  DWORD bytes_returned = 0xABAB;
+  rv = WSAIoctl(socket_, SIO_KEEPALIVE_VALS, &keepalive_vals,
+                sizeof(keepalive_vals), NULL, 0,
+                &bytes_returned, NULL, NULL);
+  DCHECK(!rv) << "Could not enable TCP Keep-Alive for socket: " << socket_
+              << " [error: " << WSAGetLastError() << "].";
+
+  // Disregard any failure in disabling nagle or enabling TCP Keep-Alive.
   return 0;
 }
 
