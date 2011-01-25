@@ -589,6 +589,7 @@ CacheAddr EntryImpl::GetNextAddress() {
 }
 
 void EntryImpl::SetNextAddress(Addr address) {
+  DCHECK_NE(address.value(), entry_.address().value());
   entry_.Data()->next = address.value();
   bool success = entry_.Store();
   DCHECK(success);

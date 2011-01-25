@@ -49,6 +49,7 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
   void BackendRecoverInsert();
   void BackendRecoverRemove();
   void BackendInvalidEntry2();
+  void BackendInvalidEntry3();
   void BackendNotMarkedButDirty(const std::string& name);
   void BackendDoomAll();
   void BackendDoomAll2();
@@ -1318,7 +1319,96 @@ TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry2) {
   BackendInvalidEntry2();
 }
 
+// Tests that we don't crash or hang when enumerating this cache.
+void DiskCacheBackendTest::BackendInvalidEntry3() {
+  SetMask(0x1);  // 2-entry table.
+  SetMaxSize(0x3000);  // 12 kB.
+  DisableFirstCleanup();
+  InitCache();
+
+  disk_cache::Entry* entry;
+  void* iter = NULL;
+  while (OpenNextEntry(&iter, &entry) == net::OK) {
+    entry->Close();
+  }
+}
+
+TEST_F(DiskCacheBackendTest, InvalidEntry3) {
+  ASSERT_TRUE(CopyTestCache("dirty_entry3"));
+  BackendInvalidEntry3();
+}
+
 TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry3) {
+  ASSERT_TRUE(CopyTestCache("dirty_entry4"));
+  SetNewEviction();
+  BackendInvalidEntry3();
+  DisableIntegrityCheck();
+}
+
+// Test that we handle a dirty entry on the LRU list, already replaced with
+// the same key, and with hash collisions.
+TEST_F(DiskCacheBackendTest, InvalidEntry4) {
+  ASSERT_TRUE(CopyTestCache("dirty_entry3"));
+  SetMask(0x1);  // 2-entry table.
+  SetMaxSize(0x3000);  // 12 kB.
+  DisableFirstCleanup();
+  InitCache();
+
+  TrimForTest(false);
+}
+
+// Test that we handle a dirty entry on the deleted list, already replaced with
+// the same key, and with hash collisions.
+TEST_F(DiskCacheBackendTest, InvalidEntry5) {
+  ASSERT_TRUE(CopyTestCache("dirty_entry4"));
+  SetNewEviction();
+  SetMask(0x1);  // 2-entry table.
+  SetMaxSize(0x3000);  // 12 kB.
+  DisableFirstCleanup();
+  InitCache();
+
+  TrimDeletedListForTest(false);
+}
+
+// Tests that we don't hang when there is a loop on the hash collision list.
+// The test cache could be a result of bug 69135.
+TEST_F(DiskCacheBackendTest, BadNextEntry1) {
+  ASSERT_TRUE(CopyTestCache("list_loop2"));
+  SetMask(0x1);  // 2-entry table.
+  SetMaxSize(0x3000);  // 12 kB.
+  DisableFirstCleanup();
+  InitCache();
+
+  // The second entry points at itselft, and the first entry is not accessible
+  // though the index, but it is at the head of the LRU.
+
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry("The first key", &entry));
+  entry->Close();
+
+  TrimForTest(false);
+  TrimForTest(false);
+  ASSERT_EQ(net::OK, OpenEntry("The first key", &entry));
+  entry->Close();
+  EXPECT_EQ(1, cache_->GetEntryCount());
+}
+
+// Tests that we don't hang when there is a loop on the hash collision list.
+// The test cache could be a result of bug 69135.
+TEST_F(DiskCacheBackendTest, BadNextEntry2) {
+  ASSERT_TRUE(CopyTestCache("list_loop3"));
+  SetMask(0x1);  // 2-entry table.
+  SetMaxSize(0x3000);  // 12 kB.
+  DisableFirstCleanup();
+  InitCache();
+
+  // There is a wide loop of 5 entries.
+
+  disk_cache::Entry* entry;
+  ASSERT_NE(net::OK, OpenEntry("Not present key", &entry));
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionInvalidEntry6) {
   ASSERT_TRUE(CopyTestCache("bad_rankings3"));
   DisableFirstCleanup();
   SetNewEviction();
