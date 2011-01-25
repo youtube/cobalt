@@ -1339,7 +1339,8 @@ class SyncPageHandler(BasePageHandler):
     if not self._ShouldHandleRequest(test_name):
       return False
 
-    raw_request = self.ReadRequestBody()
+    length = int(self.headers.getheader('content-length'))
+    raw_request = self.rfile.read(length)
 
     http_response, raw_reply = self.server.HandleCommand(
         self.path, raw_request)
