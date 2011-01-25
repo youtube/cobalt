@@ -75,6 +75,7 @@ v8.log
 /third_party/cros
 /third_party/cygwin
 /third_party/directxsdk
+/third_party/drmemory
 /third_party/flac
 /third_party/ffmpeg
 /third_party/gles2_conform
@@ -119,7 +120,6 @@ v8.log
 /tools/page_cycler/acid3
 /tools/tryserver
 /v8
-/valgrind.tmp
 /webkit/Debug
 /webkit/Release
 /webkit/data/bmp_decoder
