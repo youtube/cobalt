@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/base/filter.h"
-#include "net/base/filter_unittest.h"
+#include "net/base/mock_filter_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 class FilterTest : public testing::Test {
@@ -36,7 +36,7 @@ TEST(FilterTest, ContentTypeId) {
 // Check various fixups that modify content encoding lists.
 TEST(FilterTest, ApacheGzip) {
   const int kInputBufferSize(100);
-  MockFilterContext filter_context(kInputBufferSize);
+  net::MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetSdchResponse(false);
 
   // Check that redundant gzip mime type removes only solo gzip encoding.
@@ -85,7 +85,7 @@ TEST(FilterTest, SdchEncoding) {
   // Handle content encodings including SDCH.
   const std::string kTextHtmlMime("text/html");
   const int kInputBufferSize(100);
-  MockFilterContext filter_context(kInputBufferSize);
+  net::MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetSdchResponse(true);
 
   std::vector<Filter::FilterType> encoding_types;
@@ -123,7 +123,7 @@ TEST(FilterTest, MissingSdchEncoding) {
   // Handle interesting case where entire SDCH encoding assertion "got lost."
   const std::string kTextHtmlMime("text/html");
   const int kInputBufferSize(100);
-  MockFilterContext filter_context(kInputBufferSize);
+  net::MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetSdchResponse(true);
 
   std::vector<Filter::FilterType> encoding_types;
@@ -159,7 +159,7 @@ TEST(FilterTest, MissingSdchEncoding) {
 
 TEST(FilterTest, Svgz) {
   const int kInputBufferSize(100);
-  MockFilterContext filter_context(kInputBufferSize);
+  net::MockFilterContext filter_context(kInputBufferSize);
 
   // Check that svgz files are only decompressed when not downloading.
   const std::string kSvgzMime("image/svg+xml");
@@ -208,7 +208,7 @@ TEST(FilterTest, Svgz) {
 TEST(FilterTest, UnsupportedMimeGzip) {
   // From issue 8170 - handling files with Content-Encoding: x-gzip
   const int kInputBufferSize(100);
-  MockFilterContext filter_context(kInputBufferSize);
+  net::MockFilterContext filter_context(kInputBufferSize);
   std::vector<Filter::FilterType> encoding_types;
   const std::string kTarMime("application/x-tar");
   const std::string kCpioMime("application/x-cpio");
@@ -296,7 +296,7 @@ TEST(FilterTest, SupportedMimeGzip) {
   // From issue 16430 - Files with supported mime types should be decompressed,
   // even though these files end in .gz/.tgz.
   const int kInputBufferSize(100);
-  MockFilterContext filter_context(kInputBufferSize);
+  net::MockFilterContext filter_context(kInputBufferSize);
   std::vector<Filter::FilterType> encoding_types;
   const std::string kGzUrl("http://ignore.com/foo.gz");
   const std::string kUrl("http://ignore.com/foo");
