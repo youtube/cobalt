@@ -8,15 +8,11 @@
 
 #include "net/http/http_transaction.h"
 
-#include <algorithm>
 #include <string>
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/message_loop.h"
 #include "base/string16.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -26,6 +22,10 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
+
+namespace net {
+class IOBuffer;
+}
 
 //-----------------------------------------------------------------------------
 // mock transaction data
@@ -97,12 +97,7 @@ struct ScopedMockTransaction : MockTransaction {
 
 class MockHttpRequest : public net::HttpRequestInfo {
  public:
-  explicit MockHttpRequest(const MockTransaction& t) {
-    url = GURL(t.url);
-    method = t.method;
-    extra_headers.AddHeadersFromString(t.request_headers);
-    load_flags = t.load_flags;
-  }
+  explicit MockHttpRequest(const MockTransaction& t);
 };
 
 //-----------------------------------------------------------------------------
@@ -110,25 +105,11 @@ class MockHttpRequest : public net::HttpRequestInfo {
 
 class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
  public:
-  explicit TestTransactionConsumer(net::HttpTransactionFactory* factory)
-      : state_(IDLE),
-        trans_(NULL),
-        error_(net::OK) {
-    // Disregard the error code.
-    factory->CreateTransaction(&trans_);
-    ++quit_counter_;
-  }
-
-  ~TestTransactionConsumer() {
-  }
+  explicit TestTransactionConsumer(net::HttpTransactionFactory* factory);
+  virtual ~TestTransactionConsumer();
 
   void Start(const net::HttpRequestInfo* request,
-             const net::BoundNetLog& net_log) {
-    state_ = STARTING;
-    int result = trans_->Start(request, this, net_log);
-    if (result != net::ERR_IO_PENDING)
-      DidStart(result);
-  }
+             const net::BoundNetLog& net_log);
 
   bool is_done() const { return state_ == DONE; }
   int error() const { return error_; }
@@ -139,60 +120,22 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
   const std::string& content() const { return content_; }
 
  private:
-  // Callback implementation:
-  virtual void RunWithParams(const Tuple1<int>& params) {
-    int result = params.a;
-    switch (state_) {
-      case STARTING:
-        DidStart(result);
-        break;
-      case READING:
-        DidRead(result);
-        break;
-      default:
-        NOTREACHED();
-    }
-  }
-
-  void DidStart(int result) {
-    if (result != net::OK) {
-      DidFinish(result);
-    } else {
-      Read();
-    }
-  }
-
-  void DidRead(int result) {
-    if (result <= 0) {
-      DidFinish(result);
-    } else {
-      content_.append(read_buf_->data(), result);
-      Read();
-    }
-  }
-
-  void DidFinish(int result) {
-    state_ = DONE;
-    error_ = result;
-    if (--quit_counter_ == 0)
-      MessageLoop::current()->Quit();
-  }
-
-  void Read() {
-    state_ = READING;
-    read_buf_ = new net::IOBuffer(1024);
-    int result = trans_->Read(read_buf_, 1024, this);
-    if (result != net::ERR_IO_PENDING)
-      DidRead(result);
-  }
-
   enum State {
     IDLE,
     STARTING,
     READING,
     DONE
-  } state_;
+  };
 
+  void DidStart(int result);
+  void DidRead(int result);
+  void DidFinish(int result);
+  void Read();
+
+  // Callback implementation:
+  virtual void RunWithParams(const Tuple1<int>& params);
+
+  State state_;
   scoped_ptr<net::HttpTransaction> trans_;
   std::string content_;
   scoped_refptr<net::IOBuffer> read_buf_;
@@ -210,107 +153,38 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
 // HttpCache implementation.
 class MockNetworkTransaction : public net::HttpTransaction {
  public:
-  MockNetworkTransaction() :
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)), data_cursor_(0) {
-  }
+  MockNetworkTransaction();
+  virtual ~MockNetworkTransaction();
 
   virtual int Start(const net::HttpRequestInfo* request,
                     net::CompletionCallback* callback,
-                    const net::BoundNetLog& net_log) {
-    const MockTransaction* t = FindMockTransaction(request->url);
-    if (!t)
-      return net::ERR_FAILED;
+                    const net::BoundNetLog& net_log);
 
-    std::string resp_status = t->status;
-    std::string resp_headers = t->response_headers;
-    std::string resp_data = t->data;
-    if (t->handler)
-      (t->handler)(request, &resp_status, &resp_headers, &resp_data);
-
-    std::string header_data = base::StringPrintf(
-        "%s\n%s\n", resp_status.c_str(), resp_headers.c_str());
-    std::replace(header_data.begin(), header_data.end(), '\n', '\0');
-
-    response_.request_time = base::Time::Now();
-    if (!t->request_time.is_null())
-      response_.request_time = t->request_time;
-
-    response_.was_cached = false;
-
-    response_.response_time = base::Time::Now();
-    if (!t->response_time.is_null())
-      response_.response_time = t->response_time;
-
-    response_.headers = new net::HttpResponseHeaders(header_data);
-    response_.ssl_info.cert_status = t->cert_status;
-    data_ = resp_data;
-    test_mode_ = t->test_mode;
-
-    if (test_mode_ & TEST_MODE_SYNC_NET_START)
-      return net::OK;
-
-    CallbackLater(callback, net::OK);
-    return net::ERR_IO_PENDING;
-  }
-
-  virtual int RestartIgnoringLastError(net::CompletionCallback* callback) {
-    return net::ERR_FAILED;
-  }
+  virtual int RestartIgnoringLastError(net::CompletionCallback* callback);
 
   virtual int RestartWithCertificate(net::X509Certificate* client_cert,
-                                     net::CompletionCallback* callback) {
-    return net::ERR_FAILED;
-  }
+                                     net::CompletionCallback* callback);
 
   virtual int RestartWithAuth(const string16& username,
                               const string16& password,
-                              net::CompletionCallback* callback) {
-    return net::ERR_FAILED;
-  }
+                              net::CompletionCallback* callback);
 
-  virtual bool IsReadyToRestartForAuth() {
-    return false;
-  }
+  virtual bool IsReadyToRestartForAuth();
 
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback) {
-    int data_len = static_cast<int>(data_.size());
-    int num = std::min(buf_len, data_len - data_cursor_);
-    if (num) {
-      memcpy(buf->data(), data_.data() + data_cursor_, num);
-      data_cursor_ += num;
-    }
-    if (test_mode_ & TEST_MODE_SYNC_NET_READ)
-      return num;
+                   net::CompletionCallback* callback);
 
-    CallbackLater(callback, num);
-    return net::ERR_IO_PENDING;
-  }
+  virtual void StopCaching();
 
-  virtual void StopCaching() {}
+  virtual const net::HttpResponseInfo* GetResponseInfo() const;
 
-  virtual const net::HttpResponseInfo* GetResponseInfo() const {
-    return &response_;
-  }
+  virtual net::LoadState GetLoadState() const;
 
-  virtual net::LoadState GetLoadState() const {
-    if (data_cursor_)
-      return net::LOAD_STATE_READING_RESPONSE;
-    return net::LOAD_STATE_IDLE;
-  }
-
-  virtual uint64 GetUploadProgress() const {
-    return 0;
-  }
+  virtual uint64 GetUploadProgress() const;
 
  private:
-  void CallbackLater(net::CompletionCallback* callback, int result) {
-    MessageLoop::current()->PostTask(FROM_HERE, task_factory_.NewRunnableMethod(
-        &MockNetworkTransaction::RunCallback, callback, result));
-  }
-  void RunCallback(net::CompletionCallback* callback, int result) {
-    callback->Run(result);
-  }
+  void CallbackLater(net::CompletionCallback* callback, int result);
+  void RunCallback(net::CompletionCallback* callback, int result);
 
   ScopedRunnableMethodFactory<MockNetworkTransaction> task_factory_;
   net::HttpResponseInfo response_;
@@ -321,31 +195,20 @@ class MockNetworkTransaction : public net::HttpTransaction {
 
 class MockNetworkLayer : public net::HttpTransactionFactory {
  public:
-  MockNetworkLayer() : transaction_count_(0) {
-  }
-
-  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans) {
-    transaction_count_++;
-    trans->reset(new MockNetworkTransaction());
-    return net::OK;
-  }
-
-  virtual net::HttpCache* GetCache() {
-    return NULL;
-  }
-
-  virtual net::HttpNetworkSession* GetSession() {
-    return NULL;
-  }
-
-  virtual void Suspend(bool suspend) {}
+  MockNetworkLayer();
+  virtual ~MockNetworkLayer();
 
   int transaction_count() const { return transaction_count_; }
+
+  // net::HttpTransactionFactory:
+  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans);
+  virtual net::HttpCache* GetCache();
+  virtual net::HttpNetworkSession* GetSession();
+  virtual void Suspend(bool suspend);
 
  private:
   int transaction_count_;
 };
-
 
 //-----------------------------------------------------------------------------
 // helpers
