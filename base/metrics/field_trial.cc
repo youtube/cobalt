@@ -114,6 +114,8 @@ void FieldTrial::EnableBenchmarking() {
   enable_benchmarking_ = true;
 }
 
+FieldTrial::~FieldTrial() {}
+
 // static
 Time FieldTrial::GetBuildTime() {
   Time integral_build_time;
@@ -123,8 +125,6 @@ Time FieldTrial::GetBuildTime() {
   DCHECK(result);
   return integral_build_time;
 }
-
-FieldTrial::~FieldTrial() {}
 
 //------------------------------------------------------------------------------
 // FieldTrialList methods and members.
