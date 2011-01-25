@@ -43,7 +43,10 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
   DCHECK_EQ(0, read_buffer->offset());
 }
 
-HttpStreamParser::~HttpStreamParser() {}
+HttpStreamParser::~HttpStreamParser() {
+  if (request_body_ != NULL && request_body_->is_chunked())
+    request_body_->set_chunk_callback(NULL);
+}
 
 int HttpStreamParser::SendRequest(const std::string& request_line,
                                   const HttpRequestHeaders& headers,
@@ -67,6 +70,8 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   request_headers_ = new DrainableIOBuffer(headers_io_buf,
                                            headers_io_buf->size());
   request_body_.reset(request_body);
+  if (request_body_ != NULL && request_body_->is_chunked())
+    request_body_->set_chunk_callback(this);
 
   io_state_ = STATE_SENDING_HEADERS;
   int result = DoLoop(OK);
@@ -143,6 +148,16 @@ void HttpStreamParser::OnIOComplete(int result) {
   }
 }
 
+void HttpStreamParser::OnChunkAvailable() {
+  // This method may get called while sending the headers or body, so check
+  // before processing the new data. If we were still initializing or sending
+  // headers, we will automatically start reading the chunks once we get into
+  // STATE_SENDING_BODY so nothing to do here.
+  DCHECK(io_state_ == STATE_SENDING_HEADERS || io_state_ == STATE_SENDING_BODY);
+  if (io_state_ == STATE_SENDING_BODY)
+    OnIOComplete(0);
+}
+
 int HttpStreamParser::DoLoop(int result) {
   bool can_do_more = true;
   do {
@@ -208,12 +223,16 @@ int HttpStreamParser::DoSendHeaders(int result) {
       // We'll record the count of uncoalesced packets IFF coalescing will help,
       // and otherwise we'll use an enum to tell why it won't help.
       enum COALESCE_POTENTIAL {
-        NO_ADVANTAGE = 0,   // Coalescing won't reduce packet count.
-        HEADER_ONLY = 1,    // There is only a header packet (can't coalesce).
-        COALESCE_POTENTIAL_MAX = 30 // Various cases of coalasced savings.
+        // Coalescing won't reduce packet count.
+        NO_ADVANTAGE = 0,
+        // There is only a header packet or we have a request body but the
+        // request body isn't available yet (can't coalesce).
+        HEADER_ONLY = 1,
+        // Various cases of coalasced savings.
+        COALESCE_POTENTIAL_MAX = 30
       };
       size_t coalesce = HEADER_ONLY;
-      if (request_body_ != NULL) {
+      if (request_body_ != NULL && !request_body_->is_chunked()) {
         const size_t kBytesPerPacket = 1430;
         uint64 body_packets = (request_body_->size() + kBytesPerPacket - 1) /
                               kBytesPerPacket;
@@ -236,7 +255,8 @@ int HttpStreamParser::DoSendHeaders(int result) {
     result = connection_->socket()->Write(request_headers_,
                                           bytes_remaining,
                                           &io_callback_);
-  } else if (request_body_ != NULL && request_body_->size()) {
+  } else if (request_body_ != NULL &&
+             (request_body_->is_chunked() || request_body_->size())) {
     io_state_ = STATE_SENDING_BODY;
     result = OK;
   } else {
@@ -246,13 +266,17 @@ int HttpStreamParser::DoSendHeaders(int result) {
 }
 
 int HttpStreamParser::DoSendBody(int result) {
-  if (result > 0)
-    request_body_->DidConsume(result);
+  request_body_->MarkConsumedAndFillBuffer(result);
 
   if (!request_body_->eof()) {
     int buf_len = static_cast<int>(request_body_->buf_len());
-    result = connection_->socket()->Write(request_body_->buf(), buf_len,
-                                          &io_callback_);
+    if (buf_len) {
+      result = connection_->socket()->Write(request_body_->buf(), buf_len,
+                                            &io_callback_);
+    } else {
+      // More POST data is to come hence wait for the callback.
+      result = ERR_IO_PENDING;
+    }
   } else {
     io_state_ = STATE_REQUEST_SENT;
   }

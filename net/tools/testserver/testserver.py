@@ -593,6 +593,26 @@ class TestPageHandler(BasePageHandler):
 
     return True
 
+  def ReadRequestBody(self):
+    """This function reads the body of the current HTTP request, handling
+    both plain and chunked transfer encoded requests."""
+
+    if self.headers.getheader('transfer-encoding') != 'chunked':
+      length = int(self.headers.getheader('content-length'))
+      return self.rfile.read(length)
+
+    # Read the request body as chunks.
+    body = ""
+    while True:
+      line = self.rfile.readline()
+      length = int(line, 16)
+      if length == 0:
+        self.rfile.readline()
+        break
+      body += self.rfile.read(length)
+      self.rfile.read(2)
+    return body
+
   def EchoHandler(self):
     """This handler just echoes back the payload of the request, for testing
     form submission."""
@@ -603,9 +623,7 @@ class TestPageHandler(BasePageHandler):
     self.send_response(200)
     self.send_header('Content-type', 'text/html')
     self.end_headers()
-    length = int(self.headers.getheader('content-length'))
-    request = self.rfile.read(length)
-    self.wfile.write(request)
+    self.wfile.write(self.ReadRequestBody())
     return True
 
   def EchoTitleHandler(self):
@@ -617,8 +635,7 @@ class TestPageHandler(BasePageHandler):
     self.send_response(200)
     self.send_header('Content-type', 'text/html')
     self.end_headers()
-    length = int(self.headers.getheader('content-length'))
-    request = self.rfile.read(length)
+    request = self.ReadRequestBody()
     self.wfile.write('<html><head><title>')
     self.wfile.write(request)
     self.wfile.write('</title></head></html>')
@@ -642,8 +659,7 @@ class TestPageHandler(BasePageHandler):
       '<h1>Request Body:</h1><pre>')
 
     if self.command == 'POST' or self.command == 'PUT':
-      length = int(self.headers.getheader('content-length'))
-      qs = self.rfile.read(length)
+      qs = self.ReadRequestBody()
       params = cgi.parse_qs(qs, keep_blank_values=1)
 
       for param in params:
@@ -745,7 +761,7 @@ class TestPageHandler(BasePageHandler):
 
     # Consume a request body if present.
     if self.command == 'POST' or self.command == 'PUT' :
-      self.rfile.read(int(self.headers.getheader('content-length')))
+      self.ReadRequestBody()
 
     _, _, url_path, _, query, _ = urlparse.urlparse(self.path)
     sub_path = url_path[len(prefix):]
@@ -1262,8 +1278,7 @@ class TestPageHandler(BasePageHandler):
     if not self._ShouldHandleRequest("/device_management"):
       return False
 
-    length = int(self.headers.getheader('content-length'))
-    raw_request = self.rfile.read(length)
+    raw_request = self.ReadRequestBody()
 
     if not self.server._device_management_handler:
       import device_management
@@ -1324,8 +1339,7 @@ class SyncPageHandler(BasePageHandler):
     if not self._ShouldHandleRequest(test_name):
       return False
 
-    length = int(self.headers.getheader('content-length'))
-    raw_request = self.rfile.read(length)
+    raw_request = self.ReadRequestBody()
 
     http_response, raw_reply = self.server.HandleCommand(
         self.path, raw_request)
