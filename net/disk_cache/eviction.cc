@@ -82,6 +82,7 @@ void Eviction::Init(BackendImpl* backend) {
   delay_trim_ = false;
   trim_delays_ = 0;
   init_ = true;
+  test_mode_ = false;
   in_experiment_ = (header_->experiment == EXPERIMENT_DELETED_LIST_IN);
 }
 
@@ -125,11 +126,13 @@ void Eviction::TrimCache(bool empty) {
       // This entry is not being used by anybody.
       // Do NOT use node as an iterator after this point.
       rankings_->TrackRankingsBlock(node.get(), false);
-      if (!EvictEntry(node.get(), empty))
+      if (!EvictEntry(node.get(), empty) && !test_mode_)
         continue;
 
       if (!empty) {
         backend_->OnEvent(Stats::TRIM_ENTRY);
+        if (test_mode_)
+          break;
 
         if ((TimeTicks::Now() - start).InMilliseconds() > 20) {
           MessageLoop::current()->PostTask(FROM_HERE,
@@ -180,6 +183,15 @@ void Eviction::OnDoomEntry(EntryImpl* entry) {
 void Eviction::OnDestroyEntry(EntryImpl* entry) {
   if (new_eviction_)
     return OnDestroyEntryV2(entry);
+}
+
+void Eviction::SetTestMode() {
+  test_mode_ = true;
+}
+
+void Eviction::TrimDeletedList(bool empty) {
+  DCHECK(test_mode_ && new_eviction_);
+  TrimDeleted(empty);
 }
 
 void Eviction::PostDelayedTrim() {
@@ -242,7 +254,7 @@ Rankings::List Eviction::GetListForEntry(EntryImpl* entry) {
 }
 
 bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
-  EntryImpl* entry = backend_->GetEnumeratedEntry(node, true);
+  EntryImpl* entry = backend_->GetEnumeratedEntry(node);
   if (!entry) {
     Trace("NewEntry failed on Trim 0x%x", node->address().value());
     return false;
@@ -320,8 +332,11 @@ void Eviction::TrimCacheV2(bool empty) {
         // This entry is not being used by anybody.
         // Do NOT use node as an iterator after this point.
         rankings_->TrackRankingsBlock(node.get(), false);
-        if (!EvictEntry(node.get(), empty))
+        if (!EvictEntry(node.get(), empty) && !test_mode_)
           continue;
+
+        if (!empty && test_mode_)
+          break;
 
         if (!empty && (TimeTicks::Now() - start).InMilliseconds() > 20) {
           MessageLoop::current()->PostTask(FROM_HERE,
@@ -336,7 +351,8 @@ void Eviction::TrimCacheV2(bool empty) {
 
   if (empty) {
     TrimDeleted(true);
-  } else if (header_->lru.sizes[Rankings::DELETED] > header_->num_entries / 4) {
+  } else if (header_->lru.sizes[Rankings::DELETED] > header_->num_entries / 4 &&
+             !test_mode_) {
     MessageLoop::current()->PostTask(FROM_HERE,
         factory_.NewRunnableMethod(&Eviction::TrimDeleted, empty));
   }
@@ -451,6 +467,8 @@ void Eviction::TrimDeleted(bool empty) {
     node.reset(next.release());
     next.reset(rankings_->GetPrev(node.get(), Rankings::DELETED));
     deleted |= RemoveDeletedNode(node.get());
+    if (test_mode_)
+      break;
   }
 
   // Normally we use 25% for each list. The experiment doubles the number of
@@ -459,10 +477,11 @@ void Eviction::TrimDeleted(bool empty) {
   // lists intact.
   int max_length = in_experiment_ ? header_->num_entries * 2 / 5 :
                                     header_->num_entries / 4;
-  if (deleted && !empty &&
-      header_->lru.sizes[Rankings::DELETED] > max_length)
+  if (deleted && !empty && !test_mode_ &&
+      header_->lru.sizes[Rankings::DELETED] > max_length) {
     MessageLoop::current()->PostTask(FROM_HERE,
         factory_.NewRunnableMethod(&Eviction::TrimDeleted, false));
+  }
 
   CACHE_UMA(AGE_MS, "TotalTrimDeletedTime", 0, start);
   Trace("*** Trim Deleted end ***");
@@ -470,19 +489,12 @@ void Eviction::TrimDeleted(bool empty) {
 }
 
 bool Eviction::RemoveDeletedNode(CacheRankingsBlock* node) {
-  EntryImpl* entry;
-  bool dirty;
-  if (backend_->NewEntry(Addr(node->Data()->contents), &entry, &dirty)) {
+  EntryImpl* entry = backend_->GetEnumeratedEntry(node);
+  if (!entry) {
     Trace("NewEntry failed on Trim 0x%x", node->address().value());
     return false;
   }
 
-  // TODO(rvargas): figure out how to deal with corruption at this point (dirty
-  // entries that live in this list).
-  if (node->Data()->dirty) {
-    // We ignore the failure; we're removing the entry anyway.
-    entry->Update();
-  }
   bool doomed = (entry->entry()->Data()->state == ENTRY_DOOMED);
   entry->entry()->Data()->state = ENTRY_DOOMED;
   entry->DoomImpl();

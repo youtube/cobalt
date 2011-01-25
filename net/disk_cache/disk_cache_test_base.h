@@ -107,6 +107,14 @@ class DiskCacheTestWithCache : public DiskCacheTest {
   int WriteSparseData(disk_cache::Entry* entry, int64 offset,
                       net::IOBuffer* buf, int len);
 
+  // Asks the cache to trim a an entry. If |empty| is true, the whole entry is
+  // deleted.
+  void TrimForTest(bool empty);
+
+  // Asks the cache to trim a an entry from the deleted list. If |empty| is
+  // true, the whole entry is deleted.
+  void TrimDeletedListForTest(bool empty);
+
   // DiskCacheTest:
   virtual void TearDown();
 

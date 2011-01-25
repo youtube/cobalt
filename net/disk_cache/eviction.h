@@ -40,6 +40,10 @@ class Eviction {
   void OnDoomEntry(EntryImpl* entry);
   void OnDestroyEntry(EntryImpl* entry);
 
+  // Testing interface.
+  void SetTestMode();
+  void TrimDeletedList(bool empty);
+
  private:
   void PostDelayedTrim();
   void DelayedTrim();
@@ -75,6 +79,7 @@ class Eviction {
   bool trimming_;
   bool delay_trim_;
   bool init_;
+  bool test_mode_;
   bool in_experiment_;
   ScopedRunnableMethodFactory<Eviction> factory_;
 
