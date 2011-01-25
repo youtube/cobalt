@@ -176,6 +176,35 @@ int DiskCacheTestWithCache::WriteSparseData(disk_cache::Entry* entry,
   return cb.GetResult(rv);
 }
 
+// Simple task to run part of a test from the cache thread.
+class TrimTask : public Task {
+ public:
+  TrimTask(disk_cache::BackendImpl* backend, bool deleted, bool empty)
+      : backend_(backend),
+        deleted_(deleted),
+        empty_(empty) {}
+
+  virtual void Run() {
+    if (deleted_)
+      backend_->TrimDeletedListForTest(empty_);
+    else
+      backend_->TrimForTest(empty_);
+  }
+
+ protected:
+  disk_cache::BackendImpl* backend_;
+  bool deleted_;
+  bool empty_;
+};
+
+void DiskCacheTestWithCache::TrimForTest(bool empty) {
+  RunTaskForTest(new TrimTask(cache_impl_, false, empty));
+}
+
+void DiskCacheTestWithCache::TrimDeletedListForTest(bool empty) {
+  RunTaskForTest(new TrimTask(cache_impl_, true, empty));
+}
+
 void DiskCacheTestWithCache::TearDown() {
   MessageLoop::current()->RunAllPending();
   delete cache_;

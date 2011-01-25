@@ -6,6 +6,7 @@
 // to the actual files (they still may change if an error is detected on the
 // files).
 
+#include <set>
 #include <stdio.h>
 #include <string>
 
@@ -67,6 +68,7 @@ void DumpIndexHeader(const std::wstring& name) {
   for (int i = 0; i < 5; i++) {
     printf("head %d: 0x%x\n", i, header.lru.heads[i]);
     printf("tail %d: 0x%x\n", i, header.lru.tails[i]);
+    printf("size %d: 0x%x\n", i, header.lru.sizes[i]);
   }
   printf("transaction: 0x%x\n", header.lru.transaction);
   printf("operation: %d\n", header.lru.operation);
@@ -131,6 +133,7 @@ class CacheDumper {
   disk_cache::Index* index_;
   int current_hash_;
   disk_cache::CacheAddr next_addr_;
+  std::set<disk_cache::CacheAddr> dumped_entries_;
   DISALLOW_COPY_AND_ASSIGN(CacheDumper);
 };
 
@@ -154,17 +157,19 @@ bool CacheDumper::Init() {
 }
 
 bool CacheDumper::GetEntry(disk_cache::EntryStore* entry) {
+  if (dumped_entries_.find(next_addr_) != dumped_entries_.end()) {
+    printf("Loop detected\n");
+    next_addr_ = 0;
+    current_hash_++;
+  }
+
   if (next_addr_) {
-    if (LoadEntry(next_addr_, entry)) {
-      next_addr_ = entry->next;
-      if (!next_addr_)
-        current_hash_++;
+    if (LoadEntry(next_addr_, entry))
       return true;
-    } else {
-      printf("Unable to load entry at address 0x%x\n", next_addr_);
-      next_addr_ = 0;
-      current_hash_++;
-    }
+
+    printf("Unable to load entry at address 0x%x\n", next_addr_);
+    next_addr_ = 0;
+    current_hash_++;
   }
 
   for (int i = current_hash_; i < index_->header.table_len; i++) {
@@ -172,14 +177,10 @@ bool CacheDumper::GetEntry(disk_cache::EntryStore* entry) {
     // dumping every entry that we can find.
     if (index_->table[i]) {
       current_hash_ = i;
-      if (LoadEntry(index_->table[i], entry)) {
-        next_addr_ = entry->next;
-        if (!next_addr_)
-          current_hash_++;
+      if (LoadEntry(index_->table[i], entry))
         return true;
-      } else {
-        printf("Unable to load entry at address 0x%x\n", index_->table[i]);
-      }
+
+      printf("Unable to load entry at address 0x%x\n", index_->table[i]);
     }
   }
   return false;
@@ -198,6 +199,15 @@ bool CacheDumper::LoadEntry(disk_cache::CacheAddr addr,
 
   memcpy(entry, entry_block.Data(), sizeof(*entry));
   printf("Entry at 0x%x\n", addr);
+
+  // Prepare for the next entry to load.
+  next_addr_ = entry->next;
+  if (next_addr_) {
+    dumped_entries_.insert(addr);
+  } else {
+    current_hash_++;
+    dumped_entries_.clear();
+  }
   return true;
 }
 
