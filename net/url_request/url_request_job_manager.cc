@@ -39,15 +39,6 @@ static const SchemeToFactory kBuiltinFactories[] = {
   { "data", URLRequestDataJob::Factory },
 };
 
-URLRequestJobManager::URLRequestJobManager() : enable_file_access_(false) {
-#ifndef NDEBUG
-  allowed_thread_ = 0;
-  allowed_thread_initialized_ = false;
-#endif
-}
-
-URLRequestJobManager::~URLRequestJobManager() {}
-
 // static
 URLRequestJobManager* URLRequestJobManager::GetInstance() {
   return Singleton<URLRequestJobManager>::get();
@@ -214,5 +205,14 @@ void URLRequestJobManager::UnregisterRequestInterceptor(
   DCHECK(i != interceptors_.end());
   interceptors_.erase(i);
 }
+
+URLRequestJobManager::URLRequestJobManager() : enable_file_access_(false) {
+#ifndef NDEBUG
+  allowed_thread_ = 0;
+  allowed_thread_initialized_ = false;
+#endif
+}
+
+URLRequestJobManager::~URLRequestJobManager() {}
 
 }  // namespace net

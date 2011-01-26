@@ -78,6 +78,7 @@ class HttpNetworkLayer : public HttpTransactionFactory,
       HttpAuthHandlerFactory* http_auth_handler_factory,
       HttpNetworkDelegate* network_delegate,
       NetLog* net_log);
+
   // Create a transaction factory that instantiate a network layer over an
   // existing network session. Network session contains some valuable
   // information (e.g. authentication data) that we want to share across
@@ -85,12 +86,6 @@ class HttpNetworkLayer : public HttpTransactionFactory,
   // of a network layer, use this method with an existing network layer only
   // when network session is shared.
   static HttpTransactionFactory* CreateFactory(HttpNetworkSession* session);
-
-  // HttpTransactionFactory methods:
-  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
-  virtual HttpCache* GetCache();
-  virtual HttpNetworkSession* GetSession();
-  virtual void Suspend(bool suspend);
 
   // Enable the spdy protocol.
   // Without calling this function, SPDY is disabled.  The mode can be:
@@ -101,6 +96,12 @@ class HttpNetworkLayer : public HttpTransactionFactory,
   //   "flow-control": enables flow control.
   //   "none"        : disables both SSL and compression.
   static void EnableSpdy(const std::string& mode);
+
+  // HttpTransactionFactory methods:
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
+  virtual HttpCache* GetCache();
+  virtual HttpNetworkSession* GetSession();
+  virtual void Suspend(bool suspend);
 
  private:
   // The factory we will use to create network sockets.

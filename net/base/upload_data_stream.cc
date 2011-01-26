@@ -12,6 +12,9 @@
 
 namespace net {
 
+UploadDataStream::~UploadDataStream() {
+}
+
 UploadDataStream* UploadDataStream::Create(UploadData* data, int* error_code) {
   scoped_ptr<UploadDataStream> stream(new UploadDataStream(data));
   int rv = stream->FillBuf();
@@ -48,9 +51,6 @@ UploadDataStream::UploadDataStream(UploadData* data)
       total_size_(data->is_chunked() ? 0 : data->GetContentLength()),
       current_position_(0),
       eof_(false) {
-}
-
-UploadDataStream::~UploadDataStream() {
 }
 
 int UploadDataStream::FillBuf() {

@@ -28,25 +28,6 @@ struct HttpRequestInfo;
 // factory.
 class HttpCache::Transaction : public HttpTransaction {
  public:
-  Transaction(HttpCache* cache);
-  virtual ~Transaction();
-
-  // HttpTransaction methods:
-  virtual int Start(const HttpRequestInfo*, CompletionCallback*,
-                    const BoundNetLog&);
-  virtual int RestartIgnoringLastError(CompletionCallback* callback);
-  virtual int RestartWithCertificate(X509Certificate* client_cert,
-                                     CompletionCallback* callback);
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
-                              CompletionCallback* callback);
-  virtual bool IsReadyToRestartForAuth();
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual void StopCaching();
-  virtual const HttpResponseInfo* GetResponseInfo() const;
-  virtual LoadState GetLoadState() const;
-  virtual uint64 GetUploadProgress(void) const;
-
   // The transaction has the following modes, which apply to how it may access
   // its cache entry.
   //
@@ -75,6 +56,9 @@ class HttpCache::Transaction : public HttpTransaction {
     READ_WRITE      = READ | WRITE,
     UPDATE          = READ_META | WRITE,  // READ_WRITE & ~READ_DATA
   };
+
+  Transaction(HttpCache* cache);
+  virtual ~Transaction();
 
   Mode mode() const { return mode_; }
 
@@ -111,6 +95,22 @@ class HttpCache::Transaction : public HttpTransaction {
   CompletionCallback* io_callback() { return &io_callback_; }
 
   const BoundNetLog& net_log() const;
+
+  // HttpTransaction methods:
+  virtual int Start(const HttpRequestInfo*, CompletionCallback*,
+                    const BoundNetLog&);
+  virtual int RestartIgnoringLastError(CompletionCallback* callback);
+  virtual int RestartWithCertificate(X509Certificate* client_cert,
+                                     CompletionCallback* callback);
+  virtual int RestartWithAuth(const string16& username,
+                              const string16& password,
+                              CompletionCallback* callback);
+  virtual bool IsReadyToRestartForAuth();
+  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual void StopCaching();
+  virtual const HttpResponseInfo* GetResponseInfo() const;
+  virtual LoadState GetLoadState() const;
+  virtual uint64 GetUploadProgress(void) const;
 
  private:
   static const size_t kNumValidationHeaders = 2;

@@ -37,9 +37,6 @@ class HttpAuthFilterWhitelist : public HttpAuthFilter {
   explicit HttpAuthFilterWhitelist(const std::string& server_whitelist);
   virtual ~HttpAuthFilterWhitelist();
 
-  // HttpAuthFilter methods:
-  virtual bool IsValid(const GURL& url, HttpAuth::Target target) const;
-
   // Adds an individual URL |filter| to the list, of the specified |target|.
   bool AddFilter(const std::string& filter, HttpAuth::Target target);
 
@@ -47,6 +44,9 @@ class HttpAuthFilterWhitelist : public HttpAuthFilter {
   void AddRuleToBypassLocal();
 
   const ProxyBypassRules& rules() const { return rules_; }
+
+  // HttpAuthFilter methods:
+  virtual bool IsValid(const GURL& url, HttpAuth::Target target) const;
 
  private:
   // Installs the whitelist.

@@ -163,6 +163,70 @@ HttpCache::Transaction::~Transaction() {
   cache_.reset();
 }
 
+int HttpCache::Transaction::WriteMetadata(IOBuffer* buf, int buf_len,
+                                          CompletionCallback* callback) {
+  DCHECK(buf);
+  DCHECK_GT(buf_len, 0);
+  DCHECK(callback);
+  if (!cache_ || !entry_)
+    return ERR_UNEXPECTED;
+
+  // We don't need to track this operation for anything.
+  // It could be possible to check if there is something already written and
+  // avoid writing again (it should be the same, right?), but let's allow the
+  // caller to "update" the contents with something new.
+  return entry_->disk_entry->WriteData(kMetadataIndex, 0, buf, buf_len,
+                                       callback, true);
+}
+
+// Histogram data from the end of 2010 show the following distribution of
+// response headers:
+//
+//   Content-Length............... 87%
+//   Date......................... 98%
+//   Last-Modified................ 49%
+//   Etag......................... 19%
+//   Accept-Ranges: bytes......... 25%
+//   Accept-Ranges: none.......... 0.4%
+//   Strong Validator............. 50%
+//   Strong Validator + ranges.... 24%
+//   Strong Validator + CL........ 49%
+//
+bool HttpCache::Transaction::AddTruncatedFlag() {
+  DCHECK(mode_ & WRITE);
+
+  // Don't set the flag for sparse entries.
+  if (partial_.get() && !truncated_)
+    return true;
+
+  // Double check that there is something worth keeping.
+  if (!entry_->disk_entry->GetDataSize(kResponseContentIndex))
+    return false;
+
+  if (response_.headers->GetContentLength() <= 0 ||
+      response_.headers->HasHeaderValue("Accept-Ranges", "none") ||
+      !response_.headers->HasStrongValidators())
+    return false;
+
+  truncated_ = true;
+  target_state_ = STATE_NONE;
+  next_state_ = STATE_CACHE_WRITE_TRUNCATED_RESPONSE;
+  DoLoop(OK);
+  return true;
+}
+
+LoadState HttpCache::Transaction::GetWriterLoadState() const {
+  if (network_trans_.get())
+    return network_trans_->GetLoadState();
+  if (entry_ || !request_)
+    return LOAD_STATE_IDLE;
+  return LOAD_STATE_WAITING_FOR_CACHE;
+}
+
+const BoundNetLog& HttpCache::Transaction::net_log() const {
+  return net_log_;
+}
+
 int HttpCache::Transaction::Start(const HttpRequestInfo* request,
                                   CompletionCallback* callback,
                                   const BoundNetLog& net_log) {
@@ -336,70 +400,6 @@ uint64 HttpCache::Transaction::GetUploadProgress() const {
   if (network_trans_.get())
     return network_trans_->GetUploadProgress();
   return final_upload_progress_;
-}
-
-int HttpCache::Transaction::WriteMetadata(IOBuffer* buf, int buf_len,
-                                          CompletionCallback* callback) {
-  DCHECK(buf);
-  DCHECK_GT(buf_len, 0);
-  DCHECK(callback);
-  if (!cache_ || !entry_)
-    return ERR_UNEXPECTED;
-
-  // We don't need to track this operation for anything.
-  // It could be possible to check if there is something already written and
-  // avoid writing again (it should be the same, right?), but let's allow the
-  // caller to "update" the contents with something new.
-  return entry_->disk_entry->WriteData(kMetadataIndex, 0, buf, buf_len,
-                                       callback, true);
-}
-
-// Histogram data from the end of 2010 show the following distribution of
-// response headers:
-//
-//   Content-Length............... 87%
-//   Date......................... 98%
-//   Last-Modified................ 49%
-//   Etag......................... 19%
-//   Accept-Ranges: bytes......... 25%
-//   Accept-Ranges: none.......... 0.4%
-//   Strong Validator............. 50%
-//   Strong Validator + ranges.... 24%
-//   Strong Validator + CL........ 49%
-//
-bool HttpCache::Transaction::AddTruncatedFlag() {
-  DCHECK(mode_ & WRITE);
-
-  // Don't set the flag for sparse entries.
-  if (partial_.get() && !truncated_)
-    return true;
-
-  // Double check that there is something worth keeping.
-  if (!entry_->disk_entry->GetDataSize(kResponseContentIndex))
-    return false;
-
-  if (response_.headers->GetContentLength() <= 0 ||
-      response_.headers->HasHeaderValue("Accept-Ranges", "none") ||
-      !response_.headers->HasStrongValidators())
-    return false;
-
-  truncated_ = true;
-  target_state_ = STATE_NONE;
-  next_state_ = STATE_CACHE_WRITE_TRUNCATED_RESPONSE;
-  DoLoop(OK);
-  return true;
-}
-
-LoadState HttpCache::Transaction::GetWriterLoadState() const {
-  if (network_trans_.get())
-    return network_trans_->GetLoadState();
-  if (entry_ || !request_)
-    return LOAD_STATE_IDLE;
-  return LOAD_STATE_WAITING_FOR_CACHE;
-}
-
-const BoundNetLog& HttpCache::Transaction::net_log() const {
-  return net_log_;
 }
 
 //-----------------------------------------------------------------------------

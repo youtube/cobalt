@@ -64,6 +64,12 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
     void set_host_resolver(HostResolver* host_resolver);
 
+    // Sets the system library to use, thereby assuming ownership of
+    // |auth_library|.
+    void set_library(AuthLibrary* auth_library) {
+      auth_library_.reset(auth_library);
+    }
+
     virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                   HttpAuth::Target target,
                                   const GURL& origin,
@@ -71,12 +77,6 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                   int digest_nonce_count,
                                   const BoundNetLog& net_log,
                                   scoped_ptr<HttpAuthHandler>* handler);
-
-    // Sets the system library to use, thereby assuming ownership of
-    // |auth_library|.
-    void set_library(AuthLibrary* auth_library) {
-      auth_library_.reset(auth_library);
-    }
 
    private:
     bool disable_cname_lookup_;
@@ -101,16 +101,15 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   virtual ~HttpAuthHandlerNegotiate();
 
-  virtual bool NeedsIdentity();
-
-  virtual bool AllowsDefaultCredentials();
-
-  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
-
   // These are public for unit tests
   std::wstring CreateSPN(const AddressList& address_list, const GURL& orign);
   const std::wstring& spn() const { return spn_; }
+
+  // HttpAuthHandler:
+  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuth::ChallengeTokenizer* challenge);
+  virtual bool NeedsIdentity();
+  virtual bool AllowsDefaultCredentials();
 
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);

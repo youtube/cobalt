@@ -114,6 +114,10 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
       HttpAuth::ChallengeTokenizer* challenge);
 
  protected:
+  // This function acquires a credentials handle in the SSPI implementation.
+  // It does nothing in the portable implementation.
+  int InitializeBeforeFirstChallenge();
+
   virtual bool Init(HttpAuth::ChallengeTokenizer* tok);
 
   virtual int GenerateAuthTokenImpl(const string16* username,
@@ -121,10 +125,6 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                                     const HttpRequestInfo* request,
                                     CompletionCallback* callback,
                                     std::string* auth_token);
-
-  // This function acquires a credentials handle in the SSPI implementation.
-  // It does nothing in the portable implementation.
-  int InitializeBeforeFirstChallenge();
 
  private:
   ~HttpAuthHandlerNTLM();
