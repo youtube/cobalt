@@ -204,6 +204,20 @@ FtpNetworkTransaction::FtpNetworkTransaction(
 FtpNetworkTransaction::~FtpNetworkTransaction() {
 }
 
+int FtpNetworkTransaction::Stop(int error) {
+  if (command_sent_ == COMMAND_QUIT)
+    return error;
+
+  next_state_ = STATE_CTRL_WRITE_QUIT;
+  last_error_ = error;
+  return OK;
+}
+
+int FtpNetworkTransaction::RestartIgnoringLastError(
+    CompletionCallback* callback) {
+  return ERR_NOT_IMPLEMENTED;
+}
+
 int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
                                  CompletionCallback* callback,
                                  const BoundNetLog& net_log) {
@@ -226,15 +240,6 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
   return rv;
 }
 
-int FtpNetworkTransaction::Stop(int error) {
-  if (command_sent_ == COMMAND_QUIT)
-    return error;
-
-  next_state_ = STATE_CTRL_WRITE_QUIT;
-  last_error_ = error;
-  return OK;
-}
-
 int FtpNetworkTransaction::RestartWithAuth(const string16& username,
                                            const string16& password,
                                            CompletionCallback* callback) {
@@ -248,11 +253,6 @@ int FtpNetworkTransaction::RestartWithAuth(const string16& username,
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
   return rv;
-}
-
-int FtpNetworkTransaction::RestartIgnoringLastError(
-    CompletionCallback* callback) {
-  return ERR_NOT_IMPLEMENTED;
 }
 
 int FtpNetworkTransaction::Read(IOBuffer* buf,
@@ -302,34 +302,37 @@ uint64 FtpNetworkTransaction::GetUploadProgress() const {
   return 0;
 }
 
-// Used to prepare and send FTP command.
-int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
-                                          Command cmd) {
-  // If we send a new command when we still have unprocessed responses
-  // for previous commands, the response receiving code will have no way to know
-  // which responses are for which command.
-  DCHECK(!ctrl_response_buffer_->ResponseAvailable());
+void FtpNetworkTransaction::ResetStateForRestart() {
+  command_sent_ = COMMAND_NONE;
+  user_callback_ = NULL;
+  response_ = FtpResponseInfo();
+  read_ctrl_buf_ = new IOBuffer(kCtrlBufLen);
+  ctrl_response_buffer_.reset(new FtpCtrlResponseBuffer());
+  read_data_buf_ = NULL;
+  read_data_buf_len_ = 0;
+  if (write_buf_)
+    write_buf_->SetOffset(0);
+  last_error_ = OK;
+  data_connection_port_ = 0;
+  ctrl_socket_.reset();
+  data_socket_.reset();
+  next_state_ = STATE_NONE;
+}
 
-  DCHECK(!write_command_buf_);
-  DCHECK(!write_buf_);
+void FtpNetworkTransaction::DoCallback(int rv) {
+  DCHECK(rv != ERR_IO_PENDING);
+  DCHECK(user_callback_);
 
-  if (!IsValidFTPCommandString(command)) {
-    // Callers should validate the command themselves and return a more specific
-    // error code.
-    NOTREACHED();
-    return Stop(ERR_UNEXPECTED);
-  }
+  // Since Run may result in Read being called, clear callback_ up front.
+  CompletionCallback* c = user_callback_;
+  user_callback_ = NULL;
+  c->Run(rv);
+}
 
-  command_sent_ = cmd;
-
-  write_command_buf_ = new IOBufferWithSize(command.length() + 2);
-  write_buf_ = new DrainableIOBuffer(write_command_buf_,
-                                     write_command_buf_->size());
-  memcpy(write_command_buf_->data(), command.data(), command.length());
-  memcpy(write_command_buf_->data() + command.length(), kCRLF, 2);
-
-  next_state_ = STATE_CTRL_WRITE;
-  return OK;
+void FtpNetworkTransaction::OnIOComplete(int result) {
+  int rv = DoLoop(result);
+  if (rv != ERR_IO_PENDING)
+    DoCallback(rv);
 }
 
 int FtpNetworkTransaction::ProcessCtrlResponse() {
@@ -403,37 +406,34 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
   return rv;
 }
 
-void FtpNetworkTransaction::ResetStateForRestart() {
-  command_sent_ = COMMAND_NONE;
-  user_callback_ = NULL;
-  response_ = FtpResponseInfo();
-  read_ctrl_buf_ = new IOBuffer(kCtrlBufLen);
-  ctrl_response_buffer_.reset(new FtpCtrlResponseBuffer());
-  read_data_buf_ = NULL;
-  read_data_buf_len_ = 0;
-  if (write_buf_)
-    write_buf_->SetOffset(0);
-  last_error_ = OK;
-  data_connection_port_ = 0;
-  ctrl_socket_.reset();
-  data_socket_.reset();
-  next_state_ = STATE_NONE;
-}
+// Used to prepare and send FTP command.
+int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
+                                          Command cmd) {
+  // If we send a new command when we still have unprocessed responses
+  // for previous commands, the response receiving code will have no way to know
+  // which responses are for which command.
+  DCHECK(!ctrl_response_buffer_->ResponseAvailable());
 
-void FtpNetworkTransaction::DoCallback(int rv) {
-  DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_callback_);
+  DCHECK(!write_command_buf_);
+  DCHECK(!write_buf_);
 
-  // Since Run may result in Read being called, clear callback_ up front.
-  CompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  c->Run(rv);
-}
+  if (!IsValidFTPCommandString(command)) {
+    // Callers should validate the command themselves and return a more specific
+    // error code.
+    NOTREACHED();
+    return Stop(ERR_UNEXPECTED);
+  }
 
-void FtpNetworkTransaction::OnIOComplete(int result) {
-  int rv = DoLoop(result);
-  if (rv != ERR_IO_PENDING)
-    DoCallback(rv);
+  command_sent_ = cmd;
+
+  write_command_buf_ = new IOBufferWithSize(command.length() + 2);
+  write_buf_ = new DrainableIOBuffer(write_command_buf_,
+                                     write_command_buf_->size());
+  memcpy(write_command_buf_->data(), command.data(), command.length());
+  memcpy(write_command_buf_->data() + command.length(), kCRLF, 2);
+
+  next_state_ = STATE_CTRL_WRITE;
+  return OK;
 }
 
 std::string FtpNetworkTransaction::GetRequestPathForFtpCommand(
@@ -947,56 +947,6 @@ int FtpNetworkTransaction::ProcessResponsePASV(
   return OK;
 }
 
-// SIZE command
-int FtpNetworkTransaction::DoCtrlWriteSIZE() {
-  std::string command = "SIZE " + GetRequestPathForFtpCommand(false);
-  next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_SIZE);
-}
-
-int FtpNetworkTransaction::ProcessResponseSIZE(
-    const FtpCtrlResponse& response) {
-  switch (GetErrorClass(response.status_code)) {
-    case ERROR_CLASS_INITIATED:
-      break;
-    case ERROR_CLASS_OK:
-      if (response.lines.size() != 1)
-        return Stop(ERR_INVALID_RESPONSE);
-      int64 size;
-      if (!base::StringToInt64(response.lines[0], &size))
-        return Stop(ERR_INVALID_RESPONSE);
-      if (size < 0)
-        return Stop(ERR_INVALID_RESPONSE);
-
-      // A successful response to SIZE does not mean the resource is a file.
-      // Some FTP servers (for example, the qnx one) send a SIZE even for
-      // directories.
-      response_.expected_content_size = size;
-      break;
-    case ERROR_CLASS_INFO_NEEDED:
-      break;
-    case ERROR_CLASS_TRANSIENT_ERROR:
-      break;
-    case ERROR_CLASS_PERMANENT_ERROR:
-      // It's possible that SIZE failed because the path is a directory.
-      if (resource_type_ == RESOURCE_TYPE_UNKNOWN &&
-          response.status_code != 550) {
-        return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
-      }
-      break;
-    default:
-      NOTREACHED();
-      return Stop(ERR_UNEXPECTED);
-  }
-
-  if (resource_type_ == RESOURCE_TYPE_FILE)
-    next_state_ = STATE_CTRL_WRITE_RETR;
-  else
-    next_state_ = STATE_CTRL_WRITE_CWD;
-
-  return OK;
-}
-
 // RETR command
 int FtpNetworkTransaction::DoCtrlWriteRETR() {
   std::string command = "RETR " + GetRequestPathForFtpCommand(false);
@@ -1044,6 +994,56 @@ int FtpNetworkTransaction::ProcessResponseRETR(
   // We should be sure about our resource type now. Otherwise we risk
   // an infinite loop (RETR can later send CWD, and CWD can later send RETR).
   DCHECK_NE(RESOURCE_TYPE_UNKNOWN, resource_type_);
+
+  return OK;
+}
+
+// SIZE command
+int FtpNetworkTransaction::DoCtrlWriteSIZE() {
+  std::string command = "SIZE " + GetRequestPathForFtpCommand(false);
+  next_state_ = STATE_CTRL_READ;
+  return SendFtpCommand(command, COMMAND_SIZE);
+}
+
+int FtpNetworkTransaction::ProcessResponseSIZE(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
+    case ERROR_CLASS_INITIATED:
+      break;
+    case ERROR_CLASS_OK:
+      if (response.lines.size() != 1)
+        return Stop(ERR_INVALID_RESPONSE);
+      int64 size;
+      if (!base::StringToInt64(response.lines[0], &size))
+        return Stop(ERR_INVALID_RESPONSE);
+      if (size < 0)
+        return Stop(ERR_INVALID_RESPONSE);
+
+      // A successful response to SIZE does not mean the resource is a file.
+      // Some FTP servers (for example, the qnx one) send a SIZE even for
+      // directories.
+      response_.expected_content_size = size;
+      break;
+    case ERROR_CLASS_INFO_NEEDED:
+      break;
+    case ERROR_CLASS_TRANSIENT_ERROR:
+      break;
+    case ERROR_CLASS_PERMANENT_ERROR:
+      // It's possible that SIZE failed because the path is a directory.
+      if (resource_type_ == RESOURCE_TYPE_UNKNOWN &&
+          response.status_code != 550) {
+        return Stop(GetNetErrorCodeForFtpResponseCode(response.status_code));
+      }
+      break;
+    default:
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
+  }
+
+  if (resource_type_ == RESOURCE_TYPE_FILE)
+    next_state_ = STATE_CTRL_WRITE_RETR;
+  else
+    next_state_ = STATE_CTRL_WRITE_CWD;
 
   return OK;
 }

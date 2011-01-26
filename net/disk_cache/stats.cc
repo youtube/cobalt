@@ -116,6 +116,12 @@ bool CreateStats(BackendImpl* backend, Addr* address, OnDiskStats* stats) {
   return StoreStats(backend, *address, stats);
 }
 
+Stats::Stats() : backend_(NULL) {
+}
+
+Stats::~Stats() {
+}
+
 bool Stats::Init(BackendImpl* backend, uint32* storage_addr) {
   OnDiskStats stats;
   Addr address(*storage_addr);
@@ -151,86 +157,6 @@ bool Stats::Init(BackendImpl* backend, uint32* storage_addr) {
   }
 
   return true;
-}
-
-Stats::Stats() : backend_(NULL) {
-}
-
-Stats::~Stats() {
-}
-
-// The array will be filled this way:
-//  index      size
-//    0       [0, 1024)
-//    1    [1024, 2048)
-//    2    [2048, 4096)
-//    3      [4K, 6K)
-//      ...
-//   10     [18K, 20K)
-//   11     [20K, 24K)
-//   12     [24k, 28K)
-//      ...
-//   15     [36k, 40K)
-//   16     [40k, 64K)
-//   17     [64K, 128K)
-//   18    [128K, 256K)
-//      ...
-//   23      [4M, 8M)
-//   24      [8M, 16M)
-//   25     [16M, 32M)
-//   26     [32M, 64M)
-//   27     [64M, ...)
-int Stats::GetStatsBucket(int32 size) {
-  if (size < 1024)
-    return 0;
-
-  // 10 slots more, until 20K.
-  if (size < 20 * 1024)
-    return size / 2048 + 1;
-
-  // 5 slots more, from 20K to 40K.
-  if (size < 40 * 1024)
-    return (size - 20 * 1024) / 4096 + 11;
-
-  // From this point on, use a logarithmic scale.
-  int result =  LogBase2(size) + 1;
-
-  COMPILE_ASSERT(kDataSizesLength > 16, update_the_scale);
-  if (result >= kDataSizesLength)
-    result = kDataSizesLength - 1;
-
-  return result;
-}
-
-int Stats::GetBucketRange(size_t i) const {
-  if (i < 2)
-    return static_cast<int>(1024 * i);
-
-  if (i < 12)
-    return static_cast<int>(2048 * (i - 1));
-
-  if (i < 17)
-    return static_cast<int>(4096 * (i - 11)) + 20 * 1024;
-
-  int n = 64 * 1024;
-  if (i > static_cast<size_t>(kDataSizesLength)) {
-    NOTREACHED();
-    i = kDataSizesLength;
-  }
-
-  i -= 17;
-  n <<= i;
-  return n;
-}
-
-void Stats::Snapshot(StatsHistogram::StatsSamples* samples) const {
-  samples->GetCounts()->resize(kDataSizesLength);
-  for (int i = 0; i < kDataSizesLength; i++) {
-    int count = data_sizes_[i];
-    if (count < 0)
-      count = 0;
-    samples->GetCounts()->at(i) = count;
-  }
 }
 
 void Stats::ModifyStorageStats(int32 old_size, int32 new_size) {
@@ -286,15 +212,6 @@ int Stats::GetResurrectRatio() const {
   return GetRatio(RESURRECT_HIT, CREATE_HIT);
 }
 
-int Stats::GetRatio(Counters hit, Counters miss) const {
-  int64 ratio = GetCounter(hit) * 100;
-  if (!ratio)
-    return 0;
-
-  ratio /= (GetCounter(hit) + GetCounter(miss));
-  return static_cast<int>(ratio);
-}
-
 void Stats::ResetRatios() {
   SetCounter(OPEN_HIT, 0);
   SetCounter(OPEN_MISS, 0);
@@ -324,6 +241,89 @@ void Stats::Store() {
 
   Addr address(storage_addr_);
   StoreStats(backend_, address, &stats);
+}
+
+int Stats::GetBucketRange(size_t i) const {
+  if (i < 2)
+    return static_cast<int>(1024 * i);
+
+  if (i < 12)
+    return static_cast<int>(2048 * (i - 1));
+
+  if (i < 17)
+    return static_cast<int>(4096 * (i - 11)) + 20 * 1024;
+
+  int n = 64 * 1024;
+  if (i > static_cast<size_t>(kDataSizesLength)) {
+    NOTREACHED();
+    i = kDataSizesLength;
+  }
+
+  i -= 17;
+  n <<= i;
+  return n;
+}
+
+void Stats::Snapshot(StatsHistogram::StatsSamples* samples) const {
+  samples->GetCounts()->resize(kDataSizesLength);
+  for (int i = 0; i < kDataSizesLength; i++) {
+    int count = data_sizes_[i];
+    if (count < 0)
+      count = 0;
+    samples->GetCounts()->at(i) = count;
+  }
+}
+
+// The array will be filled this way:
+//  index      size
+//    0       [0, 1024)
+//    1    [1024, 2048)
+//    2    [2048, 4096)
+//    3      [4K, 6K)
+//      ...
+//   10     [18K, 20K)
+//   11     [20K, 24K)
+//   12     [24k, 28K)
+//      ...
+//   15     [36k, 40K)
+//   16     [40k, 64K)
+//   17     [64K, 128K)
+//   18    [128K, 256K)
+//      ...
+//   23      [4M, 8M)
+//   24      [8M, 16M)
+//   25     [16M, 32M)
+//   26     [32M, 64M)
+//   27     [64M, ...)
+int Stats::GetStatsBucket(int32 size) {
+  if (size < 1024)
+    return 0;
+
+  // 10 slots more, until 20K.
+  if (size < 20 * 1024)
+    return size / 2048 + 1;
+
+  // 5 slots more, from 20K to 40K.
+  if (size < 40 * 1024)
+    return (size - 20 * 1024) / 4096 + 11;
+
+  // From this point on, use a logarithmic scale.
+  int result =  LogBase2(size) + 1;
+
+  COMPILE_ASSERT(kDataSizesLength > 16, update_the_scale);
+  if (result >= kDataSizesLength)
+    result = kDataSizesLength - 1;
+
+  return result;
+}
+
+int Stats::GetRatio(Counters hit, Counters miss) const {
+  int64 ratio = GetCounter(hit) * 100;
+  if (!ratio)
+    return 0;
+
+  ratio /= (GetCounter(hit) + GetCounter(miss));
+  return static_cast<int>(ratio);
 }
 
 }  // namespace disk_cache

@@ -29,32 +29,6 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
     RESOLVE_TESTED,
   };
 
-  HttpAuthHandlerMock();
-
-  virtual ~HttpAuthHandlerMock();
-
-  void SetResolveExpectation(Resolve resolve);
-
-  virtual bool NeedsCanonicalName();
-
-  virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback);
-
-  virtual bool NeedsIdentity() { return first_round_; }
-
-  void SetGenerateExpectation(bool async, int rv);
-
-  void set_connection_based(bool connection_based) {
-    connection_based_ = connection_based;
-  }
-
-  const GURL& request_url() const {
-    return request_url_;
-  }
-
-  HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
-
   // The Factory class simply returns the same handler each time
   // CreateAuthHandler is called.
   class Factory : public HttpAuthHandlerFactory {
@@ -68,6 +42,7 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
       do_init_from_challenge_ = do_init_from_challenge;
     }
 
+    // HttpAuthHandlerFactory:
     virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                   HttpAuth::Target target,
                                   const GURL& origin,
@@ -80,6 +55,33 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
     scoped_ptr<HttpAuthHandler> handlers_[HttpAuth::AUTH_NUM_TARGETS];
     bool do_init_from_challenge_;
   };
+
+  HttpAuthHandlerMock();
+
+  virtual ~HttpAuthHandlerMock();
+
+  void SetResolveExpectation(Resolve resolve);
+
+  virtual bool NeedsCanonicalName();
+
+  virtual int ResolveCanonicalName(HostResolver* host_resolver,
+                                   CompletionCallback* callback);
+
+
+  void SetGenerateExpectation(bool async, int rv);
+
+  void set_connection_based(bool connection_based) {
+    connection_based_ = connection_based;
+  }
+
+  const GURL& request_url() const {
+    return request_url_;
+  }
+
+  // HttpAuthHandler:
+  virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
+      HttpAuth::ChallengeTokenizer* challenge);
+  virtual bool NeedsIdentity();
 
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);

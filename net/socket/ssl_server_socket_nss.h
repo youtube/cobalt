@@ -42,11 +42,14 @@ class SSLServerSocketNSS : public SSLServerSocket {
                    CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback);
-  virtual bool SetReceiveBufferSize(int32 size) { return false; }
-  virtual bool SetSendBufferSize(int32 size) { return false; }
+  virtual bool SetReceiveBufferSize(int32 size);
+  virtual bool SetSendBufferSize(int32 size);
 
  private:
-  virtual int Init();
+  enum State {
+    STATE_NONE,
+    STATE_HANDSHAKE,
+  };
 
   int InitializeSSLOptions();
 
@@ -59,8 +62,8 @@ class SSLServerSocketNSS : public SSLServerSocket {
   int BufferRecv();
   void BufferRecvComplete(int result);
   bool DoTransportIO();
-  int DoPayloadWrite();
   int DoPayloadRead();
+  int DoPayloadWrite();
 
   int DoHandshakeLoop(int last_io_result);
   int DoReadLoop(int result);
@@ -75,6 +78,8 @@ class SSLServerSocketNSS : public SSLServerSocket {
                                       PRBool checksig,
                                       PRBool is_server);
   static void HandshakeCallback(PRFileDesc* socket, void* arg);
+
+  virtual int Init();
 
   // Members used to send and receive buffer.
   CompletionCallbackImpl<SSLServerSocketNSS> buffer_send_callback_;
@@ -118,10 +123,6 @@ class SSLServerSocketNSS : public SSLServerSocket {
   // Private key used by the server.
   scoped_ptr<base::RSAPrivateKey> key_;
 
-  enum State {
-    STATE_NONE,
-    STATE_HANDSHAKE,
-  };
   State next_handshake_state_;
   bool completed_handshake_;
 

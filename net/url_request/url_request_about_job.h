@@ -17,13 +17,14 @@ class URLRequestAboutJob : public URLRequestJob {
  public:
   explicit URLRequestAboutJob(URLRequest* request);
 
+  static URLRequest::ProtocolFactory Factory;
+
+  // URLRequestJob:
   virtual void Start();
   virtual bool GetMimeType(std::string* mime_type) const;
 
-  static URLRequest::ProtocolFactory Factory;
-
  private:
-  ~URLRequestAboutJob();
+  virtual ~URLRequestAboutJob();
 
   void StartAsync();
 };

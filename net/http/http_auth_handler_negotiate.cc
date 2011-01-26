@@ -16,6 +16,68 @@
 
 namespace net {
 
+HttpAuthHandlerNegotiate::Factory::Factory()
+    : disable_cname_lookup_(false),
+      use_port_(false),
+#if defined(OS_WIN)
+      max_token_length_(0),
+      first_creation_(true),
+      is_unsupported_(false),
+#endif
+      auth_library_(NULL) {
+}
+
+HttpAuthHandlerNegotiate::Factory::~Factory() {
+}
+
+void HttpAuthHandlerNegotiate::Factory::set_host_resolver(
+    HostResolver* resolver) {
+  resolver_ = resolver;
+}
+
+int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
+    HttpAuth::ChallengeTokenizer* challenge,
+    HttpAuth::Target target,
+    const GURL& origin,
+    CreateReason reason,
+    int digest_nonce_count,
+    const BoundNetLog& net_log,
+    scoped_ptr<HttpAuthHandler>* handler) {
+#if defined(OS_WIN)
+  if (is_unsupported_ || reason == CREATE_PREEMPTIVE)
+    return ERR_UNSUPPORTED_AUTH_SCHEME;
+  if (max_token_length_ == 0) {
+    int rv = DetermineMaxTokenLength(auth_library_.get(), NEGOSSP_NAME,
+                                     &max_token_length_);
+    if (rv == ERR_UNSUPPORTED_AUTH_SCHEME)
+      is_unsupported_ = true;
+    if (rv != OK)
+      return rv;
+  }
+  // TODO(cbentzel): Move towards model of parsing in the factory
+  //                 method and only constructing when valid.
+  scoped_ptr<HttpAuthHandler> tmp_handler(
+      new HttpAuthHandlerNegotiate(auth_library_.get(), max_token_length_,
+                                   url_security_manager(), resolver_,
+                                   disable_cname_lookup_, use_port_));
+  if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
+    return ERR_INVALID_RESPONSE;
+  handler->swap(tmp_handler);
+  return OK;
+#elif defined(OS_POSIX)
+  // TODO(ahendrickson): Move towards model of parsing in the factory
+  //                     method and only constructing when valid.
+  scoped_ptr<HttpAuthHandler> tmp_handler(
+      new HttpAuthHandlerNegotiate(auth_library_.get(), url_security_manager(),
+                                   resolver_, disable_cname_lookup_,
+                                   use_port_));
+  if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
+    return ERR_INVALID_RESPONSE;
+  handler->swap(tmp_handler);
+  return OK;
+#endif
+}
+
 HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
     AuthLibrary* auth_library,
 #if defined(OS_WIN)
@@ -44,88 +106,6 @@ HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
 }
 
 HttpAuthHandlerNegotiate::~HttpAuthHandlerNegotiate() {
-}
-
-int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
-    const string16* username,
-    const string16* password,
-    const HttpRequestInfo* request,
-    CompletionCallback* callback,
-    std::string* auth_token) {
-  DCHECK(user_callback_ == NULL);
-  DCHECK((username == NULL) == (password == NULL));
-  DCHECK(auth_token_ == NULL);
-  auth_token_ = auth_token;
-  if (already_called_) {
-    DCHECK((!has_username_and_password_ && username == NULL) ||
-           (has_username_and_password_ && *username == username_ &&
-            *password == password_));
-    next_state_ = STATE_GENERATE_AUTH_TOKEN;
-  } else {
-    already_called_ = true;
-    if (username) {
-      has_username_and_password_ = true;
-      username_ = *username;
-      password_ = *password;
-    }
-    next_state_ = STATE_RESOLVE_CANONICAL_NAME;
-  }
-  int rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
-  return rv;
-}
-
-// The Negotiate challenge header looks like:
-//   WWW-Authenticate: NEGOTIATE auth-data
-bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
-#if defined(OS_POSIX)
-  if (!auth_system_.Init()) {
-    VLOG(1) << "can't initialize GSSAPI library";
-    return false;
-  }
-  // GSSAPI does not provide a way to enter username/password to
-  // obtain a TGT. If the default credentials are not allowed for
-  // a particular site (based on whitelist), fall back to a
-  // different scheme.
-  if (!AllowsDefaultCredentials())
-    return false;
-#endif
-  if (CanDelegate())
-    auth_system_.Delegate();
-  auth_scheme_ = HttpAuth::AUTH_SCHEME_NEGOTIATE;
-  score_ = 4;
-  properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
-  HttpAuth::AuthorizationResult auth_result =
-      auth_system_.ParseChallenge(challenge);
-  return (auth_result == HttpAuth::AUTHORIZATION_RESULT_ACCEPT);
-}
-
-HttpAuth::AuthorizationResult HttpAuthHandlerNegotiate::HandleAnotherChallenge(
-    HttpAuth::ChallengeTokenizer* challenge) {
-  return auth_system_.ParseChallenge(challenge);
-}
-
-// Require identity on first pass instead of second.
-bool HttpAuthHandlerNegotiate::NeedsIdentity() {
-  return auth_system_.NeedsIdentity();
-}
-
-bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
-  if (target_ == HttpAuth::AUTH_PROXY)
-    return true;
-  if (!url_security_manager_)
-    return false;
-  return url_security_manager_->CanUseDefaultCredentials(origin_);
-}
-
-bool HttpAuthHandlerNegotiate::CanDelegate() const {
-  // TODO(cbentzel): Should delegation be allowed on proxies?
-  if (target_ == HttpAuth::AUTH_PROXY)
-    return false;
-  if (!url_security_manager_)
-    return false;
-  return url_security_manager_->CanDelegate(origin_);
 }
 
 std::wstring HttpAuthHandlerNegotiate::CreateSPN(
@@ -175,6 +155,93 @@ std::wstring HttpAuthHandlerNegotiate::CreateSPN(
     return ASCIIToWide(base::StringPrintf("HTTP%c%s", kSpnSeparator,
                                           server.c_str()));
   }
+}
+
+HttpAuth::AuthorizationResult HttpAuthHandlerNegotiate::HandleAnotherChallenge(
+    HttpAuth::ChallengeTokenizer* challenge) {
+  return auth_system_.ParseChallenge(challenge);
+}
+
+// Require identity on first pass instead of second.
+bool HttpAuthHandlerNegotiate::NeedsIdentity() {
+  return auth_system_.NeedsIdentity();
+}
+
+bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
+  if (target_ == HttpAuth::AUTH_PROXY)
+    return true;
+  if (!url_security_manager_)
+    return false;
+  return url_security_manager_->CanUseDefaultCredentials(origin_);
+}
+
+// The Negotiate challenge header looks like:
+//   WWW-Authenticate: NEGOTIATE auth-data
+bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
+#if defined(OS_POSIX)
+  if (!auth_system_.Init()) {
+    VLOG(1) << "can't initialize GSSAPI library";
+    return false;
+  }
+  // GSSAPI does not provide a way to enter username/password to
+  // obtain a TGT. If the default credentials are not allowed for
+  // a particular site (based on whitelist), fall back to a
+  // different scheme.
+  if (!AllowsDefaultCredentials())
+    return false;
+#endif
+  if (CanDelegate())
+    auth_system_.Delegate();
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_NEGOTIATE;
+  score_ = 4;
+  properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
+  HttpAuth::AuthorizationResult auth_result =
+      auth_system_.ParseChallenge(challenge);
+  return (auth_result == HttpAuth::AUTHORIZATION_RESULT_ACCEPT);
+}
+
+int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
+    const string16* username,
+    const string16* password,
+    const HttpRequestInfo* request,
+    CompletionCallback* callback,
+    std::string* auth_token) {
+  DCHECK(user_callback_ == NULL);
+  DCHECK((username == NULL) == (password == NULL));
+  DCHECK(auth_token_ == NULL);
+  auth_token_ = auth_token;
+  if (already_called_) {
+    DCHECK((!has_username_and_password_ && username == NULL) ||
+           (has_username_and_password_ && *username == username_ &&
+            *password == password_));
+    next_state_ = STATE_GENERATE_AUTH_TOKEN;
+  } else {
+    already_called_ = true;
+    if (username) {
+      has_username_and_password_ = true;
+      username_ = *username;
+      password_ = *password;
+    }
+    next_state_ = STATE_RESOLVE_CANONICAL_NAME;
+  }
+  int rv = DoLoop(OK);
+  if (rv == ERR_IO_PENDING)
+    user_callback_ = callback;
+  return rv;
+}
+
+void HttpAuthHandlerNegotiate::OnIOComplete(int result) {
+  int rv = DoLoop(result);
+  if (rv != ERR_IO_PENDING)
+    DoCallback(rv);
+}
+
+void HttpAuthHandlerNegotiate::DoCallback(int rv) {
+  DCHECK(rv != ERR_IO_PENDING);
+  DCHECK(user_callback_);
+  CompletionCallback* callback = user_callback_;
+  user_callback_ = NULL;
+  callback->Run(rv);
 }
 
 int HttpAuthHandlerNegotiate::DoLoop(int result) {
@@ -253,80 +320,13 @@ int HttpAuthHandlerNegotiate::DoGenerateAuthTokenComplete(int rv) {
   return rv;
 }
 
-void HttpAuthHandlerNegotiate::OnIOComplete(int result) {
-  int rv = DoLoop(result);
-  if (rv != ERR_IO_PENDING)
-    DoCallback(rv);
-}
-
-void HttpAuthHandlerNegotiate::DoCallback(int rv) {
-  DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_callback_);
-  CompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
-  callback->Run(rv);
-}
-
-HttpAuthHandlerNegotiate::Factory::Factory()
-    : disable_cname_lookup_(false),
-      use_port_(false),
-#if defined(OS_WIN)
-      max_token_length_(0),
-      first_creation_(true),
-      is_unsupported_(false),
-#endif
-      auth_library_(NULL) {
-}
-
-HttpAuthHandlerNegotiate::Factory::~Factory() {
-}
-
-void HttpAuthHandlerNegotiate::Factory::set_host_resolver(
-    HostResolver* resolver) {
-  resolver_ = resolver;
-}
-
-int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
-    HttpAuth::ChallengeTokenizer* challenge,
-    HttpAuth::Target target,
-    const GURL& origin,
-    CreateReason reason,
-    int digest_nonce_count,
-    const BoundNetLog& net_log,
-    scoped_ptr<HttpAuthHandler>* handler) {
-#if defined(OS_WIN)
-  if (is_unsupported_ || reason == CREATE_PREEMPTIVE)
-    return ERR_UNSUPPORTED_AUTH_SCHEME;
-  if (max_token_length_ == 0) {
-    int rv = DetermineMaxTokenLength(auth_library_.get(), NEGOSSP_NAME,
-                                     &max_token_length_);
-    if (rv == ERR_UNSUPPORTED_AUTH_SCHEME)
-      is_unsupported_ = true;
-    if (rv != OK)
-      return rv;
-  }
-  // TODO(cbentzel): Move towards model of parsing in the factory
-  //                 method and only constructing when valid.
-  scoped_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNegotiate(auth_library_.get(), max_token_length_,
-                                   url_security_manager(), resolver_,
-                                   disable_cname_lookup_, use_port_));
-  if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
-    return ERR_INVALID_RESPONSE;
-  handler->swap(tmp_handler);
-  return OK;
-#elif defined(OS_POSIX)
-  // TODO(ahendrickson): Move towards model of parsing in the factory
-  //                     method and only constructing when valid.
-  scoped_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNegotiate(auth_library_.get(), url_security_manager(),
-                                   resolver_, disable_cname_lookup_,
-                                   use_port_));
-  if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
-    return ERR_INVALID_RESPONSE;
-  handler->swap(tmp_handler);
-  return OK;
-#endif
+bool HttpAuthHandlerNegotiate::CanDelegate() const {
+  // TODO(cbentzel): Should delegation be allowed on proxies?
+  if (target_ == HttpAuth::AUTH_PROXY)
+    return false;
+  if (!url_security_manager_)
+    return false;
+  return url_security_manager_->CanDelegate(origin_);
 }
 
 }  // namespace net

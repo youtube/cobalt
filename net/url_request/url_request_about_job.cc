@@ -12,14 +12,14 @@
 
 namespace net {
 
+URLRequestAboutJob::URLRequestAboutJob(URLRequest* request)
+    : URLRequestJob(request) {
+}
+
 // static
 URLRequestJob* URLRequestAboutJob::Factory(URLRequest* request,
                                            const std::string& scheme) {
   return new URLRequestAboutJob(request);
-}
-
-URLRequestAboutJob::URLRequestAboutJob(URLRequest* request)
-    : URLRequestJob(request) {
 }
 
 void URLRequestAboutJob::Start() {

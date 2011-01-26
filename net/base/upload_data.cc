@@ -28,6 +28,18 @@ UploadData::Element::~Element() {
   delete file_stream_;
 }
 
+void UploadData::Element::SetToChunk(const char* bytes, int bytes_len) {
+  std::string chunk_length = StringPrintf("%X\r\n", bytes_len);
+  bytes_.clear();
+  bytes_.insert(bytes_.end(), chunk_length.data(),
+                chunk_length.data() + chunk_length.length());
+  bytes_.insert(bytes_.end(), bytes, bytes + bytes_len);
+  const char* crlf = "\r\n";
+  bytes_.insert(bytes_.end(), crlf, crlf + 2);
+  type_ = TYPE_CHUNK;
+  is_last_chunk_ = (bytes_len == 0);
+}
+
 uint64 UploadData::Element::GetContentLength() {
   if (override_content_length_ || content_length_computed_)
     return content_length_;
@@ -65,18 +77,6 @@ uint64 UploadData::Element::GetContentLength() {
   // compensate for the offset and clip file_range_length_ to eof
   content_length_ =  std::min(length - file_range_offset_, file_range_length_);
   return content_length_;
-}
-
-void UploadData::Element::SetToChunk(const char* bytes, int bytes_len) {
-  std::string chunk_length = StringPrintf("%X\r\n", bytes_len);
-  bytes_.clear();
-  bytes_.insert(bytes_.end(), chunk_length.data(),
-                chunk_length.data() + chunk_length.length());
-  bytes_.insert(bytes_.end(), bytes, bytes + bytes_len);
-  const char* crlf = "\r\n";
-  bytes_.insert(bytes_.end(), crlf, crlf + 2);
-  type_ = TYPE_CHUNK;
-  is_last_chunk_ = (bytes_len == 0);
 }
 
 FileStream* UploadData::Element::NewFileStreamForReading() {

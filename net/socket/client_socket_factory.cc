@@ -79,17 +79,6 @@ static base::LazyInstance<DefaultClientSocketFactory>
 
 }  // namespace
 
-// static
-ClientSocketFactory* ClientSocketFactory::GetDefaultFactory() {
-  return g_default_client_socket_factory.Pointer();
-}
-
-// static
-void ClientSocketFactory::SetSSLClientSocketFactory(
-    SSLClientSocketFactory factory) {
-  g_ssl_factory = factory;
-}
-
 // Deprecated function (http://crbug.com/37810) that takes a ClientSocket.
 SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
     ClientSocket* transport_socket,
@@ -102,6 +91,17 @@ SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
   return CreateSSLClientSocket(socket_handle, host_and_port, ssl_config,
                                ssl_host_info, cert_verifier,
                                NULL /* DnsCertProvenanceChecker */);
+}
+
+// static
+ClientSocketFactory* ClientSocketFactory::GetDefaultFactory() {
+  return g_default_client_socket_factory.Pointer();
+}
+
+// static
+void ClientSocketFactory::SetSSLClientSocketFactory(
+    SSLClientSocketFactory factory) {
+  g_ssl_factory = factory;
 }
 
 }  // namespace net
