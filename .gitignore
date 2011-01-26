@@ -33,6 +33,7 @@ v8.log
 /build/util/support
 # The Chrome OS build creates a /c symlink due to http://crbug.com/54866.
 /c
+/ceee/internal/
 /chrome/Debug
 /chrome/Hammer
 /chrome/Release
