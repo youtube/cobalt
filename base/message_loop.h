@@ -315,6 +315,9 @@ class MessageLoop : public base::MessagePump::Delegate {
   // for at least 1s.
   static const int kHighResolutionTimerModeLeaseTimeMs = 1000;
 
+  // Asserts that the MessageLoop is "idle".
+  void AssertIdle() const;
+
   //----------------------------------------------------------------------------
  protected:
   struct RunState {
@@ -461,12 +464,12 @@ class MessageLoop : public base::MessagePump::Delegate {
   scoped_refptr<base::Histogram> message_histogram_;
 
   // A null terminated list which creates an incoming_queue of tasks that are
-  // aquired under a mutex for processing on this instance's thread. These tasks
+  // acquired under a mutex for processing on this instance's thread. These tasks
   // have not yet been sorted out into items for our work_queue_ vs items that
   // will be handled by the TimerManager.
   TaskQueue incoming_queue_;
   // Protect access to incoming_queue_.
-  base::Lock incoming_queue_lock_;
+  mutable base::Lock incoming_queue_lock_;
 
   RunState* state_;
 
