@@ -757,12 +757,37 @@ int TCPClientSocketWin::SetupSocket() {
 }
 
 void TCPClientSocketWin::LogConnectCompletion(int net_error) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (net_error != OK)
-    params = new NetLogIntegerParameter("net_error", net_error);
-  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, params);
   if (net_error == OK)
     UpdateConnectionTypeHistograms(CONNECTION_ANY);
+
+  if (net_error != OK) {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
+                      make_scoped_refptr(
+                          new NetLogIntegerParameter("net_error", net_error)));
+    return;
+  }
+
+  struct sockaddr_storage source_address;
+  socklen_t addrlen = sizeof(source_address);
+  int rv = getsockname(
+      socket_, reinterpret_cast<struct sockaddr*>(&source_address), &addrlen);
+  if (rv != 0) {
+    LOG(ERROR) << "getsockname() [rv: " << rv
+               << "] error: " << WSAGetLastError();
+    NOTREACHED();
+    scoped_refptr<NetLog::EventParameters> params;
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+    return;
+  }
+
+  const std::string source_address_str =
+      NetAddressToStringWithPort(
+          reinterpret_cast<const struct sockaddr*>(&source_address),
+          sizeof(source_address));
+  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
+                    make_scoped_refptr(new NetLogStringParameter(
+                        "source address",
+                        source_address_str)));
 }
 
 void TCPClientSocketWin::DoReadCallback(int rv) {

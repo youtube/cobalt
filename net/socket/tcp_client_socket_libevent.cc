@@ -19,6 +19,7 @@
 #include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
 #include "net/base/address_list_net_log_param.h"
+#include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -522,10 +523,36 @@ int TCPClientSocketLibevent::SetupSocket() {
 }
 
 void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (net_error != OK)
-    params = new NetLogIntegerParameter("net_error", net_error);
-  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, params);
+  if (net_error == OK)
+    UpdateConnectionTypeHistograms(CONNECTION_ANY);
+
+  if (net_error != OK) {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
+                      make_scoped_refptr(
+                          new NetLogIntegerParameter("net_error", net_error)));
+    return;
+  }
+
+  struct sockaddr_storage source_address;
+  socklen_t addrlen = sizeof(source_address);
+  int rv = getsockname(
+      socket_, reinterpret_cast<struct sockaddr*>(&source_address), &addrlen);
+  if (rv != 0) {
+    PLOG(ERROR) << "getsockname() [rv: " << rv << "] error: ";
+    NOTREACHED();
+    scoped_refptr<NetLog::EventParameters> params;
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+    return;
+  }
+
+  const std::string source_address_str =
+      NetAddressToStringWithPort(
+          reinterpret_cast<const struct sockaddr*>(&source_address),
+          sizeof(source_address));
+  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
+                    make_scoped_refptr(new NetLogStringParameter(
+                        "source address",
+                        source_address_str)));
 }
 
 void TCPClientSocketLibevent::DoReadCallback(int rv) {
