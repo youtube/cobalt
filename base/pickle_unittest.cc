@@ -171,6 +171,17 @@ TEST(PickleTest, FindNext) {
   EXPECT_TRUE(end == Pickle::FindNext(pickle.header_size_, start, end + 1));
 }
 
+TEST(PickleTest, FindNextWithIncompleteHeader) {
+  size_t header_size = sizeof(Pickle::Header);
+  scoped_array<char> buffer(new char[header_size - 1]);
+  memset(buffer.get(), 0x1, header_size - 1);
+
+  const char* start = buffer.get();
+  const char* end = start + header_size - 1;
+
+  EXPECT_TRUE(NULL == Pickle::FindNext(header_size, start, end));
+}
+
 TEST(PickleTest, IteratorHasRoom) {
   Pickle pickle;
   EXPECT_TRUE(pickle.WriteInt(1));
