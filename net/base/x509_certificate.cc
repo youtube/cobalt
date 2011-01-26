@@ -121,6 +121,19 @@ bool X509Certificate::LessThan::operator()(X509Certificate* lhs,
   return fingerprint_functor(lhs->fingerprint_, rhs->fingerprint_);
 }
 
+X509Certificate::X509Certificate(const std::string& subject,
+                                 const std::string& issuer,
+                                 base::Time start_date,
+                                 base::Time expiration_date)
+    : subject_(subject),
+      issuer_(issuer),
+      valid_start_(start_date),
+      valid_expiry_(expiration_date),
+      cert_handle_(NULL),
+      source_(SOURCE_UNUSED) {
+  memset(fingerprint_.data, 0, sizeof(fingerprint_.data));
+}
+
 // static
 X509Certificate* X509Certificate::CreateFromHandle(
     OSCertHandle cert_handle,
@@ -283,40 +296,6 @@ CertificateList X509Certificate::CreateCertificateListFromBytes(
   return results;
 }
 
-X509Certificate::X509Certificate(OSCertHandle cert_handle,
-                                 Source source,
-                                 const OSCertHandles& intermediates)
-    : cert_handle_(DupOSCertHandle(cert_handle)),
-      source_(source) {
-  // Copy/retain the intermediate cert handles.
-  for (size_t i = 0; i < intermediates.size(); ++i)
-    intermediate_ca_certs_.push_back(DupOSCertHandle(intermediates[i]));
-  // Platform-specific initialization.
-  Initialize();
-}
-
-X509Certificate::X509Certificate(const std::string& subject,
-                                 const std::string& issuer,
-                                 base::Time start_date,
-                                 base::Time expiration_date)
-    : subject_(subject),
-      issuer_(issuer),
-      valid_start_(start_date),
-      valid_expiry_(expiration_date),
-      cert_handle_(NULL),
-      source_(SOURCE_UNUSED) {
-  memset(fingerprint_.data, 0, sizeof(fingerprint_.data));
-}
-
-X509Certificate::~X509Certificate() {
-  // We might not be in the cache, but it is safe to remove ourselves anyway.
-  g_x509_certificate_cache.Get().Remove(this);
-  if (cert_handle_)
-    FreeOSCertHandle(cert_handle_);
-  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i)
-    FreeOSCertHandle(intermediate_ca_certs_[i]);
-}
-
 bool X509Certificate::HasExpired() const {
   return base::Time::Now() > valid_expiry();
 }
@@ -343,6 +322,27 @@ bool X509Certificate::HasIntermediateCertificates(const OSCertHandles& certs) {
       return false;
   }
   return true;
+}
+
+X509Certificate::X509Certificate(OSCertHandle cert_handle,
+                                 Source source,
+                                 const OSCertHandles& intermediates)
+    : cert_handle_(DupOSCertHandle(cert_handle)),
+      source_(source) {
+  // Copy/retain the intermediate cert handles.
+  for (size_t i = 0; i < intermediates.size(); ++i)
+    intermediate_ca_certs_.push_back(DupOSCertHandle(intermediates[i]));
+  // Platform-specific initialization.
+  Initialize();
+}
+
+X509Certificate::~X509Certificate() {
+  // We might not be in the cache, but it is safe to remove ourselves anyway.
+  g_x509_certificate_cache.Get().Remove(this);
+  if (cert_handle_)
+    FreeOSCertHandle(cert_handle_);
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i)
+    FreeOSCertHandle(intermediate_ca_certs_[i]);
 }
 
 }  // namespace net

@@ -33,20 +33,6 @@ URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
 }
 
-URLRequestFileDirJob::~URLRequestFileDirJob() {
-  DCHECK(read_pending_ == false);
-  DCHECK(lister_ == NULL);
-}
-
-void URLRequestFileDirJob::Start() {
-  // Start reading asynchronously so that all error reporting and data
-  // callbacks happen as they would for network requests.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestFileDirJob::StartAsync));
-}
-
 void URLRequestFileDirJob::StartAsync() {
   DCHECK(!lister_);
 
@@ -61,6 +47,15 @@ void URLRequestFileDirJob::StartAsync() {
   lister_->Start();
 
   NotifyHeadersComplete();
+}
+
+void URLRequestFileDirJob::Start() {
+  // Start reading asynchronously so that all error reporting and data
+  // callbacks happen as they would for network requests.
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestFileDirJob::StartAsync));
 }
 
 void URLRequestFileDirJob::Kill() {
@@ -174,31 +169,17 @@ void URLRequestFileDirJob::OnListDone(int error) {
   Release();  // The Lister is finished; may delete *this*
 }
 
+URLRequestFileDirJob::~URLRequestFileDirJob() {
+  DCHECK(read_pending_ == false);
+  DCHECK(lister_ == NULL);
+}
+
 void URLRequestFileDirJob::CloseLister() {
   if (lister_) {
     lister_->Cancel();
     lister_->set_delegate(NULL);
     lister_ = NULL;
   }
-}
-
-bool URLRequestFileDirJob::FillReadBuffer(char *buf, int buf_size,
-                                          int *bytes_read) {
-  DCHECK(bytes_read);
-
-  *bytes_read = 0;
-
-  int count = std::min(buf_size, static_cast<int>(data_.size()));
-  if (count) {
-    memcpy(buf, &data_[0], count);
-    data_.erase(0, count);
-    *bytes_read = count;
-    return true;
-  } else if (list_complete_) {
-    // EOF
-    return true;
-  }
-  return false;
 }
 
 void URLRequestFileDirJob::CompleteRead() {
@@ -219,6 +200,25 @@ void URLRequestFileDirJob::CompleteRead() {
       NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, 0));
     }
   }
+}
+
+bool URLRequestFileDirJob::FillReadBuffer(char *buf, int buf_size,
+                                          int *bytes_read) {
+  DCHECK(bytes_read);
+
+  *bytes_read = 0;
+
+  int count = std::min(buf_size, static_cast<int>(data_.size()));
+  if (count) {
+    memcpy(buf, &data_[0], count);
+    data_.erase(0, count);
+    *bytes_read = count;
+    return true;
+  } else if (list_complete_) {
+    // EOF
+    return true;
+  }
+  return false;
 }
 
 }  // namespace net

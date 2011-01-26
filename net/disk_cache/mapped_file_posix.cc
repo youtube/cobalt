@@ -32,16 +32,6 @@ void* MappedFile::Init(const FilePath& name, size_t size) {
   return buffer_;
 }
 
-MappedFile::~MappedFile() {
-  if (!init_)
-    return;
-
-  if (buffer_) {
-    int ret = munmap(buffer_, view_size_);
-    DCHECK(0 == ret);
-  }
-}
-
 bool MappedFile::Load(const FileBlock* block) {
   size_t offset = block->offset() + view_size_;
   return Read(block->buffer(), block->size(), offset);
@@ -50,6 +40,16 @@ bool MappedFile::Load(const FileBlock* block) {
 bool MappedFile::Store(const FileBlock* block) {
   size_t offset = block->offset() + view_size_;
   return Write(block->buffer(), block->size(), offset);
+}
+
+MappedFile::~MappedFile() {
+  if (!init_)
+    return;
+
+  if (buffer_) {
+    int ret = munmap(buffer_, view_size_);
+    DCHECK(0 == ret);
+  }
 }
 
 }  // namespace disk_cache

@@ -45,9 +45,60 @@ class GssContextMockImpl {
 // the system GSSAPI library calls.
 class MockGSSAPILibrary : public GSSAPILibrary {
  public:
+  // Unit tests need access to this. "Friend"ing didn't help.
+  struct SecurityContextQuery {
+    std::string expected_package;
+    OM_uint32 response_code;
+    OM_uint32 minor_response_code;
+    test::GssContextMockImpl context_info;
+    gss_buffer_desc expected_input_token;
+    gss_buffer_desc output_token;
+  };
 
   MockGSSAPILibrary();
   virtual ~MockGSSAPILibrary();
+
+  // Establishes an expectation for a |init_sec_context()| call.
+  //
+  // Each expectation established by |ExpectSecurityContext()| must be
+  // matched by a call to |init_sec_context()| during the lifetime of
+  // the MockGSSAPILibrary. The |expected_package| argument must equal the
+  // value associated with the |target_name| argument to |init_sec_context()|
+  // for there to be a match. The expectations also establish an explicit
+  // ordering.
+  //
+  // For example, this sequence will be successful.
+  //   MockGSSAPILibrary lib;
+  //   lib.ExpectSecurityContext("NTLM", ...)
+  //   lib.ExpectSecurityContext("Negotiate", ...)
+  //   lib.init_sec_context("NTLM", ...)
+  //   lib.init_sec_context("Negotiate", ...)
+  //
+  // This sequence will fail since the queries do not occur in the order
+  // established by the expectations.
+  //   MockGSSAPILibrary lib;
+  //   lib.ExpectSecurityContext("NTLM", ...)
+  //   lib.ExpectSecurityContext("Negotiate", ...)
+  //   lib.init_sec_context("Negotiate", ...)
+  //   lib.init_sec_context("NTLM", ...)
+  //
+  // This sequence will fail because there were not enough queries.
+  //   MockGSSAPILibrary lib;
+  //   lib.ExpectSecurityContext("NTLM", ...)
+  //   lib.ExpectSecurityContext("Negotiate", ...)
+  //   lib.init_sec_context("NTLM", ...)
+  //
+  // |response_code| is used as the return value for |init_sec_context()|.
+  // If |response_code| is GSS_S_COMPLETE,
+  //
+  // |context_info| is the expected value of the |**context_handle| in after
+  // |init_sec_context()| returns.
+  void ExpectSecurityContext(const std::string& expected_package,
+                             OM_uint32 response_code,
+                             OM_uint32 minor_response_code,
+                             const test::GssContextMockImpl& context_info,
+                             const gss_buffer_desc& expected_input_token,
+                             const gss_buffer_desc& output_token);
 
   // GSSAPILibrary methods:
 
@@ -115,58 +166,6 @@ class MockGSSAPILibrary : public GSSAPILibrary {
       OM_uint32* ctx_flags,
       int* locally_initiated,
       int* open);
-
-  // Establishes an expectation for a |init_sec_context()| call.
-  //
-  // Each expectation established by |ExpectSecurityContext()| must be
-  // matched by a call to |init_sec_context()| during the lifetime of
-  // the MockGSSAPILibrary. The |expected_package| argument must equal the
-  // value associated with the |target_name| argument to |init_sec_context()|
-  // for there to be a match. The expectations also establish an explicit
-  // ordering.
-  //
-  // For example, this sequence will be successful.
-  //   MockGSSAPILibrary lib;
-  //   lib.ExpectSecurityContext("NTLM", ...)
-  //   lib.ExpectSecurityContext("Negotiate", ...)
-  //   lib.init_sec_context("NTLM", ...)
-  //   lib.init_sec_context("Negotiate", ...)
-  //
-  // This sequence will fail since the queries do not occur in the order
-  // established by the expectations.
-  //   MockGSSAPILibrary lib;
-  //   lib.ExpectSecurityContext("NTLM", ...)
-  //   lib.ExpectSecurityContext("Negotiate", ...)
-  //   lib.init_sec_context("Negotiate", ...)
-  //   lib.init_sec_context("NTLM", ...)
-  //
-  // This sequence will fail because there were not enough queries.
-  //   MockGSSAPILibrary lib;
-  //   lib.ExpectSecurityContext("NTLM", ...)
-  //   lib.ExpectSecurityContext("Negotiate", ...)
-  //   lib.init_sec_context("NTLM", ...)
-  //
-  // |response_code| is used as the return value for |init_sec_context()|.
-  // If |response_code| is GSS_S_COMPLETE,
-  //
-  // |context_info| is the expected value of the |**context_handle| in after
-  // |init_sec_context()| returns.
-  void ExpectSecurityContext(const std::string& expected_package,
-                             OM_uint32 response_code,
-                             OM_uint32 minor_response_code,
-                             const test::GssContextMockImpl& context_info,
-                             const gss_buffer_desc& expected_input_token,
-                             const gss_buffer_desc& output_token);
-
-  // Unit tests need access to this. "Friend"ing didn't help.
-  struct SecurityContextQuery {
-    std::string expected_package;
-    OM_uint32 response_code;
-    OM_uint32 minor_response_code;
-    test::GssContextMockImpl context_info;
-    gss_buffer_desc expected_input_token;
-    gss_buffer_desc output_token;
-  };
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpAuthGSSAPIPOSIXTest, GSSAPICycle);

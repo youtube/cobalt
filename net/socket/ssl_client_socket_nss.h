@@ -53,6 +53,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      DnsCertProvenanceChecker* dnsrr_resolver);
   ~SSLClientSocketNSS();
 
+  // For tests
+  static void ClearSessionCache();
+
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
@@ -77,10 +80,20 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
-  // For tests
-  static void ClearSessionCache();
-
  private:
+  enum State {
+    STATE_NONE,
+    STATE_SNAP_START_LOAD_INFO,
+    STATE_SNAP_START_WAIT_FOR_WRITE,
+    STATE_HANDSHAKE,
+    STATE_VERIFY_DNSSEC,
+    STATE_VERIFY_DNSSEC_COMPLETE,
+    STATE_VERIFY_CERT,
+    STATE_VERIFY_CERT_COMPLETE,
+  };
+
+  int Init();
+
   // Initializes NSS SSL options.  Returns a net error code.
   int InitializeSSLOptions();
 
@@ -115,7 +128,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoPayloadRead();
   int DoPayloadWrite();
   void LogConnectionTypeMetrics() const;
-  int Init();
   void SaveSnapStartInfo();
   bool LoadSnapStartInfo();
   bool IsNPNProtocolMispredicted();
@@ -123,8 +135,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   bool DoTransportIO();
   int BufferSend(void);
-  int BufferRecv(void);
   void BufferSendComplete(int result);
+  int BufferRecv(void);
   void BufferRecvComplete(int result);
 
   // NSS calls this when checking certificates. We pass 'this' as the first
@@ -224,16 +236,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // The time when we started waiting for DNSSEC records.
   base::Time dnssec_wait_start_time_;
 
-  enum State {
-    STATE_NONE,
-    STATE_SNAP_START_LOAD_INFO,
-    STATE_SNAP_START_WAIT_FOR_WRITE,
-    STATE_HANDSHAKE,
-    STATE_VERIFY_DNSSEC,
-    STATE_VERIFY_DNSSEC_COMPLETE,
-    STATE_VERIFY_CERT,
-    STATE_VERIFY_CERT_COMPLETE,
-  };
   State next_handshake_state_;
 
   // The NSS SSL state machine

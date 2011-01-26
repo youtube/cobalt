@@ -228,58 +228,6 @@ void Rankings::Reset() {
   control_data_ = NULL;
 }
 
-bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
-  if (!rankings->address().is_initialized())
-    return false;
-
-  TimeTicks start = TimeTicks::Now();
-  if (!rankings->Load())
-    return false;
-
-  if (!SanityCheck(rankings, true)) {
-    backend_->CriticalError(ERR_INVALID_LINKS);
-    return false;
-  }
-
-  backend_->OnEvent(Stats::OPEN_RANKINGS);
-
-  // "dummy" is the old "pointer" value, so it has to be 0.
-  if (!rankings->Data()->dirty && !rankings->Data()->dummy)
-    return true;
-
-  EntryImpl* entry = backend_->GetOpenEntry(rankings);
-  if (backend_->GetCurrentEntryId() != rankings->Data()->dirty || !entry) {
-    // We cannot trust this entry, but we cannot initiate a cleanup from this
-    // point (we may be in the middle of a cleanup already). Just get rid of
-    // the invalid pointer and continue; the entry will be deleted when detected
-    // from a regular open/create path.
-    rankings->Data()->dummy = 0;
-    rankings->Data()->dirty = backend_->GetCurrentEntryId() - 1;
-    if (!rankings->Data()->dirty)
-      rankings->Data()->dirty--;
-    return true;
-  }
-
-  // Note that we should not leave this module without deleting rankings first.
-  rankings->SetData(entry->rankings()->Data());
-
-  CACHE_UMA(AGE_MS, "GetRankings", 0, start);
-  return true;
-}
-
-void Rankings::ConvertToLongLived(CacheRankingsBlock* rankings) {
-  if (rankings->own_data())
-    return;
-
-  // We cannot return a shared node because we are not keeping a reference
-  // to the entry that owns the buffer. Make this node a copy of the one that
-  // we have, and let the iterator logic update it when the entry changes.
-  CacheRankingsBlock temp(NULL, Addr(0));
-  *temp.Data() = *rankings->Data();
-  rankings->StopSharingData();
-  *rankings->Data() = *temp.Data();
-}
-
 void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
   Trace("Insert 0x%x l %d", node->address().value(), list);
   DCHECK(node->HasData());
@@ -443,116 +391,6 @@ void Rankings::UpdateRank(CacheRankingsBlock* node, bool modified, List list) {
   CACHE_UMA(AGE_MS, "UpdateRank", 0, start);
 }
 
-void Rankings::CompleteTransaction() {
-  Addr node_addr(static_cast<CacheAddr>(control_data_->transaction));
-  if (!node_addr.is_initialized() || node_addr.is_separate_file()) {
-    NOTREACHED();
-    LOG(ERROR) << "Invalid rankings info.";
-    return;
-  }
-
-  Trace("CompleteTransaction 0x%x", node_addr.value());
-
-  CacheRankingsBlock node(backend_->File(node_addr), node_addr);
-  if (!node.Load())
-    return;
-
-  node.Data()->dummy = 0;
-  node.Store();
-
-  Addr& my_head = heads_[control_data_->operation_list];
-  Addr& my_tail = tails_[control_data_->operation_list];
-
-  // We want to leave the node inside the list. The entry must me marked as
-  // dirty, and will be removed later. Otherwise, we'll get assertions when
-  // attempting to remove the dirty entry.
-  if (INSERT == control_data_->operation) {
-    Trace("FinishInsert h:0x%x t:0x%x", my_head.value(), my_tail.value());
-    FinishInsert(&node);
-  } else if (REMOVE == control_data_->operation) {
-    Trace("RevertRemove h:0x%x t:0x%x", my_head.value(), my_tail.value());
-    RevertRemove(&node);
-  } else {
-    NOTREACHED();
-    LOG(ERROR) << "Invalid operation to recover.";
-  }
-}
-
-void Rankings::FinishInsert(CacheRankingsBlock* node) {
-  control_data_->transaction = 0;
-  control_data_->operation = 0;
-  Addr& my_head = heads_[control_data_->operation_list];
-  Addr& my_tail = tails_[control_data_->operation_list];
-  if (my_head.value() != node->address().value()) {
-    if (my_tail.value() == node->address().value()) {
-      // This part will be skipped by the logic of Insert.
-      node->Data()->next = my_tail.value();
-    }
-
-    Insert(node, true, static_cast<List>(control_data_->operation_list));
-  }
-
-  // Tell the backend about this entry.
-  backend_->RecoveredEntry(node);
-}
-
-void Rankings::RevertRemove(CacheRankingsBlock* node) {
-  Addr next_addr(node->Data()->next);
-  Addr prev_addr(node->Data()->prev);
-  if (!next_addr.is_initialized() || !prev_addr.is_initialized()) {
-    // The operation actually finished. Nothing to do.
-    control_data_->transaction = 0;
-    return;
-  }
-  if (next_addr.is_separate_file() || prev_addr.is_separate_file()) {
-    NOTREACHED();
-    LOG(WARNING) << "Invalid rankings info.";
-    control_data_->transaction = 0;
-    return;
-  }
-
-  CacheRankingsBlock next(backend_->File(next_addr), next_addr);
-  CacheRankingsBlock prev(backend_->File(prev_addr), prev_addr);
-  if (!next.Load() || !prev.Load())
-    return;
-
-  CacheAddr node_value = node->address().value();
-  DCHECK(prev.Data()->next == node_value ||
-         prev.Data()->next == prev_addr.value() ||
-         prev.Data()->next == next.address().value());
-  DCHECK(next.Data()->prev == node_value ||
-         next.Data()->prev == next_addr.value() ||
-         next.Data()->prev == prev.address().value());
-
-  if (node_value != prev_addr.value())
-    prev.Data()->next = node_value;
-  if (node_value != next_addr.value())
-    next.Data()->prev = node_value;
-
-  List my_list = static_cast<List>(control_data_->operation_list);
-  Addr& my_head = heads_[my_list];
-  Addr& my_tail = tails_[my_list];
-  if (!my_head.is_initialized() || !my_tail.is_initialized()) {
-    my_head.set_value(node_value);
-    my_tail.set_value(node_value);
-    WriteHead(my_list);
-    WriteTail(my_list);
-  } else if (my_head.value() == next.address().value()) {
-    my_head.set_value(node_value);
-    prev.Data()->next = next.address().value();
-    WriteHead(my_list);
-  } else if (my_tail.value() == prev.address().value()) {
-    my_tail.set_value(node_value);
-    next.Data()->prev = prev.address().value();
-    WriteTail(my_list);
-  }
-
-  next.Store();
-  prev.Store();
-  control_data_->transaction = 0;
-  control_data_->operation = 0;
-}
-
 CacheRankingsBlock* Rankings::GetNext(CacheRankingsBlock* node, List list) {
   ScopedRankingsBlock next(this);
   if (!node) {
@@ -689,6 +527,168 @@ void Rankings::WriteHead(List list) {
 
 void Rankings::WriteTail(List list) {
   control_data_->tails[list] = tails_[list].value();
+}
+
+bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
+  if (!rankings->address().is_initialized())
+    return false;
+
+  TimeTicks start = TimeTicks::Now();
+  if (!rankings->Load())
+    return false;
+
+  if (!SanityCheck(rankings, true)) {
+    backend_->CriticalError(ERR_INVALID_LINKS);
+    return false;
+  }
+
+  backend_->OnEvent(Stats::OPEN_RANKINGS);
+
+  // "dummy" is the old "pointer" value, so it has to be 0.
+  if (!rankings->Data()->dirty && !rankings->Data()->dummy)
+    return true;
+
+  EntryImpl* entry = backend_->GetOpenEntry(rankings);
+  if (backend_->GetCurrentEntryId() != rankings->Data()->dirty || !entry) {
+    // We cannot trust this entry, but we cannot initiate a cleanup from this
+    // point (we may be in the middle of a cleanup already). Just get rid of
+    // the invalid pointer and continue; the entry will be deleted when detected
+    // from a regular open/create path.
+    rankings->Data()->dummy = 0;
+    rankings->Data()->dirty = backend_->GetCurrentEntryId() - 1;
+    if (!rankings->Data()->dirty)
+      rankings->Data()->dirty--;
+    return true;
+  }
+
+  // Note that we should not leave this module without deleting rankings first.
+  rankings->SetData(entry->rankings()->Data());
+
+  CACHE_UMA(AGE_MS, "GetRankings", 0, start);
+  return true;
+}
+
+void Rankings::ConvertToLongLived(CacheRankingsBlock* rankings) {
+  if (rankings->own_data())
+    return;
+
+  // We cannot return a shared node because we are not keeping a reference
+  // to the entry that owns the buffer. Make this node a copy of the one that
+  // we have, and let the iterator logic update it when the entry changes.
+  CacheRankingsBlock temp(NULL, Addr(0));
+  *temp.Data() = *rankings->Data();
+  rankings->StopSharingData();
+  *rankings->Data() = *temp.Data();
+}
+
+void Rankings::CompleteTransaction() {
+  Addr node_addr(static_cast<CacheAddr>(control_data_->transaction));
+  if (!node_addr.is_initialized() || node_addr.is_separate_file()) {
+    NOTREACHED();
+    LOG(ERROR) << "Invalid rankings info.";
+    return;
+  }
+
+  Trace("CompleteTransaction 0x%x", node_addr.value());
+
+  CacheRankingsBlock node(backend_->File(node_addr), node_addr);
+  if (!node.Load())
+    return;
+
+  node.Data()->dummy = 0;
+  node.Store();
+
+  Addr& my_head = heads_[control_data_->operation_list];
+  Addr& my_tail = tails_[control_data_->operation_list];
+
+  // We want to leave the node inside the list. The entry must me marked as
+  // dirty, and will be removed later. Otherwise, we'll get assertions when
+  // attempting to remove the dirty entry.
+  if (INSERT == control_data_->operation) {
+    Trace("FinishInsert h:0x%x t:0x%x", my_head.value(), my_tail.value());
+    FinishInsert(&node);
+  } else if (REMOVE == control_data_->operation) {
+    Trace("RevertRemove h:0x%x t:0x%x", my_head.value(), my_tail.value());
+    RevertRemove(&node);
+  } else {
+    NOTREACHED();
+    LOG(ERROR) << "Invalid operation to recover.";
+  }
+}
+
+void Rankings::FinishInsert(CacheRankingsBlock* node) {
+  control_data_->transaction = 0;
+  control_data_->operation = 0;
+  Addr& my_head = heads_[control_data_->operation_list];
+  Addr& my_tail = tails_[control_data_->operation_list];
+  if (my_head.value() != node->address().value()) {
+    if (my_tail.value() == node->address().value()) {
+      // This part will be skipped by the logic of Insert.
+      node->Data()->next = my_tail.value();
+    }
+
+    Insert(node, true, static_cast<List>(control_data_->operation_list));
+  }
+
+  // Tell the backend about this entry.
+  backend_->RecoveredEntry(node);
+}
+
+void Rankings::RevertRemove(CacheRankingsBlock* node) {
+  Addr next_addr(node->Data()->next);
+  Addr prev_addr(node->Data()->prev);
+  if (!next_addr.is_initialized() || !prev_addr.is_initialized()) {
+    // The operation actually finished. Nothing to do.
+    control_data_->transaction = 0;
+    return;
+  }
+  if (next_addr.is_separate_file() || prev_addr.is_separate_file()) {
+    NOTREACHED();
+    LOG(WARNING) << "Invalid rankings info.";
+    control_data_->transaction = 0;
+    return;
+  }
+
+  CacheRankingsBlock next(backend_->File(next_addr), next_addr);
+  CacheRankingsBlock prev(backend_->File(prev_addr), prev_addr);
+  if (!next.Load() || !prev.Load())
+    return;
+
+  CacheAddr node_value = node->address().value();
+  DCHECK(prev.Data()->next == node_value ||
+         prev.Data()->next == prev_addr.value() ||
+         prev.Data()->next == next.address().value());
+  DCHECK(next.Data()->prev == node_value ||
+         next.Data()->prev == next_addr.value() ||
+         next.Data()->prev == prev.address().value());
+
+  if (node_value != prev_addr.value())
+    prev.Data()->next = node_value;
+  if (node_value != next_addr.value())
+    next.Data()->prev = node_value;
+
+  List my_list = static_cast<List>(control_data_->operation_list);
+  Addr& my_head = heads_[my_list];
+  Addr& my_tail = tails_[my_list];
+  if (!my_head.is_initialized() || !my_tail.is_initialized()) {
+    my_head.set_value(node_value);
+    my_tail.set_value(node_value);
+    WriteHead(my_list);
+    WriteTail(my_list);
+  } else if (my_head.value() == next.address().value()) {
+    my_head.set_value(node_value);
+    prev.Data()->next = next.address().value();
+    WriteHead(my_list);
+  } else if (my_tail.value() == prev.address().value()) {
+    my_tail.set_value(node_value);
+    next.Data()->prev = prev.address().value();
+    WriteTail(my_list);
+  }
+
+  next.Store();
+  prev.Store();
+  control_data_->transaction = 0;
+  control_data_->operation = 0;
 }
 
 bool Rankings::CheckEntry(CacheRankingsBlock* rankings) {
