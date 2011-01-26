@@ -377,7 +377,9 @@ PipelineImpl::State PipelineImpl::FindNextState(State current) {
   } else if (current == kFlushing) {
     // We will always honor Seek() before Stop(). This is based on the
     // assumption that we never accept Seek() after Stop().
-    DCHECK(IsPipelineSeeking() || IsPipelineStopPending());
+    DCHECK(IsPipelineSeeking() ||
+           IsPipelineStopPending() ||
+           IsPipelineTearingDown());
     return IsPipelineSeeking() ? kSeeking : kStopping;
   } else if (current == kSeeking) {
     return kStarting;
