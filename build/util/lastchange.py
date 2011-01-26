@@ -18,42 +18,43 @@ class VersionInfo(object):
     self.root = root
     self.revision = revision
 
-
-def IsGitSVN(directory):
-  """Return true if the directory is managed by git-svn."""
-
-  # To test whether git-svn has been set up, query the config for any
-  # svn-related configuration.  This command exits with an error code
-  # if there aren't any matches, so ignore its output.
-  try:
-    status = subprocess.call(['git', 'config', '--get-regexp', '^svn'],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE,
-                             cwd=directory)
-    return status == 0
-  except OSError:
-    return False
-
-
-def FetchSVNRevision(command, directory):
+def FetchGitRevision(directory):
   """
-  Fetch the Subversion branch and revision for the a given directory
-  by running the given command (e.g. "svn info").
+  Fetch the Git hash for the a given directory.
 
   Errors are swallowed.
 
   Returns:
     a VersionInfo object or None on error.
   """
-
   # Force shell usage under cygwin & win32. This is a workaround for
   # mysterious loss of cwd while invoking cygwin's git.
   # We can't just pass shell=True to Popen, as under win32 this will
   # cause CMD to be used, while we explicitly want a cygwin shell.
+  command = ['git', 'rev-parse', 'HEAD']
   if sys.platform in ('cygwin', 'win32'):
     command = ['sh', '-c', ' '.join(command)]
   try:
     proc = subprocess.Popen(command,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            cwd=directory)
+  except OSError:
+    return None
+  return VersionInfo('git', 'git', proc.stdout.read().strip()[:7])
+
+
+def FetchSVNRevision(directory):
+  """
+  Fetch the Subversion branch and revision for the a given directory.
+
+  Errors are swallowed.
+
+  Returns:
+    a VersionInfo object or None on error.
+  """
+  try:
+    proc = subprocess.Popen(['svn', 'info'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             cwd=directory)
@@ -66,9 +67,7 @@ def FetchSVNRevision(command, directory):
   attrs = {}
   for line in proc.stdout:
     line = line.strip()
-    # git-svn can print out extra "Rebuilding ..." lines, which we don't
-    # care about and want to skip over.
-    if not line or ': ' not in line:
+    if not line:
       continue
     key, val = line.split(': ', 1)
     attrs[key] = val
@@ -88,11 +87,7 @@ def FetchVersionInfo(default_lastchange, directory=None):
   Returns the last change (in the form of a branch, revision tuple),
   from some appropriate revision control system.
   """
-  version_info = FetchSVNRevision(['svn', 'info'], directory)
-  # N.B. test for git-svn before trying 'git svn info', as the info
-  # command will hang if git-svn hasn't been set up.
-  if not version_info and IsGitSVN(directory):
-    version_info = FetchSVNRevision(['git', 'svn', 'info'], directory)
+  version_info = FetchSVNRevision(directory) or FetchGitRevision(directory)
   if not version_info:
     if default_lastchange and os.path.exists(default_lastchange):
       revision = open(default_lastchange, 'r').read().strip()
