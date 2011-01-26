@@ -71,13 +71,6 @@ void HttpAuthHandlerMock::SetGenerateExpectation(bool async, int rv) {
   generate_rv_ = rv;
 }
 
-bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
-  auth_scheme_ = HttpAuth::AUTH_SCHEME_MOCK;
-  score_ = 1;
-  properties_ = connection_based_ ? IS_CONNECTION_BASED : 0;
-  return true;
-}
-
 HttpAuth::AuthorizationResult HttpAuthHandlerMock::HandleAnotherChallenge(
     HttpAuth::ChallengeTokenizer* challenge) {
   if (!is_connection_based())
@@ -85,6 +78,17 @@ HttpAuth::AuthorizationResult HttpAuthHandlerMock::HandleAnotherChallenge(
   if (!LowerCaseEqualsASCII(challenge->scheme(), "mock"))
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
   return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
+}
+
+bool HttpAuthHandlerMock::NeedsIdentity() {
+  return first_round_;
+}
+
+bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_MOCK;
+  score_ = 1;
+  properties_ = connection_based_ ? IS_CONNECTION_BASED : 0;
+  return true;
 }
 
 int HttpAuthHandlerMock::GenerateAuthTokenImpl(const string16* username,

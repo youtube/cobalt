@@ -15,6 +15,19 @@
 
 namespace net {
 
+HttpAuth::AuthorizationResult HttpAuthHandlerNTLM::HandleAnotherChallenge(
+    HttpAuth::ChallengeTokenizer* challenge) {
+  return ParseChallenge(challenge, false);
+}
+
+bool HttpAuthHandlerNTLM::Init(HttpAuth::ChallengeTokenizer* tok) {
+  auth_scheme_ = HttpAuth::AUTH_SCHEME_NTLM;
+  score_ = 3;
+  properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
+
+  return ParseChallenge(tok, true) == HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
+}
+
 int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
     const string16* username,
     const string16* password,
@@ -90,19 +103,6 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
   *auth_token = std::string("NTLM ") + encode_output;
   return OK;
 #endif
-}
-
-bool HttpAuthHandlerNTLM::Init(HttpAuth::ChallengeTokenizer* tok) {
-  auth_scheme_ = HttpAuth::AUTH_SCHEME_NTLM;
-  score_ = 3;
-  properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
-
-  return ParseChallenge(tok, true) == HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
-}
-
-HttpAuth::AuthorizationResult HttpAuthHandlerNTLM::HandleAnotherChallenge(
-    HttpAuth::ChallengeTokenizer* challenge) {
-  return ParseChallenge(challenge, false);
 }
 
 // The NTLM challenge header looks like:

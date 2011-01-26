@@ -25,6 +25,8 @@ HttpBasicStream::HttpBasicStream(ClientSocketHandle* connection,
       request_info_(NULL) {
 }
 
+HttpBasicStream::~HttpBasicStream() {}
+
 int HttpBasicStream::InitializeStream(const HttpRequestInfo* request_info,
                                       const BoundNetLog& net_log,
                                       CompletionCallback* callback) {
@@ -51,8 +53,6 @@ int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
   return parser_->SendRequest(request_line_, headers, request_body, response,
                               callback);
 }
-
-HttpBasicStream::~HttpBasicStream() {}
 
 uint64 HttpBasicStream::GetUploadProgress() const {
   return parser_->GetUploadProgress();

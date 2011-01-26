@@ -189,11 +189,6 @@ bool File::Init(const FilePath& name) {
   return true;
 }
 
-File::~File() {
-  if (platform_file_)
-    close(platform_file_);
-}
-
 base::PlatformFile File::platform_file() const {
   return platform_file_;
 }
@@ -255,19 +250,6 @@ bool File::Write(const void* buffer, size_t buffer_len, size_t offset,
   return AsyncWrite(buffer, buffer_len, offset, callback, completed);
 }
 
-bool File::AsyncWrite(const void* buffer, size_t buffer_len, size_t offset,
-                      FileIOCallback* callback, bool* completed) {
-  DCHECK(init_);
-  if (buffer_len > ULONG_MAX || offset > ULONG_MAX)
-    return false;
-
-  GetFileInFlightIO()->PostWrite(this, buffer, buffer_len, offset, callback);
-
-  if (completed)
-    *completed = false;
-  return true;
-}
-
 bool File::SetLength(size_t length) {
   DCHECK(init_);
   if (length > ULONG_MAX)
@@ -288,6 +270,24 @@ void File::WaitForPendingIO(int* num_pending_io) {
   // message loop.
   GetFileInFlightIO()->WaitForPendingIO();
   DeleteFileInFlightIO();
+}
+
+File::~File() {
+  if (platform_file_)
+    close(platform_file_);
+}
+
+bool File::AsyncWrite(const void* buffer, size_t buffer_len, size_t offset,
+                      FileIOCallback* callback, bool* completed) {
+  DCHECK(init_);
+  if (buffer_len > ULONG_MAX || offset > ULONG_MAX)
+    return false;
+
+  GetFileInFlightIO()->PostWrite(this, buffer, buffer_len, offset, callback);
+
+  if (completed)
+    *completed = false;
+  return true;
 }
 
 }  // namespace disk_cache

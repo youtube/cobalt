@@ -62,6 +62,9 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     Factory();
     virtual ~Factory();
 
+    // This factory owns the passed in |nonce_generator|.
+    void set_nonce_generator(const NonceGenerator* nonce_generator);
+
     virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                   HttpAuth::Target target,
                                   const GURL& origin,
@@ -69,9 +72,6 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
                                   int digest_nonce_count,
                                   const BoundNetLog& net_log,
                                   scoped_ptr<HttpAuthHandler>* handler);
-
-    // This factory owns the passed in |nonce_generator|.
-    void set_nonce_generator(const NonceGenerator* nonce_generator);
 
    private:
     scoped_ptr<const NonceGenerator> nonce_generator_;

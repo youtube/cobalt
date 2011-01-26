@@ -28,6 +28,13 @@ class URLRequestFileJob : public URLRequestJob {
  public:
   URLRequestFileJob(URLRequest* request, const FilePath& file_path);
 
+  static URLRequest::ProtocolFactory Factory;
+
+#if defined(OS_CHROMEOS)
+  static bool AccessDisabled(const FilePath& file_path);
+#endif
+
+  // URLRequestJob:
   virtual void Start();
   virtual void Kill();
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int* bytes_read);
@@ -36,12 +43,6 @@ class URLRequestFileJob : public URLRequestJob {
       std::vector<Filter::FilterType>* encoding_type);
   virtual bool GetMimeType(std::string* mime_type) const;
   virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
-
-  static URLRequest::ProtocolFactory Factory;
-
-#if defined(OS_CHROMEOS)
-  static bool AccessDisabled(const FilePath& file_path);
-#endif
 
  protected:
   virtual ~URLRequestFileJob();

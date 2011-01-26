@@ -76,17 +76,7 @@ class URLRequestJobManager {
   URLRequestJobManager();
   ~URLRequestJobManager();
 
-  mutable base::Lock lock_;
-  FactoryMap factories_;
-  InterceptorList interceptors_;
-  bool enable_file_access_;
-
 #ifndef NDEBUG
-  // We use this to assert that CreateJob and the registration functions all
-  // run on the same thread.
-  mutable base::PlatformThreadId allowed_thread_;
-  mutable bool allowed_thread_initialized_;
-
   // The first guy to call this function sets the allowed thread.  This way we
   // avoid needing to define that thread externally.  Since we expect all
   // callers to be on the same thread, we don't worry about threads racing to
@@ -110,7 +100,17 @@ class URLRequestJobManager {
     return true;
 #endif
   }
+
+  // We use this to assert that CreateJob and the registration functions all
+  // run on the same thread.
+  mutable base::PlatformThreadId allowed_thread_;
+  mutable bool allowed_thread_initialized_;
 #endif
+
+  mutable base::Lock lock_;
+  FactoryMap factories_;
+  InterceptorList interceptors_;
+  bool enable_file_access_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestJobManager);
 };

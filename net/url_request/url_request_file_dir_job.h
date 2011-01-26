@@ -22,9 +22,12 @@ class URLRequestFileDirJob
  public:
   URLRequestFileDirJob(URLRequest* request, const FilePath& dir_path);
 
+  bool list_complete() const { return list_complete_; }
+
+  virtual void StartAsync();
+
   // Overridden from URLRequestJob:
   virtual void Start();
-  virtual void StartAsync();
   virtual void Kill();
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
   virtual bool GetMimeType(std::string* mime_type) const;
@@ -35,12 +38,11 @@ class URLRequestFileDirJob
       const DirectoryLister::DirectoryListerData& data);
   virtual void OnListDone(int error);
 
-  bool list_complete() const { return list_complete_; }
-
  private:
   virtual ~URLRequestFileDirJob();
 
   void CloseLister();
+
   // When we have data and a read has been pending, this function
   // will fill the response buffer and notify the request
   // appropriately.
