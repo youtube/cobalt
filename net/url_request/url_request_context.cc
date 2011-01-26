@@ -25,15 +25,15 @@ URLRequestContext::URLRequestContext()
       is_main_(false) {
 }
 
+void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
+  cookie_store_ = cookie_store;
+}
+
 const std::string& URLRequestContext::GetUserAgent(const GURL& url) const {
   return EmptyString();
 }
 
 URLRequestContext::~URLRequestContext() {
-}
-
-void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
-  cookie_store_ = cookie_store;
 }
 
 }  // namespace net

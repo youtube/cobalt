@@ -31,15 +31,16 @@ class FtpNetworkTransaction : public FtpTransaction {
                         ClientSocketFactory* socket_factory);
   virtual ~FtpNetworkTransaction();
 
+  virtual int Stop(int error);
+  virtual int RestartIgnoringLastError(CompletionCallback* callback);
+
   // FtpTransaction methods:
   virtual int Start(const FtpRequestInfo* request_info,
                     CompletionCallback* callback,
                     const BoundNetLog& net_log);
-  virtual int Stop(int error);
   virtual int RestartWithAuth(const string16& username,
                               const string16& password,
                               CompletionCallback* callback);
-  virtual int RestartIgnoringLastError(CompletionCallback* callback);
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual const FtpResponseInfo* GetResponseInfo() const;
   virtual LoadState GetLoadState() const;
@@ -85,6 +86,36 @@ class FtpNetworkTransaction : public FtpTransaction {
     RESOURCE_TYPE_UNKNOWN,
     RESOURCE_TYPE_FILE,
     RESOURCE_TYPE_DIRECTORY,
+  };
+
+  enum State {
+    // Control connection states:
+    STATE_CTRL_RESOLVE_HOST,
+    STATE_CTRL_RESOLVE_HOST_COMPLETE,
+    STATE_CTRL_CONNECT,
+    STATE_CTRL_CONNECT_COMPLETE,
+    STATE_CTRL_READ,
+    STATE_CTRL_READ_COMPLETE,
+    STATE_CTRL_WRITE,
+    STATE_CTRL_WRITE_COMPLETE,
+    STATE_CTRL_WRITE_USER,
+    STATE_CTRL_WRITE_PASS,
+    STATE_CTRL_WRITE_SYST,
+    STATE_CTRL_WRITE_TYPE,
+    STATE_CTRL_WRITE_EPSV,
+    STATE_CTRL_WRITE_PASV,
+    STATE_CTRL_WRITE_PWD,
+    STATE_CTRL_WRITE_RETR,
+    STATE_CTRL_WRITE_SIZE,
+    STATE_CTRL_WRITE_CWD,
+    STATE_CTRL_WRITE_LIST,
+    STATE_CTRL_WRITE_QUIT,
+    // Data connection states:
+    STATE_DATA_CONNECT,
+    STATE_DATA_CONNECT_COMPLETE,
+    STATE_DATA_READ,
+    STATE_DATA_READ_COMPLETE,
+    STATE_NONE
   };
 
   // Resets the members of the transaction so it can be restarted.
@@ -211,35 +242,6 @@ class FtpNetworkTransaction : public FtpTransaction {
   scoped_ptr<ClientSocket> ctrl_socket_;
   scoped_ptr<ClientSocket> data_socket_;
 
-  enum State {
-    // Control connection states:
-    STATE_CTRL_RESOLVE_HOST,
-    STATE_CTRL_RESOLVE_HOST_COMPLETE,
-    STATE_CTRL_CONNECT,
-    STATE_CTRL_CONNECT_COMPLETE,
-    STATE_CTRL_READ,
-    STATE_CTRL_READ_COMPLETE,
-    STATE_CTRL_WRITE,
-    STATE_CTRL_WRITE_COMPLETE,
-    STATE_CTRL_WRITE_USER,
-    STATE_CTRL_WRITE_PASS,
-    STATE_CTRL_WRITE_SYST,
-    STATE_CTRL_WRITE_TYPE,
-    STATE_CTRL_WRITE_EPSV,
-    STATE_CTRL_WRITE_PASV,
-    STATE_CTRL_WRITE_PWD,
-    STATE_CTRL_WRITE_RETR,
-    STATE_CTRL_WRITE_SIZE,
-    STATE_CTRL_WRITE_CWD,
-    STATE_CTRL_WRITE_LIST,
-    STATE_CTRL_WRITE_QUIT,
-    // Data connection states:
-    STATE_DATA_CONNECT,
-    STATE_DATA_CONNECT_COMPLETE,
-    STATE_DATA_READ,
-    STATE_DATA_READ_COMPLETE,
-    STATE_NONE
-  };
   State next_state_;
 };
 

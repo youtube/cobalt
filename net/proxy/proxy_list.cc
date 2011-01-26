@@ -86,17 +86,6 @@ const ProxyServer& ProxyList::Get() const {
   return proxies_[0];
 }
 
-std::string ProxyList::ToPacString() const {
-  std::string proxy_list;
-  std::vector<ProxyServer>::const_iterator iter = proxies_.begin();
-  for (; iter != proxies_.end(); ++iter) {
-    if (!proxy_list.empty())
-      proxy_list += ";";
-    proxy_list += iter->ToPacString();
-  }
-  return proxy_list.empty() ? std::string() : proxy_list;
-}
-
 void ProxyList::SetFromPacString(const std::string& pac_string) {
   StringTokenizer entry_tok(pac_string, ";");
   proxies_.clear();
@@ -113,6 +102,17 @@ void ProxyList::SetFromPacString(const std::string& pac_string) {
   if (proxies_.empty()) {
     proxies_.push_back(ProxyServer::Direct());
   }
+}
+
+std::string ProxyList::ToPacString() const {
+  std::string proxy_list;
+  std::vector<ProxyServer>::const_iterator iter = proxies_.begin();
+  for (; iter != proxies_.end(); ++iter) {
+    if (!proxy_list.empty())
+      proxy_list += ";";
+    proxy_list += iter->ToPacString();
+  }
+  return proxy_list.empty() ? std::string() : proxy_list;
 }
 
 bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info) {

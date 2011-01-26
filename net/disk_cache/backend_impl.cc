@@ -344,34 +344,6 @@ int PreferedCacheSize(int64 available) {
 
 // ------------------------------------------------------------------------
 
-// If the initialization of the cache fails, and force is true, we will discard
-// the whole cache and create a new one. In order to process a potentially large
-// number of files, we'll rename the cache folder to old_ + original_name +
-// number, (located on the same parent folder), and spawn a worker thread to
-// delete all the files on all the stale cache folders. The whole process can
-// still fail if we are not able to rename the cache folder (for instance due to
-// a sharing violation), and in that case a cache for this profile (on the
-// desired path) cannot be created.
-//
-// Static.
-int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
-                               int max_bytes, net::CacheType type,
-                               uint32 flags, base::MessageLoopProxy* thread,
-                               net::NetLog* net_log, Backend** backend,
-                               CompletionCallback* callback) {
-  DCHECK(callback);
-  CacheCreator* creator = new CacheCreator(full_path, force, max_bytes, type,
-                                           flags, thread, net_log, backend,
-                                           callback);
-  // This object will self-destroy when finished.
-  return creator->Run();
-}
-
-int BackendImpl::Init(CompletionCallback* callback) {
-  background_queue_.Init(callback);
-  return net::ERR_IO_PENDING;
-}
-
 BackendImpl::BackendImpl(const FilePath& path,
                          base::MessageLoopProxy* cache_thread,
                          net::NetLog* net_log)
@@ -436,7 +408,33 @@ BackendImpl::~BackendImpl() {
   }
 }
 
-// ------------------------------------------------------------------------
+// If the initialization of the cache fails, and force is true, we will discard
+// the whole cache and create a new one. In order to process a potentially large
+// number of files, we'll rename the cache folder to old_ + original_name +
+// number, (located on the same parent folder), and spawn a worker thread to
+// delete all the files on all the stale cache folders. The whole process can
+// still fail if we are not able to rename the cache folder (for instance due to
+// a sharing violation), and in that case a cache for this profile (on the
+// desired path) cannot be created.
+//
+// Static.
+int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
+                               int max_bytes, net::CacheType type,
+                               uint32 flags, base::MessageLoopProxy* thread,
+                               net::NetLog* net_log, Backend** backend,
+                               CompletionCallback* callback) {
+  DCHECK(callback);
+  CacheCreator* creator = new CacheCreator(full_path, force, max_bytes, type,
+                                           flags, thread, net_log, backend,
+                                           callback);
+  // This object will self-destroy when finished.
+  return creator->Run();
+}
+
+int BackendImpl::Init(CompletionCallback* callback) {
+  background_queue_.Init(callback);
+  return net::ERR_IO_PENDING;
+}
 
 int BackendImpl::SyncInit() {
   DCHECK(!init_);

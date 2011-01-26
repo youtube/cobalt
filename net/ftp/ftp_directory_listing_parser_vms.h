@@ -26,10 +26,6 @@ class FtpDirectoryListingParserVms : public FtpDirectoryListingParser {
   virtual FtpDirectoryListingEntry PopEntry();
 
  private:
-  // Consumes listing line which is expected to be a directory listing entry
-  // (and not a comment etc). Returns true on success.
-  bool ConsumeEntryLine(const string16& line);
-
   enum State {
     STATE_INITIAL,
 
@@ -46,7 +42,13 @@ class FtpDirectoryListingParserVms : public FtpDirectoryListingParser {
 
     // Indicates that we have successfully received all parts of the listing.
     STATE_END,
-  } state_;
+  };
+
+  // Consumes listing line which is expected to be a directory listing entry
+  // (and not a comment etc). Returns true on success.
+  bool ConsumeEntryLine(const string16& line);
+
+  State state_;
 
   // VMS can use two physical lines if the filename is long. The first line will
   // contain the filename, and the second line everything else. Store the

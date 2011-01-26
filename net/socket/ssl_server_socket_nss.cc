@@ -90,22 +90,6 @@ SSLServerSocketNSS::~SSLServerSocketNSS() {
   }
 }
 
-int SSLServerSocketNSS::Init() {
-  // Initialize the NSS SSL library in a threadsafe way.  This also
-  // initializes the NSS base library.
-  EnsureNSSSSLInit();
-  if (!NSS_IsInitialized())
-    return ERR_UNEXPECTED;
-#if !defined(OS_MACOSX) && !defined(OS_WIN)
-  // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
-  // by MessageLoopForIO::current().
-  // X509Certificate::Verify() runs on a worker thread of CertVerifier.
-  EnsureOCSPInit();
-#endif
-
-  return OK;
-}
-
 int SSLServerSocketNSS::Accept(CompletionCallback* callback) {
   net_log_.BeginEvent(NetLog::TYPE_SSL_ACCEPT, NULL);
 
@@ -183,27 +167,12 @@ int SSLServerSocketNSS::Write(IOBuffer* buf, int buf_len,
   return rv;
 }
 
-// static
-// NSS calls this if an incoming certificate needs to be verified.
-// Do nothing but return SECSuccess.
-// This is called only in full handshake mode.
-// Peer certificate is retrieved in HandshakeCallback() later, which is called
-// in full handshake mode or in resumption handshake mode.
-SECStatus SSLServerSocketNSS::OwnAuthCertHandler(void* arg,
-                                                 PRFileDesc* socket,
-                                                 PRBool checksig,
-                                                 PRBool is_server) {
-  // TODO(hclam): Implement.
-  // Tell NSS to not verify the certificate.
-  return SECSuccess;
+bool SSLServerSocketNSS::SetReceiveBufferSize(int32 size) {
+  return false;
 }
 
-// static
-// NSS calls this when handshake is completed.
-// After the SSL handshake is finished we need to verify the certificate.
-void SSLServerSocketNSS::HandshakeCallback(PRFileDesc* socket,
-                                           void* arg) {
-  // TODO(hclam): Implement.
+bool SSLServerSocketNSS::SetSendBufferSize(int32 size) {
+  return false;
 }
 
 int SSLServerSocketNSS::InitializeSSLOptions() {
@@ -381,6 +350,47 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
   return OK;
 }
 
+void SSLServerSocketNSS::OnSendComplete(int result) {
+  if (next_handshake_state_ == STATE_HANDSHAKE) {
+    // In handshake phase.
+    OnHandshakeIOComplete(result);
+    return;
+  }
+
+  if (!user_write_buf_ || !completed_handshake_)
+    return;
+
+  int rv = DoWriteLoop(result);
+  if (rv != ERR_IO_PENDING)
+    DoWriteCallback(rv);
+}
+
+void SSLServerSocketNSS::OnRecvComplete(int result) {
+  if (next_handshake_state_ == STATE_HANDSHAKE) {
+    // In handshake phase.
+    OnHandshakeIOComplete(result);
+    return;
+  }
+
+  // Network layer received some data, check if client requested to read
+  // decrypted data.
+  if (!user_read_buf_ || !completed_handshake_)
+    return;
+
+  int rv = DoReadLoop(result);
+  if (rv != ERR_IO_PENDING)
+    DoReadCallback(rv);
+}
+
+void SSLServerSocketNSS::OnHandshakeIOComplete(int result) {
+  int rv = DoHandshakeLoop(result);
+  if (rv != ERR_IO_PENDING) {
+    net_log_.EndEvent(net::NetLog::TYPE_SSL_ACCEPT, NULL);
+    if (user_accept_callback_)
+      DoAcceptCallback(rv);
+  }
+}
+
 // Return 0 for EOF,
 // > 0 for bytes transferred immediately,
 // < 0 for error (or the non-error ERR_IO_PENDING).
@@ -451,81 +461,6 @@ void SSLServerSocketNSS::BufferRecvComplete(int result) {
   memio_PutReadResult(nss_bufs_, MapErrorToNSS(result));
   transport_recv_busy_ = false;
   OnRecvComplete(result);
-}
-
-void SSLServerSocketNSS::OnSendComplete(int result) {
-  if (next_handshake_state_ == STATE_HANDSHAKE) {
-    // In handshake phase.
-    OnHandshakeIOComplete(result);
-    return;
-  }
-
-  if (!user_write_buf_ || !completed_handshake_)
-    return;
-
-  int rv = DoWriteLoop(result);
-  if (rv != ERR_IO_PENDING)
-    DoWriteCallback(rv);
-}
-
-void SSLServerSocketNSS::OnRecvComplete(int result) {
-  if (next_handshake_state_ == STATE_HANDSHAKE) {
-    // In handshake phase.
-    OnHandshakeIOComplete(result);
-    return;
-  }
-
-  // Network layer received some data, check if client requested to read
-  // decrypted data.
-  if (!user_read_buf_ || !completed_handshake_)
-    return;
-
-  int rv = DoReadLoop(result);
-  if (rv != ERR_IO_PENDING)
-    DoReadCallback(rv);
-}
-
-void SSLServerSocketNSS::OnHandshakeIOComplete(int result) {
-  int rv = DoHandshakeLoop(result);
-  if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(net::NetLog::TYPE_SSL_ACCEPT, NULL);
-    if (user_accept_callback_)
-      DoAcceptCallback(rv);
-  }
-}
-
-void SSLServerSocketNSS::DoAcceptCallback(int rv) {
-  DCHECK_NE(rv, ERR_IO_PENDING);
-
-  CompletionCallback* c = user_accept_callback_;
-  user_accept_callback_ = NULL;
-  c->Run(rv > OK ? OK : rv);
-}
-
-void SSLServerSocketNSS::DoReadCallback(int rv) {
-  DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_read_callback_);
-
-  // Since Run may result in Read being called, clear |user_read_callback_|
-  // up front.
-  CompletionCallback* c = user_read_callback_;
-  user_read_callback_ = NULL;
-  user_read_buf_ = NULL;
-  user_read_buf_len_ = 0;
-  c->Run(rv);
-}
-
-void SSLServerSocketNSS::DoWriteCallback(int rv) {
-  DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_write_callback_);
-
-  // Since Run may result in Write being called, clear |user_write_callback_|
-  // up front.
-  CompletionCallback* c = user_write_callback_;
-  user_write_callback_ = NULL;
-  user_write_buf_ = NULL;
-  user_write_buf_len_ = 0;
-  c->Run(rv);
 }
 
 // Do network I/O between the given buffer and the given socket.
@@ -672,6 +607,79 @@ int SSLServerSocketNSS::DoHandshake() {
     }
   }
   return net_error;
+}
+
+void SSLServerSocketNSS::DoAcceptCallback(int rv) {
+  DCHECK_NE(rv, ERR_IO_PENDING);
+
+  CompletionCallback* c = user_accept_callback_;
+  user_accept_callback_ = NULL;
+  c->Run(rv > OK ? OK : rv);
+}
+
+void SSLServerSocketNSS::DoReadCallback(int rv) {
+  DCHECK(rv != ERR_IO_PENDING);
+  DCHECK(user_read_callback_);
+
+  // Since Run may result in Read being called, clear |user_read_callback_|
+  // up front.
+  CompletionCallback* c = user_read_callback_;
+  user_read_callback_ = NULL;
+  user_read_buf_ = NULL;
+  user_read_buf_len_ = 0;
+  c->Run(rv);
+}
+
+void SSLServerSocketNSS::DoWriteCallback(int rv) {
+  DCHECK(rv != ERR_IO_PENDING);
+  DCHECK(user_write_callback_);
+
+  // Since Run may result in Write being called, clear |user_write_callback_|
+  // up front.
+  CompletionCallback* c = user_write_callback_;
+  user_write_callback_ = NULL;
+  user_write_buf_ = NULL;
+  user_write_buf_len_ = 0;
+  c->Run(rv);
+}
+
+// static
+// NSS calls this if an incoming certificate needs to be verified.
+// Do nothing but return SECSuccess.
+// This is called only in full handshake mode.
+// Peer certificate is retrieved in HandshakeCallback() later, which is called
+// in full handshake mode or in resumption handshake mode.
+SECStatus SSLServerSocketNSS::OwnAuthCertHandler(void* arg,
+                                                 PRFileDesc* socket,
+                                                 PRBool checksig,
+                                                 PRBool is_server) {
+  // TODO(hclam): Implement.
+  // Tell NSS to not verify the certificate.
+  return SECSuccess;
+}
+
+// static
+// NSS calls this when handshake is completed.
+// After the SSL handshake is finished we need to verify the certificate.
+void SSLServerSocketNSS::HandshakeCallback(PRFileDesc* socket,
+                                           void* arg) {
+  // TODO(hclam): Implement.
+}
+
+int SSLServerSocketNSS::Init() {
+  // Initialize the NSS SSL library in a threadsafe way.  This also
+  // initializes the NSS base library.
+  EnsureNSSSSLInit();
+  if (!NSS_IsInitialized())
+    return ERR_UNEXPECTED;
+#if !defined(OS_MACOSX) && !defined(OS_WIN)
+  // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
+  // by MessageLoopForIO::current().
+  // X509Certificate::Verify() runs on a worker thread of CertVerifier.
+  EnsureOCSPInit();
+#endif
+
+  return OK;
 }
 
 }  // namespace net

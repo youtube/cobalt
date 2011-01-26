@@ -24,21 +24,6 @@ HttpAuthFilterWhitelist::HttpAuthFilterWhitelist(
 HttpAuthFilterWhitelist::~HttpAuthFilterWhitelist() {
 }
 
-void HttpAuthFilterWhitelist::SetWhitelist(
-    const std::string& server_whitelist) {
-  rules_.ParseFromString(server_whitelist);
-}
-
-bool HttpAuthFilterWhitelist::IsValid(const GURL& url,
-                                      HttpAuth::Target target) const {
-  if ((target != HttpAuth::AUTH_SERVER) && (target != HttpAuth::AUTH_PROXY))
-    return false;
-  // All proxies pass
-  if (target == HttpAuth::AUTH_PROXY)
-    return true;
-  return rules_.Matches(url);
-}
-
 // Add a new domain |filter| to the whitelist, if it's not already there
 bool HttpAuthFilterWhitelist::AddFilter(const std::string& filter,
                                         HttpAuth::Target target) {
@@ -53,6 +38,21 @@ bool HttpAuthFilterWhitelist::AddFilter(const std::string& filter,
 
 void HttpAuthFilterWhitelist::AddRuleToBypassLocal() {
   rules_.AddRuleToBypassLocal();
+}
+
+bool HttpAuthFilterWhitelist::IsValid(const GURL& url,
+                                      HttpAuth::Target target) const {
+  if ((target != HttpAuth::AUTH_SERVER) && (target != HttpAuth::AUTH_PROXY))
+    return false;
+  // All proxies pass
+  if (target == HttpAuth::AUTH_PROXY)
+    return true;
+  return rules_.Matches(url);
+}
+
+void HttpAuthFilterWhitelist::SetWhitelist(
+    const std::string& server_whitelist) {
+  rules_.ParseFromString(server_whitelist);
 }
 
 }  // namespace net
