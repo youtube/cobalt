@@ -286,6 +286,12 @@ void MessageLoop::RemoveTaskObserver(TaskObserver* task_observer) {
   task_observers_.RemoveObserver(task_observer);
 }
 
+void MessageLoop::AssertIdle() const {
+  // We only check |incoming_queue_|, since we don't want to lock |work_queue_|.
+  base::AutoLock lock(incoming_queue_lock_);
+  DCHECK(incoming_queue_.empty());
+}
+
 //------------------------------------------------------------------------------
 
 // Runs the loop in two different SEH modes:
