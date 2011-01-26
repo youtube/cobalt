@@ -493,8 +493,8 @@ int HttpStreamRequest::DoInitConnection() {
     // straight to using that.
     HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
     if (session_->spdy_session_pool()->HasSession(pair)) {
-      // If we're preconnecting, we're do need to preconnect anything since we
-      // already have a SpdySession, so we're done.
+      // If we're preconnecting, but we already have a SpdySession, we don't
+      // actually need to preconnect any sockets, so we're done.
       if (preconnect_delegate_)
         return OK;
       using_spdy_ = true;
