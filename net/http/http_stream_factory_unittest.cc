@@ -17,6 +17,7 @@
 #include "net/http/http_network_session_peer.h"
 #include "net/http/http_request_info.h"
 #include "net/socket/socket_test_util.h"
+#include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -163,20 +164,23 @@ CapturePreconnectsSSLSocketPool;
 template<typename ParentPool>
 CapturePreconnectsSocketPool<ParentPool>::CapturePreconnectsSocketPool(
     HttpNetworkSession* session)
-    : ParentPool(0, 0, NULL, session->host_resolver(), NULL, NULL) {}
+    : ParentPool(0, 0, NULL, session->host_resolver(), NULL, NULL),
+      last_num_streams_(-1) {}
 
 template<>
 CapturePreconnectsHttpProxySocketPool::CapturePreconnectsSocketPool(
     HttpNetworkSession* session)
     : HttpProxyClientSocketPool(0, 0, NULL, session->host_resolver(), NULL,
-                                NULL, NULL) {}
+                                NULL, NULL),
+      last_num_streams_(-1) {}
 
 template<>
 CapturePreconnectsSSLSocketPool::CapturePreconnectsSocketPool(
     HttpNetworkSession* session)
     : SSLClientSocketPool(0, 0, NULL, session->host_resolver(),
                           session->cert_verifier(), NULL, NULL,
-                          NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
+                          NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+      last_num_streams_(-1) {}
 
 TEST(HttpStreamFactoryTest, PreconnectDirect) {
   for (size_t i = 0; i < arraysize(kTests); ++i) {
@@ -235,6 +239,35 @@ TEST(HttpStreamFactoryTest, PreconnectSocksProxy) {
       EXPECT_EQ(kTests[i].num_streams, ssl_conn_pool->last_num_streams());
     else
       EXPECT_EQ(kTests[i].num_streams, socks_proxy_pool->last_num_streams());
+  }
+}
+
+TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
+  for (size_t i = 0; i < arraysize(kTests); ++i) {
+    SessionDependencies session_deps(ProxyService::CreateDirect());
+    scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+    HttpNetworkSessionPeer peer(session);
+
+    // Set an existing SpdySession in the pool.
+    HostPortPair host_port_pair("www.google.com", 443);
+    HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
+    scoped_refptr<SpdySession> spdy_session =
+        session->spdy_session_pool()->Get(
+            pair, session->mutable_spdy_settings(), BoundNetLog());
+
+    CapturePreconnectsTCPSocketPool* tcp_conn_pool =
+        new CapturePreconnectsTCPSocketPool(session);
+    peer.SetTCPSocketPool(tcp_conn_pool);
+    CapturePreconnectsSSLSocketPool* ssl_conn_pool =
+        new CapturePreconnectsSSLSocketPool(session.get());
+    peer.SetSSLSocketPool(ssl_conn_pool);
+    EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
+    // We shouldn't be preconnecting if we have an existing session, which is
+    // the case for https://www.google.com.
+    if (kTests[i].ssl)
+      EXPECT_EQ(-1, ssl_conn_pool->last_num_streams());
+    else
+      EXPECT_EQ(kTests[i].num_streams, tcp_conn_pool->last_num_streams());
   }
 }
 
