@@ -406,6 +406,9 @@ const char* Pickle::FindNext(size_t header_size,
   DCHECK(header_size == AlignInt(header_size, sizeof(uint32)));
   DCHECK(header_size <= static_cast<size_t>(kPayloadUnit));
 
+  if (static_cast<size_t>(end - start) < sizeof(Header))
+    return NULL;
+
   const Header* hdr = reinterpret_cast<const Header*>(start);
   const char* payload_base = start + header_size;
   const char* payload_end = payload_base + hdr->payload_size;
