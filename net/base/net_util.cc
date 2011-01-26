@@ -4,8 +4,6 @@
 
 #include "net/base/net_util.h"
 
-#include <algorithm>
-#include <map>
 #include <unicode/regex.h>
 #include <unicode/ucnv.h>
 #include <unicode/uidna.h>
@@ -13,13 +11,14 @@
 #include <unicode/uniset.h>
 #include <unicode/uscript.h>
 #include <unicode/uset.h>
+#include <algorithm>
+#include <map>
 
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
 #include <winsock2.h>
-#include <ws2tcpip.h>
 #include <wspiapi.h>  // Needed for Win2k compat.
 #elif defined(OS_POSIX)
 #include <fcntl.h>
@@ -27,7 +26,6 @@
 #include <netdb.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
 #endif
 
 #include "base/base64.h"
@@ -1579,6 +1577,11 @@ std::string GetHostAndOptionalPort(const GURL& url) {
 }
 
 std::string NetAddressToString(const struct addrinfo* net_address) {
+  return NetAddressToString(net_address->ai_addr, net_address->ai_addrlen);
+}
+
+std::string NetAddressToString(const struct sockaddr* net_address,
+                               socklen_t address_len) {
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
@@ -1586,22 +1589,28 @@ std::string NetAddressToString(const struct addrinfo* net_address) {
   // This buffer is large enough to fit the biggest IPv6 string.
   char buffer[INET6_ADDRSTRLEN];
 
-  int result = getnameinfo(net_address->ai_addr,
-      net_address->ai_addrlen, buffer, sizeof(buffer), NULL, 0, NI_NUMERICHOST);
+  int result = getnameinfo(net_address, address_len, buffer, sizeof(buffer),
+                           NULL, 0, NI_NUMERICHOST);
 
   if (result != 0) {
-    DVLOG(1) << "getnameinfo() failed with " << result;
+    DVLOG(1) << "getnameinfo() failed with " << result << ": "
+             << gai_strerror(result);
     buffer[0] = '\0';
   }
   return std::string(buffer);
 }
 
 std::string NetAddressToStringWithPort(const struct addrinfo* net_address) {
-  std::string ip_address_string = NetAddressToString(net_address);
+  return NetAddressToStringWithPort(
+      net_address->ai_addr, net_address->ai_addrlen);
+}
+std::string NetAddressToStringWithPort(const struct sockaddr* net_address,
+                                       socklen_t address_len) {
+  std::string ip_address_string = NetAddressToString(net_address, address_len);
   if (ip_address_string.empty())
     return std::string();  // Failed.
 
-  int port = GetPortFromAddrinfo(net_address);
+  int port = GetPortFromSockaddr(net_address, address_len);
 
   if (ip_address_string.find(':') != std::string::npos) {
     // Surround with square brackets to avoid ambiguity.
@@ -2039,17 +2048,38 @@ bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
 }
 
 // Returns the port field of the sockaddr in |info|.
-uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info) {
+uint16* GetPortFieldFromAddrinfo(struct addrinfo* info) {
+  const struct addrinfo* const_info = info;
+  const uint16* port_field = GetPortFieldFromAddrinfo(const_info);
+  return const_cast<uint16*>(port_field);
+}
+
+const uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info) {
   DCHECK(info);
-  if (info->ai_family == AF_INET) {
-    DCHECK_EQ(sizeof(sockaddr_in), static_cast<size_t>(info->ai_addrlen));
-    struct sockaddr_in* sockaddr =
-        reinterpret_cast<struct sockaddr_in*>(info->ai_addr);
+  const struct sockaddr* address = info->ai_addr;
+  DCHECK(address);
+  DCHECK_EQ(info->ai_family, address->sa_family);
+  return GetPortFieldFromSockaddr(address, info->ai_addrlen);
+}
+
+int GetPortFromAddrinfo(const struct addrinfo* info) {
+  const uint16* port_field = GetPortFieldFromAddrinfo(info);
+  if (!port_field)
+    return -1;
+  return ntohs(*port_field);
+}
+
+const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
+                                       socklen_t address_len) {
+  if (address->sa_family == AF_INET) {
+    DCHECK_LE(sizeof(sockaddr_in), static_cast<size_t>(address_len));
+    const struct sockaddr_in* sockaddr =
+        reinterpret_cast<const struct sockaddr_in*>(address);
     return &sockaddr->sin_port;
-  } else if (info->ai_family == AF_INET6) {
-    DCHECK_EQ(sizeof(sockaddr_in6), static_cast<size_t>(info->ai_addrlen));
-    struct sockaddr_in6* sockaddr =
-        reinterpret_cast<struct sockaddr_in6*>(info->ai_addr);
+  } else if (address->sa_family == AF_INET6) {
+    DCHECK_LE(sizeof(sockaddr_in6), static_cast<size_t>(address_len));
+    const struct sockaddr_in6* sockaddr =
+        reinterpret_cast<const struct sockaddr_in6*>(address);
     return &sockaddr->sin6_port;
   } else {
     NOTREACHED();
@@ -2057,8 +2087,8 @@ uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info) {
   }
 }
 
-int GetPortFromAddrinfo(const struct addrinfo* info) {
-  uint16* port_field = GetPortFieldFromAddrinfo(info);
+int GetPortFromSockaddr(const struct sockaddr* address, socklen_t address_len) {
+  const uint16* port_field = GetPortFieldFromSockaddr(address, address_len);
   if (!port_field)
     return -1;
   return ntohs(*port_field);

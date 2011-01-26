@@ -8,8 +8,11 @@
 
 #include "build/build_config.h"
 
-#ifdef OS_WIN
+#if defined(OS_WIN)
 #include <windows.h>
+#include <ws2tcpip.h>
+#elif defined(OS_POSIX)
+#include <sys/socket.h>
 #endif
 
 #include <string>
@@ -107,10 +110,14 @@ std::string GetHostAndOptionalPort(const GURL& url);
 // Returns the string representation of an address, like "192.168.0.1".
 // Returns empty string on failure.
 std::string NetAddressToString(const struct addrinfo* net_address);
+std::string NetAddressToString(const struct sockaddr* net_address,
+                               socklen_t address_len);
 
 // Same as NetAddressToString, but additionally includes the port number. For
 // example: "192.168.0.1:99" or "[::1]:80".
 std::string NetAddressToStringWithPort(const struct addrinfo* net_address);
+std::string NetAddressToStringWithPort(const struct sockaddr* net_address,
+                                       socklen_t address_len);
 
 // Returns the hostname of the current system. Returns empty string on failure.
 std::string GetHostName();
@@ -404,10 +411,17 @@ bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
                            size_t prefix_length_in_bits);
 
 // Returns the port field of the sockaddr in |info|.
-uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info);
+const uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info);
+uint16* GetPortFieldFromAddrinfo(struct addrinfo* info);
 
 // Returns the value of |info's| port (in host byte ordering).
 int GetPortFromAddrinfo(const struct addrinfo* info);
+
+// Same except for struct sockaddr.
+const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
+                                       socklen_t address_len);
+int GetPortFromSockaddr(const struct sockaddr* address,
+                        socklen_t address_len);
 
 }  // namespace net
 
