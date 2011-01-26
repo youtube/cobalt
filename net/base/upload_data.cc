@@ -159,7 +159,6 @@ void UploadData::set_chunk_callback(ChunkCallback* callback) {
 }
 
 uint64 UploadData::GetContentLength() {
-  DCHECK(!is_chunked_);
   uint64 len = 0;
   std::vector<Element>::iterator it = elements_.begin();
   for (; it != elements_.end(); ++it)
