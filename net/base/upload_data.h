@@ -48,6 +48,12 @@ class UploadData : public base::RefCounted<UploadData> {
     ~Element();
 
     Type type() const { return type_; }
+    // Explicitly sets the type of this Element. Used during IPC
+    // marshalling.
+    void set_type(Type type) {
+      type_ = type;
+    }
+
     const std::vector<char>& bytes() const { return bytes_; }
     const FilePath& file_path() const { return file_path_; }
     uint64 file_range_offset() const { return file_range_offset_; }
@@ -93,6 +99,10 @@ class UploadData : public base::RefCounted<UploadData> {
     void SetToChunk(const char* bytes, int bytes_len);
 
     bool is_last_chunk() const { return is_last_chunk_; }
+    // Sets whether this is the last chunk. Used during IPC marshalling.
+    void set_is_last_chunk(bool is_last_chunk) {
+      is_last_chunk_ = is_last_chunk;
+    }
 
     // Returns the byte-length of the element.  For files that do not exist, 0
     // is returned.  This is done for consistency with Mozilla.
