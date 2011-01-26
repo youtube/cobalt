@@ -74,25 +74,6 @@ class URLSecurityManagerWhitelist : public URLSecurityManager {
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerWhitelist);
 };
 
-#if defined(UNIT_TEST)
-// An URLSecurityManager which is very permissive.
-class URLSecurityManagerAllow : public URLSecurityManager {
- public:
-  URLSecurityManagerAllow() {}
-  virtual ~URLSecurityManagerAllow() {}
-
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const {
-    return true;
-  }
-  virtual bool CanDelegate(const GURL& auth_origin) const {
-    return true;
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerAllow);
-};
-#endif  // defined(UNIT_TEST)
-
 }  // namespace net
 
 #endif  // NET_HTTP_URL_SECURITY_MANAGER_H_
