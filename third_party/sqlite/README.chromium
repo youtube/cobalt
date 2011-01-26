@@ -42,11 +42,6 @@ cd sqlite
 # Run the google_generate_preprocessed.sh script:
 ./google_generate_preprocessed.sh
 
-# If there are any updates to os_unix.c, remember to keep
-# WebCore/platform/sql/chromium/SQLiteFileSystemChromiumPosix.cpp in sync.
-# This means preparing a separate patch for WebKit.
-# If you have questions about this part, ask phajdan.jr and dumi.
-
 # Find a sucker.  Send review.
 # TODO(shess) Describe an appropriate comment style.  Seems like it
 # should at least include the SQLite version number.
@@ -160,3 +155,18 @@ Changes from Chrome:
  - Added a new function chromium_sqlite3_initialize_win_sqlite3_file()
    at the end of os_win.c. It allows the Windows-specific Chromium VFS
    to reuse most of the win32 SQLite VFS.
+ - Added a new function
+   chromium_sqlite3_initialize_unix_sqlite3_file() and made
+   fillInUnixFile() non-static in os_unix.c. It allows the
+   Linux-specific Chromium VFS to reuse most of the unix SQLite VFS.
+ - Exposed three functions that deal with unused file descriptors in
+   os_unix.c, to allow Chromium's Posix VFS implementation in
+   WebKit/WebCore/platform/sql/chromium/SQLiteFileSystemChromiumPosix.cpp
+   to correctly implement the "unused file descriptors" logic in the
+   xDlOpen() method. The new functions are
+   chromium_sqlite3_get_reusable_file_handle(),
+   chromium_sqlite3_update_reusable_file_handle() and
+   chromium_sqlite3_destroy_reusable_file_handle(). Also, added the
+   chromium_sqlite3_fill_in_unix_sqlite3_file() function that calls
+   fillInUnixFile(), which will be made static again as soon as a
+   WebKit patch using the new function lands.
