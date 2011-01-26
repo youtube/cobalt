@@ -41,7 +41,10 @@ def FetchGitRevision(directory):
                             cwd=directory)
   except OSError:
     return None
-  return VersionInfo('git', 'git', proc.stdout.read().strip()[:7])
+  output = proc.communicate()[0].strip()
+  if proc.returncode == 0 and output:
+    return VersionInfo('git', 'git', output[:7])
+  return None
 
 
 def FetchSVNRevision(directory):
