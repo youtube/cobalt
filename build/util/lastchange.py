@@ -60,7 +60,8 @@ def FetchSVNRevision(directory):
     proc = subprocess.Popen(['svn', 'info'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
-                            cwd=directory)
+                            cwd=directory,
+                            shell=(sys.platform=='win32'))
   except OSError:
     # command is apparently either not installed or not executable.
     return None
