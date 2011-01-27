@@ -524,6 +524,7 @@
             'sources!': [
               'crypto/encryptor_nss.cc',
               'crypto/rsa_private_key_nss.cc',
+              'crypto/secure_hash_nss.cc',
               'crypto/signature_creator_nss.cc',
               'crypto/signature_verifier_nss.cc',
               'crypto/symmetric_key_nss.cc',
@@ -543,6 +544,7 @@
             'sources!': [
               'crypto/encryptor_openssl.cc',
               'crypto/rsa_private_key_openssl.cc',
+              'crypto/secure_hash_openssl.cc',
               'crypto/signature_creator_openssl.cc',
               'crypto/signature_verifier_openssl.cc',
               'crypto/symmetric_key_openssl.cc',
@@ -570,6 +572,9 @@
         'crypto/rsa_private_key_nss.cc',
         'crypto/rsa_private_key_openssl.cc',
         'crypto/rsa_private_key_win.cc',
+        'crypto/secure_hash.h',
+        'crypto/secure_hash_nss.cc',
+        'crypto/secure_hash_openssl.cc',
         'crypto/signature_creator.h',
         'crypto/signature_creator_mac.cc',
         'crypto/signature_creator_nss.cc',

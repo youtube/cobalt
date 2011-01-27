@@ -71,6 +71,7 @@
         'crypto/encryptor_unittest.cc',
         'crypto/rsa_private_key_unittest.cc',
         'crypto/rsa_private_key_nss_unittest.cc',
+        'crypto/secure_hash_unittest.cc',
         'crypto/signature_creator_unittest.cc',
         'crypto/signature_verifier_unittest.cc',
         'crypto/symmetric_key_unittest.cc',
