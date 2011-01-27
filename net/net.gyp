@@ -628,6 +628,7 @@
         'socket/ssl_server_socket.h',
         'socket/ssl_server_socket_nss.cc',
         'socket/ssl_server_socket_nss.h',
+        'socket/ssl_server_socket_openssl.cc',
         'socket/ssl_host_info.cc',
         'socket/ssl_host_info.h',
         'socket/tcp_client_socket.cc',
@@ -769,6 +770,7 @@
             'sources!': [
               'socket/ssl_client_socket_openssl.cc',
               'socket/ssl_client_socket_openssl.h',
+              'socket/ssl_server_socket_openssl.cc',
             ],
           },
         ],
