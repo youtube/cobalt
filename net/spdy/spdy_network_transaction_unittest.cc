@@ -3262,17 +3262,16 @@ TEST_P(SpdyNetworkTransactionTest, InvalidSynReply) {
 }
 
 // Verify that we don't crash on some corrupt frames.
-// TODO(eroman): Renable this test, see http://crbug.com/48588
-TEST_P(SpdyNetworkTransactionTest, DISABLED_CorruptFrameSessionError) {
-  // This is the length field with a big number
-  scoped_ptr<spdy::SpdyFrame> syn_reply_massive_length(
+TEST_P(SpdyNetworkTransactionTest, CorruptFrameSessionError) {
+  // This is the length field that's too short.
+  scoped_ptr<spdy::SpdyFrame> syn_reply_wrong_length(
       ConstructSpdyGetSynReply(NULL, 0, 1));
-  syn_reply_massive_length->set_length(0x111126);
+  syn_reply_wrong_length->set_length(syn_reply_wrong_length->length() - 4);
 
   struct SynReplyTests {
     const spdy::SpdyFrame* syn_reply;
   } test_cases[] = {
-    { syn_reply_massive_length.get(), },
+    { syn_reply_wrong_length.get(), },
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
