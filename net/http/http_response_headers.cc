@@ -12,6 +12,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/pickle.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
@@ -85,6 +86,34 @@ bool ShouldUpdateHeader(const std::string::const_iterator& name_begin,
   return true;
 }
 
+// Functions for histogram initialization.  The code 0 is put in the
+// response map to track response codes that are invalid.
+// TODO(gavinp): Greatly prune the collected codes once we learn which
+// ones are not sent in practice, to reduce upload size & memory use.
+
+enum {
+  HISTOGRAM_MIN_HTTP_RESPONSE_CODE = 100,
+  HISTOGRAM_MAX_HTTP_RESPONSE_CODE = 599,
+};
+
+std::vector<int> GetAllHttpResponseCodes() {
+  std::vector<int> codes;
+  codes.reserve(
+      HISTOGRAM_MAX_HTTP_RESPONSE_CODE - HISTOGRAM_MIN_HTTP_RESPONSE_CODE + 2);
+  codes.push_back(0);
+  for (int i = HISTOGRAM_MIN_HTTP_RESPONSE_CODE;
+       i <= HISTOGRAM_MAX_HTTP_RESPONSE_CODE; ++i)
+    codes.push_back(i);
+  return codes;
+}
+
+int MapHttpResponseCode(int code) {
+  if (HISTOGRAM_MIN_HTTP_RESPONSE_CODE <= code &&
+      code <= HISTOGRAM_MAX_HTTP_RESPONSE_CODE)
+    return code;
+  return 0;
+}
+
 }  // namespace
 
 struct HttpResponseHeaders::ParsedHeader {
@@ -103,6 +132,23 @@ struct HttpResponseHeaders::ParsedHeader {
 HttpResponseHeaders::HttpResponseHeaders(const std::string& raw_input)
     : response_code_(-1) {
   Parse(raw_input);
+
+  // The most important thing to do with this histogram is find out
+  // the existence of unusual HTTP response codes.  As it happens
+  // right now, there aren't double-constructions of response headers
+  // using this constructor, so our counts should also be accurate,
+  // without instantiating the histogram in two places.  It is also
+  // important that this histogram not collect data in the other
+  // constructor, which rebuilds an histogram from a pickle, since
+  // that would actually create a double call between the original
+  // HttpResponseHeader that was serialized, and initialization of the
+  // new object from that pickle.
+  UMA_HISTOGRAM_CUSTOM_ENUMERATION("Net.HttpResponseCode",
+                                   MapHttpResponseCode(response_code_),
+                                   // Note the third argument is only
+                                   // evaluated once, see macro
+                                   // definition for details.
+                                   GetAllHttpResponseCodes());
 }
 
 HttpResponseHeaders::HttpResponseHeaders(const Pickle& pickle, void** iter)
