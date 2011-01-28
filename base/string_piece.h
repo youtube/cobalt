@@ -19,8 +19,6 @@
 #define BASE_STRING_PIECE_H_
 #pragma once
 
-#include <algorithm>
-#include <iosfwd>
 #include <string>
 
 #include "base/basictypes.h"
@@ -93,7 +91,8 @@ class StringPiece {
   }
 
   int compare(const StringPiece& x) const {
-    int r = wordmemcmp(ptr_, x.ptr_, std::min(length_, x.length_));
+    int r = wordmemcmp(
+        ptr_, x.ptr_, (length_ < x.length_ ? length_ : x.length_));
     if (r == 0) {
       if (length_ < x.length_) r = -1;
       else if (length_ > x.length_) r = +1;
@@ -171,8 +170,8 @@ inline bool operator!=(const StringPiece& x, const StringPiece& y) {
 }
 
 inline bool operator<(const StringPiece& x, const StringPiece& y) {
-  const int r = StringPiece::wordmemcmp(x.data(), y.data(),
-                                        std::min(x.size(), y.size()));
+  const int r = StringPiece::wordmemcmp(
+      x.data(), y.data(), (x.size() < y.size() ? x.size() : y.size()));
   return ((r < 0) || ((r == 0) && (x.size() < y.size())));
 }
 
@@ -187,9 +186,6 @@ inline bool operator<=(const StringPiece& x, const StringPiece& y) {
 inline bool operator>=(const StringPiece& x, const StringPiece& y) {
   return !(x < y);
 }
-
-// allow StringPiece to be logged (needed for unit testing).
-extern std::ostream& operator<<(std::ostream& o, const StringPiece& piece);
 
 }  // namespace base
 

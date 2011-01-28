@@ -9,10 +9,7 @@
 #include <string>
 
 #include "base/string16.h"
-
-namespace base {
-class StringPiece;
-}
+#include "base/string_piece.h"
 
 // These convert between UTF-8, -16, and -32 strings. They are potentially slow,
 // so avoid unnecessary conversions. The low-level versions return a boolean
@@ -31,7 +28,7 @@ bool UTF16ToWide(const char16* src, size_t src_len, std::wstring* output);
 std::wstring UTF16ToWide(const string16& utf16);
 
 bool UTF8ToUTF16(const char* src, size_t src_len, string16* output);
-string16 UTF8ToUTF16(const std::string& utf8);
+string16 UTF8ToUTF16(const base::StringPiece& utf8);
 bool UTF16ToUTF8(const char16* src, size_t src_len, std::string* output);
 std::string UTF16ToUTF8(const string16& utf16);
 
@@ -50,16 +47,7 @@ std::string UTF16ToUTF8(const string16& utf16);
 
 // These convert an ASCII string, typically a hardcoded constant, to a
 // UTF16/Wide string.
-//
-// Note that this doesn't use StringPiece because it's very common to need
-// ASCIIToUTF16("foo"), and either we have to include it in this file, or
-// forward declare it and force all callers to include string_piece.h. Given
-// that string_piece brings in complicated stuff like <algorithm>, it's
-// easier to just duplicate these very simple definitions for the two calling
-// cases we actually use.
-std::wstring ASCIIToWide(const char* ascii);
-std::wstring ASCIIToWide(const std::string& ascii);
-string16 ASCIIToUTF16(const char* ascii);
-string16 ASCIIToUTF16(const std::string& ascii);
+std::wstring ASCIIToWide(const base::StringPiece& ascii);
+string16 ASCIIToUTF16(const base::StringPiece& ascii);
 
 #endif  // BASE_UTF_STRING_CONVERSIONS_H_
