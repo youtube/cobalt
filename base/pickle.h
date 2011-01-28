@@ -55,8 +55,7 @@ class Pickle {
   Pickle& operator=(const Pickle& other);
 
   // Returns the size of the Pickle's data.
-  int size() const { return static_cast<int>(header_size_ +
-                                             header_->payload_size); }
+  size_t size() const { return header_size_ + header_->payload_size; }
 
   // Returns the data for this Pickle.
   const void* data() const { return header_; }
