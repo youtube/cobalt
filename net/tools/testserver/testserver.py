@@ -1,5 +1,5 @@
 #!/usr/bin/python2.4
-# Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -1284,7 +1284,8 @@ class TestPageHandler(BasePageHandler):
       import device_management
       policy_path = os.path.join(self.server.data_dir, 'device_management')
       self.server._device_management_handler = (
-          device_management.TestServer(policy_path))
+          device_management.TestServer(policy_path,
+                                       self.server.policy_cert_chain))
 
     http_response, raw_reply = (
         self.server._device_management_handler.HandleRequest(self.path,
@@ -1419,6 +1420,7 @@ def main(options, args):
     server.file_root_url = options.file_root_url
     server_data['port'] = server.server_port
     server._device_management_handler = None
+    server.policy_cert_chain = options.policy_cert_chain
   elif options.server_type == SERVER_SYNC:
     server = SyncHTTPServer(('127.0.0.1', port), SyncPageHandler)
     print 'Sync HTTP server started on port %d...' % server.server_port
@@ -1517,6 +1519,13 @@ if __name__ == '__main__':
   option_parser.add_option('', '--startup-pipe', type='int',
                            dest='startup_pipe',
                            help='File handle of pipe to parent process')
+  option_parser.add_option('', '--policy-cert-chain', action='append',
+                           help='Specify a path to a certificate file to sign '
+                                'policy responses. This option may be used '
+                                'multiple times to define a certificate chain. '
+                                'The first element will be used for signing, '
+                                'the last element should be the root '
+                                'certificate.')
   options, args = option_parser.parse_args()
 
   sys.exit(main(options, args))
