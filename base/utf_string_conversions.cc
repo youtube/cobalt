@@ -133,7 +133,7 @@ bool UTF8ToUTF16(const char* src, size_t src_len, string16* output) {
   return ConvertUnicode(src, src_len, output);
 }
 
-string16 UTF8ToUTF16(const std::string& utf8) {
+string16 UTF8ToUTF16(const base::StringPiece& utf8) {
   string16 ret;
   // Ignore the success flag of this call, it will do the best it can for
   // invalid input, which is what we want here.
@@ -161,7 +161,7 @@ bool UTF8ToUTF16(const char* src, size_t src_len, string16* output) {
   return UTF8ToWide(src, src_len, output);
 }
 
-string16 UTF8ToUTF16(const std::string& utf8) {
+string16 UTF8ToUTF16(const base::StringPiece& utf8) {
   return UTF8ToWide(utf8);
 }
 
@@ -175,22 +175,12 @@ std::string UTF16ToUTF8(const string16& utf16) {
 
 #endif
 
-std::wstring ASCIIToWide(const char* ascii) {
-  DCHECK(IsStringASCII(ascii)) << ascii;
-  return std::wstring(ascii, &ascii[strlen(ascii)]);
-}
-
-std::wstring ASCIIToWide(const std::string& ascii) {
+std::wstring ASCIIToWide(const base::StringPiece& ascii) {
   DCHECK(IsStringASCII(ascii)) << ascii;
   return std::wstring(ascii.begin(), ascii.end());
 }
 
-string16 ASCIIToUTF16(const char* ascii) {
-  DCHECK(IsStringASCII(ascii)) << ascii;
-  return string16(ascii, &ascii[strlen(ascii)]);
-}
-
-string16 ASCIIToUTF16(const std::string& ascii) {
+string16 ASCIIToUTF16(const base::StringPiece& ascii) {
   DCHECK(IsStringASCII(ascii)) << ascii;
   return string16(ascii.begin(), ascii.end());
 }

@@ -919,4 +919,13 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 } while(0)
 #endif
 
+namespace base {
+
+class StringPiece;
+
+// allow StringPiece to be logged (needed for unit testing).
+extern std::ostream& operator<<(std::ostream& o, const StringPiece& piece);
+
+}  // namespace base
+
 #endif  // BASE_LOGGING_H_
