@@ -150,7 +150,7 @@ class TestServer {
   bool ParseServerData(const std::string& server_data) WARN_UNUSED_RESULT;
 
   // Returns path to the root certificate.
-  FilePath GetRootCertificatePath();
+  FilePath GetRootCertificatePath() const;
 
   // Load the test root cert, if it hasn't been loaded yet.
   bool LoadTestRootCert() WARN_UNUSED_RESULT;
