@@ -103,6 +103,8 @@
           'logging.h',
           'logging_win.cc',
           'mac/cocoa_protocols.h',
+	  'mac/foundation_util.h',
+	  'mac/foundation_util.mm',
           'mac/mac_util.h',
           'mac/mac_util.mm',
           'mac/os_crash_dumps.cc',
