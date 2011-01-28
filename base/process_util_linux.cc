@@ -200,18 +200,18 @@ bool ProcessIterator::CheckForNextProcess() {
     std::string pid_string(slot->d_name);
     int pid;
     if (StringToInt(pid_string, &pid) && !GetProcCmdline(pid, &cmd_line_args))
-      return false;
+      continue;
 
     // Read the process's status.
     char buf[NAME_MAX + 12];
     sprintf(buf, "/proc/%s/stat", slot->d_name);
     FILE *fp = fopen(buf, "r");
     if (!fp)
-      return false;
+      continue;
     const char* result = fgets(buf, sizeof(buf), fp);
     fclose(fp);
     if (!result)
-      return false;
+      continue;
 
     // Parse the status.  It is formatted like this:
     // %d (%s) %c %d %d ...
@@ -221,7 +221,7 @@ bool ProcessIterator::CheckForNextProcess() {
     openparen = strchr(buf, '(');
     closeparen = strrchr(buf, ')');
     if (!openparen || !closeparen)
-      return false;
+      continue;
     char runstate = closeparen[2];
 
     // Is the process in 'Zombie' state, i.e. dead but waiting to be reaped?
