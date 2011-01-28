@@ -270,6 +270,15 @@
     # won't be necessary.
     'clang%': 0,
 
+    # These two variables can be set in GYP_DEFINES while running
+    # |gclient runhooks| to let clang run a plugin in every compilation.
+    # Only has an effect if 'clang=1' is in GYP_DEFINES as well.
+    # Example:
+    #     GYP_DEFINES='clang=1 clang_load=/abs/path/to/libPrintFunctionNames.dylib clang_plugin=print-fns' gclient runhooks
+
+    'clang_load%': '',
+    'clang_add_plugin%': '',
+
     # Override whether we should use Breakpad on Linux. I.e. for Chrome bot.
     'linux_breakpad%': 0,
     # And if we want to dump symbols for Breakpad-enabled builds.
@@ -1162,6 +1171,12 @@
               '-mfpmath=sse',
             ],
           }],
+          ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
+            'cflags': [
+              '-Xclang', '-load', '-Xclang', '<(clang_load)',
+              '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
+            ],
+          }],
           ['no_strict_aliasing==1', {
             'cflags': [
               '-fno-strict-aliasing',
@@ -1272,6 +1287,12 @@
                 # http://code.google.com/p/googletest/source/detail?r=446 .
                 # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
                 '-Wno-unnamed-type-template-args',
+              ],
+            }],
+            ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
+              'OTHER_CFLAGS': [
+                '-Xclang', '-load', '-Xclang', '<(clang_load)',
+                '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
               ],
             }],
           ],
