@@ -131,7 +131,7 @@ class HttpCache : public HttpTransactionFactory,
   // The disk cache is initialized lazily (by CreateTransaction) in  this case.
   // Provide an existing HttpNetworkSession, the cache can construct a
   // network layer with a shared HttpNetworkSession in order for multiple
-  // network layers to share information (e.g. authenication data). The
+  // network layers to share information (e.g. authentication data). The
   // HttpCache takes ownership of the |backend_factory|.
   HttpCache(HttpNetworkSession* session, BackendFactory* backend_factory);
 

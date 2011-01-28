@@ -15,13 +15,20 @@
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
+#include "net/http/http_network_session.h"
+#include "net/socket/client_socket_factory.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
+namespace net {
+
 // TODO(eroman):
 //   - Test canceling an outstanding request.
 //   - Test deleting ProxyScriptFetcher while a request is in progress.
+
+namespace {
 
 const FilePath::CharType kDocRoot[] =
     FILE_PATH_LITERAL("net/data/proxy_script_fetcher_unittest");
@@ -32,23 +39,34 @@ struct FetchResult {
 };
 
 // A non-mock URL request which can access http:// and file:// urls.
-class RequestContext : public net::URLRequestContext {
+class RequestContext : public URLRequestContext {
  public:
   RequestContext() {
-    net::ProxyConfig no_proxy;
+    ProxyConfig no_proxy;
     host_resolver_ =
-        net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
+        CreateSystemHostResolver(HostResolver::kDefaultParallelism,
                                       NULL, NULL);
-    cert_verifier_ = new net::CertVerifier;
-    proxy_service_ = net::ProxyService::CreateFixed(no_proxy);
-    ssl_config_service_ = new net::SSLConfigServiceDefaults;
+    cert_verifier_ = new CertVerifier;
+    proxy_service_ = ProxyService::CreateFixed(no_proxy);
+    ssl_config_service_ = new SSLConfigServiceDefaults;
 
-    http_transaction_factory_ = new net::HttpCache(
-        net::HttpNetworkLayer::CreateFactory(host_resolver_, cert_verifier_,
-            NULL, NULL, NULL, proxy_service_, ssl_config_service_, NULL, NULL,
-            NULL),
-        NULL,
-        net::HttpCache::DefaultBackend::InMemory(0));
+    scoped_refptr<HttpNetworkSession> network_session(
+        new HttpNetworkSession(
+            host_resolver_,
+            cert_verifier_,
+            NULL /* dnsrr_resolver */,
+            NULL /* dns_cert_checker */,
+            NULL /* ssl_host_info_factory */,
+            proxy_service_,
+            ClientSocketFactory::GetDefaultFactory(),
+            ssl_config_service_,
+            new SpdySessionPool(NULL),
+            NULL,
+            NULL,
+            NULL));
+    http_transaction_factory_ = new HttpCache(
+        network_session,
+        HttpCache::DefaultBackend::InMemory(0));
   }
 
  private:
@@ -58,9 +76,6 @@ class RequestContext : public net::URLRequestContext {
     delete host_resolver_;
   }
 };
-
-// Required to be in net namespace by FRIEND_TEST.
-namespace net {
 
 // Get a file:// url relative to net/data/proxy/proxy_script_fetcher_unittest.
 GURL GetTestFileUrl(const std::string& relpath) {
@@ -72,6 +87,8 @@ GURL GetTestFileUrl(const std::string& relpath) {
   GURL base_url = FilePathToFileURL(path);
   return GURL(base_url.spec() + "/" + relpath);
 }
+
+}  // namespace
 
 class ProxyScriptFetcherImplTest : public PlatformTest {
  public:

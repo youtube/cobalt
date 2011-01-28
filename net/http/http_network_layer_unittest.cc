@@ -7,9 +7,11 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/http/http_network_layer.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -21,115 +23,127 @@ class HttpNetworkLayerTest : public PlatformTest {
 };
 
 TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
+  MockClientSocketFactory mock_socket_factory;
   MockHostResolver host_resolver;
-  net::CertVerifier cert_verifier;
-  net::HttpNetworkLayer factory(
-      NULL,
-      &host_resolver,
-      &cert_verifier,
-      NULL /* dnsrr_resolver */,
-      NULL /* dns_cert_checker */,
-      NULL /* ssl_host_info_factory */,
-      net::ProxyService::CreateDirect(),
-      new net::SSLConfigServiceDefaults,
-      NULL,
-      NULL,
-      NULL);
+  CertVerifier cert_verifier;
+  scoped_refptr<HttpNetworkSession> network_session(
+      new HttpNetworkSession(
+          &host_resolver,
+          &cert_verifier,
+          NULL /* dnsrr_resolver */,
+          NULL /* dns_cert_checker */,
+          NULL /* ssl_host_info_factory */,
+          ProxyService::CreateDirect(),
+          &mock_socket_factory,
+          new SSLConfigServiceDefaults,
+          new SpdySessionPool(NULL),
+          NULL,
+          NULL,
+          NULL));
 
-  scoped_ptr<net::HttpTransaction> trans;
+  HttpNetworkLayer factory(network_session);
+
+  scoped_ptr<HttpTransaction> trans;
   int rv = factory.CreateTransaction(&trans);
-  EXPECT_EQ(net::OK, rv);
+  EXPECT_EQ(OK, rv);
   EXPECT_TRUE(trans.get() != NULL);
 }
 
 TEST_F(HttpNetworkLayerTest, Suspend) {
+  MockClientSocketFactory mock_socket_factory;
   MockHostResolver host_resolver;
-  net::CertVerifier cert_verifier;
-  net::HttpNetworkLayer factory(
-      NULL,
-      &host_resolver,
-      &cert_verifier,
-      NULL /* dnsrr_resolver */,
-      NULL /* dns_cert_checker */,
-      NULL /* ssl_host_info_factory */,
-      net::ProxyService::CreateDirect(),
-      new net::SSLConfigServiceDefaults,
-      NULL,
-      NULL,
-      NULL);
+  CertVerifier cert_verifier;
+  scoped_refptr<HttpNetworkSession> network_session(
+      new HttpNetworkSession(
+          &host_resolver,
+          &cert_verifier,
+          NULL /* dnsrr_resolver */,
+          NULL /* dns_cert_checker */,
+          NULL /* ssl_host_info_factory */,
+          ProxyService::CreateDirect(),
+          &mock_socket_factory,
+          new SSLConfigServiceDefaults,
+          new SpdySessionPool(NULL),
+          NULL,
+          NULL,
+          NULL));
+  HttpNetworkLayer factory(network_session);
 
-  scoped_ptr<net::HttpTransaction> trans;
+  scoped_ptr<HttpTransaction> trans;
   int rv = factory.CreateTransaction(&trans);
-  EXPECT_EQ(net::OK, rv);
+  EXPECT_EQ(OK, rv);
 
   trans.reset();
 
   factory.Suspend(true);
 
   rv = factory.CreateTransaction(&trans);
-  EXPECT_EQ(net::ERR_NETWORK_IO_SUSPENDED, rv);
+  EXPECT_EQ(ERR_NETWORK_IO_SUSPENDED, rv);
 
   ASSERT_TRUE(trans == NULL);
 
   factory.Suspend(false);
 
   rv = factory.CreateTransaction(&trans);
-  EXPECT_EQ(net::OK, rv);
+  EXPECT_EQ(OK, rv);
 }
 
 TEST_F(HttpNetworkLayerTest, GET) {
-  net::MockClientSocketFactory mock_socket_factory;
-  net::MockRead data_reads[] = {
-    net::MockRead("HTTP/1.0 200 OK\r\n\r\n"),
-    net::MockRead("hello world"),
-    net::MockRead(false, net::OK),
+  MockClientSocketFactory mock_socket_factory;
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.0 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(false, OK),
   };
-  net::MockWrite data_writes[] = {
-    net::MockWrite("GET / HTTP/1.1\r\n"
+  MockWrite data_writes[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
                    "Host: www.google.com\r\n"
                    "Connection: keep-alive\r\n"
                    "User-Agent: Foo/1.0\r\n\r\n"),
   };
-  net::StaticSocketDataProvider data(data_reads, arraysize(data_reads),
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes));
   mock_socket_factory.AddSocketDataProvider(&data);
 
   MockHostResolver host_resolver;
-  net::CertVerifier cert_verifier;
-  net::HttpNetworkLayer factory(
-      &mock_socket_factory,
-      &host_resolver,
-      &cert_verifier,
-      NULL /* dnsrr_resolver */,
-      NULL /* dns_cert_checker */,
-      NULL /* ssl_host_info_factory */,
-      net::ProxyService::CreateDirect(),
-      new net::SSLConfigServiceDefaults,
-      NULL,
-      NULL,
-      NULL);
+  CertVerifier cert_verifier;
+  scoped_refptr<HttpNetworkSession> network_session(
+      new HttpNetworkSession(
+          &host_resolver,
+          &cert_verifier,
+          NULL /* dnsrr_resolver */,
+          NULL /* dns_cert_checker */,
+          NULL /* ssl_host_info_factory */,
+          ProxyService::CreateDirect(),
+          &mock_socket_factory,
+          new SSLConfigServiceDefaults,
+          new SpdySessionPool(NULL),
+          NULL,
+          NULL,
+          NULL));
+  HttpNetworkLayer factory(network_session);
 
   TestCompletionCallback callback;
 
-  scoped_ptr<net::HttpTransaction> trans;
+  scoped_ptr<HttpTransaction> trans;
   int rv = factory.CreateTransaction(&trans);
-  EXPECT_EQ(net::OK, rv);
+  EXPECT_EQ(OK, rv);
 
-  net::HttpRequestInfo request_info;
+  HttpRequestInfo request_info;
   request_info.url = GURL("http://www.google.com/");
   request_info.method = "GET";
-  request_info.extra_headers.SetHeader(net::HttpRequestHeaders::kUserAgent,
+  request_info.extra_headers.SetHeader(HttpRequestHeaders::kUserAgent,
                                        "Foo/1.0");
-  request_info.load_flags = net::LOAD_NORMAL;
+  request_info.load_flags = LOAD_NORMAL;
 
-  rv = trans->Start(&request_info, &callback, net::BoundNetLog());
-  if (rv == net::ERR_IO_PENDING)
+  rv = trans->Start(&request_info, &callback, BoundNetLog());
+  if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
-  ASSERT_EQ(net::OK, rv);
+  ASSERT_EQ(OK, rv);
 
   std::string contents;
   rv = ReadTransaction(trans.get(), &contents);
-  EXPECT_EQ(net::OK, rv);
+  EXPECT_EQ(OK, rv);
   EXPECT_EQ("hello world", contents);
 }
 

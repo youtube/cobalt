@@ -33,6 +33,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_util.h"
+#include "net/socket/client_socket_factory.h"
 #include "net/socket/ssl_host_info.h"
 #include "net/spdy/spdy_session_pool.h"
 
@@ -278,7 +279,6 @@ class HttpCache::SSLHostInfoFactoryAdaptor : public SSLHostInfoFactory {
 };
 
 //-----------------------------------------------------------------------------
-
 HttpCache::HttpCache(HostResolver* host_resolver,
                      CertVerifier* cert_verifier,
                      DnsRRResolver* dnsrr_resolver,
@@ -295,13 +295,24 @@ HttpCache::HttpCache(HostResolver* host_resolver,
       mode_(NORMAL),
       ssl_host_info_factory_(new SSLHostInfoFactoryAdaptor(
             ALLOW_THIS_IN_INITIALIZER_LIST(this))),
-      network_layer_(HttpNetworkLayer::CreateFactory(host_resolver,
-          cert_verifier, dnsrr_resolver, dns_cert_checker_,
-          ssl_host_info_factory_.get(),
-          proxy_service, ssl_config_service,
-          http_auth_handler_factory, network_delegate, net_log)),
+      network_layer_(
+          new HttpNetworkLayer(
+              new HttpNetworkSession(
+                  host_resolver,
+                  cert_verifier,
+                  dnsrr_resolver,
+                  dns_cert_checker_,
+                  ssl_host_info_factory_.get(),
+                  proxy_service,
+                  ClientSocketFactory::GetDefaultFactory(),
+                  ssl_config_service,
+                  new SpdySessionPool(ssl_config_service),
+                  http_auth_handler_factory,
+                  network_delegate,
+                  net_log))),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
 }
+
 
 HttpCache::HttpCache(HttpNetworkSession* session,
                      BackendFactory* backend_factory)
@@ -309,7 +320,9 @@ HttpCache::HttpCache(HttpNetworkSession* session,
       backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
-      network_layer_(HttpNetworkLayer::CreateFactory(session)),
+      ssl_host_info_factory_(new SSLHostInfoFactoryAdaptor(
+            ALLOW_THIS_IN_INITIALIZER_LIST(this))),
+      network_layer_(new HttpNetworkLayer(session)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)) {
 }
 
