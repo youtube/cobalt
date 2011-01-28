@@ -32,52 +32,10 @@ class SSLHostInfoFactory;
 class HttpNetworkLayer : public HttpTransactionFactory,
                          public base::NonThreadSafe {
  public:
-  // |socket_factory|, |proxy_service|, |host_resolver|, etc. must remain
-  // valid for the lifetime of HttpNetworkLayer.
-  // TODO(wtc): we only need the next constructor.
-  HttpNetworkLayer(ClientSocketFactory* socket_factory,
-                   HostResolver* host_resolver,
-                   CertVerifier* cert_verifier,
-                   DnsRRResolver* dnsrr_resolver,
-                   DnsCertProvenanceChecker* dns_cert_checker,
-                   SSLHostInfoFactory* ssl_host_info_factory,
-                   ProxyService* proxy_service,
-                   SSLConfigService* ssl_config_service,
-                   HttpAuthHandlerFactory* http_auth_handler_factory,
-                   HttpNetworkDelegate* network_delegate,
-                   NetLog* net_log);
-  HttpNetworkLayer(
-      ClientSocketFactory* socket_factory,
-      HostResolver* host_resolver,
-      CertVerifier* cert_verifier,
-      DnsRRResolver* dnsrr_resolver,
-      DnsCertProvenanceChecker* dns_cert_checker,
-      SSLHostInfoFactory* ssl_host_info_factory,
-      ProxyService* proxy_service,
-      SSLConfigService* ssl_config_service,
-      SpdySessionPool* spdy_session_pool,
-      HttpAuthHandlerFactory* http_auth_handler_factory,
-      HttpNetworkDelegate* network_delegate,
-      NetLog* net_log);
-
   // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
   // contains a valid ProxyService.
   explicit HttpNetworkLayer(HttpNetworkSession* session);
-  ~HttpNetworkLayer();
-
-  // This function hides the details of how a network layer gets instantiated
-  // and allows other implementations to be substituted.
-  static HttpTransactionFactory* CreateFactory(
-      HostResolver* host_resolver,
-      CertVerifier* cert_verifier,
-      DnsRRResolver* dnsrr_resolver,
-      DnsCertProvenanceChecker* dns_cert_checker,
-      SSLHostInfoFactory* ssl_host_info_factory,
-      ProxyService* proxy_service,
-      SSLConfigService* ssl_config_service,
-      HttpAuthHandlerFactory* http_auth_handler_factory,
-      HttpNetworkDelegate* network_delegate,
-      NetLog* net_log);
+  virtual ~HttpNetworkLayer();
 
   // Create a transaction factory that instantiate a network layer over an
   // existing network session. Network session contains some valuable
@@ -104,28 +62,7 @@ class HttpNetworkLayer : public HttpTransactionFactory,
   virtual void Suspend(bool suspend);
 
  private:
-  // The factory we will use to create network sockets.
-  ClientSocketFactory* socket_factory_;
-
-  // The host resolver, proxy service, etc. that will be used when lazily
-  // creating |session_|.
-  HostResolver* host_resolver_;
-  CertVerifier* cert_verifier_;
-  DnsRRResolver* dnsrr_resolver_;
-  DnsCertProvenanceChecker* dns_cert_checker_;
-  SSLHostInfoFactory* ssl_host_info_factory_;
-  scoped_refptr<ProxyService> proxy_service_;
-
-  // The SSL config service being used for the session.
-  scoped_refptr<SSLConfigService> ssl_config_service_;
-
-  scoped_refptr<HttpNetworkSession> session_;
-  scoped_ptr<SpdySessionPool> spdy_session_pool_;
-
-  HttpAuthHandlerFactory* http_auth_handler_factory_;
-  HttpNetworkDelegate* network_delegate_;
-  NetLog* net_log_;
-
+  const scoped_refptr<HttpNetworkSession> session_;
   bool suspended_;
 };
 
