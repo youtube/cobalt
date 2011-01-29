@@ -57,6 +57,8 @@
         'audio/openbsd/audio_manager_openbsd.h',
         'audio/mac/audio_input_mac.cc',
         'audio/mac/audio_input_mac.h',
+        'audio/mac/audio_low_latency_output_mac.cc',
+        'audio/mac/audio_low_latency_output_mac.h',
         'audio/mac/audio_manager_mac.cc',
         'audio/mac/audio_manager_mac.h',
         'audio/mac/audio_output_mac.cc',
@@ -205,6 +207,7 @@
         ['OS=="mac"', {
           'link_settings': {
             'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/AudioUnit.framework',
               '$(SDKROOT)/System/Library/Frameworks/AudioToolbox.framework',
               '$(SDKROOT)/System/Library/Frameworks/CoreAudio.framework',
             ],
