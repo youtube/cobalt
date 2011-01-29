@@ -8,6 +8,7 @@
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/mac/audio_input_mac.h"
+#include "media/audio/mac/audio_low_latency_output_mac.h"
 #include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
 #include "media/base/limits.h"
@@ -85,11 +86,8 @@ bool AudioManagerMac::HasAudioInputDevices() {
 
 AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
     AudioParameters params) {
-  if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioOutputStream::MakeFakeStream(params);
-  } else if (params.format != AudioParameters::AUDIO_PCM_LINEAR) {
+  if (!params.IsValid())
     return NULL;
-  }
 
   // Limit the number of audio streams opened. This is to prevent using
   // excessive resources for a large number of audio streams. More
@@ -99,8 +97,16 @@ AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
     return NULL;
   }
 
-  num_output_streams_++;
-  return new PCMQueueOutAudioOutputStream(this, params);
+  if (params.format == AudioParameters::AUDIO_MOCK) {
+    return FakeAudioOutputStream::MakeFakeStream(params);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+    num_output_streams_++;
+    return new PCMQueueOutAudioOutputStream(this, params);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+    num_output_streams_++;
+    return new AUAudioOutputStream(this, params);
+  }
+  return NULL;
 }
 
 AudioInputStream* AudioManagerMac::MakeAudioInputStream(
@@ -125,8 +131,7 @@ void AudioManagerMac::UnMuteAll() {
 }
 
 // Called by the stream when it has been released by calling Close().
-void AudioManagerMac::ReleaseOutputStream(
-    PCMQueueOutAudioOutputStream* stream) {
+void AudioManagerMac::ReleaseOutputStream(AudioOutputStream* stream) {
   DCHECK(stream);
   num_output_streams_--;
   delete stream;

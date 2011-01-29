@@ -29,7 +29,7 @@ class AudioManagerMac : public AudioManagerBase {
   // Mac-only method to free the streams created by above facoty methods.
   // They are called internally by the respective audio stream when it has
   // been closed.
-  void ReleaseOutputStream(PCMQueueOutAudioOutputStream* stream);
+  void ReleaseOutputStream(AudioOutputStream* stream);
   void ReleaseInputStream(PCMQueueInAudioInputStream* stream);
 
  private:
