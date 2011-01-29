@@ -74,6 +74,23 @@ void InterleaveFloatToInt16(const std::vector<float*>& source,
                             int16* destination,
                             size_t number_of_frames);
 
+// Reorder PCM from AAC layout to Core Audio 5.1 layout.
+// TODO(fbarchard): Switch layout when ffmpeg is updated.
+template<class Format>
+void SwizzleCoreAudioLayout5_1(Format* b, uint32 filled) {
+  static const int kNumSurroundChannels = 6;
+  Format aac[kNumSurroundChannels];
+  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
+    memcpy(aac, b, sizeof(aac));
+    b[0] = aac[1];  // L
+    b[1] = aac[2];  // R
+    b[2] = aac[0];  // C
+    b[3] = aac[5];  // LFE
+    b[4] = aac[3];  // Ls
+    b[5] = aac[4];  // Rs
+  }
+}
+
 }  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_UTIL_H_

@@ -74,6 +74,8 @@ class AudioOutputStream {
     virtual void OnError(AudioOutputStream* stream, int code) = 0;
   };
 
+  virtual ~AudioOutputStream() {}
+
   // Open the stream. false is returned if the stream cannot be opened.
   virtual bool Open() = 0;
 
@@ -97,9 +99,6 @@ class AudioOutputStream {
   // Close the stream. This also generates AudioSourceCallback::OnClose().
   // After calling this method, the object should not be used anymore.
   virtual void Close() = 0;
-
- protected:
-  virtual ~AudioOutputStream() {}
 };
 
 // Models an audio sink receiving recorded audio from the audio driver.
