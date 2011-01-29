@@ -64,6 +64,7 @@ v8.log
 /rlz
 /sdch/open-vcdiff
 /seccompsandbox
+/testing/gmock
 /testing/gtest
 /testserver.log
 /third_party/GTM
