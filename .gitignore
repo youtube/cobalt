@@ -111,6 +111,7 @@ v8.log
 /third_party/speex
 /third_party/swig
 /third_party/valgrind
+/third_party/webdriver/python
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
 /third_party/yasm/binaries
