@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,17 +12,22 @@
 
 #include "base/logging.h"
 
+namespace net {
+
 const uint8 GZipHeader::magic[] = { 0x1f, 0x8b };
 
-// ----------------------------------------------------------------------
-// GZipHeader::ReadMore()
-//    Attempt to parse the beginning of the given buffer as a gzip
-//    header. If these bytes do not constitute a complete gzip header,
-//    return INCOMPLETE_HEADER. If these bytes do not constitute a
-//    *valid* gzip header, return INVALID_HEADER. If we find a
-//    complete header, return COMPLETE_HEADER and set the pointer
-//    pointed to by header_end to the first byte beyond the gzip header.
-// ----------------------------------------------------------------------
+GZipHeader::GZipHeader() {
+  Reset();
+}
+
+GZipHeader::~GZipHeader() {
+}
+
+void GZipHeader::Reset() {
+  state_        = IN_HEADER_ID1;
+  flags_        = 0;
+  extra_length_ = 0;
+}
 
 GZipHeader::Status GZipHeader::ReadMore(const char* inbuf, int inbuf_len,
                                         const char** header_end) {
@@ -175,3 +180,5 @@ GZipHeader::Status GZipHeader::ReadMore(const char* inbuf, int inbuf_len,
     return INCOMPLETE_HEADER;
   }
 }
+
+}  // namespace net

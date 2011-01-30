@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,15 +12,19 @@
 // GZipFilter is a subclass of Filter. See the latter's header file filter.h
 // for sample usage.
 
-#ifndef NET_BASE_GZIP_FILTER_H__
-#define NET_BASE_GZIP_FILTER_H__
+#ifndef NET_BASE_GZIP_FILTER_H_
+#define NET_BASE_GZIP_FILTER_H_
 #pragma once
 
+#include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "net/base/filter.h"
 
-class GZipHeader;
 typedef struct z_stream_s z_stream;
+
+namespace net {
+
+class GZipHeader;
 
 class GZipFilter : public Filter {
  public:
@@ -139,5 +143,7 @@ class GZipFilter : public Filter {
 
   DISALLOW_COPY_AND_ASSIGN(GZipFilter);
 };
+
+}  // namespace net
 
 #endif  // NET_BASE_GZIP_FILTER_H__
