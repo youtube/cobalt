@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -332,7 +332,8 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
     case FILTER_TYPE_GZIP_HELPING_SDCH:
     case FILTER_TYPE_DEFLATE:
     case FILTER_TYPE_GZIP: {
-      scoped_ptr<GZipFilter> gz_filter(new GZipFilter(filter_context));
+      scoped_ptr<net::GZipFilter> gz_filter(
+          new net::GZipFilter(filter_context));
       if (gz_filter->InitBuffer()) {
         if (gz_filter->InitDecoding(type_id)) {
           first_filter = gz_filter.release();

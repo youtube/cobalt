@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,8 @@
 
 #include "base/basictypes.h"
 
+namespace net {
+
 class GZipHeader {
  public:
   enum Status {
@@ -26,19 +28,11 @@ class GZipHeader {
     INVALID_HEADER,       // found something invalid in the header
   };
 
-  GZipHeader() {
-    Reset();
-  }
-
-  ~GZipHeader() {
-  }
+  GZipHeader();
+  ~GZipHeader();
 
   // Wipe the slate clean and start from scratch.
-  void Reset() {
-    state_        = IN_HEADER_ID1;
-    flags_        = 0;
-    extra_length_ = 0;
-  }
+  void Reset();
 
   // Attempt to parse the given buffer as the next installment of
   // bytes from a gzip header. If the bytes we've seen so far do not
@@ -47,7 +41,8 @@ class GZipHeader {
   // gzip header, return INVALID_HEADER. When we've seen a complete
   // gzip header, return COMPLETE_HEADER and set the pointer pointed
   // to by header_end to the first byte beyond the gzip header.
-  Status ReadMore(const char* inbuf, int inbuf_len,
+  Status ReadMore(const char* inbuf,
+                  int inbuf_len,
                   const char** header_end);
  private:
   enum {                       // flags (see RFC)
@@ -91,6 +86,10 @@ class GZipHeader {
   int    state_;  // our current State in the parsing FSM: an int so we can ++
   uint8  flags_;         // the flags byte of the header ("FLG" in the RFC)
   uint16 extra_length_;  // how much of the "extra field" we have yet to read
+
+  DISALLOW_COPY_AND_ASSIGN(GZipHeader);
 };
+
+}  // namespace net
 
 #endif  // NET_BASE_GZIP_HEADER_H_
