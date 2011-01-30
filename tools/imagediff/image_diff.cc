@@ -100,7 +100,7 @@ class Image {
     unsigned char buf[buf_size];
     size_t num_read = 0;
     while ((num_read = fread(buf, 1, buf_size, f)) > 0) {
-      std::copy(buf, &buf[num_read], std::back_inserter(compressed));
+      compressed.insert(compressed.end(), buf, buf + num_read);
     }
 
     file_util::CloseFile(f);
