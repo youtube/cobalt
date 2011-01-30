@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "net/base/gzip_header.h"
 
+namespace net {
 
 GZipFilter::GZipFilter(const FilterContext& filter_context)
     : Filter(filter_context),
@@ -308,3 +309,5 @@ void GZipFilter::SkipGZipFooter() {
       next_stream_data_ = NULL;
   }
 }
+
+}  // namespace net
