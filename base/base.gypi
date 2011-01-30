@@ -98,7 +98,6 @@
           'lazy_instance.h',
           'linked_list.h',
           'linked_ptr.h',
-          'lock.h',
           'logging.cc',
           'logging.h',
           'logging_win.cc',
