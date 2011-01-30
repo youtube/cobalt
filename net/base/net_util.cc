@@ -896,10 +896,9 @@ std::wstring FormatUrlInternal(const GURL& url,
 
   // Copy everything before the username (the scheme and the separators.)
   // These are ASCII.
-  std::copy(spec.begin(),
+  url_string.insert(url_string.end(), spec.begin(),
       spec.begin() + parsed.CountCharactersBefore(url_parse::Parsed::USERNAME,
-                                                  true),
-      std::back_inserter(url_string));
+                                                  true));
 
   const wchar_t kHTTP[] = L"http://";
   const char kFTP[] = "ftp.";
@@ -968,8 +967,9 @@ std::wstring FormatUrlInternal(const GURL& url,
   if (parsed.port.is_nonempty()) {
     url_string.push_back(':');
     new_parsed->port.begin = url_string.length();
-    std::copy(spec.begin() + parsed.port.begin,
-              spec.begin() + parsed.port.end(), std::back_inserter(url_string));
+    url_string.insert(url_string.end(),
+                      spec.begin() + parsed.port.begin,
+                      spec.begin() + parsed.port.end());
     new_parsed->port.len = url_string.length() - new_parsed->port.begin;
   } else {
     new_parsed->port.reset();
@@ -1191,7 +1191,7 @@ std::wstring IDNToUnicode(const char* host,
   // Convert the ASCII input to a wide string for ICU.
   string16 input16;
   input16.reserve(host_len);
-  std::copy(host, host + host_len, std::back_inserter(input16));
+  input16.insert(input16.end(), host, host + host_len);
 
   string16 out16;
   size_t output_offset = offset_for_adjustment ?
