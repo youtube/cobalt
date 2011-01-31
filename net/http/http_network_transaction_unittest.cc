@@ -2823,28 +2823,37 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
 
-  EXPECT_TRUE(trans->IsReadyToRestartForAuth());
-  TestCompletionCallback callback2;
-  rv = trans->RestartWithAuth(string16(), string16(), &callback2);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback2.WaitForResult();
-  EXPECT_EQ(OK, rv);
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  ASSERT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   // The password prompt info should have been set in
   // response->auth_challenge.
-  EXPECT_FALSE(response->auth_challenge.get() == NULL);
+  ASSERT_FALSE(response->auth_challenge.get() == NULL);
 
   EXPECT_EQ(L"172.22.68.17:80", response->auth_challenge->host_and_port);
   EXPECT_EQ(L"", response->auth_challenge->realm);
   EXPECT_EQ(L"ntlm", response->auth_challenge->scheme);
 
+  TestCompletionCallback callback2;
+
+  rv = trans->RestartWithAuth(kTestingNTLM, kTestingNTLM, &callback2);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback2.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  EXPECT_TRUE(trans->IsReadyToRestartForAuth());
+
+  response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+
   TestCompletionCallback callback3;
 
-  rv = trans->RestartWithAuth(kTestingNTLM, kTestingNTLM, &callback3);
+  rv = trans->RestartWithAuth(string16(), string16(), &callback3);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback3.WaitForResult();
@@ -2852,7 +2861,6 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
 
   response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
-
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(13, response->headers->GetContentLength());
 }
@@ -3002,12 +3010,6 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
 
-  EXPECT_TRUE(trans->IsReadyToRestartForAuth());
-  TestCompletionCallback callback2;
-  rv = trans->RestartWithAuth(string16(), string16(), &callback2);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback2.WaitForResult();
-  EXPECT_EQ(OK, rv);
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
@@ -3020,25 +3022,25 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   EXPECT_EQ(L"", response->auth_challenge->realm);
   EXPECT_EQ(L"ntlm", response->auth_challenge->scheme);
 
-  TestCompletionCallback callback3;
+  TestCompletionCallback callback2;
 
   // Enter the wrong password.
-  rv = trans->RestartWithAuth(kTestingNTLM, kWrongPassword, &callback3);
+  rv = trans->RestartWithAuth(kTestingNTLM, kWrongPassword, &callback2);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
-  rv = callback3.WaitForResult();
+  rv = callback2.WaitForResult();
   EXPECT_EQ(OK, rv);
 
   EXPECT_TRUE(trans->IsReadyToRestartForAuth());
-  TestCompletionCallback callback4;
-  rv = trans->RestartWithAuth(string16(), string16(), &callback4);
+  TestCompletionCallback callback3;
+  rv = trans->RestartWithAuth(string16(), string16(), &callback3);
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback4.WaitForResult();
+  rv = callback3.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_TRUE(response != NULL);
 
   // The password prompt info should have been set in response->auth_challenge.
   EXPECT_FALSE(response->auth_challenge.get() == NULL);
@@ -3047,10 +3049,21 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   EXPECT_EQ(L"", response->auth_challenge->realm);
   EXPECT_EQ(L"ntlm", response->auth_challenge->scheme);
 
-  TestCompletionCallback callback5;
+  TestCompletionCallback callback4;
 
   // Now enter the right password.
-  rv = trans->RestartWithAuth(kTestingNTLM, kTestingNTLM, &callback5);
+  rv = trans->RestartWithAuth(kTestingNTLM, kTestingNTLM, &callback4);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback4.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  EXPECT_TRUE(trans->IsReadyToRestartForAuth());
+
+  TestCompletionCallback callback5;
+
+  // One more roundtrip
+  rv = trans->RestartWithAuth(string16(), string16(), &callback5);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback5.WaitForResult();
