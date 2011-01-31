@@ -1165,6 +1165,8 @@
               # http://code.google.com/p/googletest/source/detail?r=446 .
               # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
               '-Wno-unnamed-type-template-args',
+              # TODO(thakis): Reenable, http://crbug.com/71375
+              '-Wno-uninitialized',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
@@ -1287,6 +1289,8 @@
                 # http://code.google.com/p/googletest/source/detail?r=446 .
                 # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
                 '-Wno-unnamed-type-template-args',
+                # TODO(thakis): Reenable, http://crbug.com/71375
+                '-Wno-uninitialized',
               ],
             }],
             ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
