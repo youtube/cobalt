@@ -104,7 +104,6 @@
           'dependencies': [
             '../breakpad/breakpad.gyp:*',
             '../chrome/app/locales/locales.gyp:*',
-            '../ceee/ceee.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
             '../courgette/courgette.gyp:*',
             '../gears/gears.gyp:*',
