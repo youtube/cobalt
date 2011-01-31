@@ -644,7 +644,10 @@ HttpAuthHandlerNTLM::HttpAuthHandlerNTLM() {
 }
 
 bool HttpAuthHandlerNTLM::NeedsIdentity() {
-  return !auth_data_.empty();
+  // This gets called for each round-trip.  Only require identity on
+  // the first call (when auth_data_ is empty).  On subsequent calls,
+  // we use the initially established identity.
+  return auth_data_.empty();
 }
 
 bool HttpAuthHandlerNTLM::AllowsDefaultCredentials() {
