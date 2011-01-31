@@ -94,8 +94,6 @@
             'src/include/libxml/xpointer.h',
             'src/include/win32config.h',
             'src/include/wsockcompat.h',
-            'src/win32/config.h',
-            'src/win32/include/libxml/xmlversion.h',
             'src/acconfig.h',
             'src/c14n.c',
             'src/catalog.c',
@@ -150,6 +148,8 @@
             'src/xmlwriter.c',
             'src/xpath.c',
             'src/xpointer.c',
+            'win32/config.h',
+            'win32/include/libxml/xmlversion.h',
           ],
           'defines': [
             # Define LIBXML_STATIC as nothing to match how libxml.h
