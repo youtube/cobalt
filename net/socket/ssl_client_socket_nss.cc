@@ -1690,9 +1690,6 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
         UMA_HISTOGRAM_TIMES("Net.SSLCertVerificationTimeError", verify_time);
   }
 
-  if (ssl_host_info_.get())
-    ssl_host_info_->set_cert_verification_finished_time();
-
   // We used to remember the intermediate CA certs in the NSS database
   // persistently.  However, NSS opens a connection to the SQLite database
   // during NSS initialization and doesn't close the connection until NSS
