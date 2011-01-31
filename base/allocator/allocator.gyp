@@ -133,6 +133,7 @@
         '<(tcmalloc_dir)/src/stack_trace_table.cc',
         '<(tcmalloc_dir)/src/stack_trace_table.h',
         '<(tcmalloc_dir)/src/stacktrace.cc',
+        '<(tcmalloc_dir)/src/stacktrace.h',
         '<(tcmalloc_dir)/src/stacktrace_config.h',
         '<(tcmalloc_dir)/src/stacktrace_generic-inl.h',
         '<(tcmalloc_dir)/src/stacktrace_libunwind-inl.h',
