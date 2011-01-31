@@ -115,11 +115,6 @@ class URLRequestContext
     return ftp_transaction_factory_;
   }
 
-  void set_network_delegate(HttpNetworkDelegate* network_delegate) {
-    network_delegate_ = network_delegate;
-  }
-  HttpNetworkDelegate* network_delegate() { return network_delegate_; }
-
   // Gets the cookie store for this context (may be null, in which case
   // cookies are not stored).
   CookieStore* cookie_store() { return cookie_store_.get(); }
