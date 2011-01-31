@@ -112,6 +112,7 @@
         'src/google/protobuf/text_format.h',
         'src/google/protobuf/unknown_field_set.h',
         'src/google/protobuf/wire_format.h',
+        'src/google/protobuf/wire_format_inl.h',
         'src/google/protobuf/io/gzip_stream.h',
         'src/google/protobuf/io/printer.h',
         'src/google/protobuf/io/tokenizer.h',
