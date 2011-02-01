@@ -1389,8 +1389,11 @@ class FileMultiplexer:
 
 def main(options, args):
   logfile = open('testserver.log', 'w')
-  sys.stdout = FileMultiplexer(sys.stdout, logfile)
   sys.stderr = FileMultiplexer(sys.stderr, logfile)
+  if options.log_to_console:
+    sys.stdout = FileMultiplexer(sys.stdout, logfile)
+  else:
+    sys.stdout = logfile
 
   port = options.port
 
@@ -1489,6 +1492,11 @@ if __name__ == '__main__':
                            const=SERVER_SYNC, default=SERVER_HTTP,
                            dest='server_type',
                            help='start up a sync server.')
+  option_parser.add_option('', '--log-to-console', action='store_const',
+                           const=True, default=False,
+                           dest='log_to_console',
+                           help='Enables or disables sys.stdout logging to '
+                           'the console.')
   option_parser.add_option('', '--port', default='0', type='int',
                            help='Port used by the server. If unspecified, the '
                            'server will listen on an ephemeral port.')
