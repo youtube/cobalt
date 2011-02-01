@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,8 @@
 #include "net/base/sdch_filter.h"
 #include "net/url_request/url_request_http_job.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace net {
 
 //------------------------------------------------------------------------------
 // Provide sample data and compression results with a sample VCDIFF dictionary.
@@ -158,7 +160,7 @@ TEST_F(SdchFilterTest, EmptyInputOk) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
   const int kInputBufferSize(30);
   char output_buffer[20];
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   std::string url_string("http://ignore.com");
   filter_context.SetURL(GURL(url_string));
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
@@ -179,7 +181,7 @@ TEST_F(SdchFilterTest, PassThroughWhenTentative) {
   filter_types.push_back(Filter::FILTER_TYPE_GZIP_HELPING_SDCH);
   const int kInputBufferSize(30);
   char output_buffer[20];
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   // Response code needs to be 200 to allow a pass through.
   filter_context.SetResponseCode(200);
   std::string url_string("http://ignore.com");
@@ -219,7 +221,7 @@ TEST_F(SdchFilterTest, RefreshBadReturnCode) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH_POSSIBLE);
   const int kInputBufferSize(30);
   char output_buffer[20];
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   // Response code needs to be 200 to allow a pass through.
   filter_context.SetResponseCode(403);
   // Meta refresh will only appear for html content
@@ -262,7 +264,7 @@ TEST_F(SdchFilterTest, ErrorOnBadReturnCode) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH_POSSIBLE);
   const int kInputBufferSize(30);
   char output_buffer[20];
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   // Response code needs to be 200 to allow a pass through.
   filter_context.SetResponseCode(403);
   // Meta refresh will only appear for html content, so set to something else
@@ -301,7 +303,7 @@ TEST_F(SdchFilterTest, ErrorOnBadReturnCodeWithHtml) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH_POSSIBLE);
   const int kInputBufferSize(30);
   char output_buffer[20];
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   // Response code needs to be 200 to allow a pass through.
   filter_context.SetResponseCode(403);
   // Meta refresh will only appear for html content
@@ -344,7 +346,7 @@ TEST_F(SdchFilterTest, BasicBadDictionary) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
   const int kInputBufferSize(30);
   char output_buffer[20];
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   std::string url_string("http://ignore.com");
   filter_context.SetURL(GURL(url_string));
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
@@ -432,7 +434,7 @@ TEST_F(SdchFilterTest, BasicDictionary) {
 
   // Decode with a large buffer (larger than test input, or compressed data).
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(url);
 
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
@@ -471,7 +473,7 @@ TEST_F(SdchFilterTest, NoDecodeHttps) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(GURL("https://" + kSampleDomain));
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
 
@@ -503,7 +505,7 @@ TEST_F(SdchFilterTest, NoDecodeFtp) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(GURL("ftp://" + kSampleDomain));
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
 
@@ -531,7 +533,7 @@ TEST_F(SdchFilterTest, NoDecodeFileColon) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(GURL("file://" + kSampleDomain));
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
 
@@ -559,7 +561,7 @@ TEST_F(SdchFilterTest, NoDecodeAboutColon) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(GURL("about://" + kSampleDomain));
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
 
@@ -587,7 +589,7 @@ TEST_F(SdchFilterTest, NoDecodeJavaScript) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(GURL("javascript://" + kSampleDomain));
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
 
@@ -615,7 +617,7 @@ TEST_F(SdchFilterTest, CanStillDecodeHttp) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(GURL("http://" + kSampleDomain));
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
 
@@ -645,7 +647,7 @@ TEST_F(SdchFilterTest, CrossDomainDictionaryUse) {
 
   // Decode with content arriving from the "wrong" domain.
   // This tests SdchManager::CanSet().
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   GURL wrong_domain_url("http://www.wrongdomain.com");
   filter_context.SetURL(wrong_domain_url);
   scoped_ptr<Filter> filter((Filter::Factory(filter_types,  filter_context)));
@@ -686,7 +688,7 @@ TEST_F(SdchFilterTest, DictionaryPathValidation) {
   const int kInputBufferSize(100);
 
   // Test decode the path data, arriving from a valid path.
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(GURL(url_string + path));
   scoped_ptr<Filter> filter((Filter::Factory(filter_types, filter_context)));
 
@@ -740,7 +742,7 @@ TEST_F(SdchFilterTest, DictionaryPortValidation) {
   const int kInputBufferSize(100);
 
   // Test decode the port data, arriving from a valid port.
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetURL(GURL(url_string + ":" + port));
   scoped_ptr<Filter> filter((Filter::Factory(filter_types, filter_context)));
 
@@ -863,7 +865,7 @@ TEST_F(SdchFilterTest, FilterChaining) {
   CHECK_GT(kLargeInputBufferSize, gzip_compressed_sdch.size());
   CHECK_GT(kLargeInputBufferSize, sdch_compressed.size());
   CHECK_GT(kLargeInputBufferSize, expanded_.size());
-  net::MockFilterContext filter_context(kLargeInputBufferSize);
+  MockFilterContext filter_context(kLargeInputBufferSize);
   filter_context.SetURL(url);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
 
@@ -933,7 +935,7 @@ TEST_F(SdchFilterTest, DefaultGzipIfSdch) {
   filter_types.push_back(Filter::FILTER_TYPE_SDCH);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetMimeType("anything/mime");
   filter_context.SetSdchResponse(true);
   Filter::FixupEncodingTypes(filter_context, &filter_types);
@@ -993,7 +995,7 @@ TEST_F(SdchFilterTest, AcceptGzipSdchIfGzip) {
   filter_types.push_back(Filter::FILTER_TYPE_GZIP);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetMimeType("anything/mime");
   filter_context.SetSdchResponse(true);
   Filter::FixupEncodingTypes(filter_context, &filter_types);
@@ -1052,7 +1054,7 @@ TEST_F(SdchFilterTest, DefaultSdchGzipIfEmpty) {
   std::vector<Filter::FilterType> filter_types;
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetMimeType("anything/mime");
   filter_context.SetSdchResponse(true);
   Filter::FixupEncodingTypes(filter_context, &filter_types);
@@ -1115,7 +1117,7 @@ TEST_F(SdchFilterTest, AcceptGzipGzipSdchIfGzip) {
   filter_types.push_back(Filter::FILTER_TYPE_GZIP);
 
   const int kInputBufferSize(100);
-  net::MockFilterContext filter_context(kInputBufferSize);
+  MockFilterContext filter_context(kInputBufferSize);
   filter_context.SetMimeType("anything/mime");
   filter_context.SetSdchResponse(true);
   Filter::FixupEncodingTypes(filter_context, &filter_types);
@@ -1404,3 +1406,5 @@ TEST_F(SdchFilterTest, LatencyTestControls) {
   EXPECT_FALSE(sdch_manager_->AllowLatencyExperiment(url));
   EXPECT_FALSE(sdch_manager_->AllowLatencyExperiment(url2));
 }
+
+}  // namespace net
