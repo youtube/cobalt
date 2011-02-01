@@ -152,6 +152,8 @@
         'filters/file_data_source.h',
         'filters/null_audio_renderer.cc',
         'filters/null_audio_renderer.h',
+        'filters/null_video_renderer.cc',
+        'filters/null_video_renderer.h',
         'filters/video_renderer_base.cc',
         'filters/video_renderer_base.h',
         'video/ffmpeg_video_allocator.cc',
