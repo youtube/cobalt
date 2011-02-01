@@ -29,19 +29,19 @@ TEST(JSONWriterTest, Writing) {
   delete root;
 
   // Test Real values should always have a decimal or an 'e'.
-  root = Value::CreateRealValue(1.0);
+  root = Value::CreateDoubleValue(1.0);
   JSONWriter::Write(root, false, &output_js);
   ASSERT_EQ("1.0", output_js);
   delete root;
 
   // Test Real values in the the range (-1, 1) must have leading zeros
-  root = Value::CreateRealValue(0.2);
+  root = Value::CreateDoubleValue(0.2);
   JSONWriter::Write(root, false, &output_js);
   ASSERT_EQ("0.2", output_js);
   delete root;
 
   // Test Real values in the the range (-1, 1) must have leading zeros
-  root = Value::CreateRealValue(-0.8);
+  root = Value::CreateDoubleValue(-0.8);
   JSONWriter::Write(root, false, &output_js);
   ASSERT_EQ("-0.8", output_js);
   delete root;
