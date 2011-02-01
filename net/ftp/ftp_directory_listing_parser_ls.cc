@@ -39,10 +39,13 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
       text[0] != '-')
     return false;
 
+  // Do not check the rest of the string. Some servers fail to properly
+  // separate this column from the next column (number of links), resulting
+  // in additional characters at the end. Also, sometimes there is a "+"
+  // sign at the end indicating the file has ACLs set.
   return (LooksLikeUnixPermission(text.substr(1, 3)) &&
           LooksLikeUnixPermission(text.substr(4, 3)) &&
-          LooksLikeUnixPermission(text.substr(7, 3)) &&
-          (text.substr(10).empty() || text.substr(10) == ASCIIToUTF16("+")));
+          LooksLikeUnixPermission(text.substr(7, 3)));
 }
 
 bool LooksLikePermissionDeniedError(const string16& text) {
