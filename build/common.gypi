@@ -119,6 +119,9 @@
       # Set to select the Title Case versions of strings in GRD files.
       'use_titlecase_in_grd_files%': 0,
 
+      # Use translations provided by volunteers at launchpad.net.
+      'use_third_party_translations%': 0,
+
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
 
@@ -471,6 +474,9 @@
       }],
       ['use_titlecase_in_grd_files==1', {
         'grit_defines': ['-D', 'use_titlecase'],
+      }],
+      ['use_third_party_translations==1', {
+        'grit_defines': ['-D', 'use_third_party_translations'],
       }],
     ],
   },
