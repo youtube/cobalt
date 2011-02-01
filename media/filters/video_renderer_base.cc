@@ -318,7 +318,6 @@ void VideoRendererBase::ThreadMain() {
       }
       if (new_frame_available) {
         base::AutoUnlock auto_unlock(lock_);
-        // Notify subclass that |current_frame_| has been updated.
         OnFrameAvailable();
       }
     }
@@ -419,6 +418,7 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
   }
 
   // Check for our preroll complete condition.
+  bool new_frame_available = false;
   if (state_ == kSeeking) {
     if (frames_queue_ready_.size() == Limits::kMaxVideoFrames ||
         frame->IsEndOfStream()) {
@@ -435,7 +435,7 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
         frames_queue_ready_.pop_front();
         current_frame_ = first_frame;
       }
-      OnFrameAvailable();
+      new_frame_available = true;
 
       // If we reach prerolled state before Seek() is called by pipeline,
       // |seek_callback_| is not set, we will return immediately during
@@ -447,6 +447,11 @@ void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
     }
   } else if (state_ == kFlushing && pending_reads_ == 0 && !pending_paint_) {
     OnFlushDone();
+  }
+
+  if (new_frame_available) {
+    base::AutoUnlock auto_unlock(lock_);
+    OnFrameAvailable();
   }
 }
 
