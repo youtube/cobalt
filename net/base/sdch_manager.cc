@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,8 +13,7 @@
 #include "net/base/registry_controlled_domain.h"
 #include "net/url_request/url_request_http_job.h"
 
-using base::Time;
-using base::TimeDelta;
+namespace net {
 
 //------------------------------------------------------------------------------
 // static
@@ -28,16 +27,20 @@ SdchManager* SdchManager::global_;
 
 //------------------------------------------------------------------------------
 SdchManager::Dictionary::Dictionary(const std::string& dictionary_text,
-    size_t offset, const std::string& client_hash, const GURL& gurl,
-    const std::string& domain, const std::string& path, const Time& expiration,
-    const std::set<int> ports)
-      : text_(dictionary_text, offset),
-        client_hash_(client_hash),
-        url_(gurl),
-        domain_(domain),
-        path_(path),
-        expiration_(expiration),
-        ports_(ports) {
+                                    size_t offset,
+                                    const std::string& client_hash,
+                                    const GURL& gurl,
+                                    const std::string& domain,
+                                    const std::string& path,
+                                    const base::Time& expiration,
+                                    const std::set<int>& ports)
+    : text_(dictionary_text, offset),
+      client_hash_(client_hash),
+      url_(gurl),
+      domain_(domain),
+      path_(path),
+      expiration_(expiration),
+      ports_(ports) {
 }
 
 SdchManager::Dictionary::~Dictionary() {
@@ -66,7 +69,7 @@ bool SdchManager::Dictionary::CanAdvertise(const GURL& target_url) {
     return false;
   if (target_url.SchemeIsSecure())
     return false;
-  if (Time::Now() > expiration_)
+  if (base::Time::Now() > expiration_)
     return false;
   return true;
 }
@@ -370,7 +373,7 @@ bool SdchManager::AddSdchDictionary(const std::string& dictionary_text,
 
   std::string domain, path;
   std::set<int> ports;
-  Time expiration(Time::Now() + TimeDelta::FromDays(30));
+  base::Time expiration(base::Time::Now() + base::TimeDelta::FromDays(30));
 
   if (dictionary_text.empty()) {
     SdchErrorRecovery(DICTIONARY_HAS_NO_TEXT);
@@ -415,7 +418,7 @@ bool SdchManager::AddSdchDictionary(const std::string& dictionary_text,
       } else if (name == "max-age") {
         int64 seconds;
         base::StringToInt64(value, &seconds);
-        expiration = Time::Now() + TimeDelta::FromSeconds(seconds);
+        expiration = base::Time::Now() + base::TimeDelta::FromSeconds(seconds);
       } else if (name == "port") {
         int port;
         base::StringToInt(value, &port);
@@ -543,3 +546,5 @@ void SdchManager::UrlSafeBase64Encode(const std::string& input,
     }
   }
 }
+
+}  // namespace net
