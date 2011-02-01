@@ -265,8 +265,8 @@ bool TransportSecurityState::Serialise(std::string* output) {
        i = enabled_hosts_.begin(); i != enabled_hosts_.end(); ++i) {
     DictionaryValue* state = new DictionaryValue;
     state->SetBoolean("include_subdomains", i->second.include_subdomains);
-    state->SetReal("created", i->second.created.ToDoubleT());
-    state->SetReal("expiry", i->second.expiry.ToDoubleT());
+    state->SetDouble("created", i->second.created.ToDoubleT());
+    state->SetDouble("expiry", i->second.expiry.ToDoubleT());
 
     switch (i->second.mode) {
       case DomainState::MODE_STRICT:
@@ -317,7 +317,7 @@ bool TransportSecurityState::Deserialise(const std::string& input,
 
     if (!state->GetBoolean("include_subdomains", &include_subdomains) ||
         !state->GetString("mode", &mode_string) ||
-        !state->GetReal("expiry", &expiry)) {
+        !state->GetDouble("expiry", &expiry)) {
       continue;
     }
 
@@ -336,7 +336,7 @@ bool TransportSecurityState::Deserialise(const std::string& input,
 
     base::Time expiry_time = base::Time::FromDoubleT(expiry);
     base::Time created_time;
-    if (state->GetReal("created", &created)) {
+    if (state->GetDouble("created", &created)) {
       created_time = base::Time::FromDoubleT(created);
     } else {
       // We're migrating an old entry with no creation date. Make sure we
