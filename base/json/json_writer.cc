@@ -75,10 +75,10 @@ void JSONWriter::BuildJSONString(const Value* const node,
         break;
       }
 
-    case Value::TYPE_REAL:
+    case Value::TYPE_DOUBLE:
       {
         double value;
-        bool result = node->GetAsReal(&value);
+        bool result = node->GetAsDouble(&value);
         DCHECK(result);
         std::string real = DoubleToString(value);
         // Ensure that the number has a .0 if there's no decimal or 'e'.  This
