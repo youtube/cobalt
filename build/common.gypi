@@ -978,7 +978,7 @@
               '_DEBUG',
             ],
             'cflags': [
-              '-O<(debug_optimize)',
+              '-O>(debug_optimize)',
               '-g',
             ],
           },
@@ -994,7 +994,7 @@
               'no_gc_sections%': 0,
             },
             'cflags': [
-              '-O<(release_optimize)',
+              '-O>(release_optimize)',
               # Don't emit the GCC version ident directives, they just end up
               # in the .comment section taking up binary size.
               '-fno-ident',
