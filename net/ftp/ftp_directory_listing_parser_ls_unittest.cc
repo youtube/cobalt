@@ -81,6 +81,12 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "-rw-r--r-- 1 ftpadmin ftpadmin125435904 Apr  9  2008 .pureftpd-upload",
       net::FtpDirectoryListingEntry::FILE, ".pureftpd-upload", 0,
       2008, 4, 9, 0, 0 },
+
+    // Tests for "ls -l" style listing with number of links
+    // not separated from permission listing (http://crbug.com/70394).
+    { "drwxr-xr-x1732 266      111        90112 Jun 21  2001 .rda_2",
+      net::FtpDirectoryListingEntry::DIRECTORY, ".rda_2", -1,
+      2001, 6, 21, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
@@ -134,8 +140,6 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
     "drwxrwxrwx   1 owner    group               0 Sep 13  0:3 audio",
 
-    "d-wx-wx-wt++  4 ftp 989 512 Dec  8 15:54 incoming",
-    "d-wx-wx-wt$  4 ftp 989 512 Dec  8 15:54 incoming",
     "-qqqqqqqqq+  2 sys          512 Mar 27  2009 pub",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
