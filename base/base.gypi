@@ -52,6 +52,8 @@
           'debug/debugger_win.cc',
           'debug/leak_annotations.h',
           'debug/leak_tracker.h',
+          'debug/profiler.cc',
+          'debug/profiler.h',
           'debug/stack_trace.cc',
           'debug/stack_trace.h',
           'debug/stack_trace_posix.cc',
