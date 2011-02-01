@@ -282,6 +282,10 @@
     'clang_load%': '',
     'clang_add_plugin%': '',
 
+    # Enable sampling based profiler.
+    # See http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html
+    'profiling%': '0',
+
     # Override whether we should use Breakpad on Linux. I.e. for Chrome bot.
     'linux_breakpad%': 0,
     # And if we want to dump symbols for Breakpad-enabled builds.
@@ -541,6 +545,9 @@
       }],
       ['touchui==1', {
         'defines': ['TOUCH_UI=1'],
+      }],
+      ['profiling==1', {
+        'defines': ['ENABLE_PROFILING=1'],
       }],
       ['remoting==1', {
         'defines': ['ENABLE_REMOTING=1'],
@@ -1018,6 +1025,12 @@
               ['clang==1', {
                 'cflags!': [
                   '-fno-ident',
+                ],
+              }],
+              ['profiling==1', {
+                'cflags': [
+                  '-fno-omit-frame-pointer',
+                  '-g',
                 ],
               }],
             ]
