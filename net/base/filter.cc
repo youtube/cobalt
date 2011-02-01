@@ -184,13 +184,13 @@ void Filter::FixupEncodingTypes(
     // It was not an SDCH request, so we'll just record stats.
     if (1 < encoding_types->size()) {
       // Multiple filters were intended to only be used for SDCH (thus far!)
-      SdchManager::SdchErrorRecovery(
-          SdchManager::MULTIENCODING_FOR_NON_SDCH_REQUEST);
+      net::SdchManager::SdchErrorRecovery(
+          net::SdchManager::MULTIENCODING_FOR_NON_SDCH_REQUEST);
     }
     if ((1 == encoding_types->size()) &&
         (FILTER_TYPE_SDCH == encoding_types->front())) {
-        SdchManager::SdchErrorRecovery(
-            SdchManager::SDCH_CONTENT_ENCODE_FOR_NON_SDCH_REQUEST);
+        net::SdchManager::SdchErrorRecovery(
+            net::SdchManager::SDCH_CONTENT_ENCODE_FOR_NON_SDCH_REQUEST);
     }
     return;
   }
@@ -210,8 +210,8 @@ void Filter::FixupEncodingTypes(
     // no-op pass through filter if it doesn't get gzip headers where expected.
     if (1 == encoding_types->size()) {
       encoding_types->push_back(FILTER_TYPE_GZIP_HELPING_SDCH);
-      SdchManager::SdchErrorRecovery(
-          SdchManager::OPTIONAL_GUNZIP_ENCODING_ADDED);
+      net::SdchManager::SdchErrorRecovery(
+          net::SdchManager::OPTIONAL_GUNZIP_ENCODING_ADDED);
     }
     return;
   }
@@ -245,11 +245,14 @@ void Filter::FixupEncodingTypes(
     // Suspicious case: Advertised dictionary, but server didn't use sdch, and
     // we're HTML tagged.
     if (encoding_types->empty()) {
-      SdchManager::SdchErrorRecovery(SdchManager::ADDED_CONTENT_ENCODING);
+      net::SdchManager::SdchErrorRecovery(
+          net::SdchManager::ADDED_CONTENT_ENCODING);
     } else if (1 == encoding_types->size()) {
-      SdchManager::SdchErrorRecovery(SdchManager::FIXED_CONTENT_ENCODING);
+      net::SdchManager::SdchErrorRecovery(
+          net::SdchManager::FIXED_CONTENT_ENCODING);
     } else {
-      SdchManager::SdchErrorRecovery(SdchManager::FIXED_CONTENT_ENCODINGS);
+      net::SdchManager::SdchErrorRecovery(
+          net::SdchManager::FIXED_CONTENT_ENCODINGS);
     }
   } else {
     // Remarkable case!?!  We advertised an SDCH dictionary, content-encoding
@@ -261,14 +264,14 @@ void Filter::FixupEncodingTypes(
     // start with "text/html" for some other reason??  We'll report this as a
     // fixup to a binary file, but it probably really is text/html (some how).
     if (encoding_types->empty()) {
-      SdchManager::SdchErrorRecovery(
-          SdchManager::BINARY_ADDED_CONTENT_ENCODING);
+      net::SdchManager::SdchErrorRecovery(
+          net::SdchManager::BINARY_ADDED_CONTENT_ENCODING);
     } else if (1 == encoding_types->size()) {
-      SdchManager::SdchErrorRecovery(
-          SdchManager::BINARY_FIXED_CONTENT_ENCODING);
+      net::SdchManager::SdchErrorRecovery(
+          net::SdchManager::BINARY_FIXED_CONTENT_ENCODING);
     } else {
-      SdchManager::SdchErrorRecovery(
-          SdchManager::BINARY_FIXED_CONTENT_ENCODINGS);
+      net::SdchManager::SdchErrorRecovery(
+          net::SdchManager::BINARY_FIXED_CONTENT_ENCODINGS);
     }
   }
 
@@ -343,7 +346,8 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
     }
     case FILTER_TYPE_SDCH:
     case FILTER_TYPE_SDCH_POSSIBLE: {
-      scoped_ptr<SdchFilter> sdch_filter(new SdchFilter(filter_context));
+      scoped_ptr<net::SdchFilter> sdch_filter(
+          new net::SdchFilter(filter_context));
       if (sdch_filter->InitBuffer()) {
         if (sdch_filter->InitDecoding(type_id)) {
           first_filter = sdch_filter.release();
