@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,6 +31,8 @@
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 
+namespace net {
+
 //------------------------------------------------------------------------------
 // Create a public interface to help us load SDCH dictionaries.
 // The SdchManager class allows registration to support this interface.
@@ -49,6 +51,7 @@ class SdchFetcher {
  private:
   DISALLOW_COPY_AND_ASSIGN(SdchFetcher);
 };
+
 //------------------------------------------------------------------------------
 
 class SdchManager {
@@ -171,10 +174,14 @@ class SdchManager {
     // Construct a vc-diff usable dictionary from the dictionary_text starting
     // at the given offset.  The supplied client_hash should be used to
     // advertise the dictionary's availability relative to the suppplied URL.
-    Dictionary(const std::string& dictionary_text, size_t offset,
-               const std::string& client_hash, const GURL& url,
-               const std::string& domain, const std::string& path,
-               const base::Time& expiration, const std::set<int> ports);
+    Dictionary(const std::string& dictionary_text,
+               size_t offset,
+               const std::string& client_hash,
+               const GURL& url,
+               const std::string& domain,
+               const std::string& path,
+               const base::Time& expiration,
+               const std::set<int>& ports);
     ~Dictionary();
 
     const GURL& url() const { return url_; }
@@ -364,5 +371,7 @@ class SdchManager {
 
   DISALLOW_COPY_AND_ASSIGN(SdchManager);
 };
+
+}  // namespace net
 
 #endif  // NET_BASE_SDCH_MANAGER_H_
