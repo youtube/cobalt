@@ -1,6 +1,8 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "net/base/sdch_filter.h"
 
 #include <limits.h>
 #include <ctype.h>
@@ -9,10 +11,11 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
-#include "net/base/sdch_filter.h"
 #include "net/base/sdch_manager.h"
 
 #include "sdch/open-vcdiff/src/google/vcdecoder.h"
+
+namespace net {
 
 SdchFilter::SdchFilter(const FilterContext& filter_context)
     : Filter(filter_context),
@@ -383,3 +386,5 @@ int SdchFilter::OutputBufferExcess(char* const dest_buffer,
   }
   return amount;
 }
+
+}  // namespace net
