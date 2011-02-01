@@ -60,7 +60,7 @@ TEST_F(ValuesTest, List) {
   scoped_ptr<ListValue> mixed_list(new ListValue());
   mixed_list->Set(0, Value::CreateBooleanValue(true));
   mixed_list->Set(1, Value::CreateIntegerValue(42));
-  mixed_list->Set(2, Value::CreateRealValue(88.8));
+  mixed_list->Set(2, Value::CreateDoubleValue(88.8));
   mixed_list->Set(3, Value::CreateStringValue("foo"));
   ASSERT_EQ(4u, mixed_list->GetSize());
 
@@ -74,7 +74,7 @@ TEST_F(ValuesTest, List) {
 
   ASSERT_FALSE(mixed_list->GetInteger(0, &int_value));
   ASSERT_EQ(0, int_value);
-  ASSERT_FALSE(mixed_list->GetReal(1, &double_value));
+  ASSERT_FALSE(mixed_list->GetDouble(1, &double_value));
   ASSERT_EQ(0.0, double_value);
   ASSERT_FALSE(mixed_list->GetString(2, &string_value));
   ASSERT_EQ("", string_value);
@@ -85,7 +85,7 @@ TEST_F(ValuesTest, List) {
   ASSERT_TRUE(bool_value);
   ASSERT_TRUE(mixed_list->GetInteger(1, &int_value));
   ASSERT_EQ(42, int_value);
-  ASSERT_TRUE(mixed_list->GetReal(2, &double_value));
+  ASSERT_TRUE(mixed_list->GetDouble(2, &double_value));
   ASSERT_EQ(88.8, double_value);
   ASSERT_TRUE(mixed_list->GetString(3, &string_value));
   ASSERT_EQ("foo", string_value);
@@ -327,8 +327,8 @@ TEST_F(ValuesTest, DeepCopy) {
   original_dict.Set("bool", original_bool);
   FundamentalValue* original_int = Value::CreateIntegerValue(42);
   original_dict.Set("int", original_int);
-  FundamentalValue* original_real = Value::CreateRealValue(3.14);
-  original_dict.Set("real", original_real);
+  FundamentalValue* original_double = Value::CreateDoubleValue(3.14);
+  original_dict.Set("double", original_double);
   StringValue* original_string = Value::CreateStringValue("hello");
   original_dict.Set("string", original_string);
   StringValue* original_string16 =
@@ -375,14 +375,14 @@ TEST_F(ValuesTest, DeepCopy) {
   ASSERT_TRUE(copy_int->GetAsInteger(&copy_int_value));
   ASSERT_EQ(42, copy_int_value);
 
-  Value* copy_real = NULL;
-  ASSERT_TRUE(copy_dict->Get("real", &copy_real));
-  ASSERT_TRUE(copy_real);
-  ASSERT_NE(copy_real, original_real);
-  ASSERT_TRUE(copy_real->IsType(Value::TYPE_REAL));
-  double copy_real_value = 0;
-  ASSERT_TRUE(copy_real->GetAsReal(&copy_real_value));
-  ASSERT_EQ(3.14, copy_real_value);
+  Value* copy_double = NULL;
+  ASSERT_TRUE(copy_dict->Get("double", &copy_double));
+  ASSERT_TRUE(copy_double);
+  ASSERT_NE(copy_double, original_double);
+  ASSERT_TRUE(copy_double->IsType(Value::TYPE_DOUBLE));
+  double copy_double_value = 0;
+  ASSERT_TRUE(copy_double->GetAsDouble(&copy_double_value));
+  ASSERT_EQ(3.14, copy_double_value);
 
   Value* copy_string = NULL;
   ASSERT_TRUE(copy_dict->Get("string", &copy_string));
@@ -459,7 +459,7 @@ TEST_F(ValuesTest, Equals) {
   DictionaryValue dv;
   dv.SetBoolean("a", false);
   dv.SetInteger("b", 2);
-  dv.SetReal("c", 2.5);
+  dv.SetDouble("c", 2.5);
   dv.SetString("d1", "string");
   dv.SetString("d2", ASCIIToUTF16("http://google.com"));
   dv.Set("e", Value::CreateNullValue());
@@ -519,8 +519,8 @@ TEST_F(ValuesTest, DeepCopyCovariantReturnTypes) {
   original_dict.Set("bool", original_bool);
   FundamentalValue* original_int = Value::CreateIntegerValue(42);
   original_dict.Set("int", original_int);
-  FundamentalValue* original_real = Value::CreateRealValue(3.14);
-  original_dict.Set("real", original_real);
+  FundamentalValue* original_double = Value::CreateDoubleValue(3.14);
+  original_dict.Set("double", original_double);
   StringValue* original_string = Value::CreateStringValue("hello");
   original_dict.Set("string", original_string);
   StringValue* original_string16 =
@@ -542,7 +542,7 @@ TEST_F(ValuesTest, DeepCopyCovariantReturnTypes) {
   Value* original_dict_value = &original_dict;
   Value* original_bool_value = original_bool;
   Value* original_int_value = original_int;
-  Value* original_real_value = original_real;
+  Value* original_double_value = original_double;
   Value* original_string_value = original_string;
   Value* original_string16_value = original_string16;
   Value* original_binary_value = original_binary;
@@ -551,7 +551,7 @@ TEST_F(ValuesTest, DeepCopyCovariantReturnTypes) {
   scoped_ptr<Value> copy_dict_value(original_dict_value->DeepCopy());
   scoped_ptr<Value> copy_bool_value(original_bool_value->DeepCopy());
   scoped_ptr<Value> copy_int_value(original_int_value->DeepCopy());
-  scoped_ptr<Value> copy_real_value(original_real_value->DeepCopy());
+  scoped_ptr<Value> copy_double_value(original_double_value->DeepCopy());
   scoped_ptr<Value> copy_string_value(original_string_value->DeepCopy());
   scoped_ptr<Value> copy_string16_value(original_string16_value->DeepCopy());
   scoped_ptr<Value> copy_binary_value(original_binary_value->DeepCopy());
@@ -560,7 +560,7 @@ TEST_F(ValuesTest, DeepCopyCovariantReturnTypes) {
   EXPECT_TRUE(original_dict_value->Equals(copy_dict_value.get()));
   EXPECT_TRUE(original_bool_value->Equals(copy_bool_value.get()));
   EXPECT_TRUE(original_int_value->Equals(copy_int_value.get()));
-  EXPECT_TRUE(original_real_value->Equals(copy_real_value.get()));
+  EXPECT_TRUE(original_double_value->Equals(copy_double_value.get()));
   EXPECT_TRUE(original_string_value->Equals(copy_string_value.get()));
   EXPECT_TRUE(original_string16_value->Equals(copy_string16_value.get()));
   EXPECT_TRUE(original_binary_value->Equals(copy_binary_value.get()));

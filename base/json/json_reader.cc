@@ -396,7 +396,7 @@ Value* JSONReader::DecodeNumber(const Token& token) {
   double num_double;
   if (StringToDouble(WideToUTF8(num_string), &num_double) &&
       base::IsFinite(num_double))
-    return Value::CreateRealValue(num_double);
+    return Value::CreateDoubleValue(num_double);
 
   return NULL;
 }

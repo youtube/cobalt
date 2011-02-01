@@ -75,60 +75,60 @@ TEST(JSONReaderTest, Reading) {
   // storage as doubles
   root.reset(JSONReader().JsonToValue("2147483648", false, false));
   ASSERT_TRUE(root.get());
-  double real_val;
-  ASSERT_TRUE(root->IsType(Value::TYPE_REAL));
-  real_val = 0.0;
-  ASSERT_TRUE(root->GetAsReal(&real_val));
-  ASSERT_DOUBLE_EQ(2147483648.0, real_val);
+  double double_val;
+  ASSERT_TRUE(root->IsType(Value::TYPE_DOUBLE));
+  double_val = 0.0;
+  ASSERT_TRUE(root->GetAsDouble(&double_val));
+  ASSERT_DOUBLE_EQ(2147483648.0, double_val);
   root.reset(JSONReader().JsonToValue("-2147483649", false, false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_REAL));
-  real_val = 0.0;
-  ASSERT_TRUE(root->GetAsReal(&real_val));
-  ASSERT_DOUBLE_EQ(-2147483649.0, real_val);
+  ASSERT_TRUE(root->IsType(Value::TYPE_DOUBLE));
+  double_val = 0.0;
+  ASSERT_TRUE(root->GetAsDouble(&double_val));
+  ASSERT_DOUBLE_EQ(-2147483649.0, double_val);
 
   // Parse a double
   root.reset(JSONReader().JsonToValue("43.1", false, false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_REAL));
-  real_val = 0.0;
-  ASSERT_TRUE(root->GetAsReal(&real_val));
-  ASSERT_DOUBLE_EQ(43.1, real_val);
+  ASSERT_TRUE(root->IsType(Value::TYPE_DOUBLE));
+  double_val = 0.0;
+  ASSERT_TRUE(root->GetAsDouble(&double_val));
+  ASSERT_DOUBLE_EQ(43.1, double_val);
 
   root.reset(JSONReader().JsonToValue("4.3e-1", false, false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_REAL));
-  real_val = 0.0;
-  ASSERT_TRUE(root->GetAsReal(&real_val));
-  ASSERT_DOUBLE_EQ(.43, real_val);
+  ASSERT_TRUE(root->IsType(Value::TYPE_DOUBLE));
+  double_val = 0.0;
+  ASSERT_TRUE(root->GetAsDouble(&double_val));
+  ASSERT_DOUBLE_EQ(.43, double_val);
 
   root.reset(JSONReader().JsonToValue("2.1e0", false, false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_REAL));
-  real_val = 0.0;
-  ASSERT_TRUE(root->GetAsReal(&real_val));
-  ASSERT_DOUBLE_EQ(2.1, real_val);
+  ASSERT_TRUE(root->IsType(Value::TYPE_DOUBLE));
+  double_val = 0.0;
+  ASSERT_TRUE(root->GetAsDouble(&double_val));
+  ASSERT_DOUBLE_EQ(2.1, double_val);
 
   root.reset(JSONReader().JsonToValue("2.1e+0001", false, false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_REAL));
-  real_val = 0.0;
-  ASSERT_TRUE(root->GetAsReal(&real_val));
-  ASSERT_DOUBLE_EQ(21.0, real_val);
+  ASSERT_TRUE(root->IsType(Value::TYPE_DOUBLE));
+  double_val = 0.0;
+  ASSERT_TRUE(root->GetAsDouble(&double_val));
+  ASSERT_DOUBLE_EQ(21.0, double_val);
 
   root.reset(JSONReader().JsonToValue("0.01", false, false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_REAL));
-  real_val = 0.0;
-  ASSERT_TRUE(root->GetAsReal(&real_val));
-  ASSERT_DOUBLE_EQ(0.01, real_val);
+  ASSERT_TRUE(root->IsType(Value::TYPE_DOUBLE));
+  double_val = 0.0;
+  ASSERT_TRUE(root->GetAsDouble(&double_val));
+  ASSERT_DOUBLE_EQ(0.01, double_val);
 
   root.reset(JSONReader().JsonToValue("1.00", false, false));
   ASSERT_TRUE(root.get());
-  ASSERT_TRUE(root->IsType(Value::TYPE_REAL));
-  real_val = 0.0;
-  ASSERT_TRUE(root->GetAsReal(&real_val));
-  ASSERT_DOUBLE_EQ(1.0, real_val);
+  ASSERT_TRUE(root->IsType(Value::TYPE_DOUBLE));
+  double_val = 0.0;
+  ASSERT_TRUE(root->GetAsDouble(&double_val));
+  ASSERT_DOUBLE_EQ(1.0, double_val);
 
   // Fractional parts must have a digit before and after the decimal point.
   root.reset(JSONReader().JsonToValue("1.", false, false));
@@ -303,9 +303,9 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root.get());
   ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
   DictionaryValue* dict_val = static_cast<DictionaryValue*>(root.get());
-  real_val = 0.0;
-  ASSERT_TRUE(dict_val->GetReal("number", &real_val));
-  ASSERT_DOUBLE_EQ(9.87654321, real_val);
+  double_val = 0.0;
+  ASSERT_TRUE(dict_val->GetDouble("number", &double_val));
+  ASSERT_DOUBLE_EQ(9.87654321, double_val);
   Value* null_val = NULL;
   ASSERT_TRUE(dict_val->Get("null", &null_val));
   ASSERT_TRUE(null_val->IsType(Value::TYPE_NULL));
