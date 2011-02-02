@@ -183,6 +183,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // or Stop().
   void OnFilterStateTransition();
 
+  // Callback executed by filters when completing teardown operations.
+  void OnTeardownStateTransition();
+
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
   // message loop.
@@ -223,6 +226,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Carries out advancing to the next filter during Play()/Pause()/Seek().
   void FilterStateTransitionTask();
+
+  // Carries out advancing to the next teardown operation.
+  void TeardownStateTransitionTask();
 
   // Carries out stopping filter threads, deleting filters, running
   // appropriate callbacks, and setting the appropriate pipeline state
