@@ -180,14 +180,7 @@ bool SetFieldTrialInfo(int size_group) {
       new base::FieldTrial("CacheSize", totalProbability, group1, 2011, 6, 30));
   trial1->AppendGroup(group1, totalProbability);
 
-  // After June 30, 2011 builds, it will always be in default group.
-  scoped_refptr<base::FieldTrial> trial2(
-      new base::FieldTrial(
-          "CacheThrottle", 100, "CacheThrottle_Default", 2011, 6, 30));
-  int group2a = trial2->AppendGroup("CacheThrottle_On", 10);  // 10 % in.
-  trial2->AppendGroup("CacheThrottle_Off", 10);  // 10 % control.
-
-  return trial2->group() == group2a;
+  return false;
 }
 
 // ------------------------------------------------------------------------
@@ -1139,10 +1132,6 @@ void BackendImpl::OnOperationCompleted(base::TimeDelta elapsed_time) {
 
   if (cache_type() != net::DISK_CACHE)
     return;
-
-  UMA_HISTOGRAM_TIMES(base::FieldTrial::MakeName("DiskCache.TotalIOTime",
-                                                 "CacheThrottle").data(),
-                      elapsed_time);
 
   if (!throttle_requests_)
     return;
