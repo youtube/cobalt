@@ -12,6 +12,7 @@
 #include "media/base/media_format.h"
 #include "media/base/filters.h"
 #include "media/base/filter_host.h"
+#include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -799,6 +800,41 @@ TEST_F(PipelineImplTest, AudioStreamShorterThanVideo) {
       .WillOnce(Return(true));
   EXPECT_CALL(callbacks_, OnEnded());
   host->NotifyEnded();
+}
+
+TEST_F(PipelineImplTest, ErrorDuringSeek) {
+  CreateAudioStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(audio_stream());
+
+  InitializeDataSource();
+  InitializeDemuxer(&streams, base::TimeDelta::FromSeconds(10));
+  InitializeAudioDecoder(audio_stream());
+  InitializeAudioRenderer();
+  InitializePipeline();
+
+  float playback_rate = 1.0f;
+  EXPECT_CALL(*mocks_->data_source(), SetPlaybackRate(playback_rate));
+  EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(playback_rate));
+  EXPECT_CALL(*mocks_->audio_decoder(), SetPlaybackRate(playback_rate));
+  EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(playback_rate));
+  pipeline_->SetPlaybackRate(playback_rate);
+  message_loop_.RunAllPending();
+
+  InSequence s;
+
+  base::TimeDelta seek_time = base::TimeDelta::FromSeconds(5);
+  EXPECT_CALL(*mocks_->data_source(), Seek(seek_time, NotNull()))
+      .WillOnce(Invoke(&RunFilterCallback));
+
+  EXPECT_CALL(*mocks_->demuxer(), Seek(seek_time, NotNull()))
+      .WillOnce(DoAll(SetError(mocks_->demuxer(),
+                               PIPELINE_ERROR_READ),
+                      Invoke(&RunFilterCallback)));
+
+  pipeline_->Seek(seek_time, NewExpectedCallback());
+  EXPECT_CALL(callbacks_, OnError());
+  message_loop_.RunAllPending();
 }
 
 }  // namespace media
