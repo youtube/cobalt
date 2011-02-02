@@ -145,6 +145,18 @@ int MapCertChainErrorStatusToCertStatus(DWORD error_status) {
   return cert_status;
 }
 
+void ExplodedTimeToSystemTime(const base::Time::Exploded& exploded,
+                              SYSTEMTIME* system_time) {
+  system_time->wYear = exploded.year;
+  system_time->wMonth = exploded.month;
+  system_time->wDayOfWeek = exploded.day_of_week;
+  system_time->wDay = exploded.day_of_month;
+  system_time->wHour = exploded.hour;
+  system_time->wMinute = exploded.minute;
+  system_time->wSecond = exploded.second;
+  system_time->wMilliseconds = exploded.millisecond;
+}
+
 //-----------------------------------------------------------------------------
 
 // Wrappers of malloc and free for CRYPT_DECODE_PARA, which requires the
@@ -512,17 +524,17 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   DWORD encoded_subject_length = 0;
   if (!CertStrToName(
           X509_ASN_ENCODING,
-          const_cast<wchar_t*>(w_subject.c_str()),
+          w_subject.c_str(),
           CERT_X500_NAME_STR, NULL, NULL, &encoded_subject_length, NULL)) {
     return NULL;
   }
 
-  scoped_array<char> encoded_subject(new char[encoded_subject_length]);
+  scoped_array<BYTE> encoded_subject(new BYTE[encoded_subject_length]);
   if (!CertStrToName(
           X509_ASN_ENCODING,
-          const_cast<wchar_t*>(w_subject.c_str()),
+          w_subject.c_str(),
           CERT_X500_NAME_STR, NULL,
-          reinterpret_cast<BYTE*>(encoded_subject.get()),
+          encoded_subject.get(),
           &encoded_subject_length, NULL)) {
     return NULL;
   }
@@ -530,33 +542,32 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   CERT_NAME_BLOB subject_name;
   memset(&subject_name, 0, sizeof(subject_name));
   subject_name.cbData = encoded_subject_length;
-  subject_name.pbData = reinterpret_cast<BYTE*>(encoded_subject.get());
+  subject_name.pbData = encoded_subject.get();
 
   CRYPT_ALGORITHM_IDENTIFIER sign_algo;
   memset(&sign_algo, 0, sizeof(sign_algo));
   sign_algo.pszObjId = szOID_RSA_SHA1RSA;
 
-  base::Time not_valid = base::Time::Now() + valid_duration;
+  base::Time not_before = base::Time::Now();
+  base::Time not_after = not_before + valid_duration;
   base::Time::Exploded exploded;
-  not_valid.UTCExplode(&exploded);
 
-  // Create the system time struct representing our exploded time.
-  SYSTEMTIME system_time;
-  system_time.wYear = exploded.year;
-  system_time.wMonth = exploded.month;
-  system_time.wDayOfWeek = exploded.day_of_week;
-  system_time.wDay = exploded.day_of_month;
-  system_time.wHour = exploded.hour;
-  system_time.wMinute = exploded.minute;
-  system_time.wSecond = exploded.second;
-  system_time.wMilliseconds = exploded.millisecond;
+  // Create the system time structs representing our exploded times.
+  not_before.UTCExplode(&exploded);
+  SYSTEMTIME start_time;
+  ExplodedTimeToSystemTime(exploded, &start_time);
+  not_after.UTCExplode(&exploded);
+  SYSTEMTIME end_time;
+  ExplodedTimeToSystemTime(exploded, &end_time);
 
   PCCERT_CONTEXT cert_handle =
       CertCreateSelfSignCertificate(key->provider(), &subject_name,
-                                    CERT_CREATE_SELFSIGN_NO_KEY_INFO,
-                                    NULL, &sign_algo, 0, &system_time, 0);
+                                    CERT_CREATE_SELFSIGN_NO_KEY_INFO, NULL,
+                                    &sign_algo, &start_time, &end_time, NULL);
   DCHECK(cert_handle) << "Failed to create self-signed certificate: "
-                      << logging::GetLastSystemErrorCode();
+                      << GetLastError();
+  if (!cert_handle)
+    return NULL;
 
   X509Certificate* cert = CreateFromHandle(cert_handle,
                                            SOURCE_LONE_CERT_IMPORT,
