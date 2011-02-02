@@ -660,8 +660,8 @@ TEST(X509CertificateTest, IsIssuedBy) {
 #endif  // defined(OS_MACOSX)
 
 #if defined(USE_NSS) || defined(OS_WIN)
-// This test creates a signed cert from a private key and then verify content
-// of the certificate.
+// This test creates a self-signed cert from a private key and then verify the
+// content of the certificate.
 TEST(X509CertificateTest, CreateSelfSigned) {
   scoped_ptr<base::RSAPrivateKey> private_key(
       base::RSAPrivateKey::Create(1024));
