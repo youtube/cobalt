@@ -4,6 +4,8 @@
 
 #include "media/audio/mac/audio_low_latency_output_mac.h"
 
+#include <CoreServices/CoreServices.h>
+
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "media/audio/audio_util.h"
