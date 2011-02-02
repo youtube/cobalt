@@ -346,7 +346,8 @@ bool PipelineImpl::IsPipelineSeeking() {
   if (!seek_pending_)
     return false;
   DCHECK(kSeeking == state_ || kPausing == state_ ||
-         kFlushing == state_ || kStarting == state_);
+         kFlushing == state_ || kStarting == state_)
+      << "Current state : " << state_;
   return true;
 }
 
@@ -520,9 +521,13 @@ void PipelineImpl::OnFilterInitialize() {
 
 // Called from any thread.
 void PipelineImpl::OnFilterStateTransition() {
-  // Continue walking down the filters.
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineImpl::FilterStateTransitionTask));
+}
+
+void PipelineImpl::OnTeardownStateTransition() {
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::TeardownStateTransitionTask));
 }
 
 void PipelineImpl::StartTask(FilterCollection* filter_collection,
@@ -715,7 +720,14 @@ void PipelineImpl::ErrorChangedTask(PipelineError error) {
   error_ = error;
 
   error_caused_teardown_ = true;
-  TearDownPipeline();
+
+  // Posting TearDownPipeline() to message loop so that we can make sure
+  // it runs after any pending callbacks that are already queued.
+  // |tearing_down_| is set early here to make sure that pending callbacks
+  // don't modify the state before TeadDownPipeline() can run.
+  tearing_down_ = true;
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::TearDownPipeline));
 }
 
 void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
@@ -849,6 +861,12 @@ void PipelineImpl::FilterStateTransitionTask() {
     return;
   }
 
+  // If we are tearing down, don't allow any state changes. Teardown
+  // state changes will come in via TeardownStateTransitionTask().
+  if (IsPipelineTearingDown()) {
+    return;
+  }
+
   if (!TransientState(state_)) {
     NOTREACHED() << "Invalid current state: " << state_;
     SetError(PIPELINE_ERROR_ABORT);
@@ -903,11 +921,47 @@ void PipelineImpl::FilterStateTransitionTask() {
       // We had a pending stop request need to be honored right now.
       TearDownPipeline();
     }
-  } else if (IsPipelineStopped()) {
-    FinishDestroyingFiltersTask();
   } else {
     NOTREACHED() << "Unexpected state: " << state_;
   }
+}
+
+void PipelineImpl::TeardownStateTransitionTask() {
+  DCHECK(IsPipelineTearingDown());
+  switch(state_) {
+    case kStopping:
+      set_state(error_caused_teardown_ ? kError : kStopped);
+      FinishDestroyingFiltersTask();
+      break;
+    case kPausing:
+      set_state(kFlushing);
+      pipeline_filter_->Flush(
+          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+      break;
+    case kFlushing:
+      set_state(kStopping);
+      pipeline_filter_->Stop(
+          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+      break;
+
+    case kCreated:
+    case kError:
+    case kInitDataSource:
+    case kInitDemuxer:
+    case kInitAudioDecoder:
+    case kInitAudioRenderer:
+    case kInitVideoDecoder:
+    case kInitVideoRenderer:
+    case kSeeking:
+    case kStarting:
+    case kStopped:
+    case kStarted:
+    case kEnded:
+      NOTREACHED() << "Unexpected state for teardown: " << state_;
+      break;
+    // default: intentionally left out to force new states to cause compiler
+    // errors.
+  };
 }
 
 void PipelineImpl::FinishDestroyingFiltersTask() {
@@ -926,16 +980,15 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
   }
 
   if (stop_pending_) {
+    stop_pending_ = false;
     ResetState();
-
+    scoped_ptr<PipelineCallback> stop_callback(stop_callback_.release());
     // Notify the client that stopping has finished.
-    if (stop_callback_.get()) {
-      stop_callback_->Run();
-      stop_callback_.reset();
+    if (stop_callback.get()) {
+      stop_callback->Run();
     }
   }
 
-  stop_pending_ = false;
   tearing_down_ = false;
   error_caused_teardown_ = false;
 }
@@ -1119,6 +1172,10 @@ void PipelineImpl::TearDownPipeline() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(kStopped, state_);
 
+  DCHECK(!tearing_down_ ||  // Teardown on Stop().
+         (tearing_down_ && error_caused_teardown_) ||  // Teardown on error.
+         (tearing_down_ && stop_pending_));  // Stop during teardown by error.
+
   // Mark that we already start tearing down operation.
   tearing_down_ = true;
 
@@ -1126,6 +1183,8 @@ void PipelineImpl::TearDownPipeline() {
     case kCreated:
     case kError:
       set_state(kStopped);
+      // Need to put this in the message loop to make sure that it comes
+      // after any pending callback tasks that are already queued.
       message_loop_->PostTask(FROM_HERE,
           NewRunnableMethod(this, &PipelineImpl::FinishDestroyingFiltersTask));
       break;
@@ -1142,7 +1201,7 @@ void PipelineImpl::TearDownPipeline() {
 
       set_state(kStopping);
       pipeline_filter_->Stop(
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
 
       FinishInitialization();
       break;
@@ -1153,14 +1212,20 @@ void PipelineImpl::TearDownPipeline() {
     case kStarting:
       set_state(kStopping);
       pipeline_filter_->Stop(
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
+
+      if (seek_pending_) {
+        seek_pending_ = false;
+        FinishInitialization();
+      }
+
       break;
 
     case kStarted:
     case kEnded:
       set_state(kPausing);
       pipeline_filter_->Pause(
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+          NewCallback(this, &PipelineImpl::OnTeardownStateTransition));
       break;
 
     case kStopping:
