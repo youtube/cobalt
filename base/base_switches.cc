@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,8 +24,8 @@ const char kFullMemoryCrashReport[]         = "full-memory-crash-report";
 // Suppresses all error dialogs when present.
 const char kNoErrorDialogs[]                = "noerrdialogs";
 
-// Disable app::win::MessageBox.  This is useful when running as part of
-// scripts that do not have a user interface.
+// Disable ui::MessageBox.  This is useful when running as part of scripts that
+// do not have a user interface.
 const char kNoMessageBox[]                  = "no-message-box";
 
 // When running certain tests that spawn child processes, this switch indicates
