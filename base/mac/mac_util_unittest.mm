@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #import <Cocoa/Cocoa.h>
-#include <vector>
 
 #include "base/mac/mac_util.h"
 
@@ -11,7 +10,6 @@
 #include "base/file_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/scoped_nsobject.h"
-#include "base/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -50,36 +48,6 @@ TEST_F(MacUtilTest, TestLibraryPath) {
   FilePath library_dir = GetUserLibraryPath();
   // Make sure the string isn't empty.
   EXPECT_FALSE(library_dir.value().empty());
-}
-
-TEST_F(MacUtilTest, TestGrabWindowSnapshot) {
-  // Launch a test window so we can take a snapshot.
-  NSRect frame = NSMakeRect(0, 0, 400, 400);
-  scoped_nsobject<NSWindow> window(
-      [[NSWindow alloc] initWithContentRect:frame
-                                  styleMask:NSBorderlessWindowMask
-                                    backing:NSBackingStoreBuffered
-                                      defer:NO]);
-  [window setBackgroundColor:[NSColor whiteColor]];
-  [window makeKeyAndOrderFront:NSApp];
-
-  scoped_ptr<std::vector<unsigned char> > png_representation(
-      new std::vector<unsigned char>);
-  int width, height;
-  GrabWindowSnapshot(window, png_representation.get(),
-                     &width, &height);
-
-  // Copy png back into NSData object so we can make sure we grabbed a png.
-  scoped_nsobject<NSData> image_data(
-      [[NSData alloc] initWithBytes:&(*png_representation)[0]
-                             length:png_representation->size()]);
-  NSBitmapImageRep* rep = [NSBitmapImageRep imageRepWithData:image_data.get()];
-  EXPECT_TRUE([rep isKindOfClass:[NSBitmapImageRep class]]);
-  EXPECT_TRUE(CGImageGetWidth([rep CGImage]) == 400);
-  NSColor* color = [rep colorAtX:200 y:200];
-  CGFloat red = 0, green = 0, blue = 0, alpha = 0;
-  [color getRed:&red green:&green blue:&blue alpha:&alpha];
-  EXPECT_GE(red + green + blue, 3.0);
 }
 
 TEST_F(MacUtilTest, TestGetAppBundlePath) {
