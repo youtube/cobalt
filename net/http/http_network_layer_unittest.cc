@@ -20,76 +20,57 @@ namespace net {
 namespace {
 
 class HttpNetworkLayerTest : public PlatformTest {
+ protected:
+  HttpNetworkLayerTest()
+      : proxy_service_(ProxyService::CreateDirect()),
+        ssl_config_service_(new SSLConfigServiceDefaults) {
+    HttpNetworkSession::Params session_params;
+    session_params.client_socket_factory = &mock_socket_factory_;
+    session_params.host_resolver = &host_resolver_;
+    session_params.cert_verifier = &cert_verifier_;
+    session_params.proxy_service = proxy_service_;
+    session_params.ssl_config_service = ssl_config_service_;
+    network_session_ = new HttpNetworkSession(session_params);
+    factory_.reset(new HttpNetworkLayer(network_session_));
+  }
+
+  MockClientSocketFactory mock_socket_factory_;
+  MockHostResolver host_resolver_;
+  CertVerifier cert_verifier_;
+  const scoped_refptr<ProxyService> proxy_service_;
+  const scoped_refptr<SSLConfigService> ssl_config_service_;
+  scoped_refptr<HttpNetworkSession> network_session_;
+  scoped_ptr<HttpNetworkLayer> factory_;
 };
 
 TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
-  MockClientSocketFactory mock_socket_factory;
-  MockHostResolver host_resolver;
-  CertVerifier cert_verifier;
-  scoped_refptr<HttpNetworkSession> network_session(
-      new HttpNetworkSession(
-          &host_resolver,
-          &cert_verifier,
-          NULL /* dnsrr_resolver */,
-          NULL /* dns_cert_checker */,
-          NULL /* ssl_host_info_factory */,
-          ProxyService::CreateDirect(),
-          &mock_socket_factory,
-          new SSLConfigServiceDefaults,
-          new SpdySessionPool(NULL),
-          NULL,
-          NULL,
-          NULL));
-
-  HttpNetworkLayer factory(network_session);
-
   scoped_ptr<HttpTransaction> trans;
-  int rv = factory.CreateTransaction(&trans);
+  int rv = factory_->CreateTransaction(&trans);
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(trans.get() != NULL);
 }
 
 TEST_F(HttpNetworkLayerTest, Suspend) {
-  MockClientSocketFactory mock_socket_factory;
-  MockHostResolver host_resolver;
-  CertVerifier cert_verifier;
-  scoped_refptr<HttpNetworkSession> network_session(
-      new HttpNetworkSession(
-          &host_resolver,
-          &cert_verifier,
-          NULL /* dnsrr_resolver */,
-          NULL /* dns_cert_checker */,
-          NULL /* ssl_host_info_factory */,
-          ProxyService::CreateDirect(),
-          &mock_socket_factory,
-          new SSLConfigServiceDefaults,
-          new SpdySessionPool(NULL),
-          NULL,
-          NULL,
-          NULL));
-  HttpNetworkLayer factory(network_session);
-
   scoped_ptr<HttpTransaction> trans;
-  int rv = factory.CreateTransaction(&trans);
+  int rv = factory_->CreateTransaction(&trans);
   EXPECT_EQ(OK, rv);
 
   trans.reset();
 
-  factory.Suspend(true);
+  factory_->Suspend(true);
 
-  rv = factory.CreateTransaction(&trans);
+  rv = factory_->CreateTransaction(&trans);
   EXPECT_EQ(ERR_NETWORK_IO_SUSPENDED, rv);
 
   ASSERT_TRUE(trans == NULL);
 
-  factory.Suspend(false);
+  factory_->Suspend(false);
 
-  rv = factory.CreateTransaction(&trans);
+  rv = factory_->CreateTransaction(&trans);
   EXPECT_EQ(OK, rv);
 }
 
 TEST_F(HttpNetworkLayerTest, GET) {
-  MockClientSocketFactory mock_socket_factory;
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n\r\n"),
     MockRead("hello world"),
@@ -103,31 +84,9 @@ TEST_F(HttpNetworkLayerTest, GET) {
   };
   StaticSocketDataProvider data(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes));
-  mock_socket_factory.AddSocketDataProvider(&data);
-
-  MockHostResolver host_resolver;
-  CertVerifier cert_verifier;
-  scoped_refptr<HttpNetworkSession> network_session(
-      new HttpNetworkSession(
-          &host_resolver,
-          &cert_verifier,
-          NULL /* dnsrr_resolver */,
-          NULL /* dns_cert_checker */,
-          NULL /* ssl_host_info_factory */,
-          ProxyService::CreateDirect(),
-          &mock_socket_factory,
-          new SSLConfigServiceDefaults,
-          new SpdySessionPool(NULL),
-          NULL,
-          NULL,
-          NULL));
-  HttpNetworkLayer factory(network_session);
+  mock_socket_factory_.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
-
-  scoped_ptr<HttpTransaction> trans;
-  int rv = factory.CreateTransaction(&trans);
-  EXPECT_EQ(OK, rv);
 
   HttpRequestInfo request_info;
   request_info.url = GURL("http://www.google.com/");
@@ -135,6 +94,10 @@ TEST_F(HttpNetworkLayerTest, GET) {
   request_info.extra_headers.SetHeader(HttpRequestHeaders::kUserAgent,
                                        "Foo/1.0");
   request_info.load_flags = LOAD_NORMAL;
+
+  scoped_ptr<HttpTransaction> trans;
+  int rv = factory_->CreateTransaction(&trans);
+  EXPECT_EQ(OK, rv);
 
   rv = trans->Start(&request_info, &callback, BoundNetLog());
   if (rv == ERR_IO_PENDING)

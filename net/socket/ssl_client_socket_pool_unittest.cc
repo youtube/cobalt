@@ -19,7 +19,6 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
-#include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
@@ -36,22 +35,11 @@ const int kMaxSocketsPerGroup = 6;
 class SSLClientSocketPoolTest : public testing::Test {
  protected:
   SSLClientSocketPoolTest()
-      : host_resolver_(new MockHostResolver),
-        cert_verifier_(new CertVerifier),
+      : proxy_service_(ProxyService::CreateDirect()),
+        ssl_config_service_(new SSLConfigServiceDefaults),
         http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault(
-            host_resolver_.get())),
-        session_(new HttpNetworkSession(host_resolver_.get(),
-                                        cert_verifier_.get(),
-                                        NULL /* dnsrr_resolver */,
-                                        NULL /* dns_cert_checker */,
-                                        NULL /* ssl_host_info_factory */,
-                                        ProxyService::CreateDirect(),
-                                        &socket_factory_,
-                                        new SSLConfigServiceDefaults,
-                                        new SpdySessionPool(NULL),
-                                        http_auth_handler_factory_.get(),
-                                        NULL,
-                                        NULL)),
+            &host_resolver_)),
+        session_(CreateNetworkSession()),
         direct_tcp_socket_params_(new TCPSocketParams(
             HostPortPair("host", 443), MEDIUM, GURL(), false)),
         tcp_histograms_("MockTCP"),
@@ -84,7 +72,7 @@ class SSLClientSocketPoolTest : public testing::Test {
             kMaxSockets,
             kMaxSocketsPerGroup,
             &http_proxy_histograms_,
-            host_resolver_.get(),
+            &host_resolver_,
             &tcp_socket_pool_,
             NULL,
             NULL) {
@@ -138,11 +126,24 @@ class SSLClientSocketPoolTest : public testing::Test {
                                 "/");
   }
 
+  HttpNetworkSession* CreateNetworkSession() {
+    HttpNetworkSession::Params params;
+    params.host_resolver = &host_resolver_;
+    params.cert_verifier = &cert_verifier_;
+    params.proxy_service = proxy_service_;
+    params.client_socket_factory = &socket_factory_;
+    params.ssl_config_service = ssl_config_service_;
+    params.http_auth_handler_factory = http_auth_handler_factory_.get();
+    return new HttpNetworkSession(params);
+  }
+
   MockClientSocketFactory socket_factory_;
-  scoped_ptr<HostResolver> host_resolver_;
-  scoped_ptr<CertVerifier> cert_verifier_;
-  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
-  scoped_refptr<HttpNetworkSession> session_;
+  MockHostResolver host_resolver_;
+  CertVerifier cert_verifier_;
+  const scoped_refptr<ProxyService> proxy_service_;
+  const scoped_refptr<SSLConfigService> ssl_config_service_;
+  const scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
+  const scoped_refptr<HttpNetworkSession> session_;
 
   scoped_refptr<TCPSocketParams> direct_tcp_socket_params_;
   ClientSocketPoolHistograms tcp_histograms_;

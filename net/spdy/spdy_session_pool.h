@@ -90,7 +90,7 @@ class SpdySessionPool
 
   // Creates a Value summary of the state of the spdy session pool. The caller
   // responsible for deleting the returned value.
-  Value* SpdySessionPoolInfoToValue();
+  Value* SpdySessionPoolInfoToValue() const;
 
   // NetworkChangeNotifier::Observer methods:
 
