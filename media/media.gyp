@@ -113,6 +113,8 @@
         'base/video_frame.h',
         'base/yuv_convert.cc',
         'base/yuv_convert.h',
+        'base/yuv_convert_c.cc',
+        'base/yuv_convert_sse2.cc',
         'base/yuv_row_win.cc',
         'base/yuv_row_posix.cc',
         'base/yuv_row_table.cc',
