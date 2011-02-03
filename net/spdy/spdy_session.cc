@@ -23,7 +23,9 @@
 #include "net/http/http_network_session.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_frame_builder.h"
+#include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_settings_storage.h"
 #include "net/spdy/spdy_stream.h"
 
