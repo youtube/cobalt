@@ -278,7 +278,7 @@
     # |gclient runhooks| to let clang run a plugin in every compilation.
     # Only has an effect if 'clang=1' is in GYP_DEFINES as well.
     # Example:
-    #     GYP_DEFINES='clang=1 clang_load=/abs/path/to/libPrintFunctionNames.dylib clang_plugin=print-fns' gclient runhooks
+    #     GYP_DEFINES='clang=1 clang_load=/abs/path/to/libPrintFunctionNames.dylib clang_add_plugin=print-fns' gclient runhooks
 
     'clang_load%': '',
     'clang_add_plugin%': '',
