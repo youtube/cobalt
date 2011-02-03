@@ -102,18 +102,16 @@ struct SessionDependencies {
 };
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
-  return new HttpNetworkSession(session_deps->host_resolver.get(),
-                                session_deps->cert_verifier.get(),
-                                NULL /* dnsrr_resolver */,
-                                NULL /* dns_cert_checker */,
-                                NULL /* ssl_host_info_factory */,
-                                session_deps->proxy_service,
-                                &session_deps->socket_factory,
-                                session_deps->ssl_config_service,
-                                new SpdySessionPool(NULL),
-                                session_deps->http_auth_handler_factory.get(),
-                                NULL,
-                                session_deps->net_log);
+  net::HttpNetworkSession::Params params;
+  params.client_socket_factory = &session_deps->socket_factory;
+  params.host_resolver = session_deps->host_resolver.get();
+  params.cert_verifier = session_deps->cert_verifier.get();
+  params.proxy_service = session_deps->proxy_service;
+  params.ssl_config_service = session_deps->ssl_config_service;
+  params.http_auth_handler_factory =
+      session_deps->http_auth_handler_factory.get();
+  params.net_log = session_deps->net_log;
+  return new HttpNetworkSession(params);
 }
 
 class HttpNetworkTransactionTest : public PlatformTest {
@@ -254,7 +252,8 @@ std::string MockGetHostName() {
 template<typename ParentPool>
 class CaptureGroupNameSocketPool : public ParentPool {
  public:
-  explicit CaptureGroupNameSocketPool(HttpNetworkSession* session);
+  CaptureGroupNameSocketPool(HostResolver* host_resolver,
+                             CertVerifier* cert_verifier);
 
   const std::string last_group_name_received() const {
     return last_group_name_;
@@ -303,20 +302,21 @@ CaptureGroupNameSSLSocketPool;
 
 template<typename ParentPool>
 CaptureGroupNameSocketPool<ParentPool>::CaptureGroupNameSocketPool(
-    HttpNetworkSession* session)
-    : ParentPool(0, 0, NULL, session->host_resolver(), NULL, NULL) {}
+    HostResolver* host_resolver,
+    CertVerifier* /* cert_verifier */)
+    : ParentPool(0, 0, NULL, host_resolver, NULL, NULL) {}
 
 template<>
 CaptureGroupNameHttpProxySocketPool::CaptureGroupNameSocketPool(
-    HttpNetworkSession* session)
-    : HttpProxyClientSocketPool(0, 0, NULL, session->host_resolver(), NULL,
-                                NULL, NULL) {}
+    HostResolver* host_resolver,
+    CertVerifier* /* cert_verifier */)
+    : HttpProxyClientSocketPool(0, 0, NULL, host_resolver, NULL, NULL, NULL) {}
 
 template<>
 CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
-    HttpNetworkSession* session)
-    : SSLClientSocketPool(0, 0, NULL, session->host_resolver(),
-                          session->cert_verifier(), NULL, NULL,
+    HostResolver* host_resolver,
+    CertVerifier* cert_verifier)
+    : SSLClientSocketPool(0, 0, NULL, host_resolver, cert_verifier, NULL, NULL,
                           NULL, NULL, NULL, NULL, NULL, NULL, NULL) {}
 
 //-----------------------------------------------------------------------------
@@ -5508,10 +5508,10 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
 
     HttpNetworkSessionPeer peer(session);
     CaptureGroupNameTCPSocketPool* tcp_conn_pool =
-        new CaptureGroupNameTCPSocketPool(session);
+        new CaptureGroupNameTCPSocketPool(NULL, NULL);
     peer.SetTCPSocketPool(tcp_conn_pool);
     CaptureGroupNameSSLSocketPool* ssl_conn_pool =
-        new CaptureGroupNameSSLSocketPool(session.get());
+        new CaptureGroupNameSSLSocketPool(NULL, NULL);
     peer.SetSSLSocketPool(ssl_conn_pool);
 
     EXPECT_EQ(ERR_IO_PENDING,
@@ -5562,10 +5562,10 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
 
     HostPortPair proxy_host("http_proxy", 80);
     CaptureGroupNameHttpProxySocketPool* http_proxy_pool =
-        new CaptureGroupNameHttpProxySocketPool(session);
+        new CaptureGroupNameHttpProxySocketPool(NULL, NULL);
     peer.SetSocketPoolForHTTPProxy(proxy_host, http_proxy_pool);
     CaptureGroupNameSSLSocketPool* ssl_conn_pool =
-        new CaptureGroupNameSSLSocketPool(session);
+        new CaptureGroupNameSSLSocketPool(NULL, NULL);
     peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
 
     EXPECT_EQ(ERR_IO_PENDING,
@@ -5627,10 +5627,10 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
 
     HostPortPair proxy_host("socks_proxy", 1080);
     CaptureGroupNameSOCKSSocketPool* socks_conn_pool =
-        new CaptureGroupNameSOCKSSocketPool(session);
+        new CaptureGroupNameSOCKSSocketPool(NULL, NULL);
     peer.SetSocketPoolForSOCKSProxy(proxy_host, socks_conn_pool);
     CaptureGroupNameSSLSocketPool* ssl_conn_pool =
-        new CaptureGroupNameSSLSocketPool(session);
+        new CaptureGroupNameSSLSocketPool(NULL, NULL);
     peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
 
     scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
@@ -6933,15 +6933,14 @@ TEST_F(HttpNetworkTransactionTest,
 
   SSLConfig ssl_config;
   session->ssl_config_service()->GetSSLConfig(&ssl_config);
-  ClientSocket* socket = connection->release_socket();
-  socket = session->socket_factory()->CreateSSLClientSocket(
-      socket, HostPortPair("" , 443), ssl_config, NULL /* ssl_host_info */,
-      session->cert_verifier());
-  connection->set_socket(socket);
-  EXPECT_EQ(ERR_IO_PENDING, socket->Connect(&callback));
+  scoped_ptr<ClientSocketHandle> ssl_connection(new ClientSocketHandle);
+  ssl_connection->set_socket(session_deps.socket_factory.CreateSSLClientSocket(
+      connection.release(), HostPortPair("" , 443), ssl_config,
+      NULL /* ssl_host_info */, session_deps.cert_verifier.get(), NULL));
+  EXPECT_EQ(ERR_IO_PENDING, ssl_connection->socket()->Connect(&callback));
   EXPECT_EQ(OK, callback.WaitForResult());
 
-  EXPECT_EQ(OK, spdy_session->InitializeWithSocket(connection.release(),
+  EXPECT_EQ(OK, spdy_session->InitializeWithSocket(ssl_connection.release(),
                                                    true, OK));
 
   trans.reset(new HttpNetworkTransaction(session));

@@ -46,18 +46,16 @@ struct SessionDependencies {
 };
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
-  return new HttpNetworkSession(session_deps->host_resolver.get(),
-                                session_deps->cert_verifier.get(),
-                                NULL /* dnsrr_resolver */,
-                                NULL /* dns_cert_checker */,
-                                NULL /* ssl_host_info_factory */,
-                                session_deps->proxy_service,
-                                &session_deps->socket_factory,
-                                session_deps->ssl_config_service,
-                                new SpdySessionPool(NULL),
-                                session_deps->http_auth_handler_factory.get(),
-                                NULL,
-                                session_deps->net_log);
+  HttpNetworkSession::Params params;
+  params.host_resolver = session_deps->host_resolver.get();
+  params.cert_verifier = session_deps->cert_verifier.get();
+  params.proxy_service = session_deps->proxy_service;
+  params.ssl_config_service = session_deps->ssl_config_service;
+  params.client_socket_factory = &session_deps->socket_factory;
+  params.http_auth_handler_factory =
+      session_deps->http_auth_handler_factory.get();
+  params.net_log = session_deps->net_log;
+  return new HttpNetworkSession(params);
 }
 
 struct TestCase {
@@ -97,7 +95,8 @@ int PreconnectHelper(const TestCase& test,
 template<typename ParentPool>
 class CapturePreconnectsSocketPool : public ParentPool {
  public:
-  explicit CapturePreconnectsSocketPool(HttpNetworkSession* session);
+  CapturePreconnectsSocketPool(HostResolver* host_resolver,
+                               CertVerifier* cert_verifier);
 
   int last_num_streams() const {
     return last_num_streams_;
@@ -163,22 +162,20 @@ CapturePreconnectsSSLSocketPool;
 
 template<typename ParentPool>
 CapturePreconnectsSocketPool<ParentPool>::CapturePreconnectsSocketPool(
-    HttpNetworkSession* session)
-    : ParentPool(0, 0, NULL, session->host_resolver(), NULL, NULL),
+    HostResolver* host_resolver, CertVerifier* /* cert_verifier */)
+    : ParentPool(0, 0, NULL, host_resolver, NULL, NULL),
       last_num_streams_(-1) {}
 
 template<>
 CapturePreconnectsHttpProxySocketPool::CapturePreconnectsSocketPool(
-    HttpNetworkSession* session)
-    : HttpProxyClientSocketPool(0, 0, NULL, session->host_resolver(), NULL,
-                                NULL, NULL),
+    HostResolver* host_resolver, CertVerifier* /* cert_verifier */)
+    : HttpProxyClientSocketPool(0, 0, NULL, host_resolver, NULL, NULL, NULL),
       last_num_streams_(-1) {}
 
 template<>
 CapturePreconnectsSSLSocketPool::CapturePreconnectsSocketPool(
-    HttpNetworkSession* session)
-    : SSLClientSocketPool(0, 0, NULL, session->host_resolver(),
-                          session->cert_verifier(), NULL, NULL,
+    HostResolver* host_resolver, CertVerifier* cert_verifier)
+    : SSLClientSocketPool(0, 0, NULL, host_resolver, cert_verifier, NULL, NULL,
                           NULL, NULL, NULL, NULL, NULL, NULL, NULL),
       last_num_streams_(-1) {}
 
@@ -188,10 +185,14 @@ TEST(HttpStreamFactoryTest, PreconnectDirect) {
     scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
     HttpNetworkSessionPeer peer(session);
     CapturePreconnectsTCPSocketPool* tcp_conn_pool =
-        new CapturePreconnectsTCPSocketPool(session);
+        new CapturePreconnectsTCPSocketPool(
+            session_deps.host_resolver.get(),
+            session_deps.cert_verifier.get());
     peer.SetTCPSocketPool(tcp_conn_pool);
     CapturePreconnectsSSLSocketPool* ssl_conn_pool =
-        new CapturePreconnectsSSLSocketPool(session.get());
+        new CapturePreconnectsSSLSocketPool(
+            session_deps.host_resolver.get(),
+            session_deps.cert_verifier.get());
     peer.SetSSLSocketPool(ssl_conn_pool);
     EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
     if (kTests[i].ssl)
@@ -208,10 +209,14 @@ TEST(HttpStreamFactoryTest, PreconnectHttpProxy) {
     HttpNetworkSessionPeer peer(session);
     HostPortPair proxy_host("http_proxy", 80);
     CapturePreconnectsHttpProxySocketPool* http_proxy_pool =
-        new CapturePreconnectsHttpProxySocketPool(session);
+        new CapturePreconnectsHttpProxySocketPool(
+            session_deps.host_resolver.get(),
+            session_deps.cert_verifier.get());
     peer.SetSocketPoolForHTTPProxy(proxy_host, http_proxy_pool);
     CapturePreconnectsSSLSocketPool* ssl_conn_pool =
-        new CapturePreconnectsSSLSocketPool(session);
+        new CapturePreconnectsSSLSocketPool(
+            session_deps.host_resolver.get(),
+            session_deps.cert_verifier.get());
     peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
     EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
     if (kTests[i].ssl)
@@ -229,10 +234,14 @@ TEST(HttpStreamFactoryTest, PreconnectSocksProxy) {
     HttpNetworkSessionPeer peer(session);
     HostPortPair proxy_host("socks_proxy", 1080);
     CapturePreconnectsSOCKSSocketPool* socks_proxy_pool =
-        new CapturePreconnectsSOCKSSocketPool(session);
+        new CapturePreconnectsSOCKSSocketPool(
+            session_deps.host_resolver.get(),
+            session_deps.cert_verifier.get());
     peer.SetSocketPoolForSOCKSProxy(proxy_host, socks_proxy_pool);
     CapturePreconnectsSSLSocketPool* ssl_conn_pool =
-        new CapturePreconnectsSSLSocketPool(session);
+        new CapturePreconnectsSSLSocketPool(
+            session_deps.host_resolver.get(),
+            session_deps.cert_verifier.get());
     peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
     EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
     if (kTests[i].ssl)
@@ -256,10 +265,14 @@ TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
             pair, session->mutable_spdy_settings(), BoundNetLog());
 
     CapturePreconnectsTCPSocketPool* tcp_conn_pool =
-        new CapturePreconnectsTCPSocketPool(session);
+        new CapturePreconnectsTCPSocketPool(
+            session_deps.host_resolver.get(),
+            session_deps.cert_verifier.get());
     peer.SetTCPSocketPool(tcp_conn_pool);
     CapturePreconnectsSSLSocketPool* ssl_conn_pool =
-        new CapturePreconnectsSSLSocketPool(session.get());
+        new CapturePreconnectsSSLSocketPool(
+            session_deps.host_resolver.get(),
+            session_deps.cert_verifier.get());
     peer.SetSSLSocketPool(ssl_conn_pool);
     EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
     // We shouldn't be preconnecting if we have an existing session, which is

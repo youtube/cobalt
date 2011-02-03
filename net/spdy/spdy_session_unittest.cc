@@ -5,6 +5,7 @@
 #include "net/spdy/spdy_session.h"
 
 #include "net/spdy/spdy_io_buffer.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_stream.h"
 #include "net/spdy/spdy_test_util.h"
 #include "testing/platform_test.h"

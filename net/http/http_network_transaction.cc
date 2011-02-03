@@ -33,6 +33,7 @@
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_chunked_decoder.h"
 #include "net/http/http_net_log_params.h"
+#include "net/http/http_network_delegate.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
@@ -1218,22 +1219,6 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
   }
   return description;
 }
-
-// TODO(gavinp): re-adjust this once SPDY v3 has three priority bits,
-// eliminating the need for this folding.
-int ConvertRequestPriorityToSpdyPriority(const RequestPriority priority) {
-  DCHECK(HIGHEST <= priority && priority < NUM_PRIORITIES);
-  switch (priority) {
-    case LOWEST:
-      return SPDY_PRIORITY_LOWEST-1;
-    case IDLE:
-      return SPDY_PRIORITY_LOWEST;
-    default:
-      return priority;
-  }
-}
-
-
 
 #undef STATE_CASE
 

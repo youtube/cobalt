@@ -10,10 +10,8 @@
 #include "base/string_util.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
-#include "net/socket/client_socket_factory.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_session.h"
-#include "net/spdy/spdy_session_pool.h"
 
 namespace net {
 
