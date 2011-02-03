@@ -8,8 +8,6 @@
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "net/http/http_network_session.h"
-#include "net/socket/client_socket_factory.h"
-#include "net/spdy/spdy_session_pool.h"
 
 TestCookiePolicy::TestCookiePolicy(int options_bit_mask)
     : ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
@@ -112,20 +110,16 @@ void TestURLRequestContext::Init() {
   ssl_config_service_ = new net::SSLConfigServiceDefaults;
   http_auth_handler_factory_ = net::HttpAuthHandlerFactory::CreateDefault(
       host_resolver_);
+  net::HttpNetworkSession::Params params;
+  params.host_resolver = host_resolver_;
+  params.cert_verifier = cert_verifier_;
+  params.proxy_service = proxy_service_;
+  params.ssl_config_service = ssl_config_service_;
+  params.http_auth_handler_factory = http_auth_handler_factory_;
+  params.network_delegate = network_delegate_;
+
   http_transaction_factory_ = new net::HttpCache(
-      new net::HttpNetworkSession(
-          host_resolver_,
-          cert_verifier_,
-          NULL /* dnsrr_resolver */,
-          NULL /* dns_cert_checker */,
-          NULL /* ssl_host_info_factory */,
-          proxy_service_,
-          net::ClientSocketFactory::GetDefaultFactory(),
-          ssl_config_service_,
-          new net::SpdySessionPool(ssl_config_service_),
-          http_auth_handler_factory_,
-          network_delegate_,
-          NULL),
+      new net::HttpNetworkSession(params),
       net::HttpCache::DefaultBackend::InMemory(0));
   // In-memory cookie store.
   cookie_store_ = new net::CookieMonster(NULL, NULL);

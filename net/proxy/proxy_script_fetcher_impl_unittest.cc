@@ -16,8 +16,6 @@
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_session.h"
-#include "net/socket/client_socket_factory.h"
-#include "net/spdy/spdy_session_pool.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -50,20 +48,13 @@ class RequestContext : public URLRequestContext {
     proxy_service_ = ProxyService::CreateFixed(no_proxy);
     ssl_config_service_ = new SSLConfigServiceDefaults;
 
+    HttpNetworkSession::Params params;
+    params.host_resolver = host_resolver_;
+    params.cert_verifier = cert_verifier_;
+    params.proxy_service = proxy_service_;
+    params.ssl_config_service = ssl_config_service_;
     scoped_refptr<HttpNetworkSession> network_session(
-        new HttpNetworkSession(
-            host_resolver_,
-            cert_verifier_,
-            NULL /* dnsrr_resolver */,
-            NULL /* dns_cert_checker */,
-            NULL /* ssl_host_info_factory */,
-            proxy_service_,
-            ClientSocketFactory::GetDefaultFactory(),
-            ssl_config_service_,
-            new SpdySessionPool(NULL),
-            NULL,
-            NULL,
-            NULL));
+        new HttpNetworkSession(params));
     http_transaction_factory_ = new HttpCache(
         network_session,
         HttpCache::DefaultBackend::InMemory(0));

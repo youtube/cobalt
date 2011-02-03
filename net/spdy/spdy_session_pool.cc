@@ -114,15 +114,15 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
     RemoveSessionList(session->host_port_proxy_pair());
 }
 
-Value* SpdySessionPool::SpdySessionPoolInfoToValue() {
+Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
   ListValue* list = new ListValue();
 
   SpdySessionsMap::const_iterator spdy_session_pool_it = sessions_.begin();
   for (SpdySessionsMap::const_iterator it = sessions_.begin();
-       it != sessions_.end(); it++) {
+       it != sessions_.end(); ++it) {
     SpdySessionList* sessions = it->second;
     for (SpdySessionList::const_iterator session = sessions->begin();
-         session != sessions->end(); session++) {
+         session != sessions->end(); ++session) {
       list->Append(session->get()->GetInfoAsValue());
     }
   }
