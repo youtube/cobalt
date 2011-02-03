@@ -56,11 +56,12 @@ private:
     static int lastId_;
     friend class HttpServer;
 
-    explicit Connection(ListenSocket* sock);
+    explicit Connection(HttpServer* server, ListenSocket* sock);
     ~Connection();
 
     void DetachSocket();
 
+    HttpServer* server_;
     scoped_refptr<ListenSocket> socket_;
     bool is_web_socket_;
     std::string recv_data_;
@@ -68,6 +69,7 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(Connection);
   };
+  friend class Connection;
 
 
   // ListenSocketDelegate

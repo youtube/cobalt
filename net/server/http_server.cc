@@ -183,14 +183,16 @@ void HttpServer::Close(int connection_id)
   connection->DetachSocket();
 }
 
-HttpServer::Connection::Connection(ListenSocket* sock)
-    : socket_(sock),
+HttpServer::Connection::Connection(HttpServer* server, ListenSocket* sock)
+    : server_(server),
+      socket_(sock),
       is_web_socket_(false) {
   id_ = lastId_++;
 }
 
 HttpServer::Connection::~Connection() {
   DetachSocket();
+  server_->delegate_->OnClose(id_);
 }
 
 void HttpServer::Connection::DetachSocket() {
@@ -353,7 +355,7 @@ bool HttpServer::ParseHeaders(Connection* connection,
 
 void HttpServer::DidAccept(ListenSocket* server,
                            ListenSocket* socket) {
-  Connection* connection = new Connection(socket);
+  Connection* connection = new Connection(this, socket);
   id_to_connection_[connection->id_] = connection;
   socket_to_connection_[socket] = connection;
 }
@@ -395,7 +397,6 @@ void HttpServer::DidRead(ListenSocket* socket,
 void HttpServer::DidClose(ListenSocket* socket) {
   Connection* connection = FindConnection(socket);
   DCHECK(connection != NULL);
-  delegate_->OnClose(connection->id_);
   id_to_connection_.erase(connection->id_);
   socket_to_connection_.erase(connection->socket_);
   delete connection;
