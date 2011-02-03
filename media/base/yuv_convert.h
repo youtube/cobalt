@@ -67,6 +67,16 @@ void ScaleYUVToRGB32(const uint8* yplane,
                      Rotate view_rotate,
                      ScaleFilter filter);
 
+void ConvertRGB32ToYUV(const uint8* rgbframe,
+                       uint8* yplane,
+                       uint8* uplane,
+                       uint8* vplane,
+                       int width,
+                       int height,
+                       int rgbstride,
+                       int ystride,
+                       int uvstride);
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_YUV_CONVERT_H_
