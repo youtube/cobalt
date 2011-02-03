@@ -356,9 +356,9 @@ class HttpCache : public HttpTransactionFactory,
 
   Mode mode_;
 
-  scoped_ptr<SSLHostInfoFactoryAdaptor> ssl_host_info_factory_;
+  const scoped_ptr<SSLHostInfoFactoryAdaptor> ssl_host_info_factory_;
 
-  scoped_ptr<HttpTransactionFactory> network_layer_;
+  const scoped_ptr<HttpTransactionFactory> network_layer_;
   scoped_ptr<disk_cache::Backend> disk_cache_;
 
   // The set of active entries indexed by cache key.

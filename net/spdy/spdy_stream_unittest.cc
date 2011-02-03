@@ -4,6 +4,7 @@
 
 #include "net/spdy/spdy_stream.h"
 #include "base/ref_counted.h"
+#include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"

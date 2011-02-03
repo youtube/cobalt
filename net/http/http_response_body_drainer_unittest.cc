@@ -16,7 +16,6 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_stream.h"
 #include "net/proxy/proxy_service.h"
-#include "net/spdy/spdy_session_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -174,23 +173,23 @@ void MockHttpStream::CompleteRead() {
 class HttpResponseBodyDrainerTest : public testing::Test {
  protected:
   HttpResponseBodyDrainerTest()
-      : session_(new HttpNetworkSession(
-          NULL /* host_resolver */,
-          NULL /* dnsrr_resolver */,
-          NULL /* dns_cert_checker */,
-          NULL,
-          NULL /* ssl_host_info_factory */,
-          ProxyService::CreateDirect(),
-          NULL,
-          new SSLConfigServiceDefaults,
-          new SpdySessionPool(NULL),
-          NULL,
-          NULL,
-          NULL)),
+      : proxy_service_(ProxyService::CreateDirect()),
+        ssl_config_service_(new SSLConfigServiceDefaults),
+        session_(CreateNetworkSession()),
         mock_stream_(new MockHttpStream(&result_waiter_)),
         drainer_(new HttpResponseBodyDrainer(mock_stream_)) {}
+
   ~HttpResponseBodyDrainerTest() {}
 
+  HttpNetworkSession* CreateNetworkSession() const {
+    HttpNetworkSession::Params params;
+    params.proxy_service = proxy_service_;
+    params.ssl_config_service = ssl_config_service_;
+    return new HttpNetworkSession(params);
+  }
+
+  scoped_refptr<ProxyService> proxy_service_;
+  scoped_refptr<SSLConfigService> ssl_config_service_;
   const scoped_refptr<HttpNetworkSession> session_;
   CloseResultWaiter result_waiter_;
   MockHttpStream* const mock_stream_;  // Owned by |drainer_|.
