@@ -1292,7 +1292,7 @@
       ],
     },
     {
-      'target_name': 'http_listen_socket',
+      'target_name': 'http_server',
       'type': '<(library)',
       'dependencies': [
         'net',
@@ -1301,8 +1301,8 @@
       ],
       'msvs_guid': 'FCB894A4-CC6C-48C2-B495-52C80527E9BE',
       'sources': [
-        'server/http_listen_socket.cc',
-        'server/http_listen_socket.h',
+        'server/http_server.cc',
+        'server/http_server.h',
         'server/http_server_request_info.cc',
         'server/http_server_request_info.h',
       ],
