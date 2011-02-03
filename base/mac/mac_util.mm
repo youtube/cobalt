@@ -9,7 +9,6 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"
-#include "base/message_loop.h"
 #include "base/scoped_nsobject.h"
 #include "base/sys_string_conversions.h"
 
@@ -227,36 +226,6 @@ bool ShouldWindowsMiniaturizeOnDoubleClick() {
   DCHECK(methodImplemented);
   return !methodImplemented ||
       [NSWindow performSelector:@selector(_shouldMiniaturizeOnDoubleClick)];
-}
-
-void GrabWindowSnapshot(NSWindow* window,
-    std::vector<unsigned char>* png_representation,
-    int* width, int* height) {
-  png_representation->clear();
-  *width = 0;
-  *height = 0;
-
-  // Make sure to grab the "window frame" view so we get current tab +
-  // tabstrip.
-  NSView* view = [[window contentView] superview];
-  ScopedCFTypeRef<CGImageRef> windowSnapshot(CGWindowListCreateImage(
-      CGRectNull, kCGWindowListOptionIncludingWindow,
-      [[view window] windowNumber], kCGWindowImageBoundsIgnoreFraming));
-  if (CGImageGetWidth(windowSnapshot) <= 0)
-    return;
-
-  scoped_nsobject<NSBitmapImageRep> rep(
-      [[NSBitmapImageRep alloc] initWithCGImage:windowSnapshot]);
-  NSData* data = [rep representationUsingType:NSPNGFileType properties:nil];
-  const unsigned char* buf = static_cast<const unsigned char*>([data bytes]);
-  NSUInteger length = [data length];
-  if (buf == NULL || length == 0)
-    return;
-
-  *width = static_cast<int>([rep pixelsWide]);
-  *height = static_cast<int>([rep pixelsHigh]);
-  png_representation->assign(buf, buf + length);
-  DCHECK(png_representation->size() > 0);
 }
 
 void ActivateProcess(pid_t pid) {

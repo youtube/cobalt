@@ -8,7 +8,6 @@
 
 #include <Carbon/Carbon.h>
 #include <string>
-#include <vector>
 
 #include "base/logging.h"
 
@@ -17,10 +16,8 @@
 
 #if defined(__OBJC__)
 #import <Foundation/Foundation.h>
-@class NSWindow;
 #else  // __OBJC__
 class NSImage;
-class NSWindow;
 #endif  // __OBJC__
 
 class FilePath;
@@ -76,11 +73,6 @@ void SetCursorVisibility(bool visible);
 
 // Should windows miniaturize on a double-click (on the title bar)?
 bool ShouldWindowsMiniaturizeOnDoubleClick();
-
-// Pulls a snapshot of the entire browser into png_representation.
-void GrabWindowSnapshot(NSWindow* window,
-                        std::vector<unsigned char>* png_representation,
-                        int* width, int* height);
 
 // Activates the process with the given PID.
 void ActivateProcess(pid_t pid);
