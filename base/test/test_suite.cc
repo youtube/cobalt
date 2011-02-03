@@ -24,6 +24,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
+#if defined(OS_MACOSX)
+#include "base/test/mock_chrome_application_mac.h"
+#endif
+
 #if defined(TOOLKIT_USES_GTK)
 #include <gtk/gtk.h>
 #endif
@@ -171,6 +175,11 @@ void TestSuite::SuppressErrorDialogs() {
 }
 
 void TestSuite::Initialize() {
+#if defined(OS_MACOSX)
+  // Some of the app unit tests spin runloops.
+  mock_cr_app::RegisterMockCrApp();
+#endif
+
   // Initialize logging.
   FilePath exe;
   PathService::Get(base::FILE_EXE, &exe);
