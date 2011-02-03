@@ -107,6 +107,11 @@ ListenSocket::~ListenSocket() {
 SOCKET ListenSocket::Listen(std::string ip, int port) {
   SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (s != kInvalidSocket) {
+#if defined(OS_POSIX)
+    // Allow rapid reuse.
+    static const int kOn = 1;
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &kOn, sizeof(kOn));
+#endif
     sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
