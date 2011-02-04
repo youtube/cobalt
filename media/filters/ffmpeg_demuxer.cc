@@ -17,6 +17,7 @@
 #include "media/filters/bitstream_converter.h"
 #include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/ffmpeg_glue.h"
+#include "media/filters/ffmpeg_h264_bitstream_converter.h"
 
 namespace media {
 
@@ -208,7 +209,13 @@ void FFmpegDemuxerStream::EnableBitstreamConverter() {
   const char* filter_name = NULL;
   if (stream_->codec->codec_id == CODEC_ID_H264) {
     filter_name = "h264_mp4toannexb";
-  } else if (stream_->codec->codec_id == CODEC_ID_MPEG4) {
+    // Use Chromium bitstream converter in case of H.264
+    bitstream_converter_.reset(
+        new FFmpegH264BitstreamConverter(stream_->codec));
+    CHECK(bitstream_converter_->Initialize());
+    return;
+  }
+  if (stream_->codec->codec_id == CODEC_ID_MPEG4) {
     filter_name = "mpeg4video_es";
   } else if (stream_->codec->codec_id == CODEC_ID_WMV3) {
     filter_name = "vc1_asftorcv";
