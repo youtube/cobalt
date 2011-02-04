@@ -89,6 +89,8 @@
         'base/filter_host.h',
         'base/filters.cc',
         'base/filters.h',
+        'base/h264_bitstream_converter.cc',
+        'base/h264_bitstream_converter.h',
         'base/media.h',
         'base/media_format.cc',
         'base/media_format.h',
@@ -144,6 +146,8 @@
         'filters/ffmpeg_audio_decoder.h',
         'filters/ffmpeg_demuxer.cc',
         'filters/ffmpeg_demuxer.h',
+        'filters/ffmpeg_h264_bitstream_converter.cc',
+        'filters/ffmpeg_h264_bitstream_converter.h',
         'filters/ffmpeg_glue.cc',
         'filters/ffmpeg_glue.h',
         'filters/ffmpeg_interfaces.cc',
@@ -289,6 +293,7 @@
         'base/data_buffer_unittest.cc',
         'base/djb2_unittest.cc',
         'base/filter_collection_unittest.cc',
+        'base/h264_bitstream_converter_unittest.cc',
         'base/mock_ffmpeg.cc',
         'base/mock_ffmpeg.h',
         'base/mock_reader.h',
@@ -307,6 +312,7 @@
         'filters/decoder_base_unittest.cc',
         'filters/ffmpeg_demuxer_unittest.cc',
         'filters/ffmpeg_glue_unittest.cc',
+        'filters/ffmpeg_h264_bitstream_converter_unittest.cc',
         'filters/ffmpeg_video_decoder_unittest.cc',
         'filters/file_data_source_unittest.cc',
         'filters/video_renderer_base_unittest.cc',
@@ -457,7 +463,7 @@
           ],
           'sources': [
             'tools/mfplayer/mfplayer.h',
-            'tools/mfplayer/mfplayer.cc',    
+            'tools/mfplayer/mfplayer.cc',
             'tools/mfplayer/mf_playback_main.cc',
           ],
           'msvs_settings': {
@@ -478,7 +484,7 @@
           ],
           'sources': [
             'tools/mfdecoder/main.cc',
-            'tools/mfdecoder/mfdecoder.h',    
+            'tools/mfdecoder/mfdecoder.h',
             'tools/mfdecoder/mfdecoder.cc',
           ],
           'msvs_settings': {
