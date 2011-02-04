@@ -332,7 +332,7 @@
     'enable_new_npdevice_api%': 0,
 
     # Enable EGLImage support in OpenMAX
-    'enable_eglimage%': 0,
+    'enable_eglimage%': 1,
 
     # Enable a variable used elsewhere throughout the GYP files to determine
     # whether to compile in the sources for the GPU plugin / process.
