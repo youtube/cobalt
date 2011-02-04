@@ -199,6 +199,10 @@ void HttpServer::Connection::DetachSocket() {
   socket_ = NULL;
 }
 
+void HttpServer::Connection::Shift(int num_bytes) {
+  recv_data_ = recv_data_.substr(num_bytes);
+}
+
 //
 // HTTP Request Parser
 // This HTTP request parser uses a simple state machine to quickly parse
@@ -274,8 +278,9 @@ int charToInput(char ch) {
 }
 
 bool HttpServer::ParseHeaders(Connection* connection,
-                              HttpServerRequestInfo* info) {
-  int pos = 0;
+                              HttpServerRequestInfo* info,
+                              int* ppos) {
+  int& pos = *ppos;
   int data_len = connection->recv_data_.length();
   int state = connection->is_web_socket_ ? ST_WS_READY : ST_METHOD;
   std::string buffer;
@@ -318,7 +323,6 @@ bool HttpServer::ParseHeaders(Connection* connection,
           buffer.append(&ch, 1);
           break;
         case ST_WS_FRAME:
-          connection->recv_data_ = connection->recv_data_.substr(pos);
           info->data = buffer;
           buffer.clear();
           return true;
@@ -337,9 +341,7 @@ bool HttpServer::ParseHeaders(Connection* connection,
           buffer.append(&ch, 1);
           break;
         case ST_DONE:
-          connection->recv_data_ = connection->recv_data_.substr(pos);
-          info->data = connection->recv_data_;
-          connection->recv_data_.clear();
+          DCHECK(input == INPUT_LF);
           return true;
         case ST_WS_CLOSE:
           connection->is_web_socket_ = false;
@@ -370,12 +372,14 @@ void HttpServer::DidRead(ListenSocket* socket,
 
   connection->recv_data_.append(data, len);
   while (connection->recv_data_.length()) {
+    int pos = 0;
     HttpServerRequestInfo request;
-    if (!ParseHeaders(connection, &request))
+    if (!ParseHeaders(connection, &request, &pos))
       break;
 
     if (connection->is_web_socket_) {
       delegate_->OnWebSocketMessage(connection->id_, request.data);
+      connection->Shift(pos);
       continue;
     }
 
@@ -384,14 +388,28 @@ void HttpServer::DidRead(ListenSocket* socket,
       // Is this WebSocket and if yes, upgrade the connection.
       std::string key1 = GetHeaderValue(request, "Sec-WebSocket-Key1");
       std::string key2 = GetHeaderValue(request, "Sec-WebSocket-Key2");
+
+      const int websocket_handshake_body_len = 8;
+      if (pos + websocket_handshake_body_len >
+              static_cast<int>(connection->recv_data_.length())) {
+        // We haven't received websocket handshake body yet. Wait.
+        break;
+      }
+
       if (!key1.empty() && !key2.empty()) {
+        request.data = connection->recv_data_.substr(
+            pos,
+            pos + websocket_handshake_body_len);
+        pos += websocket_handshake_body_len;
         delegate_->OnWebSocketRequest(connection->id_, request);
+        connection->Shift(pos);
         continue;
       }
     }
+    // Request body is not supported. It is always empty.
     delegate_->OnHttpRequest(connection->id_, request);
+    connection->Shift(pos);
   }
-
 }
 
 void HttpServer::DidClose(ListenSocket* socket) {
