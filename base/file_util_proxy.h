@@ -46,8 +46,11 @@ class FileUtilProxy {
                     >::Type GetFileInfoCallback;
   typedef Callback2<PlatformFileError /* error code */,
                     const std::vector<Entry>&>::Type ReadDirectoryCallback;
+  typedef Callback3<PlatformFileError /* error code */,
+                    const char* /* data */,
+                    int /* bytes read/written */>::Type ReadCallback;
   typedef Callback2<PlatformFileError /* error code */,
-                    int /* bytes read/written */>::Type ReadWriteCallback;
+                    int /* bytes written */>::Type WriteCallback;
 
   // Creates or opens a file with the given flags.  It is invalid to pass NULL
   // for the callback.
@@ -149,9 +152,8 @@ class FileUtilProxy {
       scoped_refptr<MessageLoopProxy> message_loop_proxy,
       PlatformFile file,
       int64 offset,
-      char* buffer,
       int bytes_to_read,
-      ReadWriteCallback* callback);
+      ReadCallback* callback);
 
   // Writes to a file. If |offset| is greater than the length of the file,
   // |false| is returned. On success, the file pointer is moved to position
@@ -162,7 +164,7 @@ class FileUtilProxy {
       int64 offset,
       const char* buffer,
       int bytes_to_write,
-      ReadWriteCallback* callback);
+      WriteCallback* callback);
 
   // Touches a file. The callback can be NULL.
   static bool Touch(
