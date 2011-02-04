@@ -2732,7 +2732,7 @@ TEST_F(URLRequestTestHTTP, OverrideUserAgent) {
   req.Start();
   MessageLoop::current()->Run();
   // If the net tests are being run with ChromeFrame then we need to allow for
-  // the 'chromeframe' suffix which is added to the user agent in outgoing HTTP
-  // requests.
-  EXPECT_TRUE(StartsWithASCII(d.data_received(), "Lynx (textmode)", true));
+  // the 'chromeframe' suffix which is added to the user agent before the
+  // closing parentheses.
+  EXPECT_TRUE(StartsWithASCII(d.data_received(), "Lynx (textmode", true));
 }
