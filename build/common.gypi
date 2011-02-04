@@ -180,6 +180,7 @@
     'library%': '<(library)',
     'component%': '<(component)',
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
+    'use_third_party_translations%': '<(use_third_party_translations)',
     'remoting%': '<(remoting)',
 
     # The release channel that this build targets. This is used to restrict
