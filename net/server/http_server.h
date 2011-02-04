@@ -61,6 +61,8 @@ private:
 
     void DetachSocket();
 
+    void Shift(int num_bytes);
+
     HttpServer* server_;
     scoped_refptr<ListenSocket> socket_;
     bool is_web_socket_;
@@ -80,7 +82,9 @@ private:
   // Expects the raw data to be stored in recv_data_. If parsing is successful,
   // will remove the data parsed from recv_data_, leaving only the unused
   // recv data.
-  bool ParseHeaders(Connection* connection, HttpServerRequestInfo* info);
+  bool ParseHeaders(Connection* connection,
+                    HttpServerRequestInfo* info,
+                    int* ppos);
 
   Connection* FindConnection(int connection_id);
   Connection* FindConnection(ListenSocket* socket);
