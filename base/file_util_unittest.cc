@@ -163,7 +163,7 @@ class FindResultCollector {
 void CreateTextFile(const FilePath& filename,
                     const std::wstring& contents) {
   std::ofstream file;
-  file.open(WideToUTF8(filename.ToWStringHack()).c_str());
+  file.open(filename.value().c_str());
   ASSERT_TRUE(file.is_open());
   file << contents;
   file.close();
@@ -173,7 +173,7 @@ void CreateTextFile(const FilePath& filename,
 std::wstring ReadTextFile(const FilePath& filename) {
   wchar_t contents[64];
   std::wifstream file;
-  file.open(WideToUTF8(filename.ToWStringHack()).c_str());
+  file.open(filename.value().c_str());
   EXPECT_TRUE(file.is_open());
   file.getline(contents, 64);
   file.close();

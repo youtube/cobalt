@@ -277,6 +277,12 @@ class FilePath {
   // directory (i.e. has a path component that is ".."
   bool ReferencesParent() const;
 
+  // Return a Unicode human-readable version of this path.
+  // Warning: you can *not*, in general, go from a display name back to a real
+  // path.  Only use this when displaying paths to users, not just when you
+  // want to stuff a string16 into some other API.
+  string16 LossyDisplayName() const;
+
   // Older Chromium code assumes that paths are always wstrings.
   // These functions convert wstrings to/from FilePaths, and are
   // useful to smooth porting that old code to the FilePath API.
@@ -290,6 +296,9 @@ class FilePath {
   //   OS-native string format.
   // - Am I using well-known file names, like "config.ini"?  Then use the
   //   ASCII functions (we require paths to always be supersets of ASCII).
+  // - Am I displaying a string to the user in some UI?  Then use the
+  //   LossyDisplayName() function, but keep in mind that you can't
+  //   ever use the result of that again as a path.
   static FilePath FromWStringHack(const std::wstring& wstring);
   std::wstring ToWStringHack() const;
 
