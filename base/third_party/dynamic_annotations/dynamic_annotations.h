@@ -53,6 +53,33 @@
 #ifndef __DYNAMIC_ANNOTATIONS_H__
 #define __DYNAMIC_ANNOTATIONS_H__
 
+#ifndef DYNAMIC_ANNOTATIONS_PREFIX
+# define DYNAMIC_ANNOTATIONS_PREFIX
+#endif
+
+#ifndef DYNAMIC_ANNOTATIONS_PROVIDE_RUNNING_ON_VALGRIND
+# define DYNAMIC_ANNOTATIONS_PROVIDE_RUNNING_ON_VALGRIND 1
+#endif
+
+#ifdef DYNAMIC_ANNOTATIONS_WANT_ATTRIBUTE_WEAK
+# ifdef __GNUC__
+#  define DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK __attribute__((weak))
+# else
+/* TODO(glider): for Windows support we may want to change this macro in order
+   to prepend __declspec(selectany) to the annotations' declarations. */
+#  error weak annotations are not supported for your compiler
+# endif
+#else
+# define DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK
+#endif
+
+/* The following preprocessor magic prepends the value of
+   DYNAMIC_ANNOTATIONS_PREFIX to annotation function names. */
+#define DYNAMIC_ANNOTATIONS_GLUE0(A, B) A##B
+#define DYNAMIC_ANNOTATIONS_GLUE(A, B) DYNAMIC_ANNOTATIONS_GLUE0(A, B)
+#define DYNAMIC_ANNOTATIONS_NAME(name) \
+  DYNAMIC_ANNOTATIONS_GLUE(DYNAMIC_ANNOTATIONS_PREFIX, name)
+
 #ifndef DYNAMIC_ANNOTATIONS_ENABLED
 # define DYNAMIC_ANNOTATIONS_ENABLED 0
 #endif
@@ -100,40 +127,36 @@
   /* Report that wait on the condition variable at address "cv" has succeeded
      and the lock at address "lock" is held. */
   #define ANNOTATE_CONDVAR_LOCK_WAIT(cv, lock) \
-    AnnotateCondVarWait(__FILE__, __LINE__, cv, lock)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarWait)(__FILE__, __LINE__, cv, lock)
 
   /* Report that wait on the condition variable at "cv" has succeeded.  Variant
      w/o lock. */
   #define ANNOTATE_CONDVAR_WAIT(cv) \
-    AnnotateCondVarWait(__FILE__, __LINE__, cv, NULL)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarWait)(__FILE__, __LINE__, cv, NULL)
 
   /* Report that we are about to signal on the condition variable at address
      "cv". */
   #define ANNOTATE_CONDVAR_SIGNAL(cv) \
-    AnnotateCondVarSignal(__FILE__, __LINE__, cv)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarSignal)(__FILE__, __LINE__, cv)
 
   /* Report that we are about to signal_all on the condition variable at address
      "cv". */
   #define ANNOTATE_CONDVAR_SIGNAL_ALL(cv) \
-    AnnotateCondVarSignalAll(__FILE__, __LINE__, cv)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarSignalAll)(__FILE__, __LINE__, cv)
 
   /* Annotations for user-defined synchronization mechanisms. */
   #define ANNOTATE_HAPPENS_BEFORE(obj) ANNOTATE_CONDVAR_SIGNAL(obj)
   #define ANNOTATE_HAPPENS_AFTER(obj)  ANNOTATE_CONDVAR_WAIT(obj)
 
-  /* Report that the bytes in the range [pointer, pointer+size) are about
-     to be published safely. The race checker will create a happens-before
-     arc from the call ANNOTATE_PUBLISH_MEMORY_RANGE(pointer, size) to
-     subsequent accesses to this memory.
-     Note: this annotation may not work properly if the race detector uses
-     sampling, i.e. does not observe all memory accesses.
-     */
+  /* DEPRECATED. Don't use it. */
   #define ANNOTATE_PUBLISH_MEMORY_RANGE(pointer, size) \
-    AnnotatePublishMemoryRange(__FILE__, __LINE__, pointer, size)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotatePublishMemoryRange)(__FILE__, __LINE__, \
+        pointer, size)
 
   /* DEPRECATED. Don't use it. */
   #define ANNOTATE_UNPUBLISH_MEMORY_RANGE(pointer, size) \
-    AnnotateUnpublishMemoryRange(__FILE__, __LINE__, pointer, size)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateUnpublishMemoryRange)(__FILE__, __LINE__, \
+        pointer, size)
 
   /* DEPRECATED. Don't use it. */
   #define ANNOTATE_SWAP_MEMORY_RANGE(pointer, size)   \
@@ -150,11 +173,19 @@
      happens-before detectors this is a no-op. For more details see
      http://code.google.com/p/data-race-test/wiki/PureHappensBeforeVsHybrid . */
   #define ANNOTATE_PURE_HAPPENS_BEFORE_MUTEX(mu) \
-    AnnotateMutexIsUsedAsCondVar(__FILE__, __LINE__, mu)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateMutexIsUsedAsCondVar)(__FILE__, __LINE__, \
+        mu)
+
+  /* Opposite to ANNOTATE_PURE_HAPPENS_BEFORE_MUTEX.
+     Instruct the tool to NOT create h-b arcs between Unlock and Lock, even in
+     pure happens-before mode. For a hybrid mode this is a no-op. */
+  #define ANNOTATE_NOT_HAPPENS_BEFORE_MUTEX(mu) \
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateMutexIsNotPHB)(__FILE__, __LINE__, mu)
 
   /* Deprecated. Use ANNOTATE_PURE_HAPPENS_BEFORE_MUTEX. */
   #define ANNOTATE_MUTEX_IS_USED_AS_CONDVAR(mu) \
-    AnnotateMutexIsUsedAsCondVar(__FILE__, __LINE__, mu)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateMutexIsUsedAsCondVar)(__FILE__, __LINE__, \
+        mu)
 
   /* -------------------------------------------------------------
      Annotations useful when defining memory allocators, or when memory that
@@ -165,7 +196,8 @@
      is about to be reused, or when a the locking discipline for a variable
      changes. */
   #define ANNOTATE_NEW_MEMORY(address, size) \
-    AnnotateNewMemory(__FILE__, __LINE__, address, size)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateNewMemory)(__FILE__, __LINE__, address, \
+        size)
 
   /* -------------------------------------------------------------
      Annotations useful when defining FIFO queues that transfer data between
@@ -176,21 +208,21 @@
      should be used only for FIFO queues.  For non-FIFO queues use
      ANNOTATE_HAPPENS_BEFORE (for put) and ANNOTATE_HAPPENS_AFTER (for get). */
   #define ANNOTATE_PCQ_CREATE(pcq) \
-    AnnotatePCQCreate(__FILE__, __LINE__, pcq)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQCreate)(__FILE__, __LINE__, pcq)
 
   /* Report that the queue at address "pcq" is about to be destroyed. */
   #define ANNOTATE_PCQ_DESTROY(pcq) \
-    AnnotatePCQDestroy(__FILE__, __LINE__, pcq)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQDestroy)(__FILE__, __LINE__, pcq)
 
   /* Report that we are about to put an element into a FIFO queue at address
      "pcq". */
   #define ANNOTATE_PCQ_PUT(pcq) \
-    AnnotatePCQPut(__FILE__, __LINE__, pcq)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQPut)(__FILE__, __LINE__, pcq)
 
   /* Report that we've just got an element from a FIFO queue at address
      "pcq". */
   #define ANNOTATE_PCQ_GET(pcq) \
-    AnnotatePCQGet(__FILE__, __LINE__, pcq)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQGet)(__FILE__, __LINE__, pcq)
 
   /* -------------------------------------------------------------
      Annotations that suppress errors.  It is usually better to express the
@@ -202,13 +234,14 @@
      point where "pointer" has been allocated, preferably close to the point
      where the race happens.  See also ANNOTATE_BENIGN_RACE_STATIC. */
   #define ANNOTATE_BENIGN_RACE(pointer, description) \
-    AnnotateBenignRaceSized(__FILE__, __LINE__, pointer, \
-                            sizeof(*(pointer)), description)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateBenignRaceSized)(__FILE__, __LINE__, \
+        pointer, sizeof(*(pointer)), description)
 
   /* Same as ANNOTATE_BENIGN_RACE(address, description), but applies to
      the memory range [address, address+size). */
   #define ANNOTATE_BENIGN_RACE_SIZED(address, size, description) \
-    AnnotateBenignRaceSized(__FILE__, __LINE__, address, size, description)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateBenignRaceSized)(__FILE__, __LINE__, \
+        address, size, description)
 
   /* Request the analysis tool to ignore all reads in the current thread
      until ANNOTATE_IGNORE_READS_END is called.
@@ -216,19 +249,19 @@
      other reads and all writes.
      See also ANNOTATE_UNPROTECTED_READ. */
   #define ANNOTATE_IGNORE_READS_BEGIN() \
-    AnnotateIgnoreReadsBegin(__FILE__, __LINE__)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreReadsBegin)(__FILE__, __LINE__)
 
   /* Stop ignoring reads. */
   #define ANNOTATE_IGNORE_READS_END() \
-    AnnotateIgnoreReadsEnd(__FILE__, __LINE__)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreReadsEnd)(__FILE__, __LINE__)
 
   /* Similar to ANNOTATE_IGNORE_READS_BEGIN, but ignore writes. */
   #define ANNOTATE_IGNORE_WRITES_BEGIN() \
-    AnnotateIgnoreWritesBegin(__FILE__, __LINE__)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreWritesBegin)(__FILE__, __LINE__)
 
   /* Stop ignoring writes. */
   #define ANNOTATE_IGNORE_WRITES_END() \
-    AnnotateIgnoreWritesEnd(__FILE__, __LINE__)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreWritesEnd)(__FILE__, __LINE__)
 
   /* Start ignoring all memory accesses (reads and writes). */
   #define ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN() \
@@ -247,29 +280,30 @@
   /* Similar to ANNOTATE_IGNORE_READS_BEGIN, but ignore synchronization events:
      RWLOCK* and CONDVAR*. */
   #define ANNOTATE_IGNORE_SYNC_BEGIN() \
-    AnnotateIgnoreSyncBegin(__FILE__, __LINE__)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreSyncBegin)(__FILE__, __LINE__)
 
   /* Stop ignoring sync events. */
   #define ANNOTATE_IGNORE_SYNC_END() \
-    AnnotateIgnoreSyncEnd(__FILE__, __LINE__)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreSyncEnd)(__FILE__, __LINE__)
 
 
   /* Enable (enable!=0) or disable (enable==0) race detection for all threads.
      This annotation could be useful if you want to skip expensive race analysis
      during some period of program execution, e.g. during initialization. */
   #define ANNOTATE_ENABLE_RACE_DETECTION(enable) \
-    AnnotateEnableRaceDetection(__FILE__, __LINE__, enable)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateEnableRaceDetection)(__FILE__, __LINE__, \
+        enable)
 
   /* -------------------------------------------------------------
      Annotations useful for debugging. */
 
   /* Request to trace every access to "address". */
   #define ANNOTATE_TRACE_MEMORY(address) \
-    AnnotateTraceMemory(__FILE__, __LINE__, address)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateTraceMemory)(__FILE__, __LINE__, address)
 
   /* Report the current thread name to a race detector. */
   #define ANNOTATE_THREAD_NAME(name) \
-    AnnotateThreadName(__FILE__, __LINE__, name)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateThreadName)(__FILE__, __LINE__, name)
 
   /* -------------------------------------------------------------
      Annotations useful when implementing locks.  They are not
@@ -278,20 +312,22 @@
 
   /* Report that a lock has been created at address "lock". */
   #define ANNOTATE_RWLOCK_CREATE(lock) \
-    AnnotateRWLockCreate(__FILE__, __LINE__, lock)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockCreate)(__FILE__, __LINE__, lock)
 
   /* Report that the lock at address "lock" is about to be destroyed. */
   #define ANNOTATE_RWLOCK_DESTROY(lock) \
-    AnnotateRWLockDestroy(__FILE__, __LINE__, lock)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockDestroy)(__FILE__, __LINE__, lock)
 
   /* Report that the lock at address "lock" has been acquired.
      is_w=1 for writer lock, is_w=0 for reader lock. */
   #define ANNOTATE_RWLOCK_ACQUIRED(lock, is_w) \
-    AnnotateRWLockAcquired(__FILE__, __LINE__, lock, is_w)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockAcquired)(__FILE__, __LINE__, lock, \
+        is_w)
 
   /* Report that the lock at address "lock" is about to be released. */
   #define ANNOTATE_RWLOCK_RELEASED(lock, is_w) \
-    AnnotateRWLockReleased(__FILE__, __LINE__, lock, is_w)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockReleased)(__FILE__, __LINE__, lock, \
+        is_w)
 
   /* -------------------------------------------------------------
      Annotations useful when implementing barriers.  They are not
@@ -302,20 +338,23 @@
    If 'reinitialization_allowed' is true, initialization is allowed to happen
    multiple times w/o calling barrier_destroy() */
   #define ANNOTATE_BARRIER_INIT(barrier, count, reinitialization_allowed) \
-    AnnotateBarrierInit(__FILE__, __LINE__, barrier, count, \
-                        reinitialization_allowed)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateBarrierInit)(__FILE__, __LINE__, barrier, \
+        count, reinitialization_allowed)
 
   /* Report that we are about to enter barrier_wait("barrier"). */
   #define ANNOTATE_BARRIER_WAIT_BEFORE(barrier) \
-    AnnotateBarrierWaitBefore(__FILE__, __LINE__, barrier)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateBarrierWaitBefore)(__FILE__, __LINE__, \
+        barrier)
 
   /* Report that we just exited barrier_wait("barrier"). */
   #define ANNOTATE_BARRIER_WAIT_AFTER(barrier) \
-    AnnotateBarrierWaitAfter(__FILE__, __LINE__, barrier)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateBarrierWaitAfter)(__FILE__, __LINE__, \
+        barrier)
 
   /* Report that the "barrier" has been destroyed. */
   #define ANNOTATE_BARRIER_DESTROY(barrier) \
-    AnnotateBarrierDestroy(__FILE__, __LINE__, barrier)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateBarrierDestroy)(__FILE__, __LINE__, \
+        barrier)
 
   /* -------------------------------------------------------------
      Annotations useful for testing race detectors. */
@@ -323,16 +362,20 @@
   /* Report that we expect a race on the variable at "address".
      Use only in unit tests for a race detector. */
   #define ANNOTATE_EXPECT_RACE(address, description) \
-    AnnotateExpectRace(__FILE__, __LINE__, address, description)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateExpectRace)(__FILE__, __LINE__, address, \
+        description)
+
+  #define ANNOTATE_FLUSH_EXPECTED_RACES() \
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateFlushExpectedRaces)(__FILE__, __LINE__)
 
   /* A no-op. Insert where you like to test the interceptors. */
   #define ANNOTATE_NO_OP(arg) \
-    AnnotateNoOp(__FILE__, __LINE__, arg)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateNoOp)(__FILE__, __LINE__, arg)
 
   /* Force the race detector to flush its state. The actual effect depends on
    * the implementation of the detector. */
   #define ANNOTATE_FLUSH_STATE() \
-    AnnotateFlushState(__FILE__, __LINE__)
+    DYNAMIC_ANNOTATIONS_NAME(AnnotateFlushState)(__FILE__, __LINE__)
 
 
 #else  /* DYNAMIC_ANNOTATIONS_ENABLED == 0 */
@@ -360,6 +403,7 @@
   #define ANNOTATE_PCQ_GET(pcq) /* empty */
   #define ANNOTATE_NEW_MEMORY(address, size) /* empty */
   #define ANNOTATE_EXPECT_RACE(address, description) /* empty */
+  #define ANNOTATE_FLUSH_EXPECTED_RACES(address, description) /* empty */
   #define ANNOTATE_BENIGN_RACE(address, description) /* empty */
   #define ANNOTATE_BENIGN_RACE_SIZED(address, size, description) /* empty */
   #define ANNOTATE_PURE_HAPPENS_BEFORE_MUTEX(mu) /* empty */
@@ -384,72 +428,106 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void AnnotateRWLockCreate(const char *file, int line,
-                          const volatile void *lock);
-void AnnotateRWLockDestroy(const char *file, int line,
-                           const volatile void *lock);
-void AnnotateRWLockAcquired(const char *file, int line,
-                            const volatile void *lock, long is_w);
-void AnnotateRWLockReleased(const char *file, int line,
-                            const volatile void *lock, long is_w);
-void AnnotateBarrierInit(const char *file, int line,
-                         const volatile void *barrier, long count,
-                         long reinitialization_allowed);
-void AnnotateBarrierWaitBefore(const char *file, int line,
-                               const volatile void *barrier);
-void AnnotateBarrierWaitAfter(const char *file, int line,
-                              const volatile void *barrier);
-void AnnotateBarrierDestroy(const char *file, int line,
-                            const volatile void *barrier);
-void AnnotateCondVarWait(const char *file, int line,
-                         const volatile void *cv,
-                         const volatile void *lock);
-void AnnotateCondVarSignal(const char *file, int line,
-                           const volatile void *cv);
-void AnnotateCondVarSignalAll(const char *file, int line,
-                              const volatile void *cv);
-void AnnotatePublishMemoryRange(const char *file, int line,
-                                const volatile void *address,
-                                long size);
-void AnnotateUnpublishMemoryRange(const char *file, int line,
-                                  const volatile void *address,
-                                  long size);
-void AnnotatePCQCreate(const char *file, int line,
-                       const volatile void *pcq);
-void AnnotatePCQDestroy(const char *file, int line,
-                        const volatile void *pcq);
-void AnnotatePCQPut(const char *file, int line,
-                    const volatile void *pcq);
-void AnnotatePCQGet(const char *file, int line,
-                    const volatile void *pcq);
-void AnnotateNewMemory(const char *file, int line,
-                       const volatile void *address,
-                       long size);
-void AnnotateExpectRace(const char *file, int line,
-                        const volatile void *address,
-                        const char *description);
-void AnnotateBenignRace(const char *file, int line,
-                        const volatile void *address,
-                        const char *description);
-void AnnotateBenignRaceSized(const char *file, int line,
-                        const volatile void *address,
-                        long size,
-                        const char *description);
-void AnnotateMutexIsUsedAsCondVar(const char *file, int line,
-                                  const volatile void *mu);
-void AnnotateTraceMemory(const char *file, int line,
-                         const volatile void *arg);
-void AnnotateThreadName(const char *file, int line,
-                        const char *name);
-void AnnotateIgnoreReadsBegin(const char *file, int line);
-void AnnotateIgnoreReadsEnd(const char *file, int line);
-void AnnotateIgnoreWritesBegin(const char *file, int line);
-void AnnotateIgnoreWritesEnd(const char *file, int line);
-void AnnotateEnableRaceDetection(const char *file, int line, int enable);
-void AnnotateNoOp(const char *file, int line,
-                  const volatile void *arg);
-void AnnotateFlushState(const char *file, int line);
 
+
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockCreate)(
+    const char *file, int line,
+    const volatile void *lock) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockDestroy)(
+    const char *file, int line,
+    const volatile void *lock) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockAcquired)(
+    const char *file, int line,
+    const volatile void *lock, long is_w) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateRWLockReleased)(
+    const char *file, int line,
+    const volatile void *lock, long is_w) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateBarrierInit)(
+    const char *file, int line, const volatile void *barrier, long count,
+    long reinitialization_allowed) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateBarrierWaitBefore)(
+    const char *file, int line,
+    const volatile void *barrier) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateBarrierWaitAfter)(
+    const char *file, int line,
+    const volatile void *barrier) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateBarrierDestroy)(
+    const char *file, int line,
+    const volatile void *barrier) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarWait)(
+    const char *file, int line, const volatile void *cv,
+    const volatile void *lock) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarSignal)(
+    const char *file, int line,
+    const volatile void *cv) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateCondVarSignalAll)(
+    const char *file, int line,
+    const volatile void *cv) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotatePublishMemoryRange)(
+    const char *file, int line,
+    const volatile void *address, long size) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateUnpublishMemoryRange)(
+    const char *file, int line,
+    const volatile void *address, long size) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQCreate)(
+    const char *file, int line,
+    const volatile void *pcq) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQDestroy)(
+    const char *file, int line,
+    const volatile void *pcq) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQPut)(
+    const char *file, int line,
+    const volatile void *pcq) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotatePCQGet)(
+    const char *file, int line,
+    const volatile void *pcq) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateNewMemory)(
+    const char *file, int line,
+    const volatile void *mem, long size) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateExpectRace)(
+    const char *file, int line, const volatile void *mem,
+    const char *description) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateFlushExpectedRaces)(
+    const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateBenignRace)(
+    const char *file, int line, const volatile void *mem,
+    const char *description) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateBenignRaceSized)(
+    const char *file, int line, const volatile void *mem, long size,
+    const char *description) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateMutexIsUsedAsCondVar)(
+    const char *file, int line,
+    const volatile void *mu) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateMutexIsNotPHB)(
+    const char *file, int line,
+    const volatile void *mu) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateTraceMemory)(
+    const char *file, int line,
+    const volatile void *arg) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateThreadName)(
+    const char *file, int line,
+    const char *name) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreReadsBegin)(
+    const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreReadsEnd)(
+    const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreWritesBegin)(
+    const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreWritesEnd)(
+    const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreSyncBegin)(
+    const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateIgnoreSyncEnd)(
+    const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateEnableRaceDetection)(
+    const char *file, int line, int enable) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateNoOp)(
+    const char *file, int line,
+    const volatile void *arg) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+void DYNAMIC_ANNOTATIONS_NAME(AnnotateFlushState)(
+    const char *file, int line) DYNAMIC_ANNOTATIONS_ATTRIBUTE_WEAK;
+
+#if DYNAMIC_ANNOTATIONS_PROVIDE_RUNNING_ON_VALGRIND == 1
 /* Return non-zero value if running under valgrind.
 
   If "valgrind.h" is included into dynamic_annotations.c,
@@ -466,6 +544,7 @@ void AnnotateFlushState(const char *file, int line);
       change its return value.
  */
 int RunningOnValgrind(void);
+#endif /* DYNAMIC_ANNOTATIONS_PROVIDE_RUNNING_ON_VALGRIND == 1 */
 
 #ifdef __cplusplus
 }
