@@ -217,7 +217,21 @@
         '../chrome/chrome.gyp:gpu_tests',
         '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:DumpRenderTree',
       ],
-    }
+    }, # target_name: chromium_gpu_builder
+    {
+      'target_name': 'chromium_builder_qa',
+      'type': 'none',
+      'dependencies': [
+        '../chrome/chrome.gyp:chromedriver',
+      ],
+      'conditions': [
+        ['OS=="mac" or OS=="win" or (OS=="linux" and target_arch==python_arch)', {
+          'dependencies': [
+            '../chrome/chrome.gyp:pyautolib',
+          ],
+        }], # 'OS=="mac" or OS=="win" or (OS=="linux" and target_arch==python_arch)'
+      ],
+    }, # target_name: chromium_builder_qa
   ],
   'conditions': [
     ['OS=="mac"', {
