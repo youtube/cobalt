@@ -6,7 +6,7 @@
 // ssl_server_socket_nss.cc to share common functions of NSS.
 
 #ifndef NET_SOCKET_NSS_SSL_UTIL_H_
-#define NEt_SOCKET_NSS_SSL_UTIL_H_
+#define NET_SOCKET_NSS_SSL_UTIL_H_
 
 #include <prerror.h>
 
@@ -28,7 +28,7 @@ PRErrorCode MapErrorToNSS(int result);
 // Map NSS error code to network error code.
 int MapNSSError(PRErrorCode err);
 
-// Map NSS handshake error to network error code.
+// Map NSS error code from the first SSL handshake to network error code.
 int MapNSSHandshakeError(PRErrorCode err);
 
 }  // namespace net

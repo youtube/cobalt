@@ -9,6 +9,8 @@
 #include <ssl.h>
 #include <sslerr.h>
 
+#include <string>
+
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/nss_util.h"
@@ -155,6 +157,16 @@ int MapNSSError(PRErrorCode err) {
 
     case SEC_ERROR_INVALID_ARGS:
       return ERR_INVALID_ARGUMENT;
+    case SEC_ERROR_NO_KEY:
+      return ERR_SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY;
+    case SEC_ERROR_INVALID_KEY:
+    case SSL_ERROR_SIGN_HASHES_FAILURE:
+      return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
+    // A handshake (initial or renegotiation) may fail because some signature
+    // (for example, the signature in the ServerKeyExchange message for an
+    // ephemeral Diffie-Hellman cipher suite) is invalid.
+    case SEC_ERROR_BAD_SIGNATURE:
+      return ERR_SSL_PROTOCOL_ERROR;
 
     case SSL_ERROR_SSL_DISABLED:
       return ERR_NO_SSL_VERSIONS_ENABLED;
@@ -193,10 +205,6 @@ int MapNSSHandshakeError(PRErrorCode err) {
     // If the server closed on us, it is a protocol error.
     // Some TLS-intolerant servers do this when we request TLS.
     case PR_END_OF_FILE_ERROR:
-    // The handshake may fail because some signature (for example, the
-    // signature in the ServerKeyExchange message for an ephemeral
-    // Diffie-Hellman cipher suite) is invalid.
-    case SEC_ERROR_BAD_SIGNATURE:
       return ERR_SSL_PROTOCOL_ERROR;
     default:
       return MapNSSError(err);

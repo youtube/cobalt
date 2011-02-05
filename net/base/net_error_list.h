@@ -220,6 +220,15 @@ NET_ERROR(TEMPORARILY_THROTTLED, -139)
 // body might include a description of why the request failed.
 NET_ERROR(HTTPS_PROXY_TUNNEL_RESPONSE, -140)
 
+// We were unable to sign the CertificateVerify data of an SSL client auth
+// handshake with the client certificate's private key.
+//
+// Possible causes for this include the user implicitly or explicitly
+// denying access to the private key, the private key may not be valid for
+// signing, the key may be relying on a cached handle which is no longer
+// valid, or the CSP won't allow arbitrary data to be signed.
+NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
