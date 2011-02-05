@@ -77,6 +77,19 @@ void ProcessAlternateProtocol(HttpStreamFactory* factory,
                                     http_host_port_pair);
 }
 
+// Returns true if |error| is a client certificate authentication error.
+bool IsClientCertificateError(int error) {
+  switch (error) {
+    case ERR_BAD_SSL_CLIENT_AUTH_CERT:
+    case ERR_SSL_CLIENT_AUTH_PRIVATE_KEY_ACCESS_DENIED:
+    case ERR_SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY:
+    case ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED:
+      return true;
+    default:
+      return false;
+  }
+}
+
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -1019,8 +1032,7 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
 int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
   DCHECK(request_);
   if (ssl_config_.send_client_cert &&
-      (error == ERR_SSL_PROTOCOL_ERROR ||
-       error == ERR_BAD_SSL_CLIENT_AUTH_CERT)) {
+      (error == ERR_SSL_PROTOCOL_ERROR || IsClientCertificateError(error))) {
     session_->ssl_client_auth_cache()->Remove(
         GetHostAndPort(request_->url));
   }
