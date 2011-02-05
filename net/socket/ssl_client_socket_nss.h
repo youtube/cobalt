@@ -139,6 +139,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int BufferRecv(void);
   void BufferRecvComplete(int result);
 
+  // Handles an NSS error generated while handshaking or performing IO.
+  // Returns a network error code mapped from the original NSS error.
+  int HandleNSSError(PRErrorCode error, bool handshake_error);
+
   // NSS calls this when checking certificates. We pass 'this' as the first
   // argument.
   static SECStatus OwnAuthCertHandler(void* arg, PRFileDesc* socket,

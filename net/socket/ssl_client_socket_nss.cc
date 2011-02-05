@@ -1544,7 +1544,7 @@ int SSLClientSocketNSS::DoHandshake() {
     }
   } else {
     PRErrorCode prerr = PR_GetError();
-    net_error = MapNSSHandshakeError(prerr);
+    net_error = HandleNSSError(prerr, true);
 
     // If not done, stay in this state
     if (net_error == ERR_IO_PENDING) {
@@ -1780,7 +1780,7 @@ int SSLClientSocketNSS::DoPayloadRead() {
     return ERR_IO_PENDING;
   }
   LeaveFunction("");
-  rv = MapNSSError(prerr);
+  rv = HandleNSSError(prerr, false);
   net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
                     make_scoped_refptr(new SSLErrorParams(rv, prerr)));
   return rv;
@@ -1801,7 +1801,7 @@ int SSLClientSocketNSS::DoPayloadWrite() {
     return ERR_IO_PENDING;
   }
   LeaveFunction("");
-  rv = MapNSSError(prerr);
+  rv = HandleNSSError(prerr, false);
   net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
                     make_scoped_refptr(new SSLErrorParams(rv, prerr)));
   return rv;
@@ -2068,6 +2068,38 @@ void SSLClientSocketNSS::BufferRecvComplete(int result) {
   transport_recv_busy_ = false;
   OnRecvComplete(result);
   LeaveFunction("");
+}
+
+int SSLClientSocketNSS::HandleNSSError(PRErrorCode nss_error,
+                                       bool handshake_error) {
+  int net_error = handshake_error ? MapNSSHandshakeError(nss_error) :
+                                    MapNSSError(nss_error);
+
+#if defined(OS_WIN)
+  // On Windows, a handle to the HCRYPTPROV is cached in the X509Certificate
+  // os_cert_handle() as an optimization. However, if the certificate
+  // private key is stored on a smart card, and the smart card is removed,
+  // the cached HCRYPTPROV will not be able to obtain the HCRYPTKEY again,
+  // preventing client certificate authentication. Because the
+  // X509Certificate may outlive the individual SSLClientSocketNSS, due to
+  // caching in X509Certificate, this failure ends up preventing client
+  // certificate authentication with the same certificate for all future
+  // attempts, even after the smart card has been re-inserted. By setting
+  // the CERT_KEY_PROV_HANDLE_PROP_ID to NULL, the cached HCRYPTPROV will
+  // typically be freed. This allows a new HCRYPTPROV to be obtained from
+  // the certificate on the next attempt, which should succeed if the smart
+  // card has been re-inserted, or will typically prompt the user to
+  // re-insert the smart card if not.
+  if ((net_error == ERR_SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY ||
+       net_error == ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED) &&
+      ssl_config_.send_client_cert && ssl_config_.client_cert) {
+    CertSetCertificateContextProperty(
+        ssl_config_.client_cert->os_cert_handle(),
+        CERT_KEY_PROV_HANDLE_PROP_ID, 0, NULL);
+  }
+#endif
+
+  return net_error;
 }
 
 // static
