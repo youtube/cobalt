@@ -351,8 +351,12 @@ SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd,
  *		    the client cert, and any following being used for chain
  *		    building
  *	pRetKey - pointer to native key pointer, for return of key
- *          - Windows: pointer to HCRYPTPROV
- *          - Mac OS X: pointer to SecKeyRef
+ *          - Windows: A pointer to a PCERT_KEY_CONTEXT that was allocated
+ *                     via PORT_Alloc(). Ownership of the PCERT_KEY_CONTEXT
+ *                     is transferred to NSS, which will free via
+ *                     PORT_Free().
+ *          - Mac OS X: A pointer to a SecKeyRef. Ownership is
+ *                      transferred to NSS, which will free via CFRelease().
  */
 typedef SECStatus (PR_CALLBACK *SSLGetPlatformClientAuthData)(void *arg,
                                 PRFileDesc *fd,
