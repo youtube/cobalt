@@ -15,8 +15,8 @@
 
 #include <iosfwd>
 
-#include "gfx/point.h"
-#include "gfx/size.h"
+#include "ui/gfx/point.h"
+#include "ui/gfx/size.h"
 
 #if defined(OS_WIN)
 typedef struct tagRECT RECT;
