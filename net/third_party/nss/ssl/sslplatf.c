@@ -101,7 +101,12 @@ loser:
 void
 ssl_FreePlatformKey(PlatformKey key)
 {
-    CryptReleaseContext(key, 0);
+    if (key) {
+        if (key->dwKeySpec != CERT_NCRYPT_KEY_SPEC)
+            CryptReleaseContext(key->hCryptProv, 0);
+        /* FIXME(rsleevi): Close CNG keys. */
+        PORT_Free(key);
+    }
 }
 
 void
@@ -148,28 +153,32 @@ ssl_GetPlatformAuthInfoForKey(PlatformKey key,
 {
     DWORD bytesNeeded = 0;
     ssl_InitPlatformAuthInfo(info);
+    if (!key || key->dwKeySpec == CERT_NCRYPT_KEY_SPEC)
+        goto error;
+
     bytesNeeded = sizeof(info->provType);
-    if (!CryptGetProvParam(key, PP_PROVTYPE, (BYTE*)&info->provType,
-                           &bytesNeeded, 0))
+    if (!CryptGetProvParam(key->hCryptProv, PP_PROVTYPE,
+                           (BYTE*)&info->provType, &bytesNeeded, 0))
         goto error;
 
     bytesNeeded = 0;
-    if (!CryptGetProvParam(key, PP_CONTAINER, NULL, &bytesNeeded, 0))
+    if (!CryptGetProvParam(key->hCryptProv, PP_CONTAINER, NULL, &bytesNeeded,
+                           0))
         goto error;
     info->container = (char*)PORT_Alloc(bytesNeeded);
     if (info->container == NULL)
         goto error;
-    if (!CryptGetProvParam(key, PP_CONTAINER, (BYTE*)info->container,
-                           &bytesNeeded, 0))
+    if (!CryptGetProvParam(key->hCryptProv, PP_CONTAINER,
+                           (BYTE*)info->container, &bytesNeeded, 0))
         goto error;
 
     bytesNeeded = 0;
-    if (!CryptGetProvParam(key, PP_NAME, NULL, &bytesNeeded, 0))
+    if (!CryptGetProvParam(key->hCryptProv, PP_NAME, NULL, &bytesNeeded, 0))
         goto error;
     info->provider = (char*)PORT_Alloc(bytesNeeded);
     if (info->provider == NULL)
         goto error;
-    if (!CryptGetProvParam(key, PP_NAME, (BYTE*)info->provider,
+    if (!CryptGetProvParam(key->hCryptProv, PP_NAME, (BYTE*)info->provider,
                            &bytesNeeded, 0))
         goto error;
 
@@ -188,10 +197,6 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
     SECStatus    rv             = SECFailure;
     PRBool       doDerEncode    = PR_FALSE;
     SECItem      hashItem;
-    /* TODO(rsleevi): Should AT_SIGNATURE also be checked if doing client
-     * auth? 
-     */
-    DWORD        keySpec        = AT_KEYEXCHANGE;
     HCRYPTKEY    hKey           = 0;
     DWORD        argLen         = 0;
     ALG_ID       keyAlg         = 0;
@@ -202,7 +207,7 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
     unsigned int i              = 0;
 
     buf->data = NULL;
-    if (!CryptGetUserKey(key, keySpec, &hKey)) {
+    if (!CryptGetUserKey(key->hCryptProv, key->dwKeySpec, &hKey)) {
         if (GetLastError() == NTE_NO_KEY) {
             PORT_SetError(SEC_ERROR_NO_KEY);
         } else {
@@ -225,7 +230,6 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
             hashItem.len  = sizeof(SSL3Hashes);
             break;
         case CALG_DSS_SIGN:
-        /* TODO: Support CALG_ECDSA once tested */
         case CALG_ECDSA:
             if (keyAlg == CALG_ECDSA) {
                 doDerEncode = PR_TRUE;
@@ -242,7 +246,7 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
     }
     PRINT_BUF(60, (NULL, "hash(es) to be signed", hashItem.data, hashItem.len));
 
-    if (!CryptCreateHash(key, hashAlg, 0, 0, &hHash)) {
+    if (!CryptCreateHash(key->hCryptProv, hashAlg, 0, 0, &hHash)) {
         PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
         goto done;    
     }
@@ -259,7 +263,7 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
         PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
         goto done;
     }
-    if (!CryptSignHash(hHash, keySpec, NULL, CRYPT_NOHASHOID,
+    if (!CryptSignHash(hHash, key->dwKeySpec, NULL, CRYPT_NOHASHOID,
                        NULL, &signatureLen) || signatureLen == 0) {
         PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
         goto done;
@@ -268,7 +272,7 @@ ssl3_PlatformSignHashes(SSL3Hashes *hash, PlatformKey key, SECItem *buf,
     if (!buf->data)
         goto done;    /* error code was set. */
 
-    if (!CryptSignHash(hHash, keySpec, NULL, CRYPT_NOHASHOID,
+    if (!CryptSignHash(hHash, key->dwKeySpec, NULL, CRYPT_NOHASHOID,
                        (BYTE*)buf->data, &signatureLen)) {
         PORT_SetError(SSL_ERROR_SIGN_HASHES_FAILURE);
         goto done;

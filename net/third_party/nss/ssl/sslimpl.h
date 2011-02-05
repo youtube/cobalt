@@ -854,7 +854,7 @@ const ssl3CipherSuiteDef *suite_def;
 
 #ifdef NSS_PLATFORM_CLIENT_AUTH
 #if defined(XP_WIN32)
-typedef HCRYPTPROV PlatformKey;
+typedef PCERT_KEY_CONTEXT PlatformKey;
 #elif defined(XP_MACOSX)
 typedef SecKeyRef PlatformKey;
 #else

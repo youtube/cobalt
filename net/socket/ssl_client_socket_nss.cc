@@ -2147,69 +2147,26 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
     if (that->ssl_config_.client_cert) {
       PCCERT_CONTEXT cert_context =
           that->ssl_config_.client_cert->os_cert_handle();
-      if (VLOG_IS_ON(1)) {
-        do {
-          DWORD size_needed = 0;
-          BOOL got_info = CertGetCertificateContextProperty(
-              cert_context, CERT_KEY_PROV_INFO_PROP_ID, NULL, &size_needed);
-          if (!got_info) {
-            VLOG(1) << "Failed to get key prov info size " << GetLastError();
-            break;
-          }
-          std::vector<BYTE> raw_info(size_needed);
-          got_info = CertGetCertificateContextProperty(
-              cert_context, CERT_KEY_PROV_INFO_PROP_ID, &raw_info[0],
-              &size_needed);
-          if (!got_info) {
-            VLOG(1) << "Failed to get key prov info " << GetLastError();
-            break;
-          }
-          PCRYPT_KEY_PROV_INFO info =
-              reinterpret_cast<PCRYPT_KEY_PROV_INFO>(&raw_info[0]);
-          VLOG(1) << "Container Name: " << info->pwszContainerName
-                  << "\nProvider Name: " << info->pwszProvName
-                  << "\nProvider Type: " << info->dwProvType
-                  << "\nFlags: " << info->dwFlags
-                  << "\nProvider Param Count: " << info->cProvParam
-                  << "\nKey Specifier: " << info->dwKeySpec;
-        } while (false);
+      PCERT_KEY_CONTEXT key_context = reinterpret_cast<PCERT_KEY_CONTEXT>(
+          PORT_ZAlloc(sizeof(CERT_KEY_CONTEXT)));
+      if (!key_context)
+        return SECFailure;
+      key_context->cbSize = sizeof(*key_context);
 
-        do {
-          DWORD size_needed = 0;
-          BOOL got_identifier = CertGetCertificateContextProperty(
-              cert_context, CERT_KEY_IDENTIFIER_PROP_ID, NULL, &size_needed);
-          if (!got_identifier) {
-            VLOG(1) << "Failed to get key identifier size "
-                    << GetLastError();
-            break;
-          }
-          std::vector<BYTE> raw_id(size_needed);
-          got_identifier = CertGetCertificateContextProperty(
-              cert_context, CERT_KEY_IDENTIFIER_PROP_ID, &raw_id[0],
-              &size_needed);
-          if (!got_identifier) {
-            VLOG(1) << "Failed to get key identifier " << GetLastError();
-            break;
-          }
-          VLOG(1) << "Key Identifier: " << base::HexEncode(&raw_id[0],
-                                                           size_needed);
-        } while (false);
-      }
-      HCRYPTPROV provider = NULL;
-      DWORD key_spec = AT_KEYEXCHANGE;
       BOOL must_free = FALSE;
       BOOL acquired_key = CryptAcquireCertificatePrivateKey(
           cert_context,
           CRYPT_ACQUIRE_CACHE_FLAG | CRYPT_ACQUIRE_COMPARE_KEY_FLAG,
-          NULL, &provider, &key_spec, &must_free);
-      if (acquired_key && provider) {
-        DCHECK_NE(key_spec, CERT_NCRYPT_KEY_SPEC);
+          NULL, &key_context->hCryptProv, &key_context->dwKeySpec,
+          &must_free);
+      if (acquired_key && key_context->hCryptProv) {
+        DCHECK_NE(key_context->dwKeySpec, CERT_NCRYPT_KEY_SPEC);
 
         // The certificate cache may have been updated/used, in which case,
         // duplicate the existing handle, since NSS will free it when no
         // longer in use.
         if (!must_free)
-          CryptContextAddRef(provider, NULL, 0);
+          CryptContextAddRef(key_context->hCryptProv, NULL, 0);
 
         SECItem der_cert;
         der_cert.type = siDERCertBuffer;
@@ -2235,10 +2192,10 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
               db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
           CERT_AddCertToListTail(*result_certs, intermediate);
         }
-        // TODO(wtc): |key_spec| should be passed along with |provider|.
-        *result_private_key = reinterpret_cast<void*>(provider);
+        *result_private_key = key_context;
         return SECSuccess;
       }
+      PORT_Free(key_context);
       LOG(WARNING) << "Client cert found without private key";
     }
     // Send no client certificate.
@@ -2355,7 +2312,7 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
       if (chain && identity && os_error == noErr) {
         // TODO(rsleevi): Error checking for NSS allocation errors.
         *result_certs = CERT_NewCertList();
-        *result_private_key = reinterpret_cast<void*>(private_key);
+        *result_private_key = private_key;
 
         for (CFIndex i = 0; i < CFArrayGetCount(chain); ++i) {
           CSSM_DATA cert_data;
