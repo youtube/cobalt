@@ -7404,6 +7404,21 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
   request.load_flags = 0;
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  // Use a TCP Socket Pool with only one connection per group. This is used
+  // to validate that the TCP socket is not released to the pool between
+  // each round of multi-round authentication.
+  HttpNetworkSessionPeer session_peer(session);
+  ClientSocketPoolHistograms tcp_pool_histograms("SmallTCP");
+  TCPClientSocketPool* tcp_pool = new TCPClientSocketPool(
+      50,  // Max sockets for pool
+      1,   // Max sockets per group
+      &tcp_pool_histograms,
+      session_deps.host_resolver.get(),
+      &session_deps.socket_factory,
+      session_deps.net_log);
+  session_peer.SetTCPSocketPool(tcp_pool);
+
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
 
@@ -7437,7 +7452,9 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
     // Third round
     kGetAuth,
     // Fourth round
-    kGetAuth
+    kGetAuth,
+    // Competing request
+    kGet,
   };
   MockRead reads[] = {
     // First round
@@ -7448,12 +7465,16 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
     kServerChallenge,
     // Fourth round
     kSuccess,
+    // Competing response
+    kSuccess,
   };
   StaticSocketDataProvider data_provider(reads, arraysize(reads),
                                          writes, arraysize(writes));
   session_deps.socket_factory.AddSocketDataProvider(&data_provider);
 
-  // First round
+  const char* const kSocketGroup = "www.example.com:80";
+
+  // First round of authentication.
   auth_handler->SetGenerateExpectation(false, OK);
   rv = trans->Start(&request, &callback, BoundNetLog());
   if (rv == ERR_IO_PENDING)
@@ -7462,8 +7483,21 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
   response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
   EXPECT_FALSE(response->auth_challenge.get() == NULL);
+  EXPECT_EQ(0, tcp_pool->IdleSocketCountInGroup(kSocketGroup));
 
-  // Second round
+  // In between rounds, another request comes in for the same domain.
+  // It should not be able to grab the TCP socket that trans has already
+  // claimed.
+  scoped_ptr<HttpTransaction> trans_compete(
+      new HttpNetworkTransaction(session));
+  TestCompletionCallback callback_compete;
+  rv = trans_compete->Start(&request, &callback_compete, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  // callback_compete.WaitForResult at this point would stall forever,
+  // since the HttpNetworkTransaction does not release the request back to
+  // the pool until after authentication completes.
+
+  // Second round of authentication.
   auth_handler->SetGenerateExpectation(false, OK);
   rv = trans->RestartWithAuth(kFoo, kBar, &callback);
   if (rv == ERR_IO_PENDING)
@@ -7472,8 +7506,9 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
   response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
+  EXPECT_EQ(0, tcp_pool->IdleSocketCountInGroup(kSocketGroup));
 
-  // Third round
+  // Third round of authentication.
   auth_handler->SetGenerateExpectation(false, OK);
   rv = trans->RestartWithAuth(string16(), string16(), &callback);
   if (rv == ERR_IO_PENDING)
@@ -7482,8 +7517,9 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
   response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
+  EXPECT_EQ(0, tcp_pool->IdleSocketCountInGroup(kSocketGroup));
 
-  // Fourth round
+  // Fourth round of authentication, which completes successfully.
   auth_handler->SetGenerateExpectation(false, OK);
   rv = trans->RestartWithAuth(string16(), string16(), &callback);
   if (rv == ERR_IO_PENDING)
@@ -7492,6 +7528,34 @@ TEST_F(HttpNetworkTransactionTest, MultiRoundAuth) {
   response = trans->GetResponseInfo();
   ASSERT_FALSE(response == NULL);
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
+  EXPECT_EQ(0, tcp_pool->IdleSocketCountInGroup(kSocketGroup));
+
+  // Read the body since the fourth round was successful. This will also
+  // release the socket back to the pool.
+  scoped_refptr<IOBufferWithSize> io_buf(new IOBufferWithSize(50));
+  rv = trans->Read(io_buf, io_buf->size(), &callback);
+  if (rv == ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(3, rv);
+  rv = trans->Read(io_buf, io_buf->size(), &callback);
+  EXPECT_EQ(0, rv);
+  // There are still 0 idle sockets, since the trans_compete transaction
+  // will be handed it immediately after trans releases it to the group.
+  EXPECT_EQ(0, tcp_pool->IdleSocketCountInGroup(kSocketGroup));
+
+  // The competing request can now finish. Wait for the headers and then
+  // read the body.
+  rv = callback_compete.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  rv = trans_compete->Read(io_buf, io_buf->size(), &callback);
+  if (rv == ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(3, rv);
+  rv = trans_compete->Read(io_buf, io_buf->size(), &callback);
+  EXPECT_EQ(0, rv);
+
+  // Finally, the socket is released to the group.
+  EXPECT_EQ(1, tcp_pool->IdleSocketCountInGroup(kSocketGroup));
 }
 
 class TLSDecompressionFailureSocketDataProvider : public SocketDataProvider {
