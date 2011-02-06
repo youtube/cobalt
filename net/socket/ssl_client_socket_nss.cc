@@ -2187,10 +2187,8 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
 
       BOOL must_free = FALSE;
       BOOL acquired_key = CryptAcquireCertificatePrivateKey(
-          cert_context,
-          CRYPT_ACQUIRE_CACHE_FLAG | CRYPT_ACQUIRE_COMPARE_KEY_FLAG,
-          NULL, &key_context->hCryptProv, &key_context->dwKeySpec,
-          &must_free);
+          cert_context, CRYPT_ACQUIRE_CACHE_FLAG, NULL,
+          &key_context->hCryptProv, &key_context->dwKeySpec, &must_free);
       if (acquired_key && key_context->hCryptProv) {
         DCHECK_NE(key_context->dwKeySpec, CERT_NCRYPT_KEY_SPEC);
 
