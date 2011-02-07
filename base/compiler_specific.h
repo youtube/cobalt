@@ -84,9 +84,8 @@
 //   virtual void foo() OVERRIDE;
 #if defined(COMPILER_MSVC)
 #define OVERRIDE override
-// TODO(thakis): Reenable this, http://crbug.com/71088
-//#elif defined(__clang__)
-//#define OVERRIDE __attribute__((override))
+#elif defined(__clang__)
+#define OVERRIDE override
 #else
 #define OVERRIDE
 #endif
