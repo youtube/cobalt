@@ -5,7 +5,7 @@
 
 # This script will check out llvm and clang into third_party/llvm and build it.
 
-CLANG_REVISION=124477
+CLANG_REVISION=125007
 
 THIS_DIR=$(dirname $0)
 LLVM_DIR=$THIS_DIR/../../../third_party/llvm
