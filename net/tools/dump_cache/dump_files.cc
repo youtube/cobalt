@@ -293,10 +293,10 @@ int DumpHeaders(const std::wstring& input_path) {
 
   std::wstring pattern(kDataPrefix);
   pattern.append(L"*");
-  file_util::FileEnumerator iter(FilePath::FromWStringHack(input_path), false,
+  file_util::FileEnumerator iter(FilePath(input_path), false,
                                  file_util::FileEnumerator::FILES, pattern);
-  for (std::wstring file = iter.Next().ToWStringHack(); !file.empty();
-       file = iter.Next().ToWStringHack()) {
+  for (std::wstring file = iter.Next().value(); !file.empty();
+       file = iter.Next().value()) {
     DumpBlockHeader(file);
   }
 
