@@ -669,6 +669,10 @@
               '-Wextra',
               '-Werror',
             ],
+            'cflags': [
+              # Don't warn about hash_map in third-party code.
+              '-Wno-deprecated',
+            ],
           }],
           [ 'OS=="win"', {
             'defines': [
