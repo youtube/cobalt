@@ -455,9 +455,8 @@ void SocketStream::DoLoop(int result) {
     // close the connection.
     if (state != STATE_READ_WRITE && result < ERR_IO_PENDING) {
       DCHECK_EQ(next_state_, STATE_CLOSE);
-      net_log_.EndEvent(
-          NetLog::TYPE_SOCKET_STREAM_CONNECT,
-          make_scoped_refptr(new NetLogIntegerParameter("net_error", result)));
+      net_log_.EndEventWithNetErrorCode(
+          NetLog::TYPE_SOCKET_STREAM_CONNECT, result);
     }
   } while (result != ERR_IO_PENDING);
 }

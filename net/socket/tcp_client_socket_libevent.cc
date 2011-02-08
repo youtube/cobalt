@@ -527,9 +527,7 @@ void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
     UpdateConnectionTypeHistograms(CONNECTION_ANY);
 
   if (net_error != OK) {
-    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
-                      make_scoped_refptr(
-                          new NetLogIntegerParameter("net_error", net_error)));
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_TCP_CONNECT, net_error);
     return;
   }
 
@@ -540,8 +538,7 @@ void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
   if (rv != 0) {
     PLOG(ERROR) << "getsockname() [rv: " << rv << "] error: ";
     NOTREACHED();
-    scoped_refptr<NetLog::EventParameters> params;
-    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_TCP_CONNECT, rv);
     return;
   }
 

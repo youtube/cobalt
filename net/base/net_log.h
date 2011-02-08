@@ -34,8 +34,6 @@ namespace net {
 // TODO(eroman): Remove the 'const' qualitifer from the BoundNetLog methods.
 // TODO(eroman): Start a new Source each time net::URLRequest redirects
 //               (simpler to reason about each as a separate entity).
-// TODO(mmenke): Replace EndEvent calls with EndEventWithNetErrorCode, where
-//               appropriate.
 
 class NetLog {
  public:
