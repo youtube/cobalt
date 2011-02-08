@@ -184,7 +184,8 @@ int HttpStreamParser::DoLoop(int result) {
         break;
       case STATE_READ_HEADERS_COMPLETE:
         result = DoReadHeadersComplete(result);
-        net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS, NULL);
+        net_log_.EndEventWithNetErrorCode(
+            NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS, result);
         break;
       case STATE_BODY_PENDING:
         DCHECK(result != ERR_IO_PENDING);
