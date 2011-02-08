@@ -625,8 +625,9 @@ int SSLClientSocketOpenSSL::Connect(CompletionCallback* callback) {
 
   // Set up new ssl object.
   if (!Init()) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
-    return ERR_UNEXPECTED;
+    int result = ERR_UNEXPECTED;
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, result);
+    return result;
   }
 
   // Set SSL to client mode. Handshake happens in the loop below.
@@ -637,7 +638,7 @@ int SSLClientSocketOpenSSL::Connect(CompletionCallback* callback) {
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
   }
 
   return rv > OK ? OK : rv;
@@ -989,7 +990,7 @@ void SSLClientSocketOpenSSL::DoConnectCallback(int rv) {
 void SSLClientSocketOpenSSL::OnHandshakeIOComplete(int result) {
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
     DoConnectCallback(rv);
   }
 }

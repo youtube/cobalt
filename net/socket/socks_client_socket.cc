@@ -116,7 +116,7 @@ int SOCKSClientSocket::Connect(CompletionCallback* callback) {
   if (rv == ERR_IO_PENDING) {
     user_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_SOCKS_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SOCKS_CONNECT, rv);
   }
   return rv;
 }
@@ -223,7 +223,7 @@ void SOCKSClientSocket::OnIOComplete(int result) {
   DCHECK_NE(STATE_NONE, next_state_);
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(NetLog::TYPE_SOCKS_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SOCKS_CONNECT, rv);
     DoCallback(rv);
   }
 }
