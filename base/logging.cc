@@ -540,17 +540,19 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
   Init(file, line);
 }
 
-LogMessage::LogMessage(const char* file, int line, const CheckOpString& result)
+LogMessage::LogMessage(const char* file, int line, std::string* result)
     : severity_(LOG_FATAL), file_(file), line_(line) {
   Init(file, line);
-  stream_ << "Check failed: " << (*result.str_);
+  stream_ << "Check failed: " << *result;
+  delete result;
 }
 
 LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
-                       const CheckOpString& result)
+                       std::string* result)
     : severity_(severity), file_(file), line_(line) {
   Init(file, line);
-  stream_ << "Check failed: " << (*result.str_);
+  stream_ << "Check failed: " << *result;
+  delete result;
 }
 
 LogMessage::~LogMessage() {
