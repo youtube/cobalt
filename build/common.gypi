@@ -107,7 +107,7 @@
       'disable_sse2%': 0,
 
       # Use libjpeg-turbo as the JPEG codec used by Chromium.
-      'use_libjpeg_turbo%': 0,
+      'use_libjpeg_turbo%': 1,
 
       # Variable 'component' is for cases where we would like to build some
       # components as dynamic shared libraries but still need variable
