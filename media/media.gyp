@@ -12,6 +12,7 @@
       'target_name': 'media',
       'type': '<(library)',
       'dependencies': [
+        'yuv_convert',
         '../base/base.gyp:base',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
       ],
@@ -113,14 +114,6 @@
         'base/state_matrix.h',
         'base/video_frame.cc',
         'base/video_frame.h',
-        'base/yuv_convert.cc',
-        'base/yuv_convert.h',
-        'base/yuv_convert_c.cc',
-        'base/yuv_convert_sse2.cc',
-        'base/yuv_row_win.cc',
-        'base/yuv_row_posix.cc',
-        'base/yuv_row_table.cc',
-        'base/yuv_row.h',
         'ffmpeg/ffmpeg_common.cc',
         'ffmpeg/ffmpeg_common.h',
         'ffmpeg/ffmpeg_util.cc',
@@ -221,6 +214,72 @@
             ],
           },
         }],
+      ],
+    },
+    {
+      'target_name': 'cpu_features',
+      'type': '<(library)',
+      'include_dirs': [
+        '..',
+      ],
+      'conditions': [
+        [ 'target_arch == "ia32" or target_arch == "x64"', {
+          'sources': [
+            'base/cpu_features_x86.cc',
+          ],
+        }],
+        [ 'target_arch == "arm"', {
+          'sources': [
+            'base/cpu_features_arm.cc',
+          ],
+        }],
+      ],
+      'sources': [
+        'base/cpu_features.h',
+      ],
+    },
+    {
+      'target_name': 'yuv_convert',
+      'type': '<(library)',
+      'include_dirs': [
+        '..',
+      ],
+      'dependencies': [
+        'cpu_features',
+      ],
+      'conditions': [
+        [ 'target_arch == "ia32" or target_arch == "x64"', {
+          'dependencies': [
+            'yuv_convert_sse2',
+          ],
+        }],
+      ],
+      'sources': [
+        'base/yuv_convert.cc',
+        'base/yuv_convert.h',
+        'base/yuv_convert_internal.h',
+        'base/yuv_convert_c.cc',
+        'base/yuv_row_win.cc',
+        'base/yuv_row_posix.cc',
+        'base/yuv_row_table.cc',
+        'base/yuv_row.h',
+      ],
+    },
+    {
+      'target_name': 'yuv_convert_sse2',
+      'type': '<(library)',
+      'include_dirs': [
+        '..',
+      ],
+      'conditions': [
+        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+          'cflags': [
+            '-msse2',
+          ],
+        }],
+      ],
+      'sources': [
+        'base/yuv_convert_sse2.cc',
       ],
     },
     {

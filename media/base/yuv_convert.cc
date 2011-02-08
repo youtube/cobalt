@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,8 @@
 
 #include "media/base/yuv_convert.h"
 
-// Header for low level row functions.
+#include "media/base/cpu_features.h"
+#include "media/base/yuv_convert_internal.h"
 #include "media/base/yuv_row.h"
 
 #if USE_MMX
@@ -341,6 +342,35 @@ void ScaleYUVToRGB32(const uint8* y_buf,
   }
   // MMX used for FastConvertYUVToRGB32Row and FilterRows requires emms.
   EMMS();
+}
+
+void ConvertRGB32ToYUV(const uint8* rgbframe,
+                       uint8* yplane,
+                       uint8* uplane,
+                       uint8* vplane,
+                       int width,
+                       int height,
+                       int rgbstride,
+                       int ystride,
+                       int uvstride) {
+  static void (*convert_proc)(const uint8*, uint8*, uint8*, uint8*,
+                              int, int, int, int, int) = NULL;
+  if (!convert_proc) {
+#ifdef __arm__
+    // For ARM processors, always use C version.
+    // TODO(hclam): Implement a NEON version.
+    convert_proc = &ConvertRGB32ToYUV_C;
+#else
+    // For x86 processors, check if SSE2 is supported.
+    if (hasSSE2())
+      convert_proc = &ConvertRGB32ToYUV_SSE2;
+    else
+      convert_proc = &ConvertRGB32ToYUV_C;
+#endif
+  }
+
+  convert_proc(rgbframe, yplane, uplane, vplane, width, height,
+               rgbstride, ystride, uvstride);
 }
 
 }  // namespace media
