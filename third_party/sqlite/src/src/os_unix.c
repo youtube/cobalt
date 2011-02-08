@@ -2829,15 +2829,8 @@ static int seekAndWrite(unixFile *id, i64 offset, const void *pBuf, int cnt){
 #else
   newOffset = lseek(id->h, offset, SEEK_SET);
   if( newOffset!=offset ){
-    int capturedErrno = errno;  /* Capture errno before fprintf(). */
-    /* TODO(shess): Tracking a SQLITE_IOERR_WRITE being seen on the
-     * waterfall.  http://crbug.com/56427 */
-    fprintf(stderr, "SQLite lseek error in seekAndWrite, "
-            "offset == %d, rc == %d, errno == %d\n",
-            (int)offset, (int)newOffset, capturedErrno);
-    fflush(stderr);
     if( newOffset == -1 ){
-      ((unixFile*)id)->lastErrno = capturedErrno;
+      ((unixFile*)id)->lastErrno = errno;
     }else{
       ((unixFile*)id)->lastErrno = 0;			
     }
@@ -2847,14 +2840,7 @@ static int seekAndWrite(unixFile *id, i64 offset, const void *pBuf, int cnt){
 #endif
   TIMER_END;
   if( got<0 ){
-    int capturedErrno = errno;  /* Capture errno before fprintf(). */
-    /* TODO(shess): Tracking a SQLITE_IOERR_WRITE being seen on the
-     * waterfall.  http://crbug.com/56427 */
-    fprintf(stderr, "SQLite write error in seekAndWrite, "
-            "cnt == %d, rc == %d, errno == %d\n",
-            cnt, got, capturedErrno);
-    fflush(stderr);
-    ((unixFile*)id)->lastErrno = capturedErrno;
+    ((unixFile*)id)->lastErrno = errno;
   }
 
   OSTRACE5("WRITE   %-3d %5d %7lld %llu\n", id->h, got, offset, TIMER_ELAPSED);
