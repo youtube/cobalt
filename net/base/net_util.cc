@@ -1398,11 +1398,10 @@ string16 GetSuggestedFilename(const GURL& url,
                                            referrer_charset);
 
   if (!filename.empty()) {
-    // Remove any path information the server may have sent, take the name
-    // only.
-    std::string::size_type slashpos = filename.find_last_of("/\\");
-    if (slashpos != std::string::npos)
-      filename = filename.substr(slashpos + 1);
+    // Replace any path information the server may have sent, by changing
+    // path separators with underscores.
+    ReplaceSubstringsAfterOffset(&filename, 0, "/", "_");
+    ReplaceSubstringsAfterOffset(&filename, 0, "\\", "_");
 
     // Next, remove "." from the beginning and end of the file name to avoid
     // tricks with hidden files, "..", and "."
