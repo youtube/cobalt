@@ -114,10 +114,8 @@ void ConnectJob::LogConnectStart() {
 }
 
 void ConnectJob::LogConnectCompletion(int net_error) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (net_error != OK)
-    params = new NetLogIntegerParameter("net_error", net_error);
-  net_log().EndEvent(NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_CONNECT, params);
+  net_log().EndEventWithNetErrorCode(
+      NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_CONNECT, net_error);
 }
 
 void ConnectJob::OnTimeout() {
@@ -216,7 +214,7 @@ int ClientSocketPoolBaseHelper::RequestSocket(
 
   int rv = RequestSocketInternal(group_name, request);
   if (rv != ERR_IO_PENDING) {
-    request->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL, NULL);
+    request->net_log().EndEventWithNetErrorCode(NetLog::TYPE_SOCKET_POOL, rv);
     CHECK(!request->handle()->is_initialized());
     delete request;
   } else {
@@ -246,12 +244,11 @@ void ClientSocketPoolBaseHelper::RequestSockets(
   // RequestSocketsInternal() may delete the group.
   bool deleted_group = false;
 
+  int rv = OK;
   for (int num_iterations_left = num_sockets;
        group->NumActiveSocketSlots() < num_sockets &&
        num_iterations_left > 0 ; num_iterations_left--) {
-    int rv = RequestSocketInternal(group_name, &request);
-    // TODO(willchan): Possibly check for ERR_PRECONNECT_MAX_SOCKET_LIMIT so we
-    // can log it into the NetLog.
+    rv = RequestSocketInternal(group_name, &request);
     if (rv < 0 && rv != ERR_IO_PENDING) {
       // We're encountering a synchronous error.  Give up.
       if (!ContainsKey(group_map_, group_name))
@@ -270,8 +267,10 @@ void ClientSocketPoolBaseHelper::RequestSockets(
   if (!deleted_group && group->IsEmpty())
     RemoveGroup(group_name);
 
-  request.net_log().EndEvent(
-      NetLog::TYPE_SOCKET_POOL_CONNECTING_N_SOCKETS, NULL);
+  if (rv == ERR_IO_PENDING)
+    rv = OK;
+  request.net_log().EndEventWithNetErrorCode(
+      NetLog::TYPE_SOCKET_POOL_CONNECTING_N_SOCKETS, rv);
 }
 
 int ClientSocketPoolBaseHelper::RequestSocketInternal(
@@ -784,8 +783,8 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
         HandOutSocket(socket.release(), false /* unused socket */, r->handle(),
                       base::TimeDelta(), group, r->net_log());
       }
-      r->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL, make_scoped_refptr(
-          new NetLogIntegerParameter("net_error", result)));
+      r->net_log().EndEventWithNetErrorCode(NetLog::TYPE_SOCKET_POOL,
+                                            result);
       InvokeUserCallbackLater(r->handle(), r->callback(), result);
     } else {
       RemoveConnectJob(job, group);
@@ -845,10 +844,7 @@ void ClientSocketPoolBaseHelper::ProcessPendingRequest(
     if (group->IsEmpty())
       RemoveGroup(group_name);
 
-    scoped_refptr<NetLog::EventParameters> params;
-    if (rv != OK)
-      params = new NetLogIntegerParameter("net_error", rv);
-    request->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL, params);
+    request->net_log().EndEventWithNetErrorCode(NetLog::TYPE_SOCKET_POOL, rv);
     InvokeUserCallbackLater(
         request->handle(), request->callback(), rv);
   }

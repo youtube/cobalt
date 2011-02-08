@@ -96,14 +96,14 @@ int SSLServerSocketNSS::Accept(CompletionCallback* callback) {
   int rv = Init();
   if (rv != OK) {
     LOG(ERROR) << "Failed to initialize NSS";
-    net_log_.EndEvent(NetLog::TYPE_SSL_ACCEPT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_ACCEPT, rv);
     return rv;
   }
 
   rv = InitializeSSLOptions();
   if (rv != OK) {
     LOG(ERROR) << "Failed to initialize SSL options";
-    net_log_.EndEvent(NetLog::TYPE_SSL_ACCEPT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_ACCEPT, rv);
     return rv;
   }
 
@@ -118,7 +118,7 @@ int SSLServerSocketNSS::Accept(CompletionCallback* callback) {
   if (rv == ERR_IO_PENDING) {
     user_accept_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_SSL_ACCEPT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_ACCEPT, rv);
   }
 
   return rv > OK ? OK : rv;
@@ -385,7 +385,7 @@ void SSLServerSocketNSS::OnRecvComplete(int result) {
 void SSLServerSocketNSS::OnHandshakeIOComplete(int result) {
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(net::NetLog::TYPE_SSL_ACCEPT, NULL);
+    net_log_.EndEventWithNetErrorCode(net::NetLog::TYPE_SSL_ACCEPT, rv);
     if (user_accept_callback_)
       DoAcceptCallback(rv);
   }
