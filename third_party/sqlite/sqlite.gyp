@@ -215,13 +215,22 @@
             ],
           },
           'msvs_disabled_warnings': [
-              4018, 4244,
+            4018, 4244,
           ],
           'conditions': [
             ['OS=="win"', {
               'sources/': [['exclude', '_unix\\.cc?$']],
             }, {  # else: OS!="win"
               'sources/': [['exclude', '_(w32|win)\\.cc?$']],
+            }],
+            ['OS=="linux"', {
+              'cflags': [
+                # SQLite doesn't believe in compiler warnings,
+                # preferring testing.
+                #   http://www.sqlite.org/faq.html#q17
+                '-Wno-int-to-pointer-cast',
+                '-Wno-pointer-to-int-cast',
+              ],
             }],
           ],
         }],
