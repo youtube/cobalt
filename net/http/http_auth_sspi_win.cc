@@ -27,6 +27,9 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
     case SEC_E_INSUFFICIENT_MEMORY:
       return ERR_OUT_OF_MEMORY;
     case SEC_E_INTERNAL_ERROR:
+      LOG(WARNING)
+          << "AcquireCredentialsHandle returned unexpected status 0x"
+          << std::hex << status;
       return ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS;
     case SEC_E_NO_CREDENTIALS:
     case SEC_E_NOT_OWNER:
@@ -37,7 +40,7 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
       return ERR_UNSUPPORTED_AUTH_SCHEME;
     default:
       LOG(WARNING)
-          << "AcquireSecurityCredentials returned undocumented status 0x"
+          << "AcquireCredentialsHandle returned undocumented status 0x"
           << std::hex << status;
       return ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS;
   }
