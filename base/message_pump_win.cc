@@ -421,7 +421,7 @@ void MessagePumpForIO::RegisterIOHandler(HANDLE file_handle,
                                          IOHandler* handler) {
   ULONG_PTR key = reinterpret_cast<ULONG_PTR>(handler);
   HANDLE port = CreateIoCompletionPort(file_handle, port_, key, 1);
-  DCHECK(port == port_.Get());
+  DPCHECK(port);
 }
 
 //-----------------------------------------------------------------------------
