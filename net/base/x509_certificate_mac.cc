@@ -8,8 +8,13 @@
 #include <Security/Security.h>
 #include <time.h>
 
+#include <vector>
+
+#include "base/crypto/cssm_init.h"
+#include "base/crypto/rsa_private_key.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/nss_util.h"
 #include "base/pickle.h"
 #include "base/singleton.h"
 #include "base/mac/scoped_cftyperef.h"
@@ -18,6 +23,7 @@
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_root_certs.h"
+#include "third_party/nss/mozilla/security/nss/lib/certdb/cert.h"
 
 using base::mac::ScopedCFTypeRef;
 using base::Time;
@@ -369,6 +375,99 @@ void AddCertificatesFromBytes(const char* data, size_t length,
   }
 }
 
+struct CSSMOIDString {
+  const CSSM_OID* oid_;
+  std::string string_;
+};
+
+typedef std::vector<CSSMOIDString> CSSMOIDStringVector;
+
+bool CERTNameToCSSMOIDVector(CERTName* name, CSSMOIDStringVector* out_values) {
+  struct OIDCSSMMap {
+    SECOidTag sec_OID_;
+    const CSSM_OID* cssm_OID_;
+  };
+
+  const OIDCSSMMap kOIDs[] = {
+      { SEC_OID_AVA_COMMON_NAME, &CSSMOID_CommonName },
+      { SEC_OID_AVA_COUNTRY_NAME, &CSSMOID_CountryName },
+      { SEC_OID_AVA_LOCALITY, &CSSMOID_LocalityName },
+      { SEC_OID_AVA_STATE_OR_PROVINCE, &CSSMOID_StateProvinceName },
+      { SEC_OID_AVA_STREET_ADDRESS, &CSSMOID_StreetAddress },
+      { SEC_OID_AVA_ORGANIZATION_NAME, &CSSMOID_OrganizationName },
+      { SEC_OID_AVA_ORGANIZATIONAL_UNIT_NAME, &CSSMOID_OrganizationalUnitName },
+      { SEC_OID_AVA_DN_QUALIFIER, &CSSMOID_DNQualifier },
+      { SEC_OID_RFC1274_UID, &CSSMOID_UniqueIdentifier },
+      { SEC_OID_PKCS9_EMAIL_ADDRESS, &CSSMOID_EmailAddress },
+  };
+
+  CERTRDN** rdns = name->rdns;
+  for (size_t rdn = 0; rdns[rdn]; ++rdn) {
+    CERTAVA** avas = rdns[rdn]->avas;
+    for (size_t pair = 0; avas[pair] != 0; ++pair) {
+      SECOidTag tag = CERT_GetAVATag(avas[pair]);
+      if (tag == SEC_OID_UNKNOWN) {
+        return false;
+      }
+      CSSMOIDString oidString;
+      bool found_oid = false;
+      for (size_t oid = 0; oid < ARRAYSIZE_UNSAFE(kOIDs); ++oid) {
+        if (kOIDs[oid].sec_OID_ == tag) {
+          SECItem* decode_item = CERT_DecodeAVAValue(&avas[pair]->value);
+          if (!decode_item)
+            return false;
+
+          // TODO(wtc): Pass decode_item to CERT_RFC1485_EscapeAndQuote.
+          std::string value(reinterpret_cast<char*>(decode_item->data),
+                            decode_item->len);
+          oidString.oid_ = kOIDs[oid].cssm_OID_;
+          oidString.string_ = value;
+          out_values->push_back(oidString);
+          SECITEM_FreeItem(decode_item, PR_TRUE);
+          found_oid = true;
+          break;
+        }
+      }
+      if (!found_oid) {
+        DLOG(ERROR) << "Unrecognized OID: " << tag;
+      }
+    }
+  }
+  return true;
+}
+
+class ScopedCertName {
+ public:
+  explicit ScopedCertName(CERTName* name) : name_(name) { }
+  ~ScopedCertName() {
+    if (name_) CERT_DestroyName(name_);
+  }
+  operator CERTName*() { return name_; }
+
+ private:
+  CERTName* name_;
+};
+
+class ScopedEncodedCertResults {
+ public:
+  explicit ScopedEncodedCertResults(CSSM_TP_RESULT_SET* results)
+      : results_(results) { }
+  ~ScopedEncodedCertResults() {
+    if (results_) {
+      CSSM_ENCODED_CERT* encCert =
+          reinterpret_cast<CSSM_ENCODED_CERT*>(results_->Results);
+      for (uint32 i = 0; i < results_->NumberOfResults; i++) {
+        base::CSSMFree(encCert[i].CertBlob.Data);
+      }
+    }
+    base::CSSMFree(results_->Results);
+    base::CSSMFree(results_);
+  }
+
+private:
+  CSSM_TP_RESULT_SET* results_;
+};
+
 }  // namespace
 
 void X509Certificate::Initialize() {
@@ -406,8 +505,138 @@ X509Certificate* X509Certificate::CreateSelfSigned(
     const std::string& subject,
     uint32 serial_number,
     base::TimeDelta valid_duration) {
-  // TODO(port): Implement.
-  return NULL;
+  DCHECK(key);
+  DCHECK(!subject.empty());
+
+  if (valid_duration.InSeconds() > UINT32_MAX) {
+     LOG(ERROR) << "valid_duration too big" << valid_duration.InSeconds();
+     valid_duration = base::TimeDelta::FromSeconds(UINT32_MAX);
+  }
+
+  // There is a comment in
+  // http://www.opensource.apple.com/source/security_certtool/security_certtool-31828/src/CertTool.cpp
+  // that serial_numbers being passed into CSSM_TP_SubmitCredRequest can't have
+  // their high bit set. We will continue though and mask it out below.
+  if (serial_number & 0x80000000)
+    LOG(ERROR) << "serial_number has high bit set " << serial_number;
+
+  // NSS is used to parse the subject string into a set of
+  // CSSM_OID/string pairs. There doesn't appear to be a system routine for
+  // parsing Distinguished Name strings.
+  base::EnsureNSSInit();
+
+  CSSMOIDStringVector subject_name_oids;
+  ScopedCertName subject_name(
+      CERT_AsciiToName(const_cast<char*>(subject.c_str())));
+  if (!CERTNameToCSSMOIDVector(subject_name, &subject_name_oids)) {
+    DLOG(ERROR) << "Unable to generate CSSMOIDMap from " << subject;
+    return NULL;
+  }
+
+  // Convert the map of oid/string pairs into an array of
+  // CSSM_APPLE_TP_NAME_OIDs.
+  std::vector<CSSM_APPLE_TP_NAME_OID> cssm_subject_names;
+  for(CSSMOIDStringVector::iterator iter = subject_name_oids.begin();
+      iter != subject_name_oids.end(); ++iter) {
+    CSSM_APPLE_TP_NAME_OID cssm_subject_name;
+    cssm_subject_name.oid = iter->oid_;
+    cssm_subject_name.string = iter->string_.c_str();
+    cssm_subject_names.push_back(cssm_subject_name);
+  }
+
+  if (cssm_subject_names.size() == 0) {
+    DLOG(ERROR) << "cssm_subject_names.size() == 0. Input: " << subject;
+    return NULL;
+  }
+
+  // Set up a certificate request.
+  CSSM_APPLE_TP_CERT_REQUEST certReq;
+  memset(&certReq, 0, sizeof(certReq));
+  certReq.cspHand = base::GetSharedCSPHandle();
+  certReq.clHand = base::GetSharedCLHandle();
+    // See comment about serial numbers above.
+  certReq.serialNumber = serial_number & 0x7fffffff;
+  certReq.numSubjectNames = cssm_subject_names.size();
+  certReq.subjectNames = &cssm_subject_names[0];
+  certReq.numIssuerNames = 0; // Root.
+  certReq.issuerNames = NULL;
+  certReq.issuerNameX509 = NULL;
+  certReq.certPublicKey = key->public_key();
+  certReq.issuerPrivateKey = key->key();
+  // These are the Apple defaults.
+  certReq.signatureAlg = CSSM_ALGID_SHA1WithRSA;
+  certReq.signatureOid = CSSMOID_SHA1WithRSA;
+  certReq.notBefore = 0;
+  certReq.notAfter = static_cast<uint32>(valid_duration.InSeconds());
+  certReq.numExtensions = 0;
+  certReq.extensions = NULL;
+  certReq.challengeString = NULL;
+
+  CSSM_TP_REQUEST_SET reqSet;
+  reqSet.NumberOfRequests = 1;
+  reqSet.Requests = &certReq;
+
+  CSSM_FIELD policyId;
+  memset(&policyId, 0, sizeof(policyId));
+  policyId.FieldOid = CSSMOID_APPLE_TP_LOCAL_CERT_GEN;
+
+  CSSM_TP_CALLERAUTH_CONTEXT callerAuthContext;
+  memset(&callerAuthContext, 0, sizeof(callerAuthContext));
+  callerAuthContext.Policy.NumberOfPolicyIds = 1;
+  callerAuthContext.Policy.PolicyIds = &policyId;
+
+  CSSM_TP_HANDLE tp_handle = base::GetSharedTPHandle();
+  CSSM_DATA refId;
+  memset(&refId, 0, sizeof(refId));
+  sint32 estTime;
+  CSSM_RETURN crtn = CSSM_TP_SubmitCredRequest(tp_handle, NULL,
+      CSSM_TP_AUTHORITY_REQUEST_CERTISSUE, &reqSet, &callerAuthContext,
+       &estTime, &refId);
+  if(crtn) {
+    DLOG(ERROR) << "CSSM_TP_SubmitCredRequest failed " << crtn;
+    return NULL;
+  }
+
+  CSSM_BOOL confirmRequired;
+  CSSM_TP_RESULT_SET *resultSet = NULL;
+  crtn = CSSM_TP_RetrieveCredResult(tp_handle, &refId, NULL, &estTime,
+                                    &confirmRequired, &resultSet);
+  ScopedEncodedCertResults scopedResults(resultSet);
+  base::CSSMFree(refId.Data);
+  if (crtn) {
+    DLOG(ERROR) << "CSSM_TP_RetrieveCredResult failed " << crtn;
+    return NULL;
+  }
+
+  if (confirmRequired) {
+    // Potential leak here of resultSet. |confirmRequired| should never be
+    // true.
+    DLOG(ERROR) << "CSSM_TP_RetrieveCredResult required confirmation";
+    return NULL;
+  }
+
+  if (resultSet->NumberOfResults != 1) {
+     DLOG(ERROR) << "Unexpected number of results: "
+                 << resultSet->NumberOfResults;
+    return NULL;
+  }
+
+  CSSM_ENCODED_CERT* encCert =
+      reinterpret_cast<CSSM_ENCODED_CERT*>(resultSet->Results);
+  base::mac::ScopedCFTypeRef<SecCertificateRef> scoped_cert;
+  SecCertificateRef certificate_ref = NULL;
+  OSStatus os_status =
+      SecCertificateCreateFromData(&encCert->CertBlob, encCert->CertType,
+                                   encCert->CertEncoding, &certificate_ref);
+  if (os_status != 0) {
+    DLOG(ERROR) << "SecCertificateCreateFromData failed: " << os_status;
+    return NULL;
+  }
+  scoped_cert.reset(certificate_ref);
+
+  return CreateFromHandle(
+     scoped_cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
+     X509Certificate::OSCertHandles());
 }
 
 void X509Certificate::Persist(Pickle* pickle) {
@@ -934,6 +1163,7 @@ CFArrayRef X509Certificate::CreateClientCertificateChain() const {
 
   CFArrayRef cert_chain = NULL;
   result = CopyCertChain(cert_handle_, &cert_chain);
+  ScopedCFTypeRef<CFArrayRef> scoped_cert_chain(cert_chain);
   if (result) {
     LOG(ERROR) << "CreateIdentityCertificateChain error " << result;
     return chain.release();
@@ -947,7 +1177,6 @@ CFArrayRef X509Certificate::CreateClientCertificateChain() const {
                          cert_chain,
                          CFRangeMake(1, chain_count - 1));
     }
-    CFRelease(cert_chain);
   }
 
   return chain.release();
