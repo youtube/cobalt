@@ -594,13 +594,13 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
 
   int rv = Init();
   if (rv != OK) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
     return rv;
   }
 
   rv = InitializeSSLOptions();
   if (rv != OK) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
     return rv;
   }
 
@@ -609,7 +609,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   if (!UsingTCPFastOpen()) {
     rv = InitializeSSLPeerName();
     if (rv != OK) {
-      net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+      net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
       return rv;
     }
   }
@@ -629,7 +629,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
       user_connect_callback_ = callback;
     }
   } else {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
   }
 
   LeaveFunction("");
@@ -1210,7 +1210,7 @@ void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
   EnterFunction(result);
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(net::NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEventWithNetErrorCode(net::NetLog::TYPE_SSL_CONNECT, rv);
     // If we pseudo connected for Snap Start, then we won't have a connect
     // callback.
     if (user_connect_callback_)
