@@ -436,19 +436,10 @@ const LogSeverity LOG_0 = LOG_ERROR;
   LAZY_STREAM(PLOG_STREAM(FATAL), !(condition)) \
   << "Check failed: " #condition ". "
 
-// A container for a string pointer which can be evaluated to a bool -
-// true iff the pointer is NULL.
-struct CheckOpString {
-  CheckOpString(std::string* str) : str_(str) { }
-  // No destructor: if str_ is non-NULL, we're about to LOG(FATAL),
-  // so there's no point in cleaning up str_.
-  operator bool() const { return str_ != NULL; }
-  std::string* str_;
-};
-
 // Build the error message string.  This is separate from the "Impl"
 // function template because it is not performance critical and so can
-// be out of line, while the "Impl" code should be inline.
+// be out of line, while the "Impl" code should be inline.  Caller
+// takes ownership of the returned string.
 template<class t1, class t2>
 std::string* MakeCheckOpString(const t1& v1, const t2& v2, const char* names) {
   std::ostringstream ss;
@@ -479,7 +470,7 @@ extern template std::string* MakeCheckOpString<std::string, std::string>(
 // TODO(akalin): Rewrite this so that constructs like if (...)
 // CHECK_EQ(...) else { ... } work properly.
 #define CHECK_OP(name, op, val1, val2)                          \
-  if (logging::CheckOpString _result =                          \
+  if (std::string* _result =                                    \
       logging::Check##name##Impl((val1), (val2),                \
                                  #val1 " " #op " " #val2))      \
     logging::LogMessage(__FILE__, __LINE__, _result).stream()
@@ -655,7 +646,7 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 // Don't use this macro directly in your code, use DCHECK_EQ et al below.
 #define DCHECK_OP(name, op, val1, val2)                         \
   if (DCHECK_IS_ON())                                           \
-    if (logging::CheckOpString _result =                        \
+    if (std::string* _result =                                  \
         logging::Check##name##Impl((val1), (val2),              \
                                    #val1 " " #op " " #val2))    \
       logging::LogMessage(                                      \
@@ -723,14 +714,15 @@ class LogMessage {
   // saves a couple of bytes per call site.
   LogMessage(const char* file, int line, LogSeverity severity);
 
-  // A special constructor used for check failures.
+  // A special constructor used for check failures.  Takes ownership
+  // of the given string.
   // Implied severity = LOG_FATAL
-  LogMessage(const char* file, int line, const CheckOpString& result);
+  LogMessage(const char* file, int line, std::string* result);
 
   // A special constructor used for check failures, with the option to
-  // specify severity.
+  // specify severity.  Takes ownership of the given string.
   LogMessage(const char* file, int line, LogSeverity severity,
-             const CheckOpString& result);
+             std::string* result);
 
   ~LogMessage();
 
