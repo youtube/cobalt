@@ -1,6 +1,7 @@
 *.Makefile
 *.mk
 *.ncb
+*.ninja
 *.pyc
 *.rules
 *.scons
@@ -59,6 +60,7 @@ v8.log
 /googleurl
 /gpu/gles2_conform_test
 /native_client
+/ninja
 /out
 /out_*
 /rlz
