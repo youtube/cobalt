@@ -664,6 +664,8 @@
       ['chromium_code==0', {
         'conditions': [
           [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+            # We don't want to get warnings from third-party code,
+            # so remove any existing warning-enabling flags like -Wall.
             'cflags!': [
               '-Wall',
               '-Wextra',
@@ -672,6 +674,9 @@
             'cflags': [
               # Don't warn about hash_map in third-party code.
               '-Wno-deprecated',
+              # Don't warn about printf format problems.
+              # This is off by default in gcc but on in Ubuntu's gcc(!).
+              '-Wformat=0',
             ],
           }],
           [ 'OS=="win"', {
