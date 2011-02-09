@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,11 +60,9 @@
 #include <sslerr.h>
 #include <sslproto.h>
 
-#if defined(OS_LINUX) || defined(USE_SYSTEM_SSL)
-#include <dlfcn.h>
-#endif
-
+#include <algorithm>
 #include <limits>
+#include <map>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -74,6 +72,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/sys_info.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "net/base/address_list.h"
@@ -104,6 +103,8 @@
 #include <Security/SecBase.h>
 #include <Security/SecCertificate.h>
 #include <Security/SecIdentity.h>
+#elif defined(USE_NSS)
+#include <dlfcn.h>
 #endif
 
 static const int kRecvBufferSize = 4096;
@@ -114,12 +115,21 @@ static const int kRecvBufferSize = 4096;
 // and some will time out such sockets quite aggressively.
 static const int kCorkTimeoutMs = 200;
 
+#if defined(OS_WIN)
+// CERT_OCSP_RESPONSE_PROP_ID is only implemented on Vista+, but it can be
+// set on Windows XP without error. There is some overhead from the server
+// sending the OCSP response if it supports the extension, for the subset of
+// XP clients who will request it but be unable to use it, but this is an
+// acceptable trade-off for simplicity of implementation.
+static bool IsOCSPStaplingSupported() {
+  return true;
+}
+#elif defined(USE_NSS)
 typedef SECStatus
 (*CacheOCSPResponseFromSideChannelFunction)(
     CERTCertDBHandle *handle, CERTCertificate *cert, PRTime time,
     SECItem *encodedResponse, void *pwArg);
 
-#if defined(OS_LINUX)
 // On Linux, we dynamically link against the system version of libnss3.so. In
 // order to continue working on systems without up-to-date versions of NSS we
 // lookup CERT_CacheOCSPResponseFromSideChannel with dlsym.
@@ -155,13 +165,15 @@ GetCacheOCSPResponseFromSideChannelFunction() {
   return RuntimeLibNSSFunctionPointers::GetInstance()
     ->GetCacheOCSPResponseFromSideChannelFunction();
 }
+
+static bool IsOCSPStaplingSupported() {
+  return GetCacheOCSPResponseFromSideChannelFunction() != NULL;
+}
 #else
-// On other platforms we use the system's certificate validation functions.
-// Thus we need, in the future, to plumb the OCSP response into those system
-// functions. Until then, we act as if we didn't support OCSP stapling.
-static CacheOCSPResponseFromSideChannelFunction
-GetCacheOCSPResponseFromSideChannelFunction() {
-  return NULL;
+// TODO(agl): Figure out if we can plumb the OCSP response into Mac's system
+// certificate validation functions.
+static bool IsOCSPStaplingSupported() {
+  return false;
 }
 #endif
 
@@ -998,8 +1010,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_OCSP_STAPLING
-  if (GetCacheOCSPResponseFromSideChannelFunction() &&
-      !ssl_config_.snap_start_enabled) {
+  if (IsOCSPStaplingSupported() && !ssl_config_.snap_start_enabled) {
     rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OCSP_STAPLING, PR_TRUE);
     if (rv != SECSuccess)
       LogFailedNSSFunction(net_log_, "SSL_OptionSet (OCSP stapling)", "");
@@ -1492,12 +1503,9 @@ int SSLClientSocketNSS::DoHandshake() {
         }
 
 #if defined(SSL_ENABLE_OCSP_STAPLING)
-        const CacheOCSPResponseFromSideChannelFunction cache_ocsp_response =
-            GetCacheOCSPResponseFromSideChannelFunction();
-        // TODO: we need to be able to plumb an OCSP response into the system
-        // libraries. When we do, GetOCSPResponseFromSideChannelFunction
-        // needs to be updated for those platforms.
-        if (!predicted_cert_chain_correct_ && cache_ocsp_response) {
+        // TODO(agl): figure out how to plumb an OCSP response into the Mac
+        // system library and update IsOCSPStaplingSupported for Mac.
+        if (!predicted_cert_chain_correct_ && IsOCSPStaplingSupported()) {
           unsigned int len = 0;
           SSL_GetStapledOCSPResponse(nss_fd_, NULL, &len);
           if (len) {
@@ -1506,6 +1514,22 @@ int SSLClientSocketNSS::DoHandshake() {
             SSL_GetStapledOCSPResponse(nss_fd_, ocsp_response.get(), &len);
             DCHECK_EQ(orig_len, len);
 
+#if defined(OS_WIN)
+            CRYPT_DATA_BLOB ocsp_response_blob;
+            ocsp_response_blob.cbData = len;
+            ocsp_response_blob.pbData = ocsp_response.get();
+            BOOL ok = CertSetCertificateContextProperty(
+                server_cert_->os_cert_handle(),
+                CERT_OCSP_RESPONSE_PROP_ID,
+                CERT_SET_PROPERTY_IGNORE_PERSIST_ERROR_FLAG,
+                &ocsp_response_blob);
+            if (!ok) {
+              VLOG(1) << "Failed to set OCSP response property: "
+                      << GetLastError();
+            }
+#elif defined(USE_NSS)
+            CacheOCSPResponseFromSideChannelFunction cache_ocsp_response =
+                GetCacheOCSPResponseFromSideChannelFunction();
             SECItem ocsp_response_item;
             ocsp_response_item.type = siBuffer;
             ocsp_response_item.data = ocsp_response.get();
@@ -1514,6 +1538,7 @@ int SSLClientSocketNSS::DoHandshake() {
             cache_ocsp_response(
                 CERT_GetDefaultCertDB(), server_cert_nss_, PR_Now(),
                 &ocsp_response_item, NULL);
+#endif
           }
         }
 #endif
