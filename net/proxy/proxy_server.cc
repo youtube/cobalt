@@ -15,11 +15,12 @@ namespace net {
 
 namespace {
 
-// Parse the proxy type from a PAC string, to a ProxyServer::Scheme.
+// Parses the proxy type from a PAC string, to a ProxyServer::Scheme.
 // This mapping is case-insensitive. If no type could be matched
 // returns SCHEME_INVALID.
-ProxyServer::Scheme GetSchemeFromPacType(std::string::const_iterator begin,
-                                         std::string::const_iterator end) {
+ProxyServer::Scheme GetSchemeFromPacTypeInternal(
+    std::string::const_iterator begin,
+    std::string::const_iterator end) {
   if (LowerCaseEqualsASCII(begin, end, "proxy"))
     return ProxyServer::SCHEME_HTTP;
   if (LowerCaseEqualsASCII(begin, end, "socks")) {
@@ -40,11 +41,11 @@ ProxyServer::Scheme GetSchemeFromPacType(std::string::const_iterator begin,
   return ProxyServer::SCHEME_INVALID;
 }
 
-// Parse the proxy scheme from a URL-like representation, to a
-// ProxyServer::Scheme.  This corresponds with the values used in
+// Parses the proxy scheme from a URL-like representation, to a
+// ProxyServer::Scheme. This corresponds with the values used in
 // ProxyServer::ToURI(). If no type could be matched, returns SCHEME_INVALID.
-ProxyServer::Scheme GetSchemeFromURI(std::string::const_iterator begin,
-                                     std::string::const_iterator end) {
+ProxyServer::Scheme GetSchemeFromURIInternal(std::string::const_iterator begin,
+                                             std::string::const_iterator end) {
   if (LowerCaseEqualsASCII(begin, end, "http"))
     return ProxyServer::SCHEME_HTTP;
   if (LowerCaseEqualsASCII(begin, end, "socks4"))
@@ -110,7 +111,7 @@ ProxyServer ProxyServer::FromURI(std::string::const_iterator begin,
       (end - colon) >= 3 &&
       *(colon + 1) == '/' &&
       *(colon + 2) == '/') {
-    scheme = GetSchemeFromURI(begin, colon);
+    scheme = GetSchemeFromURIInternal(begin, colon);
     begin = colon + 3;  // Skip past the "://"
   }
 
@@ -161,7 +162,7 @@ ProxyServer ProxyServer::FromPacString(std::string::const_iterator begin,
   }
 
   // Everything to the left of the space is the scheme.
-  Scheme scheme = GetSchemeFromPacType(begin, space);
+  Scheme scheme = GetSchemeFromPacTypeInternal(begin, space);
 
   // And everything to the right of the space is the
   // <host>[":" <port>].
@@ -201,6 +202,11 @@ int ProxyServer::GetDefaultPortForScheme(Scheme scheme) {
     default:
       return -1;
   }
+}
+
+// static
+ProxyServer::Scheme ProxyServer::GetSchemeFromURI(const std::string& scheme) {
+  return GetSchemeFromURIInternal(scheme.begin(), scheme.end());
 }
 
 // static
