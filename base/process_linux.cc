@@ -11,7 +11,14 @@
 
 namespace base {
 
+#if defined(OS_CHROMEOS)
+// We are more aggressive in our lowering of background process priority
+// for chromeos as we have much more control over other processes running
+// on the machine.
+const int kPriorityAdjustment = 19;
+#else
 const int kPriorityAdjustment = 5;
+#endif
 
 bool Process::IsProcessBackgrounded() const {
   DCHECK(process_);
