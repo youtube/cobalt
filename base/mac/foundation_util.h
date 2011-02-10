@@ -45,6 +45,9 @@ bool IsBackgroundOnlyProcess();
 NSBundle* MainAppBundle();
 FilePath MainAppBundlePath();
 
+// Returns the path to a resource within the MainAppBundle.
+FilePath PathForMainAppBundleResource(CFStringRef resourceName);
+
 // Set the bundle that MainAppBundle will return, overriding the default value
 // (Restore the default by calling SetOverrideAppBundle(nil)).
 void SetOverrideAppBundle(NSBundle* bundle);
