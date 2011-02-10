@@ -2,9 +2,9 @@
 # Makefile, you should execute the following commands to copy this directory
 # into a clang checkout:
 #
-#  cp -R <this directory> third_party/llvm-build/tools/clang/tools/chrome-plugin
-#  cd third_party/llvm-build/tools/clang/tools/chrome-plugin
-#  make
+#   cp -R <this directory> third_party/llvm/tools/clang/tools/chrome-plugin
+#   cd third_party/llvm/tools/clang/tools/chrome-plugin
+#   make
 
 CLANG_LEVEL := ../..
 LIBRARYNAME = FindBadConstructs
