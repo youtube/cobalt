@@ -679,7 +679,7 @@
               '-Wno-deprecated',
               # Don't warn about printf format problems.
               # This is off by default in gcc but on in Ubuntu's gcc(!).
-              '-Wformat=0',
+              '-Wno-format',
             ],
           }],
           [ 'OS=="win"', {
