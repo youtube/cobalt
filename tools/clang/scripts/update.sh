@@ -17,6 +17,8 @@ set -e
 # Echo all commands.
 set -x
 
+# Build clang.
+
 # Check out.
 svn co --force http://llvm.org/svn/llvm-project/llvm/trunk@$CLANG_REVISION $LLVM_DIR
 svn co --force http://llvm.org/svn/llvm-project/cfe/trunk@$CLANG_REVISION $CLANG_DIR
@@ -29,5 +31,16 @@ cd $LLVM_DIR/../llvm-build
 ../llvm/configure --enable-optimized
 # TODO(thakis): Make this the number of cores (use |sysctl hw.ncpu| on OS X and
 #               some grepping of /proc/cpuinfo on linux).
+make -j3
+cd -
+
+# Build plugin.
+# Copy it into the clang tree and use clang's build system to compile the
+# plugin.
+PLUGIN_SRC_DIR=$THIS_DIR/../plugins
+PLUGIN_DST_DIR=$LLVM_DIR/../llvm-build/tools/clang/tools/chrome-plugin
+rm -rf $PLUGIN_DST_DIR
+cp -R $PLUGIN_SRC_DIR $PLUGIN_DST_DIR
+cd $PLUGIN_DST_DIR
 make -j3
 cd -
