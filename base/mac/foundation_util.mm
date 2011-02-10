@@ -80,6 +80,15 @@ FilePath MainAppBundlePath() {
   return FilePath([[bundle bundlePath] fileSystemRepresentation]);
 }
 
+FilePath PathForMainAppBundleResource(CFStringRef resourceName) {
+  NSBundle* bundle = MainAppBundle();
+  NSString* resourcePath = [bundle pathForResource:(NSString*)resourceName
+                                            ofType:nil];
+  if (!resourcePath)
+    return FilePath();
+  return FilePath([resourcePath fileSystemRepresentation]);
+}
+
 void SetOverrideAppBundle(NSBundle* bundle) {
   if (bundle != g_override_app_bundle) {
     [g_override_app_bundle release];
