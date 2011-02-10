@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,12 +8,12 @@
 
 #include <vector>
 
-#include "base/logging.h"
 #include "base/scoped_ptr.h"
-#include "base/message_loop.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_resolver.h"
+
+class MessageLoop;
 
 namespace net {
 
@@ -26,31 +26,18 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     Request(MockAsyncProxyResolverBase* resolver,
             const GURL& url,
             ProxyInfo* results,
-            CompletionCallback* callback)
-        : resolver_(resolver),
-          url_(url),
-          results_(results),
-          callback_(callback),
-          origin_loop_(MessageLoop::current()) {
-    }
+            CompletionCallback* callback);
 
     const GURL& url() const { return url_; }
     ProxyInfo* results() const { return results_; }
     CompletionCallback* callback() const { return callback_; }
 
-    void CompleteNow(int rv) {
-      CompletionCallback* callback = callback_;
-
-      // May delete |this|.
-      resolver_->RemovePendingRequest(this);
-
-      callback->Run(rv);
-    }
+    void CompleteNow(int rv);
 
    private:
     friend class base::RefCounted<Request>;
 
-    ~Request() {}
+    virtual ~Request();
 
     MockAsyncProxyResolverBase* resolver_;
     const GURL url_;
@@ -64,23 +51,12 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     SetPacScriptRequest(
         MockAsyncProxyResolverBase* resolver,
         const scoped_refptr<ProxyResolverScriptData>& script_data,
-        CompletionCallback* callback)
-        : resolver_(resolver),
-          script_data_(script_data),
-          callback_(callback),
-          origin_loop_(MessageLoop::current()) {
-    }
+        CompletionCallback* callback);
+    ~SetPacScriptRequest();
 
     const ProxyResolverScriptData* script_data() const { return script_data_; }
 
-    void CompleteNow(int rv) {
-       CompletionCallback* callback = callback_;
-
-      // Will delete |this|.
-      resolver_->RemovePendingSetPacScriptRequest(this);
-
-      callback->Run(rv);
-    }
+    void CompleteNow(int rv);
 
    private:
     MockAsyncProxyResolverBase* resolver_;
@@ -91,41 +67,22 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
 
   typedef std::vector<scoped_refptr<Request> > RequestsList;
 
+  virtual ~MockAsyncProxyResolverBase();
+
   // ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request_handle,
-                             const BoundNetLog& /*net_log*/) {
-    scoped_refptr<Request> request = new Request(this, url, results, callback);
-    pending_requests_.push_back(request);
+                             const BoundNetLog& /*net_log*/);
 
-    if (request_handle)
-      *request_handle = reinterpret_cast<RequestHandle>(request.get());
-
-    // Test code completes the request by calling request->CompleteNow().
-    return ERR_IO_PENDING;
-  }
-
-  virtual void CancelRequest(RequestHandle request_handle) {
-    scoped_refptr<Request> request = reinterpret_cast<Request*>(request_handle);
-    cancelled_requests_.push_back(request);
-    RemovePendingRequest(request);
-  }
+  virtual void CancelRequest(RequestHandle request_handle);
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) {
-    DCHECK(!pending_set_pac_script_request_.get());
-    pending_set_pac_script_request_.reset(
-        new SetPacScriptRequest(this, script_data, callback));
-    // Finished when user calls SetPacScriptRequest::CompleteNow().
-    return ERR_IO_PENDING;
-  }
+      CompletionCallback* callback);
 
-  virtual void CancelSetPacScript() {
-    // Do nothing (caller was responsible for completing the request).
-  }
+  virtual void CancelSetPacScript();
 
   const RequestsList& pending_requests() const {
     return pending_requests_;
@@ -135,25 +92,14 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     return cancelled_requests_;
   }
 
-  SetPacScriptRequest* pending_set_pac_script_request() const {
-    return pending_set_pac_script_request_.get();
-  }
+  SetPacScriptRequest* pending_set_pac_script_request() const;
 
-  void RemovePendingRequest(Request* request) {
-    RequestsList::iterator it = std::find(
-        pending_requests_.begin(), pending_requests_.end(), request);
-    DCHECK(it != pending_requests_.end());
-    pending_requests_.erase(it);
-  }
+  void RemovePendingRequest(Request* request);
 
-  void RemovePendingSetPacScriptRequest(SetPacScriptRequest* request) {
-    DCHECK_EQ(request, pending_set_pac_script_request());
-    pending_set_pac_script_request_.reset();
-  }
+  void RemovePendingSetPacScriptRequest(SetPacScriptRequest* request);
 
  protected:
-  explicit MockAsyncProxyResolverBase(bool expects_pac_bytes)
-      : ProxyResolver(expects_pac_bytes) {}
+  explicit MockAsyncProxyResolverBase(bool expects_pac_bytes);
 
  private:
   RequestsList pending_requests_;
