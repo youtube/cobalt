@@ -1187,28 +1187,34 @@
               }]]
           }],
           ['clang==1', {
-            'cflags': [
-              # Clang spots more unused functions.
-              '-Wno-unused-function',
-              # Don't die on dtoa code that uses a char as an array index.
-              '-Wno-char-subscripts',
-              # Survive EXPECT_EQ(unnamed_enum, unsigned int) -- see
-              # http://code.google.com/p/googletest/source/detail?r=446 .
-              # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
-              '-Wno-unnamed-type-template-args',
-              # TODO(thakis): Turn on -- http://crbug.com/72205
-              '-Wno-overloaded-virtual',
-            ],
-            'cflags!': [
-              # Clang doesn't seem to know know this flag.
-              '-mfpmath=sse',
-            ],
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  # Clang spots more unused functions.
+                  '-Wno-unused-function',
+                  # Don't die on dtoa code that uses a char as an array index.
+                  '-Wno-char-subscripts',
+                  # Survive EXPECT_EQ(unnamed_enum, unsigned int) -- see
+                  # http://code.google.com/p/googletest/source/detail?r=446 .
+                  # TODO(thakis): Use -isystem instead (http://crbug.com/58751 )
+                  '-Wno-unnamed-type-template-args',
+                  # TODO(thakis): Turn on -- http://crbug.com/72205
+                  '-Wno-overloaded-virtual',
+                ],
+                'cflags!': [
+                  # Clang doesn't seem to know know this flag.
+                  '-mfpmath=sse',
+                ],
+              }]],
           }],
           ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
-            'cflags': [
-              '-Xclang', '-load', '-Xclang', '<(clang_load)',
-              '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
-            ],
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-Xclang', '-load', '-Xclang', '<(clang_load)',
+                  '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
+                ],
+              }]],
           }],
           ['no_strict_aliasing==1', {
             'cflags': [
