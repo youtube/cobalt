@@ -273,7 +273,7 @@ void File::WaitForPendingIO(int* num_pending_io) {
 }
 
 File::~File() {
-  if (platform_file_)
+  if (IsValid())
     close(platform_file_);
 }
 
