@@ -372,6 +372,9 @@
     # Under development: http://crbug.com/68551
     'use_harfbuzz_ng%': 0,
 
+    # Point to ICU directory.
+    'icu_src_dir': '../third_party/icu',
+
     'conditions': [
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
