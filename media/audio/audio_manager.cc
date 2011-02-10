@@ -5,6 +5,7 @@
 #include "media/audio/audio_manager.h"
 
 #include "base/at_exit.h"
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 
 namespace {
@@ -19,19 +20,20 @@ class NullAudioManager : public AudioManager {
   NullAudioManager() { }
 
   // Implementation of AudioManager.
-  virtual bool HasAudioOutputDevices() { return false; }
-  virtual bool HasAudioInputDevices() { return false; }
-  virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params) {
+  virtual bool HasAudioOutputDevices() OVERRIDE { return false; }
+  virtual bool HasAudioInputDevices() OVERRIDE { return false; }
+  virtual AudioOutputStream* MakeAudioOutputStream(
+      AudioParameters params) OVERRIDE {
     NOTIMPLEMENTED();
     return NULL;
   }
-  virtual AudioInputStream* MakeAudioInputStream(AudioParameters params,
-                                                 int samples_per_packet) {
+  virtual AudioInputStream* MakeAudioInputStream(
+      AudioParameters params) OVERRIDE {
     NOTIMPLEMENTED();
     return NULL;
   }
-  virtual void MuteAll() { NOTIMPLEMENTED(); }
-  virtual void UnMuteAll() { NOTIMPLEMENTED(); }
+  virtual void MuteAll() OVERRIDE { NOTIMPLEMENTED(); }
+  virtual void UnMuteAll() OVERRIDE { NOTIMPLEMENTED(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullAudioManager);
