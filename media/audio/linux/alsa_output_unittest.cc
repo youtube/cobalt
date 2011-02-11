@@ -80,12 +80,8 @@ class MockAudioManagerLinux : public AudioManagerLinux {
   MOCK_METHOD0(HasAudioInputDevices, bool());
   MOCK_METHOD1(MakeAudioOutputStream, AudioOutputStream*(
       AudioParameters params));
-  MOCK_METHOD5(MakeAudioInputStream, AudioInputStream*(
-      AudioParameters::Format format,
-      int channels,
-      int sample_rate,
-      char bits_per_sample,
-      uint32 samples_per_packet));
+  MOCK_METHOD1(MakeAudioInputStream, AudioInputStream*(
+      AudioParameters params));
   MOCK_METHOD0(MuteAll, void());
   MOCK_METHOD0(UnMuteAll, void());
 
