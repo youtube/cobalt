@@ -60,8 +60,8 @@ install_gold() {
   tar -xjvf $BINUTILS.tar.bz2
   cd $BINUTILS
   ./configure --prefix=/usr/local/gold --enable-gold
-  make -j3
-  if sudo make install
+  make maybe-all-binutils maybe-all-gold -j4
+  if sudo make maybe-install-binutils maybe-install-gold
   then
     # Still need to figure out graceful way of pointing gyp to use
     # /usr/local/gold/bin/ld without requiring him to set environment
