@@ -188,6 +188,47 @@ void GssContextMockImpl::Assign(
   open = other.open;
 }
 
+MockGSSAPILibrary::SecurityContextQuery::SecurityContextQuery()
+    : expected_package(),
+      response_code(0),
+      minor_response_code(0),
+      context_info() {
+  expected_input_token.length = 0;
+  expected_input_token.value = NULL;
+  output_token.length = 0;
+  output_token.value = NULL;
+}
+
+MockGSSAPILibrary::SecurityContextQuery::SecurityContextQuery(
+    const std::string& in_expected_package,
+    OM_uint32 in_response_code,
+    OM_uint32 in_minor_response_code,
+    const test::GssContextMockImpl& in_context_info,
+    const char* in_expected_input_token,
+    const char* in_output_token)
+    : expected_package(in_expected_package),
+      response_code(in_response_code),
+      minor_response_code(in_minor_response_code),
+      context_info(in_context_info) {
+  if (in_expected_input_token) {
+    expected_input_token.length = strlen(in_expected_input_token);
+    expected_input_token.value = const_cast<char*>(in_expected_input_token);
+  } else {
+    expected_input_token.length = 0;
+    expected_input_token.value = NULL;
+  }
+
+  if (in_output_token) {
+    output_token.length = strlen(in_output_token);
+    output_token.value = const_cast<char*>(in_output_token);
+  } else {
+    output_token.length = 0;
+    output_token.value = NULL;
+  }
+}
+
+MockGSSAPILibrary::SecurityContextQuery::~SecurityContextQuery() {}
+
 MockGSSAPILibrary::MockGSSAPILibrary() {
 }
 
