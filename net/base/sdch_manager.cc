@@ -80,7 +80,7 @@ bool SdchManager::Dictionary::CanAdvertise(const GURL& target_url) {
 // static
 bool SdchManager::Dictionary::CanSet(const std::string& domain,
                                      const std::string& path,
-                                     const std::set<int> ports,
+                                     const std::set<int>& ports,
                                      const GURL& dictionary_url) {
   if (!SdchManager::Global()->IsInSupportedDomain(dictionary_url))
     return false;

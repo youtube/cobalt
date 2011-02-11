@@ -194,7 +194,7 @@ class SdchManager {
     // Security methods to check if we can establish a new dictionary with the
     // given data, that arrived in response to get of dictionary_url.
     static bool CanSet(const std::string& domain, const std::string& path,
-                       const std::set<int> ports, const GURL& dictionary_url);
+                       const std::set<int>& ports, const GURL& dictionary_url);
 
     // Security method to check if we can use a dictionary to decompress a
     // target that arrived with a reference to this dictionary.
