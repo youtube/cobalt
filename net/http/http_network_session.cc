@@ -20,7 +20,8 @@ namespace net {
 
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(const Params& params)
-    : proxy_service_(params.proxy_service),
+    : cert_verifier_(NULL),
+      proxy_service_(params.proxy_service),
       ssl_config_service_(params.ssl_config_service),
       socket_pool_manager_(params.net_log,
                            params.client_socket_factory ?
