@@ -52,7 +52,7 @@ class ChildrenDeleter
       public disk_cache::FileIOCallback {
  public:
   ChildrenDeleter(disk_cache::BackendImpl* backend, const std::string& name)
-      : backend_(backend->GetWeakPtr()), name_(name) {}
+      : backend_(backend->GetWeakPtr()), name_(name), signature_(0) {}
 
   virtual void OnFileIOComplete(int bytes_copied);
 
