@@ -109,23 +109,20 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPICycle) {
       1,                              // Locally initiated
       1);                             // Open
   test::MockGSSAPILibrary::SecurityContextQuery queries[] = {
-    { "Negotiate",                    // Package name
-      GSS_S_CONTINUE_NEEDED,          // Major response code
-      0,                              // Minor response code
-      context1,                       // Context
-      { 0, NULL },                           // Expected input token
-      { arraysize(kAuthResponse),
-        const_cast<char*>(kAuthResponse) }   // Output token
-    },
-    { "Negotiate",                    // Package name
-      GSS_S_COMPLETE,                 // Major response code
-      0,                              // Minor response code
-      context2,                       // Context
-      { arraysize(kAuthResponse),
-        const_cast<char*>(kAuthResponse) },  // Expected input token
-      { arraysize(kAuthResponse),
-        const_cast<char*>(kAuthResponse) }   // Output token
-    },
+    test::MockGSSAPILibrary::SecurityContextQuery(
+        "Negotiate",            // Package name
+        GSS_S_CONTINUE_NEEDED,  // Major response code
+        0,                      // Minor response code
+        context1,               // Context
+        NULL,                   // Expected input token
+        kAuthResponse),         // Output token
+    test::MockGSSAPILibrary::SecurityContextQuery(
+        "Negotiate",            // Package name
+        GSS_S_COMPLETE,         // Major response code
+        0,                      // Minor response code
+        context2,               // Context
+        kAuthResponse,          // Expected input token
+        kAuthResponse)          // Output token
   };
 
   for (size_t i = 0; i < arraysize(queries); ++i) {
