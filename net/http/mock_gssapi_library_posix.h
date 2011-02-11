@@ -47,6 +47,15 @@ class MockGSSAPILibrary : public GSSAPILibrary {
  public:
   // Unit tests need access to this. "Friend"ing didn't help.
   struct SecurityContextQuery {
+    SecurityContextQuery();
+    SecurityContextQuery(const std::string& expected_package,
+                         OM_uint32 response_code,
+                         OM_uint32 minor_response_code,
+                         const test::GssContextMockImpl& context_info,
+                         const char* expected_input_token,
+                         const char* output_token);
+    ~SecurityContextQuery();
+
     std::string expected_package;
     OM_uint32 response_code;
     OM_uint32 minor_response_code;
