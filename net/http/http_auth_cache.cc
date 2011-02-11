@@ -150,7 +150,8 @@ void HttpAuthCache::Entry::UpdateStaleChallenge(
 }
 
 HttpAuthCache::Entry::Entry()
-    : nonce_count_(0) {
+    : scheme_(HttpAuth::AUTH_SCHEME_MAX),
+      nonce_count_(0) {
 }
 
 void HttpAuthCache::Entry::AddPath(const std::string& path) {
