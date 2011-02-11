@@ -284,6 +284,12 @@
     'clang_load%': '',
     'clang_add_plugin%': '',
 
+    # If this is set, the clang plugins used on the buildbot will be used.
+    # Run tools/clang/scripts/update.sh to make sure they are compiled.
+    # This causes 'clang_chrome_plugins_flags' to be set.
+    # Has no effect if 'clang' is not set as well.
+    'clang_use_chrome_plugins%': 0,
+
     # Enable sampling based profiler.
     # See http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html
     'profiling%': '0',
@@ -487,6 +493,11 @@
       ['use_third_party_translations==1', {
         'grit_defines': ['-D', 'use_third_party_translations'],
         'locales': ['ast', 'eu', 'gl', 'ka', 'ku', 'ug'],
+      }],
+
+      ['clang_use_chrome_plugins==1', {
+        'clang_chrome_plugins_flags':
+            '<!(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)',
       }],
     ],
   },
@@ -1210,6 +1221,14 @@
                 ],
               }]],
           }],
+          ['clang==1 and clang_use_chrome_plugins==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '<(clang_chrome_plugins_flags)',
+                ],
+              }]],
+          }],
           ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
             'target_conditions': [
               ['_toolset=="target"', {
@@ -1331,6 +1350,11 @@
                 '-Wno-unnamed-type-template-args',
                 # TODO(thakis): Turn on -- http://crbug.com/72205
                 '-Wno-overloaded-virtual',
+              ],
+            }],
+            ['clang==1 and clang_use_chrome_plugins==1', {
+              'OTHER_CFLAGS': [
+                '<(clang_chrome_plugins_flags)',
               ],
             }],
             ['clang==1 and clang_load!="" and clang_add_plugin!=""', {
