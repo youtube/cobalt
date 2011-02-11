@@ -188,12 +188,11 @@ int MapNSSError(PRErrorCode err) {
 
     default: {
       if (IS_SSL_ERROR(err)) {
-        LOG(WARNING) << "Unknown SSL error " << err <<
-            " mapped to net::ERR_SSL_PROTOCOL_ERROR";
+        LOG(WARNING) << "Unknown SSL error " << err
+                     << " mapped to net::ERR_SSL_PROTOCOL_ERROR";
         return ERR_SSL_PROTOCOL_ERROR;
       }
-      LOG(WARNING) << "Unknown error " << err <<
-          " mapped to net::ERR_FAILED";
+      LOG(WARNING) << "Unknown error " << err << " mapped to net::ERR_FAILED";
       return ERR_FAILED;
     }
   }
