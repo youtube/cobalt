@@ -17,7 +17,6 @@
 
 #include "media/base/yuv_convert.h"
 
-#include "build/build_config.h"
 #include "media/base/cpu_features.h"
 #include "media/base/yuv_convert_internal.h"
 #include "media/base/yuv_row.h"
@@ -357,7 +356,7 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
   static void (*convert_proc)(const uint8*, uint8*, uint8*, uint8*,
                               int, int, int, int, int) = NULL;
   if (!convert_proc) {
-#if defined(ARCH_CPU_ARM_FAMILY)
+#ifdef __arm__
     // For ARM processors, always use C version.
     // TODO(hclam): Implement a NEON version.
     convert_proc = &ConvertRGB32ToYUV_C;
