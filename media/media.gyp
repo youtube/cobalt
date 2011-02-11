@@ -419,8 +419,6 @@
         'base/mock_filter_host.h',
         'base/mock_filters.cc',
         'base/mock_filters.h',
-        'video/video_mock_objects.cc',
-        'video/video_mock_objects.h',
       ],
     },
     {
