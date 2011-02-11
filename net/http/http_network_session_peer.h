@@ -6,66 +6,41 @@
 #define NET_HTTP_HTTP_NETWORK_SESSION_PEER_H_
 #pragma once
 
-#include "net/http/http_network_session.h"
-#include "net/http/http_proxy_client_socket_pool.h"
-#include "net/socket/socks_client_socket_pool.h"
-#include "net/socket/ssl_client_socket_pool.h"
+#include "base/ref_counted.h"
 
 namespace net {
+
+class HostPortPair;
+class HttpNetworkSession;
+class HttpProxyClientSocketPool;
+class ProxyService;
+class SOCKSClientSocketPool;
+class SSLClientSocketPool;
+class TCPClientSocketPool;
 
 class HttpNetworkSessionPeer {
  public:
   explicit HttpNetworkSessionPeer(
-      const scoped_refptr<HttpNetworkSession>& session)
-      : session_(session) {}
+      const scoped_refptr<HttpNetworkSession>& session);
+  ~HttpNetworkSessionPeer();
 
-  void SetTCPSocketPool(TCPClientSocketPool* pool) {
-    session_->socket_pool_manager_.tcp_socket_pool_.reset(pool);
-  }
+  void SetTCPSocketPool(TCPClientSocketPool* pool);
 
   void SetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy,
-      SOCKSClientSocketPool* pool) {
-    ClientSocketPoolManager* socket_pool_manager =
-        &session_->socket_pool_manager_;
-
-    // Call through the public interface to force initialization of the
-    // wrapped socket pools.
-    delete socket_pool_manager->GetSocketPoolForSOCKSProxy(socks_proxy);
-    socket_pool_manager->socks_socket_pools_[socks_proxy] = pool;
-  }
+      SOCKSClientSocketPool* pool);
 
   void SetSocketPoolForHTTPProxy(
       const HostPortPair& http_proxy,
-      HttpProxyClientSocketPool* pool) {
-    ClientSocketPoolManager* socket_pool_manager =
-        &session_->socket_pool_manager_;
+      HttpProxyClientSocketPool* pool);
 
-    // Call through the public interface to force initialization of the
-    // wrapped socket pools.
-    delete socket_pool_manager->GetSocketPoolForHTTPProxy(http_proxy);
-    socket_pool_manager->http_proxy_socket_pools_[http_proxy] = pool;
-  }
-
-  void SetSSLSocketPool(SSLClientSocketPool* pool) {
-    session_->socket_pool_manager_.ssl_socket_pool_.reset(pool);
-  }
+  void SetSSLSocketPool(SSLClientSocketPool* pool);
 
   void SetSocketPoolForSSLWithProxy(
       const HostPortPair& proxy_host,
-      SSLClientSocketPool* pool) {
-    ClientSocketPoolManager* socket_pool_manager =
-        &session_->socket_pool_manager_;
+      SSLClientSocketPool* pool);
 
-    // Call through the public interface to force initialization of the
-    // wrapped socket pools.
-    delete socket_pool_manager->GetSocketPoolForSSLWithProxy(proxy_host);
-    socket_pool_manager->ssl_socket_pools_for_proxies_[proxy_host] = pool;
-  }
-
-  void SetProxyService(ProxyService* proxy_service) {
-    session_->proxy_service_ = proxy_service;
-  }
+  void SetProxyService(ProxyService* proxy_service);
 
  private:
   const scoped_refptr<HttpNetworkSession> session_;
