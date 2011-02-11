@@ -218,7 +218,7 @@ LONG RegKey::ReadInt64(const wchar_t* name, int64* value) const {
 LONG RegKey::WriteValue(const wchar_t* name, const void * data,
                         DWORD dsize, DWORD dtype) {
   base::ThreadRestrictions::AssertIOAllowed();
-  DCHECK(data);
+  DCHECK(data || !dsize);
 
   LONG result = RegSetValueEx(key_, name, 0, dtype,
       reinterpret_cast<LPBYTE>(const_cast<void*>(data)), dsize);
