@@ -124,7 +124,8 @@ class CapturePreconnectsSocketPool : public ParentPool {
     ADD_FAILURE();
   }
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket) {
+                             ClientSocket* socket,
+                             int id) {
     ADD_FAILURE();
   }
   virtual void CloseIdleSockets() {
