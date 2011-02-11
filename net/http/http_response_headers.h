@@ -100,9 +100,6 @@ class HttpResponseHeaders
   //
   void GetNormalizedHeaders(std::string* output) const;
 
-  // Gets the raw stored headers, in human-readable form.
-  void GetRawHeaders(std::string* output) const;
-
   // Fetch the "normalized" value of a single header, where all values for the
   // header name are separated by commas.  See the GetNormalizedHeaders for
   // format details.  Returns false if this header wasn't found.
