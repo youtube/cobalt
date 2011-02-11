@@ -416,30 +416,6 @@ void HttpResponseHeaders::GetNormalizedHeaders(std::string* output) const {
   output->push_back('\n');
 }
 
-void HttpResponseHeaders::GetRawHeaders(std::string* output) const {
-  if (!output)
-    return;
-  output->erase();
-  const char* headers_string = raw_headers().c_str();
-  size_t headers_length = raw_headers().length();
-  if (!headers_string)
-    return;
-  // The headers_string is a NULL-terminated status line, followed by NULL-
-  // terminated headers.
-  std::string raw_string = headers_string;
-  size_t current_length = strlen(headers_string) + 1;
-  while (headers_length > current_length) {
-    // Move to the next header, and append it.
-    headers_string += current_length;
-    headers_length -= current_length;
-    raw_string += "\n";
-    raw_string += headers_string;
-    // Get the next header location.
-    current_length = strlen(headers_string) + 1;
-  }
-  *output = raw_string;
-}
-
 bool HttpResponseHeaders::GetNormalizedHeader(const std::string& name,
                                               std::string* value) const {
   // If you hit this assertion, please use EnumerateHeader instead!
