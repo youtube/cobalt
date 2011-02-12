@@ -28,7 +28,7 @@ class TestURLRequestContext : public net::URLRequestContext {
 TestURLRequestContext::TestURLRequestContext()
     : cache_(reinterpret_cast<net::HttpTransactionFactory*>(NULL), NULL,
              net::HttpCache::DefaultBackend::InMemory(0)) {
-  set_http_transaction_factory(&cache_);
+  http_transaction_factory_ = &cache_;
 }
 
 void WriteHeaders(disk_cache::Entry* entry, int flags, const std::string data) {
