@@ -226,11 +226,6 @@ ssl_DestroySID(sslSessionID *sid)
     if (sid->u.ssl3.sessionTicket.ticket.data) {
 	SECITEM_FreeItem(&sid->u.ssl3.sessionTicket.ticket, PR_FALSE);
     }
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-    if (sid->u.ssl3.clPlatformAuthValid) {
-	ssl_FreePlatformAuthInfo(&sid->u.ssl3.clPlatformAuthInfo);
-    }
-#endif   /* NSS_PLATFORM_CLIENT_AUTH */
     
     PORT_ZFree(sid, sizeof(sslSessionID));
 }
