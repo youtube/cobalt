@@ -638,11 +638,6 @@ ConvertToSID(sidCacheEntry *    from,
 	to->u.ssl3.clAuthSeries     = 0;
 	to->u.ssl3.clAuthValid      = PR_FALSE;
 
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-	ssl_InitPlatformAuthInfo(&to->u.ssl3.clPlatformAuthInfo);
-	to->u.ssl3.clPlatformAuthValid = PR_FALSE;
-#endif   /* NSS_PLATFORM_CLIENT_AUTH */
-
 	if (from->u.ssl3.certIndex != -1 && pcce) {
 	    SECItem          derCert;
 
