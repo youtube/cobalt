@@ -15,6 +15,8 @@
 #include <vector>
 
 #include "base/scoped_ptr.h"
+#include "base/synchronization/lock.h"
+#include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "base/timer.h"
 #include "net/base/cert_verify_result.h"
@@ -165,6 +167,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // argument.
   static void HandshakeCallback(PRFileDesc* socket, void* arg);
 
+  // The following methods are for debugging bug 65948. Will remove this code
+  // after fixing bug 65948.
+  void EnsureThreadIdAssigned() const;
+  bool CalledOnValidThread() const;
+
   CompletionCallbackImpl<SSLClientSocketNSS> buffer_send_callback_;
   CompletionCallbackImpl<SSLClientSocketNSS> buffer_recv_callback_;
   bool transport_send_busy_;
@@ -262,6 +269,14 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   scoped_ptr<SSLHostInfo> ssl_host_info_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
+
+  // The following two variables are added for debugging bug 65948. Will
+  // remove this code after fixing bug 65948.
+  // Added the following code Debugging in release mode.
+  mutable base::Lock lock_;
+  // This is mutable so that CalledOnValidThread can set it.
+  // It's guarded by |lock_|.
+  mutable base::PlatformThreadId valid_thread_id_;
 };
 
 }  // namespace net
