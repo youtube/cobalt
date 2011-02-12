@@ -346,6 +346,30 @@
         ],
       },
     },
+    {
+      'target_name': 'ibus',
+      'type': 'settings',
+      'conditions': [
+        ['"<!@(<(pkg-config) --atleast-version=1.3.99 ibus-1.0 || echo $?)"==""', {
+          'variables': {
+            'ibus': 1
+          },
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(<(pkg-config) --cflags ibus-1.0)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other ibus-1.0)',
+            ],
+            'libraries': [
+              '<!@(<(pkg-config) --libs-only-l ibus-1.0)',
+            ],
+          },
+        }],
+      ],
+    },
   ],
 }
 
