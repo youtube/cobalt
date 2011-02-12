@@ -680,11 +680,6 @@ struct sslSessionIDStr {
             char              masterValid;
 	    char              clAuthValid;
 
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-	    PlatformAuthInfo  clPlatformAuthInfo;
-	    char              clPlatformAuthValid;
-#endif  /* NSS_PLATFORM_CLIENT_AUTH */
-
 	    /* Session ticket if we have one, is sent as an extension in the
 	     * ClientHello message.  This field is used by clients.
 	     */
@@ -1752,23 +1747,6 @@ extern SECStatus ssl_FreeSessionCacheLocks(void);
 #ifdef NSS_PLATFORM_CLIENT_AUTH
 // Releases the platform key.
 extern void ssl_FreePlatformKey(PlatformKey key);
-
-// Frees any memory allocated to store a persistent reference to the
-// platform key.
-extern void ssl_FreePlatformAuthInfo(PlatformAuthInfo* info);
-
-// Initializes the PlatformAuthInfo to empty/invalid values.
-extern void ssl_InitPlatformAuthInfo(PlatformAuthInfo* info);
-
-// Determine if the given key is still present in the system. This is used
-// to check for things like smart cards being ejected after handshaking,
-// since no further operations on the key will happen which would detect this.
-extern PRBool ssl_PlatformAuthTokenPresent(PlatformAuthInfo* info);
-
-// Obtain a persistent reference to a key, sufficient for
-// ssl_PlatformAuthTokenPresent to determine if the key is still present.
-extern void ssl_GetPlatformAuthInfoForKey(PlatformKey key,
-                                          PlatformAuthInfo* info);
 
 // Implement the client CertificateVerify message for SSL3/TLS1.0
 extern SECStatus ssl3_PlatformSignHashes(SSL3Hashes *hash,

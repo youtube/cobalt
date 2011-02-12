@@ -2012,10 +2012,7 @@ ssl3_ComputeRecordMAC(
 static PRBool
 ssl3_ClientAuthTokenPresent(sslSessionID *sid) {
 #ifdef NSS_PLATFORM_CLIENT_AUTH
-    if (!sid || !sid->u.ssl3.clPlatformAuthValid) {
-	return PR_TRUE;
-    }
-    return ssl_PlatformAuthTokenPresent(&sid->u.ssl3.clPlatformAuthInfo);
+    return PR_TRUE;
 #else
     PK11SlotInfo *slot = NULL;
     PRBool isPresent = PR_TRUE;
@@ -4837,12 +4834,6 @@ ssl3_SendCertificateVerify(sslSocket *ss)
 #ifdef NSS_PLATFORM_CLIENT_AUTH
     rv = ssl3_PlatformSignHashes(&hashes, ss->ssl3.platformClientKey,
                                  &buf, isTLS);
-    if (rv == SECSuccess) {
-        sslSessionID * sid = ss->sec.ci.sid;
-        ssl_GetPlatformAuthInfoForKey(ss->ssl3.platformClientKey,
-                                      &sid->u.ssl3.clPlatformAuthInfo);
-        sid->u.ssl3.clPlatformAuthValid = PR_TRUE;
-    }
     ssl_FreePlatformKey(ss->ssl3.platformClientKey);
     ss->ssl3.platformClientKey = (PlatformKey)NULL;
 #else /* NSS_PLATFORM_CLIENT_AUTH */
