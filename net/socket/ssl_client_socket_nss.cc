@@ -490,7 +490,8 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       predicted_npn_status_(kNextProtoUnsupported),
       predicted_npn_proto_used_(false),
       ssl_host_info_(ssl_host_info),
-      dns_cert_checker_(dns_ctx) {
+      dns_cert_checker_(dns_ctx),
+      valid_thread_id_(base::kInvalidThreadId) {
   EnterFunction("");
 }
 
@@ -601,6 +602,8 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   DCHECK(!user_write_buf_);
   DCHECK(!pseudo_connected_);
 
+  EnsureThreadIdAssigned();
+
   net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
 
   int rv = Init();
@@ -650,16 +653,18 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
 void SSLClientSocketNSS::Disconnect() {
   EnterFunction("");
 
+  // Shut down anything that may call us back (through buffer_send_callback_,
+  // buffer_recv_callback, or handshake_io_callback_).
+  verifier_.reset();
+  transport_->socket()->Disconnect();
+
+  CHECK(CalledOnValidThread());
+
   // TODO(wtc): Send SSL close_notify alert.
   if (nss_fd_ != NULL) {
     PR_Close(nss_fd_);
     nss_fd_ = NULL;
   }
-
-  // Shut down anything that may call us back (through buffer_send_callback_,
-  // buffer_recv_callback, or handshake_io_callback_).
-  verifier_.reset();
-  transport_->socket()->Disconnect();
 
   // Reset object state
   transport_send_busy_   = false;
@@ -2520,6 +2525,19 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
 
   that->UpdateServerCert();
   that->UpdateConnectionStatus();
+}
+
+void SSLClientSocketNSS::EnsureThreadIdAssigned() const {
+  base::AutoLock auto_lock(lock_);
+  if (valid_thread_id_ != base::kInvalidThreadId)
+    return;
+  valid_thread_id_ = base::PlatformThread::CurrentId();
+}
+
+bool SSLClientSocketNSS::CalledOnValidThread() const {
+  EnsureThreadIdAssigned();
+  base::AutoLock auto_lock(lock_);
+  return valid_thread_id_ == base::PlatformThread::CurrentId();
 }
 
 }  // namespace net
