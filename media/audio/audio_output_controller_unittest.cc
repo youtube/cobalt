@@ -87,11 +87,6 @@ static void CloseAudioController(AudioOutputController* controller) {
   closed_event.Wait();
 }
 
-// This test fails in Release on Windows.
-// http://crbug.com/72718
-#if defined(OS_WIN) && defined(NDEBUG)
-#define CreateAndClose DISABLED_CreateAndClose
-#endif
 TEST(AudioOutputControllerTest, CreateAndClose) {
   if (!HasAudioOutputDevices() || IsRunningHeadless())
     return;
