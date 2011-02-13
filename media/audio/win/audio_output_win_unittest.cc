@@ -286,8 +286,9 @@ TEST(WinAudioTest, PCMWaveStreamOpenLimit) {
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, 8000, 16,
                       1024 * 1024 * 1024));
-  ASSERT_TRUE(NULL == oas);
-  oas->Close();
+  EXPECT_TRUE(NULL == oas);
+  if (oas)
+    oas->Close();
 }
 
 // Test that it uses the triple buffers correctly. Because it uses the actual
