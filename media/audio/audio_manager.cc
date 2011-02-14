@@ -5,39 +5,12 @@
 #include "media/audio/audio_manager.h"
 
 #include "base/at_exit.h"
-#include "base/compiler_specific.h"
 #include "base/logging.h"
 
 namespace {
 
 bool g_destroy_called = false;
 AudioManager* g_audio_manager = NULL;
-
-// NullAudioManager is the audio manager used on the systems that have no
-// audio support.
-class NullAudioManager : public AudioManager {
- public:
-  NullAudioManager() { }
-
-  // Implementation of AudioManager.
-  virtual bool HasAudioOutputDevices() OVERRIDE { return false; }
-  virtual bool HasAudioInputDevices() OVERRIDE { return false; }
-  virtual AudioOutputStream* MakeAudioOutputStream(
-      AudioParameters params) OVERRIDE {
-    NOTIMPLEMENTED();
-    return NULL;
-  }
-  virtual AudioInputStream* MakeAudioInputStream(
-      AudioParameters params) OVERRIDE {
-    NOTIMPLEMENTED();
-    return NULL;
-  }
-  virtual void MuteAll() OVERRIDE { NOTIMPLEMENTED(); }
-  virtual void UnMuteAll() OVERRIDE { NOTIMPLEMENTED(); }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(NullAudioManager);
-};
 
 }  // namespace
 
