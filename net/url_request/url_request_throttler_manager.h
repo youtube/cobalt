@@ -49,9 +49,7 @@ class URLRequestThrottlerManager {
   // It is only used by unit tests.
   void EraseEntryForTests(const GURL& url);
 
-  void set_enforce_throttling(bool enforce_throttling) {
-    enforce_throttling_ = enforce_throttling;
-  }
+  void InitializeOptions(bool enforce_throttling);
 
   bool enforce_throttling() const { return enforce_throttling_; }
 
@@ -103,6 +101,12 @@ class URLRequestThrottlerManager {
   // Whether we would like to reject outgoing HTTP requests during the back-off
   // period.
   bool enforce_throttling_;
+
+  // Whether to record threads that have accessed the URLRequestThrottlerManager
+  // singleton object.
+  // TODO(yzshen): It is used for diagnostic purpose and should be removed once
+  // we figure out crbug.com/71721
+  bool record_access_log_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };
