@@ -79,52 +79,52 @@ void TestCookiePolicy::DoSetCookiePolicy(const GURL& url,
 
 
 TestURLRequestContext::TestURLRequestContext() {
-  set_host_resolver(
+  host_resolver_ =
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
-                                    NULL, NULL));
-  set_proxy_service(net::ProxyService::CreateDirect());
+                                    NULL, NULL);
+  proxy_service_ = net::ProxyService::CreateDirect();
   Init();
 }
 
 TestURLRequestContext::TestURLRequestContext(const std::string& proxy) {
-  set_host_resolver(
+  host_resolver_  =
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
-                                    NULL, NULL));
+                                    NULL, NULL);
   net::ProxyConfig proxy_config;
   proxy_config.proxy_rules().ParseFromString(proxy);
-  set_proxy_service(net::ProxyService::CreateFixed(proxy_config));
+  proxy_service_ = net::ProxyService::CreateFixed(proxy_config);
   Init();
 }
 
 TestURLRequestContext::~TestURLRequestContext() {
-  delete ftp_transaction_factory();
-  delete http_transaction_factory();
-  delete http_auth_handler_factory();
-  delete cert_verifier();
-  delete host_resolver();
+  delete ftp_transaction_factory_;
+  delete http_transaction_factory_;
+  delete http_auth_handler_factory_;
+  delete cert_verifier_;
+  delete host_resolver_;
 }
 
 void TestURLRequestContext::Init() {
-  set_cert_verifier(new net::CertVerifier);
-  set_ftp_transaction_factory(new net::FtpNetworkLayer(host_resolver()));
-  set_ssl_config_service(new net::SSLConfigServiceDefaults);
-  set_http_auth_handler_factory(net::HttpAuthHandlerFactory::CreateDefault(
-      host_resolver()));
+  cert_verifier_ = new net::CertVerifier;
+  ftp_transaction_factory_ = new net::FtpNetworkLayer(host_resolver_);
+  ssl_config_service_ = new net::SSLConfigServiceDefaults;
+  http_auth_handler_factory_ = net::HttpAuthHandlerFactory::CreateDefault(
+      host_resolver_);
   net::HttpNetworkSession::Params params;
-  params.host_resolver = host_resolver();
-  params.cert_verifier = cert_verifier();
-  params.proxy_service = proxy_service();
-  params.ssl_config_service = ssl_config_service();
-  params.http_auth_handler_factory = http_auth_handler_factory();
-  params.network_delegate = network_delegate();
+  params.host_resolver = host_resolver_;
+  params.cert_verifier = cert_verifier_;
+  params.proxy_service = proxy_service_;
+  params.ssl_config_service = ssl_config_service_;
+  params.http_auth_handler_factory = http_auth_handler_factory_;
+  params.network_delegate = network_delegate_;
 
-  set_http_transaction_factory(new net::HttpCache(
+  http_transaction_factory_ = new net::HttpCache(
       new net::HttpNetworkSession(params),
-      net::HttpCache::DefaultBackend::InMemory(0)));
+      net::HttpCache::DefaultBackend::InMemory(0));
   // In-memory cookie store.
-  set_cookie_store(new net::CookieMonster(NULL, NULL));
-  set_accept_language("en-us,fr");
-  set_accept_charset("iso-8859-1,*,utf-8");
+  cookie_store_ = new net::CookieMonster(NULL, NULL);
+  accept_language_ = "en-us,fr";
+  accept_charset_ = "iso-8859-1,*,utf-8";
 }
 
 
