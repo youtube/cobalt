@@ -75,22 +75,21 @@ class URLRequestContext
   }
 
   DnsCertProvenanceChecker* dns_cert_checker() const {
-    return dns_cert_checker_;
-  }
-  void set_dns_cert_checker(net::DnsCertProvenanceChecker* dns_cert_checker) {
-    dns_cert_checker_ = dns_cert_checker;
+    return dns_cert_checker_.get();
   }
 
   // Get the proxy service for this context.
-  ProxyService* proxy_service() const { return proxy_service_; }
+  ProxyService* proxy_service() const {
+    return proxy_service_;
+  }
+
   void set_proxy_service(ProxyService* proxy_service) {
     proxy_service_ = proxy_service;
   }
 
   // Get the ssl config service for this context.
-  SSLConfigService* ssl_config_service() const { return ssl_config_service_; }
-  void set_ssl_config_service(net::SSLConfigService* service) {
-    ssl_config_service_ = service;
+  SSLConfigService* ssl_config_service() const {
+    return ssl_config_service_;
   }
 
   // Gets the HTTP Authentication Handler Factory for this context.
@@ -106,6 +105,7 @@ class URLRequestContext
   HttpTransactionFactory* http_transaction_factory() const {
     return http_transaction_factory_;
   }
+
   void set_http_transaction_factory(HttpTransactionFactory* factory) {
     http_transaction_factory_ = factory;
   }
@@ -114,49 +114,33 @@ class URLRequestContext
   FtpTransactionFactory* ftp_transaction_factory() {
     return ftp_transaction_factory_;
   }
-  void set_ftp_transaction_factory(net::FtpTransactionFactory* factory) {
-    ftp_transaction_factory_ = factory;
-  }
 
   void set_network_delegate(HttpNetworkDelegate* network_delegate) {
     network_delegate_ = network_delegate;
   }
-  HttpNetworkDelegate* network_delegate() const { return network_delegate_; }
+  HttpNetworkDelegate* network_delegate() { return network_delegate_; }
 
   // Gets the cookie store for this context (may be null, in which case
   // cookies are not stored).
-  CookieStore* cookie_store() const { return cookie_store_.get(); }
+  CookieStore* cookie_store() { return cookie_store_.get(); }
+
   void set_cookie_store(CookieStore* cookie_store);
 
   // Gets the cookie policy for this context (may be null, in which case
   // cookies are allowed).
-  CookiePolicy* cookie_policy() const { return cookie_policy_; }
-  void set_cookie_policy(CookiePolicy* cookie_policy) {
-    cookie_policy_ = cookie_policy;
-  }
+  CookiePolicy* cookie_policy() { return cookie_policy_; }
 
-  TransportSecurityState* transport_security_state() const {
-      return transport_security_state_;
-  }
-  void set_transport_security_state(
-      net::TransportSecurityState* state) {
-    transport_security_state_ = state;
-  }
+  TransportSecurityState* transport_security_state() {
+      return transport_security_state_; }
 
   // Gets the FTP authentication cache for this context.
   FtpAuthCache* ftp_auth_cache() { return &ftp_auth_cache_; }
 
   // Gets the value of 'Accept-Charset' header field.
   const std::string& accept_charset() const { return accept_charset_; }
-  void set_accept_charset(const std::string& accept_charset) {
-    accept_charset_ = accept_charset;
-  }
 
   // Gets the value of 'Accept-Language' header field.
   const std::string& accept_language() const { return accept_language_; }
-  void set_accept_language(const std::string& accept_language) {
-    accept_language_ = accept_language;
-  }
 
   // Gets the UA string to use for the given URL.  Pass an invalid URL (such as
   // GURL()) to get the default UA string.  Subclasses should override this
@@ -180,20 +164,18 @@ class URLRequestContext
 
   virtual ~URLRequestContext();
 
- private:
-  // Indicates whether or not this is the main URLRequestContext.
-  bool is_main_;
-
-  // Ownership for these members are not defined here. Clients should either
-  // provide storage elsewhere or have a subclass take ownership.
+  // The following members are expected to be initialized and owned by
+  // subclasses.
   NetLog* net_log_;
   HostResolver* host_resolver_;
   CertVerifier* cert_verifier_;
   DnsRRResolver* dnsrr_resolver_;
-  DnsCertProvenanceChecker* dns_cert_checker_;
-  HttpAuthHandlerFactory* http_auth_handler_factory_;
+  scoped_ptr<DnsCertProvenanceChecker> dns_cert_checker_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
+  HttpTransactionFactory* http_transaction_factory_;
+  FtpTransactionFactory* ftp_transaction_factory_;
+  HttpAuthHandlerFactory* http_auth_handler_factory_;
   HttpNetworkDelegate* network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;
   CookiePolicy* cookie_policy_;
@@ -206,8 +188,9 @@ class URLRequestContext
   // filename for file download.
   std::string referrer_charset_;
 
-  HttpTransactionFactory* http_transaction_factory_;
-  FtpTransactionFactory* ftp_transaction_factory_;
+ private:
+  // Indicates whether or not this is the main URLRequestContext.
+  bool is_main_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };
