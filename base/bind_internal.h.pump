@@ -1,0 +1,237 @@
+$$ This is a pump file for generating file templates.  Pump is a python
+$$ script that is part of the Google Test suite of utilities.  Description
+$$ can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$var MAX_ARITY = 6
+
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef BASE_BIND_INTERNAL_H_
+#define BASE_BIND_INTERNAL_H_
+#pragma once
+
+#include "base/bind_helpers.h"
+#include "base/callback_helpers.h"
+#include "base/template_util.h"
+
+namespace base {
+namespace internal {
+
+// The method by which a function is invoked is determined by 3 different
+// dimensions:
+//
+//   1) The type of function (normal, method, const-method)
+//   2) The arity of the function
+//   3) The number of bound parameters.
+//
+// The FunctionTraitsN classes unwrap the function signature type to
+// specialize based on the first two dimensions.  The N in FunctionTraitsN
+// specifies the 3rd dimension.  We could have specified the unbound parameters
+// via template parameters, but this method looked cleaner.
+//
+// The FunctionTraitsN contains a static DoInvoke() function that is the key to
+// implementing type erasure in the Callback() classes.  DoInvoke() is a static
+// function with a fixed signature that is independent of StorageType; its
+// first argument is a pointer to the non-templated common baseclass of
+// StorageType. This lets us store pointer to DoInvoke() in a function pointer
+// that has knowledge of the specific StorageType, and thus no knowledge of the
+// bound function and bound parameter types.
+//
+// As long as we ensure that DoInvoke() is only used with pointers there were
+// upcasted from the correct StorageType, we can be sure that execution is
+// safe.
+
+$range BOUND 0..MAX_ARITY
+$for BOUND [[
+
+template <typename StorageType, typename Sig>
+struct FunctionTraits$(BOUND);
+
+$range ARITY 0..MAX_ARITY
+$for ARITY [[
+
+$var UNBOUND = ARITY - BOUND
+$if UNBOUND >= 0 [[
+
+$$ Variables for function traits generation.
+$range ARG 1..ARITY
+$range BOUND_ARG 1..BOUND
+$range UNBOUND_ARG (ARITY - UNBOUND + 1)..ARITY
+
+$$ Variables for method traits generation. We are always short one arity since
+$$ the first bound parameter is the object.
+$var M_ARITY = ARITY - 1
+$range M_ARG 1..M_ARITY
+$range M_BOUND_ARG 2..BOUND
+$range M_UNBOUND_ARG (M_ARITY - UNBOUND + 1)..M_ARITY
+
+// Function: Arity $(ARITY) -> $(UNBOUND).
+template <typename StorageType, typename R[[]]
+$if ARITY > 0 [[,]][[]]
+$for ARG , [[typename X$(ARG)]]>
+struct FunctionTraits$(BOUND)<StorageType, R(*)($for ARG , [[X$(ARG)]])> {
+$if ARITY > 0 [[
+
+  COMPILE_ASSERT(
+      !($for ARG || [[ is_non_const_reference<X$(ARG)>::value ]]),
+      do_not_bind_functions_with_nonconst_ref);
+
+]]
+
+  typedef base::false_type IsMethod;
+
+  static R DoInvoke(InvokerStorageBase* base[[]]
+$if UNBOUND != 0 [[, ]][[]]
+$for UNBOUND_ARG , [[const X$(UNBOUND_ARG)& x$(UNBOUND_ARG)]]) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    return invoker->f_($for BOUND_ARG , [[Unwrap(invoker->p$(BOUND_ARG)_)]][[]]
+$$ Add comma if there are both boudn and unbound args.
+$if UNBOUND > 0 [[$if BOUND > 0 [[, ]]]][[]]
+$for UNBOUND_ARG , [[x$(UNBOUND_ARG)]]);
+  }
+};
+
+$if BOUND > 0 [[
+
+// Method: Arity $(M_ARITY) -> $(UNBOUND).
+template <typename StorageType, typename R, typename T[[]]
+$if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
+struct FunctionTraits$(BOUND)<StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]])> {
+$if M_ARITY > 0 [[
+
+  COMPILE_ASSERT(
+      !($for M_ARG || [[ is_non_const_reference<X$(M_ARG)>::value ]]),
+      do_not_bind_functions_with_nonconst_ref);
+
+]]
+
+  typedef base::true_type IsMethod;
+
+  static R DoInvoke(InvokerStorageBase* base[[]]
+$if UNBOUND > 0 [[, ]][[]]
+$for M_UNBOUND_ARG , [[const X$(M_UNBOUND_ARG)& x$(M_UNBOUND_ARG)]]) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    return (Unwrap(invoker->p1_)->*invoker->f_)([[]]
+$for M_BOUND_ARG , [[Unwrap(invoker->p$(M_BOUND_ARG)_)]][[]]
+$if UNBOUND > 0 [[$if BOUND > 1 [[, ]]]][[]]
+$for M_UNBOUND_ARG , [[x$(M_UNBOUND_ARG)]]);
+  }
+};
+
+// Const Method: Arity $(M_ARITY) -> $(UNBOUND).
+template <typename StorageType, typename R, typename T[[]]
+$if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
+struct FunctionTraits$(BOUND)<StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]]) const> {
+$if M_ARITY > 0 [[
+
+  COMPILE_ASSERT(
+      !($for M_ARG || [[is_non_const_reference<X$(M_ARG)>::value ]]),
+      do_not_bind_functions_with_nonconst_ref);
+
+]]
+
+  typedef base::true_type IsMethod;
+
+  static R DoInvoke(InvokerStorageBase* base[[]]
+$if UNBOUND > 0 [[, ]]
+[[]] $for M_UNBOUND_ARG , [[const X$(M_UNBOUND_ARG)& x$(M_UNBOUND_ARG)]]) {
+    StorageType* invoker = static_cast<StorageType*>(base);
+    return (Unwrap(invoker->p1_)->*invoker->f_)([[]]
+$for M_BOUND_ARG , [[Unwrap(invoker->p$(M_BOUND_ARG)_)]][[]]
+$if UNBOUND > 0 [[$if BOUND > 1 [[, ]]]][[]]
+$for M_UNBOUND_ARG , [[x$(M_UNBOUND_ARG)]]);
+  }
+};
+
+]]  $$ if BOUND
+
+]]  $$ if UNBOUND
+]]  $$ for ARITY
+]]  $$ for BOUND
+
+
+// These are the actual storage classes for the invokers.
+//
+// Though these types are "classes", they are being used as structs with
+// all member variable public.  We cannot make it a struct because it inherits
+// from a class which causes a compiler warning.  We cannot add a "Run()" method
+// that forwards the unbound arguments because that would require we unwrap the
+// Sig type like in FunctionTraitsN above to know the return type, and the arity
+// of Run().
+//
+// An alternate solution would be to merge FunctionTraitsN and InvokerStorageN,
+// but the generated code seemed harder to read.
+
+$for BOUND [[
+$range BOUND_ARG 1..BOUND
+
+template <typename Sig[[]]
+$if BOUND > 0 [[, ]]
+$for BOUND_ARG , [[typename P$(BOUND_ARG)]]>
+class InvokerStorage$(BOUND) : public InvokerStorageBase {
+ public:
+  typedef InvokerStorage$(BOUND) StorageType;
+  typedef FunctionTraits$(BOUND)<StorageType, Sig> FunctionTraits;
+  typedef typename FunctionTraits::IsMethod IsMethod;
+
+$for BOUND_ARG [[
+$if BOUND_ARG == 1 [[
+
+  // For methods, we need to be careful for parameter 1.  We skip the
+  // scoped_refptr check because the binder itself takes care of this. We also
+  // disallow binding of an array as the method's target object.
+  COMPILE_ASSERT(IsMethod::value ||
+                 !internal::UnsafeBindtoRefCountedArg<P$(BOUND_ARG)>::value,
+                 p$(BOUND_ARG)_is_refcounted_type_and_needs_scoped_refptr);
+  COMPILE_ASSERT(!IsMethod::value || !is_array<P$(BOUND_ARG)>::value,
+                 first_bound_argument_to_method_cannot_be_array);
+]] $else [[
+
+  COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P$(BOUND_ARG)>::value,
+                 p$(BOUND_ARG)_is_refcounted_type_and_needs_scoped_refptr);
+]]  $$ $if BOUND_ARG
+]]  $$ $for BOUND_ARG
+
+
+
+  InvokerStorage$(BOUND)(Sig f
+$if BOUND > 0 [[, ]]
+$for BOUND_ARG , [[const P$(BOUND_ARG)& p$(BOUND_ARG)]])
+      : f_(f)[[]]
+$if BOUND == 0 [[
+ {
+
+]] $else [[
+, $for BOUND_ARG , [[p$(BOUND_ARG)_(static_cast<typename BindType<P$(BOUND_ARG)>::StorageType>(p$(BOUND_ARG)))]] {
+    MaybeRefcount<IsMethod, P1>::AddRef(p1_);
+
+]]
+  }
+
+  virtual ~InvokerStorage$(BOUND)() {
+$if BOUND > 0 [[
+
+    MaybeRefcount<IsMethod, P1>::Release(p1_);
+
+]]
+  }
+
+  Sig f_;
+
+$for BOUND_ARG [[
+  typename BindType<P$(BOUND_ARG)>::StorageType p$(BOUND_ARG)_;
+
+]]
+};
+
+]]  $$ for BOUND
+
+}  // namespace internal
+}  // namespace base
+
+#endif  // BASE_BIND_INTERNAL_H_
