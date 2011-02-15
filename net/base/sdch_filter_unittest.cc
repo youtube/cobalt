@@ -827,10 +827,10 @@ static std::string gzip_compress(const std::string &input) {
   zlib_stream.avail_out -= sizeof(kGZipHeader);
 
   // Do deflate
-  code = MOZ_Z_deflate(&zlib_stream, Z_FINISH);
+  code = deflate(&zlib_stream, Z_FINISH);
   gzip_compressed_length -= zlib_stream.avail_out;
   std::string compressed(gzip_compressed.get(), gzip_compressed_length);
-  MOZ_Z_deflateEnd(&zlib_stream);
+  deflateEnd(&zlib_stream);
   return compressed;
 }
 
