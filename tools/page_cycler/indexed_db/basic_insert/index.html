@@ -8,7 +8,9 @@
 
   var failed = false;
   function error(event) {
-    log('Error ' + event.code + ': ' + event.message);
+    // TODO(jorlow): Remove the old non-event.target part.
+    log('Error ' + (event.code || event.target.errorCode) + ': '
+        + (event.message || event.target.webkitErrorMessage));
 
     if (!failed)
       testComplete(TEST_FAILED);
@@ -25,7 +27,8 @@
   }
 
   function onOpen() {
-    window.db = event.result;
+    // TODO(jorlow): Remove the old non-event.target part.
+    window.db = event.result || event.target.result;
 
     var request = db.setVersion('1');
     request.onerror = error;
@@ -33,7 +36,8 @@
   }
 
   function onSetVersion() {
-    var transaction = event.result;
+    // TODO(jorlow): Remove the old non-event.target part.
+    var transaction = event.result || event.target.result;
     transaction.onerror = error;
     transaction.oncomplete = storeCreated;
 
@@ -44,7 +48,7 @@
   }
 
   function storeCreated() {
-    var transaction = db.transaction([], IDBTransaction.READ_WRITE, 0);
+    var transaction = db.transaction([], IDBTransaction.READ_WRITE);
     transaction.oncomplete = insertsDone;
     transaction.onabort = error;
 
