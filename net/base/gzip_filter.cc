@@ -6,15 +6,6 @@
 
 #if defined(USE_SYSTEM_ZLIB)
 #include <zlib.h>
-// The code below uses the MOZ_Z_ forms of these functions in order that things
-// should work on Windows. In order to make this code cross platform, we map
-// back to the normal functions here in the case that we are using the system
-// zlib.
-#define MOZ_Z_inflate inflate
-#define MOZ_Z_inflateEnd inflateEnd
-#define MOZ_Z_inflateInit2_ inflateInit2_
-#define MOZ_Z_inflateInit_ inflateInit_
-#define MOZ_Z_inflateReset inflateReset
 #else
 #include "third_party/zlib/zlib.h"
 #endif
@@ -36,7 +27,7 @@ GZipFilter::GZipFilter(const FilterContext& filter_context)
 
 GZipFilter::~GZipFilter() {
   if (decoding_status_ != DECODING_UNINITIALIZED) {
-    MOZ_Z_inflateEnd(zlib_stream_.get());
+    inflateEnd(zlib_stream_.get());
   }
 }
 
@@ -224,7 +215,7 @@ Filter::FilterStatus GZipFilter::DoInflate(char* dest_buffer, int* dest_len) {
   zlib_stream_.get()->next_out = bit_cast<Bytef*>(dest_buffer);
   zlib_stream_.get()->avail_out = *dest_len;
 
-  int inflate_code = MOZ_Z_inflate(zlib_stream_.get(), Z_NO_FLUSH);
+  int inflate_code = inflate(zlib_stream_.get(), Z_NO_FLUSH);
   int bytesWritten = *dest_len - zlib_stream_.get()->avail_out;
 
   Filter::FilterStatus status;
@@ -284,13 +275,13 @@ bool GZipFilter::InsertZlibHeader() {
   if (zlib_header_added_)
     return false;
 
-  MOZ_Z_inflateReset(zlib_stream_.get());
+  inflateReset(zlib_stream_.get());
   zlib_stream_.get()->next_in = bit_cast<Bytef*>(&dummy_head[0]);
   zlib_stream_.get()->avail_in = sizeof(dummy_head);
   zlib_stream_.get()->next_out = bit_cast<Bytef*>(&dummy_output[0]);
   zlib_stream_.get()->avail_out = sizeof(dummy_output);
 
-  int code = MOZ_Z_inflate(zlib_stream_.get(), Z_NO_FLUSH);
+  int code = inflate(zlib_stream_.get(), Z_NO_FLUSH);
   zlib_header_added_ = true;
 
   return (code == Z_OK);
