@@ -259,10 +259,12 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
 }
 
 SpdySession::~SpdySession() {
-  state_ = CLOSED;
+  if (state_ != CLOSED) {
+    state_ = CLOSED;
 
-  // Cleanup all the streams.
-  CloseAllStreams(net::ERR_ABORTED);
+    // Cleanup all the streams.
+    CloseAllStreams(net::ERR_ABORTED);
+  }
 
   if (connection_->is_initialized()) {
     // With Spdy we can't recycle sockets.
