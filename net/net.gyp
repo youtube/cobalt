@@ -1020,9 +1020,6 @@
               '../build/linux/system.gyp:gtk',
               '../build/linux/system.gyp:nss',
             ],
-            'sources!': [
-              'base/sdch_filter_unittest.cc',
-            ],
           },
           {  # else: OS is not in the above list
             'sources!': [
