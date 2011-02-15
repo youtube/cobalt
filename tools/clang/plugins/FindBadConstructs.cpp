@@ -135,8 +135,25 @@ class FindBadConstructsConsumer : public ChromeClassTester {
 
   // Makes sure there is a "virtual" keyword on virtual methods and that there
   // are no inline function bodies on them (but "{}" is allowed).
+  //
+  // Gmock objects trigger these for each MOCK_BLAH() macro used. So we have a
+  // trick to get around that. If a class has member variables whose types are
+  // in the "testing" namespace (which is how gmock works behind the scenes),
+  // there's a really high chance we won't care about these errors
   void CheckVirtualMethods(const SourceLocation& record_location,
                            CXXRecordDecl* record) {
+    for (CXXRecordDecl::field_iterator it = record->field_begin();
+         it != record->field_end(); ++it) {
+      CXXRecordDecl* record_type =
+          it->getTypeSourceInfo()->getTypeLoc().getTypePtr()->
+          getAsCXXRecordDecl();
+      if (record_type) {
+        if (InTestingNamespace(record_type)) {
+          return;
+        }
+      }
+    }
+
     for (CXXRecordDecl::method_iterator it = record->method_begin();
          it != record->method_end(); ++it) {
       if (it->isCopyAssignmentOperator() ||

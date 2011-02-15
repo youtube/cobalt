@@ -31,6 +31,11 @@ class ChromeClassTester : public clang::ASTConsumer {
   // printing.
   void emitWarning(clang::SourceLocation loc, const char* error);
 
+  // Utility method for subclasses to check if testing details are in this
+  // class. Some tests won't care if a class has a ::testing member and others
+  // will.
+  bool InTestingNamespace(clang::Decl* record);
+
  private:
   // Template method which is called with only classes that are defined in
   // chrome header files.
@@ -39,13 +44,12 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   // Utility methods used for filtering out non-chrome classes (and ones we
   // delibrately ignore) in HandleTagDeclDefinition().
-  bool IsTestCode(clang::Decl* record);
   bool InBannedNamespace(clang::Decl* record);
   std::string GetNamespace(clang::Decl* record);
   std::string GetNamespaceImpl(const clang::DeclContext* context,
                                std::string candidate);
   bool InBannedDirectory(const clang::SourceLocation& loc);
-  bool IsIgnoredType(clang::RecordDecl* record);
+  bool IsIgnoredType(const std::string& base_name);
 
   clang::CompilerInstance& instance_;
   clang::Diagnostic& diagnostic_;
