@@ -6,6 +6,8 @@
 #define BASE_TEMPLATE_UTIL_H_
 #pragma once
 
+#include <cstddef>  // For size_t.
+
 #include "build/build_config.h"
 
 namespace base {
@@ -27,14 +29,22 @@ typedef integral_constant<bool, false> false_type;
 template <class T> struct is_pointer : false_type {};
 template <class T> struct is_pointer<T*> : true_type {};
 
+template<class> struct is_array : public false_type {};
+template<class T, size_t n> struct is_array<T[n]> : public true_type {};
+template<class T> struct is_array<T[]> : public true_type {};
+
+template <class T> struct is_non_const_reference : false_type {};
+template <class T> struct is_non_const_reference<T&> : true_type {};
+template <class T> struct is_non_const_reference<const T&> : false_type {};
+
 namespace internal {
 
-// Types small_ and big_ are guaranteed such that sizeof(small_) <
-// sizeof(big_)
-typedef char small_;
+// Types YesType and NoType are guaranteed such that sizeof(YesType) <
+// sizeof(NoType).
+typedef char YesType;
 
-struct big_ {
-  small_ dummy[2];
+struct NoType {
+  YesType dummy[2];
 };
 
 #if !defined(OS_WIN)
@@ -50,12 +60,22 @@ struct big_ {
 
 template <typename From, typename To>
 struct ConvertHelper {
-  static small_ Test(To);
-  static big_ Test(...);
+  static YesType Test(To);
+  static NoType Test(...);
   static From Create();
 };
 
 #endif  // !defined(OS_WIN)
+
+// Used to determine if a type is a struct/union/class. Inspired by Boost's
+// is_class type_trait implementation.
+struct IsClassHelper {
+  template <typename C>
+  static YesType Test(void(C::*)(void));
+
+  template <typename C>
+  static NoType Test(...);
+};
 
 }  // namespace internal
 
@@ -67,10 +87,17 @@ struct is_convertible
     : integral_constant<bool,
                         sizeof(internal::ConvertHelper<From, To>::Test(
                                   internal::ConvertHelper<From, To>::Create()))
-                        == sizeof(internal::small_)> {
+                        == sizeof(internal::YesType)> {
 };
 
 #endif  // !defined(OS_WIN)
+
+template <typename T>
+struct is_class
+    : integral_constant<bool,
+                        sizeof(internal::IsClassHelper::Test<T>(0)) ==
+                            sizeof(internal::YesType)> {
+};
 
 }  // namespace base
 
