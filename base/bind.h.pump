@@ -1,0 +1,71 @@
+$$ This is a pump file for generating file templates.  Pump is a python
+$$ script that is part of the Google Test suite of utilities.  Description
+$$ can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$var MAX_ARITY = 6
+
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef BASE_BIND_H_
+#define BASE_BIND_H_
+#pragma once
+
+#include "base/bind_internal.h"
+#include "base/callback_helpers.h"
+
+// See base/callback.h for how to use these functions.
+//
+// IMPLEMENTATION NOTE
+// Though Bind()'s result is meant to be stored in a Callback<> type, it
+// cannot actually return the exact type without requiring a large amount
+// of extra template specializations. The problem is that in order to
+// discern the correct specialization of Callback<>, Bind would need to
+// unwrap the function signature to determine the signature's arity, and
+// whether or not it is a method.
+//
+// Each unique combination of (arity, function_type, num_prebound) where
+// function_type is one of {function, method, const_method} would require
+// one specialization.  We eventually have to do a similar number of
+// specializations anyways in the implementation (see the FunctionTraitsN,
+// classes).  However, it is avoidable in Bind if we return the result
+// via an indirection like we do below.
+
+namespace base {
+
+$range BOUND 0..MAX_ARITY
+$for BOUND [[
+$range BOUND_ARG 1..BOUND
+
+$if BOUND == 0 [[
+
+template <typename Sig>
+internal::InvokerStorageHolder<internal::InvokerStorage0<Sig> >
+Bind(Sig f) {
+  return internal::MakeInvokerStorageHolder(
+      new internal::InvokerStorage0<Sig>(f));
+}
+
+]] $else [[
+
+template <typename Sig, $for BOUND_ARG , [[typename P$(BOUND_ARG)]]>
+internal::InvokerStorageHolder<internal::InvokerStorage$(BOUND)<Sig,
+$for BOUND_ARG , [[P$(BOUND_ARG)]]> >
+Bind(Sig f, $for BOUND_ARG , [[const P$(BOUND_ARG)& p$(BOUND_ARG)]]) {
+  return internal::MakeInvokerStorageHolder(
+      new internal::InvokerStorage$(BOUND)<Sig, [[]]
+$for BOUND_ARG , [[P$(BOUND_ARG)]]>(
+          f, $for BOUND_ARG , [[p$(BOUND_ARG)]]));
+}
+
+]]
+
+]]  $$ for BOUND
+
+}  // namespace base
+
+#endif  // BASE_BIND_H_
