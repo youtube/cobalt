@@ -52,14 +52,14 @@ TEST(TemplateUtilTest, IsConvertible) {
 #endif  // !defined(OS_WIN)
 
 TEST(TemplateUtilTest, IsClass) {
-  EXPECT_EQ(true, is_class<AStruct>::value);
-  EXPECT_EQ(true, is_class<AClass>::value);
+  EXPECT_TRUE(is_class<AStruct>::value);
+  EXPECT_TRUE(is_class<AClass>::value);
 
-  EXPECT_EQ(false, is_class<AnEnum>::value);
-  EXPECT_EQ(false, is_class<int>::value);
-  EXPECT_EQ(false, is_class<char*>::value);
-  EXPECT_EQ(false, is_class<int&>::value);
-  EXPECT_EQ(false, is_class<char[3]>::value);
+  EXPECT_FALSE(is_class<AnEnum>::value);
+  EXPECT_FALSE(is_class<int>::value);
+  EXPECT_FALSE(is_class<char*>::value);
+  EXPECT_FALSE(is_class<int&>::value);
+  EXPECT_FALSE(is_class<char[3]>::value);
 }
 
 }  // namespace
