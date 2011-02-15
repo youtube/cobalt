@@ -176,9 +176,15 @@ bool ChromeClassTester::InBannedDirectory(const SourceLocation& loc) {
         return true;
       }
 
-      // Strip preceding path crap.
-      if (starts_with(b, "./"))
-        b = b.substr(2);
+      // Strip out all preceding path garbage. Linux and mac builds have
+      // different path garbage, but after doing this, the path should be
+      // relative to the root of the source tree. (If we didn't require
+      // relative paths, we could have just used realpath().)
+      if (!b.empty() && b[0] != '/') {
+        size_t i = 0;
+        for (; i < b.size() && (b[i] == '.' || b[i] == '/'); ++i) {}
+        b = b.substr(i);
+      }
 
       for (std::vector<std::string>::const_iterator it =
                banned_directories_.begin();
