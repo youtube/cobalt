@@ -67,6 +67,14 @@ ChromeClassTester::ChromeClassTester(CompilerInstance& instance)
   // Because of chrome frame
   ignored_record_names_.push_back("ReliabilityTestSuite");
 
+  // Used over in the net unittests. A large enough bundle of integers with 1
+  // non-pod class member. Probably harmless.
+  ignored_record_names_.push_back("MockTransaction");
+
+  // Used heavily in app_unittests and once in views_unittests. Fixing this
+  // isn't worth the overhead of an additional library.
+  ignored_record_names_.push_back("TestAnimationDelegate");
+
   // Part of our public interface that nacl and friends use. (Arguably, this
   // should mean that this is a higher priority but fixing this looks hard.)
   ignored_record_names_.push_back("PluginVersionInfo");
@@ -167,7 +175,7 @@ bool ChromeClassTester::InBannedDirectory(const SourceLocation& loc) {
       std::string b(buffer_name);
 
       // Don't complain about these things in implementation files.
-      if (ends_with(b, ".cc") || ends_with(b, ".cpp")) {
+      if (ends_with(b, ".cc") || ends_with(b, ".cpp") || ends_with(b, ".mm")) {
         return true;
       }
 
