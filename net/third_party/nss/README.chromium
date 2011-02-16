@@ -45,10 +45,14 @@ Patches:
   * Add OCSP stapling support
     patches/ocspstapling.patch
 
+  * Add support for client auth with native crypto APIs on Mac and Windows
+    patches/clientauth.patch
+    ssl/sslplatf.c
+
   * Don't send a client certificate when renegotiating if the peer does not
     request one. This only happened if the previous key exchange algorithm
     was non-RSA.
-    patches/dheclientauth.patch
+    patches/clientauth.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=616757
 
 The ssl/bodge directory contains files taken from the NSS repo that we required
