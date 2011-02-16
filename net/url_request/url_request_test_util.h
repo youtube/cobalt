@@ -76,6 +76,10 @@ class TestURLRequestContext : public net::URLRequestContext {
   TestURLRequestContext();
   explicit TestURLRequestContext(const std::string& proxy);
 
+  void set_cookie_policy(net::CookiePolicy* policy) {
+    cookie_policy_ = policy;
+  }
+
  protected:
   virtual ~TestURLRequestContext();
 
