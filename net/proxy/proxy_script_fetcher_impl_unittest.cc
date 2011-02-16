@@ -41,30 +41,30 @@ class RequestContext : public URLRequestContext {
  public:
   RequestContext() {
     ProxyConfig no_proxy;
-    host_resolver_ =
+    set_host_resolver(
         CreateSystemHostResolver(HostResolver::kDefaultParallelism,
-                                      NULL, NULL);
-    cert_verifier_ = new CertVerifier;
-    proxy_service_ = ProxyService::CreateFixed(no_proxy);
-    ssl_config_service_ = new SSLConfigServiceDefaults;
+                                      NULL, NULL));
+    set_cert_verifier(new CertVerifier);
+    set_proxy_service(ProxyService::CreateFixed(no_proxy));
+    set_ssl_config_service(new SSLConfigServiceDefaults);
 
     HttpNetworkSession::Params params;
-    params.host_resolver = host_resolver_;
-    params.cert_verifier = cert_verifier_;
-    params.proxy_service = proxy_service_;
-    params.ssl_config_service = ssl_config_service_;
+    params.host_resolver = host_resolver();
+    params.cert_verifier = cert_verifier();
+    params.proxy_service = proxy_service();
+    params.ssl_config_service = ssl_config_service();
     scoped_refptr<HttpNetworkSession> network_session(
         new HttpNetworkSession(params));
-    http_transaction_factory_ = new HttpCache(
+    set_http_transaction_factory(new HttpCache(
         network_session,
-        HttpCache::DefaultBackend::InMemory(0));
+        HttpCache::DefaultBackend::InMemory(0)));
   }
 
  private:
   ~RequestContext() {
-    delete http_transaction_factory_;
-    delete cert_verifier_;
-    delete host_resolver_;
+    delete http_transaction_factory();
+    delete cert_verifier();
+    delete host_resolver();
   }
 };
 
