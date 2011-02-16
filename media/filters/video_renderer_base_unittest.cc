@@ -102,7 +102,8 @@ class VideoRendererBaseTest : public ::testing::Test {
         .WillOnce(Return(true));
 
     // Initialize, we shouldn't have any reads.
-    renderer_->Initialize(decoder_, NewExpectedCallback());
+    renderer_->Initialize(decoder_,
+                          NewExpectedCallback(), NewStatisticsCallback());
     EXPECT_EQ(0u, read_queue_.size());
 
     // Now seek to trigger prerolling.
@@ -157,11 +158,17 @@ class VideoRendererBaseTest : public ::testing::Test {
   static const size_t kHeight;
   static const int64 kDuration;
 
+  StatisticsCallback* NewStatisticsCallback() {
+    return NewCallback(&stats_callback_object_,
+                       &MockStatisticsCallback::OnStatistics);
+  }
+
   // Fixture members.
   scoped_refptr<MockVideoRendererBase> renderer_;
   scoped_refptr<MockVideoDecoder> decoder_;
   StrictMock<MockFilterHost> host_;
   MediaFormat decoder_media_format_;
+  MockStatisticsCallback stats_callback_object_;
 
   // Receives all the buffers that renderer had provided to |decoder_|.
   std::deque<scoped_refptr<VideoFrame> > read_queue_;
@@ -199,7 +206,8 @@ TEST_F(VideoRendererBaseTest, Initialize_BadMediaFormat) {
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_INITIALIZATION_FAILED));
 
   // Initialize, we expect to have no reads.
-  renderer_->Initialize(bad_decoder, NewExpectedCallback());
+  renderer_->Initialize(bad_decoder,
+                        NewExpectedCallback(), NewStatisticsCallback());
   EXPECT_EQ(0u, read_queue_.size());
 }
 
@@ -218,7 +226,8 @@ TEST_F(VideoRendererBaseTest, Initialize_Failed) {
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_INITIALIZATION_FAILED));
 
   // Initialize, we expect to have no reads.
-  renderer_->Initialize(decoder_, NewExpectedCallback());
+  renderer_->Initialize(decoder_,
+                        NewExpectedCallback(), NewStatisticsCallback());
   EXPECT_EQ(0u, read_queue_.size());
 }
 

@@ -37,14 +37,15 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 }
 
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
-                                    FilterCallback* callback) {
+                                    FilterCallback* callback,
+                                    StatisticsCallback* stats_callback) {
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(
         FROM_HERE,
         NewRunnableMethod(this,
                           &FFmpegVideoDecoder::Initialize,
                           make_scoped_refptr(demuxer_stream),
-                          callback));
+                          callback, stats_callback));
     return;
   }
 
@@ -54,6 +55,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   demuxer_stream_ = demuxer_stream;
   initialize_callback_.reset(callback);
+  statistics_callback_.reset(stats_callback);
 
   // Get the AVStream by querying for the provider interface.
   AVStreamProvider* av_stream_provider;
@@ -331,9 +333,12 @@ void FFmpegVideoDecoder::ProduceVideoFrame(
 }
 
 void FFmpegVideoDecoder::ConsumeVideoFrame(
-    scoped_refptr<VideoFrame> video_frame) {
+    scoped_refptr<VideoFrame> video_frame,
+    const PipelineStatistics& statistics) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kStopped);
+
+  statistics_callback_->Run(statistics);
 
   if (video_frame.get()) {
     if (kPausing == state_ || kFlushing == state_) {

@@ -148,6 +148,8 @@ static void ConvertAudioF32ToS32(void* buffer, int buffer_size) {
 }
 
 void FFmpegAudioDecoder::DoDecode(Buffer* input) {
+  PipelineStatistics statistics;
+
   // FFmpeg tends to seek Ogg audio streams in the middle of nowhere, giving us
   // a whole bunch of AV_NOPTS_VALUE packets.  Discard them until we find
   // something valid.  Refer to http://crbug.com/49709
@@ -155,7 +157,7 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
   if (input->GetTimestamp() == kNoTimestamp &&
       estimated_next_timestamp_ == kNoTimestamp &&
       !input->IsEndOfStream()) {
-    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
+    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete(statistics);
     return;
   }
 
@@ -164,6 +166,8 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
   av_init_packet(&packet);
   packet.data = const_cast<uint8*>(input->GetData());
   packet.size = input->GetDataSize();
+
+  statistics.audio_bytes_decoded = input->GetDataSize();
 
   int16_t* output_buffer = reinterpret_cast<int16_t*>(output_buffer_.get());
   int output_buffer_size = kOutputBufferSize;
@@ -185,7 +189,7 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
             << input->GetTimestamp().InMicroseconds() << " us, duration: "
             << input->GetDuration().InMicroseconds() << " us, packet size: "
             << input->GetDataSize() << " bytes";
-    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
+    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete(statistics);
     return;
   }
 
@@ -216,7 +220,7 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
     }
 
     EnqueueResult(result_buffer);
-    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
+    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete(statistics);
     return;
   }
 
@@ -227,7 +231,7 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
       input->GetTimestamp() != kNoTimestamp &&
       input->GetDuration() != kNoTimestamp) {
     estimated_next_timestamp_ = input->GetTimestamp() + input->GetDuration();
-    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
+    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete(statistics);
     return;
   }
 
@@ -241,7 +245,7 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
     result_buffer->SetDuration(input->GetDuration());
     EnqueueResult(result_buffer);
   }
-  DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
+  DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete(statistics);
 }
 
 base::TimeDelta FFmpegAudioDecoder::CalculateDuration(size_t size) {

@@ -148,8 +148,9 @@ class PipelineImplTest : public ::testing::Test {
 
   // Sets up expectations to allow the video decoder to initialize.
   void InitializeVideoDecoder(MockDemuxerStream* stream) {
-    EXPECT_CALL(*mocks_->video_decoder(), Initialize(stream, NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback));
+    EXPECT_CALL(*mocks_->video_decoder(),
+                Initialize(stream, NotNull(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback3));
     EXPECT_CALL(*mocks_->video_decoder(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->video_decoder(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
@@ -159,8 +160,9 @@ class PipelineImplTest : public ::testing::Test {
 
   // Sets up expectations to allow the audio decoder to initialize.
   void InitializeAudioDecoder(MockDemuxerStream* stream) {
-    EXPECT_CALL(*mocks_->audio_decoder(), Initialize(stream, NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback));
+    EXPECT_CALL(*mocks_->audio_decoder(),
+                Initialize(stream, NotNull(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback3));
     EXPECT_CALL(*mocks_->audio_decoder(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->audio_decoder(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
@@ -171,8 +173,8 @@ class PipelineImplTest : public ::testing::Test {
   // Sets up expectations to allow the video renderer to initialize.
   void InitializeVideoRenderer() {
     EXPECT_CALL(*mocks_->video_renderer(),
-                Initialize(mocks_->video_decoder(), NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback));
+                Initialize(mocks_->video_decoder(), NotNull(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback3));
     EXPECT_CALL(*mocks_->video_renderer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->video_renderer(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));

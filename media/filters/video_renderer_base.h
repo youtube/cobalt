@@ -53,7 +53,9 @@ class VideoRendererBase : public VideoRenderer,
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
 
   // VideoRenderer implementation.
-  virtual void Initialize(VideoDecoder* decoder, FilterCallback* callback);
+  virtual void Initialize(VideoDecoder* decoder,
+                          FilterCallback* callback,
+                          StatisticsCallback* stats_callback);
   virtual bool HasEnded();
 
   // PlatformThread::Delegate implementation.
@@ -208,6 +210,7 @@ class VideoRendererBase : public VideoRenderer,
   // Filter callbacks.
   scoped_ptr<FilterCallback> flush_callback_;
   scoped_ptr<FilterCallback> seek_callback_;
+  scoped_ptr<StatisticsCallback> statistics_callback_;
 
   base::TimeDelta seek_timestamp_;
 
