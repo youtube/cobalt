@@ -102,8 +102,7 @@ namespace net {
 
 FtpDirectoryListingParserLs::FtpDirectoryListingParserLs(
     const base::Time& current_time)
-    : received_nonempty_line_(false),
-      received_total_line_(false),
+    : received_total_line_(false),
       current_time_(current_time) {
 }
 
@@ -114,13 +113,8 @@ FtpServerType FtpDirectoryListingParserLs::GetServerType() const {
 }
 
 bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
-  if (line.empty() && !received_nonempty_line_) {
-    // Allow empty lines only at the beginning of the listing. For example VMS
-    // systems in Unix emulation mode add an empty line before the first listing
-    // entry.
+  if (line.empty())
     return true;
-  }
-  received_nonempty_line_ = true;
 
   std::vector<string16> columns;
   base::SplitString(CollapseWhitespace(line, false), ' ', &columns);
