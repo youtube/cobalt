@@ -583,19 +583,6 @@ typedef enum {	never_cached,
 
 #define MAX_PEER_CERT_CHAIN_SIZE 8
 
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-typedef struct {
-#if defined(XP_WIN32)
-    char * provider;
-    char * container;
-    DWORD  provType;
-#elif defined(XP_MACOSX)
-    SecKeychainRef keychain;
-    CFDataRef persistentKey;
-#endif
-} PlatformAuthInfo;
-#endif  /* NSS_PLATFORM_CLIENT_AUTH */
-
 struct sslSessionIDStr {
     sslSessionID *        next;   /* chain used for client sockets, only */
 
