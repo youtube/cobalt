@@ -157,13 +157,17 @@ void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
-                                   FilterCallback* callback) {
+                                   FilterCallback* callback,
+                                   StatisticsCallback* stats_callback) {
   base::AutoLock auto_lock(lock_);
   DCHECK(decoder);
   DCHECK(callback);
+  DCHECK(stats_callback);
   DCHECK_EQ(kUninitialized, state_);
   decoder_ = decoder;
   AutoCallbackRunner done_runner(callback);
+
+  statistics_callback_.reset(stats_callback);
 
   decoder_->set_consume_video_frame_callback(
       NewCallback(this, &VideoRendererBase::ConsumeVideoFrame));
@@ -219,7 +223,17 @@ void VideoRendererBase::ThreadMain() {
   base::PlatformThread::SetName("CrVideoRenderer");
   base::TimeDelta remaining_time;
 
+  uint32 frames_dropped = 0;
+
   for (;;) {
+    if (frames_dropped > 0) {
+      PipelineStatistics statistics;
+      statistics.video_frames_dropped = frames_dropped;
+      statistics_callback_->Run(statistics);
+
+      frames_dropped = 0;
+    }
+
     base::AutoLock auto_lock(lock_);
 
     const base::TimeDelta kIdleTimeDelta =
@@ -310,6 +324,7 @@ void VideoRendererBase::ThreadMain() {
           // which is the first frame in the queue.
           timeout_frame = frames_queue_ready_.front();
           frames_queue_ready_.pop_front();
+          ++frames_dropped;
         }
       }
       if (timeout_frame.get()) {
@@ -375,6 +390,10 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
 }
 
 void VideoRendererBase::ConsumeVideoFrame(scoped_refptr<VideoFrame> frame) {
+  PipelineStatistics statistics;
+  statistics.video_frames_decoded = 1;
+  statistics_callback_->Run(statistics);
+
   base::AutoLock auto_lock(lock_);
 
   // Decoder could reach seek state before our Seek() get called.

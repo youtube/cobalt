@@ -17,6 +17,7 @@
 
 #include "media/base/filters.h"
 #include "media/base/filter_collection.h"
+#include "media/base/pipeline.h"
 #include "media/base/video_frame.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -143,8 +144,9 @@ class MockVideoDecoder : public VideoDecoder {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // VideoDecoder implementation.
-  MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
-                                FilterCallback* callback));
+  MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
+                                FilterCallback* callback,
+                                StatisticsCallback* stats_callback));
   MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD1(ProduceVideoFrame, void(scoped_refptr<VideoFrame>));
   MOCK_METHOD0(ProvidesBuffer, bool());
@@ -172,8 +174,9 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // AudioDecoder implementation.
-  MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
-                                FilterCallback* callback));
+  MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
+                                FilterCallback* callback,
+                                StatisticsCallback* stats_callback));
   MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
 
@@ -200,8 +203,9 @@ class MockVideoRenderer : public VideoRenderer {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // VideoRenderer implementation.
-  MOCK_METHOD2(Initialize, void(VideoDecoder* decoder,
-                                FilterCallback* callback));
+  MOCK_METHOD3(Initialize, void(VideoDecoder* decoder,
+                                FilterCallback* callback,
+                                StatisticsCallback* stats_callback));
   MOCK_METHOD0(HasEnded, bool());
   MOCK_METHOD1(ConsumeVideoFrame, void(scoped_refptr<VideoFrame> frame));
 
@@ -267,10 +271,12 @@ class MockFilterCollection {
   DISALLOW_COPY_AND_ASSIGN(MockFilterCollection);
 };
 
-// Helper gmock function that immediately executes and destroys the
+// Helper gmock functions that immediately executes and destroys the
 // FilterCallback on behalf of the provided filter.  Can be used when mocking
 // the Initialize() and Seek() methods.
 void RunFilterCallback(::testing::Unused, FilterCallback* callback);
+void RunFilterCallback3(::testing::Unused, FilterCallback* callback,
+                        ::testing::Unused);
 
 // Helper gmock function that immediately destroys the FilterCallback on behalf
 // of the provided filter.  Can be used when mocking the Initialize() and Seek()
@@ -310,6 +316,12 @@ ACTION_P2(SetBufferedBytes, filter, bytes) {
 ACTION_P(DisableAudioRenderer, filter) {
   filter->host()->DisableAudioRenderer();
 }
+
+// Helper mock statistics callback.
+class MockStatisticsCallback {
+ public:
+  MOCK_METHOD1(OnStatistics, void(const media::PipelineStatistics& statistics));
+};
 
 }  // namespace media
 
