@@ -334,6 +334,7 @@
             '../chrome/chrome.gyp:sync_unit_tests',
             '../chrome/chrome.gyp:unit_tests',
             '../chrome/chrome.gyp:ui_tests',
+            '../ui/gfx/gfx.gyp:gfx_unittests',
             '../jingle/jingle.gyp:notifier_unit_tests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
           ],
