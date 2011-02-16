@@ -1,10 +1,12 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_CPU_H_
 #define BASE_CPU_H_
 #pragma once
+
+#include "build/build_config.h"
 
 #include <string>
 
@@ -24,6 +26,13 @@ class CPU {
   int type() const { return type_; }
   int extended_model() const { return ext_model_; }
   int extended_family() const { return ext_family_; }
+  int has_mmx() const { return has_mmx_; }
+  int has_sse() const { return has_sse_; }
+  int has_sse2() const { return has_sse2_; }
+  int has_sse3() const { return has_sse3_; }
+  int has_ssse3() const { return has_ssse3_; }
+  int has_sse41() const { return has_sse41_; }
+  int has_sse42() const { return has_sse42_; }
 
  private:
   // Query the processor for CPUID information.
@@ -35,6 +44,13 @@ class CPU {
   int stepping_;  // processor revision number
   int ext_model_;
   int ext_family_;
+  bool has_mmx_;
+  bool has_sse_;
+  bool has_sse2_;
+  bool has_sse3_;
+  bool has_ssse3_;
+  bool has_sse41_;
+  bool has_sse42_;
   std::string cpu_vendor_;
 };
 
