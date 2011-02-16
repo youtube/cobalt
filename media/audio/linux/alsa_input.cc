@@ -7,7 +7,6 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "media/audio/linux/alsa_util.h"
 #include "media/audio/linux/alsa_wrapper.h"
@@ -193,6 +192,8 @@ void AlsaPcmInputStream::Stop() {
 }
 
 void AlsaPcmInputStream::Close() {
+  scoped_ptr<AlsaPcmInputStream> self_deleter(this);
+
   // Check in case we were already closed or not initialized yet.
   if (!device_handle_ || !callback_)
     return;

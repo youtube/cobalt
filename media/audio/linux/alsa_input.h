@@ -59,7 +59,7 @@ class AlsaPcmInputStream : public AudioInputStream {
   base::Time next_read_time_;  // Scheduled time for the next read callback.
   snd_pcm_t* device_handle_;  // Handle to the ALSA PCM recording device.
   ScopedRunnableMethodFactory<AlsaPcmInputStream> task_factory_;
-  scoped_ptr<uint8> audio_packet_;  // Data buffer used for reading audio data.
+  scoped_array<uint8> audio_packet_;  // Buffer used for reading audio data.
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmInputStream);
 };
