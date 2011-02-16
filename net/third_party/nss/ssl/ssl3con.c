@@ -5005,7 +5005,7 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	desc    = unexpected_message;
 	goto alert_loser;
     }
-    
+
     /* clean up anything left from previous handshake. */
     if (ss->ssl3.clientCertChain != NULL) {
        CERT_DestroyCertificateList(ss->ssl3.clientCertChain);
@@ -5522,13 +5522,13 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	errCode = SSL_ERROR_RX_UNEXPECTED_CERT_REQUEST;
 	goto alert_loser;
     }
-    
+
     PORT_Assert(ss->ssl3.clientCertChain == NULL);
     PORT_Assert(ss->ssl3.clientCertificate == NULL);
     PORT_Assert(ss->ssl3.clientPrivateKey == NULL);
 #ifdef NSS_PLATFORM_CLIENT_AUTH
     PORT_Assert(ss->ssl3.platformClientKey == (PlatformKey)NULL);
-#endif  /* NSS_PLATFORM_CLIENT_AUTH */    
+#endif  /* NSS_PLATFORM_CLIENT_AUTH */
 
     isTLS = (PRBool)(ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0);
     rv = ssl3_ConsumeHandshakeVariable(ss, &cert_types, 1, &b, &length);
@@ -9822,7 +9822,7 @@ ssl3_DestroySSL3Info(sslSocket *ss)
 	SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
 #ifdef NSS_PLATFORM_CLIENT_AUTH
     if (ss->ssl3.platformClientKey)
-	ssl_FreePlatformKey(ss->ssl3.platformClientKey);    
+	ssl_FreePlatformKey(ss->ssl3.platformClientKey);
 #endif /* NSS_PLATFORM_CLIENT_AUTH */
 
     if (ss->ssl3.peerCertArena != NULL)
