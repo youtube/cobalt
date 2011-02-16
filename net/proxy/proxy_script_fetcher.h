@@ -27,8 +27,11 @@ class ProxyScriptFetcher {
   virtual ~ProxyScriptFetcher() {}
 
   // Downloads the given PAC URL, and invokes |callback| on completion.
-  // On success |callback| is executed with a result code of OK, |*utf16_text|
-  // is filled with the response. On failure, the result text is
+  // Returns OK on success, otherwise the error code. If the return code is
+  // ERR_IO_PENDING, then the request completes asynchronously, and |callback|
+  // will be invoked later with the final error code.
+  // After synchronous or asynchronous completion with a result code of OK,
+  // |*utf16_text| is filled with the response. On failure, the result text is
   // an empty string, and the result code is a network error. Some special
   // network errors that may occur are:
   //
