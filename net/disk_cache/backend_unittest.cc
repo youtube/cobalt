@@ -48,6 +48,7 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
   void BackendTransaction(const std::string& name, int num_entries, bool load);
   void BackendRecoverInsert();
   void BackendRecoverRemove();
+  void BackendRecoverWithEviction();
   void BackendInvalidEntry2();
   void BackendInvalidEntry3();
   void BackendNotMarkedButDirty(const std::string& name);
@@ -1270,6 +1271,28 @@ TEST_F(DiskCacheBackendTest, RecoverRemove) {
 TEST_F(DiskCacheBackendTest, NewEvictionRecoverRemove) {
   SetNewEviction();
   BackendRecoverRemove();
+}
+
+void DiskCacheBackendTest::BackendRecoverWithEviction() {
+  success_ = false;
+  ASSERT_TRUE(CopyTestCache("insert_load1"));
+  DisableFirstCleanup();
+
+  SetMask(0xf);
+  SetMaxSize(0x1000);
+
+  // We should not crash here.
+  InitCache();
+  DisableIntegrityCheck();
+}
+
+TEST_F(DiskCacheBackendTest, RecoverWithEviction) {
+  BackendRecoverWithEviction();
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionRecoverWithEviction) {
+  SetNewEviction();
+  BackendRecoverWithEviction();
 }
 
 // Tests dealing with cache files that cannot be recovered.

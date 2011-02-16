@@ -506,17 +506,18 @@ int BackendImpl::SyncInit() {
     read_only_ = true;
   }
 
+  // Setup load-time data only for the main cache.
+  if (!throttle_requests_ && cache_type() == net::DISK_CACHE)
+    throttle_requests_ = SetFieldTrialInfo(GetSizeGroup());
+
+  eviction_.Init(this);
+
   // stats_ and rankings_ may end up calling back to us so we better be enabled.
   disabled_ = false;
   if (!stats_.Init(this, &data_->header.stats))
     return net::ERR_FAILED;
 
   disabled_ = !rankings_.Init(this, new_eviction_);
-  eviction_.Init(this);
-
-  // Setup load-time data only for the main cache.
-  if (!throttle_requests_ && cache_type() == net::DISK_CACHE)
-    throttle_requests_ = SetFieldTrialInfo(GetSizeGroup());
 
   return disabled_ ? net::ERR_FAILED : net::OK;
 }
