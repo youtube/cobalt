@@ -340,4 +340,42 @@ TEST_F(ProxyScriptFetcherImplTest, Encodings) {
   }
 }
 
+TEST_F(ProxyScriptFetcherImplTest, DataURLs) {
+  scoped_refptr<URLRequestContext> context(new RequestContext);
+  ProxyScriptFetcherImpl pac_fetcher(context);
+
+  const char kEncodedUrl[] =
+      "data:application/x-ns-proxy-autoconfig;base64,ZnVuY3Rpb24gRmluZFByb3h5R"
+      "m9yVVJMKHVybCwgaG9zdCkgewogIGlmIChob3N0ID09ICdmb29iYXIuY29tJykKICAgIHJl"
+      "dHVybiAnUFJPWFkgYmxhY2tob2xlOjgwJzsKICByZXR1cm4gJ0RJUkVDVCc7Cn0=";
+  const char kPacScript[] =
+      "function FindProxyForURL(url, host) {\n"
+      "  if (host == 'foobar.com')\n"
+      "    return 'PROXY blackhole:80';\n"
+      "  return 'DIRECT';\n"
+      "}";
+
+  // Test fetching a "data:"-url containing a base64 encoded PAC script.
+  {
+    GURL url(kEncodedUrl);
+    string16 text;
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, &callback);
+    EXPECT_EQ(OK, result);
+    EXPECT_EQ(ASCIIToUTF16(kPacScript), text);
+  }
+
+  const char kEncodedUrlBroken[] =
+      "data:application/x-ns-proxy-autoconfig;base64,ZnVuY3Rpb24gRmluZFByb3h5R";
+
+  // Test a broken "data:"-url containing a base64 encoded PAC script.
+  {
+    GURL url(kEncodedUrlBroken);
+    string16 text;
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, &callback);
+    EXPECT_EQ(ERR_FAILED, result);
+  }
+}
+
 }  // namespace net
