@@ -92,6 +92,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual bool IsStreaming() const;
   virtual bool IsLoaded() const;
   virtual PipelineError GetError() const;
+  virtual PipelineStatistics GetStatistics() const;
 
  private:
   // Pipeline states, as described above.
@@ -185,6 +186,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Callback executed by filters when completing teardown operations.
   void OnTeardownStateTransition();
+
+  // Callback executed by filters to update statistics.
+  void OnUpdateStatistics(const PipelineStatistics& stats);
 
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
@@ -404,6 +408,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // initialization.
   class PipelineInitState;
   scoped_ptr<PipelineInitState> pipeline_init_state_;
+
+  // Statistics.
+  PipelineStatistics statistics_;
 
   FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, GetBufferedTime);
   FRIEND_TEST_ALL_PREFIXES(PipelineImplTest, AudioStreamShorterThanVideo);

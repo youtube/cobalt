@@ -37,7 +37,8 @@ class FFmpegVideoDecoder : public VideoDecoder,
 
   // Decoder implementation.
   virtual void Initialize(DemuxerStream* demuxer_stream,
-                          FilterCallback* callback);
+                          FilterCallback* callback,
+                          StatisticsCallback* stats_callback);
   virtual const MediaFormat& media_format();
   virtual void ProduceVideoFrame(scoped_refptr<VideoFrame> video_frame);
   virtual bool ProvidesBuffer();
@@ -51,7 +52,8 @@ class FFmpegVideoDecoder : public VideoDecoder,
   virtual void OnError();
   virtual void OnFormatChange(VideoStreamInfo stream_info);
   virtual void ProduceVideoSample(scoped_refptr<Buffer> buffer);
-  virtual void ConsumeVideoFrame(scoped_refptr<VideoFrame> frame);
+  virtual void ConsumeVideoFrame(scoped_refptr<VideoFrame> frame,
+                                 const PipelineStatistics& statistics);
 
   friend class DecoderPrivateMock;
   friend class FFmpegVideoDecoderTest;
@@ -126,6 +128,7 @@ class FFmpegVideoDecoder : public VideoDecoder,
   scoped_ptr<FilterCallback> uninitialize_callback_;
   scoped_ptr<FilterCallback> flush_callback_;
   scoped_ptr<FilterCallback> seek_callback_;
+  scoped_ptr<StatisticsCallback> statistics_callback_;
 
   // Hold video frames when flush happens.
   std::deque<scoped_refptr<VideoFrame> > frame_queue_flushed_;

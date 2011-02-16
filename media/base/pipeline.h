@@ -42,6 +42,20 @@ enum PipelineError {
   DEMUXER_ERROR_COULD_NOT_CREATE_THREAD,
 };
 
+struct PipelineStatistics {
+  PipelineStatistics() :
+      audio_bytes_decoded(0),
+      video_bytes_decoded(0),
+      video_frames_decoded(0),
+      video_frames_dropped(0) {
+  }
+
+  uint32 audio_bytes_decoded; // Should be uint64?
+  uint32 video_bytes_decoded; // Should be uint64?
+  uint32 video_frames_decoded;
+  uint32 video_frames_dropped;
+};
+
 class FilterCollection;
 
 // Client-provided callbacks for various pipeline operations.  Clients should
@@ -171,6 +185,9 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // Gets the current error status for the pipeline.  If the pipeline is
   // operating correctly, this will return OK.
   virtual PipelineError GetError() const = 0;
+
+  // Gets the current pipeline statistics.
+  virtual PipelineStatistics GetStatistics() const = 0;
 
  protected:
   // Only allow ourselves to be deleted by reference counting.
