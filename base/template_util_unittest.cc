@@ -37,10 +37,8 @@ TEST(TemplateUtilTest, IsNonConstReference) {
   EXPECT_TRUE(is_non_const_reference<int&>::value);
 }
 
-#if !defined(OS_WIN)
-// TODO(ajwong): Why is is_convertible disabled on windows?
 TEST(TemplateUtilTest, IsConvertible) {
-  // Extra parents needed to make EXPECT_*'s parsing happy. Otherwise,
+  // Extra parens needed to make EXPECT_*'s parsing happy. Otherwise,
   // it sees the equivalent of
   //
   //  EXPECT_TRUE( (is_convertible < Child), (Parent > ::value));
@@ -48,8 +46,12 @@ TEST(TemplateUtilTest, IsConvertible) {
   // Silly C++.
   EXPECT_TRUE( (is_convertible<Child, Parent>::value) );
   EXPECT_FALSE( (is_convertible<Parent, Child>::value) );
+  EXPECT_FALSE( (is_convertible<Parent, AStruct>::value) );
+
+  EXPECT_TRUE( (is_convertible<int, double>::value) );
+  EXPECT_TRUE( (is_convertible<int*, void*>::value) );
+  EXPECT_FALSE( (is_convertible<void*, int*>::value) );
 }
-#endif  // !defined(OS_WIN)
 
 TEST(TemplateUtilTest, IsClass) {
   EXPECT_TRUE(is_class<AStruct>::value);
