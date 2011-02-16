@@ -47,8 +47,6 @@ struct NoType {
   YesType dummy[2];
 };
 
-#if !defined(OS_WIN)
-
 // This class is an implementation detail for is_convertible, and you
 // don't need to know how it works to use is_convertible. For those
 // who care: we declare two different functions, one whose argument is
@@ -58,14 +56,16 @@ struct NoType {
 // had called it with an argument of type From.  See Alexandrescu's
 // _Modern C++ Design_ for more details on this sort of trick.
 
-template <typename From, typename To>
 struct ConvertHelper {
+  template <typename To>
   static YesType Test(To);
+
+  template <typename To>
   static NoType Test(...);
+
+  template <typename From>
   static From Create();
 };
-
-#endif  // !defined(OS_WIN)
 
 // Used to determine if a type is a struct/union/class. Inspired by Boost's
 // is_class type_trait implementation.
@@ -79,18 +79,17 @@ struct IsClassHelper {
 
 }  // namespace internal
 
-#if !defined(OS_WIN)
-
 // Inherits from true_type if From is convertible to To, false_type otherwise.
+//
+// Note that if the type is convertible, this will be a true_type REGARDLESS
+// of whether or not the conversion would emit a warning.
 template <typename From, typename To>
 struct is_convertible
     : integral_constant<bool,
-                        sizeof(internal::ConvertHelper<From, To>::Test(
-                                  internal::ConvertHelper<From, To>::Create()))
-                        == sizeof(internal::YesType)> {
+                        sizeof(internal::ConvertHelper::Test<To>(
+                                   internal::ConvertHelper::Create<From>())) ==
+                        sizeof(internal::YesType)> {
 };
-
-#endif  // !defined(OS_WIN)
 
 template <typename T>
 struct is_class
