@@ -515,7 +515,6 @@
               'third_party/purify/pure_api.c',
               'base_drag_source.cc',
               'base_drop_target.cc',
-              'cpu.cc',
               'crypto/capi_util.h',
               'crypto/capi_util.cc',
               'event_recorder.cc',
