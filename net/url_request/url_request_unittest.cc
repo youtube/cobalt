@@ -2339,6 +2339,15 @@ TEST_F(URLRequestTest, InterceptRespectsCancelInRestart) {
   EXPECT_EQ(net::URLRequestStatus::CANCELED, req.status().status());
 }
 
+// Check that two different URL requests have different identifiers.
+TEST_F(URLRequestTest, Identifiers) {
+  TestDelegate d;
+  TestURLRequest req(GURL("http://example.com"), &d);
+  TestURLRequest other_req(GURL("http://example.com"), &d);
+
+  ASSERT_NE(req.identifier(), other_req.identifier());
+}
+
 class URLRequestTestFTP : public URLRequestTest {
  public:
   URLRequestTestFTP() : test_server_(net::TestServer::TYPE_FTP, FilePath()) {
