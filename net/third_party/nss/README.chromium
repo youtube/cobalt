@@ -40,7 +40,11 @@ Patches:
 
   * Add Snap Start support
     patches/snapstart.patch
+    patches/snapstart2.patch
     http://tools.ietf.org/html/draft-agl-tls-snapstart-00
+
+  * Add the SSL_PeerCertificateChain function
+    patches/peercertchain.patch
 
   * Add OCSP stapling support
     patches/ocspstapling.patch
@@ -54,6 +58,9 @@ Patches:
     was non-RSA.
     patches/clientauth.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=616757
+
+Apply the patches to NSS by running the patches/applypatches.sh script.  Read
+the comments at the top of patches/applypatches.sh for instructions.
 
 The ssl/bodge directory contains files taken from the NSS repo that we required
 for building libssl outside of its usual build environment.
