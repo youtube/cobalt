@@ -85,4 +85,8 @@ MockFilter::MockFilter() {
 
 MockFilter::~MockFilter() {}
 
+MockStatisticsCallback::MockStatisticsCallback() {}
+
+MockStatisticsCallback::~MockStatisticsCallback() {}
+
 }  // namespace media

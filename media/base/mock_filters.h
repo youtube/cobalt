@@ -320,6 +320,9 @@ ACTION_P(DisableAudioRenderer, filter) {
 // Helper mock statistics callback.
 class MockStatisticsCallback {
  public:
+  MockStatisticsCallback();
+  ~MockStatisticsCallback();
+
   MOCK_METHOD1(OnStatistics, void(const media::PipelineStatistics& statistics));
 };
 
