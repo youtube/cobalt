@@ -1,0 +1,81 @@
+Index: net/third_party/nss/ssl/ssl.h
+===================================================================
+--- net/third_party/nss/ssl/ssl.h	(revision 63749)
++++ net/third_party/nss/ssl/ssl.h	(revision 63750)
+@@ -273,6 +273,17 @@
+ SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
+ 
+ /*
++** Return references to the certificates presented by the SSL peer. On entry,
++** |*certs_size| must contain the size of the |certs| array. On successful
++** return, |*certs_size| contains the number of certificates available and
++** |certs| will contain references to as many certificates as would fit.
++** Therefore if, on exit, |*certs_size| contains a value less than, or equal to,
++** the entry value then all certificates were returned.
++*/
++SSL_IMPORT SECStatus SSL_PeerCertificateChain(
++	PRFileDesc *fd, CERTCertificate **certs, unsigned int *certs_size);
++
++/*
+ ** Authenticate certificate hook. Called when a certificate comes in
+ ** (because of SSL_REQUIRE_CERTIFICATE in SSL_Enable) to authenticate the
+ ** certificate.
+Index: net/third_party/nss/ssl/sslauth.c
+===================================================================
+--- net/third_party/nss/ssl/sslauth.c	(revision 63749)
++++ net/third_party/nss/ssl/sslauth.c	(revision 63750)
+@@ -60,6 +60,42 @@
+ }
+ 
+ /* NEED LOCKS IN HERE.  */
++SECStatus
++SSL_PeerCertificateChain(PRFileDesc *fd, CERTCertificate **certs,
++			 unsigned int *certsSize)
++{
++    sslSocket *ss;
++    unsigned int inSize = *certsSize;
++    ssl3CertNode* cur;
++
++    ss = ssl_FindSocket(fd);
++    if (!ss) {
++	SSL_DBG(("%d: SSL[%d]: bad socket in PeerCertificateChain",
++		 SSL_GETPID(), fd));
++	return SECFailure;
++    }
++    if (!ss->opt.useSecurity)
++	return SECFailure;
++
++    if (ss->sec.peerCert == NULL) {
++      *certsSize = 0;
++      return SECSuccess;
++    }
++
++    *certsSize = 1;  /* for the leaf certificate */
++    if (inSize > 0)
++	certs[0] = CERT_DupCertificate(ss->sec.peerCert);
++
++    for (cur = ss->ssl3.peerCertChain; cur; cur = cur->next) {
++	if (*certsSize < inSize)
++	    certs[*certsSize] = CERT_DupCertificate(cur->cert);
++	(*certsSize)++;
++    }
++
++    return SECSuccess;
++}
++
++/* NEED LOCKS IN HERE.  */
+ CERTCertificate *
+ SSL_LocalCertificate(PRFileDesc *fd)
+ {
+Index: net/third_party/nss/ssl/ssl.def
+===================================================================
+--- net/third_party/nss/ssl/ssl.def	(revision 63749)
++++ net/third_party/nss/ssl/ssl.def	(revision 63750)
+@@ -163,6 +163,7 @@
+ ;+    global:
+ SSL_GetPredictedServerHelloData;
+ SSL_GetSnapStartResult;
++SSL_PeerCertificateChain;
+ SSL_SetPredictedPeerCertificates;
+ SSL_SetPredictedServerHelloData;
+ SSL_SetSnapStartApplicationData;
