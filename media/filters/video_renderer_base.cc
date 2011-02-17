@@ -106,6 +106,7 @@ void VideoRendererBase::Flush(FilterCallback* callback) {
 void VideoRendererBase::Stop(FilterCallback* callback) {
   DCHECK_EQ(pending_reads_, 0);
 
+  base::PlatformThreadHandle old_thread_handle = base::kNullThreadHandle;
   {
     base::AutoLock auto_lock(lock_);
     state_ = kStopped;
@@ -115,14 +116,13 @@ void VideoRendererBase::Stop(FilterCallback* callback) {
       // Signal the thread since it's possible to get stopped with the video
       // thread waiting for a read to complete.
       frame_available_.Signal();
-      {
-        base::AutoUnlock auto_unlock(lock_);
-        base::PlatformThread::Join(thread_);
-      }
+      old_thread_handle = thread_;
       thread_ = base::kNullThreadHandle;
     }
-
   }
+  if (old_thread_handle)
+    base::PlatformThread::Join(old_thread_handle);
+
   // Signal the subclass we're stopping.
   OnStop(callback);
 }
