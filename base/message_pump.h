@@ -22,7 +22,8 @@ class MessagePump : public RefCountedThreadSafe<MessagePump> {
 
     // Called from within Run in response to ScheduleWork or when the message
     // pump would otherwise call DoDelayedWork.  Returns true to indicate that
-    // work was done.  DoDelayedWork will not be called if DoWork returns true.
+    // work was done.  DoDelayedWork will still be called if DoWork returns
+    // true, but DoIdleWork will not.
     virtual bool DoWork() = 0;
 
     // Called from within Run in response to ScheduleDelayedWork or when the
@@ -61,7 +62,8 @@ class MessagePump : public RefCountedThreadSafe<MessagePump> {
   //     if (should_quit_)
   //       break;
   //
-  //     did_work |= delegate_->DoDelayedWork();
+  //     TimeTicks next_time;
+  //     did_work |= delegate_->DoDelayedWork(&next_time);
   //     if (should_quit_)
   //       break;
   //
@@ -84,9 +86,9 @@ class MessagePump : public RefCountedThreadSafe<MessagePump> {
   // blocks until there is more work of any type to do.
   //
   // Notice that the run loop cycles between calling DoInternalWork, DoWork,
-  // and DoDelayedWork methods.  This helps ensure that neither work queue
-  // starves the other.  This is important for message pumps that are used to
-  // drive animations, for example.
+  // and DoDelayedWork methods.  This helps ensure that none of these work
+  // queues starve the others.  This is important for message pumps that are
+  // used to drive animations, for example.
   //
   // Notice also that after each callout to foreign code, the run loop checks
   // to see if it should quit.  The Quit method is responsible for setting this

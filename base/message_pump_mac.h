@@ -86,23 +86,16 @@ class MessagePumpCFRunLoopBase : public MessagePump {
 
  private:
   // Timer callback scheduled by ScheduleDelayedWork.  This does not do any
-  // work, but it signals delayed_work_source_ so that delayed work can be
-  // performed within the appropriate priority constraints.
+  // work, but it signals work_source_ so that delayed work can be performed
+  // within the appropriate priority constraints.
   static void RunDelayedWorkTimer(CFRunLoopTimerRef timer, void* info);
 
   // Perform highest-priority work.  This is associated with work_source_
-  // signalled by ScheduleWork.  The static method calls the instance method;
-  // the instance method returns true if work was done.
+  // signalled by ScheduleWork or RunDelayedWorkTimer.  The static method calls
+  // the instance method; the instance method returns true if it resignalled
+  // work_source_ to be called again from the loop.
   static void RunWorkSource(void* info);
   bool RunWork();
-
-  // Perform delayed-priority work.  This is associated with
-  // delayed_work_source_ signalled by RunDelayedWorkTimer, and is responsible
-  // for calling ScheduleDelayedWork again if appropriate.  The static method
-  // calls the instance method; the instance method returns true if more
-  // delayed work is available.
-  static void RunDelayedWorkSource(void* info);
-  bool RunDelayedWork();
 
   // Perform idle-priority work.  This is normally called by PreWaitObserver,
   // but is also associated with idle_work_source_.  When this function
@@ -162,7 +155,6 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   // callbacks.
   CFRunLoopTimerRef delayed_work_timer_;
   CFRunLoopSourceRef work_source_;
-  CFRunLoopSourceRef delayed_work_source_;
   CFRunLoopSourceRef idle_work_source_;
   CFRunLoopSourceRef nesting_deferred_work_source_;
   CFRunLoopObserverRef pre_wait_observer_;
@@ -202,7 +194,6 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   // any call to Run on the stack.  The Run method will check for delegateless
   // work on entry and redispatch it as needed once a delegate is available.
   bool delegateless_work_;
-  bool delegateless_delayed_work_;
   bool delegateless_idle_work_;
 
   DISALLOW_COPY_AND_ASSIGN(MessagePumpCFRunLoopBase);
