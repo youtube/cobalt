@@ -19,6 +19,9 @@ namespace net {
 //   out: a result in DNS form: "\x03www\x06google\x03com\x00"
 bool DNSDomainFromDot(const std::string& dotted, std::string* out);
 
+// DNSDomainToString coverts a domain in DNS format to a dotted string.
+std::string DNSDomainToString(const std::string& domain);
+
 // Returns true iff the given character is in the set of valid DNS label
 // characters as given in RFC 3490, 4.1, 3(a)
 bool IsSTD3ASCIIValidCharacter(char c);

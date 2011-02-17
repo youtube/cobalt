@@ -56,6 +56,24 @@ bool DNSDomainFromDot(const std::string& dotted, std::string* out) {
   return true;
 }
 
+std::string DNSDomainToString(const std::string& domain) {
+  std::string ret;
+
+  for (unsigned i = 0; i < domain.size() && domain[i]; i += domain[i] + 1) {
+    if (domain[i] < 0 || domain[i] > 63)
+      return "";
+
+    if (i)
+      ret += ".";
+
+    if (static_cast<unsigned>(domain[i]) + i + 1 > domain.size())
+      return "";
+
+    ret += domain.substr(i + 1, domain[i]);
+  }
+  return ret;
+}
+
 bool IsSTD3ASCIIValidCharacter(char c) {
   if (c <= 0x2c)
     return false;
