@@ -768,6 +768,18 @@ class RecursiveTask : public OrderedTasks {
   bool is_reentrant_;
 };
 
+class RecursiveSlowTask : public RecursiveTask {
+ public:
+  RecursiveSlowTask(int depth, TaskList* order, int cookie, bool is_reentrant)
+      : RecursiveTask(depth, order, cookie, is_reentrant) {
+  }
+
+  virtual void Run() {
+    RecursiveTask::Run();
+    PlatformThread::Sleep(10);  // milliseconds
+  }
+};
+
 class QuitTask : public OrderedTasks {
  public:
   QuitTask(TaskList* order, int cookie)
@@ -891,6 +903,42 @@ void RunTest_RecursiveDenial1(MessageLoop::Type message_loop_type) {
   EXPECT_EQ(order[11], TaskItem(RECURSIVE, 1, false));
   EXPECT_EQ(order[12], TaskItem(RECURSIVE, 2, true));
   EXPECT_EQ(order[13], TaskItem(RECURSIVE, 2, false));
+}
+
+void RunTest_RecursiveDenial3(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  EXPECT_TRUE(MessageLoop::current()->NestableTasksAllowed());
+  TaskList order;
+  MessageLoop::current()->PostTask(FROM_HERE,
+                                   new RecursiveSlowTask(2, &order, 1, false));
+  MessageLoop::current()->PostTask(FROM_HERE,
+                                   new RecursiveSlowTask(2, &order, 2, false));
+  MessageLoop::current()->PostDelayedTask(FROM_HERE,
+                                          new OrderedTasks(&order, 3), 5);
+  MessageLoop::current()->PostDelayedTask(FROM_HERE,
+                                          new QuitTask(&order, 4), 5);
+
+  MessageLoop::current()->Run();
+
+  // FIFO order.
+  ASSERT_EQ(16U, order.size());
+  EXPECT_EQ(order[ 0], TaskItem(RECURSIVE, 1, true));
+  EXPECT_EQ(order[ 1], TaskItem(RECURSIVE, 1, false));
+  EXPECT_EQ(order[ 2], TaskItem(RECURSIVE, 2, true));
+  EXPECT_EQ(order[ 3], TaskItem(RECURSIVE, 2, false));
+  EXPECT_EQ(order[ 4], TaskItem(RECURSIVE, 1, true));
+  EXPECT_EQ(order[ 5], TaskItem(RECURSIVE, 1, false));
+  EXPECT_EQ(order[ 6], TaskItem(ORDERERD, 3, true));
+  EXPECT_EQ(order[ 7], TaskItem(ORDERERD, 3, false));
+  EXPECT_EQ(order[ 8], TaskItem(RECURSIVE, 2, true));
+  EXPECT_EQ(order[ 9], TaskItem(RECURSIVE, 2, false));
+  EXPECT_EQ(order[10], TaskItem(QUITMESSAGELOOP, 4, true));
+  EXPECT_EQ(order[11], TaskItem(QUITMESSAGELOOP, 4, false));
+  EXPECT_EQ(order[12], TaskItem(RECURSIVE, 1, true));
+  EXPECT_EQ(order[13], TaskItem(RECURSIVE, 1, false));
+  EXPECT_EQ(order[14], TaskItem(RECURSIVE, 2, true));
+  EXPECT_EQ(order[15], TaskItem(RECURSIVE, 2, false));
 }
 
 void RunTest_RecursiveSupport1(MessageLoop::Type message_loop_type) {
@@ -1424,6 +1472,12 @@ TEST(MessageLoopTest, RecursiveDenial1) {
   RunTest_RecursiveDenial1(MessageLoop::TYPE_DEFAULT);
   RunTest_RecursiveDenial1(MessageLoop::TYPE_UI);
   RunTest_RecursiveDenial1(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, RecursiveDenial3) {
+  RunTest_RecursiveDenial3(MessageLoop::TYPE_DEFAULT);
+  RunTest_RecursiveDenial3(MessageLoop::TYPE_UI);
+  RunTest_RecursiveDenial3(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RecursiveSupport1) {
