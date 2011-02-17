@@ -4,7 +4,7 @@ RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl.h,v
 retrieving revision 1.38
 diff -p -u -8 -r1.38 ssl.h
 --- mozilla/security/nss/lib/ssl/ssl.h	17 Feb 2010 02:29:07 -0000	1.38
-+++ mozilla/security/nss/lib/ssl/ssl.h	16 Feb 2011 02:40:21 -0000
++++ mozilla/security/nss/lib/ssl/ssl.h	16 Feb 2011 23:30:37 -0000
 @@ -275,16 +275,49 @@ typedef SECStatus (PR_CALLBACK *SSLGetCl
   * and certificate.
   *	fd - the file descriptor for the connection in question
@@ -61,7 +61,7 @@ RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3con.c,v
 retrieving revision 1.142
 diff -p -u -8 -r1.142 ssl3con.c
 --- mozilla/security/nss/lib/ssl/ssl3con.c	24 Jun 2010 19:53:20 -0000	1.142
-+++ mozilla/security/nss/lib/ssl/ssl3con.c	16 Feb 2011 02:40:21 -0000
++++ mozilla/security/nss/lib/ssl/ssl3con.c	16 Feb 2011 23:30:37 -0000
 @@ -2007,16 +2007,19 @@ ssl3_ComputeRecordMAC(
      	rv = SECFailure;
  	ssl_MapLowLevelError(SSL_ERROR_MAC_COMPUTATION_FAILURE);
@@ -94,7 +94,7 @@ diff -p -u -8 -r1.142 ssl3con.c
 +#endif /* NSS_PLATFORM_CLIENT_AUTH */
  }
  
- static SECStatus
+ SECStatus
  ssl3_CompressMACEncryptRecord(sslSocket *        ss,
                                SSL3ContentType    type,
  		              const SSL3Opaque * pIn,
@@ -425,7 +425,7 @@ RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3ext.c,v
 retrieving revision 1.14
 diff -p -u -8 -r1.14 ssl3ext.c
 --- mozilla/security/nss/lib/ssl/ssl3ext.c	3 Apr 2010 19:19:07 -0000	1.14
-+++ mozilla/security/nss/lib/ssl/ssl3ext.c	16 Feb 2011 02:40:21 -0000
++++ mozilla/security/nss/lib/ssl/ssl3ext.c	16 Feb 2011 23:30:37 -0000
 @@ -41,18 +41,18 @@
   * ***** END LICENSE BLOCK ***** */
  
@@ -452,7 +452,7 @@ RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslauth.c,v
 retrieving revision 1.16
 diff -p -u -8 -r1.16 sslauth.c
 --- mozilla/security/nss/lib/ssl/sslauth.c	20 Apr 2006 00:20:45 -0000	1.16
-+++ mozilla/security/nss/lib/ssl/sslauth.c	16 Feb 2011 02:40:21 -0000
++++ mozilla/security/nss/lib/ssl/sslauth.c	16 Feb 2011 23:30:37 -0000
 @@ -204,16 +204,38 @@ SSL_GetClientAuthDataHook(PRFileDesc *s,
  	return SECFailure;
      }
@@ -498,7 +498,7 @@ RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslimpl.h,v
 retrieving revision 1.77
 diff -p -u -8 -r1.77 sslimpl.h
 --- mozilla/security/nss/lib/ssl/sslimpl.h	10 Feb 2010 00:33:50 -0000	1.77
-+++ mozilla/security/nss/lib/ssl/sslimpl.h	16 Feb 2011 02:40:21 -0000
++++ mozilla/security/nss/lib/ssl/sslimpl.h	16 Feb 2011 23:30:37 -0000
 @@ -60,16 +60,25 @@
  #if defined(XP_UNIX) || defined(XP_BEOS)
  #include "unistd.h"
@@ -525,14 +525,14 @@ diff -p -u -8 -r1.77 sslimpl.h
  typedef SSLMACAlgorithm SSL3MACAlgorithm;
  typedef SSLSignType     SSL3SignType;
  
-@@ -782,16 +791,25 @@ const ssl3CipherSuiteDef *suite_def;
- 	SSL3Hashes        sFinished[2];
- 	SSL3Opaque        data[72];
-     }                     finishedMsgs;
- #ifdef NSS_ENABLE_ECC
-     PRUint32              negotiatedECCurves; /* bit mask */
- #endif /* NSS_ENABLE_ECC */
- } SSL3HandshakeState;
+@@ -450,16 +459,26 @@ typedef SECStatus (*SSLCipher)(void *   
+ typedef SECStatus (*SSLCompressor)(void *               context,
+                                    unsigned char *      out,
+                                    int *                outlen,
+                                    int                  maxout,
+                                    const unsigned char *in,
+                                    int                  inlen);
+ typedef SECStatus (*SSLDestroy)(void *context, PRBool freeit);
  
 +#ifdef NSS_PLATFORM_CLIENT_AUTH
 +#if defined(XP_WIN32)
@@ -543,15 +543,16 @@ diff -p -u -8 -r1.77 sslimpl.h
 +typedef void *PlatformKey;
 +#endif
 +#endif
++
  
  
  /*
- ** This is the "ssl3" struct, as in "ss->ssl3".
- ** note:
- ** usually,   crSpec == cwSpec and prSpec == pwSpec.  
- ** Sometimes, crSpec == pwSpec and prSpec == cwSpec.
- ** But there are never more than 2 actual specs.  
-@@ -805,16 +823,19 @@ struct ssl3StateStr {
+ ** ssl3State and CipherSpec structs
+ */
+ 
+ /* The SSL bulk cipher definition */
+ typedef enum {
+@@ -805,16 +824,19 @@ struct ssl3StateStr {
      */
      ssl3CipherSpec *     crSpec; 	/* current read spec. */
      ssl3CipherSpec *     prSpec; 	/* pending read spec. */
@@ -571,7 +572,7 @@ diff -p -u -8 -r1.77 sslimpl.h
  			 * be either SSL_ALLOWED or SSL_RESTRICTED 
  			 */
      PRArenaPool *        peerCertArena;  
-@@ -1045,16 +1066,20 @@ const unsigned char *  preferredCipher;
+@@ -1045,16 +1067,20 @@ const unsigned char *  preferredCipher;
  
      ssl3KeyPair *         stepDownKeyPair;	/* RSA step down keys */
  
@@ -592,7 +593,7 @@ diff -p -u -8 -r1.77 sslimpl.h
      void                     *handshakeCallbackData;
      void                     *pkcs11PinArg;
  
-@@ -1587,16 +1612,36 @@ extern SECStatus SSL3_ShutdownServerCach
+@@ -1587,16 +1613,36 @@ extern SECStatus SSL3_ShutdownServerCach
  extern SECStatus ssl_InitSymWrapKeysLock(void);
  
  extern SECStatus ssl_FreeSymWrapKeysLock(void);
@@ -635,7 +636,7 @@ RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslsock.c,v
 retrieving revision 1.67
 diff -p -u -8 -r1.67 sslsock.c
 --- mozilla/security/nss/lib/ssl/sslsock.c	25 Apr 2010 23:37:38 -0000	1.67
-+++ mozilla/security/nss/lib/ssl/sslsock.c	16 Feb 2011 02:40:21 -0000
++++ mozilla/security/nss/lib/ssl/sslsock.c	16 Feb 2011 23:30:37 -0000
 @@ -329,16 +329,20 @@ ssl_DupSocket(sslSocket *os)
  /*
   * XXX the preceding CERT_ and SECKEY_ functions can fail and return NULL.
