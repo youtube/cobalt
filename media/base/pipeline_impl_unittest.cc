@@ -17,6 +17,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
+using ::testing::DeleteArg;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Mock;
@@ -150,7 +151,7 @@ class PipelineImplTest : public ::testing::Test {
   void InitializeVideoDecoder(MockDemuxerStream* stream) {
     EXPECT_CALL(*mocks_->video_decoder(),
                 Initialize(stream, NotNull(), NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback3));
+        .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
     EXPECT_CALL(*mocks_->video_decoder(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->video_decoder(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
@@ -162,7 +163,7 @@ class PipelineImplTest : public ::testing::Test {
   void InitializeAudioDecoder(MockDemuxerStream* stream) {
     EXPECT_CALL(*mocks_->audio_decoder(),
                 Initialize(stream, NotNull(), NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback3));
+        .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
     EXPECT_CALL(*mocks_->audio_decoder(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->audio_decoder(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
@@ -174,7 +175,7 @@ class PipelineImplTest : public ::testing::Test {
   void InitializeVideoRenderer() {
     EXPECT_CALL(*mocks_->video_renderer(),
                 Initialize(mocks_->video_decoder(), NotNull(), NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback3));
+        .WillOnce(DoAll(Invoke(&RunFilterCallback3), DeleteArg<2>()));
     EXPECT_CALL(*mocks_->video_renderer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->video_renderer(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
