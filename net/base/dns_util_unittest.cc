@@ -53,6 +53,21 @@ TEST_F(DNSUtilTest, DNSDomainFromDot) {
   EXPECT_EQ(out, IncludeNUL("\003www\006google\003com"));
 }
 
+TEST_F(DNSUtilTest, DNSDomainToString) {
+  EXPECT_EQ("", DNSDomainToString(IncludeNUL("")));
+  EXPECT_EQ("foo", DNSDomainToString(IncludeNUL("\003foo")));
+  EXPECT_EQ("foo.bar", DNSDomainToString(IncludeNUL("\003foo\003bar")));
+  EXPECT_EQ("foo.bar.uk",
+            DNSDomainToString(IncludeNUL("\003foo\003bar\002uk")));
+
+  // It should cope with a lack of root label.
+  EXPECT_EQ("foo.bar", DNSDomainToString("\003foo\003bar"));
+
+  // Invalid inputs should return an empty string.
+  EXPECT_EQ("", DNSDomainToString(IncludeNUL("\x80")));
+  EXPECT_EQ("", DNSDomainToString("\x06"));
+}
+
 TEST_F(DNSUtilTest, STD3ASCII) {
   EXPECT_TRUE(IsSTD3ASCIIValidCharacter('a'));
   EXPECT_TRUE(IsSTD3ASCIIValidCharacter('b'));
