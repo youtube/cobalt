@@ -473,6 +473,16 @@ typedef SECStatus (*SSLCompressor)(void *               context,
                                    int                  inlen);
 typedef SECStatus (*SSLDestroy)(void *context, PRBool freeit);
 
+#ifdef NSS_PLATFORM_CLIENT_AUTH
+#if defined(XP_WIN32)
+typedef PCERT_KEY_CONTEXT PlatformKey;
+#elif defined(XP_MACOSX)
+typedef SecKeyRef PlatformKey;
+#else
+typedef void *PlatformKey;
+#endif
+#endif
+
 
 
 /*
@@ -834,15 +844,6 @@ const ssl3CipherSuiteDef *suite_def;
     PRBool                nextProtoNego;/* Our peer has sent this extension */
 } SSL3HandshakeState;
 
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-#if defined(XP_WIN32)
-typedef PCERT_KEY_CONTEXT PlatformKey;
-#elif defined(XP_MACOSX)
-typedef SecKeyRef PlatformKey;
-#else
-typedef void *PlatformKey;
-#endif
-#endif
 
 
 /*
