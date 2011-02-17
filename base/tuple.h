@@ -590,6 +590,13 @@ inline void DispatchToMethod(ObjT* obj, Method method,
   (obj->*method)(arg.a, arg.b, arg.c, arg.d, arg.e, arg.f, arg.g);
 }
 
+template<class ObjT, class Method, class A, class B, class C, class D, class E,
+         class F, class G, class H>
+inline void DispatchToMethod(ObjT* obj, Method method,
+                             const Tuple8<A, B, C, D, E, F, G, H>& arg) {
+  (obj->*method)(arg.a, arg.b, arg.c, arg.d, arg.e, arg.f, arg.g, arg.h);
+}
+
 // Static Dispatchers with no out params.
 
 template <class Function>
