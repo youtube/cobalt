@@ -458,6 +458,9 @@ class URLRequest : public base::NonThreadSafe {
   // Returns the error status of the request.
   const net::URLRequestStatus& status() const { return status_; }
 
+  // Returns a globally unique identifier for this request.
+  uint64 identifier() const { return identifier_; }
+
   // This method is called to start the request.  The delegate will receive
   // a OnResponseStarted callback when the request is started.
   void Start();
@@ -651,6 +654,9 @@ class URLRequest : public base::NonThreadSafe {
   // The priority level for this request.  Objects like ClientSocketPool use
   // this to determine which URLRequest to allocate sockets to first.
   net::RequestPriority priority_;
+
+  // A globally unique identifier for this request.
+  const uint64 identifier_;
 
   base::debug::LeakTracker<URLRequest> leak_tracker_;
 
