@@ -8,6 +8,7 @@
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/singleton.h"
+#include "base/synchronization/lock.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -37,6 +38,18 @@ void StripPostSpecificHeaders(net::HttpRequestHeaders* headers) {
   headers->RemoveHeader(net::HttpRequestHeaders::kContentLength);
   headers->RemoveHeader(net::HttpRequestHeaders::kContentType);
   headers->RemoveHeader(net::HttpRequestHeaders::kOrigin);
+}
+
+// This counter keeps track of the identifiers used for URL requests so far.
+uint64 g_next_url_request_identifier = 0;
+
+// This lock protects g_next_url_request_identifier.
+base::Lock g_next_url_request_identifier_lock;
+
+// Returns an prior unused identifier for URL requests.
+uint64 GenerateURLRequestIdentifier() {
+  base::AutoLock lock(g_next_url_request_identifier_lock);
+  return g_next_url_request_identifier++;
 }
 
 }  // namespace
@@ -105,7 +118,8 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       enable_profiling_(false),
       redirect_limit_(kMaxRedirects),
       final_upload_progress_(0),
-      priority_(net::LOWEST) {
+      priority_(net::LOWEST),
+      identifier_(GenerateURLRequestIdentifier()) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
   // Sanity check out environment.
