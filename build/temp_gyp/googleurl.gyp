@@ -69,6 +69,7 @@
     {
       'target_name': 'googleurl_unittests',
       'dependencies': [
+        '../../base/base.gyp:base_i18n',
         'googleurl',
         '../../testing/gtest.gyp:gtest',
         '../../third_party/icu/icu.gyp:icuuc',
@@ -79,7 +80,7 @@
         '../../googleurl/src/url_parse_unittest.cc',
         '../../googleurl/src/url_test_utils.h',
         '../../googleurl/src/url_util_unittest.cc',
-        '../../googleurl/src/gurl_test_main.cc',
+        'googleurl_test_main.cc',
       ],
       'conditions': [
         ['OS=="linux" or OS=="freebsd"', {
