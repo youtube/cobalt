@@ -28,16 +28,16 @@ TransportSecurityState::TransportSecurityState()
 
 void TransportSecurityState::EnableHost(const std::string& host,
                                         const DomainState& state) {
-  const std::string canonicalised_host = CanonicaliseHost(host);
-  if (canonicalised_host.empty())
+  const std::string canonicalized_host = CanonicalizeHost(host);
+  if (canonicalized_host.empty())
     return;
 
   bool temp;
-  if (IsPreloadedSTS(canonicalised_host, &temp))
+  if (IsPreloadedSTS(canonicalized_host, &temp))
     return;
 
   char hashed[base::SHA256_LENGTH];
-  base::SHA256HashString(canonicalised_host, hashed, sizeof(hashed));
+  base::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
 
   // Use the original creation date if we already have this host.
   DomainState state_copy(state);
@@ -45,8 +45,30 @@ void TransportSecurityState::EnableHost(const std::string& host,
   if (IsEnabledForHost(&existing_state, host))
     state_copy.created = existing_state.created;
 
+  // We don't store these values.
+  state_copy.preloaded = false;
+  state_copy.domain.clear();
+
   enabled_hosts_[std::string(hashed, sizeof(hashed))] = state_copy;
   DirtyNotify();
+}
+
+bool TransportSecurityState::DeleteHost(const std::string& host) {
+  const std::string canonicalized_host = CanonicalizeHost(host);
+  if (canonicalized_host.empty())
+    return false;
+
+  char hashed[base::SHA256_LENGTH];
+  base::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
+
+  std::map<std::string, DomainState>::iterator i = enabled_hosts_.find(
+      std::string(hashed, sizeof(hashed)));
+  if (i != enabled_hosts_.end()) {
+    enabled_hosts_.erase(i);
+    DirtyNotify();
+    return true;
+  }
+  return false;
 }
 
 // IncludeNUL converts a char* to a std::string and includes the terminating
@@ -57,24 +79,28 @@ static std::string IncludeNUL(const char* in) {
 
 bool TransportSecurityState::IsEnabledForHost(DomainState* result,
                                               const std::string& host) {
-  const std::string canonicalised_host = CanonicaliseHost(host);
-  if (canonicalised_host.empty())
+  *result = DomainState();
+
+  const std::string canonicalized_host = CanonicalizeHost(host);
+  if (canonicalized_host.empty())
     return false;
 
   bool include_subdomains;
-  if (IsPreloadedSTS(canonicalised_host, &include_subdomains)) {
+  if (IsPreloadedSTS(canonicalized_host, &include_subdomains)) {
     result->created = result->expiry = base::Time::FromTimeT(0);
     result->mode = DomainState::MODE_STRICT;
     result->include_subdomains = include_subdomains;
+    result->preloaded = true;
     return true;
   }
 
+  result->preloaded = false;
   base::Time current_time(base::Time::Now());
 
-  for (size_t i = 0; canonicalised_host[i]; i += canonicalised_host[i] + 1) {
+  for (size_t i = 0; canonicalized_host[i]; i += canonicalized_host[i] + 1) {
     char hashed_domain[base::SHA256_LENGTH];
 
-    base::SHA256HashString(IncludeNUL(&canonicalised_host[i]), &hashed_domain,
+    base::SHA256HashString(IncludeNUL(&canonicalized_host[i]), &hashed_domain,
                            sizeof(hashed_domain));
     std::map<std::string, DomainState>::iterator j =
         enabled_hosts_.find(std::string(hashed_domain, sizeof(hashed_domain)));
@@ -88,6 +114,8 @@ bool TransportSecurityState::IsEnabledForHost(DomainState* result,
     }
 
     *result = j->second;
+    result->domain = DNSDomainToString(
+        canonicalized_host.substr(i, canonicalized_host.size() - i));
 
     // If we matched the domain exactly, it doesn't matter what the value of
     // include_subdomains is.
@@ -376,7 +404,7 @@ void TransportSecurityState::DirtyNotify() {
 }
 
 // static
-std::string TransportSecurityState::CanonicaliseHost(const std::string& host) {
+std::string TransportSecurityState::CanonicalizeHost(const std::string& host) {
   // We cannot perform the operations as detailed in the spec here as |host|
   // has already undergone IDN processing before it reached us. Thus, we check
   // that there are no invalid characters in the host and lowercase the result.
@@ -411,11 +439,11 @@ std::string TransportSecurityState::CanonicaliseHost(const std::string& host) {
   return new_host;
 }
 
-// IsPreloadedSTS returns true if the canonicalised hostname should always be
+// IsPreloadedSTS returns true if the canonicalized hostname should always be
 // considered to have STS enabled.
 // static
 bool TransportSecurityState::IsPreloadedSTS(
-    const std::string& canonicalised_host, bool *include_subdomains) {
+    const std::string& canonicalized_host, bool *include_subdomains) {
   // In the medium term this list is likely to just be hardcoded here. This,
   // slightly odd, form removes the need for additional relocations records.
   static const struct {
@@ -442,11 +470,11 @@ bool TransportSecurityState::IsPreloadedSTS(
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
-  for (size_t i = 0; canonicalised_host[i]; i += canonicalised_host[i] + 1) {
+  for (size_t i = 0; canonicalized_host[i]; i += canonicalized_host[i] + 1) {
     for (size_t j = 0; j < kNumPreloadedSTS; j++) {
-      if (kPreloadedSTS[j].length == canonicalised_host.size() - i &&
+      if (kPreloadedSTS[j].length == canonicalized_host.size() - i &&
           (kPreloadedSTS[j].include_subdomains || i == 0) &&
-          memcmp(kPreloadedSTS[j].dns_name, &canonicalised_host[i],
+          memcmp(kPreloadedSTS[j].dns_name, &canonicalized_host[i],
                  kPreloadedSTS[j].length) == 0) {
         *include_subdomains = kPreloadedSTS[j].include_subdomains;
         return true;

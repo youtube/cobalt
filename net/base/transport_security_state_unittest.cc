@@ -281,6 +281,23 @@ TEST_F(TransportSecurityStateTest, DeleteSince) {
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "google.com"));
 }
 
+TEST_F(TransportSecurityStateTest, DeleteHost) {
+  scoped_refptr<TransportSecurityState> state(
+      new TransportSecurityState);
+
+  TransportSecurityState::DomainState domain_state;
+  const base::Time current_time(base::Time::Now());
+  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
+  domain_state.mode = TransportSecurityState::DomainState::MODE_STRICT;
+  domain_state.expiry = expiry;
+  state->EnableHost("google.com", domain_state);
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "google.com"));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "example.com"));
+  EXPECT_TRUE(state->DeleteHost("google.com"));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "google.com"));
+}
+
 TEST_F(TransportSecurityStateTest, SerialiseOld) {
   scoped_refptr<TransportSecurityState> state(
       new TransportSecurityState);
@@ -301,17 +318,17 @@ TEST_F(TransportSecurityStateTest, SerialiseOld) {
 
 TEST_F(TransportSecurityStateTest, IsPreloaded) {
   const std::string paypal =
-      TransportSecurityState::CanonicaliseHost("paypal.com");
+      TransportSecurityState::CanonicalizeHost("paypal.com");
   const std::string www_paypal =
-      TransportSecurityState::CanonicaliseHost("www.paypal.com");
+      TransportSecurityState::CanonicalizeHost("www.paypal.com");
   const std::string a_www_paypal =
-      TransportSecurityState::CanonicaliseHost("a.www.paypal.com");
+      TransportSecurityState::CanonicalizeHost("a.www.paypal.com");
   const std::string abc_paypal =
-      TransportSecurityState::CanonicaliseHost("a.b.c.paypal.com");
+      TransportSecurityState::CanonicalizeHost("a.b.c.paypal.com");
   const std::string example =
-      TransportSecurityState::CanonicaliseHost("example.com");
+      TransportSecurityState::CanonicalizeHost("example.com");
   const std::string aypal =
-      TransportSecurityState::CanonicaliseHost("aypal.com");
+      TransportSecurityState::CanonicalizeHost("aypal.com");
 
   bool b;
   EXPECT_FALSE(TransportSecurityState::IsPreloadedSTS(paypal, &b));
@@ -331,6 +348,7 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.paypal.com"));
   EXPECT_EQ(domain_state.mode,
             TransportSecurityState::DomainState::MODE_STRICT);
+  EXPECT_TRUE(domain_state.preloaded);
   EXPECT_FALSE(domain_state.include_subdomains);
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "www2.paypal.com"));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "a.www.paypal.com"));
@@ -370,6 +388,10 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "splendidbacon.com"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.splendidbacon.com"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "foo.splendidbacon.com"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "chrome.google.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "checkout.google.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "health.google.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {

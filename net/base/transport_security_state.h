@@ -47,16 +47,25 @@ class TransportSecurityState :
     DomainState()
         : mode(MODE_STRICT),
           created(base::Time::Now()),
-          include_subdomains(false) { }
+          include_subdomains(false),
+          preloaded(false) { }
 
     Mode mode;
     base::Time created;  // when this host entry was first created
     base::Time expiry;  // the absolute time (UTC) when this record expires
     bool include_subdomains;  // subdomains included?
+
+    // The follow members are not valid when stored in |enabled_hosts_|.
+    bool preloaded;  // is this a preloaded entry?
+    std::string domain;  // the domain which matched
   };
 
   // Enable TransportSecurity for |host|.
   void EnableHost(const std::string& host, const DomainState& state);
+
+  // Delete any entry for |host|. If |host| doesn't have an exact entry then no
+  // action is taken. Returns true iff an entry was deleted.
+  bool DeleteHost(const std::string& host);
 
   // Returns true if |host| has TransportSecurity enabled. If that case,
   // *result is filled out.
@@ -101,8 +110,8 @@ class TransportSecurityState :
   // our state is dirty.
   void DirtyNotify();
 
-  static std::string CanonicaliseHost(const std::string& host);
-  static bool IsPreloadedSTS(const std::string& canonicalised_host,
+  static std::string CanonicalizeHost(const std::string& host);
+  static bool IsPreloadedSTS(const std::string& canonicalized_host,
                              bool* out_include_subdomains);
 
   // The set of hosts that have enabled TransportSecurity. The keys here
