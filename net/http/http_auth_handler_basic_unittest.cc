@@ -46,6 +46,25 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
   }
 }
 
+TEST(HttpAuthHandlerBasicTest, HandleAnotherChallenge) {
+  GURL origin("http://www.example.com");
+  std::string challenge1 = "Basic realm=\"First\"";
+  std::string challenge2 = "Basic realm=\"Second\"";
+  HttpAuthHandlerBasic::Factory factory;
+  scoped_ptr<HttpAuthHandler> basic;
+  EXPECT_EQ(OK, factory.CreateAuthHandlerFromString(
+      challenge1, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic));
+  HttpAuth::ChallengeTokenizer tok_first(challenge1.begin(),
+                                         challenge1.end());
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
+            basic->HandleAnotherChallenge(&tok_first));
+
+  HttpAuth::ChallengeTokenizer tok_second(challenge2.begin(),
+                                          challenge2.end());
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM,
+            basic->HandleAnotherChallenge(&tok_second));
+}
+
 TEST(HttpAuthHandlerBasicTest, InitFromChallenge) {
   static const struct {
     const char* challenge;

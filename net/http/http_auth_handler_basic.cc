@@ -53,9 +53,20 @@ bool HttpAuthHandlerBasic::ParseChallenge(
 
 HttpAuth::AuthorizationResult HttpAuthHandlerBasic::HandleAnotherChallenge(
     HttpAuth::ChallengeTokenizer* challenge) {
-  // Basic authentication is always a single round, so any responses should
-  // be treated as a rejection.
-  return HttpAuth::AUTHORIZATION_RESULT_REJECT;
+  // Basic authentication is always a single round, so any responses
+  // should be treated as a rejection.  However, if the new challenge
+  // is for a different realm, then indicate the realm change.
+  HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
+  std::string realm;
+  while (parameters.GetNext()) {
+    if (LowerCaseEqualsASCII(parameters.name(), "realm")) {
+      realm = parameters.value();
+      break;
+    }
+  }
+  return (realm_ != realm)?
+      HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM:
+      HttpAuth::AUTHORIZATION_RESULT_REJECT;
 }
 
 int HttpAuthHandlerBasic::GenerateAuthTokenImpl(

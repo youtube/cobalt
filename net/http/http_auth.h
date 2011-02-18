@@ -52,6 +52,13 @@ class HttpAuth {
     AUTHORIZATION_RESULT_INVALID,  // The authentication challenge headers are
                                    // poorly formed (the authorization attempt
                                    // itself may have been fine).
+
+    AUTHORIZATION_RESULT_DIFFERENT_REALM,  // The authorization
+                                           // attempt was rejected,
+                                           // but the realm associated
+                                           // with the new challenge
+                                           // is different from the
+                                           // previous attempt.
   };
 
   // Describes where the identity used for authentication came from.
