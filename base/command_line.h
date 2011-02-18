@@ -129,11 +129,13 @@ class CommandLine {
   void AppendSwitch(const std::string& switch_string);
 
   // Append a switch and value to the command line.
+  // CAUTION! Appending a switch after the "--" kSwitchTerminator is futile!
   void AppendSwitchPath(const std::string& switch_string, const FilePath& path);
   void AppendSwitchNative(const std::string& switch_string,
                           const StringType& value);
   void AppendSwitchASCII(const std::string& switch_string,
                          const std::string& value);
+  void AppendSwitches(const CommandLine& other);
 
   // Append an argument to the command line.
   // Note on quoting: the argument will be quoted properly such that it is
@@ -143,6 +145,7 @@ class CommandLine {
   void AppendArg(const std::string& value);
   void AppendArgPath(const FilePath& value);
   void AppendArgNative(const StringType& value);
+  void AppendArgs(const CommandLine& other);
 
   // Append the arguments from another command line to this one.
   // If |include_program| is true, include |other|'s program as well.
