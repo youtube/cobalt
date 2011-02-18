@@ -70,6 +70,8 @@
       'target_name': 'googleurl_unittests',
       'dependencies': [
         'googleurl',
+        '../../base/base.gyp:base_i18n',
+        '../../base/base.gyp:test_support_base',
         '../../testing/gtest.gyp:gtest',
         '../../third_party/icu/icu.gyp:icuuc',
       ],
@@ -79,7 +81,9 @@
         '../../googleurl/src/url_parse_unittest.cc',
         '../../googleurl/src/url_test_utils.h',
         '../../googleurl/src/url_util_unittest.cc',
-        '../../googleurl/src/gurl_test_main.cc',
+        # Make sure base and ICU are started up the 'Chromium way' since the
+        # build is using the Chromium base & ICU.
+        '../../base/test/run_all_unittests.cc',
       ],
       'conditions': [
         ['OS=="linux" or OS=="freebsd"', {
