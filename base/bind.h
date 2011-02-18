@@ -12,7 +12,7 @@
 #pragma once
 
 #include "base/bind_internal.h"
-#include "base/callback_helpers.h"
+#include "base/callback_internal.h"
 
 // See base/callback.h for how to use these functions.
 //

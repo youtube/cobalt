@@ -12,7 +12,7 @@
 #pragma once
 
 #include "base/bind_helpers.h"
-#include "base/callback_helpers.h"
+#include "base/callback_internal.h"
 #include "base/template_util.h"
 
 namespace base {
