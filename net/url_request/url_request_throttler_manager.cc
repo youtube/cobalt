@@ -8,61 +8,6 @@
 
 #include "base/logging.h"
 #include "base/string_util.h"
-#include "base/synchronization/lock.h"
-#include "base/threading/platform_thread.h"
-
-namespace {
-
-// AccessLog records threads that have accessed the URLRequestThrottlerManager
-// singleton object.
-// TODO(yzshen): It is used for diagnostic purpose and should be removed once we
-// figure out crbug.com/71721
-class AccessLog {
- public:
-  static const size_t kAccessLogSize = 4;
-
-  AccessLog() {
-    for (size_t i = 0; i < kAccessLogSize; ++i) {
-      thread_ids_[i] = base::kInvalidThreadId;
-      urls_[i][0] = '\0';
-    }
-  }
-
-  AccessLog(const AccessLog& log) {
-    base::AutoLock auto_lock(log.lock_);
-    for (size_t i = 0; i < kAccessLogSize; ++i) {
-      thread_ids_[i] = log.thread_ids_[i];
-      base::strlcpy(urls_[i], log.urls_[i], kUrlBufferSize);
-    }
-  }
-
-  void Add(base::PlatformThreadId id, const GURL& url) {
-    base::AutoLock auto_lock(lock_);
-    for (size_t i = 0; i < kAccessLogSize; ++i) {
-      if (thread_ids_[i] == id) {
-        return;
-      } else if (thread_ids_[i] == base::kInvalidThreadId) {
-        DCHECK(i == 0);
-        thread_ids_[i] = id;
-        base::strlcpy(urls_[i], url.spec().c_str(), kUrlBufferSize);
-        return;
-      }
-    }
-  }
-
- private:
-  static const size_t kUrlBufferSize = 128;
-
-  mutable base::Lock lock_;
-  base::PlatformThreadId thread_ids_[kAccessLogSize];
-  // Records the URL argument of the first RegisterRequestUrl() call on each
-  // thread.
-  char urls_[kAccessLogSize][kUrlBufferSize];
-};
-
-AccessLog access_log;
-
-}  // namespace
 
 namespace net {
 
@@ -75,9 +20,6 @@ URLRequestThrottlerManager* URLRequestThrottlerManager::GetInstance() {
 
 scoped_refptr<URLRequestThrottlerEntryInterface>
     URLRequestThrottlerManager::RegisterRequestUrl(const GURL &url) {
-  if (record_access_log_)
-    access_log.Add(base::PlatformThread::CurrentId(), url);
-
   // Normalize the url.
   std::string url_id = GetIdFromUrl(url);
 
@@ -124,13 +66,11 @@ void URLRequestThrottlerManager::EraseEntryForTests(const GURL& url) {
 
 void URLRequestThrottlerManager::InitializeOptions(bool enforce_throttling) {
   enforce_throttling_ = enforce_throttling;
-  record_access_log_ = true;
 }
 
 URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
-      enforce_throttling_(true),
-      record_access_log_(false) {
+      enforce_throttling_(true) {
 }
 
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
@@ -165,8 +105,6 @@ void URLRequestThrottlerManager::GarbageCollectEntriesIfNecessary() {
 }
 
 void URLRequestThrottlerManager::GarbageCollectEntries() {
-  volatile AccessLog access_log_copy(access_log);
-
   // The more efficient way to remove outdated entries is iterating over all the
   // elements in the map, and removing those outdated ones during the process.
   // However, one hypothesis about the cause of crbug.com/71721 is that some
