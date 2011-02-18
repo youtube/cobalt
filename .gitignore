@@ -60,6 +60,8 @@ v8.log
 /googleurl
 /gpu/gles2_conform_test
 /native_client
+/net/Debug
+/net/Release
 /ninja
 /out
 /out_*
