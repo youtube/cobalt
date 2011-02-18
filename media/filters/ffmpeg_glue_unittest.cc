@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,15 +36,22 @@ class MockProtocol : public FFmpegURLProtocol {
 
 class FFmpegGlueTest : public ::testing::Test {
  public:
-  FFmpegGlueTest() {}
+  FFmpegGlueTest() {
+  }
 
   virtual void SetUp() {
+    MockFFmpeg::set(&mock_ffmpeg_);
+
     // Singleton should initialize FFmpeg.
     CHECK(FFmpegGlue::GetInstance());
 
     // Assign our static copy of URLProtocol for the rest of the tests.
     protocol_ = MockFFmpeg::protocol();
     CHECK(protocol_);
+  }
+
+  virtual void TearDown() {
+    MockFFmpeg::set(NULL);
   }
 
   // Helper to open a URLContext pointing to the given mocked protocol.
