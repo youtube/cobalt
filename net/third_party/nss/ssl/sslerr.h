@@ -36,7 +36,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslerr.h,v 1.11 2010/06/24 09:24:18 nelson%bolyard.com Exp $ */
+/* $Id: sslerr.h,v 1.11.2.2 2010/09/01 19:47:11 wtc%google.com Exp $ */
 #ifndef __SSL_ERR_H_
 #define __SSL_ERR_H_
 
@@ -201,7 +201,7 @@ SSL_ERROR_UNSAFE_NEGOTIATION            = (SSL_ERROR_BASE + 113),
 
 SSL_ERROR_RX_UNEXPECTED_UNCOMPRESSED_RECORD	= (SSL_ERROR_BASE + 114),
 
-SSL_ERROR_WEAK_SERVER_KEY               = (SSL_ERROR_BASE + 115),
+SSL_ERROR_WEAK_SERVER_EPHEMERAL_DH_KEY  = (SSL_ERROR_BASE + 115),
 
 SSL_ERROR_RX_UNEXPECTED_CERT_STATUS	= (SSL_ERROR_BASE + 116),
 

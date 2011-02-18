@@ -4,18 +4,13 @@ URL: http://www.mozilla.org/projects/security/pki/nss/
 This directory includes a copy of NSS's libssl from the CVS repo at:
   :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot
 
-The snapshot was updated to the CVS tag: NSS_3_12_7_RTM
+The snapshot was updated to the CVS tag: NSS_3_12_9_RTM
 
 Patches:
 
   * Next protocol negotiation support.
     patches/nextproto.patch
     http://codereview.chromium.org/415005
-
-  * False start support
-    patches/falsestart.patch
-    patches/falsestart2.patch
-    https://bugzilla.mozilla.org/show_bug.cgi?id=525092
 
   * Commenting out a couple of functions because they need NSS symbols
     which may not exist in the system NSS library.
@@ -31,12 +26,6 @@ Patches:
     ss->ssl3.peerCertChain in the right order.
     patches/cachecerts.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=606049
-
-  * Add the SSL_ERROR_WEAK_SERVER_KEY error code for a weak server key in 
-    the Server Key Exchange handshake message.
-    patches/weakserverkey.patch
-    http://crbug.com/51694
-    https://bugzilla.mozilla.org/show_bug.cgi?id=587234
 
   * Add Snap Start support
     patches/snapstart.patch
