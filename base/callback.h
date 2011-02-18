@@ -212,6 +212,49 @@
 
 namespace base {
 
+namespace internal {
+
+// Holds the methods that don't require specialization to reduce template bloat.
+class CallbackBase {
+ public:
+  // Returns true if Callback is null (doesn't refer to anything).
+  bool is_null() const {
+    return invoker_storage_.get() == NULL;
+  }
+
+  // Returns the Callback into an uninitalized state.
+  void Reset() {
+    invoker_storage_ = NULL;
+    polymorphic_invoke_ = NULL;
+  }
+
+  bool Equals(const CallbackBase& other) const {
+    return invoker_storage_.get() == other.invoker_storage_.get() &&
+           polymorphic_invoke_ == other.polymorphic_invoke_;
+  }
+
+ protected:
+  // In C++, it is safe to cast function pointers to function pointers of
+  // another type. It is not okay to use void*. We create a InvokeFuncStorage
+  // that that can store our function pointer, and then cast it back to
+  // the original type on usage.
+  typedef void(*InvokeFuncStorage)(void);
+
+  CallbackBase(InvokeFuncStorage polymorphic_invoke,
+               scoped_refptr<InvokerStorageBase>* invoker_storage)
+      : polymorphic_invoke_(polymorphic_invoke) {
+    if (invoker_storage) {
+      invoker_storage_.swap(*invoker_storage);
+    }
+  }
+
+  scoped_refptr<InvokerStorageBase> invoker_storage_;
+  InvokeFuncStorage polymorphic_invoke_;
+};
+
+}  // namespace internal
+
+
 // First, we forward declare the Callback class template. This informs the
 // compiler that the template only has 1 type parameter which is the function
 // signature that the Callback is representing.
@@ -221,13 +264,12 @@ namespace base {
 // only has one type: the function signature.
 template <typename Sig>
 class Callback;
-
 template <typename R>
-class Callback<R(void)> {
+class Callback<R(void)> : public internal::CallbackBase {
  public:
   typedef R(*PolymorphicInvoke)(internal::InvokerStorageBase*);
 
-  Callback() : polymorphic_invoke_(NULL) { }
+  Callback() : CallbackBase(NULL, NULL) { }
 
   // We pass InvokerStorageHolder by const ref to avoid incurring an
   // unnecessary AddRef/Unref pair even though we will modify the object.
@@ -238,25 +280,25 @@ class Callback<R(void)> {
   // return the exact Callback<> type.  See base/bind.h for details.
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
-      : polymorphic_invoke_(&T::FunctionTraits::DoInvoke) {
-    invoker_storage_.swap(invoker_holder.invoker_storage_);
+      : CallbackBase(
+          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          &invoker_holder.invoker_storage_) {
   }
 
-  R Run(void) const {
-    return polymorphic_invoke_(invoker_storage_.get());
-  }
+  R Run() const {
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
- private:
-  scoped_refptr<internal::InvokerStorageBase> invoker_storage_;
-  PolymorphicInvoke polymorphic_invoke_;
+    return f(invoker_storage_.get());
+  }
 };
 
 template <typename R, typename A1>
-class Callback<R(A1)> {
+class Callback<R(A1)> : public internal::CallbackBase {
  public:
   typedef R(*PolymorphicInvoke)(internal::InvokerStorageBase*, const A1&);
 
-  Callback() : polymorphic_invoke_(NULL) { }
+  Callback() : CallbackBase(NULL, NULL) { }
 
   // We pass InvokerStorageHolder by const ref to avoid incurring an
   // unnecessary AddRef/Unref pair even though we will modify the object.
@@ -267,26 +309,26 @@ class Callback<R(A1)> {
   // return the exact Callback<> type.  See base/bind.h for details.
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
-      : polymorphic_invoke_(&T::FunctionTraits::DoInvoke) {
-    invoker_storage_.swap(invoker_holder.invoker_storage_);
+      : CallbackBase(
+          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          &invoker_holder.invoker_storage_) {
   }
 
   R Run(const A1& a1) const {
-    return polymorphic_invoke_(invoker_storage_.get(), a1);
-  }
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
- private:
-  scoped_refptr<internal::InvokerStorageBase> invoker_storage_;
-  PolymorphicInvoke polymorphic_invoke_;
+    return f(invoker_storage_.get(), a1);
+  }
 };
 
 template <typename R, typename A1, typename A2>
-class Callback<R(A1, A2)> {
+class Callback<R(A1, A2)> : public internal::CallbackBase {
  public:
   typedef R(*PolymorphicInvoke)(internal::InvokerStorageBase*, const A1&,
                                 const A2&);
 
-  Callback() : polymorphic_invoke_(NULL) { }
+  Callback() : CallbackBase(NULL, NULL) { }
 
   // We pass InvokerStorageHolder by const ref to avoid incurring an
   // unnecessary AddRef/Unref pair even though we will modify the object.
@@ -297,29 +339,29 @@ class Callback<R(A1, A2)> {
   // return the exact Callback<> type.  See base/bind.h for details.
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
-      : polymorphic_invoke_(&T::FunctionTraits::DoInvoke) {
-    invoker_storage_.swap(invoker_holder.invoker_storage_);
+      : CallbackBase(
+          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          &invoker_holder.invoker_storage_) {
   }
 
   R Run(const A1& a1,
         const A2& a2) const {
-    return polymorphic_invoke_(invoker_storage_.get(), a1,
-                               a2);
-  }
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
- private:
-  scoped_refptr<internal::InvokerStorageBase> invoker_storage_;
-  PolymorphicInvoke polymorphic_invoke_;
+    return f(invoker_storage_.get(), a1,
+             a2);
+  }
 };
 
 template <typename R, typename A1, typename A2, typename A3>
-class Callback<R(A1, A2, A3)> {
+class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
  public:
   typedef R(*PolymorphicInvoke)(internal::InvokerStorageBase*, const A1&,
                                 const A2&,
                                 const A3&);
 
-  Callback() : polymorphic_invoke_(NULL) { }
+  Callback() : CallbackBase(NULL, NULL) { }
 
   // We pass InvokerStorageHolder by const ref to avoid incurring an
   // unnecessary AddRef/Unref pair even though we will modify the object.
@@ -330,32 +372,32 @@ class Callback<R(A1, A2, A3)> {
   // return the exact Callback<> type.  See base/bind.h for details.
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
-      : polymorphic_invoke_(&T::FunctionTraits::DoInvoke) {
-    invoker_storage_.swap(invoker_holder.invoker_storage_);
+      : CallbackBase(
+          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          &invoker_holder.invoker_storage_) {
   }
 
   R Run(const A1& a1,
         const A2& a2,
         const A3& a3) const {
-    return polymorphic_invoke_(invoker_storage_.get(), a1,
-                               a2,
-                               a3);
-  }
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
- private:
-  scoped_refptr<internal::InvokerStorageBase> invoker_storage_;
-  PolymorphicInvoke polymorphic_invoke_;
+    return f(invoker_storage_.get(), a1,
+             a2,
+             a3);
+  }
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4>
-class Callback<R(A1, A2, A3, A4)> {
+class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
  public:
   typedef R(*PolymorphicInvoke)(internal::InvokerStorageBase*, const A1&,
                                 const A2&,
                                 const A3&,
                                 const A4&);
 
-  Callback() : polymorphic_invoke_(NULL) { }
+  Callback() : CallbackBase(NULL, NULL) { }
 
   // We pass InvokerStorageHolder by const ref to avoid incurring an
   // unnecessary AddRef/Unref pair even though we will modify the object.
@@ -366,28 +408,28 @@ class Callback<R(A1, A2, A3, A4)> {
   // return the exact Callback<> type.  See base/bind.h for details.
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
-      : polymorphic_invoke_(&T::FunctionTraits::DoInvoke) {
-    invoker_storage_.swap(invoker_holder.invoker_storage_);
+      : CallbackBase(
+          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          &invoker_holder.invoker_storage_) {
   }
 
   R Run(const A1& a1,
         const A2& a2,
         const A3& a3,
         const A4& a4) const {
-    return polymorphic_invoke_(invoker_storage_.get(), a1,
-                               a2,
-                               a3,
-                               a4);
-  }
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
- private:
-  scoped_refptr<internal::InvokerStorageBase> invoker_storage_;
-  PolymorphicInvoke polymorphic_invoke_;
+    return f(invoker_storage_.get(), a1,
+             a2,
+             a3,
+             a4);
+  }
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4,
     typename A5>
-class Callback<R(A1, A2, A3, A4, A5)> {
+class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
  public:
   typedef R(*PolymorphicInvoke)(internal::InvokerStorageBase*, const A1&,
                                 const A2&,
@@ -395,7 +437,7 @@ class Callback<R(A1, A2, A3, A4, A5)> {
                                 const A4&,
                                 const A5&);
 
-  Callback() : polymorphic_invoke_(NULL) { }
+  Callback() : CallbackBase(NULL, NULL) { }
 
   // We pass InvokerStorageHolder by const ref to avoid incurring an
   // unnecessary AddRef/Unref pair even though we will modify the object.
@@ -406,8 +448,9 @@ class Callback<R(A1, A2, A3, A4, A5)> {
   // return the exact Callback<> type.  See base/bind.h for details.
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
-      : polymorphic_invoke_(&T::FunctionTraits::DoInvoke) {
-    invoker_storage_.swap(invoker_holder.invoker_storage_);
+      : CallbackBase(
+          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          &invoker_holder.invoker_storage_) {
   }
 
   R Run(const A1& a1,
@@ -415,21 +458,20 @@ class Callback<R(A1, A2, A3, A4, A5)> {
         const A3& a3,
         const A4& a4,
         const A5& a5) const {
-    return polymorphic_invoke_(invoker_storage_.get(), a1,
-                               a2,
-                               a3,
-                               a4,
-                               a5);
-  }
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
- private:
-  scoped_refptr<internal::InvokerStorageBase> invoker_storage_;
-  PolymorphicInvoke polymorphic_invoke_;
+    return f(invoker_storage_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5);
+  }
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4,
     typename A5, typename A6>
-class Callback<R(A1, A2, A3, A4, A5, A6)> {
+class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
  public:
   typedef R(*PolymorphicInvoke)(internal::InvokerStorageBase*, const A1&,
                                 const A2&,
@@ -438,7 +480,7 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> {
                                 const A5&,
                                 const A6&);
 
-  Callback() : polymorphic_invoke_(NULL) { }
+  Callback() : CallbackBase(NULL, NULL) { }
 
   // We pass InvokerStorageHolder by const ref to avoid incurring an
   // unnecessary AddRef/Unref pair even though we will modify the object.
@@ -449,8 +491,9 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> {
   // return the exact Callback<> type.  See base/bind.h for details.
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
-      : polymorphic_invoke_(&T::FunctionTraits::DoInvoke) {
-    invoker_storage_.swap(invoker_holder.invoker_storage_);
+      : CallbackBase(
+          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          &invoker_holder.invoker_storage_) {
   }
 
   R Run(const A1& a1,
@@ -459,17 +502,16 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> {
         const A4& a4,
         const A5& a5,
         const A6& a6) const {
-    return polymorphic_invoke_(invoker_storage_.get(), a1,
-                               a2,
-                               a3,
-                               a4,
-                               a5,
-                               a6);
-  }
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
- private:
-  scoped_refptr<internal::InvokerStorageBase> invoker_storage_;
-  PolymorphicInvoke polymorphic_invoke_;
+    return f(invoker_storage_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5,
+             a6);
+  }
 };
 
 
