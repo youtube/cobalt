@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,59 +41,13 @@ const char kSwitchValueSeparator[] = "=";
 #endif
 
 #if defined(OS_WIN)
-namespace {
 // Lowercase a string.  This is used to lowercase switch names.
 // Is this what we really want?  It seems crazy to me.  I've left it in
 // for backwards compatibility on Windows.
-void Lowercase(std::string* parameter) {
+static void Lowercase(std::string* parameter) {
   transform(parameter->begin(), parameter->end(), parameter->begin(),
             tolower);
 }
-
-// Quote a string if necessary, such that CommandLineToArgvW() will
-// always process it as a single argument.
-std::wstring WindowsStyleQuote(const std::wstring& arg) {
-  // We follow the quoting rules of CommandLineToArgvW.
-  // http://msdn.microsoft.com/en-us/library/17w5ykft.aspx
-  if (arg.find_first_of(L" \\\"") == std::wstring::npos) {
-    // No quoting necessary.
-    return arg;
-  }
-
-  std::wstring out;
-  out.push_back(L'"');
-  for (size_t i = 0; i < arg.size(); ++i) {
-    if (arg[i] == '\\') {
-      // Find the extent of this run of backslashes.
-      size_t start = i, end = start + 1;
-      for (; end < arg.size() && arg[end] == '\\'; ++end)
-        /* empty */;
-      size_t backslash_count = end - start;
-
-      // Backslashes are escapes only if the run is followed by a double quote.
-      // Since we also will end the string with a double quote, we escape for
-      // either a double quote or the end of the string.
-      if (end == arg.size() || arg[end] == '"') {
-        // To quote, we need to output 2x as many backslashes.
-        backslash_count *= 2;
-      }
-      for (size_t j = 0; j < backslash_count; ++j)
-        out.push_back('\\');
-
-      // Advance i to one before the end to balance i++ in loop.
-      i = end - 1;
-    } else if (arg[i] == '"') {
-      out.push_back('\\');
-      out.push_back('"');
-    } else {
-      out.push_back(arg[i]);
-    }
-  }
-  out.push_back('"');
-
-  return out;
-}
-}  // namespace
 #endif
 
 CommandLine::~CommandLine() {
@@ -337,6 +291,55 @@ void CommandLine::AppendSwitch(const std::string& switch_string) {
   switches_[switch_string] = L"";
 }
 
+void CommandLine::AppendSwitchASCII(const std::string& switch_string,
+                                    const std::string& value_string) {
+  AppendSwitchNative(switch_string, ASCIIToWide(value_string));
+}
+
+// Quote a string if necessary, such that CommandLineToArgvW() will
+// always process it as a single argument.
+static std::wstring WindowsStyleQuote(const std::wstring& arg) {
+  // We follow the quoting rules of CommandLineToArgvW.
+  // http://msdn.microsoft.com/en-us/library/17w5ykft.aspx
+  if (arg.find_first_of(L" \\\"") == std::wstring::npos) {
+    // No quoting necessary.
+    return arg;
+  }
+
+  std::wstring out;
+  out.push_back(L'"');
+  for (size_t i = 0; i < arg.size(); ++i) {
+    if (arg[i] == '\\') {
+      // Find the extent of this run of backslashes.
+      size_t start = i, end = start + 1;
+      for (; end < arg.size() && arg[end] == '\\'; ++end)
+        /* empty */;
+      size_t backslash_count = end - start;
+
+      // Backslashes are escapes only if the run is followed by a double quote.
+      // Since we also will end the string with a double quote, we escape for
+      // either a double quote or the end of the string.
+      if (end == arg.size() || arg[end] == '"') {
+        // To quote, we need to output 2x as many backslashes.
+        backslash_count *= 2;
+      }
+      for (size_t j = 0; j < backslash_count; ++j)
+        out.push_back('\\');
+
+      // Advance i to one before the end to balance i++ in loop.
+      i = end - 1;
+    } else if (arg[i] == '"') {
+      out.push_back('\\');
+      out.push_back('"');
+    } else {
+      out.push_back(arg[i]);
+    }
+  }
+  out.push_back('"');
+
+  return out;
+}
+
 void CommandLine::AppendSwitchNative(const std::string& switch_string,
                                      const std::wstring& value) {
   std::wstring combined_switch_string =
@@ -348,11 +351,6 @@ void CommandLine::AppendSwitchNative(const std::string& switch_string,
   command_line_string_.append(combined_switch_string);
 
   switches_[switch_string] = value;
-}
-
-void CommandLine::AppendSwitchASCII(const std::string& switch_string,
-                                    const std::string& value_string) {
-  AppendSwitchNative(switch_string, ASCIIToWide(value_string));
 }
 
 void CommandLine::AppendArg(const std::string& value) {
@@ -369,7 +367,8 @@ void CommandLine::AppendArgNative(const std::wstring& value) {
 void CommandLine::AppendArguments(const CommandLine& other,
                                   bool include_program) {
   // Verify include_program is used correctly.
-  DCHECK(!include_program || !other.GetProgram().empty());
+  // Logic could be shorter but this is clearer.
+  DCHECK_EQ(include_program, !other.GetProgram().empty());
   if (include_program)
     program_ = other.program_;
 
@@ -452,31 +451,13 @@ void CommandLine::PrependWrapper(const std::string& wrapper) {
 
 #endif
 
-void CommandLine::AppendSwitchPath(const std::string& switch_string,
-                                   const FilePath& path) {
-  AppendSwitchNative(switch_string, path.value());
-}
-
-void CommandLine::AppendSwitches(const CommandLine& other) {
-  std::map<std::string, StringType>::const_iterator i;
-  for (i = other.switches_.begin(); i != other.switches_.end(); ++i)
-    AppendSwitchNative(i->first, i->second);
-}
-
 void CommandLine::AppendArgPath(const FilePath& path) {
   AppendArgNative(path.value());
 }
 
-void CommandLine::AppendArgs(const CommandLine& other) {
-  if(other.args_.size() <= 0)
-    return;
-
-#if defined(OS_WIN)
-  command_line_string_.append(L" --");
-#endif  // OS_WIN
-  std::vector<StringType>::const_iterator i;
-  for (i = other.args_.begin(); i != other.args_.end(); ++i)
-    AppendArgNative(*i);
+void CommandLine::AppendSwitchPath(const std::string& switch_string,
+                                   const FilePath& path) {
+  AppendSwitchNative(switch_string, path.value());
 }
 
 void CommandLine::CopySwitchesFrom(const CommandLine& source,
