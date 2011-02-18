@@ -553,6 +553,13 @@ TEST(HttpAuthHandlerDigest, HandleAnotherChallenge) {
                                                stale_false_challenge.end());
   EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_REJECT,
             handler->HandleAnotherChallenge(&tok_stale_false));
+
+  std::string realm_change_challenge =
+      "Digest realm=\"SomethingElse\", nonce=\"nonce-value2\"";
+  HttpAuth::ChallengeTokenizer tok_realm_change(realm_change_challenge.begin(),
+                                                realm_change_challenge.end());
+  EXPECT_EQ(HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM,
+            handler->HandleAnotherChallenge(&tok_realm_change));
 }
 
 TEST(HttpAuthHandlerDigest, RespondToServerChallenge) {
