@@ -9,6 +9,7 @@
 #include "base/message_loop.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/stats_counters.h"
 #include "base/rand_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -701,6 +702,7 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
 
   CACHE_UMA(AGE_MS, "OpenTime", GetSizeGroup(), start);
   stats_.OnEvent(Stats::OPEN_HIT);
+  SIMPLE_STATS_COUNTER("disk_cache.hit");
   return cache_entry;
 }
 
@@ -786,6 +788,7 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
 
   CACHE_UMA(AGE_MS, "CreateTime", GetSizeGroup(), start);
   stats_.OnEvent(Stats::CREATE_HIT);
+  SIMPLE_STATS_COUNTER("disk_cache.miss");
   Trace("create entry hit ");
   return cache_entry.release();
 }
