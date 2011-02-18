@@ -11,7 +11,7 @@
 #define BASE_CALLBACK_H_
 #pragma once
 
-#include "base/callback_internal.h"
+#include "base/callback_helpers.h"
 #include "base/callback_old.h"
 
 // New, super-duper, unified Callback system.  This will eventually replace
@@ -211,6 +211,49 @@
 //      Bind(&Bar, "test");  // This fails because ptr is not const.
 
 namespace base {
+
+namespace internal {
+
+// Holds the methods that don't require specialization to reduce template bloat.
+class CallbackBase {
+ public:
+  // Returns true if Callback is null (doesn't refer to anything).
+  bool is_null() const {
+    return invoker_storage_.get() == NULL;
+  }
+
+  // Returns the Callback into an uninitalized state.
+  void Reset() {
+    invoker_storage_ = NULL;
+    polymorphic_invoke_ = NULL;
+  }
+
+  bool Equals(const CallbackBase& other) const {
+    return invoker_storage_.get() == other.invoker_storage_.get() &&
+           polymorphic_invoke_ == other.polymorphic_invoke_;
+  }
+
+ protected:
+  // In C++, it is safe to cast function pointers to function pointers of
+  // another type. It is not okay to use void*. We create a InvokeFuncStorage
+  // that that can store our function pointer, and then cast it back to
+  // the original type on usage.
+  typedef void(*InvokeFuncStorage)(void);
+
+  CallbackBase(InvokeFuncStorage polymorphic_invoke,
+               scoped_refptr<InvokerStorageBase>* invoker_storage)
+      : polymorphic_invoke_(polymorphic_invoke) {
+    if (invoker_storage) {
+      invoker_storage_.swap(*invoker_storage);
+    }
+  }
+
+  scoped_refptr<InvokerStorageBase> invoker_storage_;
+  InvokeFuncStorage polymorphic_invoke_;
+};
+
+}  // namespace internal
+
 
 // First, we forward declare the Callback class template. This informs the
 // compiler that the template only has 1 type parameter which is the function

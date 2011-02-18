@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/callback.h"
-#include "base/callback_internal.h"
+#include "base/callback_helpers.h"
 #include "base/scoped_ptr.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
