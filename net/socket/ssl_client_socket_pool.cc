@@ -4,6 +4,7 @@
 
 #include "net/socket/ssl_client_socket_pool.h"
 
+#include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
@@ -328,6 +329,19 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                  base::TimeDelta::FromMilliseconds(1),
                                  base::TimeDelta::FromMinutes(10),
                                  100);
+
+      static bool false_start_trial(
+          base::FieldTrialList::Find("SSLFalseStart") &&
+          !base::FieldTrialList::Find("SSLFalseStart")->group_name().empty());
+      if (false_start_trial) {
+        UMA_HISTOGRAM_CUSTOM_TIMES(base::FieldTrial::MakeName(
+                                       "Net.SSL_Connection_Latency",
+                                       "SSLFalseStart"),
+                                   connect_duration,
+                                   base::TimeDelta::FromMilliseconds(1),
+                                   base::TimeDelta::FromMinutes(10),
+                                   100);
+      }
     }
   }
 
