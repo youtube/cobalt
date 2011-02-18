@@ -114,16 +114,21 @@ HttpAuth::AuthorizationResult HttpAuthHandlerDigest::HandleAnotherChallenge(
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
 
   HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
+  std::string realm;
 
-  // Try to find the "stale" value.
+  // Try to find the "stale" value, and also keep track of the realm
+  // for the new challenge.
   while (parameters.GetNext()) {
-    if (!LowerCaseEqualsASCII(parameters.name(), "stale"))
-      continue;
-    if (LowerCaseEqualsASCII(parameters.value(), "true"))
-      return HttpAuth::AUTHORIZATION_RESULT_STALE;
+    if (LowerCaseEqualsASCII(parameters.name(), "stale")) {
+      if (LowerCaseEqualsASCII(parameters.value(), "true"))
+        return HttpAuth::AUTHORIZATION_RESULT_STALE;
+    } else if (LowerCaseEqualsASCII(parameters.name(), "realm")) {
+      realm = parameters.value();
+    }
   }
-
-  return HttpAuth::AUTHORIZATION_RESULT_REJECT;
+  return (realm_ != realm) ?
+      HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM :
+      HttpAuth::AUTHORIZATION_RESULT_REJECT;
 }
 
 bool HttpAuthHandlerDigest::Init(HttpAuth::ChallengeTokenizer* challenge) {
