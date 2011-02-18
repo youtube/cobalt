@@ -606,13 +606,11 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
   for (int count = 0; count < 50; ++count) {
     // Try create a new temporary directory with random generated name. If
     // the one exists, keep trying another path name until we reach some limit.
-    path_to_create = base_dir;
-
     string16 new_dir_name;
     new_dir_name.assign(prefix);
     new_dir_name.append(base::IntToString16(rand() % kint16max));
 
-    path_to_create = path_to_create.Append(new_dir_name);
+    path_to_create = base_dir.Append(new_dir_name);
     if (::CreateDirectory(path_to_create.value().c_str(), NULL)) {
       *new_dir = path_to_create;
       return true;
