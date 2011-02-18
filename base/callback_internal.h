@@ -5,8 +5,8 @@
 // This file contains utility functions and classes that help the
 // implementation, and management of the Callback objects.
 
-#ifndef BASE_CALLBACK_HELPERS_H_
-#define BASE_CALLBACK_HELPERS_H_
+#ifndef BASE_CALLBACK_INTERNAL_H_
+#define BASE_CALLBACK_INTERNAL_H_
 #pragma once
 
 #include "base/ref_counted.h"
@@ -49,7 +49,38 @@ InvokerStorageHolder<T> MakeInvokerStorageHolder(T* o) {
   return InvokerStorageHolder<T>(o);
 }
 
+// Holds the Callback methods that don't require specialization to reduce
+// template bloat.
+class CallbackBase {
+ public:
+  // Returns true if Callback is null (doesn't refer to anything).
+  bool is_null() const;
+
+  // Returns the Callback into an uninitalized state.
+  void Reset();
+
+  bool Equals(const CallbackBase& other) const;
+
+ protected:
+  // In C++, it is safe to cast function pointers to function pointers of
+  // another type. It is not okay to use void*. We create a InvokeFuncStorage
+  // that that can store our function pointer, and then cast it back to
+  // the original type on usage.
+  typedef void(*InvokeFuncStorage)(void);
+
+  CallbackBase(InvokeFuncStorage polymorphic_invoke,
+               scoped_refptr<InvokerStorageBase>* invoker_storage);
+
+  // Force the destructor to be instaniated inside this translation unit so
+  // that our subclasses will not get inlined versions.  Avoids more template
+  // bloat.
+  ~CallbackBase();
+
+  scoped_refptr<InvokerStorageBase> invoker_storage_;
+  InvokeFuncStorage polymorphic_invoke_;
+};
+
 }  // namespace internal
 }  // namespace base
 
-#endif  // BASE_CALLBACK_HELPERS_H_
+#endif  // BASE_CALLBACK_INTERNAL_H_
