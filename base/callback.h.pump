@@ -216,6 +216,49 @@ $var MAX_ARITY = 6
 
 namespace base {
 
+namespace internal {
+
+// Holds the methods that don't require specialization to reduce template bloat.
+class CallbackBase {
+ public:
+  // Returns true if Callback is null (doesn't refer to anything).
+  bool is_null() const {
+    return invoker_storage_.get() == NULL;
+  }
+
+  // Returns the Callback into an uninitalized state.
+  void Reset() {
+    invoker_storage_ = NULL;
+    polymorphic_invoke_ = NULL;
+  }
+
+  bool Equals(const CallbackBase& other) const {
+    return invoker_storage_.get() == other.invoker_storage_.get() &&
+           polymorphic_invoke_ == other.polymorphic_invoke_;
+  }
+
+ protected:
+  // In C++, it is safe to cast function pointers to function pointers of
+  // another type. It is not okay to use void*. We create a InvokeFuncStorage
+  // that that can store our function pointer, and then cast it back to
+  // the original type on usage.
+  typedef void(*InvokeFuncStorage)(void);
+
+  CallbackBase(InvokeFuncStorage polymorphic_invoke,
+               scoped_refptr<InvokerStorageBase>* invoker_storage)
+      : polymorphic_invoke_(polymorphic_invoke) {
+    if (invoker_storage) {
+      invoker_storage_.swap(*invoker_storage);
+    }
+  }
+
+  scoped_refptr<InvokerStorageBase> invoker_storage_;
+  InvokeFuncStorage polymorphic_invoke_;
+};
+
+}  // namespace internal
+
+
 // First, we forward declare the Callback class template. This informs the
 // compiler that the template only has 1 type parameter which is the function
 // signature that the Callback is representing.
@@ -226,17 +269,16 @@ namespace base {
 template <typename Sig>
 class Callback;
 
-
 $range ARITY 0..MAX_ARITY
 $for ARITY [[
 $range ARG 1..ARITY
 
 $if ARITY == 0 [[
 template <typename R>
-class Callback<R(void)> {
+class Callback<R(void)> : public internal::CallbackBase {
 ]] $else [[
 template <typename R, $for ARG , [[typename A$(ARG)]]>
-class Callback<R($for ARG , [[A$(ARG)]])> {
+class Callback<R($for ARG , [[A$(ARG)]])> : public internal::CallbackBase {
 ]]
 
  public:
@@ -245,7 +287,7 @@ $if ARITY != 0 [[, ]]
 $for ARG ,
                                 [[const A$(ARG)&]]);
 
-  Callback() : polymorphic_invoke_(NULL) { }
+  Callback() : CallbackBase(NULL, NULL) { }
 
   // We pass InvokerStorageHolder by const ref to avoid incurring an
   // unnecessary AddRef/Unref pair even though we will modify the object.
@@ -256,27 +298,21 @@ $for ARG ,
   // return the exact Callback<> type.  See base/bind.h for details.
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
-      : polymorphic_invoke_(&T::FunctionTraits::DoInvoke) {
-    invoker_storage_.swap(invoker_holder.invoker_storage_);
+      : CallbackBase(
+          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          &invoker_holder.invoker_storage_) {
   }
 
-
-$if ARITY == 0 [[
-  R Run(void) const {
-]] $else [[
   R Run($for ARG ,
         [[const A$(ARG)& a$(ARG)]]) const {
-]]
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return polymorphic_invoke_(invoker_storage_.get()[[]]
+    return f(invoker_storage_.get()[[]]
 $if ARITY != 0 [[, ]]
 $for ARG ,
-                               [[a$(ARG)]]);
+             [[a$(ARG)]]);
   }
-
- private:
-  scoped_refptr<internal::InvokerStorageBase> invoker_storage_;
-  PolymorphicInvoke polymorphic_invoke_;
 };
 
 

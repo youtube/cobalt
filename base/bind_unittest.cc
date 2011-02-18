@@ -212,18 +212,6 @@ class BindTest : public ::testing::Test {
 
 StrictMock<NoRef>* BindTest::static_func_mock_ptr;
 
-// Ensure we can create unbound callbacks. We need this to be able to store
-// them in class members that can be initialized later.
-TEST_F(BindTest, DefaultConstruction) {
-  Callback<void(void)> c0;
-  Callback<void(int)> c1;
-  Callback<void(int,int)> c2;
-  Callback<void(int,int,int)> c3;
-  Callback<void(int,int,int,int)> c4;
-  Callback<void(int,int,int,int,int)> c5;
-  Callback<void(int,int,int,int,int,int)> c6;
-}
-
 // Sanity check that we can instantiate a callback for each arity.
 TEST_F(BindTest, ArityTest) {
   Callback<int(void)> c0 = Bind(&Sum, 32, 16, 8, 4, 2, 1);
