@@ -21,35 +21,229 @@ namespace internal {
 // The method by which a function is invoked is determined by 3 different
 // dimensions:
 //
-//   1) The type of function (normal, method, const-method)
-//   2) The arity of the function
+//   1) The type of function (normal or method).
+//   2) The arity of the function.
 //   3) The number of bound parameters.
 //
-// The FunctionTraitsN classes unwrap the function signature type to
-// specialize based on the first two dimensions.  The N in FunctionTraitsN
-// specifies the 3rd dimension.  We could have specified the unbound parameters
-// via template parameters, but this method looked cleaner.
+// The templates below handle the determination of each of these dimensions.
+// In brief:
 //
-// The FunctionTraitsN contains a static DoInvoke() function that is the key to
-// implementing type erasure in the Callback() classes.  DoInvoke() is a static
-// function with a fixed signature that is independent of StorageType; its
-// first argument is a pointer to the non-templated common baseclass of
-// StorageType. This lets us store pointer to DoInvoke() in a function pointer
-// that has knowledge of the specific StorageType, and thus no knowledge of the
-// bound function and bound parameter types.
+//   FunctionTraits<> -- Provides a normalied signature, and other traits.
+//   InvokerN<> -- Provides a DoInvoke() function that actually executes
+//                 a calback.
+//   InvokerStorageN<> -- Provides storage for the bound parameters, and
+//                        typedefs to the above.
+//
+// More details about the design of each class is included in a comment closer
+// to their defition.
+
+// FunctionTraits<>
+//
+// The FunctionTraits<> template determines the type of function, and also
+// creates a NormalizedType used to select the InvokerN classes.  It turns out
+// that syntactically, you only really have 2 variations when invoking a
+// funciton pointer: normal, and method.  One is invoked func_ptr(arg1). The
+// other is invoked (*obj_->method_ptr(arg1)).
+//
+// However, in the type system, there are many more distinctions. In standard
+// C++, there's all variations of const, and volatile on the function pointer.
+// In Windows, there are additional calling conventions (eg., __stdcall,
+// __fastcall, etc.). FunctionTraits<> handles categorizing each of these into
+// a normalized signature.
+//
+// Having a NormalizedSignature signature, reduces the combinatoric
+// complexity of defintions for the InvokerN<> later.  Even though there are
+// only 2 syntactic variations on invoking a function, without normalizing the
+// signature, there would need to be one specialization of InvokerN for each
+// unique (function_type, bound_arg, unbound_args) tuple in order to match all
+// function signatures.
+//
+// By normalizing the function signature, we reduce function_type to exactly 2.
+
+template <typename Sig>
+struct FunctionTraits;
+
+// Function: Arity 0.
+template <typename R>
+struct FunctionTraits<R(*)()> {
+  typedef R (*NormalizedSig)();
+  typedef base::false_type IsMethod;
+};
+
+// Method: Arity 0.
+template <typename R, typename T>
+struct FunctionTraits<R(T::*)()> {
+  typedef R (T::*NormalizedSig)();
+  typedef base::true_type IsMethod;
+};
+
+// Const Method: Arity 0.
+template <typename R, typename T>
+struct FunctionTraits<R(T::*)() const> {
+  typedef R (T::*NormalizedSig)();
+  typedef base::true_type IsMethod;
+};
+
+// Function: Arity 1.
+template <typename R, typename X1>
+struct FunctionTraits<R(*)(X1)> {
+  typedef R (*NormalizedSig)(X1);
+  typedef base::false_type IsMethod;
+};
+
+// Method: Arity 1.
+template <typename R, typename T, typename X1>
+struct FunctionTraits<R(T::*)(X1)> {
+  typedef R (T::*NormalizedSig)(X1);
+  typedef base::true_type IsMethod;
+};
+
+// Const Method: Arity 1.
+template <typename R, typename T, typename X1>
+struct FunctionTraits<R(T::*)(X1) const> {
+  typedef R (T::*NormalizedSig)(X1);
+  typedef base::true_type IsMethod;
+};
+
+// Function: Arity 2.
+template <typename R, typename X1, typename X2>
+struct FunctionTraits<R(*)(X1, X2)> {
+  typedef R (*NormalizedSig)(X1, X2);
+  typedef base::false_type IsMethod;
+};
+
+// Method: Arity 2.
+template <typename R, typename T, typename X1, typename X2>
+struct FunctionTraits<R(T::*)(X1, X2)> {
+  typedef R (T::*NormalizedSig)(X1, X2);
+  typedef base::true_type IsMethod;
+};
+
+// Const Method: Arity 2.
+template <typename R, typename T, typename X1, typename X2>
+struct FunctionTraits<R(T::*)(X1, X2) const> {
+  typedef R (T::*NormalizedSig)(X1, X2);
+  typedef base::true_type IsMethod;
+};
+
+// Function: Arity 3.
+template <typename R, typename X1, typename X2, typename X3>
+struct FunctionTraits<R(*)(X1, X2, X3)> {
+  typedef R (*NormalizedSig)(X1, X2, X3);
+  typedef base::false_type IsMethod;
+};
+
+// Method: Arity 3.
+template <typename R, typename T, typename X1, typename X2, typename X3>
+struct FunctionTraits<R(T::*)(X1, X2, X3)> {
+  typedef R (T::*NormalizedSig)(X1, X2, X3);
+  typedef base::true_type IsMethod;
+};
+
+// Const Method: Arity 3.
+template <typename R, typename T, typename X1, typename X2, typename X3>
+struct FunctionTraits<R(T::*)(X1, X2, X3) const> {
+  typedef R (T::*NormalizedSig)(X1, X2, X3);
+  typedef base::true_type IsMethod;
+};
+
+// Function: Arity 4.
+template <typename R, typename X1, typename X2, typename X3, typename X4>
+struct FunctionTraits<R(*)(X1, X2, X3, X4)> {
+  typedef R (*NormalizedSig)(X1, X2, X3, X4);
+  typedef base::false_type IsMethod;
+};
+
+// Method: Arity 4.
+template <typename R, typename T, typename X1, typename X2, typename X3,
+    typename X4>
+struct FunctionTraits<R(T::*)(X1, X2, X3, X4)> {
+  typedef R (T::*NormalizedSig)(X1, X2, X3, X4);
+  typedef base::true_type IsMethod;
+};
+
+// Const Method: Arity 4.
+template <typename R, typename T, typename X1, typename X2, typename X3,
+    typename X4>
+struct FunctionTraits<R(T::*)(X1, X2, X3, X4) const> {
+  typedef R (T::*NormalizedSig)(X1, X2, X3, X4);
+  typedef base::true_type IsMethod;
+};
+
+// Function: Arity 5.
+template <typename R, typename X1, typename X2, typename X3, typename X4,
+    typename X5>
+struct FunctionTraits<R(*)(X1, X2, X3, X4, X5)> {
+  typedef R (*NormalizedSig)(X1, X2, X3, X4, X5);
+  typedef base::false_type IsMethod;
+};
+
+// Method: Arity 5.
+template <typename R, typename T, typename X1, typename X2, typename X3,
+    typename X4, typename X5>
+struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5)> {
+  typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5);
+  typedef base::true_type IsMethod;
+};
+
+// Const Method: Arity 5.
+template <typename R, typename T, typename X1, typename X2, typename X3,
+    typename X4, typename X5>
+struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5) const> {
+  typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5);
+  typedef base::true_type IsMethod;
+};
+
+// Function: Arity 6.
+template <typename R, typename X1, typename X2, typename X3, typename X4,
+    typename X5, typename X6>
+struct FunctionTraits<R(*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R (*NormalizedSig)(X1, X2, X3, X4, X5, X6);
+  typedef base::false_type IsMethod;
+};
+
+// Method: Arity 6.
+template <typename R, typename T, typename X1, typename X2, typename X3,
+    typename X4, typename X5, typename X6>
+struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6)> {
+  typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5, X6);
+  typedef base::true_type IsMethod;
+};
+
+// Const Method: Arity 6.
+template <typename R, typename T, typename X1, typename X2, typename X3,
+    typename X4, typename X5, typename X6>
+struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6) const> {
+  typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5, X6);
+  typedef base::true_type IsMethod;
+};
+
+// InvokerN<>
+//
+// The InvokerN templates contain a static DoInvoke() function that is the key
+// to implementing type erasure in the Callback() classes.
+//
+// DoInvoke() is a static function with a fixed signature that is independent
+// of StorageType; its first argument is a pointer to the non-templated common
+// baseclass of StorageType. This lets us store pointer to DoInvoke() in a
+// function pointer that has knowledge of the specific StorageType, and thus
+// no knowledge of the bound function and bound parameter types.
 //
 // As long as we ensure that DoInvoke() is only used with pointers there were
 // upcasted from the correct StorageType, we can be sure that execution is
 // safe.
+//
+// The InvokerN templates are the only point that knows the number of bound
+// and unbound arguments.  This is intentional because it allows the other
+// templates classes in the system to only have as many specializations as
+// the max arity of function we wish to support.
 
-template <typename StorageType, typename Sig>
-struct FunctionTraits0;
+template <typename StorageType, typename NormalizedSig>
+struct Invoker0;
 
 // Function: Arity 0 -> 0.
 template <typename StorageType, typename R>
-struct FunctionTraits0<StorageType, R(*)()> {
-  typedef base::false_type IsMethod;
-
+struct Invoker0<StorageType, R(*)()> {
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_();
@@ -58,12 +252,10 @@ struct FunctionTraits0<StorageType, R(*)()> {
 
 // Function: Arity 1 -> 1.
 template <typename StorageType, typename R,typename X1>
-struct FunctionTraits0<StorageType, R(*)(X1)> {
+struct Invoker0<StorageType, R(*)(X1)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X1& x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -73,13 +265,11 @@ struct FunctionTraits0<StorageType, R(*)(X1)> {
 
 // Function: Arity 2 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2>
-struct FunctionTraits0<StorageType, R(*)(X1, X2)> {
+struct Invoker0<StorageType, R(*)(X1, X2)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -90,14 +280,12 @@ struct FunctionTraits0<StorageType, R(*)(X1, X2)> {
 // Function: Arity 3 -> 3.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
-struct FunctionTraits0<StorageType, R(*)(X1, X2, X3)> {
+struct Invoker0<StorageType, R(*)(X1, X2, X3)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
       const X3& x3) {
@@ -109,15 +297,13 @@ struct FunctionTraits0<StorageType, R(*)(X1, X2, X3)> {
 // Function: Arity 4 -> 4.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct FunctionTraits0<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker0<StorageType, R(*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ||
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
       const X3& x3, const X4& x4) {
@@ -129,7 +315,7 @@ struct FunctionTraits0<StorageType, R(*)(X1, X2, X3, X4)> {
 // Function: Arity 5 -> 5.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct FunctionTraits0<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -137,8 +323,6 @@ struct FunctionTraits0<StorageType, R(*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
       const X3& x3, const X4& x4, const X5& x5) {
@@ -150,7 +334,7 @@ struct FunctionTraits0<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Function: Arity 6 -> 6.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct FunctionTraits0<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -160,8 +344,6 @@ struct FunctionTraits0<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
           is_non_const_reference<X6>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::false_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
       const X3& x3, const X4& x4, const X5& x5, const X6& x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -169,17 +351,15 @@ struct FunctionTraits0<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   }
 };
 
-template <typename StorageType, typename Sig>
-struct FunctionTraits1;
+template <typename StorageType, typename NormalizedSig>
+struct Invoker1;
 
 // Function: Arity 1 -> 0.
 template <typename StorageType, typename R,typename X1>
-struct FunctionTraits1<StorageType, R(*)(X1)> {
+struct Invoker1<StorageType, R(*)(X1)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -189,21 +369,8 @@ struct FunctionTraits1<StorageType, R(*)(X1)> {
 
 // Method: Arity 0 -> 0.
 template <typename StorageType, typename R, typename T>
-struct FunctionTraits1<StorageType, R(T::*)()> {
-  typedef base::true_type IsMethod;
-
+struct Invoker1<StorageType, R(T::*)()> {
   static R DoInvoke(InvokerStorageBase* base) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)();
-  }
-};
-
-// Const Method: Arity 0 -> 0.
-template <typename StorageType, typename R, typename T>
-struct FunctionTraits1<StorageType, R(T::*)() const> {
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base ) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)();
   }
@@ -211,13 +378,11 @@ struct FunctionTraits1<StorageType, R(T::*)() const> {
 
 // Function: Arity 2 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2>
-struct FunctionTraits1<StorageType, R(*)(X1, X2)> {
+struct Invoker1<StorageType, R(*)(X1, X2)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X2& x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -227,29 +392,12 @@ struct FunctionTraits1<StorageType, R(*)(X1, X2)> {
 
 // Method: Arity 1 -> 1.
 template <typename StorageType, typename R, typename T, typename X1>
-struct FunctionTraits1<StorageType, R(T::*)(X1)> {
+struct Invoker1<StorageType, R(T::*)(X1)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X1& x1) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(x1);
-  }
-};
-
-// Const Method: Arity 1 -> 1.
-template <typename StorageType, typename R, typename T, typename X1>
-struct FunctionTraits1<StorageType, R(T::*)(X1) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X1& x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1);
   }
@@ -258,14 +406,12 @@ struct FunctionTraits1<StorageType, R(T::*)(X1) const> {
 // Function: Arity 3 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
-struct FunctionTraits1<StorageType, R(*)(X1, X2, X3)> {
+struct Invoker1<StorageType, R(*)(X1, X2, X3)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -276,32 +422,13 @@ struct FunctionTraits1<StorageType, R(*)(X1, X2, X3)> {
 // Method: Arity 2 -> 2.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
-struct FunctionTraits1<StorageType, R(T::*)(X1, X2)> {
+struct Invoker1<StorageType, R(T::*)(X1, X2)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2);
-  }
-};
-
-// Const Method: Arity 2 -> 2.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2>
-struct FunctionTraits1<StorageType, R(T::*)(X1, X2) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X1& x1, const X2& x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2);
   }
@@ -310,15 +437,13 @@ struct FunctionTraits1<StorageType, R(T::*)(X1, X2) const> {
 // Function: Arity 4 -> 3.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct FunctionTraits1<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker1<StorageType, R(*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ||
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
       const X4& x4) {
@@ -330,34 +455,14 @@ struct FunctionTraits1<StorageType, R(*)(X1, X2, X3, X4)> {
 // Method: Arity 3 -> 3.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
-struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3)> {
+struct Invoker1<StorageType, R(T::*)(X1, X2, X3)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2, x3);
-  }
-};
-
-// Const Method: Arity 3 -> 3.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3>
-struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X1& x1, const X2& x2,
       const X3& x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2, x3);
@@ -367,7 +472,7 @@ struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3) const> {
 // Function: Arity 5 -> 4.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct FunctionTraits1<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -375,8 +480,6 @@ struct FunctionTraits1<StorageType, R(*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
       const X4& x4, const X5& x5) {
@@ -388,7 +491,7 @@ struct FunctionTraits1<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 4.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -396,28 +499,7 @@ struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3, X4)> {
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3, const X4& x4) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2, x3, x4);
-  }
-};
-
-// Const Method: Arity 4 -> 4.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4>
-struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3, X4) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X1& x1, const X2& x2,
       const X3& x3, const X4& x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2, x3, x4);
@@ -427,7 +509,7 @@ struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3, X4) const> {
 // Function: Arity 6 -> 5.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct FunctionTraits1<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -436,8 +518,6 @@ struct FunctionTraits1<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
           is_non_const_reference<X5>::value ||
           is_non_const_reference<X6>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
       const X4& x4, const X5& x5, const X6& x6) {
@@ -449,7 +529,7 @@ struct FunctionTraits1<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 5.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -458,8 +538,6 @@ struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
       const X3& x3, const X4& x4, const X5& x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -467,38 +545,16 @@ struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-// Const Method: Arity 5 -> 5.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits1<StorageType, R(T::*)(X1, X2, X3, X4, X5) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X1& x1, const X2& x2,
-      const X3& x3, const X4& x4, const X5& x5) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2, x3, x4, x5);
-  }
-};
-
-template <typename StorageType, typename Sig>
-struct FunctionTraits2;
+template <typename StorageType, typename NormalizedSig>
+struct Invoker2;
 
 // Function: Arity 2 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2>
-struct FunctionTraits2<StorageType, R(*)(X1, X2)> {
+struct Invoker2<StorageType, R(*)(X1, X2)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -508,29 +564,12 @@ struct FunctionTraits2<StorageType, R(*)(X1, X2)> {
 
 // Method: Arity 1 -> 0.
 template <typename StorageType, typename R, typename T, typename X1>
-struct FunctionTraits2<StorageType, R(T::*)(X1)> {
+struct Invoker2<StorageType, R(T::*)(X1)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_));
-  }
-};
-
-// Const Method: Arity 1 -> 0.
-template <typename StorageType, typename R, typename T, typename X1>
-struct FunctionTraits2<StorageType, R(T::*)(X1) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base ) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_));
   }
@@ -539,14 +578,12 @@ struct FunctionTraits2<StorageType, R(T::*)(X1) const> {
 // Function: Arity 3 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
-struct FunctionTraits2<StorageType, R(*)(X1, X2, X3)> {
+struct Invoker2<StorageType, R(*)(X1, X2, X3)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X3& x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -557,32 +594,13 @@ struct FunctionTraits2<StorageType, R(*)(X1, X2, X3)> {
 // Method: Arity 2 -> 1.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
-struct FunctionTraits2<StorageType, R(T::*)(X1, X2)> {
+struct Invoker2<StorageType, R(T::*)(X1, X2)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X2& x2) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2);
-  }
-};
-
-// Const Method: Arity 2 -> 1.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2>
-struct FunctionTraits2<StorageType, R(T::*)(X1, X2) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X2& x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2);
   }
@@ -591,15 +609,13 @@ struct FunctionTraits2<StorageType, R(T::*)(X1, X2) const> {
 // Function: Arity 4 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct FunctionTraits2<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker2<StorageType, R(*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ||
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -610,33 +626,14 @@ struct FunctionTraits2<StorageType, R(*)(X1, X2, X3, X4)> {
 // Method: Arity 3 -> 2.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
-struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3)> {
+struct Invoker2<StorageType, R(T::*)(X1, X2, X3)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2, x3);
-  }
-};
-
-// Const Method: Arity 3 -> 2.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3>
-struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X2& x2, const X3& x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2, x3);
   }
@@ -645,7 +642,7 @@ struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3) const> {
 // Function: Arity 5 -> 3.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct FunctionTraits2<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -653,8 +650,6 @@ struct FunctionTraits2<StorageType, R(*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4,
       const X5& x5) {
@@ -666,7 +661,7 @@ struct FunctionTraits2<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 3.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -674,29 +669,7 @@ struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3, X4)> {
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
-      const X4& x4) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2, x3,
-        x4);
-  }
-};
-
-// Const Method: Arity 4 -> 3.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4>
-struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3, X4) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X2& x2, const X3& x3,
       const X4& x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2, x3,
@@ -707,7 +680,7 @@ struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3, X4) const> {
 // Function: Arity 6 -> 4.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct FunctionTraits2<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -716,8 +689,6 @@ struct FunctionTraits2<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
           is_non_const_reference<X5>::value ||
           is_non_const_reference<X6>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4,
       const X5& x5, const X6& x6) {
@@ -730,7 +701,7 @@ struct FunctionTraits2<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 4.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -738,8 +709,6 @@ struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
       const X4& x4, const X5& x5) {
@@ -749,41 +718,18 @@ struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-// Const Method: Arity 5 -> 4.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits2<StorageType, R(T::*)(X1, X2, X3, X4, X5) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X2& x2, const X3& x3,
-      const X4& x4, const X5& x5) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2, x3,
-        x4, x5);
-  }
-};
-
-template <typename StorageType, typename Sig>
-struct FunctionTraits3;
+template <typename StorageType, typename NormalizedSig>
+struct Invoker3;
 
 // Function: Arity 3 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
-struct FunctionTraits3<StorageType, R(*)(X1, X2, X3)> {
+struct Invoker3<StorageType, R(*)(X1, X2, X3)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -795,33 +741,13 @@ struct FunctionTraits3<StorageType, R(*)(X1, X2, X3)> {
 // Method: Arity 2 -> 0.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
-struct FunctionTraits3<StorageType, R(T::*)(X1, X2)> {
+struct Invoker3<StorageType, R(T::*)(X1, X2)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_));
-  }
-};
-
-// Const Method: Arity 2 -> 0.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2>
-struct FunctionTraits3<StorageType, R(T::*)(X1, X2) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base ) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_));
@@ -831,15 +757,13 @@ struct FunctionTraits3<StorageType, R(T::*)(X1, X2) const> {
 // Function: Arity 4 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct FunctionTraits3<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker3<StorageType, R(*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ||
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X4& x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -851,34 +775,14 @@ struct FunctionTraits3<StorageType, R(*)(X1, X2, X3, X4)> {
 // Method: Arity 3 -> 1.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
-struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3)> {
+struct Invoker3<StorageType, R(T::*)(X1, X2, X3)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X3& x3) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), x3);
-  }
-};
-
-// Const Method: Arity 3 -> 1.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3>
-struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X3& x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), x3);
@@ -888,7 +792,7 @@ struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3) const> {
 // Function: Arity 5 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct FunctionTraits3<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -896,8 +800,6 @@ struct FunctionTraits3<StorageType, R(*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X4& x4, const X5& x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -909,7 +811,7 @@ struct FunctionTraits3<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 2.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -917,28 +819,7 @@ struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3, X4)> {
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), x3, x4);
-  }
-};
-
-// Const Method: Arity 4 -> 2.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4>
-struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3, X4) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X3& x3, const X4& x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), x3, x4);
@@ -948,7 +829,7 @@ struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3, X4) const> {
 // Function: Arity 6 -> 3.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct FunctionTraits3<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -957,8 +838,6 @@ struct FunctionTraits3<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
           is_non_const_reference<X5>::value ||
           is_non_const_reference<X6>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X4& x4, const X5& x5,
       const X6& x6) {
@@ -971,7 +850,7 @@ struct FunctionTraits3<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 3.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -979,8 +858,6 @@ struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4,
       const X5& x5) {
@@ -990,42 +867,19 @@ struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-// Const Method: Arity 5 -> 3.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits3<StorageType, R(T::*)(X1, X2, X3, X4, X5) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X3& x3, const X4& x4,
-      const X5& x5) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), x3, x4, x5);
-  }
-};
-
-template <typename StorageType, typename Sig>
-struct FunctionTraits4;
+template <typename StorageType, typename NormalizedSig>
+struct Invoker4;
 
 // Function: Arity 4 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
-struct FunctionTraits4<StorageType, R(*)(X1, X2, X3, X4)> {
+struct Invoker4<StorageType, R(*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ||
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1037,34 +891,14 @@ struct FunctionTraits4<StorageType, R(*)(X1, X2, X3, X4)> {
 // Method: Arity 3 -> 0.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
-struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3)> {
+struct Invoker4<StorageType, R(T::*)(X1, X2, X3)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
           is_non_const_reference<X3>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), Unwrap(invoker->p4_));
-  }
-};
-
-// Const Method: Arity 3 -> 0.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3>
-struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base ) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_));
@@ -1074,7 +908,7 @@ struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3) const> {
 // Function: Arity 5 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct FunctionTraits4<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1082,8 +916,6 @@ struct FunctionTraits4<StorageType, R(*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X5& x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1095,7 +927,7 @@ struct FunctionTraits4<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 1.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1103,28 +935,7 @@ struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3, X4)> {
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base, const X4& x4) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), Unwrap(invoker->p4_), x4);
-  }
-};
-
-// Const Method: Arity 4 -> 1.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4>
-struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3, X4) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X4& x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_), x4);
@@ -1134,7 +945,7 @@ struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3, X4) const> {
 // Function: Arity 6 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct FunctionTraits4<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1143,8 +954,6 @@ struct FunctionTraits4<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
           is_non_const_reference<X5>::value ||
           is_non_const_reference<X6>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X5& x5, const X6& x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1156,7 +965,7 @@ struct FunctionTraits4<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 2.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1164,8 +973,6 @@ struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X4& x4, const X5& x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1174,33 +981,13 @@ struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-// Const Method: Arity 5 -> 2.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits4<StorageType, R(T::*)(X1, X2, X3, X4, X5) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X4& x4, const X5& x5) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), Unwrap(invoker->p4_), x4, x5);
-  }
-};
-
-template <typename StorageType, typename Sig>
-struct FunctionTraits5;
+template <typename StorageType, typename NormalizedSig>
+struct Invoker5;
 
 // Function: Arity 5 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
-struct FunctionTraits5<StorageType, R(*)(X1, X2, X3, X4, X5)> {
+struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1208,8 +995,6 @@ struct FunctionTraits5<StorageType, R(*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1221,7 +1006,7 @@ struct FunctionTraits5<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 // Method: Arity 4 -> 0.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
-struct FunctionTraits5<StorageType, R(T::*)(X1, X2, X3, X4)> {
+struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1229,28 +1014,7 @@ struct FunctionTraits5<StorageType, R(T::*)(X1, X2, X3, X4)> {
           is_non_const_reference<X4>::value ),
       do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), Unwrap(invoker->p4_), Unwrap(invoker->p5_));
-  }
-};
-
-// Const Method: Arity 4 -> 0.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4>
-struct FunctionTraits5<StorageType, R(T::*)(X1, X2, X3, X4) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base ) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_), Unwrap(invoker->p5_));
@@ -1260,7 +1024,7 @@ struct FunctionTraits5<StorageType, R(T::*)(X1, X2, X3, X4) const> {
 // Function: Arity 6 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct FunctionTraits5<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1269,8 +1033,6 @@ struct FunctionTraits5<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
           is_non_const_reference<X5>::value ||
           is_non_const_reference<X6>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X6& x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1282,7 +1044,7 @@ struct FunctionTraits5<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 1.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits5<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1290,8 +1052,6 @@ struct FunctionTraits5<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base, const X5& x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1300,33 +1060,13 @@ struct FunctionTraits5<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-// Const Method: Arity 5 -> 1.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits5<StorageType, R(T::*)(X1, X2, X3, X4, X5) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base,  const X5& x5) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), Unwrap(invoker->p4_), Unwrap(invoker->p5_), x5);
-  }
-};
-
-template <typename StorageType, typename Sig>
-struct FunctionTraits6;
+template <typename StorageType, typename NormalizedSig>
+struct Invoker6;
 
 // Function: Arity 6 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
-struct FunctionTraits6<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
+struct Invoker6<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1335,8 +1075,6 @@ struct FunctionTraits6<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
           is_non_const_reference<X5>::value ||
           is_non_const_reference<X6>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1349,7 +1087,7 @@ struct FunctionTraits6<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 // Method: Arity 5 -> 0.
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits6<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
+struct Invoker6<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   COMPILE_ASSERT(
       !( is_non_const_reference<X1>::value ||
           is_non_const_reference<X2>::value ||
@@ -1357,8 +1095,6 @@ struct FunctionTraits6<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
           is_non_const_reference<X4>::value ||
           is_non_const_reference<X5>::value ),
       do_not_bind_functions_with_nonconst_ref);
-
-  typedef base::true_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
@@ -1368,47 +1104,28 @@ struct FunctionTraits6<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
   }
 };
 
-// Const Method: Arity 5 -> 0.
-template <typename StorageType, typename R, typename T, typename X1,
-    typename X2, typename X3, typename X4, typename X5>
-struct FunctionTraits6<StorageType, R(T::*)(X1, X2, X3, X4, X5) const> {
-  COMPILE_ASSERT(
-      !(is_non_const_reference<X1>::value || is_non_const_reference<X2>::value
-          || is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
 
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base ) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
-        Unwrap(invoker->p3_), Unwrap(invoker->p4_), Unwrap(invoker->p5_),
-        Unwrap(invoker->p6_));
-  }
-};
-
-
-// These are the actual storage classes for the invokers.
+// InvokerStorageN<>
+//
+// These are the actual storage classes for the Invokers.
 //
 // Though these types are "classes", they are being used as structs with
 // all member variable public.  We cannot make it a struct because it inherits
 // from a class which causes a compiler warning.  We cannot add a "Run()" method
 // that forwards the unbound arguments because that would require we unwrap the
-// Sig type like in FunctionTraitsN above to know the return type, and the arity
+// Sig type like in InvokerN above to know the return type, and the arity
 // of Run().
 //
-// An alternate solution would be to merge FunctionTraitsN and InvokerStorageN,
+// An alternate solution would be to merge InvokerN and InvokerStorageN,
 // but the generated code seemed harder to read.
 
 template <typename Sig>
 class InvokerStorage0 : public InvokerStorageBase {
  public:
   typedef InvokerStorage0 StorageType;
-  typedef FunctionTraits0<StorageType, Sig> FunctionTraits;
-  typedef typename FunctionTraits::IsMethod IsMethod;
-
+  typedef FunctionTraits<Sig> TargetTraits;
+  typedef Invoker0<StorageType, typename TargetTraits::NormalizedSig> Invoker;
+  typedef typename TargetTraits::IsMethod IsMethod;
 
 
   InvokerStorage0(Sig f)
@@ -1424,9 +1141,9 @@ template <typename Sig, typename P1>
 class InvokerStorage1 : public InvokerStorageBase {
  public:
   typedef InvokerStorage1 StorageType;
-  typedef FunctionTraits1<StorageType, Sig> FunctionTraits;
-  typedef typename FunctionTraits::IsMethod IsMethod;
-
+  typedef FunctionTraits<Sig> TargetTraits;
+  typedef Invoker1<StorageType, typename TargetTraits::NormalizedSig> Invoker;
+  typedef typename TargetTraits::IsMethod IsMethod;
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1454,9 +1171,9 @@ template <typename Sig, typename P1, typename P2>
 class InvokerStorage2 : public InvokerStorageBase {
  public:
   typedef InvokerStorage2 StorageType;
-  typedef FunctionTraits2<StorageType, Sig> FunctionTraits;
-  typedef typename FunctionTraits::IsMethod IsMethod;
-
+  typedef FunctionTraits<Sig> TargetTraits;
+  typedef Invoker2<StorageType, typename TargetTraits::NormalizedSig> Invoker;
+  typedef typename TargetTraits::IsMethod IsMethod;
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1488,9 +1205,9 @@ template <typename Sig, typename P1, typename P2, typename P3>
 class InvokerStorage3 : public InvokerStorageBase {
  public:
   typedef InvokerStorage3 StorageType;
-  typedef FunctionTraits3<StorageType, Sig> FunctionTraits;
-  typedef typename FunctionTraits::IsMethod IsMethod;
-
+  typedef FunctionTraits<Sig> TargetTraits;
+  typedef Invoker3<StorageType, typename TargetTraits::NormalizedSig> Invoker;
+  typedef typename TargetTraits::IsMethod IsMethod;
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1526,9 +1243,9 @@ template <typename Sig, typename P1, typename P2, typename P3, typename P4>
 class InvokerStorage4 : public InvokerStorageBase {
  public:
   typedef InvokerStorage4 StorageType;
-  typedef FunctionTraits4<StorageType, Sig> FunctionTraits;
-  typedef typename FunctionTraits::IsMethod IsMethod;
-
+  typedef FunctionTraits<Sig> TargetTraits;
+  typedef Invoker4<StorageType, typename TargetTraits::NormalizedSig> Invoker;
+  typedef typename TargetTraits::IsMethod IsMethod;
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1569,9 +1286,9 @@ template <typename Sig, typename P1, typename P2, typename P3, typename P4,
 class InvokerStorage5 : public InvokerStorageBase {
  public:
   typedef InvokerStorage5 StorageType;
-  typedef FunctionTraits5<StorageType, Sig> FunctionTraits;
-  typedef typename FunctionTraits::IsMethod IsMethod;
-
+  typedef FunctionTraits<Sig> TargetTraits;
+  typedef Invoker5<StorageType, typename TargetTraits::NormalizedSig> Invoker;
+  typedef typename TargetTraits::IsMethod IsMethod;
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1617,9 +1334,9 @@ template <typename Sig, typename P1, typename P2, typename P3, typename P4,
 class InvokerStorage6 : public InvokerStorageBase {
  public:
   typedef InvokerStorage6 StorageType;
-  typedef FunctionTraits6<StorageType, Sig> FunctionTraits;
-  typedef typename FunctionTraits::IsMethod IsMethod;
-
+  typedef FunctionTraits<Sig> TargetTraits;
+  typedef Invoker6<StorageType, typename TargetTraits::NormalizedSig> Invoker;
+  typedef typename TargetTraits::IsMethod IsMethod;
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.

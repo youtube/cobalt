@@ -21,7 +21,7 @@ class HelperObject {
   int next_number_;
 };
 
-struct FakeTraits {
+struct FakeInvoker {
   static void DoInvoke(internal::InvokerStorageBase*) {
   }
 };
@@ -30,12 +30,12 @@ struct FakeTraits {
 // comparators and emptiness APIs.
 class FakeInvokerStorage1 : public internal::InvokerStorageBase {
  public:
-  typedef FakeTraits FunctionTraits;
+  typedef FakeInvoker Invoker;
 };
 
 class FakeInvokerStorage2 : public internal::InvokerStorageBase {
  public:
-  typedef FakeTraits FunctionTraits;
+  typedef FakeInvoker Invoker;
 };
 
 TEST(CallbackOld, OneArg) {
