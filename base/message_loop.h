@@ -24,6 +24,7 @@
 #include "base/message_pump_libevent.h"
 #if !defined(OS_MACOSX)
 #include "base/message_pump_glib.h"
+typedef struct _XDisplay Display;
 #endif
 #endif
 #if defined(TOUCH_UI)
@@ -507,6 +508,10 @@ class MessageLoopForUI : public MessageLoop {
 #if defined(OS_WIN)
   void DidProcessMessage(const MSG& message);
 #endif  // defined(OS_WIN)
+
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+  Display* get_display();
+#endif
 
 #if !defined(OS_MACOSX)
   // Please see message_pump_win/message_pump_glib for definitions of these
