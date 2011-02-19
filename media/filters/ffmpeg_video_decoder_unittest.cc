@@ -156,9 +156,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
     stream_.r_frame_rate.den = 1;
     buffer_ = new DataBuffer(1);
     end_of_stream_buffer_ = new DataBuffer(0);
-
-    // Initialize MockFFmpeg.
-    MockFFmpeg::set(&mock_ffmpeg_);
   }
 
   virtual ~FFmpegVideoDecoderTest() {
@@ -172,9 +169,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
 
     // Finish up any remaining tasks.
     message_loop_.RunAllPending();
-
-    // Reset MockFFmpeg.
-    MockFFmpeg::set(NULL);
   }
 
   void InitializeDecoderSuccessfully() {
