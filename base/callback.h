@@ -221,6 +221,7 @@ namespace base {
 // only has one type: the function signature.
 template <typename Sig>
 class Callback;
+
 template <typename R>
 class Callback<R(void)> : public internal::CallbackBase {
  public:
@@ -238,7 +239,7 @@ class Callback<R(void)> : public internal::CallbackBase {
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
       : CallbackBase(
-          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
   }
 
@@ -267,7 +268,7 @@ class Callback<R(A1)> : public internal::CallbackBase {
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
       : CallbackBase(
-          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
   }
 
@@ -297,7 +298,7 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
       : CallbackBase(
-          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
   }
 
@@ -330,7 +331,7 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
       : CallbackBase(
-          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
   }
 
@@ -366,7 +367,7 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
       : CallbackBase(
-          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
   }
 
@@ -406,7 +407,7 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
       : CallbackBase(
-          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
   }
 
@@ -449,7 +450,7 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
       : CallbackBase(
-          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
   }
 
