@@ -4,6 +4,11 @@
 
 #include "base/message_loop.h"
 
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#include <gdk/gdk.h>
+#include <gdk/gdkx.h>
+#endif
+
 #include <algorithm>
 
 #include "base/compiler_specific.h"
@@ -663,6 +668,13 @@ void MessageLoopForUI::DidProcessMessage(const MSG& message) {
   pump_win()->DidProcessMessage(message);
 }
 #endif  // defined(OS_WIN)
+
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+Display* MessageLoopForUI::get_display()
+{
+  return gdk_x11_get_default_xdisplay();
+}
+#endif
 
 #if !defined(OS_MACOSX) && !defined(OS_NACL)
 void MessageLoopForUI::AddObserver(Observer* observer) {
