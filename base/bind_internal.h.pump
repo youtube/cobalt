@@ -25,32 +25,103 @@ namespace internal {
 // The method by which a function is invoked is determined by 3 different
 // dimensions:
 //
-//   1) The type of function (normal, method, const-method)
-//   2) The arity of the function
+//   1) The type of function (normal or method).
+//   2) The arity of the function.
 //   3) The number of bound parameters.
 //
-// The FunctionTraitsN classes unwrap the function signature type to
-// specialize based on the first two dimensions.  The N in FunctionTraitsN
-// specifies the 3rd dimension.  We could have specified the unbound parameters
-// via template parameters, but this method looked cleaner.
+// The templates below handle the determination of each of these dimensions.
+// In brief:
 //
-// The FunctionTraitsN contains a static DoInvoke() function that is the key to
-// implementing type erasure in the Callback() classes.  DoInvoke() is a static
-// function with a fixed signature that is independent of StorageType; its
-// first argument is a pointer to the non-templated common baseclass of
-// StorageType. This lets us store pointer to DoInvoke() in a function pointer
-// that has knowledge of the specific StorageType, and thus no knowledge of the
-// bound function and bound parameter types.
+//   FunctionTraits<> -- Provides a normalied signature, and other traits.
+//   InvokerN<> -- Provides a DoInvoke() function that actually executes
+//                 a calback.
+//   InvokerStorageN<> -- Provides storage for the bound parameters, and
+//                        typedefs to the above.
+//
+// More details about the design of each class is included in a comment closer
+// to their defition.
+
+// FunctionTraits<>
+//
+// The FunctionTraits<> template determines the type of function, and also
+// creates a NormalizedType used to select the InvokerN classes.  It turns out
+// that syntactically, you only really have 2 variations when invoking a
+// funciton pointer: normal, and method.  One is invoked func_ptr(arg1). The
+// other is invoked (*obj_->method_ptr(arg1)).
+//
+// However, in the type system, there are many more distinctions. In standard
+// C++, there's all variations of const, and volatile on the function pointer.
+// In Windows, there are additional calling conventions (eg., __stdcall,
+// __fastcall, etc.). FunctionTraits<> handles categorizing each of these into
+// a normalized signature.
+//
+// Having a NormalizedSignature signature, reduces the combinatoric
+// complexity of defintions for the InvokerN<> later.  Even though there are
+// only 2 syntactic variations on invoking a function, without normalizing the
+// signature, there would need to be one specialization of InvokerN for each
+// unique (function_type, bound_arg, unbound_args) tuple in order to match all
+// function signatures.
+//
+// By normalizing the function signature, we reduce function_type to exactly 2.
+
+template <typename Sig>
+struct FunctionTraits;
+
+$range ARITY 0..MAX_ARITY
+$for ARITY [[
+$range ARG 1..ARITY
+
+// Function: Arity $(ARITY).
+template <typename R[[]]
+$if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
+struct FunctionTraits<R(*)($for ARG , [[X$(ARG)]])> {
+  typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
+  typedef base::false_type IsMethod;
+};
+
+// Method: Arity $(ARITY).
+template <typename R, typename T[[]]
+$if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
+struct FunctionTraits<R(T::*)($for ARG , [[X$(ARG)]])> {
+  typedef R (T::*NormalizedSig)($for ARG , [[X$(ARG)]]);
+  typedef base::true_type IsMethod;
+};
+
+// Const Method: Arity $(ARITY).
+template <typename R, typename T[[]]
+$if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
+struct FunctionTraits<R(T::*)($for ARG , [[X$(ARG)]]) const> {
+  typedef R (T::*NormalizedSig)($for ARG , [[X$(ARG)]]);
+  typedef base::true_type IsMethod;
+};
+
+]]  $$for ARITY
+
+// InvokerN<>
+//
+// The InvokerN templates contain a static DoInvoke() function that is the key
+// to implementing type erasure in the Callback() classes.
+//
+// DoInvoke() is a static function with a fixed signature that is independent
+// of StorageType; its first argument is a pointer to the non-templated common
+// baseclass of StorageType. This lets us store pointer to DoInvoke() in a
+// function pointer that has knowledge of the specific StorageType, and thus
+// no knowledge of the bound function and bound parameter types.
 //
 // As long as we ensure that DoInvoke() is only used with pointers there were
 // upcasted from the correct StorageType, we can be sure that execution is
 // safe.
+//
+// The InvokerN templates are the only point that knows the number of bound
+// and unbound arguments.  This is intentional because it allows the other
+// templates classes in the system to only have as many specializations as
+// the max arity of function we wish to support.
 
 $range BOUND 0..MAX_ARITY
 $for BOUND [[
 
-template <typename StorageType, typename Sig>
-struct FunctionTraits$(BOUND);
+template <typename StorageType, typename NormalizedSig>
+struct Invoker$(BOUND);
 
 $range ARITY 0..MAX_ARITY
 $for ARITY [[
@@ -74,7 +145,7 @@ $range M_UNBOUND_ARG (M_ARITY - UNBOUND + 1)..M_ARITY
 template <typename StorageType, typename R[[]]
 $if ARITY > 0 [[,]][[]]
 $for ARG , [[typename X$(ARG)]]>
-struct FunctionTraits$(BOUND)<StorageType, R(*)($for ARG , [[X$(ARG)]])> {
+struct Invoker$(BOUND)<StorageType, R(*)($for ARG , [[X$(ARG)]])> {
 $if ARITY > 0 [[
 
   COMPILE_ASSERT(
@@ -82,8 +153,6 @@ $if ARITY > 0 [[
       do_not_bind_functions_with_nonconst_ref);
 
 ]]
-
-  typedef base::false_type IsMethod;
 
   static R DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND != 0 [[, ]][[]]
@@ -101,7 +170,7 @@ $if BOUND > 0 [[
 // Method: Arity $(M_ARITY) -> $(UNBOUND).
 template <typename StorageType, typename R, typename T[[]]
 $if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
-struct FunctionTraits$(BOUND)<StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]])> {
+struct Invoker$(BOUND)<StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]])> {
 $if M_ARITY > 0 [[
 
   COMPILE_ASSERT(
@@ -110,36 +179,9 @@ $if M_ARITY > 0 [[
 
 ]]
 
-  typedef base::true_type IsMethod;
-
   static R DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND > 0 [[, ]][[]]
 $for M_UNBOUND_ARG , [[const X$(M_UNBOUND_ARG)& x$(M_UNBOUND_ARG)]]) {
-    StorageType* invoker = static_cast<StorageType*>(base);
-    return (Unwrap(invoker->p1_)->*invoker->f_)([[]]
-$for M_BOUND_ARG , [[Unwrap(invoker->p$(M_BOUND_ARG)_)]][[]]
-$if UNBOUND > 0 [[$if BOUND > 1 [[, ]]]][[]]
-$for M_UNBOUND_ARG , [[x$(M_UNBOUND_ARG)]]);
-  }
-};
-
-// Const Method: Arity $(M_ARITY) -> $(UNBOUND).
-template <typename StorageType, typename R, typename T[[]]
-$if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
-struct FunctionTraits$(BOUND)<StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]]) const> {
-$if M_ARITY > 0 [[
-
-  COMPILE_ASSERT(
-      !($for M_ARG || [[is_non_const_reference<X$(M_ARG)>::value ]]),
-      do_not_bind_functions_with_nonconst_ref);
-
-]]
-
-  typedef base::true_type IsMethod;
-
-  static R DoInvoke(InvokerStorageBase* base[[]]
-$if UNBOUND > 0 [[, ]]
-[[]] $for M_UNBOUND_ARG , [[const X$(M_UNBOUND_ARG)& x$(M_UNBOUND_ARG)]]) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)([[]]
 $for M_BOUND_ARG , [[Unwrap(invoker->p$(M_BOUND_ARG)_)]][[]]
@@ -155,16 +197,18 @@ $for M_UNBOUND_ARG , [[x$(M_UNBOUND_ARG)]]);
 ]]  $$ for BOUND
 
 
-// These are the actual storage classes for the invokers.
+// InvokerStorageN<>
+//
+// These are the actual storage classes for the Invokers.
 //
 // Though these types are "classes", they are being used as structs with
 // all member variable public.  We cannot make it a struct because it inherits
 // from a class which causes a compiler warning.  We cannot add a "Run()" method
 // that forwards the unbound arguments because that would require we unwrap the
-// Sig type like in FunctionTraitsN above to know the return type, and the arity
+// Sig type like in InvokerN above to know the return type, and the arity
 // of Run().
 //
-// An alternate solution would be to merge FunctionTraitsN and InvokerStorageN,
+// An alternate solution would be to merge InvokerN and InvokerStorageN,
 // but the generated code seemed harder to read.
 
 $for BOUND [[
@@ -176,9 +220,9 @@ $for BOUND_ARG , [[typename P$(BOUND_ARG)]]>
 class InvokerStorage$(BOUND) : public InvokerStorageBase {
  public:
   typedef InvokerStorage$(BOUND) StorageType;
-  typedef FunctionTraits$(BOUND)<StorageType, Sig> FunctionTraits;
-  typedef typename FunctionTraits::IsMethod IsMethod;
-
+  typedef FunctionTraits<Sig> TargetTraits;
+  typedef Invoker$(BOUND)<StorageType, typename TargetTraits::NormalizedSig> Invoker;
+  typedef typename TargetTraits::IsMethod IsMethod;
 $for BOUND_ARG [[
 $if BOUND_ARG == 1 [[
 

@@ -226,6 +226,7 @@ namespace base {
 template <typename Sig>
 class Callback;
 
+
 $range ARITY 0..MAX_ARITY
 $for ARITY [[
 $range ARG 1..ARITY
@@ -256,7 +257,7 @@ $for ARG ,
   template <typename T>
   Callback(const internal::InvokerStorageHolder<T>& invoker_holder)
       : CallbackBase(
-          reinterpret_cast<InvokeFuncStorage>(&T::FunctionTraits::DoInvoke),
+          reinterpret_cast<InvokeFuncStorage>(&T::Invoker::DoInvoke),
           &invoker_holder.invoker_storage_) {
   }
 
