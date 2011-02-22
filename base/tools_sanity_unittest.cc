@@ -61,16 +61,8 @@ void MakeSomeErrors(char *ptr, size_t size) {
   ReadUninitializedValue(ptr);
   ReadValueOutOfArrayBoundsLeft(ptr);
   ReadValueOutOfArrayBoundsRight(ptr, size);
-
-  // We execute this function only under memory checking tools -
-  // Valgrind on Linux and Mac, Dr. Memory on Windows.
-  // Currently writing values out-of-bounds makes Dr. Memory a bit crazy when
-  // this code is linked with /MTd, so skip these writes on Windows.
-  // See http://code.google.com/p/drmemory/issues/detail?id=51
-#if !defined(OS_WIN)
   WriteValueOutOfArrayBoundsLeft(ptr);
   WriteValueOutOfArrayBoundsRight(ptr, size);
-#endif
 }
 
 }  // namespace
