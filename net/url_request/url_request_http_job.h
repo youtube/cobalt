@@ -12,6 +12,7 @@
 #include "base/scoped_ptr.h"
 #include "base/string16.h"
 #include "base/task.h"
+#include "base/time.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 #include "net/http/http_request_info.h"
@@ -137,6 +138,10 @@ class URLRequestHttpJob : public URLRequestJob {
  private:
   virtual ~URLRequestHttpJob();
 
+  void RecordTimer();
+  void ResetTimer();
+
+  base::Time request_creation_time_;
   ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
