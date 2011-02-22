@@ -488,7 +488,7 @@ int HttpStreamRequest::DoInitConnection() {
 
   // If spdy has been turned off on-the-fly, then there may be SpdySessions
   // still active.  But don't use them unless spdy is currently on.
-  if (HttpStreamFactory::spdy_enabled()) {
+  if (HttpStreamFactory::spdy_enabled() && !HasSpdyExclusion(endpoint_)) {
     // Check first if we have a spdy session for this group.  If so, then go
     // straight to using that.
     HostPortProxyPair pair(endpoint_, proxy_info()->proxy_server());
