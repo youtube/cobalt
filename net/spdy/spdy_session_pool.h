@@ -104,6 +104,9 @@ class SpdySessionPool
   // We perform the same flushing as described above when SSL settings change.
   virtual void OnSSLConfigChanged();
 
+  // A debugging mode where we compress all accesses through a single domain.
+  static void ForceSingleDomain() { g_force_single_domain = true; }
+
  private:
   friend class SpdySessionPoolPeer;  // For testing.
   friend class SpdyNetworkTransactionTest;  // For testing.
@@ -113,11 +116,11 @@ class SpdySessionPool
   typedef std::map<HostPortProxyPair, SpdySessionList*> SpdySessionsMap;
 
   // Helper functions for manipulating the lists.
+  const HostPortProxyPair& NormalizeListPair(
+      const HostPortProxyPair& host_port_proxy_pair) const;
   SpdySessionList* AddSessionList(
       const HostPortProxyPair& host_port_proxy_pair);
   SpdySessionList* GetSessionList(
-      const HostPortProxyPair& host_port_proxy_pair);
-  const SpdySessionList* GetSessionList(
       const HostPortProxyPair& host_port_proxy_pair) const;
   void RemoveSessionList(const HostPortProxyPair& host_port_proxy_pair);
 
@@ -125,6 +128,7 @@ class SpdySessionPool
   SpdySessionsMap sessions_;
 
   static int g_max_sessions_per_domain;
+  static bool g_force_single_domain;
 
   const scoped_refptr<SSLConfigService> ssl_config_service_;
 

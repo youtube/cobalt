@@ -12,6 +12,7 @@
 #include "net/http/http_network_transaction.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_session.h"
+#include "net/spdy/spdy_session_pool.h"
 
 namespace net {
 
@@ -45,6 +46,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kDisableAltProtocols[] = "no-alt-protocols";
   static const char kEnableVersionOne[] = "v1";
   static const char kForceAltProtocols[] = "force-alt-protocols";
+  static const char kSingleDomain[] = "single-domain";
 
   // If flow-control is enabled, received WINDOW_UPDATE and SETTINGS
   // messages are processed and outstanding window size is actually obeyed
@@ -121,6 +123,9 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       pair.port = 443;
       pair.protocol = HttpAlternateProtocols::NPN_SPDY_2;
       HttpAlternateProtocols::ForceAlternateProtocol(pair);
+    } else if (option == kSingleDomain) {
+      SpdySessionPool::ForceSingleDomain();
+      LOG(ERROR) << "FORCING SINGLE DOMAIN";
     } else if (option.empty() && it == spdy_options.begin()) {
       continue;
     } else {
