@@ -9,6 +9,7 @@
 #include "base/metrics/stats_counters.h"
 #include "base/singleton.h"
 #include "base/synchronization/lock.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -270,6 +271,11 @@ void URLRequest::GetAllResponseHeaders(string* headers) {
   } else {
     headers->clear();
   }
+}
+
+HostPortPair URLRequest::GetSocketAddress() const {
+  DCHECK(job_);
+  return job_->GetSocketAddress();
 }
 
 net::HttpResponseHeaders* URLRequest::response_headers() const {

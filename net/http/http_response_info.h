@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/time.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/ssl_info.h"
 #include "net/http/http_vary_data.h"
 
@@ -59,6 +60,15 @@ class HttpResponseInfo {
   // be any type of proxy, HTTP or SOCKS.  Note, we do not know if a
   // transparent proxy may have been involved.
   bool was_fetched_via_proxy;
+
+  // Remote address of the socket which fetched this resource.
+  //
+  // NOTE: If the response was served from the cache (was_cached is true),
+  // the socket address will be set to the address that the content came from
+  // originally.  This is true even if the response was re-validated using a
+  // different remote address, or if some of the content came from a byte-range
+  // request to a different address.
+  HostPortPair socket_address;
 
   // The time at which the request was made that resulted in this response.
   // For cached responses, this is the last time the cache entry was validated.

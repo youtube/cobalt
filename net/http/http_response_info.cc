@@ -74,6 +74,7 @@ HttpResponseInfo::HttpResponseInfo(const HttpResponseInfo& rhs)
       was_npn_negotiated(rhs.was_npn_negotiated),
       was_alternate_protocol_available(rhs.was_alternate_protocol_available),
       was_fetched_via_proxy(rhs.was_fetched_via_proxy),
+      socket_address(rhs.socket_address),
       request_time(rhs.request_time),
       response_time(rhs.response_time),
       auth_challenge(rhs.auth_challenge),
@@ -93,6 +94,7 @@ HttpResponseInfo& HttpResponseInfo::operator=(const HttpResponseInfo& rhs) {
   was_npn_negotiated = rhs.was_npn_negotiated;
   was_alternate_protocol_available = rhs.was_alternate_protocol_available;
   was_fetched_via_proxy = rhs.was_fetched_via_proxy;
+  socket_address = rhs.socket_address;
   request_time = rhs.request_time;
   response_time = rhs.response_time;
   auth_challenge = rhs.auth_challenge;
@@ -156,6 +158,18 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
   if (flags & RESPONSE_INFO_HAS_VARY_DATA) {
     if (!vary_data.InitFromPickle(pickle, &iter))
       return false;
+  }
+
+  // Read socket_address.  This was not always present in the response info,
+  // so we don't fail if it can't be read.  If additional fields are added in
+  // a future version, then they must only be read if this operation succeeds.
+  std::string socket_address_host;
+  if (pickle.ReadString(&iter, &socket_address_host)) {
+    // If the host was written, we always expect the port to follow.
+    uint16 socket_address_port;
+    if (!pickle.ReadUInt16(&iter, &socket_address_port))
+      return false;
+    socket_address = HostPortPair(socket_address_host, socket_address_port);
   }
 
   was_fetched_via_spdy = (flags & RESPONSE_INFO_WAS_SPDY) != 0;
@@ -223,6 +237,9 @@ void HttpResponseInfo::Persist(Pickle* pickle,
 
   if (vary_data.is_valid())
     vary_data.Persist(pickle);
+
+  pickle->WriteString(socket_address.host());
+  pickle->WriteUInt16(socket_address.port());
 }
 
 }  // namespace net

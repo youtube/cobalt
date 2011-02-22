@@ -6,6 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
+#include "net/base/address_list.h"
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ssl_cert_request_info.h"
@@ -65,6 +66,14 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
             request_line, headers)));
   }
   response_ = response;
+
+  // Put the peer's IP address and port into the response.
+  AddressList address;
+  int result = connection_->socket()->GetPeerAddress(&address);
+  if (result != OK)
+    return result;
+  response_->socket_address = HostPortPair::FromAddrInfo(address.head());
+
   std::string request = request_line + headers.ToString();
   scoped_refptr<StringIOBuffer> headers_io_buf(new StringIOBuffer(request));
   request_headers_ = new DrainableIOBuffer(headers_io_buf,
@@ -74,7 +83,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
     request_body_->set_chunk_callback(this);
 
   io_state_ = STATE_SENDING_HEADERS;
-  int result = DoLoop(OK);
+  result = DoLoop(OK);
   if (result == ERR_IO_PENDING)
     user_callback_ = callback;
 
