@@ -7,6 +7,8 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/net_util.h"
+#include "net/base/sys_addrinfo.h"
 
 namespace net {
 
@@ -17,6 +19,12 @@ HostPortPair::HostPortPair(const std::string& in_host, uint16 in_port)
 // static
 HostPortPair HostPortPair::FromURL(const GURL& url) {
   return HostPortPair(url.HostNoBrackets(), url.EffectiveIntPort());
+}
+
+// static
+HostPortPair HostPortPair::FromAddrInfo(const struct addrinfo* ai) {
+  return HostPortPair(NetAddressToString(ai),
+                      GetPortFromSockaddr(ai->ai_addr, ai->ai_addrlen));
 }
 
 std::string HostPortPair::ToString() const {

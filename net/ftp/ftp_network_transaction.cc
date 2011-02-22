@@ -9,6 +9,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "net/base/address_list.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/escape.h"
 #include "net/base/net_errors.h"
@@ -620,8 +621,15 @@ int FtpNetworkTransaction::DoCtrlConnect() {
 }
 
 int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
-  if (result == OK)
-    next_state_ = STATE_CTRL_READ;
+  if (result == OK) {
+    // Put the peer's IP address and port into the response.
+    AddressList address;
+    result = ctrl_socket_->GetPeerAddress(&address);
+    if (result == OK) {
+      response_.socket_address = HostPortPair::FromAddrInfo(address.head());
+      next_state_ = STATE_CTRL_READ;
+    }
+  }
   return result;
 }
 
