@@ -31,6 +31,7 @@ class URLRequestFtpJob : public URLRequestJob {
 
   // Overridden from URLRequestJob:
   virtual bool GetMimeType(std::string* mime_type) const;
+  virtual HostPortPair GetSocketAddress() const;
 
  private:
   virtual ~URLRequestFtpJob();

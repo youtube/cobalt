@@ -16,12 +16,13 @@
 #include "net/base/cookie_policy.h"
 #include "net/base/cookie_store.h"
 #include "net/base/filter.h"
-#include "net/base/transport_security_state.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/sdch_manager.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/base/transport_security_state.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
@@ -924,6 +925,10 @@ bool URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size,
 void URLRequestHttpJob::StopCaching() {
   if (transaction_.get())
     transaction_->StopCaching();
+}
+
+HostPortPair URLRequestHttpJob::GetSocketAddress() const {
+  return response_info_ ? response_info_->socket_address : HostPortPair();
 }
 
 URLRequestHttpJob::~URLRequestHttpJob() {

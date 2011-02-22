@@ -10,6 +10,8 @@
 
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "net/base/address_list.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_util.h"
 #include "net/http/http_request_headers.h"
@@ -230,8 +232,15 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
 
   response_info_ = response;
 
+  // Put the peer's IP address and port into the response.
+  AddressList address;
+  int result = stream_->GetPeerAddress(&address);
+  if (result != OK)
+    return result;
+  response_info_->socket_address = HostPortPair::FromAddrInfo(address.head());
+
   bool has_upload_data = request_body_stream_.get() != NULL;
-  int result = stream_->SendRequest(has_upload_data);
+  result = stream_->SendRequest(has_upload_data);
   if (result == ERR_IO_PENDING) {
     CHECK(!user_callback_);
     user_callback_ = callback;
