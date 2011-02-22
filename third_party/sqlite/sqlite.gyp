@@ -24,6 +24,16 @@
     {
       'target_name': 'sqlite',
       'conditions': [
+        [ 'chromeos==1' , {
+            'defines': [
+                # Despite obvious warnings about not using this flag
+                # in deployment, we are turning off sync in ChromeOS
+                # and relying on the underlying journaling filesystem
+                # to do error recovery properly.  It's much faster.
+                'SQLITE_NO_SYNC',
+                ],
+          },
+        ],
         ['OS=="linux" and not use_system_sqlite', {
           'link_settings': {
             'libraries': [
