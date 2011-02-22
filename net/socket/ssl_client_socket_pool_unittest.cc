@@ -19,6 +19,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
+#include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
@@ -62,10 +63,9 @@ class SSLClientSocketPoolTest : public testing::Test {
         http_proxy_socket_params_(new HttpProxySocketParams(
             proxy_tcp_socket_params_, NULL, GURL("http://host"), "",
             HostPortPair("host", 80),
-            session_->auth_cache(),
+            session_->http_auth_cache(),
             session_->http_auth_handler_factory(),
             session_->spdy_session_pool(),
-            session_->mutable_spdy_settings(),
             true)),
         http_proxy_histograms_("MockHttpProxy"),
         http_proxy_socket_pool_(
@@ -117,13 +117,13 @@ class SSLClientSocketPoolTest : public testing::Test {
   void AddAuthToCache() {
     const string16 kFoo(ASCIIToUTF16("foo"));
     const string16 kBar(ASCIIToUTF16("bar"));
-    session_->auth_cache()->Add(GURL("http://proxy:443/"),
-                                "MyRealm1",
-                                HttpAuth::AUTH_SCHEME_BASIC,
-                                "Basic realm=MyRealm1",
-                                kFoo,
-                                kBar,
-                                "/");
+    session_->http_auth_cache()->Add(GURL("http://proxy:443/"),
+                                     "MyRealm1",
+                                     HttpAuth::AUTH_SCHEME_BASIC,
+                                     "Basic realm=MyRealm1",
+                                     kFoo,
+                                     kBar,
+                                     "/");
   }
 
   HttpNetworkSession* CreateNetworkSession() {

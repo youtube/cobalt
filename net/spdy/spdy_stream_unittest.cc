@@ -117,9 +117,7 @@ class SpdyStreamTest : public testing::Test {
     HostPortPair host_port_pair("www.google.com", 80);
     HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
     scoped_refptr<SpdySession> session(
-        session_->spdy_session_pool()->Get(pair,
-                                           session_->mutable_spdy_settings(),
-                                           BoundNetLog()));
+        session_->spdy_session_pool()->Get(pair, BoundNetLog()));
     return session;
   }
 
