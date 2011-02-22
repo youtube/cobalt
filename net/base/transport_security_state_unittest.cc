@@ -392,6 +392,8 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "chrome.google.com"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "checkout.google.com"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "health.google.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "aladdinschools.appspot.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
