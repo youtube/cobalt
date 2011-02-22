@@ -15,6 +15,7 @@
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/filter.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
 
 
@@ -208,6 +209,10 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   virtual int GetResponseCode() const;
   virtual int GetInputStreamBufferSize() const;
   virtual void RecordPacketStats(StatisticSelector statistic) const;
+
+  // Returns the socket address for the connection.
+  // See url_request.h for details.
+  virtual HostPortPair GetSocketAddress() const;
 
  protected:
   friend class base::RefCounted<URLRequestJob>;

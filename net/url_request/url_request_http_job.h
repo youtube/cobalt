@@ -85,6 +85,7 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual void ContinueDespiteLastError();
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
   virtual void StopCaching();
+  virtual HostPortPair GetSocketAddress() const;
 
   // Keep a reference to the url request context to be sure it's not deleted
   // before us.

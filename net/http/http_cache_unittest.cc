@@ -11,6 +11,7 @@
 #include "base/stringprintf.h"
 #include "net/base/cache_type.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log_unittest.h"
@@ -3976,6 +3977,31 @@ TEST(HttpCache, WriteResponseInfo_Truncated) {
   EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_FALSE(truncated);
   entry->Close();
+}
+
+// Tests basic pickling/unpickling of HttpResponseInfo.
+TEST(HttpCache, PersistHttpResponseInfo) {
+  // Set some fields (add more if needed.)
+  net::HttpResponseInfo response1;
+  response1.was_cached = false;
+  response1.socket_address = net::HostPortPair("1.2.3.4", 80);
+  response1.headers = new net::HttpResponseHeaders("HTTP/1.1 200 OK");
+
+  // Pickle.
+  Pickle pickle;
+  response1.Persist(&pickle, false, false);
+
+  // Unpickle.
+  net::HttpResponseInfo response2;
+  bool response_truncated;
+  EXPECT_TRUE(response2.InitFromPickle(pickle, &response_truncated));
+  EXPECT_FALSE(response_truncated);
+
+  // Verify fields.
+  EXPECT_TRUE(response2.was_cached);  // InitFromPickle sets this flag.
+  EXPECT_EQ("1.2.3.4", response2.socket_address.host());
+  EXPECT_EQ(80, response2.socket_address.port());
+  EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
 }
 
 // Tests that we delete an entry when the request is cancelled before starting

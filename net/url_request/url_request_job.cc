@@ -9,6 +9,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "net/base/auth.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/mime_util.h"
@@ -396,6 +397,10 @@ void URLRequestJob::RecordPacketStats(StatisticSelector statistic) const {
       NOTREACHED();
       return;
   }
+}
+
+HostPortPair URLRequestJob::GetSocketAddress() const {
+  return HostPortPair();
 }
 
 URLRequestJob::~URLRequestJob() {
