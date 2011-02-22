@@ -28,7 +28,6 @@ class HttpAuthHandlerFactory;
 class SSLClientSocketPool;
 class SSLSocketParams;
 class SpdySessionPool;
-class SpdySettingsStorage;
 class SpdyStream;
 class TCPClientSocketPool;
 class TCPSocketParams;
@@ -47,7 +46,6 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
                         HttpAuthCache* http_auth_cache,
                         HttpAuthHandlerFactory* http_auth_handler_factory,
                         SpdySessionPool* spdy_session_pool,
-                        SpdySettingsStorage* spdy_settings,
                         bool tunnel);
 
   const scoped_refptr<TCPSocketParams>& tcp_params() const {
@@ -66,9 +64,6 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   SpdySessionPool* spdy_session_pool() {
     return spdy_session_pool_;
   }
-  SpdySettingsStorage* spdy_settings() {
-    return spdy_settings_;
-  }
   const HostResolver::RequestInfo& destination() const;
   bool tunnel() const { return tunnel_; }
 
@@ -79,7 +74,6 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   const scoped_refptr<TCPSocketParams> tcp_params_;
   const scoped_refptr<SSLSocketParams> ssl_params_;
   SpdySessionPool* spdy_session_pool_;
-  SpdySettingsStorage* spdy_settings_;
   const GURL request_url_;
   const std::string user_agent_;
   const HostPortPair endpoint_;

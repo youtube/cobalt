@@ -20,6 +20,7 @@
 #include "net/base/ssl_config_service.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_server.h"
+#include "net/spdy/spdy_settings_storage.h"
 
 namespace net {
 // Sessions are uniquely identified by their HostPortPair and the proxy server
@@ -30,7 +31,6 @@ class BoundNetLog;
 class ClientSocketHandle;
 class HttpNetworkSession;
 class SpdySession;
-class SpdySettingsStorage;
 
 // This is a very simple pool for open SpdySessions.
 // TODO(mbelshe): Make this production ready.
@@ -45,7 +45,6 @@ class SpdySessionPool
   // use.
   scoped_refptr<SpdySession> Get(
       const HostPortProxyPair& host_port_proxy_pair,
-      SpdySettingsStorage* spdy_settings,
       const BoundNetLog& net_log);
 
   // Set the maximum concurrent sessions per domain.
@@ -66,7 +65,6 @@ class SpdySessionPool
   // Returns an error on failure, and |spdy_session| will be NULL.
   net::Error GetSpdySessionFromSocket(
       const HostPortProxyPair& host_port_proxy_pair,
-      SpdySettingsStorage* spdy_settings,
       ClientSocketHandle* connection,
       const BoundNetLog& net_log,
       int certificate_error_code,
@@ -91,6 +89,9 @@ class SpdySessionPool
   // Creates a Value summary of the state of the spdy session pool. The caller
   // responsible for deleting the returned value.
   Value* SpdySessionPoolInfoToValue() const;
+
+  SpdySettingsStorage* mutable_spdy_settings() { return &spdy_settings_; }
+  const SpdySettingsStorage& spdy_settings() const { return spdy_settings_; }
 
   // NetworkChangeNotifier::Observer methods:
 
@@ -123,6 +124,8 @@ class SpdySessionPool
   SpdySessionList* GetSessionList(
       const HostPortProxyPair& host_port_proxy_pair) const;
   void RemoveSessionList(const HostPortProxyPair& host_port_proxy_pair);
+
+  SpdySettingsStorage spdy_settings_;
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;
