@@ -602,6 +602,25 @@
         },
       ],
     }],
+    ['OS == "linux" and target_arch != "arm"', {
+      'targets': [
+        {
+          'target_name': 'tile_render_bench',
+          'type': 'executable',
+          'dependencies': [
+            '../app/app.gyp:app_base',
+            '../base/base.gyp:base',
+          ],
+          'libraries': [
+            '-lGL',
+            '-ldl',
+          ],
+          'sources': [
+            'tools/tile_render_bench/tile_render_bench.cc',
+          ],
+        },
+      ],
+    }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
       'targets': [
         {
