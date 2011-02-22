@@ -71,6 +71,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe {
   ~ClientSocketPoolManager();
 
   void FlushSocketPools();
+  void CloseIdleSockets();
 
   TCPClientSocketPool* tcp_socket_pool() { return tcp_socket_pool_.get(); }
 
