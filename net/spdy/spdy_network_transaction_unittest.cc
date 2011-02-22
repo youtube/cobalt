@@ -177,10 +177,11 @@ class SpdyNetworkTransactionTest
         EXPECT_EQ(request_.url.SchemeIs("https"),
                   response->was_npn_negotiated);
       }
+      EXPECT_EQ("192.0.2.33", response->socket_address.host());
+      EXPECT_EQ(0, response->socket_address.port());
       output_.status_line = response->headers->GetStatusLine();
       output_.response_info = *response;  // Make a copy so we can verify.
       output_.rv = ReadTransaction(trans_.get(), &output_.response_data);
-      return;
     }
 
     // Most tests will want to call this function. In particular, the MockReads

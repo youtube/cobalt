@@ -9,6 +9,7 @@
 #include <string>
 #include "base/basictypes.h"
 
+struct addrinfo;
 class GURL;
 
 namespace net {
@@ -21,6 +22,9 @@ class HostPortPair {
 
   // Creates a HostPortPair for the origin of |url|.
   static HostPortPair FromURL(const GURL& url);
+
+  // Creates a HostPortPair from an addrinfo struct.
+  static HostPortPair FromAddrInfo(const struct addrinfo* ai);
 
   // TODO(willchan): Define a functor instead.
   // Comparator function so this can be placed in a std::map.

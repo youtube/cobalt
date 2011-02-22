@@ -267,6 +267,10 @@ TEST_F(URLRequestTestHTTP, GetTest_NoCache) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
+    EXPECT_EQ(test_server_.host_port_pair().host(),
+              r.GetSocketAddress().host());
+    EXPECT_EQ(test_server_.host_port_pair().port(),
+              r.GetSocketAddress().port());
 
     // TODO(eroman): Add back the NetLog tests...
   }
@@ -287,6 +291,10 @@ TEST_F(URLRequestTestHTTP, GetTest) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
+    EXPECT_EQ(test_server_.host_port_pair().host(),
+              r.GetSocketAddress().host());
+    EXPECT_EQ(test_server_.host_port_pair().port(),
+              r.GetSocketAddress().port());
   }
 }
 
@@ -335,6 +343,10 @@ TEST_F(HTTPSRequestTest, HTTPSGetTest) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
     CheckSSLInfo(r.ssl_info());
+    EXPECT_EQ(test_server.host_port_pair().host(),
+              r.GetSocketAddress().host());
+    EXPECT_EQ(test_server.host_port_pair().port(),
+              r.GetSocketAddress().port());
   }
 }
 
@@ -713,6 +725,8 @@ TEST_F(URLRequestTest, AboutBlankTest) {
     EXPECT_TRUE(!r.is_pending());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), 0);
+    EXPECT_EQ("", r.GetSocketAddress().host());
+    EXPECT_EQ(0, r.GetSocketAddress().port());
   }
 }
 
@@ -750,6 +764,8 @@ TEST_F(URLRequestTest, DataURLImageTest) {
     EXPECT_TRUE(!r.is_pending());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), 911);
+    EXPECT_EQ("", r.GetSocketAddress().host());
+    EXPECT_EQ(0, r.GetSocketAddress().port());
   }
 }
 
@@ -774,6 +790,8 @@ TEST_F(URLRequestTest, FileTest) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));
+    EXPECT_EQ("", r.GetSocketAddress().host());
+    EXPECT_EQ(0, r.GetSocketAddress().port());
   }
 }
 
@@ -2373,6 +2391,10 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPDirectoryListing) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_LT(0, d.bytes_received());
+    EXPECT_EQ(test_server_.host_port_pair().host(),
+              r.GetSocketAddress().host());
+    EXPECT_EQ(test_server_.host_port_pair().port(),
+              r.GetSocketAddress().port());
   }
 }
 
@@ -2398,6 +2420,10 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPGetTestAnonymous) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));
+    EXPECT_EQ(test_server_.host_port_pair().host(),
+              r.GetSocketAddress().host());
+    EXPECT_EQ(test_server_.host_port_pair().port(),
+              r.GetSocketAddress().port());
   }
 }
 
@@ -2422,6 +2448,10 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPGetTest) {
     file_util::GetFileSize(app_path, &file_size);
 
     EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(test_server_.host_port_pair().host(),
+              r.GetSocketAddress().host());
+    EXPECT_EQ(test_server_.host_port_pair().port(),
+              r.GetSocketAddress().port());
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));

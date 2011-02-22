@@ -38,6 +38,7 @@ typedef std::vector<std::string> ResponseCookies;
 namespace net {
 
 class CookieOptions;
+class HostPortPair;
 class IOBuffer;
 class SSLCertRequestInfo;
 class UploadData;
@@ -415,6 +416,10 @@ class URLRequest : public base::NonThreadSafe {
   bool was_fetched_via_proxy() const {
     return response_info_.was_fetched_via_proxy;
   }
+
+  // Returns the host and port that the content was fetched from.  See
+  // http_response_info.h for caveats relating to cached content.
+  HostPortPair GetSocketAddress() const;
 
   // Get all response headers, as a HttpResponseHeaders object.  See comments
   // in HttpResponseHeaders class as to the format of the data.

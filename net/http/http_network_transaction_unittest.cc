@@ -175,6 +175,9 @@ class HttpNetworkTransactionTest : public PlatformTest {
     EXPECT_TRUE(response->headers != NULL);
     out.status_line = response->headers->GetStatusLine();
 
+    EXPECT_EQ("192.0.2.33", response->socket_address.host());
+    EXPECT_EQ(0, response->socket_address.port());
+
     rv = ReadTransaction(trans.get(), &out.response_data);
     EXPECT_EQ(OK, rv);
 
