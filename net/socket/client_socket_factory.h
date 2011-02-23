@@ -23,15 +23,6 @@ class SSLClientSocket;
 struct SSLConfig;
 class SSLHostInfo;
 
-// Callback function to create new SSLClientSocket objects.
-typedef SSLClientSocket* (*SSLClientSocketFactory)(
-    ClientSocketHandle* transport_socket,
-    const HostPortPair& host_and_port,
-    const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
-    CertVerifier* cert_verifier,
-    DnsCertProvenanceChecker* dns_cert_checker);
-
 // An interface used to instantiate ClientSocket objects.  Used to facilitate
 // testing code with mock socket implementations.
 class ClientSocketFactory {
@@ -64,9 +55,8 @@ class ClientSocketFactory {
   // Returns the default ClientSocketFactory.
   static ClientSocketFactory* GetDefaultFactory();
 
-  // Instructs the default ClientSocketFactory to use |factory| to create
-  // SSLClientSocket objects.
-  static void SetSSLClientSocketFactory(SSLClientSocketFactory factory);
+  // Instructs the default ClientSocketFactory to use the system SSL library.
+  static void UseSystemSSL();
 };
 
 }  // namespace net
