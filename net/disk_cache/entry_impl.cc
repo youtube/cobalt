@@ -366,10 +366,9 @@ bool EntryImpl::UserBuffer::GrowBuffer(int required, int limit) {
 // ------------------------------------------------------------------------
 
 EntryImpl::EntryImpl(BackendImpl* backend, Addr address, bool read_only)
-    : entry_(NULL, Addr(0)), node_(NULL, Addr(0)), read_only_(read_only) {
+    : entry_(NULL, Addr(0)), node_(NULL, Addr(0)), backend_(backend),
+      doomed_(false), read_only_(read_only), dirty_(false) {
   entry_.LazyInit(backend->File(address), address);
-  doomed_ = false;
-  backend_ = backend;
   for (int i = 0; i < kNumStreams; i++) {
     unreported_size_[i] = 0;
   }
@@ -617,18 +616,15 @@ bool EntryImpl::Update() {
   return true;
 }
 
-bool EntryImpl::IsDirty(int32 current_id) {
+void EntryImpl::SetDirtyFlag(int32 current_id) {
   DCHECK(node_.HasData());
   // We are checking if the entry is valid or not. If there is a pointer here,
   // we should not be checking the entry.
   if (node_.Data()->dummy)
-    return true;
+    dirty_ = true;
 
-  return node_.Data()->dirty && current_id != node_.Data()->dirty;
-}
-
-void EntryImpl::ClearDirtyFlag() {
-  node_.Data()->dirty = 0;
+  if (node_.Data()->dirty && current_id != node_.Data()->dirty)
+    dirty_ = true;
 }
 
 void EntryImpl::SetPointerForInvalidEntry(int32 new_id) {
@@ -882,7 +878,7 @@ EntryImpl::~EntryImpl() {
       int current_id = backend_->GetCurrentEntryId();
       node_.Data()->dirty = current_id == 1 ? -1 : current_id - 1;
       node_.Store();
-    } else if (node_.HasData() && node_.Data()->dirty) {
+    } else if (node_.HasData() && !dirty_) {
       node_.Data()->dirty = 0;
       node_.Store();
     }

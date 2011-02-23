@@ -282,9 +282,9 @@ class BackendImpl : public Backend {
   void RestartCache(bool failure);
   void PrepareForRestart();
 
-  // Creates a new entry object and checks to see if it is dirty. Returns zero
-  // on success, or a disk_cache error on failure.
-  int NewEntry(Addr address, EntryImpl** entry, bool* dirty);
+  // Creates a new entry object. Returns zero on success, or a disk_cache error
+  // on failure.
+  int NewEntry(Addr address, EntryImpl** entry);
 
   // Returns a given entry from the cache. The entry to match is determined by
   // key and hash, and the returned entry may be the matched one or it's parent
@@ -313,7 +313,6 @@ class BackendImpl : public Backend {
   EntryImpl* ResurrectEntry(EntryImpl* deleted_entry);
 
   void DestroyInvalidEntry(EntryImpl* entry);
-  void DestroyInvalidEntryFromEnumeration(EntryImpl* entry);
 
   // Handles the used storage count.
   void AddStorageSize(int32 bytes);
