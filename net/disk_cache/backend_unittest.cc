@@ -1393,6 +1393,21 @@ TEST_F(DiskCacheBackendTest, InvalidEntry5) {
   TrimDeletedListForTest(false);
 }
 
+TEST_F(DiskCacheBackendTest, InvalidEntry6) {
+  ASSERT_TRUE(CopyTestCache("dirty_entry5"));
+  SetMask(0x1);  // 2-entry table.
+  SetMaxSize(0x3000);  // 12 kB.
+  DisableFirstCleanup();
+  InitCache();
+
+  // There is a dirty entry (but marked as clean) at the end, pointing to a
+  // deleted entry through the hash collision list. We should not re-insert the
+  // deleted entry into the index table.
+
+  TrimForTest(false);
+  // The cache should be clean (as detected by CheckCacheIntegrity).
+}
+
 // Tests that we don't hang when there is a loop on the hash collision list.
 // The test cache could be a result of bug 69135.
 TEST_F(DiskCacheBackendTest, BadNextEntry1) {
