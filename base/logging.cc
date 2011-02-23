@@ -14,7 +14,6 @@ typedef HANDLE MutexHandle;
 // Windows doesn't define STDERR_FILENO.  Define it here.
 #define STDERR_FILENO 2
 #elif defined(OS_MACOSX)
-#include <CoreFoundation/CoreFoundation.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h>
@@ -56,10 +55,6 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/vlog.h"
 #if defined(OS_POSIX)
 #include "base/safe_strerror_posix.h"
-#endif
-#if defined(OS_MACOSX)
-#include "base/mac/scoped_cftyperef.h"
-#include "base/sys_string_conversions.h"
 #endif
 
 namespace logging {
@@ -503,12 +498,6 @@ void DisplayDebugMessageInDialog(const std::string& str) {
     MessageBoxW(NULL, &cmdline[0], L"Fatal error",
                 MB_OK | MB_ICONHAND | MB_TOPMOST);
   }
-#elif defined(OS_MACOSX)
-  base::mac::ScopedCFTypeRef<CFStringRef> message(
-      base::SysUTF8ToCFStringRef(str));
-  CFUserNotificationDisplayNotice(0, kCFUserNotificationStopAlertLevel,
-                                  NULL, NULL, NULL, CFSTR("Fatal Error"),
-                                  message, NULL);
 #else
   // We intentionally don't implement a dialog on other platforms.
   // You can just look at stderr.
