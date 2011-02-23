@@ -341,7 +341,7 @@ bool MemoryMappedFile::Initialize(base::PlatformFile file) {
   return true;
 }
 
-bool MemoryMappedFile::IsValid() {
+bool MemoryMappedFile::IsValid() const {
   return data_ != NULL;
 }
 
