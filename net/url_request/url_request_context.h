@@ -35,7 +35,9 @@ class SSLConfigService;
 class URLRequest;
 
 // Subclass to provide application-specific context for URLRequest
-// instances.
+// instances. Note that URLRequestContext typically does not provide storage for
+// these member variables, since they may be shared. For the ones that aren't
+// shared, URLRequestContextStorage can be helpful in defining their storage.
 class URLRequestContext
     : public base::RefCountedThreadSafe<URLRequestContext>,
       public base::NonThreadSafe {
