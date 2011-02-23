@@ -19,8 +19,8 @@
 #include "net/http/http_auth.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_info.h"
-#include "net/http/http_stream_factory.h"
 #include "net/http/http_transaction.h"
+#include "net/http/stream_factory.h"
 #include "net/proxy/proxy_service.h"
 
 namespace net {
@@ -33,7 +33,7 @@ class IOBuffer;
 struct HttpRequestInfo;
 
 class HttpNetworkTransaction : public HttpTransaction,
-                               public HttpStreamRequest::Delegate {
+                               public StreamRequest::Delegate {
  public:
   explicit HttpNetworkTransaction(HttpNetworkSession* session);
 
@@ -57,25 +57,15 @@ class HttpNetworkTransaction : public HttpTransaction,
   virtual LoadState GetLoadState() const;
   virtual uint64 GetUploadProgress() const;
 
-  // HttpStreamRequest::Delegate methods:
-  virtual void OnStreamReady(const SSLConfig& used_ssl_config,
-                             const ProxyInfo& used_proxy_info,
-                             HttpStream* stream);
-  virtual void OnStreamFailed(int status,
-                              const SSLConfig& used_ssl_config);
-  virtual void OnCertificateError(int status,
-                                  const SSLConfig& used_ssl_config,
-                                  const SSLInfo& ssl_info);
+  // StreamRequest::Delegate methods:
+  virtual void OnStreamReady(HttpStream* stream);
+  virtual void OnStreamFailed(int status);
+  virtual void OnCertificateError(int status, const SSLInfo& ssl_info);
   virtual void OnNeedsProxyAuth(
       const HttpResponseInfo& response_info,
-      const SSLConfig& used_ssl_config,
-      const ProxyInfo& used_proxy_info,
       HttpAuthController* auth_controller);
-  virtual void OnNeedsClientAuth(const SSLConfig& used_ssl_config,
-                                 SSLCertRequestInfo* cert_info);
+  virtual void OnNeedsClientAuth(SSLCertRequestInfo* cert_info);
   virtual void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
-                                          const SSLConfig& used_ssl_config,
-                                          const ProxyInfo& used_proxy_info,
                                           HttpStream* stream);
 
  private:
@@ -225,10 +215,9 @@ class HttpNetworkTransaction : public HttpTransaction,
   const HttpRequestInfo* request_;
   HttpResponseInfo response_;
 
-  // |proxy_info_| is the ProxyInfo used by the HttpStreamRequest.
   ProxyInfo proxy_info_;
 
-  scoped_ptr<HttpStreamRequest> stream_request_;
+  scoped_ptr<StreamRequest> stream_request_;
   scoped_ptr<HttpStream> stream_;
 
   // True if we've validated the headers that the stream parser has returned.
