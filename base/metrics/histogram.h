@@ -241,6 +241,8 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   typedef int Sample;  // Used for samples (and ranges of samples).
   typedef int Count;  // Used to count samples in a bucket.
   static const Sample kSampleType_MAX = INT_MAX;
+  // Initialize maximum number of buckets in histograms as 10,000.
+  static const size_t kBucketCount_MAX;
 
   typedef std::vector<Count> Counts;
   typedef std::vector<Sample> Ranges;
