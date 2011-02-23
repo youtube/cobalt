@@ -8,12 +8,14 @@
 #include "build/build_config.h"
 #include "net/socket/client_socket_handle.h"
 #if defined(OS_WIN)
+#include "net/socket/ssl_client_socket_nss.h"
 #include "net/socket/ssl_client_socket_win.h"
 #elif defined(USE_OPENSSL)
 #include "net/socket/ssl_client_socket_openssl.h"
 #elif defined(USE_NSS)
 #include "net/socket/ssl_client_socket_nss.h"
 #elif defined(OS_MACOSX)
+#include "net/socket/ssl_client_socket_mac.h"
 #include "net/socket/ssl_client_socket_nss.h"
 #endif
 #include "net/socket/ssl_host_info.h"
@@ -21,37 +23,9 @@
 
 namespace net {
 
-class DnsCertProvenanceChecker;
-
 namespace {
 
-SSLClientSocket* DefaultSSLClientSocketFactory(
-    ClientSocketHandle* transport_socket,
-    const HostPortPair& host_and_port,
-    const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
-    CertVerifier* cert_verifier,
-    DnsCertProvenanceChecker* dns_cert_checker) {
-  scoped_ptr<SSLHostInfo> shi(ssl_host_info);
-#if defined(OS_WIN)
-  return new SSLClientSocketWin(transport_socket, host_and_port, ssl_config,
-                                cert_verifier);
-#elif defined(USE_OPENSSL)
-  return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
-                                    ssl_config, cert_verifier);
-#elif defined(USE_NSS)
-  return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                shi.release(), cert_verifier, dns_cert_checker);
-#elif defined(OS_MACOSX)
-  return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
-                                shi.release(), cert_verifier, dns_cert_checker);
-#else
-  NOTIMPLEMENTED();
-  return NULL;
-#endif
-}
-
-SSLClientSocketFactory g_ssl_factory = DefaultSSLClientSocketFactory;
+bool g_use_system_ssl = false;
 
 class DefaultClientSocketFactory : public ClientSocketFactory {
  public:
@@ -69,8 +43,34 @@ class DefaultClientSocketFactory : public ClientSocketFactory {
       SSLHostInfo* ssl_host_info,
       CertVerifier* cert_verifier,
       DnsCertProvenanceChecker* dns_cert_checker) {
-    return g_ssl_factory(transport_socket, host_and_port, ssl_config,
-                         ssl_host_info, cert_verifier, dns_cert_checker);
+    scoped_ptr<SSLHostInfo> shi(ssl_host_info);
+#if defined(OS_WIN)
+    if (g_use_system_ssl) {
+      return new SSLClientSocketWin(transport_socket, host_and_port,
+                                    ssl_config, cert_verifier);
+    }
+    return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
+                                  shi.release(), cert_verifier,
+                                  dns_cert_checker);
+#elif defined(USE_OPENSSL)
+    return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
+                                      ssl_config, cert_verifier);
+#elif defined(USE_NSS)
+    return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
+                                  shi.release(), cert_verifier,
+                                  dns_cert_checker);
+#elif defined(OS_MACOSX)
+    if (g_use_system_ssl) {
+      return new SSLClientSocketMac(transport_socket, host_and_port,
+                                    ssl_config, cert_verifier);
+    }
+    return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
+                                  shi.release(), cert_verifier,
+                                  dns_cert_checker);
+#else
+    NOTIMPLEMENTED();
+    return NULL;
+#endif
   }
 };
 
@@ -99,9 +99,8 @@ ClientSocketFactory* ClientSocketFactory::GetDefaultFactory() {
 }
 
 // static
-void ClientSocketFactory::SetSSLClientSocketFactory(
-    SSLClientSocketFactory factory) {
-  g_ssl_factory = factory;
+void ClientSocketFactory::UseSystemSSL() {
+  g_use_system_ssl = true;
 }
 
 }  // namespace net

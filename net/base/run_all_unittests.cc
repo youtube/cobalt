@@ -6,9 +6,6 @@
 #include "base/metrics/histogram.h"
 #include "base/nss_util.h"
 #include "net/base/net_test_suite.h"
-#if defined(OS_WIN)
-#include "net/socket/ssl_client_socket_nss_factory.h"
-#endif
 
 int main(int argc, char** argv) {
   // Record histograms, so we can get histograms data in tests.
@@ -16,10 +13,6 @@ int main(int argc, char** argv) {
   NetTestSuite test_suite(argc, argv);
 
 #if defined(OS_WIN)
-  // Use NSS for SSL on Windows.  TODO(wtc): this should eventually be hidden
-  // inside DefaultClientSocketFactory::CreateSSLClientSocket.
-  net::ClientSocketFactory::SetSSLClientSocketFactory(
-      net::SSLClientSocketNSSFactory);
   // We want to be sure to init NSPR on the main thread.
   base::EnsureNSPRInit();
 #endif
