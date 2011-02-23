@@ -44,6 +44,9 @@ class SSLClientAuthCache {
   // Remove the client certificate for |server| from the cache, if one exists.
   void Remove(const std::string& server);
 
+  // Removes all cache entries.
+  void Clear();
+
  private:
   typedef std::string AuthCacheKey;
   typedef scoped_refptr<X509Certificate> AuthCacheValue;

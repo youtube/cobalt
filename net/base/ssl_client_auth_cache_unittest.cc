@@ -137,4 +137,35 @@ TEST(SSLClientAuthCacheTest, LookupNullPreference) {
   EXPECT_EQ(NULL, cached_cert.get());
 }
 
+// Check that the Clear() method removes all cache entries.
+TEST(SSLClientAuthCacheTest, Clear) {
+  SSLClientAuthCache cache;
+  base::Time start_date = base::Time::Now();
+  base::Time expiration_date = start_date + base::TimeDelta::FromDays(1);
+
+  std::string server1("foo:443");
+  scoped_refptr<X509Certificate> cert1(
+      new X509Certificate("foo", "CA", start_date, expiration_date));
+
+  cache.Add(server1, cert1);
+
+  std::string server2("foo2:443");
+  cache.Add(server2, NULL);
+
+  scoped_refptr<X509Certificate> cached_cert;
+
+  // Demonstrate the set up is correct.
+  EXPECT_TRUE(cache.Lookup(server1, &cached_cert));
+  EXPECT_EQ(cert1, cached_cert);
+
+  EXPECT_TRUE(cache.Lookup(server2, &cached_cert));
+  EXPECT_EQ(NULL, cached_cert.get());
+
+  cache.Clear();
+
+  // Check that we no longer have entries for either server.
+  EXPECT_FALSE(cache.Lookup(server1, &cached_cert));
+  EXPECT_FALSE(cache.Lookup(server2, &cached_cert));
+}
+
 }  // namespace net
