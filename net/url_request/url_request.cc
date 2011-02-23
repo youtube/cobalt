@@ -492,8 +492,11 @@ void URLRequest::ResponseStarted() {
       URLRequestJobManager::GetInstance()->MaybeInterceptResponse(this);
   if (job) {
     RestartWithJob(job);
-  } else if (delegate_) {
-    delegate_->OnResponseStarted(this);
+  } else {
+    if (context_ && context_->network_delegate())
+      context_->network_delegate()->OnResponseStarted(this);
+    if (delegate_)
+      delegate_->OnResponseStarted(this);
   }
 }
 
