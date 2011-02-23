@@ -1,20 +1,19 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_HTTP_HTTP_STREAM_FACTORY_IMPL_JOB_H_
-#define NET_HTTP_HTTP_STREAM_FACTORY_IMPL_JOB_H_
+#ifndef NET_HTTP_HTTP_STREAM_REQUEST_H_
+#define NET_HTTP_HTTP_STREAM_REQUEST_H_
 
-#include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/task.h"
 #include "net/base/completion_callback.h"
+#include "net/base/host_mapping_rules.h"
 #include "net/base/ssl_config_service.h"
-#include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_controller.h"
-#include "net/http/http_request_info.h"
-#include "net/http/http_stream_factory_impl.h"
+#include "net/http/http_alternate_protocols.h"
+#include "net/http/stream_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 
@@ -24,39 +23,55 @@ class ClientSocketHandle;
 class HttpAuthController;
 class HttpNetworkSession;
 class HttpProxySocketParams;
-class HttpStream;
 class SOCKSSocketParams;
 class SSLSocketParams;
+class StreamRequestDelegate;
 class TCPSocketParams;
+struct HttpRequestInfo;
 
-// An HttpStreamRequestImpl exists for each stream which is in progress of being
+// An HttpStreamRequest exists for each stream which is in progress of being
 // created for the StreamFactory.
-class HttpStreamFactoryImpl::Job {
+class HttpStreamRequest : public StreamRequest {
  public:
-  Job(HttpStreamFactoryImpl* stream_factory, HttpNetworkSession* session);
-  ~Job();
+  class PreconnectDelegate {
+   public:
+    virtual ~PreconnectDelegate() {}
+
+    virtual void OnPreconnectsComplete(HttpStreamRequest* request,
+                                       int result) = 0;
+  };
+
+  HttpStreamRequest(StreamFactory* factory,
+                    HttpNetworkSession* session);
+  virtual ~HttpStreamRequest();
 
   // Start initiates the process of creating a new HttpStream.
   // 3 parameters are passed in by reference.  The caller asserts that the
   // lifecycle of these parameters will remain valid until the stream is
   // created, failed, or destroyed.  In the first two cases, the delegate will
   // be called to notify completion of the request.
-  void Start(const HttpRequestInfo& request_info,
-             const SSLConfig& ssl_config,
+  void Start(const HttpRequestInfo* request_info,
+             SSLConfig* ssl_config,
+             ProxyInfo* proxy_info,
+             Delegate* delegate,
              const BoundNetLog& net_log);
 
   int Preconnect(int num_streams,
-                 const HttpRequestInfo& request_info,
-                 const SSLConfig& ssl_config,
+                 const HttpRequestInfo* request_info,
+                 SSLConfig* ssl_config,
+                 ProxyInfo* proxy_info,
+                 PreconnectDelegate* delegate,
                  const BoundNetLog& net_log);
 
-  int RestartTunnelWithProxyAuth(const string16& username,
-                                 const string16& password);
-  LoadState GetLoadState() const;
+  // StreamRequest interface
+  virtual int RestartWithCertificate(X509Certificate* client_cert);
+  virtual int RestartTunnelWithProxyAuth(const string16& username,
+                                         const string16& password);
+  virtual LoadState GetLoadState() const;
 
-  bool was_alternate_protocol_available() const;
-  bool was_npn_negotiated() const;
-  bool using_spdy() const;
+  virtual bool was_alternate_protocol_available() const;
+  virtual bool was_npn_negotiated() const;
+  virtual bool using_spdy() const;
 
  private:
   enum AlternateProtocolMode {
@@ -81,6 +96,11 @@ class HttpStreamFactoryImpl::Job {
     STATE_NONE
   };
 
+  const HttpRequestInfo& request_info() const;
+  ProxyInfo* proxy_info() const;
+  SSLConfig* ssl_config() const;
+
+  // Callbacks to the delegate.
   void OnStreamReadyCallback();
   void OnStreamFailedCallback(int result);
   void OnCertificateErrorCallback(int result, const SSLInfo& ssl_info);
@@ -89,13 +109,14 @@ class HttpStreamFactoryImpl::Job {
   void OnNeedsClientAuthCallback(SSLCertRequestInfo* cert_info);
   void OnHttpsProxyTunnelResponseCallback(const HttpResponseInfo& response_info,
                                           HttpStream* stream);
-  void OnPreconnectsComplete();
+  void OnPreconnectsComplete(int result);
 
   void OnIOComplete(int result);
   int RunLoop(int result);
   int DoLoop(int result);
-  int StartInternal(const HttpRequestInfo& request_info,
-                    const SSLConfig& ssl_config,
+  int StartInternal(const HttpRequestInfo* request_info,
+                    SSLConfig* ssl_config,
+                    ProxyInfo* proxy_info,
                     const BoundNetLog& net_log);
 
   // Each of these methods corresponds to a State value.  Those with an input
@@ -163,17 +184,15 @@ class HttpStreamFactoryImpl::Job {
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
 
-  // Indicates whether or not this job is performing a preconnect.
-  bool IsPreconnecting() const;
+  const HttpRequestInfo* request_info_;  // Use request_info().
+  ProxyInfo* proxy_info_;  // Use proxy_info().
+  SSLConfig* ssl_config_;  // Use ssl_config().
 
-  HttpRequestInfo request_info_;
-  ProxyInfo proxy_info_;
-  SSLConfig ssl_config_;
-
-  CompletionCallbackImpl<Job> io_callback_;
+  scoped_refptr<HttpNetworkSession> session_;
+  CompletionCallbackImpl<HttpStreamRequest> io_callback_;
   scoped_ptr<ClientSocketHandle> connection_;
-  HttpNetworkSession* const session_;
-  HttpStreamFactoryImpl* const stream_factory_;
+  StreamFactory* const factory_;
+  Delegate* delegate_;
   BoundNetLog net_log_;
   State next_state_;
   ProxyService::PacRequest* pac_request_;
@@ -198,7 +217,7 @@ class HttpStreamFactoryImpl::Job {
   int spdy_certificate_error_;
 
   scoped_refptr<HttpAuthController>
-      auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
+    auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
 
   AlternateProtocolMode alternate_protocol_mode_;
 
@@ -218,15 +237,16 @@ class HttpStreamFactoryImpl::Job {
   // True if we negotiated NPN.
   bool was_npn_negotiated_;
 
-  // 0 if we're not preconnecting. Otherwise, the number of streams to
-  // preconnect.
+  PreconnectDelegate* preconnect_delegate_;
+
+  // Only used if |preconnect_delegate_| is non-NULL.
   int num_streams_;
 
-  ScopedRunnableMethodFactory<Job> method_factory_;
+  ScopedRunnableMethodFactory<HttpStreamRequest> method_factory_;
 
-  DISALLOW_COPY_AND_ASSIGN(Job);
+  DISALLOW_COPY_AND_ASSIGN(HttpStreamRequest);
 };
 
 }  // namespace net
 
-#endif  // NET_HTTP_HTTP_STREAM_FACTORY_IMPL_JOB_H_
+#endif  // NET_HTTP_HTTP_STREAM_REQUEST_H_

@@ -85,13 +85,13 @@ class SpdyProxyClientSocketTest : public PlatformTest {
   void AddAuthToCache() {
     const string16 kFoo(ASCIIToUTF16("foo"));
     const string16 kBar(ASCIIToUTF16("bar"));
-    session_->http_auth_cache()->Add(GURL(kProxyUrl),
-                                     "MyRealm1",
-                                     HttpAuth::AUTH_SCHEME_BASIC,
-                                     "Basic realm=MyRealm1",
-                                     kFoo,
-                                     kBar,
-                                     "/");
+    session_->auth_cache()->Add(GURL(kProxyUrl),
+                                "MyRealm1",
+                                HttpAuth::AUTH_SCHEME_BASIC,
+                                "Basic realm=MyRealm1",
+                                kFoo,
+                                kBar,
+                                "/");
   }
 
   void Run(int steps) {
@@ -175,6 +175,7 @@ void SpdyProxyClientSocketTest::Initialize(MockRead* reads,
   // Creates a new spdy session
   spdy_session_ =
       session_->spdy_session_pool()->Get(endpoint_host_port_proxy_pair_,
+                                         session_->mutable_spdy_settings(),
                                          BoundNetLog());
 
   // Perform the TCP connect
@@ -195,7 +196,7 @@ void SpdyProxyClientSocketTest::Initialize(MockRead* reads,
   sock_.reset(
       new SpdyProxyClientSocket(spdy_stream_, user_agent_,
                                 endpoint_host_port_pair_, url_,
-                                proxy_host_port_, session_->http_auth_cache(),
+                                proxy_host_port_, session_->auth_cache(),
                                 session_->http_auth_handler_factory()));
 }
 
