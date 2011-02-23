@@ -10,6 +10,7 @@
 import glob
 import os
 import shlex
+import subprocess
 import sys
 
 script_dir = os.path.dirname(__file__)
@@ -77,6 +78,19 @@ def additional_include_files(args=[]):
 
 if __name__ == '__main__':
   args = sys.argv[1:]
+
+  # Fall back on hermetic python if we happen to get run under cygwin.
+  # TODO(bradnelson): take this out once this issue is fixed:
+  #    http://code.google.com/p/gyp/issues/detail?id=177
+  if sys.platform == 'cygwin':
+    python_dir = os.path.join(chrome_src, 'third_party', 'python_26')
+    env = os.environ.copy()
+    env['PATH'] = python_dir + os.pathsep + env.get('PATH', '')
+    p = subprocess.Popen(
+       [os.path.join(python_dir, 'python.exe')] + sys.argv,
+       env=env, shell=False)
+    p.communicate()
+    sys.exit(p.returncode)
 
   if 'SKIP_CHROMIUM_GYP_ENV' not in os.environ:
     # Update the environment based on chromium.gyp_env
