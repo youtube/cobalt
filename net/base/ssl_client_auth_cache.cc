@@ -37,4 +37,8 @@ void SSLClientAuthCache::Remove(const std::string& server) {
   cache_.erase(server);
 }
 
+void SSLClientAuthCache::Clear() {
+  cache_.clear();
+}
+
 }  // namespace net
