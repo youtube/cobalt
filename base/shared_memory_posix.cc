@@ -79,7 +79,8 @@ SharedMemoryHandle SharedMemory::NULLHandle() {
 // static
 void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
   DCHECK(handle.fd >= 0);
-  close(handle.fd);
+  if (HANDLE_EINTR(close(handle.fd)) < 0)
+    PLOG(ERROR) << "close";
 }
 
 bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
@@ -229,7 +230,8 @@ void SharedMemory::Close() {
   Unmap();
 
   if (mapped_file_ > 0) {
-    close(mapped_file_);
+    if (HANDLE_EINTR(close(mapped_file_)) < 0)
+      PLOG(ERROR) << "close";
     mapped_file_ = -1;
   }
 }
