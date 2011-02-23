@@ -46,9 +46,9 @@ install_gold() {
     return
   fi
 
-  BINUTILS=binutils-2.20.1
+  BINUTILS=binutils-2.21
   BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/$BINUTILS.tar.bz2
-  BINUTILS_SHA1=fd2ba806e6f3a55cee453cb25c86991b26a75dee
+  BINUTILS_SHA1=ef93235588eb443e4c4a77f229a8d131bccaecc6
 
   test -f $BINUTILS.tar.bz2 || wget $BINUTILS_URL
   if test "`sha1sum $BINUTILS.tar.bz2|cut -d' ' -f1`" != "$BINUTILS_SHA1"
@@ -59,7 +59,57 @@ install_gold() {
 
   tar -xjvf $BINUTILS.tar.bz2
   cd $BINUTILS
-  ./configure --prefix=/usr/local/gold --enable-gold
+  patch -p1 <<EOF
+diff -u -r1.103 -r1.103.2.1
+--- src/gold/object.h	2010/09/08 23:54:51	1.103
++++ src/gold/object.h	2011/02/10 01:15:28	1.103.2.1
+@@ -1,6 +1,6 @@
+ // object.h -- support for an object file for linking in gold  -*- C++ -*-
+ 
+-// Copyright 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
++// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+ // Written by Ian Lance Taylor <iant@google.com>.
+ 
+ // This file is part of gold.
+@@ -2165,15 +2165,6 @@
+ 		      Output_symtab_xindex*,
+ 		      Output_symtab_xindex*);
+ 
+-  // Clear the local symbol information.
+-  void
+-  clear_local_symbols()
+-  {
+-    this->local_values_.clear();
+-    this->local_got_offsets_.clear();
+-    this->local_plt_offsets_.clear();
+-  }
+-
+   // Record a mapping from discarded section SHNDX to the corresponding
+   // kept section.
+   void
+diff -u -r1.60 -r1.60.2.1
+--- src/gold/reloc.cc	2010/10/14 22:10:22	1.60
++++ src/gold/reloc.cc	2011/02/10 01:15:28	1.60.2.1
+@@ -1,6 +1,6 @@
+ // reloc.cc -- relocate input files for gold.
+ 
+-// Copyright 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
++// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+ // Written by Ian Lance Taylor <iant@google.com>.
+ 
+ // This file is part of gold.
+@@ -685,9 +685,6 @@
+   // Write out the local symbols.
+   this->write_local_symbols(of, layout->sympool(), layout->dynpool(),
+ 			    layout->symtab_xindex(), layout->dynsym_xindex());
+-
+-  // We should no longer need the local symbol values.
+-  this->clear_local_symbols();
+ }
+ 
+ // Sort a Read_multiple vector by file offset.
+EOF
+  ./configure --prefix=/usr/local/gold --enable-gold --enable-threads
   make maybe-all-binutils maybe-all-gold -j4
   if sudo make maybe-install-binutils maybe-install-gold
   then
@@ -240,12 +290,12 @@ fi
 # Some operating systems already ship gold (on recent Debian and
 # Ubuntu you can do "apt-get install binutils-gold" to get it), but
 # older releases didn't.  Additionally, gold 2.20 (included in Ubuntu
-# Lucid) makes binaries that just segfault.
+# Lucid) makes binaries that just segfault, and 2.20.1 does not support
+# --map-whole-files.
 # So install from source if we don't have a good version.
 
 case `ld --version` in
-*gold*2.20.1*) ;;
-*gold*2.2[1-9]*) ;;
+*gold*2.2[1-9].*) ;;
 * )
   if test "$do_inst_gold" = ""
   then
@@ -259,7 +309,7 @@ case `ld --version` in
   if test "$do_inst_gold" = "1"
   then
     # If the system provides a good version of gold, just install it.
-    if apt-cache show binutils-gold | grep -Eq 'Version: 2.2(0.1|[1-9]*)'; then
+    if apt-cache show binutils-gold | grep -Eq 'Version: 2.2[1-9].*'; then
       echo "Installing binutils-gold. Backing up ld as ld.single."
       sudo apt-get install binutils-gold
     else
