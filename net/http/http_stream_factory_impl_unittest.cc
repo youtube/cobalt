@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/http/http_stream_factory.h"
+#include "net/http/http_stream_factory_impl.h"
 
 #include <string>
 
@@ -16,6 +16,8 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_session_peer.h"
 #include "net/http/http_request_info.h"
+#include "net/proxy/proxy_info.h"
+#include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -24,6 +26,34 @@
 namespace net {
 
 namespace {
+
+class MockHttpStreamFactoryImpl : public HttpStreamFactoryImpl {
+ public:
+  MockHttpStreamFactoryImpl(HttpNetworkSession* session)
+      : HttpStreamFactoryImpl(session),
+        preconnect_done_(false),
+        waiting_for_preconnect_(false) {}
+
+
+  void WaitForPreconnects() {
+    while (!preconnect_done_) {
+      waiting_for_preconnect_ = true;
+      MessageLoop::current()->Run();
+      waiting_for_preconnect_ = false;
+    }
+  }
+
+ private:
+  // HttpStreamFactoryImpl methods.
+  virtual void OnPreconnectsCompleteInternal() {
+    preconnect_done_ = true;
+    if (waiting_for_preconnect_)
+      MessageLoop::current()->Quit();
+  }
+
+  bool preconnect_done_;
+  bool waiting_for_preconnect_;
+};
 
 struct SessionDependencies {
   // Custom proxy service dependency.
@@ -70,8 +100,12 @@ TestCase kTests[] = {
   { 2, true},
 };
 
-int PreconnectHelper(const TestCase& test,
-                     HttpNetworkSession* session) {
+void PreconnectHelper(const TestCase& test,
+                      HttpNetworkSession* session) {
+  HttpNetworkSessionPeer peer(session);
+  MockHttpStreamFactoryImpl* mock_factory =
+      new MockHttpStreamFactoryImpl(session);
+  peer.SetHttpStreamFactory(mock_factory);
   SSLConfig ssl_config;
   session->ssl_config_service()->GetSSLConfig(&ssl_config);
 
@@ -84,12 +118,9 @@ int PreconnectHelper(const TestCase& test,
   ProxyInfo proxy_info;
   TestCompletionCallback callback;
 
-  int rv = session->http_stream_factory()->PreconnectStreams(
-      test.num_streams, &request, &ssl_config, &proxy_info, session,
-      BoundNetLog(), &callback);
-  if (rv != ERR_IO_PENDING)
-    return ERR_UNEXPECTED;
-  return callback.WaitForResult();
+  session->http_stream_factory()->PreconnectStreams(
+      test.num_streams, request, ssl_config, BoundNetLog());
+  mock_factory->WaitForPreconnects();
 };
 
 template<typename ParentPool>
@@ -195,7 +226,7 @@ TEST(HttpStreamFactoryTest, PreconnectDirect) {
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
     peer.SetSSLSocketPool(ssl_conn_pool);
-    EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
+    PreconnectHelper(kTests[i], session);
     if (kTests[i].ssl)
       EXPECT_EQ(kTests[i].num_streams, ssl_conn_pool->last_num_streams());
     else
@@ -219,7 +250,7 @@ TEST(HttpStreamFactoryTest, PreconnectHttpProxy) {
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
     peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
-    EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
+    PreconnectHelper(kTests[i], session);
     if (kTests[i].ssl)
       EXPECT_EQ(kTests[i].num_streams, ssl_conn_pool->last_num_streams());
     else
@@ -244,7 +275,7 @@ TEST(HttpStreamFactoryTest, PreconnectSocksProxy) {
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
     peer.SetSocketPoolForSSLWithProxy(proxy_host, ssl_conn_pool);
-    EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
+    PreconnectHelper(kTests[i], session);
     if (kTests[i].ssl)
       EXPECT_EQ(kTests[i].num_streams, ssl_conn_pool->last_num_streams());
     else
@@ -262,8 +293,7 @@ TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
     HostPortPair host_port_pair("www.google.com", 443);
     HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
     scoped_refptr<SpdySession> spdy_session =
-        session->spdy_session_pool()->Get(
-            pair, session->mutable_spdy_settings(), BoundNetLog());
+        session->spdy_session_pool()->Get(pair, BoundNetLog());
 
     CapturePreconnectsTCPSocketPool* tcp_conn_pool =
         new CapturePreconnectsTCPSocketPool(
@@ -275,7 +305,7 @@ TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
             session_deps.host_resolver.get(),
             session_deps.cert_verifier.get());
     peer.SetSSLSocketPool(ssl_conn_pool);
-    EXPECT_EQ(OK, PreconnectHelper(kTests[i], session));
+    PreconnectHelper(kTests[i], session);
     // We shouldn't be preconnecting if we have an existing session, which is
     // the case for https://www.google.com.
     if (kTests[i].ssl)

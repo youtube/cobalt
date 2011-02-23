@@ -34,7 +34,6 @@ SpdySessionPool::~SpdySessionPool() {
 
 scoped_refptr<SpdySession> SpdySessionPool::Get(
     const HostPortProxyPair& host_port_proxy_pair,
-    SpdySettingsStorage* spdy_settings,
     const BoundNetLog& net_log) {
   scoped_refptr<SpdySession> spdy_session;
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
@@ -53,7 +52,7 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
 
   DCHECK(list);
   if (!spdy_session) {
-    spdy_session = new SpdySession(host_port_proxy_pair, this, spdy_settings,
+    spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
                                    net_log.net_log());
     net_log.AddEvent(
         NetLog::TYPE_SPDY_SESSION_POOL_CREATED_NEW_SESSION,
@@ -69,14 +68,13 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
 
 net::Error SpdySessionPool::GetSpdySessionFromSocket(
     const HostPortProxyPair& host_port_proxy_pair,
-    SpdySettingsStorage* spdy_settings,
     ClientSocketHandle* connection,
     const BoundNetLog& net_log,
     int certificate_error_code,
     scoped_refptr<SpdySession>* spdy_session,
     bool is_secure) {
   // Create the SPDY session and add it to the pool.
-  *spdy_session = new SpdySession(host_port_proxy_pair, this, spdy_settings,
+  *spdy_session = new SpdySession(host_port_proxy_pair, this, &spdy_settings_,
                                   net_log.net_log());
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (!list)
