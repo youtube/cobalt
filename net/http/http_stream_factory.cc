@@ -1,16 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_stream_factory.h"
 
-#include "base/logging.h"
+#include "base/stl_util-inl.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
-#include "googleurl/src/gurl.h"
-#include "net/base/host_mapping_rules.h"
-#include "net/base/host_port_pair.h"
-#include "net/http/http_alternate_protocols.h"
+#include "base/string_util.h"
+#include "net/base/net_log.h"
+#include "net/base/net_util.h"
+#include "net/http/http_network_session.h"
+#include "net/http/http_stream_request.h"
 
 namespace net {
 
@@ -31,7 +32,62 @@ std::list<HostPortPair>* HttpStreamFactory::forced_spdy_exclusions_ = NULL;
 // static
 bool HttpStreamFactory::ignore_certificate_errors_ = false;
 
-HttpStreamFactory::~HttpStreamFactory() {}
+HttpStreamFactory::HttpStreamFactory() {
+}
+
+HttpStreamFactory::~HttpStreamFactory() {
+  RequestCallbackMap request_callback_map;
+  request_callback_map.swap(request_callback_map_);
+  for (RequestCallbackMap::iterator it = request_callback_map.begin();
+       it != request_callback_map.end(); ++it) {
+    delete it->first;
+    // We don't invoke the callback in the destructor.
+  }
+}
+
+// static
+void HttpStreamFactory::SetHostMappingRules(const std::string& rules) {
+  HostMappingRules* host_mapping_rules = new HostMappingRules();
+  host_mapping_rules->SetRulesFromString(rules);
+  delete host_mapping_rules_;
+  host_mapping_rules_ = host_mapping_rules;
+}
+
+StreamRequest* HttpStreamFactory::RequestStream(
+    const HttpRequestInfo* request_info,
+    SSLConfig* ssl_config,
+    ProxyInfo* proxy_info,
+    HttpNetworkSession* session,
+    StreamRequest::Delegate* delegate,
+    const BoundNetLog& net_log) {
+  HttpStreamRequest* stream = new HttpStreamRequest(this, session);
+  stream->Start(request_info, ssl_config, proxy_info, delegate, net_log);
+  return stream;
+}
+
+int HttpStreamFactory::PreconnectStreams(
+    int num_streams,
+    const HttpRequestInfo* request_info,
+    SSLConfig* ssl_config,
+    ProxyInfo* proxy_info,
+    HttpNetworkSession* session,
+    const BoundNetLog& net_log,
+    CompletionCallback* callback) {
+  HttpStreamRequest* stream = new HttpStreamRequest(this, session);
+  int rv = stream->Preconnect(num_streams, request_info, ssl_config,
+                              proxy_info, this, net_log);
+  DCHECK_EQ(ERR_IO_PENDING, rv);
+  request_callback_map_[stream] = callback;
+  return rv;
+}
+
+void HttpStreamFactory::AddTLSIntolerantServer(const GURL& url) {
+  tls_intolerant_servers_.insert(GetHostAndPort(url));
+}
+
+bool HttpStreamFactory::IsTLSIntolerantServer(const GURL& url) {
+  return ContainsKey(tls_intolerant_servers_, GetHostAndPort(url));
+}
 
 void HttpStreamFactory::ProcessAlternateProtocol(
     HttpAlternateProtocols* alternate_protocols,
@@ -72,7 +128,8 @@ void HttpStreamFactory::ProcessAlternateProtocol(
   }
 
   HostPortPair host_port(http_host_port_pair);
-  host_mapping_rules().RewriteHost(&host_port);
+  if (host_mapping_rules_)
+    host_mapping_rules_->RewriteHost(&host_port);
 
   if (alternate_protocols->HasAlternateProtocolFor(host_port)) {
     const HttpAlternateProtocols::PortProtocolPair existing_alternate =
@@ -87,7 +144,7 @@ void HttpStreamFactory::ProcessAlternateProtocol(
 
 GURL HttpStreamFactory::ApplyHostMappingRules(const GURL& url,
                                               HostPortPair* endpoint) {
-  if (host_mapping_rules().RewriteHost(endpoint)) {
+  if (host_mapping_rules_ && host_mapping_rules_->RewriteHost(endpoint)) {
     url_canon::Replacements<char> replacements;
     const std::string port_str = base::IntToString(endpoint->port());
     replacements.SetPort(port_str.c_str(),
@@ -99,29 +156,15 @@ GURL HttpStreamFactory::ApplyHostMappingRules(const GURL& url,
   return url;
 }
 
-// static
-void HttpStreamFactory::add_forced_spdy_exclusion(const std::string& value) {
-  HostPortPair pair = HostPortPair::FromURL(GURL(value));
-  if (!forced_spdy_exclusions_)
-    forced_spdy_exclusions_ = new std::list<HostPortPair>();
-  forced_spdy_exclusions_->push_back(pair);
-}
-
-// static
-void HttpStreamFactory::SetHostMappingRules(const std::string& rules) {
-  HostMappingRules* host_mapping_rules = new HostMappingRules;
-  host_mapping_rules->SetRulesFromString(rules);
-  delete host_mapping_rules_;
-  host_mapping_rules_ = host_mapping_rules;
-}
-
-HttpStreamFactory::HttpStreamFactory() {}
-
-// static
-const HostMappingRules& HttpStreamFactory::host_mapping_rules() {
-  if (!host_mapping_rules_)
-    host_mapping_rules_ = new HostMappingRules;
-  return *host_mapping_rules_;
+void HttpStreamFactory::OnPreconnectsComplete(
+    HttpStreamRequest* request, int result) {
+  RequestCallbackMap::iterator it = request_callback_map_.find(request);
+  DCHECK(it != request_callback_map_.end());
+  CompletionCallback* callback = it->second;
+  request_callback_map_.erase(it);
+  delete request;
+  callback->Run(result);
 }
 
 }  // namespace net
+

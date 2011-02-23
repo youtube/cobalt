@@ -42,7 +42,7 @@
 #include "net/http/http_response_body_drainer.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
-#include "net/http/http_stream_factory.h"
+#include "net/http/http_stream_request.h"
 #include "net/http/http_util.h"
 #include "net/http/url_security_manager.h"
 #include "net/socket/client_socket_factory.h"
@@ -359,15 +359,11 @@ uint64 HttpNetworkTransaction::GetUploadProgress() const {
   return stream_->GetUploadProgress();
 }
 
-void HttpNetworkTransaction::OnStreamReady(const SSLConfig& used_ssl_config,
-                                           const ProxyInfo& used_proxy_info,
-                                           HttpStream* stream) {
+void HttpNetworkTransaction::OnStreamReady(HttpStream* stream) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK(stream_request_.get());
 
   stream_.reset(stream);
-  ssl_config_ = used_ssl_config;
-  proxy_info_ = used_proxy_info;
   response_.was_alternate_protocol_available =
       stream_request_->was_alternate_protocol_available();
   response_.was_npn_negotiated = stream_request_->was_npn_negotiated();
@@ -377,28 +373,23 @@ void HttpNetworkTransaction::OnStreamReady(const SSLConfig& used_ssl_config,
   OnIOComplete(OK);
 }
 
-void HttpNetworkTransaction::OnStreamFailed(int result,
-                                            const SSLConfig& used_ssl_config) {
+void HttpNetworkTransaction::OnStreamFailed(int result) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK_NE(OK, result);
   DCHECK(stream_request_.get());
   DCHECK(!stream_.get());
-  ssl_config_ = used_ssl_config;
 
   OnIOComplete(result);
 }
 
-void HttpNetworkTransaction::OnCertificateError(
-    int result,
-    const SSLConfig& used_ssl_config,
-    const SSLInfo& ssl_info) {
+void HttpNetworkTransaction::OnCertificateError(int result,
+                                                const SSLInfo& ssl_info) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK_NE(OK, result);
   DCHECK(stream_request_.get());
   DCHECK(!stream_.get());
 
   response_.ssl_info = ssl_info;
-  ssl_config_ = used_ssl_config;
 
   // TODO(mbelshe):  For now, we're going to pass the error through, and that
   // will close the stream_request in all cases.  This means that we're always
@@ -411,8 +402,6 @@ void HttpNetworkTransaction::OnCertificateError(
 
 void HttpNetworkTransaction::OnNeedsProxyAuth(
     const HttpResponseInfo& proxy_response,
-    const SSLConfig& used_ssl_config,
-    const ProxyInfo& used_proxy_info,
     HttpAuthController* auth_controller) {
   DCHECK(stream_request_.get());
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
@@ -421,8 +410,6 @@ void HttpNetworkTransaction::OnNeedsProxyAuth(
   response_.headers = proxy_response.headers;
   response_.auth_challenge = proxy_response.auth_challenge;
   headers_valid_ = true;
-  ssl_config_ = used_ssl_config;
-  proxy_info_ = used_proxy_info;
 
   auth_controllers_[HttpAuth::AUTH_PROXY] = auth_controller;
   pending_auth_target_ = HttpAuth::AUTH_PROXY;
@@ -431,26 +418,20 @@ void HttpNetworkTransaction::OnNeedsProxyAuth(
 }
 
 void HttpNetworkTransaction::OnNeedsClientAuth(
-    const SSLConfig& used_ssl_config,
     SSLCertRequestInfo* cert_info) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
 
-  ssl_config_ = used_ssl_config;
   response_.cert_request_info = cert_info;
   OnIOComplete(ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
 }
 
 void HttpNetworkTransaction::OnHttpsProxyTunnelResponse(
     const HttpResponseInfo& response_info,
-    const SSLConfig& used_ssl_config,
-    const ProxyInfo& used_proxy_info,
     HttpStream* stream) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
 
   headers_valid_ = true;
   response_ = response_info;
-  ssl_config_ = used_ssl_config;
-  proxy_info_ = used_proxy_info;
   stream_.reset(stream);
   stream_request_.reset();  // we're done with the stream request
   OnIOComplete(ERR_HTTPS_PROXY_TUNNEL_RESPONSE);
@@ -568,8 +549,10 @@ int HttpNetworkTransaction::DoCreateStream() {
 
   stream_request_.reset(
       session_->http_stream_factory()->RequestStream(
-          *request_,
-          ssl_config_,
+          request_,
+          &ssl_config_,
+          &proxy_info_,
+          session_,
           this,
           net_log_));
   DCHECK(stream_request_.get());
@@ -626,7 +609,7 @@ int HttpNetworkTransaction::DoGenerateProxyAuthToken() {
     auth_controllers_[target] =
         new HttpAuthController(target,
                                AuthURL(target),
-                               session_->http_auth_cache(),
+                               session_->auth_cache(),
                                session_->http_auth_handler_factory());
   return auth_controllers_[target]->MaybeGenerateAuthToken(request_,
                                                            &io_callback_,
@@ -647,7 +630,7 @@ int HttpNetworkTransaction::DoGenerateServerAuthToken() {
     auth_controllers_[target] =
         new HttpAuthController(target,
                                AuthURL(target),
-                               session_->http_auth_cache(),
+                               session_->auth_cache(),
                                session_->http_auth_handler_factory());
   if (!ShouldApplyServerAuth())
     return OK;

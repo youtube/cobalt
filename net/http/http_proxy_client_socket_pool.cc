@@ -36,10 +36,12 @@ HttpProxySocketParams::HttpProxySocketParams(
     HttpAuthCache* http_auth_cache,
     HttpAuthHandlerFactory* http_auth_handler_factory,
     SpdySessionPool* spdy_session_pool,
+    SpdySettingsStorage* spdy_settings,
     bool tunnel)
     : tcp_params_(tcp_params),
       ssl_params_(ssl_params),
       spdy_session_pool_(spdy_session_pool),
+      spdy_settings_(spdy_settings),
       request_url_(request_url),
       user_agent_(user_agent),
       endpoint_(endpoint),
@@ -289,11 +291,11 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
         transport_socket_handle_->socket()->Disconnect();
       transport_socket_handle_->Reset();
     }
-    spdy_session = spdy_pool->Get(pair, net_log());
+    spdy_session = spdy_pool->Get(pair, params_->spdy_settings(), net_log());
   } else {
     // Create a session direct to the proxy itself
     int rv = spdy_pool->GetSpdySessionFromSocket(
-        pair, transport_socket_handle_.release(),
+        pair, params_->spdy_settings(), transport_socket_handle_.release(),
         net_log(), OK, &spdy_session, /*using_ssl_*/ true);
     if (rv < 0)
       return rv;
