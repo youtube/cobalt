@@ -13,6 +13,7 @@ namespace net {
 class HostPortPair;
 class HttpNetworkSession;
 class HttpProxyClientSocketPool;
+class HttpStreamFactory;
 class ProxyService;
 class SOCKSClientSocketPool;
 class SSLClientSocketPool;
@@ -41,6 +42,8 @@ class HttpNetworkSessionPeer {
       SSLClientSocketPool* pool);
 
   void SetProxyService(ProxyService* proxy_service);
+
+  void SetHttpStreamFactory(HttpStreamFactory* http_stream_factory);
 
  private:
   const scoped_refptr<HttpNetworkSession> session_;

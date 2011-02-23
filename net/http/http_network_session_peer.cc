@@ -6,6 +6,7 @@
 
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket_pool.h"
+#include "net/proxy/proxy_service.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
@@ -64,6 +65,11 @@ void HttpNetworkSessionPeer::SetSocketPoolForSSLWithProxy(
 
 void HttpNetworkSessionPeer::SetProxyService(ProxyService* proxy_service) {
   session_->proxy_service_ = proxy_service;
+}
+
+void HttpNetworkSessionPeer::SetHttpStreamFactory(
+    HttpStreamFactory* http_stream_factory) {
+  session_->http_stream_factory_.reset(http_stream_factory);
 }
 
 }  // namespace net
