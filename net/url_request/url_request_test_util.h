@@ -28,6 +28,7 @@
 #include "net/ftp/ftp_network_layer.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
+#include "net/http/http_network_delegate.h"
 #include "net/http/http_network_layer.h"
 #include "net/test/test_server.h"
 #include "net/url_request/url_request.h"
@@ -75,6 +76,8 @@ class TestURLRequestContext : public net::URLRequestContext {
  public:
   TestURLRequestContext();
   explicit TestURLRequestContext(const std::string& proxy);
+  TestURLRequestContext(const std::string& proxy,
+                        net::HostResolver* host_resolver);
 
  protected:
   virtual ~TestURLRequestContext();
@@ -181,6 +184,27 @@ class TestDelegate : public net::URLRequest::Delegate {
 
   // our read buffer
   scoped_refptr<net::IOBuffer> buf_;
+};
+
+//-----------------------------------------------------------------------------
+
+class TestHttpNetworkDelegate : public net::HttpNetworkDelegate {
+ public:
+  TestHttpNetworkDelegate();
+  virtual ~TestHttpNetworkDelegate();
+
+  // net::HttpNetworkDelegate:
+  virtual void OnBeforeURLRequest(net::URLRequest* request);
+  virtual void OnSendHttpRequest(net::HttpRequestHeaders* headers);
+  virtual void OnResponseStarted(net::URLRequest* request);
+  virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
+
+  int last_os_error() const { return last_os_error_; }
+  int error_count() const { return error_count_; }
+
+ private:
+  int last_os_error_;
+  int error_count_;
 };
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_TEST_UTIL_H_
