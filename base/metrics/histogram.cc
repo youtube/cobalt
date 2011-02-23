@@ -23,6 +23,9 @@ namespace base {
 
 typedef Histogram::Count Count;
 
+// static
+const size_t Histogram::kBucketCount_MAX = 10000u;
+
 scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
     Sample minimum, Sample maximum, size_t bucket_count, Flags flags) {
   scoped_refptr<Histogram> histogram(NULL);
@@ -413,7 +416,7 @@ size_t Histogram::BucketIndex(Sample value) const {
 
   do {
     DCHECK_GE(over, under);
-    mid = (over + under)/2;
+    mid = under + (over - under)/2;
     if (mid == under)
       break;
     if (ranges(mid) <= value)
@@ -423,7 +426,7 @@ size_t Histogram::BucketIndex(Sample value) const {
   } while (true);
 
   DCHECK_LE(ranges(mid), value);
-  DCHECK_GT(ranges(mid+1), value);
+  CHECK_GT(ranges(mid+1), value);
   return mid;
 }
 
@@ -483,6 +486,7 @@ void Histogram::Initialize() {
     declared_max_ = kSampleType_MAX - 1;
   DCHECK_LE(declared_min_, declared_max_);
   DCHECK_GT(bucket_count_, 1u);
+  CHECK_LT(bucket_count_, kBucketCount_MAX);
   size_t maximal_bucket_count = declared_max_ - declared_min_ + 2;
   DCHECK_LE(bucket_count_, maximal_bucket_count);
   DCHECK_EQ(0, ranges_[0]);
