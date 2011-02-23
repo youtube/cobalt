@@ -430,6 +430,7 @@
         'ftp/ftp_network_transaction.cc',
         'ftp/ftp_network_transaction.h',
         'ftp/ftp_request_info.h',
+        'ftp/ftp_response_info.cc',
         'ftp/ftp_response_info.h',
         'ftp/ftp_server_type_histograms.cc',
         'ftp/ftp_server_type_histograms.h',

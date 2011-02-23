@@ -13,11 +13,8 @@ namespace net {
 
 class FtpResponseInfo {
  public:
-  FtpResponseInfo()
-      : needs_auth(false),
-        expected_content_size(-1),
-        is_directory_listing(false) {
-  }
+  FtpResponseInfo();
+  ~FtpResponseInfo();
 
   // True if authentication failed and valid authentication credentials are
   // needed.
