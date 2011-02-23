@@ -96,6 +96,15 @@ TestURLRequestContext::TestURLRequestContext(const std::string& proxy) {
   Init();
 }
 
+TestURLRequestContext::TestURLRequestContext(const std::string& proxy,
+                                             net::HostResolver* host_resolver) {
+  set_host_resolver(host_resolver);
+  net::ProxyConfig proxy_config;
+  proxy_config.proxy_rules().ParseFromString(proxy);
+  set_proxy_service(net::ProxyService::CreateFixed(proxy_config));
+  Init();
+}
+
 TestURLRequestContext::~TestURLRequestContext() {
   delete ftp_transaction_factory();
   delete http_transaction_factory();
@@ -277,4 +286,32 @@ void TestDelegate::OnReadCompleted(net::URLRequest* request, int bytes_read) {
 void TestDelegate::OnResponseCompleted(net::URLRequest* request) {
   if (quit_on_complete_)
     MessageLoop::current()->PostTask(FROM_HERE, new MessageLoop::QuitTask());
+}
+
+TestHttpNetworkDelegate::TestHttpNetworkDelegate()
+  : last_os_error_(0),
+    error_count_(0) {
+}
+
+TestHttpNetworkDelegate::~TestHttpNetworkDelegate() {}
+
+void TestHttpNetworkDelegate::OnBeforeURLRequest(net::URLRequest* request) {
+}
+
+void TestHttpNetworkDelegate::OnSendHttpRequest(
+    net::HttpRequestHeaders* headers) {
+}
+
+void TestHttpNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
+  if (request->status().status() == net::URLRequestStatus::FAILED) {
+    error_count_++;
+    last_os_error_ = request->status().os_error();
+  }
+}
+void TestHttpNetworkDelegate::OnReadCompleted(net::URLRequest* request,
+                                              int bytes_read) {
+  if (request->status().status() == net::URLRequestStatus::FAILED) {
+    error_count_++;
+    last_os_error_ = request->status().os_error();
+  }
 }

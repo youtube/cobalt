@@ -27,6 +27,7 @@
 #include "net/base/cookie_monster.h"
 #include "net/base/cookie_policy.h"
 #include "net/base/load_flags.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
@@ -227,6 +228,37 @@ TEST_F(URLRequestTestHTTP, ProxyTunnelRedirectTest) {
     EXPECT_EQ(1, d.response_started_count());
     // We should not have followed the redirect.
     EXPECT_EQ(0, d.received_redirect_count());
+  }
+}
+
+// This is the same as the previous test, but checks that the network delegate
+// registers the error.
+TEST_F(URLRequestTestHTTP, NetworkDelegateTunnelConnectionFailed) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  {
+    net::URLRequest r(GURL("https://www.redirect.com/"), &d);
+    scoped_refptr<TestURLRequestContext> context(
+        new TestURLRequestContext(test_server_.host_port_pair().ToString()));
+    TestHttpNetworkDelegate network_delegate;
+    context->set_network_delegate(&network_delegate);
+    r.set_context(context);
+
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(net::URLRequestStatus::FAILED, r.status().status());
+    EXPECT_EQ(net::ERR_TUNNEL_CONNECTION_FAILED, r.status().os_error());
+    EXPECT_EQ(1, d.response_started_count());
+    // We should not have followed the redirect.
+    EXPECT_EQ(0, d.received_redirect_count());
+
+    EXPECT_EQ(1, network_delegate.error_count());
+    EXPECT_EQ(net::ERR_TUNNEL_CONNECTION_FAILED,
+              network_delegate.last_os_error());
   }
 }
 
@@ -2364,6 +2396,34 @@ TEST_F(URLRequestTest, Identifiers) {
   TestURLRequest other_req(GURL("http://example.com"), &d);
 
   ASSERT_NE(req.identifier(), other_req.identifier());
+}
+
+// Check that a failure to connect to the proxy is reported to the network
+// delegate.
+TEST_F(URLRequestTest, NetworkDelegateProxyError) {
+  TestDelegate d;
+  TestURLRequest req(GURL("http://example.com"), &d);
+  req.set_method("GET");
+
+  scoped_ptr<net::MockHostResolverBase> host_resolver(
+      new net::MockHostResolver);
+  host_resolver->rules()->AddSimulatedFailure("*");
+  scoped_refptr<TestURLRequestContext> context(
+      new TestURLRequestContext("myproxy:70", host_resolver.release()));
+  TestHttpNetworkDelegate network_delegate;
+  context->set_network_delegate(&network_delegate);
+  req.set_context(context);
+
+  req.Start();
+  MessageLoop::current()->Run();
+
+  // Check we see a failed request.
+  EXPECT_FALSE(req.status().is_success());
+  EXPECT_EQ(net::URLRequestStatus::FAILED, req.status().status());
+  EXPECT_EQ(net::ERR_PROXY_CONNECTION_FAILED, req.status().os_error());
+
+  EXPECT_EQ(1, network_delegate.error_count());
+  EXPECT_EQ(net::ERR_PROXY_CONNECTION_FAILED, network_delegate.last_os_error());
 }
 
 class URLRequestTestFTP : public URLRequestTest {
