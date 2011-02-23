@@ -33,6 +33,7 @@
 #include "net/test/test_server.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_context_storage.h"
 #include "net/proxy/proxy_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "googleurl/src/url_util.h"
@@ -84,6 +85,8 @@ class TestURLRequestContext : public net::URLRequestContext {
 
  private:
   void Init();
+
+  net::URLRequestContextStorage context_storage_;
 };
 
 //-----------------------------------------------------------------------------
