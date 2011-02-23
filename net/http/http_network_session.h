@@ -71,7 +71,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
 
   explicit HttpNetworkSession(const Params& params);
 
-  HttpAuthCache* auth_cache() { return &auth_cache_; }
+  HttpAuthCache* http_auth_cache() { return &http_auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
     return &ssl_client_auth_cache_;
   }
@@ -85,14 +85,6 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   }
   HttpAlternateProtocols* mutable_alternate_protocols() {
     return &alternate_protocols_;
-  }
-
-  // Access to the SpdySettingsStorage
-  const SpdySettingsStorage& spdy_settings() const {
-    return spdy_settings_;
-  }
-  SpdySettingsStorage* mutable_spdy_settings() {
-    return &spdy_settings_;
   }
 
   TCPClientSocketPool* tcp_socket_pool() {
@@ -130,7 +122,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   }
 
   HttpStreamFactory* http_stream_factory() {
-    return &http_stream_factory_;
+    return http_stream_factory_.get();
   }
 
   NetLog* net_log() {
@@ -147,9 +139,15 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   // responsible for deleting the returned value.
   Value* SpdySessionPoolInfoToValue() const;
 
-  void FlushSocketPools() {
+  void CloseAllConnections() {
     socket_pool_manager_.FlushSocketPools();
+    spdy_session_pool_.CloseCurrentSessions();
   }
+
+  void CloseIdleConnections() {
+    socket_pool_manager_.CloseIdleSockets();
+  }
+
 
  private:
   friend class base::RefCounted<HttpNetworkSession>;
@@ -157,20 +155,21 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
 
   ~HttpNetworkSession();
 
-  HttpAuthCache auth_cache_;
-  SSLClientAuthCache ssl_client_auth_cache_;
-  HttpAlternateProtocols alternate_protocols_;
-  CertVerifier* cert_verifier_;
+  NetLog* const net_log_;
+  HttpNetworkDelegate* const network_delegate_;
+  CertVerifier* const cert_verifier_;
+  HttpAuthHandlerFactory* const http_auth_handler_factory_;
+
   // Not const since it's modified by HttpNetworkSessionPeer for testing.
   scoped_refptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
+
+  HttpAuthCache http_auth_cache_;
+  SSLClientAuthCache ssl_client_auth_cache_;
+  HttpAlternateProtocols alternate_protocols_;
   ClientSocketPoolManager socket_pool_manager_;
   SpdySessionPool spdy_session_pool_;
-  HttpStreamFactory http_stream_factory_;
-  HttpAuthHandlerFactory* const http_auth_handler_factory_;
-  HttpNetworkDelegate* const network_delegate_;
-  NetLog* const net_log_;
-  SpdySettingsStorage spdy_settings_;
+  scoped_ptr<HttpStreamFactory> http_stream_factory_;
   std::set<HttpResponseBodyDrainer*> response_drainers_;
 };
 

@@ -88,8 +88,7 @@ TEST_F(SpdySessionTest, GoAway) {
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),
-                             BoundNetLog());
+      spdy_session_pool->Get(pair, BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params(
@@ -107,8 +106,7 @@ TEST_F(SpdySessionTest, GoAway) {
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<SpdySession> session2 =
-      spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),
-                             BoundNetLog());
+      spdy_session_pool->Get(pair, BoundNetLog());
 
   // Delete the first session.
   session = NULL;
@@ -187,18 +185,17 @@ TEST_F(SpdySessionTest, OnSettings) {
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy::SpdySettings old_settings;
   id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
   old_settings.push_back(spdy::SpdySetting(id, 1));
-  http_session->mutable_spdy_settings()->Set(
+  spdy_session_pool->mutable_spdy_settings()->Set(
       test_host_port_pair, old_settings);
 
   // Create a session.
-  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),
-                             BoundNetLog());
+      spdy_session_pool->Get(pair, BoundNetLog());
   ASSERT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params(
@@ -267,19 +264,19 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy::SpdySettings settings;
   spdy::SettingsFlagsAndId id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
   settings.push_back(spdy::SpdySetting(id, 1));
-  http_session->mutable_spdy_settings()->Set(test_host_port_pair, settings);
+  spdy_session_pool->mutable_spdy_settings()->Set(
+      test_host_port_pair, settings);
 
   // Create a session.
-  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),
-                             BoundNetLog());
+      spdy_session_pool->Get(pair, BoundNetLog());
   ASSERT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params(
@@ -369,12 +366,12 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
   settings.clear();
   settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
-  http_session->mutable_spdy_settings()->Set(test_host_port_pair, settings);
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  spdy_session_pool->mutable_spdy_settings()->Set(
+      test_host_port_pair, settings);
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(pair, http_session->mutable_spdy_settings(),
-                             BoundNetLog());
+      spdy_session_pool->Get(pair, BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params(

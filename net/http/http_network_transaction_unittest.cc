@@ -1581,7 +1581,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyNoKeepAlive) {
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
 
   trans.reset();
-  session->FlushSocketPools();
+  session->CloseAllConnections();
 }
 
 // Test the request-challenge-retry sequence for basic auth, over a keep-alive
@@ -1695,7 +1695,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
 
   // Flush the idle socket before the NetLog and HttpNetworkTransaction go
   // out of scope.
-  session->FlushSocketPools();
+  session->CloseAllConnections();
 }
 
 // Test that we don't read the response body when we fail to establish a tunnel,
@@ -1753,7 +1753,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyCancelTunnel) {
   EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
 
   // Flush the idle socket before the HttpNetworkTransaction goes out of scope.
-  session->FlushSocketPools();
+  session->CloseAllConnections();
 }
 
 // Test when a server (non-proxy) returns a 407 (proxy-authenticate).
@@ -6923,8 +6923,7 @@ TEST_F(HttpNetworkTransactionTest,
   HostPortPair host_port_pair("www.google.com", 443);
   HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
   scoped_refptr<SpdySession> spdy_session =
-      session->spdy_session_pool()->Get(pair, session->mutable_spdy_settings(),
-                                        BoundNetLog());
+      session->spdy_session_pool()->Get(pair, BoundNetLog());
   scoped_refptr<TCPSocketParams> tcp_params(
       new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false));
 
@@ -8167,8 +8166,7 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   HostPortPair host_port_pair("www.google.com", 443);
   HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
   scoped_refptr<SpdySession> spdy_session =
-      session->spdy_session_pool()->Get(pair, session->mutable_spdy_settings(),
-                                        BoundNetLog());
+      session->spdy_session_pool()->Get(pair, BoundNetLog());
   scoped_refptr<TCPSocketParams> tcp_params(
       new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false));
   TestCompletionCallback callback;

@@ -6,13 +6,16 @@
 
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/values.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_response_body_drainer.h"
+#include "net/http/http_stream_factory_impl.h"
 #include "net/http/url_security_manager.h"
+#include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/spdy/spdy_session_pool.h"
 
@@ -20,7 +23,10 @@ namespace net {
 
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(const Params& params)
-    : cert_verifier_(NULL),
+    : net_log_(params.net_log),
+      network_delegate_(params.network_delegate),
+      cert_verifier_(params.cert_verifier),
+      http_auth_handler_factory_(params.http_auth_handler_factory),
       proxy_service_(params.proxy_service),
       ssl_config_service_(params.ssl_config_service),
       socket_pool_manager_(params.net_log,
@@ -35,9 +41,8 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
                            params.proxy_service,
                            params.ssl_config_service),
       spdy_session_pool_(params.ssl_config_service),
-      http_auth_handler_factory_(params.http_auth_handler_factory),
-      network_delegate_(params.network_delegate),
-      net_log_(params.net_log) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(http_stream_factory_(
+          new HttpStreamFactoryImpl(this))) {
   DCHECK(params.proxy_service);
   DCHECK(params.ssl_config_service);
 }
