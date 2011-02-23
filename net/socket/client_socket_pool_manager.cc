@@ -152,6 +152,55 @@ void ClientSocketPoolManager::FlushSocketPools() {
   tcp_socket_pool_->Flush();
 }
 
+void ClientSocketPoolManager::CloseIdleSockets() {
+  // Close sockets in the highest level pools first, since higher level pools'
+  // sockets may release stuff to the lower level pools.
+  for (SSLSocketPoolMap::const_iterator it =
+       ssl_socket_pools_for_proxies_.begin();
+       it != ssl_socket_pools_for_proxies_.end();
+       ++it)
+    it->second->CloseIdleSockets();
+
+  for (HTTPProxySocketPoolMap::const_iterator it =
+       http_proxy_socket_pools_.begin();
+       it != http_proxy_socket_pools_.end();
+       ++it)
+    it->second->CloseIdleSockets();
+
+  for (SSLSocketPoolMap::const_iterator it =
+       ssl_socket_pools_for_https_proxies_.begin();
+       it != ssl_socket_pools_for_https_proxies_.end();
+       ++it)
+    it->second->CloseIdleSockets();
+
+  for (TCPSocketPoolMap::const_iterator it =
+       tcp_socket_pools_for_https_proxies_.begin();
+       it != tcp_socket_pools_for_https_proxies_.end();
+       ++it)
+    it->second->CloseIdleSockets();
+
+  for (TCPSocketPoolMap::const_iterator it =
+       tcp_socket_pools_for_http_proxies_.begin();
+       it != tcp_socket_pools_for_http_proxies_.end();
+       ++it)
+    it->second->CloseIdleSockets();
+
+  for (SOCKSSocketPoolMap::const_iterator it =
+       socks_socket_pools_.begin();
+       it != socks_socket_pools_.end();
+       ++it)
+    it->second->CloseIdleSockets();
+
+  for (TCPSocketPoolMap::const_iterator it =
+       tcp_socket_pools_for_socks_proxies_.begin();
+       it != tcp_socket_pools_for_socks_proxies_.end();
+       ++it)
+    it->second->CloseIdleSockets();
+
+  ssl_socket_pool_->CloseIdleSockets();
+  tcp_socket_pool_->CloseIdleSockets();
+}
+
 SOCKSClientSocketPool* ClientSocketPoolManager::GetSocketPoolForSOCKSProxy(
     const HostPortPair& socks_proxy) {
   SOCKSSocketPoolMap::const_iterator it = socks_socket_pools_.find(socks_proxy);
