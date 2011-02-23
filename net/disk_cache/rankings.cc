@@ -549,7 +549,7 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
     return true;
 
   EntryImpl* entry = backend_->GetOpenEntry(rankings);
-  if (backend_->GetCurrentEntryId() != rankings->Data()->dirty || !entry) {
+  if (!entry) {
     // We cannot trust this entry, but we cannot initiate a cleanup from this
     // point (we may be in the middle of a cleanup already). Just get rid of
     // the invalid pointer and continue; the entry will be deleted when detected
