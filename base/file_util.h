@@ -510,7 +510,7 @@ class MemoryMappedFile {
   size_t length() const { return length_; }
 
   // Is file_ a valid file handle that points to an open, memory mapped file?
-  bool IsValid();
+  bool IsValid() const;
 
  private:
   // Open the given file and pass it to MapFileToMemoryInternal().
