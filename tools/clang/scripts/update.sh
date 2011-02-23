@@ -44,6 +44,7 @@ PLUGIN_DST_DIR=$LLVM_DIR/../llvm/tools/clang/tools/chrome-plugin
 PLUGIN_BUILD_DIR=$LLVM_DIR/../llvm-build/tools/clang/tools/chrome-plugin
 rm -rf $PLUGIN_DST_DIR
 cp -R $PLUGIN_SRC_DIR $PLUGIN_DST_DIR
+rm -rf $PLUGIN_BUILD_DIR
 mkdir -p $PLUGIN_BUILD_DIR
 cp $PLUGIN_SRC_DIR/Makefile $PLUGIN_BUILD_DIR
 cd $PLUGIN_BUILD_DIR
