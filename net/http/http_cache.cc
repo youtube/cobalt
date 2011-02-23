@@ -451,12 +451,15 @@ void HttpCache::WriteMetadata(const GURL& url,
   writer->Write(url, expected_response_time, buf, buf_len);
 }
 
-void HttpCache::CloseAllConnections() {
+void HttpCache::CloseCurrentConnections() {
   net::HttpNetworkLayer* network =
       static_cast<net::HttpNetworkLayer*>(network_layer_.get());
   HttpNetworkSession* session = network->GetSession();
-  if (session)
-    session->CloseAllConnections();
+  if (session) {
+    session->FlushSocketPools();
+    if (session->spdy_session_pool())
+      session->spdy_session_pool()->CloseCurrentSessions();
+  }
 }
 
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
