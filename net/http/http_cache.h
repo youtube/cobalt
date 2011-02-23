@@ -176,7 +176,7 @@ class HttpCache : public HttpTransactionFactory,
   // Close currently active sockets so that fresh page loads will not use any
   // recycled connections.  For sockets currently in use, they may not close
   // immediately, but they will not be reusable. This is for debugging.
-  void CloseCurrentConnections();
+  void CloseAllConnections();
 
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
