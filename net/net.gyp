@@ -678,6 +678,8 @@
         'url_request/url_request_about_job.h',
         'url_request/url_request_context.cc',
         'url_request/url_request_context.h',
+        'url_request/url_request_context_storage.cc',
+        'url_request/url_request_context_storage.h',
         'url_request/url_request_data_job.cc',
         'url_request/url_request_data_job.h',
         'url_request/url_request_error_job.cc',

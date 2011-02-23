@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_test_util.h"
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
@@ -78,47 +79,47 @@ void TestCookiePolicy::DoSetCookiePolicy(const GURL& url,
 }
 
 
-TestURLRequestContext::TestURLRequestContext() {
-  set_host_resolver(
+TestURLRequestContext::TestURLRequestContext()
+    : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
+  context_storage_.set_host_resolver(
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
                                     NULL, NULL));
-  set_proxy_service(net::ProxyService::CreateDirect());
+  context_storage_.set_proxy_service(net::ProxyService::CreateDirect());
   Init();
 }
 
-TestURLRequestContext::TestURLRequestContext(const std::string& proxy) {
-  set_host_resolver(
+TestURLRequestContext::TestURLRequestContext(const std::string& proxy)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
+  context_storage_.set_host_resolver(
       net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
                                     NULL, NULL));
   net::ProxyConfig proxy_config;
   proxy_config.proxy_rules().ParseFromString(proxy);
-  set_proxy_service(net::ProxyService::CreateFixed(proxy_config));
+  context_storage_.set_proxy_service(
+      net::ProxyService::CreateFixed(proxy_config));
   Init();
 }
 
 TestURLRequestContext::TestURLRequestContext(const std::string& proxy,
-                                             net::HostResolver* host_resolver) {
-  set_host_resolver(host_resolver);
+                                             net::HostResolver* host_resolver)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
+  context_storage_.set_host_resolver(host_resolver);
   net::ProxyConfig proxy_config;
   proxy_config.proxy_rules().ParseFromString(proxy);
-  set_proxy_service(net::ProxyService::CreateFixed(proxy_config));
+  context_storage_.set_proxy_service(
+      net::ProxyService::CreateFixed(proxy_config));
   Init();
 }
 
-TestURLRequestContext::~TestURLRequestContext() {
-  delete ftp_transaction_factory();
-  delete http_transaction_factory();
-  delete http_auth_handler_factory();
-  delete cert_verifier();
-  delete host_resolver();
-}
+TestURLRequestContext::~TestURLRequestContext() {}
 
 void TestURLRequestContext::Init() {
-  set_cert_verifier(new net::CertVerifier);
-  set_ftp_transaction_factory(new net::FtpNetworkLayer(host_resolver()));
-  set_ssl_config_service(new net::SSLConfigServiceDefaults);
-  set_http_auth_handler_factory(net::HttpAuthHandlerFactory::CreateDefault(
-      host_resolver()));
+  context_storage_.set_cert_verifier(new net::CertVerifier);
+  context_storage_.set_ftp_transaction_factory(
+      new net::FtpNetworkLayer(host_resolver()));
+  context_storage_.set_ssl_config_service(new net::SSLConfigServiceDefaults);
+  context_storage_.set_http_auth_handler_factory(
+      net::HttpAuthHandlerFactory::CreateDefault(host_resolver()));
   net::HttpNetworkSession::Params params;
   params.host_resolver = host_resolver();
   params.cert_verifier = cert_verifier();
@@ -127,11 +128,11 @@ void TestURLRequestContext::Init() {
   params.http_auth_handler_factory = http_auth_handler_factory();
   params.network_delegate = network_delegate();
 
-  set_http_transaction_factory(new net::HttpCache(
+  context_storage_.set_http_transaction_factory(new net::HttpCache(
       new net::HttpNetworkSession(params),
       net::HttpCache::DefaultBackend::InMemory(0)));
   // In-memory cookie store.
-  set_cookie_store(new net::CookieMonster(NULL, NULL));
+  context_storage_.set_cookie_store(new net::CookieMonster(NULL, NULL));
   set_accept_language("en-us,fr");
   set_accept_charset("iso-8859-1,*,utf-8");
 }
