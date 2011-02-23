@@ -1213,8 +1213,6 @@
                   # http://code.google.com/p/googletest/source/detail?r=446 .
                   # TODO(thakis): Use -isystem instead (http://crbug.com/58751 )
                   '-Wno-unnamed-type-template-args',
-                  # TODO(thakis): Turn on -- http://crbug.com/72205
-                  '-Wno-overloaded-virtual',
                 ],
                 'cflags!': [
                   # Clang doesn't seem to know know this flag.
@@ -1349,8 +1347,6 @@
                 # http://code.google.com/p/googletest/source/detail?r=446 .
                 # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
                 '-Wno-unnamed-type-template-args',
-                # TODO(thakis): Turn on -- http://crbug.com/72205
-                '-Wno-overloaded-virtual',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
