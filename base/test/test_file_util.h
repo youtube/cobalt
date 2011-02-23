@@ -35,6 +35,9 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
 bool VolumeSupportsADS(const FilePath& path);
 
 // Returns true if the ZoneIdentifier is correctly set to "Internet" (3).
+// Note that this function must be called from the same process as
+// the one that set the zone identifier.  I.e. don't use it in UI/automation
+// based tests.
 bool HasInternetZoneIdentifier(const FilePath& full_path);
 #endif  // defined(OS_WIN)
 

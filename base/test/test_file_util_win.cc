@@ -194,41 +194,27 @@ bool VolumeSupportsADS(const FilePath& path) {
 }
 
 // Return whether the ZoneIdentifier is correctly set to "Internet" (3)
+// Only returns a valid result when called from same process as the
+// one that (was supposed to have) set the zone identifier.
 bool HasInternetZoneIdentifier(const FilePath& full_path) {
-  std::wstring path = full_path.value() + L":Zone.Identifier";
+  FilePath zone_path(full_path.value() + L":Zone.Identifier");
+  std::string zone_path_contents;
+  if (!file_util::ReadFileToString(zone_path, &zone_path_contents))
+    return false;
 
-  // This polling and sleeping here is a very bad pattern. But due to how
-  // Windows file semantics work it's really hard to do it other way. We are
-  // reading a file written by a different process, using a different handle.
-  // Windows does not guarantee that we will get the same contents even after
-  // the other process closes the handle, flushes the buffers, etc.
-  for (int i = 0; i < 20; i++) {
-    base::PlatformThread::Sleep(1000);
+  static const char kInternetIdentifier[] = "[ZoneTransfer]\nZoneId=3";
+  static const size_t kInternetIdentifierSize =
+      // Don't include null byte in size of identifier.
+      arraysize(kInternetIdentifier) - 1;
 
-    const DWORD kShare = FILE_SHARE_READ |
-        FILE_SHARE_WRITE |
-        FILE_SHARE_DELETE;
-    HANDLE file = CreateFile(path.c_str(), GENERIC_READ, kShare, NULL,
-                             OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (file == INVALID_HANDLE_VALUE)
-      continue;
-
-    char buffer[100] = {0};
-    DWORD read = 0;
-    BOOL read_result = ::ReadFile(file, buffer, 100, &read, NULL);
-    CloseHandle(file);
-
-    if (!read_result)
-      continue;
-
-    const char kIdentifier[] = "[ZoneTransfer]\nZoneId=3";
-    if (read != arraysize(kIdentifier))
-      continue;
-
-    if (strcmp(kIdentifier, buffer) == 0)
-      return true;
-  }
-  return false;
+  // Our test is that the initial characters match the above, and that
+  // the character after the end of the string is eof, null, or newline; any
+  // of those three will invoke the Window Finder cautionary dialog.
+  return ((zone_path_contents.compare(0, kInternetIdentifierSize,
+                                      kInternetIdentifier) == 0) &&
+          (kInternetIdentifierSize == zone_path_contents.length() ||
+           zone_path_contents[kInternetIdentifierSize] == '\0' ||
+           zone_path_contents[kInternetIdentifierSize] == '\n'));
 }
 
 }  // namespace file_util
