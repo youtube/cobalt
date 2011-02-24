@@ -51,7 +51,7 @@ TEST(CPU, RunExtendedInstructions) {
     // Execute an SSE 4.2 instruction.
     __asm crc32 eax, eax;
   }
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(__x86_64__)
   ASSERT_TRUE(cpu.has_mmx());
 
   // Execute an MMX instruction.
