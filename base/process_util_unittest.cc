@@ -658,12 +658,12 @@ TEST_F(ProcessUtilTest, GetAppOutputRestrictedNoZombies) {
   }
 }
 
-#if defined(OS_LINUX)
 TEST_F(ProcessUtilTest, GetParentProcessId) {
   base::ProcessId ppid = base::GetParentProcessId(base::GetCurrentProcId());
   EXPECT_EQ(ppid, getppid());
 }
 
+#if defined(OS_LINUX)
 TEST_F(ProcessUtilTest, ParseProcStatCPU) {
   // /proc/self/stat for a process running "top".
   const char kTopStat[] = "960 (top) S 16230 960 16230 34818 960 "
@@ -683,7 +683,7 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
 
   EXPECT_EQ(0, base::ParseProcStatCPU(kSelfStat));
 }
-#endif
+#endif  // defined(OS_LINUX)
 
 #endif  // defined(OS_POSIX)
 

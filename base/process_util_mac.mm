@@ -880,4 +880,17 @@ void EnableTerminationOnOutOfMemory() {
                            reinterpret_cast<IMP>(oom_killer_allocWithZone));
 }
 
+ProcessId GetParentProcessId(ProcessHandle process) {
+  struct kinfo_proc info;
+  size_t length = sizeof(struct kinfo_proc);
+  int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, process };
+  if (sysctl(mib, 4, &info, &length, NULL, 0) < 0) {
+    PLOG(ERROR) << "sysctl";
+    return -1;
+  }
+  if (length == 0)
+    return -1;
+  return info.kp_eproc.e_ppid;
+}
+
 }  // namespace base
