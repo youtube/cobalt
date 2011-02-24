@@ -618,6 +618,10 @@ int SSLClientSocketMac::GetPeerAddress(AddressList* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
+const BoundNetLog& SSLClientSocketMac::NetLog() const {
+  return net_log_;
+}
+
 void SSLClientSocketMac::SetSubresourceSpeculation() {
   if (transport_.get() && transport_->socket()) {
     transport_->socket()->SetSubresourceSpeculation();
