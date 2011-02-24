@@ -89,7 +89,9 @@ class HttpAuthController : public base::RefCounted<HttpAuthController>,
   // cache entry's data and returns true.
   bool SelectPreemptiveAuth(const BoundNetLog& net_log);
 
-  // Invalidates the current handler, including cache.
+  // Invalidates the current handler.  If |action| is
+  // INVALIDATE_HANDLER_AND_CACHED_CREDENTIALS, then also invalidate
+  // the cached credentials used by the handler.
   void InvalidateCurrentHandler(InvalidateHandlerAction action);
 
   // Invalidates any auth cache entries after authentication has failed.
