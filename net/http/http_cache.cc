@@ -48,7 +48,7 @@ HttpNetworkSession* CreateNetworkSession(
     SSLHostInfoFactory* ssl_host_info_factory,
     SSLConfigService* ssl_config_service,
     HttpAuthHandlerFactory* http_auth_handler_factory,
-    HttpNetworkDelegate* network_delegate,
+    NetworkDelegate* network_delegate,
     NetLog* net_log) {
   HttpNetworkSession::Params params;
   params.host_resolver = host_resolver;
@@ -316,7 +316,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                      ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
                      HttpAuthHandlerFactory* http_auth_handler_factory,
-                     HttpNetworkDelegate* network_delegate,
+                     NetworkDelegate* network_delegate,
                      NetLog* net_log,
                      BackendFactory* backend_factory)
     : net_log_(net_log),

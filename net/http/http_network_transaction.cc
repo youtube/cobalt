@@ -24,6 +24,7 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/base/network_delegate.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/upload_data_stream.h"
@@ -33,7 +34,6 @@
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_chunked_decoder.h"
 #include "net/http/http_net_log_params.h"
-#include "net/http/http_network_delegate.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
@@ -685,7 +685,7 @@ int HttpNetworkTransaction::DoSendRequest() {
                                   &request_headers_);
 
     if (session_->network_delegate())
-      session_->network_delegate()->OnSendHttpRequest(&request_headers_);
+      session_->network_delegate()->NotifySendHttpRequest(&request_headers_);
   }
 
   headers_valid_ = false;

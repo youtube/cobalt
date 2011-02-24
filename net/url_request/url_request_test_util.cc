@@ -289,27 +289,28 @@ void TestDelegate::OnResponseCompleted(net::URLRequest* request) {
     MessageLoop::current()->PostTask(FROM_HERE, new MessageLoop::QuitTask());
 }
 
-TestHttpNetworkDelegate::TestHttpNetworkDelegate()
+TestNetworkDelegate::TestNetworkDelegate()
   : last_os_error_(0),
     error_count_(0) {
 }
 
-TestHttpNetworkDelegate::~TestHttpNetworkDelegate() {}
+TestNetworkDelegate::~TestNetworkDelegate() {}
 
-void TestHttpNetworkDelegate::OnBeforeURLRequest(net::URLRequest* request) {
+void TestNetworkDelegate::OnBeforeURLRequest(net::URLRequest* request) {
 }
 
-void TestHttpNetworkDelegate::OnSendHttpRequest(
+void TestNetworkDelegate::OnSendHttpRequest(
     net::HttpRequestHeaders* headers) {
 }
 
-void TestHttpNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
+void TestNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;
     last_os_error_ = request->status().os_error();
   }
 }
-void TestHttpNetworkDelegate::OnReadCompleted(net::URLRequest* request,
+
+void TestNetworkDelegate::OnReadCompleted(net::URLRequest* request,
                                               int bytes_read) {
   if (request->status().status() == net::URLRequestStatus::FAILED) {
     error_count_++;

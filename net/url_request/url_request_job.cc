@@ -14,7 +14,7 @@
 #include "net/base/load_flags.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_errors.h"
-#include "net/http/http_network_delegate.h"
+#include "net/base/network_delegate.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
@@ -538,7 +538,7 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
     if (ReadFilteredData(&filter_bytes_read)) {
       postfilter_bytes_read_ += filter_bytes_read;
       if (request_->context() && request_->context()->network_delegate()) {
-        request_->context()->network_delegate()->OnReadCompleted(
+        request_->context()->network_delegate()->NotifyReadCompleted(
             request_, filter_bytes_read);
       }
       request_->delegate()->OnReadCompleted(request_, filter_bytes_read);
@@ -546,7 +546,7 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
   } else {
     postfilter_bytes_read_ += bytes_read;
     if (request_->context() && request_->context()->network_delegate()) {
-      request_->context()->network_delegate()->OnReadCompleted(
+      request_->context()->network_delegate()->NotifyReadCompleted(
           request_, bytes_read);
     }
     request_->delegate()->OnReadCompleted(request_, bytes_read);
@@ -621,7 +621,8 @@ void URLRequestJob::CompleteNotifyDone() {
     if (has_handled_response_) {
       // We signal the error by calling OnReadComplete with a bytes_read of -1.
       if (request_->context() && request_->context()->network_delegate())
-        request_->context()->network_delegate()->OnReadCompleted(request_, -1);
+        request_->context()->network_delegate()->NotifyReadCompleted(
+            request_, -1);
       request_->delegate()->OnReadCompleted(request_, -1);
     } else {
       has_handled_response_ = true;
