@@ -11,9 +11,9 @@
 #include "net/base/dnsrr_resolver.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
+#include "net/base/network_delegate.h"
 #include "net/ftp/ftp_transaction_factory.h"
 #include "net/http/http_auth_handler_factory.h"
-#include "net/http/http_network_delegate.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/url_request/url_request_context.h"
@@ -72,7 +72,7 @@ void URLRequestContextStorage::set_ssl_config_service(
 }
 
 void URLRequestContextStorage::set_network_delegate(
-    HttpNetworkDelegate* network_delegate) {
+    NetworkDelegate* network_delegate) {
   context_->set_network_delegate(network_delegate);
   network_delegate_.reset(network_delegate);
 }

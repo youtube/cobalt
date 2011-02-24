@@ -29,11 +29,11 @@ class DnsCertProvenanceChecker;
 class DnsRRResolver;
 class HostResolver;
 class HttpAuthHandlerFactory;
-class HttpNetworkDelegate;
 class HttpNetworkSessionPeer;
 class HttpProxyClientSocketPool;
 class HttpResponseBodyDrainer;
 class NetLog;
+class NetworkDelegate;
 class ProxyService;
 class SSLConfigService;
 class SSLHostInfoFactory;
@@ -65,7 +65,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     SSLHostInfoFactory* ssl_host_info_factory;
     SSLConfigService* ssl_config_service;
     HttpAuthHandlerFactory* http_auth_handler_factory;
-    HttpNetworkDelegate* network_delegate;
+    NetworkDelegate* network_delegate;
     NetLog* net_log;
   };
 
@@ -117,7 +117,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   HttpAuthHandlerFactory* http_auth_handler_factory() {
     return http_auth_handler_factory_;
   }
-  HttpNetworkDelegate* network_delegate() {
+  NetworkDelegate* network_delegate() {
     return network_delegate_;
   }
 
@@ -156,7 +156,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
   ~HttpNetworkSession();
 
   NetLog* const net_log_;
-  HttpNetworkDelegate* const network_delegate_;
+  NetworkDelegate* const network_delegate_;
   CertVerifier* const cert_verifier_;
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
 
