@@ -59,10 +59,8 @@ HttpAuth::AuthorizationResult HttpAuthHandlerBasic::HandleAnotherChallenge(
   HttpUtil::NameValuePairsIterator parameters = challenge->param_pairs();
   std::string realm;
   while (parameters.GetNext()) {
-    if (LowerCaseEqualsASCII(parameters.name(), "realm")) {
+    if (LowerCaseEqualsASCII(parameters.name(), "realm"))
       realm = parameters.value();
-      break;
-    }
   }
   return (realm_ != realm)?
       HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM:
