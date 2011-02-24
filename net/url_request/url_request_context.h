@@ -29,8 +29,8 @@ class DnsRRResolver;
 class FtpTransactionFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
-class HttpNetworkDelegate;
 class HttpTransactionFactory;
+class NetworkDelegate;
 class SSLConfigService;
 class URLRequest;
 
@@ -120,10 +120,10 @@ class URLRequestContext
     ftp_transaction_factory_ = factory;
   }
 
-  void set_network_delegate(HttpNetworkDelegate* network_delegate) {
+  void set_network_delegate(NetworkDelegate* network_delegate) {
     network_delegate_ = network_delegate;
   }
-  HttpNetworkDelegate* network_delegate() const { return network_delegate_; }
+  NetworkDelegate* network_delegate() const { return network_delegate_; }
 
   // Gets the cookie store for this context (may be null, in which case
   // cookies are not stored).
@@ -196,7 +196,7 @@ class URLRequestContext
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
-  HttpNetworkDelegate* network_delegate_;
+  NetworkDelegate* network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;
   CookiePolicy* cookie_policy_;
   scoped_refptr<TransportSecurityState> transport_security_state_;

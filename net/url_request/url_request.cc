@@ -13,9 +13,9 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
+#include "net/base/network_delegate.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/upload_data.h"
-#include "net/http/http_network_delegate.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_context.h"
@@ -370,7 +370,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
   // TODO(mpcomplete): pass in request ID?
   // TODO(mpcomplete): allow delegate to potentially delay/cancel request.
   if (context_ && context_->network_delegate())
-    context_->network_delegate()->OnBeforeURLRequest(this);
+    context_->network_delegate()->NotifyBeforeURLRequest(this);
 
   net_log_.BeginEvent(
       net::NetLog::TYPE_URL_REQUEST_START_JOB,
@@ -494,7 +494,7 @@ void URLRequest::ResponseStarted() {
     RestartWithJob(job);
   } else {
     if (context_ && context_->network_delegate())
-      context_->network_delegate()->OnResponseStarted(this);
+      context_->network_delegate()->NotifyResponseStarted(this);
     if (delegate_)
       delegate_->OnResponseStarted(this);
   }

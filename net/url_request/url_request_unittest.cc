@@ -241,7 +241,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateTunnelConnectionFailed) {
     net::URLRequest r(GURL("https://www.redirect.com/"), &d);
     scoped_refptr<TestURLRequestContext> context(
         new TestURLRequestContext(test_server_.host_port_pair().ToString()));
-    TestHttpNetworkDelegate network_delegate;
+    TestNetworkDelegate network_delegate;
     context->set_network_delegate(&network_delegate);
     r.set_context(context);
 
@@ -2408,9 +2408,9 @@ TEST_F(URLRequestTest, NetworkDelegateProxyError) {
   scoped_ptr<net::MockHostResolverBase> host_resolver(
       new net::MockHostResolver);
   host_resolver->rules()->AddSimulatedFailure("*");
+  TestNetworkDelegate network_delegate;
   scoped_refptr<TestURLRequestContext> context(
       new TestURLRequestContext("myproxy:70", host_resolver.release()));
-  TestHttpNetworkDelegate network_delegate;
   context->set_network_delegate(&network_delegate);
   req.set_context(context);
 
