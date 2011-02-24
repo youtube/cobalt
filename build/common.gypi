@@ -1347,8 +1347,6 @@
                 # http://code.google.com/p/googletest/source/detail?r=446 .
                 # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
                 '-Wno-unnamed-type-template-args',
-                # crbug.com/74019 (ICU doesn't build with Clang)
-                '-Wno-sign-compare',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
