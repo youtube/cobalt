@@ -614,12 +614,8 @@
         'socket/ssl_client_socket.h',
         'socket/ssl_client_socket_mac.cc',
         'socket/ssl_client_socket_mac.h',
-        'socket/ssl_client_socket_mac_factory.cc',
-        'socket/ssl_client_socket_mac_factory.h',
         'socket/ssl_client_socket_nss.cc',
         'socket/ssl_client_socket_nss.h',
-        'socket/ssl_client_socket_nss_factory.cc',
-        'socket/ssl_client_socket_nss_factory.h',
         'socket/ssl_client_socket_openssl.cc',
         'socket/ssl_client_socket_openssl.h',
         'socket/ssl_client_socket_pool.cc',
@@ -765,8 +761,6 @@
               'socket/nss_ssl_util.h',
               'socket/ssl_client_socket_nss.cc',
               'socket/ssl_client_socket_nss.h',
-              'socket/ssl_client_socket_nss_factory.cc',
-              'socket/ssl_client_socket_nss_factory.h',
               'socket/ssl_server_socket_nss.cc',
               'socket/ssl_server_socket_nss.h',
             ],
@@ -821,8 +815,6 @@
             ],
             'sources!': [
               'proxy/proxy_resolver_winhttp.cc',
-              'socket/ssl_client_socket_nss_factory.cc',
-              'socket/ssl_client_socket_nss_factory.h',
             ],
           },
         ],
@@ -837,12 +829,6 @@
                 '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
               ]
             },
-          },
-          {  # else: OS != "mac"
-            'sources!': [
-              'socket/ssl_client_socket_mac_factory.cc',
-              'socket/ssl_client_socket_mac_factory.h',
-            ],
           },
         ],
       ],
