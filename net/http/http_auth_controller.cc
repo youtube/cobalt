@@ -293,10 +293,11 @@ int HttpAuthController::HandleAuthChallenge(
         }
         break;
       case HttpAuth::AUTHORIZATION_RESULT_DIFFERENT_REALM:
-        // If the server asks for credentials for one realm and then
-        // rejects them, we remove the credentials from the cache
-        // unless it was in response to a preemptive authorization
-        // header.
+        // If the server changes the authentication realm in a
+        // subsequent challenge, invalidate cached credentials for the
+        // previous realm.  If the server rejects a preemptive
+        // authorization and requests credentials for a different
+        // realm, we keep the cached credentials.
         InvalidateCurrentHandler(
             (identity_.source == HttpAuth::IDENT_SRC_PATH_LOOKUP) ?
             INVALIDATE_HANDLER :
