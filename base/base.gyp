@@ -31,8 +31,8 @@
         'base',
       ],
       'sources': [
-	'i18n/bidi_line_iterator.cc',
-	'i18n/bidi_line_iterator.h',
+        'i18n/bidi_line_iterator.cc',
+        'i18n/bidi_line_iterator.h',
         'i18n/break_iterator.cc',
         'i18n/break_iterator.h',
         'i18n/char_iterator.cc',
@@ -69,6 +69,7 @@
         'bits_unittest.cc',
         'callback_unittest.cc',
         'command_line_unittest.cc',
+        'cpu_unittest.cc',
         'crypto/encryptor_unittest.cc',
         'crypto/rsa_private_key_unittest.cc',
         'crypto/rsa_private_key_nss_unittest.cc',
