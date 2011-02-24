@@ -46,12 +46,12 @@ class DnsCertProvenanceChecker;
 class DnsRRResolver;
 class HostResolver;
 class HttpAuthHandlerFactory;
-class HttpNetworkDelegate;
 class HttpNetworkSession;
 struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class NetLog;
+class NetworkDelegate;
 class ProxyService;
 class SSLConfigService;
 class ViewCacheHelper;
@@ -124,7 +124,7 @@ class HttpCache : public HttpTransactionFactory,
             ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
-            HttpNetworkDelegate* network_delegate,
+            NetworkDelegate* network_delegate,
             NetLog* net_log,
             BackendFactory* backend_factory);
 

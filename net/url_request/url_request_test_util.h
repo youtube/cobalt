@@ -23,12 +23,12 @@
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_delegate.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/ftp/ftp_network_layer.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
-#include "net/http/http_network_delegate.h"
 #include "net/http/http_network_layer.h"
 #include "net/test/test_server.h"
 #include "net/url_request/url_request.h"
@@ -191,21 +191,21 @@ class TestDelegate : public net::URLRequest::Delegate {
 
 //-----------------------------------------------------------------------------
 
-class TestHttpNetworkDelegate : public net::HttpNetworkDelegate {
+class TestNetworkDelegate : public net::NetworkDelegate {
  public:
-  TestHttpNetworkDelegate();
-  virtual ~TestHttpNetworkDelegate();
-
-  // net::HttpNetworkDelegate:
-  virtual void OnBeforeURLRequest(net::URLRequest* request);
-  virtual void OnSendHttpRequest(net::HttpRequestHeaders* headers);
-  virtual void OnResponseStarted(net::URLRequest* request);
-  virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
+  TestNetworkDelegate();
+  virtual ~TestNetworkDelegate();
 
   int last_os_error() const { return last_os_error_; }
   int error_count() const { return error_count_; }
 
  private:
+  // net::NetworkDelegate:
+  virtual void OnBeforeURLRequest(net::URLRequest* request);
+  virtual void OnSendHttpRequest(net::HttpRequestHeaders* headers);
+  virtual void OnResponseStarted(net::URLRequest* request);
+  virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
+
   int last_os_error_;
   int error_count_;
 };
