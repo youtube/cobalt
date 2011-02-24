@@ -162,9 +162,6 @@ void CloseProcessHandle(ProcessHandle process);
 ProcessId GetProcId(ProcessHandle process);
 
 #if defined(OS_LINUX)
-// Returns the ID for the parent of the given process.
-ProcessId GetParentProcessId(ProcessHandle process);
-
 // Returns the path to the executable of the given process.
 FilePath GetProcessExecutablePath(ProcessHandle process);
 
@@ -182,6 +179,9 @@ bool AdjustOOMScore(ProcessId process, int score);
 #endif
 
 #if defined(OS_POSIX)
+// Returns the ID for the parent of the given process.
+ProcessId GetParentProcessId(ProcessHandle process);
+
 // Close all file descriptors, except those which are a destination in the
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
@@ -359,7 +359,7 @@ bool KillProcessById(ProcessId process_id, int exit_code, bool wait);
 // will no longer be available).
 TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code);
 
-// Waits for process to exit. In POSIX systems, if the process hasn't been
+// Waits for process to exit. On POSIX systems, if the process hasn't been
 // signaled then puts the exit code in |exit_code|; otherwise it's considered
 // a failure. On Windows |exit_code| is always filled. Returns true on success,
 // and closes |handle| in any case.
@@ -382,9 +382,9 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
                             const ProcessFilter* filter);
 
 // Wait for a single process to exit. Return true if it exited cleanly within
-// the given time limit.
-bool WaitForSingleProcess(ProcessHandle handle,
-                          int64 wait_milliseconds);
+// the given time limit. On Linux |handle| must be a child process, however
+// on Mac and Windows it can be any process.
+bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds);
 
 // Returns true when |wait_milliseconds| have elapsed and the process
 // is still running.

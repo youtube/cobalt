@@ -32,6 +32,7 @@
 
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
+#include <sys/event.h>
 #define environ (*_NSGetEnviron())
 #else
 extern char** environ;
@@ -496,17 +497,20 @@ bool LaunchAppImpl(
   scoped_array<char*> new_environ(AlterEnvironment(env_changes, environ));
 
   pid = fork();
-  if (pid < 0)
+  if (pid < 0) {
+    PLOG(ERROR) << "fork";
     return false;
-
+  }
   if (pid == 0) {
     // Child process
 
     if (start_new_process_group) {
       // Instead of inheriting the process group ID of the parent, the child
       // starts off a new process group with pgid equal to its process ID.
-      if (setpgid(0, 0) < 0)
+      if (setpgid(0, 0) < 0) {
+        PLOG(ERROR) << "setpgid";
         return false;
+      }
     }
 #if defined(OS_MACOSX)
     RestoreDefaultExceptionHandler();
@@ -713,7 +717,79 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
   return true;
 }
 
+#if defined(OS_MACOSX)
+// Using kqueue on Mac so that we can wait on non-child processes.
+// We can't use kqueues on child processes because we need to reap
+// our own children using wait.
+static bool WaitForSingleNonChildProcess(ProcessHandle handle,
+                                         int64 wait_milliseconds) {
+  int kq = kqueue();
+  if (kq == -1) {
+    PLOG(ERROR) << "kqueue";
+    return false;
+  }
+
+  struct kevent change = { 0 };
+  EV_SET(&change, handle, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+
+  struct timespec spec;
+  struct timespec *spec_ptr;
+  if (wait_milliseconds != base::kNoTimeout) {
+    time_t sec = static_cast<time_t>(wait_milliseconds / 1000);
+    wait_milliseconds = wait_milliseconds - (sec * 1000);
+    spec.tv_sec = sec;
+    spec.tv_nsec = wait_milliseconds * 1000000L;
+    spec_ptr = &spec;
+  } else {
+    spec_ptr = NULL;
+  }
+
+  while(true) {
+    struct kevent event = { 0 };
+    int event_count = HANDLE_EINTR(kevent(kq, &change, 1, &event, 1, spec_ptr));
+    if (close(kq) != 0) {
+      PLOG(ERROR) << "close";
+    }
+    if (event_count < 0) {
+      PLOG(ERROR) << "kevent";
+      return false;
+    } else if (event_count == 0) {
+      if (wait_milliseconds != base::kNoTimeout) {
+        // Timed out.
+        return false;
+      }
+    } else if ((event_count == 1) &&
+               (handle == static_cast<pid_t>(event.ident)) &&
+               (event.filter == EVFILT_PROC)) {
+      if (event.fflags == NOTE_EXIT) {
+        return true;
+      } else if (event.flags == EV_ERROR) {
+        LOG(ERROR) << "kevent error " << event.data;
+        return false;
+      } else {
+        NOTREACHED();
+        return false;
+      }
+    } else {
+      NOTREACHED();
+      return false;
+    }
+  }
+}
+#endif  // OS_MACOSX
+
 bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
+  ProcessHandle parent_pid = GetParentProcessId(handle);
+  ProcessHandle our_pid = Process::Current().handle();
+  if (parent_pid != our_pid) {
+#if defined(OS_MACOSX)
+    // On Mac we can wait on non child processes.
+    return WaitForSingleNonChildProcess(handle, wait_milliseconds);
+#else
+    // Currently on Linux we can't handle non child processes.
+    NOTIMPLEMENTED();
+#endif  // OS_MACOSX
+  }
   bool waitpid_success;
   int status;
   if (wait_milliseconds == base::kNoTimeout)
