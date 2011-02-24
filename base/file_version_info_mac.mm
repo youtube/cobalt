@@ -14,6 +14,8 @@
 FileVersionInfoMac::FileVersionInfoMac(NSBundle *bundle) : bundle_(bundle) {
 }
 
+FileVersionInfoMac::~FileVersionInfoMac() {}
+
 // static
 FileVersionInfo* FileVersionInfo::CreateFileVersionInfoForCurrentModule() {
   return CreateFileVersionInfo(base::mac::MainAppBundlePath());

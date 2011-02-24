@@ -20,6 +20,7 @@ class NSBundle;
 class FileVersionInfoMac : public FileVersionInfo {
  public:
   explicit FileVersionInfoMac(NSBundle *bundle);
+  virtual ~FileVersionInfoMac();
 
   // Accessors to the different version properties.
   // Returns an empty string if the property is not found.
@@ -41,8 +42,6 @@ class FileVersionInfoMac : public FileVersionInfo {
   virtual bool is_official_build();
 
  private:
-
-
   // Returns a string16 value for a property name.
   // Returns the empty string if the property does not exist.
   string16 GetString16Value(CFStringRef name);
