@@ -49,6 +49,9 @@ class MaybeTestDisabler : public testing::EmptyTestEventListener {
 const char TestSuite::kStrictFailureHandling[] = "strict_failure_handling";
 
 TestSuite::TestSuite(int argc, char** argv) {
+#if defined(OS_WIN)
+  testing::GTEST_FLAG(catch_exceptions) = false;
+#endif
   base::EnableTerminationOnHeapCorruption();
   CommandLine::Init(argc, argv);
   testing::InitGoogleTest(&argc, argv);
