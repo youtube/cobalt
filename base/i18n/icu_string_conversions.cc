@@ -221,8 +221,9 @@ bool WideToCodepage(const std::wstring& wide,
   // in case each code points translates to a UTF-16 surrogate pair,
   // and leave room for a NUL terminator.
   std::vector<UChar> utf16(wide.length() * 2 + 1);
-  u_strFromWCS(&utf16[0], utf16.size(), &utf16_len,
-               wide.c_str(), wide.length(), &status);
+  u_strFromUTF32(&utf16[0], utf16.size(), &utf16_len,
+                 reinterpret_cast<const UChar32*>(wide.c_str()),
+                 wide.length(), &status);
   DCHECK(U_SUCCESS(status)) << "failed to convert wstring to UChar*";
 
   return ConvertFromUTF16(converter, &utf16[0], utf16_len, on_error, encoded);
