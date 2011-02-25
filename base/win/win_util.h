@@ -72,6 +72,11 @@ bool AddCommandToAutoRun(HKEY root_key, const string16& name,
 // could be HKCU or HKLM or the root of any user hive.
 bool RemoveCommandFromAutoRun(HKEY root_key, const string16& name);
 
+// Reads the command specified by |name| from the AutoRun key. |root_key|
+// could be HKCU or HKLM or the root of any user hive. Used for unit-tests.
+bool ReadCommandFromAutoRun(HKEY root_key,
+                            const string16& name,
+                            string16* command);
 }  // namespace win
 }  // namespace base
 
