@@ -66,6 +66,7 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
 }
 
 bool URLRequestThrottlerEntry::IsEntryOutdated() const {
+  CHECK(this);  // to help track crbug.com/71721
   if (entry_lifetime_ms_ == -1)
     return false;
 

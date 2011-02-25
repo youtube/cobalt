@@ -11,6 +11,31 @@
 
 namespace net {
 
+ThreadCheckerForRelease::ThreadCheckerForRelease()
+    : valid_thread_id_(base::kInvalidThreadId) {
+  EnsureThreadIdAssigned();
+}
+
+ThreadCheckerForRelease::~ThreadCheckerForRelease() {}
+
+bool ThreadCheckerForRelease::CalledOnValidThread() const {
+  EnsureThreadIdAssigned();
+  base::AutoLock auto_lock(lock_);
+  return valid_thread_id_ == base::PlatformThread::CurrentId();
+}
+
+void ThreadCheckerForRelease::DetachFromThread() {
+  base::AutoLock auto_lock(lock_);
+  valid_thread_id_ = base::kInvalidThreadId;
+}
+
+void ThreadCheckerForRelease::EnsureThreadIdAssigned() const {
+  base::AutoLock auto_lock(lock_);
+  if (valid_thread_id_ != base::kInvalidThreadId)
+    return;
+  valid_thread_id_ = base::PlatformThread::CurrentId();
+}
+
 const unsigned int URLRequestThrottlerManager::kMaximumNumberOfEntries = 1500;
 const unsigned int URLRequestThrottlerManager::kRequestsBetweenCollecting = 200;
 
@@ -20,6 +45,8 @@ URLRequestThrottlerManager* URLRequestThrottlerManager::GetInstance() {
 
 scoped_refptr<URLRequestThrottlerEntryInterface>
     URLRequestThrottlerManager::RegisterRequestUrl(const GURL &url) {
+  CHECK(being_tested_ || thread_checker_.CalledOnValidThread());
+
   // Normalize the url.
   std::string url_id = GetIdFromUrl(url);
 
@@ -27,20 +54,14 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
   GarbageCollectEntriesIfNecessary();
 
   // Find the entry in the map or create it.
-  UrlEntryMap::iterator i = url_entries_.find(url_id);
-  if (i == url_entries_.end()) {
-    scoped_refptr<URLRequestThrottlerEntry> entry(
-        new URLRequestThrottlerEntry());
-    // Explicitly check whether the new operation is successful or not, in order
-    // to track down crbug.com/71721
-    CHECK(entry.get());
+  scoped_refptr<URLRequestThrottlerEntry>& entry = url_entries_[url_id];
+  if (entry.get() == NULL)
+    entry = new URLRequestThrottlerEntry();
 
-    url_entries_.insert(std::make_pair(url_id, entry));
-    return entry;
-  } else {
-    CHECK(i->second.get());
-    return i->second;
-  }
+  // TODO(joi): Demote CHECKs in this file to DCHECKs (or remove them) once
+  // we fully understand crbug.com/71721
+  CHECK(entry.get());
+  return entry;
 }
 
 void URLRequestThrottlerManager::OverrideEntryForTests(
@@ -66,14 +87,28 @@ void URLRequestThrottlerManager::EraseEntryForTests(const GURL& url) {
 
 void URLRequestThrottlerManager::InitializeOptions(bool enforce_throttling) {
   enforce_throttling_ = enforce_throttling;
+  being_tested_ = false;
 }
 
 URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
-      enforce_throttling_(true) {
+      enforce_throttling_(true),
+      being_tested_(true) {
+  // Construction/destruction is on main thread (because BrowserMain
+  // retrieves an instance to call InitializeOptions), but is from then on
+  // used on I/O thread.
+  thread_checker_.DetachFromThread();
+
+  url_id_replacements_.ClearPassword();
+  url_id_replacements_.ClearUsername();
+  url_id_replacements_.ClearQuery();
+  url_id_replacements_.ClearRef();
 }
 
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
+  // Destruction is on main thread (AtExit), but real use is on I/O thread.
+  thread_checker_.DetachFromThread();
+
   // Delete all entries.
   url_entries_.clear();
 }
@@ -82,16 +117,7 @@ std::string URLRequestThrottlerManager::GetIdFromUrl(const GURL& url) const {
   if (!url.is_valid())
     return url.possibly_invalid_spec();
 
-  if (url_id_replacements_ == NULL) {
-    url_id_replacements_.reset(new GURL::Replacements());
-
-    url_id_replacements_->ClearPassword();
-    url_id_replacements_->ClearUsername();
-    url_id_replacements_->ClearQuery();
-    url_id_replacements_->ClearRef();
-  }
-
-  GURL id = url.ReplaceComponents(*url_id_replacements_);
+  GURL id = url.ReplaceComponents(url_id_replacements_);
   return StringToLowerASCII(id.spec());
 }
 
@@ -99,29 +125,21 @@ void URLRequestThrottlerManager::GarbageCollectEntriesIfNecessary() {
   requests_since_last_gc_++;
   if (requests_since_last_gc_ < kRequestsBetweenCollecting)
     return;
-
   requests_since_last_gc_ = 0;
+
   GarbageCollectEntries();
 }
 
 void URLRequestThrottlerManager::GarbageCollectEntries() {
-  // The more efficient way to remove outdated entries is iterating over all the
-  // elements in the map, and removing those outdated ones during the process.
-  // However, one hypothesis about the cause of crbug.com/71721 is that some
-  // kind of iterator error happens when we change the map during iteration. As
-  // a result, we write the code this way in order to track down the bug.
-  std::list<std::string> outdated_keys;
-  for (UrlEntryMap::iterator entry_iter = url_entries_.begin();
-       entry_iter != url_entries_.end(); ++entry_iter) {
-    std::string key = entry_iter->first;
-    CHECK(entry_iter->second.get());
+  UrlEntryMap::iterator i = url_entries_.begin();
 
-    if ((entry_iter->second)->IsEntryOutdated())
-      outdated_keys.push_back(key);
-  }
-  for (std::list<std::string>::iterator key_iter = outdated_keys.begin();
-       key_iter != outdated_keys.end(); ++key_iter) {
-    url_entries_.erase(*key_iter);
+  while (i != url_entries_.end()) {
+    CHECK(i->second.get());
+    if ((i->second)->IsEntryOutdated()) {
+      url_entries_.erase(i++);
+    } else {
+      ++i;
+    }
   }
 
   // In case something broke we want to make sure not to grow indefinitely.
