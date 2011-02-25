@@ -68,6 +68,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     decoder_media_format_.SetAsInteger(MediaFormat::kHeight, kHeight);
     EXPECT_CALL(*decoder_, media_format())
         .WillRepeatedly(ReturnRef(decoder_media_format_));
+    EXPECT_CALL(stats_callback_object_, OnStatistics(_))
+        .Times(AnyNumber());
   }
 
   virtual ~VideoRendererBaseTest() {
