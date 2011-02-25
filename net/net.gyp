@@ -511,6 +511,8 @@
         'http/http_stream_factory_impl.h',
         'http/http_stream_factory_impl_job.cc',
         'http/http_stream_factory_impl_job.h',
+        'http/http_stream_factory_impl_request.cc',
+        'http/http_stream_factory_impl_request.h',
         'http/http_stream_parser.cc',
         'http/http_stream_parser.h',
         'http/http_transaction.h',

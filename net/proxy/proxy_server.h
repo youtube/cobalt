@@ -42,7 +42,7 @@ class ProxyServer {
 
   bool is_valid() const { return scheme_ != SCHEME_INVALID; }
 
-  // Gets the proxy's scheme (i.e. SOCKS4, SOCKS5, HTTP}
+  // Gets the proxy's scheme (i.e. SOCKS4, SOCKS5, HTTP)
   Scheme scheme() const { return scheme_; }
 
   // Returns true if this ProxyServer is actually just a DIRECT connection.
@@ -157,6 +157,8 @@ class ProxyServer {
   Scheme scheme_;
   HostPortPair host_port_pair_;
 };
+
+typedef std::pair<HostPortPair, ProxyServer> HostPortProxyPair;
 
 }  // namespace net
 
