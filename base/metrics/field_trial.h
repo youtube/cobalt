@@ -101,6 +101,7 @@ class FieldTrial : public RefCounted<FieldTrial> {
   // Establish the name and probability of the next group in this trial.
   // Sometimes, based on construction randomization, this call may cause the
   // provided group to be *THE* group selected for use in this instance.
+  // The return value is the group number of the new group.
   int AppendGroup(const std::string& name, Probability group_probability);
 
   // Return the name of the FieldTrial (excluding the group name).
@@ -167,7 +168,7 @@ class FieldTrial : public RefCounted<FieldTrial> {
   // The randomly selected probability that is used to select a group (or have
   // the instance not participate).  It is the product of divisor_ and a random
   // number between [0, 1).
-  Probability random_;
+  const Probability random_;
 
   // Sum of the probabilities of all appended groups.
   Probability accumulated_group_probability_;
