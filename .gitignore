@@ -107,10 +107,12 @@ v8.log
 /third_party/platformsdk_win7
 /third_party/ppapi
 /third_party/pthreads-win32
+/third_party/pylib
 /third_party/python_24
 /third_party/python_26
 /third_party/pywebsocket
 /third_party/safe_browsing/testing
+/third_party/scons
 /third_party/skia
 /third_party/speex
 /third_party/swig
