@@ -11,22 +11,52 @@
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "base/singleton.h"
+#include "base/synchronization/lock.h"  // ThreadCheckerForRelease
+#include "base/threading/platform_thread.h"  // ThreadCheckerForRelease
 #include "googleurl/src/gurl.h"
 #include "net/url_request/url_request_throttler_entry.h"
 
 namespace net {
 
-// Class that registers URL request throttler entries for URLs being accessed in
-// order to supervise traffic. URL requests for HTTP contents should register
-// their URLs in this manager on each request.
+// TODO(joi): Delete this temporary copy of base::ThreadChecker (needed to
+// enable it in release builds) and go back to simply inheriting from
+// NonThreadSafe once crbug.com/71721 has been tracked down.
+class ThreadCheckerForRelease {
+ public:
+  ThreadCheckerForRelease();
+  ~ThreadCheckerForRelease();
+
+  bool CalledOnValidThread() const;
+
+  // Changes the thread that is checked for in CalledOnValidThread.  This may
+  // be useful when an object may be created on one thread and then used
+  // exclusively on another thread.
+  void DetachFromThread();
+
+ private:
+  void EnsureThreadIdAssigned() const;
+
+  mutable base::Lock lock_;
+  // This is mutable so that CalledOnValidThread can set it.
+  // It's guarded by |lock_|.
+  mutable base::PlatformThreadId valid_thread_id_;
+};
+
+// Class that registers URL request throttler entries for URLs being accessed
+// in order to supervise traffic. URL requests for HTTP contents should
+// register their URLs in this manager on each request.
+//
 // URLRequestThrottlerManager maintains a map of URL IDs to URL request
-// throttler entries. It creates URL request throttler entries when new URLs are
-// registered, and does garbage collection from time to time in order to clean
-// out outdated entries. URL ID consists of lowercased scheme, host, port and
-// path. All URLs converted to the same ID will share the same entry.
+// throttler entries. It creates URL request throttler entries when new URLs
+// are registered, and does garbage collection from time to time in order to
+// clean out outdated entries. URL ID consists of lowercased scheme, host, port
+// and path. All URLs converted to the same ID will share the same entry.
 //
 // NOTE: All usage of the singleton object of this class should be on the same
 // thread.
+//
+// TODO(joi): Switch back to NonThreadSafe (and remove checks in release builds)
+// once crbug.com/71721 has been tracked down.
 class URLRequestThrottlerManager {
  public:
   static URLRequestThrottlerManager* GetInstance();
@@ -96,11 +126,22 @@ class URLRequestThrottlerManager {
   // GarbageCollectEntries.
   unsigned int requests_since_last_gc_;
 
-  mutable scoped_ptr<GURL::Replacements> url_id_replacements_;
+  // Valid after construction.
+  GURL::Replacements url_id_replacements_;
 
   // Whether we would like to reject outgoing HTTP requests during the back-off
   // period.
   bool enforce_throttling_;
+
+  // Certain tests do not obey the net component's threading policy, so we
+  // keep track of whether we're being used by tests, and turn off certain
+  // checks.
+  //
+  // TODO(joi): See if we can fix the offending unit tests and remove this
+  // workaround.
+  bool being_tested_;
+
+  ThreadCheckerForRelease thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };
