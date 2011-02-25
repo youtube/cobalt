@@ -546,6 +546,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
       SSLHostInfo* ssl_host_info,
       CertVerifier* cert_verifier,
       DnsCertProvenanceChecker* dns_cert_checker);
+  virtual void ClearSSLSessionCache();
 
  private:
   SocketDataProviderArray<SocketDataProvider> mock_data_;
@@ -900,6 +901,7 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
       SSLHostInfo* ssl_host_info,
       CertVerifier* cert_verifier,
       DnsCertProvenanceChecker* dns_cert_checker);
+  virtual void ClearSSLSessionCache();
 
  private:
   SocketDataProviderArray<DeterministicSocketData> mock_data_;
