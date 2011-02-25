@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,14 @@
 #include <set>
 #include <string>
 
+#include "base/ref_counted.h"
 #include "net/http/http_stream_factory.h"
+#include "net/proxy/proxy_server.h"
 
 namespace net {
 
 class HttpNetworkSession;
+class SpdySession;
 
 class HttpStreamFactoryImpl : public HttpStreamFactory {
  public:
@@ -38,31 +41,24 @@ class HttpStreamFactoryImpl : public HttpStreamFactory {
   class Request;
   class Job;
 
+  typedef std::set<Request*> RequestSet;
+  typedef std::map<HostPortProxyPair, RequestSet> SpdySessionRequestMap;
+
   LoadState GetLoadState(const Request& request) const;
 
-  void OnStreamReady(const Job* job,
-                     const SSLConfig& ssl_config,
-                     const ProxyInfo& proxy_info,
-                     HttpStream* stream);
-  void OnStreamFailed(const Job* job, int result, const SSLConfig& ssl_config);
-  void OnCertificateError(const Job* job,
-                          int result,
-                          const SSLConfig& ssl_config,
-                          const SSLInfo& ssl_info);
-  void OnNeedsProxyAuth(const Job* job,
-                        const HttpResponseInfo& response_info,
-                        const SSLConfig& ssl_config,
-                        const ProxyInfo& proxy_info,
-                        HttpAuthController* auth_controller);
-  void OnNeedsClientAuth(const Job* job,
-                         const SSLConfig& ssl_config,
-                         SSLCertRequestInfo* cert_info);
-  void OnHttpsProxyTunnelResponse(const Job* job,
-                                  const HttpResponseInfo& response_info,
-                                  const SSLConfig& ssl_config,
-                                  const ProxyInfo& proxy_info,
-                                  HttpStream* stream);
+  // Called when a SpdySession is ready. It will find appropriate Requests and
+  // fulfill them. |direct| indicates whether or not |spdy_session| uses a
+  // proxy.
+  void OnSpdySessionReady(const Job* job,
+                          scoped_refptr<SpdySession> spdy_session,
+                          bool direct);
 
+  // Called when the Job detects that the endpoint indicated by the
+  // Alternate-Protocol does not work. Lets the factory update
+  // HttpAlternateProtocols with the failure and resets the SPDY session key.
+  void OnBrokenAlternateProtocol(const Job*, const HostPortPair& origin);
+
+  // Invoked when the Job finishes preconnecting sockets.
   void OnPreconnectsComplete(const Job* job);
 
   // Called when the Preconnect completes. Used for testing.
@@ -74,12 +70,10 @@ class HttpStreamFactoryImpl : public HttpStreamFactory {
 
   // All Requests are handed out to clients. By the time HttpStreamFactoryImpl
   // is destroyed, all Requests should be deleted (which should remove them from
-  // |request_map_|.
-  // TODO(willchan): Change to a different key when we enable late binding. This
-  // is the key part that keeps things tightly bound.
-  // Note that currently the Request assumes ownership of the Job. We will break
-  // this with late binding, and the factory will own the Job.
+  // |request_map_|. The Requests will delete the corresponding job.
   std::map<const Job*, Request*> request_map_;
+
+  SpdySessionRequestMap spdy_session_request_map_;
 
   // These jobs correspond to preconnect requests and have no associated Request
   // object. They're owned by HttpStreamFactoryImpl. Leftover jobs will be
