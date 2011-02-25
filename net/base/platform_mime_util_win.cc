@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string>
-
 #include "net/base/platform_mime_util.h"
+
+#include <string>
 
 #include "base/utf_string_conversions.h"
 #include "base/win/registry.h"
