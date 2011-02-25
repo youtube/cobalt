@@ -465,9 +465,9 @@ class MessageLoop : public base::MessagePump::Delegate {
   scoped_refptr<base::Histogram> message_histogram_;
 
   // A null terminated list which creates an incoming_queue of tasks that are
-  // acquired under a mutex for processing on this instance's thread. These tasks
-  // have not yet been sorted out into items for our work_queue_ vs items that
-  // will be handled by the TimerManager.
+  // acquired under a mutex for processing on this instance's thread. These
+  // tasks have not yet been sorted out into items for our work_queue_ vs
+  // items that will be handled by the TimerManager.
   TaskQueue incoming_queue_;
   // Protect access to incoming_queue_.
   mutable base::Lock incoming_queue_lock_;
@@ -509,9 +509,17 @@ class MessageLoopForUI : public MessageLoop {
   void DidProcessMessage(const MSG& message);
 #endif  // defined(OS_WIN)
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
-  Display* get_display();
-#endif
+#if defined(USE_X11)
+  // Returns the Xlib Display that backs the MessagePump for this MessageLoop.
+  //
+  // This allows for raw access to the X11 server in situations where our
+  // abstractions do not provide enough power.
+  //
+  // Be careful how this is used. The MessagePump in general expects
+  // exclusive access to the Display. Calling things like XNextEvent() will
+  // likely break things in subtle, hard to detect, ways.
+  Display* GetDisplay();
+#endif  // defined(OS_X11)
 
 #if !defined(OS_MACOSX)
   // Please see message_pump_win/message_pump_glib for definitions of these
