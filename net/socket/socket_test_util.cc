@@ -604,6 +604,9 @@ SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
   return socket;
 }
 
+void MockClientSocketFactory::ClearSSLSessionCache() {
+}
+
 MockClientSocket::MockClientSocket(net::NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
       connected_(false),
@@ -1302,6 +1305,9 @@ SSLClientSocket* DeterministicMockClientSocketFactory::CreateSSLClientSocket(
                               ssl_host_info, mock_ssl_data_.GetNext());
   ssl_client_sockets_.push_back(socket);
   return socket;
+}
+
+void DeterministicMockClientSocketFactory::ClearSSLSessionCache() {
 }
 
 MockSOCKSClientSocketPool::MockSOCKSClientSocketPool(
