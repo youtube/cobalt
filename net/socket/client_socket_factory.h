@@ -52,6 +52,9 @@ class ClientSocketFactory {
       SSLHostInfo* ssl_host_info,
       CertVerifier* cert_verifier);
 
+  // Clears cache used for SSL session resumption.
+  virtual void ClearSSLSessionCache() = 0;
+
   // Returns the default ClientSocketFactory.
   static ClientSocketFactory* GetDefaultFactory();
 
