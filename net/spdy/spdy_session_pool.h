@@ -23,9 +23,6 @@
 #include "net/spdy/spdy_settings_storage.h"
 
 namespace net {
-// Sessions are uniquely identified by their HostPortPair and the proxy server
-// that will be used to connect to it (may be DIRECT).
-typedef std::pair<HostPortPair, ProxyServer> HostPortProxyPair;
 
 class BoundNetLog;
 class ClientSocketHandle;

@@ -33,7 +33,8 @@ class TCPSocketParams;
 // created for the StreamFactory.
 class HttpStreamFactoryImpl::Job {
  public:
-  Job(HttpStreamFactoryImpl* stream_factory, HttpNetworkSession* session);
+  Job(HttpStreamFactoryImpl* stream_factory,
+      HttpNetworkSession* session);
   ~Job();
 
   // Start initiates the process of creating a new HttpStream.
@@ -41,7 +42,8 @@ class HttpStreamFactoryImpl::Job {
   // lifecycle of these parameters will remain valid until the stream is
   // created, failed, or destroyed.  In the first two cases, the delegate will
   // be called to notify completion of the request.
-  void Start(const HttpRequestInfo& request_info,
+  void Start(Request* request,
+             const HttpRequestInfo& request_info,
              const SSLConfig& ssl_config,
              const BoundNetLog& net_log);
 
@@ -57,6 +59,12 @@ class HttpStreamFactoryImpl::Job {
   bool was_alternate_protocol_available() const;
   bool was_npn_negotiated() const;
   bool using_spdy() const;
+
+  const SSLConfig& ssl_config() const;
+  const ProxyInfo& proxy_info() const;
+
+  // Indicates whether or not this job is performing a preconnect.
+  bool IsPreconnecting() const;
 
  private:
   enum AlternateProtocolMode {
@@ -82,6 +90,7 @@ class HttpStreamFactoryImpl::Job {
   };
 
   void OnStreamReadyCallback();
+  void OnSpdySessionReadyCallback();
   void OnStreamFailedCallback(int result);
   void OnCertificateErrorCallback(int result, const SSLInfo& ssl_info);
   void OnNeedsProxyAuthCallback(const HttpResponseInfo& response_info,
@@ -111,6 +120,9 @@ class HttpStreamFactoryImpl::Job {
   int DoCreateStreamComplete(int result);
   int DoRestartTunnelAuth();
   int DoRestartTunnelAuthComplete(int result);
+
+  // Returns to STATE_INIT_CONNECTION and resets some state.
+  void ReturnToStateInitConnection(bool close_connection);
 
   // Set the motivation for this request onto the underlying socket.
   void SetSocketMotivation();
@@ -163,8 +175,7 @@ class HttpStreamFactoryImpl::Job {
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
 
-  // Indicates whether or not this job is performing a preconnect.
-  bool IsPreconnecting() const;
+  Request* request_;
 
   HttpRequestInfo request_info_;
   ProxyInfo proxy_info_;
@@ -221,6 +232,12 @@ class HttpStreamFactoryImpl::Job {
   // 0 if we're not preconnecting. Otherwise, the number of streams to
   // preconnect.
   int num_streams_;
+
+  // Initialized when we create a new SpdySession.
+  scoped_refptr<SpdySession> new_spdy_session_;
+
+  // Only used if |new_spdy_session_| is non-NULL.
+  bool spdy_session_direct_;
 
   ScopedRunnableMethodFactory<Job> method_factory_;
 
