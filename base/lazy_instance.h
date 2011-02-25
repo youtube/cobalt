@@ -88,7 +88,7 @@ class LazyInstanceHelper {
     STATE_CREATED  = 2
   };
 
-  explicit LazyInstanceHelper(LinkerInitialized x) { /* state_ is 0 */ }
+  explicit LazyInstanceHelper(LinkerInitialized /*unused*/) {/* state_ is 0 */}
   // Declaring a destructor (even if it's empty) will cause MSVC to register a
   // static initializer to register the empty destructor with atexit().
 
