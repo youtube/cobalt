@@ -137,6 +137,13 @@ bool RemoveCommandFromAutoRun(HKEY root_key, const string16& name) {
   return (autorun_key.DeleteValue(name.c_str()) == ERROR_SUCCESS);
 }
 
+bool ReadCommandFromAutoRun(HKEY root_key,
+                            const string16& name,
+                            string16* command) {
+  base::win::RegKey autorun_key(root_key, kAutoRunKeyPath, KEY_QUERY_VALUE);
+  return (autorun_key.ReadValue(name.c_str(), command) == ERROR_SUCCESS);
+}
+
 }  // namespace win
 }  // namespace base
 
