@@ -1,0 +1,52 @@
+$$ This is a pump file for generating file templates.  Pump is a python
+$$ script that is part of the Google Test suite of utilities.  Description
+$$ can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$var MAX_ARITY = 6
+
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Specializations of FunctionTraits<> for Windows specific calling
+// conventions.  Please see base/bind_internal.h for more info.
+
+#ifndef BASE_BIND_INTERNAL_WIN_H_
+#define BASE_BIND_INTERNAL_WIN_H_
+#pragma once
+
+namespace base {
+namespace internal {
+
+template <typename Sig>
+struct FunctionTraits;
+
+$range ARITY 0..MAX_ARITY
+$for ARITY [[
+$range ARG 1..ARITY
+
+// __stdcall Function: Arity $(ARITY).
+template <typename R[[]]
+$if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
+struct FunctionTraits<R(__stdcall *)($for ARG , [[X$(ARG)]])> {
+  typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
+  typedef false_type IsMethod;
+};
+
+// __fastcall Function: Arity $(ARITY).
+template <typename R[[]]
+$if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
+struct FunctionTraits<R(__fastcall *)($for ARG , [[X$(ARG)]])> {
+  typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
+  typedef false_type IsMethod;
+};
+
+]]  $$for ARITY
+
+}  // namespace internal
+}  // namespace base
+
+#endif  // BASE_BIND_INTERNAL_WIN_H_

@@ -581,5 +581,26 @@ TEST_F(BindTest, NoCompile) {
 
 }
 
+#if defined(OS_WIN)
+int __fastcall FastCallFunc(int n) {
+  return n;
+}
+
+int __stdcall StdCallFunc(int n) {
+  return n;
+}
+
+// Windows specific calling convention support.
+//   - Can bind a __fastcall function.
+//   - Can bind a __stdcall function.
+TEST_F(BindTest, WindowsCallingConventions) {
+  Callback<int(void)> fastcall_cb = Bind(&FastCallFunc, 1);
+  EXPECT_EQ(1, fastcall_cb.Run());
+
+  Callback<int(void)> stdcall_cb = Bind(&StdCallFunc, 2);
+  EXPECT_EQ(2, stdcall_cb.Run());
+}
+#endif
+
 }  // namespace
 }  // namespace base
