@@ -39,6 +39,7 @@
           'bind.h',
           'bind_helpers.h',
           'bind_internal.h',
+          'bind_internal_win.h',
           'bits.h',
           'bzip2_error_handler.cc',
           'callback.h',

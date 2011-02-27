@@ -14,6 +14,11 @@
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"
 #include "base/template_util.h"
+#include "build/build_config.h"
+
+#if defined(OS_WIN)
+#include "base/bind_internal_win.h"
+#endif
 
 namespace base {
 namespace internal {
@@ -67,91 +72,91 @@ struct FunctionTraits;
 template <typename R>
 struct FunctionTraits<R(*)()> {
   typedef R (*NormalizedSig)();
-  typedef base::false_type IsMethod;
+  typedef false_type IsMethod;
 };
 
 // Method: Arity 0.
 template <typename R, typename T>
 struct FunctionTraits<R(T::*)()> {
   typedef R (T::*NormalizedSig)();
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Const Method: Arity 0.
 template <typename R, typename T>
 struct FunctionTraits<R(T::*)() const> {
   typedef R (T::*NormalizedSig)();
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Function: Arity 1.
 template <typename R, typename X1>
 struct FunctionTraits<R(*)(X1)> {
   typedef R (*NormalizedSig)(X1);
-  typedef base::false_type IsMethod;
+  typedef false_type IsMethod;
 };
 
 // Method: Arity 1.
 template <typename R, typename T, typename X1>
 struct FunctionTraits<R(T::*)(X1)> {
   typedef R (T::*NormalizedSig)(X1);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Const Method: Arity 1.
 template <typename R, typename T, typename X1>
 struct FunctionTraits<R(T::*)(X1) const> {
   typedef R (T::*NormalizedSig)(X1);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Function: Arity 2.
 template <typename R, typename X1, typename X2>
 struct FunctionTraits<R(*)(X1, X2)> {
   typedef R (*NormalizedSig)(X1, X2);
-  typedef base::false_type IsMethod;
+  typedef false_type IsMethod;
 };
 
 // Method: Arity 2.
 template <typename R, typename T, typename X1, typename X2>
 struct FunctionTraits<R(T::*)(X1, X2)> {
   typedef R (T::*NormalizedSig)(X1, X2);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Const Method: Arity 2.
 template <typename R, typename T, typename X1, typename X2>
 struct FunctionTraits<R(T::*)(X1, X2) const> {
   typedef R (T::*NormalizedSig)(X1, X2);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Function: Arity 3.
 template <typename R, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(*)(X1, X2, X3)> {
   typedef R (*NormalizedSig)(X1, X2, X3);
-  typedef base::false_type IsMethod;
+  typedef false_type IsMethod;
 };
 
 // Method: Arity 3.
 template <typename R, typename T, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(T::*)(X1, X2, X3)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Const Method: Arity 3.
 template <typename R, typename T, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(T::*)(X1, X2, X3) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Function: Arity 4.
 template <typename R, typename X1, typename X2, typename X3, typename X4>
 struct FunctionTraits<R(*)(X1, X2, X3, X4)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4);
-  typedef base::false_type IsMethod;
+  typedef false_type IsMethod;
 };
 
 // Method: Arity 4.
@@ -159,7 +164,7 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
     typename X4>
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Const Method: Arity 4.
@@ -167,7 +172,7 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
     typename X4>
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Function: Arity 5.
@@ -175,7 +180,7 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
     typename X5>
 struct FunctionTraits<R(*)(X1, X2, X3, X4, X5)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5);
-  typedef base::false_type IsMethod;
+  typedef false_type IsMethod;
 };
 
 // Method: Arity 5.
@@ -183,7 +188,7 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
     typename X4, typename X5>
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Const Method: Arity 5.
@@ -191,7 +196,7 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
     typename X4, typename X5>
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Function: Arity 6.
@@ -199,7 +204,7 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
     typename X5, typename X6>
 struct FunctionTraits<R(*)(X1, X2, X3, X4, X5, X6)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5, X6);
-  typedef base::false_type IsMethod;
+  typedef false_type IsMethod;
 };
 
 // Method: Arity 6.
@@ -207,7 +212,7 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
     typename X4, typename X5, typename X6>
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5, X6);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Const Method: Arity 6.
@@ -215,7 +220,7 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
     typename X4, typename X5, typename X6>
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5, X6);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // InvokerN<>
