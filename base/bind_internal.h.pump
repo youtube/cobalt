@@ -18,6 +18,11 @@ $var MAX_ARITY = 6
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"
 #include "base/template_util.h"
+#include "build/build_config.h"
+
+#if defined(OS_WIN)
+#include "base/bind_internal_win.h"
+#endif
 
 namespace base {
 namespace internal {
@@ -76,7 +81,7 @@ template <typename R[[]]
 $if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
 struct FunctionTraits<R(*)($for ARG , [[X$(ARG)]])> {
   typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
-  typedef base::false_type IsMethod;
+  typedef false_type IsMethod;
 };
 
 // Method: Arity $(ARITY).
@@ -84,7 +89,7 @@ template <typename R, typename T[[]]
 $if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
 struct FunctionTraits<R(T::*)($for ARG , [[X$(ARG)]])> {
   typedef R (T::*NormalizedSig)($for ARG , [[X$(ARG)]]);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 // Const Method: Arity $(ARITY).
@@ -92,7 +97,7 @@ template <typename R, typename T[[]]
 $if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
 struct FunctionTraits<R(T::*)($for ARG , [[X$(ARG)]]) const> {
   typedef R (T::*NormalizedSig)($for ARG , [[X$(ARG)]]);
-  typedef base::true_type IsMethod;
+  typedef true_type IsMethod;
 };
 
 ]]  $$for ARITY
