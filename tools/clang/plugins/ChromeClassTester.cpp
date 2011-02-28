@@ -7,6 +7,8 @@
 
 #include "ChromeClassTester.h"
 
+#include <sys/param.h>
+
 using namespace clang;
 
 namespace {
@@ -27,6 +29,49 @@ bool ends_with(const std::string& one, const std::string& two) {
 ChromeClassTester::ChromeClassTester(CompilerInstance& instance)
     : instance_(instance),
       diagnostic_(instance.getDiagnostics()) {
+  FigureOutSrcRoot();
+  BuildBannedLists();
+}
+
+void ChromeClassTester::FigureOutSrcRoot() {
+  char c_cwd[MAXPATHLEN];
+  if (getcwd(c_cwd, MAXPATHLEN) > 0) {
+    size_t pos = 1;
+    std::string cwd = c_cwd;
+
+    // Add a trailing '/' because the search below requires it.
+    if (cwd[cwd.size() - 1] != '/')
+      cwd += '/';
+
+    // Search the directory tree downwards until we find a path that contains
+    // "build/common.gypi" and assume that that is our srcroot.
+    size_t next_slash = cwd.find('/', pos);
+    while (next_slash != std::string::npos) {
+      next_slash++;
+      std::string candidate = cwd.substr(0, next_slash);
+
+      if (ends_with(candidate, "src/")) {
+        std::string common = candidate + "build/common.gypi";
+        if (access(common.c_str(), F_OK) != -1) {
+          src_root_ = candidate;
+          break;
+        }
+      }
+
+      pos = next_slash;
+      next_slash = cwd.find('/', pos);
+    }
+  }
+
+  if (src_root_.empty()) {
+    unsigned id = diagnostic().getCustomDiagID(
+        Diagnostic::Error,
+        "WARNING: Can't figure out srcroot!\n");
+    diagnostic().Report(id);
+  }
+}
+
+void ChromeClassTester::BuildBannedLists() {
   banned_namespaces_.push_back("std");
   banned_namespaces_.push_back("__gnu_cxx");
 
@@ -184,14 +229,15 @@ bool ChromeClassTester::InBannedDirectory(const SourceLocation& loc) {
         return true;
       }
 
-      // Strip out all preceding path garbage. Linux and mac builds have
-      // different path garbage, but after doing this, the path should be
-      // relative to the root of the source tree. (If we didn't require
-      // relative paths, we could have just used realpath().)
-      if (!b.empty() && b[0] != '/') {
-        size_t i = 0;
-        for (; i < b.size() && (b[i] == '.' || b[i] == '/'); ++i) {}
-        b = b.substr(i);
+      // We need to munge the paths so that they are relative to the repository
+      // srcroot. We first resolve the symlinktastic relative path and then
+      // remove our known srcroot from it if needed.
+      char resolvedPath[MAXPATHLEN];
+      if (realpath(b.c_str(), resolvedPath)) {
+        std::string resolved = resolvedPath;
+        if (starts_with(resolved, src_root_)) {
+          b = resolved.substr(src_root_.size());
+        }
       }
 
       for (std::vector<std::string>::const_iterator it =
