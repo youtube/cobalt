@@ -632,7 +632,7 @@ class CustomHistogram : public Histogram {
                   const std::vector<Sample>& custom_ranges);
 
   // Initialize ranges_ mapping.
-  virtual void InitializeBucketRange(const std::vector<Sample>& custom_ranges);
+  void InitializedCustomBucketRange(const std::vector<Sample>& custom_ranges);
   virtual double GetBucketSize(Count current, size_t i) const;
 
   DISALLOW_COPY_AND_ASSIGN(CustomHistogram);
