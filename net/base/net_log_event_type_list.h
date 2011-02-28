@@ -468,7 +468,7 @@ EVENT_TYPE(SOCKET_POOL_BOUND_TO_SOCKET)
 EVENT_TYPE(SOCKET_POOL_CONNECTING_N_SOCKETS)
 
 // ------------------------------------------------------------------------
-// net::URLRequest
+// URLRequest
 // ------------------------------------------------------------------------
 
 // Measures the time it took a net::URLRequestJob to start. For the most part
@@ -580,6 +580,23 @@ EVENT_TYPE(DISK_CACHE_CLOSE)
 
 // Logged when an entry is doomed.
 EVENT_TYPE(DISK_CACHE_DOOM)
+
+// ------------------------------------------------------------------------
+// HttpStreamFactoryImpl
+// ------------------------------------------------------------------------
+
+// Measures the time taken to fulfill the HttpStreamRequest.
+EVENT_TYPE(HTTP_STREAM_REQUEST)
+
+// Measures the time taken to execute the HttpStreamFactoryImpl::Job
+EVENT_TYPE(HTTP_STREAM_JOB)
+
+// Identifies the NetLog::Source() for the Job that fulfilled the request.
+// request. The event parameters are:
+//   {
+//      "source_dependency": <Source identifier for the job we acquired>
+//   }
+EVENT_TYPE(HTTP_STREAM_REQUEST_BOUND_TO_JOB)
 
 // ------------------------------------------------------------------------
 // HttpNetworkTransaction
