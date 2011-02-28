@@ -867,7 +867,8 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyEnumerations) {
   BackendEnumerations();
 }
 
-TEST_F(DiskCacheBackendTest, AppCacheEnumerations) {
+// Flaky, http://crbug.com/74387.
+TEST_F(DiskCacheBackendTest, FLAKY_AppCacheEnumerations) {
   SetCacheType(net::APP_CACHE);
   BackendEnumerations();
 }
