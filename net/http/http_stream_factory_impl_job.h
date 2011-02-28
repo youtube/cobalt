@@ -9,6 +9,7 @@
 #include "base/scoped_ptr.h"
 #include "base/task.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth.h"
@@ -59,6 +60,7 @@ class HttpStreamFactoryImpl::Job {
   bool was_alternate_protocol_available() const;
   bool was_npn_negotiated() const;
   bool using_spdy() const;
+  const BoundNetLog& net_log() const { return net_log_; }
 
   const SSLConfig& ssl_config() const;
   const ProxyInfo& proxy_info() const;
