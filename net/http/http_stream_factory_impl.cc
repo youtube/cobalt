@@ -34,7 +34,7 @@ HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
     HttpStreamRequest::Delegate* delegate,
     const BoundNetLog& net_log) {
   Job* job = new Job(this, session_);
-  Request* request = new Request(request_info.url, this, delegate);
+  Request* request = new Request(request_info.url, this, delegate, net_log);
   request_map_[job] = request;
   request->BindJob(job);
   job->Start(request, request_info, ssl_config, net_log);
@@ -73,7 +73,8 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
   Request* request = request_map_[job];
   request->Complete(job->was_alternate_protocol_available(),
                     job->was_npn_negotiated(),
-                    job->using_spdy());
+                    job->using_spdy(),
+                    job->net_log().source());
   bool use_relative_url = direct || request->url().SchemeIs("https");
   request->OnStreamReady(
       job->ssl_config(),

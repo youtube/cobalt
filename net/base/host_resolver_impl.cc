@@ -175,7 +175,7 @@ class RequestInfoParameters : public NetLog::EventParameters {
   const NetLog::Source source_;
 };
 
-// Parameters associated with the creation of a HostResolveImpl::Job.
+// Parameters associated with the creation of a HostResolverImpl::Job.
 class JobCreationParameters : public NetLog::EventParameters {
  public:
   JobCreationParameters(const std::string& host, const NetLog::Source& source)
