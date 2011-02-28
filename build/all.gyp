@@ -437,6 +437,7 @@
                 '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
                 '../chrome_frame/chrome_frame.gyp:npchrome_frame',
                 '../courgette/courgette.gyp:courgette',
+                '../courgette/courgette.gyp:courgette64',
                 '../third_party/adobe/flash/flash_player.gyp:flash_player',
                 '../webkit/webkit.gyp:test_shell',
               ],
