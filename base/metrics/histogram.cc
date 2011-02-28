@@ -928,7 +928,7 @@ scoped_refptr<Histogram> CustomHistogram::FactoryGet(
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
     CustomHistogram* custom_histogram = new CustomHistogram(name, ranges);
-    custom_histogram->InitializeBucketRange(ranges);
+    custom_histogram->InitializedCustomBucketRange(ranges);
     histogram = custom_histogram;
     StatisticsRecorder::Register(&histogram);
   }
@@ -952,7 +952,7 @@ CustomHistogram::CustomHistogram(const std::string& name,
   DCHECK_EQ(custom_ranges[0], 0);
 }
 
-void CustomHistogram::InitializeBucketRange(
+void CustomHistogram::InitializedCustomBucketRange(
     const std::vector<Sample>& custom_ranges) {
   DCHECK_GT(custom_ranges.size(), 1u);
   DCHECK_EQ(custom_ranges[0], 0);
