@@ -12,10 +12,12 @@ namespace net {
 
 HttpStreamFactoryImpl::Request::Request(const GURL& url,
                                         HttpStreamFactoryImpl* factory,
-                                        HttpStreamRequest::Delegate* delegate)
+                                        HttpStreamRequest::Delegate* delegate,
+                                        const BoundNetLog& net_log)
     : url_(url),
       factory_(factory),
       delegate_(delegate),
+      net_log_(net_log),
       job_(NULL),
       completed_(false),
       was_alternate_protocol_available_(false),
@@ -23,9 +25,13 @@ HttpStreamFactoryImpl::Request::Request(const GURL& url,
       using_spdy_(false) {
   DCHECK(factory_);
   DCHECK(delegate_);
+
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_REQUEST, NULL);
 }
 
 HttpStreamFactoryImpl::Request::~Request() {
+  net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_REQUEST, NULL);
+
   factory_->request_map_.erase(job_);
 
   // TODO(willchan): Remove this when we decouple requests and jobs.
@@ -53,12 +59,17 @@ void HttpStreamFactoryImpl::Request::BindJob(HttpStreamFactoryImpl::Job* job) {
 void HttpStreamFactoryImpl::Request::Complete(
     bool was_alternate_protocol_available,
     bool was_npn_negotiated,
-    bool using_spdy) {
+    bool using_spdy,
+    const NetLog::Source& job_source) {
   DCHECK(!completed_);
   completed_ = true;
   was_alternate_protocol_available_ = was_alternate_protocol_available;
   was_npn_negotiated_ = was_npn_negotiated;
   using_spdy_ = using_spdy;
+  net_log_.AddEvent(
+      NetLog::TYPE_HTTP_STREAM_REQUEST_BOUND_TO_JOB,
+      make_scoped_refptr(new NetLogSourceParameter(
+          "source_dependency", job_source)));
 }
 
 void HttpStreamFactoryImpl::Request::OnStreamReady(

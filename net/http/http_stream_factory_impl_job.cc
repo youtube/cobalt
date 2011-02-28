@@ -9,6 +9,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/values.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -76,6 +77,8 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
 }
 
 HttpStreamFactoryImpl::Job::~Job() {
+  net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_JOB, NULL);
+
   // When we're in a partially constructed state, waiting for the user to
   // provide certificate handling information or authentication, we can't reuse
   // this stream at all.
@@ -164,7 +167,8 @@ void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
   DCHECK(stream_.get());
   request_->Complete(was_alternate_protocol_available(),
                     was_npn_negotiated(),
-                    using_spdy());
+                    using_spdy(),
+                    net_log_.source());
   request_->OnStreamReady(ssl_config_, proxy_info_, stream_.release());
   // |this| may be deleted after this call.
 }
@@ -375,7 +379,11 @@ int HttpStreamFactoryImpl::Job::StartInternal(
   CHECK_EQ(STATE_NONE, next_state_);
   request_info_ = request_info;
   ssl_config_ = ssl_config;
-  net_log_ = net_log;
+  net_log_ = BoundNetLog::Make(net_log.net_log(),
+                               NetLog::SOURCE_HTTP_STREAM_JOB);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_JOB,
+                      make_scoped_refptr(new NetLogStringParameter(
+                          "url", request_info.url.GetOrigin().spec())));
   next_state_ = STATE_RESOLVE_PROXY;
   int rv = RunLoop(OK);
   DCHECK_EQ(ERR_IO_PENDING, rv);
