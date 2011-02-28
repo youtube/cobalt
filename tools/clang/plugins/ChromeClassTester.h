@@ -20,6 +20,9 @@ class ChromeClassTester : public clang::ASTConsumer {
   explicit ChromeClassTester(clang::CompilerInstance& instance);
   virtual ~ChromeClassTester();
 
+  void FigureOutSrcRoot();
+  void BuildBannedLists();
+
   // ASTConsumer:
   virtual void HandleTagDeclDefinition(clang::TagDecl* tag);
 
@@ -53,6 +56,8 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   clang::CompilerInstance& instance_;
   clang::Diagnostic& diagnostic_;
+
+  std::string src_root_;
 
   // List of banned namespaces.
   std::vector<std::string> banned_namespaces_;
