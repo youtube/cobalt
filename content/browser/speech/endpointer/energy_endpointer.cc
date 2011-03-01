@@ -34,10 +34,9 @@ int64 Secs2Usecs(float seconds) {
 }
 
 float GetDecibel(float value) {
-  const float kVerySmallValue = 1.0e-100f;
-  if (value < kVerySmallValue)
-    value = kVerySmallValue;
-  return 20 * log10(value);
+  if (value > 1.0e-100)
+    return 20 * log10(value);
+  return -2000.0;
 }
 
 }  // namespace
