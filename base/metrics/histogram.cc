@@ -86,7 +86,7 @@ scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
     histogram = new Histogram(name, minimum, maximum, bucket_count);
     histogram->InitializeBucketRange();
-    StatisticsRecorder::Register(&histogram);
+    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
   DCHECK_EQ(HISTOGRAM, histogram->histogram_type());
@@ -415,10 +415,6 @@ Histogram::~Histogram() {
   DCHECK(ValidateBucketRanges());
 }
 
-bool Histogram::PrintEmptyBucket(size_t index) const {
-  return true;
-}
-
 // Calculate what range of values are held in each bucket.
 // We have to be careful that we don't pick a ratio between starting points in
 // consecutive buckets that is sooo small, that the integer bounds are the same
@@ -452,6 +448,10 @@ void Histogram::InitializeBucketRange() {
   ResetRangeChecksum();
 
   DCHECK_EQ(bucket_count(), bucket_index);
+}
+
+bool Histogram::PrintEmptyBucket(size_t index) const {
+  return true;
 }
 
 size_t Histogram::BucketIndex(Sample value) const {
@@ -791,7 +791,7 @@ scoped_refptr<Histogram> LinearHistogram::FactoryGet(const std::string& name,
         new LinearHistogram(name, minimum, maximum, bucket_count);
     linear_histogram->InitializeBucketRange();
     histogram = linear_histogram;
-    StatisticsRecorder::Register(&histogram);
+    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
   DCHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
@@ -883,7 +883,7 @@ scoped_refptr<Histogram> BooleanHistogram::FactoryGet(const std::string& name,
     BooleanHistogram* boolean_histogram = new BooleanHistogram(name);
     boolean_histogram->InitializeBucketRange();
     histogram = boolean_histogram;
-    StatisticsRecorder::Register(&histogram);
+    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
   DCHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
@@ -930,7 +930,7 @@ scoped_refptr<Histogram> CustomHistogram::FactoryGet(
     CustomHistogram* custom_histogram = new CustomHistogram(name, ranges);
     custom_histogram->InitializedCustomBucketRange(ranges);
     histogram = custom_histogram;
-    StatisticsRecorder::Register(&histogram);
+    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
   DCHECK_EQ(histogram->histogram_type(), CUSTOM_HISTOGRAM);
@@ -1023,7 +1023,8 @@ bool StatisticsRecorder::IsActive() {
 // was passed to us, decremented it when we returned, and the instance would be
 // destroyed before assignment (when value was returned by new).
 // static
-void StatisticsRecorder::Register(scoped_refptr<Histogram>* histogram) {
+void StatisticsRecorder::RegisterOrDiscardDuplicate(
+    scoped_refptr<Histogram>* histogram) {
   DCHECK((*histogram)->HasValidRangeChecksum());
   if (lock_ == NULL)
     return;

@@ -435,14 +435,15 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
 
   virtual ~Histogram();
 
+  // Initialize ranges_ mapping.
+  void InitializeBucketRange();
+
   // Method to override to skip the display of the i'th bucket if it's empty.
   virtual bool PrintEmptyBucket(size_t index) const;
 
   //----------------------------------------------------------------------------
   // Methods to override to create histogram with different bucket widths.
   //----------------------------------------------------------------------------
-  // Initialize ranges_ mapping.
-  virtual void InitializeBucketRange();
   // Find bucket to increment for sample value.
   virtual size_t BucketIndex(Sample value) const;
   // Get normalized size, relative to the ranges_[i].
@@ -576,7 +577,7 @@ class LinearHistogram : public Histogram {
                   TimeDelta maximum, size_t bucket_count);
 
   // Initialize ranges_ mapping.
-  virtual void InitializeBucketRange();
+  void InitializeBucketRange();
   virtual double GetBucketSize(Count current, size_t i) const;
 
   // If we have a description for a bucket, then return that.  Otherwise
@@ -656,8 +657,9 @@ class StatisticsRecorder {
 
   // Register, or add a new histogram to the collection of statistics. If an
   // identically named histogram is already registered, then the argument
-  // |histogram| will be replaced by the previously registered value.
-  static void Register(scoped_refptr<Histogram>* histogram);
+  // |histogram| will be replaced by the previously registered value, discarding
+  // the referenced argument.
+  static void RegisterOrDiscardDuplicate(scoped_refptr<Histogram>* histogram);
 
   // Methods for printing histograms.  Only histograms which have query as
   // a substring are written to output (an empty string will process all
