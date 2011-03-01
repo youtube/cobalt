@@ -35,8 +35,7 @@ HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
     const BoundNetLog& net_log) {
   Job* job = new Job(this, session_);
   Request* request = new Request(request_info.url, this, delegate, net_log);
-  request_map_[job] = request;
-  request->BindJob(job);
+  request->AttachJob(job);
   job->Start(request, request_info, ssl_config, net_log);
   return request;
 }
@@ -59,27 +58,53 @@ bool HttpStreamFactoryImpl::IsTLSIntolerantServer(const GURL& url) const {
   return ContainsKey(tls_intolerant_servers_, GetHostAndPort(url));
 }
 
-LoadState HttpStreamFactoryImpl::GetLoadState(const Request& request) const {
-  // TODO(willchan): Will break when we do late binding.
-  return request.job()->GetLoadState();
+void HttpStreamFactoryImpl::OrphanJob(Job* job, const Request* request) {
+  DCHECK(ContainsKey(request_map_, job));
+  DCHECK_EQ(request_map_[job], request);
+  DCHECK(!ContainsKey(orphaned_job_set_, job));
+
+  request_map_.erase(job);
+
+  orphaned_job_set_.insert(job);
+  job->Orphan(request);
 }
 
 void HttpStreamFactoryImpl::OnSpdySessionReady(
-    const Job* job,
     scoped_refptr<SpdySession> spdy_session,
-    bool direct) {
-  DCHECK(job->using_spdy());
-  DCHECK(ContainsKey(request_map_, job));
-  Request* request = request_map_[job];
-  request->Complete(job->was_alternate_protocol_available(),
-                    job->was_npn_negotiated(),
-                    job->using_spdy(),
-                    job->net_log().source());
-  bool use_relative_url = direct || request->url().SchemeIs("https");
-  request->OnStreamReady(
-      job->ssl_config(),
-      job->proxy_info(),
-      new SpdyHttpStream(spdy_session, use_relative_url));
+    bool direct,
+    const SSLConfig& used_ssl_config,
+    const ProxyInfo& used_proxy_info,
+    bool was_alternate_protocol_available,
+    bool was_npn_negotiated,
+    bool using_spdy,
+    const NetLog::Source& source) {
+  const HostPortProxyPair& spdy_session_key =
+      spdy_session->host_port_proxy_pair();
+  while (!spdy_session->IsClosed()) {
+    // Each iteration may empty out the RequestSet for |spdy_session_key_ in
+    // |spdy_session_request_map_|. So each time, check for RequestSet and use
+    // the first one.
+    //
+    // TODO(willchan): If it's important, switch RequestSet out for a FIFO
+    // pqueue (Order by priority first, then FIFO within same priority). Unclear
+    // that it matters here.
+    if (!ContainsKey(spdy_session_request_map_, spdy_session_key))
+      break;
+    Request* request = *spdy_session_request_map_[spdy_session_key].begin();
+    request->Complete(was_alternate_protocol_available,
+                      was_npn_negotiated,
+                      using_spdy,
+                      source);
+    bool use_relative_url = direct || request->url().SchemeIs("https");
+    request->OnStreamReady(NULL, used_ssl_config, used_proxy_info,
+                           new SpdyHttpStream(spdy_session, use_relative_url));
+  }
+  // TODO(mbelshe): Alert other valid requests.
+}
+
+void HttpStreamFactoryImpl::OnOrphanedJobComplete(const Job* job) {
+  orphaned_job_set_.erase(job);
+  delete job;
 }
 
 void HttpStreamFactoryImpl::OnPreconnectsComplete(const Job* job) {
