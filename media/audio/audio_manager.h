@@ -7,6 +7,7 @@
 
 #include "base/basictypes.h"
 #include "base/string16.h"
+#include "base/task.h"
 #include "media/audio/audio_parameters.h"
 
 class AudioInputStream;
@@ -33,6 +34,16 @@ class AudioManager {
   // Returns a human readable string for the model/make of the active audio
   // input device for this computer.
   virtual string16 GetAudioInputDeviceModel() = 0;
+
+  // Returns true if the platform specific audio input settings UI is known
+  // and can be shown.
+  virtual bool CanShowAudioInputSettings() = 0;
+
+  // Opens the platform default audio input settings UI.
+  // Note: This could invoke an external application/preferences pane, so
+  // ideally must not be called from the UI thread or other time sensitive
+  // threads to avoid blocking the rest of the application.
+  virtual void ShowAudioInputSettings() = 0;
 
   // Factory for all the supported stream formats. |params| defines parameters
   // of the audio stream to be created.
@@ -102,5 +113,7 @@ class AudioManager {
   // Called by GetAudioManager() to create platform-specific audio manager.
   static AudioManager* CreateAudioManager();
 };
+
+DISABLE_RUNNABLE_METHOD_REFCOUNT(AudioManager);
 
 #endif  // MEDIA_AUDIO_AUDIO_MANAGER_H_

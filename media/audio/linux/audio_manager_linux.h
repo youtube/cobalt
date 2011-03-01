@@ -28,6 +28,8 @@ class AudioManagerLinux : public AudioManagerBase {
   virtual bool HasAudioInputDevices();
   virtual AudioOutputStream* MakeAudioOutputStream(AudioParameters params);
   virtual AudioInputStream* MakeAudioInputStream(AudioParameters params);
+  virtual bool CanShowAudioInputSettings();
+  virtual void ShowAudioInputSettings();
 
   virtual void MuteAll();
   virtual void UnMuteAll();
