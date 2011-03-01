@@ -24,6 +24,9 @@ class AudioManagerBase : public AudioManager {
 
   virtual string16 GetAudioInputDeviceModel();
 
+  virtual bool CanShowAudioInputSettings();
+  virtual void ShowAudioInputSettings();
+
   virtual AudioOutputStream* MakeAudioOutputStreamProxy(
       const AudioParameters& params);
 

@@ -5,7 +5,10 @@
 #include "media/audio/linux/audio_manager_linux.h"
 
 #include "base/command_line.h"
+#include "base/environment.h"
 #include "base/logging.h"
+#include "base/nix/xdg_util.h"
+#include "base/process_util.h"
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
@@ -128,6 +131,24 @@ void AudioManagerLinux::ReleaseOutputStream(AlsaPcmOutputStream* stream) {
     base::AutoLock l(lock_);
     active_streams_.erase(stream);
   }
+}
+
+bool AudioManagerLinux::CanShowAudioInputSettings() {
+  scoped_ptr<base::Environment> env(base::Environment::Create());
+  base::nix::DesktopEnvironment desktop = base::nix::GetDesktopEnvironment(
+      env.get());
+  return (desktop == base::nix::DESKTOP_ENVIRONMENT_GNOME ||
+          desktop == base::nix::DESKTOP_ENVIRONMENT_KDE3 ||
+          desktop == base::nix::DESKTOP_ENVIRONMENT_KDE4);
+}
+
+void AudioManagerLinux::ShowAudioInputSettings() {
+  scoped_ptr<base::Environment> env(base::Environment::Create());
+  base::nix::DesktopEnvironment desktop = base::nix::GetDesktopEnvironment(
+      env.get());
+  std::string command((desktop == base::nix::DESKTOP_ENVIRONMENT_GNOME) ?
+                      "gnome-volume-control" : "kmix");
+  base::LaunchApp(CommandLine(FilePath(command)), false, false, NULL);
 }
 
 // static

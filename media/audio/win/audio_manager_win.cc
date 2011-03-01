@@ -11,9 +11,14 @@
 #include <setupapi.h>
 
 #include "base/basictypes.h"
+#include "base/command_line.h"
+#include "base/file_path.h"
+#include "base/path_service.h"
+#include "base/process_util.h"
 #include "base/scoped_ptr.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/win/windows_version.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/win/audio_manager_win.h"
@@ -227,6 +232,29 @@ string16 AudioManagerWin::GetAudioInputDeviceModel() {
   }
 
   return string16();
+}
+
+bool AudioManagerWin::CanShowAudioInputSettings() {
+  return true;
+}
+
+void AudioManagerWin::ShowAudioInputSettings() {
+  std::wstring program;
+  std::string argument;
+  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+    program = L"sndvol32.exe";
+    argument = "-R";
+  } else {
+    program = L"control.exe";
+    argument = "mmsys.cpl,,1";
+  }
+
+  FilePath path;
+  PathService::Get(base::DIR_SYSTEM, &path);
+  path = path.Append(program);
+  CommandLine command_line(path);
+  command_line.AppendArg(argument);
+  base::LaunchApp(command_line, false, false, NULL);
 }
 
 // static

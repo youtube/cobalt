@@ -51,3 +51,10 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
 
   return new AudioOutputProxy(dispatcher);
 }
+
+bool AudioManagerBase::CanShowAudioInputSettings() {
+  return false;
+}
+
+void AudioManagerBase::ShowAudioInputSettings() {
+}
