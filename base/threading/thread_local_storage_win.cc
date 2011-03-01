@@ -47,7 +47,7 @@ void** ThreadLocalStorage::Initialize() {
       TlsFree(value);
     }
   }
-  DCHECK(TlsGetValue(tls_key_) == NULL);
+  DCHECK(!TlsGetValue(tls_key_));
 
   // Create an array to store our data.
   void** tls_data = new void*[kThreadLocalStorageSize];

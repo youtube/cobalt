@@ -78,7 +78,7 @@ bool MessagePumpLibevent::FileDescriptorWatcher::StopWatchingFileDescriptor() {
 void MessagePumpLibevent::FileDescriptorWatcher::Init(event *e,
                                                       bool is_persistent) {
   DCHECK(e);
-  DCHECK(event_ == NULL);
+  DCHECK(!event_);
 
   is_persistent_ = is_persistent;
   event_ = e;
