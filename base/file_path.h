@@ -283,6 +283,11 @@ class FilePath {
   // want to stuff a string16 into some other API.
   string16 LossyDisplayName() const;
 
+  // Return the path as ASCII, or the empty string if the path is not ASCII.
+  // This should only be used for cases where the FilePath is representing a
+  // known-ASCII filename.
+  std::string MaybeAsASCII() const;
+
   // Older Chromium code assumes that paths are always wstrings.
   // These functions convert wstrings to/from FilePaths, and are
   // useful to smooth porting that old code to the FilePath API.
