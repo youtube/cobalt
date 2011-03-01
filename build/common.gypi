@@ -23,10 +23,14 @@
 
           # Disable touch support by default.
           'touchui%': 0,
+
+          # Disable file manager component extension by default.
+          'file_manager_extension%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
         'touchui%': '<(touchui)',
+        'file_manager_extension%': '<(file_manager_extension)',
 
         # To do a shared build on linux we need to be able to choose between
         # type static_library and shared_library. We default to doing a static
@@ -61,6 +65,7 @@
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
       'touchui%': '<(touchui)',
+      'file_manager_extension%': '<(file_manager_extension)',
       'host_arch%': '<(host_arch)',
       'library%': '<(library)',
       'toolkit_views%': '<(toolkit_views)',
@@ -176,6 +181,7 @@
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'chromeos%': '<(chromeos)',
     'touchui%': '<(touchui)',
+    'file_manager_extension%': '<(file_manager_extension)',
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
     'python_ver%': '<(python_ver)',
@@ -485,6 +491,9 @@
       ['touchui==1', {
         'grit_defines': ['-D', 'touchui'],
       }],
+      ['file_manager_extension==1', {
+        'grit_defines': ['-D', 'file_manager_extension'],
+      }],
       ['remoting==1', {
         'grit_defines': ['-D', 'remoting'],
       }],
@@ -563,6 +572,9 @@
       }],
       ['touchui==1', {
         'defines': ['TOUCH_UI=1'],
+      }],
+      ['file_manager_extension==1', {
+        'defines': ['FILE_MANAGER_EXTENSION=1'],
       }],
       ['profiling==1', {
         'defines': ['ENABLE_PROFILING=1'],
