@@ -49,6 +49,8 @@ class CommandLine {
   explicit CommandLine(const StringVector& argv);
 #endif
 
+  ~CommandLine();
+
   // Initialize the current process CommandLine singleton. On Windows, ignores
   // its arguments (we instead parse GetCommandLineW() directly) because we
   // don't trust the CRT's parsing of the command line, but it still must be
@@ -147,8 +149,8 @@ class CommandLine {
 #endif
 
  private:
-  // Disallow default constructor; a program name must be explicitly specified.
-  CommandLine() {}
+  // Disallow public default construction; a program name must be specified.
+  CommandLine();
 
   // The singleton CommandLine representing the current process's command line.
   static CommandLine* current_process_commandline_;
