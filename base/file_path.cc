@@ -520,6 +520,12 @@ string16 FilePath::LossyDisplayName() const {
   return WideToUTF16(base::SysNativeMBToWide(path_));
 }
 
+std::string FilePath::MaybeAsASCII() const {
+  if (IsStringASCII(path_))
+    return path_;
+  return "";
+}
+
 // The *Hack functions are temporary while we fix the remainder of the code.
 // Remember to remove the #includes at the top when you remove these.
 
@@ -533,6 +539,12 @@ std::wstring FilePath::ToWStringHack() const {
 #elif defined(OS_WIN)
 string16 FilePath::LossyDisplayName() const {
   return path_;
+}
+
+std::string FilePath::MaybeAsASCII() const {
+  if (IsStringASCII(path_))
+    return WideToASCII(path_);
+  return "";
 }
 
 // static
