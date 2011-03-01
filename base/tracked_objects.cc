@@ -467,7 +467,7 @@ bool ThreadData::StartTracking(bool status) {
     return true;
   }
   base::AutoLock lock(list_lock_);
-  DCHECK(status_ == UNINITIALIZED);
+  DCHECK_EQ(UNINITIALIZED, status_);
   CHECK(tls_index_.Initialize(NULL));
   status_ = ACTIVE;
   return true;

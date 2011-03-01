@@ -147,12 +147,12 @@ class Pickle {
   // to the Pickle constructor.
   template <class T>
   T* headerT() {
-    DCHECK(sizeof(T) == header_size_);
+    DCHECK_EQ(header_size_, sizeof(T));
     return static_cast<T*>(header_);
   }
   template <class T>
   const T* headerT() const {
-    DCHECK(sizeof(T) == header_size_);
+    DCHECK_EQ(header_size_, sizeof(T));
     return static_cast<const T*>(header_);
   }
 
