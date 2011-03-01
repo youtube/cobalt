@@ -33,6 +33,13 @@ int64 Secs2Usecs(float seconds) {
   return static_cast<int64>(0.5 + (1.0e6 * seconds));
 }
 
+float GetDecibel(float value) {
+  const float kVerySmallValue = 1.0e-100f;
+  if (value < kVerySmallValue)
+    value = kVerySmallValue;
+  return 20 * log10(value);
+}
+
 }  // namespace
 
 namespace speech_input {
@@ -326,11 +333,12 @@ void EnergyEndpointer::ProcessAudioFrame(int64 time_us,
   UpdateLevels(rms);
   ++frame_counter_;
 
-  if (rms_out) {
-    *rms_out = -120.0;
-    if ((noise_level_ > 0.0) && ((rms / noise_level_ ) > 0.000001))
-      *rms_out = static_cast<float>(20.0 * log10(rms / noise_level_));
-  }
+  if (rms_out)
+    *rms_out = GetDecibel(rms);
+}
+
+float EnergyEndpointer::GetNoiseLevelDb() const {
+  return GetDecibel(noise_level_);
 }
 
 void EnergyEndpointer::UpdateLevels(float rms) {

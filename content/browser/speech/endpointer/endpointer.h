@@ -96,6 +96,9 @@ class Endpointer {
     return speech_input_complete_;
   }
 
+  // RMS background noise level in dB.
+  float NoiseLevelDb() const { return energy_endpointer_.GetNoiseLevelDb(); }
+
  private:
   // Reset internal states. Helper method common to initial input utterance
   // and following input utternaces.
