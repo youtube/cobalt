@@ -161,6 +161,9 @@ CommandLine::CommandLine(const StringVector& argv) {
 }
 #endif  // OS_POSIX
 
+CommandLine::~CommandLine() {
+}
+
 // static
 void CommandLine::Init(int argc, const char* const* argv) {
   delete current_process_commandline_;
@@ -480,3 +483,6 @@ void CommandLine::ParseFromString(const std::wstring& command_line) {
     LocalFree(args);
 }
 #endif
+
+CommandLine::CommandLine() {
+}
