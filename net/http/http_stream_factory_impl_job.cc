@@ -134,6 +134,11 @@ LoadState HttpStreamFactoryImpl::Job::GetLoadState() const {
   }
 }
 
+void HttpStreamFactoryImpl::Job::Orphan(const Request* request) {
+  DCHECK_EQ(request_, request);
+  request_ = NULL;
+}
+
 bool HttpStreamFactoryImpl::Job::was_alternate_protocol_available() const {
   return was_alternate_protocol_available_;
 }
@@ -165,58 +170,99 @@ void HttpStreamFactoryImpl::Job::GetSSLInfo() {
 
 void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
   DCHECK(stream_.get());
-  request_->Complete(was_alternate_protocol_available(),
-                    was_npn_negotiated(),
-                    using_spdy(),
-                    net_log_.source());
-  request_->OnStreamReady(ssl_config_, proxy_info_, stream_.release());
+  DCHECK(!IsPreconnecting());
+  if (IsOrphaned()) {
+    stream_factory_->OnOrphanedJobComplete(this);
+  } else {
+    request_->Complete(was_alternate_protocol_available(),
+                       was_npn_negotiated(),
+                       using_spdy(),
+                       net_log_.source());
+    request_->OnStreamReady(this, ssl_config_, proxy_info_, stream_.release());
+  }
   // |this| may be deleted after this call.
 }
 
 void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   DCHECK(!stream_.get());
+  DCHECK(!IsPreconnecting());
   DCHECK(using_spdy());
   DCHECK(new_spdy_session_);
   scoped_refptr<SpdySession> spdy_session = new_spdy_session_;
   new_spdy_session_ = NULL;
-  stream_factory_->OnSpdySessionReady(this, spdy_session, spdy_session_direct_);
+  if (IsOrphaned()) {
+    stream_factory_->OnSpdySessionReady(
+        spdy_session, spdy_session_direct_, ssl_config_, proxy_info_,
+        was_alternate_protocol_available(), was_npn_negotiated(),
+        using_spdy(), net_log_.source());
+    stream_factory_->OnOrphanedJobComplete(this);
+  } else {
+    request_->OnSpdySessionReady(this, spdy_session, spdy_session_direct_);
+  }
   // |this| may be deleted after this call.
 }
 
 void HttpStreamFactoryImpl::Job::OnStreamFailedCallback(int result) {
-  request_->OnStreamFailed(result, ssl_config_);
+  DCHECK(!IsPreconnecting());
+  if (IsOrphaned())
+    stream_factory_->OnOrphanedJobComplete(this);
+  else
+    request_->OnStreamFailed(this, result, ssl_config_);
   // |this| may be deleted after this call.
 }
 
 void HttpStreamFactoryImpl::Job::OnCertificateErrorCallback(
     int result, const SSLInfo& ssl_info) {
-  request_->OnCertificateError(result, ssl_config_, ssl_info);
+  DCHECK(!IsPreconnecting());
+  if (IsOrphaned())
+    stream_factory_->OnOrphanedJobComplete(this);
+  else
+    request_->OnCertificateError(this, result, ssl_config_, ssl_info);
   // |this| may be deleted after this call.
 }
 
 void HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback(
     const HttpResponseInfo& response,
     HttpAuthController* auth_controller) {
-  request_->OnNeedsProxyAuth(
-      response, ssl_config_, proxy_info_, auth_controller);
+  DCHECK(!IsPreconnecting());
+  if (IsOrphaned())
+    stream_factory_->OnOrphanedJobComplete(this);
+  else
+    request_->OnNeedsProxyAuth(
+        this, response, ssl_config_, proxy_info_, auth_controller);
   // |this| may be deleted after this call.
 }
 
 void HttpStreamFactoryImpl::Job::OnNeedsClientAuthCallback(
     SSLCertRequestInfo* cert_info) {
-  request_->OnNeedsClientAuth(ssl_config_, cert_info);
+  DCHECK(!IsPreconnecting());
+  if (IsOrphaned())
+    stream_factory_->OnOrphanedJobComplete(this);
+  else
+    request_->OnNeedsClientAuth(this, ssl_config_, cert_info);
   // |this| may be deleted after this call.
 }
 
 void HttpStreamFactoryImpl::Job::OnHttpsProxyTunnelResponseCallback(
     const HttpResponseInfo& response_info,
     HttpStream* stream) {
-  request_->OnHttpsProxyTunnelResponse(
-      response_info, ssl_config_, proxy_info_, stream);
+  DCHECK(!IsPreconnecting());
+  if (IsOrphaned())
+    stream_factory_->OnOrphanedJobComplete(this);
+  else
+    request_->OnHttpsProxyTunnelResponse(
+        this, response_info, ssl_config_, proxy_info_, stream);
   // |this| may be deleted after this call.
 }
 
 void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
+  DCHECK(!request_);
+  if (new_spdy_session_) {
+    stream_factory_->OnSpdySessionReady(
+        new_spdy_session_, spdy_session_direct_, ssl_config_,
+        proxy_info_, was_alternate_protocol_available(),
+        was_npn_negotiated(), using_spdy(), net_log_.source());
+  }
   stream_factory_->OnPreconnectsComplete(this);
   // |this| may be deleted after this call.
 }
@@ -522,7 +568,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
       using_spdy_ = true;
       next_state_ = STATE_CREATE_STREAM;
       return OK;
-    } else if (!IsPreconnecting()) {
+    } else if (request_) {
       // Update the spdy session key for the request that launched this job.
       request_->SetSpdySessionKey(spdy_session_key);
     }
@@ -1132,6 +1178,10 @@ void HttpStreamFactoryImpl::Job::LogHttpConnectedMetrics(
 bool HttpStreamFactoryImpl::Job::IsPreconnecting() const {
   DCHECK_GE(num_streams_, 0);
   return num_streams_ > 0;
+}
+
+bool HttpStreamFactoryImpl::Job::IsOrphaned() const {
+  return !IsPreconnecting() && !request_;
 }
 
 }  // namespace net

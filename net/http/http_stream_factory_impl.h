@@ -11,6 +11,7 @@
 
 #include "base/ref_counted.h"
 #include "net/http/http_stream_factory.h"
+#include "net/base/net_log.h"
 #include "net/proxy/proxy_server.h"
 
 namespace net {
@@ -44,19 +45,28 @@ class HttpStreamFactoryImpl : public HttpStreamFactory {
   typedef std::set<Request*> RequestSet;
   typedef std::map<HostPortProxyPair, RequestSet> SpdySessionRequestMap;
 
-  LoadState GetLoadState(const Request& request) const;
+  // Detaches |job| from |request|.
+  void OrphanJob(Job* job, const Request* request);
 
   // Called when a SpdySession is ready. It will find appropriate Requests and
   // fulfill them. |direct| indicates whether or not |spdy_session| uses a
   // proxy.
-  void OnSpdySessionReady(const Job* job,
-                          scoped_refptr<SpdySession> spdy_session,
-                          bool direct);
+  void OnSpdySessionReady(scoped_refptr<SpdySession> spdy_session,
+                          bool direct,
+                          const SSLConfig& used_ssl_config,
+                          const ProxyInfo& used_proxy_info,
+                          bool was_alternate_protocol_available,
+                          bool was_npn_negotiated,
+                          bool using_spdy,
+                          const NetLog::Source& source);
 
   // Called when the Job detects that the endpoint indicated by the
   // Alternate-Protocol does not work. Lets the factory update
   // HttpAlternateProtocols with the failure and resets the SPDY session key.
   void OnBrokenAlternateProtocol(const Job*, const HostPortPair& origin);
+
+  // Invoked when an orphaned Job finishes.
+  void OnOrphanedJobComplete(const Job* job);
 
   // Invoked when the Job finishes preconnecting sockets.
   void OnPreconnectsComplete(const Job* job);
@@ -74,6 +84,13 @@ class HttpStreamFactoryImpl : public HttpStreamFactory {
   std::map<const Job*, Request*> request_map_;
 
   SpdySessionRequestMap spdy_session_request_map_;
+
+  // These jobs correspond to jobs orphaned by Requests and now owned by
+  // HttpStreamFactoryImpl. Since they are no longer tied to Requests, they will
+  // not be canceled when Requests are canceled. Therefore, in
+  // ~HttpStreamFactoryImpl, it is possible for some jobs to still exist in this
+  // set. Leftover jobs will be deleted when the factory is destroyed.
+  std::set<const Job*> orphaned_job_set_;
 
   // These jobs correspond to preconnect requests and have no associated Request
   // object. They're owned by HttpStreamFactoryImpl. Leftover jobs will be
