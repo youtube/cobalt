@@ -470,7 +470,7 @@ void MessagePumpForIO::DoRunLoop() {
 void MessagePumpForIO::WaitForWork() {
   // We do not support nested IO message loops. This is to avoid messy
   // recursion problems.
-  DCHECK(state_->run_depth == 1) << "Cannot nest an IO message loop!";
+  DCHECK_EQ(1, state_->run_depth) << "Cannot nest an IO message loop!";
 
   int timeout = GetCurrentDelay();
   if (timeout < 0)  // Negative value means no timers waiting.

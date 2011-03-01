@@ -211,7 +211,7 @@ void ScopedVariant::Set(SAFEARRAY* array) {
     var_.vt |= VT_ARRAY;
     var_.parray = array;
   } else {
-    DCHECK(array == NULL) << "Unable to determine safearray vartype";
+    DCHECK(!array) << "Unable to determine safearray vartype";
     var_.vt = VT_EMPTY;
   }
 }
