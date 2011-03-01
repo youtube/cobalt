@@ -65,7 +65,7 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     open_flags |= O_TRUNC;
   }
 
-  DCHECK(O_RDONLY == 0);
+  COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
 
   int descriptor = open(name.value().c_str(), open_flags, S_IRUSR | S_IWUSR);
 

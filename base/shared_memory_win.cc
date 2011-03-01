@@ -80,7 +80,7 @@ bool SharedMemory::CreateAnonymous(uint32 size) {
 
 bool SharedMemory::CreateNamed(const std::string& name,
                                bool open_existing, uint32 size) {
-  DCHECK(mapped_file_ == NULL);
+  DCHECK(!mapped_file_);
   if (size == 0)
     return false;
 
@@ -119,7 +119,7 @@ bool SharedMemory::Delete(const std::string& name) {
 }
 
 bool SharedMemory::Open(const std::string& name, bool read_only) {
-  DCHECK(mapped_file_ == NULL);
+  DCHECK(!mapped_file_);
 
   name_ = ASCIIToWide(name);
   read_only_ = read_only;
