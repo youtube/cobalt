@@ -91,6 +91,9 @@ class EnergyEndpointer {
     return estimating_environment_;
   }
 
+  // Returns estimated noise level in dB.
+  float GetNoiseLevelDb() const;
+
  private:
   class HistoryRing;
 
