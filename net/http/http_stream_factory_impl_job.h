@@ -57,6 +57,8 @@ class HttpStreamFactoryImpl::Job {
                                  const string16& password);
   LoadState GetLoadState() const;
 
+  void Orphan(const Request* request);
+
   bool was_alternate_protocol_available() const;
   bool was_npn_negotiated() const;
   bool using_spdy() const;
@@ -67,6 +69,9 @@ class HttpStreamFactoryImpl::Job {
 
   // Indicates whether or not this job is performing a preconnect.
   bool IsPreconnecting() const;
+
+  // Indicates whether or not this Job has been orphaned by a Request.
+  bool IsOrphaned() const;
 
  private:
   enum AlternateProtocolMode {
