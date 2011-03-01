@@ -22,7 +22,7 @@ BiDiLineIterator::~BiDiLineIterator() {
 bool BiDiLineIterator::Open(const string16& text,
                             bool right_to_left,
                             bool url) {
-  DCHECK(bidi_ == NULL);
+  DCHECK(!bidi_);
   UErrorCode error = U_ZERO_ERROR;
   bidi_ = ubidi_openSized(static_cast<int>(text.length()), 0, &error);
   if (U_FAILURE(error))

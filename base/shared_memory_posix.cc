@@ -99,7 +99,7 @@ bool SharedMemory::CreateAnonymous(uint32 size) {
 // of mem_filename after FilePathForMemoryName().
 bool SharedMemory::CreateNamed(const std::string& name,
                                bool open_existing, uint32 size) {
-  DCHECK(mapped_file_ == -1);
+  DCHECK_EQ(-1, mapped_file_);
   if (size == 0) return false;
 
   // This function theoretically can block on the disk, but realistically
@@ -245,7 +245,7 @@ void SharedMemory::Unlock() {
 }
 
 bool SharedMemory::PrepareMapFile(FILE *fp) {
-  DCHECK(mapped_file_ == -1);
+  DCHECK_EQ(-1, mapped_file_);
   if (fp == NULL) return false;
 
   // This function theoretically can block on the disk, but realistically
@@ -280,8 +280,8 @@ bool SharedMemory::FilePathForMemoryName(const std::string& mem_name,
                                          FilePath* path) {
   // mem_name will be used for a filename; make sure it doesn't
   // contain anything which will confuse us.
-  DCHECK(mem_name.find('/') == std::string::npos);
-  DCHECK(mem_name.find('\0') == std::string::npos);
+  DCHECK_EQ(std::string::npos, mem_name.find('/'));
+  DCHECK_EQ(std::string::npos, mem_name.find('\0'));
 
   FilePath temp_dir;
   if (!file_util::GetShmemTempDir(&temp_dir))

@@ -39,7 +39,7 @@ void ScopedBstr::Swap(ScopedBstr& bstr2) {
 }
 
 BSTR* ScopedBstr::Receive() {
-  DCHECK(bstr_ == NULL) << "BSTR leak.";
+  DCHECK(!bstr_) << "BSTR leak.";
   return &bstr_;
 }
 
