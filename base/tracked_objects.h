@@ -643,13 +643,10 @@ class AutoTracking {
 #ifndef NDEBUG
     if (state_ != kRunning)
       return;
-    // Don't call these in a Release build: they just waste time.
-    // The following should ONLY be called when in single threaded mode. It is
-    // unsafe to do this cleanup if other threads are still active.
-    // It is also very unnecessary, so I'm only doing this in debug to satisfy
-    // purify (if we need to!).
-    ThreadData::ShutdownSingleThreadedCleanup();
-    state_ = kTornDownAndStopped;
+    // We don't do cleanup of any sort in Release build because it is a
+    // complete waste of time.  Since Chromium doesn't join all its thread and
+    // guarantee we're in a single threaded mode, we don't even do cleanup in
+    // debug mode, as it will generate race-checker warnings.
 #endif
   }
 
