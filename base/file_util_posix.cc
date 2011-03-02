@@ -633,7 +633,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
   // The Windows version of this code appends the pattern to the root_path,
   // potentially only matching against items in the top-most directory.
   // Do the same here.
-  if (pattern.size() == 0)
+  if (pattern.empty())
     pattern_ = FilePath::StringType();
   pending_paths_.push(root_path);
 }

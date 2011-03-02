@@ -75,7 +75,7 @@ void MemEntryImpl::InternalDoom() {
           if (i->second != this)
             i->second->Doom();
         }
-        DCHECK(children_->size() == 0);
+        DCHECK(children_->empty());
       }
     } else {
       // If this is a child entry, detach it from the parent.

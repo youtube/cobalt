@@ -184,7 +184,7 @@ static X509Certificate::OSCertHandle CreateOSCert(base::StringPiece der_cert) {
 // static
 X509Certificate* X509Certificate::CreateFromDERCertChain(
     const std::vector<base::StringPiece>& der_certs) {
-  if (der_certs.size() == 0)
+  if (der_certs.empty())
     return NULL;
 
   X509Certificate::OSCertHandles intermediate_ca_certs;
