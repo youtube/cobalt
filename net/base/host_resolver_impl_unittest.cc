@@ -1657,6 +1657,43 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
   EXPECT_EQ("192.1.98.1", NetAddressToString(addrlist[3].head()));
 }
 
+TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
+  AddressList addrlist;
+  const int kPortnum = 80;
+
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
+  resolver_proc->AddRule("just.testing", "192.168.1.42");
+
+ scoped_ptr<HostResolver> host_resolver(
+      CreateHostResolverImpl(resolver_proc));
+
+ // First hit will miss the cache.
+  HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
+  info.set_only_use_cached_response(true);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
+
+  // This time, we fetch normally.
+  info.set_only_use_cached_response(false);
+  err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
+  EXPECT_EQ(OK, err);
+
+  // Now we should be able to fetch from the cache.
+  info.set_only_use_cached_response(true);
+  err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
+  EXPECT_EQ(OK, err);
+
+  const struct addrinfo* ainfo = addrlist.head();
+  EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
+  EXPECT_EQ(sizeof(struct sockaddr_in), ainfo->ai_addrlen);
+
+  const struct sockaddr* sa = ainfo->ai_addr;
+  const struct sockaddr_in* sa_in = reinterpret_cast<const sockaddr_in*>(sa);
+  EXPECT_EQ(htons(kPortnum), sa_in->sin_port);
+  EXPECT_EQ(htonl(0xc0a8012a), sa_in->sin_addr.s_addr);
+}
 // TODO(cbentzel): Test a mix of requests with different HostResolverFlags.
 
 }  // namespace
