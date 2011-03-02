@@ -71,7 +71,7 @@ const uint32 Histogram::kCrcTable[256] = {0x0, 0x77073096L, 0xee0e612cL,
 typedef Histogram::Count Count;
 
 // static
-const size_t Histogram::kBucketCount_MAX = 10000u;
+const size_t Histogram::kBucketCount_MAX = 16384u;
 
 scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
     Sample minimum, Sample maximum, size_t bucket_count, Flags flags) {
