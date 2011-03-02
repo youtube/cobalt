@@ -4,6 +4,7 @@
 
 #include "net/base/address_list.h"
 
+#include "base/scoped_ptr.h"
 #include "base/string_util.h"
 #include "net/base/host_resolver_proc.h"
 #include "net/base/net_util.h"
@@ -210,6 +211,46 @@ TEST(AddressListTest, IPLiteralConstructor) {
     EXPECT_EQ(good_ai->ai_next, test_ai->ai_next);
     EXPECT_EQ(strcmp(tests[i].canonical_ip_address.c_str(),
                      test_ai->ai_canonname), 0);
+  }
+}
+
+TEST(AddressListTest, AddressFromAddrInfo) {
+  struct TestData {
+    std::string ip_address;
+    std::string canonical_ip_address;
+    bool is_ipv6;
+  } tests[] = {
+    { "127.0.00.1", "127.0.0.1", false },
+    { "192.168.1.1", "192.168.1.1", false },
+    { "::1", "::1", true },
+    { "2001:db8:0::42", "2001:db8::42", true },
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); i++) {
+    net::AddressList expected_list;
+    int rv = CreateAddressList(tests[i].canonical_ip_address, 80,
+                               &expected_list);
+    if (tests[i].is_ipv6 && rv != 0) {
+      LOG(WARNING) << "Unable to resolve ip literal '" << tests[i].ip_address
+                   << "' test skipped.";
+      continue;
+    }
+    ASSERT_EQ(0, rv);
+    const struct addrinfo* good_ai = expected_list.head();
+
+    scoped_ptr<net::AddressList> test_list(
+        net::AddressList::CreateAddressListFromSockaddr(good_ai->ai_addr,
+                                                        good_ai->ai_addrlen,
+                                                        SOCK_STREAM,
+                                                        IPPROTO_TCP));
+    const struct addrinfo* test_ai = test_list->head();
+
+    EXPECT_EQ(good_ai->ai_family, test_ai->ai_family);
+    EXPECT_EQ(good_ai->ai_addrlen, test_ai->ai_addrlen);
+    size_t sockaddr_size =
+        good_ai->ai_socktype == AF_INET ? sizeof(struct sockaddr_in) :
+        good_ai->ai_socktype == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
+    EXPECT_EQ(memcmp(good_ai->ai_addr, test_ai->ai_addr, sockaddr_size), 0);
+    EXPECT_EQ(good_ai->ai_next, test_ai->ai_next);
   }
 }
 
