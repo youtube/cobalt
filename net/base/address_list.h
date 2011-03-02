@@ -74,6 +74,16 @@ class AddressList {
   // Get access to the head of the addrinfo list.
   const struct addrinfo* head() const;
 
+  // Constructs an address list for a single socket address.
+  // |address| the sockaddr to copy.
+  // |socket_type| is either SOCK_STREAM or SOCK_DGRAM.
+  // |protocol| is either IPPROTO_TCP or IPPROTO_UDP.
+  static AddressList* CreateAddressListFromSockaddr(
+      const struct sockaddr* address,
+      socklen_t address_length,
+      int socket_type,
+      int protocol);
+
  private:
   struct Data;
 
