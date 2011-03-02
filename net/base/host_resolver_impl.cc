@@ -161,6 +161,8 @@ class RequestInfoParameters : public NetLog::EventParameters {
     dict->SetInteger("address_family",
                      static_cast<int>(info_.address_family()));
     dict->SetBoolean("allow_cached_response", info_.allow_cached_response());
+    dict->SetBoolean("only_use_cached_response",
+                     info_.only_use_cached_response());
     dict->SetBoolean("is_speculative", info_.is_speculative());
     dict->SetInteger("priority", info_.priority());
 
@@ -1026,6 +1028,16 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
 
       return net_error;
     }
+  }
+
+  if (info.only_use_cached_response()) {  // Not allowed to do a real lookup.
+    OnFinishRequest(source_net_log,
+                    request_net_log,
+                    request_id,
+                    info,
+                    ERR_NAME_NOT_RESOLVED,
+                    0);
+    return ERR_NAME_NOT_RESOLVED;
   }
 
   // If no callback was specified, do a synchronous resolution.
