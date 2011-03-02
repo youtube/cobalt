@@ -85,6 +85,8 @@ HttpAuthCache::Entry* HttpAuthCache::Lookup(const GURL& origin,
 // kept small because AddPath() only keeps the shallowest entry.
 HttpAuthCache::Entry* HttpAuthCache::LookupByPath(const GURL& origin,
                                                   const std::string& path) {
+  HttpAuthCache::Entry* best_match = NULL;
+  size_t best_match_length = 0;
   CheckOriginIsValid(origin);
   CheckPathIsValid(path);
 
@@ -96,10 +98,14 @@ HttpAuthCache::Entry* HttpAuthCache::LookupByPath(const GURL& origin,
 
   // Linear scan through the realm entries.
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
-    if (it->origin() == origin && it->HasEnclosingPath(parent_dir))
-      return &(*it);
+    size_t len = 0;
+    if (it->origin() == origin && it->HasEnclosingPath(parent_dir, &len) &&
+        (!best_match || len > best_match_length)) {
+      best_match_length = len;
+      best_match = &(*it);
+    }
   }
-  return NULL;  // No entry found.
+  return best_match;
 }
 
 HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
@@ -156,7 +162,7 @@ HttpAuthCache::Entry::Entry()
 
 void HttpAuthCache::Entry::AddPath(const std::string& path) {
   std::string parent_dir = GetParentDirectory(path);
-  if (!HasEnclosingPath(parent_dir)) {
+  if (!HasEnclosingPath(parent_dir, NULL)) {
     // Remove any entries that have been subsumed by the new entry.
     paths_.remove_if(IsEnclosedBy(parent_dir));
 
@@ -172,12 +178,20 @@ void HttpAuthCache::Entry::AddPath(const std::string& path) {
   }
 }
 
-bool HttpAuthCache::Entry::HasEnclosingPath(const std::string& dir) {
+bool HttpAuthCache::Entry::HasEnclosingPath(const std::string& dir,
+                                            size_t* path_len) {
   DCHECK(GetParentDirectory(dir) == dir);
   for (PathList::const_iterator it = paths_.begin(); it != paths_.end();
        ++it) {
-    if (IsEnclosingPath(*it, dir))
+    if (IsEnclosingPath(*it, dir)) {
+      // No element of paths_ may enclose any other element.
+      // Therefore this path is the tightest bound.  Important because
+      // the length returned is used to determine the cache entry that
+      // has the closest enclosing path in LookupByPath().
+      if (path_len)
+        *path_len = it->length();
       return true;
+    }
   }
   return false;
 }
