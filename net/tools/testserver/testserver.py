@@ -281,8 +281,6 @@ class TestPageHandler(BasePageHandler):
       self.EchoHeaderOverride,
       self.EchoAllHandler,
       self.FileHandler,
-      self.RealFileWithCommonHeaderHandler,
-      self.RealBZ2FileWithCommonHeaderHandler,
       self.SetCookieHandler,
       self.AuthBasicHandler,
       self.AuthDigestHandler,
@@ -826,78 +824,6 @@ class TestPageHandler(BasePageHandler):
     self.end_headers()
 
     self.wfile.write(data)
-
-    return True
-
-  def RealFileWithCommonHeaderHandler(self):
-    """This handler sends the contents of the requested file without the pseudo
-    http head!"""
-
-    prefix='/realfiles/'
-    if not self.path.startswith(prefix):
-      return False
-
-    file = self.path[len(prefix):]
-    path = os.path.join(self.server.data_dir, file)
-
-    try:
-      f = open(path, "rb")
-      data = f.read()
-      f.close()
-
-      # just simply set the MIME as octal stream
-      self.send_response(200)
-      self.send_header('Content-type', 'application/octet-stream')
-      self.end_headers()
-
-      self.wfile.write(data)
-    except:
-      self.send_error(404)
-
-    return True
-
-  def RealBZ2FileWithCommonHeaderHandler(self):
-    """This handler sends the bzip2 contents of the requested file with
-     corresponding Content-Encoding field in http head!"""
-
-    prefix='/realbz2files/'
-    if not self.path.startswith(prefix):
-      return False
-
-    parts = self.path.split('?')
-    file = parts[0][len(prefix):]
-    path = os.path.join(self.server.data_dir, file) + '.bz2'
-
-    if len(parts) > 1:
-      options = parts[1]
-    else:
-      options = ''
-
-    try:
-      self.send_response(200)
-      accept_encoding = self.headers.get("Accept-Encoding")
-      if accept_encoding.find("bzip2") != -1:
-        f = open(path, "rb")
-        data = f.read()
-        f.close()
-        self.send_header('Content-Encoding', 'bzip2')
-        self.send_header('Content-type', 'application/x-bzip2')
-        self.end_headers()
-        if options == 'incremental-header':
-          self.wfile.write(data[:1])
-          self.wfile.flush()
-          time.sleep(1.0)
-          self.wfile.write(data[1:])
-        else:
-          self.wfile.write(data)
-      else:
-        """client do not support bzip2 format, send pseudo content
-        """
-        self.send_header('Content-type', 'text/html; charset=ISO-8859-1')
-        self.end_headers()
-        self.wfile.write("you do not support bzip2 encoding")
-    except:
-      self.send_error(404)
 
     return True
 
