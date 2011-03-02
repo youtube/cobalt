@@ -111,6 +111,7 @@ PartialData::PartialData()
       final_range_(false),
       sparse_entry_(true),
       truncated_(false),
+      initial_validation_(false),
       core_(NULL),
       callback_(NULL) {
 }
@@ -153,7 +154,7 @@ void PartialData::RestoreHeaders(HttpRequestHeaders* headers) const {
               byte_range_.suffix_length() : byte_range_.last_byte_position();
 
   headers->CopyFrom(extra_headers_);
-  if (byte_range_.IsValid())
+  if (!truncated_ && byte_range_.IsValid())
     AddRangeHeader(current_range_start_, end, headers);
 }
 
@@ -178,13 +179,7 @@ int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
       callback_ = callback;
       return ERR_IO_PENDING;
     }
-  } else if (truncated_) {
-    if (!current_range_start_) {
-      // Update the cached range only the first time.
-      cached_min_len_ = static_cast<int32>(byte_range_.first_byte_position());
-      cached_start_ = 0;
-    }
-  } else {
+  } else if (!truncated_) {
     if (byte_range_.HasFirstBytePosition() &&
         byte_range_.first_byte_position() >= resource_size_) {
       // The caller should take care of this condition because we should have
@@ -259,10 +254,14 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
       return false;
 
     truncated_ = true;
+    initial_validation_ = true;
     sparse_entry_ = false;
-    byte_range_.set_first_byte_position(entry->GetDataSize(kDataStream));
+    int current_len = entry->GetDataSize(kDataStream);
+    byte_range_.set_first_byte_position(current_len);
     resource_size_ = total_length;
-    current_range_start_ = 0;
+    current_range_start_ = current_len;
+    cached_min_len_ = current_len;
+    cached_start_ = current_len + 1;
     return true;
   }
 
@@ -284,12 +283,20 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
   return entry->CouldBeSparse();
 }
 
+void PartialData::SetRangeToStartDownload() {
+  DCHECK(truncated_);
+  DCHECK(!sparse_entry_);
+  current_range_start_ = 0;
+  cached_start_ = 0;
+  initial_validation_ = false;
+}
+
 bool PartialData::IsRequestedRangeOK() {
   if (byte_range_.IsValid()) {
-    if (truncated_)
-      return true;
     if (!byte_range_.ComputeBounds(resource_size_))
       return false;
+    if (truncated_)
+      return true;
 
     if (current_range_start_ < 0)
       current_range_start_ = byte_range_.first_byte_position();

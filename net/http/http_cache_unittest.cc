@@ -885,9 +885,15 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
   std::string range_header;
   if (!request->extra_headers.GetHeader(
           net::HttpRequestHeaders::kRange, &range_header) ||
-      !net::HttpUtil::ParseRangeHeader(range_header, &ranges) ||
-      ranges.size() != 1)
+      !net::HttpUtil::ParseRangeHeader(range_header, &ranges) || bad_200_ ||
+      ranges.size() != 1) {
+    // This is not a byte range request. We return 200.
+    response_status->assign("HTTP/1.1 200 OK");
+    response_headers->assign("Date: Wed, 28 Nov 2007 09:40:09 GMT");
+    response_data->assign("Not a range");
     return;
+  }
+
   // We can handle this range request.
   net::HttpByteRange byte_range = ranges[0];
   if (byte_range.first_byte_position() > 79) {
@@ -907,26 +913,26 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
   response_headers->append(content_range);
 
   if (!request->extra_headers.HasHeader("If-None-Match") || modified_) {
-    EXPECT_EQ(9, (end - start) % 10);
     std::string data;
-    for (int block_start = start; block_start < end; block_start += 10) {
-      base::StringAppendF(&data, "rg: %02d-%02d ",
-                          block_start, block_start + 9);
+    if (end == start) {
+      EXPECT_EQ(0, end % 10);
+      data = "r";
+    } else {
+      EXPECT_EQ(9, (end - start) % 10);
+      for (int block_start = start; block_start < end; block_start += 10) {
+        base::StringAppendF(&data, "rg: %02d-%02d ",
+                            block_start, block_start + 9);
+      }
     }
     *response_data = data;
 
     if (end - start != 9) {
       // We also have to fix content-length.
       int len = end - start + 1;
-      EXPECT_EQ(0, len % 10);
       std::string content_length = base::StringPrintf("Content-Length: %d\n",
                                                       len);
       response_headers->replace(response_headers->find("Content-Length:"),
                                 content_length.size(), content_length);
-    }
-    if (bad_200_) {
-      // We return a range, but with a response code of 200.
-      response_status->assign("HTTP/1.1 200 Success");
     }
   } else {
     response_status->assign("HTTP/1.1 304 Not Modified");
@@ -972,6 +978,32 @@ void Verify206Response(std::string response, int start, int end) {
   ASSERT_EQ(length, content_length);
   ASSERT_EQ(start, range_start);
   ASSERT_EQ(end, range_end);
+}
+
+// Creates a truncated entry that can be resumed using byte ranges.
+void CreateTruncatedEntry(std::string raw_headers, MockHttpCache* cache) {
+  // Create a disk cache entry that stores an incomplete resource.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache->CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
+                                        NULL));
+
+  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
+                                                  raw_headers.size());
+
+  net::HttpResponseInfo response;
+  response.response_time = base::Time::Now();
+  response.request_time = base::Time::Now();
+  response.headers = new net::HttpResponseHeaders(raw_headers);
+  // Set the last argument for this to be an incomplete request.
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
+
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
+  int len = static_cast<int>(base::strlcpy(buf->data(),
+                                           "rg: 00-09 rg: 10-19 ", 100));
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  EXPECT_EQ(len, cb.GetResult(rv));
+  entry->Close();
 }
 
 // Helper to represent a network HTTP response.
@@ -3291,12 +3323,12 @@ TEST(HttpCache, GET_Previous206_NewContent) {
   MockTransaction transaction2(kRangeGET_TransactionOK);
   transaction2.request_headers = EXTRA_HEADER;
   transaction2.load_flags |= net::LOAD_VALIDATE_CACHE;
-  transaction2.data = "rg: 40-49 ";
+  transaction2.data = "Not a range";
   RangeTransactionServer handler;
   handler.set_modified(true);
   RunTransactionTestWithResponse(cache.http_cache(), transaction2, &headers);
 
-  EXPECT_EQ(0U, headers.find("HTTP/1.1 206 Partial Content\n"));
+  EXPECT_EQ(0U, headers.find("HTTP/1.1 200 OK\n"));
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -3865,6 +3897,7 @@ TEST(HttpCache, RangeGET_FastFlakyServer) {
   // And now read from the cache and the network.
   RangeTransactionServer handler;
   handler.set_bad_200(true);
+  transaction.data = "Not a range";
   RunTransactionTest(cache.http_cache(), transaction);
 
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
@@ -4180,30 +4213,12 @@ TEST(HttpCache, GET_IncompleteResource) {
   MockHttpCache cache;
   AddMockTransaction(&kRangeGET_TransactionOK);
 
-  // Create a disk cache entry that stores an incomplete resource.
-  disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
-
   std::string raw_headers("HTTP/1.1 200 OK\n"
                           "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
                           "ETag: \"foo\"\n"
                           "Accept-Ranges: bytes\n"
                           "Content-Length: 80\n");
-  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
-                                                  raw_headers.size());
-
-  net::HttpResponseInfo response;
-  response.headers = new net::HttpResponseHeaders(raw_headers);
-  // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
-
-  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
-  int len = static_cast<int>(base::strlcpy(buf->data(),
-                                           "rg: 00-09 rg: 10-19 ", 100));
-  TestCompletionCallback cb;
-  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
-  EXPECT_EQ(len, cb.GetResult(rv));
+  CreateTruncatedEntry(raw_headers, &cache);
 
   // Now make a regular request.
   std::string headers;
@@ -4226,14 +4241,17 @@ TEST(HttpCache, GET_IncompleteResource) {
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
-  RemoveMockTransaction(&kRangeGET_TransactionOK);
-
   // Verify that the disk entry was updated.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
   EXPECT_EQ(80, entry->GetDataSize(1));
   bool truncated = true;
+  net::HttpResponseInfo response;
   EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_FALSE(truncated);
   entry->Close();
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
 // Tests that we delete truncated entries if the server changes its mind midway.
@@ -4241,58 +4259,110 @@ TEST(HttpCache, GET_IncompleteResource2) {
   MockHttpCache cache;
   AddMockTransaction(&kRangeGET_TransactionOK);
 
-  // Create a disk cache entry that stores an incomplete resource.
-  disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
-
-
   // Content-length will be intentionally bad.
   std::string raw_headers("HTTP/1.1 200 OK\n"
                           "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
                           "ETag: \"foo\"\n"
                           "Accept-Ranges: bytes\n"
                           "Content-Length: 50\n");
-  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
-                                                  raw_headers.size());
+  CreateTruncatedEntry(raw_headers, &cache);
 
-  net::HttpResponseInfo response;
-  response.headers = new net::HttpResponseHeaders(raw_headers);
-  // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
-
-  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
-  int len = static_cast<int>(base::strlcpy(buf->data(),
-                                           "rg: 00-09 rg: 10-19 ", 100));
-  TestCompletionCallback cb;
-  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
-  EXPECT_EQ(len, cb.GetResult(rv));
-  entry->Close();
-
-  // Now make a regular request.
+  // Now make a regular request. We expect the code to fail the validation and
+  // retry the request without using byte ranges.
   std::string headers;
   MockTransaction transaction(kRangeGET_TransactionOK);
   transaction.request_headers = EXTRA_HEADER;
-  transaction.data = "rg: 00-09 rg: 10-19 ";
+  transaction.data = "Not a range";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  // We update the headers with the ones received while revalidating.
+  // The server will return 200 instead of a byte range.
   std::string expected_headers(
       "HTTP/1.1 200 OK\n"
-      "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
-      "Accept-Ranges: bytes\n"
-      "ETag: \"foo\"\n"
-      "Content-Length: 50\n");
+      "Date: Wed, 28 Nov 2007 09:40:09 GMT\n");
 
   EXPECT_EQ(expected_headers, headers);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
-  RemoveMockTransaction(&kRangeGET_TransactionOK);
-
   // Verify that the disk entry was deleted.
+  disk_cache::Entry* entry;
   ASSERT_FALSE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that we always validate a truncated request.
+TEST(HttpCache, GET_IncompleteResource3) {
+  MockHttpCache cache;
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  // This should not require validation for 10 hours.
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+                          "ETag: \"foo\"\n"
+                          "Cache-Control: max-age= 36000\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 80\n");
+  CreateTruncatedEntry(raw_headers, &cache);
+
+  // Now make a regular request.
+  std::string headers;
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = EXTRA_HEADER;
+  transaction.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
+                     "rg: 50-59 rg: 60-69 rg: 70-79 ";
+
+  scoped_ptr<Context> c(new Context);
+  EXPECT_EQ(net::OK, cache.http_cache()->CreateTransaction(&c->trans));
+
+  MockHttpRequest request(transaction);
+  int rv = c->trans->Start(&request, &c->callback, net::BoundNetLog());
+  EXPECT_EQ(net::OK, c->callback.GetResult(rv));
+
+  // We should have checked with the server before finishing Start().
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that we cache a 200 response to the validation request.
+TEST(HttpCache, GET_IncompleteResource4) {
+  MockHttpCache cache;
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+                          "ETag: \"foo\"\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 80\n");
+  CreateTruncatedEntry(raw_headers, &cache);
+
+  // Now make a regular request.
+  std::string headers;
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = EXTRA_HEADER;
+  transaction.data = "Not a range";
+  RangeTransactionServer handler;
+  handler.set_bad_200(true);
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Verify that the disk entry was updated.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
+  EXPECT_EQ(11, entry->GetDataSize(1));
+  bool truncated = true;
+  net::HttpResponseInfo response;
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_FALSE(truncated);
+  entry->Close();
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
 // Tests that when we cancel a request that was interrupted, we mark it again
@@ -4301,31 +4371,12 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
   MockHttpCache cache;
   AddMockTransaction(&kRangeGET_TransactionOK);
 
-  // Create a disk cache entry that stores an incomplete resource.
-  disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
-
   std::string raw_headers("HTTP/1.1 200 OK\n"
                           "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
                           "ETag: \"foo\"\n"
                           "Accept-Ranges: bytes\n"
                           "Content-Length: 80\n");
-  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
-                                                  raw_headers.size());
-
-  net::HttpResponseInfo response;
-  response.headers = new net::HttpResponseHeaders(raw_headers);
-
-  // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
-
-  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(100));
-  int len = static_cast<int>(base::strlcpy(buf->data(), "rg: 00-09 rg: 10-19 ",
-                                           buf->size()));
-  TestCompletionCallback cb;
-  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
-  EXPECT_EQ(len, cb.GetResult(rv));
+  CreateTruncatedEntry(raw_headers, &cache);
 
   // Now make a regular request.
   MockTransaction transaction(kRangeGET_TransactionOK);
@@ -4335,12 +4386,13 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
   Context* c = new Context();
   EXPECT_EQ(net::OK, cache.http_cache()->CreateTransaction(&c->trans));
 
-  rv = c->trans->Start(&request, &c->callback, net::BoundNetLog());
+  int rv = c->trans->Start(&request, &c->callback, net::BoundNetLog());
   EXPECT_EQ(net::OK, c->callback.GetResult(rv));
 
   // Read 20 bytes from the cache, and 10 from the net.
-  rv = c->trans->Read(buf, len, &c->callback);
-  EXPECT_EQ(len, c->callback.GetResult(rv));
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
+  rv = c->trans->Read(buf, 20, &c->callback);
+  EXPECT_EQ(20, c->callback.GetResult(rv));
   rv = c->trans->Read(buf, 10, &c->callback);
   EXPECT_EQ(10, c->callback.GetResult(rv));
 
@@ -4348,18 +4400,20 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
   // a truncated one.
   delete c;
 
-  RemoveMockTransaction(&kRangeGET_TransactionOK);
-
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   // Verify that the disk entry was updated: now we have 30 bytes.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
   EXPECT_EQ(30, entry->GetDataSize(1));
   bool truncated = false;
+  net::HttpResponseInfo response;
   EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_TRUE(truncated);
   entry->Close();
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
 // Tests that we can handle range requests when we have a truncated entry.
@@ -4367,32 +4421,13 @@ TEST(HttpCache, RangeGET_IncompleteResource) {
   MockHttpCache cache;
   AddMockTransaction(&kRangeGET_TransactionOK);
 
-  // Create a disk cache entry that stores an incomplete resource.
-  disk_cache::Entry* entry;
-  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry,
-                                       NULL));
-
   // Content-length will be intentionally bogus.
   std::string raw_headers("HTTP/1.1 200 OK\n"
                           "Last-Modified: something\n"
                           "ETag: \"foo\"\n"
                           "Accept-Ranges: bytes\n"
                           "Content-Length: 10\n");
-  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
-                                                  raw_headers.size());
-
-  net::HttpResponseInfo response;
-  response.headers = new net::HttpResponseHeaders(raw_headers);
-  // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
-
-  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
-  int len = static_cast<int>(base::strlcpy(buf->data(),
-                                           "rg: 00-09 rg: 10-19 ", 100));
-  TestCompletionCallback cb;
-  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
-  EXPECT_EQ(len, cb.GetResult(rv));
-  entry->Close();
+  CreateTruncatedEntry(raw_headers, &cache);
 
   // Now make a range request.
   std::string headers;

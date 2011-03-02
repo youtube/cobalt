@@ -75,6 +75,9 @@ class PartialData {
   bool UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
                                disk_cache::Entry* entry, bool truncated);
 
+  // Sets the byte current range to start again at zero (for a truncated entry).
+  void SetRangeToStartDownload();
+
   // Returns true if the requested range is valid given the stored data.
   bool IsRequestedRangeOK();
 
@@ -110,6 +113,8 @@ class PartialData {
   // update the internal state about the current range.
   void OnNetworkReadCompleted(int result);
 
+  bool initial_validation() const { return initial_validation_; }
+
  private:
   class Core;
   // Returns the length to use when scanning the cache.
@@ -129,6 +134,7 @@ class PartialData {
   bool final_range_;
   bool sparse_entry_;
   bool truncated_;  // We have an incomplete 200 stored.
+  bool initial_validation_;  // Only used for truncated entries.
   Core* core_;
   CompletionCallback* callback_;
 
