@@ -106,13 +106,13 @@ NormalizeResult NormalizeRule(std::string* domain, Rule* rule) {
   // Strip single leading and trailing dots.
   if (domain->at(0) == '.')
     domain->erase(0, 1);
-  if (domain->size() == 0) {
+  if (domain->empty()) {
     LOG(WARNING) << "Ignoring empty rule";
     return kWarning;
   }
   if (domain->at(domain->size() - 1) == '.')
     domain->erase(domain->size() - 1, 1);
-  if (domain->size() == 0) {
+  if (domain->empty()) {
     LOG(WARNING) << "Ignoring empty rule";
     return kWarning;
   }
@@ -126,7 +126,7 @@ NormalizeResult NormalizeRule(std::string* domain, Rule* rule) {
     domain->erase(0, 2);
     rule->wildcard = true;
   }
-  if (domain->size() == 0) {
+  if (domain->empty()) {
     LOG(WARNING) << "Ignoring empty rule";
     return kWarning;
   }

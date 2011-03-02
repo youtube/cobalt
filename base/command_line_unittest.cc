@@ -109,7 +109,7 @@ TEST(CommandLineTest, EmptyString) {
   EXPECT_TRUE(cl.GetProgram().empty());
 #elif defined(OS_POSIX)
   CommandLine cl(0, NULL);
-  EXPECT_TRUE(cl.argv().size() == 0);
+  EXPECT_EQ(0U, cl.argv().size());
 #endif
   EXPECT_EQ(0U, cl.args().size());
 }
