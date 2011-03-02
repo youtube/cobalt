@@ -426,6 +426,7 @@
               'type': 'none',
               'dependencies': [
                 '../chrome/app/locales/locales.gyp:*',
+                '../chrome/chrome.gyp:chromedriver',
                 '../chrome/chrome.gyp:crash_service',
                 '../chrome/chrome.gyp:page_cycler_tests',
                 '../chrome/chrome.gyp:policy_templates',
