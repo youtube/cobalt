@@ -45,5 +45,12 @@ int UDPClientSocket::GetLocalAddress(AddressList* address) const {
   return socket_.GetLocalAddress(address);
 }
 
+bool UDPClientSocket::SetReceiveBufferSize(int32 size) {
+  return true;
+}
+
+bool UDPClientSocket::SetSendBufferSize(int32 size) {
+  return true;
+}
 
 }  // namespace net

@@ -28,8 +28,8 @@ class UDPClientSocket : public DatagramClientSocket {
   virtual void Close();
   virtual int GetPeerAddress(AddressList* address) const;
   virtual int GetLocalAddress(AddressList* address) const;
-  virtual bool SetReceiveBufferSize(int32 size) { return true; }
-  virtual bool SetSendBufferSize(int32 size) { return true; }
+  virtual bool SetReceiveBufferSize(int32 size);
+  virtual bool SetSendBufferSize(int32 size);
 
  private:
   UDPSocket socket_;
