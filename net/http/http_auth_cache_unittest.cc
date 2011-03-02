@@ -58,6 +58,7 @@ const char* kRealm1 = "Realm1";
 const char* kRealm2 = "Realm2";
 const char* kRealm3 = "Realm3";
 const char* kRealm4 = "Realm4";
+const char* kRealm5 = "Realm5";
 const string16 k123(ASCIIToUTF16("123"));
 const string16 k1234(ASCIIToUTF16("1234"));
 const string16 kAdmin(ASCIIToUTF16("admin"));
@@ -76,7 +77,8 @@ TEST(HttpAuthCacheTest, Basic) {
   HttpAuthCache cache;
   HttpAuthCache::Entry* entry;
 
-  // Add cache entries for 3 realms: "Realm1", "Realm2", "Realm3"
+  // Add cache entries for 4 realms: "Realm1", "Realm2", "Realm3" and
+  // "Realm4"
 
   scoped_ptr<HttpAuthHandler> realm1_handler(
       new MockAuthHandler(HttpAuth::AUTH_SCHEME_BASIC,
@@ -112,8 +114,17 @@ TEST(HttpAuthCacheTest, Basic) {
             ASCIIToUTF16("realm3-digest-user"),
             ASCIIToUTF16("realm3-digest-password"), "/baz/index.html");
 
-  // There is no Realm4
-  entry = cache.Lookup(origin, kRealm4, HttpAuth::AUTH_SCHEME_BASIC);
+  scoped_ptr<HttpAuthHandler> realm4_basic_handler(
+      new MockAuthHandler(HttpAuth::AUTH_SCHEME_BASIC,
+                          kRealm4,
+                          HttpAuth::AUTH_SERVER));
+  cache.Add(origin, realm4_basic_handler->realm(),
+            realm4_basic_handler->auth_scheme(), "Basic realm=Realm4",
+            ASCIIToUTF16("realm4-basic-user"),
+            ASCIIToUTF16("realm4-basic-password"), "/");
+
+  // There is no Realm5
+  entry = cache.Lookup(origin, kRealm5, HttpAuth::AUTH_SCHEME_BASIC);
   EXPECT_TRUE(NULL == entry);
 
   // While Realm3 does exist, the origin scheme is wrong.
@@ -159,7 +170,12 @@ TEST(HttpAuthCacheTest, Basic) {
   // Check that subpaths are recognized.
   HttpAuthCache::Entry* realm2_entry = cache.Lookup(
       origin, kRealm2, HttpAuth::AUTH_SCHEME_BASIC);
+  HttpAuthCache::Entry* realm4_entry = cache.Lookup(
+      origin, kRealm4, HttpAuth::AUTH_SCHEME_BASIC);
   EXPECT_FALSE(NULL == realm2_entry);
+  EXPECT_FALSE(NULL == realm4_entry);
+  // Realm4 applies to '/' and Realm2 applies to '/foo2/'.
+  // LookupByPath() should return the closest enclosing path.
   // Positive tests:
   entry = cache.LookupByPath(origin, "/foo2/index.html");
   EXPECT_TRUE(realm2_entry == entry);
@@ -169,15 +185,15 @@ TEST(HttpAuthCacheTest, Basic) {
   EXPECT_TRUE(realm2_entry == entry);
   entry = cache.LookupByPath(origin, "/foo2/");
   EXPECT_TRUE(realm2_entry == entry);
+  entry = cache.LookupByPath(origin, "/foo2");
+  EXPECT_TRUE(realm4_entry == entry);
+  entry = cache.LookupByPath(origin, "/");
+  EXPECT_TRUE(realm4_entry == entry);
 
   // Negative tests:
-  entry = cache.LookupByPath(origin, "/foo2");
-  EXPECT_FALSE(realm2_entry == entry);
   entry = cache.LookupByPath(origin, "/foo3/index.html");
   EXPECT_FALSE(realm2_entry == entry);
   entry = cache.LookupByPath(origin, "");
-  EXPECT_FALSE(realm2_entry == entry);
-  entry = cache.LookupByPath(origin, "/");
   EXPECT_FALSE(realm2_entry == entry);
 
   // Confirm we find the same realm, different auth scheme by path lookup
@@ -303,9 +319,9 @@ TEST(HttpAuthCacheTest, Remove) {
             realm3_digest_handler->auth_scheme(), "digest realm=Realm3",
             kRoot, kWileCoyote, "/");
 
-  // Fails, because there is no realm "Realm4".
+  // Fails, because there is no realm "Realm5".
   EXPECT_FALSE(cache.Remove(
-      origin, kRealm4, HttpAuth::AUTH_SCHEME_BASIC, kAlice, k123));
+      origin, kRealm5, HttpAuth::AUTH_SCHEME_BASIC, kAlice, k123));
 
   // Fails because the origin is wrong.
   EXPECT_FALSE(cache.Remove(GURL("http://foobar2.com:100"),
