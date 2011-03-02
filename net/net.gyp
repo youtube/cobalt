@@ -1427,6 +1427,29 @@
         },
       ],
     }],
+    ['OS=="linux"', {
+      'targets': [
+        {
+          'target_name': 'udp_socket_unittest',
+          'type': 'executable',
+          'dependencies': [
+            'net',
+            'net_test_support',
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../testing/gmock.gyp:gmock',
+            '../testing/gtest.gyp:gtest',
+            '../third_party/zlib/zlib.gyp:zlib',
+          ],
+          'sources': [
+            'udp/udp_client_socket.cc',
+            'udp/udp_server_socket.cc',
+            'udp/udp_socket_libevent.cc',
+            'udp/udp_socket_unittest.cc',
+          ]
+        },
+      ],
+    }],
     ['OS=="win"', {
       'targets': [
         {
