@@ -15,6 +15,7 @@ HostResolver::RequestInfo::RequestInfo(const HostPortPair& host_port_pair)
       address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       host_resolver_flags_(0),
       allow_cached_response_(true),
+      only_use_cached_response_(false),
       is_speculative_(false),
       priority_(MEDIUM) {
 }
