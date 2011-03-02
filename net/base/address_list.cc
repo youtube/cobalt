@@ -219,10 +219,54 @@ void AddressList::Reset() {
 }
 
 const struct addrinfo* AddressList::head() const {
+  if (!data_)
+    return NULL;
   return data_->head;
 }
 
 AddressList::AddressList(Data* data) : data_(data) {}
+
+// static
+AddressList* AddressList::CreateAddressListFromSockaddr(
+    const struct sockaddr* address,
+    socklen_t address_length,
+    int socket_type,
+    int protocol) {
+  // Do sanity checking on socket_type and protocol.
+  DCHECK(socket_type == SOCK_DGRAM || socket_type == SOCK_STREAM);
+  DCHECK(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP);
+
+  struct addrinfo* ai = new addrinfo;
+  memset(ai, 0, sizeof(addrinfo));
+  switch (address_length) {
+    case sizeof(struct sockaddr_in):
+      {
+        const struct sockaddr_in* sin =
+            reinterpret_cast<const struct sockaddr_in*>(address);
+        ai->ai_family = sin->sin_family;
+        DCHECK_EQ(AF_INET, ai->ai_family);
+      }
+      break;
+    case sizeof(struct sockaddr_in6):
+      {
+        const struct sockaddr_in6* sin6 =
+            reinterpret_cast<const struct sockaddr_in6*>(address);
+        ai->ai_family = sin6->sin6_family;
+        DCHECK_EQ(AF_INET6, ai->ai_family);
+      }
+      break;
+    default:
+      NOTREACHED() << "Bad IP address";
+      break;
+  }
+  ai->ai_socktype = socket_type;
+  ai->ai_protocol = protocol;
+  ai->ai_addrlen = address_length;
+  ai->ai_addr = reinterpret_cast<struct sockaddr*>(new char[address_length]);
+  memcpy(ai->ai_addr, address, address_length);
+  return new AddressList(new Data(ai, false /*is_system_created*/));
+}
+
 
 AddressList::Data::Data(struct addrinfo* ai, bool is_system_created)
     : head(ai), is_system_created(is_system_created) {
