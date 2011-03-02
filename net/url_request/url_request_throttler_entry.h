@@ -80,6 +80,7 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   virtual void UpdateWithResponse(
       const URLRequestThrottlerHeaderInterface* response);
   virtual void ReceivedContentWasMalformed();
+  virtual void SetEntryLifetimeMsForTest(int lifetime_ms);
 
  protected:
   virtual ~URLRequestThrottlerEntry();
@@ -147,7 +148,7 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   const double jitter_factor_;
   const int maximum_backoff_ms_;
   // Set to -1 if the entry never expires.
-  const int entry_lifetime_ms_;
+  int entry_lifetime_ms_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerEntry);
 };
