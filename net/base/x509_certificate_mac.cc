@@ -544,7 +544,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
     cssm_subject_names.push_back(cssm_subject_name);
   }
 
-  if (cssm_subject_names.size() == 0) {
+  if (cssm_subject_names.empty()) {
     DLOG(ERROR) << "cssm_subject_names.size() == 0. Input: " << subject;
     return NULL;
   }
