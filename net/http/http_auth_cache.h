@@ -160,8 +160,11 @@ class HttpAuthCache::Entry {
   // already contained in the protection space, is a no-op.
   void AddPath(const std::string& path);
 
-  // Returns true if |dir| is contained within the realm's protection space.
-  bool HasEnclosingPath(const std::string& dir);
+  // Returns true if |dir| is contained within the realm's protection
+  // space.  |*path_len| is set to the length of the enclosing path if
+  // such a path exists and |path_len| is non-NULL.  If no enclosing
+  // path is found, |path_len| is left unmodified.
+  bool HasEnclosingPath(const std::string& dir, size_t* path_len);
 
   // |origin_| contains the {protocol, host, port} of the server.
   GURL origin_;
