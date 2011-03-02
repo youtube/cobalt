@@ -631,6 +631,13 @@ MessagePumpNSApplication::MessagePumpNSApplication()
 void MessagePumpNSApplication::DoRun(Delegate* delegate) {
   bool last_running_own_loop_ = running_own_loop_;
 
+  // NSApp must be initialized by calling:
+  // [{some class which implements CrAppProtocol} sharedApplication]
+  // Most likely candidates are CrApplication or BrowserCrApplication.
+  // These can be initialized from C++ code by calling
+  // RegisterCrApp() or RegisterBrowserCrApp().
+  CHECK(NSApp);
+
   if (![NSApp isRunning]) {
     running_own_loop_ = false;
     // NSApplication manages autorelease pools itself when run this way.
