@@ -50,6 +50,9 @@ class URLRequestThrottlerEntryInterface
   // the request, i.e. it will count as a failure.
   virtual void ReceivedContentWasMalformed() = 0;
 
+  // For unit testing only.
+  virtual void SetEntryLifetimeMsForTest(int lifetime_ms) = 0;
+
  protected:
   friend class base::RefCountedThreadSafe<URLRequestThrottlerEntryInterface>;
   virtual ~URLRequestThrottlerEntryInterface() {}

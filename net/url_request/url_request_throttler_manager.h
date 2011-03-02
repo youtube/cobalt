@@ -118,9 +118,19 @@ class URLRequestThrottlerManager {
   // Number of requests that will be made between garbage collection.
   static const unsigned int kRequestsBetweenCollecting;
 
+  // Constructor copies the string "MAGICZZ\0" into this buffer; using it
+  // to try to detect memory overwrites affecting url_entries_ in the wild.
+  // TODO(joi): Remove once crbug.com/71721 is figured out.
+  char magic_buffer_1_[8];
+
   // Map that contains a list of URL ID and their matching
   // URLRequestThrottlerEntry.
   UrlEntryMap url_entries_;
+
+  // Constructor copies the string "GOOGYZZ\0" into this buffer; using it
+  // to try to detect memory overwrites affecting url_entries_ in the wild.
+  // TODO(joi): Remove once crbug.com/71721 is figured out.
+  char magic_buffer_2_[8];
 
   // This keeps track of how many requests have been made. Used with
   // GarbageCollectEntries.
