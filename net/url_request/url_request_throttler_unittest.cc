@@ -4,6 +4,7 @@
 
 #include "base/pickle.h"
 #include "base/scoped_ptr.h"
+#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/time.h"
 #include "net/base/test_completion_callback.h"
@@ -293,21 +294,27 @@ TEST(URLRequestThrottlerManager, IsUrlStandardised) {
   MockURLRequestThrottlerManager manager;
   GurlAndString test_values[] = {
       GurlAndString(GURL("http://www.example.com"),
-                    std::string("http://www.example.com/"), __LINE__),
-      GurlAndString(GURL("http://www.Example.com"),
-                    std::string("http://www.example.com/"), __LINE__),
-      GurlAndString(GURL("http://www.ex4mple.com/Pr4c71c41"),
-                    std::string("http://www.ex4mple.com/pr4c71c41"), __LINE__),
-      GurlAndString(GURL("http://www.example.com/0/token/false"),
-                    std::string("http://www.example.com/0/token/false"),
+                    std::string("GOOGYhttp://www.example.com/MONSTA"),
                     __LINE__),
+      GurlAndString(GURL("http://www.Example.com"),
+                    std::string("GOOGYhttp://www.example.com/MONSTA"),
+                    __LINE__),
+      GurlAndString(GURL("http://www.ex4mple.com/Pr4c71c41"),
+                    std::string("GOOGYhttp://www.ex4mple.com/pr4c71c41MONSTA"),
+                    __LINE__),
+      GurlAndString(
+          GURL("http://www.example.com/0/token/false"),
+          std::string("GOOGYhttp://www.example.com/0/token/falseMONSTA"),
+          __LINE__),
       GurlAndString(GURL("http://www.example.com/index.php?code=javascript"),
-                    std::string("http://www.example.com/index.php"), __LINE__),
+                    std::string("GOOGYhttp://www.example.com/index.phpMONSTA"),
+                    __LINE__),
       GurlAndString(GURL("http://www.example.com/index.php?code=1#superEntry"),
-                    std::string("http://www.example.com/index.php"),
+                    std::string("GOOGYhttp://www.example.com/index.phpMONSTA"),
                     __LINE__),
       GurlAndString(GURL("http://www.example.com:1234/"),
-                    std::string("http://www.example.com:1234/"), __LINE__)};
+                    std::string("GOOGYhttp://www.example.com:1234/MONSTA"),
+                    __LINE__)};
 
   for (unsigned int i = 0; i < arraysize(test_values); ++i) {
     std::string temp = manager.DoGetUrlIdFromUrl(test_values[i].url);
@@ -344,3 +351,64 @@ TEST(URLRequestThrottlerManager, IsHostBeingRegistered) {
 
   EXPECT_EQ(3, manager.GetNumberOfEntries());
 }
+
+class DummyResponseHeaders : public net::URLRequestThrottlerHeaderInterface {
+ public:
+  DummyResponseHeaders(int response_code) : response_code_(response_code) {}
+
+  std::string GetNormalizedValue(const std::string& key) const {
+    return "";
+  }
+
+  // Returns the HTTP response code associated with the request.
+  int GetResponseCode() const {
+    return response_code_;
+  }
+
+ private:
+  int response_code_;
+};
+
+TEST(URLRequestThrottlerManager, StressTest) {
+  MockURLRequestThrottlerManager manager;
+
+  for (int i = 0; i < 10000; ++i) {
+    // Make some entries duplicates or triplicates.
+    int entry_number = i + 2;
+    if (i % 17 == 0) {
+      entry_number = i - 1;
+    } else if ((i - 1) % 17 == 0) {
+      entry_number = i - 2;
+    } else if (i % 13 == 0) {
+      entry_number = i - 1;
+    }
+
+    scoped_refptr<net::URLRequestThrottlerEntryInterface> entry =
+        manager.RegisterRequestUrl(GURL(StringPrintf(
+            "http://bingourl.com/%d", entry_number)));
+    entry->IsDuringExponentialBackoff();
+    entry->GetExponentialBackoffReleaseTime();
+
+    DummyResponseHeaders headers(i % 7 == 0 ? 500 : 200);
+    entry->UpdateWithResponse(&headers);
+    entry->SetEntryLifetimeMsForTest(1);
+
+    entry->IsDuringExponentialBackoff();
+    entry->GetExponentialBackoffReleaseTime();
+    entry->ReserveSendingTimeForNextRequest(base::TimeTicks::Now());
+
+    if (i % 11 == 0) {
+      manager.DoGarbageCollectEntries();
+    }
+  }
+}
+
+#if defined(GTEST_HAS_DEATH_TEST)
+TEST(URLRequestThrottlerManager, NullHandlingTest) {
+  MockURLRequestThrottlerManager manager;
+  manager.OverrideEntryForTests(GURL("http://www.foo.com/"), NULL);
+  ASSERT_DEATH({
+      manager.DoGarbageCollectEntries();
+  }, "");
+}
+#endif  // defined(GTEST_HAS_DEATH_TEST)
