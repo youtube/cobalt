@@ -731,6 +731,11 @@ int HttpCache::Transaction::DoNetworkReadComplete(int result) {
   if (!cache_)
     return ERR_UNEXPECTED;
 
+  // If there is an error and we are saving the data, just tell the user about
+  // it and wait until the destructor runs to see if we can keep the data.
+  if (mode_ != NONE && result < 0)
+    return result;
+
   next_state_ = STATE_CACHE_WRITE_DATA;
   return result;
 }
@@ -982,6 +987,16 @@ int HttpCache::Transaction::DoUpdateCachedResponseComplete(int result) {
     // We no longer need the network transaction, so destroy it.
     final_upload_progress_ = network_trans_->GetUploadProgress();
     network_trans_.reset();
+  } else if (entry_ && server_responded_206_ && truncated_ &&
+             partial_->initial_validation()) {
+    // We just finished the validation of a truncated entry, and the server
+    // is willing to resume the operation. Now we go back and start serving
+    // the first part to the user.
+    network_trans_.reset();
+    new_response_ = NULL;
+    next_state_ = STATE_START_PARTIAL_CACHE_VALIDATION;
+    partial_->SetRangeToStartDownload();
+    return OK;
   }
   next_state_ = STATE_OVERWRITE_CACHED_RESPONSE;
   return OK;
@@ -1442,6 +1457,9 @@ int HttpCache::Transaction::BeginCacheValidation() {
   bool skip_validation = effective_load_flags_ & LOAD_PREFERRING_CACHE ||
                          !RequiresValidation();
 
+  if (truncated_)
+    skip_validation = !partial_->initial_validation();
+
   if ((partial_.get() && !partial_->IsCurrentRangeCached()) || invalid_range_)
     skip_validation = false;
 
@@ -1738,8 +1756,16 @@ bool HttpCache::Transaction::ValidatePartialResponse(bool* partial_content) {
 
     // 304 is not expected here, but we'll spare the entry (unless it was
     // truncated).
-    if (truncated_)
+    if (truncated_) {
+      if (!reading_ && response_code == 200) {
+        // The server is sending the whole resource, and we can save it.
+        DCHECK(!partial_->IsLastRange());
+        partial_.reset();
+        truncated_ = false;
+        return true;
+      }
       failure = true;
+    }
   }
 
   if (failure) {
