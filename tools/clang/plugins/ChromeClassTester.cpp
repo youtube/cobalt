@@ -166,7 +166,11 @@ void ChromeClassTester::emitWarning(SourceLocation loc, const char* raw_error) {
   std::string err;
   err = "[chromium-style] ";
   err += raw_error;
-  unsigned id = diagnostic().getCustomDiagID(Diagnostic::Warning, err);
+  Diagnostic::Level level =
+      diagnostic().getWarningsAsErrors() ?
+      Diagnostic::Error :
+      Diagnostic::Warning;
+  unsigned id = diagnostic().getCustomDiagID(level, err);
   DiagnosticBuilder B = diagnostic().Report(full, id);
 }
 
