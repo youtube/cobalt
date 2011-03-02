@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 lastchange.py -- Chromium revision fetching utility.
 """
 
+import re
 import optparse
 import os
 import subprocess
@@ -18,38 +19,10 @@ class VersionInfo(object):
     self.root = root
     self.revision = revision
 
-def FetchGitRevision(directory):
-  """
-  Fetch the Git hash for the a given directory.
-
-  Errors are swallowed.
-
-  Returns:
-    a VersionInfo object or None on error.
-  """
-  # Force shell usage under cygwin & win32. This is a workaround for
-  # mysterious loss of cwd while invoking cygwin's git.
-  # We can't just pass shell=True to Popen, as under win32 this will
-  # cause CMD to be used, while we explicitly want a cygwin shell.
-  command = ['git', 'rev-parse', 'HEAD']
-  if sys.platform in ('cygwin', 'win32'):
-    command = ['sh', '-c', ' '.join(command)]
-  try:
-    proc = subprocess.Popen(command,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            cwd=directory)
-  except OSError:
-    return None
-  output = proc.communicate()[0].strip()
-  if proc.returncode == 0 and output:
-    return VersionInfo('git', 'git', output[:7])
-  return None
-
 
 def FetchSVNRevision(directory):
   """
-  Fetch the Subversion branch and revision for the a given directory.
+  Fetch the Subversion branch and revision for a given directory.
 
   Errors are swallowed.
 
@@ -86,12 +59,139 @@ def FetchSVNRevision(directory):
   return VersionInfo(url, root, revision)
 
 
+def RunGitCommand(directory, command):
+  """
+  Launches git subcommand.
+
+  Errors are swallowed.
+
+  Returns:
+    process object or None.
+  """
+  command = ['git'] + command
+  # Force shell usage under cygwin & win32. This is a workaround for
+  # mysterious loss of cwd while invoking cygwin's git.
+  # We can't just pass shell=True to Popen, as under win32 this will
+  # cause CMD to be used, while we explicitly want a cygwin shell.
+  if sys.platform in ('cygwin', 'win32'):
+    command = ['sh', '-c', ' '.join(command)]
+  try:
+    proc = subprocess.Popen(command,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            cwd=directory)
+    return proc
+  except OSError:
+    return None
+
+
+def FetchGitRevision(directory):
+  """
+  Fetch the Git hash for a given directory.
+
+  Errors are swallowed.
+
+  Returns:
+    a VersionInfo object or None on error.
+  """
+  proc = RunGitCommand(directory, ['rev-parse', 'HEAD'])
+  if proc:
+    output = proc.communicate()[0].strip()
+    if proc.returncode == 0 and output:
+      return VersionInfo('git', 'git', output[:7])
+  return None
+
+
+def IsGitSVN(directory):
+  """
+  Checks whether git-svn has been set up.
+
+  Errors are swallowed.
+
+  Returns:
+    whether git-svn has been set up.
+  """
+  # To test whether git-svn has been set up, query the config for any
+  # svn-related configuration.  This command exits with an error code
+  # if there aren't any matches, so ignore its output.
+  proc = RunGitCommand(directory, ['config', '--get-regexp', '^svn'])
+  return (proc.wait() == 0)
+
+
+def FetchGitSVNURL(directory):
+  """
+  Fetch URL of SVN repository bound to git.
+
+  Errors are swallowed.
+
+  Returns:
+    SVN URL.
+  """
+  if not IsGitSVN(directory):
+    return None
+  proc = RunGitCommand(directory, ['svn', 'info', '--url'])
+  if proc:
+    output = proc.communicate()[0].strip()
+    if proc.returncode == 0:
+      return output
+  return None
+
+
+def LookupGitSVNRevision(directory, depth):
+  """
+  Fetch the Git-SVN identifier for the local tree.
+  Parses first |depth| commit messages.
+
+  Errors are swallowed.
+  """
+  if not IsGitSVN(directory):
+    return None
+  git_re = re.compile('^\s*git-svn-id:\s+(\S+)@(\d+)', re.M)
+  proc = RunGitCommand(directory, ['log', '-' + str(depth)])
+  if proc:
+    for line in proc.stdout:
+      match = git_re.search(line)
+      if match:
+        id = match.group(2)
+        if id:
+          proc.stdout.close()  # Cut pipe for fast exit.
+          return id
+  return None
+
+
+def IsGitSVNDirty(directory):
+  """
+  Checks whether our git-svn tree contains clean trunk or some branch.
+
+  Errors are swallowed.
+  """
+  # For git branches the last commit message is either
+  # some local commit or a merge.
+  return LookupGitSVNRevision(directory, 1) is None
+
+
+def FetchGitSVNRevision(directory):
+  """
+  Fetch the Git-SVN identifier for the local tree.
+
+  Errors are swallowed.
+  """
+  # We assume that at least first 999 commit messages contain svn evidence.
+  revision = LookupGitSVNRevision(directory, 999)
+  if not revision:
+    return None
+  if IsGitSVNDirty(directory):
+    revision = revision + '-dirty'
+  return VersionInfo(FetchGitSVNURL(directory), 'git-svn', revision)
+
+
 def FetchVersionInfo(default_lastchange, directory=None):
   """
   Returns the last change (in the form of a branch, revision tuple),
   from some appropriate revision control system.
   """
-  version_info = FetchSVNRevision(directory) or FetchGitRevision(directory)
+  version_info = (FetchSVNRevision(directory) or
+      FetchGitSVNRevision(directory) or FetchGitRevision(directory))
   if not version_info:
     if default_lastchange and os.path.exists(default_lastchange):
       revision = open(default_lastchange, 'r').read().strip()
