@@ -187,6 +187,10 @@ void URLRequestThrottlerEntry::ReceivedContentWasMalformed() {
   exponential_backoff_release_time_ = CalculateExponentialBackoffReleaseTime();
 }
 
+void URLRequestThrottlerEntry::SetEntryLifetimeMsForTest(int lifetime_ms) {
+  entry_lifetime_ms_ = lifetime_ms;
+}
+
 URLRequestThrottlerEntry::~URLRequestThrottlerEntry() {
 }
 
