@@ -1691,8 +1691,8 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
 
   const struct sockaddr* sa = ainfo->ai_addr;
   const struct sockaddr_in* sa_in = reinterpret_cast<const sockaddr_in*>(sa);
-  EXPECT_EQ(htons(kPortnum), sa_in->sin_port);
-  EXPECT_EQ(htonl(0xc0a8012a), sa_in->sin_addr.s_addr);
+  EXPECT_TRUE(htons(kPortnum) == sa_in->sin_port);
+  EXPECT_TRUE(htonl(0xc0a8012a) == sa_in->sin_addr.s_addr);
 }
 // TODO(cbentzel): Test a mix of requests with different HostResolverFlags.
 
