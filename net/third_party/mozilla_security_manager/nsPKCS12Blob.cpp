@@ -277,7 +277,7 @@ int nsPKCS12Blob_Import(PK11SlotInfo* slot,
   //   zero length SECItem.
   //   We try both variations, zero length item and empty string,
   //   without giving a user prompt when trying the different empty password flavors.
-  if (rv == net::ERR_PKCS12_IMPORT_BAD_PASSWORD && password.size() == 0) {
+  if (rv == net::ERR_PKCS12_IMPORT_BAD_PASSWORD && password.empty()) {
     rv = nsPKCS12Blob_ImportHelper(pkcs12_data, pkcs12_len, password, true,
                                    slot);
   }

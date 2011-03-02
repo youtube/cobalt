@@ -451,7 +451,7 @@ char** AlterEnvironment(const environment_vector& changes,
   // Now handle new elements
   for (environment_vector::const_iterator
        j = changes.begin(); j != changes.end(); j++) {
-    if (j->second.size() == 0)
+    if (j->second.empty())
       continue;
 
     bool found = false;
