@@ -36,7 +36,7 @@ scoped_refptr<StatsHistogram> StatsHistogram::StatsHistogramFactoryGet(
                                                          bucket_count);
     stats_histogram->InitializeBucketRange();
     histogram = stats_histogram;
-    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
+    StatisticsRecorder::Register(&histogram);
   }
 
   DCHECK(HISTOGRAM == histogram->histogram_type());
