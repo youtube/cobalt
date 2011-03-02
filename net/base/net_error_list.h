@@ -229,6 +229,10 @@ NET_ERROR(HTTPS_PROXY_TUNNEL_RESPONSE, -140)
 // valid, or the CSP won't allow arbitrary data to be signed.
 NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
 
+// The message was too large for the transport.  (for example a UDP message
+// which exceeds size threshold).
+NET_ERROR(MSG_TOO_BIG, -142)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
