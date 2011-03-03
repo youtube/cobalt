@@ -32,11 +32,11 @@ if [ ! -f ./config.status ]; then
   ../llvm/configure --enable-optimized
 fi
 
-# TODO(thakis): Get the number of cores on Mac too (use |sysctl hw.ncpu| on
-# OS X).
 NUM_JOBS=3
 if [ $(uname -s) = "Linux" ]; then
   NUM_JOBS=$(grep -c "^processor" /proc/cpuinfo)
+elif [ $(uname -s) = "Darwin" ]; then
+  NUM_JOBS=$(sysctl -n hw.ncpu)
 fi
 make -j$NUM_JOBS
 cd -
@@ -53,5 +53,5 @@ rm -rf $PLUGIN_BUILD_DIR
 mkdir -p $PLUGIN_BUILD_DIR
 cp $PLUGIN_SRC_DIR/Makefile $PLUGIN_BUILD_DIR
 cd $PLUGIN_BUILD_DIR
-make -j3
+make -j$NUM_JOBS
 cd -
