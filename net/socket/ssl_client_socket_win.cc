@@ -325,6 +325,13 @@ static BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
   if (CertVerifyTimeValidity(NULL, cert_context->pCertInfo) != 0)
     return FALSE;
 
+  // Verify private key metadata is associated with this certificate.
+  DWORD size = 0;
+  if (!CertGetCertificateContextProperty(
+          cert_context, CERT_KEY_PROV_INFO_PROP_ID, NULL, &size)) {
+    return FALSE;
+  }
+
   return TRUE;
 }
 
