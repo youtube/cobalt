@@ -117,7 +117,7 @@ def IsGitSVN(directory):
   proc = RunGitCommand(directory, ['config', '--get-regexp', '^svn'])
   if proc:
     return (proc.wait() == 0)
-  return false
+  return False
 
 
 def FetchGitSVNURL(directory):
