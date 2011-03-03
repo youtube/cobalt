@@ -293,6 +293,13 @@ TEST(X509CertificateTest, WebkitCertParsing) {
   EXPECT_EQ(OK, webkit_cert->Verify("webkit.org", flags, &verify_result));
   EXPECT_EQ(0, verify_result.cert_status & CERT_STATUS_IS_EV);
 #endif
+
+  // Test that the wildcard cert matches properly.
+  EXPECT_TRUE(webkit_cert->VerifyNameMatch("www.webkit.org"));
+  EXPECT_TRUE(webkit_cert->VerifyNameMatch("foo.webkit.org"));
+  EXPECT_TRUE(webkit_cert->VerifyNameMatch("webkit.org"));
+  EXPECT_FALSE(webkit_cert->VerifyNameMatch("www.webkit.com"));
+  EXPECT_FALSE(webkit_cert->VerifyNameMatch("www.foo.webkit.com"));
 }
 
 TEST(X509CertificateTest, ThawteCertParsing) {
