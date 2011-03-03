@@ -786,6 +786,10 @@ int X509Certificate::Verify(const std::string& hostname,
   return OK;
 }
 
+bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
+  return CERT_VerifyCertName(cert_handle_, hostname.c_str()) == SECSuccess;
+}
+
 // Studied Mozilla's code (esp. security/manager/ssl/src/nsIdentityChecking.cpp
 // and nsNSSCertHelper.cpp) to learn how to verify EV certificate.
 // TODO(wtc): A possible optimization is that we get the trust anchor from

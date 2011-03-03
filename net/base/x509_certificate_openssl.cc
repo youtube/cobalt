@@ -425,7 +425,7 @@ int X509Certificate::Verify(const std::string& hostname,
   // names, etc. See http://crbug.com/62973.
   std::vector<std::string> cert_names;
   GetDNSNames(&cert_names);
-  if (!x509_openssl_util::VerifyHostname(hostname, cert_names))
+  if (!VerifyHostname(hostname, cert_names))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
   base::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
