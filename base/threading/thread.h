@@ -25,7 +25,6 @@ namespace base {
 //  (1) Thread::CleanUp()
 //  (2) MessageLoop::~MessageLoop
 //  (3.b)    MessageLoop::DestructionObserver::WillDestroyCurrentMessageLoop
-//  (4) Thread::CleanUpAfterMessageLoopDestruction()
 class Thread : PlatformThread::Delegate {
  public:
   struct Options {
