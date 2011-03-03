@@ -110,57 +110,76 @@ void RemoveFromLoginItems();
 // 'Login Item' with 'hide on startup' flag. Used to suppress opening windows.
 bool WasLaunchedAsHiddenLoginItem();
 
-#if defined(__OBJC__)
+}  // namespace mac
+}  // namespace base
 
-// Convert toll-free bridged CFTypes to NSTypes. This does not autorelease
-// |cf_val|. This is useful for the case where there is a CFType in a call that
-// expects an NSType and the compiler is complaining about const casting
-// problems.
-// The call is used like this:
+#if !defined(__OBJC__)
+#define OBJC_CPP_CLASS_DECL(x) class x;
+#else  // __OBJC__
+#define OBJC_CPP_CLASS_DECL(x)
+#endif  // __OBJC__
+
+// Convert toll-free bridged CFTypes to NSTypes and vice-versa. This does not
+// autorelease |cf_val|. This is useful for the case where there is a CFType in
+// a call that expects an NSType and the compiler is complaining about const
+// casting problems.
+// The calls are used like this:
 // NSString *foo = CFToNSCast(CFSTR("Hello"));
+// CFStringRef foo2 = NSToCFCast(@"Hello");
 // The macro magic below is to enforce safe casting. It could possibly have
 // been done using template function specialization, but template function
 // specialization doesn't always work intuitively,
 // (http://www.gotw.ca/publications/mill17.htm) so the trusty combination
 // of macros and function overloading is used instead.
 
-#define CF_TO_NS_CAST(TypeCF, TypeNS) \
-inline TypeNS* CFToNSCast(TypeCF cf_val) { \
-  TypeNS* ns_val = \
-      const_cast<TypeNS*>(reinterpret_cast<const TypeNS*>(cf_val)); \
-  DCHECK(!ns_val || [ns_val isKindOfClass:[TypeNS class]]); \
-  return ns_val; \
-}
+#define CF_TO_NS_CAST_DECL(TypeCF, TypeNS) \
+OBJC_CPP_CLASS_DECL(TypeNS) \
+\
+namespace base { \
+namespace mac { \
+TypeNS* CFToNSCast(TypeCF##Ref cf_val); \
+TypeCF##Ref NSToCFCast(TypeNS* ns_val); \
+} \
+} \
+
+#define CF_TO_NS_MUTABLE_CAST_DECL(name) \
+CF_TO_NS_CAST_DECL(CF##name, NS##name) \
+OBJC_CPP_CLASS_DECL(NSMutable##name) \
+\
+namespace base { \
+namespace mac { \
+NSMutable##name* CFToNSCast(CFMutable##name##Ref cf_val); \
+CFMutable##name##Ref NSToCFCast(NSMutable##name* ns_val); \
+} \
+} \
 
 // List of toll-free bridged types taken from:
 // http://www.cocoadev.com/index.pl?TollFreeBridged
 
-CF_TO_NS_CAST(CFArrayRef, NSArray);
-CF_TO_NS_CAST(CFMutableArrayRef, NSMutableArray);
-CF_TO_NS_CAST(CFAttributedStringRef, NSAttributedString);
-CF_TO_NS_CAST(CFMutableAttributedStringRef, NSMutableAttributedString);
-CF_TO_NS_CAST(CFCalendarRef, NSCalendar);
-CF_TO_NS_CAST(CFCharacterSetRef, NSCharacterSet);
-CF_TO_NS_CAST(CFMutableCharacterSetRef, NSMutableCharacterSet);
-CF_TO_NS_CAST(CFDataRef, NSData);
-CF_TO_NS_CAST(CFMutableDataRef, NSMutableData);
-CF_TO_NS_CAST(CFDateRef, NSDate);
-CF_TO_NS_CAST(CFDictionaryRef, NSDictionary);
-CF_TO_NS_CAST(CFMutableDictionaryRef, NSMutableDictionary);
-CF_TO_NS_CAST(CFNumberRef, NSNumber);
-CF_TO_NS_CAST(CFRunLoopTimerRef, NSTimer);
-CF_TO_NS_CAST(CFSetRef, NSSet);
-CF_TO_NS_CAST(CFMutableSetRef, NSMutableSet);
-CF_TO_NS_CAST(CFStringRef, NSString);
-CF_TO_NS_CAST(CFMutableStringRef, NSMutableString);
-CF_TO_NS_CAST(CFURLRef, NSURL);
-CF_TO_NS_CAST(CFTimeZoneRef, NSTimeZone);
-CF_TO_NS_CAST(CFReadStreamRef, NSInputStream);
-CF_TO_NS_CAST(CFWriteStreamRef, NSOutputStream);
+CF_TO_NS_MUTABLE_CAST_DECL(Array);
+CF_TO_NS_MUTABLE_CAST_DECL(AttributedString);
+CF_TO_NS_CAST_DECL(CFCalendar, NSCalendar);
+CF_TO_NS_MUTABLE_CAST_DECL(CharacterSet);
+CF_TO_NS_MUTABLE_CAST_DECL(Data);
+CF_TO_NS_CAST_DECL(CFDate, NSDate);
+CF_TO_NS_MUTABLE_CAST_DECL(Dictionary);
+CF_TO_NS_CAST_DECL(CFError, NSError);
+CF_TO_NS_CAST_DECL(CFLocale, NSLocale);
+CF_TO_NS_CAST_DECL(CFNumber, NSNumber);
+CF_TO_NS_CAST_DECL(CFRunLoopTimer, NSTimer);
+CF_TO_NS_CAST_DECL(CFTimeZone, NSTimeZone);
+CF_TO_NS_MUTABLE_CAST_DECL(Set);
+CF_TO_NS_CAST_DECL(CFReadStream, NSInputStream);
+CF_TO_NS_CAST_DECL(CFWriteStream, NSOutputStream);
+CF_TO_NS_MUTABLE_CAST_DECL(String);
+CF_TO_NS_CAST_DECL(CFURL, NSURL);
 
-#endif  // __OBJC__
-
-}  // namespace mac
-}  // namespace base
+// Stream operations for CFTypes. They can be used with NSTypes as well
+// by using the NSToCFCast methods above.
+// e.g. LOG(INFO) << base::mac::NSToCFCast(@"foo");
+// Operator << can not be overloaded for ObjectiveC types as the compiler
+// can not distinguish between overloads for id with overloads for void*.
+extern std::ostream& operator<<(std::ostream& o, const CFErrorRef err);
+extern std::ostream& operator<<(std::ostream& o, const CFStringRef str);
 
 #endif  // BASE_MAC_MAC_UTIL_H_
