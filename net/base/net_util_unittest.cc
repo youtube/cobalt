@@ -10,6 +10,7 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/sys_string_conversions.h"
+#include "base/test/test_file_util.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
@@ -517,7 +518,7 @@ TEST(NetUtilTest, FileURLConversion) {
 
     // Back to the filename.
     EXPECT_TRUE(net::FileURLToFilePath(file_url, &output));
-    EXPECT_EQ(round_trip_cases[i].file, output.ToWStringHack());
+    EXPECT_EQ(round_trip_cases[i].file, file_util::FilePathAsWString(output));
   }
 
   // Test that various file: URLs get decoded into the correct file type
@@ -556,7 +557,7 @@ TEST(NetUtilTest, FileURLConversion) {
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(url_cases); i++) {
     net::FileURLToFilePath(GURL(url_cases[i].url), &output);
-    EXPECT_EQ(url_cases[i].file, output.ToWStringHack());
+    EXPECT_EQ(url_cases[i].file, file_util::FilePathAsWString(output));
   }
 
   // Unfortunately, UTF8ToWide discards invalid UTF8 input.
