@@ -129,14 +129,15 @@ def FetchGitSVNURL(directory):
   Returns:
     SVN URL.
   """
-  if not IsGitSVN(directory):
-    return None
-  proc = RunGitCommand(directory, ['svn', 'info', '--url'])
-  if proc:
-    output = proc.communicate()[0].strip()
-    if proc.returncode == 0:
-      return output
-  return None
+  if IsGitSVN(directory):
+    proc = RunGitCommand(directory, ['svn', 'info', '--url'])
+    if proc:
+      output = proc.communicate()[0].strip()
+      if proc.returncode == 0:
+        match = re.search(r'^\w+://.*$', output, re.M)
+        if match:
+          return match.group(0)
+  return ''
 
 
 def LookupGitSVNRevision(directory, depth):
