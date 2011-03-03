@@ -188,26 +188,14 @@ class InFlightBackendIO : public InFlightIO {
     return background_thread_->BelongsToCurrentThread();
   }
 
-  // Controls the queing of entry (async) operations.
-  void StartQueingOperations();
-  void StopQueingOperations();
-
  protected:
   virtual void OnOperationComplete(BackgroundIO* operation, bool cancel);
 
  private:
-  typedef std::list<scoped_refptr<BackendIO> > OperationList;
-  void QueueOperation(BackendIO* operation);
   void PostOperation(BackendIO* operation);
-  void PostQueuedOperation();
-  bool RemoveFirstQueuedOperation(BackendIO* operation);
 
   BackendImpl* backend_;
   scoped_refptr<base::MessageLoopProxy> background_thread_;
-  OperationList pending_ops_;  // Entry (async) operations to be posted.
-  base::TimeTicks queueing_start_;
-  size_t max_queue_len_;
-  bool queue_entry_ops_;  // True if we are queuing entry (async) operations.
 
   DISALLOW_COPY_AND_ASSIGN(InFlightBackendIO);
 };

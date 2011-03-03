@@ -275,8 +275,6 @@ void BackendIO::ExecuteEntryOperation() {
       NOTREACHED() << "Invalid Operation";
       result_ = net::ERR_UNEXPECTED;
   }
-  // We added a reference to protect the queued operation.
-  entry_->Release();
   if (result_ != net::ERR_IO_PENDING)
     controller_->OnIOComplete(this);
 }
@@ -286,9 +284,7 @@ void BackendIO::ExecuteEntryOperation() {
 InFlightBackendIO::InFlightBackendIO(BackendImpl* backend,
                     base::MessageLoopProxy* background_thread)
     : backend_(backend),
-      background_thread_(background_thread),
-      max_queue_len_(0),
-      queue_entry_ops_(false) {
+      background_thread_(background_thread) {
 }
 
 InFlightBackendIO::~InFlightBackendIO() {
@@ -297,34 +293,34 @@ InFlightBackendIO::~InFlightBackendIO() {
 void InFlightBackendIO::Init(CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->Init();
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::OpenEntry(const std::string& key, Entry** entry,
                                   CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->OpenEntry(key, entry);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::CreateEntry(const std::string& key, Entry** entry,
                                     CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->CreateEntry(key, entry);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::DoomEntry(const std::string& key,
                                   CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntry(key);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::DoomAllEntries(CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomAllEntries();
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::DoomEntriesBetween(const base::Time initial_time,
@@ -332,58 +328,58 @@ void InFlightBackendIO::DoomEntriesBetween(const base::Time initial_time,
                         CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntriesBetween(initial_time, end_time);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::DoomEntriesSince(const base::Time initial_time,
                                          CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntriesSince(initial_time);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::OpenNextEntry(void** iter, Entry** next_entry,
                                       CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->OpenNextEntry(iter, next_entry);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::OpenPrevEntry(void** iter, Entry** prev_entry,
                                       CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->OpenPrevEntry(iter, prev_entry);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::EndEnumeration(void* iterator) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, NULL));
   operation->EndEnumeration(iterator);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::CloseEntryImpl(EntryImpl* entry) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, NULL));
   operation->CloseEntryImpl(entry);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::DoomEntryImpl(EntryImpl* entry) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, NULL));
   operation->DoomEntryImpl(entry);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::FlushQueue(net::CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->FlushQueue();
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::RunTask(Task* task, net::CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->RunTask(task);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::ReadData(EntryImpl* entry, int index, int offset,
@@ -391,7 +387,7 @@ void InFlightBackendIO::ReadData(EntryImpl* entry, int index, int offset,
                                  CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->ReadData(entry, index, offset, buf, buf_len);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::WriteData(EntryImpl* entry, int index, int offset,
@@ -400,7 +396,7 @@ void InFlightBackendIO::WriteData(EntryImpl* entry, int index, int offset,
                                   CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->WriteData(entry, index, offset, buf, buf_len, truncate);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::ReadSparseData(EntryImpl* entry, int64 offset,
@@ -408,7 +404,7 @@ void InFlightBackendIO::ReadSparseData(EntryImpl* entry, int64 offset,
                                        CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->ReadSparseData(entry, offset, buf, buf_len);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::WriteSparseData(EntryImpl* entry, int64 offset,
@@ -416,7 +412,7 @@ void InFlightBackendIO::WriteSparseData(EntryImpl* entry, int64 offset,
                                         CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->WriteSparseData(entry, offset, buf, buf_len);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::GetAvailableRange(EntryImpl* entry, int64 offset,
@@ -424,38 +420,24 @@ void InFlightBackendIO::GetAvailableRange(EntryImpl* entry, int64 offset,
                                           CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->GetAvailableRange(entry, offset, len, start);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::CancelSparseIO(EntryImpl* entry) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, NULL));
   operation->CancelSparseIO(entry);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::ReadyForSparseIO(EntryImpl* entry,
                                          CompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->ReadyForSparseIO(entry);
-  QueueOperation(operation);
+  PostOperation(operation);
 }
 
 void InFlightBackendIO::WaitForPendingIO() {
   InFlightIO::WaitForPendingIO();
-}
-
-void InFlightBackendIO::StartQueingOperations() {
-  queue_entry_ops_ = true;
-  CACHE_UMA(COUNTS_10000, "InitialQueuedOperations", 0, pending_ops_.size());
-  if (!pending_ops_.size()) {
-    queueing_start_ = base::TimeTicks::Now();
-    max_queue_len_ = 0;
-  }
-}
-
-void InFlightBackendIO::StopQueingOperations() {
-  queue_entry_ops_ = false;
-  CACHE_UMA(COUNTS_10000, "FinalQueuedOperations", 0, pending_ops_.size());
 }
 
 void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
@@ -463,73 +445,17 @@ void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
   BackendIO* op = static_cast<BackendIO*>(operation);
 
   if (op->IsEntryOperation()) {
-    backend_->OnOperationCompleted(op->ElapsedTime());
-    if (!pending_ops_.empty() && RemoveFirstQueuedOperation(op)) {
-      // Process the next request. Note that invoking the callback may result
-      // in the backend destruction (and with it this object), so we should deal
-      // with the next operation before invoking the callback.
-      PostQueuedOperation();
-      if (!pending_ops_.size() && !queue_entry_ops_) {
-        CACHE_UMA(AGE_MS, "ThrottleTime", 0, queueing_start_);
-        CACHE_UMA(COUNTS_10000, "MaxQueuedOperations", 0, max_queue_len_);
-      }
-    }
+    CACHE_UMA(TIMES, "TotalIOTime", 0, op->ElapsedTime());
   }
 
   if (op->callback() && (!cancel || op->IsEntryOperation()))
     op->callback()->Run(op->result());
 }
 
-void InFlightBackendIO::QueueOperation(BackendIO* operation) {
-  if (!operation->IsEntryOperation())
-    return PostOperation(operation);
-
-  // We have to protect the entry from deletion while it is on the queue.
-  // If the caller closes the entry right after writing to it, and the write is
-  // waiting on the queue, we could end up deleting the entry before the write
-  // operation is actually posted. Sending a task to reference the entry we make
-  // sure that there is an extra reference before the caller can post a task to
-  // release its reference.
-  background_thread_->PostTask(FROM_HERE,
-      NewRunnableMethod(operation, &BackendIO::ReferenceEntry));
-
-  bool empty_list = pending_ops_.empty();
-  if (!queue_entry_ops_ && empty_list)
-    return PostOperation(operation);
-
-  CACHE_UMA(COUNTS_10000, "QueuedOperations", 0, pending_ops_.size());
-
-  // We keep the operation that we are executing in the list so that we know
-  // when it completes.
-  pending_ops_.push_back(operation);
-  max_queue_len_ = std::max(max_queue_len_, pending_ops_.size());
-  if (empty_list)
-    PostOperation(operation);
-}
-
 void InFlightBackendIO::PostOperation(BackendIO* operation) {
   background_thread_->PostTask(FROM_HERE,
       NewRunnableMethod(operation, &BackendIO::ExecuteOperation));
   OnOperationPosted(operation);
-}
-
-void InFlightBackendIO::PostQueuedOperation() {
-  if (pending_ops_.empty())
-    return;
-
-  // Keep it in the list until it's done.
-  scoped_refptr<BackendIO> next_op = pending_ops_.front();
-  PostOperation(next_op);
-}
-
-bool InFlightBackendIO::RemoveFirstQueuedOperation(BackendIO* operation) {
-  DCHECK(!pending_ops_.empty());
-  scoped_refptr<BackendIO> next_op = pending_ops_.front();
-  if (operation != next_op)
-    return false;
-
-  pending_ops_.pop_front();
-  return true;
 }
 
 }  // namespace
