@@ -205,9 +205,6 @@ class BackendImpl : public Backend {
   void OnRead(int bytes);
   void OnWrite(int bytes);
 
-  // Keeps track of the time needed to complete some IO operations.
-  void OnOperationCompleted(base::TimeDelta elapsed_time);
-
   // Timer callback to calculate usage statistics.
   void OnStatsTimer();
 
@@ -236,9 +233,6 @@ class BackendImpl : public Backend {
   // Runs the provided task on the cache thread. The task will be automatically
   // deleted after it runs.
   int RunTaskForTest(Task* task, CompletionCallback* callback);
-
-  // Starts or stops throttling requests.
-  void ThrottleRequestsForTest(bool throttle);
 
   // Trims an entry (all if |empty| is true) from the list of deleted
   // entries. This method should be called directly on the cache thread.
