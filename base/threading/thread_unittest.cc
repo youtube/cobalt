@@ -57,7 +57,7 @@ class SleepInsideInitThread : public Thread {
 
 enum ThreadEvent {
   // Thread::Init() was called.
-  THREAD_EVENT_INIT,
+  THREAD_EVENT_INIT = 0,
 
   // The MessageLoop for the thread was deleted.
   THREAD_EVENT_MESSAGE_LOOP_DESTROYED,
@@ -65,8 +65,8 @@ enum ThreadEvent {
   // Thread::CleanUp() was called.
   THREAD_EVENT_CLEANUP,
 
-  // Thread::CleanUpAfterMessageLoopDestruction() was called.
-  THREAD_EVENT_CLEANUP_AFTER_LOOP,
+  // Keep at end of list.
+  THREAD_NUM_EVENTS
 };
 
 typedef std::vector<ThreadEvent> EventList;
@@ -91,10 +91,6 @@ class CaptureToEventList : public Thread {
 
   virtual void CleanUp() {
     event_list_->push_back(THREAD_EVENT_CLEANUP);
-  }
-
-  virtual void CleanUpAfterMessageLoopDestruction() {
-    event_list_->push_back(THREAD_EVENT_CLEANUP_AFTER_LOOP);
   }
 
  private:
@@ -230,7 +226,6 @@ TEST_F(ThreadTest, SleepInsideInit) {
 //  (1) Thread::CleanUp()
 //  (2) MessageLoop::~MessageLoop()
 //      MessageLoop::DestructionObservers called.
-//  (3) Thread::CleanUpAfterMessageLoopDestruction
 TEST_F(ThreadTest, CleanUp) {
   EventList captured_events;
   CapturingDestructionObserver loop_destruction_observer(&captured_events);
@@ -252,9 +247,8 @@ TEST_F(ThreadTest, CleanUp) {
   }
 
   // Check the order of events during shutdown.
-  ASSERT_EQ(4u, captured_events.size());
+  ASSERT_EQ(static_cast<size_t>(THREAD_NUM_EVENTS), captured_events.size());
   EXPECT_EQ(THREAD_EVENT_INIT, captured_events[0]);
   EXPECT_EQ(THREAD_EVENT_CLEANUP, captured_events[1]);
   EXPECT_EQ(THREAD_EVENT_MESSAGE_LOOP_DESTROYED, captured_events[2]);
-  EXPECT_EQ(THREAD_EVENT_CLEANUP_AFTER_LOOP, captured_events[3]);
 }
