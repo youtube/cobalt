@@ -45,7 +45,6 @@ class StatsHistogram : public base::Histogram {
   virtual size_t bucket_count() const;
   virtual void SnapshotSample(SampleSet* sample) const;
   virtual Inconsistencies FindCorruption(const SampleSet& snapshot) const;
-  virtual uint32 CalculateRangeChecksum() const;
 
  private:
   bool init_;

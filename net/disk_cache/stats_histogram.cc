@@ -32,11 +32,12 @@ scoped_refptr<StatsHistogram> StatsHistogram::StatsHistogramFactoryGet(
   if (StatisticsRecorder::FindHistogram(name, &histogram)) {
     DCHECK(histogram.get() != NULL);
   } else {
-    StatsHistogram* stats_histogram = new StatsHistogram(name, minimum, maximum,
-                                                         bucket_count);
-    stats_histogram->InitializeBucketRange();
-    histogram = stats_histogram;
-    StatisticsRecorder::Register(&histogram);
+    histogram = new StatsHistogram(name, minimum, maximum, bucket_count);
+    scoped_refptr<Histogram> registered_histogram(NULL);
+    StatisticsRecorder::FindHistogram(name, &registered_histogram);
+    if (registered_histogram.get() != NULL &&
+        registered_histogram.get() != histogram.get())
+      histogram = registered_histogram;
   }
 
   DCHECK(HISTOGRAM == histogram->histogram_type());
@@ -47,9 +48,6 @@ scoped_refptr<StatsHistogram> StatsHistogram::StatsHistogramFactoryGet(
   Histogram* temp_histogram = histogram.get();
   StatsHistogram* temp_stats_histogram =
       static_cast<StatsHistogram*>(temp_histogram);
-  // Validate upcast by seeing that we're probably providing the checksum.
-  CHECK_EQ(temp_stats_histogram->StatsHistogram::CalculateRangeChecksum(),
-           temp_stats_histogram->CalculateRangeChecksum());
   scoped_refptr<StatsHistogram> return_histogram(temp_stats_histogram);
   return return_histogram;
 }
@@ -93,10 +91,5 @@ Histogram::Inconsistencies StatsHistogram::FindCorruption(
   return NO_INCONSISTENCIES;  // This class won't monitor inconsistencies.
 }
 
-uint32 StatsHistogram::CalculateRangeChecksum() const {
-  // We don't calculate checksums, so at least establish a unique constant.
-  const uint32 kStatsHistogramChecksum = 0x0cecce;
-  return kStatsHistogramChecksum;
-}
 
 }  // namespace disk_cache
