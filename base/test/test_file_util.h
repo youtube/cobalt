@@ -8,6 +8,8 @@
 
 // File utility functions used only by tests.
 
+#include <string>
+
 class FilePath;
 
 namespace file_util {
@@ -40,6 +42,11 @@ bool VolumeSupportsADS(const FilePath& path);
 // based tests.
 bool HasInternetZoneIdentifier(const FilePath& full_path);
 #endif  // defined(OS_WIN)
+
+// In general it's not reliable to convert a FilePath to a wstring and we use
+// string16 elsewhere for Unicode strings, but in tests it is frequently
+// convenient to be able to compare paths to literals like L"foobar".
+std::wstring FilePathAsWString(const FilePath& path);
 
 }  // namespace file_util
 
