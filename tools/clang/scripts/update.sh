@@ -31,9 +31,14 @@ cd $LLVM_DIR/../llvm-build
 if [ ! -f ./config.status ]; then
   ../llvm/configure --enable-optimized
 fi
-# TODO(thakis): Make this the number of cores (use |sysctl hw.ncpu| on OS X and
-#               some grepping of /proc/cpuinfo on linux).
-make -j3
+
+# TODO(thakis): Get the number of cores on Mac too (use |sysctl hw.ncpu| on
+# OS X).
+NUM_JOBS=3
+if [ $(uname -s) = "Linux" ]; then
+  NUM_JOBS=$(grep -c "^processor" /proc/cpuinfo)
+fi
+make -j$NUM_JOBS
 cd -
 
 # Build plugin.
