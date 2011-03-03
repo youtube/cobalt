@@ -173,7 +173,6 @@ void Thread::ThreadMain() {
     message_loop_ = NULL;
     message_loop_proxy_ = NULL;
   }
-  CleanUpAfterMessageLoopDestruction();
   thread_id_ = kInvalidThreadId;
 }
 
