@@ -33,31 +33,6 @@ struct IteratorHistory {
 
 namespace net {
 
-ThreadCheckerForRelease::ThreadCheckerForRelease()
-    : valid_thread_id_(base::kInvalidThreadId) {
-  EnsureThreadIdAssigned();
-}
-
-ThreadCheckerForRelease::~ThreadCheckerForRelease() {}
-
-bool ThreadCheckerForRelease::CalledOnValidThread() const {
-  EnsureThreadIdAssigned();
-  base::AutoLock auto_lock(lock_);
-  return valid_thread_id_ == base::PlatformThread::CurrentId();
-}
-
-void ThreadCheckerForRelease::DetachFromThread() {
-  base::AutoLock auto_lock(lock_);
-  valid_thread_id_ = base::kInvalidThreadId;
-}
-
-void ThreadCheckerForRelease::EnsureThreadIdAssigned() const {
-  base::AutoLock auto_lock(lock_);
-  if (valid_thread_id_ != base::kInvalidThreadId)
-    return;
-  valid_thread_id_ = base::PlatformThread::CurrentId();
-}
-
 const unsigned int URLRequestThrottlerManager::kMaximumNumberOfEntries = 1500;
 const unsigned int URLRequestThrottlerManager::kRequestsBetweenCollecting = 200;
 

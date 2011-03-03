@@ -11,36 +11,11 @@
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "base/singleton.h"
-#include "base/synchronization/lock.h"  // ThreadCheckerForRelease
-#include "base/threading/platform_thread.h"  // ThreadCheckerForRelease
+#include "base/threading/thread_checker_impl.h"
 #include "googleurl/src/gurl.h"
 #include "net/url_request/url_request_throttler_entry.h"
 
 namespace net {
-
-// TODO(joi): Delete this temporary copy of base::ThreadChecker (needed to
-// enable it in release builds) and go back to simply inheriting from
-// NonThreadSafe once crbug.com/71721 has been tracked down.
-class ThreadCheckerForRelease {
- public:
-  ThreadCheckerForRelease();
-  ~ThreadCheckerForRelease();
-
-  bool CalledOnValidThread() const;
-
-  // Changes the thread that is checked for in CalledOnValidThread.  This may
-  // be useful when an object may be created on one thread and then used
-  // exclusively on another thread.
-  void DetachFromThread();
-
- private:
-  void EnsureThreadIdAssigned() const;
-
-  mutable base::Lock lock_;
-  // This is mutable so that CalledOnValidThread can set it.
-  // It's guarded by |lock_|.
-  mutable base::PlatformThreadId valid_thread_id_;
-};
 
 // Class that registers URL request throttler entries for URLs being accessed
 // in order to supervise traffic. URL requests for HTTP contents should
@@ -151,7 +126,7 @@ class URLRequestThrottlerManager {
   // workaround.
   bool being_tested_;
 
-  ThreadCheckerForRelease thread_checker_;
+  base::ThreadCheckerImpl thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };

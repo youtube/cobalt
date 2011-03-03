@@ -9,11 +9,9 @@
 #include "base/threading/simple_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#ifndef NDEBUG
-
 namespace base {
 
-// Simple class to exersice the basics of ThreadChecker.
+// Simple class to exercise the basics of ThreadChecker.
 // Both the destructor and DoStuff should verify that they were
 // called on the same thread as the constructor.
 class ThreadCheckerClass : public ThreadChecker {
@@ -22,12 +20,15 @@ class ThreadCheckerClass : public ThreadChecker {
 
   // Verifies that it was called on the same thread as the constructor.
   void DoStuff() {
-    DCHECK(CalledOnValidThread());
+    CHECK(CalledOnValidThread());
   }
 
   void DetachFromThread() {
     ThreadChecker::DetachFromThread();
   }
+
+  static void MethodOnDifferentThreadImpl();
+  static void DetachThenCallFromDifferentThreadImpl();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ThreadCheckerClass);
@@ -106,41 +107,61 @@ TEST(ThreadCheckerTest, DetachFromThread) {
   call_on_thread.Join();
 }
 
-#if GTEST_HAS_DEATH_TEST
+#if GTEST_HAS_DEATH_TEST || NDEBUG
 
-TEST(ThreadCheckerDeathTest, MethodNotAllowedOnDifferentThread) {
-  ASSERT_DEBUG_DEATH({
-      scoped_ptr<ThreadCheckerClass> thread_checker_class(
-          new ThreadCheckerClass);
+void ThreadCheckerClass::MethodOnDifferentThreadImpl() {
+  scoped_ptr<ThreadCheckerClass> thread_checker_class(
+      new ThreadCheckerClass);
 
-      // Verify that DoStuff asserts when called on a different thread.
-      CallDoStuffOnThread call_on_thread(thread_checker_class.get());
+  // DoStuff should assert in debug builds only when called on a
+  // different thread.
+  CallDoStuffOnThread call_on_thread(thread_checker_class.get());
 
-      call_on_thread.Start();
-      call_on_thread.Join();
-    }, "");
+  call_on_thread.Start();
+  call_on_thread.Join();
 }
 
-TEST(ThreadCheckerDeathTest, DetachFromThread) {
+#ifndef NDEBUG
+TEST(ThreadCheckerDeathTest, MethodNotAllowedOnDifferentThreadInDebug) {
   ASSERT_DEBUG_DEATH({
-      scoped_ptr<ThreadCheckerClass> thread_checker_class(
-          new ThreadCheckerClass);
-
-      // Verify that DoStuff doesn't assert when called on a different thread
-      // after a call to DetachFromThread.
-      thread_checker_class->DetachFromThread();
-      CallDoStuffOnThread call_on_thread(thread_checker_class.get());
-
-      call_on_thread.Start();
-      call_on_thread.Join();
-
-      // Verify that DoStuff asserts after moving to another thread.
-      thread_checker_class->DoStuff();
+      ThreadCheckerClass::MethodOnDifferentThreadImpl();
     }, "");
 }
+#else
+TEST(ThreadCheckerTest, MethodAllowedOnDifferentThreadInRelease) {
+  ThreadCheckerClass::MethodOnDifferentThreadImpl();
+}
+#endif  // NDEBUG
 
-#endif  // GTEST_HAS_DEATH_TEST
+void ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl() {
+  scoped_ptr<ThreadCheckerClass> thread_checker_class(
+      new ThreadCheckerClass);
+
+  // DoStuff doesn't assert when called on a different thread
+  // after a call to DetachFromThread.
+  thread_checker_class->DetachFromThread();
+  CallDoStuffOnThread call_on_thread(thread_checker_class.get());
+
+  call_on_thread.Start();
+  call_on_thread.Join();
+
+  // DoStuff should assert in debug builds only after moving to
+  // another thread.
+  thread_checker_class->DoStuff();
+}
+
+#ifndef NDEBUG
+TEST(ThreadCheckerDeathTest, DetachFromThreadInDebug) {
+  ASSERT_DEBUG_DEATH({
+    ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl();
+    }, "");
+}
+#else
+TEST(ThreadCheckerTest, DetachFromThreadInRelease) {
+  ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl();
+}
+#endif  // NDEBUG
+
+#endif  // GTEST_HAS_DEATH_TEST || NDEBUG
 
 }  // namespace base
-
-#endif  // NDEBUG
