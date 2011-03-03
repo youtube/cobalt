@@ -9,8 +9,6 @@
 #include "base/threading/simple_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#ifndef NDEBUG
-
 namespace base {
 
 // Simple class to exersice the basics of NonThreadSafe.
@@ -22,12 +20,15 @@ class NonThreadSafeClass : public NonThreadSafe {
 
   // Verifies that it was called on the same thread as the constructor.
   void DoStuff() {
-    DCHECK(CalledOnValidThread());
+    CHECK(CalledOnValidThread());
   }
 
   void DetachFromThread() {
     NonThreadSafe::DetachFromThread();
   }
+
+  static void MethodOnDifferentThreadImpl();
+  static void DestructorOnDifferentThreadImpl();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NonThreadSafeClass);
@@ -94,37 +95,57 @@ TEST(NonThreadSafeTest, DetachThenDestructOnDifferentThread) {
   delete_on_thread.Join();
 }
 
-#if GTEST_HAS_DEATH_TEST
+#if GTEST_HAS_DEATH_TEST || NDEBUG
 
-TEST(NonThreadSafeDeathTest, MethodNotAllowedOnDifferentThread) {
-  ASSERT_DEBUG_DEATH({
-      scoped_ptr<NonThreadSafeClass> non_thread_safe_class(
-          new NonThreadSafeClass);
+void NonThreadSafeClass::MethodOnDifferentThreadImpl() {
+  scoped_ptr<NonThreadSafeClass> non_thread_safe_class(
+      new NonThreadSafeClass);
 
-      // Verify that DoStuff asserts when called on a different thread.
-      CallDoStuffOnThread call_on_thread(non_thread_safe_class.get());
+  // Verify that DoStuff asserts in debug builds only when called
+  // on a different thread.
+  CallDoStuffOnThread call_on_thread(non_thread_safe_class.get());
 
-      call_on_thread.Start();
-      call_on_thread.Join();
-    }, "");
+  call_on_thread.Start();
+  call_on_thread.Join();
 }
 
-TEST(NonThreadSafeDeathTest, DestructorNotAllowedOnDifferentThread) {
+#ifndef NDEBUG
+TEST(NonThreadSafeDeathTest, MethodNotAllowedOnDifferentThreadInDebug) {
   ASSERT_DEBUG_DEATH({
-      scoped_ptr<NonThreadSafeClass> non_thread_safe_class(
-          new NonThreadSafeClass);
-
-      // Verify that the destructor asserts when called on a different thread.
-      DeleteNonThreadSafeClassOnThread delete_on_thread(
-          non_thread_safe_class.release());
-
-      delete_on_thread.Start();
-      delete_on_thread.Join();
+      NonThreadSafeClass::MethodOnDifferentThreadImpl();
     }, "");
 }
+#else
+TEST(NonThreadSafeTest, MethodAllowedOnDifferentThreadInRelease) {
+  NonThreadSafeClass::MethodOnDifferentThreadImpl();
+}
+#endif  // NDEBUG
 
-#endif  // GTEST_HAS_DEATH_TEST
+void NonThreadSafeClass::DestructorOnDifferentThreadImpl() {
+  scoped_ptr<NonThreadSafeClass> non_thread_safe_class(
+      new NonThreadSafeClass);
+
+  // Verify that the destructor asserts in debug builds only
+  // when called on a different thread.
+  DeleteNonThreadSafeClassOnThread delete_on_thread(
+      non_thread_safe_class.release());
+
+  delete_on_thread.Start();
+  delete_on_thread.Join();
+}
+
+#ifndef NDEBUG
+TEST(NonThreadSafeDeathTest, DestructorNotAllowedOnDifferentThreadInDebug) {
+  ASSERT_DEBUG_DEATH({
+      NonThreadSafeClass::DestructorOnDifferentThreadImpl();
+    }, "");
+}
+#else
+TEST(NonThreadSafeTest, DestructorAllowedOnDifferentThreadInRelease) {
+  NonThreadSafeClass::DestructorOnDifferentThreadImpl();
+}
+#endif  // NDEBUG
+
+#endif  // GTEST_HAS_DEATH_TEST || NDEBUG
 
 }  // namespace base
-
-#endif  // NDEBUG
