@@ -217,4 +217,8 @@ bool HasInternetZoneIdentifier(const FilePath& full_path) {
            zone_path_contents[kInternetIdentifierSize] == '\n'));
 }
 
+std::wstring FilePathAsWString(const FilePath& path) {
+  return path.value();
+}
+
 }  // namespace file_util

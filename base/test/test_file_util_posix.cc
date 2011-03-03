@@ -15,6 +15,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 
 namespace file_util {
 
@@ -108,5 +109,9 @@ bool EvictFileFromSystemCache(const FilePath& file) {
   return false;
 }
 #endif
+
+std::wstring FilePathAsWString(const FilePath& path) {
+  return UTF8ToWide(path.value());
+}
 
 }  // namespace file_util
