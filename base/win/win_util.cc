@@ -100,17 +100,6 @@ bool UserAccountControlIsEnabled() {
   return (uac_enabled != 0);
 }
 
-WindowsArchitecture GetWindowsArchitecture() {
-  SYSTEM_INFO system_info;
-  GetNativeSystemInfo(&system_info);
-  switch (system_info.wProcessorArchitecture) {
-    case PROCESSOR_ARCHITECTURE_INTEL: return X86_ARCHITECTURE;
-    case PROCESSOR_ARCHITECTURE_AMD64: return X64_ARCHITECTURE;
-    case PROCESSOR_ARCHITECTURE_IA64:  return IA64_ARCHITECTURE;
-    default:                           return OTHER_ARCHITECTURE;
-  }
-}
-
 bool SetAppIdForPropertyStore(IPropertyStore* property_store,
                               const wchar_t* app_id) {
   DCHECK(property_store);

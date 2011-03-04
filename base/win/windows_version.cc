@@ -68,6 +68,17 @@ void GetServicePackLevel(int* major, int* minor) {
   *minor = service_pack_minor;
 }
 
+WindowsArchitecture GetWindowsArchitecture() {
+  SYSTEM_INFO system_info;
+  GetNativeSystemInfo(&system_info);
+  switch (system_info.wProcessorArchitecture) {
+    case PROCESSOR_ARCHITECTURE_INTEL: return X86_ARCHITECTURE;
+    case PROCESSOR_ARCHITECTURE_AMD64: return X64_ARCHITECTURE;
+    case PROCESSOR_ARCHITECTURE_IA64:  return IA64_ARCHITECTURE;
+    default:                           return OTHER_ARCHITECTURE;
+  }
+}
+
 WOW64Status GetWOW64Status() {
   static WOW64Status wow64_status =
       GetWOW64StatusForProcess(GetCurrentProcess());
