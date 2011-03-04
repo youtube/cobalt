@@ -140,6 +140,29 @@ def FetchGitSVNURL(directory):
   return ''
 
 
+def FetchGitSVNRoot(directory):
+  """
+  Fetch root of SVN repository bound to git.
+
+  Errors are swallowed.
+
+  Returns:
+    SVN root repository.
+  """
+  if IsGitSVN(directory):
+    git_command = ['config', '--get-regexp', '^svn-remote.svn.url$']
+    proc = RunGitCommand(directory, git_command)
+    if proc:
+      output = proc.communicate()[0].strip()
+      if proc.returncode == 0:
+        # Zero return code implies presence of requested configuration variable.
+        # Its value is second (last) field of output.
+        match = re.search(r'\S+$', output)
+        if match:
+          return match.group(0)
+  return ''
+
+
 def LookupGitSVNRevision(directory, depth):
   """
   Fetch the Git-SVN identifier for the local tree.
@@ -149,11 +172,11 @@ def LookupGitSVNRevision(directory, depth):
   """
   if not IsGitSVN(directory):
     return None
-  git_re = re.compile('^\s*git-svn-id:\s+(\S+)@(\d+)', re.M)
+  git_re = re.compile(r'^\s*git-svn-id:\s+(\S+)@(\d+)')
   proc = RunGitCommand(directory, ['log', '-' + str(depth)])
   if proc:
     for line in proc.stdout:
-      match = git_re.search(line)
+      match = git_re.match(line)
       if match:
         id = match.group(2)
         if id:
@@ -185,7 +208,9 @@ def FetchGitSVNRevision(directory):
     return None
   if IsGitSVNDirty(directory):
     revision = revision + '-dirty'
-  return VersionInfo(FetchGitSVNURL(directory), 'git-svn', revision)
+  url = FetchGitSVNURL(directory)
+  root = FetchGitSVNRoot(directory)
+  return VersionInfo(url, root, revision)
 
 
 def FetchVersionInfo(default_lastchange, directory=None):
