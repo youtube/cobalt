@@ -51,7 +51,7 @@ namespace net {
 
 class HostResolverImpl : public HostResolver,
                          public base::NonThreadSafe,
-                         public NetworkChangeNotifier::Observer {
+                         public NetworkChangeNotifier::IPAddressObserver {
  public:
   // The index into |job_pools_| for the various job pools. Pools with a higher
   // index have lower priority.
@@ -223,7 +223,7 @@ class HostResolverImpl : public HostResolver,
   // Aborts all in progress jobs (but might start new ones).
   void AbortAllInProgressJobs();
 
-  // NetworkChangeNotifier::Observer methods:
+  // NetworkChangeNotifier::IPAddressObserver methods:
   virtual void OnIPAddressChanged();
 
   // Cache of host resolution results.

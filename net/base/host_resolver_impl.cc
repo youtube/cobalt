@@ -925,7 +925,7 @@ HostResolverImpl::HostResolverImpl(
   if (HaveOnlyLoopbackAddresses())
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
 #endif
-  NetworkChangeNotifier::AddObserver(this);
+  NetworkChangeNotifier::AddIPAddressObserver(this);
 }
 
 HostResolverImpl::~HostResolverImpl() {
@@ -939,7 +939,7 @@ HostResolverImpl::~HostResolverImpl() {
   if (cur_completing_job_)
     cur_completing_job_->Cancel();
 
-  NetworkChangeNotifier::RemoveObserver(this);
+  NetworkChangeNotifier::RemoveIPAddressObserver(this);
 
   // Delete the job pools.
   for (size_t i = 0u; i < arraysize(job_pools_); ++i)

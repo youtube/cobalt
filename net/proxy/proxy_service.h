@@ -34,7 +34,7 @@ class URLRequestContext;
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy
 // resolution.  See ProxyResolverV8 for example.
 class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
-                     public NetworkChangeNotifier::Observer,
+                     public NetworkChangeNotifier::IPAddressObserver,
                      public ProxyConfigService::Observer {
  public:
   // The instance takes ownership of |config_service| and |resolver|.
@@ -280,7 +280,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // Start initialization using |fetched_config_|.
   void InitializeUsingLastFetchedConfig();
 
-  // NetworkChangeNotifier::Observer
+  // NetworkChangeNotifier::IPAddressObserver
   // When this is called, we re-fetch PAC scripts and re-run WPAD.
   virtual void OnIPAddressChanged();
 

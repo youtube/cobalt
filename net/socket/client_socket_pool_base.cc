@@ -163,7 +163,7 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
   DCHECK_LE(0, max_sockets_per_group);
   DCHECK_LE(max_sockets_per_group, max_sockets);
 
-  NetworkChangeNotifier::AddObserver(this);
+  NetworkChangeNotifier::AddIPAddressObserver(this);
 }
 
 ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
@@ -175,7 +175,7 @@ ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
   DCHECK(pending_callback_map_.empty());
   DCHECK_EQ(0, connecting_socket_count_);
 
-  NetworkChangeNotifier::RemoveObserver(this);
+  NetworkChangeNotifier::RemoveIPAddressObserver(this);
 }
 
 // InsertRequestIntoQueue inserts the request into the queue based on
