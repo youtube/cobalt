@@ -19,6 +19,7 @@ namespace net {
 class IPEndPoint {
  public:
   IPEndPoint();
+  virtual ~IPEndPoint();
   IPEndPoint(const IPAddressNumber& address, int port);
   IPEndPoint(const IPEndPoint& endpoint);
 
