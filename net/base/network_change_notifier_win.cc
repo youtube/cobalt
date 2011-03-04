@@ -8,6 +8,7 @@
 #include <winsock2.h>
 
 #include "base/logging.h"
+#include "base/time.h"
 #include "net/base/winsock_init.h"
 
 #pragma comment(lib, "iphlpapi.lib")
@@ -146,6 +147,15 @@ bool NetworkChangeNotifierWin::IsCurrentlyOffline() const {
 void NetworkChangeNotifierWin::OnObjectSignaled(HANDLE object) {
   NotifyObserversOfIPAddressChange();
 
+  // Calling IsOffline() at this very moment is likely to give
+  // the wrong result, so we delay that until a little bit later.
+  //
+  // The one second delay chosen here was determined experimentally
+  // by adamk on Windows 7.
+  timer_.Stop();  // cancel any already waiting notification
+  timer_.Start(base::TimeDelta::FromSeconds(1), this,
+               &NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange);
+
   // Start watching for the next address change.
   WatchForAddressChange();
 }
@@ -155,6 +165,10 @@ void NetworkChangeNotifierWin::WatchForAddressChange() {
   DWORD ret = NotifyAddrChange(&handle, &addr_overlapped_);
   CHECK(ret == ERROR_IO_PENDING);
   addr_watcher_.StartWatching(addr_overlapped_.hEvent, this);
+}
+
+void NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange() {
+  NotifyObserversOfOnlineStateChange();
 }
 
 }  // namespace net
