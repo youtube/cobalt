@@ -69,13 +69,14 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   // SpdyStream::Delegate methods:
   virtual bool OnSendHeadersComplete(int status);
   virtual int OnSendBody();
-  virtual bool OnSendBodyComplete(int status);
+  virtual int OnSendBodyComplete(int status, bool* eof);
   virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status);
   virtual void OnDataReceived(const char* buffer, int bytes);
   virtual void OnDataSent(int length);
   virtual void OnClose(int status);
+  virtual void set_chunk_callback(ChunkCallback* callback);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, FlowControlStallResume);
@@ -126,6 +127,8 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
 
   // Is this spdy stream direct to the origin server (or to a proxy).
   bool direct_;
+
+  bool send_last_chunk_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyHttpStream);
 };

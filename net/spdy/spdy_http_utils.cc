@@ -83,8 +83,10 @@ void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
   HttpRequestHeaders::Iterator it(request_headers);
   while (it.GetNext()) {
     std::string name = StringToLowerASCII(it.name());
-    if (name == "connection" || name == "proxy-connection")
+    if (name == "connection" || name == "proxy-connection" ||
+        name == "transfer-encoding") {
       continue;
+    }
     if (headers->find(name) == headers->end()) {
       (*headers)[name] = it.value();
     } else {
