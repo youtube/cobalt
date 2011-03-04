@@ -12,8 +12,6 @@
 
 namespace net {
 
-bool UploadDataStream::merge_chunks_ = true;
-
 UploadDataStream::~UploadDataStream() {
 }
 
@@ -71,13 +69,8 @@ int UploadDataStream::FillBuf() {
 
       size_t bytes_copied = std::min(count, size_remaining);
 
-      // Check if we have anything to copy first, because we are getting the
-      // address of an element in |d| and that will throw an exception if |d|
-      // is an empty vector.
-      if (bytes_copied) {
-        memcpy(buf_->data() + buf_len_, &d[next_element_offset_], bytes_copied);
-        buf_len_ += bytes_copied;
-      }
+      memcpy(buf_->data() + buf_len_, &d[next_element_offset_], bytes_copied);
+      buf_len_ += bytes_copied;
 
       if (bytes_copied == count) {
         advance_to_next_element = true;
@@ -133,9 +126,6 @@ int UploadDataStream::FillBuf() {
       next_element_remaining_ = 0;
       next_element_stream_.reset();
     }
-
-    if (is_chunked() && !merge_chunks_)
-      break;
   }
 
   if (next_element_ == elements.size() && !buf_len_) {
@@ -146,15 +136,6 @@ int UploadDataStream::FillBuf() {
   }
 
   return OK;
-}
-
-bool UploadDataStream::IsOnLastChunk() const {
-  const std::vector<UploadData::Element>& elements = *data_->elements();
-  DCHECK(data_->is_chunked());
-  return (eof_ ||
-          (!elements.empty() &&
-           next_element_ == elements.size() &&
-           elements.back().is_last_chunk()));
 }
 
 }  // namespace net
