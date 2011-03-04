@@ -67,7 +67,7 @@ class RRResolverJob;
 //
 // A DnsRRResolver must be used from the MessageLoop which created it.
 class DnsRRResolver : public base::NonThreadSafe,
-                      public NetworkChangeNotifier::Observer {
+                      public NetworkChangeNotifier::IPAddressObserver {
  public:
   typedef intptr_t Handle;
 
@@ -105,7 +105,7 @@ class DnsRRResolver : public base::NonThreadSafe,
   // must not have already been called.
   void CancelResolve(Handle handle);
 
-  // Implementation of NetworkChangeNotifier::Observer
+  // Implementation of NetworkChangeNotifier::IPAddressObserver
   virtual void OnIPAddressChanged();
 
  private:
