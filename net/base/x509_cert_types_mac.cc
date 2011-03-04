@@ -150,7 +150,7 @@ void SetSingle(const std::vector<std::string>& values,
                std::string* single_value) {
   // We don't expect to have more than one CN, L, S, and C.
   LOG_IF(WARNING, values.size() > 1) << "Didn't expect multiple values";
-  if (values.size() > 0)
+  if (!values.empty())
     *single_value = values[0];
 }
 
