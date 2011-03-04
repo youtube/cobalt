@@ -405,7 +405,7 @@ void ParsePrincipal(const std::string& description,
   for (int i = 0; i < arraysize(single_value_lists); ++i) {
     int length = static_cast<int>(single_value_lists[i]->size());
     DCHECK(single_value_lists[i]->size() <= 1);
-    if (single_value_lists[i]->size() > 0)
+    if (!single_value_lists[i]->empty())
       *(single_values[i]) = (*(single_value_lists[i]))[0];
   }
 }
