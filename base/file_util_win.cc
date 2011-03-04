@@ -938,7 +938,31 @@ MemoryMappedFile::MemoryMappedFile()
       length_(INVALID_FILE_SIZE) {
 }
 
+bool MemoryMappedFile::InitializeAsImageSection(const FilePath& file_name) {
+  if (IsValid())
+    return false;
+  file_ = base::CreatePlatformFile(
+      file_name, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ,
+      NULL, NULL);
+
+  if (file_ == base::kInvalidPlatformFileValue) {
+    LOG(ERROR) << "Couldn't open " << file_name.value();
+    return false;
+  }
+
+  if (!MapFileToMemoryInternalEx(SEC_IMAGE)) {
+    CloseHandles();
+    return false;
+  }
+
+  return true;
+}
+
 bool MemoryMappedFile::MapFileToMemoryInternal() {
+  return MapFileToMemoryInternalEx(0);
+}
+
+bool MemoryMappedFile::MapFileToMemoryInternalEx(int flags) {
   base::ThreadRestrictions::AssertIOAllowed();
 
   if (file_ == INVALID_HANDLE_VALUE)
@@ -950,7 +974,7 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
 
   // length_ value comes from GetFileSize() above. GetFileSize() returns DWORD,
   // therefore the cast here is safe.
-  file_mapping_ = ::CreateFileMapping(file_, NULL, PAGE_READONLY,
+  file_mapping_ = ::CreateFileMapping(file_, NULL, PAGE_READONLY | flags,
                                       0, static_cast<DWORD>(length_), NULL);
   if (!file_mapping_) {
     // According to msdn, system error codes are only reserved up to 15999.
