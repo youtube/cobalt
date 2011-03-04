@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,8 +55,22 @@ bool IsAltPressed();
 // NOTE: The EnableLUA registry flag, which is ignored on Windows XP
 // machines, might still exist and be set to 0 (UAC disabled), in which case
 // this function will return false. You should therefore check this flag only
-// if the OS is Vista.
+// if the OS is Vista or later.
 bool UserAccountControlIsEnabled();
+
+enum WindowsArchitecture {
+  X86_ARCHITECTURE,
+  X64_ARCHITECTURE,
+  IA64_ARCHITECTURE,
+  OTHER_ARCHITECTURE,
+};
+
+// Returns the processor architecture this copy of Windows natively uses.
+// For example, given an x64-capable processor, we have three possibilities:
+//   32-bit Chrome running on 32-bit Windows:           X86_ARCHITECTURE
+//   32-bit Chrome running on 64-bit Windows via WOW64: X64_ARCHITECTURE
+//   64-bit Chrome running on 64-bit Windows:           X64_ARCHITECTURE
+WindowsArchitecture GetWindowsArchitecture();
 
 // Sets the application id in given IPropertyStore. The function is intended
 // for tagging application/chromium shortcut, browser window and jump list for
