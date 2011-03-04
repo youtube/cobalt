@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #include "base/basictypes.h"
+#include "base/timer.h"
 #include "base/win/object_watcher.h"
 #include "net/base/network_change_notifier.h"
 
@@ -31,8 +32,13 @@ class NetworkChangeNotifierWin : public NetworkChangeNotifier,
   // Begins listening for a single subsequent address change.
   void WatchForAddressChange();
 
+  // Forwards online state notifications to parent class.
+  void NotifyParentOfOnlineStateChange();
+
   base::win::ObjectWatcher addr_watcher_;
   OVERLAPPED addr_overlapped_;
+
+  base::OneShotTimer<NetworkChangeNotifierWin> timer_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);
 };

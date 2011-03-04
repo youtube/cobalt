@@ -58,29 +58,56 @@ NetworkChangeNotifier* NetworkChangeNotifier::CreateMock() {
   return new MockNetworkChangeNotifier();
 }
 
-void NetworkChangeNotifier::AddObserver(Observer* observer) {
+void NetworkChangeNotifier::AddIPAddressObserver(IPAddressObserver* observer) {
   if (g_network_change_notifier)
-    g_network_change_notifier->observer_list_->AddObserver(observer);
+    g_network_change_notifier->ip_address_observer_list_->AddObserver(observer);
 }
 
-void NetworkChangeNotifier::RemoveObserver(Observer* observer) {
-  if (g_network_change_notifier)
-    g_network_change_notifier->observer_list_->RemoveObserver(observer);
+void NetworkChangeNotifier::AddOnlineStateObserver(
+    OnlineStateObserver* observer) {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->online_state_observer_list_->AddObserver(
+        observer);
+  }
+}
+
+void NetworkChangeNotifier::RemoveIPAddressObserver(
+    IPAddressObserver* observer) {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->ip_address_observer_list_->RemoveObserver(
+        observer);
+  }
+}
+
+void NetworkChangeNotifier::RemoveOnlineStateObserver(
+    OnlineStateObserver* observer) {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->online_state_observer_list_->RemoveObserver(
+        observer);
+  }
 }
 
 NetworkChangeNotifier::NetworkChangeNotifier()
-    : observer_list_(
-        new ObserverListThreadSafe<Observer>(
-            ObserverListBase<Observer>::NOTIFY_EXISTING_ONLY)) {
+    : ip_address_observer_list_(
+        new ObserverListThreadSafe<IPAddressObserver>(
+            ObserverListBase<IPAddressObserver>::NOTIFY_EXISTING_ONLY)),
+      online_state_observer_list_(
+        new ObserverListThreadSafe<OnlineStateObserver>(
+            ObserverListBase<OnlineStateObserver>::NOTIFY_EXISTING_ONLY)) {
   DCHECK(!g_network_change_notifier);
   g_network_change_notifier = this;
 }
 
 void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
   if (g_network_change_notifier) {
-    g_network_change_notifier->observer_list_->Notify(
-        &Observer::OnIPAddressChanged);
+    g_network_change_notifier->ip_address_observer_list_->Notify(
+        &IPAddressObserver::OnIPAddressChanged);
   }
+}
+
+void NetworkChangeNotifier::NotifyObserversOfOnlineStateChange() {
+  online_state_observer_list_->Notify(
+      &OnlineStateObserver::OnOnlineStateChanged, !IsOffline());
 }
 
 }  // namespace net

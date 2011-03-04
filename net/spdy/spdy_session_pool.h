@@ -32,7 +32,7 @@ class SpdySession;
 // This is a very simple pool for open SpdySessions.
 // TODO(mbelshe): Make this production ready.
 class SpdySessionPool
-    : public NetworkChangeNotifier::Observer,
+    : public NetworkChangeNotifier::IPAddressObserver,
       public SSLConfigService::Observer {
  public:
   explicit SpdySessionPool(SSLConfigService* ssl_config_service);
@@ -90,7 +90,7 @@ class SpdySessionPool
   SpdySettingsStorage* mutable_spdy_settings() { return &spdy_settings_; }
   const SpdySettingsStorage& spdy_settings() const { return spdy_settings_; }
 
-  // NetworkChangeNotifier::Observer methods:
+  // NetworkChangeNotifier::IPAddressObserver methods:
 
   // We flush all idle sessions and release references to the active ones so
   // they won't get re-used.  The active ones will either complete successfully
