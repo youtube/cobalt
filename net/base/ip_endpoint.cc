@@ -18,6 +18,8 @@ const size_t kIPv6AddressSize = 16;
 
 IPEndPoint::IPEndPoint() : port_(0) {}
 
+IPEndPoint::~IPEndPoint() {}
+
 IPEndPoint::IPEndPoint(const IPAddressNumber& address, int port)
     : address_(address),
       port_(port) {}
