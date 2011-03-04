@@ -404,11 +404,11 @@ int SpdyProxyClientSocket::OnSendBody() {
   return ERR_UNEXPECTED;
 }
 
-int SpdyProxyClientSocket::OnSendBodyComplete(int /*status*/, bool* /*eof*/) {
+bool SpdyProxyClientSocket::OnSendBodyComplete(int status) {
   // Because we use |spdy_stream_| via STATE_OPEN (ala WebSockets)
   // OnSendBodyComplete() should never be called.
   NOTREACHED();
-  return ERR_UNEXPECTED;
+  return false;
 }
 
 int SpdyProxyClientSocket::OnResponseReceived(
@@ -496,9 +496,6 @@ void SpdyProxyClientSocket::OnClose(int status)  {
   }
   if (write_callback)
     write_callback->Run(ERR_CONNECTION_CLOSED);
-}
-
-void SpdyProxyClientSocket::set_chunk_callback(ChunkCallback* /*callback*/) {
 }
 
 }  // namespace net

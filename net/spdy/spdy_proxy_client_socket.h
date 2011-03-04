@@ -88,14 +88,13 @@ class SpdyProxyClientSocket : public ProxyClientSocket,
   // SpdyStream::Delegate methods:
   virtual bool OnSendHeadersComplete(int status);
   virtual int OnSendBody();
-  virtual int OnSendBodyComplete(int status, bool* eof);
+  virtual bool OnSendBodyComplete(int status);
   virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status);
   virtual void OnDataReceived(const char* data, int length);
   virtual void OnDataSent(int length);
   virtual void OnClose(int status);
-  virtual void set_chunk_callback(ChunkCallback* /*callback*/);
 
  private:
   enum State {
