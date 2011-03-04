@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 #include "base/compiler_specific.h"
 #include "base/stl_util-inl.h"
 #include "base/synchronization/condition_variable.h"
-#include "media/base/clock_impl.h"
+#include "media/base/clock.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_format.h"
 #include "media/base/pipeline_impl.h"
@@ -27,7 +27,7 @@ class PipelineImpl::PipelineInitState {
 
 PipelineImpl::PipelineImpl(MessageLoop* message_loop)
     : message_loop_(message_loop),
-      clock_(new ClockImpl(&base::Time::Now)),
+      clock_(new Clock(&base::Time::Now)),
       waiting_for_clock_update_(false),
       state_(kCreated),
       current_bytes_(0) {
@@ -277,6 +277,10 @@ PipelineError PipelineImpl::GetError() const {
 PipelineStatistics PipelineImpl::GetStatistics() const {
   base::AutoLock auto_lock(lock_);
   return statistics_;
+}
+
+void PipelineImpl::SetClockForTesting(Clock* clock) {
+  clock_.reset(clock);
 }
 
 void PipelineImpl::SetCurrentReadPosition(int64 offset) {
