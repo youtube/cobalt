@@ -58,20 +58,6 @@ bool IsAltPressed();
 // if the OS is Vista or later.
 bool UserAccountControlIsEnabled();
 
-enum WindowsArchitecture {
-  X86_ARCHITECTURE,
-  X64_ARCHITECTURE,
-  IA64_ARCHITECTURE,
-  OTHER_ARCHITECTURE,
-};
-
-// Returns the processor architecture this copy of Windows natively uses.
-// For example, given an x64-capable processor, we have three possibilities:
-//   32-bit Chrome running on 32-bit Windows:           X86_ARCHITECTURE
-//   32-bit Chrome running on 64-bit Windows via WOW64: X64_ARCHITECTURE
-//   64-bit Chrome running on 64-bit Windows:           X64_ARCHITECTURE
-WindowsArchitecture GetWindowsArchitecture();
-
 // Sets the application id in given IPropertyStore. The function is intended
 // for tagging application/chromium shortcut, browser window and jump list for
 // Win7.
