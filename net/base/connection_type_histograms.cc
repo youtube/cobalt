@@ -21,6 +21,11 @@ namespace net {
 // Each histogram has an unused bucket at the end to allow seamless future
 // expansion.
 void UpdateConnectionTypeHistograms(ConnectionType type) {
+  // TODO(wtc): Bug 74467 Move these stats up to a higher level, where the
+  // explicit static (shown below) and the implicit statics (inside the
+  // HISTOGRAM macros) will be thread safe.
+#if 0  // Don't do anything for now.
+
   static bool had_connection_type[NUM_OF_CONNECTION_TYPES];
 
   if (type >= 0 && type < NUM_OF_CONNECTION_TYPES) {
@@ -35,6 +40,7 @@ void UpdateConnectionTypeHistograms(ConnectionType type) {
   } else {
     NOTREACHED();  // Someone's logging an invalid type!
   }
+#endif  // 0
 }
 
 }  // namespace net
