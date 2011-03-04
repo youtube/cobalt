@@ -30,6 +30,20 @@ Version GetVersion();
 // Returns the major and minor version of the service pack installed.
 void GetServicePackLevel(int* major, int* minor);
 
+enum WindowsArchitecture {
+  X86_ARCHITECTURE,
+  X64_ARCHITECTURE,
+  IA64_ARCHITECTURE,
+  OTHER_ARCHITECTURE,
+};
+
+// Returns the processor architecture this copy of Windows natively uses.
+// For example, given an x64-capable processor, we have three possibilities:
+//   32-bit Chrome running on 32-bit Windows:           X86_ARCHITECTURE
+//   32-bit Chrome running on 64-bit Windows via WOW64: X64_ARCHITECTURE
+//   64-bit Chrome running on 64-bit Windows:           X64_ARCHITECTURE
+WindowsArchitecture GetWindowsArchitecture();
+
 enum WOW64Status {
   WOW64_DISABLED,
   WOW64_ENABLED,
