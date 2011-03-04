@@ -506,6 +506,12 @@ class MemoryMappedFile {
   // ownership of |file| and close it when done.
   bool Initialize(base::PlatformFile file);
 
+#if defined(OS_WIN)
+  // Opens an existing file and maps it as an image section. Please refer to
+  // the Initialize function above for additional information.
+  bool InitializeAsImageSection(const FilePath& file_name);
+#endif  // OS_WIN
+
   const uint8* data() const { return data_; }
   size_t length() const { return length_; }
 
@@ -523,10 +529,14 @@ class MemoryMappedFile {
   // Closes all open handles. Later we may want to make this public.
   void CloseHandles();
 
-  base::PlatformFile file_;
 #if defined(OS_WIN)
+  // MapFileToMemoryInternal calls this function. It provides the ability to
+  // pass in flags which control the mapped section.
+  bool MapFileToMemoryInternalEx(int flags);
+
   HANDLE file_mapping_;
 #endif
+  base::PlatformFile file_;
   uint8* data_;
   size_t length_;
 
