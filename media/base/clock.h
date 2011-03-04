@@ -5,7 +5,7 @@
 #ifndef MEDIA_BASE_CLOCK_H_
 #define MEDIA_BASE_CLOCK_H_
 
-#include "base/gtest_prod_util.h"
+#include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
 
