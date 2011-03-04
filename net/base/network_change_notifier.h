@@ -16,19 +16,35 @@ namespace net {
 // and will be called back on the thread from which they registered.
 class NetworkChangeNotifier {
  public:
-  class Observer {
+  class IPAddressObserver {
    public:
-    virtual ~Observer() {}
+    virtual ~IPAddressObserver() {}
 
     // Will be called when the IP address of the primary interface changes.
     // This includes when the primary interface itself changes.
     virtual void OnIPAddressChanged() = 0;
 
    protected:
-    Observer() {}
+    IPAddressObserver() {}
 
    private:
-    DISALLOW_COPY_AND_ASSIGN(Observer);
+    DISALLOW_COPY_AND_ASSIGN(IPAddressObserver);
+  };
+
+  class OnlineStateObserver {
+   public:
+    virtual ~OnlineStateObserver() {}
+
+    // Will be called when the online state of the system may have changed.
+    // See NetworkChangeNotifier::IsOffline() for important caveats about
+    // the unreliability of this signal.
+    virtual void OnOnlineStateChanged(bool online) = 0;
+
+   protected:
+    OnlineStateObserver() {}
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(OnlineStateObserver);
   };
 
   virtual ~NetworkChangeNotifier();
@@ -64,7 +80,8 @@ class NetworkChangeNotifier {
   // called back with notifications.  This is safe to call if Create() has not
   // been called (as long as it doesn't race the Create() call on another
   // thread), in which case it will simply do nothing.
-  static void AddObserver(Observer* observer);
+  static void AddIPAddressObserver(IPAddressObserver* observer);
+  static void AddOnlineStateObserver(OnlineStateObserver* observer);
 
   // Unregisters |observer| from receiving notifications.  This must be called
   // on the same thread on which AddObserver() was called.  Like AddObserver(),
@@ -73,7 +90,8 @@ class NetworkChangeNotifier {
   // nothing.  Technically, it's also safe to call after the notifier object has
   // been destroyed, if the call doesn't race the notifier's destruction, but
   // there's no reason to use the API in this risky way, so don't do it.
-  static void RemoveObserver(Observer* observer);
+  static void RemoveIPAddressObserver(IPAddressObserver* observer);
+  static void RemoveOnlineStateObserver(OnlineStateObserver* observer);
 
 #ifdef UNIT_TEST
   // Allow unit tests to trigger notifications.
@@ -89,9 +107,13 @@ class NetworkChangeNotifier {
   // happens asynchronously, even for observers on the current thread, even in
   // tests.
   static void NotifyObserversOfIPAddressChange();
+  void NotifyObserversOfOnlineStateChange();
 
  private:
-  const scoped_refptr<ObserverListThreadSafe<Observer> > observer_list_;
+  const scoped_refptr<ObserverListThreadSafe<IPAddressObserver> >
+      ip_address_observer_list_;
+  const scoped_refptr<ObserverListThreadSafe<OnlineStateObserver> >
+      online_state_observer_list_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifier);
 };

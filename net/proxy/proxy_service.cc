@@ -384,7 +384,7 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
       stall_proxy_auto_config_delay_(
           base::TimeDelta::FromMilliseconds(
               kNumMillisToStallAfterNetworkChanges)) {
-  NetworkChangeNotifier::AddObserver(this);
+  NetworkChangeNotifier::AddIPAddressObserver(this);
   ResetConfigService(config_service);
 }
 
@@ -560,7 +560,7 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
 }
 
 ProxyService::~ProxyService() {
-  NetworkChangeNotifier::RemoveObserver(this);
+  NetworkChangeNotifier::RemoveIPAddressObserver(this);
   config_service_->RemoveObserver(this);
 
   // Cancel any inprogress requests.

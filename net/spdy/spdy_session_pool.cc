@@ -19,7 +19,7 @@ bool SpdySessionPool::g_force_single_domain = false;
 
 SpdySessionPool::SpdySessionPool(SSLConfigService* ssl_config_service)
     : ssl_config_service_(ssl_config_service) {
-  NetworkChangeNotifier::AddObserver(this);
+  NetworkChangeNotifier::AddIPAddressObserver(this);
   if (ssl_config_service_)
     ssl_config_service_->AddObserver(this);
 }
@@ -29,7 +29,7 @@ SpdySessionPool::~SpdySessionPool() {
 
   if (ssl_config_service_)
     ssl_config_service_->RemoveObserver(this);
-  NetworkChangeNotifier::RemoveObserver(this);
+  NetworkChangeNotifier::RemoveIPAddressObserver(this);
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::Get(
