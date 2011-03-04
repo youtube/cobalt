@@ -109,9 +109,9 @@ TEST(CommandLineTest, EmptyString) {
   EXPECT_TRUE(cl.GetProgram().empty());
 #elif defined(OS_POSIX)
   CommandLine cl(0, NULL);
-  EXPECT_EQ(0U, cl.argv().size());
+  EXPECT_TRUE(cl.argv().empty());
 #endif
-  EXPECT_EQ(0U, cl.args().size());
+  EXPECT_TRUE(cl.args().empty());
 }
 
 // Test methods for appending switches to a command line.

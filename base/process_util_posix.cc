@@ -400,7 +400,7 @@ char** AlterEnvironment(const environment_vector& changes,
     }
 
     // if !found, then we have a new element to add.
-    if (!found && j->second.size() > 0) {
+    if (!found && !j->second.empty()) {
       count++;
       size += j->first.size() + 1 /* '=' */ + j->second.size() + 1 /* NUL */;
     }

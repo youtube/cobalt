@@ -281,7 +281,7 @@ bool HttpUtil::ParseRangeHeader(const std::string& ranges_specifier,
       return false;
     ranges->push_back(range);
   }
-  return ranges->size() > 0;
+  return !ranges->empty();
 }
 
 // static

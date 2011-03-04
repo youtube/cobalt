@@ -234,7 +234,7 @@ void WebSocketJob::OnReceivedData(
                     receive_frame_handler_->GetCurrentBufferSize());
     receive_frame_handler_->ReleaseCurrentBuffer();
   }
-  if (delegate_ && received_data.size() > 0)
+  if (delegate_ && !received_data.empty())
       delegate_->OnReceivedData(
           socket, received_data.data(), received_data.size());
 }
