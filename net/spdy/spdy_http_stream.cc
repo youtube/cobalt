@@ -177,6 +177,11 @@ void SpdyHttpStream::SetConnectionReused() {
   // SPDY doesn't need an indicator here.
 }
 
+void SpdyHttpStream::set_chunk_callback(ChunkCallback* callback) {
+  if (request_body_stream_ != NULL)
+    request_body_stream_->set_chunk_callback(callback);
+}
+
 int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
                                 UploadDataStream* request_body,
                                 HttpResponseInfo* response,
@@ -200,7 +205,7 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
 
   CHECK(!request_body_stream_.get());
   if (request_body) {
-    if (request_body->size())
+    if (request_body->size() || request_body->is_chunked())
       request_body_stream_.reset(request_body);
     else
       delete request_body;
@@ -264,17 +269,33 @@ bool SpdyHttpStream::OnSendHeadersComplete(int status) {
 
 int SpdyHttpStream::OnSendBody() {
   CHECK(request_body_stream_.get());
+
   int buf_len = static_cast<int>(request_body_stream_->buf_len());
   if (!buf_len)
     return OK;
-  return stream_->WriteStreamData(request_body_stream_->buf(), buf_len,
-                                  spdy::DATA_FLAG_FIN);
+  bool is_chunked = request_body_stream_->is_chunked();
+  // TODO(satish): For non-chunked POST data, we set DATA_FLAG_FIN for all
+  // blocks of data written out. This is wrong if the POST data was larger than
+  // UploadDataStream::kBufSize as that is the largest buffer that
+  // UploadDataStream returns at a time and we'll be setting the FIN flag for
+  // each block of data written out.
+  bool eof = !is_chunked || request_body_stream_->IsOnLastChunk();
+  return stream_->WriteStreamData(
+      request_body_stream_->buf(), buf_len,
+      eof ? spdy::DATA_FLAG_FIN : spdy::DATA_FLAG_NONE);
 }
 
-bool SpdyHttpStream::OnSendBodyComplete(int status) {
+int SpdyHttpStream::OnSendBodyComplete(int status, bool* eof) {
   CHECK(request_body_stream_.get());
+
   request_body_stream_->MarkConsumedAndFillBuffer(status);
-  return request_body_stream_->eof();
+  *eof = request_body_stream_->eof();
+  if (!*eof &&
+      request_body_stream_->is_chunked() &&
+      !request_body_stream_->buf_len())
+    return ERR_IO_PENDING;
+
+  return OK;
 }
 
 int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
