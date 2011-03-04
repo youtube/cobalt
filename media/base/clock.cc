@@ -32,6 +32,15 @@ base::TimeDelta Clock::Pause() {
   return media_time_;
 }
 
+void Clock::SetPlaybackRate(float playback_rate) {
+  if (playing_) {
+    base::Time time = GetTimeFromProvider();
+    media_time_ = ElapsedViaProvidedTime(time);
+    reference_ = time;
+  }
+  playback_rate_ = playback_rate;
+}
+
 void Clock::SetTime(const base::TimeDelta& time) {
   if (time == kNoTimestamp) {
     NOTREACHED();
@@ -41,15 +50,6 @@ void Clock::SetTime(const base::TimeDelta& time) {
     reference_ = GetTimeFromProvider();
   }
   media_time_ = time;
-}
-
-void Clock::SetPlaybackRate(float playback_rate) {
-  if (playing_) {
-    base::Time time = GetTimeFromProvider();
-    media_time_ = ElapsedViaProvidedTime(time);
-    reference_ = time;
-  }
-  playback_rate_ = playback_rate;
 }
 
 base::TimeDelta Clock::Elapsed() const {
