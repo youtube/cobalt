@@ -636,7 +636,7 @@ void SpdySession::OnWriteComplete(int result) {
         // size.
         if (result > 0) {
           result = in_flight_write_.buffer()->size();
-          DCHECK_GT(result, static_cast<int>(spdy::SpdyFrame::size()));
+          DCHECK_GE(result, static_cast<int>(spdy::SpdyFrame::size()));
           result -= static_cast<int>(spdy::SpdyFrame::size());
         }
 

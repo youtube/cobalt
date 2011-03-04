@@ -112,6 +112,8 @@ void SpdyStream::PushedStreamReplayData() {
 }
 
 void SpdyStream::DetachDelegate() {
+  if (delegate_)
+    delegate_->set_chunk_callback(NULL);
   delegate_ = NULL;
   if (!closed())
     Cancel();
@@ -348,13 +350,22 @@ void SpdyStream::OnWriteComplete(int bytes) {
   DoLoop(bytes);
 }
 
+void SpdyStream::OnChunkAvailable() {
+  DCHECK(io_state_ == STATE_SEND_HEADERS || io_state_ == STATE_SEND_BODY ||
+         io_state_ == STATE_SEND_BODY_COMPLETE);
+  if (io_state_ == STATE_SEND_BODY)
+    OnWriteComplete(0);
+}
+
 void SpdyStream::OnClose(int status) {
   io_state_ = STATE_DONE;
   response_status_ = status;
   Delegate* delegate = delegate_;
   delegate_ = NULL;
-  if (delegate)
+  if (delegate) {
+    delegate->set_chunk_callback(NULL);
     delegate->OnClose(status);
+  }
 }
 
 void SpdyStream::Cancel() {
@@ -367,6 +378,9 @@ void SpdyStream::Cancel() {
 }
 
 int SpdyStream::SendRequest(bool has_upload_data) {
+  if (delegate_)
+    delegate_->set_chunk_callback(this);
+
   // Pushed streams do not send any data, and should always be in STATE_OPEN or
   // STATE_DONE. However, we still want to return IO_PENDING to mimic non-push
   // behavior.
@@ -545,17 +559,17 @@ int SpdyStream::DoSendBodyComplete(int result) {
   if (result < 0)
     return result;
 
-  CHECK_NE(result, 0);
-
   if (!delegate_)
     return ERR_UNEXPECTED;
 
-  if (!delegate_->OnSendBodyComplete(result))
+  bool eof = false;
+  result = delegate_->OnSendBodyComplete(result, &eof);
+  if (!eof)
     io_state_ = STATE_SEND_BODY;
   else
     io_state_ = STATE_WAITING_FOR_RESPONSE;
 
-  return OK;
+  return result;
 }
 
 int SpdyStream::DoOpen(int result) {
