@@ -40,7 +40,6 @@ class SpdyNetworkTransactionTest
     EnableCompression(false);
     google_get_request_initialized_ = false;
     google_post_request_initialized_ = false;
-    google_chunked_post_request_initialized_ = false;
   }
 
   virtual void TearDown() {
@@ -351,21 +350,6 @@ class SpdyNetworkTransactionTest
     return google_post_request_;
   }
 
-  const HttpRequestInfo& CreateChunkedPostRequest() {
-    if (!google_chunked_post_request_initialized_) {
-      google_chunked_post_request_.method = "POST";
-      google_chunked_post_request_.url = GURL(kDefaultURL);
-      google_chunked_post_request_.upload_data = new UploadData();
-      google_chunked_post_request_.upload_data->set_is_chunked(true);
-      google_chunked_post_request_.upload_data->AppendChunk(
-          kUploadData, kUploadDataSize, false);
-      google_chunked_post_request_.upload_data->AppendChunk(
-          kUploadData, kUploadDataSize, true);
-      google_chunked_post_request_initialized_ = true;
-    }
-    return google_chunked_post_request_;
-  }
-
   // Read the result of a particular transaction, knowing that we've got
   // multiple transactions in the read pipeline; so as we read, we may have
   // to skip over data destined for other transactions while we consume
@@ -470,10 +454,8 @@ class SpdyNetworkTransactionTest
  private:
   bool google_get_request_initialized_;
   bool google_post_request_initialized_;
-  bool google_chunked_post_request_initialized_;
   HttpRequestInfo google_get_request_;
   HttpRequestInfo google_post_request_;
-  HttpRequestInfo google_chunked_post_request_;
   HttpRequestInfo google_get_push_request_;
 };
 
@@ -1541,38 +1523,6 @@ TEST_P(SpdyNetworkTransactionTest, Post) {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
-}
-
-// Test that a chunked POST works.
-TEST_P(SpdyNetworkTransactionTest, ChunkedPost) {
-  UploadDataStream::set_merge_chunks(false);
-  scoped_ptr<spdy::SpdyFrame> req(ConstructChunkedSpdyPost(NULL, 0));
-  scoped_ptr<spdy::SpdyFrame> chunk1(ConstructSpdyBodyFrame(1, false));
-  scoped_ptr<spdy::SpdyFrame> chunk2(ConstructSpdyBodyFrame(1, true));
-  MockWrite writes[] = {
-    CreateMockWrite(*req),
-    CreateMockWrite(*chunk1),
-    CreateMockWrite(*chunk2),
-  };
-
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
-  MockRead reads[] = {
-    CreateMockRead(*resp),
-    CreateMockRead(*chunk1),
-    CreateMockRead(*chunk2),
-    MockRead(true, 0, 0)  // EOF
-  };
-
-  scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(2, reads, arraysize(reads),
-                            writes, arraysize(writes)));
-  NormalSpdyTransactionHelper helper(CreateChunkedPostRequest(),
-                                     BoundNetLog(), GetParam());
-  helper.RunToCompletion(data.get());
-  TransactionHelperResult out = helper.output();
-  EXPECT_EQ(OK, out.rv);
-  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-  EXPECT_EQ("hello!hello!", out.response_data);
 }
 
 // Test that a POST without any post data works.

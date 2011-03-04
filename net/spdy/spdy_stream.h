@@ -16,7 +16,6 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/bandwidth_metrics.h"
 #include "net/base/io_buffer.h"
-#include "net/base/upload_data.h"
 #include "net/base/net_log.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
@@ -35,9 +34,7 @@ class SSLInfo;
 // a SpdyNetworkTransaction) will maintain a reference to the stream.  When
 // initiated by the server, only the SpdySession will maintain any reference,
 // until such a time as a client object requests a stream for the path.
-class SpdyStream
-    : public base::RefCounted<SpdyStream>,
-      public ChunkCallback {
+class SpdyStream : public base::RefCounted<SpdyStream> {
  public:
   // Delegate handles protocol specific behavior of spdy stream.
   class Delegate {
@@ -53,10 +50,9 @@ class SpdyStream
     virtual int OnSendBody() = 0;
 
     // Called when data has been sent. |status| indicates network error
-    // or number of bytes that has been sent. On return, |eof| is set to true
-    // if no more data is available to send in the request body.
-    // Returns network error code. OK when it successfully sent data.
-    virtual int OnSendBodyComplete(int status, bool* eof) = 0;
+    // or number of bytes has been sent.
+    // Returns true if no more data to be sent.
+    virtual bool OnSendBodyComplete(int status) = 0;
 
     // Called when the SYN_STREAM, SYN_REPLY, or HEADERS frames are received.
     // Normal streams will receive a SYN_REPLY and optional HEADERS frames.
@@ -76,9 +72,6 @@ class SpdyStream
 
     // Called when SpdyStream is closed.
     virtual void OnClose(int status) = 0;
-
-    // Sets the callback to be invoked when a new chunk is available to upload.
-    virtual void set_chunk_callback(ChunkCallback* callback) = 0;
 
    protected:
     friend class base::RefCounted<Delegate>;
@@ -228,9 +221,6 @@ class SpdyStream
   // Get the URL associated with this stream.  Only valid when has_url() is
   // true.
   GURL GetUrl() const;
-
-  // ChunkCallback methods.
-  virtual void OnChunkAvailable();
 
  private:
   enum State {

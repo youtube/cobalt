@@ -330,9 +330,10 @@ class URLRequest : public base::NonThreadSafe {
   // call MarkEndOfChunks() to indicate the end of upload data.
   //
   // This method may be called only after calling EnableChunkedUpload().
-  void AppendChunkToUpload(const char* bytes,
-                           int bytes_len,
-                           bool is_last_chunk);
+  void AppendChunkToUpload(const char* bytes, int bytes_len);
+
+  // Indicates the end of a chunked transfer encoded request body.
+  void MarkEndOfChunks();
 
   // Set the upload data directly.
   void set_upload(net::UploadData* upload);

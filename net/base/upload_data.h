@@ -96,7 +96,7 @@ class UploadData : public base::RefCounted<UploadData> {
     // Though similar to bytes, a chunk indicates that the element is sent via
     // chunked transfer encoding and not buffered until the full upload data
     // is available.
-    void SetToChunk(const char* bytes, int bytes_len, bool is_last_chunk);
+    void SetToChunk(const char* bytes, int bytes_len);
 
     bool is_last_chunk() const { return is_last_chunk_; }
     // Sets whether this is the last chunk. Used during IPC marshalling.
@@ -153,8 +153,8 @@ class UploadData : public base::RefCounted<UploadData> {
   void AppendBlob(const GURL& blob_url);
 
   // Adds the given chunk of bytes to be sent immediately with chunked transfer
-  // encoding.
-  void AppendChunk(const char* bytes, int bytes_len, bool is_last_chunk);
+  // encoding. Set bytes_len to zero for the last chunk.
+  void AppendChunk(const char* bytes, int bytes_len);
 
   // Sets the callback to be invoked when a new chunk is available to upload.
   void set_chunk_callback(ChunkCallback* callback);
