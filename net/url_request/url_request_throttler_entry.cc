@@ -74,7 +74,7 @@ bool URLRequestThrottlerEntry::IsEntryOutdated() const {
 
   // If there are send events in the sliding window period, we still need this
   // entry.
-  if (send_log_.size() > 0 &&
+  if (!send_log_.empty() &&
       send_log_.back() + sliding_window_period_ > now) {
     return false;
   }

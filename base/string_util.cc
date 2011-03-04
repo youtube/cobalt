@@ -804,7 +804,8 @@ size_t Tokenize(const base::StringPiece& str,
 template<typename STR>
 static STR JoinStringT(const std::vector<STR>& parts,
                        typename STR::value_type sep) {
-  if (parts.empty()) return STR();
+  if (parts.empty())
+    return STR();
 
   STR result(parts[0]);
   typename std::vector<STR>::const_iterator iter = parts.begin();

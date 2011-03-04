@@ -249,9 +249,8 @@ bool FilePath::AppendRelativePath(const FilePath& child,
   GetComponents(&parent_components);
   child.GetComponents(&child_components);
 
-  if (parent_components.size() >= child_components.size())
-    return false;
-  if (parent_components.empty())
+  if (parent_components.empty() ||
+      parent_components.size() >= child_components.size())
     return false;
 
   std::vector<StringType>::const_iterator parent_comp =
