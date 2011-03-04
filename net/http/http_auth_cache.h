@@ -163,7 +163,11 @@ class HttpAuthCache::Entry {
   // Returns true if |dir| is contained within the realm's protection
   // space.  |*path_len| is set to the length of the enclosing path if
   // such a path exists and |path_len| is non-NULL.  If no enclosing
-  // path is found, |path_len| is left unmodified.
+  // path is found, |*path_len| is left unmodified.
+  //
+  // Note that proxy auth cache entries are associated with empty
+  // paths.  Therefore it is possible for HasEnclosingPath() to return
+  // true and set |*path_len| to 0.
   bool HasEnclosingPath(const std::string& dir, size_t* path_len);
 
   // |origin_| contains the {protocol, host, port} of the server.
