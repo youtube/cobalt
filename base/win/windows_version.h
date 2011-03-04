@@ -15,10 +15,10 @@ namespace win {
 // "if (GetWinVersion() > WINVERSION_2000) ...".  It's OK to change the values,
 // though.
 enum Version {
-  VERSION_PRE_2000 = 0,  // Not supported
-  VERSION_2000 = 1,      // Not supported
+  VERSION_PRE_2000 = 0,     // Not supported
+  VERSION_2000 = 1,         // Not supported
   VERSION_XP = 2,
-  VERSION_SERVER_2003 = 3,
+  VERSION_SERVER_2003 = 3,  // Also includes Windows XP Professional x64 edition
   VERSION_VISTA = 4,
   VERSION_2008 = 5,
   VERSION_WIN7 = 6,
