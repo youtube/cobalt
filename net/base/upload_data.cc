@@ -28,13 +28,16 @@ UploadData::Element::~Element() {
   delete file_stream_;
 }
 
-void UploadData::Element::SetToChunk(const char* bytes,
-                                     int bytes_len,
-                                     bool is_last_chunk) {
+void UploadData::Element::SetToChunk(const char* bytes, int bytes_len) {
+  std::string chunk_length = StringPrintf("%X\r\n", bytes_len);
   bytes_.clear();
+  bytes_.insert(bytes_.end(), chunk_length.data(),
+                chunk_length.data() + chunk_length.length());
   bytes_.insert(bytes_.end(), bytes, bytes + bytes_len);
+  const char* crlf = "\r\n";
+  bytes_.insert(bytes_.end(), crlf, crlf + 2);
   type_ = TYPE_CHUNK;
-  is_last_chunk_ = is_last_chunk;
+  is_last_chunk_ = (bytes_len == 0);
 }
 
 uint64 UploadData::Element::GetContentLength() {
@@ -143,12 +146,10 @@ void UploadData::AppendBlob(const GURL& blob_url) {
   elements_.back().SetToBlobUrl(blob_url);
 }
 
-void UploadData::AppendChunk(const char* bytes,
-                             int bytes_len,
-                             bool is_last_chunk) {
+void UploadData::AppendChunk(const char* bytes, int bytes_len) {
   DCHECK(is_chunked_);
   elements_.push_back(Element());
-  elements_.back().SetToChunk(bytes, bytes_len, is_last_chunk);
+  elements_.back().SetToChunk(bytes, bytes_len);
   if (chunk_callback_)
     chunk_callback_->OnChunkAvailable();
 }

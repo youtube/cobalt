@@ -189,13 +189,6 @@ class HttpStreamParser  : public ChunkCallback {
   // Callback to be used when doing IO.
   CompletionCallbackImpl<HttpStreamParser> io_callback_;
 
-  // Stores an encoded chunk for chunked uploads.
-  // Note: This should perhaps be improved to not create copies of the data.
-  scoped_refptr<IOBuffer> chunk_buf_;
-  size_t chunk_length_;
-  size_t chunk_length_without_encoding_;
-  bool sent_last_chunk_;
-
   DISALLOW_COPY_AND_ASSIGN(HttpStreamParser);
 };
 

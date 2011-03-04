@@ -184,13 +184,17 @@ void URLRequest::EnableChunkedUpload() {
   }
 }
 
-void URLRequest::AppendChunkToUpload(const char* bytes,
-                                     int bytes_len,
-                                     bool is_last_chunk) {
+void URLRequest::AppendChunkToUpload(const char* bytes, int bytes_len) {
   DCHECK(upload_);
   DCHECK(upload_->is_chunked());
   DCHECK_GT(bytes_len, 0);
-  upload_->AppendChunk(bytes, bytes_len, is_last_chunk);
+  upload_->AppendChunk(bytes, bytes_len);
+}
+
+void URLRequest::MarkEndOfChunks() {
+  DCHECK(upload_);
+  DCHECK(upload_->is_chunked());
+  upload_->AppendChunk(NULL, 0);
 }
 
 void URLRequest::set_upload(net::UploadData* upload) {
