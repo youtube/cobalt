@@ -1360,6 +1360,10 @@
                 # TODO(thakis): Use -isystem instead (http://crbug.com/58751 ).
                 '-Wno-unnamed-type-template-args',
               ],
+              'OTHER_CFLAGS': [
+                # TODO(thakis): Causes many warnings - http://crbug.com/75001
+                '-fobjc-exceptions',
+              ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
               'OTHER_CFLAGS': [
