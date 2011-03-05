@@ -6,8 +6,6 @@
 
 #include <list>
 
-// TODO(joi): Remove once crbug.com/71721 is fixed.
-#include "base/command_line.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 
@@ -27,6 +25,11 @@ struct IteratorHistory {
 
   // Not a refptr, we don't want to change behavior by keeping it alive.
   net::URLRequestThrottlerEntryInterface* entry;
+
+  // Set to true if the entry gets erased. Helpful to verify that entries
+  // with 0 refcount (since we don't take a refcount above) have been
+  // erased from the map.
+  bool was_erased;
 };
 
 }  // namespace
@@ -132,23 +135,6 @@ void URLRequestThrottlerManager::GarbageCollectEntriesIfNecessary() {
 void URLRequestThrottlerManager::GarbageCollectEntries() {
   // TODO(joi): Remove these crash report aids once crbug.com/71721
   // is figured out.
-
-  // Copy the current process command line, in case some labs feature
-  // is in common between the crash dumps.  Note that this is not equivalent
-  // to the command line stored in the PEB of the minidump since it may
-  // have been modified based on the about:labs preferences.
-  std::string command_line_string;
-#if defined(OS_WIN)
-  std::wstring wstr = CommandLine::ForCurrentProcess()->command_line_string();
-  command_line_string = WideToASCII(wstr);
-#else
-  command_line_string =
-      CommandLine::ForCurrentProcess()->command_line_string();
-#endif
-  char command_line_buffer[400] = { 0 };
-  base::strlcpy(command_line_buffer, command_line_string.c_str(),
-                arraysize(command_line_buffer));
-
   IteratorHistory history[32] = { { 0 } };
   size_t history_ix = 0;
   history[history_ix++].self = this;
@@ -170,18 +156,24 @@ void URLRequestThrottlerManager::GarbageCollectEntries() {
       base::strlcpy(history[history_ix].url, i->first.c_str(),
                     arraysize(history[history_ix].url));
       history[history_ix].entry = i->second.get();
+      history[history_ix].was_erased = false;
       ++history_ix;
     }
 
-    // TODO(joi): Remove first i->second check once no more bug.
-    if ((i->second) && (i->second)->IsEntryOutdated()) {
+    // TODO(joi): Remove first i->second check when crbug.com/71721 is fixed.
+    if (i->second == NULL || (i->second)->IsEntryOutdated()) {
       url_entries_.erase(i++);
+
+      if (nulls_found > 0 && (history_ix - 1) < arraysize(history)) {
+        history[history_ix - 1].was_erased = true;
+      }
     } else {
       ++i;
     }
   }
 
-  CHECK(nulls_found == 0);
+  // TODO(joi): Make this a CHECK again after M11 branch point.
+  DCHECK(nulls_found == 0);
 
   // In case something broke we want to make sure not to grow indefinitely.
   while (url_entries_.size() > kMaximumNumberOfEntries) {
