@@ -17,6 +17,7 @@
 namespace net {
 
 class CryptoModule;
+typedef std::vector<scoped_refptr<CryptoModule> > CryptoModuleList;
 class X509Certificate;
 typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 
@@ -76,6 +77,10 @@ class CertDatabase {
   // Get the default module.
   // The returned pointer must be stored in a scoped_refptr<CryptoModule>.
   CryptoModule* GetDefaultModule() const;
+
+  // Get all modules.
+  // If |need_rw| is true, only writable modules will be returned.
+  void ListModules(CryptoModuleList* modules, bool need_rw) const;
 
   // Import certificates and private keys from PKCS #12 blob into the module.
   // Returns OK or a network error code such as ERR_PKCS12_IMPORT_BAD_PASSWORD
