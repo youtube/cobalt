@@ -348,7 +348,8 @@ TEST(HistogramTest, CorruptBucketBounds) {
   EXPECT_EQ(0, histogram->FindCorruption(snapshot));  // No default corruption.
 
   std::swap(histogram->ranges_[1], histogram->ranges_[2]);
-  EXPECT_EQ(Histogram::BUCKET_ORDER_ERROR, histogram->FindCorruption(snapshot));
+  EXPECT_EQ(Histogram::BUCKET_ORDER_ERROR | Histogram::RANGE_CHECKSUM_ERROR,
+            histogram->FindCorruption(snapshot));
 
   std::swap(histogram->ranges_[1], histogram->ranges_[2]);
   EXPECT_EQ(0, histogram->FindCorruption(snapshot));
@@ -357,8 +358,30 @@ TEST(HistogramTest, CorruptBucketBounds) {
   EXPECT_EQ(Histogram::RANGE_CHECKSUM_ERROR,
             histogram->FindCorruption(snapshot));
 
+  // Show that two simple changes don't offset each other
+  --histogram->ranges_[4];
+  EXPECT_EQ(Histogram::RANGE_CHECKSUM_ERROR,
+            histogram->FindCorruption(snapshot));
+
   // Repair histogram so that destructor won't DCHECK().
   --histogram->ranges_[3];
+  ++histogram->ranges_[4];
+}
+
+// Table was generated similarly to sample code for CRC-32 given on:
+// http://www.w3.org/TR/PNG/#D-CRCAppendix.
+TEST(HistogramTest, Crc32TableTest) {
+  for (int i = 0; i < 256; ++i) {
+    uint32 checksum = i;
+    for (int j = 0; j < 8; ++j) {
+      const uint32 kReversedPolynomial = 0xedb88320L;
+      if (checksum & 1)
+        checksum = kReversedPolynomial ^ (checksum >> 1);
+      else
+        checksum >>= 1;
+    }
+    EXPECT_EQ(Histogram::kCrcTable[i], checksum);
+  }
 }
 
 }  // namespace base
