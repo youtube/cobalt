@@ -403,7 +403,8 @@ TEST(URLRequestThrottlerManager, StressTest) {
   }
 }
 
-#if defined(GTEST_HAS_DEATH_TEST)
+// TODO(joi): Remove the debug-only condition after M11 branch point.
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(NDEBUG)
 TEST(URLRequestThrottlerManager, NullHandlingTest) {
   MockURLRequestThrottlerManager manager;
   manager.OverrideEntryForTests(GURL("http://www.foo.com/"), NULL);
@@ -411,4 +412,4 @@ TEST(URLRequestThrottlerManager, NullHandlingTest) {
       manager.DoGarbageCollectEntries();
   }, "");
 }
-#endif  // defined(GTEST_HAS_DEATH_TEST)
+#endif  // defined(GTEST_HAS_DEATH_TEST) && !defined(NDEBUG)
