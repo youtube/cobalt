@@ -46,6 +46,12 @@ CryptoModule* CertDatabase::GetDefaultModule() const {
   return NULL;
 }
 
+void CertDatabase::ListModules(CryptoModuleList* modules, bool need_rw) const {
+  // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
+  modules->clear();
+}
+
 int CertDatabase::ImportFromPKCS12(net::CryptoModule* module,
                                    const std::string& data,
                                    const string16& password) {

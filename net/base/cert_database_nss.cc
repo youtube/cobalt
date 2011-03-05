@@ -118,6 +118,30 @@ CryptoModule* CertDatabase::GetDefaultModule() const {
   return module;
 }
 
+void CertDatabase::ListModules(CryptoModuleList* modules, bool need_rw) const {
+  modules->clear();
+
+  PK11SlotList* slot_list = NULL;
+  // The wincx arg is unused since we don't call PK11_SetIsLoggedInFunc.
+  slot_list = PK11_GetAllTokens(CKM_INVALID_MECHANISM,
+                                need_rw ? PR_TRUE : PR_FALSE,  // needRW
+                                PR_TRUE,  // loadCerts (unused)
+                                NULL);  // wincx
+  if (!slot_list) {
+    LOG(ERROR) << "PK11_GetAllTokens failed: " << PORT_GetError();
+    return;
+  }
+
+  PK11SlotListElement* slot_element = PK11_GetFirstSafe(slot_list);
+  while (slot_element) {
+    modules->push_back(CryptoModule::CreateFromHandle(slot_element->slot));
+    slot_element = PK11_GetNextSafe(slot_list, slot_element,
+                                    PR_FALSE);  // restart
+  }
+
+  PK11_FreeSlotList(slot_list);
+}
+
 int CertDatabase::ImportFromPKCS12(
     net::CryptoModule* module,
     const std::string& data,
