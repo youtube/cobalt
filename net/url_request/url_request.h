@@ -405,12 +405,6 @@ class URLRequest : public base::NonThreadSafe {
     return response_info_.was_npn_negotiated;
   }
 
-  // Returns true if the URLRequest was delivered when the alternate protocol
-  // is available.
-  bool was_alternate_protocol_available() const {
-    return response_info_.was_alternate_protocol_available;
-  }
-
   // Returns true if the URLRequest was delivered through a proxy.
   bool was_fetched_via_proxy() const {
     return response_info_.was_fetched_via_proxy;

@@ -167,10 +167,8 @@ class SpdyNetworkTransactionTest
       EXPECT_EQ(spdy_enabled_, response->was_fetched_via_spdy);
       if (test_type_ == SPDYNPN && spdy_enabled_) {
         EXPECT_TRUE(response->was_npn_negotiated);
-        EXPECT_TRUE(response->was_alternate_protocol_available);
       } else {
         EXPECT_TRUE(!response->was_npn_negotiated);
-        EXPECT_TRUE(!response->was_alternate_protocol_available);
       }
       // If SPDY is not enabled, a HTTP request should not be diverted
       // over a SSL session.
@@ -237,9 +235,20 @@ class SpdyNetworkTransactionTest
         ssl_->was_npn_negotiated = true;
       }
       ssl_vector_.push_back(ssl_);
-      if(test_type_ == SPDYNPN || test_type_ == SPDYSSL)
+      if (test_type_ == SPDYNPN || test_type_ == SPDYSSL)
         session_deps_->socket_factory->AddSSLSocketDataProvider(ssl_.get());
       session_deps_->socket_factory->AddSocketDataProvider(data);
+      if (test_type_ == SPDYNPN) {
+        MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+        linked_ptr<StaticSocketDataProvider>
+            hanging_non_alternate_protocol_socket(
+                new StaticSocketDataProvider(NULL, 0, NULL, 0));
+        hanging_non_alternate_protocol_socket->set_connect_data(
+            never_finishing_connect);
+        session_deps_->socket_factory->AddSocketDataProvider(
+            hanging_non_alternate_protocol_socket.get());
+        alternate_vector_.push_back(hanging_non_alternate_protocol_socket);
+      }
     }
 
     void AddDeterministicData(DeterministicSocketData* data) {
@@ -253,10 +262,23 @@ class SpdyNetworkTransactionTest
         ssl_->was_npn_negotiated = true;
       }
       ssl_vector_.push_back(ssl_);
-      if(test_type_ == SPDYNPN || test_type_ == SPDYSSL)
+      if (test_type_ == SPDYNPN || test_type_ == SPDYSSL) {
         session_deps_->deterministic_socket_factory->
             AddSSLSocketDataProvider(ssl_.get());
+      }
       session_deps_->deterministic_socket_factory->AddSocketDataProvider(data);
+      if (test_type_ == SPDYNPN) {
+        MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+        scoped_refptr<DeterministicSocketData>
+            hanging_non_alternate_protocol_socket(
+            new DeterministicSocketData(NULL, 0, NULL, 0));
+        hanging_non_alternate_protocol_socket->set_connect_data(
+            never_finishing_connect);
+        session_deps_->deterministic_socket_factory->AddSocketDataProvider(
+            hanging_non_alternate_protocol_socket);
+        alternate_deterministic_vector_.push_back(
+            hanging_non_alternate_protocol_socket);
+      }
     }
 
     // This can only be called after RunPreTestSetup. It adds a Data Provider,
@@ -289,6 +311,9 @@ class SpdyNetworkTransactionTest
    private:
     typedef std::vector<StaticSocketDataProvider*> DataVector;
     typedef std::vector<linked_ptr<SSLSocketDataProvider> > SSLVector;
+    typedef std::vector<linked_ptr<StaticSocketDataProvider> > AlternateVector;
+    typedef std::vector<scoped_refptr<DeterministicSocketData> >
+        AlternateDeterministicVector;
     HttpRequestInfo request_;
     scoped_ptr<SpdySessionDependencies> session_deps_;
     scoped_refptr<HttpNetworkSession> session_;
@@ -299,6 +324,8 @@ class SpdyNetworkTransactionTest
     scoped_ptr<HttpNetworkTransaction> trans_;
     scoped_ptr<HttpNetworkTransaction> trans_http_;
     DataVector data_vector_;
+    AlternateVector alternate_vector_;
+    AlternateDeterministicVector alternate_deterministic_vector_;
     const BoundNetLog& log_;
     SpdyNetworkTransactionTestTypes test_type_;
     int port_;
@@ -704,7 +731,7 @@ TEST_P(SpdyNetworkTransactionTest, TwoGetsLateBinding) {
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
 
-  MockConnect never_finishing_connect(true, ERR_IO_PENDING);
+  MockConnect never_finishing_connect(false, ERR_IO_PENDING);
 
   scoped_refptr<OrderedSocketData> data_placeholder(
       new OrderedSocketData(NULL, 0, NULL, 0));
@@ -893,10 +920,12 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
   settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
   scoped_ptr<spdy::SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
-  MockWrite writes[] = { CreateMockWrite(*req),
-                         CreateMockWrite(*req2),
-                         CreateMockWrite(*req3),
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+    CreateMockWrite(*req2),
+    CreateMockWrite(*req3),
   };
+
   MockRead reads[] = {
     CreateMockRead(*settings_frame, 1),
     CreateMockRead(*resp),
@@ -921,14 +950,14 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
   BoundNetLog log;
   TransactionHelperResult out;
   {
-  NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
-  helper.RunPreTestSetup();
-  helper.AddData(data.get());
-  // We require placeholder data because three get requests are sent out, so
-  // there needs to be three sets of SSL connection data.
-  helper.AddData(data_placeholder.get());
-  helper.AddData(data_placeholder.get());
+    NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                       BoundNetLog(), GetParam());
+    helper.RunPreTestSetup();
+    helper.AddData(data.get());
+    // We require placeholder data because three get requests are sent out, so
+    // there needs to be three sets of SSL connection data.
+    helper.AddData(data_placeholder.get());
+    helper.AddData(data_placeholder.get());
     scoped_ptr<HttpNetworkTransaction> trans1(
         new HttpNetworkTransaction(helper.session()));
     scoped_ptr<HttpNetworkTransaction> trans2(
@@ -1716,7 +1745,7 @@ TEST_P(SpdyNetworkTransactionTest, SocketWriteReturnsZero) {
 
   scoped_refptr<DeterministicSocketData> data(
       new DeterministicSocketData(reads, arraysize(reads),
-                            writes, arraysize(writes)));
+                                  writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(), GetParam());
   helper.SetDeterministic();
@@ -2530,6 +2559,38 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
     "version",
     "HTTP/1.1"
   };
+
+  // Setup writes/reads to www.google.com
+  scoped_ptr<spdy::SpdyFrame> req(
+      ConstructSpdyPacket(kSynStartHeader,
+                          kExtraHeaders,
+                          arraysize(kExtraHeaders) / 2,
+                          kStandardGetHeaders,
+                          arraysize(kStandardGetHeaders) / 2));
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> rep(
+      ConstructSpdyPush(NULL,
+                        0,
+                        2,
+                        1,
+                        "http://www.google.com/foo.dat",
+                        "301 Moved Permanently",
+                        "http://www.foo.com/index.php"));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(2, spdy::CANCEL));
+  MockWrite writes[] = {
+    CreateMockWrite(*req, 1),
+    CreateMockWrite(*rst, 6),
+  };
+  MockRead reads[] = {
+    CreateMockRead(*resp, 2),
+    CreateMockRead(*rep, 3),
+    CreateMockRead(*body, 4),
+    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
+    MockRead(true, 0, 0, 7)  // EOF
+  };
+
+  // Setup writes/reads to www.foo.com
   const char* const kStandardGetHeaders2[] = {
     "host",
     "www.foo.com",
@@ -2544,42 +2605,12 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
     "version",
     "HTTP/1.1"
   };
-
-  // Setup writes/reads to www.google.com
-  scoped_ptr<spdy::SpdyFrame> req(
-      ConstructSpdyPacket(kSynStartHeader,
-                          kExtraHeaders,
-                          arraysize(kExtraHeaders) / 2,
-                          kStandardGetHeaders,
-                          arraysize(kStandardGetHeaders) / 2));
   scoped_ptr<spdy::SpdyFrame> req2(
       ConstructSpdyPacket(kSynStartHeader,
                           kExtraHeaders,
                           arraysize(kExtraHeaders) / 2,
                           kStandardGetHeaders2,
                           arraysize(kStandardGetHeaders2) / 2));
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rep(
-      ConstructSpdyPush(NULL,
-                        0,
-                        2,
-                        1,
-                        "http://www.google.com/foo.dat",
-                        "301 Moved Permanently",
-                        "http://www.foo.com/index.php"));
-  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
-  MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
-  };
-  MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    CreateMockRead(*rep, 3),
-    CreateMockRead(*body, 4),
-    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
-    MockRead(true, 0, 0, 6)  // EOF
-  };
-
-  // Setup writes/reads to www.foo.com
   scoped_ptr<spdy::SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 1));
   scoped_ptr<spdy::SpdyFrame> body2(ConstructSpdyBodyFrame(1, true));
   MockWrite writes2[] = {
@@ -3871,7 +3902,6 @@ TEST_P(SpdyNetworkTransactionTest, ConnectFailureFallbackToHttp) {
 
     EXPECT_TRUE(!response->was_fetched_via_spdy);
     EXPECT_TRUE(!response->was_npn_negotiated);
-    EXPECT_TRUE(response->was_alternate_protocol_available);
     EXPECT_TRUE(http_fallback->at_read_eof());
     EXPECT_EQ(0u, data->read_index());
     EXPECT_EQ(0u, data->write_index());

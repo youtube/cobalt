@@ -7,9 +7,9 @@
 
 #include <map>
 #include <set>
-#include <string>
 
 #include "base/ref_counted.h"
+#include "net/base/host_port_pair.h"
 #include "net/http/http_stream_factory.h"
 #include "net/base/net_log.h"
 #include "net/proxy/proxy_server.h"
@@ -35,8 +35,8 @@ class HttpStreamFactoryImpl : public HttpStreamFactory {
                                  const HttpRequestInfo& info,
                                  const SSLConfig& ssl_config,
                                  const BoundNetLog& net_log);
-  virtual void AddTLSIntolerantServer(const GURL& url);
-  virtual bool IsTLSIntolerantServer(const GURL& url) const;
+  virtual void AddTLSIntolerantServer(const HostPortPair& server);
+  virtual bool IsTLSIntolerantServer(const HostPortPair& server) const;
 
  private:
   class Request;
@@ -44,6 +44,9 @@ class HttpStreamFactoryImpl : public HttpStreamFactory {
 
   typedef std::set<Request*> RequestSet;
   typedef std::map<HostPortProxyPair, RequestSet> SpdySessionRequestMap;
+
+  bool GetAlternateProtocolRequestFor(const GURL& original_url,
+                                      GURL* alternate_url) const;
 
   // Detaches |job| from |request|.
   void OrphanJob(Job* job, const Request* request);
@@ -55,7 +58,6 @@ class HttpStreamFactoryImpl : public HttpStreamFactory {
                           bool direct,
                           const SSLConfig& used_ssl_config,
                           const ProxyInfo& used_proxy_info,
-                          bool was_alternate_protocol_available,
                           bool was_npn_negotiated,
                           bool using_spdy,
                           const NetLog::Source& source);
@@ -76,7 +78,7 @@ class HttpStreamFactoryImpl : public HttpStreamFactory {
 
   HttpNetworkSession* const session_;
 
-  std::set<std::string> tls_intolerant_servers_;
+  std::set<HostPortPair> tls_intolerant_servers_;
 
   // All Requests are handed out to clients. By the time HttpStreamFactoryImpl
   // is destroyed, all Requests should be deleted (which should remove them from
