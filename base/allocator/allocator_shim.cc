@@ -35,7 +35,7 @@ typedef enum {
 } Allocator;
 
 // This is the default allocator.
-static Allocator allocator = TCMALLOC;
+static Allocator allocator = WINDEFAULT;
 
 // We include tcmalloc and the win_allocator to get as much inlining as
 // possible.
