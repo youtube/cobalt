@@ -382,6 +382,23 @@ const LogSeverity LOG_0 = LOG_ERROR;
   LAZY_STREAM(VLOG_STREAM(verbose_level), \
       VLOG_IS_ON(verbose_level) && (condition))
 
+#if defined (OS_WIN)
+#define VPLOG_STREAM(verbose_level) \
+  logging::Win32ErrorLogMessage(__FILE__, __LINE__, -verbose_level, \
+    ::logging::GetLastSystemErrorCode()).stream()
+#elif defined(OS_POSIX)
+#define VPLOG_STREAM(verbose_level) \
+  logging::ErrnoLogMessage(__FILE__, __LINE__, -verbose_level, \
+    ::logging::GetLastSystemErrorCode()).stream()
+#endif
+
+#define VPLOG(verbose_level) \
+  LAZY_STREAM(VPLOG_STREAM(verbose_level), VLOG_IS_ON(verbose_level))
+
+#define VPLOG_IF(verbose_level, condition) \
+  LAZY_STREAM(VPLOG_STREAM(verbose_level), \
+    VLOG_IS_ON(verbose_level) && (condition))
+
 // TODO(akalin): Add more VLOG variants, e.g. VPLOG.
 
 #define LOG_ASSERT(condition)  \
@@ -539,6 +556,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define DLOG_ASSERT(condition) LOG_ASSERT(condition)
 #define DPLOG_IF(severity, condition) PLOG_IF(severity, condition)
 #define DVLOG_IF(verboselevel, condition) VLOG_IF(verboselevel, condition)
+#define DVPLOG_IF(verboselevel, condition) VPLOG_IF(verboselevel, condition)
 
 #else  // ENABLE_DLOG
 
@@ -555,6 +573,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define DLOG_ASSERT(condition) DLOG_EAT_STREAM_PARAMETERS
 #define DPLOG_IF(severity, condition) DLOG_EAT_STREAM_PARAMETERS
 #define DVLOG_IF(verboselevel, condition) DLOG_EAT_STREAM_PARAMETERS
+#define DVPLOG_IF(verboselevel, condition) DLOG_EAT_STREAM_PARAMETERS
 
 #endif  // ENABLE_DLOG
 
@@ -588,6 +607,8 @@ enum { DEBUG_MODE = ENABLE_DLOG };
   LAZY_STREAM(PLOG_STREAM(severity), DLOG_IS_ON(severity))
 
 #define DVLOG(verboselevel) DLOG_IF(INFO, VLOG_IS_ON(verboselevel))
+
+#define DVPLOG(verboselevel) DVPLOG_IF(verboselevel, VLOG_IS_ON(verboselevel))
 
 // Definitions for DCHECK et al.
 
