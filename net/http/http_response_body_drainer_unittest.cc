@@ -111,6 +111,8 @@ class MockHttpStream : public HttpStream {
 
   virtual bool IsResponseBodyComplete() const { return is_complete_; }
 
+  virtual bool IsSpdyHttpStream() const { return false; }
+
   // Methods to tweak/observer mock behavior:
   void StallReadsForever() { stall_reads_forever_ = true; }
 
