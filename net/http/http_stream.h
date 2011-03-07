@@ -126,10 +126,6 @@ class HttpStream {
   // behavior is undefined.
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info) = 0;
 
-  // HACK(willchan): Really, we should move the HttpResponseDrainer logic into
-  // the HttpStream implementation. This is just a quick hack.
-  virtual bool IsSpdyHttpStream() const = 0;
-
  private:
   DISALLOW_COPY_AND_ASSIGN(HttpStream);
 };
