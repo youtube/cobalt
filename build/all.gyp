@@ -125,11 +125,6 @@
             '../views/views.gyp:*',
           ],
         }],
-        ['chromeos==1', {
-          'dependencies': [
-            '../chrome/browser/chromeos/input_method/candidate_window.gyp:*',
-          ],
-        }],
         ['remoting==1', {
           'dependencies': [
             '../remoting/remoting.gyp:*',
@@ -467,7 +462,6 @@
           'dependencies': [
             '../app/app.gyp:app_unittests',
             '../base/base.gyp:base_unittests',
-            '../chrome/browser/chromeos/input_method/candidate_window.gyp:candidate_window',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:interactive_ui_tests',
