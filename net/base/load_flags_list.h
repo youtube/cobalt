@@ -102,3 +102,6 @@ LOAD_FLAG(REPORT_RAW_HEADERS, 1 << 22)
 // and is (in theory) not intended for the current frame.
 LOAD_FLAG(PREFETCH, 1 << 23)
 
+// Indicates that this load was requested by a page that is currently
+// prerendering.
+LOAD_FLAG(PRERENDER, 1 << 24)
