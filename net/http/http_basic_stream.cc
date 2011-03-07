@@ -111,8 +111,4 @@ void HttpBasicStream::GetSSLCertRequestInfo(
   parser_->GetSSLCertRequestInfo(cert_request_info);
 }
 
-bool HttpBasicStream::IsSpdyHttpStream() const {
-  return false;
-}
-
 }  // namespace net

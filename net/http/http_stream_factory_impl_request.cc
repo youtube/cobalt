@@ -21,6 +21,7 @@ HttpStreamFactoryImpl::Request::Request(const GURL& url,
       delegate_(delegate),
       net_log_(net_log),
       completed_(false),
+      was_alternate_protocol_available_(false),
       was_npn_negotiated_(false),
       using_spdy_(false) {
   DCHECK(factory_);
@@ -62,11 +63,13 @@ void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
 }
 
 void HttpStreamFactoryImpl::Request::Complete(
+    bool was_alternate_protocol_available,
     bool was_npn_negotiated,
     bool using_spdy,
     const NetLog::Source& job_source) {
   DCHECK(!completed_);
   completed_ = true;
+  was_alternate_protocol_available_ = was_alternate_protocol_available;
   was_npn_negotiated_ = was_npn_negotiated;
   using_spdy_ = using_spdy;
   net_log_.AddEvent(
@@ -111,23 +114,10 @@ void HttpStreamFactoryImpl::Request::OnStreamFailed(
     int status,
     const SSLConfig& used_ssl_config) {
   DCHECK_NE(OK, status);
-  if (!bound_job_.get()) {
-    // Hey, we've got other jobs! Maybe one of them will succeed, let's just
-    // ignore this failure.
-    if (jobs_.size() > 1) {
-      jobs_.erase(job);
-      factory_->request_map_.erase(job);
-      delete job;
-      return;
-    } else {
-      bound_job_.reset(job);
-      jobs_.erase(job);
-      DCHECK(jobs_.empty());
-      factory_->request_map_.erase(job);
-    }
-  } else {
+  if (!bound_job_.get())
+    OrphanJobsExcept(job);
+  else
     DCHECK(jobs_.empty());
-  }
   delegate_->OnStreamFailed(status, used_ssl_config);
 }
 
@@ -199,6 +189,11 @@ LoadState HttpStreamFactoryImpl::Request::GetLoadState() const {
   return (*jobs_.begin())->GetLoadState();
 }
 
+bool HttpStreamFactoryImpl::Request::was_alternate_protocol_available() const {
+  DCHECK(completed_);
+  return was_alternate_protocol_available_;
+}
+
 bool HttpStreamFactoryImpl::Request::was_npn_negotiated() const {
   DCHECK(completed_);
   return was_npn_negotiated_;
@@ -243,11 +238,14 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
   // Cache these values in case the job gets deleted.
   const SSLConfig used_ssl_config = job->ssl_config();
   const ProxyInfo used_proxy_info = job->proxy_info();
+  const bool was_alternate_protocol_available =
+      job->was_alternate_protocol_available();
   const bool was_npn_negotiated = job->was_npn_negotiated();
   const bool using_spdy = job->using_spdy();
   const NetLog::Source source = job->net_log().source();
 
-  Complete(was_npn_negotiated,
+  Complete(was_alternate_protocol_available,
+           was_npn_negotiated,
            using_spdy,
            source);
 
@@ -262,7 +260,7 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
   // |this| may be deleted after this point.
   factory->OnSpdySessionReady(
       spdy_session, direct, used_ssl_config, used_proxy_info,
-      was_npn_negotiated, using_spdy, source);
+      was_alternate_protocol_available, was_npn_negotiated, using_spdy, source);
 }
 
 void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
