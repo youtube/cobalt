@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/allocator/allocator_shim.h"
-
 #include <config.h>
 
 // When defined, different heap allocators can be used via an environment
@@ -31,24 +29,13 @@ static int new_mode = 0;
 
 typedef enum {
   TCMALLOC,    // TCMalloc is the default allocator.
-  JEMALLOC,    // JEMalloc.
-  WINHEAP,  // Windows Heap (standard Windows allocator).
-  WINLFH,      // Windows LFH Heap.
+  JEMALLOC,    // JEMalloc
+  WINDEFAULT,  // Windows Heap
+  WINLFH,      // Windows LFH Heap
 } Allocator;
 
-// This is the default allocator. This value can be changed at startup by
-// specifying environment variables shown below it.
-// See SetupSubprocessAllocator() to specify a default secondary (subprocess)
-// allocator.
-// TODO(jar): Switch to using TCMALLOC for the renderer as well.
-static Allocator allocator = WINHEAP;
-
-// The names of the environment variables that can optionally control the
-// selection of the allocator.  The primary may be used to control overall
-// allocator selection, and the secondary can be used to specify an allocator
-// to use in sub-processes.
-static const char* primary_name = "CHROME_ALLOCATOR";
-static const char* secondary_name = "CHROME_ALLOCATOR_2";
+// This is the default allocator.
+static Allocator allocator = TCMALLOC;
 
 // We include tcmalloc and the win_allocator to get as much inlining as
 // possible.
@@ -114,7 +101,7 @@ void* malloc(size_t size) __THROW {
       case JEMALLOC:
         ptr = je_malloc(size);
         break;
-      case WINHEAP:
+      case WINDEFAULT:
       case WINLFH:
         ptr = win_heap_malloc(size);
         break;
@@ -142,7 +129,7 @@ void free(void* p) __THROW {
     case JEMALLOC:
       je_free(p);
       return;
-    case WINHEAP:
+    case WINDEFAULT:
     case WINLFH:
       win_heap_free(p);
       return;
@@ -166,7 +153,7 @@ void* realloc(void* ptr, size_t size) __THROW {
       case JEMALLOC:
         new_ptr = je_realloc(ptr, size);
         break;
-      case WINHEAP:
+      case WINDEFAULT:
       case WINLFH:
         new_ptr = win_heap_realloc(ptr, size);
         break;
@@ -198,7 +185,7 @@ void malloc_stats(void) __THROW {
     case JEMALLOC:
       // No stats.
       return;
-    case WINHEAP:
+    case WINDEFAULT:
     case WINLFH:
       // No stats.
       return;
@@ -214,7 +201,7 @@ extern "C" size_t _msize(void* p) {
   switch (allocator) {
     case JEMALLOC:
       return je_msize(p);
-    case WINHEAP:
+    case WINDEFAULT:
     case WINLFH:
       return win_heap_msize(p);
   }
@@ -230,22 +217,22 @@ extern "C" intptr_t _get_heap_handle() {
 // The CRT heap initialization stub.
 extern "C" int _heap_init() {
 #ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  const char* environment_value = GetenvBeforeMain(primary_name);
-  if (environment_value) {
-    if (!stricmp(environment_value, "jemalloc"))
+  const char* override = GetenvBeforeMain("CHROME_ALLOCATOR");
+  if (override) {
+    if (!stricmp(override, "jemalloc"))
       allocator = JEMALLOC;
-    else if (!stricmp(environment_value, "winheap"))
-      allocator = WINHEAP;
-    else if (!stricmp(environment_value, "winlfh"))
+    else if (!stricmp(override, "winheap"))
+      allocator = WINDEFAULT;
+    else if (!stricmp(override, "winlfh"))
       allocator = WINLFH;
-    else if (!stricmp(environment_value, "tcmalloc"))
+    else if (!stricmp(override, "tcmalloc"))
       allocator = TCMALLOC;
   }
 
   switch (allocator) {
     case JEMALLOC:
       return je_malloc_init_hard() ? 0 : 1;
-    case WINHEAP:
+    case WINDEFAULT:
       return win_heap_init(false) ? 1 : 0;
     case WINLFH:
       return win_heap_init(true) ? 1 : 0;
@@ -277,29 +264,3 @@ extern "C" void* _crtheap = reinterpret_cast<void*>(1);
 #include "generic_allocators.cc"
 
 }  // extern C
-
-namespace base {
-namespace allocator {
-
-void SetupSubprocessAllocator() {
-#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-  size_t primary_length = 0;
-  getenv_s(&primary_length, NULL, 0, primary_name);
-
-  size_t secondary_length = 0;
-  char buffer[20];
-  getenv_s(&secondary_length, buffer, sizeof(buffer), secondary_name);
-  DCHECK_GT(sizeof(buffer), secondary_length);
-  buffer[sizeof(buffer) - 1] = '\0';
-
-  if (secondary_length || !primary_length) {
-    char* secondary_value = secondary_length ? buffer : "TCMALLOC";
-    // Force renderer (or other subprocesses) to use secondary_value.
-    int ret_val = _putenv_s(primary_name, secondary_value);
-    CHECK_EQ(0, ret_val);
-  }
-#endif  // ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
-}
-
-}  // namespace base.
-}  // namespace allocator.
