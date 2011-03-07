@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,15 +9,15 @@
 #include "base/logging.h"
 #include "media/audio/linux/alsa_wrapper.h"
 
-namespace {
+namespace alsa_util {
 
-snd_pcm_t* OpenDevice(AlsaWrapper* wrapper,
-                      const char* device_name,
-                      snd_pcm_stream_t type,
-                      int channels,
-                      int sample_rate,
-                      snd_pcm_format_t pcm_format,
-                      int latency_us) {
+static snd_pcm_t* OpenDevice(AlsaWrapper* wrapper,
+                             const char* device_name,
+                             snd_pcm_stream_t type,
+                             int channels,
+                             int sample_rate,
+                             snd_pcm_format_t pcm_format,
+                             int latency_us) {
   snd_pcm_t* handle = NULL;
   int error = wrapper->PcmOpen(&handle, device_name, type, SND_PCM_NONBLOCK);
   if (error < 0) {
@@ -42,10 +42,6 @@ snd_pcm_t* OpenDevice(AlsaWrapper* wrapper,
 
   return handle;
 }
-
-}  // namespace
-
-namespace alsa_util {
 
 snd_pcm_format_t BitsToFormat(int bits_per_sample) {
   switch (bits_per_sample) {
