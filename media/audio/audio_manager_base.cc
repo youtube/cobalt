@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,7 @@
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/audio_output_proxy.h"
 
-namespace {
-const int kStreamCloseDelayMs = 5000;
-}  // namespace
+static const int kStreamCloseDelayMs = 5000;
 
 AudioManagerBase::AudioManagerBase()
     : audio_thread_("AudioThread"),

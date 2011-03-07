@@ -1,22 +1,23 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "media/filters/ffmpeg_glue.h"
 
 #include "base/string_util.h"
 #include "media/base/filters.h"
 #include "media/ffmpeg/ffmpeg_common.h"
-#include "media/filters/ffmpeg_glue.h"
 
-namespace {
+namespace media {
 
-media::FFmpegURLProtocol* ToProtocol(void* data) {
-  return reinterpret_cast<media::FFmpegURLProtocol*>(data);
+static FFmpegURLProtocol* ToProtocol(void* data) {
+  return reinterpret_cast<FFmpegURLProtocol*>(data);
 }
 
 // FFmpeg protocol interface.
-int OpenContext(URLContext* h, const char* filename, int flags) {
-  media::FFmpegURLProtocol* protocol;
-  media::FFmpegGlue::GetInstance()->GetProtocol(filename, &protocol);
+static int OpenContext(URLContext* h, const char* filename, int flags) {
+  FFmpegURLProtocol* protocol;
+  FFmpegGlue::GetInstance()->GetProtocol(filename, &protocol);
   if (!protocol)
     return AVERROR_IO;
 
@@ -26,8 +27,8 @@ int OpenContext(URLContext* h, const char* filename, int flags) {
   return 0;
 }
 
-int ReadContext(URLContext* h, unsigned char* buf, int size) {
-  media::FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
+static int ReadContext(URLContext* h, unsigned char* buf, int size) {
+  FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
   int result = protocol->Read(size, buf);
   if (result < 0)
     result = AVERROR_IO;
@@ -35,16 +36,16 @@ int ReadContext(URLContext* h, unsigned char* buf, int size) {
 }
 
 #if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52, 68, 0)
-int WriteContext(URLContext* h, const unsigned char* buf, int size) {
+static int WriteContext(URLContext* h, const unsigned char* buf, int size) {
 #else
-int WriteContext(URLContext* h, unsigned char* buf, int size) {
+static int WriteContext(URLContext* h, unsigned char* buf, int size) {
 #endif
   // We don't support writing.
   return AVERROR_IO;
 }
 
-int64 SeekContext(URLContext* h, int64 offset, int whence) {
-  media::FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
+static int64 SeekContext(URLContext* h, int64 offset, int whence) {
+  FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
   int64 new_offset = AVERROR_IO;
   switch (whence) {
     case SEEK_SET:
@@ -80,12 +81,12 @@ int64 SeekContext(URLContext* h, int64 offset, int whence) {
   return new_offset;
 }
 
-int CloseContext(URLContext* h) {
+static int CloseContext(URLContext* h) {
   h->priv_data = NULL;
   return 0;
 }
 
-int LockManagerOperation(void** lock, enum AVLockOp op) {
+static int LockManagerOperation(void** lock, enum AVLockOp op) {
   switch (op) {
     case AV_LOCK_CREATE:
       *lock = new base::Lock();
@@ -108,12 +109,6 @@ int LockManagerOperation(void** lock, enum AVLockOp op) {
   }
   return 1;
 }
-
-}  // namespace
-
-//------------------------------------------------------------------------------
-
-namespace media {
 
 // Use the HTTP protocol to avoid any file path separator issues.
 static const char kProtocol[] = "http";

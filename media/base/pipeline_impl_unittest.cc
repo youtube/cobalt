@@ -24,17 +24,13 @@ using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrictMock;
 
-namespace {
+namespace media {
 
 // Total bytes of the data source.
-const int kTotalBytes = 1024;
+static const int kTotalBytes = 1024;
 
 // Buffered bytes of the data source.
-const int kBufferedBytes = 1024;
-
-}  // namespace
-
-namespace media {
+static const int kBufferedBytes = 1024;
 
 // Used for setting expectations on pipeline callbacks.  Using a StrictMock
 // also lets us test for missing callbacks.

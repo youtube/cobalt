@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,21 +6,10 @@
 
 #include "base/message_loop.h"
 
+namespace media {
+
 // Signal a pause in low-latency mode.
 static const int kPauseMark = -1;
-
-namespace {
-// Return true if the parameters for creating an audio stream is valid.
-// Return false otherwise.
-static bool CheckParameters(AudioParameters params) {
-  if (!params.IsValid())
-    return false;
-  return true;
-}
-
-}  // namespace
-
-namespace media {
 
 AudioOutputController::AudioOutputController(EventHandler* handler,
                                              uint32 capacity,
@@ -45,7 +34,7 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
     AudioParameters params,
     uint32 buffer_capacity) {
 
-  if (!CheckParameters(params))
+  if (!params.IsValid())
     return NULL;
 
   if (!AudioManager::GetAudioManager())
@@ -72,7 +61,7 @@ scoped_refptr<AudioOutputController> AudioOutputController::CreateLowLatency(
 
   DCHECK(sync_reader);
 
-  if (!CheckParameters(params))
+  if (!params.IsValid())
     return NULL;
 
   if (!AudioManager::GetAudioManager())

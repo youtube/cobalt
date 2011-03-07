@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,15 +9,11 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
-namespace {
-
 // A custom data structure to store information an AudioQueue buffer.
 struct AudioQueueUserData {
   AudioQueueUserData() : empty_buffer(false) {}
   bool empty_buffer;
 };
-
-}  // namespace
 
 // Overview of operation:
 // 1) An object of PCMQueueOutAudioOutputStream is created by the AudioManager
@@ -178,7 +174,6 @@ void PCMQueueOutAudioOutputStream::GetVolume(double* volume) {
 
 // Reorder PCM from AAC layout to Core Audio layout.
 // TODO(fbarchard): Switch layout when ffmpeg is updated.
-namespace {
 template<class Format>
 static void SwizzleLayout(Format* b, uint32 filled) {
   static const int kNumSurroundChannels = 6;
@@ -193,7 +188,6 @@ static void SwizzleLayout(Format* b, uint32 filled) {
     b[5] = aac[4];  // Rs
   }
 }
-}  // namespace
 
 // Note to future hackers of this function: Do not add locks here because we
 // call out to third party source that might do crazy things including adquire

@@ -14,19 +14,16 @@
 
 namespace media {
 
-namespace {
-
 // TODO(fbarchard): Convert to intrinsics for better efficiency.
-
 template<class Fixed>
 static int ScaleChannel(int channel, int volume) {
   return static_cast<int>((static_cast<Fixed>(channel) * volume) >> 16);
 }
 
 template<class Format, class Fixed, int bias>
-void AdjustVolume(Format* buf_out,
-                  int sample_count,
-                  int fixed_volume) {
+static void AdjustVolume(Format* buf_out,
+                         int sample_count,
+                         int fixed_volume) {
   for (int i = 0; i < sample_count; ++i) {
     buf_out[i] = static_cast<Format>(ScaleChannel<Fixed>(buf_out[i] - bias,
                                                          fixed_volume) + bias);
@@ -38,8 +35,7 @@ static const int kChannel_R = 1;
 static const int kChannel_C = 2;
 
 template<class Fixed, int min_value, int max_value>
-static int AddChannel(int val,
-               int adder) {
+static int AddChannel(int val, int adder) {
   Fixed sum = static_cast<Fixed>(val) + static_cast<Fixed>(adder);
   if (sum > max_value)
     return max_value;
@@ -56,7 +52,6 @@ static int AddChannel(int val,
 // bits of integer are used.
 // 8 bit samples are unsigned and 128 represents 0, so a bias is removed before
 // doing calculations, then readded for the final output.
-
 template<class Format, class Fixed, int min_value, int max_value, int bias>
 static void FoldChannels(Format* buf_out,
                          int sample_count,
@@ -84,7 +79,6 @@ static void FoldChannels(Format* buf_out,
     buf_in += channels;
   }
 }
-}  // namespace
 
 // AdjustVolume() does an in place audio sample change.
 bool AdjustVolume(void* buf,
