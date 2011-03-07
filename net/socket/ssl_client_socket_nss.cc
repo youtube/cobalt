@@ -665,8 +665,6 @@ void SSLClientSocketNSS::Disconnect() {
   verifier_.reset();
   transport_->socket()->Disconnect();
 
-  CHECK(CalledOnValidThread());
-
   // TODO(wtc): Send SSL close_notify alert.
   if (nss_fd_ != NULL) {
     PR_Close(nss_fd_);
