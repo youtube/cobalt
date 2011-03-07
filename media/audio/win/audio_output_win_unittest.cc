@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,9 +25,7 @@ using ::testing::NiceMock;
 using ::testing::NotNull;
 using ::testing::Return;
 
-namespace {
-
-const wchar_t kAudioFile1_16b_m_16K[]
+static const wchar_t kAudioFile1_16b_m_16K[]
     = L"media\\test\\data\\sweep02_16b_mono_16KHz.raw";
 
 // This class allows to find out if the callbacks are occurring as
@@ -69,11 +67,9 @@ class TestSourceBasic : public AudioOutputStream::AudioSourceCallback {
   int had_error_;
 };
 
-bool IsRunningHeadless() {
+static bool IsRunningHeadless() {
   return (0 != ::GetEnvironmentVariableW(L"CHROME_HEADLESS", NULL, 0));
 }
-
-}  // namespace.
 
 const int kNumBuffers = 3;
 // Specializes TestSourceBasic to detect that the AudioStream is using
@@ -618,7 +614,6 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
   oas->Close();
 }
 
-namespace {
 // Simple source that uses a SyncSocket to retrieve the audio data
 // from a potentially remote thread.
 class SyncSocketSource : public AudioOutputStream::AudioSourceCallback {
@@ -682,8 +677,6 @@ DWORD __stdcall SyncSocketThread(void* context) {
   delete buffer;
   return 0;
 }
-
-}  // namespace
 
 // Test the basic operation of AudioOutputStream used with a SyncSocket.
 // The emphasis is to test low-latency with buffers less than 100ms. With

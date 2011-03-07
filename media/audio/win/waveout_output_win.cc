@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,24 +29,21 @@
 //   to make sure we are not executing inside the audio source's OnMoreData()
 //   or that we take locks inside WaveCallback() or QueueNextPacket().
 
-namespace {
 // Sixty four MB is the maximum buffer size per AudioOutputStream.
-const uint32 kMaxOpenBufferSize = 1024 * 1024 * 64;
+static const uint32 kMaxOpenBufferSize = 1024 * 1024 * 64;
 
 // Our sound buffers are allocated once and kept in a linked list using the
 // the WAVEHDR::dwUser variable. The last buffer points to the first buffer.
-WAVEHDR* GetNextBuffer(WAVEHDR* current) {
+static WAVEHDR* GetNextBuffer(WAVEHDR* current) {
   return reinterpret_cast<WAVEHDR*>(current->dwUser);
 }
-
-}  // namespace
 
 // See Also
 // http://www.thx.com/consumer/home-entertainment/home-theater/surround-sound-speaker-set-up/
 // http://en.wikipedia.org/wiki/Surround_sound
 
-const int kMaxChannelsToMask = 8;
-const unsigned int kChannelsToMask[kMaxChannelsToMask + 1] = {
+static const int kMaxChannelsToMask = 8;
+static const unsigned int kChannelsToMask[kMaxChannelsToMask + 1] = {
   0,
   // 1 = Mono
   SPEAKER_FRONT_CENTER,

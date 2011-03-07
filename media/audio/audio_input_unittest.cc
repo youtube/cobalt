@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,10 +11,8 @@
 #include "media/audio/audio_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
-
-const int kSamplingRate = 8000;
-const int kSamplesPerPacket = kSamplingRate / 20;
+static const int kSamplingRate = 8000;
+static const int kSamplesPerPacket = kSamplingRate / 20;
 
 // This class allows to find out if the callbacks are occurring as
 // expected and if any error has been reported.
@@ -89,7 +87,7 @@ class TestInputCallbackBlocking : public TestInputCallback {
   int block_for_ms_;
 };
 
-bool CanRunAudioTests() {
+static bool CanRunAudioTests() {
   scoped_ptr<base::Environment> env(base::Environment::Create());
   if (env->HasVar("CHROME_HEADLESS"))
     return false;
@@ -101,7 +99,7 @@ bool CanRunAudioTests() {
   return audio_man->HasAudioInputDevices();
 }
 
-AudioInputStream* CreateTestAudioInputStream() {
+static AudioInputStream* CreateTestAudioInputStream() {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   AudioInputStream* ais = audio_man->MakeAudioInputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, 2, kSamplingRate,
@@ -109,8 +107,6 @@ AudioInputStream* CreateTestAudioInputStream() {
   EXPECT_TRUE(NULL != ais);
   return ais;
 }
-
-}  // namespace.
 
 // Test that AudioInputStream rejects out of range parameters.
 TEST(AudioInputTest, SanityOnMakeParams) {

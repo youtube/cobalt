@@ -16,7 +16,7 @@
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
-namespace {
+namespace media {
 
 class ReadCallbackHandler {
  public:
@@ -27,10 +27,6 @@ class ReadCallbackHandler {
  private:
   DISALLOW_COPY_AND_ASSIGN(ReadCallbackHandler);
 };
-
-}  // namespace
-
-namespace media {
 
 // Returns a path to the test file which contains the string "0123456789"
 // without the quotes or any trailing space or null termination.  The file lives

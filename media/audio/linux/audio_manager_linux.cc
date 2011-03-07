@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,14 +18,10 @@
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
-namespace {
-
 // Maximum number of output streams that can be open simultaneously.
-const size_t kMaxOutputStreams = 50;
+static const size_t kMaxOutputStreams = 50;
 
-const int kMaxInputChannels = 2;
-
-}  // namespace
+static const int kMaxInputChannels = 2;
 
 // Implementation of AudioManager.
 bool AudioManagerLinux::HasAudioOutputDevices() {

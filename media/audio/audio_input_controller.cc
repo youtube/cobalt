@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,9 @@
 #include "base/threading/thread_restrictions.h"
 #include "media/base/limits.h"
 
-namespace {
-
-const int kMaxInputChannels = 2;
-
-}  // namespace
-
 namespace media {
+
+static const int kMaxInputChannels = 2;
 
 // static
 AudioInputController::Factory* AudioInputController::factory_ = NULL;

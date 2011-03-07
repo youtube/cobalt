@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,16 +22,14 @@
 
 namespace media {
 
-namespace {
-
 enum FFmpegDLLKeys {
-  FILE_LIBAVCODEC,       // full path to libavcodec media decoding library.
-  FILE_LIBAVFORMAT,      // full path to libavformat media parsing library.
-  FILE_LIBAVUTIL,        // full path to libavutil media utility library.
+  FILE_LIBAVCODEC,   // full path to libavcodec media decoding library.
+  FILE_LIBAVFORMAT,  // full path to libavformat media parsing library.
+  FILE_LIBAVUTIL,    // full path to libavutil media utility library.
 };
 
 // Retrieves the DLLName for the given key.
-FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
+static FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
   // TODO(ajwong): Do we want to lock to a specific ffmpeg version?
   switch (dll_key) {
     case FILE_LIBAVCODEC:
@@ -45,8 +43,6 @@ FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
       return FILE_PATH_LITERAL("");
   }
 }
-
-}  // namespace
 
 // Attempts to initialize the media library (loading DLLs, DSOs, etc.).
 // Returns true if everything was successfully initialized, false otherwise.

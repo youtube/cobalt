@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,15 +14,11 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
 
-namespace {
-
 // Our sound buffers are allocated once and kept in a linked list using the
 // the WAVEHDR::dwUser variable. The last buffer points to the first buffer.
-WAVEHDR* GetNextBuffer(WAVEHDR* current) {
+static WAVEHDR* GetNextBuffer(WAVEHDR* current) {
   return reinterpret_cast<WAVEHDR*>(current->dwUser);
 }
-
-}  // namespace
 
 PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
     AudioManagerWin* manager, AudioParameters params, int num_buffers,

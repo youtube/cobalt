@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,23 +14,18 @@ using ::testing::Exactly;
 using ::testing::InvokeWithoutArgs;
 using ::testing::NotNull;
 
-namespace {
+namespace media {
 
-const int kSampleRate = AudioParameters::kAudioCDSampleRate;
-const int kBitsPerSample = 16;
-const int kChannels = 2;
-const int kSamplesPerPacket = kSampleRate / 10;
+static const int kSampleRate = AudioParameters::kAudioCDSampleRate;
+static const int kBitsPerSample = 16;
+static const int kChannels = 2;
+static const int kSamplesPerPacket = kSampleRate / 10;
 
 ACTION_P3(CheckCountAndSignalEvent, count, limit, event) {
   if (++*count >= limit) {
     event->Signal();
   }
 }
-
-// Test AudioInputController for create and close without recording audio.
-}
-
-namespace media {
 
 class MockAudioInputControllerEventHandler
     : public AudioInputController::EventHandler {
@@ -47,6 +42,7 @@ class MockAudioInputControllerEventHandler
   DISALLOW_COPY_AND_ASSIGN(MockAudioInputControllerEventHandler);
 };
 
+// Test AudioInputController for create and close without recording audio.
 TEST(AudioInputControllerTest, CreateAndClose) {
   MockAudioInputControllerEventHandler event_handler;
   base::WaitableEvent event(false, false);
