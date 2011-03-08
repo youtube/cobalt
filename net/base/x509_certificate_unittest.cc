@@ -848,6 +848,20 @@ struct CertificateNameVerifyTestData {
   const char* cert_names;
 };
 
+// Required by valgrind on mac, otherwise it complains when using its default
+// printer:
+// UninitCondition
+// Conditional jump or move depends on uninitialised value(s)
+// ...
+// snprintf
+// testing::(anonymous namespace)::PrintByteSegmentInObjectTo
+// testing::internal2::TypeWithoutFormatter
+// ...
+void PrintTo(const CertificateNameVerifyTestData& data, std::ostream* os) {
+  *os << " expected: " << data.expected << ", hostname: "
+      << data.hostname << ", cert_names: " << data.cert_names;
+}
+
 const CertificateNameVerifyTestData kNameVerifyTestData[] = {
     { true, "foo.com", "foo.com" },
     { true, "foo.com", "foo.com." },
