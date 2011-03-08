@@ -6,9 +6,8 @@
 
 namespace net {
 
-MockFilterContext::MockFilterContext(int buffer_size)
-    : buffer_size_(buffer_size),
-      is_cached_content_(false),
+MockFilterContext::MockFilterContext()
+    : is_cached_content_(false),
       is_download_(false),
       is_sdch_response_(false),
       response_code_(-1) {
@@ -42,7 +41,5 @@ bool MockFilterContext::IsSdchResponse() const { return is_sdch_response_; }
 int64 MockFilterContext::GetByteReadCount() const { return 0; }
 
 int MockFilterContext::GetResponseCode() const { return response_code_; }
-
-int MockFilterContext::GetInputStreamBufferSize() const { return buffer_size_; }
 
 }  // namespace net

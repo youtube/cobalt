@@ -29,8 +29,6 @@ namespace net {
 
 class SdchFilter : public Filter {
  public:
-  explicit SdchFilter(const FilterContext& filter_context);
-
   virtual ~SdchFilter();
 
   // Initializes filter decoding mode and internal control blocks.
@@ -54,6 +52,10 @@ class SdchFilter : public Filter {
     META_REFRESH_RECOVERY,  // Decoding error being handled by a meta-refresh.
     PASS_THROUGH,  // Non-sdch content being passed without alteration.
   };
+
+  // Only to be instantiated by Filter::Factory.
+  explicit SdchFilter(const FilterContext& filter_context);
+  friend class Filter;
 
   // Identify the suggested dictionary, and initialize underlying decompressor.
   Filter::FilterStatus InitializeDictionary();
