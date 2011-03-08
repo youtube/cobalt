@@ -8,10 +8,12 @@
 
 namespace net {
 
-void NetworkDelegate::NotifyBeforeURLRequest(URLRequest* request) {
+bool NetworkDelegate::NotifyBeforeURLRequest(URLRequest* request,
+                                             CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(request);
-  OnBeforeURLRequest(request);
+  DCHECK(callback);
+  return OnBeforeURLRequest(request, callback);
 }
 
 void NetworkDelegate::NotifySendHttpRequest(HttpRequestHeaders* headers) {
