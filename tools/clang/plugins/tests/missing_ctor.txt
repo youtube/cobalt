@@ -1,0 +1,6 @@
+In file included from missing_ctor.cpp:5:
+./missing_ctor.h:11:1: warning: [chromium-style] Complex class/struct needs a declared constructor.
+class MissingCtorsArentOKInHeader {
+^
+./missing_ctor.h:11:1: warning: [chromium-style] Complex class/struct needs a declared destructor.
+2 warnings generated.
