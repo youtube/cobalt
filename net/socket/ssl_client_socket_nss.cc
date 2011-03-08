@@ -660,6 +660,8 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
 void SSLClientSocketNSS::Disconnect() {
   EnterFunction("");
 
+  CHECK(CalledOnValidThread());
+
   // Shut down anything that may call us back (through buffer_send_callback_,
   // buffer_recv_callback, or handshake_io_callback_).
   verifier_.reset();
