@@ -17,6 +17,7 @@
 #include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
@@ -607,6 +608,13 @@ class URLRequest : public base::NonThreadSafe {
   // passed values.
   void DoCancel(int os_error, const net::SSLInfo& ssl_info);
 
+  // Resumes or blocks a request paused by the NetworkDelegate::OnBeforeRequest
+  // handler. If |blocked| is true, the request is blocked and an error page is
+  // returned indicating so. This should only be called after Start is called
+  // and OnBeforeRequest returns true (signalling that the request should be
+  // paused).
+  void BeforeRequestComplete(int error);
+
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket pool, etc.)
@@ -663,6 +671,11 @@ class URLRequest : public base::NonThreadSafe {
   const uint64 identifier_;
 
   base::debug::LeakTracker<URLRequest> leak_tracker_;
+
+  // Callback passed to the network delegate to notify us when a blocked request
+  // is ready to be resumed or canceled.
+  scoped_refptr< CancelableCompletionCallback<URLRequest> >
+      before_request_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };

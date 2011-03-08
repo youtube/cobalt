@@ -201,7 +201,8 @@ class TestNetworkDelegate : public net::NetworkDelegate {
 
  private:
   // net::NetworkDelegate:
-  virtual void OnBeforeURLRequest(net::URLRequest* request);
+  virtual bool OnBeforeURLRequest(net::URLRequest* request,
+                                  net::CompletionCallback* callback);
   virtual void OnSendHttpRequest(net::HttpRequestHeaders* headers);
   virtual void OnResponseStarted(net::URLRequest* request);
   virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
