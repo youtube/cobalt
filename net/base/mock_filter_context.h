@@ -15,10 +15,9 @@ namespace net {
 
 class MockFilterContext : public FilterContext {
  public:
-  explicit MockFilterContext(int buffer_size);
+  MockFilterContext();
   virtual ~MockFilterContext();
 
-  void SetBufferSize(int buffer_size) { buffer_size_ = buffer_size; }
   void SetMimeType(const std::string& mime_type) { mime_type_ = mime_type; }
   void SetURL(const GURL& gurl) { gurl_ = gurl; }
   void SetRequestTime(const base::Time time) { request_time_ = time; }
@@ -51,9 +50,6 @@ class MockFilterContext : public FilterContext {
   virtual int64 GetByteReadCount() const;
 
   virtual int GetResponseCode() const;
-
-  // What is the desirable input buffer size for these filters?
-  virtual int GetInputStreamBufferSize() const;
 
   virtual void RecordPacketStats(StatisticSelector statistic) const {}
 
