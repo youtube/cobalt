@@ -362,10 +362,10 @@ void URLRequest::Start() {
 
   if (context_ && context_->network_delegate()) {
     before_request_callback_ = new CancelableCompletionCallback<URLRequest>(
-      this, &URLRequest::BeforeRequestComplete);
-    before_request_callback_->AddRef();  // balanced in BeforeRequestComplete
+        this, &URLRequest::BeforeRequestComplete);
     if (context_->network_delegate()->NotifyBeforeURLRequest(
-        this, before_request_callback_)) {
+            this, before_request_callback_)) {
+      before_request_callback_->AddRef();  // balanced in BeforeRequestComplete
       net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
       return;  // paused
     }
