@@ -34,6 +34,9 @@ const char kApplicationXCompress[] = "application/x-compress";
 const char kApplicationCompress[]  = "application/compress";
 const char kTextHtml[]             = "text/html";
 
+// Buffer size allocated when de-compressing data.
+const int kFilterBufSize = 32 * 1024;
+
 }  // namespace
 
 FilterContext::~FilterContext() {
@@ -43,15 +46,29 @@ Filter::~Filter() {}
 
 Filter* Filter::Factory(const std::vector<FilterType>& filter_types,
                         const FilterContext& filter_context) {
-  DCHECK_GT(filter_context.GetInputStreamBufferSize(), 0);
-  if (filter_types.empty() || filter_context.GetInputStreamBufferSize() <= 0)
+  if (filter_types.empty())
     return NULL;
-
 
   Filter* filter_list = NULL;  // Linked list of filters.
   for (size_t i = 0; i < filter_types.size(); i++) {
     filter_list = PrependNewFilter(filter_types[i], filter_context,
-                                   filter_list);
+                                   kFilterBufSize, filter_list);
+    if (!filter_list)
+      return NULL;
+  }
+  return filter_list;
+}
+
+Filter* Filter::FactoryForTests(const std::vector<FilterType>& filter_types,
+                                const FilterContext& filter_context,
+                                int buffer_size) {
+  if (filter_types.empty())
+    return NULL;
+
+  Filter* filter_list = NULL;  // Linked list of filters.
+  for (size_t i = 0; i < filter_types.size(); i++) {
+    filter_list = PrependNewFilter(filter_types[i], filter_context,
+                                   buffer_size, filter_list);
     if (!filter_list)
       return NULL;
   }
@@ -329,6 +346,7 @@ Filter::FilterStatus Filter::CopyOut(char* dest_buffer, int* dest_len) {
 // static
 Filter* Filter::PrependNewFilter(FilterType type_id,
                                  const FilterContext& filter_context,
+                                 int buffer_size,
                                  Filter* filter_list) {
   Filter* first_filter = NULL;  // Soon to be start of chain.
   switch (type_id) {
@@ -337,10 +355,9 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
     case FILTER_TYPE_GZIP: {
       scoped_ptr<net::GZipFilter> gz_filter(
           new net::GZipFilter(filter_context));
-      if (gz_filter->InitBuffer()) {
-        if (gz_filter->InitDecoding(type_id)) {
-          first_filter = gz_filter.release();
-        }
+      gz_filter->InitBuffer(buffer_size);
+      if (gz_filter->InitDecoding(type_id)) {
+        first_filter = gz_filter.release();
       }
       break;
     }
@@ -348,10 +365,9 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
     case FILTER_TYPE_SDCH_POSSIBLE: {
       scoped_ptr<net::SdchFilter> sdch_filter(
           new net::SdchFilter(filter_context));
-      if (sdch_filter->InitBuffer()) {
-        if (sdch_filter->InitDecoding(type_id)) {
-          first_filter = sdch_filter.release();
-        }
+      sdch_filter->InitBuffer(buffer_size);
+      if (sdch_filter->InitDecoding(type_id)) {
+        first_filter = sdch_filter.release();
       }
       break;
     }
@@ -370,20 +386,11 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
   return first_filter;
 }
 
-bool Filter::InitBuffer() {
-  int buffer_size = filter_context_.GetInputStreamBufferSize();
+void Filter::InitBuffer(int buffer_size) {
+  DCHECK(!stream_buffer());
   DCHECK_GT(buffer_size, 0);
-  if (buffer_size <= 0 || stream_buffer())
-    return false;
-
   stream_buffer_ = new net::IOBuffer(buffer_size);
-
-  if (stream_buffer()) {
-    stream_buffer_size_ = buffer_size;
-    return true;
-  }
-
-  return false;
+  stream_buffer_size_ = buffer_size;
 }
 
 void Filter::PushDataIntoNextFilter() {
