@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/threading/non_thread_safe.h"
+#include "net/base/completion_callback.h"
 
 namespace net {
 
@@ -30,7 +31,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   // Notification interface called by the network stack. Note that these
   // functions mostly forward to the private virtuals. They also add some sanity
   // checking on parameters.
-  void NotifyBeforeURLRequest(URLRequest* request);
+  bool NotifyBeforeURLRequest(URLRequest* request,
+                              CompletionCallback* callback);
   void NotifySendHttpRequest(HttpRequestHeaders* headers);
   void NotifyResponseStarted(URLRequest* request);
   void NotifyReadCompleted(URLRequest* request, int bytes_read);
@@ -41,7 +43,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   // member function, which will perform basic sanity checking.
 
   // Called before a request is sent.
-  virtual void OnBeforeURLRequest(URLRequest* request) = 0;
+  virtual bool OnBeforeURLRequest(URLRequest* request,
+                                  CompletionCallback* callback) = 0;
 
   // Called right before the HTTP headers are sent.  Allows the delegate to
   // read/write |headers| before they get sent out.
