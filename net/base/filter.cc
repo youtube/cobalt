@@ -39,6 +39,8 @@ const int kFilterBufSize = 32 * 1024;
 
 }  // namespace
 
+namespace net {
+
 FilterContext::~FilterContext() {
 }
 
@@ -400,3 +402,5 @@ void Filter::PushDataIntoNextFilter() {
   if (FILTER_ERROR != last_status_)
     next_filter_->FlushStreamBuffer(next_size);
 }
+
+}  // namespace net
