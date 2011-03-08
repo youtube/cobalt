@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -42,9 +42,8 @@
 class GURL;
 
 namespace net {
+
 class IOBuffer;
-class SdchFilterChainingTest;
-}
 
 //------------------------------------------------------------------------------
 // Define an interface class that allows access to contextual information
@@ -194,7 +193,7 @@ class Filter {
 
  protected:
   friend class GZipUnitTest;
-  friend class net::SdchFilterChainingTest;
+  friend class SdchFilterChainingTest;
 
   explicit Filter(const FilterContext& filter_context);
 
@@ -266,5 +265,7 @@ class Filter {
 
   DISALLOW_COPY_AND_ASSIGN(Filter);
 };
+
+}  // namespace net
 
 #endif  // NET_BASE_FILTER_H__
