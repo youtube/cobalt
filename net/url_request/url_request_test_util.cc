@@ -296,7 +296,9 @@ TestNetworkDelegate::TestNetworkDelegate()
 
 TestNetworkDelegate::~TestNetworkDelegate() {}
 
-void TestNetworkDelegate::OnBeforeURLRequest(net::URLRequest* request) {
+bool TestNetworkDelegate::OnBeforeURLRequest(
+    net::URLRequest* request, net::CompletionCallback* callback) {
+  return false;
 }
 
 void TestNetworkDelegate::OnSendHttpRequest(

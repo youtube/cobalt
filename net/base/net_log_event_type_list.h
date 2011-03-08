@@ -497,6 +497,10 @@ EVENT_TYPE(URL_REQUEST_START_JOB)
 //   }
 EVENT_TYPE(URL_REQUEST_REDIRECTED)
 
+// Measures the time a net::URLRequest is blocked waiting for an extension to
+// respond to the onBefoteRequest extension event.
+EVENT_TYPE(URL_REQUEST_BLOCKED_ON_EXTENSION)
+
 // ------------------------------------------------------------------------
 // HttpCache
 // ------------------------------------------------------------------------
