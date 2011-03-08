@@ -468,6 +468,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {21, true, "\010checkout\006google\003com"},
     {19, true, "\006chrome\006google\003com"},
     {28, false, "\016aladdinschools\007appspot\003com"},
+    {14, true, "\011ottospora\002nl"},
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
