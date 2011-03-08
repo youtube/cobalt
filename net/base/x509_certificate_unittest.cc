@@ -7,6 +7,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/pickle.h"
+#include "base/string_split.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_test_util.h"
 #include "net/base/cert_verify_result.h"
@@ -836,5 +837,88 @@ TEST_P(X509CertificateParseTest, CanParseFormat) {
 
 INSTANTIATE_TEST_CASE_P(, X509CertificateParseTest,
                         testing::ValuesIn(FormatTestData));
+
+struct CertificateNameVerifyTestData {
+  // true iff we expect hostname to match an entry in cert_names.
+  bool expected;
+  // The hostname to match.
+  const char* hostname;
+  // '/' separated list of certificate names to match against. Any occurrence
+  // of '#' will be replaced with a null character before processing.
+  const char* cert_names;
+};
+
+const CertificateNameVerifyTestData kNameVerifyTestData[] = {
+    { true, "foo.com", "foo.com" },
+    { true, "foo.com", "foo.com." },
+    { true, "f", "f" },
+    { true, "f", "f." },
+    { true, "bar.foo.com", "*.foo.com" },
+    { true, "www-3.bar.foo.com", "*.bar.foo.com." },
+    { true, "www.test.fr", "*.test.com/*.test.co.uk/*.test.de/*.test.fr" },
+    { true, "wwW.tESt.fr", "//*.*/*.test.de/*.test.FR/www" },
+    { false, "foo.com", "*.com" },
+    { false, "f.uk", ".uk" },
+    { true,  "h.co.uk", "*.co.uk" },
+    { false, "192.168.1.11", "*.168.1.11" },
+    { false, "foo.us", "*.us" },
+    { false, "www.bar.foo.com",
+      "*.foo.com/*.*.foo.com/*.*.bar.foo.com/*w*.bar.foo.com/*..bar.foo.com" },
+    { false, "w.bar.foo.com", "?.bar.foo.com" },
+    { false, "www.foo.com", "(www|ftp).foo.com" },
+    { false, "www.foo.com", "www.foo.com#*.foo.com/#" },  // # = null char.
+    { false, "foo", "*" },
+    { false, "foo.", "*." },
+    { false, "test.org", "www.test.org/*.test.org/*.org" },
+    { false, "1.2.3.4.5.6", "*.2.3.4.5.6" },
+    // IDN tests
+    { true, "xn--poema-9qae5a.com.br", "xn--poema-9qae5a.com.br" },
+    { true, "www.xn--poema-9qae5a.com.br", "*.xn--poema-9qae5a.com.br" },
+    { false, "xn--poema-9qae5a.com.br", "*.xn--poema-9qae5a.com.br" },
+    // The following are adapted from the examples in
+    // http://tools.ietf.org/html/draft-saintandre-tls-server-id-check-09#section-4.4.3
+    { true, "foo.example.com", "*.example.com" },
+    { false, "bar.foo.example.com", "*.example.com" },
+    { false, "example.com", "*.example.com" },
+    { false, "baz1.example.net", "baz*.example.net" },
+    { false, "baz2.example.net", "baz*.example.net" },
+    { false, "bar.*.example.net", "bar.*.example.net" },
+    { false, "bar.f*o.example.net", "bar.f*o.example.net" },
+    // IP addresses currently not supported, except for the localhost.
+    { true, "127.0.0.1", "127.0.0.1" },
+    { false, "192.168.1.1", "192.168.1.1" },
+    { false, "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210",
+      "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210" },
+    { false, "FEDC:BA98:7654:3210:FEDC:BA98:7654:3210", "*.]" },
+    { false, "::192.9.5.5", "::192.9.5.5" },
+    { false, "::192.9.5.5", "*.9.5.5" },
+    { false, "2010:836B:4179::836B:4179", "*:836B:4179::836B:4179" },
+    // Invalid host names.
+    { false, "www%26.foo.com", "www%26.foo.com" },
+    { false, "www.*.com", "www.*.com" },
+    { false, "w$w.f.com", "w$w.f.com" },
+    { false, "www-1.[::FFFF:129.144.52.38]", "*.[::FFFF:129.144.52.38]" },
+};
+
+class X509CertificateNameVerifyTest
+    : public testing::TestWithParam<CertificateNameVerifyTestData> {
+};
+
+TEST_P(X509CertificateNameVerifyTest, VerifyHostname) {
+  CertificateNameVerifyTestData test_data = GetParam();
+
+  std::string cert_name_line(test_data.cert_names);
+  std::replace(cert_name_line.begin(), cert_name_line.end(), '#', '\0');
+  std::vector<std::string> cert_names;
+  base::SplitString(cert_name_line, '/', &cert_names);
+
+  EXPECT_EQ(test_data.expected,
+            X509Certificate::VerifyHostname(test_data.hostname, cert_names))
+      << "Host [" << test_data.hostname
+      << "], cert name [" << test_data.cert_names << "]";
+}
+
+INSTANTIATE_TEST_CASE_P(, X509CertificateNameVerifyTest,
+                        testing::ValuesIn(kNameVerifyTestData));
 
 }  // namespace net
