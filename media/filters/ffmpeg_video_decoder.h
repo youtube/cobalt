@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,6 +25,12 @@ class VideoDecodeEngine;
 class FFmpegVideoDecoder : public VideoDecoder,
                            public VideoDecodeEngine::EventHandler {
  public:
+  // Holds timestamp and duration data needed for properly enqueuing a frame.
+  struct TimeTuple {
+    base::TimeDelta timestamp;
+    base::TimeDelta duration;
+  };
+
   FFmpegVideoDecoder(MessageLoop* message_loop,
                      VideoDecodeContext* decode_context);
   virtual ~FFmpegVideoDecoder();
@@ -66,13 +72,6 @@ class FFmpegVideoDecoder : public VideoDecoder,
                            DoDecode_TestStateTransition);
   FRIEND_TEST_ALL_PREFIXES(FFmpegVideoDecoderTest, DoSeek);
 
-  // The TimeTuple struct is used to hold the needed timestamp data needed for
-  // enqueuing a video frame.
-  struct TimeTuple {
-    base::TimeDelta timestamp;
-    base::TimeDelta duration;
-  };
-
   enum DecoderState {
     kUnInitialized,
     kInitializing,
@@ -113,8 +112,6 @@ class FFmpegVideoDecoder : public VideoDecoder,
   virtual void SetVideoDecodeEngineForTest(VideoDecodeEngine* engine);
 
   MessageLoop* message_loop_;
-  size_t width_;
-  size_t height_;
   MediaFormat media_format_;
 
   PtsHeap pts_heap_;  // Heap of presentation timestamps.

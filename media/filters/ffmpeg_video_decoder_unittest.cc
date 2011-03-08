@@ -34,6 +34,19 @@ using ::testing::Invoke;
 
 namespace media {
 
+static const int kWidth = 1280;
+static const int kHeight = 720;
+static const FFmpegVideoDecoder::TimeTuple kTestPts1 =
+    { base::TimeDelta::FromMicroseconds(123),
+      base::TimeDelta::FromMicroseconds(50) };
+static const FFmpegVideoDecoder::TimeTuple kTestPts2 =
+    { base::TimeDelta::FromMicroseconds(456),
+      base::TimeDelta::FromMicroseconds(60) };
+static const FFmpegVideoDecoder::TimeTuple kTestPts3 =
+    { base::TimeDelta::FromMicroseconds(789),
+      base::TimeDelta::FromMicroseconds(60) };
+static const PipelineStatistics kStatistics;
+
 class MockFFmpegDemuxerStream : public MockDemuxerStream,
                                 public AVStreamProvider {
  public:
@@ -93,6 +106,10 @@ class DecoderPrivateMock : public FFmpegVideoDecoder {
 ACTION_P2(EngineInitialize, engine, success) {
   engine->event_handler_ = arg1;
   engine->info_.success = success;
+  engine->info_.stream_info.surface_type = VideoFrame::TYPE_SYSTEM_MEMORY;
+  engine->info_.stream_info.surface_format = VideoFrame::YV12;
+  engine->info_.stream_info.surface_width = kWidth;
+  engine->info_.stream_info.surface_height = kHeight;
   engine->event_handler_->OnInitializeComplete(engine->info_);
 }
 
@@ -115,13 +132,6 @@ ACTION_P(EngineSeek, engine) {
 // FFmpeg, pipeline and filter host mocks.
 class FFmpegVideoDecoderTest : public testing::Test {
  protected:
-  static const int kWidth;
-  static const int kHeight;
-  static const FFmpegVideoDecoder::TimeTuple kTestPts1;
-  static const FFmpegVideoDecoder::TimeTuple kTestPts2;
-  static const FFmpegVideoDecoder::TimeTuple kTestPts3;
-  static const PipelineStatistics kStatistics;
-
   FFmpegVideoDecoderTest() {
     MediaFormat media_format;
     media_format.SetAsString(MediaFormat::kMimeType, mime_type::kFFmpegVideo);
@@ -218,20 +228,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
  private:
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoderTest);
 };
-
-const int FFmpegVideoDecoderTest::kWidth = 1280;
-const int FFmpegVideoDecoderTest::kHeight = 720;
-const FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoderTest::kTestPts1 =
-    { base::TimeDelta::FromMicroseconds(123),
-      base::TimeDelta::FromMicroseconds(50) };
-const FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoderTest::kTestPts2 =
-    { base::TimeDelta::FromMicroseconds(456),
-      base::TimeDelta::FromMicroseconds(60) };
-const FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoderTest::kTestPts3 =
-    { base::TimeDelta::FromMicroseconds(789),
-      base::TimeDelta::FromMicroseconds(60) };
-
-const PipelineStatistics FFmpegVideoDecoderTest::kStatistics;
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_QueryInterfaceFails) {
   // Test QueryInterface returning NULL.

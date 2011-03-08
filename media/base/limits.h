@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,8 +13,8 @@ namespace media {
 
 struct Limits {
   // For video.
-  static const size_t kMaxDimension = (1 << 15) - 1;  // 32767
-  static const size_t kMaxCanvas = (1 << (14 * 2));  // 16384 x 16384
+  static const int kMaxDimension = (1 << 15) - 1;  // 32767
+  static const int kMaxCanvas = (1 << (14 * 2));  // 16384 x 16384
 
   // Total number of video frames which are populating in the pipeline.
   static const size_t kMaxVideoFrames = 4;
