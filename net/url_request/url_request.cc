@@ -19,6 +19,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_job.h"
 #include "net/url_request/url_request_job_manager.h"
 #include "net/url_request/url_request_netlog_params.h"
@@ -131,6 +132,9 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
 }
 
 URLRequest::~URLRequest() {
+  if (before_request_callback_)
+    before_request_callback_->Cancel();
+
   Cancel();
 
   if (job_)
@@ -354,6 +358,19 @@ GURL URLRequest::GetSanitizedReferrer() const {
 }
 
 void URLRequest::Start() {
+  response_info_.request_time = Time::Now();
+
+  if (context_ && context_->network_delegate()) {
+    before_request_callback_ = new CancelableCompletionCallback<URLRequest>(
+      this, &URLRequest::BeforeRequestComplete);
+    before_request_callback_->AddRef();  // balanced in BeforeRequestComplete
+    if (context_->network_delegate()->NotifyBeforeURLRequest(
+        this, before_request_callback_)) {
+      net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
+      return;  // paused
+    }
+  }
+
   StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
 }
 
@@ -362,11 +379,6 @@ void URLRequest::Start() {
 void URLRequest::StartJob(URLRequestJob* job) {
   DCHECK(!is_pending_);
   DCHECK(!job_);
-
-  // TODO(mpcomplete): pass in request ID?
-  // TODO(mpcomplete): allow delegate to potentially delay/cancel request.
-  if (context_ && context_->network_delegate())
-    context_->network_delegate()->NotifyBeforeURLRequest(this);
 
   net_log_.BeginEvent(
       net::NetLog::TYPE_URL_REQUEST_START_JOB,
@@ -381,7 +393,6 @@ void URLRequest::StartJob(URLRequestJob* job) {
 
   is_pending_ = true;
 
-  response_info_.request_time = Time::Now();
   response_info_.was_cached = false;
 
   // Don't allow errors to be sent from within Start().
@@ -389,6 +400,18 @@ void URLRequest::StartJob(URLRequestJob* job) {
   // we probably don't want this: they should be sent asynchronously so
   // the caller does not get reentered.
   job_->Start();
+}
+
+void URLRequest::BeforeRequestComplete(int error) {
+  DCHECK(!job_);
+
+  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
+  before_request_callback_->Release();  // balanced in Start
+  if (error != net::OK) {
+    StartJob(new URLRequestErrorJob(this, error));
+  } else {
+    StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
+  }
 }
 
 void URLRequest::Restart() {
@@ -539,6 +562,7 @@ void URLRequest::PrepareToRestart() {
   OrphanJob();
 
   response_info_ = net::HttpResponseInfo();
+  response_info_.request_time = Time::Now();
   status_ = URLRequestStatus();
   is_pending_ = false;
 }
