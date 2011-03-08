@@ -452,7 +452,7 @@ void ThreadData::RunOnAllThreads(void (*function)()) {
   int ret_val = CloseHandle(completion_handle);
   DCHECK(ret_val);
 }
-#endif
+#endif  // OS_WIN
 
 // static
 bool ThreadData::StartTracking(bool status) {
