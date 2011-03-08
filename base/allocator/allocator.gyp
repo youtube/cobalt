@@ -176,6 +176,7 @@
         '<(jemalloc_dir)/rb.h',
 
         'allocator_shim.cc',
+        'allocator_shim.h',
         'generic_allocators.cc',
         'win_allocator.cc',        
       ],
