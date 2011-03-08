@@ -28,8 +28,6 @@ class GZipHeader;
 
 class GZipFilter : public Filter {
  public:
-  explicit GZipFilter(const FilterContext& filter_context);
-
   virtual ~GZipFilter();
 
   // Initializes filter decoding mode and internal control blocks.
@@ -74,6 +72,10 @@ class GZipFilter : public Filter {
   };
 
   static const int kGZipFooterSize = 8;
+
+  // Only to be instantiated by Filter::Factory.
+  explicit GZipFilter(const FilterContext& filter_context);
+  friend class Filter;
 
   // Parses and verifies the GZip header.
   // Upon exit, the function updates gzip_header_status_ accordingly.
