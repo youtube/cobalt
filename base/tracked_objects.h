@@ -357,7 +357,7 @@ class Aggregation: public DeathData {
 //------------------------------------------------------------------------------
 // Comparator is a class that supports the comparison of Snapshot instances.
 // An instance is actually a list of chained Comparitors, that can provide for
-// arbitrary ordering.  The path portion of an about:objects URL is translated
+// arbitrary ordering.  The path portion of an about:tasks URL is translated
 // into such a chain, which is then used to order Snapshot instances in a
 // vector.  It orders them into groups (for aggregation), and can also order
 // instances within the groups (for detailed rendering of the instances in an
@@ -423,7 +423,7 @@ class Comparator {
   // Translate a keyword and restriction in URL path to a selector for sorting.
   void ParseKeyphrase(const std::string& key_phrase);
 
-  // Parse a query in an about:objects URL to decide on sort ordering.
+  // Parse a query in an about:tasks URL to decide on sort ordering.
   bool ParseQuery(const std::string& query);
 
   // Output a header line that can be used to indicated what items will be
@@ -479,8 +479,7 @@ class ThreadData {
   // return null.
   static ThreadData* current();
 
-  // For a given about:objects URL, develop resulting HTML, and append to
-  // output.
+  // For a given about:tasks URL, develop resulting HTML, and append to output.
   static void WriteHTML(const std::string& query, std::string* output);
 
   // For a given accumulated array of results, use the comparator to sort and
@@ -505,7 +504,7 @@ class ThreadData {
 
   // Using our lock, make a copy of the specified maps.  These calls may arrive
   // from non-local threads, and are used to quickly scan data from all threads
-  // in order to build an HTML page for about:objects.
+  // in order to build an HTML page for about:tasks.
   void SnapshotBirthMap(BirthMap *output) const;
   void SnapshotDeathMap(DeathMap *output) const;
 
