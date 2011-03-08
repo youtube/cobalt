@@ -207,7 +207,6 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   virtual bool IsCachedContent() const;
   virtual int64 GetByteReadCount() const;
   virtual int GetResponseCode() const;
-  virtual int GetInputStreamBufferSize() const;
   virtual void RecordPacketStats(StatisticSelector statistic) const;
 
   // Returns the socket address for the connection.
@@ -304,9 +303,6 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   bool is_compressed_;
 
  private:
-  // Size of filter input buffers used by this class.
-  static const int kFilterBufSize;
-
   // When data filtering is enabled, this function is used to read data
   // for the filter.  Returns true if raw data was read.  Returns false if
   // an error occurred (or we are waiting for IO to complete).

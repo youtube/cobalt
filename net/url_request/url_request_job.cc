@@ -26,10 +26,6 @@ using base::TimeTicks;
 
 namespace net {
 
-// Buffer size allocated when de-compressing data.
-// static
-const int URLRequestJob::kFilterBufSize = 32 * 1024;
-
 URLRequestJob::URLRequestJob(URLRequest* request)
     : request_(request),
       prefilter_bytes_read_(0),
@@ -261,10 +257,6 @@ int64 URLRequestJob::GetByteReadCount() const {
 
 int URLRequestJob::GetResponseCode() const {
   return -1;
-}
-
-int URLRequestJob::GetInputStreamBufferSize() const {
-  return kFilterBufSize;
 }
 
 void URLRequestJob::RecordPacketStats(StatisticSelector statistic) const {

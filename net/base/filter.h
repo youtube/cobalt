@@ -43,6 +43,7 @@ class GURL;
 
 namespace net {
 class IOBuffer;
+class SdchFilterChainingTest;
 }
 
 //------------------------------------------------------------------------------
@@ -93,13 +94,6 @@ class FilterContext {
   // What response code was received with the associated network transaction?
   // For example: 200 is ok.   4xx are error codes. etc.
   virtual int GetResponseCode() const = 0;
-
-  // What is the desirable input buffer size for these filters?
-  // This value is currently supplied by the context, and is constant for all
-  // filters, even when they are part of a chain of filters. (i.e., we currently
-  // don't change the input buffer sizes for a linked chain of filters, and the
-  // buffer size for input to all filters in a chain is this one constant).
-  virtual int GetInputStreamBufferSize() const = 0;
 
   // The following method forces the context to emit a specific set of
   // statistics as selected by the argument.
@@ -199,7 +193,8 @@ class Filter {
                                  std::vector<FilterType>* encoding_types);
 
  protected:
-  FRIEND_TEST_ALL_PREFIXES(SdchFilterTest, ContentTypeId);
+  friend class GZipUnitTest;
+  friend class net::SdchFilterChainingTest;
 
   explicit Filter(const FilterContext& filter_context);
 
@@ -236,6 +231,9 @@ class Filter {
   int stream_data_len_;
 
  private:
+  // Allocates and initializes stream_buffer_ and stream_buffer_size_.
+  void InitBuffer(int size);
+
   // A factory helper for creating filters for within a chain of potentially
   // multiple encodings.  If a chain of filters is created, then this may be
   // called multiple times during the filter creation process.  In most simple
@@ -243,15 +241,17 @@ class Filter {
   // filter_list) if a new filter can't be constructed.
   static Filter* PrependNewFilter(FilterType type_id,
                                   const FilterContext& filter_context,
+                                  int buffer_size,
                                   Filter* filter_list);
-
-  // Allocates and initializes stream_buffer_ based on filter_context_.
-  // Establishes a buffer large enough to handle the amount specified in
-  // filter_context_.GetInputStreamBufferSize().
-  bool InitBuffer();
 
   // Helper function to empty our output into the next filter's input.
   void PushDataIntoNextFilter();
+
+  // Constructs a filter with an internal buffer of the given size.
+  // Only meant to be called by unit tests that need to control the buffer size.
+  static Filter* FactoryForTests(const std::vector<FilterType>& filter_types,
+                                 const FilterContext& filter_context,
+                                 int buffer_size);
 
   // An optional filter to process output from this filter.
   scoped_ptr<Filter> next_filter_;
