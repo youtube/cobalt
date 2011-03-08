@@ -364,7 +364,7 @@ class OCSPRequestSession
 
     request_ = new net::URLRequest(url_, this);
     request_->set_context(url_request_context);
-    // To meet the privacy requirements of off-the-record mode.
+    // To meet the privacy requirements of incognito mode.
     request_->set_load_flags(
         net::LOAD_DISABLE_CACHE | net::LOAD_DO_NOT_SAVE_COOKIES |
         net::LOAD_DO_NOT_SEND_COOKIES);
