@@ -328,6 +328,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   friend class TestRootCerts;  // For unit tests
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, Cache);
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, IntermediateCertificates);
+  FRIEND_TEST_ALL_PREFIXES(X509CertificateNameVerifyTest, VerifyHostname);
 
   // Construct an X509Certificate from a handle to the certificate object
   // in the underlying crypto library.
