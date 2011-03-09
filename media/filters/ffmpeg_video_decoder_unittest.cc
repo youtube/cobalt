@@ -133,9 +133,6 @@ ACTION_P(EngineSeek, engine) {
 class FFmpegVideoDecoderTest : public testing::Test {
  protected:
   FFmpegVideoDecoderTest() {
-    MediaFormat media_format;
-    media_format.SetAsString(MediaFormat::kMimeType, mime_type::kFFmpegVideo);
-
     // Create an FFmpegVideoDecoder, and MockVideoDecodeEngine.
     //
     // TODO(ajwong): Break the test's dependency on FFmpegVideoDecoder.
@@ -265,11 +262,8 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_Successful) {
   // Test that the output media format is an uncompressed video surface that
   // matches the dimensions specified by FFmpeg.
   const MediaFormat& media_format = decoder_->media_format();
-  std::string mime_type;
   int width = 0;
   int height = 0;
-  EXPECT_TRUE(media_format.GetAsString(MediaFormat::kMimeType, &mime_type));
-  EXPECT_STREQ(mime_type::kUncompressedVideo, mime_type.c_str());
   EXPECT_TRUE(media_format.GetAsInteger(MediaFormat::kWidth, &width));
   EXPECT_EQ(kWidth, width);
   EXPECT_TRUE(media_format.GetAsInteger(MediaFormat::kHeight, &height));

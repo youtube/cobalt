@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -59,22 +59,17 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
                                          AVStream* stream)
     : demuxer_(demuxer),
       stream_(stream),
+      type_(UNKNOWN),
       stopped_(false) {
   DCHECK(demuxer_);
 
   // Determine our media format.
   switch (stream->codec->codec_type) {
     case CODEC_TYPE_AUDIO:
-      media_format_.SetAsString(MediaFormat::kMimeType,
-                                mime_type::kFFmpegAudio);
-      media_format_.SetAsInteger(MediaFormat::kFFmpegCodecID,
-                                 stream->codec->codec_id);
+      type_ = AUDIO;
       break;
     case CODEC_TYPE_VIDEO:
-      media_format_.SetAsString(MediaFormat::kMimeType,
-                                mime_type::kFFmpegVideo);
-      media_format_.SetAsInteger(MediaFormat::kFFmpegCodecID,
-                                 stream->codec->codec_id);
+      type_ = VIDEO;
       break;
     default:
       NOTREACHED();
@@ -152,6 +147,10 @@ void FFmpegDemuxerStream::Stop() {
 
 base::TimeDelta FFmpegDemuxerStream::duration() {
   return duration_;
+}
+
+DemuxerStream::Type FFmpegDemuxerStream::type() {
+  return type_;
 }
 
 const MediaFormat& FFmpegDemuxerStream::media_format() {

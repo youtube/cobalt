@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -121,11 +121,11 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // Returns true if there has been network activity.
   virtual bool IsNetworkActive() const = 0;
 
-  // If the |major_mime_type| exists in the pipeline and is being rendered, this
-  // method will return true.  Types are defined in media/base/media_foramt.h.
-  // For example, to determine if a pipeline contains video:
-  //   bool has_video = pipeline->IsRendered(mime_type::kMajorTypeVideo);
-  virtual bool IsRendered(const std::string& major_mime_type) const = 0;
+  // Returns true if the media has audio.
+  virtual bool HasAudio() const = 0;
+
+  // Returns true if the media has video.
+  virtual bool HasVideo() const = 0;
 
   // Gets the current playback rate of the pipeline.  When the pipeline is
   // started, the playback rate will be 0.0f.  A rate of 1.0f indicates
