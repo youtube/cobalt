@@ -319,11 +319,6 @@ Filter::Filter(const FilterContext& filter_context)
       filter_context_(filter_context) {
 }
 
-Filter::FilterStatus Filter::ReadFilteredData(char* dest_buffer,
-                                              int* dest_len) {
-  return Filter::FILTER_ERROR;
-}
-
 Filter::FilterStatus Filter::CopyOut(char* dest_buffer, int* dest_len) {
   int out_len;
   int input_len = *dest_len;
