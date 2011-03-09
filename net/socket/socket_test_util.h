@@ -243,11 +243,8 @@ class DynamicSocketDataProvider : public SocketDataProvider {
 // SSLSocketDataProviders only need to keep track of the return code from calls
 // to Connect().
 struct SSLSocketDataProvider {
-  SSLSocketDataProvider(bool async, int result)
-      : connect(async, result),
-        next_proto_status(SSLClientSocket::kNextProtoUnsupported),
-        was_npn_negotiated(false),
-        cert_request_info(NULL) { }
+  SSLSocketDataProvider(bool async, int result);
+  ~SSLSocketDataProvider();
 
   MockConnect connect;
   SSLClientSocket::NextProtoStatus next_proto_status;
