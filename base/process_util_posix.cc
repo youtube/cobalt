@@ -21,6 +21,7 @@
 #include "base/debug/stack_trace.h"
 #include "base/dir_reader_posix.h"
 #include "base/eintr_wrapper.h"
+#include "base/file_util.h"
 #include "base/logging.h"
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
@@ -503,6 +504,22 @@ bool LaunchAppImpl(
   }
   if (pid == 0) {
     // Child process
+
+    // If a child process uses the readline library, the process block forever.
+    // In BSD like OSes including OS X it is safe to assign /dev/null as stdin.
+    // See http://crbug.com/56596.
+    int null_fd = HANDLE_EINTR(open("/dev/null", O_RDONLY));
+    if (null_fd < 0) {
+      PLOG(ERROR) << "Failed to open /dev/null";
+      return false;
+    } else {
+      file_util::ScopedFD null_fd_closer(&null_fd);
+      int new_fd = HANDLE_EINTR(dup2(null_fd, STDIN_FILENO));
+      if (new_fd != STDIN_FILENO) {
+        PLOG(ERROR) << "Failed to dup /dev/null for stdin";
+        return false;
+      }
+    }
 
     if (start_new_process_group) {
       // Instead of inheriting the process group ID of the parent, the child
