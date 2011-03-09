@@ -35,31 +35,40 @@ class TCPSocketParams;
 class HttpStreamFactoryImpl::Job {
  public:
   Job(HttpStreamFactoryImpl* stream_factory,
-      HttpNetworkSession* session);
+      HttpNetworkSession* session,
+      const HttpRequestInfo& request_info,
+      const SSLConfig& ssl_config,
+      const BoundNetLog& net_log);
   ~Job();
 
-  // Start initiates the process of creating a new HttpStream.
-  // 3 parameters are passed in by reference.  The caller asserts that the
-  // lifecycle of these parameters will remain valid until the stream is
-  // created, failed, or destroyed.  In the first two cases, the delegate will
-  // be called to notify completion of the request.
-  void Start(Request* request,
-             const HttpRequestInfo& request_info,
-             const SSLConfig& ssl_config,
-             const BoundNetLog& net_log);
+  // Start initiates the process of creating a new HttpStream. |request| will be
+  // notified upon completion if the Job has not been Orphan()'d.
+  void Start(Request* request);
 
-  int Preconnect(int num_streams,
-                 const HttpRequestInfo& request_info,
-                 const SSLConfig& ssl_config,
-                 const BoundNetLog& net_log);
+  // Preconnect will attempt to request |num_streams| sockets from the
+  // appropriate ClientSocketPool.
+  int Preconnect(int num_streams);
 
   int RestartTunnelWithProxyAuth(const string16& username,
                                  const string16& password);
   LoadState GetLoadState() const;
 
+  // Marks this Job as the "alternate" job, from Alternate-Protocol. Tracks the
+  // original url so we can mark the Alternate-Protocol as broken if
+  // we fail to connect.
+  void MarkAsAlternate(const GURL& original_url);
+
+  // Tells |this| to wait for |job| to resume it.
+  void WaitFor(Job* job);
+
+  // Tells |this| that |job| has determined it still needs to continue
+  // connecting, so allow |this| to continue. If this is not called, then
+  // |request_| is expected to cancel |this| by deleting it.
+  void Resume(Job* job);
+
+  // Used to detach the Job from |request|.
   void Orphan(const Request* request);
 
-  bool was_alternate_protocol_available() const;
   bool was_npn_negotiated() const;
   bool using_spdy() const;
   const BoundNetLog& net_log() const { return net_log_; }
@@ -74,15 +83,28 @@ class HttpStreamFactoryImpl::Job {
   bool IsOrphaned() const;
 
  private:
-  enum AlternateProtocolMode {
-    kUnspecified,  // Unspecified, check HttpAlternateProtocols
-    kUsingAlternateProtocol,  // Using an alternate protocol
-    kDoNotUseAlternateProtocol,  // Failed to connect once, do not try again.
-  };
-
   enum State {
     STATE_RESOLVE_PROXY,
     STATE_RESOLVE_PROXY_COMPLETE,
+
+    // Note that when Alternate-Protocol says we can connect to an alternate
+    // port using a different protocol, we have the choice of communicating over
+    // the original protocol, or speaking the alternate protocol (currently,
+    // only npn-spdy) over an alternate port. For a cold page load, the http
+    // connection that delivers the http response that has the
+    // Alternate-Protocol header will already be warm. So, blocking the next
+    // http request on establishing a new npn-spdy connection would incur extra
+    // latency. Even if the http connection was not reused, establishing a new
+    // http connection is typically faster than npn-spdy, since npn-spdy
+    // requires a SSL handshake. Therefore, we start both the http and the
+    // npn-spdy jobs in parallel. In order not to unnecessarily waste sockets,
+    // we have the http job block on the npn-spdy job after proxy resolution.
+    // The npn-spdy job will Resume() the http job if, in
+    // STATE_INIT_CONNECTION_COMPLETE, it detects an error or does not find an
+    // existing SpdySession. In that case, the http and npn-spdy jobs will race.
+    STATE_WAIT_FOR_JOB,
+    STATE_WAIT_FOR_JOB_COMPLETE,
+
     STATE_INIT_CONNECTION,
     STATE_INIT_CONNECTION_COMPLETE,
     STATE_WAITING_USER_ACTION,
@@ -110,9 +132,7 @@ class HttpStreamFactoryImpl::Job {
   void OnIOComplete(int result);
   int RunLoop(int result);
   int DoLoop(int result);
-  int StartInternal(const HttpRequestInfo& request_info,
-                    const SSLConfig& ssl_config,
-                    const BoundNetLog& net_log);
+  int StartInternal();
 
   // Each of these methods corresponds to a State value.  Those with an input
   // argument receive the result from the previous state.  If a method returns
@@ -120,6 +140,8 @@ class HttpStreamFactoryImpl::Job {
   // next state method as the result arg.
   int DoResolveProxy();
   int DoResolveProxyComplete(int result);
+  int DoWaitForJob();
+  int DoWaitForJobComplete(int result);
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
   int DoWaitingUserAction(int result);
@@ -174,31 +196,42 @@ class HttpStreamFactoryImpl::Job {
   void SwitchToSpdyMode();
 
   // Should we force SPDY to run over SSL for this stream request.
-  bool ShouldForceSpdySSL();
+  bool ShouldForceSpdySSL() const;
 
   // Should we force SPDY to run without SSL for this stream request.
-  bool ShouldForceSpdyWithoutSSL();
+  bool ShouldForceSpdyWithoutSSL() const;
 
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
 
   Request* request_;
 
-  HttpRequestInfo request_info_;
+  const HttpRequestInfo request_info_;
   ProxyInfo proxy_info_;
   SSLConfig ssl_config_;
+  const BoundNetLog net_log_;
 
   CompletionCallbackImpl<Job> io_callback_;
   scoped_ptr<ClientSocketHandle> connection_;
   HttpNetworkSession* const session_;
   HttpStreamFactoryImpl* const stream_factory_;
-  BoundNetLog net_log_;
   State next_state_;
   ProxyService::PacRequest* pac_request_;
   SSLInfo ssl_info_;
-  // The hostname and port of the endpoint.  This is not necessarily the one
-  // specified by the URL, due to Alternate-Protocol or fixed testing ports.
-  HostPortPair endpoint_;
+
+  // The origin server we're trying to reach.
+  HostPortPair origin_;
+
+  // If this is a Job for an "Alternate-Protocol", then this will be non-NULL
+  // and will specify the original URL.
+  scoped_ptr<GURL> original_url_;
+
+  // This is the Job we're dependent on. It will notify us if/when it's OK to
+  // proceed.
+  Job* blocking_job_;
+
+  // |dependent_job_| is dependent on |this|. Notify it when it's ok to proceed.
+  Job* dependent_job_;
 
   // True if handling a HTTPS request, or using SPDY with SSL
   bool using_ssl_;
@@ -218,20 +251,11 @@ class HttpStreamFactoryImpl::Job {
   scoped_refptr<HttpAuthController>
       auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
 
-  AlternateProtocolMode alternate_protocol_mode_;
-
-  // Only valid if |alternate_protocol_mode_| == kUsingAlternateProtocol.
-  HttpAlternateProtocols::Protocol alternate_protocol_;
-
   // True when the tunnel is in the process of being established - we can't
   // read from the socket until the tunnel is done.
   bool establishing_tunnel_;
 
   scoped_ptr<HttpStream> stream_;
-
-  // True if finding the connection for this request found an alternate
-  // protocol was available.
-  bool was_alternate_protocol_available_;
 
   // True if we negotiated NPN.
   bool was_npn_negotiated_;
