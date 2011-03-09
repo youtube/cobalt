@@ -14,6 +14,7 @@
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "net/base/io_buffer.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -82,10 +83,7 @@ UDPSocketLibevent::UDPSocketLibevent(net::NetLog* net_log,
       write_watcher_(this),
       read_buf_len_(0),
       recv_from_address_(NULL),
-      recv_from_address_length_(NULL),
       write_buf_len_(0),
-      send_to_address_(NULL),
-      send_to_address_length_(0),
       read_callback_(NULL),
       write_callback_(NULL),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
@@ -110,7 +108,7 @@ void UDPSocketLibevent::Close() {
   socket_ = kInvalidSocket;
 }
 
-int UDPSocketLibevent::GetPeerAddress(AddressList* address) const {
+int UDPSocketLibevent::GetPeerAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!is_connected())
@@ -122,18 +120,17 @@ int UDPSocketLibevent::GetPeerAddress(AddressList* address) const {
     struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
     if (getpeername(socket_, addr, &addr_len))
       return MapPosixError(errno);
-    remote_address_.reset(AddressList::CreateAddressListFromSockaddr(
-        addr,
-        addr_len,
-        SOCK_DGRAM,
-        IPPROTO_UDP));
+    scoped_ptr<IPEndPoint> address(new IPEndPoint());
+    if (!address->FromSockAddr(addr, addr_len))
+      return ERR_FAILED;
+    remote_address_.reset(address.release());
   }
 
-  address->Copy(remote_address_->head(), false);
+  *address = *remote_address_;
   return OK;
 }
 
-int UDPSocketLibevent::GetLocalAddress(AddressList* address) const {
+int UDPSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!is_connected())
@@ -145,14 +142,13 @@ int UDPSocketLibevent::GetLocalAddress(AddressList* address) const {
     struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
     if (getsockname(socket_, addr, &addr_len))
       return MapPosixError(errno);
-    local_address_.reset(AddressList::CreateAddressListFromSockaddr(
-        addr,
-        addr_len,
-        SOCK_DGRAM,
-        IPPROTO_UDP));
+    scoped_ptr<IPEndPoint> address(new IPEndPoint());
+    if (!address->FromSockAddr(addr, addr_len))
+      return ERR_FAILED;
+    local_address_.reset(address.release());
   }
 
-  address->Copy(local_address_->head(), false);
+  *address = *local_address_;
   return OK;
 }
 
@@ -185,25 +181,18 @@ int UDPSocketLibevent::Read(IOBuffer* buf,
 
 int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
                                 int buf_len,
-                                struct sockaddr* address,
-                                socklen_t* address_length,
+                                IPEndPoint* address,
                                 CompletionCallback* callback) {
   DCHECK(!recv_from_address_);
-  DCHECK(!recv_from_address_length_);
   recv_from_address_ = address;
-  recv_from_address_length_ = address_length;
   return Read(buf, buf_len, callback);
 }
 
 int UDPSocketLibevent::SendTo(IOBuffer* buf,
                               int buf_len,
-                              const struct sockaddr* address,
-                              socklen_t address_length,
+                              const IPEndPoint& address,
                               CompletionCallback* callback) {
-  DCHECK(!send_to_address_);
-  DCHECK(!send_to_address_length_);
-  send_to_address_ = address;
-  send_to_address_length_ = address_length;
+  send_to_address_.reset(new IPEndPoint(address));
   return Write(buf, buf_len, callback);
 }
 
@@ -238,35 +227,45 @@ int UDPSocketLibevent::Write(IOBuffer* buf,
   return ERR_IO_PENDING;
 }
 
-int UDPSocketLibevent::Connect(const AddressList& address) {
+int UDPSocketLibevent::Connect(const IPEndPoint& address) {
   DCHECK(!is_connected());
   DCHECK(!remote_address_.get());
-  const struct addrinfo* ai = address.head();
-  int rv = CreateSocket(ai);
+  int rv = CreateSocket(address);
   if (rv < 0)
     return MapPosixError(rv);
 
-  rv = HANDLE_EINTR(connect(socket_, ai->ai_addr, ai->ai_addrlen));
+  struct sockaddr_storage addr_storage;
+  size_t addr_len = sizeof(addr_storage);
+  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+  if (!address.ToSockAddr(addr, &addr_len))
+    return ERR_FAILED;
+
+  rv = HANDLE_EINTR(connect(socket_, addr, addr_len));
   if (rv < 0)
     return MapPosixError(rv);
 
-  remote_address_.reset(new AddressList(address));
+  remote_address_.reset(new IPEndPoint(address));
   return rv;
 }
 
-int UDPSocketLibevent::Bind(const AddressList& address) {
+int UDPSocketLibevent::Bind(const IPEndPoint& address) {
   DCHECK(!is_connected());
   DCHECK(!local_address_.get());
-  const struct addrinfo* ai = address.head();
-  int rv = CreateSocket(ai);
+  int rv = CreateSocket(address);
   if (rv < 0)
     return MapPosixError(rv);
 
-  rv = bind(socket_, ai->ai_addr, ai->ai_addrlen);
+  struct sockaddr_storage addr_storage;
+  size_t addr_len = sizeof(addr_storage);
+  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+  if (!address.ToSockAddr(addr, &addr_len))
+    return ERR_FAILED;
+
+  rv = bind(socket_, addr, addr_len);
   if (rv < 0)
     return MapPosixError(rv);
 
-  local_address_.reset(new AddressList(address));
+  local_address_.reset(new IPEndPoint(address));
   return rv;
 }
 
@@ -278,7 +277,6 @@ void UDPSocketLibevent::DoReadCallback(int rv) {
   CompletionCallback* c = read_callback_;
   read_callback_ = NULL;
   recv_from_address_ = NULL;
-  recv_from_address_length_ = NULL;
   c->Run(rv);
 }
 
@@ -289,8 +287,7 @@ void UDPSocketLibevent::DoWriteCallback(int rv) {
   // since Run may result in Write being called, clear write_callback_ up front.
   CompletionCallback* c = write_callback_;
   write_callback_ = NULL;
-  send_to_address_ = NULL;
-  send_to_address_length_ = 0;
+  send_to_address_.reset();
   c->Run(rv);
 }
 
@@ -305,8 +302,8 @@ void UDPSocketLibevent::DidCompleteRead() {
   }
 }
 
-int UDPSocketLibevent::CreateSocket(const addrinfo* ai) {
-  socket_ = socket(ai->ai_family, SOCK_DGRAM, 0);
+int UDPSocketLibevent::CreateSocket(const IPEndPoint& address) {
+  socket_ = socket(address.GetFamily(), SOCK_DGRAM, 0);
   if (socket_ == kInvalidSocket)
     return errno;
   if (SetNonBlocking(socket_)) {
@@ -337,30 +334,51 @@ void UDPSocketLibevent::DidCompleteWrite() {
 int UDPSocketLibevent::InternalRead() {
   int bytes_transferred;
   int flags = 0;
+
+  struct sockaddr_storage addr_storage;
+  socklen_t addr_len = sizeof(addr_storage);
+  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+
   bytes_transferred =
       HANDLE_EINTR(recvfrom(socket_,
                             read_buf_->data(),
                             read_buf_len_,
                             flags,
-                            recv_from_address_,
-                            recv_from_address_length_));
+                            addr,
+                            &addr_len));
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
     static base::StatsCounter read_bytes("udp.read_bytes");
     read_bytes.Add(bytes_transferred);
+    if (recv_from_address_) {
+      if (!recv_from_address_->FromSockAddr(addr, addr_len))
+        result = ERR_FAILED;
+    }
   } else {
     result = MapPosixError(errno);
   }
   return result;
 }
 int UDPSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
+  struct sockaddr_storage addr_storage;
+  size_t addr_len = sizeof(addr_storage);
+  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+
+  if (!send_to_address_.get()) {
+    addr = NULL;
+    addr_len = 0;
+  } else {
+    if (!send_to_address_->ToSockAddr(addr, &addr_len))
+      return ERR_FAILED;
+  }
+
   return HANDLE_EINTR(sendto(socket_,
                              buf->data(),
                              buf_len,
                              0,
-                             send_to_address_,
-                             send_to_address_length_));
+                             addr,
+                             addr_len));
 }
 
 }  // namespace net
