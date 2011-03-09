@@ -254,6 +254,7 @@ struct SSLSocketDataProvider {
   std::string next_proto;
   bool was_npn_negotiated;
   net::SSLCertRequestInfo* cert_request_info;
+  scoped_refptr<X509Certificate> cert_;
 };
 
 // A DataProvider where the client must write a request before the reads (e.g.
