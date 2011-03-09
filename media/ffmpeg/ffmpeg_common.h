@@ -10,6 +10,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/singleton.h"
+#include "media/video/video_decode_engine.h"
 
 // Include FFmpeg header files.
 extern "C" {
@@ -47,6 +48,9 @@ class ScopedPtrAVFreePacket {
     delete packet;
   }
 };
+
+VideoCodec CodecIDToVideoCodec(CodecID codec_id);
+CodecID VideoCodecToCodecID(VideoCodec video_codec);
 
 }  // namespace media
 
