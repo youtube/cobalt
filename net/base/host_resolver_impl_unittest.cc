@@ -1665,10 +1665,10 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
       new RuleBasedHostResolverProc(NULL));
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
- scoped_ptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
- // First hit will miss the cache.
+  // First hit will miss the cache.
   HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
   info.set_only_use_cached_response(true);
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
