@@ -235,6 +235,16 @@ void DynamicSocketDataProvider::SimulateRead(const char* data,
   reads_.push_back(MockRead(true, data, length));
 }
 
+SSLSocketDataProvider::SSLSocketDataProvider(bool async, int result)
+    : connect(async, result),
+      next_proto_status(SSLClientSocket::kNextProtoUnsupported),
+      was_npn_negotiated(false),
+      cert_request_info(NULL) {
+}
+
+SSLSocketDataProvider::~SSLSocketDataProvider() {
+}
+
 DelayedSocketData::DelayedSocketData(
     int write_delay, MockRead* reads, size_t reads_count,
     MockWrite* writes, size_t writes_count)
