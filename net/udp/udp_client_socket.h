@@ -22,12 +22,12 @@ class UDPClientSocket : public DatagramClientSocket {
   virtual ~UDPClientSocket();
 
   // Implement DatagramClientSocket:
-  virtual int Connect(const AddressList& address);
+  virtual int Connect(const IPEndPoint& address);
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual void Close();
-  virtual int GetPeerAddress(AddressList* address) const;
-  virtual int GetLocalAddress(AddressList* address) const;
+  virtual int GetPeerAddress(IPEndPoint* address) const;
+  virtual int GetLocalAddress(IPEndPoint* address) const;
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 

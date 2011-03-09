@@ -12,7 +12,7 @@
 
 namespace net {
 
-class AddressList;
+class IPEndPoint;
 class BoundNetLog;
 
 // A client socket that uses UDP as the transport layer.
@@ -23,20 +23,18 @@ class UDPServerSocket : public DatagramServerSocket {
   virtual ~UDPServerSocket();
 
   // Implement DatagramServerSocket:
-  virtual int Listen(const AddressList& address);
+  virtual int Listen(const IPEndPoint& address);
   virtual int RecvFrom(IOBuffer* buf,
                        int buf_len,
-                       struct sockaddr* address,
-                       socklen_t* address_length,
+                       IPEndPoint* address,
                        CompletionCallback* callback);
   virtual int SendTo(IOBuffer* buf,
                      int buf_len,
-                     const struct sockaddr* address,
-                     socklen_t address_length,
+                     const IPEndPoint& address,
                      CompletionCallback* callback);
   virtual void Close();
-  virtual int GetPeerAddress(AddressList* address) const;
-  virtual int GetLocalAddress(AddressList* address) const;
+  virtual int GetPeerAddress(IPEndPoint* address) const;
+  virtual int GetLocalAddress(IPEndPoint* address) const;
 
  private:
   UDPSocket socket_;
