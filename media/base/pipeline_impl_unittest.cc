@@ -79,9 +79,6 @@ class PipelineImplTest : public ::testing::Test {
                                 &CallbackHelper::OnStop));
     message_loop_.RunAllPending();
 
-    // Free allocated media formats (if any).
-    STLDeleteElements(&stream_media_formats_);
-
     mocks_.reset();
   }
 
@@ -125,19 +122,11 @@ class PipelineImplTest : public ::testing::Test {
     }
   }
 
-  // Create a stream with an associated media format.
-  StrictMock<MockDemuxerStream>* CreateStream(const std::string& mime_type) {
+  StrictMock<MockDemuxerStream>* CreateStream(DemuxerStream::Type type) {
     StrictMock<MockDemuxerStream>* stream =
         new StrictMock<MockDemuxerStream>();
-
-    // Sets the mime type of this stream's media format, which is usually
-    // checked to determine the type of decoder to create.
-    MediaFormat* media_format = new MediaFormat();
-    media_format->SetAsString(MediaFormat::kMimeType, mime_type);
-    EXPECT_CALL(*stream, media_format())
-        .WillRepeatedly(ReturnRef(*media_format));
-    stream_media_formats_.push_back(media_format);
-
+    EXPECT_CALL(*stream, type())
+        .WillRepeatedly(Return(type));
     return stream;
   }
 
@@ -209,11 +198,11 @@ class PipelineImplTest : public ::testing::Test {
   }
 
   void CreateAudioStream() {
-    audio_stream_ = CreateStream("audio/x-foo");
+    audio_stream_ = CreateStream(DemuxerStream::AUDIO);
   }
 
   void CreateVideoStream() {
-    video_stream_ = CreateStream("video/x-foo");
+    video_stream_ = CreateStream(DemuxerStream::VIDEO);
   }
 
   MockDemuxerStream* audio_stream() {
@@ -269,9 +258,6 @@ class PipelineImplTest : public ::testing::Test {
   scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream_;
   scoped_refptr<StrictMock<MockDemuxerStream> > video_stream_;
 
-  typedef std::vector<MediaFormat*> MediaFormatVector;
-  MediaFormatVector stream_media_formats_;
-
  private:
   DISALLOW_COPY_AND_ASSIGN(PipelineImplTest);
 };
@@ -291,9 +277,8 @@ TEST_F(PipelineImplTest, NotStarted) {
 
   EXPECT_FALSE(pipeline_->IsRunning());
   EXPECT_FALSE(pipeline_->IsInitialized());
-  EXPECT_FALSE(pipeline_->IsRendered(""));
-  EXPECT_FALSE(pipeline_->IsRendered(mime_type::kMajorTypeAudio));
-  EXPECT_FALSE(pipeline_->IsRendered(mime_type::kMajorTypeVideo));
+  EXPECT_FALSE(pipeline_->HasAudio());
+  EXPECT_FALSE(pipeline_->HasVideo());
 
   // Setting should still work.
   EXPECT_EQ(0.0f, pipeline_->GetPlaybackRate());
@@ -424,8 +409,8 @@ TEST_F(PipelineImplTest, AudioStream) {
   InitializePipeline();
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
-  EXPECT_TRUE(pipeline_->IsRendered(media::mime_type::kMajorTypeAudio));
-  EXPECT_FALSE(pipeline_->IsRendered(media::mime_type::kMajorTypeVideo));
+  EXPECT_TRUE(pipeline_->HasAudio());
+  EXPECT_FALSE(pipeline_->HasVideo());
 }
 
 TEST_F(PipelineImplTest, VideoStream) {
@@ -441,8 +426,8 @@ TEST_F(PipelineImplTest, VideoStream) {
   InitializePipeline();
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
-  EXPECT_FALSE(pipeline_->IsRendered(media::mime_type::kMajorTypeAudio));
-  EXPECT_TRUE(pipeline_->IsRendered(media::mime_type::kMajorTypeVideo));
+  EXPECT_FALSE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
 }
 
 TEST_F(PipelineImplTest, AudioVideoStream) {
@@ -462,8 +447,8 @@ TEST_F(PipelineImplTest, AudioVideoStream) {
   InitializePipeline();
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
-  EXPECT_TRUE(pipeline_->IsRendered(media::mime_type::kMajorTypeAudio));
-  EXPECT_TRUE(pipeline_->IsRendered(media::mime_type::kMajorTypeVideo));
+  EXPECT_TRUE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
 }
 
 TEST_F(PipelineImplTest, Seek) {
@@ -618,8 +603,8 @@ TEST_F(PipelineImplTest, DisableAudioRenderer) {
   InitializePipeline();
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
-  EXPECT_TRUE(pipeline_->IsRendered(mime_type::kMajorTypeAudio));
-  EXPECT_TRUE(pipeline_->IsRendered(mime_type::kMajorTypeVideo));
+  EXPECT_TRUE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
 
   EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(1.0f))
       .WillOnce(DisableAudioRenderer(mocks_->audio_renderer()));
@@ -676,8 +661,8 @@ TEST_F(PipelineImplTest, DisableAudioRendererDuringInit) {
   InitializePipeline();
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
-  EXPECT_FALSE(pipeline_->IsRendered(mime_type::kMajorTypeAudio));
-  EXPECT_TRUE(pipeline_->IsRendered(mime_type::kMajorTypeVideo));
+  EXPECT_FALSE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
 
   // Verify that ended event is fired when video ends.
   EXPECT_CALL(*mocks_->video_renderer(), HasEnded())

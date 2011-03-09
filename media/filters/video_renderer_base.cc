@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,12 +49,6 @@ bool VideoRendererBase::ParseMediaFormat(
     VideoFrame::SurfaceType* surface_type_out,
     VideoFrame::Format* surface_format_out,
     int* width_out, int* height_out) {
-  std::string mime_type;
-  if (!media_format.GetAsString(MediaFormat::kMimeType, &mime_type))
-    return false;
-  if (mime_type.compare(mime_type::kUncompressedVideo) != 0)
-    return false;
-
   int surface_type;
   if (!media_format.GetAsInteger(MediaFormat::kSurfaceType, &surface_type))
     return false;

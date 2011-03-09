@@ -234,10 +234,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
   scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(DS_STREAM_VIDEO);
   AVStreamProvider* av_stream_provider = NULL;
   ASSERT_TRUE(stream);
-  std::string mime_type;
-  EXPECT_TRUE(
-      stream->media_format().GetAsString(MediaFormat::kMimeType, &mime_type));
-  EXPECT_STREQ(mime_type::kFFmpegVideo, mime_type.c_str());
+  EXPECT_EQ(DemuxerStream::VIDEO, stream->type());
   EXPECT_TRUE(stream->QueryInterface(&av_stream_provider));
   EXPECT_TRUE(av_stream_provider);
   EXPECT_EQ(&streams_[AV_STREAM_VIDEO], av_stream_provider->GetAVStream());
@@ -246,9 +243,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
   stream = demuxer_->GetStream(DS_STREAM_AUDIO);
   av_stream_provider = NULL;
   ASSERT_TRUE(stream);
-  EXPECT_TRUE(stream->media_format().GetAsString(MediaFormat::kMimeType,
-              &mime_type));
-  EXPECT_STREQ(mime_type::kFFmpegAudio, mime_type.c_str());
+  EXPECT_EQ(DemuxerStream::AUDIO, stream->type());
   EXPECT_TRUE(stream->QueryInterface(&av_stream_provider));
   EXPECT_TRUE(av_stream_provider);
   EXPECT_EQ(&streams_[AV_STREAM_AUDIO], av_stream_provider->GetAVStream());
