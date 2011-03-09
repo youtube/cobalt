@@ -110,7 +110,7 @@ class UDPSocketTest : public PlatformTest {
  private:
   static const int kMaxRead = 1024;
   scoped_refptr<IOBufferWithSize> buffer_;
-  struct IPEndPoint recv_from_address_;
+  IPEndPoint recv_from_address_;
 };
 
 // Creates and address from an ip/port and returns it in |address|.
