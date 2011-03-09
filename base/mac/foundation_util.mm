@@ -63,9 +63,7 @@ bool IsBackgroundOnlyProcess() {
   // at the actual running .app's Info.plist to access its LSBackgroundOnly
   // property.
   NSDictionary* info_dictionary = [[NSBundle mainBundle] infoDictionary];
-//  return [[info_dictionary objectForKey:@"LSBackgroundOnly"] boolValue] != NO;
-  return ([[info_dictionary objectForKey:@"LSBackgroundOnly"] boolValue] != NO) ||
-         ([[info_dictionary objectForKey:@"MMForDemo"] boolValue] != NO);
+  return [[info_dictionary objectForKey:@"LSBackgroundOnly"] boolValue] != NO;
 }
 
 // No threading worries since NSBundle isn't thread safe.
