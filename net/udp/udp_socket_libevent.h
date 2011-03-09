@@ -29,8 +29,8 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
-#include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_log.h"
 #include "net/socket/client_socket.h"
 #include "net/udp/datagram_socket.h"
@@ -47,22 +47,22 @@ class UDPSocketLibevent : public base::NonThreadSafe {
 
   // Connect the socket to connect with a certain |address|.
   // Returns a net error code.
-  int Connect(const AddressList& address);
+  int Connect(const IPEndPoint& address);
 
   // Bind the address/port for this socket to |address|.  This is generally
   // only used on a server.
   // Returns a net error code.
-  int Bind(const AddressList& address);
+  int Bind(const IPEndPoint& address);
 
   // Close the socket.
   void Close();
 
   // Copy the remote udp address into |address| and return a network error code.
-  int GetPeerAddress(AddressList* address) const;
+  int GetPeerAddress(IPEndPoint* address) const;
 
   // Copy the local udp address into |address| and return a network error code.
   // (similar to getsockname)
-  int GetLocalAddress(AddressList* address) const;
+  int GetLocalAddress(IPEndPoint* address) const;
 
   // IO:
   // Multiple outstanding read requests are not supported.
@@ -93,8 +93,7 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   // and |address_length| alive until the callback is called.
   int RecvFrom(IOBuffer* buf,
                int buf_len,
-               struct sockaddr* address,
-               socklen_t* address_length,
+               IPEndPoint* address,
                CompletionCallback* callback);
 
   // Send to a socket with a particular destination.
@@ -108,14 +107,13 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   // alive until the callback is called.
   int SendTo(IOBuffer* buf,
              int buf_len,
-             const struct sockaddr* address,
-             socklen_t address_length,
+             const IPEndPoint& address,
              CompletionCallback* callback);
 
   // Returns true if the socket is already connected or bound.
   bool is_connected() const { return socket_ != kInvalidSocket; }
 
-  AddressList* local_address() { return local_address_.get(); }
+  IPEndPoint* local_address() { return local_address_.get(); }
 
  private:
   static const int kInvalidSocket = -1;
@@ -164,7 +162,7 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   void DidCompleteWrite();
 
   // Returns the OS error code (or 0 on success).
-  int CreateSocket(const struct addrinfo* ai);
+  int CreateSocket(const IPEndPoint& address);
 
   int InternalRead();
   int InternalWrite(IOBuffer* buf, int buf_len);
@@ -173,8 +171,8 @@ class UDPSocketLibevent : public base::NonThreadSafe {
 
   // These are mutable since they're just cached copies to make
   // GetPeerAddress/GetLocalAddress smarter.
-  mutable scoped_ptr<AddressList> local_address_;
-  mutable scoped_ptr<AddressList> remote_address_;
+  mutable scoped_ptr<IPEndPoint> local_address_;
+  mutable scoped_ptr<IPEndPoint> remote_address_;
 
   // The socket's libevent wrappers
   MessageLoopForIO::FileDescriptorWatcher read_socket_watcher_;
@@ -184,17 +182,15 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   ReadWatcher read_watcher_;
   WriteWatcher write_watcher_;
 
-  // The buffer used by OnSocketReady to retry Read requests
+  // The buffer used by InternalRead() to retry Read requests
   scoped_refptr<IOBuffer> read_buf_;
   int read_buf_len_;
-  struct sockaddr* recv_from_address_;
-  socklen_t* recv_from_address_length_;
+  IPEndPoint* recv_from_address_;
 
-  // The buffer used by OnSocketReady to retry Write requests
+  // The buffer used by InternalWrite() to retry Write requests
   scoped_refptr<IOBuffer> write_buf_;
   int write_buf_len_;
-  const struct sockaddr* send_to_address_;
-  socklen_t send_to_address_length_;
+  scoped_ptr<IPEndPoint> send_to_address_;
 
   // External callback; called when read is complete.
   CompletionCallback* read_callback_;

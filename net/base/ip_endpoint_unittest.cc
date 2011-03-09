@@ -71,7 +71,7 @@ TEST_F(IPEndPointTest, Copy) {
   }
 }
 
-TEST_F(IPEndPointTest, ToFromSockaddr) {
+TEST_F(IPEndPointTest, ToFromSockAddr) {
   for (int index = 0; index < test_count; ++index) {
     IPEndPoint ip_endpoint(tests[index].ip_address, index);
 
@@ -79,7 +79,7 @@ TEST_F(IPEndPointTest, ToFromSockaddr) {
     struct sockaddr_storage addr;
     size_t addr_len = sizeof(addr);
     struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
-    EXPECT_TRUE(ip_endpoint.ToSockaddr(sockaddr, &addr_len));
+    EXPECT_TRUE(ip_endpoint.ToSockAddr(sockaddr, &addr_len));
 
     // Basic verification.
     size_t expected_size = tests[index].ipv6 ?
@@ -95,14 +95,14 @@ TEST_F(IPEndPointTest, ToFromSockaddr) {
   }
 }
 
-TEST_F(IPEndPointTest, ToSockaddrBufTooSmall) {
+TEST_F(IPEndPointTest, ToSockAddrBufTooSmall) {
   for (int index = 0; index < test_count; ++index) {
     IPEndPoint ip_endpoint(tests[index].ip_address, index);
 
     struct sockaddr_storage addr;
     size_t addr_len = index;  // size is too small!
     struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
-    EXPECT_FALSE(ip_endpoint.ToSockaddr(sockaddr, &addr_len));
+    EXPECT_FALSE(ip_endpoint.ToSockAddr(sockaddr, &addr_len));
   }
 }
 

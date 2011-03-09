@@ -8,7 +8,7 @@
 
 namespace net {
 
-class AddressList;
+class IPEndPoint;
 
 // A datagram socket is an interface to a protocol which exchanges
 // datagrams, like UDP.
@@ -20,11 +20,11 @@ class DatagramSocket {
   virtual void Close() = 0;
 
   // Copy the remote udp address into |address| and return a network error code.
-  virtual int GetPeerAddress(AddressList* address) const = 0;
+  virtual int GetPeerAddress(IPEndPoint* address) const = 0;
 
   // Copy the local udp address into |address| and return a network error code.
   // (similar to getsockname)
-  virtual int GetLocalAddress(AddressList* address) const = 0;
+  virtual int GetLocalAddress(IPEndPoint* address) const = 0;
 };
 
 }  // namespace net

@@ -26,6 +26,9 @@ class IPEndPoint {
   const IPAddressNumber& address() const { return address_; }
   int port() const { return port_; }
 
+  // Returns AF_INET or AF_INET6 depending on the type of the address.
+  int GetFamily() const;
+
   // Convert to a provided sockaddr struct.
   // |address| is the sockaddr to copy into.  Should be at least
   //    sizeof(struct sockaddr_storage) bytes.
@@ -33,7 +36,7 @@ class IPEndPoint {
   //    size of data in |address| available.  On output, it is the size of
   //    the address that was copied into |address|.
   // Returns true on success, false on failure.
-  bool ToSockaddr(struct sockaddr* address, size_t* address_length) const;
+  bool ToSockAddr(struct sockaddr* address, size_t* address_length) const;
 
   // Convert from a sockaddr struct.
   // |address| is the address.

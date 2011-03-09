@@ -29,7 +29,22 @@ IPEndPoint::IPEndPoint(const IPEndPoint& endpoint) {
   port_ = endpoint.port_;
 }
 
-bool IPEndPoint::ToSockaddr(struct sockaddr* address,
+int IPEndPoint::GetFamily() const {
+  switch (address_.size()) {
+    case kIPv4AddressSize: {
+      return AF_INET;
+    }
+    case kIPv6AddressSize: {
+      return AF_INET6;
+    }
+    default: {
+      NOTREACHED() << "Bad IP address";
+      return AF_INET;
+    }
+  }
+}
+
+bool IPEndPoint::ToSockAddr(struct sockaddr* address,
                             size_t* address_length) const {
   DCHECK(address);
   DCHECK(address_length);
