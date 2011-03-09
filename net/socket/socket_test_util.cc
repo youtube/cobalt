@@ -1061,6 +1061,7 @@ bool MockSSLClientSocket::UsingTCPFastOpen() const {
 
 void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
   ssl_info->Reset();
+  ssl_info->cert = data_->cert_;
 }
 
 void MockSSLClientSocket::GetSSLCertRequestInfo(
