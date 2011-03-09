@@ -4,6 +4,7 @@
 
 #include "net/base/mock_host_resolver.h"
 
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/ref_counted.h"
 #include "base/threading/platform_thread.h"
@@ -23,23 +24,32 @@ char* do_strdup(const char* src) {
 #endif
 }
 
-// Fills |*addrlist| with a socket address for |host| which should be an
-// IPv4 or IPv6 literal without enclosing brackets. If |canonical_name| is
-// non-empty it is used as the DNS canonical name for the host. Returns OK on
-// success, ERR_UNEXPECTED otherwise.
-int CreateIPAddress(const std::string& host,
-                    const std::string& canonical_name,
-                    AddressList* addrlist) {
-  IPAddressNumber ip_number;
-  if (!ParseIPLiteralToNumber(host, &ip_number)) {
-    LOG(WARNING) << "Not a supported IP literal: " << host;
-    return ERR_UNEXPECTED;
-  }
+// Fills |*addrlist| with a socket address for |host_list| which should be a
+// comma-separated list of IPv4 or IPv6 literal(s) without enclosing brackets.
+// If |canonical_name| is non-empty it is used as the DNS canonical name for
+// the host. Returns OK on success, ERR_UNEXPECTED otherwise.
+int CreateIPAddressList(const std::string& host_list,
+                        const std::string& canonical_name,
+                        AddressList* addrlist) {
+  *addrlist = AddressList();
+  std::vector<std::string> addresses;
+  base::SplitString(host_list, ',', &addresses);
+  for (size_t index = 0; index < addresses.size(); ++index) {
+    IPAddressNumber ip_number;
+    if (!ParseIPLiteralToNumber(addresses[index], &ip_number)) {
+      LOG(WARNING) << "Not a supported IP literal: " << addresses[index];
+      return ERR_UNEXPECTED;
+    }
 
-  AddressList result(ip_number, -1, false);
-  struct addrinfo* ai = const_cast<struct addrinfo*>(result.head());
-  ai->ai_canonname = do_strdup(canonical_name.c_str());
-  *addrlist = result;
+    AddressList result(ip_number, -1, false);
+    struct addrinfo* ai = const_cast<struct addrinfo*>(result.head());
+    if (index == 0)
+      ai->ai_canonname = do_strdup(canonical_name.c_str());
+    if (!addrlist->head())
+      addrlist->Copy(result.head(), false);
+    else
+      addrlist->Append(result.head());
+  }
   return OK;
 }
 
@@ -175,7 +185,8 @@ void RuleBasedHostResolverProc::AddIPLiteralRule(
   if (!canonical_name.empty())
     flags |= HOST_RESOLVER_CANONNAME;
   Rule rule(Rule::kResolverTypeIPLiteral, host_pattern,
-            ADDRESS_FAMILY_UNSPECIFIED, flags, ip_literal, canonical_name, 0);
+            ADDRESS_FAMILY_UNSPECIFIED, flags, ip_literal, canonical_name,
+            0);
   rules_.push_back(rule);
 }
 
@@ -244,7 +255,9 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
                                         host_resolver_flags,
                                         addrlist, os_error);
         case Rule::kResolverTypeIPLiteral:
-          return CreateIPAddress(effective_host, r->canonical_name, addrlist);
+          return CreateIPAddressList(effective_host,
+                                     r->canonical_name,
+                                     addrlist);
         default:
           NOTREACHED();
           return ERR_UNEXPECTED;
