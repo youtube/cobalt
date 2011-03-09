@@ -78,7 +78,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual bool IsRunning() const;
   virtual bool IsInitialized() const;
   virtual bool IsNetworkActive() const;
-  virtual bool IsRendered(const std::string& major_mime_type) const;
+  virtual bool HasAudio() const;
+  virtual bool HasVideo() const;
   virtual float GetPlaybackRate() const;
   virtual void SetPlaybackRate(float playback_rate);
   virtual float GetVolume() const;
@@ -172,13 +173,6 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetCurrentReadPosition(int64 offset);
   virtual int64 GetCurrentReadPosition();
 
-  // Method called during initialization to insert a mime type into the
-  // |rendered_mime_types_| set.
-  void InsertRenderedMimeType(const std::string& major_mime_type);
-
-  // Method called during initialization to determine if we rendered anything.
-  bool HasRenderedMimeTypes() const;
-
   // Callback executed by filters upon completing initialization.
   void OnFilterInitialize();
 
@@ -267,10 +261,11 @@ class PipelineImpl : public Pipeline, public FilterHost {
   bool InitializeAudioRenderer(const scoped_refptr<AudioDecoder>& decoder);
   bool InitializeVideoRenderer(const scoped_refptr<VideoDecoder>& decoder);
 
-  // Helper to find the demuxer of |major_mime_type| from Demuxer.
+  // Returns a reference to the DemuxerStream of the requested type if it
+  // exists, NULL otherwise.
   scoped_refptr<DemuxerStream> FindDemuxerStream(
       const scoped_refptr<Demuxer>& demuxer,
-      std::string major_mime_type);
+      DemuxerStream::Type type);
 
   // Kicks off destroying filters. Called by StopTask() and ErrorChangedTask().
   // When we start to tear down the pipeline, we will consider two cases:
@@ -359,9 +354,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // reset the pipeline state, and restore this to PIPELINE_OK.
   PipelineError error_;
 
-  // Vector of major mime types that have been rendered by this pipeline.
-  typedef std::set<std::string> RenderedMimeTypesSet;
-  RenderedMimeTypesSet rendered_mime_types_;
+  // Whether the media contains rendered audio and video streams.
+  bool has_audio_;
+  bool has_video_;
 
   // The following data members are only accessed by tasks posted to
   // |message_loop_|.

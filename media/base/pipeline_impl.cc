@@ -135,11 +135,14 @@ bool PipelineImpl::IsNetworkActive() const {
   return network_activity_;
 }
 
-bool PipelineImpl::IsRendered(const std::string& major_mime_type) const {
+bool PipelineImpl::HasAudio() const {
   base::AutoLock auto_lock(lock_);
-  bool is_rendered = (rendered_mime_types_.find(major_mime_type) !=
-                      rendered_mime_types_.end());
-  return is_rendered;
+  return has_audio_;
+}
+
+bool PipelineImpl::HasVideo() const {
+  base::AutoLock auto_lock(lock_);
+  return has_video_;
 }
 
 float PipelineImpl::GetPlaybackRate() const {
@@ -321,10 +324,11 @@ void PipelineImpl::ResetState() {
   volume_           = 1.0f;
   playback_rate_    = 0.0f;
   error_            = PIPELINE_OK;
+  has_audio_        = false;
+  has_video_        = false;
   waiting_for_clock_update_ = false;
   audio_disabled_   = false;
   clock_->SetTime(kZero);
-  rendered_mime_types_.clear();
 }
 
 void PipelineImpl::set_state(State next_state) {
@@ -509,18 +513,6 @@ void PipelineImpl::DisableAudioRenderer() {
       NewRunnableMethod(this, &PipelineImpl::DisableAudioRendererTask));
 }
 
-void PipelineImpl::InsertRenderedMimeType(const std::string& major_mime_type) {
-  DCHECK(IsRunning());
-  base::AutoLock auto_lock(lock_);
-  rendered_mime_types_.insert(major_mime_type);
-}
-
-bool PipelineImpl::HasRenderedMimeTypes() const {
-  DCHECK(IsRunning());
-  base::AutoLock auto_lock(lock_);
-  return !rendered_mime_types_.empty();
-}
-
 // Called from any thread.
 void PipelineImpl::OnFilterInitialize() {
   // Continue the initialize task by proceeding to the next stage.
@@ -627,7 +619,8 @@ void PipelineImpl::InitializeTask() {
     set_state(kInitAudioRenderer);
     // Returns false if there's no audio stream.
     if (InitializeAudioRenderer(pipeline_init_state_->audio_decoder_)) {
-      InsertRenderedMimeType(mime_type::kMajorTypeAudio);
+      base::AutoLock auto_lock(lock_);
+      has_audio_ = true;
       return;
     }
   }
@@ -644,13 +637,14 @@ void PipelineImpl::InitializeTask() {
   if (state_ == kInitVideoDecoder) {
     set_state(kInitVideoRenderer);
     if (InitializeVideoRenderer(pipeline_init_state_->video_decoder_)) {
-      InsertRenderedMimeType(mime_type::kMajorTypeVideo);
+      base::AutoLock auto_lock(lock_);
+      has_video_ = true;
       return;
     }
   }
 
   if (state_ == kInitVideoRenderer) {
-    if (!IsPipelineOk() || !HasRenderedMimeTypes()) {
+    if (!IsPipelineOk() || !(HasAudio() || HasVideo())) {
       SetError(PIPELINE_ERROR_COULD_NOT_RENDER);
       return;
     }
@@ -856,11 +850,8 @@ void PipelineImpl::NotifyNetworkEventTask() {
 void PipelineImpl::DisableAudioRendererTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  // |rendered_mime_types_| is read through public methods so we need to lock
-  // this variable.
   base::AutoLock auto_lock(lock_);
-  rendered_mime_types_.erase(mime_type::kMajorTypeAudio);
-
+  has_audio_ = false;
   audio_disabled_ = true;
 
   // Notify all filters of disabled audio renderer. If the filter isn't
@@ -929,9 +920,7 @@ void PipelineImpl::FilterStateTransitionTask() {
     base::AutoLock auto_lock(lock_);
     // We use audio stream to update the clock. So if there is such a stream,
     // we pause the clock until we receive a valid timestamp.
-    waiting_for_clock_update_ =
-        rendered_mime_types_.find(mime_type::kMajorTypeAudio) !=
-        rendered_mime_types_.end();
+    waiting_for_clock_update_ = has_audio_;
     if (!waiting_for_clock_update_)
       clock_->Play();
 
@@ -1073,7 +1062,7 @@ bool PipelineImpl::InitializeAudioDecoder(
   DCHECK(IsPipelineOk());
 
   scoped_refptr<DemuxerStream> stream =
-      FindDemuxerStream(demuxer, mime_type::kMajorTypeAudio);
+      FindDemuxerStream(demuxer, DemuxerStream::AUDIO);
 
   if (!stream)
     return false;
@@ -1103,7 +1092,7 @@ bool PipelineImpl::InitializeVideoDecoder(
   DCHECK(IsPipelineOk());
 
   scoped_refptr<DemuxerStream> stream =
-      FindDemuxerStream(demuxer, mime_type::kMajorTypeVideo);
+      FindDemuxerStream(demuxer, DemuxerStream::VIDEO);
 
   if (!stream)
     return false;
@@ -1175,15 +1164,13 @@ bool PipelineImpl::InitializeVideoRenderer(
 
 scoped_refptr<DemuxerStream> PipelineImpl::FindDemuxerStream(
     const scoped_refptr<Demuxer>& demuxer,
-    std::string major_mime_type) {
+    DemuxerStream::Type type) {
   DCHECK(demuxer);
 
   const int num_outputs = demuxer->GetNumberOfStreams();
   for (int i = 0; i < num_outputs; ++i) {
     std::string value;
-    if (demuxer->GetStream(i)->media_format().GetAsString(
-        MediaFormat::kMimeType, &value) &&
-        !value.compare(0, major_mime_type.length(), major_mime_type)) {
+    if (demuxer->GetStream(i)->type() == type) {
       return demuxer->GetStream(i);
     }
   }

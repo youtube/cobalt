@@ -110,8 +110,6 @@ void FFmpegVideoDecoder::OnInitializeComplete(const VideoCodecInfo& info) {
   AutoCallbackRunner done_runner(initialize_callback_.release());
 
   if (info.success) {
-    media_format_.SetAsString(MediaFormat::kMimeType,
-                              mime_type::kUncompressedVideo);
     media_format_.SetAsInteger(MediaFormat::kWidth,
                                info.stream_info.surface_width);
     media_format_.SetAsInteger(MediaFormat::kHeight,

@@ -58,8 +58,6 @@ class VideoRendererBaseTest : public ::testing::Test {
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::EnqueueCallback));
 
     // Sets the essential media format keys for this decoder.
-    decoder_media_format_.SetAsString(MediaFormat::kMimeType,
-                                      mime_type::kUncompressedVideo);
     decoder_media_format_.SetAsInteger(MediaFormat::kSurfaceType,
                                        VideoFrame::TYPE_SYSTEM_MEMORY);
     decoder_media_format_.SetAsInteger(MediaFormat::kSurfaceFormat,

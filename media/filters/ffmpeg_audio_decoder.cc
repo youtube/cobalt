@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -81,8 +81,6 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
       av_get_bits_per_sample_fmt(codec_context_->sample_fmt));
   media_format_.SetAsInteger(MediaFormat::kSampleRate,
       codec_context_->sample_rate);
-  media_format_.SetAsString(MediaFormat::kMimeType,
-      mime_type::kUncompressedAudio);
 
   // Prepare the output buffer.
   output_buffer_.reset(static_cast<uint8*>(av_malloc(kOutputBufferSize)));

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,8 +41,6 @@ void FileDataSource::Initialize(const std::string& url,
     callback->Run();
     return;
   }
-  media_format_.SetAsString(MediaFormat::kMimeType,
-                            mime_type::kApplicationOctetStream);
   media_format_.SetAsString(MediaFormat::kURL, url);
   host()->SetTotalBytes(file_size_);
   host()->SetBufferedBytes(file_size_);

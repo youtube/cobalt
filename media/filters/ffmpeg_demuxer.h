@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -72,6 +72,7 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   virtual base::TimeDelta duration();
 
   // DemuxerStream implementation.
+  virtual Type type();
   virtual const MediaFormat& media_format();
   virtual void Read(Callback1<Buffer*>::Type* read_callback);
   // Bitstream converter to convert input packet.
@@ -79,8 +80,6 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
 
   // AVStreamProvider implementation.
   virtual AVStream* GetAVStream();
-
-
 
  protected:
   virtual void* QueryInterface(const char* interface_id);
@@ -101,6 +100,7 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
 
   FFmpegDemuxer* demuxer_;
   AVStream* stream_;
+  Type type_;
   MediaFormat media_format_;
   base::TimeDelta duration_;
   bool discontinuous_;
