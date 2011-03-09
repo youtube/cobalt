@@ -60,10 +60,12 @@ void SetOverrideAmIBundled(bool value) {
 bool IsBackgroundOnlyProcess() {
   // This function really does want to examine NSBundle's idea of the main
   // bundle dictionary, and not the overriden MainAppBundle.  It needs to look
-  // at the actual running .app's Info.plist to access its LSUIElement
+  // at the actual running .app's Info.plist to access its LSBackgroundOnly
   // property.
   NSDictionary* info_dictionary = [[NSBundle mainBundle] infoDictionary];
-  return [[info_dictionary objectForKey:@"LSUIElement"] boolValue] != NO;
+//  return [[info_dictionary objectForKey:@"LSBackgroundOnly"] boolValue] != NO;
+  return ([[info_dictionary objectForKey:@"LSBackgroundOnly"] boolValue] != NO) ||
+         ([[info_dictionary objectForKey:@"MMForDemo"] boolValue] != NO);
 }
 
 // No threading worries since NSBundle isn't thread safe.
