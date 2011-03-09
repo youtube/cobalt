@@ -17,7 +17,7 @@ UDPClientSocket::UDPClientSocket(
 UDPClientSocket::~UDPClientSocket() {
 }
 
-int UDPClientSocket::Connect(const AddressList& address) {
+int UDPClientSocket::Connect(const IPEndPoint& address) {
   return socket_.Connect(address);
 }
 
@@ -37,11 +37,11 @@ void UDPClientSocket::Close() {
   socket_.Close();
 }
 
-int UDPClientSocket::GetPeerAddress(AddressList* address) const {
+int UDPClientSocket::GetPeerAddress(IPEndPoint* address) const {
   return socket_.GetPeerAddress(address);
 }
 
-int UDPClientSocket::GetLocalAddress(AddressList* address) const {
+int UDPClientSocket::GetLocalAddress(IPEndPoint* address) const {
   return socket_.GetLocalAddress(address);
 }
 

@@ -11,7 +11,7 @@
 
 namespace net {
 
-class AddressList;
+class IPEndPoint;
 
 class DatagramClientSocket : public DatagramSocket, public Socket {
  public:
@@ -19,7 +19,7 @@ class DatagramClientSocket : public DatagramSocket, public Socket {
 
   // Initialize this socket as a client socket to server at |address|.
   // Returns a network error code.
-  virtual int Connect(const AddressList& address) = 0;
+  virtual int Connect(const IPEndPoint& address) = 0;
 };
 
 }  // namespace net
