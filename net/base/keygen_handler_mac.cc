@@ -10,6 +10,7 @@
 
 #include "base/base64.h"
 #include "base/crypto/cssm_init.h"
+#include "base/crypto/mac_security_services_lock.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
