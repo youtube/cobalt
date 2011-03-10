@@ -31,6 +31,25 @@ typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
 
 class CertDatabase {
  public:
+
+  // A CertDatabase::Observer will be notified every time a new user
+  // certificate is added to the database.  Observers can register themselves
+  // via CertDatabase::AddObserver, and can un-register with
+  // CertDatabase::RemoveObserver.
+  class Observer {
+   public:
+    virtual ~Observer() {}
+
+    // Will be called when a new user certificate is added.
+    virtual void OnUserCertAdded(X509Certificate* cert) = 0;
+
+   protected:
+    Observer() {}
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(Observer);
+  };
+
   // Stores per-certificate error codes for import failures.
   struct ImportCertFailure {
    public:
@@ -141,7 +160,19 @@ class CertDatabase {
   bool IsReadOnly(const X509Certificate* cert) const;
 #endif
 
+  // Registers |observer| to receive notifications of certificate changes.  The
+  // thread on which this is called is the thread on which |observer| will be
+  // called back with notifications.
+  static void AddObserver(Observer* observer);
+
+  // Unregisters |observer| from receiving notifications.  This must be called
+  // on the same thread on which AddObserver() was called.
+  static void RemoveObserver(Observer* observer);
+
  private:
+  // Broadcasts a notification to all registered observers.
+  static void NotifyObserversOfUserCertAdded(X509Certificate* cert);
+
   DISALLOW_COPY_AND_ASSIGN(CertDatabase);
 };
 

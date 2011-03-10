@@ -48,6 +48,8 @@ int CertDatabase::AddUserCert(X509Certificate* cert) {
   }
   switch (err) {
     case noErr:
+      CertDatabase::NotifyObserversOfUserCertAdded(cert);
+      // Fall through.
     case errSecDuplicateItem:
       return OK;
     default:

@@ -22,6 +22,7 @@ SpdySessionPool::SpdySessionPool(SSLConfigService* ssl_config_service)
   NetworkChangeNotifier::AddIPAddressObserver(this);
   if (ssl_config_service_)
     ssl_config_service_->AddObserver(this);
+  CertDatabase::AddObserver(this);
 }
 
 SpdySessionPool::~SpdySessionPool() {
@@ -30,6 +31,7 @@ SpdySessionPool::~SpdySessionPool() {
   if (ssl_config_service_)
     ssl_config_service_->RemoveObserver(this);
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
+  CertDatabase::RemoveObserver(this);
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::Get(
@@ -133,6 +135,10 @@ void SpdySessionPool::OnIPAddressChanged() {
 }
 
 void SpdySessionPool::OnSSLConfigChanged() {
+  CloseCurrentSessions();
+}
+
+void SpdySessionPool::OnUserCertAdded(X509Certificate* cert) {
   CloseCurrentSessions();
 }
 
