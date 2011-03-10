@@ -1,4 +1,4 @@
-/* Copyright 2007 Google Inc. All Rights Reserved.
+/* Copyright 2011 Google Inc. All Rights Reserved.
 **/
 
 #include <windows.h>
@@ -16,10 +16,8 @@ int sqlite_shell_init_icu() {
   FARPROC addr;
   UErrorCode err;
 
-  wchar_t dll_name[12];
-  wsprintf(dll_name, L"icudt%2S.dll", U_ICU_VERSION_SHORT);
-  dll_name[11] = L'\0';
-  module = LoadLibrary(dll_name);
+  // Chrome dropped U_ICU_VERSION_SHORT from the icu data dll name.
+  module = LoadLibrary(L"icudt.dll");
   if (!module)
     return 0;
 
