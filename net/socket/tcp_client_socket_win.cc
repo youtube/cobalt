@@ -27,19 +27,29 @@ namespace net {
 
 namespace {
 
-// Assert that the (manual-reset) event object is not signaled.
-void AssertEventNotSignaled(WSAEVENT hEvent) {
-  DWORD wait_rv = WaitForSingleObject(hEvent, 0);
-  if (wait_rv != WAIT_TIMEOUT) {
+// Prevent the compiler from optimizing away the arguments so they appear
+// nicely on the stack in crash dumps.
+#pragma warning (disable: 4748)
+#pragma optimize( "", off )
+
+// Pass the important values as function arguments so that they are available
+// in crash dumps.
+void CheckEventWait(WSAEVENT hEvent, DWORD wait_rv, DWORD expected) {
+  if (wait_rv != expected) {
     DWORD err = ERROR_SUCCESS;
     if (wait_rv == WAIT_FAILED)
       err = GetLastError();
     CHECK(false);  // Crash.
-    // This LOG statement is unreachable since we have already crashed, but it
-    // should prevent the compiler from optimizing away the |wait_rv| and
-    // |err| variables so they appear nicely on the stack in crash dumps.
-    VLOG(1) << "wait_rv=" << wait_rv << ", err=" << err;
   }
+}
+
+#pragma optimize( "", on )
+#pragma warning (default: 4748)
+
+// Assert that the (manual-reset) event object is not signaled.
+void AssertEventNotSignaled(WSAEVENT hEvent) {
+  DWORD wait_rv = WaitForSingleObject(hEvent, 0);
+  CheckEventWait(hEvent, wait_rv, WAIT_TIMEOUT);
 }
 
 // If the (manual-reset) event object is signaled, resets it and returns true.
@@ -55,7 +65,7 @@ bool ResetEventIfSignaled(WSAEVENT hEvent) {
   DWORD wait_rv = WaitForSingleObject(hEvent, 0);
   if (wait_rv == WAIT_TIMEOUT)
     return false;  // The event object is not signaled.
-  CHECK_EQ(WAIT_OBJECT_0, wait_rv);
+  CheckEventWait(hEvent, wait_rv, WAIT_OBJECT_0);
   BOOL ok = WSAResetEvent(hEvent);
   CHECK(ok);
   return true;
@@ -239,9 +249,9 @@ TCPClientSocketWin::Core::~Core() {
   write_watcher_.StopWatching();
 
   WSACloseEvent(read_overlapped_.hEvent);
-  memset(&read_overlapped_, 0, sizeof(read_overlapped_));
+  memset(&read_overlapped_, 0xaf, sizeof(read_overlapped_));
   WSACloseEvent(write_overlapped_.hEvent);
-  memset(&write_overlapped_, 0, sizeof(write_overlapped_));
+  memset(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
 }
 
 void TCPClientSocketWin::Core::WatchForRead() {
