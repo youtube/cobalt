@@ -178,13 +178,22 @@ void AddressList::Append(const struct addrinfo* head) {
   } else {
     new_head = data_->head;
   }
-
   // Find the end of current linked list and append new data there.
   struct addrinfo* copy_ptr = new_head;
   while (copy_ptr->ai_next)
     copy_ptr = copy_ptr->ai_next;
-  DCHECK(!head->ai_canonname);
   copy_ptr->ai_next = CreateCopyOfAddrinfo(head, true);
+
+  // Only the head of the list should have a canonname.  Strip any
+  // canonical name in the appended data.
+  copy_ptr = copy_ptr->ai_next;
+  while (copy_ptr) {
+    if (copy_ptr->ai_canonname) {
+      free(copy_ptr->ai_canonname);
+      copy_ptr->ai_canonname = NULL;
+    }
+    copy_ptr = copy_ptr->ai_next;
+  }
 }
 
 void AddressList::SetPort(int port) {
