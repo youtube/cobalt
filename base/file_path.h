@@ -289,9 +289,9 @@ class FilePath {
   std::string MaybeAsASCII() const;
 
   // Older Chromium code assumes that paths are always wstrings.
-  // These functions convert wstrings to/from FilePaths, and are
+  // This function converts wstrings to FilePaths, and is
   // useful to smooth porting that old code to the FilePath API.
-  // They have "Hack" in their names so people feel bad about using them.
+  // It has "Hack" its name so people feel bad about using it.
   // http://code.google.com/p/chromium/issues/detail?id=24672
   //
   // If you are trying to be a good citizen and remove these, ask yourself:
@@ -305,7 +305,6 @@ class FilePath {
   //   LossyDisplayName() function, but keep in mind that you can't
   //   ever use the result of that again as a path.
   static FilePath FromWStringHack(const std::wstring& wstring);
-  std::wstring ToWStringHack() const;
 
   // Static helper method to write a StringType to a pickle.
   static void WriteStringTypeToPickle(Pickle* pickle,
