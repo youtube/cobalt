@@ -4,6 +4,8 @@
 
 #include "net/base/cert_database.h"
 
+#include "base/observer_list_threadsafe.h"
+#include "base/singleton.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
@@ -14,6 +16,39 @@ CertDatabase::ImportCertFailure::ImportCertFailure(
 }
 
 CertDatabase::ImportCertFailure::~ImportCertFailure() {
+}
+
+// CertDatabaseNotifier notifies registered observers when new user certificates
+// are added to the database.
+class CertDatabaseNotifier {
+ public:
+  CertDatabaseNotifier()
+      : observer_list_(new ObserverListThreadSafe<CertDatabase::Observer>) {
+  }
+
+  static CertDatabaseNotifier* GetInstance() {
+    return Singleton<CertDatabaseNotifier>::get();
+  }
+
+  friend struct DefaultSingletonTraits<CertDatabaseNotifier>;
+  friend class CertDatabase;
+
+ private:
+  const scoped_refptr<ObserverListThreadSafe<CertDatabase::Observer> >
+      observer_list_;
+};
+
+void CertDatabase::AddObserver(Observer* observer) {
+  CertDatabaseNotifier::GetInstance()->observer_list_->AddObserver(observer);
+}
+
+void CertDatabase::RemoveObserver(Observer* observer) {
+  CertDatabaseNotifier::GetInstance()->observer_list_->RemoveObserver(observer);
+}
+
+void CertDatabase::NotifyObserversOfUserCertAdded(X509Certificate* cert) {
+  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
+      &CertDatabase::Observer::OnUserCertAdded, make_scoped_refptr(cert));
 }
 
 }  // namespace net

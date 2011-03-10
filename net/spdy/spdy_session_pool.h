@@ -14,6 +14,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "net/base/cert_database.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
@@ -33,7 +34,8 @@ class SpdySession;
 // TODO(mbelshe): Make this production ready.
 class SpdySessionPool
     : public NetworkChangeNotifier::IPAddressObserver,
-      public SSLConfigService::Observer {
+      public SSLConfigService::Observer,
+      public CertDatabase::Observer {
  public:
   explicit SpdySessionPool(SSLConfigService* ssl_config_service);
   virtual ~SpdySessionPool();
@@ -104,6 +106,9 @@ class SpdySessionPool
 
   // A debugging mode where we compress all accesses through a single domain.
   static void ForceSingleDomain() { g_force_single_domain = true; }
+
+  // CertDatabase::Observer methods:
+  virtual void OnUserCertAdded(X509Certificate* cert);
 
  private:
   friend class SpdySessionPoolPeer;  // For testing.

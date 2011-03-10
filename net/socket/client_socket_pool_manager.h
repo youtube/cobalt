@@ -17,6 +17,7 @@
 #include "base/stl_util-inl.h"
 #include "base/template_util.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/cert_database.h"
 #include "net/socket/client_socket_pool_histograms.h"
 
 class Value;
@@ -57,7 +58,8 @@ class OwnedPoolMap : public std::map<Key, Value> {
 
 }  // namespace internal
 
-class ClientSocketPoolManager : public base::NonThreadSafe {
+class ClientSocketPoolManager : public base::NonThreadSafe,
+                                public CertDatabase::Observer {
  public:
   ClientSocketPoolManager(NetLog* net_log,
                           ClientSocketFactory* socket_factory,
@@ -93,6 +95,9 @@ class ClientSocketPoolManager : public base::NonThreadSafe {
   // Creates a Value summary of the state of the socket pools. The caller is
   // responsible for deleting the returned value.
   Value* SocketPoolInfoToValue() const;
+
+  // CertDatabase::Observer methods:
+  virtual void OnUserCertAdded(X509Certificate* cert);
 
  private:
   friend class HttpNetworkSessionPeer;
