@@ -44,7 +44,7 @@
 #elif ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_SHARED
 #define ICU_UTIL_DATA_SYMBOL "icudt" U_ICU_VERSION_SHORT "_dat"
 #if defined(OS_WIN)
-#define ICU_UTIL_DATA_SHARED_MODULE_NAME "icudt" U_ICU_VERSION_SHORT ".dll"
+#define ICU_UTIL_DATA_SHARED_MODULE_NAME "icudt.dll"
 #endif
 #endif
 
