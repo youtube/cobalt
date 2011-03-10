@@ -56,6 +56,7 @@
         'base/cookie_store.h',
         'base/crypto_module.h',
         'base/crypto_module_nss.cc',
+        'base/crypto_module_openssl.cc',
         'base/data_url.cc',
         'base/data_url.h',
         'base/directory_lister.cc',
@@ -301,6 +302,7 @@
           {  # else: not using openssl.
             'sources!': [
               'base/cert_database_openssl.cc',
+              'base/crypto_module_openssl.cc',
               'base/keygen_handler_openssl.cc',
               'base/openssl_memory_private_key_store.cc',
               'base/openssl_private_key_store.h',
