@@ -972,10 +972,8 @@ bool MemoryMappedFile::MapFileToMemoryInternalEx(int flags) {
   if (length_ == INVALID_FILE_SIZE)
     return false;
 
-  // length_ value comes from GetFileSize() above. GetFileSize() returns DWORD,
-  // therefore the cast here is safe.
   file_mapping_ = ::CreateFileMapping(file_, NULL, PAGE_READONLY | flags,
-                                      0, static_cast<DWORD>(length_), NULL);
+                                      0, 0, NULL);
   if (!file_mapping_) {
     // According to msdn, system error codes are only reserved up to 15999.
     // http://msdn.microsoft.com/en-us/library/ms681381(v=VS.85).aspx.
@@ -985,7 +983,7 @@ bool MemoryMappedFile::MapFileToMemoryInternalEx(int flags) {
   }
 
   data_ = static_cast<uint8*>(
-      ::MapViewOfFile(file_mapping_, FILE_MAP_READ, 0, 0, length_));
+      ::MapViewOfFile(file_mapping_, FILE_MAP_READ, 0, 0, 0));
   if (!data_) {
     UMA_HISTOGRAM_ENUMERATION("MemoryMappedFile.MapViewOfFile",
                               logging::GetLastSystemErrorCode(), 16000);
