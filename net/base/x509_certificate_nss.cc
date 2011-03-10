@@ -98,6 +98,7 @@ int MapSecurityError(int err) {
       return ERR_CERT_COMMON_NAME_INVALID;
     case SEC_ERROR_INVALID_TIME:
     case SEC_ERROR_EXPIRED_CERTIFICATE:
+    case SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE:
       return ERR_CERT_DATE_INVALID;
     case SEC_ERROR_UNKNOWN_ISSUER:
     case SEC_ERROR_UNTRUSTED_ISSUER:
@@ -111,7 +112,13 @@ int MapSecurityError(int err) {
     case SEC_ERROR_CERT_NOT_VALID:
     // TODO(port): add an ERR_CERT_WRONG_USAGE error code.
     case SEC_ERROR_CERT_USAGES_INVALID:
+    case SEC_ERROR_INADEQUATE_KEY_USAGE:
+    case SEC_ERROR_INADEQUATE_CERT_TYPE:
     case SEC_ERROR_POLICY_VALIDATION_FAILED:
+    case SEC_ERROR_CERT_NOT_IN_NAME_SPACE:
+    case SEC_ERROR_PATH_LEN_CONSTRAINT_INVALID:
+    case SEC_ERROR_UNKNOWN_CRITICAL_EXTENSION:
+    case SEC_ERROR_EXTENSION_VALUE_INVALID:
       return ERR_CERT_INVALID;
     default:
       LOG(WARNING) << "Unknown error " << err << " mapped to net::ERR_FAILED";
@@ -126,6 +133,7 @@ int MapCertErrorToCertStatus(int err) {
       return CERT_STATUS_COMMON_NAME_INVALID;
     case SEC_ERROR_INVALID_TIME:
     case SEC_ERROR_EXPIRED_CERTIFICATE:
+    case SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE:
       return CERT_STATUS_DATE_INVALID;
     case SEC_ERROR_UNTRUSTED_CERT:
     case SEC_ERROR_UNKNOWN_ISSUER:
@@ -143,7 +151,14 @@ int MapCertErrorToCertStatus(int err) {
     case SEC_ERROR_CERT_NOT_VALID:
     // TODO(port): add a CERT_STATUS_WRONG_USAGE error code.
     case SEC_ERROR_CERT_USAGES_INVALID:
+    case SEC_ERROR_INADEQUATE_KEY_USAGE:  // Key usage.
+    case SEC_ERROR_INADEQUATE_CERT_TYPE:  // Extended key usage and whether
+                                          // the certificate is a CA.
     case SEC_ERROR_POLICY_VALIDATION_FAILED:
+    case SEC_ERROR_CERT_NOT_IN_NAME_SPACE:
+    case SEC_ERROR_PATH_LEN_CONSTRAINT_INVALID:
+    case SEC_ERROR_UNKNOWN_CRITICAL_EXTENSION:
+    case SEC_ERROR_EXTENSION_VALUE_INVALID:
       return CERT_STATUS_INVALID;
     default:
       return 0;
