@@ -50,6 +50,7 @@ int CertDatabase::AddUserCert(X509Certificate* cert) {
   if (!added)
     return ERR_ADD_USER_CERT_FAILED;
 
+  CertDatabase::NotifyObserversOfUserCertAdded(cert);
   return OK;
 }
 

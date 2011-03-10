@@ -137,8 +137,8 @@ TEST(SSLClientAuthCacheTest, LookupNullPreference) {
   EXPECT_EQ(NULL, cached_cert.get());
 }
 
-// Check that the Clear() method removes all cache entries.
-TEST(SSLClientAuthCacheTest, Clear) {
+// Check that the OnUserCertAdded() method removes all cache entries.
+TEST(SSLClientAuthCacheTest, OnUserCertAdded) {
   SSLClientAuthCache cache;
   base::Time start_date = base::Time::Now();
   base::Time expiration_date = start_date + base::TimeDelta::FromDays(1);
@@ -161,7 +161,7 @@ TEST(SSLClientAuthCacheTest, Clear) {
   EXPECT_TRUE(cache.Lookup(server2, &cached_cert));
   EXPECT_EQ(NULL, cached_cert.get());
 
-  cache.Clear();
+  cache.OnUserCertAdded(NULL);
 
   // Check that we no longer have entries for either server.
   EXPECT_FALSE(cache.Lookup(server1, &cached_cert));
