@@ -261,6 +261,9 @@ class URLRequest : public base::NonThreadSafe {
   // Returns true if the url can be handled by URLRequest. False otherwise.
   // The function returns true for invalid urls because URLRequest knows how
   // to handle those.
+  // NOTE: This will also return true for URLs that are handled by
+  // ProtocolFactories that only work for requests that are scoped to a
+  // Profile.
   static bool IsHandledURL(const GURL& url);
 
   // Allow access to file:// on ChromeOS for tests.
