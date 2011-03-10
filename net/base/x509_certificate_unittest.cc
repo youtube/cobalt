@@ -447,6 +447,29 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   root_certs->Clear();
 }
 
+// A regression test for http://crbug.com/70293.
+// The Key Usage extension in this RSA SSL server certificate does not have
+// the keyEncipherment bit.
+TEST(X509CertificateTest, InvalidKeyUsage) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> server_cert =
+      ImportCertFromFile(certs_dir, "invalid_key_usage_cert.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), server_cert);
+
+  int flags = 0;
+  CertVerifyResult verify_result;
+  int error = server_cert->Verify("jira.aquameta.com", flags, &verify_result);
+  EXPECT_EQ(ERR_CERT_INVALID, error);
+  EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_INVALID);
+  // TODO(wtc): fix http://crbug.com/75520 to get all the certificate errors
+  // from NSS.
+#if !defined(USE_NSS)
+  // The certificate is issued by an unknown CA.
+  EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
+#endif
+}
+
 // Tests X509Certificate::Cache via X509Certificate::CreateFromHandle.  We
 // call X509Certificate::CreateFromHandle several times and observe whether
 // it returns a cached or new X509Certificate object.
