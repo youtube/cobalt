@@ -34,4 +34,10 @@ void NetworkDelegate::NotifyReadCompleted(URLRequest* request, int bytes_read) {
   OnReadCompleted(request, bytes_read);
 }
 
+URLRequestJob* NetworkDelegate::MaybeCreateURLRequestJob(URLRequest* request) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(request);
+  return OnMaybeCreateURLRequestJob(request);
+}
+
 }  // namespace net
