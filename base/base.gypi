@@ -506,6 +506,8 @@
           'sources!': [
             'crypto/cssm_init.cc',
             'crypto/cssm_init.h',
+            'crypto/mac_security_services_lock.cc',
+            'crypto/mac_security_services_lock.h',
           ],
         }],
         [ 'OS == "mac" or OS == "win"', {
@@ -577,6 +579,8 @@
         'crypto/encryptor_nss.cc',
         'crypto/encryptor_openssl.cc',
         'crypto/encryptor_win.cc',
+        'crypto/mac_security_services_lock.cc',
+        'crypto/mac_security_services_lock.h',
         'crypto/rsa_private_key.h',
         'crypto/rsa_private_key.cc',
         'crypto/rsa_private_key_mac.cc',
