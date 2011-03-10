@@ -89,6 +89,7 @@ int CertDatabase::AddUserCert(X509Certificate* cert_obj) {
     return ERR_ADD_USER_CERT_FAILED;
   }
   PK11_FreeSlot(slot);
+  CertDatabase::NotifyObserversOfUserCertAdded(cert_obj);
   return OK;
 }
 

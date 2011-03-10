@@ -8,12 +8,15 @@
 
 #include "net/socket/client_socket_pool_manager.h"
 
+#include <string>
+
 #include "base/logging.h"
 #include "base/values.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_proxy_client_socket_pool.h"
-#include "net/socket/client_socket_pool_histograms.h"
 #include "net/proxy/proxy_service.h"
+#include "net/socket/client_socket_factory.h"
+#include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
@@ -98,9 +101,13 @@ ClientSocketPoolManager::ClientSocketPoolManager(
       tcp_for_https_proxy_pool_histograms_("TCPforHTTPSProxy"),
       ssl_for_https_proxy_pool_histograms_("SSLforHTTPSProxy"),
       http_proxy_pool_histograms_("HTTPProxy"),
-      ssl_socket_pool_for_proxies_histograms_("SSLForProxies") {}
+      ssl_socket_pool_for_proxies_histograms_("SSLForProxies") {
+  CertDatabase::AddObserver(this);
+}
 
-ClientSocketPoolManager::~ClientSocketPoolManager() {}
+ClientSocketPoolManager::~ClientSocketPoolManager() {
+  CertDatabase::RemoveObserver(this);
+}
 
 void ClientSocketPoolManager::FlushSocketPools() {
   // Flush the highest level pools first, since higher level pools may release
@@ -390,6 +397,10 @@ Value* ClientSocketPoolManager::SocketPoolInfoToValue() const {
                        "ssl_socket_pool_for_proxies",
                        false);
   return list;
+}
+
+void ClientSocketPoolManager::OnUserCertAdded(X509Certificate* cert) {
+  FlushSocketPools();
 }
 
 }  // namespace net
