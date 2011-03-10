@@ -43,7 +43,8 @@ DesktopEnvironment GetDesktopEnvironment(Environment* env) {
       if (env->HasVar("KDE_SESSION_VERSION"))
         return DESKTOP_ENVIRONMENT_KDE4;
       return DESKTOP_ENVIRONMENT_KDE3;
-    } else if (desktop_session.find("xfce") != std::string::npos) {
+    } else if (desktop_session.find("xfce") != std::string::npos ||
+               desktop_session == "xubuntu") {
       return DESKTOP_ENVIRONMENT_XFCE;
     }
   }
