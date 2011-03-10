@@ -19,7 +19,8 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include <winsock2.h>
-#include <wspiapi.h>  // Needed for Win2k compat.
+#include <iphlpapi.h>
+#pragma comment(lib, "iphlpapi.lib")
 #elif defined(OS_POSIX)
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -1845,42 +1846,55 @@ bool IPv6Supported() {
   }
   closesocket(test_socket);
 
-  // TODO(jar): Bug 40851: The remainder of probe is not working.
-  IPv6SupportResults(IPV6_CAN_CREATE_SOCKETS);  // Record status.
-  return true;  // Don't disable IPv6 yet.
-
   // Check to see if any interface has a IPv6 address.
-  // Note: The original IPv6 socket can't be used here, as WSAIoctl() will fail.
-  test_socket = socket(AF_INET, SOCK_STREAM, 0);
-  DCHECK(test_socket != INVALID_SOCKET);
-  INTERFACE_INFO interfaces[128];
-  DWORD bytes_written = 0;
-  int rv = WSAIoctl(test_socket, SIO_GET_INTERFACE_LIST, NULL, 0, interfaces,
-                    sizeof(interfaces), &bytes_written, NULL, NULL);
-  closesocket(test_socket);
-
-  if (0 != rv) {
-    if (WSAGetLastError() == WSAEFAULT)
-      IPv6SupportResults(IPV6_INTERFACE_ARRAY_TOO_SHORT);
-    else
-      IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
+  // The GetAdaptersAddresses MSDN page recommends using a size of 15000 to
+  // avoid reallocation.
+  ULONG adapters_size = 15000;
+  scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> adapters;
+  ULONG error;
+  int num_tries = 0;
+  do {
+    adapters.reset(
+        reinterpret_cast<PIP_ADAPTER_ADDRESSES>(malloc(adapters_size)));
+    // Return only unicast addresses.
+    error = GetAdaptersAddresses(AF_UNSPEC,
+                                 GAA_FLAG_SKIP_ANYCAST |
+                                 GAA_FLAG_SKIP_MULTICAST |
+                                 GAA_FLAG_SKIP_DNS_SERVER |
+                                 GAA_FLAG_SKIP_FRIENDLY_NAME,
+                                 NULL, adapters.get(), &adapters_size);
+    num_tries++;
+  } while (error == ERROR_BUFFER_OVERFLOW && num_tries <= 3);
+  if (error == ERROR_NO_DATA) {
+    IPv6SupportResults(IPV6_GLOBAL_ADDRESS_MISSING);
+    return false;
+  }
+  if (error != ERROR_SUCCESS) {
+    IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
     return true;  // Don't yet block IPv6.
   }
-  size_t interface_count = bytes_written / sizeof(interfaces[0]);
-  for (size_t i = 0; i < interface_count; ++i) {
-    INTERFACE_INFO* interface = &interfaces[i];
-    if (!(IFF_UP & interface->iiFlags))
+
+  PIP_ADAPTER_ADDRESSES adapter;
+  for (adapter = adapters.get(); adapter; adapter = adapter->Next) {
+    if (adapter->OperStatus != IfOperStatusUp)
       continue;
-    if (IFF_LOOPBACK & interface->iiFlags)
+    if (adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK)
       continue;
-    sockaddr* addr = &interface->iiAddress.Address;
-    if (addr->sa_family != AF_INET6)
-      continue;
-    struct in6_addr* sin6_addr = &interface->iiAddress.AddressIn6.sin6_addr;
-    if (IN6_IS_ADDR_LOOPBACK(sin6_addr) || IN6_IS_ADDR_LINKLOCAL(sin6_addr))
-      continue;
-    IPv6SupportResults(IPV6_GLOBAL_ADDRESS_PRESENT);
-    return true;
+    PIP_ADAPTER_UNICAST_ADDRESS unicast_address;
+    for (unicast_address = adapter->FirstUnicastAddress;
+         unicast_address;
+         unicast_address = unicast_address->Next) {
+      if (unicast_address->Address.lpSockaddr->sa_family != AF_INET6)
+        continue;
+      // Safe cast since this is AF_INET6.
+      struct sockaddr_in6* addr_in6 = reinterpret_cast<struct sockaddr_in6*>(
+          unicast_address->Address.lpSockaddr);
+      struct in6_addr* sin6_addr = &addr_in6->sin6_addr;
+      if (IN6_IS_ADDR_LOOPBACK(sin6_addr) || IN6_IS_ADDR_LINKLOCAL(sin6_addr))
+        continue;
+      IPv6SupportResults(IPV6_GLOBAL_ADDRESS_PRESENT);
+      return true;
+    }
   }
 
   IPv6SupportResults(IPV6_GLOBAL_ADDRESS_MISSING);
@@ -1927,6 +1941,10 @@ bool HaveOnlyLoopbackAddresses() {
   }
   freeifaddrs(interface_addr);
   return result;
+#elif defined(OS_WIN)
+  // TODO(wtc): implement with the GetAdaptersAddresses function.
+  NOTIMPLEMENTED();
+  return false;
 #else
   NOTIMPLEMENTED();
   return false;
