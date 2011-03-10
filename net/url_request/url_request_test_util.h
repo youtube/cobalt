@@ -206,6 +206,8 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual void OnSendHttpRequest(net::HttpRequestHeaders* headers);
   virtual void OnResponseStarted(net::URLRequest* request);
   virtual void OnReadCompleted(net::URLRequest* request, int bytes_read);
+  virtual net::URLRequestJob* OnMaybeCreateURLRequestJob(
+      net::URLRequest* request);
 
   int last_os_error_;
   int error_count_;

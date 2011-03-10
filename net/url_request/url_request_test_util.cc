@@ -319,3 +319,8 @@ void TestNetworkDelegate::OnReadCompleted(net::URLRequest* request,
     last_os_error_ = request->status().os_error();
   }
 }
+
+net::URLRequestJob* TestNetworkDelegate::OnMaybeCreateURLRequestJob(
+    net::URLRequest* request) {
+  return NULL;
+}
