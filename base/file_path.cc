@@ -532,9 +532,6 @@ std::string FilePath::MaybeAsASCII() const {
 FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
   return FilePath(base::SysWideToNativeMB(wstring));
 }
-std::wstring FilePath::ToWStringHack() const {
-  return base::SysNativeMBToWide(path_);
-}
 #elif defined(OS_WIN)
 string16 FilePath::LossyDisplayName() const {
   return path_;
@@ -549,9 +546,6 @@ std::string FilePath::MaybeAsASCII() const {
 // static
 FilePath FilePath::FromWStringHack(const std::wstring& wstring) {
   return FilePath(wstring);
-}
-std::wstring FilePath::ToWStringHack() const {
-  return path_;
 }
 #endif
 
