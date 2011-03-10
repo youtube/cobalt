@@ -6,6 +6,7 @@
 
 #include "base/lazy_instance.h"
 #include "build/build_config.h"
+#include "net/base/cert_database.h"
 #include "net/socket/client_socket_handle.h"
 #if defined(OS_WIN)
 #include "net/socket/ssl_client_socket_nss.h"
@@ -23,12 +24,27 @@
 
 namespace net {
 
+class X509Certificate;
+
 namespace {
 
 bool g_use_system_ssl = false;
 
-class DefaultClientSocketFactory : public ClientSocketFactory {
+class DefaultClientSocketFactory : public ClientSocketFactory,
+                                   public CertDatabase::Observer {
  public:
+  DefaultClientSocketFactory() {
+    CertDatabase::AddObserver(this);
+  }
+
+  virtual ~DefaultClientSocketFactory() {
+    CertDatabase::RemoveObserver(this);
+  }
+
+  virtual void OnUserCertAdded(X509Certificate* cert) {
+    ClearSSLSessionCache();
+  }
+
   virtual ClientSocket* CreateTCPClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
