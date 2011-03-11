@@ -63,8 +63,6 @@ int MapPosixError(int os_error) {
       return ERR_ADDRESS_INVALID;
     case EMSGSIZE:
       return ERR_MSG_TOO_BIG;
-    case ENOTCONN:
-      return ERR_SOCKET_NOT_CONNECTED;
     case 0:
       return OK;
     default:
@@ -101,20 +99,8 @@ UDPSocketLibevent::~UDPSocketLibevent() {
 }
 
 void UDPSocketLibevent::Close() {
-  DCHECK(CalledOnValidThread());
-
-  if (read_callback_)
-    DoReadCallback(ERR_ABORTED);
-  if (write_callback_)
-    DoReadCallback(ERR_ABORTED);
-
   if (!is_connected())
     return;
-
-  bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
-  DCHECK(ok);
-  ok = write_socket_watcher_.StopWatchingFileDescriptor();
-  DCHECK(ok);
 
   if (HANDLE_EINTR(close(socket_)) < 0)
     PLOG(ERROR) << "close";
@@ -175,7 +161,10 @@ int UDPSocketLibevent::Read(IOBuffer* buf,
   DCHECK(callback);  // Synchronous operation not supported
   DCHECK_GT(buf_len, 0);
 
-  int nread = InternalRead(buf, buf_len);
+  read_buf_ = buf;
+  read_buf_len_ = buf_len;
+
+  int nread = InternalRead();
   if (nread != ERR_IO_PENDING)
     return nread;
 
@@ -186,8 +175,6 @@ int UDPSocketLibevent::Read(IOBuffer* buf,
     return MapPosixError(errno);
   }
 
-  read_buf_ = buf;
-  read_buf_len_ = buf_len;
   read_callback_ = callback;
   return ERR_IO_PENDING;
 }
@@ -245,7 +232,7 @@ int UDPSocketLibevent::Connect(const IPEndPoint& address) {
   DCHECK(!remote_address_.get());
   int rv = CreateSocket(address);
   if (rv < 0)
-    return rv;
+    return MapPosixError(rv);
 
   struct sockaddr_storage addr_storage;
   size_t addr_len = sizeof(addr_storage);
@@ -255,7 +242,7 @@ int UDPSocketLibevent::Connect(const IPEndPoint& address) {
 
   rv = HANDLE_EINTR(connect(socket_, addr, addr_len));
   if (rv < 0)
-    return MapPosixError(errno);
+    return MapPosixError(rv);
 
   remote_address_.reset(new IPEndPoint(address));
   return rv;
@@ -266,7 +253,7 @@ int UDPSocketLibevent::Bind(const IPEndPoint& address) {
   DCHECK(!local_address_.get());
   int rv = CreateSocket(address);
   if (rv < 0)
-    return rv;
+    return MapPosixError(rv);
 
   struct sockaddr_storage addr_storage;
   size_t addr_len = sizeof(addr_storage);
@@ -276,7 +263,7 @@ int UDPSocketLibevent::Bind(const IPEndPoint& address) {
 
   rv = bind(socket_, addr, addr_len);
   if (rv < 0)
-    return MapPosixError(errno);
+    return MapPosixError(rv);
 
   local_address_.reset(new IPEndPoint(address));
   return rv;
@@ -305,7 +292,7 @@ void UDPSocketLibevent::DoWriteCallback(int rv) {
 }
 
 void UDPSocketLibevent::DidCompleteRead() {
-  int result = InternalRead(read_buf_, read_buf_len_);
+  int result = InternalRead();
   if (result != ERR_IO_PENDING) {
     read_buf_ = NULL;
     read_buf_len_ = 0;
@@ -318,9 +305,9 @@ void UDPSocketLibevent::DidCompleteRead() {
 int UDPSocketLibevent::CreateSocket(const IPEndPoint& address) {
   socket_ = socket(address.GetFamily(), SOCK_DGRAM, 0);
   if (socket_ == kInvalidSocket)
-    return MapPosixError(errno);
+    return errno;
   if (SetNonBlocking(socket_)) {
-    const int err = MapPosixError(errno);
+    const int err = errno;
     Close();
     return err;
   }
@@ -344,7 +331,7 @@ void UDPSocketLibevent::DidCompleteWrite() {
   }
 }
 
-int UDPSocketLibevent::InternalRead(IOBuffer* buf, int buf_len) {
+int UDPSocketLibevent::InternalRead() {
   int bytes_transferred;
   int flags = 0;
 
@@ -354,8 +341,8 @@ int UDPSocketLibevent::InternalRead(IOBuffer* buf, int buf_len) {
 
   bytes_transferred =
       HANDLE_EINTR(recvfrom(socket_,
-                            buf->data(),
-                            buf_len,
+                            read_buf_->data(),
+                            read_buf_len_,
                             flags,
                             addr,
                             &addr_len));
@@ -373,7 +360,6 @@ int UDPSocketLibevent::InternalRead(IOBuffer* buf, int buf_len) {
   }
   return result;
 }
-
 int UDPSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
   struct sockaddr_storage addr_storage;
   size_t addr_len = sizeof(addr_storage);
