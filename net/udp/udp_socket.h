@@ -16,7 +16,24 @@
 
 namespace net {
 
-// A client socket that uses UDP as the transport layer.
+// UDPSocket
+// Accessor API for a UDP socket in either client or server form.
+//
+// Client form:
+// In this case, we're connecting to a specific server, so the client will
+// usually use:
+//       Connect(address)    // Connect to a UDP server
+//       Read/Write          // Reads/Writes all go to a single destination
+//
+// Server form:
+// In this case, we want to read/write to many clients which are connecting
+// to this server.  First the server 'binds' to an addres, then we read from
+// clients and write responses to them.
+// Example:
+//       Bind(address/port)  // Binds to port for reading from clients
+//       RecvFrom/SendTo     // Each read can come from a different client
+//                           // Writes need to be directed to a specific
+//                           // address.
 #if defined(OS_WIN)
 typedef UDPSocketWin UDPSocket;
 #elif defined(OS_POSIX)

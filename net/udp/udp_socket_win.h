@@ -2,28 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_UDP_UDP_SOCKET_LIBEVENT_H_
-#define NET_UDP_UDP_SOCKET_LIBEVENT_H_
+#ifndef NET_UDP_UDP_SOCKET_WIN_H_
+#define NET_UDP_UDP_SOCKET_WIN_H_
 #pragma once
 
-#include "base/message_loop.h"
+#include <winsock2.h>
+
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
+#include "base/win/object_watcher.h"
 #include "net/base/completion_callback.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
-#include "net/socket/client_socket.h"
 
 namespace net {
 
 class BoundNetLog;
 
-class UDPSocketLibevent : public base::NonThreadSafe {
+class UDPSocketWin : public base::NonThreadSafe {
  public:
-  UDPSocketLibevent(net::NetLog* net_log,
-                    const net::NetLog::Source& source);
-  virtual ~UDPSocketLibevent();
+  UDPSocketWin(net::NetLog* net_log,
+               const net::NetLog::Source& source);
+  virtual ~UDPSocketWin();
 
   // Connect the socket to connect with a certain |address|.
   // Returns a net error code.
@@ -91,53 +93,39 @@ class UDPSocketLibevent : public base::NonThreadSafe {
              CompletionCallback* callback);
 
   // Returns true if the socket is already connected or bound.
-  bool is_connected() const { return socket_ != kInvalidSocket; }
+  bool is_connected() const { return socket_ != INVALID_SOCKET; }
 
  private:
-  static const int kInvalidSocket = -1;
-
-  class ReadWatcher : public MessageLoopForIO::Watcher {
+  class ReadDelegate : public base::win::ObjectWatcher::Delegate {
    public:
-    explicit ReadWatcher(UDPSocketLibevent* socket) : socket_(socket) {}
+    explicit ReadDelegate(UDPSocketWin* socket) : socket_(socket) {}
+    virtual ~ReadDelegate() {}
 
-    // MessageLoopForIO::Watcher methods
-
-    virtual void OnFileCanReadWithoutBlocking(int /* fd */) {
-      if (socket_->read_callback_)
-        socket_->DidCompleteRead();
-    }
-
-    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) {}
+    // base::ObjectWatcher::Delegate methods:
+    virtual void OnObjectSignaled(HANDLE object);
 
    private:
-    UDPSocketLibevent* const socket_;
-
-    DISALLOW_COPY_AND_ASSIGN(ReadWatcher);
+    UDPSocketWin* const socket_;
   };
 
-  class WriteWatcher : public MessageLoopForIO::Watcher {
+  class WriteDelegate : public base::win::ObjectWatcher::Delegate {
    public:
-    explicit WriteWatcher(UDPSocketLibevent* socket) : socket_(socket) {}
+    explicit WriteDelegate(UDPSocketWin* socket) : socket_(socket) {}
+    virtual ~WriteDelegate() {}
 
-    // MessageLoopForIO::Watcher methods
-
-    virtual void OnFileCanReadWithoutBlocking(int /* fd */) {}
-
-    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) {
-      if (socket_->write_callback_)
-        socket_->DidCompleteWrite();
-    }
+    // base::ObjectWatcher::Delegate methods:
+    virtual void OnObjectSignaled(HANDLE object);
 
    private:
-    UDPSocketLibevent* const socket_;
-
-    DISALLOW_COPY_AND_ASSIGN(WriteWatcher);
+    UDPSocketWin* const socket_;
   };
 
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
   void DidCompleteRead();
   void DidCompleteWrite();
+  bool ProcessSuccessfulRead(int num_bytes);
+  void ProcessSuccessfulWrite(int num_bytes);
 
   // Returns the OS error code (or 0 on success).
   int CreateSocket(const IPEndPoint& address);
@@ -145,29 +133,33 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   int InternalRead(IOBuffer* buf, int buf_len);
   int InternalWrite(IOBuffer* buf, int buf_len);
 
-  int socket_;
+  SOCKET socket_;
 
   // These are mutable since they're just cached copies to make
   // GetPeerAddress/GetLocalAddress smarter.
   mutable scoped_ptr<IPEndPoint> local_address_;
   mutable scoped_ptr<IPEndPoint> remote_address_;
 
-  // The socket's libevent wrappers
-  MessageLoopForIO::FileDescriptorWatcher read_socket_watcher_;
-  MessageLoopForIO::FileDescriptorWatcher write_socket_watcher_;
+  // The socket's win wrappers
+  ReadDelegate read_delegate_;
+  WriteDelegate write_delegate_;
 
-  // The corresponding watchers for reads and writes.
-  ReadWatcher read_watcher_;
-  WriteWatcher write_watcher_;
+  // Watchers to watch for events from Read() and Write().
+  base::win::ObjectWatcher read_watcher_;
+  base::win::ObjectWatcher write_watcher_;
+
+  // OVERLAPPED for pending read and write operations.
+  OVERLAPPED read_overlapped_;
+  OVERLAPPED write_overlapped_;
 
   // The buffer used by InternalRead() to retry Read requests
-  scoped_refptr<IOBuffer> read_buf_;
-  int read_buf_len_;
+  scoped_refptr<IOBuffer> read_iobuffer_;
+  struct sockaddr_storage recv_addr_storage_;
+  socklen_t recv_addr_len_;
   IPEndPoint* recv_from_address_;
 
   // The buffer used by InternalWrite() to retry Write requests
-  scoped_refptr<IOBuffer> write_buf_;
-  int write_buf_len_;
+  scoped_refptr<IOBuffer> write_iobuffer_;
   scoped_ptr<IPEndPoint> send_to_address_;
 
   // External callback; called when read is complete.
@@ -178,9 +170,9 @@ class UDPSocketLibevent : public base::NonThreadSafe {
 
   BoundNetLog net_log_;
 
-  DISALLOW_COPY_AND_ASSIGN(UDPSocketLibevent);
+  DISALLOW_COPY_AND_ASSIGN(UDPSocketWin);
 };
 
 }  // namespace net
 
-#endif  // NET_UDP_UDP_SOCKET_LIBEVENT_H_
+#endif  // NET_UDP_UDP_SOCKET_WIN_H_
