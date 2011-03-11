@@ -409,7 +409,7 @@ class ClientSocketPoolBaseHelper
 
   static void InsertRequestIntoQueue(const Request* r,
                                      RequestQueue* pending_requests);
-  static const Request* RemoveRequestFromQueue(RequestQueue::iterator it,
+  static const Request* RemoveRequestFromQueue(const RequestQueue::iterator& it,
                                                Group* group);
 
   Group* GetOrCreateGroup(const std::string& group_name);
