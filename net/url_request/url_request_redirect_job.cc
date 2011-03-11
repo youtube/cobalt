@@ -9,7 +9,7 @@
 namespace net {
 
 URLRequestRedirectJob::URLRequestRedirectJob(URLRequest* request,
-                                             GURL redirect_destination)
+                                             const GURL& redirect_destination)
     : URLRequestJob(request), redirect_destination_(redirect_destination) {
 }
 
