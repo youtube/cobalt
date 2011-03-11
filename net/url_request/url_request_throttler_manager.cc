@@ -172,8 +172,7 @@ void URLRequestThrottlerManager::GarbageCollectEntries() {
     }
   }
 
-  // TODO(joi): Make this a CHECK again after M11 branch point.
-  DCHECK(nulls_found == 0);
+  CHECK(nulls_found == 0);
 
   // In case something broke we want to make sure not to grow indefinitely.
   while (url_entries_.size() > kMaximumNumberOfEntries) {
