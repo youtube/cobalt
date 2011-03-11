@@ -107,7 +107,7 @@ class UDPSocketTest : public PlatformTest {
     return bytes_sent;
   }
 
- protected:
+ private:
   static const int kMaxRead = 1024;
   scoped_refptr<IOBufferWithSize> buffer_;
   IPEndPoint recv_from_address_;
@@ -223,17 +223,14 @@ TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
   struct TestData {
     std::string remote_address;
     std::string local_address;
-    bool may_fail;
+    bool is_ipv6;
   } tests[] = {
     { "127.0.00.1", "127.0.0.1", false },
     { "192.168.1.1", "127.0.0.1", false },
-    { "::1", "::1", false },
+    { "::1", "::1", true },
     { "2001:db8:0::42", "::1", true },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); i++) {
-    SCOPED_TRACE(std::string("Connecting from ") +  tests[i].local_address +
-                 std::string(" to ") + tests[i].remote_address);
-
     net::IPAddressNumber ip_number;
     net::ParseIPLiteralToNumber(tests[i].remote_address, &ip_number);
     net::IPEndPoint remote_address(ip_number, 80);
@@ -242,12 +239,6 @@ TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
 
     UDPClientSocket client(NULL, NetLog::Source());
     int rv = client.Connect(remote_address);
-    if (tests[i].may_fail && rv == ERR_ADDRESS_UNREACHABLE) {
-      // Connect() may return ERR_ADDRESS_UNREACHABLE for IPv6
-      // addresses if IPv6 is not configured.
-      continue;
-    }
-
     EXPECT_LE(ERR_IO_PENDING, rv);
 
     IPEndPoint fetched_local_address;
@@ -269,52 +260,21 @@ TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
 }
 
 TEST_F(UDPSocketTest, ServerGetLocalAddress) {
-  IPEndPoint bind_address;
-  CreateUDPAddress("127.0.0.1", 0, &bind_address);
-  UDPServerSocket server(NULL, NetLog::Source());
-  int rv = server.Listen(bind_address);
-  EXPECT_EQ(OK, rv);
-
-  IPEndPoint local_address;
-  rv = server.GetLocalAddress(&local_address);
-  EXPECT_EQ(rv, 0);
-
-  // Verify that port was allocated.
-  EXPECT_GE(local_address.port(), 0);
-  EXPECT_EQ(local_address.address(), bind_address.address());
+  // TODO(mbelshe): implement me
 }
 
 TEST_F(UDPSocketTest, ServerGetPeerAddress) {
-  IPEndPoint bind_address;
-  CreateUDPAddress("127.0.0.1", 0, &bind_address);
-  UDPServerSocket server(NULL, NetLog::Source());
-  int rv = server.Listen(bind_address);
-  EXPECT_EQ(OK, rv);
-
-  IPEndPoint peer_address;
-  rv = server.GetPeerAddress(&peer_address);
-  EXPECT_EQ(rv, ERR_SOCKET_NOT_CONNECTED);
-}
-
-// Close the socket while read is pending.
-TEST_F(UDPSocketTest, CloseWithPendingRead) {
-  IPEndPoint bind_address;
-  CreateUDPAddress("127.0.0.1", 0, &bind_address);
-  UDPServerSocket server(NULL, NetLog::Source());
-  int rv = server.Listen(bind_address);
-  EXPECT_EQ(OK, rv);
-
-  TestCompletionCallback callback;
-  IPEndPoint from;
-  rv = server.RecvFrom(buffer_, kMaxRead, &from, &callback);
-  EXPECT_EQ(rv, ERR_IO_PENDING);
-
-  server.Close();
-
-  EXPECT_TRUE(callback.have_result());
-  EXPECT_EQ(callback.GetResult(rv), ERR_ABORTED);
+  // TODO(mbelshe): implement me
 }
 
 }  // namespace
 
 }  // namespace net
+
+int main(int argc, char** argv) {
+  // Record histograms, so we can get histograms data in tests.
+  base::StatisticsRecorder recorder;
+  NetTestSuite test_suite(argc, argv);
+
+  return test_suite.Run();
+}
