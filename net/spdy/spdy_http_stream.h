@@ -65,7 +65,6 @@ class SpdyHttpStream : public SpdyStream::Delegate, public HttpStream {
   virtual void SetConnectionReused();
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
-  virtual bool IsSpdyHttpStream() const;
 
   // SpdyStream::Delegate methods:
   virtual bool OnSendHeadersComplete(int status);
