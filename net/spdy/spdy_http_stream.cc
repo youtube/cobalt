@@ -463,8 +463,4 @@ void SpdyHttpStream::GetSSLCertRequestInfo(
   stream_->GetSSLCertRequestInfo(cert_request_info);
 }
 
-bool SpdyHttpStream::IsSpdyHttpStream() const {
-  return true;
-}
-
 }  // namespace net
