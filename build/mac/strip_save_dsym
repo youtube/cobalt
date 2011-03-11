@@ -121,11 +121,13 @@ def macho_uuids(macho):
         # The UUID display format changed in the version of otool shipping
         # with the Xcode 3.2.2 prerelease.  The new format is traditional:
         #    uuid 4D7135B2-9C56-C5F5-5F49-A994258E0955
+        # and with Xcode 3.2.6, then line is indented one more space:
+        #     uuid 4D7135B2-9C56-C5F5-5F49-A994258E0955
         # The old format, from cctools-750 and older's otool, breaks the UUID
         # up into a sequence of bytes:
         #    uuid 0x4d 0x71 0x35 0xb2 0x9c 0x56 0xc5 0xf5
         #         0x5f 0x49 0xa9 0x94 0x25 0x8e 0x09 0x55
-        new_uuid_match = re.match("^   uuid (.{8}-.{4}-.{4}-.{4}-.{12})$",
+        new_uuid_match = re.match("^ {3,4}uuid (.{8}-.{4}-.{4}-.{4}-.{12})$",
                                   otool_line)
         if new_uuid_match:
           uuid = new_uuid_match.group(1)
