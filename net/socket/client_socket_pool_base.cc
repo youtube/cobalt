@@ -194,7 +194,7 @@ void ClientSocketPoolBaseHelper::InsertRequestIntoQueue(
 // static
 const ClientSocketPoolBaseHelper::Request*
 ClientSocketPoolBaseHelper::RemoveRequestFromQueue(
-    RequestQueue::iterator it, Group* group) {
+    const RequestQueue::iterator& it, Group* group) {
   const Request* req = *it;
   group->mutable_pending_requests()->erase(it);
   // If there are no more requests, we kill the backup timer.
