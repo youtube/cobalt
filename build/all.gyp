@@ -106,7 +106,6 @@
             '../chrome/app/locales/locales.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
             '../courgette/courgette.gyp:*',
-            '../gears/gears.gyp:*',
             '../rlz/rlz.gyp:*',
             '../sandbox/sandbox.gyp:*',
             '../third_party/angle/src/build_angle.gyp:*',
