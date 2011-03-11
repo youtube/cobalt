@@ -199,6 +199,8 @@
         'base/upload_data_stream.h',
         'base/winsock_init.cc',
         'base/winsock_init.h',
+        'base/winsock_util.cc',
+        'base/winsock_util.h',
         'base/x509_certificate.cc',
         'base/x509_certificate.h',
         'base/x509_certificate_mac.cc',
@@ -325,6 +327,7 @@
             ],
             'sources!': [
               'base/winsock_init.cc',
+              'base/winsock_util.cc',
             ],
           },
         ],
@@ -674,6 +677,18 @@
         'spdy/spdy_settings_storage.h',
         'spdy/spdy_stream.cc',
         'spdy/spdy_stream.h',
+        'udp/datagram_client_socket.h',
+        'udp/datagram_server_socket.h',
+        'udp/datagram_socket.h',
+        'udp/udp_client_socket.cc',
+        'udp/udp_client_socket.h',
+        'udp/udp_server_socket.cc',
+        'udp/udp_server_socket.h',
+        'udp/udp_socket.h',
+        'udp/udp_socket_libevent.cc',
+        'udp/udp_socket_libevent.h',
+        'udp/udp_socket_win.cc',
+        'udp/udp_socket_win.h',
         'url_request/https_prober.h',
         'url_request/https_prober.cc',
         'url_request/url_request.cc',
@@ -808,6 +823,7 @@
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
               'socket/tcp_client_socket_libevent.cc',
+              'udp/udp_socket_libevent.cc',
             ],
             'dependencies': [
               '../third_party/nss/nss.gyp:nss',
@@ -993,6 +1009,7 @@
         'tools/dump_cache/url_utilities.h',
         'tools/dump_cache/url_utilities.cc',
         'tools/dump_cache/url_utilities_unittest.cc',
+        'udp/udp_socket_unittest.cc',
         'url_request/url_request_job_tracker_unittest.cc',
         'url_request/url_request_throttler_unittest.cc',
         'url_request/url_request_unittest.cc',
@@ -1428,29 +1445,6 @@
           'sources': [
             'test/openssl_helper.cc',
           ],
-        },
-      ],
-    }],
-    ['OS=="linux"', {
-      'targets': [
-        {
-          'target_name': 'udp_socket_unittest',
-          'type': 'executable',
-          'dependencies': [
-            'net',
-            'net_test_support',
-            '../base/base.gyp:base',
-            '../base/base.gyp:base_i18n',
-            '../testing/gmock.gyp:gmock',
-            '../testing/gtest.gyp:gtest',
-            '../third_party/zlib/zlib.gyp:zlib',
-          ],
-          'sources': [
-            'udp/udp_client_socket.cc',
-            'udp/udp_server_socket.cc',
-            'udp/udp_socket_libevent.cc',
-            'udp/udp_socket_unittest.cc',
-          ]
         },
       ],
     }],
