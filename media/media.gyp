@@ -341,7 +341,6 @@
         'audio/audio_output_proxy_unittest.cc',
         'audio/audio_parameters_unittest.cc',
         'audio/audio_util_unittest.cc',
-        'audio/fake_audio_input_stream_unittest.cc',
         'audio/linux/alsa_output_unittest.cc',
         'audio/mac/audio_output_mac_unittest.cc',
         'audio/simple_sources_unittest.cc',
