@@ -128,6 +128,9 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
       if (stream_->IsResponseBodyComplete()) {
         // If the response body is complete, we can just reuse the socket.
         stream_->Close(false /* reusable */);
+      } else if (stream_->IsSpdyHttpStream()) {
+        // Doesn't really matter for SpdyHttpStream. Just close it.
+        stream_->Close(true /* not reusable */);
       } else {
         // Otherwise, we try to drain the response body.
         // TODO(willchan): Consider moving this response body draining to the
