@@ -76,8 +76,6 @@ class HttpBasicStream : public HttpStream {
 
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
-  virtual bool IsSpdyHttpStream() const;
-
  private:
   scoped_refptr<GrowableIOBuffer> read_buf_;
 
