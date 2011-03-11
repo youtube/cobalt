@@ -2530,6 +2530,38 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
     "version",
     "HTTP/1.1"
   };
+
+  // Setup writes/reads to www.google.com
+  scoped_ptr<spdy::SpdyFrame> req(
+      ConstructSpdyPacket(kSynStartHeader,
+                          kExtraHeaders,
+                          arraysize(kExtraHeaders) / 2,
+                          kStandardGetHeaders,
+                          arraysize(kStandardGetHeaders) / 2));
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> rep(
+      ConstructSpdyPush(NULL,
+                        0,
+                        2,
+                        1,
+                        "http://www.google.com/foo.dat",
+                        "301 Moved Permanently",
+                        "http://www.foo.com/index.php"));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(2, spdy::CANCEL));
+  MockWrite writes[] = {
+    CreateMockWrite(*req, 1),
+    CreateMockWrite(*rst, 6),
+  };
+  MockRead reads[] = {
+    CreateMockRead(*resp, 2),
+    CreateMockRead(*rep, 3),
+    CreateMockRead(*body, 4),
+    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
+    MockRead(true, 0, 0, 7)  // EOF
+  };
+
+  // Setup writes/reads to www.foo.com
   const char* const kStandardGetHeaders2[] = {
     "host",
     "www.foo.com",
@@ -2544,42 +2576,12 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
     "version",
     "HTTP/1.1"
   };
-
-  // Setup writes/reads to www.google.com
-  scoped_ptr<spdy::SpdyFrame> req(
-      ConstructSpdyPacket(kSynStartHeader,
-                          kExtraHeaders,
-                          arraysize(kExtraHeaders) / 2,
-                          kStandardGetHeaders,
-                          arraysize(kStandardGetHeaders) / 2));
   scoped_ptr<spdy::SpdyFrame> req2(
       ConstructSpdyPacket(kSynStartHeader,
                           kExtraHeaders,
                           arraysize(kExtraHeaders) / 2,
                           kStandardGetHeaders2,
                           arraysize(kStandardGetHeaders2) / 2));
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rep(
-      ConstructSpdyPush(NULL,
-                        0,
-                        2,
-                        1,
-                        "http://www.google.com/foo.dat",
-                        "301 Moved Permanently",
-                        "http://www.foo.com/index.php"));
-  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
-  MockWrite writes[] = {
-    CreateMockWrite(*req, 1),
-  };
-  MockRead reads[] = {
-    CreateMockRead(*resp, 2),
-    CreateMockRead(*rep, 3),
-    CreateMockRead(*body, 4),
-    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
-    MockRead(true, 0, 0, 6)  // EOF
-  };
-
-  // Setup writes/reads to www.foo.com
   scoped_ptr<spdy::SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 1));
   scoped_ptr<spdy::SpdyFrame> body2(ConstructSpdyBodyFrame(1, true));
   MockWrite writes2[] = {
