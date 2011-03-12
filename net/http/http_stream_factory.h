@@ -135,9 +135,6 @@ class HttpStreamRequest {
   // Returns the LoadState for the request.
   virtual LoadState GetLoadState() const = 0;
 
-  // Returns true if an AlternateProtocol for this request was available.
-  virtual bool was_alternate_protocol_available() const = 0;
-
   // Returns true if TLS/NPN was negotiated for this stream.
   virtual bool was_npn_negotiated() const = 0;
 
@@ -171,8 +168,8 @@ class HttpStreamFactory {
                                  const SSLConfig& ssl_config,
                                  const BoundNetLog& net_log) = 0;
 
-  virtual void AddTLSIntolerantServer(const GURL& url) = 0;
-  virtual bool IsTLSIntolerantServer(const GURL& url) const = 0;
+  virtual void AddTLSIntolerantServer(const HostPortPair& server) = 0;
+  virtual bool IsTLSIntolerantServer(const HostPortPair& server) const = 0;
 
   // Static settings
   static GURL ApplyHostMappingRules(const GURL& url, HostPortPair* endpoint);
