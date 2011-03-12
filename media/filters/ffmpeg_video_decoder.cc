@@ -14,7 +14,6 @@
 #include "media/base/media_format.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
-#include "media/ffmpeg/ffmpeg_util.h"
 #include "media/filters/ffmpeg_interfaces.h"
 #include "media/video/ffmpeg_video_decode_engine.h"
 #include "media/video/video_decode_context.h"

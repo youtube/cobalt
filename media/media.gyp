@@ -115,8 +115,6 @@
         'base/video_frame.h',
         'ffmpeg/ffmpeg_common.cc',
         'ffmpeg/ffmpeg_common.h',
-        'ffmpeg/ffmpeg_util.cc',
-        'ffmpeg/ffmpeg_util.h',
         'ffmpeg/file_protocol.cc',
         'ffmpeg/file_protocol.h',
         'filters/audio_file_reader.cc',
