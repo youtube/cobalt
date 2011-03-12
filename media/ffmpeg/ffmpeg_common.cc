@@ -8,7 +8,12 @@
 
 namespace media {
 
-// TODO(scherkus): combine ffmpeg_common.h with ffmpeg_util.h
+static const AVRational kMicrosBase = { 1, base::Time::kMicrosecondsPerSecond };
+
+base::TimeDelta ConvertTimestamp(const AVRational& time_base, int64 timestamp) {
+  int64 microseconds = av_rescale_q(timestamp, time_base, kMicrosBase);
+  return base::TimeDelta::FromMicroseconds(microseconds);
+}
 
 VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
   switch (codec_id) {

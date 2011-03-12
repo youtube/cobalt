@@ -10,6 +10,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/singleton.h"
+#include "base/time.h"
 #include "media/video/video_decode_engine.h"
 
 // Include FFmpeg header files.
@@ -48,6 +49,8 @@ class ScopedPtrAVFreePacket {
     delete packet;
   }
 };
+
+base::TimeDelta ConvertTimestamp(const AVRational& time_base, int64 timestamp);
 
 VideoCodec CodecIDToVideoCodec(CodecID codec_id);
 CodecID VideoCodecToCodecID(VideoCodec video_codec);
