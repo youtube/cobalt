@@ -5,6 +5,7 @@
 #include "net/base/ip_endpoint.h"
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #if defined(OS_WIN)
 #include <winsock2.h>
 #elif defined(OS_POSIX)
@@ -106,6 +107,16 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
     }
   }
   return true;
+}
+
+std::string IPEndPoint::ToString() const {
+  struct sockaddr_storage addr_storage;
+  size_t addr_len = sizeof(addr_storage);
+  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+  if (!ToSockAddr(addr, &addr_len)) {
+    return "";
+  }
+  return NetAddressToString(addr, addr_len) + ":" + base::IntToString(port_);
 }
 
 bool IPEndPoint::operator<(const IPEndPoint& that) const {
