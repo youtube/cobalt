@@ -44,6 +44,11 @@ class IPEndPoint {
   // Returns true on success, false on failure.
   bool FromSockAddr(const struct sockaddr* address, size_t address_length);
 
+  // Returns value as a string (e.g. "127.0.0.1:80"). Returns empty
+  // string if the address is invalid, and cannot not be converted to a
+  // string.
+  std::string ToString() const;
+
   bool operator<(const IPEndPoint& that) const;
   bool operator==(const IPEndPoint& that) const;
 
