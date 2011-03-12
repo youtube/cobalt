@@ -636,6 +636,11 @@ void ClientSocketPoolBaseHelper::RemoveGroup(GroupMap::iterator it) {
 }
 
 // static
+bool ClientSocketPoolBaseHelper::connect_backup_jobs_enabled() {
+  return g_connect_backup_jobs_enabled;
+}
+
+// static
 void ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(bool enabled) {
   g_connect_backup_jobs_enabled = enabled;
 }
