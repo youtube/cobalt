@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,7 +37,6 @@
 #include "base/test/perf_test_suite.h"
 #include "media/base/media.h"
 #include "media/ffmpeg/ffmpeg_common.h"
-#include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/file_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -270,7 +269,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
       }
 
       if (result > 0) {
-        // TODO(scherkus): move this to ffmpeg_util.h and dedup.
+        // TODO(scherkus): move this to ffmpeg_common.h and dedup.
         int64 denominator = av_audio_context()->channels *
             av_get_bits_per_sample_fmt(av_audio_context()->sample_fmt) / 8 *
             av_audio_context()->sample_rate;
