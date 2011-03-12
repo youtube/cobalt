@@ -283,7 +283,9 @@ class ClientSocketPoolBaseHelper
     return connect_job_factory_->ConnectionTimeout();
   }
 
+  static bool connect_backup_jobs_enabled();
   static void set_connect_backup_jobs_enabled(bool enabled);
+
   void EnableConnectBackupJobs();
 
   // ConnectJob::Delegate methods:
