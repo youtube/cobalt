@@ -20,6 +20,7 @@
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/auth.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -371,8 +372,6 @@ void HttpNetworkTransaction::OnStreamReady(const SSLConfig& used_ssl_config,
   stream_.reset(stream);
   ssl_config_ = used_ssl_config;
   proxy_info_ = used_proxy_info;
-  response_.was_alternate_protocol_available =
-      stream_request_->was_alternate_protocol_available();
   response_.was_npn_negotiated = stream_request_->was_npn_negotiated();
   response_.was_fetched_via_spdy = stream_request_->using_spdy();
   response_.was_fetched_via_proxy = !proxy_info_.is_direct();
@@ -1070,7 +1069,8 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
         // This could be a TLS-intolerant server, an SSL 3.0 server that
         // chose a TLS-only cipher suite or a server with buggy DEFLATE
         // support. Turn off TLS 1.0, DEFLATE support and retry.
-        session_->http_stream_factory()->AddTLSIntolerantServer(request_->url);
+        session_->http_stream_factory()->AddTLSIntolerantServer(
+            HostPortPair::FromURL(request_->url));
         ResetConnectionAndRequestForResend();
         error = OK;
       }

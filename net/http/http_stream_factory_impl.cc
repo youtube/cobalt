@@ -4,6 +4,7 @@
 
 #include "net/http/http_stream_factory_impl.h"
 
+#include "base/string_number_conversions.h"
 #include "base/stl_util-inl.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_log.h"
@@ -15,6 +16,34 @@
 
 namespace net {
 
+namespace {
+
+bool HasSpdyExclusion(const HostPortPair& endpoint) {
+  std::list<HostPortPair>* exclusions =
+      HttpStreamFactory::forced_spdy_exclusions();
+  if (!exclusions)
+    return false;
+
+  std::list<HostPortPair>::const_iterator it;
+  for (it = exclusions->begin(); it != exclusions->end(); it++)
+    if (it->Equals(endpoint))
+      return true;
+  return false;
+}
+
+GURL UpgradeUrlToHttps(const GURL& original_url) {
+  GURL::Replacements replacements;
+  // new_sheme and new_port need to be in scope here because GURL::Replacements
+  // references the memory contained by them directly.
+  const std::string new_scheme = "https";
+  const std::string new_port = base::IntToString(443);
+  replacements.SetSchemeStr(new_scheme);
+  replacements.SetPortStr(new_port);
+  return original_url.ReplaceComponents(replacements);
+}
+
+}  // namespace
+
 HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
     : session_(session) {}
 
@@ -23,6 +52,11 @@ HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(spdy_session_request_map_.empty());
 
   std::set<const Job*> tmp_job_set;
+  tmp_job_set.swap(orphaned_job_set_);
+  STLDeleteContainerPointers(tmp_job_set.begin(), tmp_job_set.end());
+  DCHECK(orphaned_job_set_.empty());
+
+  tmp_job_set.clear();
   tmp_job_set.swap(preconnect_job_set_);
   STLDeleteContainerPointers(tmp_job_set.begin(), tmp_job_set.end());
   DCHECK(preconnect_job_set_.empty());
@@ -33,10 +67,34 @@ HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
     const SSLConfig& ssl_config,
     HttpStreamRequest::Delegate* delegate,
     const BoundNetLog& net_log) {
-  Job* job = new Job(this, session_);
   Request* request = new Request(request_info.url, this, delegate, net_log);
+
+  GURL alternate_url;
+  bool has_alternate_protocol =
+      GetAlternateProtocolRequestFor(request_info.url, &alternate_url);
+  Job* alternate_job = NULL;
+  if (has_alternate_protocol) {
+    HttpRequestInfo alternate_request_info = request_info;
+    alternate_request_info.url = alternate_url;
+    alternate_job =
+        new Job(this, session_, alternate_request_info, ssl_config, net_log);
+    request->AttachJob(alternate_job);
+    alternate_job->MarkAsAlternate(request_info.url);
+  }
+
+  Job* job = new Job(this, session_, request_info, ssl_config, net_log);
   request->AttachJob(job);
-  job->Start(request, request_info, ssl_config, net_log);
+  if (alternate_job) {
+    job->WaitFor(alternate_job);
+    // Make sure to wait until we call WaitFor(), before starting
+    // |alternate_job|, otherwise |alternate_job| will not notify |job|
+    // appropriately.
+    alternate_job->Start(request);
+  }
+  // Even if |alternate_job| has already finished, it won't have notified the
+  // request yet, since we defer that to the next iteration of the MessageLoop,
+  // so starting |job| is always safe.
+  job->Start(request);
   return request;
 }
 
@@ -45,17 +103,66 @@ void HttpStreamFactoryImpl::PreconnectStreams(
     const HttpRequestInfo& request_info,
     const SSLConfig& ssl_config,
     const BoundNetLog& net_log) {
-  Job* job = new Job(this, session_);
+  GURL alternate_url;
+  bool has_alternate_protocol =
+      GetAlternateProtocolRequestFor(request_info.url, &alternate_url);
+  Job* job = NULL;
+  if (has_alternate_protocol) {
+    HttpRequestInfo alternate_request_info = request_info;
+    alternate_request_info.url = alternate_url;
+    job = new Job(this, session_, alternate_request_info, ssl_config, net_log);
+    job->MarkAsAlternate(request_info.url);
+  } else {
+    job = new Job(this, session_, request_info, ssl_config, net_log);
+  }
   preconnect_job_set_.insert(job);
-  job->Preconnect(num_streams, request_info, ssl_config, net_log);
+  job->Preconnect(num_streams);
 }
 
-void HttpStreamFactoryImpl::AddTLSIntolerantServer(const GURL& url) {
-  tls_intolerant_servers_.insert(GetHostAndPort(url));
+void HttpStreamFactoryImpl::AddTLSIntolerantServer(const HostPortPair& server) {
+  tls_intolerant_servers_.insert(server);
 }
 
-bool HttpStreamFactoryImpl::IsTLSIntolerantServer(const GURL& url) const {
-  return ContainsKey(tls_intolerant_servers_, GetHostAndPort(url));
+bool HttpStreamFactoryImpl::IsTLSIntolerantServer(
+    const HostPortPair& server) const {
+  return ContainsKey(tls_intolerant_servers_, server);
+}
+
+bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
+    const GURL& original_url,
+    GURL* alternate_url) const {
+  if (!spdy_enabled())
+    return false;
+
+  if (!use_alternate_protocols())
+    return false;
+
+  HostPortPair origin = HostPortPair(original_url.HostNoBrackets(),
+                                     original_url.EffectiveIntPort());
+
+  const HttpAlternateProtocols& alternate_protocols =
+      session_->alternate_protocols();
+  if (!alternate_protocols.HasAlternateProtocolFor(origin))
+    return false;
+
+  HttpAlternateProtocols::PortProtocolPair alternate =
+      alternate_protocols.GetAlternateProtocolFor(origin);
+  if (alternate.protocol == HttpAlternateProtocols::BROKEN)
+    return false;
+
+  DCHECK_LE(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
+  DCHECK_GT(HttpAlternateProtocols::NUM_ALTERNATE_PROTOCOLS,
+            alternate.protocol);
+
+  if (alternate.protocol != HttpAlternateProtocols::NPN_SPDY_2)
+    return false;
+
+  origin.set_port(alternate.port);
+  if (HasSpdyExclusion(origin))
+    return false;
+
+  *alternate_url = UpgradeUrlToHttps(original_url);
+  return true;
 }
 
 void HttpStreamFactoryImpl::OrphanJob(Job* job, const Request* request) {
@@ -74,7 +181,6 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
     bool direct,
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
-    bool was_alternate_protocol_available,
     bool was_npn_negotiated,
     bool using_spdy,
     const NetLog::Source& source) {
@@ -91,8 +197,7 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
     if (!ContainsKey(spdy_session_request_map_, spdy_session_key))
       break;
     Request* request = *spdy_session_request_map_[spdy_session_key].begin();
-    request->Complete(was_alternate_protocol_available,
-                      was_npn_negotiated,
+    request->Complete(was_npn_negotiated,
                       using_spdy,
                       source);
     bool use_relative_url = direct || request->url().SchemeIs("https");
