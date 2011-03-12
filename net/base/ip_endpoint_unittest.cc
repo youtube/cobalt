@@ -138,7 +138,7 @@ TEST_F(IPEndPointTest, LessThan) {
   EXPECT_TRUE(ip_endpoint1 < ip_endpoint2);
 }
 
-TEST_F(IPEndPointTest, ToString) {
+TEST_F(IPEndPointTest, DISABLED_ToString) {
   IPEndPoint endpoint;
   EXPECT_EQ(0, endpoint.port());
 
