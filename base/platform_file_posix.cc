@@ -134,12 +134,6 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
   return descriptor;
 }
 
-PlatformFile CreatePlatformFile(const std::wstring& name, int flags,
-                                bool* created) {
-  return CreatePlatformFile(FilePath::FromWStringHack(name), flags,
-                            created, NULL);
-}
-
 bool ClosePlatformFile(PlatformFile file) {
   return !close(file);
 }
