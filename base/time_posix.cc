@@ -109,8 +109,10 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
   timestruct.tm_wday   = exploded.day_of_week;  // mktime/timegm ignore this
   timestruct.tm_yday   = 0;     // mktime/timegm ignore this
   timestruct.tm_isdst  = -1;    // attempt to figure it out
+#if !defined(OS_NACL)
   timestruct.tm_gmtoff = 0;     // not a POSIX field, so mktime/timegm ignore
   timestruct.tm_zone   = NULL;  // not a POSIX field, so mktime/timegm ignore
+#endif
 
   time_t seconds;
   if (is_local)
@@ -177,6 +179,15 @@ TimeTicks TimeTicks::Now() {
       (static_cast<int64>(ts.tv_nsec) / Time::kNanosecondsPerMicrosecond);
 
   return TimeTicks(absolute_micro);
+}
+
+#elif defined(OS_NACL)
+
+TimeTicks TimeTicks::Now() {
+  // Sadly, Native Client does not have _POSIX_TIMERS enabled in sys/features.h
+  // Apparently NaCl only has CLOCK_REALTIME:
+  // http://code.google.com/p/nativeclient/issues/detail?id=1159
+  return TimeTicks(clock());
 }
 
 #else  // _POSIX_MONOTONIC_CLOCK
