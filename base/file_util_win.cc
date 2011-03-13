@@ -55,7 +55,7 @@ bool DevicePathToDriveLetterPath(const FilePath& device_path,
   // For each string in the drive mapping, get the junction that links
   // to it.  If that junction is a prefix of |device_path|, then we
   // know that |drive| is the real path prefix.
-  while(*drive_map_ptr) {
+  while (*drive_map_ptr) {
     drive[0] = drive_map_ptr[0];  // Copy the drive letter.
 
     if (QueryDosDevice(drive, device_name, MAX_PATH) &&
@@ -66,7 +66,7 @@ bool DevicePathToDriveLetterPath(const FilePath& device_path,
     }
     // Move to the next drive letter string, which starts one
     // increment after the '\0' that terminates the current string.
-    while(*drive_map_ptr++);
+    while (*drive_map_ptr++);
   }
 
   // No drive matched.  The path does not start with a device junction
@@ -104,7 +104,7 @@ int CountFilesCreatedAfter(const FilePath& path,
           (wcscmp(find_file_data.cFileName, L".") == 0))
         continue;
 
-      long result = CompareFileTime(&find_file_data.ftCreationTime,
+      long result = CompareFileTime(&find_file_data.ftCreationTime,  // NOLINT
                                     &comparison_filetime);
       // File was created after or on comparison time
       if ((result == 1) || (result == 0))
@@ -187,13 +187,26 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
   if (MoveFileEx(from_path.value().c_str(), to_path.value().c_str(),
                  MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING) != 0)
     return true;
+
+  // Keep the last error value from MoveFileEx around in case the below
+  // fails.
+  bool ret = false;
+  DWORD last_error = ::GetLastError();
+
   if (DirectoryExists(from_path)) {
     // MoveFileEx fails if moving directory across volumes. We will simulate
     // the move by using Copy and Delete. Ideally we could check whether
     // from_path and to_path are indeed in different volumes.
-    return CopyAndDeleteDirectory(from_path, to_path);
+    ret = CopyAndDeleteDirectory(from_path, to_path);
   }
-  return false;
+
+  if (!ret) {
+    // Leave a clue about what went wrong so that it can be (at least) picked
+    // up by a PLOG entry.
+    ::SetLastError(last_error);
+  }
+
+  return ret;
 }
 
 bool ReplaceFile(const FilePath& from_path, const FilePath& to_path) {
@@ -441,7 +454,6 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
   result = i_persist_file->Save(destination, TRUE);
   return SUCCEEDED(result);
 }
-
 
 bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
@@ -921,8 +933,9 @@ FilePath FileEnumerator::Next() {
       }
       if (file_type_ & FileEnumerator::DIRECTORIES)
         return cur_file;
-    } else if (file_type_ & FileEnumerator::FILES)
+    } else if (file_type_ & FileEnumerator::FILES) {
       return cur_file;
+    }
   }
 
   return FilePath();
@@ -1007,7 +1020,7 @@ void MemoryMappedFile::CloseHandles() {
 bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
                               const base::Time& cutoff_time) {
   base::ThreadRestrictions::AssertIOAllowed();
-  long result = CompareFileTime(&find_info.ftLastWriteTime,
+  long result = CompareFileTime(&find_info.ftLastWriteTime,  // NOLINT
                                 &cutoff_time.ToFileTime());
   return result == 1 || result == 0;
 }
@@ -1050,7 +1063,7 @@ bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
                           NULL,
                           PAGE_READONLY,
                           0,
-                          1, // Just one byte.  No need to look at the data.
+                          1,  // Just one byte.  No need to look at the data.
                           NULL));
   if (!file_map_handle)
     return false;
