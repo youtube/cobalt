@@ -104,12 +104,6 @@ PlatformFile CreatePlatformFile(const FilePath& name,
   return file;
 }
 
-PlatformFile CreatePlatformFile(const std::wstring& name, int flags,
-                                bool* created) {
-  return CreatePlatformFile(FilePath::FromWStringHack(name), flags,
-                            created, NULL);
-}
-
 bool ClosePlatformFile(PlatformFile file) {
   base::ThreadRestrictions::AssertIOAllowed();
   return (CloseHandle(file) != 0);
