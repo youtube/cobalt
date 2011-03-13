@@ -208,7 +208,7 @@ bool PathService::Get(int key, FilePath* result) {
 bool PathService::Override(int key, const FilePath& path) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
-  DCHECK(key > base::DIR_CURRENT) << "invalid path key";
+  DCHECK_GT(key, base::DIR_CURRENT) << "invalid path key";
 
   FilePath file_path = path;
 
@@ -241,7 +241,7 @@ void PathService::RegisterProvider(ProviderFunc func, int key_start,
                                    int key_end) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
-  DCHECK(key_end > key_start);
+  DCHECK_GT(key_end, key_start);
 
   base::AutoLock scoped_lock(path_data->lock);
 

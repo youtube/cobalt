@@ -37,7 +37,7 @@ double RandDouble() {
 }
 
 uint64 RandGenerator(uint64 max) {
-  DCHECK(max > 0);
+  DCHECK_GT(max, 0ULL);
   return base::RandUint64() % max;
 }
 
