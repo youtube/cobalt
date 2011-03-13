@@ -168,7 +168,7 @@ FilePath GetAppBundlePath(const FilePath& exec_name) {
   // Don't prepend '/' to the first component.
   std::vector<std::string>::const_iterator it = components.begin();
   std::string bundle_name = *it;
-  DCHECK(it->length() > 0);
+  DCHECK_GT(it->length(), 0U);
   // If the first component ends in ".app", we're already done.
   if (it->length() > kExtLength &&
       !it->compare(it->length() - kExtLength, kExtLength, kExt, kExtLength))
@@ -181,7 +181,7 @@ FilePath GetAppBundlePath(const FilePath& exec_name) {
 
   // Go through the remaining components.
   for (++it; it != components.end(); ++it) {
-    DCHECK(it->length() > 0);
+    DCHECK_GT(it->length(), 0U);
 
     bundle_name += *it;
 
