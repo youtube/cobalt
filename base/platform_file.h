@@ -100,10 +100,6 @@ PlatformFile CreatePlatformFile(const FilePath& name,
                                 int flags,
                                 bool* created,
                                 PlatformFileError* error_code);
-// Deprecated.
-PlatformFile CreatePlatformFile(const std::wstring& name,
-                                int flags,
-                                bool* created);
 
 // Closes a file handle. Returns |true| on success and |false| otherwise.
 bool ClosePlatformFile(PlatformFile file);
