@@ -4,9 +4,12 @@
 
 #include "base/i18n/rtl.h"
 
+#include <algorithm>
+
 #include "base/file_path.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "base/sys_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -115,88 +118,51 @@ TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
             base::i18n::GetFirstStrongCharacterDirection(string));
 }
 
-typedef struct {
-  std::wstring path;
-  std::wstring wrapped_path;
-} PathAndWrappedPath;
-
 TEST_F(RTLTest, WrapPathWithLTRFormatting) {
-  std::wstring kSeparator;
-  kSeparator.push_back(static_cast<wchar_t>(FilePath::kSeparators[0]));
-  const PathAndWrappedPath test_data[] = {
+  const wchar_t* kTestData[] = {
     // Test common path, such as "c:\foo\bar".
-    { L"c:" + kSeparator + L"foo" + kSeparator + L"bar",
-      L"\x202a"L"c:" + kSeparator + L"foo" + kSeparator +
-      L"bar\x202c"
-    },
+    L"c:/foo/bar",
     // Test path with file name, such as "c:\foo\bar\test.jpg".
-    { L"c:" + kSeparator + L"foo" + kSeparator + L"bar" + kSeparator +
-      L"test.jpg",
-      L"\x202a"L"c:" + kSeparator + L"foo" + kSeparator +
-      L"bar" + kSeparator + L"test.jpg\x202c"
-    },
+    L"c:/foo/bar/test.jpg",
     // Test path ending with punctuation, such as "c:\(foo)\bar.".
-    { L"c:" + kSeparator + L"(foo)" + kSeparator + L"bar.",
-      L"\x202a"L"c:" + kSeparator + L"(foo)" + kSeparator +
-      L"bar.\x202c"
-    },
+    L"c:/(foo)/bar.",
     // Test path ending with separator, such as "c:\foo\bar\".
-    { L"c:" + kSeparator + L"foo" + kSeparator + L"bar" + kSeparator,
-      L"\x202a"L"c:" + kSeparator + L"foo" + kSeparator +
-      L"bar" + kSeparator + L"\x202c",
-    },
+    L"c:/foo/bar/",
     // Test path with RTL character.
-    { L"c:" + kSeparator + L"\x05d0",
-      L"\x202a"L"c:" + kSeparator + L"\x05d0\x202c",
-    },
+    L"c:/\x05d0",
     // Test path with 2 level RTL directory names.
-    { L"c:" + kSeparator + L"\x05d0" + kSeparator + L"\x0622",
-      L"\x202a"L"c:" + kSeparator + L"\x05d0" + kSeparator +
-      L"\x0622\x202c",
-    },
+    L"c:/\x05d0/\x0622",
     // Test path with mixed RTL/LTR directory names and ending with punctuation.
-    { L"c:" + kSeparator + L"\x05d0" + kSeparator + L"\x0622" + kSeparator +
-      L"(foo)" + kSeparator + L"b.a.r.",
-      L"\x202a"L"c:" + kSeparator + L"\x05d0" + kSeparator +
-      L"\x0622" + kSeparator + L"(foo)" + kSeparator +
-      L"b.a.r.\x202c",
-    },
+    L"c:/\x05d0/\x0622/(foo)/b.a.r.",
     // Test path without driver name, such as "/foo/bar/test/jpg".
-    { kSeparator + L"foo" + kSeparator + L"bar" + kSeparator + L"test.jpg",
-      L"\x202a" + kSeparator + L"foo" + kSeparator + L"bar" +
-      kSeparator + L"test.jpg" + L"\x202c"
-    },
+    L"/foo/bar/test.jpg",
     // Test path start with current directory, such as "./foo".
-    { L"." + kSeparator + L"foo",
-      L"\x202a"L"." + kSeparator + L"foo" + L"\x202c"
-    },
+    L"./foo",
     // Test path start with parent directory, such as "../foo/bar.jpg".
-    { L".." + kSeparator + L"foo" + kSeparator + L"bar.jpg",
-      L"\x202a"L".." + kSeparator + L"foo" + kSeparator +
-      L"bar.jpg" + L"\x202c"
-    },
+    L"../foo/bar.jpg",
     // Test absolute path, such as "//foo/bar.jpg".
-    { kSeparator + kSeparator + L"foo" + kSeparator + L"bar.jpg",
-      L"\x202a" + kSeparator + kSeparator + L"foo" + kSeparator +
-      L"bar.jpg" + L"\x202c"
-    },
+    L"//foo/bar.jpg",
     // Test path with mixed RTL/LTR directory names.
-    { L"c:" + kSeparator + L"foo" + kSeparator + L"\x05d0" + kSeparator +
-      L"\x0622" + kSeparator + L"\x05d1.jpg",
-      L"\x202a"L"c:" + kSeparator + L"foo" + kSeparator + L"\x05d0" +
-      kSeparator + L"\x0622" + kSeparator + L"\x05d1.jpg" + L"\x202c",
-    },
+    L"c:/foo/\x05d0/\x0622/\x05d1.jpg",
     // Test empty path.
-    { L"",
-      L"\x202a\x202c"
-    }
+    L""
   };
-  for (unsigned int i = 0; i < arraysize(test_data); ++i) {
+  for (unsigned int i = 0; i < arraysize(kTestData); ++i) {
+    FilePath path;
+#if defined(OS_WIN)
+    std::wstring win_path(kTestData[i]);
+    std::replace(win_path.begin(), win_path.end(), '/', '\\');
+    path = FilePath(win_path);
+#else
+    path = FilePath(base::SysWideToNativeMB(kTestData[i]));
+#endif
     string16 localized_file_path_string;
-    FilePath path = FilePath::FromWStringHack(test_data[i].path);
     base::i18n::WrapPathWithLTRFormatting(path, &localized_file_path_string);
-    std::wstring wrapped_path = UTF16ToWide(localized_file_path_string);
-    EXPECT_EQ(wrapped_path, test_data[i].wrapped_path);
+
+    std::wstring wrapped_expected =
+        std::wstring(L"\x202a") + kTestData[i] + L"\x202c";
+    std::wstring wrapped_actual = UTF16ToWide(localized_file_path_string);
+    EXPECT_EQ(wrapped_expected, wrapped_actual);
   }
 }
 
