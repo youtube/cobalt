@@ -20,9 +20,6 @@ bool win_heap_init(bool use_lfh) {
     // NOTE: Setting LFH may fail.  Vista already has it enabled.
     //       And under the debugger, it won't use LFH.  So we
     //       ignore any errors.
-  } else {
-    HeapSetInformation(win_heap, HeapEnableTerminationOnCorruption,
-                       NULL, 0);
   }
 
   return true;
