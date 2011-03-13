@@ -4,6 +4,8 @@
 
 #include "base/sha1.h"
 
+#include <string.h>
+
 #include "base/basictypes.h"
 
 namespace base {
@@ -195,12 +197,19 @@ void SecureHashAlgorithm::Process() {
 }
 
 std::string SHA1HashString(const std::string& str) {
+  char hash[SecureHashAlgorithm::kDigestSizeBytes];
+  SHA1HashBytes(reinterpret_cast<const unsigned char*>(str.c_str()),
+                str.length(), reinterpret_cast<unsigned char*>(hash));
+  return std::string(hash, SecureHashAlgorithm::kDigestSizeBytes);
+}
+
+void SHA1HashBytes(const unsigned char* data, size_t len,
+                   unsigned char* hash) {
   SecureHashAlgorithm sha;
-  sha.Update(str.c_str(), str.length());
+  sha.Update(data, len);
   sha.Final();
-  std::string out(reinterpret_cast<const char*>(sha.Digest()),
-                  SecureHashAlgorithm::kDigestSizeBytes);
-  return out;
+
+  memcpy(hash, sha.Digest(), SecureHashAlgorithm::kDigestSizeBytes);
 }
 
 }  // namespace base
