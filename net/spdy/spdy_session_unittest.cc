@@ -92,7 +92,7 @@ TEST_F(SpdySessionTest, GoAway) {
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false));
+      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
@@ -199,7 +199,7 @@ TEST_F(SpdySessionTest, OnSettings) {
   ASSERT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false));
+      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
@@ -280,7 +280,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   ASSERT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false));
+      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
@@ -375,7 +375,7 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false));
+      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
             connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
