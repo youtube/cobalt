@@ -62,10 +62,11 @@ void UDPSocketWin::Close() {
   if (!is_connected())
     return;
 
-  if (read_callback_)
-    DoReadCallback(ERR_ABORTED);
-  if (write_callback_)
-    DoReadCallback(ERR_ABORTED);
+  // Zero out any pending read/write callback state.
+  read_callback_ = NULL;
+  recv_from_address_ = NULL;
+  write_callback_ = NULL;
+  send_to_address_.reset();
 
   read_watcher_.StopWatching();
   write_watcher_.StopWatching();
