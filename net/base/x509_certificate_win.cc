@@ -396,7 +396,12 @@ void ParsePrincipal(const std::string& description,
     }
   }
 
-  // We don't expect to have more than one CN, L, S, and C.
+  // We don't expect to have more than one CN, L, S, and C. If there is more
+  // than one entry for CN, L, S, and C, we will use the first entry. Although
+  // RFC 2818 Section 3.1 says the "most specific" CN should be used, that term
+  // has been removed in draft-saintandre-tls-server-id-check, which requires
+  // that the Subject field contains only one CN. So it is fine for us to just
+  // use the first CN.
   std::vector<std::string>* single_value_lists[4] = {
       &common_names, &locality_names, &state_names, &country_names };
   std::string* single_values[4] = {
@@ -404,7 +409,6 @@ void ParsePrincipal(const std::string& description,
       &principal->state_or_province_name, &principal->country_name };
   for (int i = 0; i < arraysize(single_value_lists); ++i) {
     int length = static_cast<int>(single_value_lists[i]->size());
-    DCHECK(single_value_lists[i]->size() <= 1);
     if (!single_value_lists[i]->empty())
       *(single_values[i]) = (*(single_value_lists[i]))[0];
   }
