@@ -30,6 +30,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "media/base/buffers.h"
 #include "media/base/filters.h"
+#include "media/base/pipeline.h"
 #include "media/base/media_format.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_interfaces.h"
@@ -127,13 +128,16 @@ class FFmpegDemuxer : public Demuxer,
   // Posts a task to perform additional demuxing.
   virtual void PostDemuxTask();
 
+  void Initialize(
+      DataSource* data_source, PipelineStatusCallback* callback);
+
   // Filter implementation.
   virtual void Stop(FilterCallback* callback);
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
   virtual void OnAudioRendererDisabled();
+  virtual void set_host(FilterHost* filter_host);
 
   // Demuxer implementation.
-  virtual void Initialize(DataSource* data_source, FilterCallback* callback);
   virtual size_t GetNumberOfStreams();
   virtual scoped_refptr<DemuxerStream> GetStream(int stream_id);
 
@@ -153,7 +157,8 @@ class FFmpegDemuxer : public Demuxer,
   FRIEND_TEST_ALL_PREFIXES(FFmpegDemuxerTest, ProtocolRead);
 
   // Carries out initialization on the demuxer thread.
-  void InitializeTask(DataSource* data_source, FilterCallback* callback);
+  void InitializeTask(
+      DataSource* data_source, PipelineStatusCallback* callback);
 
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, FilterCallback* callback);
@@ -225,6 +230,11 @@ class FFmpegDemuxer : public Demuxer,
 
   size_t last_read_bytes_;
   int64 read_position_;
+
+  // Initialization can happen before set_host() is called, in which case we
+  // store these bits for deferred reporting to the FilterHost when we get one.
+  base::TimeDelta max_duration_;
+  PipelineError deferred_status_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };

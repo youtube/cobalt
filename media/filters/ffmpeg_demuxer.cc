@@ -250,7 +250,9 @@ FFmpegDemuxer::FFmpegDemuxer(MessageLoop* message_loop)
       read_event_(false, false),
       read_has_failed_(false),
       last_read_bytes_(0),
-      read_position_(0) {
+      read_position_(0),
+      max_duration_(base::TimeDelta::FromMicroseconds(-1)),
+      deferred_status_(PIPELINE_OK) {
   DCHECK(message_loop_);
 }
 
@@ -313,8 +315,20 @@ void FFmpegDemuxer::OnAudioRendererDisabled() {
       NewRunnableMethod(this, &FFmpegDemuxer::DisableAudioStreamTask));
 }
 
+void FFmpegDemuxer::set_host(FilterHost* filter_host) {
+  Demuxer::set_host(filter_host);
+  if (data_source_)
+    data_source_->set_host(filter_host);
+  if (max_duration_.InMicroseconds() >= 0)
+    host()->SetDuration(max_duration_);
+  if (read_position_ > 0)
+    host()->SetCurrentReadPosition(read_position_);
+  if (deferred_status_ != PIPELINE_OK)
+    host()->SetError(deferred_status_);
+}
+
 void FFmpegDemuxer::Initialize(DataSource* data_source,
-                               FilterCallback* callback) {
+                               PipelineStatusCallback* callback) {
   message_loop_->PostTask(
       FROM_HERE,
       NewRunnableMethod(this,
@@ -356,7 +370,10 @@ int FFmpegDemuxer::Read(int size, uint8* data) {
   // let FFmpeg demuxer methods to run on.
   size_t last_read_bytes = WaitForRead();
   if (last_read_bytes == DataSource::kReadError) {
-    host()->SetError(PIPELINE_ERROR_READ);
+    if (host())
+      host()->SetError(PIPELINE_ERROR_READ);
+    else
+      deferred_status_ = PIPELINE_ERROR_READ;
 
     // Returns with a negative number to signal an error to FFmpeg.
     read_has_failed_ = true;
@@ -364,7 +381,8 @@ int FFmpegDemuxer::Read(int size, uint8* data) {
   }
   read_position_ += last_read_bytes;
 
-  host()->SetCurrentReadPosition(read_position_);
+  if (host())
+    host()->SetCurrentReadPosition(read_position_);
 
   return last_read_bytes;
 }
@@ -403,11 +421,13 @@ MessageLoop* FFmpegDemuxer::message_loop() {
 }
 
 void FFmpegDemuxer::InitializeTask(DataSource* data_source,
-                                   FilterCallback* callback) {
+                                   PipelineStatusCallback* callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  scoped_ptr<FilterCallback> c(callback);
+  scoped_ptr<PipelineStatusCallback> callback_deleter(callback);
 
   data_source_ = data_source;
+  if (host())
+    data_source_->set_host(host());
 
   // Add ourself to Protocol list and get our unique key.
   std::string key = FFmpegGlue::GetInstance()->AddProtocol(this);
@@ -421,8 +441,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   FFmpegGlue::GetInstance()->RemoveProtocol(this);
 
   if (result < 0) {
-    host()->SetError(DEMUXER_ERROR_COULD_NOT_OPEN);
-    callback->Run();
+    callback->Run(DEMUXER_ERROR_COULD_NOT_OPEN);
     return;
   }
 
@@ -432,8 +451,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   // Fully initialize AVFormatContext by parsing the stream a little.
   result = av_find_stream_info(format_context_);
   if (result < 0) {
-    host()->SetError(DEMUXER_ERROR_COULD_NOT_PARSE);
-    callback->Run();
+    callback->Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
@@ -464,8 +482,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
     }
   }
   if (streams_.empty()) {
-    host()->SetError(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
-    callback->Run();
+    callback->Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
   if (format_context_->duration != static_cast<int64_t>(AV_NOPTS_VALUE)) {
@@ -483,8 +500,10 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   }
 
   // Good to go: set the duration and notify we're done initializing.
-  host()->SetDuration(max_duration);
-  callback->Run();
+  if (host())
+    host()->SetDuration(max_duration);
+  max_duration_ = max_duration;
+  callback->Run(PIPELINE_OK);
 }
 
 void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
@@ -572,7 +591,9 @@ void FFmpegDemuxer::StopTask(FilterCallback* callback) {
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
     (*iter)->Stop();
   }
-  if (callback) {
+  if (data_source_) {
+    data_source_->Stop(callback);
+  } else {
     callback->Run();
     delete callback;
   }
