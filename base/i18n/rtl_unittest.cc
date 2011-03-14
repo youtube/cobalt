@@ -153,14 +153,16 @@ TEST_F(RTLTest, WrapPathWithLTRFormatting) {
     std::wstring win_path(kTestData[i]);
     std::replace(win_path.begin(), win_path.end(), '/', '\\');
     path = FilePath(win_path);
+    std::wstring wrapped_expected =
+        std::wstring(L"\x202a") + win_path + L"\x202c";
 #else
     path = FilePath(base::SysWideToNativeMB(kTestData[i]));
+    std::wstring wrapped_expected =
+        std::wstring(L"\x202a") + kTestData[i] + L"\x202c";
 #endif
     string16 localized_file_path_string;
     base::i18n::WrapPathWithLTRFormatting(path, &localized_file_path_string);
 
-    std::wstring wrapped_expected =
-        std::wstring(L"\x202a") + win_path + L"\x202c";
     std::wstring wrapped_actual = UTF16ToWide(localized_file_path_string);
     EXPECT_EQ(wrapped_expected, wrapped_actual);
   }
