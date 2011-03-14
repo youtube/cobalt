@@ -85,13 +85,10 @@ class PipelineImplTest : public ::testing::Test {
  protected:
   // Sets up expectations to allow the data source to initialize.
   void InitializeDataSource() {
-    EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
-        .WillOnce(DoAll(SetTotalBytes(mocks_->data_source(), kTotalBytes),
-                        SetBufferedBytes(mocks_->data_source(), kBufferedBytes),
-                        Invoke(&RunFilterCallback)));
+    mocks_->data_source()->SetTotalAndBufferedBytes(kTotalBytes,
+                                                    kBufferedBytes);
+
     EXPECT_CALL(*mocks_->data_source(), SetPlaybackRate(0.0f));
-    EXPECT_CALL(*mocks_->data_source(), IsUrlSupported(_))
-        .WillOnce(Return(true));
     EXPECT_CALL(*mocks_->data_source(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->data_source(), Stop(NotNull()))
@@ -189,9 +186,14 @@ class PipelineImplTest : public ::testing::Test {
   // Sets up expectations on the callback and initializes the pipeline.  Called
   // after tests have set expectations any filters they wish to use.
   void InitializePipeline() {
+    InitializePipeline(PIPELINE_OK);
+  }
+
+  void InitializePipeline(PipelineError factory_error) {
     // Expect an initialization callback.
     EXPECT_CALL(callbacks_, OnStart());
-    pipeline_->Start(mocks_->filter_collection(), "",
+    pipeline_->Start(mocks_->filter_collection(true, true, factory_error),
+                     "",
                      NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                  &CallbackHelper::OnStart));
     message_loop_.RunAllPending();
@@ -312,17 +314,10 @@ TEST_F(PipelineImplTest, NotStarted) {
 }
 
 TEST_F(PipelineImplTest, NeverInitializes) {
-  EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
-      .WillOnce(Invoke(&DestroyFilterCallback));
-  EXPECT_CALL(*mocks_->data_source(), IsUrlSupported(_))
-      .WillOnce(Return(true));
-  EXPECT_CALL(*mocks_->data_source(), Stop(NotNull()))
-      .WillOnce(Invoke(&RunStopFilterCallback));
-
   // This test hangs during initialization by never calling
   // InitializationComplete().  StrictMock<> will ensure that the callback is
   // never executed.
-  pipeline_->Start(mocks_->filter_collection(), "",
+  pipeline_->Start(mocks_->filter_collection(false, false, PIPELINE_OK), "",
                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                &CallbackHelper::OnStart));
   message_loop_.RunAllPending();
@@ -346,7 +341,9 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
   EXPECT_CALL(callbacks_, OnStart());
 
   // Create a filter collection with missing filter.
-  FilterCollection* collection = mocks_->filter_collection(false);
+  FilterCollection* collection =
+      mocks_->filter_collection(false, true,
+                                PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
   pipeline_->Start(collection, "",
                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                &CallbackHelper::OnStart));
@@ -358,17 +355,10 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
 }
 
 TEST_F(PipelineImplTest, URLNotFound) {
-  EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
-      .WillOnce(DoAll(SetError(mocks_->data_source(),
-                               PIPELINE_ERROR_URL_NOT_FOUND),
-                      Invoke(&RunFilterCallback)));
-  EXPECT_CALL(*mocks_->data_source(), IsUrlSupported(_))
-      .WillOnce(Return(true));
-  EXPECT_CALL(callbacks_, OnError());
-  EXPECT_CALL(*mocks_->data_source(), Stop(NotNull()))
-      .WillOnce(Invoke(&RunStopFilterCallback));
 
-  InitializePipeline();
+  EXPECT_CALL(callbacks_, OnError());
+
+  InitializePipeline(PIPELINE_ERROR_URL_NOT_FOUND);
   EXPECT_FALSE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_ERROR_URL_NOT_FOUND, pipeline_->GetError());
 }
@@ -376,10 +366,6 @@ TEST_F(PipelineImplTest, URLNotFound) {
 TEST_F(PipelineImplTest, NoStreams) {
   // Manually set these expectations because SetPlaybackRate() is not called if
   // we cannot fully initialize the pipeline.
-  EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
-      .WillOnce(Invoke(&RunFilterCallback));
-  EXPECT_CALL(*mocks_->data_source(), IsUrlSupported(_))
-      .WillOnce(Return(true));
   EXPECT_CALL(*mocks_->data_source(), Stop(NotNull()))
       .WillOnce(Invoke(&RunStopFilterCallback));
 

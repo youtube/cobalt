@@ -18,7 +18,6 @@ namespace media {
 
 class PipelineImpl::PipelineInitState {
  public:
-  scoped_refptr<DataSource> data_source_;
   scoped_refptr<Demuxer> demuxer_;
   scoped_refptr<AudioDecoder> audio_decoder_;
   scoped_refptr<VideoDecoder> video_decoder_;
@@ -550,7 +549,12 @@ void PipelineImpl::StartTask(FilterCollection* filter_collection,
   seek_callback_.reset(start_callback);
 
   // Kick off initialization.
-  InitializeTask();
+  set_state(kInitDataSource);
+  pipeline_init_state_.reset(new PipelineInitState());
+  pipeline_init_state_->composite_ = new CompositeFilter(message_loop_);
+  pipeline_init_state_->composite_->set_host(this);
+
+  InitializeDataSource();
 }
 
 // Main initialization method called on the pipeline thread.  This code attempts
@@ -580,31 +584,12 @@ void PipelineImpl::InitializeTask() {
     return;
   }
 
-  DCHECK(state_ == kCreated ||
-         state_ == kInitDataSource ||
-         state_ == kInitDemuxer ||
+  DCHECK(state_ == kInitDemuxer ||
          state_ == kInitAudioDecoder ||
          state_ == kInitAudioRenderer ||
          state_ == kInitVideoDecoder ||
          state_ == kInitVideoRenderer);
 
-  // Just created, create data source.
-  if (state_ == kCreated) {
-    set_state(kInitDataSource);
-    pipeline_init_state_.reset(new PipelineInitState());
-    pipeline_init_state_->composite_ = new CompositeFilter(message_loop_);
-    pipeline_init_state_->composite_->set_host(this);
-
-    InitializeDataSource();
-    return;
-  }
-
-  // Data source created, create demuxer.
-  if (state_ == kInitDataSource) {
-    set_state(kInitDemuxer);
-    InitializeDemuxer(pipeline_init_state_->data_source_);
-    return;
-  }
 
   // Demuxer created, create audio decoder.
   if (state_ == kInitDemuxer) {
@@ -1013,24 +998,30 @@ void PipelineImpl::InitializeDataSource() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
-  scoped_refptr<DataSource> data_source;
-  while (true) {
-    filter_collection_->SelectDataSource(&data_source);
-    if (!data_source || data_source->IsUrlSupported(url_))
-      break;
-  }
+  filter_collection_->GetDataSourceFactory()->Build(url_,
+      NewCallback(this, &PipelineImpl::OnDataSourceBuilt));
+}
 
-  if (!data_source) {
-    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+void PipelineImpl::OnDataSourceBuilt(PipelineError error,
+                                     DataSource* data_source) {
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(FROM_HERE,
+                            NewRunnableMethod(this,
+                                              &PipelineImpl::OnDataSourceBuilt,
+                                              error,
+                                              make_scoped_refptr(data_source)));
     return;
   }
 
-  if (!PrepareFilter(data_source))
+  if (error != PIPELINE_OK) {
+    SetError(error);
     return;
+  }
 
-  pipeline_init_state_->data_source_ = data_source;
-  data_source->Initialize(
-      url_, NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  PrepareFilter(data_source);
+
+  set_state(kInitDemuxer);
+  InitializeDemuxer(data_source);
 }
 
 void PipelineImpl::InitializeDemuxer(
@@ -1207,6 +1198,7 @@ void PipelineImpl::TearDownPipeline() {
       // Make it look like initialization was successful.
       pipeline_filter_ = pipeline_init_state_->composite_;
       pipeline_init_state_.reset();
+      filter_collection_.reset();
 
       set_state(kStopping);
       pipeline_filter_->Stop(
