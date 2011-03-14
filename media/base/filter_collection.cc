@@ -12,17 +12,13 @@ FilterCollection::FilterCollection() {}
 
 FilterCollection::~FilterCollection() {}
 
-void FilterCollection::SetDataSourceFactory(DataSourceFactory* factory) {
+void FilterCollection::SetDemuxerFactory(DemuxerFactory* factory) {
   DCHECK(factory);
-  data_source_factory_.reset(factory);
+  demuxer_factory_.reset(factory);
 }
 
-DataSourceFactory* FilterCollection::GetDataSourceFactory() {
-  return data_source_factory_.get();
-}
-
-void FilterCollection::AddDemuxer(Demuxer* filter) {
-  AddFilter(DEMUXER, filter);
+DemuxerFactory* FilterCollection::GetDemuxerFactory() {
+  return demuxer_factory_.get();
 }
 
 void FilterCollection::AddVideoDecoder(VideoDecoder* filter) {
@@ -47,10 +43,6 @@ bool FilterCollection::IsEmpty() const {
 
 void FilterCollection::Clear() {
   filters_.clear();
-}
-
-void FilterCollection::SelectDemuxer(scoped_refptr<Demuxer>* filter_out) {
-  SelectFilter<DEMUXER>(filter_out);
 }
 
 void FilterCollection::SelectVideoDecoder(
