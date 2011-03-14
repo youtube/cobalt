@@ -549,23 +549,23 @@ void PipelineImpl::StartTask(FilterCollection* filter_collection,
   seek_callback_.reset(start_callback);
 
   // Kick off initialization.
-  set_state(kInitDataSource);
+  set_state(kInitDemuxer);
   pipeline_init_state_.reset(new PipelineInitState());
   pipeline_init_state_->composite_ = new CompositeFilter(message_loop_);
   pipeline_init_state_->composite_->set_host(this);
 
-  InitializeDataSource();
+  InitializeDemuxer();
 }
 
 // Main initialization method called on the pipeline thread.  This code attempts
 // to use the specified filter factory to build a pipeline.
 // Initialization step performed in this method depends on current state of this
 // object, indicated by |state_|.  After each step of initialization, this
-// object transits to the next stage.  It starts by creating a DataSource,
-// connects it to a Demuxer, and then connects the Demuxer's audio stream to an
-// AudioDecoder which is then connected to an AudioRenderer.  If the media has
-// video, then it connects a VideoDecoder to the Demuxer's video stream, and
-// then connects the VideoDecoder to a VideoRenderer.
+// object transits to the next stage.  It starts by creating a Demuxer, and then
+// connects the Demuxer's audio stream to an AudioDecoder which is then
+// connected to an AudioRenderer.  If the media has video, then it connects a
+// VideoDecoder to the Demuxer's video stream, and then connects the
+// VideoDecoder to a VideoRenderer.
 //
 // When all required filters have been created and have called their
 // FilterHost's InitializationComplete() method, the pipeline will update its
@@ -938,7 +938,6 @@ void PipelineImpl::TeardownStateTransitionTask() {
 
     case kCreated:
     case kError:
-    case kInitDataSource:
     case kInitDemuxer:
     case kInitAudioDecoder:
     case kInitAudioRenderer:
@@ -994,22 +993,22 @@ bool PipelineImpl::PrepareFilter(scoped_refptr<Filter> filter) {
   return ret;
 }
 
-void PipelineImpl::InitializeDataSource() {
+void PipelineImpl::InitializeDemuxer() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
-  filter_collection_->GetDataSourceFactory()->Build(url_,
-      NewCallback(this, &PipelineImpl::OnDataSourceBuilt));
+  filter_collection_->GetDemuxerFactory()->Build(url_,
+      NewCallback(this, &PipelineImpl::OnDemuxerBuilt));
 }
 
-void PipelineImpl::OnDataSourceBuilt(PipelineError error,
-                                     DataSource* data_source) {
+void PipelineImpl::OnDemuxerBuilt(PipelineError error,
+                                  Demuxer* demuxer) {
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(FROM_HERE,
                             NewRunnableMethod(this,
-                                              &PipelineImpl::OnDataSourceBuilt,
+                                              &PipelineImpl::OnDemuxerBuilt,
                                               error,
-                                              make_scoped_refptr(data_source)));
+                                              make_scoped_refptr(demuxer)));
     return;
   }
 
@@ -1018,22 +1017,6 @@ void PipelineImpl::OnDataSourceBuilt(PipelineError error,
     return;
   }
 
-  PrepareFilter(data_source);
-
-  set_state(kInitDemuxer);
-  InitializeDemuxer(data_source);
-}
-
-void PipelineImpl::InitializeDemuxer(
-    const scoped_refptr<DataSource>& data_source) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(IsPipelineOk());
-
-  scoped_refptr<Demuxer> demuxer;
-
-  CHECK(data_source);
-
-  filter_collection_->SelectDemuxer(&demuxer);
   if (!demuxer) {
     SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
     return;
@@ -1043,8 +1026,7 @@ void PipelineImpl::InitializeDemuxer(
     return;
 
   pipeline_init_state_->demuxer_ = demuxer;
-  demuxer->Initialize(data_source,
-                      NewCallback(this, &PipelineImpl::OnFilterInitialize));
+  OnFilterInitialize();
 }
 
 bool PipelineImpl::InitializeAudioDecoder(
@@ -1189,7 +1171,6 @@ void PipelineImpl::TearDownPipeline() {
           NewRunnableMethod(this, &PipelineImpl::FinishDestroyingFiltersTask));
       break;
 
-    case kInitDataSource:
     case kInitDemuxer:
     case kInitAudioDecoder:
     case kInitAudioRenderer:

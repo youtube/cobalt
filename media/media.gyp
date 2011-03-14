@@ -153,6 +153,8 @@
         'filters/ffmpeg_video_decoder.h',
         'filters/file_data_source.cc',
         'filters/file_data_source.h',
+        'filters/ffmpeg_demuxer_factory.cc',
+        'filters/ffmpeg_demuxer_factory.h',
         'filters/file_data_source_factory.cc',
         'filters/file_data_source_factory.h',
         'filters/null_audio_renderer.cc',

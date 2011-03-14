@@ -72,6 +72,9 @@ class FFmpegDemuxerTest : public testing::Test {
     demuxer_->set_host(&host_);
     data_source_ = new StrictMock<MockDataSource>();
 
+    EXPECT_CALL(*data_source_, Stop(NotNull()))
+        .WillRepeatedly(Invoke(&RunStopFilterCallback));
+
     // Initialize FFmpeg fixtures.
     memset(&format_context_, 0, sizeof(format_context_));
     memset(&input_format_, 0, sizeof(input_format_));
@@ -137,7 +140,8 @@ class FFmpegDemuxerTest : public testing::Test {
         base::TimeDelta::FromMicroseconds(kDurations[AV_STREAM_AUDIO]);
     EXPECT_CALL(host_, SetDuration(expected_duration));
 
-    demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
+    demuxer_->Initialize(data_source_.get(),
+                         NewExpectedStatusCallback(PIPELINE_OK));
     message_loop_.RunAllPending();
   }
 
@@ -175,9 +179,9 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   // Simulate av_open_input_file() failing.
   EXPECT_CALL(mock_ffmpeg_, AVOpenInputFile(_, _, NULL, 0, NULL))
       .WillOnce(Return(-1));
-  EXPECT_CALL(host_, SetError(DEMUXER_ERROR_COULD_NOT_OPEN));
 
-  demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
+  demuxer_->Initialize(data_source_.get(),
+                       NewExpectedStatusCallback(DEMUXER_ERROR_COULD_NOT_OPEN));
   message_loop_.RunAllPending();
 }
 
@@ -188,9 +192,10 @@ TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
   EXPECT_CALL(mock_ffmpeg_, AVFindStreamInfo(&format_context_))
       .WillOnce(Return(AVERROR_IO));
   EXPECT_CALL(mock_ffmpeg_, AVCloseInputFile(&format_context_));
-  EXPECT_CALL(host_, SetError(DEMUXER_ERROR_COULD_NOT_PARSE));
 
-  demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
+  demuxer_->Initialize(
+      data_source_.get(),
+      NewExpectedStatusCallback(DEMUXER_ERROR_COULD_NOT_PARSE));
   message_loop_.RunAllPending();
 }
 
@@ -200,10 +205,11 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
     SCOPED_TRACE("");
     InitializeDemuxerMocks();
   }
-  EXPECT_CALL(host_, SetError(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   format_context_.nb_streams = 0;
 
-  demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
+  demuxer_->Initialize(
+      data_source_.get(),
+      NewExpectedStatusCallback(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
 }
 
@@ -213,11 +219,12 @@ TEST_F(FFmpegDemuxerTest, Initialize_DataStreamOnly) {
     SCOPED_TRACE("");
     InitializeDemuxerMocks();
   }
-  EXPECT_CALL(host_, SetError(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   EXPECT_EQ(format_context_.streams[0], &streams_[AV_STREAM_DATA]);
   format_context_.nb_streams = 1;
 
-  demuxer_->Initialize(data_source_.get(), NewExpectedCallback());
+  demuxer_->Initialize(
+      data_source_.get(),
+      NewExpectedStatusCallback(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
 }
 
@@ -548,7 +555,11 @@ TEST_F(FFmpegDemuxerTest, Stop) {
   scoped_refptr<DemuxerStream> audio = demuxer_->GetStream(DS_STREAM_AUDIO);
   ASSERT_TRUE(audio);
 
-  // Stop the demuxer.
+  // Stop the demuxer, overriding the default expectation to assert that
+  // data_source_ really is Stop()'d.
+  EXPECT_CALL(*data_source_, Stop(_))
+      .WillOnce(Invoke(&RunStopFilterCallback))
+      .RetiresOnSaturation();
   demuxer_->Stop(NewExpectedCallback());
 
   // Expect all calls in sequence.

@@ -97,31 +97,11 @@ class MockDataSource : public DataSource {
   DISALLOW_COPY_AND_ASSIGN(MockDataSource);
 };
 
-class MockDataSourceFactory : public DataSourceFactory {
- public:
-  explicit MockDataSourceFactory(MockDataSource* data_source);
-  virtual ~MockDataSourceFactory();
-
-  void SetError(PipelineError error);
-  void RunBuildCallback(const std::string& url, BuildCallback* callback);
-  void DestroyBuildCallback(const std::string& url, BuildCallback* callback);
-
-  // DataSourceFactory methods.
-  MOCK_METHOD2(Build, void(const std::string& url, BuildCallback* callback));
-  virtual DataSourceFactory* Clone() const;
-
- private:
-  scoped_refptr<MockDataSource> data_source_;
-  PipelineError error_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockDataSourceFactory);
-};
-
 class MockDemuxer : public Demuxer {
  public:
   MockDemuxer();
-
   // Filter implementation.
+  virtual void set_host(FilterHost* host);
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
@@ -133,11 +113,40 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD0(GetNumberOfStreams, size_t());
   MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(int stream_id));
 
+  // Sets the TotalBytes, BufferedBytes, & Duration values to be sent to host()
+  // when set_host() is called.
+  void SetTotalAndBufferedBytesAndDuration(
+      int64 total_bytes, int64 buffered_bytes, const base::TimeDelta& duration);
+
  protected:
   virtual ~MockDemuxer();
 
  private:
+  int64 total_bytes_;
+  int64 buffered_bytes_;
+  base::TimeDelta duration_;
+
   DISALLOW_COPY_AND_ASSIGN(MockDemuxer);
+};
+
+class MockDemuxerFactory : public DemuxerFactory {
+ public:
+  explicit MockDemuxerFactory(MockDemuxer* demuxer);
+  virtual ~MockDemuxerFactory();
+
+  void SetError(PipelineError error);
+  void RunBuildCallback(const std::string& url, BuildCallback* callback);
+  void DestroyBuildCallback(const std::string& url, BuildCallback* callback);
+
+  // DemuxerFactory methods.
+  MOCK_METHOD2(Build, void(const std::string& url, BuildCallback* callback));
+  virtual DemuxerFactory* Clone() const;
+
+ private:
+  scoped_refptr<MockDemuxer> demuxer_;
+  PipelineError error_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockDemuxerFactory);
 };
 
 class MockDemuxerStream : public DemuxerStream {
@@ -274,7 +283,6 @@ class MockFilterCollection {
   virtual ~MockFilterCollection();
 
   // Mock accessors.
-  MockDataSource* data_source() const { return data_source_; }
   MockDemuxer* demuxer() const { return demuxer_; }
   MockVideoDecoder* video_decoder() const { return video_decoder_; }
   MockAudioDecoder* audio_decoder() const { return audio_decoder_; }
@@ -285,12 +293,11 @@ class MockFilterCollection {
     return filter_collection(true, true, PIPELINE_OK);
   }
 
-  FilterCollection* filter_collection(bool include_data_source,
+  FilterCollection* filter_collection(bool include_demuxer,
                                       bool run_build_callback,
                                       PipelineError build_error) const;
 
  private:
-  scoped_refptr<MockDataSource> data_source_;
   scoped_refptr<MockDemuxer> demuxer_;
   scoped_refptr<MockVideoDecoder> video_decoder_;
   scoped_refptr<MockAudioDecoder> audio_decoder_;
@@ -304,6 +311,8 @@ class MockFilterCollection {
 // FilterCallback on behalf of the provided filter.  Can be used when mocking
 // the Initialize() and Seek() methods.
 void RunFilterCallback(::testing::Unused, FilterCallback* callback);
+void RunPipelineStatusCallback(PipelineError status,
+                               PipelineStatusCallback* callback);
 void RunFilterCallback3(::testing::Unused, FilterCallback* callback,
                         ::testing::Unused);
 

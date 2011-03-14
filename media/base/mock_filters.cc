@@ -35,50 +35,70 @@ void MockDataSource::SetTotalAndBufferedBytes(int64 total_bytes,
   buffered_bytes_ = buffered_bytes;
 }
 
-MockDataSourceFactory::MockDataSourceFactory(MockDataSource* data_source)
-    : data_source_(data_source),
-      error_(PIPELINE_OK) {
+MockDemuxerFactory::MockDemuxerFactory(MockDemuxer* demuxer)
+    : demuxer_(demuxer), error_(PIPELINE_OK) {
 }
 
-MockDataSourceFactory::~MockDataSourceFactory() {}
+MockDemuxerFactory::~MockDemuxerFactory() {}
 
-void MockDataSourceFactory::SetError(PipelineError error) {
+void MockDemuxerFactory::SetError(PipelineError error) {
   error_ = error;
 }
 
-void MockDataSourceFactory::RunBuildCallback(const std::string& url,
-                                             BuildCallback* callback) {
+void MockDemuxerFactory::RunBuildCallback(const std::string& url,
+                                          BuildCallback* callback) {
   scoped_ptr<BuildCallback> cb(callback);
 
-  if (!data_source_.get()) {
+  if (!demuxer_.get()) {
     cb->Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
-            static_cast<DataSource*>(NULL));
+            static_cast<Demuxer*>(NULL));
     return;
   }
 
-  scoped_refptr<MockDataSource> data_source = data_source_;
-  data_source_ = NULL;
+  scoped_refptr<MockDemuxer> demuxer = demuxer_;
+  demuxer_ = NULL;
 
   if (error_ == PIPELINE_OK) {
-    cb->Run(PIPELINE_OK, data_source.get());
+    cb->Run(PIPELINE_OK, demuxer.get());
     return;
   }
 
-  cb->Run(error_, static_cast<DataSource*>(NULL));
+  cb->Run(error_, static_cast<Demuxer*>(NULL));
 }
 
-void MockDataSourceFactory::DestroyBuildCallback(const std::string& url,
-                                                 BuildCallback* callback) {
+void MockDemuxerFactory::DestroyBuildCallback(const std::string& url,
+                                              BuildCallback* callback) {
   delete callback;
 }
 
-DataSourceFactory* MockDataSourceFactory::Clone() const {
-  return new MockDataSourceFactory(data_source_.get());
+DemuxerFactory* MockDemuxerFactory::Clone() const {
+  return new MockDemuxerFactory(demuxer_.get());
 }
 
-MockDemuxer::MockDemuxer() {}
+MockDemuxer::MockDemuxer()
+  : total_bytes_(-1), buffered_bytes_(-1), duration_() {}
 
 MockDemuxer::~MockDemuxer() {}
+
+void MockDemuxer::set_host(FilterHost* filter_host) {
+  Filter::set_host(filter_host);
+
+  if (total_bytes_ > 0)
+    host()->SetTotalBytes(total_bytes_);
+
+  if (buffered_bytes_ > 0)
+    host()->SetBufferedBytes(buffered_bytes_);
+
+  if (duration_.InMilliseconds() > 0)
+    host()->SetDuration(duration_);
+}
+
+void MockDemuxer::SetTotalAndBufferedBytesAndDuration(
+    int64 total_bytes, int64 buffered_bytes, const base::TimeDelta& duration) {
+  total_bytes_ = total_bytes;
+  buffered_bytes_ = buffered_bytes;
+  duration_ = duration;
+}
 
 MockDemuxerStream::MockDemuxerStream() {}
 
@@ -101,8 +121,7 @@ MockAudioRenderer::MockAudioRenderer() {}
 MockAudioRenderer::~MockAudioRenderer() {}
 
 MockFilterCollection::MockFilterCollection()
-    : data_source_(new MockDataSource()),
-      demuxer_(new MockDemuxer()),
+    : demuxer_(new MockDemuxer()),
       video_decoder_(new MockVideoDecoder()),
       audio_decoder_(new MockAudioDecoder()),
       video_renderer_(new MockVideoRenderer()),
@@ -112,30 +131,27 @@ MockFilterCollection::MockFilterCollection()
 MockFilterCollection::~MockFilterCollection() {}
 
 FilterCollection* MockFilterCollection::filter_collection(
-    bool include_data_source,
+    bool include_demuxer,
     bool run_build_callback,
     PipelineError build_error) const {
   FilterCollection* collection = new FilterCollection();
 
-  MockDataSourceFactory* data_source_factory =
-      new MockDataSourceFactory(include_data_source ? data_source_ : NULL);
+  MockDemuxerFactory* demuxer_factory =
+      new MockDemuxerFactory(include_demuxer ? demuxer_ : NULL);
 
   if (build_error != PIPELINE_OK)
-    data_source_factory->SetError(build_error);
+    demuxer_factory->SetError(build_error);
 
   if (run_build_callback) {
-    ON_CALL(*data_source_factory, Build(_, NotNull()))
-        .WillByDefault(Invoke(data_source_factory,
-                              &MockDataSourceFactory::RunBuildCallback));
+    ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
+        demuxer_factory, &MockDemuxerFactory::RunBuildCallback));
   } else {
-    ON_CALL(*data_source_factory, Build(_, NotNull()))
-        .WillByDefault(Invoke(data_source_factory,
-                              &MockDataSourceFactory::DestroyBuildCallback));
+    ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
+        demuxer_factory, &MockDemuxerFactory::DestroyBuildCallback));
   }
-  EXPECT_CALL(*data_source_factory, Build(_, NotNull()));
+  EXPECT_CALL(*demuxer_factory, Build(_, NotNull()));
 
-  collection->SetDataSourceFactory(data_source_factory);
-  collection->AddDemuxer(demuxer_);
+  collection->SetDemuxerFactory(demuxer_factory);
   collection->AddVideoDecoder(video_decoder_);
   collection->AddAudioDecoder(audio_decoder_);
   collection->AddVideoRenderer(video_renderer_);
@@ -145,6 +161,12 @@ FilterCollection* MockFilterCollection::filter_collection(
 
 void RunFilterCallback(::testing::Unused, FilterCallback* callback) {
   callback->Run();
+  delete callback;
+}
+
+void RunPipelineStatusCallback(
+    PipelineError status, PipelineStatusCallback* callback) {
+  callback->Run(status);
   delete callback;
 }
 

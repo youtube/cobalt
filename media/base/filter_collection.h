@@ -20,13 +20,12 @@ class FilterCollection {
   FilterCollection();
   ~FilterCollection();
 
-  // DataSourceFactory accessor methods.
+  // DemuxerFactory accessor methods.
   // FilterCollection takes ownership of the factory here.
-  void SetDataSourceFactory(DataSourceFactory* factory);
-  DataSourceFactory* GetDataSourceFactory();
+  void SetDemuxerFactory(DemuxerFactory* factory);
+  DemuxerFactory* GetDemuxerFactory();
 
   // Adds a filter to the collection.
-  void AddDemuxer(Demuxer* filter);
   void AddVideoDecoder(VideoDecoder* filter);
   void AddAudioDecoder(AudioDecoder* filter);
   void AddVideoRenderer(VideoRenderer* filter);
@@ -41,7 +40,6 @@ class FilterCollection {
   // Selects a filter of the specified type from the collection.
   // If the required filter cannot be found, NULL is returned.
   // If a filter is returned it is removed from the collection.
-  void SelectDemuxer(scoped_refptr<Demuxer>* filter_out);
   void SelectVideoDecoder(scoped_refptr<VideoDecoder>* filter_out);
   void SelectAudioDecoder(scoped_refptr<AudioDecoder>* filter_out);
   void SelectVideoRenderer(scoped_refptr<VideoRenderer>* filter_out);
@@ -52,7 +50,6 @@ class FilterCollection {
   // the following types. This is used to mark, identify, and support
   // downcasting of different filter types stored in the filters_ list.
   enum FilterType {
-    DEMUXER,
     AUDIO_DECODER,
     VIDEO_DECODER,
     AUDIO_RENDERER,
@@ -63,7 +60,7 @@ class FilterCollection {
   typedef std::pair<FilterType, scoped_refptr<Filter> > FilterListElement;
   typedef std::list<FilterListElement> FilterList;
   FilterList filters_;
-  scoped_ptr<DataSourceFactory> data_source_factory_;
+  scoped_ptr<DemuxerFactory> demuxer_factory_;
 
   // Helper function that adds a filter to the filter list.
   void AddFilter(FilterType filter_type, Filter* filter);
