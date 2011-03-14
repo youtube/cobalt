@@ -56,7 +56,7 @@ TEST(FileDataSourceTest, OpenFile) {
 
   scoped_refptr<FileDataSource> filter(new FileDataSource());
   filter->set_host(&host);
-  filter->Initialize(TestFileURL(), NewExpectedCallback());
+  EXPECT_EQ(PIPELINE_OK, filter->Initialize(TestFileURL()));
 
   filter->Stop(NewExpectedCallback());
 }
@@ -71,7 +71,7 @@ TEST(FileDataSourceTest, ReadData) {
   scoped_refptr<FileDataSource> filter(new FileDataSource());
 
   filter->set_host(&host);
-  filter->Initialize(TestFileURL(), NewExpectedCallback());
+  EXPECT_EQ(PIPELINE_OK, filter->Initialize(TestFileURL()));
 
   EXPECT_TRUE(filter->GetSize(&size));
   EXPECT_EQ(10, size);

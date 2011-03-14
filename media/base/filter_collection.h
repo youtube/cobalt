@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 
 #include "base/ref_counted.h"
 #include "media/base/filters.h"
+#include "media/base/filter_factories.h"
 
 namespace media {
 
@@ -19,8 +20,12 @@ class FilterCollection {
   FilterCollection();
   ~FilterCollection();
 
+  // DataSourceFactory accessor methods.
+  // FilterCollection takes ownership of the factory here.
+  void SetDataSourceFactory(DataSourceFactory* factory);
+  DataSourceFactory* GetDataSourceFactory();
+
   // Adds a filter to the collection.
-  void AddDataSource(DataSource* filter);
   void AddDemuxer(Demuxer* filter);
   void AddVideoDecoder(VideoDecoder* filter);
   void AddAudioDecoder(AudioDecoder* filter);
@@ -36,7 +41,6 @@ class FilterCollection {
   // Selects a filter of the specified type from the collection.
   // If the required filter cannot be found, NULL is returned.
   // If a filter is returned it is removed from the collection.
-  void SelectDataSource(scoped_refptr<DataSource>* filter_out);
   void SelectDemuxer(scoped_refptr<Demuxer>* filter_out);
   void SelectVideoDecoder(scoped_refptr<VideoDecoder>* filter_out);
   void SelectAudioDecoder(scoped_refptr<AudioDecoder>* filter_out);
@@ -48,7 +52,6 @@ class FilterCollection {
   // the following types. This is used to mark, identify, and support
   // downcasting of different filter types stored in the filters_ list.
   enum FilterType {
-    DATA_SOURCE,
     DEMUXER,
     AUDIO_DECODER,
     VIDEO_DECODER,
@@ -60,6 +63,7 @@ class FilterCollection {
   typedef std::pair<FilterType, scoped_refptr<Filter> > FilterListElement;
   typedef std::list<FilterListElement> FilterList;
   FilterList filters_;
+  scoped_ptr<DataSourceFactory> data_source_factory_;
 
   // Helper function that adds a filter to the filter list.
   void AddFilter(FilterType filter_type, Filter* filter);

@@ -69,26 +69,52 @@ class MockDataSource : public DataSource {
   MockDataSource();
 
   // Filter implementation.
+  virtual void set_host(FilterHost* host);
+
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // DataSource implementation.
-  MOCK_METHOD1(IsUrlSupported, bool(const std::string& url));
-  MOCK_METHOD2(Initialize, void(const std::string& url,
-                                FilterCallback* callback));
   MOCK_METHOD0(media_format, const MediaFormat&());
   MOCK_METHOD4(Read, void(int64 position, size_t size, uint8* data,
                           DataSource::ReadCallback* callback));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
   MOCK_METHOD0(IsStreaming, bool());
 
+  // Sets the TotalBytes & BufferedBytes values to be sent to host() when
+  // the set_host() is called.
+  void SetTotalAndBufferedBytes(int64 total_bytes, int64 buffered_bytes);
+
  protected:
   virtual ~MockDataSource();
 
  private:
+  int64 total_bytes_;
+  int64 buffered_bytes_;
+
   DISALLOW_COPY_AND_ASSIGN(MockDataSource);
+};
+
+class MockDataSourceFactory : public DataSourceFactory {
+ public:
+  explicit MockDataSourceFactory(MockDataSource* data_source);
+  virtual ~MockDataSourceFactory();
+
+  void SetError(PipelineError error);
+  void RunBuildCallback(const std::string& url, BuildCallback* callback);
+  void DestroyBuildCallback(const std::string& url, BuildCallback* callback);
+
+  // DataSourceFactory methods.
+  MOCK_METHOD2(Build, void(const std::string& url, BuildCallback* callback));
+  virtual DataSourceFactory* Clone() const;
+
+ private:
+  scoped_refptr<MockDataSource> data_source_;
+  PipelineError error_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockDataSourceFactory);
 };
 
 class MockDemuxer : public Demuxer {
@@ -256,10 +282,12 @@ class MockFilterCollection {
   MockAudioRenderer* audio_renderer() const { return audio_renderer_; }
 
   FilterCollection* filter_collection() const {
-    return filter_collection(true);
+    return filter_collection(true, true, PIPELINE_OK);
   }
 
-  FilterCollection* filter_collection(bool include_data_source) const;
+  FilterCollection* filter_collection(bool include_data_source,
+                                      bool run_build_callback,
+                                      PipelineError build_error) const;
 
  private:
   scoped_refptr<MockDataSource> data_source_;
@@ -298,18 +326,6 @@ ACTION_P2(SetError, filter, error) {
 // filter.
 ACTION_P2(SetDuration, filter, duration) {
   filter->host()->SetDuration(duration);
-}
-
-// Helper gmock action that calls SetTotalBytes() on behalf of the provided
-// filter.
-ACTION_P2(SetTotalBytes, filter, bytes) {
-  filter->host()->SetTotalBytes(bytes);
-}
-
-// Helper gmock action that calls SetBufferedBytes() on behalf of the provided
-// filter.
-ACTION_P2(SetBufferedBytes, filter, bytes) {
-  filter->host()->SetBufferedBytes(bytes);
 }
 
 // Helper gmock action that calls DisableAudioRenderer() on behalf of the

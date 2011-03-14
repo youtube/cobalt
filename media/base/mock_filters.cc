@@ -4,11 +4,77 @@
 
 #include "media/base/mock_filters.h"
 
+#include "media/base/filter_host.h"
+
+using ::testing::_;
+using ::testing::Invoke;
+using ::testing::NotNull;
+
 namespace media {
 
-MockDataSource::MockDataSource() {}
+MockDataSource::MockDataSource()
+    : total_bytes_(-1),
+      buffered_bytes_(-1) {
+}
 
 MockDataSource::~MockDataSource() {}
+
+void MockDataSource::set_host(FilterHost* filter_host) {
+  Filter::set_host(filter_host);
+
+  if (total_bytes_ > 0)
+    host()->SetTotalBytes(total_bytes_);
+
+  if (buffered_bytes_ > 0)
+    host()->SetBufferedBytes(buffered_bytes_);
+}
+
+void MockDataSource::SetTotalAndBufferedBytes(int64 total_bytes,
+                                              int64 buffered_bytes) {
+  total_bytes_ = total_bytes;
+  buffered_bytes_ = buffered_bytes;
+}
+
+MockDataSourceFactory::MockDataSourceFactory(MockDataSource* data_source)
+    : data_source_(data_source),
+      error_(PIPELINE_OK) {
+}
+
+MockDataSourceFactory::~MockDataSourceFactory() {}
+
+void MockDataSourceFactory::SetError(PipelineError error) {
+  error_ = error;
+}
+
+void MockDataSourceFactory::RunBuildCallback(const std::string& url,
+                                             BuildCallback* callback) {
+  scoped_ptr<BuildCallback> cb(callback);
+
+  if (!data_source_.get()) {
+    cb->Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
+            static_cast<DataSource*>(NULL));
+    return;
+  }
+
+  scoped_refptr<MockDataSource> data_source = data_source_;
+  data_source_ = NULL;
+
+  if (error_ == PIPELINE_OK) {
+    cb->Run(PIPELINE_OK, data_source.get());
+    return;
+  }
+
+  cb->Run(error_, static_cast<DataSource*>(NULL));
+}
+
+void MockDataSourceFactory::DestroyBuildCallback(const std::string& url,
+                                                 BuildCallback* callback) {
+  delete callback;
+}
+
+DataSourceFactory* MockDataSourceFactory::Clone() const {
+  return new MockDataSourceFactory(data_source_.get());
+}
 
 MockDemuxer::MockDemuxer() {}
 
@@ -46,12 +112,29 @@ MockFilterCollection::MockFilterCollection()
 MockFilterCollection::~MockFilterCollection() {}
 
 FilterCollection* MockFilterCollection::filter_collection(
-    bool include_data_source) const {
+    bool include_data_source,
+    bool run_build_callback,
+    PipelineError build_error) const {
   FilterCollection* collection = new FilterCollection();
 
-  if (include_data_source) {
-    collection->AddDataSource(data_source_);
+  MockDataSourceFactory* data_source_factory =
+      new MockDataSourceFactory(include_data_source ? data_source_ : NULL);
+
+  if (build_error != PIPELINE_OK)
+    data_source_factory->SetError(build_error);
+
+  if (run_build_callback) {
+    ON_CALL(*data_source_factory, Build(_, NotNull()))
+        .WillByDefault(Invoke(data_source_factory,
+                              &MockDataSourceFactory::RunBuildCallback));
+  } else {
+    ON_CALL(*data_source_factory, Build(_, NotNull()))
+        .WillByDefault(Invoke(data_source_factory,
+                              &MockDataSourceFactory::DestroyBuildCallback));
   }
+  EXPECT_CALL(*data_source_factory, Build(_, NotNull()));
+
+  collection->SetDataSourceFactory(data_source_factory);
   collection->AddDemuxer(demuxer_);
   collection->AddVideoDecoder(video_decoder_);
   collection->AddAudioDecoder(audio_decoder_);
