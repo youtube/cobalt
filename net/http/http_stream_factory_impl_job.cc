@@ -1088,7 +1088,7 @@ int HttpStreamFactoryImpl::Job::HandleCertificateError(int error) {
   ssl_socket->GetSSLInfo(&ssl_info_);
 
   // Add the bad certificate to the set of allowed certificates in the
-  // SSL info object. This data structure will be consulted after calling
+  // SSL config object. This data structure will be consulted after calling
   // RestartIgnoringLastError(). And the user will be asked interactively
   // before RestartIgnoringLastError() is ever called.
   SSLConfig::CertAndStatus bad_cert;
