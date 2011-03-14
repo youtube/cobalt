@@ -191,8 +191,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
 // Attempt to connect to a page which requests a client certificate. It should
 // return an error code on connect.
-// Flaky: http://crbug.com/54445
-TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
+TEST_F(SSLClientSocketTest, ConnectClientAuthCertRequested) {
   net::TestServer::HTTPSOptions https_options;
   https_options.request_client_certificate = true;
   net::TestServer test_server(https_options, FilePath());
@@ -226,7 +225,24 @@ TEST_F(SSLClientSocketTest, FLAKY_ConnectClientAuthCertRequested) {
     rv = callback.WaitForResult();
 
   log.GetEntries(&entries);
-  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
+  // Because we prematurely kill the handshake at CertificateRequest,
+  // the server may still send data (notably the ServerHelloDone)
+  // after the error is returned. As a result, the SSL_CONNECT may not
+  // be the last entry. See http://crbug.com/54445. We use
+  // ExpectLogContainsSomewhere instead of
+  // LogContainsSSLConnectEndEvent to avoid assuming, e.g., only one
+  // extra read instead of two. This occurs before the handshake ends,
+  // so the corking logic of LogContainsSSLConnectEndEvent isn't
+  // necessary.
+  //
+  // TODO(davidben): When SSL_RestartHandshakeAfterCertReq in NSS is
+  // fixed and we can respond to the first CertificateRequest
+  // without closing the socket, add a unit test for sending the
+  // certificate. This test may still be useful as we'll want to close
+  // the socket on a timeout if the user takes a long time to pick a
+  // cert. Related bug: https://bugzilla.mozilla.org/show_bug.cgi?id=542832
+  net::ExpectLogContainsSomewhere(
+      entries, 0, net::NetLog::TYPE_SSL_CONNECT, net::NetLog::PHASE_END);
   EXPECT_EQ(net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED, rv);
   EXPECT_FALSE(sock->IsConnected());
 }
