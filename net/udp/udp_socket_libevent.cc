@@ -103,13 +103,18 @@ UDPSocketLibevent::~UDPSocketLibevent() {
 void UDPSocketLibevent::Close() {
   DCHECK(CalledOnValidThread());
 
-  if (read_callback_)
-    DoReadCallback(ERR_ABORTED);
-  if (write_callback_)
-    DoReadCallback(ERR_ABORTED);
-
   if (!is_connected())
     return;
+
+  // Zero out any pending read/write callback state.
+  read_buf_ = NULL;
+  read_buf_len_ = 0;
+  read_callback_ = NULL;
+  recv_from_address_ = NULL;
+  write_buf_ = NULL;
+  write_buf_len_ = 0;
+  write_callback_ = NULL;
+  send_to_address_.reset();
 
   bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
