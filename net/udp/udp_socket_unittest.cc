@@ -311,8 +311,7 @@ TEST_F(UDPSocketTest, CloseWithPendingRead) {
 
   server.Close();
 
-  EXPECT_TRUE(callback.have_result());
-  EXPECT_EQ(callback.GetResult(rv), ERR_ABORTED);
+  EXPECT_FALSE(callback.have_result());
 }
 
 }  // namespace
