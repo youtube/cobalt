@@ -12,35 +12,13 @@
 #include <string>
 
 #include "base/callback.h"
+#include "media/base/pipeline_status.h"
 
 namespace base {
 class TimeDelta;
 }
 
 namespace media {
-
-// Error definitions for pipeline.  All codes indicate an error except:
-// PIPELINE_OK indicates the pipeline is running normally.
-enum PipelineError {
-  PIPELINE_OK,
-  PIPELINE_ERROR_URL_NOT_FOUND,
-  PIPELINE_ERROR_NETWORK,
-  PIPELINE_ERROR_DECODE,
-  PIPELINE_ERROR_ABORT,
-  PIPELINE_ERROR_INITIALIZATION_FAILED,
-  PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
-  PIPELINE_ERROR_OUT_OF_MEMORY,
-  PIPELINE_ERROR_COULD_NOT_RENDER,
-  PIPELINE_ERROR_READ,
-  PIPELINE_ERROR_AUDIO_HARDWARE,
-  PIPELINE_ERROR_OPERATION_PENDING,
-  PIPELINE_ERROR_INVALID_STATE,
-  // Demuxer related errors.
-  DEMUXER_ERROR_COULD_NOT_OPEN,
-  DEMUXER_ERROR_COULD_NOT_PARSE,
-  DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
-  DEMUXER_ERROR_COULD_NOT_CREATE_THREAD,
-};
 
 struct PipelineStatistics {
   PipelineStatistics() :

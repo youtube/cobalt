@@ -246,6 +246,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // The following initialize methods are used to select a specific type of
   // Filter object from FilterCollection and initialize it asynchronously.
   void InitializeDataSource();
+  void OnDataSourceBuilt(PipelineError error, DataSource* data_source);
+
   void InitializeDemuxer(const scoped_refptr<DataSource>& data_source);
 
   // Returns true if the asynchronous action of creating decoder has started.
