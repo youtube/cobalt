@@ -160,7 +160,7 @@ TEST_F(RTLTest, WrapPathWithLTRFormatting) {
     base::i18n::WrapPathWithLTRFormatting(path, &localized_file_path_string);
 
     std::wstring wrapped_expected =
-        std::wstring(L"\x202a") + kTestData[i] + L"\x202c";
+        std::wstring(L"\x202a") + win_path + L"\x202c";
     std::wstring wrapped_actual = UTF16ToWide(localized_file_path_string);
     EXPECT_EQ(wrapped_expected, wrapped_actual);
   }
