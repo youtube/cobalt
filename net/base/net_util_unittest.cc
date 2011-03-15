@@ -513,7 +513,7 @@ TEST(NetUtilTest, FileURLConversion) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(round_trip_cases); i++) {
     // convert to the file URL
     GURL file_url(net::FilePathToFileURL(
-        FilePath::FromWStringHack(round_trip_cases[i].file)));
+                      file_util::WStringAsFilePath(round_trip_cases[i].file)));
     EXPECT_EQ(round_trip_cases[i].url, file_url.spec());
 
     // Back to the filename.
