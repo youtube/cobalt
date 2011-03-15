@@ -220,5 +220,8 @@ bool HasInternetZoneIdentifier(const FilePath& full_path) {
 std::wstring FilePathAsWString(const FilePath& path) {
   return path.value();
 }
+FilePath WStringAsFilePath(const std::wstring& path) {
+  return FilePath(path);
+}
 
 }  // namespace file_util
