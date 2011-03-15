@@ -123,6 +123,8 @@
         'base/net_error_list.h',
         'base/net_errors.cc',
         'base/net_errors.h',
+        'base/net_errors_posix.cc',
+        'base/net_errors_win.cc',
         'base/net_log.cc',
         'base/net_log.h',
         'base/net_log_event_type_list.h',

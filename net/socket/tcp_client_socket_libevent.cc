@@ -69,45 +69,6 @@ void SetTCPKeepAlive(int fd) {
 #endif
 }
 
-// Convert values from <errno.h> to values from "net/base/net_errors.h"
-int MapPosixError(int os_error) {
-  // There are numerous posix error codes, but these are the ones we thus far
-  // find interesting.
-  switch (os_error) {
-    case EAGAIN:
-#if EWOULDBLOCK != EAGAIN
-    case EWOULDBLOCK:
-#endif
-      return ERR_IO_PENDING;
-    case EACCES:
-      return ERR_ACCESS_DENIED;
-    case ENETDOWN:
-      return ERR_INTERNET_DISCONNECTED;
-    case ETIMEDOUT:
-      return ERR_TIMED_OUT;
-    case ECONNRESET:
-    case ENETRESET:  // Related to keep-alive
-    case EPIPE:
-      return ERR_CONNECTION_RESET;
-    case ECONNABORTED:
-      return ERR_CONNECTION_ABORTED;
-    case ECONNREFUSED:
-      return ERR_CONNECTION_REFUSED;
-    case EHOSTUNREACH:
-    case EHOSTDOWN:
-    case ENETUNREACH:
-      return ERR_ADDRESS_UNREACHABLE;
-    case EADDRNOTAVAIL:
-      return ERR_ADDRESS_INVALID;
-    case 0:
-      return OK;
-    default:
-      LOG(WARNING) << "Unknown error " << os_error
-                   << " mapped to net::ERR_FAILED";
-      return ERR_FAILED;
-  }
-}
-
 int MapConnectError(int os_error) {
   switch (os_error) {
     case EACCES:
@@ -115,7 +76,7 @@ int MapConnectError(int os_error) {
     case ETIMEDOUT:
       return ERR_CONNECTION_TIMED_OUT;
     default: {
-      int net_error = MapPosixError(os_error);
+      int net_error = MapSystemError(os_error);
       if (net_error == ERR_FAILED)
         return ERR_CONNECTION_FAILED;  // More specific than ERR_FAILED.
 
@@ -253,7 +214,7 @@ int TCPClientSocketLibevent::DoConnect() {
   // Create a non-blocking socket.
   connect_os_error_ = CreateSocket(current_ai_);
   if (connect_os_error_)
-    return MapPosixError(connect_os_error_);
+    return MapSystemError(connect_os_error_);
 
   // Connect the socket.
   if (!use_tcp_fastopen_) {
@@ -280,7 +241,7 @@ int TCPClientSocketLibevent::DoConnect() {
           &write_watcher_)) {
     connect_os_error_ = errno;
     DVLOG(1) << "WatchFileDescriptor failed: " << connect_os_error_;
-    return MapPosixError(connect_os_error_);
+    return MapSystemError(connect_os_error_);
   }
 
   return ERR_IO_PENDING;
@@ -395,14 +356,14 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK) {
     DVLOG(1) << "read failed, errno " << errno;
-    return MapPosixError(errno);
+    return MapSystemError(errno);
   }
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_READ,
           &read_socket_watcher_, &read_watcher_)) {
     DVLOG(1) << "WatchFileDescriptor failed on read, errno " << errno;
-    return MapPosixError(errno);
+    return MapSystemError(errno);
   }
 
   read_buf_ = buf;
@@ -433,13 +394,13 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
     return nwrite;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK)
-    return MapPosixError(errno);
+    return MapSystemError(errno);
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_WRITE,
           &write_socket_watcher_, &write_watcher_)) {
     DVLOG(1) << "WatchFileDescriptor failed on write, errno " << errno;
-    return MapPosixError(errno);
+    return MapSystemError(errno);
   }
 
   write_buf_ = buf;
@@ -610,7 +571,7 @@ void TCPClientSocketLibevent::DidCompleteRead() {
     LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_RECEIVED, result,
                     read_buf_->data());
   } else {
-    result = MapPosixError(errno);
+    result = MapSystemError(errno);
   }
 
   if (result != ERR_IO_PENDING) {
@@ -637,7 +598,7 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
     LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_SENT, result,
                     write_buf_->data());
   } else {
-    result = MapPosixError(errno);
+    result = MapSystemError(errno);
   }
 
   if (result != ERR_IO_PENDING) {

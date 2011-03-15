@@ -29,55 +29,6 @@
 
 namespace net {
 
-namespace {
-
-// Convert values from <errno.h> to values from "net/base/net_errors.h"
-int MapPosixError(int os_error) {
-  // There are numerous posix error codes, but these are the ones we thus far
-  // find interesting.
-  switch (os_error) {
-    case EAGAIN:
-#if EWOULDBLOCK != EAGAIN
-    case EWOULDBLOCK:
-#endif
-      return ERR_IO_PENDING;
-    case EACCES:
-      return ERR_ACCESS_DENIED;
-    case ENETDOWN:
-      return ERR_INTERNET_DISCONNECTED;
-    case ETIMEDOUT:
-      return ERR_TIMED_OUT;
-    case ECONNRESET:
-    case ENETRESET:  // Related to keep-alive
-    case EPIPE:
-      return ERR_CONNECTION_RESET;
-    case ECONNABORTED:
-      return ERR_CONNECTION_ABORTED;
-    case ECONNREFUSED:
-      return ERR_CONNECTION_REFUSED;
-    case EHOSTUNREACH:
-    case EHOSTDOWN:
-    case ENETUNREACH:
-      return ERR_ADDRESS_UNREACHABLE;
-    case EADDRNOTAVAIL:
-      return ERR_ADDRESS_INVALID;
-    case EMSGSIZE:
-      return ERR_MSG_TOO_BIG;
-    case ENOTCONN:
-      return ERR_SOCKET_NOT_CONNECTED;
-    case 0:
-      return OK;
-    default:
-      LOG(WARNING) << "Unknown error " << os_error
-                   << " mapped to net::ERR_FAILED";
-      return ERR_FAILED;
-  }
-}
-
-}  // namespace
-
-//-----------------------------------------------------------------------------
-
 UDPSocketLibevent::UDPSocketLibevent(net::NetLog* net_log,
                                      const net::NetLog::Source& source)
     : socket_(kInvalidSocket),
@@ -138,7 +89,7 @@ int UDPSocketLibevent::GetPeerAddress(IPEndPoint* address) const {
     socklen_t addr_len = sizeof(addr_storage);
     struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
     if (getpeername(socket_, addr, &addr_len))
-      return MapPosixError(errno);
+      return MapSystemError(errno);
     scoped_ptr<IPEndPoint> address(new IPEndPoint());
     if (!address->FromSockAddr(addr, addr_len))
       return ERR_FAILED;
@@ -160,7 +111,7 @@ int UDPSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
     socklen_t addr_len = sizeof(addr_storage);
     struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
     if (getsockname(socket_, addr, &addr_len))
-      return MapPosixError(errno);
+      return MapSystemError(errno);
     scoped_ptr<IPEndPoint> address(new IPEndPoint());
     if (!address->FromSockAddr(addr, addr_len))
       return ERR_FAILED;
@@ -188,7 +139,7 @@ int UDPSocketLibevent::Read(IOBuffer* buf,
           socket_, true, MessageLoopForIO::WATCH_READ,
           &read_socket_watcher_, &read_watcher_)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on read";
-    return MapPosixError(errno);
+    return MapSystemError(errno);
   }
 
   read_buf_ = buf;
@@ -230,13 +181,13 @@ int UDPSocketLibevent::Write(IOBuffer* buf,
     return nwrite;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK)
-    return MapPosixError(errno);
+    return MapSystemError(errno);
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_WRITE,
           &write_socket_watcher_, &write_watcher_)) {
     DVLOG(1) << "WatchFileDescriptor failed on write, errno " << errno;
-    return MapPosixError(errno);
+    return MapSystemError(errno);
   }
 
   write_buf_ = buf;
@@ -260,7 +211,7 @@ int UDPSocketLibevent::Connect(const IPEndPoint& address) {
 
   rv = HANDLE_EINTR(connect(socket_, addr, addr_len));
   if (rv < 0)
-    return MapPosixError(errno);
+    return MapSystemError(errno);
 
   remote_address_.reset(new IPEndPoint(address));
   return rv;
@@ -281,7 +232,7 @@ int UDPSocketLibevent::Bind(const IPEndPoint& address) {
 
   rv = bind(socket_, addr, addr_len);
   if (rv < 0)
-    return MapPosixError(errno);
+    return MapSystemError(errno);
 
   local_address_.reset(new IPEndPoint(address));
   return rv;
@@ -323,9 +274,9 @@ void UDPSocketLibevent::DidCompleteRead() {
 int UDPSocketLibevent::CreateSocket(const IPEndPoint& address) {
   socket_ = socket(address.GetFamily(), SOCK_DGRAM, 0);
   if (socket_ == kInvalidSocket)
-    return MapPosixError(errno);
+    return MapSystemError(errno);
   if (SetNonBlocking(socket_)) {
-    const int err = MapPosixError(errno);
+    const int err = MapSystemError(errno);
     Close();
     return err;
   }
@@ -338,7 +289,7 @@ void UDPSocketLibevent::DidCompleteWrite() {
     static base::StatsCounter write_bytes("udp.write_bytes");
     write_bytes.Add(result);
   } else {
-    result = MapPosixError(errno);
+    result = MapSystemError(errno);
   }
 
   if (result != ERR_IO_PENDING) {
@@ -374,7 +325,7 @@ int UDPSocketLibevent::InternalRead(IOBuffer* buf, int buf_len) {
         result = ERR_FAILED;
     }
   } else {
-    result = MapPosixError(errno);
+    result = MapSystemError(errno);
   }
   return result;
 }
