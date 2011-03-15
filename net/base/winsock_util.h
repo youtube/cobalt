@@ -23,9 +23,6 @@ void AssertEventNotSignaled(WSAEVENT hEvent);
 // optimization.  The code still works if this function simply returns false.
 bool ResetEventIfSignaled(WSAEVENT hEvent);
 
-// Map winsock error to Chromium error.
-int MapWinsockError(int os_error);
-
 }  // namespace net
 
 #endif  // NET_BASE_WINSOCK_UTIL_H_
