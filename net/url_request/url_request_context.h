@@ -44,6 +44,9 @@ class URLRequestContext
  public:
   URLRequestContext();
 
+  // Copies the state from |other| into this context.
+  void CopyFrom(URLRequestContext* other);
+
   NetLog* net_log() const {
     return net_log_;
   }
@@ -183,6 +186,11 @@ class URLRequestContext
   virtual ~URLRequestContext();
 
  private:
+  // ---------------------------------------------------------------------------
+  // Important: When adding any new members below, consider whether they need to
+  // be added to CopyFrom.
+  // ---------------------------------------------------------------------------
+
   // Indicates whether or not this is the main URLRequestContext.
   bool is_main_;
 
@@ -210,6 +218,11 @@ class URLRequestContext
 
   HttpTransactionFactory* http_transaction_factory_;
   FtpTransactionFactory* ftp_transaction_factory_;
+
+  // ---------------------------------------------------------------------------
+  // Important: When adding any new members below, consider whether they need to
+  // be added to CopyFrom.
+  // ---------------------------------------------------------------------------
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };
