@@ -47,6 +47,7 @@ bool HasInternetZoneIdentifier(const FilePath& full_path);
 // string16 elsewhere for Unicode strings, but in tests it is frequently
 // convenient to be able to compare paths to literals like L"foobar".
 std::wstring FilePathAsWString(const FilePath& path);
+FilePath WStringAsFilePath(const std::wstring& path);
 
 }  // namespace file_util
 
