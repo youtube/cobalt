@@ -37,7 +37,7 @@ FilePath UTF8ToFilePath(const std::string& str) {
 }  // namespace
 
 StringValue* CreateFilePathValue(const FilePath& in_value) {
-  return new StringValue(internal::FilePathToUTF8(in_value));
+  return new StringValue(FilePathToUTF8(in_value));
 }
 
 bool GetValueAsFilePath(const Value& value, FilePath* file_path) {
@@ -45,7 +45,7 @@ bool GetValueAsFilePath(const Value& value, FilePath* file_path) {
   if (!value.GetAsString(&str))
     return false;
   if (file_path)
-    *file_path = internal::UTF8ToFilePath(str);
+    *file_path = UTF8ToFilePath(str);
   return true;
 }
 
