@@ -33,7 +33,6 @@
 
 class BinaryValue;
 class DictionaryValue;
-class FilePath;
 class FundamentalValue;
 class ListValue;
 class StringValue;
@@ -69,7 +68,6 @@ class Value {
   static FundamentalValue* CreateDoubleValue(double in_value);
   static StringValue* CreateStringValue(const std::string& in_value);
   static StringValue* CreateStringValue(const string16& in_value);
-  static StringValue* CreateFilePathValue(const FilePath& in_value);
 
   // This one can return NULL if the input isn't valid.  If the return value
   // is non-null, the new object has taken ownership of the buffer pointer.
@@ -94,7 +92,6 @@ class Value {
   virtual bool GetAsDouble(double* out_value) const;
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(string16* out_value) const;
-  virtual bool GetAsFilePath(FilePath* out_value) const;
   virtual bool GetAsList(ListValue** out_value);
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
@@ -162,7 +159,6 @@ class StringValue : public Value {
   // Subclassed methods
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(string16* out_value) const;
-  virtual bool GetAsFilePath(FilePath* out_value) const;
   virtual StringValue* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
