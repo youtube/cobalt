@@ -86,7 +86,7 @@ int UDPSocketWin::GetPeerAddress(IPEndPoint* address) const {
     int addr_len = sizeof(addr_storage);
     struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
     if (getpeername(socket_, addr, &addr_len))
-      return MapWinsockError(WSAGetLastError());
+      return MapSystemError(WSAGetLastError());
     scoped_ptr<IPEndPoint> address(new IPEndPoint());
     if (!address->FromSockAddr(addr, addr_len))
       return ERR_FAILED;
@@ -108,7 +108,7 @@ int UDPSocketWin::GetLocalAddress(IPEndPoint* address) const {
     socklen_t addr_len = sizeof(addr_storage);
     struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
     if (getsockname(socket_, addr, &addr_len))
-      return MapWinsockError(WSAGetLastError());
+      return MapSystemError(WSAGetLastError());
     scoped_ptr<IPEndPoint> address(new IPEndPoint());
     if (!address->FromSockAddr(addr, addr_len))
       return ERR_FAILED;
@@ -187,7 +187,7 @@ int UDPSocketWin::Connect(const IPEndPoint& address) {
 
   rv = connect(socket_, addr, addr_len);
   if (rv < 0)
-    return MapWinsockError(WSAGetLastError());
+    return MapSystemError(WSAGetLastError());
 
   remote_address_.reset(new IPEndPoint(address));
   return rv;
@@ -208,7 +208,7 @@ int UDPSocketWin::Bind(const IPEndPoint& address) {
 
   rv = bind(socket_, addr, addr_len);
   if (rv < 0)
-    return MapWinsockError(WSAGetLastError());
+    return MapSystemError(WSAGetLastError());
 
   local_address_.reset(new IPEndPoint(address));
   return rv;
@@ -218,7 +218,7 @@ int UDPSocketWin::CreateSocket(const IPEndPoint& address) {
   socket_ = WSASocket(address.GetFamily(), SOCK_DGRAM, IPPROTO_UDP, NULL, 0,
                       WSA_FLAG_OVERLAPPED);
   if (socket_ == INVALID_SOCKET)
-    return MapWinsockError(WSAGetLastError());
+    return MapSystemError(WSAGetLastError());
   return OK;
 }
 
@@ -249,7 +249,7 @@ void UDPSocketWin::DidCompleteRead() {
   BOOL ok = WSAGetOverlappedResult(socket_, &read_overlapped_,
                                    &num_bytes, FALSE, &flags);
   WSAResetEvent(read_overlapped_.hEvent);
-  int result = ok ? num_bytes : MapWinsockError(WSAGetLastError());
+  int result = ok ? num_bytes : MapSystemError(WSAGetLastError());
   if (ok) {
     if (!ProcessSuccessfulRead(num_bytes))
       result = ERR_FAILED;
@@ -278,7 +278,7 @@ void UDPSocketWin::DidCompleteWrite() {
   BOOL ok = WSAGetOverlappedResult(socket_, &write_overlapped_,
                                    &num_bytes, FALSE, &flags);
   WSAResetEvent(write_overlapped_.hEvent);
-  int result = ok ? num_bytes : MapWinsockError(WSAGetLastError());
+  int result = ok ? num_bytes : MapSystemError(WSAGetLastError());
   if (ok)
     ProcessSuccessfulWrite(num_bytes);
   write_iobuffer_ = NULL;
@@ -320,7 +320,7 @@ int UDPSocketWin::InternalRead(IOBuffer* buf, int buf_len) {
   } else {
     int os_error = WSAGetLastError();
     if (os_error != WSA_IO_PENDING)
-      return MapWinsockError(os_error);
+      return MapSystemError(os_error);
   }
   read_watcher_.StartWatching(read_overlapped_.hEvent, &read_delegate_);
   return ERR_IO_PENDING;
@@ -357,7 +357,7 @@ int UDPSocketWin::InternalWrite(IOBuffer* buf, int buf_len) {
   } else {
     int os_error = WSAGetLastError();
     if (os_error != WSA_IO_PENDING)
-      return MapWinsockError(os_error);
+      return MapSystemError(os_error);
   }
 
   write_watcher_.StartWatching(write_overlapped_.hEvent, &write_delegate_);

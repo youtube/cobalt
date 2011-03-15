@@ -37,7 +37,7 @@ int MapConnectError(int os_error) {
     case WSAETIMEDOUT:
       return ERR_CONNECTION_TIMED_OUT;
     default: {
-      int net_error = MapWinsockError(os_error);
+      int net_error = MapSystemError(os_error);
       if (net_error == ERR_FAILED)
         return ERR_CONNECTION_FAILED;  // More specific than ERR_FAILED.
 
@@ -316,7 +316,7 @@ int TCPClientSocketWin::DoConnect() {
 
   connect_os_error_ = CreateSocket(ai);
   if (connect_os_error_ != 0)
-    return MapWinsockError(connect_os_error_);
+    return MapSystemError(connect_os_error_);
 
   DCHECK(!core_);
   core_ = new Core(this);
@@ -526,7 +526,7 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
   } else {
     int os_error = WSAGetLastError();
     if (os_error != WSA_IO_PENDING)
-      return MapWinsockError(os_error);
+      return MapSystemError(os_error);
   }
   core_->WatchForRead();
   waiting_read_ = true;
@@ -578,7 +578,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   } else {
     int os_error = WSAGetLastError();
     if (os_error != WSA_IO_PENDING)
-      return MapWinsockError(os_error);
+      return MapSystemError(os_error);
   }
   core_->WatchForWrite();
   waiting_write_ = true;
@@ -743,7 +743,7 @@ void TCPClientSocketWin::DidCompleteConnect() {
   if (rv == SOCKET_ERROR) {
     NOTREACHED();
     os_error = WSAGetLastError();
-    result = MapWinsockError(os_error);
+    result = MapSystemError(os_error);
   } else if (events.lNetworkEvents & FD_CONNECT) {
     os_error = events.iErrorCode[FD_CONNECT_BIT];
     result = MapConnectError(os_error);
@@ -776,7 +776,7 @@ void TCPClientSocketWin::DidCompleteRead() {
     LogByteTransfer(net_log_, NetLog::TYPE_SOCKET_BYTES_RECEIVED, num_bytes,
                     core_->read_buffer_.buf);
   }
-  DoReadCallback(ok ? num_bytes : MapWinsockError(WSAGetLastError()));
+  DoReadCallback(ok ? num_bytes : MapSystemError(WSAGetLastError()));
 }
 
 void TCPClientSocketWin::DidCompleteWrite() {
@@ -789,7 +789,7 @@ void TCPClientSocketWin::DidCompleteWrite() {
   waiting_write_ = false;
   int rv;
   if (!ok) {
-    rv = MapWinsockError(WSAGetLastError());
+    rv = MapSystemError(WSAGetLastError());
   } else {
     rv = static_cast<int>(num_bytes);
     if (rv > core_->write_buffer_length_ || rv < 0) {
