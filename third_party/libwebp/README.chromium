@@ -3,11 +3,10 @@ URL: http://code.google.com/speed/webp
 
 Here is a copy of libwebp-decode, from the repository:
   git://review.webmproject.org/libwebp.git
-This code was pulled from MASTER on Dec 20th 2010, with the most recent
-Change-Id: I943a335b92b5ee6c2980c2ba9d4092f0b79f9a6b, "handle corner case of
-zero-dimensions".
-
+This code was pulled from MASTER on March 13th 2011, with the most recent
+Change-Id: I68194cb510760dd82a2ae83359154bf622502991 "fix bigger-by-1 array"
 
 The project files do not include from the distribution:
   examples/
 
+Changed the include path from webp/ to ../webp/
