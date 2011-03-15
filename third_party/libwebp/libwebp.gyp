@@ -44,7 +44,7 @@
         },
         {
           'target_name': 'libwebp',
-          'type': '<(library)',
+          'type': 'none',
           'dependencies' : [
             'libwebp_enc',
             'libwebp_dec',
