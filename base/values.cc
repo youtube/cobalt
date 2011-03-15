@@ -4,10 +4,8 @@
 
 #include "base/values.h"
 
-#include "base/file_path.h"
 #include "base/logging.h"
 #include "base/string_util.h"
-#include "base/sys_string_conversions.h"
 #include "base/utf_string_conversions.h"
 
 namespace {
@@ -97,19 +95,6 @@ StringValue* Value::CreateStringValue(const string16& in_value) {
 }
 
 // static
-StringValue* Value::CreateFilePathValue(const FilePath& in_value) {
-#if defined(OS_POSIX)
-  // Value::SetString only knows about UTF8 strings, so convert the path from
-  // the system native value to UTF8.
-  std::string path_utf8 = WideToUTF8(base::SysNativeMBToWide(in_value.value()));
-  return new StringValue(path_utf8);
-#else
-  return new StringValue(in_value.value());
-#endif
-
-}
-
-// static
 BinaryValue* Value::CreateBinaryValue(char* buffer, size_t size) {
   return BinaryValue::Create(buffer, size);
 }
@@ -131,10 +116,6 @@ bool Value::GetAsString(std::string* out_value) const {
 }
 
 bool Value::GetAsString(string16* out_value) const {
-  return false;
-}
-
-bool Value::GetAsFilePath(FilePath* out_value) const {
   return false;
 }
 
@@ -266,20 +247,6 @@ bool StringValue::GetAsString(std::string* out_value) const {
 bool StringValue::GetAsString(string16* out_value) const {
   if (out_value)
     *out_value = UTF8ToUTF16(value_);
-  return true;
-}
-
-bool StringValue::GetAsFilePath(FilePath* out_value) const {
-  if (out_value) {
-    FilePath::StringType result;
-#if defined(OS_POSIX)
-    // We store filepaths as UTF8, so convert it back to the system type.
-    result = base::SysWideToNativeMB(UTF8ToWide(value_));
-#elif defined(OS_WIN)
-    result = UTF8ToUTF16(value_);
-#endif
-    *out_value = FilePath(result);
-  }
   return true;
 }
 
