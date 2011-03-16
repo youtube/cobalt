@@ -781,7 +781,7 @@ class FlexibleCallbackRunner : public base::DelegateSimpleThread::Delegate {
  private:
   int delayInMs_;
   PipelineStatus status_;
-  PipelineStatusCallback* callback_;
+  scoped_ptr<PipelineStatusCallback> callback_;
 };
 
 void TestPipelineStatusNotification(int delayInMs) {
