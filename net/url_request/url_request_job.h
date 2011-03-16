@@ -25,7 +25,6 @@ class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
 class URLRequest;
-class URLRequestJobMetrics;
 class UploadData;
 class URLRequestStatus;
 class X509Certificate;
@@ -318,12 +317,6 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
 
   // Cache the load flags from request_ because it might go away.
   int load_flags_;
-
-  // Whether the job is doing performance profiling
-  bool is_profiling_;
-
-  // Contains IO performance measurement when profiling is enabled.
-  scoped_ptr<URLRequestJobMetrics> metrics_;
 
   // The number of bytes read before passing to the filter.
   int prefilter_bytes_read_;
