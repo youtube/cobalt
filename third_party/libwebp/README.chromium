@@ -1,6 +1,10 @@
 Name: libwebpdecode
+Short Name: libwebp
 URL: http://code.google.com/speed/webp
+Version: unknown
+Revision: I943a335b92b5ee6c2980c2ba9d4092f0b79f9a6b
 
+Description:
 Here is a copy of libwebp-decode, from the repository:
   git://review.webmproject.org/libwebp.git
 This code was pulled from MASTER on March 13th 2011, with the most recent

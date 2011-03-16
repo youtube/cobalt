@@ -1,6 +1,8 @@
-Name: protobuf
+Name: Protocol Buffers
+Short Name: protobuf
 URL: http://protobuf.googlecode.com/svn/trunk
 License File: COPYING.txt
+Version: unknown
 Revision: r346
 
 Local files (not taken from upstream):

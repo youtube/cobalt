@@ -1,7 +1,9 @@
 Name: libxml
 URL: http://xmlsoft.org
+Version: 2.7.7
 License File: src/COPYING
 
+Description:
 The src/ directory contains a partial snapshot of the libxml library
 with the patches in the patches/ directories applied.
 See the files in that directory for discussion of their effects.
