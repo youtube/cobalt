@@ -124,14 +124,22 @@ class UDPSocketWin : public base::NonThreadSafe {
   void DoWriteCallback(int rv);
   void DidCompleteRead();
   void DidCompleteWrite();
-  bool ProcessSuccessfulRead(int num_bytes);
+  bool ProcessSuccessfulRead(int num_bytes, IPEndPoint* address);
   void ProcessSuccessfulWrite(int num_bytes);
 
   // Returns the OS error code (or 0 on success).
   int CreateSocket(const IPEndPoint& address);
 
-  int InternalRead(IOBuffer* buf, int buf_len);
-  int InternalWrite(IOBuffer* buf, int buf_len);
+  // Same as SendTo(), except that address is passed by pointer
+  // instead of by reference. It is called from Write() with |address|
+  // set to NULL.
+  int SendToOrWrite(IOBuffer* buf,
+                    int buf_len,
+                    const IPEndPoint* address,
+                    CompletionCallback* callback);
+
+  int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
+  int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
   SOCKET socket_;
 
@@ -160,7 +168,6 @@ class UDPSocketWin : public base::NonThreadSafe {
 
   // The buffer used by InternalWrite() to retry Write requests
   scoped_refptr<IOBuffer> write_iobuffer_;
-  scoped_ptr<IPEndPoint> send_to_address_;
 
   // External callback; called when read is complete.
   CompletionCallback* read_callback_;

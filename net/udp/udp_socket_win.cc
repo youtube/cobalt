@@ -66,7 +66,6 @@ void UDPSocketWin::Close() {
   read_callback_ = NULL;
   recv_from_address_ = NULL;
   write_callback_ = NULL;
-  send_to_address_.reset();
 
   read_watcher_.StopWatching();
   write_watcher_.StopWatching();
@@ -119,51 +118,57 @@ int UDPSocketWin::GetLocalAddress(IPEndPoint* address) const {
   return OK;
 }
 
+int UDPSocketWin::Read(IOBuffer* buf,
+                       int buf_len,
+                       CompletionCallback* callback) {
+  return RecvFrom(buf, buf_len, NULL, callback);
+}
+
 int UDPSocketWin::RecvFrom(IOBuffer* buf,
                            int buf_len,
                            IPEndPoint* address,
                            CompletionCallback* callback) {
-  DCHECK(!recv_from_address_);
-  recv_from_address_ = address;
-  return Read(buf, buf_len, callback);
-}
-
-int UDPSocketWin::Read(IOBuffer* buf,
-                       int buf_len,
-                       CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(INVALID_SOCKET, socket_);
   DCHECK(!read_callback_);
+  DCHECK(!recv_from_address_);
   DCHECK(callback);  // Synchronous operation not supported.
   DCHECK_GT(buf_len, 0);
 
-  int nread = InternalRead(buf, buf_len);
+  int nread = InternalRecvFrom(buf, buf_len, address);
   if (nread != ERR_IO_PENDING)
     return nread;
 
   read_iobuffer_ = buf;
   read_callback_ = callback;
+  recv_from_address_ = address;
   return ERR_IO_PENDING;
+}
+
+int UDPSocketWin::Write(IOBuffer* buf,
+                        int buf_len,
+                        CompletionCallback* callback) {
+  return SendToOrWrite(buf, buf_len, NULL, callback);
 }
 
 int UDPSocketWin::SendTo(IOBuffer* buf,
                          int buf_len,
                          const IPEndPoint& address,
                          CompletionCallback* callback) {
-  send_to_address_.reset(new IPEndPoint(address));
-  return Write(buf, buf_len, callback);
+  return SendToOrWrite(buf, buf_len, &address, callback);
 }
 
-int UDPSocketWin::Write(IOBuffer* buf,
-                        int buf_len,
-                        CompletionCallback* callback) {
+int UDPSocketWin::SendToOrWrite(IOBuffer* buf,
+                                int buf_len,
+                                const IPEndPoint* address,
+                                CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(INVALID_SOCKET, socket_);
   DCHECK(!write_callback_);
   DCHECK(callback);  // Synchronous operation not supported.
   DCHECK_GT(buf_len, 0);
 
-  int nwrite = InternalWrite(buf, buf_len);
+  int nwrite = InternalSendTo(buf, buf_len, address);
   if (nwrite != ERR_IO_PENDING)
     return nwrite;
 
@@ -229,7 +234,6 @@ void UDPSocketWin::DoReadCallback(int rv) {
   // since Run may result in Read being called, clear read_callback_ up front.
   CompletionCallback* c = read_callback_;
   read_callback_ = NULL;
-  recv_from_address_ = NULL;
   c->Run(rv);
 }
 
@@ -240,7 +244,6 @@ void UDPSocketWin::DoWriteCallback(int rv) {
   // since Run may result in Write being called, clear write_callback_ up front.
   CompletionCallback* c = write_callback_;
   write_callback_ = NULL;
-  send_to_address_.reset();
   c->Run(rv);
 }
 
@@ -251,22 +254,23 @@ void UDPSocketWin::DidCompleteRead() {
   WSAResetEvent(read_overlapped_.hEvent);
   int result = ok ? num_bytes : MapSystemError(WSAGetLastError());
   if (ok) {
-    if (!ProcessSuccessfulRead(num_bytes))
+    if (!ProcessSuccessfulRead(num_bytes, recv_from_address_))
       result = ERR_FAILED;
   }
   read_iobuffer_ = NULL;
+  recv_from_address_ = NULL;
   DoReadCallback(result);
 }
 
-bool UDPSocketWin::ProcessSuccessfulRead(int num_bytes) {
+bool UDPSocketWin::ProcessSuccessfulRead(int num_bytes, IPEndPoint* address) {
   static base::StatsCounter read_bytes("udp.read_bytes");
   read_bytes.Add(num_bytes);
 
   // Convert address.
-  if (recv_from_address_) {
+  if (address) {
     struct sockaddr* addr =
         reinterpret_cast<struct sockaddr*>(&recv_addr_storage_);
-    if (!recv_from_address_->FromSockAddr(addr, recv_addr_len_))
+    if (!address->FromSockAddr(addr, recv_addr_len_))
       return false;
   }
 
@@ -290,7 +294,8 @@ void UDPSocketWin::ProcessSuccessfulWrite(int num_bytes) {
   write_bytes.Add(num_bytes);
 }
 
-int UDPSocketWin::InternalRead(IOBuffer* buf, int buf_len) {
+int UDPSocketWin::InternalRecvFrom(IOBuffer* buf, int buf_len,
+                                   IPEndPoint* address) {
   recv_addr_len_ = sizeof(recv_addr_storage_);
   struct sockaddr* addr =
       reinterpret_cast<struct sockaddr*>(&recv_addr_storage_);
@@ -313,7 +318,7 @@ int UDPSocketWin::InternalRead(IOBuffer* buf, int buf_len) {
       // false error reports.
       // See bug 5297.
       base::MemoryDebug::MarkAsInitialized(read_buffer.buf, num);
-      if (!ProcessSuccessfulRead(num))
+      if (!ProcessSuccessfulRead(num, address))
         return ERR_FAILED;
       return static_cast<int>(num);
     }
@@ -326,17 +331,18 @@ int UDPSocketWin::InternalRead(IOBuffer* buf, int buf_len) {
   return ERR_IO_PENDING;
 }
 
-int UDPSocketWin::InternalWrite(IOBuffer* buf, int buf_len) {
+int UDPSocketWin::InternalSendTo(IOBuffer* buf, int buf_len,
+                                 const IPEndPoint* address) {
   struct sockaddr_storage addr_storage;
   size_t addr_len = sizeof(addr_storage);
   struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
 
   // Convert address.
-  if (!send_to_address_.get()) {
+  if (!address) {
     addr = NULL;
     addr_len = 0;
   } else {
-    if (!send_to_address_->ToSockAddr(addr, &addr_len))
+    if (!address->ToSockAddr(addr, &addr_len))
       return ERR_FAILED;
   }
 
