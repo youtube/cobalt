@@ -82,7 +82,6 @@ void ChromeClassTester::BuildBannedLists() {
   banned_directories_.push_back("breakpad");
   banned_directories_.push_back("courgette");
   banned_directories_.push_back("ppapi");
-  banned_directories_.push_back("/usr");
   banned_directories_.push_back("testing");
   banned_directories_.push_back("googleurl");
   banned_directories_.push_back("v8");
@@ -96,6 +95,10 @@ void ChromeClassTester::BuildBannedLists() {
   // You are standing in a mazy of twisty dependencies, all resolved by
   // putting everything in the header.
   banned_directories_.push_back("chrome/test/automation");
+
+  // Don't check system headers.
+  banned_directories_.push_back("/usr");
+  banned_directories_.push_back("/Developer");
 
   // Used in really low level threading code that probably shouldn't be out of
   // lined.
