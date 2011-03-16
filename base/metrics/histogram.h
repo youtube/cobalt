@@ -65,7 +65,7 @@ class Lock;
     name, sample, 1, 10000, 50)
 
 #define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::Histogram::FactoryGet(name, min, max, bucket_count, \
                                     base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
@@ -78,7 +78,7 @@ class Lock;
 // For folks that need real specific times, use this to select a precise range
 // of times you want plotted, and the number of buckets you want used.
 #define HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
                                         base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
@@ -87,7 +87,7 @@ class Lock;
 
 // DO NOT USE THIS.  It is being phased out, in favor of HISTOGRAM_CUSTOM_TIMES.
 #define HISTOGRAM_CLIPPED_TIMES(name, sample, min, max, bucket_count) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
                                         base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
@@ -98,7 +98,7 @@ class Lock;
 // less than boundary_value.
 
 #define HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
                                           boundary_value + 1, \
                                           base::Histogram::kNoFlags); \
@@ -107,7 +107,7 @@ class Lock;
   } while (0)
 
 #define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::CustomHistogram::FactoryGet(name, custom_ranges, \
                                           base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
@@ -171,7 +171,7 @@ class Lock;
     base::TimeDelta::FromHours(1), 50)
 
 #define UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
             base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
@@ -180,7 +180,7 @@ class Lock;
 
 // DO NOT USE THIS.  It is being phased out, in favor of HISTOGRAM_CUSTOM_TIMES.
 #define UMA_HISTOGRAM_CLIPPED_TIMES(name, sample, min, max, bucket_count) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
             base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
@@ -197,7 +197,7 @@ class Lock;
     name, sample, 1, 10000, 50)
 
 #define UMA_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
        base::Histogram::FactoryGet(name, min, max, bucket_count, \
            base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
@@ -214,7 +214,7 @@ class Lock;
     UMA_HISTOGRAM_ENUMERATION(name, under_one_hundred, 101)
 
 #define UMA_HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
             boundary_value + 1, base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
@@ -222,7 +222,7 @@ class Lock;
   } while (0)
 
 #define UMA_HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) do { \
-    static scoped_refptr<base::Histogram> counter = \
+    scoped_refptr<base::Histogram> counter = \
         base::CustomHistogram::FactoryGet(name, custom_ranges, \
             base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
