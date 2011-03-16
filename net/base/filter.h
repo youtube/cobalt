@@ -195,7 +195,7 @@ class Filter {
   friend class GZipUnitTest;
   friend class SdchFilterChainingTest;
 
-  explicit Filter(const FilterContext& filter_context);
+  Filter();
 
   // Filters the data stored in stream_buffer_ and writes the output into the
   // dest_buffer passed in.
@@ -214,8 +214,6 @@ class Filter {
   FilterStatus CopyOut(char* dest_buffer, int* dest_len);
 
   FilterStatus last_status() const { return last_status_; }
-
-  const FilterContext& filter_context() const { return filter_context_; }
 
   // Buffer to hold the data to be filtered (the input queue).
   scoped_refptr<net::IOBuffer> stream_buffer_;
@@ -257,11 +255,6 @@ class Filter {
   // Remember what status or local filter last returned so we can better handle
   // chained filters.
   FilterStatus last_status_;
-
-  // Context data from the owner of this filter.  Some filters need additional
-  // context information (mime type, etc.) to properly function, and they access
-  // this data via this reference member.
-  const FilterContext& filter_context_;
 
   DISALLOW_COPY_AND_ASSIGN(Filter);
 };

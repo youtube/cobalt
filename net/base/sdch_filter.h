@@ -64,6 +64,9 @@ class SdchFilter : public Filter {
   // specified dest_buffer.
   int OutputBufferExcess(char* const dest_buffer, size_t available_space);
 
+  // Context data from the owner of this filter.
+  const FilterContext& filter_context_;
+
   // Tracks the status of decoding.
   // This variable is initialized by InitDecoding and updated only by
   // ReadFilteredData.
