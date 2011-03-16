@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,11 +28,13 @@ namespace net {
 
 URLRequestJob::URLRequestJob(URLRequest* request)
     : request_(request),
+      done_(false),
+      load_flags_(request_->load_flags()),
+      is_profiling_(request_->enable_profiling()),
       prefilter_bytes_read_(0),
       postfilter_bytes_read_(0),
       is_compressible_content_(false),
       is_compressed_(false),
-      done_(false),
       filter_needs_more_output_space_(false),
       filtered_read_buffer_len_(0),
       has_handled_response_(false),
@@ -43,9 +45,7 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       bytes_observed_in_packets_(0),
       max_packets_timed_(0),
       observed_packet_count_(0) {
-  load_flags_ = request_->load_flags();
-  is_profiling_ = request->enable_profiling();
-  if (is_profiling()) {
+  if (is_profiling_) {
     metrics_.reset(new URLRequestJobMetrics());
     metrics_->start_time_ = TimeTicks::Now();
   }
@@ -213,13 +213,6 @@ void URLRequestJob::FollowDeferredRedirect() {
   deferred_redirect_status_code_ = -1;
 
   FollowRedirect(redirect_url, redirect_status_code);
-}
-
-URLRequestJobMetrics* URLRequestJob::RetrieveMetrics() {
-  if (is_profiling())
-    return metrics_.release();
-  else
-    return NULL;
 }
 
 bool URLRequestJob::GetMimeType(std::string* mime_type) const {
@@ -562,7 +555,7 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
 
   RecordCompressionHistograms();
 
-  if (is_profiling() && metrics_->total_bytes_read_ > 0) {
+  if (is_profiling_ && metrics_->total_bytes_read_ > 0) {
     // There are valid IO statistics. Fill in other fields of metrics for
     // profiling consumers to retrieve information.
     metrics_->original_url_.reset(new GURL(request_->original_url()));
@@ -830,7 +823,7 @@ void URLRequestJob::OnRawReadComplete(int bytes_read) {
 }
 
 void URLRequestJob::RecordBytesRead(int bytes_read) {
-  if (is_profiling()) {
+  if (is_profiling_) {
     ++(metrics_->number_of_read_IO_);
     metrics_->total_bytes_read_ += bytes_read;
   }
