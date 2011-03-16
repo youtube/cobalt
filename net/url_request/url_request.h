@@ -536,12 +536,6 @@ class URLRequest : public base::NonThreadSafe {
   // cancel the request instead, call Cancel().
   void ContinueDespiteLastError();
 
-  // Returns true if performance profiling should be enabled on the
-  // URLRequestJob serving this request.
-  bool enable_profiling() const { return enable_profiling_; }
-
-  void set_enable_profiling(bool profiling) { enable_profiling_ = profiling; }
-
   // Used to specify the context (cookie store, cache) for this request.
   URLRequestContext* context();
   void set_context(URLRequestContext* context);
@@ -648,9 +642,6 @@ class URLRequest : public base::NonThreadSafe {
 
   // Externally-defined data accessible by key
   UserDataMap user_data_;
-
-  // Whether to enable performance profiling on the job serving this request.
-  bool enable_profiling_;
 
   // Number of times we're willing to redirect.  Used to guard against
   // infinite redirects.
