@@ -25,6 +25,7 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   // ASTConsumer:
   virtual void HandleTagDeclDefinition(clang::TagDecl* tag);
+  virtual void HandleTranslationUnit(clang::ASTContext& ctx);
 
  protected:
   clang::CompilerInstance& instance() { return instance_; }
@@ -40,10 +41,17 @@ class ChromeClassTester : public clang::ASTConsumer {
   bool InTestingNamespace(clang::Decl* record);
 
  private:
-  // Template method which is called with only classes that are defined in
+  // Filtered versions of tags that are only called with things defined in
   // chrome header files.
   virtual void CheckChromeClass(const clang::SourceLocation& record_location,
                                 clang::CXXRecordDecl* record) = 0;
+  virtual void CheckChromeUsingDirective(
+      const clang::SourceLocation& record_location,
+      clang::UsingDirectiveDecl* record) = 0;
+
+  // The ChromeClassTester receives each top level declaration, looking for
+  // Decls we are interested in.
+  void RecursivelyCheckTopLevels(clang::Decl* d);
 
   // Utility methods used for filtering out non-chrome classes (and ones we
   // delibrately ignore) in HandleTagDeclDefinition().
@@ -51,7 +59,7 @@ class ChromeClassTester : public clang::ASTConsumer {
   std::string GetNamespace(clang::Decl* record);
   std::string GetNamespaceImpl(const clang::DeclContext* context,
                                std::string candidate);
-  bool InBannedDirectory(const clang::SourceLocation& loc);
+  bool InBannedDirectory(clang::SourceLocation loc);
   bool IsIgnoredType(const std::string& base_name);
 
   clang::CompilerInstance& instance_;
