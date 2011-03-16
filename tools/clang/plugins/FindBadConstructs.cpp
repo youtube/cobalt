@@ -47,6 +47,16 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     CheckVirtualMethods(record_location, record);
   }
 
+  virtual void CheckChromeUsingDirective(
+      const clang::SourceLocation& record_location,
+      clang::UsingDirectiveDecl* record) {
+    // |record| is a using directive in a chrome header. This should never be
+    // allowed.
+    emitWarning(record_location,
+                "Using namespace directives are banned in headers in Google "
+                "style.");
+  }
+
   // Prints errors if the constructor/destructor weight it too heavy.
   void CheckCtorDtorWeight(const SourceLocation& record_location,
                            CXXRecordDecl* record) {
