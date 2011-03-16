@@ -117,7 +117,6 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       load_flags_(net::LOAD_NORMAL),
       delegate_(delegate),
       is_pending_(false),
-      enable_profiling_(false),
       redirect_limit_(kMaxRedirects),
       final_upload_progress_(0),
       priority_(net::LOWEST),

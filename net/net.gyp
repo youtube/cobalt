@@ -719,8 +719,6 @@
         'url_request/url_request_job.h',
         'url_request/url_request_job_manager.cc',
         'url_request/url_request_job_manager.h',
-        'url_request/url_request_job_metrics.cc',
-        'url_request/url_request_job_metrics.h',
         'url_request/url_request_job_tracker.cc',
         'url_request/url_request_job_tracker.h',
         'url_request/url_request_netlog_params.cc',
