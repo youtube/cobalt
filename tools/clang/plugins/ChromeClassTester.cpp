@@ -16,14 +16,14 @@ using namespace clang;
 namespace {
 
 bool starts_with(const std::string& one, const std::string& two) {
-  return one.substr(0, two.size()) == two;
+  return one.compare(0, two.size(), two) == 0;
 }
 
 bool ends_with(const std::string& one, const std::string& two) {
   if (two.size() > one.size())
     return false;
 
-  return one.substr(one.size() - two.size(), two.size()) == two;
+  return one.compare(one.size() - two.size(), two.size(), two) == 0;
 }
 
 }  // namespace
@@ -102,37 +102,37 @@ void ChromeClassTester::BuildBannedLists() {
 
   // Used in really low level threading code that probably shouldn't be out of
   // lined.
-  ignored_record_names_.push_back("ThreadLocalBoolean");
+  ignored_record_names_.insert("ThreadLocalBoolean");
 
   // A complicated pickle derived struct that is all packed integers.
-  ignored_record_names_.push_back("Header");
+  ignored_record_names_.insert("Header");
 
   // Part of the GPU system that uses multiple included header
   // weirdness. Never getting this right.
-  ignored_record_names_.push_back("Validators");
+  ignored_record_names_.insert("Validators");
 
   // RAII class that's simple enough (media/base/callback.h).
-  ignored_record_names_.push_back("AutoTaskRunner");
-  ignored_record_names_.push_back("AutoCallbackRunner");
+  ignored_record_names_.insert("AutoTaskRunner");
+  ignored_record_names_.insert("AutoCallbackRunner");
 
   // Has a UNIT_TEST only constructor. Isn't *terribly* complex...
-  ignored_record_names_.push_back("AutocompleteController");
-  ignored_record_names_.push_back("HistoryURLProvider");
+  ignored_record_names_.insert("AutocompleteController");
+  ignored_record_names_.insert("HistoryURLProvider");
 
   // Because of chrome frame
-  ignored_record_names_.push_back("ReliabilityTestSuite");
+  ignored_record_names_.insert("ReliabilityTestSuite");
 
   // Used over in the net unittests. A large enough bundle of integers with 1
   // non-pod class member. Probably harmless.
-  ignored_record_names_.push_back("MockTransaction");
+  ignored_record_names_.insert("MockTransaction");
 
   // Used heavily in app_unittests and once in views_unittests. Fixing this
   // isn't worth the overhead of an additional library.
-  ignored_record_names_.push_back("TestAnimationDelegate");
+  ignored_record_names_.insert("TestAnimationDelegate");
 
   // Part of our public interface that nacl and friends use. (Arguably, this
   // should mean that this is a higher priority but fixing this looks hard.)
-  ignored_record_names_.push_back("PluginVersionInfo");
+  ignored_record_names_.insert("PluginVersionInfo");
 }
 
 ChromeClassTester::~ChromeClassTester() {}
@@ -183,6 +183,9 @@ void ChromeClassTester::RecursivelyCheckTopLevels(Decl* d) {
   // Unlike HandleTagDeclDefinition, we can only rely on having parsing
   // information here. We absoluetly shouldn't check that any semantic data
   // here because we will assert.
+  //
+  // This method will NOT recurse into classes declarations or any record
+  // types.
 
   Decl::Kind kind = d->getKind();
   if (kind == Decl::UsingDirective) {
@@ -310,12 +313,5 @@ bool ChromeClassTester::InBannedDirectory(SourceLocation loc) {
 }
 
 bool ChromeClassTester::IsIgnoredType(const std::string& base_name) {
-  for (std::vector<std::string>::const_iterator it =
-           ignored_record_names_.begin();
-       it != ignored_record_names_.end(); ++it) {
-    if (base_name == *it)
-      return true;
-  }
-
-  return false;
+  return ignored_record_names_.find(base_name) != ignored_record_names_.end();
 }
