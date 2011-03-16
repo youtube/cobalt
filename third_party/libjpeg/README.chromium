@@ -1,6 +1,8 @@
 Name: libjpeg
 URL: http://www.ijg.org/
+Version: 6b
 
+Description:
 This contains a copy of libjpeg-6b.
 
 The project files does not incldue from the distribution:

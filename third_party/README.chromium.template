@@ -1,0 +1,13 @@
+Name: Descriptive name of the package
+Short Name: Name the package is distributed under (ex. libxml, openssl, etc)
+URL: The URL where the package lives
+Version: A searchable version number for the package (if the package does not version or is versioned by date or revision this field should be "unknown" and the revision should be listed in the appropriate field)
+Revision: The current revision of the package (or change id)
+License File: File that contains a copy of the package's license
+Included In Release: Either yes or no depending on whether this package is shipped in releases. For example openssl is shipped where cygwin is not.
+
+Description:
+A short description of what the package is and is used for.
+
+Local Modifications:
+Enumerate any changes that have been made locally to the package from the shipping version listed above.
