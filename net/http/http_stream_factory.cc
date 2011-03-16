@@ -108,6 +108,19 @@ void HttpStreamFactory::add_forced_spdy_exclusion(const std::string& value) {
 }
 
 // static
+bool HttpStreamFactory::HasSpdyExclusion(const HostPortPair& endpoint) {
+  std::list<HostPortPair>* exclusions = forced_spdy_exclusions_;
+  if (!exclusions)
+    return false;
+
+  std::list<HostPortPair>::const_iterator it;
+  for (it = exclusions->begin(); it != exclusions->end(); ++it)
+    if (it->Equals(endpoint))
+      return true;
+  return false;
+}
+
+// static
 void HttpStreamFactory::SetHostMappingRules(const std::string& rules) {
   HostMappingRules* host_mapping_rules = new HostMappingRules;
   host_mapping_rules->SetRulesFromString(rules);
