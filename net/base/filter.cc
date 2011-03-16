@@ -309,14 +309,13 @@ void Filter::FixupEncodingTypes(
   return;
 }
 
-Filter::Filter(const FilterContext& filter_context)
+Filter::Filter()
     : stream_buffer_(NULL),
       stream_buffer_size_(0),
       next_stream_data_(NULL),
       stream_data_len_(0),
       next_filter_(NULL),
-      last_status_(FILTER_NEED_MORE_DATA),
-      filter_context_(filter_context) {
+      last_status_(FILTER_NEED_MORE_DATA) {
 }
 
 Filter::FilterStatus Filter::CopyOut(char* dest_buffer, int* dest_len) {
@@ -351,7 +350,7 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
     case FILTER_TYPE_DEFLATE:
     case FILTER_TYPE_GZIP: {
       scoped_ptr<net::GZipFilter> gz_filter(
-          new net::GZipFilter(filter_context));
+          new net::GZipFilter());
       gz_filter->InitBuffer(buffer_size);
       if (gz_filter->InitDecoding(type_id)) {
         first_filter = gz_filter.release();

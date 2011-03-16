@@ -18,7 +18,7 @@
 namespace net {
 
 SdchFilter::SdchFilter(const FilterContext& filter_context)
-    : Filter(filter_context),
+    : filter_context_(filter_context),
       decoding_status_(DECODING_UNINITIALIZED),
       vcdiff_streaming_decoder_(NULL),
       dictionary_hash_(),
@@ -54,7 +54,7 @@ SdchFilter::~SdchFilter() {
       // in some rare case that the user is not stuck.
       SdchManager::BlacklistDomain(url_);
       UMA_HISTOGRAM_COUNTS("Sdch3.PartialBytesIn",
-           static_cast<int>(filter_context().GetByteReadCount()));
+           static_cast<int>(filter_context_.GetByteReadCount()));
       UMA_HISTOGRAM_COUNTS("Sdch3.PartialVcdiffIn", source_bytes_);
       UMA_HISTOGRAM_COUNTS("Sdch3.PartialVcdiffOut", output_bytes_);
     }
@@ -64,14 +64,14 @@ SdchFilter::~SdchFilter() {
     // Filter chaining error, or premature teardown.
     SdchManager::SdchErrorRecovery(SdchManager::UNFLUSHED_CONTENT);
     UMA_HISTOGRAM_COUNTS("Sdch3.UnflushedBytesIn",
-         static_cast<int>(filter_context().GetByteReadCount()));
+         static_cast<int>(filter_context_.GetByteReadCount()));
     UMA_HISTOGRAM_COUNTS("Sdch3.UnflushedBufferSize",
                          dest_buffer_excess_.size());
     UMA_HISTOGRAM_COUNTS("Sdch3.UnflushedVcdiffIn", source_bytes_);
     UMA_HISTOGRAM_COUNTS("Sdch3.UnflushedVcdiffOut", output_bytes_);
   }
 
-  if (filter_context().IsCachedContent()) {
+  if (filter_context_.IsCachedContent()) {
     // Not a real error, but it is useful to have this tally.
     // TODO(jar): Remove this stat after SDCH stability is validated.
     SdchManager::SdchErrorRecovery(SdchManager::CACHE_DECODED);
@@ -83,17 +83,17 @@ SdchFilter::~SdchFilter() {
       if (output_bytes_)
         UMA_HISTOGRAM_PERCENTAGE("Sdch3.Network_Decode_Ratio_a",
             static_cast<int>(
-                (filter_context().GetByteReadCount() * 100) / output_bytes_));
+                (filter_context_.GetByteReadCount() * 100) / output_bytes_));
       UMA_HISTOGRAM_COUNTS("Sdch3.Network_Decode_Bytes_VcdiffOut_a",
                            output_bytes_);
-      filter_context().RecordPacketStats(FilterContext::SDCH_DECODE);
+      filter_context_.RecordPacketStats(FilterContext::SDCH_DECODE);
 
       // Allow latency experiments to proceed.
       SdchManager::Global()->SetAllowLatencyExperiment(url_, true);
       return;
     }
     case PASS_THROUGH: {
-      filter_context().RecordPacketStats(FilterContext::SDCH_PASSTHROUGH);
+      filter_context_.RecordPacketStats(FilterContext::SDCH_PASSTHROUGH);
       return;
     }
     case DECODING_UNINITIALIZED: {
@@ -167,15 +167,15 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
       // Watch out for an error page inserted by the proxy as part of a 40x
       // error response.  When we see such content molestation, we certainly
       // need to fall into the meta-refresh case.
-      if (filter_context().GetResponseCode() == 404) {
+      if (filter_context_.GetResponseCode() == 404) {
         // We could be more generous, but for now, only a "NOT FOUND" code will
         // cause a pass through.  All other bad codes will fall into a
         // meta-refresh.
         SdchManager::SdchErrorRecovery(SdchManager::PASS_THROUGH_404_CODE);
         decoding_status_ = PASS_THROUGH;
-      } else if (filter_context().GetResponseCode() != 200) {
+      } else if (filter_context_.GetResponseCode() != 200) {
         // We need to meta-refresh, with SDCH disabled.
-      } else if (filter_context().IsCachedContent()
+      } else if (filter_context_.IsCachedContent()
                  && !dictionary_hash_is_plausible_) {
         // We must have hit the back button, and gotten content that was fetched
         // before we *really* advertised SDCH and a dictionary.
@@ -200,7 +200,7 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
         // We need a meta-refresh since we don't have the dictionary.
         // The common cause is a restart of the browser, where we try to render
         // cached content that was saved when we had a dictionary.
-      } else if (filter_context().IsSdchResponse()) {
+      } else if (filter_context_.IsSdchResponse()) {
         // This is a very corrupt SDCH request response.  We can't decode it.
         // We'll use a meta-refresh, and get content without asking for SDCH.
         // This will also progressively disable SDCH for this domain.
@@ -225,7 +225,7 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
           // Since we can't do a meta-refresh (along with an exponential
           // backoff), we'll just make sure this NEVER happens again.
           SdchManager::BlacklistDomainForever(url_);
-          if (filter_context().IsCachedContent())
+          if (filter_context_.IsCachedContent())
             SdchManager::SdchErrorRecovery(
                 SdchManager::CACHED_META_REFRESH_UNSUPPORTED);
           else
@@ -235,7 +235,7 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
         }
         // HTML content means we can issue a meta-refresh, and get the content
         // again, perhaps without SDCH (to be safe).
-        if (filter_context().IsCachedContent()) {
+        if (filter_context_.IsCachedContent()) {
           // Cached content is probably a startup tab, so we'll just get fresh
           // content and try again, without disabling sdch.
           SdchManager::SdchErrorRecovery(
