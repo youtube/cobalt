@@ -1048,9 +1048,10 @@ SpdyFrame* SpdyFramer::DecompressFrameWithZStream(const SpdyFrame& frame,
   int decompressed_size = decompressed_max_size - decompressor->avail_out;
   new_frame->set_length(header_length + decompressed_size - SpdyFrame::size());
 
-  // If there is data left, then we're in trouble.  This API assumes everything
-  // was consumed.
-  CHECK_EQ(decompressor->avail_in, 0u);
+  // If there is data left, then the frame didn't fully decompress.  This
+  // means that there is stranded data at the end of this frame buffer which
+  // will be ignored.
+  DCHECK_EQ(decompressor->avail_in, 0u);
 
   pre_decompress_bytes.Add(frame.length());
   post_decompress_bytes.Add(new_frame->length());
