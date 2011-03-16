@@ -18,7 +18,6 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
 
-
 namespace net {
 
 class AuthChallengeInfo;
@@ -180,14 +179,6 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   // NotifyDone on the request.
   bool is_done() const { return done_; }
 
-  // Returns true if the job is doing performance profiling
-  bool is_profiling() const { return is_profiling_; }
-
-  // Retrieve the performance measurement of the job. The data is encapsulated
-  // with a URLRequestJobMetrics object. The caller owns this object from now
-  // on.
-  URLRequestJobMetrics* RetrieveMetrics();
-
   // Get/Set expected content size
   int64 expected_content_size() const { return expected_content_size_; }
   void set_expected_content_size(const int64& size) {
@@ -286,22 +277,6 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   // request was released by DetachRequest().
   net::URLRequest* request_;
 
-  // Whether the job is doing performance profiling
-  bool is_profiling_;
-
-  // Contains IO performance measurement when profiling is enabled.
-  scoped_ptr<URLRequestJobMetrics> metrics_;
-
-  // The number of bytes read before passing to the filter.
-  int prefilter_bytes_read_;
-  // The number of bytes read after passing through the filter.
-  int postfilter_bytes_read_;
-  // True when (we believe) the content in this net::URLRequest was
-  // compressible.
-  bool is_compressible_content_;
-  // True when the content in this net::URLRequest was compressed.
-  bool is_compressed_;
-
  private:
   // When data filtering is enabled, this function is used to read data
   // for the filter.  Returns true if raw data was read.  Returns false if
@@ -343,6 +318,22 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
 
   // Cache the load flags from request_ because it might go away.
   int load_flags_;
+
+  // Whether the job is doing performance profiling
+  bool is_profiling_;
+
+  // Contains IO performance measurement when profiling is enabled.
+  scoped_ptr<URLRequestJobMetrics> metrics_;
+
+  // The number of bytes read before passing to the filter.
+  int prefilter_bytes_read_;
+  // The number of bytes read after passing through the filter.
+  int postfilter_bytes_read_;
+  // True when (we believe) the content in this net::URLRequest was
+  // compressible.
+  bool is_compressible_content_;
+  // True when the content in this net::URLRequest was compressed.
+  bool is_compressed_;
 
   // The data stream filter which is enabled on demand.
   scoped_ptr<Filter> filter_;
