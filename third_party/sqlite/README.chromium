@@ -1,6 +1,7 @@
-Name: SQLite
+Name: sqlite
 License File: src/LICENSE
 URL: http://sqlite.org/
+Version: 3.6.18
 
 Instructions for importing a new release of SQLite from sqlite.org.
 
