@@ -18,7 +18,6 @@
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
-#include "net/url_request/url_request_job_metrics.h"
 #include "net/url_request/url_request_job_tracker.h"
 
 using base::Time;
@@ -30,7 +29,6 @@ URLRequestJob::URLRequestJob(URLRequest* request)
     : request_(request),
       done_(false),
       load_flags_(request_->load_flags()),
-      is_profiling_(request_->enable_profiling()),
       prefilter_bytes_read_(0),
       postfilter_bytes_read_(0),
       is_compressible_content_(false),
@@ -45,10 +43,6 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       bytes_observed_in_packets_(0),
       max_packets_timed_(0),
       observed_packet_count_(0) {
-  if (is_profiling_) {
-    metrics_.reset(new URLRequestJobMetrics());
-    metrics_->start_time_ = TimeTicks::Now();
-  }
   g_url_request_job_tracker.AddNewJob(this);
 }
 
@@ -555,21 +549,6 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
 
   RecordCompressionHistograms();
 
-  if (is_profiling_ && metrics_->total_bytes_read_ > 0) {
-    // There are valid IO statistics. Fill in other fields of metrics for
-    // profiling consumers to retrieve information.
-    metrics_->original_url_.reset(new GURL(request_->original_url()));
-    metrics_->end_time_ = TimeTicks::Now();
-    metrics_->success_ = status.is_success();
-
-    if (!(request_->original_url() == request_->url())) {
-      metrics_->url_.reset(new GURL(request_->url()));
-    }
-  } else {
-    metrics_.reset();
-  }
-
-
   // Unless there was an error, we should have at least tried to handle
   // the response before getting here.
   DCHECK(has_handled_response_ || !status.is_success());
@@ -823,10 +802,6 @@ void URLRequestJob::OnRawReadComplete(int bytes_read) {
 }
 
 void URLRequestJob::RecordBytesRead(int bytes_read) {
-  if (is_profiling_) {
-    ++(metrics_->number_of_read_IO_);
-    metrics_->total_bytes_read_ += bytes_read;
-  }
   filter_input_byte_count_ += bytes_read;
   UpdatePacketReadTimes();  // Facilitate stats recording if it is active.
   g_url_request_job_tracker.OnBytesRead(this, raw_read_buffer_->data(),
