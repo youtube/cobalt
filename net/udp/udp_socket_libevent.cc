@@ -125,13 +125,21 @@ int UDPSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
 int UDPSocketLibevent::Read(IOBuffer* buf,
                             int buf_len,
                             CompletionCallback* callback) {
+  return RecvFrom(buf, buf_len, NULL, callback);
+}
+
+int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
+                                int buf_len,
+                                IPEndPoint* address,
+                                CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!read_callback_);
+  DCHECK(!recv_from_address_);
   DCHECK(callback);  // Synchronous operation not supported
   DCHECK_GT(buf_len, 0);
 
-  int nread = InternalRead(buf, buf_len);
+  int nread = InternalRecvFrom(buf, buf_len, address);
   if (nread != ERR_IO_PENDING)
     return nread;
 
@@ -144,37 +152,35 @@ int UDPSocketLibevent::Read(IOBuffer* buf,
 
   read_buf_ = buf;
   read_buf_len_ = buf_len;
+  recv_from_address_ = address;
   read_callback_ = callback;
   return ERR_IO_PENDING;
 }
 
-int UDPSocketLibevent::RecvFrom(IOBuffer* buf,
-                                int buf_len,
-                                IPEndPoint* address,
-                                CompletionCallback* callback) {
-  DCHECK(!recv_from_address_);
-  recv_from_address_ = address;
-  return Read(buf, buf_len, callback);
+int UDPSocketLibevent::Write(IOBuffer* buf,
+                             int buf_len,
+                             CompletionCallback* callback) {
+  return SendToOrWrite(buf, buf_len, NULL, callback);
 }
 
 int UDPSocketLibevent::SendTo(IOBuffer* buf,
                               int buf_len,
                               const IPEndPoint& address,
                               CompletionCallback* callback) {
-  send_to_address_.reset(new IPEndPoint(address));
-  return Write(buf, buf_len, callback);
+  return SendToOrWrite(buf, buf_len, &address, callback);
 }
 
-int UDPSocketLibevent::Write(IOBuffer* buf,
-                             int buf_len,
-                             CompletionCallback* callback) {
+int UDPSocketLibevent::SendToOrWrite(IOBuffer* buf,
+                                     int buf_len,
+                                     const IPEndPoint* address,
+                                     CompletionCallback* callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!write_callback_);
   DCHECK(callback);  // Synchronous operation not supported
   DCHECK_GT(buf_len, 0);
 
-  int nwrite = InternalWrite(buf, buf_len);
+  int nwrite = InternalSendTo(buf, buf_len, address);
   if (nwrite >= 0) {
     static base::StatsCounter write_bytes("udp.write_bytes");
     write_bytes.Add(nwrite);
@@ -192,6 +198,10 @@ int UDPSocketLibevent::Write(IOBuffer* buf,
 
   write_buf_ = buf;
   write_buf_len_ = buf_len;
+  DCHECK(!send_to_address_.get());
+  if (address) {
+    send_to_address_.reset(new IPEndPoint(*address));
+  }
   write_callback_ = callback;
   return ERR_IO_PENDING;
 }
@@ -245,7 +255,6 @@ void UDPSocketLibevent::DoReadCallback(int rv) {
   // since Run may result in Read being called, clear read_callback_ up front.
   CompletionCallback* c = read_callback_;
   read_callback_ = NULL;
-  recv_from_address_ = NULL;
   c->Run(rv);
 }
 
@@ -256,15 +265,15 @@ void UDPSocketLibevent::DoWriteCallback(int rv) {
   // since Run may result in Write being called, clear write_callback_ up front.
   CompletionCallback* c = write_callback_;
   write_callback_ = NULL;
-  send_to_address_.reset();
   c->Run(rv);
 }
 
 void UDPSocketLibevent::DidCompleteRead() {
-  int result = InternalRead(read_buf_, read_buf_len_);
+  int result = InternalRecvFrom(read_buf_, read_buf_len_, recv_from_address_);
   if (result != ERR_IO_PENDING) {
     read_buf_ = NULL;
     read_buf_len_ = 0;
+    recv_from_address_ = NULL;
     bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
     DoReadCallback(result);
@@ -284,7 +293,8 @@ int UDPSocketLibevent::CreateSocket(const IPEndPoint& address) {
 }
 
 void UDPSocketLibevent::DidCompleteWrite() {
-  int result = InternalWrite(write_buf_, write_buf_len_);
+  int result = InternalSendTo(write_buf_, write_buf_len_,
+                              send_to_address_.get());
   if (result >= 0) {
     static base::StatsCounter write_bytes("udp.write_bytes");
     write_bytes.Add(result);
@@ -295,12 +305,14 @@ void UDPSocketLibevent::DidCompleteWrite() {
   if (result != ERR_IO_PENDING) {
     write_buf_ = NULL;
     write_buf_len_ = 0;
+    send_to_address_.reset();
     write_socket_watcher_.StopWatchingFileDescriptor();
     DoWriteCallback(result);
   }
 }
 
-int UDPSocketLibevent::InternalRead(IOBuffer* buf, int buf_len) {
+int UDPSocketLibevent::InternalRecvFrom(IOBuffer* buf, int buf_len,
+                                        IPEndPoint* address) {
   int bytes_transferred;
   int flags = 0;
 
@@ -320,8 +332,8 @@ int UDPSocketLibevent::InternalRead(IOBuffer* buf, int buf_len) {
     result = bytes_transferred;
     static base::StatsCounter read_bytes("udp.read_bytes");
     read_bytes.Add(bytes_transferred);
-    if (recv_from_address_) {
-      if (!recv_from_address_->FromSockAddr(addr, addr_len))
+    if (address) {
+      if (!address->FromSockAddr(addr, addr_len))
         result = ERR_FAILED;
     }
   } else {
@@ -330,16 +342,17 @@ int UDPSocketLibevent::InternalRead(IOBuffer* buf, int buf_len) {
   return result;
 }
 
-int UDPSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
+int UDPSocketLibevent::InternalSendTo(IOBuffer* buf, int buf_len,
+                                      const IPEndPoint* address) {
   struct sockaddr_storage addr_storage;
   size_t addr_len = sizeof(addr_storage);
   struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
 
-  if (!send_to_address_.get()) {
+  if (!address) {
     addr = NULL;
     addr_len = 0;
   } else {
-    if (!send_to_address_->ToSockAddr(addr, &addr_len))
+    if (!address->ToSockAddr(addr, &addr_len))
       return ERR_FAILED;
   }
 
