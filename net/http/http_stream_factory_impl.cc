@@ -18,19 +18,6 @@ namespace net {
 
 namespace {
 
-bool HasSpdyExclusion(const HostPortPair& endpoint) {
-  std::list<HostPortPair>* exclusions =
-      HttpStreamFactory::forced_spdy_exclusions();
-  if (!exclusions)
-    return false;
-
-  std::list<HostPortPair>::const_iterator it;
-  for (it = exclusions->begin(); it != exclusions->end(); it++)
-    if (it->Equals(endpoint))
-      return true;
-  return false;
-}
-
 GURL UpgradeUrlToHttps(const GURL& original_url) {
   GURL::Replacements replacements;
   // new_sheme and new_port need to be in scope here because GURL::Replacements
@@ -158,7 +145,7 @@ bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
     return false;
 
   origin.set_port(alternate.port);
-  if (HasSpdyExclusion(origin))
+  if (HttpStreamFactory::HasSpdyExclusion(origin))
     return false;
 
   *alternate_url = UpgradeUrlToHttps(original_url);

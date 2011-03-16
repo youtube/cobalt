@@ -499,11 +499,13 @@ int HttpStreamFactoryImpl::Job::DoResolveProxyComplete(int result) {
 }
 
 bool HttpStreamFactoryImpl::Job::ShouldForceSpdySSL() const {
-  return force_spdy_always_ && force_spdy_over_ssl_;
+  bool rv = force_spdy_always_ && force_spdy_over_ssl_;
+  return rv && !HttpStreamFactory::HasSpdyExclusion(origin_);
 }
 
 bool HttpStreamFactoryImpl::Job::ShouldForceSpdyWithoutSSL() const {
-  return force_spdy_always_ && !force_spdy_over_ssl_;
+  bool rv = force_spdy_always_ && !force_spdy_over_ssl_;
+  return rv && !HttpStreamFactory::HasSpdyExclusion(origin_);
 }
 
 int HttpStreamFactoryImpl::Job::DoWaitForJob() {
