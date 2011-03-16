@@ -234,7 +234,7 @@ class FFmpegDemuxer : public Demuxer,
   // Initialization can happen before set_host() is called, in which case we
   // store these bits for deferred reporting to the FilterHost when we get one.
   base::TimeDelta max_duration_;
-  PipelineError deferred_status_;
+  PipelineStatus deferred_status_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };

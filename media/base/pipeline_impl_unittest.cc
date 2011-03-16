@@ -6,6 +6,7 @@
 
 #include "base/callback.h"
 #include "base/stl_util-inl.h"
+#include "base/threading/simple_thread.h"
 #include "media/base/pipeline_impl.h"
 #include "media/base/media_format.h"
 #include "media/base/filters.h"
@@ -39,11 +40,11 @@ class CallbackHelper {
   CallbackHelper() {}
   virtual ~CallbackHelper() {}
 
-  MOCK_METHOD0(OnStart, void());
-  MOCK_METHOD0(OnSeek, void());
-  MOCK_METHOD0(OnStop, void());
-  MOCK_METHOD0(OnEnded, void());
-  MOCK_METHOD0(OnError, void());
+  MOCK_METHOD1(OnStart, void(PipelineStatus));
+  MOCK_METHOD1(OnSeek, void(PipelineStatus));
+  MOCK_METHOD1(OnStop, void(PipelineStatus));
+  MOCK_METHOD1(OnEnded, void(PipelineStatus));
+  MOCK_METHOD1(OnError, void(PipelineStatus));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CallbackHelper);
@@ -64,7 +65,7 @@ class PipelineImplTest : public ::testing::Test {
                     &CallbackHelper::OnEnded),
         NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                     &CallbackHelper::OnError),
-        NULL);
+        static_cast<PipelineStatusCallback*>(NULL));
     mocks_.reset(new MockFilterCollection());
   }
 
@@ -74,7 +75,7 @@ class PipelineImplTest : public ::testing::Test {
     }
 
     // Expect a stop callback if we were started.
-    EXPECT_CALL(callbacks_, OnStop());
+    EXPECT_CALL(callbacks_, OnStop(PIPELINE_OK));
     pipeline_->Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                 &CallbackHelper::OnStop));
     message_loop_.RunAllPending();
@@ -174,12 +175,17 @@ class PipelineImplTest : public ::testing::Test {
   void InitializePipeline() {
     InitializePipeline(PIPELINE_OK);
   }
-
-  void InitializePipeline(PipelineError factory_error) {
+  // Most tests can expect the |filter_collection|'s |build_status| to get
+  // reflected in |Start()|'s argument.
+  void InitializePipeline(PipelineStatus start_status) {
+    InitializePipeline(start_status, start_status);
+  }
+  // But some tests require different statuses in build & Start.
+  void InitializePipeline(PipelineStatus build_status,
+                          PipelineStatus start_status) {
     // Expect an initialization callback.
-    EXPECT_CALL(callbacks_, OnStart());
-    pipeline_->Start(mocks_->filter_collection(true, true, factory_error),
-                     "",
+    EXPECT_CALL(callbacks_, OnStart(start_status));
+    pipeline_->Start(mocks_->filter_collection(true, true, build_status), "",
                      NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                  &CallbackHelper::OnStart));
     message_loop_.RunAllPending();
@@ -221,7 +227,7 @@ class PipelineImplTest : public ::testing::Test {
     }
 
     // We expect a successful seek callback.
-    EXPECT_CALL(callbacks_, OnSeek());
+    EXPECT_CALL(callbacks_, OnSeek(PIPELINE_OK));
 
   }
 
@@ -293,8 +299,6 @@ TEST_F(PipelineImplTest, NotStarted) {
   pipeline_->GetVideoSize(&width, &height);
   EXPECT_EQ(0u, width);
   EXPECT_EQ(0u, height);
-
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
 }
 
 TEST_F(PipelineImplTest, NeverInitializes) {
@@ -307,22 +311,21 @@ TEST_F(PipelineImplTest, NeverInitializes) {
   message_loop_.RunAllPending();
 
   EXPECT_FALSE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
 
   // Because our callback will get executed when the test tears down, we'll
   // verify that nothing has been called, then set our expectation for the call
   // made during tear down.
   Mock::VerifyAndClear(&callbacks_);
-  EXPECT_CALL(callbacks_, OnStart());
+  EXPECT_CALL(callbacks_, OnStart(PIPELINE_OK));
 }
 
 TEST_F(PipelineImplTest, RequiredFilterMissing) {
-  EXPECT_CALL(callbacks_, OnError());
+  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING));
 
   // Sets up expectations on the callback and initializes the pipeline.  Called
   // after tests have set expectations any filters they wish to use.
   // Expect an initialization callback.
-  EXPECT_CALL(callbacks_, OnStart());
+  EXPECT_CALL(callbacks_, OnStart(PIPELINE_ERROR_REQUIRED_FILTER_MISSING));
 
   // Create a filter collection with missing filter.
   FilterCollection* collection =
@@ -334,17 +337,17 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
   message_loop_.RunAllPending();
 
   EXPECT_FALSE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
-            pipeline_->GetError());
 }
 
 TEST_F(PipelineImplTest, URLNotFound) {
-
-  EXPECT_CALL(callbacks_, OnError());
-
+  // TODO(acolwell,fischman): Since OnStart() is getting called with an error
+  // code already, OnError() doesn't also need to get called.  Fix the pipeline
+  // (and it's consumers!) so that OnError doesn't need to be called after
+  // another callback has already reported the error.  Same applies to NoStreams
+  // below.
+  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_URL_NOT_FOUND));
   InitializePipeline(PIPELINE_ERROR_URL_NOT_FOUND);
   EXPECT_FALSE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_ERROR_URL_NOT_FOUND, pipeline_->GetError());
 }
 
 TEST_F(PipelineImplTest, NoStreams) {
@@ -354,11 +357,11 @@ TEST_F(PipelineImplTest, NoStreams) {
       .WillRepeatedly(Return(0));
   EXPECT_CALL(*mocks_->demuxer(), Stop(NotNull()))
       .WillOnce(Invoke(&RunStopFilterCallback));
-  EXPECT_CALL(callbacks_, OnError());
+  // TODO(acolwell,fischman): see TODO in URLNotFound above.
+  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_COULD_NOT_RENDER));
 
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK, PIPELINE_ERROR_COULD_NOT_RENDER);
   EXPECT_FALSE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_ERROR_COULD_NOT_RENDER, pipeline_->GetError());
 }
 
 TEST_F(PipelineImplTest, AudioStream) {
@@ -370,9 +373,8 @@ TEST_F(PipelineImplTest, AudioStream) {
   InitializeAudioDecoder(audio_stream());
   InitializeAudioRenderer();
 
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   EXPECT_TRUE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
   EXPECT_TRUE(pipeline_->HasAudio());
   EXPECT_FALSE(pipeline_->HasVideo());
 }
@@ -386,9 +388,8 @@ TEST_F(PipelineImplTest, VideoStream) {
   InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   EXPECT_TRUE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
   EXPECT_FALSE(pipeline_->HasAudio());
   EXPECT_TRUE(pipeline_->HasVideo());
 }
@@ -406,9 +407,8 @@ TEST_F(PipelineImplTest, AudioVideoStream) {
   InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   EXPECT_TRUE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
   EXPECT_TRUE(pipeline_->HasAudio());
   EXPECT_TRUE(pipeline_->HasVideo());
 }
@@ -431,7 +431,7 @@ TEST_F(PipelineImplTest, Seek) {
   ExpectSeek(expected);
 
   // Initialize then seek!
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   DoSeek(expected);
 }
 
@@ -449,7 +449,7 @@ TEST_F(PipelineImplTest, SetVolume) {
   EXPECT_CALL(*mocks_->audio_renderer(), SetVolume(expected));
 
   // Initialize then set volume!
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   pipeline_->SetVolume(expected);
 }
 
@@ -463,9 +463,8 @@ TEST_F(PipelineImplTest, Properties) {
   InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   EXPECT_TRUE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
   EXPECT_EQ(kDuration.ToInternalValue(),
             pipeline_->GetMediaDuration().ToInternalValue());
   EXPECT_EQ(kTotalBytes, pipeline_->GetTotalBytes());
@@ -487,9 +486,8 @@ TEST_F(PipelineImplTest, GetBufferedTime) {
   InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   EXPECT_TRUE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
 
   // TODO(vrk): The following mini-test cases are order-dependent, and should
   // probably be separated into independent test cases.
@@ -557,9 +555,8 @@ TEST_F(PipelineImplTest, DisableAudioRenderer) {
   InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   EXPECT_TRUE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
   EXPECT_TRUE(pipeline_->HasAudio());
   EXPECT_TRUE(pipeline_->HasVideo());
 
@@ -581,7 +578,7 @@ TEST_F(PipelineImplTest, DisableAudioRenderer) {
   // Verify that ended event is fired when video ends.
   EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
       .WillOnce(Return(true));
-  EXPECT_CALL(callbacks_, OnEnded());
+  EXPECT_CALL(callbacks_, OnEnded(PIPELINE_OK));
   FilterHost* host = pipeline_;
   host->NotifyEnded();
 }
@@ -610,16 +607,15 @@ TEST_F(PipelineImplTest, DisableAudioRendererDuringInit) {
   EXPECT_CALL(*mocks_->video_renderer(),
               OnAudioRendererDisabled());
 
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
   EXPECT_TRUE(pipeline_->IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
   EXPECT_FALSE(pipeline_->HasAudio());
   EXPECT_TRUE(pipeline_->HasVideo());
 
   // Verify that ended event is fired when video ends.
   EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
       .WillOnce(Return(true));
-  EXPECT_CALL(callbacks_, OnEnded());
+  EXPECT_CALL(callbacks_, OnEnded(PIPELINE_OK));
   FilterHost* host = pipeline_;
   host->NotifyEnded();
 }
@@ -636,7 +632,7 @@ TEST_F(PipelineImplTest, EndedCallback) {
   InitializeAudioRenderer();
   InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
 
   // For convenience to simulate filters calling the methods.
   FilterHost* host = pipeline_;
@@ -657,7 +653,7 @@ TEST_F(PipelineImplTest, EndedCallback) {
       .WillOnce(Return(true));
   EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
       .WillOnce(Return(true));
-  EXPECT_CALL(callbacks_, OnEnded());
+  EXPECT_CALL(callbacks_, OnEnded(PIPELINE_OK));
   host->NotifyEnded();
 }
 
@@ -681,7 +677,7 @@ TEST_F(PipelineImplTest, AudioStreamShorterThanVideo) {
   InitializeAudioRenderer();
   InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
 
   // For convenience to simulate filters calling the methods.
   FilterHost* host = pipeline_;
@@ -729,7 +725,7 @@ TEST_F(PipelineImplTest, AudioStreamShorterThanVideo) {
       .WillOnce(Return(true));
   EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
       .WillOnce(Return(true));
-  EXPECT_CALL(callbacks_, OnEnded());
+  EXPECT_CALL(callbacks_, OnEnded(PIPELINE_OK));
   host->NotifyEnded();
 }
 
@@ -741,7 +737,7 @@ TEST_F(PipelineImplTest, ErrorDuringSeek) {
   InitializeDemuxer(&streams, base::TimeDelta::FromSeconds(10));
   InitializeAudioDecoder(audio_stream());
   InitializeAudioRenderer();
-  InitializePipeline();
+  InitializePipeline(PIPELINE_OK);
 
   float playback_rate = 1.0f;
   EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(playback_rate));
@@ -759,9 +755,62 @@ TEST_F(PipelineImplTest, ErrorDuringSeek) {
                                PIPELINE_ERROR_READ),
                       Invoke(&RunFilterCallback)));
 
-  pipeline_->Seek(seek_time, NewExpectedCallback());
-  EXPECT_CALL(callbacks_, OnError());
+  pipeline_->Seek(seek_time, NewCallback(
+      reinterpret_cast<CallbackHelper*>(&callbacks_), &CallbackHelper::OnSeek));
+  EXPECT_CALL(callbacks_, OnSeek(PIPELINE_ERROR_READ));
+  EXPECT_CALL(callbacks_, OnError(PIPELINE_ERROR_READ));
   message_loop_.RunAllPending();
+}
+
+class FlexibleCallbackRunner : public base::DelegateSimpleThread::Delegate {
+ public:
+  FlexibleCallbackRunner(int delayInMs, PipelineStatus status,
+                         PipelineStatusCallback* callback)
+      : delayInMs_(delayInMs), status_(status), callback_(callback) {
+    if (delayInMs_ < 0) {
+      callback_->Run(status_);
+      return;
+    }
+  }
+  virtual void Run() {
+    if (delayInMs_ < 0) return;
+    base::PlatformThread::Sleep(delayInMs_);
+    callback_->Run(status_);
+  }
+
+ private:
+  int delayInMs_;
+  PipelineStatus status_;
+  PipelineStatusCallback* callback_;
+};
+
+void TestPipelineStatusNotification(int delayInMs) {
+  PipelineStatusNotification note;
+  // Arbitrary error value we expect to fish out of the notification after the
+  // callback is fired.
+  const PipelineStatus expected_error = PIPELINE_ERROR_URL_NOT_FOUND;
+  FlexibleCallbackRunner runner(delayInMs, expected_error, note.Callback());
+  base::DelegateSimpleThread thread(&runner, "FlexibleCallbackRunner");
+  thread.Start();
+  note.Wait();
+  EXPECT_EQ(note.status(), expected_error);
+  thread.Join();
+}
+
+// Test that in-line callback (same thread, no yield) works correctly.
+TEST(PipelineStatusNotificationTest, InlineCallback) {
+  TestPipelineStatusNotification(-1);
+}
+
+// Test that different-thread, no-delay callback works correctly.
+TEST(PipelineStatusNotificationTest, ImmediateCallback) {
+  TestPipelineStatusNotification(0);
+}
+
+// Test that different-thread, some-delay callback (the expected common case)
+// works correctly.
+TEST(PipelineStatusNotificationTest, DelayedCallback) {
+  TestPipelineStatusNotification(20);
 }
 
 }  // namespace media
