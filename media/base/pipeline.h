@@ -36,10 +36,6 @@ struct PipelineStatistics {
 
 class FilterCollection;
 
-// Client-provided callbacks for various pipeline operations.  Clients should
-// inspect the Pipeline for errors.
-typedef Callback0::Type PipelineCallback;
-
 class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
   // Initializes pipeline. Pipeline takes ownership of all callbacks passed
@@ -47,9 +43,9 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // |ended_callback| will be executed when the media reaches the end.
   // |error_callback_| will be executed upon an error in the pipeline.
   // |network_callback_| will be executed when there's a network event.
-  virtual void Init(PipelineCallback* ended_callback,
-                    PipelineCallback* error_callback,
-                    PipelineCallback* network_callback) = 0;
+  virtual void Init(PipelineStatusCallback* ended_callback,
+                    PipelineStatusCallback* error_callback,
+                    PipelineStatusCallback* network_callback) = 0;
 
   // Build a pipeline to render the given URL using the given filter collection
   // to construct a filter chain.  Returns true if successful, false otherwise
@@ -61,11 +57,10 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   //
   // This method is asynchronous and can execute a callback when completed.
   // If the caller provides a |start_callback|, it will be called when the
-  // pipeline initialization completes.  Clients are expected to call GetError()
-  // to check whether initialization succeeded.
+  // pipeline initialization completes.
   virtual bool Start(FilterCollection* filter_collection,
                      const std::string& url,
-                     PipelineCallback* start_callback) = 0;
+                     PipelineStatusCallback* start_callback) = 0;
 
   // Asynchronously stops the pipeline and resets it to an uninitialized state.
   // If provided, |stop_callback| will be executed when the pipeline has been
@@ -77,14 +72,15 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   //
   // TODO(scherkus): ideally clients would destroy the pipeline after calling
   // Stop() and create a new pipeline as needed.
-  virtual void Stop(PipelineCallback* stop_callback) = 0;
+  virtual void Stop(PipelineStatusCallback* stop_callback) = 0;
 
   // Attempt to seek to the position specified by time.  |seek_callback| will be
   // executed when the all filters in the pipeline have processed the seek.
   //
   // Clients are expected to call GetCurrentTime() to check whether the seek
   // succeeded.
-  virtual void Seek(base::TimeDelta time, PipelineCallback* seek_callback) = 0;
+  virtual void Seek(base::TimeDelta time,
+                    PipelineStatusCallback* seek_callback) = 0;
 
   // Returns true if the pipeline has been started via Start().  If IsRunning()
   // returns true, it is expected that Stop() will be called before destroying
@@ -159,10 +155,6 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // If this method returns true, that means the data source has fully loaded
   // the media and that the network is no longer needed.
   virtual bool IsLoaded() const = 0;
-
-  // Gets the current error status for the pipeline.  If the pipeline is
-  // operating correctly, this will return OK.
-  virtual PipelineError GetError() const = 0;
 
   // Gets the current pipeline statistics.
   virtual PipelineStatistics GetStatistics() const = 0;

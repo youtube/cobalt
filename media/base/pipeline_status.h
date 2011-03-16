@@ -9,9 +9,8 @@
 
 namespace media {
 
-// Error definitions for pipeline.  All codes indicate an error except:
-// PIPELINE_OK indicates the pipeline is running normally.
-enum PipelineError {
+// Status states for pipeline.  All codes except PIPELINE_OK indicate errors.
+enum PipelineStatus {
   PIPELINE_OK,
   PIPELINE_ERROR_URL_NOT_FOUND,
   PIPELINE_ERROR_NETWORK,
@@ -34,7 +33,7 @@ enum PipelineError {
   DATASOURCE_ERROR_URL_NOT_SUPPORTED,
 };
 
-typedef Callback1<media::PipelineError>::Type PipelineStatusCallback;
+typedef Callback1<media::PipelineStatus>::Type PipelineStatusCallback;
 
 }  // namespace media
 

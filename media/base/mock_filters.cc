@@ -4,6 +4,7 @@
 
 #include "media/base/mock_filters.h"
 
+#include "base/logging.h"
 #include "media/base/filter_host.h"
 
 using ::testing::_;
@@ -36,13 +37,14 @@ void MockDataSource::SetTotalAndBufferedBytes(int64 total_bytes,
 }
 
 MockDemuxerFactory::MockDemuxerFactory(MockDemuxer* demuxer)
-    : demuxer_(demuxer), error_(PIPELINE_OK) {
+    : demuxer_(demuxer), status_(PIPELINE_OK) {
 }
 
 MockDemuxerFactory::~MockDemuxerFactory() {}
 
-void MockDemuxerFactory::SetError(PipelineError error) {
-  error_ = error;
+void MockDemuxerFactory::SetError(PipelineStatus error) {
+  DCHECK_NE(error, PIPELINE_OK);
+  status_ = error;
 }
 
 void MockDemuxerFactory::RunBuildCallback(const std::string& url,
@@ -58,12 +60,12 @@ void MockDemuxerFactory::RunBuildCallback(const std::string& url,
   scoped_refptr<MockDemuxer> demuxer = demuxer_;
   demuxer_ = NULL;
 
-  if (error_ == PIPELINE_OK) {
+  if (status_ == PIPELINE_OK) {
     cb->Run(PIPELINE_OK, demuxer.get());
     return;
   }
 
-  cb->Run(error_, static_cast<Demuxer*>(NULL));
+  cb->Run(status_, static_cast<Demuxer*>(NULL));
 }
 
 void MockDemuxerFactory::DestroyBuildCallback(const std::string& url,
@@ -133,14 +135,14 @@ MockFilterCollection::~MockFilterCollection() {}
 FilterCollection* MockFilterCollection::filter_collection(
     bool include_demuxer,
     bool run_build_callback,
-    PipelineError build_error) const {
+    PipelineStatus build_status) const {
   FilterCollection* collection = new FilterCollection();
 
   MockDemuxerFactory* demuxer_factory =
       new MockDemuxerFactory(include_demuxer ? demuxer_ : NULL);
 
-  if (build_error != PIPELINE_OK)
-    demuxer_factory->SetError(build_error);
+  if (build_status != PIPELINE_OK)
+    demuxer_factory->SetError(build_status);
 
   if (run_build_callback) {
     ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
@@ -165,7 +167,7 @@ void RunFilterCallback(::testing::Unused, FilterCallback* callback) {
 }
 
 void RunPipelineStatusCallback(
-    PipelineError status, PipelineStatusCallback* callback) {
+    PipelineStatus status, PipelineStatusCallback* callback) {
   callback->Run(status);
   delete callback;
 }

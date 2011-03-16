@@ -20,7 +20,7 @@ class FileDataSource : public DataSource {
   FileDataSource();
   virtual ~FileDataSource();
 
-  PipelineError Initialize(const std::string& url);
+  PipelineStatus Initialize(const std::string& url);
 
   // Implementation of Filter.
   virtual void set_host(FilterHost* filter_host);
