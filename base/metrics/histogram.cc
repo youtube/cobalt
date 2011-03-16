@@ -686,7 +686,6 @@ void Histogram::SampleSet::Accumulate(Sample value,  Count count,
   redundant_count_ += count;
   DCHECK_GE(counts_[index], 0);
   DCHECK_GE(sum_, 0);
-  DCHECK_GE(square_sum_, 0);
   DCHECK_GE(redundant_count_, 0);
 }
 
