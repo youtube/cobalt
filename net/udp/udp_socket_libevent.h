@@ -142,8 +142,16 @@ class UDPSocketLibevent : public base::NonThreadSafe {
   // Returns the OS error code (or 0 on success).
   int CreateSocket(const IPEndPoint& address);
 
-  int InternalRead(IOBuffer* buf, int buf_len);
-  int InternalWrite(IOBuffer* buf, int buf_len);
+  // Same as SendTo(), except that address is passed by pointer
+  // instead of by reference. It is called from Write() with |address|
+  // set to NULL.
+  int SendToOrWrite(IOBuffer* buf,
+                    int buf_len,
+                    const IPEndPoint* address,
+                    CompletionCallback* callback);
+
+  int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
+  int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
   int socket_;
 
