@@ -204,9 +204,8 @@ class HttpStreamFactory {
 
   // Add a URL to exclude from forced SPDY.
   static void add_forced_spdy_exclusion(const std::string& value);
-  static std::list<HostPortPair>* forced_spdy_exclusions() {
-    return forced_spdy_exclusions_;
-  }
+  // Check if a HostPortPair is excluded from using spdy.
+  static bool HasSpdyExclusion(const HostPortPair& endpoint);
 
   // Sets the next protocol negotiation value used during the SSL handshake.
   static void set_next_protos(const std::string& value) {
