@@ -74,7 +74,7 @@ class GZipFilter : public Filter {
   static const int kGZipFooterSize = 8;
 
   // Only to be instantiated by Filter::Factory.
-  explicit GZipFilter(const FilterContext& filter_context);
+  GZipFilter();
   friend class Filter;
 
   // Parses and verifies the GZip header.
