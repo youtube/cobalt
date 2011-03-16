@@ -23,7 +23,7 @@ FileDataSource::~FileDataSource() {
   DCHECK(!file_);
 }
 
-PipelineError FileDataSource::Initialize(const std::string& url) {
+PipelineStatus FileDataSource::Initialize(const std::string& url) {
   DCHECK(!file_);
 #if defined(OS_WIN)
   FilePath file_path(UTF8ToWide(url));

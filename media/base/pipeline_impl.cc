@@ -16,6 +16,39 @@
 
 namespace media {
 
+PipelineStatusNotification::PipelineStatusNotification()
+    : cv_(&lock_), status_(PIPELINE_OK), notified_(false) {
+  callback_.reset(NewCallback(this, &PipelineStatusNotification::Notify));
+}
+
+PipelineStatusNotification::~PipelineStatusNotification() {
+  DCHECK(notified_);
+}
+
+media::PipelineStatusCallback* PipelineStatusNotification::Callback() {
+  return callback_.release();
+}
+
+void PipelineStatusNotification::Notify(media::PipelineStatus status) {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(!notified_);
+  notified_ = true;
+  status_ = status;
+  cv_.Signal();
+}
+
+void PipelineStatusNotification::Wait() {
+  base::AutoLock auto_lock(lock_);
+  while (!notified_)
+    cv_.Wait();
+}
+
+media::PipelineStatus PipelineStatusNotification::status() {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(notified_);
+  return status_;
+}
+
 class PipelineImpl::PipelineInitState {
  public:
   scoped_refptr<Demuxer> demuxer_;
@@ -40,9 +73,9 @@ PipelineImpl::~PipelineImpl() {
   DCHECK(!seek_pending_);
 }
 
-void PipelineImpl::Init(PipelineCallback* ended_callback,
-                        PipelineCallback* error_callback,
-                        PipelineCallback* network_callback) {
+void PipelineImpl::Init(PipelineStatusCallback* ended_callback,
+                        PipelineStatusCallback* error_callback,
+                        PipelineStatusCallback* network_callback) {
   DCHECK(!IsRunning())
       << "Init() should be called before the pipeline has started";
   ended_callback_.reset(ended_callback);
@@ -53,9 +86,9 @@ void PipelineImpl::Init(PipelineCallback* ended_callback,
 // Creates the PipelineInternal and calls it's start method.
 bool PipelineImpl::Start(FilterCollection* collection,
                          const std::string& url,
-                         PipelineCallback* start_callback) {
+                         PipelineStatusCallback* start_callback) {
   base::AutoLock auto_lock(lock_);
-  scoped_ptr<PipelineCallback> callback(start_callback);
+  scoped_ptr<PipelineStatusCallback> callback(start_callback);
   scoped_ptr<FilterCollection> filter_collection(collection);
 
   if (running_) {
@@ -79,9 +112,9 @@ bool PipelineImpl::Start(FilterCollection* collection,
   return true;
 }
 
-void PipelineImpl::Stop(PipelineCallback* stop_callback) {
+void PipelineImpl::Stop(PipelineStatusCallback* stop_callback) {
   base::AutoLock auto_lock(lock_);
-  scoped_ptr<PipelineCallback> callback(stop_callback);
+  scoped_ptr<PipelineStatusCallback> callback(stop_callback);
   if (!running_) {
     VLOG(1) << "Media pipeline has already stopped";
     return;
@@ -93,9 +126,9 @@ void PipelineImpl::Stop(PipelineCallback* stop_callback) {
 }
 
 void PipelineImpl::Seek(base::TimeDelta time,
-                        PipelineCallback* seek_callback) {
+                        PipelineStatusCallback* seek_callback) {
   base::AutoLock auto_lock(lock_);
-  scoped_ptr<PipelineCallback> callback(seek_callback);
+  scoped_ptr<PipelineStatusCallback> callback(seek_callback);
   if (!running_) {
     VLOG(1) << "Media pipeline must be running";
     return;
@@ -271,11 +304,6 @@ bool PipelineImpl::IsLoaded() const {
   return loaded_;
 }
 
-PipelineError PipelineImpl::GetError() const {
-  base::AutoLock auto_lock(lock_);
-  return error_;
-}
-
 PipelineStatistics PipelineImpl::GetStatistics() const {
   base::AutoLock auto_lock(lock_);
   return statistics_;
@@ -322,7 +350,7 @@ void PipelineImpl::ResetState() {
   video_height_     = 0;
   volume_           = 1.0f;
   playback_rate_    = 0.0f;
-  error_            = PIPELINE_OK;
+  status_           = PIPELINE_OK;
   has_audio_        = false;
   has_video_        = false;
   waiting_for_clock_update_ = false;
@@ -335,7 +363,8 @@ void PipelineImpl::set_state(State next_state) {
 }
 
 bool PipelineImpl::IsPipelineOk() {
-  return PIPELINE_OK == GetError();
+  base::AutoLock auto_lock(lock_);
+  return status_ == PIPELINE_OK;
 }
 
 bool PipelineImpl::IsPipelineStopped() {
@@ -368,7 +397,7 @@ void PipelineImpl::FinishInitialization() {
   // Execute the seek callback, if present.  Note that this might be the
   // initial callback passed into Start().
   if (seek_callback_.get()) {
-    seek_callback_->Run();
+    seek_callback_->Run(status_);
     seek_callback_.reset();
   }
 }
@@ -405,7 +434,7 @@ PipelineImpl::State PipelineImpl::FindNextState(State current) {
   }
 }
 
-void PipelineImpl::SetError(PipelineError error) {
+void PipelineImpl::SetError(PipelineStatus error) {
   DCHECK(IsRunning());
   DCHECK(error != PIPELINE_OK) << "PIPELINE_OK isn't an error!";
   VLOG(1) << "Media pipeline error: " << error;
@@ -541,7 +570,7 @@ void PipelineImpl::OnUpdateStatistics(const PipelineStatistics& stats) {
 
 void PipelineImpl::StartTask(FilterCollection* filter_collection,
                              const std::string& url,
-                             PipelineCallback* start_callback) {
+                             PipelineStatusCallback* start_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_EQ(kCreated, state_);
   filter_collection_.reset(filter_collection);
@@ -578,11 +607,8 @@ void PipelineImpl::InitializeTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // If we have received the stop or error signal, return immediately.
-  if (IsPipelineStopPending() ||
-      IsPipelineStopped() ||
-      PIPELINE_OK != GetError()) {
+  if (IsPipelineStopPending() || IsPipelineStopped() || !IsPipelineOk())
     return;
-  }
 
   DCHECK(state_ == kInitDemuxer ||
          state_ == kInitAudioDecoder ||
@@ -669,14 +695,14 @@ void PipelineImpl::InitializeTask() {
 // TODO(scherkus): beware!  this can get posted multiple times since we post
 // Stop() tasks even if we've already stopped.  Perhaps this should no-op for
 // additional calls, however most of this logic will be changing.
-void PipelineImpl::StopTask(PipelineCallback* stop_callback) {
+void PipelineImpl::StopTask(PipelineStatusCallback* stop_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!IsPipelineStopPending());
   DCHECK_NE(state_, kStopped);
 
   if (state_ == kStopped) {
     // Already stopped so just run callback.
-    stop_callback->Run();
+    stop_callback->Run(status_);
     delete stop_callback;
     return;
   }
@@ -687,7 +713,7 @@ void PipelineImpl::StopTask(PipelineCallback* stop_callback) {
     // the teardown in progress from an error teardown into one that acts
     // like the error never occurred.
     base::AutoLock auto_lock(lock_);
-    error_ = PIPELINE_OK;
+    status_ = PIPELINE_OK;
     error_caused_teardown_ = false;
   }
 
@@ -702,7 +728,7 @@ void PipelineImpl::StopTask(PipelineCallback* stop_callback) {
   }
 }
 
-void PipelineImpl::ErrorChangedTask(PipelineError error) {
+void PipelineImpl::ErrorChangedTask(PipelineStatus error) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(PIPELINE_OK, error) << "PIPELINE_OK isn't an error!";
 
@@ -714,7 +740,7 @@ void PipelineImpl::ErrorChangedTask(PipelineError error) {
   }
 
   base::AutoLock auto_lock(lock_);
-  error_ = error;
+  status_ = error;
 
   error_caused_teardown_ = true;
 
@@ -751,7 +777,7 @@ void PipelineImpl::VolumeChangedTask(float volume) {
 }
 
 void PipelineImpl::SeekTask(base::TimeDelta time,
-                            PipelineCallback* seek_callback) {
+                            PipelineStatusCallback* seek_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!IsPipelineStopPending());
 
@@ -821,14 +847,14 @@ void PipelineImpl::NotifyEndedTask() {
   // Transition to ended, executing the callback if present.
   set_state(kEnded);
   if (ended_callback_.get()) {
-    ended_callback_->Run();
+    ended_callback_->Run(status_);
   }
 }
 
 void PipelineImpl::NotifyNetworkEventTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   if (network_callback_.get()) {
-    network_callback_->Run();
+    network_callback_->Run(status_);
   }
 }
 
@@ -965,18 +991,16 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
 
   pipeline_filter_ = NULL;
 
-  if (error_caused_teardown_ && GetError() != PIPELINE_OK &&
-      error_callback_.get()) {
-    error_callback_->Run();
-  }
+  if (error_caused_teardown_ && !IsPipelineOk() && error_callback_.get())
+    error_callback_->Run(status_);
 
   if (stop_pending_) {
     stop_pending_ = false;
     ResetState();
-    scoped_ptr<PipelineCallback> stop_callback(stop_callback_.release());
+    scoped_ptr<PipelineStatusCallback> stop_callback(stop_callback_.release());
     // Notify the client that stopping has finished.
     if (stop_callback.get()) {
-      stop_callback->Run();
+      stop_callback->Run(status_);
     }
   }
 
@@ -1001,19 +1025,18 @@ void PipelineImpl::InitializeDemuxer() {
       NewCallback(this, &PipelineImpl::OnDemuxerBuilt));
 }
 
-void PipelineImpl::OnDemuxerBuilt(PipelineError error,
-                                  Demuxer* demuxer) {
+void PipelineImpl::OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer) {
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(FROM_HERE,
                             NewRunnableMethod(this,
                                               &PipelineImpl::OnDemuxerBuilt,
-                                              error,
+                                              status,
                                               make_scoped_refptr(demuxer)));
     return;
   }
 
-  if (error != PIPELINE_OK) {
-    SetError(error);
+  if (status != PIPELINE_OK) {
+    SetError(status);
     return;
   }
 

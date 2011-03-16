@@ -134,7 +134,7 @@ class MockDemuxerFactory : public DemuxerFactory {
   explicit MockDemuxerFactory(MockDemuxer* demuxer);
   virtual ~MockDemuxerFactory();
 
-  void SetError(PipelineError error);
+  void SetError(PipelineStatus error);
   void RunBuildCallback(const std::string& url, BuildCallback* callback);
   void DestroyBuildCallback(const std::string& url, BuildCallback* callback);
 
@@ -144,7 +144,7 @@ class MockDemuxerFactory : public DemuxerFactory {
 
  private:
   scoped_refptr<MockDemuxer> demuxer_;
-  PipelineError error_;
+  PipelineStatus status_;
 
   DISALLOW_COPY_AND_ASSIGN(MockDemuxerFactory);
 };
@@ -295,7 +295,7 @@ class MockFilterCollection {
 
   FilterCollection* filter_collection(bool include_demuxer,
                                       bool run_build_callback,
-                                      PipelineError build_error) const;
+                                      PipelineStatus build_status) const;
 
  private:
   scoped_refptr<MockDemuxer> demuxer_;
@@ -311,7 +311,7 @@ class MockFilterCollection {
 // FilterCallback on behalf of the provided filter.  Can be used when mocking
 // the Initialize() and Seek() methods.
 void RunFilterCallback(::testing::Unused, FilterCallback* callback);
-void RunPipelineStatusCallback(PipelineError status,
+void RunPipelineStatusCallback(PipelineStatus status,
                                PipelineStatusCallback* callback);
 void RunFilterCallback3(::testing::Unused, FilterCallback* callback,
                         ::testing::Unused);
