@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -263,15 +263,10 @@ bool URLRequestFileJob::IsRedirectResponse(GURL* location,
 #endif
 }
 
-bool URLRequestFileJob::GetContentEncodings(
-    std::vector<Filter::FilterType>* encoding_types) {
-  DCHECK(encoding_types->empty());
-
+Filter* URLRequestFileJob::SetupFilter() const {
   // Bug 9936 - .svgz files needs to be decompressed.
-  if (LowerCaseEqualsASCII(file_path_.Extension(), ".svgz"))
-    encoding_types->push_back(Filter::FILTER_TYPE_GZIP);
-
-  return !encoding_types->empty();
+  return LowerCaseEqualsASCII(file_path_.Extension(), ".svgz")
+      ? Filter::GZipFactory() : NULL;
 }
 
 bool URLRequestFileJob::GetMimeType(std::string* mime_type) const {
