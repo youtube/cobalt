@@ -29,6 +29,8 @@
         'base/address_list_net_log_param.h',
         'base/auth.cc',
         'base/auth.h',
+        'base/backoff_entry.cc',
+        'base/backoff_entry.h',
         'base/bandwidth_metrics.cc',
         'base/bandwidth_metrics.h',
         'base/cache_type.h',
@@ -870,6 +872,7 @@
       'msvs_guid': 'E99DA267-BE90-4F45-88A1-6919DB2C7567',
       'sources': [
         'base/address_list_unittest.cc',
+        'base/backoff_entry_unittest.cc',
         'base/cert_database_nss_unittest.cc',
         'base/cert_verifier_unittest.cc',
         'base/cookie_monster_unittest.cc',
