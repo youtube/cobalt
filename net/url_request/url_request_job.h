@@ -29,8 +29,7 @@ class UploadData;
 class URLRequestStatus;
 class X509Certificate;
 
-class URLRequestJob : public base::RefCounted<URLRequestJob>,
-                      public FilterContext {
+class URLRequestJob : public base::RefCounted<URLRequestJob> {
  public:
   // When histogramming results related to SDCH and/or an SDCH latency test, the
   // number of packets for which we need to record arrival times so as to
@@ -178,17 +177,9 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   // Whether we have processed the response for that request yet.
   bool has_response_started() const { return has_handled_response_; }
 
-  // FilterContext methods:
   // These methods are not applicable to all connections.
   virtual bool GetMimeType(std::string* mime_type) const;
-  virtual bool GetURL(GURL* gurl) const;
-  virtual base::Time GetRequestTime() const;
-  virtual bool IsDownload() const;
-  virtual bool IsSdchResponse() const;
-  virtual bool IsCachedContent() const;
-  virtual int64 GetByteReadCount() const;
   virtual int GetResponseCode() const;
-  virtual void RecordPacketStats(StatisticSelector statistic) const;
 
   // Returns the socket address for the connection.
   // See url_request.h for details.
@@ -263,6 +254,16 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   // Set the status of the job.
   void SetStatus(const net::URLRequestStatus& status);
 
+  // TODO(adamk): Remove this method once it's no longer called from
+  // URLRequestJob.
+  virtual bool IsCachedContent() const;
+
+  // TODO(adamk): Move this method to url_request_http_job.cc by exposing
+  // the required stats to URLRequestJob children.
+  void RecordPacketStats(FilterContext::StatisticSelector statistic) const;
+
+  int64 filter_input_byte_count() const { return filter_input_byte_count_; }
+
   // The request that initiated this job. This value MAY BE NULL if the
   // request was released by DetachRequest().
   net::URLRequest* request_;
@@ -305,9 +306,6 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   // all the data or an error has been encountered. Set exclusively by
   // NotifyDone so that it is kept in sync with the request.
   bool done_;
-
-  // Cache the load flags from request_ because it might go away.
-  int load_flags_;
 
   // The number of bytes read before passing to the filter.
   int prefilter_bytes_read_;
