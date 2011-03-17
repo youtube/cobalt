@@ -381,7 +381,13 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
   CertVerifyResult verify_result;
   int error = paypal_null_cert->Verify("www.paypal.com", flags,
                                        &verify_result);
-  EXPECT_NE(OK, error);
+#if defined(USE_OPENSSL) || defined(OS_MACOSX) || defined(OS_WIN)
+  // TOOD(bulach): investigate why macosx and win aren't returning
+  // ERR_CERT_INVALID.
+  EXPECT_EQ(ERR_CERT_AUTHORITY_INVALID, error);
+#else
+  EXPECT_EQ(ERR_CERT_COMMON_NAME_INVALID, error);
+#endif
   // Either the system crypto library should correctly report a certificate
   // name mismatch, or our certificate blacklist should cause us to report an
   // invalid certificate.
@@ -409,7 +415,7 @@ TEST(X509CertificateTest, UnoSoftCertParsing) {
   CertVerifyResult verify_result;
   int error = unosoft_hu_cert->Verify("www.unosoft.hu", flags,
                                       &verify_result);
-  EXPECT_NE(OK, error);
+  EXPECT_EQ(ERR_CERT_AUTHORITY_INVALID, error);
   EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
 }
 
@@ -488,8 +494,15 @@ TEST(X509CertificateTest, InvalidKeyUsage) {
   int flags = 0;
   CertVerifyResult verify_result;
   int error = server_cert->Verify("jira.aquameta.com", flags, &verify_result);
+#if defined(USE_OPENSSL)
+  // This certificate has two errors: "invalid key usage" and "untrusted CA".
+  // However, OpenSSL returns only one (the latter), and we can't detect
+  // the other errors.
+  EXPECT_EQ(ERR_CERT_AUTHORITY_INVALID, error);
+#else
   EXPECT_EQ(ERR_CERT_INVALID, error);
   EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_INVALID);
+#endif
   // TODO(wtc): fix http://crbug.com/75520 to get all the certificate errors
   // from NSS.
 #if !defined(USE_NSS)
