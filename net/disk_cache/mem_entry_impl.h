@@ -8,6 +8,7 @@
 
 #include "base/hash_tables.h"
 #include "base/scoped_ptr.h"
+#include "net/base/net_log.h"
 #include "net/disk_cache/disk_cache.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -54,7 +55,7 @@ class MemEntryImpl : public Entry {
 
   // Performs the initialization of a EntryImpl that will be added to the
   // cache.
-  bool CreateEntry(const std::string& key);
+  bool CreateEntry(const std::string& key, net::NetLog* net_log);
 
   // Permanently destroys this entry.
   void InternalDoom();
@@ -80,6 +81,14 @@ class MemEntryImpl : public Entry {
 
   EntryType type() const {
     return parent_ ? kChildEntry : kParentEntry;
+  }
+
+  std::string& key() {
+    return key_;
+  }
+
+  net::BoundNetLog& net_log() {
+    return net_log_;
   }
 
   // Entry interface.
@@ -113,6 +122,14 @@ class MemEntryImpl : public Entry {
 
   ~MemEntryImpl();
 
+  // Do all the work for corresponding public functions.  Implemented as
+  // separate functions to make logging of results simpler.
+  int InternalReadData(int index, int offset, net::IOBuffer* buf, int buf_len);
+  int InternalWriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
+                        bool truncate);
+  int InternalReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len);
+  int InternalWriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len);
+
   // Old Entry interface.
   int GetAvailableRange(int64 offset, int len, int64* start);
 
@@ -129,7 +146,7 @@ class MemEntryImpl : public Entry {
   // Performs the initialization of a MemEntryImpl as a child entry.
   // |parent| is the pointer to the parent entry. |child_id| is the ID of
   // the new child.
-  bool InitChildEntry(MemEntryImpl* parent, int child_id);
+  bool InitChildEntry(MemEntryImpl* parent, int child_id, net::NetLog* net_log);
 
   // Returns an entry responsible for |offset|. The returned entry can be a
   // child entry or this entry itself if |offset| points to the first range.
@@ -162,6 +179,8 @@ class MemEntryImpl : public Entry {
   base::Time last_used_;
   MemBackendImpl* backend_;   // Back pointer to the cache.
   bool doomed_;               // True if this entry was removed from the cache.
+
+  net::BoundNetLog net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(MemEntryImpl);
 };

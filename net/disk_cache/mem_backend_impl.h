@@ -13,6 +13,10 @@
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/mem_rankings.h"
 
+namespace net {
+class NetLog;
+}  // namespace net
+
 namespace disk_cache {
 
 class MemEntryImpl;
@@ -21,7 +25,7 @@ class MemEntryImpl;
 // the operations of the cache without writing to disk.
 class MemBackendImpl : public Backend {
  public:
-  MemBackendImpl();
+  explicit MemBackendImpl(net::NetLog* net_log);
   ~MemBackendImpl();
 
   // Returns an instance of a Backend implemented only in memory. The returned
@@ -29,7 +33,7 @@ class MemBackendImpl : public Backend {
   // size the cache can grow to. If zero is passed in as max_bytes, the cache
   // will determine the value to use based on the available memory. The returned
   // pointer can be NULL if a fatal error is found.
-  static Backend* CreateBackend(int max_bytes);
+  static Backend* CreateBackend(int max_bytes, net::NetLog* net_log);
 
   // Performs general initialization for this current instance of the cache.
   bool Init();
@@ -103,6 +107,8 @@ class MemBackendImpl : public Backend {
   MemRankings rankings_;  // Rankings to be able to trim the cache.
   int32 max_size_;        // Maximum data size for this instance.
   int32 current_size_;
+
+  net::NetLog* net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(MemBackendImpl);
 };
