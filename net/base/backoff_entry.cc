@@ -23,8 +23,7 @@ BackoffEntry::BackoffEntry(const BackoffEntry::Policy* const policy)
 
 BackoffEntry::~BackoffEntry() {
   // TODO(joi): Remove this once our clients (e.g. URLRequestThrottlerManager)
-  // always destroy from the I/O thread; at the moment we may be destroyed
-  // from the main thread (during AtExit processing).
+  // always destroy from the I/O thread.
   DetachFromThread();
 }
 

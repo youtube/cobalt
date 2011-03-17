@@ -12,7 +12,7 @@
 #include "base/basictypes.h"
 #include "base/scoped_ptr.h"
 #include "base/singleton.h"
-#include "base/threading/thread_checker_impl.h"
+#include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
 #include "net/url_request/url_request_throttler_entry.h"
 
@@ -28,12 +28,10 @@ namespace net {
 // clean out outdated entries. URL ID consists of lowercased scheme, host, port
 // and path. All URLs converted to the same ID will share the same entry.
 //
-// NOTE: All usage of the singleton object of this class should be on the same
-// thread.
-//
-// TODO(joi): Switch back to NonThreadSafe (and remove checks in release builds)
-// once crbug.com/71721 has been tracked down.
-class URLRequestThrottlerManager {
+// NOTE: All usage of this singleton object must be on the same thread,
+// although to allow it to be used as a singleton, construction and destruction
+// can occur on a separate thread.
+class URLRequestThrottlerManager : public base::NonThreadSafe {
  public:
   static URLRequestThrottlerManager* GetInstance();
 
@@ -94,19 +92,9 @@ class URLRequestThrottlerManager {
   // Number of requests that will be made between garbage collection.
   static const unsigned int kRequestsBetweenCollecting;
 
-  // Constructor copies the string "MAGICZZ\0" into this buffer; using it
-  // to try to detect memory overwrites affecting url_entries_ in the wild.
-  // TODO(joi): Remove once crbug.com/71721 is figured out.
-  char magic_buffer_1_[8];
-
   // Map that contains a list of URL ID and their matching
   // URLRequestThrottlerEntry.
   UrlEntryMap url_entries_;
-
-  // Constructor copies the string "GOOGYZZ\0" into this buffer; using it
-  // to try to detect memory overwrites affecting url_entries_ in the wild.
-  // TODO(joi): Remove once crbug.com/71721 is figured out.
-  char magic_buffer_2_[8];
 
   // This keeps track of how many requests have been made. Used with
   // GarbageCollectEntries.
@@ -126,8 +114,6 @@ class URLRequestThrottlerManager {
   // TODO(joi): See if we can fix the offending unit tests and remove this
   // workaround.
   bool being_tested_;
-
-  base::ThreadCheckerImpl thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };
