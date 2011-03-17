@@ -74,7 +74,6 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual int GetResponseCode() const;
   virtual Filter* SetupFilter() const;
   virtual bool IsCachedContent() const;
-  virtual bool IsSdchResponse() const;
   virtual bool IsSafeRedirect(const GURL& location);
   virtual bool NeedsAuth();
   virtual void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*);
@@ -135,12 +134,35 @@ class URLRequestHttpJob : public URLRequestJob {
   bool is_cached_content_;
 
  private:
+  class HttpFilterContext : public FilterContext {
+   public:
+    explicit HttpFilterContext(URLRequestHttpJob* job);
+    virtual ~HttpFilterContext();
+
+    // net::FilterContext implementation.
+    virtual bool GetMimeType(std::string* mime_type) const;
+    virtual bool GetURL(GURL* gurl) const;
+    virtual base::Time GetRequestTime() const;
+    virtual bool IsCachedContent() const;
+    virtual bool IsDownload() const;
+    virtual bool IsSdchResponse() const;
+    virtual int64 GetByteReadCount() const;
+    virtual int GetResponseCode() const;
+    virtual void RecordPacketStats(StatisticSelector statistic) const;
+
+   private:
+    URLRequestHttpJob* job_;
+
+    DISALLOW_COPY_AND_ASSIGN(HttpFilterContext);
+  };
+
   virtual ~URLRequestHttpJob();
 
   void RecordTimer();
   void ResetTimer();
 
   base::Time request_creation_time_;
+  HttpFilterContext filter_context_;
   ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
