@@ -11,7 +11,7 @@
 #include "net/base/auth.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
-#include "net/base/load_flags.h"
+#include "net/base/load_states.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_delegate.h"
@@ -28,7 +28,6 @@ namespace net {
 URLRequestJob::URLRequestJob(URLRequest* request)
     : request_(request),
       done_(false),
-      load_flags_(request_->load_flags()),
       prefilter_bytes_read_(0),
       postfilter_bytes_read_(0),
       is_compressible_content_(false),
@@ -205,40 +204,16 @@ bool URLRequestJob::GetMimeType(std::string* mime_type) const {
   return false;
 }
 
-bool URLRequestJob::GetURL(GURL* gurl) const {
-  if (!request_)
-    return false;
-  *gurl = request_->url();
-  return true;
-}
-
-base::Time URLRequestJob::GetRequestTime() const {
-  if (!request_)
-    return base::Time();
-  return request_->request_time();
-}
-
-bool URLRequestJob::IsDownload() const {
-  return (load_flags_ & net::LOAD_IS_DOWNLOAD) != 0;
-}
-
-bool URLRequestJob::IsSdchResponse() const {
-  return false;
-}
-
 bool URLRequestJob::IsCachedContent() const {
   return false;
-}
-
-int64 URLRequestJob::GetByteReadCount() const {
-  return filter_input_byte_count_;
 }
 
 int URLRequestJob::GetResponseCode() const {
   return -1;
 }
 
-void URLRequestJob::RecordPacketStats(StatisticSelector statistic) const {
+void URLRequestJob::RecordPacketStats(
+    FilterContext::StatisticSelector statistic) const {
   if (!packet_timing_enabled_ || (final_packet_time_ == base::Time()))
     return;
 
@@ -250,7 +225,7 @@ void URLRequestJob::RecordPacketStats(StatisticSelector statistic) const {
 
   base::TimeDelta duration = final_packet_time_ - request_time_snapshot_;
   switch (statistic) {
-    case SDCH_DECODE: {
+    case FilterContext::SDCH_DECODE: {
       UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Decode_Latency_F_a", duration,
                                   base::TimeDelta::FromMilliseconds(20),
                                   base::TimeDelta::FromMinutes(10), 100);
@@ -287,7 +262,7 @@ void URLRequestJob::RecordPacketStats(StatisticSelector statistic) const {
                                   base::TimeDelta::FromSeconds(10), 100);
       return;
     }
-    case SDCH_PASSTHROUGH: {
+    case FilterContext::SDCH_PASSTHROUGH: {
       // Despite advertising a dictionary, we handled non-sdch compressed
       // content.
       UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Network_Pass-through_Latency_F_a",
@@ -325,7 +300,7 @@ void URLRequestJob::RecordPacketStats(StatisticSelector statistic) const {
       return;
     }
 
-    case SDCH_EXPERIMENT_DECODE: {
+    case FilterContext::SDCH_EXPERIMENT_DECODE: {
       UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Decode",
                                   duration,
                                   base::TimeDelta::FromMilliseconds(20),
@@ -334,7 +309,7 @@ void URLRequestJob::RecordPacketStats(StatisticSelector statistic) const {
       // case, so we don't need them here.
       return;
     }
-    case SDCH_EXPERIMENT_HOLDBACK: {
+    case FilterContext::SDCH_EXPERIMENT_HOLDBACK: {
       UMA_HISTOGRAM_CLIPPED_TIMES("Sdch3.Experiment_Holdback",
                                   duration,
                                   base::TimeDelta::FromMilliseconds(20),
@@ -814,7 +789,7 @@ void URLRequestJob::UpdatePacketReadTimes() {
   }
 
   if (!bytes_observed_in_packets_)
-    request_time_snapshot_ = GetRequestTime();
+    request_time_snapshot_ = request_ ? request_->request_time() : base::Time();
 
   final_packet_time_ = base::Time::Now();
   const size_t kTypicalPacketSize = 1430;

@@ -80,6 +80,55 @@ class HTTPSProberDelegateImpl : public HTTPSProberDelegate {
 
 }  // namespace
 
+URLRequestHttpJob::HttpFilterContext::HttpFilterContext(URLRequestHttpJob* job)
+    : job_(job) {
+  DCHECK(job_);
+}
+
+URLRequestHttpJob::HttpFilterContext::~HttpFilterContext() {
+}
+
+bool URLRequestHttpJob::HttpFilterContext::GetMimeType(
+    std::string* mime_type) const {
+  return job_->GetMimeType(mime_type);
+}
+
+bool URLRequestHttpJob::HttpFilterContext::GetURL(GURL* gurl) const {
+  if (!job_->request())
+    return false;
+  *gurl = job_->request()->url();
+  return true;
+}
+
+base::Time URLRequestHttpJob::HttpFilterContext::GetRequestTime() const {
+  return job_->request() ? job_->request()->request_time() : base::Time();
+}
+
+bool URLRequestHttpJob::HttpFilterContext::IsCachedContent() const {
+  return job_->IsCachedContent();
+}
+
+bool URLRequestHttpJob::HttpFilterContext::IsDownload() const {
+  return (job_->request_info_.load_flags & LOAD_IS_DOWNLOAD) != 0;
+}
+
+bool URLRequestHttpJob::HttpFilterContext::IsSdchResponse() const {
+  return job_->sdch_dictionary_advertised_;
+}
+
+int64 URLRequestHttpJob::HttpFilterContext::GetByteReadCount() const {
+  return job_->filter_input_byte_count();
+}
+
+int URLRequestHttpJob::HttpFilterContext::GetResponseCode() const {
+  return job_->GetResponseCode();
+}
+
+void URLRequestHttpJob::HttpFilterContext::RecordPacketStats(
+    StatisticSelector statistic) const {
+  job_->RecordPacketStats(statistic);
+}
+
 // TODO(darin): make sure the port blocking code is not lost
 // static
 URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
@@ -143,6 +192,7 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       sdch_test_control_(false),
       is_cached_content_(false),
       request_creation_time_(),
+      ALLOW_THIS_IN_INITIALIZER_LIST(filter_context_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   ResetTimer();
 }
@@ -748,18 +798,14 @@ Filter* URLRequestHttpJob::SetupFilter() const {
   // some decoding, as some proxies strip encoding completely. In such cases,
   // we may need to add (for example) SDCH filtering (when the context suggests
   // it is appropriate).
-  Filter::FixupEncodingTypes(*this, &encoding_types);
+  Filter::FixupEncodingTypes(filter_context_, &encoding_types);
 
   return !encoding_types.empty()
-      ? Filter::Factory(encoding_types, *this) : NULL;
+      ? Filter::Factory(encoding_types, filter_context_) : NULL;
 }
 
 bool URLRequestHttpJob::IsCachedContent() const {
   return is_cached_content_;
-}
-
-bool URLRequestHttpJob::IsSdchResponse() const {
-  return sdch_dictionary_advertised_;
 }
 
 bool URLRequestHttpJob::IsSafeRedirect(const GURL& location) {
@@ -948,9 +994,9 @@ URLRequestHttpJob::~URLRequestHttpJob() {
   DCHECK(!sdch_test_control_ || !sdch_test_activated_);
   if (!IsCachedContent()) {
     if (sdch_test_control_)
-      RecordPacketStats(SDCH_EXPERIMENT_HOLDBACK);
+      RecordPacketStats(FilterContext::SDCH_EXPERIMENT_HOLDBACK);
     if (sdch_test_activated_)
-      RecordPacketStats(SDCH_EXPERIMENT_DECODE);
+      RecordPacketStats(FilterContext::SDCH_EXPERIMENT_DECODE);
   }
   // Make sure SDCH filters are told to emit histogram data while this class
   // can still service the IsCachedContent() call.
