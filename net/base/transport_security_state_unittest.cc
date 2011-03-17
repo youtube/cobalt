@@ -402,6 +402,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "spreadsheets.google.com"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "appengine.google.com"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "www.paycheckrecords.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {

@@ -473,6 +473,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {18, true, "\005sites\006google\003com"},
     {25, true, "\014spreadsheets\006google\003com"},
     {22, false, "\011appengine\006google\003com"},
+    {25, false, "\003www\017paycheckrecords\003com"},
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
