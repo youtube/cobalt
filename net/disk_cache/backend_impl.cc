@@ -295,7 +295,7 @@ int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
                        CompletionCallback* callback) {
   DCHECK(callback);
   if (type == net::MEMORY_CACHE) {
-    *backend = MemBackendImpl::CreateBackend(max_bytes);
+    *backend = MemBackendImpl::CreateBackend(max_bytes, net_log);
     return *backend ? net::OK : net::ERR_FAILED;
   }
   DCHECK(thread);
