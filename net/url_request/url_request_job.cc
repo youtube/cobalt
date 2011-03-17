@@ -121,16 +121,8 @@ bool URLRequestJob::GetResponseCookies(std::vector<std::string>* cookies) {
   return false;
 }
 
-bool URLRequestJob::GetContentEncodings(
-    std::vector<Filter::FilterType>* encoding_types) {
-  return false;
-}
-
-void URLRequestJob::SetupFilter() {
-  std::vector<Filter::FilterType> encoding_types;
-  if (GetContentEncodings(&encoding_types)) {
-    filter_.reset(Filter::Factory(encoding_types, *this));
-  }
+Filter* URLRequestJob::SetupFilter() const {
+  return NULL;
 }
 
 bool URLRequestJob::IsRedirectResponse(GURL* location,
@@ -457,7 +449,7 @@ void URLRequestJob::NotifyHeadersComplete() {
 
   has_handled_response_ = true;
   if (request_->status().is_success()) {
-    SetupFilter();
+    filter_.reset(SetupFilter());
 
     // Check if this content appears to be compressible.
     std::string mime_type;

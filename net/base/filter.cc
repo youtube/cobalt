@@ -46,6 +46,7 @@ FilterContext::~FilterContext() {
 
 Filter::~Filter() {}
 
+// static
 Filter* Filter::Factory(const std::vector<FilterType>& filter_types,
                         const FilterContext& filter_context) {
   if (filter_types.empty())
@@ -61,6 +62,12 @@ Filter* Filter::Factory(const std::vector<FilterType>& filter_types,
   return filter_list;
 }
 
+// static
+Filter* Filter::GZipFactory() {
+  return InitGZipFilter(FILTER_TYPE_GZIP, kFilterBufSize);
+}
+
+// static
 Filter* Filter::FactoryForTests(const std::vector<FilterType>& filter_types,
                                 const FilterContext& filter_context,
                                 int buffer_size) {
@@ -340,46 +347,46 @@ Filter::FilterStatus Filter::CopyOut(char* dest_buffer, int* dest_len) {
 }
 
 // static
+Filter* Filter::InitGZipFilter(FilterType type_id, int buffer_size) {
+  scoped_ptr<GZipFilter> gz_filter(new GZipFilter());
+  gz_filter->InitBuffer(buffer_size);
+  return gz_filter->InitDecoding(type_id) ? gz_filter.release() : NULL;
+}
+
+// static
+Filter* Filter::InitSdchFilter(FilterType type_id,
+                               const FilterContext& filter_context,
+                               int buffer_size) {
+  scoped_ptr<SdchFilter> sdch_filter(new SdchFilter(filter_context));
+  sdch_filter->InitBuffer(buffer_size);
+  return sdch_filter->InitDecoding(type_id) ? sdch_filter.release() : NULL;
+}
+
+// static
 Filter* Filter::PrependNewFilter(FilterType type_id,
                                  const FilterContext& filter_context,
                                  int buffer_size,
                                  Filter* filter_list) {
-  Filter* first_filter = NULL;  // Soon to be start of chain.
+  scoped_ptr<Filter> first_filter;  // Soon to be start of chain.
   switch (type_id) {
     case FILTER_TYPE_GZIP_HELPING_SDCH:
     case FILTER_TYPE_DEFLATE:
-    case FILTER_TYPE_GZIP: {
-      scoped_ptr<net::GZipFilter> gz_filter(
-          new net::GZipFilter());
-      gz_filter->InitBuffer(buffer_size);
-      if (gz_filter->InitDecoding(type_id)) {
-        first_filter = gz_filter.release();
-      }
+    case FILTER_TYPE_GZIP:
+      first_filter.reset(InitGZipFilter(type_id, buffer_size));
       break;
-    }
     case FILTER_TYPE_SDCH:
-    case FILTER_TYPE_SDCH_POSSIBLE: {
-      scoped_ptr<net::SdchFilter> sdch_filter(
-          new net::SdchFilter(filter_context));
-      sdch_filter->InitBuffer(buffer_size);
-      if (sdch_filter->InitDecoding(type_id)) {
-        first_filter = sdch_filter.release();
-      }
+    case FILTER_TYPE_SDCH_POSSIBLE:
+      first_filter.reset(InitSdchFilter(type_id, filter_context, buffer_size));
       break;
-    }
-    default: {
+    default:
       break;
-    }
   }
 
-  if (!first_filter) {
-    // Cleanup and exit, since we can't construct this filter list.
-    delete filter_list;
+  if (!first_filter.get())
     return NULL;
-  }
 
   first_filter->next_filter_.reset(filter_list);
-  return first_filter;
+  return first_filter.release();
 }
 
 void Filter::InitBuffer(int buffer_size) {

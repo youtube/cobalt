@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -731,27 +731,27 @@ int URLRequestHttpJob::GetResponseCode() const {
   return response_info_->headers->response_code();
 }
 
-bool URLRequestHttpJob::GetContentEncodings(
-    std::vector<Filter::FilterType>* encoding_types) {
+Filter* URLRequestHttpJob::SetupFilter() const {
   DCHECK(transaction_.get());
   if (!response_info_)
-    return false;
-  DCHECK(encoding_types->empty());
+    return NULL;
 
+  std::vector<Filter::FilterType> encoding_types;
   std::string encoding_type;
   void* iter = NULL;
   while (response_info_->headers->EnumerateHeader(&iter, "Content-Encoding",
                                                   &encoding_type)) {
-    encoding_types->push_back(Filter::ConvertEncodingToType(encoding_type));
+    encoding_types.push_back(Filter::ConvertEncodingToType(encoding_type));
   }
 
   // Even if encoding types are empty, there is a chance that we need to add
   // some decoding, as some proxies strip encoding completely. In such cases,
   // we may need to add (for example) SDCH filtering (when the context suggests
   // it is appropriate).
-  Filter::FixupEncodingTypes(*this, encoding_types);
+  Filter::FixupEncodingTypes(*this, &encoding_types);
 
-  return !encoding_types->empty();
+  return !encoding_types.empty()
+      ? Filter::Factory(encoding_types, *this) : NULL;
 }
 
 bool URLRequestHttpJob::IsCachedContent() const {

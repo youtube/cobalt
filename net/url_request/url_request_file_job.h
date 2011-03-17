@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,8 +39,7 @@ class URLRequestFileJob : public URLRequestJob {
   virtual void Kill();
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int* bytes_read);
   virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
-  virtual bool GetContentEncodings(
-      std::vector<Filter::FilterType>* encoding_type);
+  virtual Filter* SetupFilter() const;
   virtual bool GetMimeType(std::string* mime_type) const;
   virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
 
