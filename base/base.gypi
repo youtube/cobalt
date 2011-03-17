@@ -333,6 +333,8 @@
           'win/win_util.h',
           'win/windows_version.cc',
           'win/windows_version.h',
+          'win/wrapped_window_proc.cc',
+          'win/wrapped_window_proc.h',
           'nix/xdg_util.h',
           'nix/xdg_util.cc',
         ],

@@ -179,6 +179,7 @@
         'win/scoped_comptr_unittest.cc',
         'win/scoped_variant_unittest.cc',
         'win/win_util_unittest.cc',
+        'win/wrapped_window_proc_unittest.cc',
       ],
       'dependencies': [
         'base',
