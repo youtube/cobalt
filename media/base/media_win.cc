@@ -44,9 +44,14 @@ static FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
   }
 }
 
+static bool g_media_library_is_initialized = false;
+
 // Attempts to initialize the media library (loading DLLs, DSOs, etc.).
 // Returns true if everything was successfully initialized, false otherwise.
 bool InitializeMediaLibrary(const FilePath& base_path) {
+  if (g_media_library_is_initialized)
+    return true;
+
   FFmpegDLLKeys path_keys[] = {
     media::FILE_LIBAVCODEC,
     media::FILE_LIBAVFORMAT,
@@ -78,15 +83,21 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
   // Check that we loaded all libraries successfully.  We only need to check the
   // last array element because the loop above will break without initializing
   // it on any prior error.
-  if (libs[arraysize(libs)-1])
-    return true;
+  g_media_library_is_initialized = (libs[arraysize(libs)-1] != NULL);
 
-  // Free any loaded libraries if we weren't successful.
-  for (size_t i = 0; i < arraysize(libs) && libs[i] != NULL; ++i) {
-    FreeLibrary(libs[i]);
-    libs[i] = NULL;  // Just to be safe.
+  if (!g_media_library_is_initialized) {
+    // Free any loaded libraries if we weren't successful.
+    for (size_t i = 0; i < arraysize(libs) && libs[i] != NULL; ++i) {
+      FreeLibrary(libs[i]);
+      libs[i] = NULL;  // Just to be safe.
+    }
   }
-  return false;
+
+  return g_media_library_is_initialized;
+}
+
+bool IsMediaLibraryInitialized() {
+  return g_media_library_is_initialized;
 }
 
 bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
