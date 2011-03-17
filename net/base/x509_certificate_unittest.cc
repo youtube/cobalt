@@ -413,6 +413,34 @@ TEST(X509CertificateTest, UnoSoftCertParsing) {
   EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
 }
 
+TEST(X509CertificateTest, SerialNumbers) {
+  scoped_refptr<X509Certificate> google_cert(
+      X509Certificate::CreateFromBytes(
+          reinterpret_cast<const char*>(google_der), sizeof(google_der)));
+
+  static const uint8 google_serial[16] = {
+    0x01,0x2a,0x39,0x76,0x0d,0x3f,0x4f,0xc9,
+    0x0b,0xe7,0xbd,0x2b,0xcf,0x95,0x2e,0x7a,
+  };
+
+  ASSERT_EQ(sizeof(google_serial), google_cert->serial_number().size());
+  EXPECT_TRUE(memcmp(google_cert->serial_number().data(), google_serial,
+                     sizeof(google_serial)) == 0);
+
+  // We also want to check a serial number where the first byte is >= 0x80 in
+  // case the underlying library tries to pad it.
+  scoped_refptr<X509Certificate> paypal_null_cert(
+      X509Certificate::CreateFromBytes(
+          reinterpret_cast<const char*>(paypal_null_der),
+          sizeof(paypal_null_der)));
+
+  static const uint8 paypal_null_serial[2] = {0xf0, 0x9b};
+  ASSERT_EQ(sizeof(paypal_null_serial),
+            paypal_null_cert->serial_number().size());
+  EXPECT_TRUE(memcmp(paypal_null_cert->serial_number().data(),
+                     paypal_null_serial, sizeof(paypal_null_serial)) == 0);
+}
+
 // A regression test for http://crbug.com/31497.
 // This certificate will expire on 2012-04-08.
 TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
