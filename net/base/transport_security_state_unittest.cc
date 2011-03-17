@@ -396,6 +396,12 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
                                       "aladdinschools.appspot.com"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "ottospora.nl"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.ottospora.nl"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "docs.google.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "sites.google.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
+                                      "spreadsheets.google.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "appengine.google.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
