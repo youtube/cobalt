@@ -4,11 +4,13 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_H_
 #define NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_H_
+#pragma once
 
 #include <queue>
 #include <string>
 
 #include "base/basictypes.h"
+#include "net/base/backoff_entry.h"
 #include "net/url_request/url_request_throttler_entry_interface.h"
 
 namespace net {
@@ -35,9 +37,6 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   // Initial delay for exponential back-off.
   static const int kDefaultInitialBackoffMs;
 
-  // Additional constant to adjust back-off.
-  static const int kDefaultAdditionalConstantMs;
-
   // Factor by which the waiting time will be multiplied.
   static const double kDefaultMultiplyFactor;
 
@@ -63,7 +62,6 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   URLRequestThrottlerEntry(int sliding_window_period_ms,
                            int max_send_threshold,
                            int initial_backoff_ms,
-                           int additional_constant_ms,
                            double multiply_factor,
                            double jitter_factor,
                            int maximum_backoff_ms);
@@ -80,15 +78,11 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   virtual void UpdateWithResponse(
       const URLRequestThrottlerHeaderInterface* response);
   virtual void ReceivedContentWasMalformed();
-  virtual void SetEntryLifetimeMsForTest(int lifetime_ms);
 
  protected:
   virtual ~URLRequestThrottlerEntry();
 
   void Initialize();
-
-  // Calculates the release time for exponential back-off.
-  base::TimeTicks CalculateExponentialBackoffReleaseTime();
 
   // Equivalent to TimeTicks::Now(), virtual to be mockable for testing purpose.
   virtual base::TimeTicks GetTimeNow() const;
@@ -96,11 +90,10 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   // Used internally to increase release time following a retry-after header.
   void HandleCustomRetryAfter(const std::string& header_value);
 
-  // Used by tests.
-  void set_exponential_backoff_release_time(
-      const base::TimeTicks& release_time) {
-    exponential_backoff_release_time_ = release_time;
-  }
+  // Retrieves the backoff entry object we're using. Used to enable a
+  // unit testing seam for dependency injection in tests.
+  virtual const BackoffEntry* GetBackoffEntry() const;
+  virtual BackoffEntry* GetBackoffEntry();
 
   // Used by tests.
   base::TimeTicks sliding_window_release_time() const {
@@ -112,25 +105,10 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
     sliding_window_release_time_ = release_time;
   }
 
-  // Used by tests.
-  void set_failure_count(int failure_count) {
-    failure_count_ = failure_count;
-  }
+  // Valid and immutable after construction time.
+  BackoffEntry::Policy backoff_policy_;
 
  private:
-  // Timestamp calculated by the exponential back-off algorithm at which we are
-  // allowed to start sending requests again.
-  base::TimeTicks exponential_backoff_release_time_;
-
-  // Number of times we encounter server errors or malformed response bodies.
-  int failure_count_;
-
-  // If true, the last request response was a failure.
-  // Note that this member can be false at the same time as failure_count_ can
-  // be greater than 0, since we gradually decrease failure_count_, instead of
-  // resetting it to 0 directly, when we receive successful responses.
-  bool latest_response_was_failure_;
-
   // Timestamp calculated by the sliding window algorithm for when we advise
   // clients the next request should be made, at the earliest. Advisory only,
   // not used to deny requests.
@@ -142,13 +120,9 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
 
   const base::TimeDelta sliding_window_period_;
   const int max_send_threshold_;
-  const int initial_backoff_ms_;
-  const int additional_constant_ms_;
-  const double multiply_factor_;
-  const double jitter_factor_;
-  const int maximum_backoff_ms_;
-  // Set to -1 if the entry never expires.
-  int entry_lifetime_ms_;
+
+  // Access it through GetBackoffEntry() to allow a unit test seam.
+  BackoffEntry backoff_entry_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerEntry);
 };
