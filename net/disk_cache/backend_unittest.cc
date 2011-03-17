@@ -206,7 +206,7 @@ TEST_F(DiskCacheTest, CreateBackend) {
     ASSERT_TRUE(cache);
     delete cache;
 
-    cache = disk_cache::MemBackendImpl::CreateBackend(0);
+    cache = disk_cache::MemBackendImpl::CreateBackend(0, NULL);
     ASSERT_TRUE(cache);
     delete cache;
     cache = NULL;

@@ -28,7 +28,8 @@ int LowWaterAdjust(int high_water) {
 
 namespace disk_cache {
 
-MemBackendImpl::MemBackendImpl() : max_size_(0), current_size_(0) {}
+MemBackendImpl::MemBackendImpl(net::NetLog* net_log)
+    : max_size_(0), current_size_(0), net_log_(net_log) {}
 
 MemBackendImpl::~MemBackendImpl() {
   EntryMap::iterator it = entries_.begin();
@@ -40,8 +41,8 @@ MemBackendImpl::~MemBackendImpl() {
 }
 
 // Static.
-Backend* MemBackendImpl::CreateBackend(int max_bytes) {
-  MemBackendImpl* cache = new MemBackendImpl();
+Backend* MemBackendImpl::CreateBackend(int max_bytes, net::NetLog* net_log) {
+  MemBackendImpl* cache = new MemBackendImpl(net_log);
   cache->SetMaxSize(max_bytes);
   if (cache->Init())
     return cache;
@@ -204,7 +205,7 @@ bool MemBackendImpl::CreateEntry(const std::string& key, Entry** entry) {
     return false;
 
   MemEntryImpl* cache_entry = new MemEntryImpl(this);
-  if (!cache_entry->CreateEntry(key)) {
+  if (!cache_entry->CreateEntry(key, net_log_)) {
     delete entry;
     return false;
   }
