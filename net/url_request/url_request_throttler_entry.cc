@@ -16,7 +16,6 @@ namespace net {
 const int URLRequestThrottlerEntry::kDefaultSlidingWindowPeriodMs = 2000;
 const int URLRequestThrottlerEntry::kDefaultMaxSendThreshold = 20;
 const int URLRequestThrottlerEntry::kDefaultInitialBackoffMs = 700;
-const int URLRequestThrottlerEntry::kDefaultAdditionalConstantMs = 100;
 const double URLRequestThrottlerEntry::kDefaultMultiplyFactor = 1.4;
 const double URLRequestThrottlerEntry::kDefaultJitterFactor = 0.4;
 const int URLRequestThrottlerEntry::kDefaultMaximumBackoffMs = 60 * 60 * 1000;
@@ -27,12 +26,7 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry()
     : sliding_window_period_(
           base::TimeDelta::FromMilliseconds(kDefaultSlidingWindowPeriodMs)),
       max_send_threshold_(kDefaultMaxSendThreshold),
-      initial_backoff_ms_(kDefaultInitialBackoffMs),
-      additional_constant_ms_(kDefaultAdditionalConstantMs),
-      multiply_factor_(kDefaultMultiplyFactor),
-      jitter_factor_(kDefaultJitterFactor),
-      maximum_backoff_ms_(kDefaultMaximumBackoffMs),
-      entry_lifetime_ms_(kDefaultEntryLifetimeMs) {
+      backoff_entry_(&backoff_policy_) {
   Initialize();
 }
 
@@ -40,77 +34,54 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
     int sliding_window_period_ms,
     int max_send_threshold,
     int initial_backoff_ms,
-    int additional_constant_ms,
     double multiply_factor,
     double jitter_factor,
     int maximum_backoff_ms)
     : sliding_window_period_(
           base::TimeDelta::FromMilliseconds(sliding_window_period_ms)),
       max_send_threshold_(max_send_threshold),
-      initial_backoff_ms_(initial_backoff_ms),
-      additional_constant_ms_(additional_constant_ms),
-      multiply_factor_(multiply_factor),
-      jitter_factor_(jitter_factor),
-      maximum_backoff_ms_(maximum_backoff_ms),
-      entry_lifetime_ms_(-1) {
+      backoff_entry_(&backoff_policy_) {
   DCHECK_GT(sliding_window_period_ms, 0);
   DCHECK_GT(max_send_threshold_, 0);
-  DCHECK_GE(initial_backoff_ms_, 0);
-  DCHECK_GE(additional_constant_ms_, 0);
-  DCHECK_GT(multiply_factor_, 0);
-  DCHECK_GE(jitter_factor_, 0);
-  DCHECK_LT(jitter_factor_, 1);
-  DCHECK_GE(maximum_backoff_ms_, 0);
+  DCHECK_GE(initial_backoff_ms, 0);
+  DCHECK_GT(multiply_factor, 0);
+  DCHECK_GE(jitter_factor, 0.0);
+  DCHECK_LT(jitter_factor, 1.0);
+  DCHECK_GE(maximum_backoff_ms, 0);
 
   Initialize();
+  backoff_policy_.initial_backoff_ms = initial_backoff_ms;
+  backoff_policy_.multiply_factor = multiply_factor;
+  backoff_policy_.jitter_factor = jitter_factor;
+  backoff_policy_.maximum_backoff_ms = maximum_backoff_ms;
+  backoff_policy_.entry_lifetime_ms = -1;
 }
 
 bool URLRequestThrottlerEntry::IsEntryOutdated() const {
-  CHECK(this);  // to help track crbug.com/71721
-  if (entry_lifetime_ms_ == -1)
-    return false;
-
-  base::TimeTicks now = GetTimeNow();
-
   // If there are send events in the sliding window period, we still need this
   // entry.
   if (!send_log_.empty() &&
-      send_log_.back() + sliding_window_period_ > now) {
+      send_log_.back() + sliding_window_period_ > GetTimeNow()) {
     return false;
   }
 
-  int64 unused_since_ms =
-      (now - exponential_backoff_release_time_).InMilliseconds();
-
-  // Release time is further than now, we are managing it.
-  if (unused_since_ms < 0)
-    return false;
-
-  // latest_response_was_failure_ is true indicates that the latest one or
-  // more requests encountered server errors or had malformed response bodies.
-  // In that case, we don't want to collect the entry unless it hasn't been used
-  // for longer than the maximum allowed back-off.
-  if (latest_response_was_failure_)
-    return unused_since_ms > std::max(maximum_backoff_ms_, entry_lifetime_ms_);
-
-  // Otherwise, consider the entry is outdated if it hasn't been used for the
-  // specified lifetime period.
-  return unused_since_ms > entry_lifetime_ms_;
+  return GetBackoffEntry()->CanDiscard();
 }
 
 bool URLRequestThrottlerEntry::IsDuringExponentialBackoff() const {
-  return exponential_backoff_release_time_ > GetTimeNow();
+  return GetBackoffEntry()->ShouldRejectRequest();
 }
 
 int64 URLRequestThrottlerEntry::ReserveSendingTimeForNextRequest(
     const base::TimeTicks& earliest_time) {
   base::TimeTicks now = GetTimeNow();
+
   // If a lot of requests were successfully made recently,
   // sliding_window_release_time_ may be greater than
   // exponential_backoff_release_time_.
   base::TimeTicks recommended_sending_time =
       std::max(std::max(now, earliest_time),
-               std::max(exponential_backoff_release_time_,
+               std::max(GetBackoffEntry()->GetReleaseTime(),
                         sliding_window_release_time_));
 
   DCHECK(send_log_.empty() ||
@@ -138,34 +109,15 @@ int64 URLRequestThrottlerEntry::ReserveSendingTimeForNextRequest(
 
 base::TimeTicks
     URLRequestThrottlerEntry::GetExponentialBackoffReleaseTime() const {
-  return exponential_backoff_release_time_;
+  return GetBackoffEntry()->GetReleaseTime();
 }
 
 void URLRequestThrottlerEntry::UpdateWithResponse(
     const URLRequestThrottlerHeaderInterface* response) {
   if (response->GetResponseCode() >= 500) {
-    failure_count_++;
-    latest_response_was_failure_ = true;
-    exponential_backoff_release_time_ =
-        CalculateExponentialBackoffReleaseTime();
+    GetBackoffEntry()->InformOfRequest(false);
   } else {
-    // We slowly decay the number of times delayed instead of resetting it to 0
-    // in order to stay stable if we received lots of requests with
-    // malformed bodies at the same time.
-    if (failure_count_ > 0)
-      failure_count_--;
-
-    latest_response_was_failure_ = false;
-
-    // The reason why we are not just cutting the release time to GetTimeNow()
-    // is on the one hand, it would unset delay put by our custom retry-after
-    // header and on the other we would like to push every request up to our
-    // "horizon" when dealing with multiple in-flight requests. Ex: If we send
-    // three requests and we receive 2 failures and 1 success. The success that
-    // follows those failures will not reset the release time, further requests
-    // will then need to wait the delay caused by the 2 failures.
-    exponential_backoff_release_time_ = std::max(
-        GetTimeNow(), exponential_backoff_release_time_);
+    GetBackoffEntry()->InformOfRequest(true);
 
     std::string retry_header = response->GetNormalizedValue(kRetryHeaderName);
     if (!retry_header.empty())
@@ -174,49 +126,26 @@ void URLRequestThrottlerEntry::UpdateWithResponse(
 }
 
 void URLRequestThrottlerEntry::ReceivedContentWasMalformed() {
-  // For any response that is marked as malformed now, we have probably
-  // considered it as a success when receiving it and decreased the failure
-  // count by 1. As a result, we increase the failure count by 2 here to undo
-  // the effect and record a failure.
+  // We keep this simple and just count it as a single error.
   //
-  // Please note that this may lead to a larger failure count than expected,
-  // because we don't decrease the failure count for successful responses when
-  // it has already reached 0.
-  failure_count_ += 2;
-  latest_response_was_failure_ = true;
-  exponential_backoff_release_time_ = CalculateExponentialBackoffReleaseTime();
-}
-
-void URLRequestThrottlerEntry::SetEntryLifetimeMsForTest(int lifetime_ms) {
-  entry_lifetime_ms_ = lifetime_ms;
+  // If we wanted to get fancy, we would count two errors here, and decrease
+  // the error count only by one when we receive a successful (by status
+  // code) response. Instead, we keep things simple by always resetting the
+  // error count on success, and therefore counting only a single error here.
+  GetBackoffEntry()->InformOfRequest(false);
 }
 
 URLRequestThrottlerEntry::~URLRequestThrottlerEntry() {
 }
 
 void URLRequestThrottlerEntry::Initialize() {
-  // Since this method is called by the constructors, GetTimeNow() (a virtual
-  // method) is not used.
-  exponential_backoff_release_time_ = base::TimeTicks::Now();
-  failure_count_ = 0;
-  latest_response_was_failure_ = false;
-
   sliding_window_release_time_ = base::TimeTicks::Now();
-}
-
-base::TimeTicks
-    URLRequestThrottlerEntry::CalculateExponentialBackoffReleaseTime() {
-  double delay = initial_backoff_ms_;
-  delay *= pow(multiply_factor_, failure_count_);
-  delay += additional_constant_ms_;
-  delay -= base::RandDouble() * jitter_factor_ * delay;
-
-  // Ensure that we do not exceed maximum delay.
-  int64 delay_int = static_cast<int64>(delay + 0.5);
-  delay_int = std::min(delay_int, static_cast<int64>(maximum_backoff_ms_));
-
-  return std::max(GetTimeNow() + base::TimeDelta::FromMilliseconds(delay_int),
-                  exponential_backoff_release_time_);
+  backoff_policy_.num_errors_to_ignore = 0;
+  backoff_policy_.initial_backoff_ms = kDefaultInitialBackoffMs;
+  backoff_policy_.multiply_factor = kDefaultMultiplyFactor;
+  backoff_policy_.jitter_factor = kDefaultJitterFactor;
+  backoff_policy_.maximum_backoff_ms = kDefaultMaximumBackoffMs;
+  backoff_policy_.entry_lifetime_ms = kDefaultEntryLifetimeMs;
 }
 
 base::TimeTicks URLRequestThrottlerEntry::GetTimeNow() const {
@@ -236,12 +165,21 @@ void URLRequestThrottlerEntry::HandleCustomRetryAfter(
   // We must use an int value later so we transform this in milliseconds.
   int64 value_ms = static_cast<int64>(0.5 + time_in_sec * 1000);
 
-  if (maximum_backoff_ms_ < value_ms || value_ms < 0)
+  // We do not check for an upper bound; the server can set any Retry-After it
+  // desires. Recovery from error would involve restarting the browser.
+  if (value_ms < 0)
     return;
 
-  exponential_backoff_release_time_ = std::max(
-      (GetTimeNow() + base::TimeDelta::FromMilliseconds(value_ms)),
-      exponential_backoff_release_time_);
+  GetBackoffEntry()->SetCustomReleaseTime(
+      GetTimeNow() + base::TimeDelta::FromMilliseconds(value_ms));
+}
+
+const BackoffEntry* URLRequestThrottlerEntry::GetBackoffEntry() const {
+  return &backoff_entry_;
+}
+
+BackoffEntry* URLRequestThrottlerEntry::GetBackoffEntry() {
+  return &backoff_entry_;
 }
 
 }  // namespace net

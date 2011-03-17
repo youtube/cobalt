@@ -4,6 +4,7 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_INTERFACE_H_
 #define NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_INTERFACE_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
@@ -49,9 +50,6 @@ class URLRequestThrottlerEntryInterface
   // be handled by the throttler as if an HTTP 5xx response had been received to
   // the request, i.e. it will count as a failure.
   virtual void ReceivedContentWasMalformed() = 0;
-
-  // For unit testing only.
-  virtual void SetEntryLifetimeMsForTest(int lifetime_ms) = 0;
 
  protected:
   friend class base::RefCountedThreadSafe<URLRequestThrottlerEntryInterface>;
