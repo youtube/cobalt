@@ -138,15 +138,20 @@ class Filter {
   // If success, the function returns the pointer to the Filter object created.
   // If failed or a filter is not needed, the function returns NULL.
   //
-  // Note: filter_types is an array of filter names (content encoding types as
+  // Note: filter_types is an array of filter types (content encoding types as
   // provided in an HTTP header), which will be chained together serially to do
-  // successive filtering of data.  The names in the vector are ordered based on
+  // successive filtering of data.  The types in the vector are ordered based on
   // encoding order, and the filters are chained to operate in the reverse
-  // (decoding) order. For example, types[0] = "sdch", types[1] = "gzip" will
-  // cause data to first be gunizip filtered, and the resulting output from that
-  // filter will be sdch decoded.
+  // (decoding) order. For example, types[0] = FILTER_TYPE_SDCH,
+  // types[1] = FILTER_TYPE_GZIP will cause data to first be gunzip filtered,
+  // and the resulting output from that filter will be sdch decoded.
   static Filter* Factory(const std::vector<FilterType>& filter_types,
                          const FilterContext& filter_context);
+
+  // A simpler version of Factory() which creates a single, unchained
+  // Filter of type FILTER_TYPE_GZIP, or NULL if the filter could not be
+  // initialized.
+  static Filter* GZipFactory();
 
   // External call to obtain data from this filter chain.  If ther is no
   // next_filter_, then it obtains data from this specific filter.
@@ -240,6 +245,13 @@ class Filter {
                                   const FilterContext& filter_context,
                                   int buffer_size,
                                   Filter* filter_list);
+
+  // Helper methods for PrependNewFilter. If initialization is successful,
+  // they return a fully initialized Filter. Otherwise, return NULL.
+  static Filter* InitGZipFilter(FilterType type_id, int buffer_size);
+  static Filter* InitSdchFilter(FilterType type_id,
+                                const FilterContext& filter_context,
+                                int buffer_size);
 
   // Helper function to empty our output into the next filter's input.
   void PushDataIntoNextFilter();

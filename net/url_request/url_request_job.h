@@ -115,22 +115,13 @@ class URLRequestJob : public base::RefCounted<URLRequestJob>,
   //       useful results once per job.
   virtual bool GetResponseCookies(std::vector<std::string>* cookies);
 
-  // Called to fetch the encoding types for this request. Only makes sense for
-  // some types of requests. Returns true on success. Calling this on a request
-  // that doesn't have or specify an encoding type will return false.
-  // Returns a array of strings showing the sequential encodings used on the
-  // content.
-  // For example, encoding_types[0] = FILTER_TYPE_SDCH and encoding_types[1] =
-  // FILTER_TYPE_GZIP, means the content was first encoded by sdch, and then
-  // result was encoded by gzip.  To decode, a series of filters must be applied
-  // in the reverse order (in the above example, ungzip first, and then sdch
-  // expand).
-  virtual bool GetContentEncodings(
-      std::vector<Filter::FilterType>* encoding_types);
-
-  // Called to setup stream filter for this request. An example of filter is
+  // Called to setup a stream filter for this request. An example of filter is
   // content encoding/decoding.
-  void SetupFilter();
+  // Subclasses should return the appropriate Filter, or NULL for no Filter.
+  // This class takes ownership of the returned Filter.
+  //
+  // The default implementation returns NULL.
+  virtual Filter* SetupFilter() const;
 
   // Called to determine if this response is a redirect.  Only makes sense
   // for some types of requests.  This method returns true if the response
