@@ -66,9 +66,14 @@ static std::string GetDSOName(tp_ffmpeg::StubModules stub_key) {
   }
 }
 
+static bool g_media_library_is_initialized = false;
+
 // Attempts to initialize the media library (loading DSOs, etc.).
 // Returns true if everything was successfully initialized, false otherwise.
 bool InitializeMediaLibrary(const FilePath& module_dir) {
+  if (g_media_library_is_initialized)
+    return true;
+
   // TODO(ajwong): We need error resolution.
   tp_ffmpeg::StubPathMap paths;
   for (int i = 0; i < static_cast<int>(tp_ffmpeg::kNumStubModules); ++i) {
@@ -82,8 +87,12 @@ bool InitializeMediaLibrary(const FilePath& module_dir) {
     paths[module].push_back(path.value());
   }
 
-  bool ret = tp_ffmpeg::InitializeStubs(paths);
-  return ret;
+  g_media_library_is_initialized = tp_ffmpeg::InitializeStubs(paths);
+  return g_media_library_is_initialized;
+}
+
+bool IsMediaLibraryInitialized() {
+  return g_media_library_is_initialized;
 }
 
 #if defined(OS_LINUX)
