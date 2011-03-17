@@ -25,7 +25,7 @@ EVENT_TYPE(REQUEST_ALIVE)
 // The BEGIN phase contains the following parameters:
 //
 //   {
-//     "source_dependency": <Source id of the request being waited on>
+//     "source_dependency": <Source id of the request being waited on>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL)
 
@@ -36,8 +36,8 @@ EVENT_TYPE(HOST_RESOLVER_IMPL)
 // The BEGIN phase contains the following parameters:
 //
 //   {
-//     "host": <Hostname associated with the request>
-//     "source_dependency": <Source id, if any, of what created the request>
+//     "host": <Hostname associated with the request>,
+//     "source_dependency": <Source id, if any, of what created the request>,
 //   }
 //
 // If an error occurred, the END phase will contain these parameters:
@@ -57,7 +57,7 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_CACHE_HIT)
 // The BEGIN phase contains the following parameters:
 //
 //   {
-//     "priority": <Priority of the queued request>
+//     "priority": <Priority of the queued request>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_POOL_QUEUE)
 
@@ -79,7 +79,7 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_JOB)
 // phase contains the following parameters:
 //
 //   {
-//     "source_dependency": <Source identifier for the attached Job>
+//     "source_dependency": <Source identifier for the attached Job>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_ATTACH)
 
@@ -87,8 +87,8 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_ATTACH)
 // The BEGIN phase contains the following parameters:
 //
 //   {
-//     "host": <Hostname associated with the request>
-//     "source_dependency": <Source id, if any, of what created the request>
+//     "host": <Hostname associated with the request>,
+//     "source_dependency": <Source id, if any, of what created the request>,
 //   }
 //
 // On success, the END phase has these parameters:
@@ -119,12 +119,12 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_WAIT)
 //
 // The START event has the parameters:
 //   {
-//     "url": <URL string of script being fetched>
+//     "url": <URL string of script being fetched>,
 //   }
 //
 // If the fetch failed, then the END phase has these parameters:
 //   {
-//      "error_code": <Net error code integer>
+//      "error_code": <Net error code integer>,
 //   }
 EVENT_TYPE(INIT_PROXY_RESOLVER_FETCH_PAC_SCRIPT)
 
@@ -133,7 +133,7 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_FETCH_PAC_SCRIPT)
 //
 // If the parsing of the script failed, the END phase will have parameters:
 //   {
-//      "error_code": <Net error code integer>
+//      "error_code": <Net error code integer>,
 //   }
 EVENT_TYPE(INIT_PROXY_RESOLVER_SET_PAC_SCRIPT)
 
@@ -160,12 +160,12 @@ EVENT_TYPE(PROXY_SERVICE_WAITING_FOR_INIT_PAC)
 // This event is emitted to show what the PAC script returned. It can contain
 // extra parameters that are either:
 //   {
-//      "pac_string": <List of valid proxy servers, in PAC format>
+//      "pac_string": <List of valid proxy servers, in PAC format>,
 //   }
 //
 //  Or if the the resolver failed:
 //   {
-//      "net_error": <Net error code that resolver failed with>
+//      "net_error": <Net error code that resolver failed with>,
 //   }
 EVENT_TYPE(PROXY_SERVICE_RESOLVED_PROXY_LIST)
 
@@ -175,7 +175,7 @@ EVENT_TYPE(PROXY_SERVICE_RESOLVED_PROXY_LIST)
 // It contains these parameters:
 //  {
 //     "old_config": <Dump of the previous proxy settings>,
-//     "new_config": <Dump of the new proxy settings>
+//     "new_config": <Dump of the new proxy settings>,
 //  }
 //
 // Note that the "old_config" key will be omitted on the first fetch of the
@@ -203,14 +203,14 @@ EVENT_TYPE(PAC_JAVASCRIPT_DNS_RESOLVE_EX)
 //   {
 //      "line_number": <The line number in the PAC script
 //                      (or -1 if not applicable)>,
-//      "message": <The error message>
+//      "message": <The error message>,
 //   }
 EVENT_TYPE(PAC_JAVASCRIPT_ERROR)
 
 // This event is emitted when a PAC script called alert(). It contains the
 // following event parameters:
 //   {
-//      "message": <The string of the alert>
+//      "message": <The string of the alert>,
 //   }
 EVENT_TYPE(PAC_JAVASCRIPT_ALERT)
 
@@ -223,7 +223,7 @@ EVENT_TYPE(WAITING_FOR_PROXY_RESOLVER_THREAD)
 //
 //   {
 //     "thread_number": <Identifier for the PAC thread that is going to
-//                       run this request>
+//                       run this request>,
 //   }
 EVENT_TYPE(SUBMITTED_TO_RESOLVER_THREAD)
 
@@ -237,13 +237,13 @@ EVENT_TYPE(SUBMITTED_TO_RESOLVER_THREAD)
 // The START event contains these parameters:
 //
 //   {
-//     "address_list": <List of network address strings>
+//     "address_list": <List of network address strings>,
 //   }
 //
 // And the END event will contain the following parameters on failure:
 //
 //   {
-//     "net_error": <Net integer error code>
+//     "net_error": <Net integer error code>,
 //   }
 EVENT_TYPE(TCP_CONNECT)
 
@@ -252,13 +252,13 @@ EVENT_TYPE(TCP_CONNECT)
 // address the attempt is for:
 //
 //   {
-//     "address": <String of the network address>
+//     "address": <String of the network address>,
 //   }
 //
 // And the END event will contain the system error code if it failed:
 //
 //   {
-//     "os_error": <Integer error code the operating system returned>
+//     "os_error": <Integer error code the operating system returned>,
 //   }
 EVENT_TYPE(TCP_CONNECT_ATTEMPT)
 
@@ -271,7 +271,7 @@ EVENT_TYPE(SOCKET_ALIVE)
 // The BEGIN phase contains the following parameters:
 //
 //   {
-//     "source_dependency": <Source identifier for the controlling entity>
+//     "source_dependency": <Source identifier for the controlling entity>,
 //   }
 EVENT_TYPE(SOCKET_IN_USE)
 
@@ -294,7 +294,7 @@ EVENT_TYPE(SOCKS_UNEXPECTEDLY_CLOSED_DURING_HANDSHAKE)
 // This event indicates that a bad version number was received in the
 // proxy server's response. The extra parameters show its value:
 //   {
-//     "version": <Integer version number in the response>
+//     "version": <Integer version number in the response>,
 //   }
 EVENT_TYPE(SOCKS_UNEXPECTED_VERSION)
 
@@ -302,7 +302,7 @@ EVENT_TYPE(SOCKS_UNEXPECTED_VERSION)
 // trying to create a connection. The following parameters will be attached
 // to the event:
 //   {
-//     "error_code": <Integer error code returned by the server>
+//     "error_code": <Integer error code returned by the server>,
 //   }
 EVENT_TYPE(SOCKS_SERVER_ERROR)
 
@@ -310,7 +310,7 @@ EVENT_TYPE(SOCKS_SERVER_ERROR)
 // method that we don't support. The following parameters are attached to the
 // event:
 //   {
-//     "method": <Integer method code>
+//     "method": <Integer method code>,
 //   }
 EVENT_TYPE(SOCKS_UNEXPECTED_AUTH)
 
@@ -318,7 +318,7 @@ EVENT_TYPE(SOCKS_UNEXPECTED_AUTH)
 // address type which we are not prepared to handle.
 // The following parameters are attached to the event:
 //   {
-//     "address_type": <Integer code for the address type>
+//     "address_type": <Integer code for the address type>,
 //   }
 EVENT_TYPE(SOCKS_UNKNOWN_ADDRESS_TYPE)
 
@@ -364,7 +364,7 @@ EVENT_TYPE(SSL_NSS_ERROR)
 //   {
 //     "byte_count": <Number of bytes that were just sent>,
 //     "hex_encoded_bytes": <The exact bytes sent, as a hexadecimal string.
-//                           Only present when byte logging is enabled>
+//                           Only present when byte logging is enabled>,
 //   }
 EVENT_TYPE(SOCKET_BYTES_SENT)
 
@@ -373,7 +373,7 @@ EVENT_TYPE(SOCKET_BYTES_SENT)
 //   {
 //     "byte_count": <Number of bytes that were just received>,
 //     "hex_encoded_bytes": <The exact bytes received, as a hexadecimal string.
-//                           Only present when byte logging is enabled>
+//                           Only present when byte logging is enabled>,
 //   }
 EVENT_TYPE(SOCKET_BYTES_RECEIVED)
 
@@ -389,7 +389,7 @@ EVENT_TYPE(SOCKET_POOL_CONNECT_JOB)
 // The BEGIN phase has these parameters:
 //
 //   {
-//     "group_name": <The group name for the socket request.>
+//     "group_name": <The group name for the socket request.>,
 //   }
 EVENT_TYPE(SOCKET_POOL_CONNECT_JOB_CONNECT)
 
@@ -397,7 +397,7 @@ EVENT_TYPE(SOCKET_POOL_CONNECT_JOB_CONNECT)
 // association. The event parameters point to that socket:
 //
 //   {
-//     "source_dependency": <The source identifier for the new socket.>
+//     "source_dependency": <The source identifier for the new socket.>,
 //   }
 EVENT_TYPE(CONNECT_JOB_SET_SOCKET)
 
@@ -420,21 +420,21 @@ EVENT_TYPE(SOCKET_POOL_STALLED_MAX_SOCKETS_PER_GROUP)
 // Indicates that we reused an existing socket. Attached to the event are
 // the parameters:
 //   {
-//     "idle_ms": <The number of milliseconds the socket was sitting idle for>
+//     "idle_ms": <The number of milliseconds the socket was sitting idle for>,
 //   }
 EVENT_TYPE(SOCKET_POOL_REUSED_AN_EXISTING_SOCKET)
 
 // This event simply describes the host:port that were requested from the
 // socket pool. Its parameters are:
 //   {
-//     "host_and_port": <String encoding the host and port>
+//     "host_and_port": <String encoding the host and port>,
 //   }
 EVENT_TYPE(TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKET)
 
 // This event simply describes the host:port that were requested from the
 // socket pool. Its parameters are:
 //   {
-//     "host_and_port": <String encoding the host and port>
+//     "host_and_port": <String encoding the host and port>,
 //   }
 EVENT_TYPE(TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKETS)
 
@@ -449,21 +449,21 @@ EVENT_TYPE(SOCKET_BACKUP_CREATED)
 // The event parameters are:
 //   {
 //      "source_dependency": <Source identifer for the connect job we are
-//                            bound to>
+//                            bound to>,
 //   }
 EVENT_TYPE(SOCKET_POOL_BOUND_TO_CONNECT_JOB)
 
 // Identifies the NetLog::Source() for the Socket assigned to the pending
 // request. The event parameters are:
 //   {
-//      "source_dependency": <Source identifier for the socket we acquired>
+//      "source_dependency": <Source identifier for the socket we acquired>,
 //   }
 EVENT_TYPE(SOCKET_POOL_BOUND_TO_SOCKET)
 
 // The start/end of a client socket pool request for multiple sockets.
 // The event parameters are:
 //   {
-//      "num_sockets": <Number of sockets we're trying to ensure are connected>
+//      "num_sockets": <Number of sockets we're trying to ensure are connected>,
 //   }
 EVENT_TYPE(SOCKET_POOL_CONNECTING_N_SOCKETS)
 
@@ -480,20 +480,20 @@ EVENT_TYPE(SOCKET_POOL_CONNECTING_N_SOCKETS)
 //   {
 //      "url": <String of URL being loaded>,
 //      "method": <The method ("POST" or "GET" or "HEAD" etc..)>,
-//      "load_flags": <Numeric value of the combined load flags>
+//      "load_flags": <Numeric value of the combined load flags>,
 //   }
 //
 // For the END phase, if there was an error, the following parameters are
 // attached:
 //   {
-//      "net_error": <Net error code of the failure>
+//      "net_error": <Net error code of the failure>,
 //   }
 EVENT_TYPE(URL_REQUEST_START_JOB)
 
 // This event is sent once a net::URLRequest receives a redirect. The parameters
 // attached to the event are:
 //   {
-//     "location": <The URL that was redirected to>
+//     "location": <The URL that was redirected to>,
 //   }
 EVENT_TYPE(URL_REQUEST_REDIRECTED)
 
@@ -531,59 +531,89 @@ EVENT_TYPE(HTTP_CACHE_READ_DATA)
 EVENT_TYPE(HTTP_CACHE_WRITE_DATA)
 
 // ------------------------------------------------------------------------
-// Disk Cache
+// Disk Cache / Memory Cache
 // ------------------------------------------------------------------------
 
 // The creation/destruction of a disk_cache::EntryImpl object.  The "creation"
 // is considered to be the point at which an Entry is first considered to be
-// good and associated with a key.
+// good and associated with a key.  Note that disk and memory cache entries
+// share event types.
 //
 // For the BEGIN phase, the following parameters are attached:
 //   {
-//     "created": <true if the Entry was created, rather than being opened>;
-//     "key": <The Entry's key>;
+//     "created": <true if the Entry was created, rather than being opened>,
+//     "key": <The Entry's key>,
 //   }
-EVENT_TYPE(DISK_CACHE_ENTRY)
+EVENT_TYPE(DISK_CACHE_ENTRY_IMPL)
+EVENT_TYPE(DISK_CACHE_MEM_ENTRY_IMPL)
 
 // Logs the time required to read/write data from/to a cache entry.
 //
 // For the BEGIN phase, the following parameters are attached:
 //   {
-//     "index": <Index being read/written>;
-//     "offset": <Offset being read/written>;
-//     "buf_len": <Length of buffer being read to/written from>;
+//     "index": <Index being read/written>,
+//     "offset": <Offset being read/written>,
+//     "buf_len": <Length of buffer being read to/written from>,
 //     "truncate": <If present for a write, the truncate flag is set to true.
-//                  Not present in reads or writes where it is false>
+//                  Not present in reads or writes where it is false>,
 //   }
 //
 // For the END phase, the following parameters are attached:
 //   {
-//     "bytes_copied": <Number of bytes copied.  Not present on error>;
-//     "net_error": <Network error code.  Only present on error>;
+//     "bytes_copied": <Number of bytes copied.  Not present on error>,
+//     "net_error": <Network error code.  Only present on error>,
 //   }
-EVENT_TYPE(DISK_CACHE_READ_DATA)
-EVENT_TYPE(DISK_CACHE_WRITE_DATA)
+EVENT_TYPE(ENTRY_READ_DATA)
+EVENT_TYPE(ENTRY_WRITE_DATA)
 
-// Logged when SparseControl starts/stops handling IO for an Entry.
-EVENT_TYPE(SPARSE_CONTROL)
-
-// Logged when SparseControl starts/stops reading/writing a child Entry's data
+// Logged when sparse read/write operation starts/stops for an Entry.
 //
 // For the BEGIN phase, the following parameters are attached:
 //   {
-//     "source_dependency": <Source id of the child entry>
+//     "offset": <Offset at which to start reading>,
+//     "buff_len": <Bytes to read/write>,
 //   }
-EVENT_TYPE(SPARSE_CONTROL_READ)
-EVENT_TYPE(SPARSE_CONTROL_WRITE)
+EVENT_TYPE(SPARSE_READ)
+EVENT_TYPE(SPARSE_WRITE)
 
-// Indicates the time taken by a sparse control to get a range.
-EVENT_TYPE(SPARSE_CONTROL_GET_RANGE)
+// Logged when a parent Entry starts/stops reading/writing a child Entry's data.
+//
+// For the BEGIN phase, the following parameters are attached:
+//   {
+//     "source_dependency": <Source id of the child entry>,
+//     "child_len": <Bytes to read/write from/to child>,
+//   }
+EVENT_TYPE(SPARSE_READ_CHILD_DATA)
+EVENT_TYPE(SPARSE_WRITE_CHILD_DATA)
 
-// Logged when an entry is closed.
-EVENT_TYPE(DISK_CACHE_CLOSE)
+// Logged when sparse GetAvailableRange operation starts/stops for an Entry.
+//
+// For the BEGIN phase, the following parameters are attached:
+//   {
+//     "buff_len": <Bytes to read/write>,
+//     "offset": <Offset at which to start reading>,
+//   }
+//
+// For the END phase, the following parameters are attached.  No parameters are
+// attached when cancelled:
+//   {
+//     "length": <Length of returned range. Only present on success>,
+//     "start": <Position where returned range starts. Only present on success>,
+//     "net_error": <Resulting error code. Only present on failure. This may be
+//                   "OK" when there's no error, but no available bytes in the
+//                   range>,
+//   }
+EVENT_TYPE(SPARSE_GET_RANGE)
+
+// Indicates the children of a sparse EntryImpl are about to be deleted.
+// Not logged for MemEntryImpls.
+EVENT_TYPE(SPARSE_DELETE_CHILDREN)
+
+// Logged when an EntryImpl is closed.  Not logged for MemEntryImpls.
+EVENT_TYPE(ENTRY_CLOSE)
 
 // Logged when an entry is doomed.
-EVENT_TYPE(DISK_CACHE_DOOM)
+EVENT_TYPE(ENTRY_DOOM)
 
 // ------------------------------------------------------------------------
 // HttpStreamFactoryImpl
@@ -598,7 +628,7 @@ EVENT_TYPE(HTTP_STREAM_JOB)
 // Identifies the NetLog::Source() for the Job that fulfilled the request.
 // request. The event parameters are:
 //   {
-//      "source_dependency": <Source identifier for the job we acquired>
+//      "source_dependency": <Source identifier for the job we acquired>,
 //   }
 EVENT_TYPE(HTTP_STREAM_REQUEST_BOUND_TO_JOB)
 
@@ -613,7 +643,7 @@ EVENT_TYPE(HTTP_TRANSACTION_TUNNEL_SEND_REQUEST)
 // The following parameters are attached:
 //   {
 //     "line": <The HTTP request line, CRLF terminated>,
-//     "headers": <The list of header:value pairs>
+//     "headers": <The list of header:value pairs>,
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_SEND_TUNNEL_HEADERS)
 
@@ -624,7 +654,7 @@ EVENT_TYPE(HTTP_TRANSACTION_TUNNEL_READ_HEADERS)
 // request.
 // The following parameters are attached:
 //   {
-//     "headers": <The list of header:value pairs>
+//     "headers": <The list of header:value pairs>,
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS)
 
@@ -635,7 +665,7 @@ EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST)
 // The following parameters are attached:
 //   {
 //     "line": <The HTTP request line, CRLF terminated>,
-//     "headers": <The list of header:value pairs>
+//     "headers": <The list of header:value pairs>,
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST_HEADERS)
 
@@ -645,7 +675,7 @@ EVENT_TYPE(HTTP_TRANSACTION_READ_HEADERS)
 // This event is sent on receipt of the HTTP response headers.
 // The following parameters are attached:
 //   {
-//     "headers": <The list of header:value pairs>
+//     "headers": <The list of header:value pairs>,
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_READ_RESPONSE_HEADERS)
 
@@ -672,7 +702,7 @@ EVENT_TYPE(SPDY_SESSION)
 //   {
 //     "flags": <The control frame flags>,
 //     "headers": <The list of header:value pairs>,
-//     "id": <The stream id>
+//     "id": <The stream id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SYN_STREAM)
 
@@ -680,19 +710,19 @@ EVENT_TYPE(SPDY_SESSION_SYN_STREAM)
 // net::URLRequest is already waiting for the stream.
 // The following parameters are attached:
 //   {
-//     "flags": <The control frame flags>
-//     "headers": <The list of header:value pairs>
-//     "id": <The stream id>
-//     "associated_stream": <The stream id>
+//     "flags": <The control frame flags>,
+//     "headers": <The list of header:value pairs>,
+//     "id": <The stream id>,
+//     "associated_stream": <The stream id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_PUSHED_SYN_STREAM)
 
 // This event is sent for a SPDY HEADERS frame.
 // The following parameters are attached:
 //   {
-//     "flags": <The control frame flags>
-//     "headers": <The list of header:value pairs>
-//     "id": <The stream id>
+//     "flags": <The control frame flags>,
+//     "headers": <The list of header:value pairs>,
+//     "id": <The stream id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_HEADERS)
 
@@ -701,78 +731,78 @@ EVENT_TYPE(SPDY_SESSION_HEADERS)
 //   {
 //     "flags": <The control frame flags>,
 //     "headers": <The list of header:value pairs>,
-//     "id": <The stream id>
+//     "id": <The stream id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SYN_REPLY)
 
 // On sending a SPDY SETTINGS frame.
 // The following parameters are attached:
 //   {
-//     "settings": <The list of setting id:value pairs>
+//     "settings": <The list of setting id:value pairs>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_SETTINGS)
 
 // Receipt of a SPDY SETTINGS frame.
 // The following parameters are attached:
 //   {
-//     "settings": <The list of setting id:value pairs>
+//     "settings": <The list of setting id:value pairs>,
 //   }
 EVENT_TYPE(SPDY_SESSION_RECV_SETTINGS)
 
 // The receipt of a RST_STREAM
 // The following parameters are attached:
 //   {
-//     "stream_id": <The stream ID for the window update>
-//     "status": <The reason for the RST_STREAM>
+//     "stream_id": <The stream ID for the window update>,
+//     "status": <The reason for the RST_STREAM>,
 //   }
 EVENT_TYPE(SPDY_SESSION_RST_STREAM)
 
 // Sending of a RST_STREAM
 // The following parameters are attached:
 //   {
-//     "stream_id": <The stream ID for the window update>
-//     "status": <The reason for the RST_STREAM>
+//     "stream_id": <The stream ID for the window update>,
+//     "status": <The reason for the RST_STREAM>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_RST_STREAM)
 
 // Receipt of a SPDY GOAWAY frame.
 // The following parameters are attached:
 //   {
-//     "last_accepted_stream_id": <Last stream id accepted by the server, duh>
-//     "active_streams":          <Number of active streams>
-//     "unclaimed_streams":       <Number of unclaimed push streams>
+//     "last_accepted_stream_id": <Last stream id accepted by the server, duh>,
+//     "active_streams":          <Number of active streams>,
+//     "unclaimed_streams":       <Number of unclaimed push streams>,
 //   }
 EVENT_TYPE(SPDY_SESSION_GOAWAY)
 
 // Receipt of a SPDY WINDOW_UPDATE frame (which controls the send window).
 //   {
-//     "stream_id": <The stream ID for the window update>
-//     "delta"    : <The delta window size>
-//     "new_size" : <The new window size (computed)>
+//     "stream_id": <The stream ID for the window update>,
+//     "delta"    : <The delta window size>,
+//     "new_size" : <The new window size (computed)>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_WINDOW_UPDATE)
 
 // Sending of a SPDY WINDOW_UPDATE frame (which controls the receive window).
 //   {
-//     "stream_id": <The stream ID for the window update>
-//     "delta"    : <The delta window size>
-//     "new_size" : <The new window size (computed)>
+//     "stream_id": <The stream ID for the window update>,
+//     "delta"    : <The delta window size>,
+//     "new_size" : <The new window size (computed)>,
 //   }
 EVENT_TYPE(SPDY_SESSION_RECV_WINDOW_UPDATE)
 
 // Sending a data frame
 //   {
-//     "stream_id": <The stream ID for the window update>
-//     "length"   : <The size of data sent>
-//     "flags"    : <Send data flags>
+//     "stream_id": <The stream ID for the window update>,
+//     "length"   : <The size of data sent>,
+//     "flags"    : <Send data flags>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_DATA)
 
 // Receiving a data frame
 //   {
-//     "stream_id": <The stream ID for the window update>
-//     "length"   : <The size of data sent>
-//     "flags"    : <Send data flags>
+//     "stream_id": <The stream ID for the window update>,
+//     "length"   : <The size of data sent>,
+//     "flags"    : <Send data flags>,
 //   }
 EVENT_TYPE(SPDY_SESSION_RECV_DATA)
 
@@ -781,7 +811,7 @@ EVENT_TYPE(SPDY_SESSION_STALLED_ON_SEND_WINDOW)
 
 // Session is closing
 //   {
-//     "status": <The error status of the closure>
+//     "status": <The error status of the closure>,
 //   }
 EVENT_TYPE(SPDY_SESSION_CLOSE)
 
@@ -859,13 +889,13 @@ EVENT_TYPE(HTTP_STREAM_PARSER_READ_HEADERS)
 //
 // For the BEGIN phase, the following parameters are attached:
 //   {
-//      "url": <String of URL being loaded>
+//      "url": <String of URL being loaded>,
 //   }
 //
 // For the END phase, if there was an error, the following parameters are
 // attached:
 //   {
-//      "net_error": <Net error code of the failure>
+//      "net_error": <Net error code of the failure>,
 //   }
 EVENT_TYPE(SOCKET_STREAM_CONNECT)
 
@@ -882,14 +912,14 @@ EVENT_TYPE(SOCKET_STREAM_RECEIVED)
 // This event is sent for a WebSocket handshake request.
 // The following parameters are attached:
 //   {
-//     "headers": <handshake request message>
+//     "headers": <handshake request message>,
 //   }
 EVENT_TYPE(WEB_SOCKET_SEND_REQUEST_HEADERS)
 
 // This event is sent on receipt of the WebSocket handshake response headers.
 // The following parameters are attached:
 //   {
-//     "headers": <handshake response message>
+//     "headers": <handshake response message>,
 //   }
 EVENT_TYPE(WEB_SOCKET_READ_RESPONSE_HEADERS)
 

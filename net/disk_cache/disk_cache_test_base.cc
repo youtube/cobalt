@@ -221,11 +221,11 @@ void DiskCacheTestWithCache::TearDown() {
 
 void DiskCacheTestWithCache::InitMemoryCache() {
   if (!implementation_) {
-    cache_ = disk_cache::MemBackendImpl::CreateBackend(size_);
+    cache_ = disk_cache::MemBackendImpl::CreateBackend(size_, NULL);
     return;
   }
 
-  mem_cache_ = new disk_cache::MemBackendImpl();
+  mem_cache_ = new disk_cache::MemBackendImpl(NULL);
   cache_ = mem_cache_;
   ASSERT_TRUE(NULL != cache_);
 
