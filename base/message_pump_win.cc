@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include "base/metrics/histogram.h"
+#include "base/win/wrapped_window_proc.h"
 
 namespace base {
 
@@ -232,7 +233,7 @@ void MessagePumpForUI::InitMessageWnd() {
 
   WNDCLASSEX wc = {0};
   wc.cbSize = sizeof(wc);
-  wc.lpfnWndProc = WndProcThunk;
+  wc.lpfnWndProc = base::win::WrappedWindowProc<WndProcThunk>;
   wc.hInstance = hinst;
   wc.lpszClassName = kWndClass;
   RegisterClassEx(&wc);
