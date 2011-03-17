@@ -333,26 +333,25 @@ TEST(URLRequestThrottlerManager, IsUrlStandardised) {
   MockURLRequestThrottlerManager manager;
   GurlAndString test_values[] = {
       GurlAndString(GURL("http://www.example.com"),
-                    std::string("GOOGYhttp://www.example.com/MONSTA"),
+                    std::string("http://www.example.com/"),
                     __LINE__),
       GurlAndString(GURL("http://www.Example.com"),
-                    std::string("GOOGYhttp://www.example.com/MONSTA"),
+                    std::string("http://www.example.com/"),
                     __LINE__),
       GurlAndString(GURL("http://www.ex4mple.com/Pr4c71c41"),
-                    std::string("GOOGYhttp://www.ex4mple.com/pr4c71c41MONSTA"),
+                    std::string("http://www.ex4mple.com/pr4c71c41"),
                     __LINE__),
-      GurlAndString(
-          GURL("http://www.example.com/0/token/false"),
-          std::string("GOOGYhttp://www.example.com/0/token/falseMONSTA"),
-          __LINE__),
+      GurlAndString(GURL("http://www.example.com/0/token/false"),
+                    std::string("http://www.example.com/0/token/false"),
+                    __LINE__),
       GurlAndString(GURL("http://www.example.com/index.php?code=javascript"),
-                    std::string("GOOGYhttp://www.example.com/index.phpMONSTA"),
+                    std::string("http://www.example.com/index.php"),
                     __LINE__),
       GurlAndString(GURL("http://www.example.com/index.php?code=1#superEntry"),
-                    std::string("GOOGYhttp://www.example.com/index.phpMONSTA"),
+                    std::string("http://www.example.com/index.php"),
                     __LINE__),
       GurlAndString(GURL("http://www.example.com:1234/"),
-                    std::string("GOOGYhttp://www.example.com:1234/MONSTA"),
+                    std::string("http://www.example.com:1234/"),
                     __LINE__)};
 
   for (unsigned int i = 0; i < arraysize(test_values); ++i) {
@@ -390,13 +389,3 @@ TEST(URLRequestThrottlerManager, IsHostBeingRegistered) {
 
   EXPECT_EQ(3, manager.GetNumberOfEntries());
 }
-
-#if defined(GTEST_HAS_DEATH_TEST)
-TEST(URLRequestThrottlerManager, NullHandlingTest) {
-  MockURLRequestThrottlerManager manager;
-  manager.OverrideEntryForTests(GURL("http://www.foo.com/"), NULL);
-  ASSERT_DEATH({
-      manager.DoGarbageCollectEntries();
-  }, "");
-}
-#endif  // defined(GTEST_HAS_DEATH_TEST)
