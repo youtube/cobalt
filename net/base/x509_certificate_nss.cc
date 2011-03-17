@@ -609,6 +609,13 @@ void X509Certificate::Initialize() {
   ParseDate(&cert_handle_->validity.notAfter, &valid_expiry_);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
+
+  serial_number_ = std::string(
+      reinterpret_cast<char*>(cert_handle_->serialNumber.data),
+      cert_handle_->serialNumber.len);
+  // Remove leading zeros.
+  while (serial_number_.size() > 1 && serial_number_[0] == 0)
+    serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
 }
 
 // static
@@ -743,6 +750,11 @@ int X509Certificate::Verify(const std::string& hostname,
                             int flags,
                             CertVerifyResult* verify_result) const {
   verify_result->Reset();
+
+  if (IsBlacklisted()) {
+    verify_result->cert_status |= CERT_STATUS_REVOKED;
+    return ERR_CERT_REVOKED;
+  }
 
   // Make sure that the hostname matches with the common name of the cert.
   SECStatus status = CERT_VerifyCertName(cert_handle_, hostname.c_str());
