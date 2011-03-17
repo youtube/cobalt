@@ -202,6 +202,9 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // The fingerprint of this certificate.
   const SHA1Fingerprint& fingerprint() const { return fingerprint_; }
 
+  // The serial number, DER encoded.
+  const std::string& serial_number() const { return serial_number_; }
+
   // Gets the DNS names in the certificate.  Pursuant to RFC 2818, Section 3.1
   // Server Identity, if the certificate has a subjectAltName extension of
   // type dNSName, this method gets the DNS names in that extension.
@@ -366,6 +369,9 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   static bool VerifyHostname(const std::string& hostname,
                              const std::vector<std::string>& cert_names);
 
+  // IsBlacklisted returns true if this certificate is explicitly blacklisted.
+  bool IsBlacklisted() const;
+
 
   // The subject of the certificate.
   CertPrincipal subject_;
@@ -381,6 +387,9 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
   // The fingerprint of this certificate.
   SHA1Fingerprint fingerprint_;
+
+  // The serial number of this certificate, DER encoded.
+  std::string serial_number_;
 
   // A handle to the certificate object in the underlying crypto library.
   OSCertHandle cert_handle_;

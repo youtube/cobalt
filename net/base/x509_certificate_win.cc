@@ -492,6 +492,16 @@ void X509Certificate::Initialize() {
   valid_expiry_ = Time::FromFileTime(cert_handle_->pCertInfo->NotAfter);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
+
+  const CRYPT_INTEGER_BLOB* serial = &cert_handle_->pCertInfo->SerialNumber;
+  scoped_array<uint8> serial_bytes(new uint8[serial->cbData]);
+  for (unsigned i = 0; i < serial->cbData; i++)
+    serial_bytes[i] = serial->pbData[serial->cbData - i - 1];
+  serial_number_ = std::string(
+      reinterpret_cast<char*>(serial_bytes.get()), serial->cbData);
+  // Remove leading zeros.
+  while (serial_number_.size() > 1 && serial_number_[0] == 0)
+    serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
 }
 
 // static
@@ -654,6 +664,11 @@ int X509Certificate::Verify(const std::string& hostname,
   verify_result->Reset();
   if (!cert_handle_)
     return ERR_UNEXPECTED;
+
+  if (IsBlacklisted()) {
+    verify_result->cert_status |= CERT_STATUS_REVOKED;
+    return ERR_CERT_REVOKED;
+  }
 
   // Build and validate certificate chain.
 

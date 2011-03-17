@@ -229,6 +229,31 @@ void GetCertDateForOID(X509Certificate::OSCertHandle cert_handle,
   }
 }
 
+std::string GetCertSerialNumber(X509Certificate::OSCertHandle cert_handle) {
+  CSSMFields fields;
+  OSStatus status = GetCertFields(cert_handle, &fields);
+  if (status)
+    return "";
+
+  std::string ret;
+  for (size_t field = 0; field < fields.num_of_fields; ++field) {
+    if (!CSSMOIDEqual(&fields.fields[field].FieldOid,
+                      &CSSMOID_X509V1SerialNumber)) {
+      continue;
+    }
+    ret.assign(
+        reinterpret_cast<char*>(fields.fields[field].FieldValue.Data),
+        fields.fields[field].FieldValue.Length);
+    break;
+  }
+
+  // Remove leading zeros.
+  while (ret.size() > 1 && ret[0] == 0)
+    ret = ret.substr(1, ret.size() - 1);
+
+  return ret;
+}
+
 // Creates a SecPolicyRef for the given OID, with optional value.
 OSStatus CreatePolicy(const CSSM_OID* policy_OID,
                       void* option_data,
@@ -486,6 +511,7 @@ void X509Certificate::Initialize() {
                     &valid_expiry_);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
+  serial_number_ = GetCertSerialNumber(cert_handle_);
 }
 
 // static
@@ -663,6 +689,11 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
 int X509Certificate::Verify(const std::string& hostname, int flags,
                             CertVerifyResult* verify_result) const {
   verify_result->Reset();
+
+  if (IsBlacklisted()) {
+    verify_result->cert_status |= CERT_STATUS_REVOKED;
+    return ERR_CERT_REVOKED;
+  }
 
   // Create an SSL SecPolicyRef, and configure it to perform hostname
   // validation. The hostname check does 99% of what we want, with the
