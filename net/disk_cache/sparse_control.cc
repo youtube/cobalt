@@ -15,6 +15,7 @@
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/entry_impl.h"
 #include "net/disk_cache/file.h"
+#include "net/disk_cache/net_log_parameters.h"
 
 using base::Time;
 
@@ -35,7 +36,7 @@ const int kMaxEntrySize = 0x100000;
 // The size of each data block (tracked by the child allocation bitmap).
 const int kBlockSize = 1024;
 
-// Returns the name of of a child entry given the base_name and signature of the
+// Returns the name of a child entry given the base_name and signature of the
 // parent and the child_id.
 // If the entry is called entry_name, child entries will be named something
 // like Range_entry_name:XXX:YYY where XXX is the entry signature and YYY is the
@@ -138,22 +139,38 @@ void ChildrenDeleter::DeleteChildren() {
       this, &ChildrenDeleter::DeleteChildren));
 }
 
-// Logs the end event for |operation|, if all events are being logged.
-void LogOperationEnd(const net::BoundNetLog& net_log,
-                     disk_cache::SparseControl::SparseOperation operation,
-                     int result) {
+// Returns the NetLog event type corresponding to a SparseOperation.
+net::NetLog::EventType GetSparseEventType(
+    disk_cache::SparseControl::SparseOperation operation) {
+  switch (operation) {
+    case disk_cache::SparseControl::kReadOperation:
+      return net::NetLog::TYPE_SPARSE_READ;
+    case disk_cache::SparseControl::kWriteOperation:
+      return net::NetLog::TYPE_SPARSE_WRITE;
+    case disk_cache::SparseControl::kGetRangeOperation:
+      return net::NetLog::TYPE_SPARSE_GET_RANGE;
+    default:
+      NOTREACHED();
+      return net::NetLog::TYPE_CANCELLED;
+  }
+}
+
+// Logs the end event for |operation| on a child entry.  Range operations log
+// no events for each child they search through.
+void LogChildOperationEnd(const net::BoundNetLog& net_log,
+                          disk_cache::SparseControl::SparseOperation operation,
+                          int result) {
   if (net_log.IsLoggingAllEvents()) {
     net::NetLog::EventType event_type;
     switch (operation) {
       case disk_cache::SparseControl::kReadOperation:
-        event_type = net::NetLog::TYPE_SPARSE_CONTROL_READ;
+        event_type = net::NetLog::TYPE_SPARSE_READ_CHILD_DATA;
         break;
       case disk_cache::SparseControl::kWriteOperation:
-        event_type = net::NetLog::TYPE_SPARSE_CONTROL_WRITE;
+        event_type = net::NetLog::TYPE_SPARSE_WRITE_CHILD_DATA;
         break;
       case disk_cache::SparseControl::kGetRangeOperation:
-        event_type = net::NetLog::TYPE_SPARSE_CONTROL_GET_RANGE;
-        break;
+        return;
       default:
         NOTREACHED();
         return;
@@ -247,7 +264,11 @@ int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
   finished_ = false;
   abort_ = false;
 
-  entry_->net_log().BeginEvent(net::NetLog::TYPE_SPARSE_CONTROL, NULL);
+  if (entry_->net_log().IsLoggingAllEvents()) {
+    entry_->net_log().BeginEvent(
+        GetSparseEventType(operation_),
+        make_scoped_refptr(new SparseOperationParameters(offset_, buf_len_)));
+  }
   DoChildrenIO();
 
   if (!pending_) {
@@ -316,6 +337,8 @@ void SparseControl::DeleteChildren(EntryImpl* entry) {
   entry->GetData(kSparseIndex, &buffer, &address);
   if (!buffer && !address.is_initialized())
     return;
+
+  entry->net_log().AddEvent(net::NetLog::TYPE_SPARSE_DELETE_CHILDREN, NULL);
 
   ChildrenDeleter* deleter = new ChildrenDeleter(entry->backend_,
                                                  entry->GetKey());
@@ -635,8 +658,20 @@ void SparseControl::InitChildData() {
 void SparseControl::DoChildrenIO() {
   while (DoChildIO()) continue;
 
+  // Range operations are finished synchronously, often without setting
+  // |finished_| to true.
+  if (kGetRangeOperation == operation_ &&
+      entry_->net_log().IsLoggingAllEvents()) {
+    entry_->net_log().EndEvent(
+        net::NetLog::TYPE_SPARSE_GET_RANGE,
+        make_scoped_refptr(
+            new GetAvailableRangeResultParameters(offset_, result_)));
+  }
   if (finished_) {
-    entry_->net_log().EndEvent(net::NetLog::TYPE_SPARSE_CONTROL, NULL);
+    if (kGetRangeOperation != operation_ &&
+        entry_->net_log().IsLoggingAllEvents()) {
+      entry_->net_log().EndEvent(GetSparseEventType(operation_), NULL);
+    }
     if (pending_)
       DoUserCallback();
   }
@@ -662,10 +697,10 @@ bool SparseControl::DoChildIO() {
     case kReadOperation:
       if (entry_->net_log().IsLoggingAllEvents()) {
         entry_->net_log().BeginEvent(
-            net::NetLog::TYPE_SPARSE_CONTROL_READ,
-            make_scoped_refptr(new net::NetLogSourceParameter(
-                "source_dependency",
-                child_->net_log().source())));
+            net::NetLog::TYPE_SPARSE_READ_CHILD_DATA,
+            make_scoped_refptr(new SparseReadWriteParameters(
+                child_->net_log().source(),
+                child_len_)));
       }
       rv = child_->ReadDataImpl(kSparseData, child_offset_, user_buf_,
                                 child_len_, callback);
@@ -673,19 +708,15 @@ bool SparseControl::DoChildIO() {
     case kWriteOperation:
       if (entry_->net_log().IsLoggingAllEvents()) {
         entry_->net_log().BeginEvent(
-            net::NetLog::TYPE_SPARSE_CONTROL_WRITE,
-            make_scoped_refptr(new net::NetLogSourceParameter(
-                "source_dependency",
-                child_->net_log().source())));
+            net::NetLog::TYPE_SPARSE_WRITE_CHILD_DATA,
+            make_scoped_refptr(new SparseReadWriteParameters(
+                child_->net_log().source(),
+                child_len_)));
       }
       rv = child_->WriteDataImpl(kSparseData, child_offset_, user_buf_,
                                  child_len_, callback, false);
       break;
     case kGetRangeOperation:
-      if (entry_->net_log().IsLoggingAllEvents()) {
-        entry_->net_log().BeginEvent(net::NetLog::TYPE_SPARSE_CONTROL_GET_RANGE,
-                                     NULL);
-      }
       rv = DoGetAvailableRange();
       break;
     default:
@@ -758,7 +789,7 @@ int SparseControl::DoGetAvailableRange() {
 }
 
 void SparseControl::DoChildIOCompleted(int result) {
-  LogOperationEnd(entry_->net_log(), operation_, result);
+  LogChildOperationEnd(entry_->net_log(), operation_, result);
   if (result < 0) {
     // We fail the whole operation if we encounter an error.
     result_ = result;
@@ -784,8 +815,10 @@ void SparseControl::OnChildIOCompleted(int result) {
     // We'll return the current result of the operation, which may be less than
     // the bytes to read or write, but the user cancelled the operation.
     abort_ = false;
-    entry_->net_log().AddEvent(net::NetLog::TYPE_CANCELLED, NULL);
-    entry_->net_log().EndEvent(net::NetLog::TYPE_SPARSE_CONTROL, NULL);
+    if (entry_->net_log().IsLoggingAllEvents()) {
+      entry_->net_log().AddEvent(net::NetLog::TYPE_CANCELLED, NULL);
+      entry_->net_log().EndEvent(GetSparseEventType(operation_), NULL);
+    }
     DoUserCallback();
     return DoAbortCallbacks();
   }

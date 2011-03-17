@@ -385,6 +385,8 @@
         'disk_cache/eviction.cc',
         'disk_cache/eviction.h',
         'disk_cache/experiments.h',
+        'disk_cache/net_log_parameters.cc',
+        'disk_cache/net_log_parameters.h',
         'disk_cache/file.cc',
         'disk_cache/file.h',
         'disk_cache/file_block.h',
