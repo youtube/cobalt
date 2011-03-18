@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -840,8 +840,10 @@ void ListValue::Append(Value* in_value) {
 bool ListValue::AppendIfNotPresent(Value* in_value) {
   DCHECK(in_value);
   for (ValueVector::const_iterator i(list_.begin()); i != list_.end(); ++i) {
-    if ((*i)->Equals(in_value))
+    if ((*i)->Equals(in_value)) {
+      delete in_value;
       return false;
+    }
   }
   list_.push_back(in_value);
   return true;

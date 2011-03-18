@@ -398,8 +398,9 @@ class ListValue : public Value {
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
 
-  // Appends a Value if it's not already present.
-  // Returns true if successful, or false if the value was already present.
+  // Appends a Value if it's not already present. Takes ownership of the
+  // |in_value|. Returns true if successful, or false if the value was already
+  // present. If the value was already present the |in_value| is deleted.
   bool AppendIfNotPresent(Value* in_value);
 
   // Insert a Value at index.
