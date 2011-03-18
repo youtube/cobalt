@@ -405,6 +405,7 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state,
                                       "www.paycheckrecords.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "market.android.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
