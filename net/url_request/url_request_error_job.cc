@@ -12,9 +12,11 @@
 namespace net {
 
 URLRequestErrorJob::URLRequestErrorJob(URLRequest* request, int error)
-    : URLRequestJob(request), error_(error),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
-}
+    : URLRequestJob(request),
+      error_(error),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
+
+URLRequestErrorJob::~URLRequestErrorJob() {}
 
 void URLRequestErrorJob::Start() {
   MessageLoop::current()->PostTask(
