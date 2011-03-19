@@ -9,8 +9,12 @@ namespace base {
 StatsCounter::StatsCounter(const std::string& name)
     : counter_id_(-1) {
   // We prepend the name with 'c:' to indicate that it is a counter.
-  name_ = "c:";
-  name_.append(name);
+  if (StatsTable::current()) {
+    // TODO(mbelshe): name_ construction is racy and it may corrupt memory for
+    // static.
+    name_ = "c:";
+    name_.append(name);
+  }
 }
 
 StatsCounter::~StatsCounter() {
@@ -61,8 +65,12 @@ int* StatsCounter::GetPtr() {
 
 StatsCounterTimer::StatsCounterTimer(const std::string& name) {
   // we prepend the name with 't:' to indicate that it is a timer.
-  name_ = "t:";
-  name_.append(name);
+  if (StatsTable::current()) {
+    // TODO(mbelshe): name_ construction is racy and it may corrupt memory for
+    // static.
+    name_ = "t:";
+    name_.append(name);
+  }
 }
 
 StatsCounterTimer::~StatsCounterTimer() {
