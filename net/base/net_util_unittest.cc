@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -2164,5 +2164,30 @@ TEST(NetUtilTest, IPNumberMatchesPrefix) {
               net::IPNumberMatchesPrefix(ip_number,
                                          ip_prefix,
                                          prefix_length_in_bits));
+  }
+}
+
+// Verify GetNetworkList().
+TEST(NetUtilTest, GetNetworkList) {
+  net::NetworkInterfaceList list;
+  ASSERT_TRUE(net::GetNetworkList(&list));
+
+  for (net::NetworkInterfaceList::iterator it = list.begin();
+       it != list.end(); ++it) {
+    // Verify that the name is not empty.
+    EXPECT_FALSE(it->name.empty());
+
+    // Verify that the address is correct.
+    EXPECT_TRUE(it->address.size() == net::kIPv4AddressSize ||
+                it->address.size() == net::kIPv6AddressSize)
+        << "Invalid address of size " << it->address.size();
+    bool all_zeroes = true;
+    for (size_t i = 0; i < it->address.size(); ++i) {
+      if (it->address[i] != 0) {
+        all_zeroes = false;
+        break;
+      }
+    }
+    EXPECT_FALSE(all_zeroes);
   }
 }

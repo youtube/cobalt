@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 #include <sys/socket.h>
 #endif
 
+#include <list>
 #include <string>
 #include <set>
 #include <vector>
@@ -372,6 +373,9 @@ bool HaveOnlyLoopbackAddresses();
 // IPv4 addresses will have length 4, whereas IPv6 address will have length 16.
 typedef std::vector<unsigned char> IPAddressNumber;
 
+static const size_t kIPv4AddressSize = 4;
+static const size_t kIPv6AddressSize = 16;
+
 // Parses an IP address literal (either IPv4 or IPv6) to its numeric value.
 // Returns true on success and fills |ip_number| with the numeric value.
 bool ParseIPLiteralToNumber(const std::string& ip_literal,
@@ -422,6 +426,25 @@ const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
                                        socklen_t address_len);
 int GetPortFromSockaddr(const struct sockaddr* address,
                         socklen_t address_len);
+
+// struct that is used by GetNetworkList() to represent a network
+// interface.
+struct NetworkInterface {
+  NetworkInterface();
+  NetworkInterface(const std::string& name, const IPAddressNumber& address);
+  ~NetworkInterface();
+
+  std::string name;
+  IPAddressNumber address;
+};
+
+typedef std::list<NetworkInterface> NetworkInterfaceList;
+
+// Returns list of network interfaces except loopback interface. If an
+// interface has more than one address, a separate entry is added to
+// the list for each address.
+// Can be called only on a thread that allows IO.
+bool GetNetworkList(NetworkInterfaceList* networks);
 
 }  // namespace net
 
