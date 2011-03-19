@@ -12,6 +12,7 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/string16.h"
+#include "base/task.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/filter.h"
@@ -387,6 +388,8 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // The count of the number of packets, some of which may not have been timed.
   // We're ignoring overflow, as 1430 x 2^31 is a LOT of bytes.
   int observed_packet_count_;
+
+  ScopedRunnableMethodFactory<URLRequestJob> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestJob);
 };

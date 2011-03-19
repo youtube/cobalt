@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/task.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
@@ -27,6 +28,8 @@ class URLRequestAboutJob : public URLRequestJob {
   virtual ~URLRequestAboutJob();
 
   void StartAsync();
+
+  ScopedRunnableMethodFactory<URLRequestAboutJob> method_factory_;
 };
 
 }  // namespace net
