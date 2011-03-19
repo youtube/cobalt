@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,7 @@
 
 #define CACHE_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
     do { \
-      static scoped_refptr<base::Histogram> counter; \
+      scoped_refptr<base::Histogram> counter; \
       if (!counter || name != counter->histogram_name()) \
         counter = base::Histogram::FactoryGet( \
             name, min, max, bucket_count, \
@@ -39,7 +39,7 @@
 
 #define CACHE_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
     do { \
-      static scoped_refptr<base::Histogram> counter; \
+      scoped_refptr<base::Histogram> counter; \
       if (!counter || name != counter->histogram_name()) \
         counter = base::Histogram::FactoryTimeGet( \
             name, min, max, bucket_count, \
@@ -52,7 +52,7 @@
     base::TimeDelta::FromSeconds(10), 50)
 
 #define CACHE_HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    static scoped_refptr<base::Histogram> counter; \
+    scoped_refptr<base::Histogram> counter; \
     if (!counter || name != counter->histogram_name()) \
       counter = base::LinearHistogram::FactoryGet( \
                     name, 1, boundary_value, boundary_value + 1, \
