@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_job.h"
 
+#include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
@@ -41,7 +42,8 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       filter_input_byte_count_(0),
       bytes_observed_in_packets_(0),
       max_packets_timed_(0),
-      observed_packet_count_(0) {
+      observed_packet_count_(0),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   g_url_request_job_tracker.AddNewJob(this);
 }
 
@@ -538,8 +540,9 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
 
   // Complete this notification later.  This prevents us from re-entering the
   // delegate if we're done because of a synchronous call.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestJob::CompleteNotifyDone));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(&URLRequestJob::CompleteNotifyDone));
 }
 
 void URLRequestJob::CompleteNotifyDone() {
