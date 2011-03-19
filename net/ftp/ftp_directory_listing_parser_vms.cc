@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -130,7 +130,7 @@ bool VmsDateListingToTime(const std::vector<string16>& columns,
     return false;
   if (!base::StringToInt(date_parts[0], &time_exploded.day_of_month))
     return false;
-  if (!net::FtpUtil::ThreeLetterMonthToNumber(date_parts[1],
+  if (!net::FtpUtil::AbbreviatedMonthToNumber(date_parts[1],
                                               &time_exploded.month))
     return false;
   if (!base::StringToInt(date_parts[2], &time_exploded.year))
