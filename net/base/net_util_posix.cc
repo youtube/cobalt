@@ -1,13 +1,21 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/net_util.h"
 
+#include <ifaddrs.h>
+#include <sys/types.h>
+
+#include "base/eintr_wrapper.h"
 #include "base/file_path.h"
+#include "base/logging.h"
 #include "base/string_util.h"
+#include "base/threading/thread_restrictions.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/escape.h"
+#include "net/base/ip_endpoint.h"
+#include "net/base/net_errors.h"
 
 namespace net {
 
@@ -43,6 +51,34 @@ bool FileURLToFilePath(const GURL& url, FilePath* path) {
   file_path_str.assign(old_path);
 
   return !file_path_str.empty();
+}
+
+bool GetNetworkList(NetworkInterfaceList* networks) {
+  // getifaddrs() may require IO operations.
+  base::ThreadRestrictions::AssertIOAllowed();
+
+  ifaddrs *ifaddr;
+  if (getifaddrs(&ifaddr) < 0) {
+    PLOG(ERROR) << "getifaddrs";
+    return false;
+  }
+
+  for (ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+    int family = ifa->ifa_addr->sa_family;
+    if (family == AF_INET || family == AF_INET6) {
+      IPEndPoint address;
+      std::string name = ifa->ifa_name;
+      if (address.FromSockAddr(ifa->ifa_addr,
+                               sizeof(ifa->ifa_addr)) &&
+          name.substr(0, 2) != "lo") {
+        networks->push_back(NetworkInterface(name, address.address()));
+      }
+    }
+  }
+
+  freeifaddrs(ifaddr);
+
+  return true;
 }
 
 }  // namespace net

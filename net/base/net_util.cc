@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -2109,6 +2109,17 @@ int GetPortFromSockaddr(const struct sockaddr* address, socklen_t address_len) {
   if (!port_field)
     return -1;
   return ntohs(*port_field);
+}
+
+NetworkInterface::NetworkInterface() {
+}
+
+NetworkInterface::NetworkInterface(const std::string& name,
+                                   const IPAddressNumber& address)
+    : name(name), address(address) {
+}
+
+NetworkInterface::~NetworkInterface() {
 }
 
 }  // namespace net
