@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,22 +18,23 @@ namespace net {
 
 class FtpUtil {
  public:
-  // Convert Unix file path to VMS path (must be a file, and not a directory).
+  // Converts Unix file path to VMS path (must be a file, and not a directory).
   static std::string UnixFilePathToVMS(const std::string& unix_path);
 
-  // Convert Unix directory path to VMS path (must be a directory).
+  // Converts Unix directory path to VMS path (must be a directory).
   static std::string UnixDirectoryPathToVMS(const std::string& unix_path);
 
-  // Convert VMS path to Unix-style path.
+  // Converts VMS path to Unix-style path.
   static std::string VMSPathToUnix(const std::string& vms_path);
 
-  // Convert three-letter month abbreviation (like Nov) to its number (in range
-  // 1-12).
-  static bool ThreeLetterMonthToNumber(const string16& text, int* number);
+  // Converts abbreviated month (like Nov) to its number (in range 1-12).
+  // Note: in some locales abbreviations are more than three letters long,
+  // and this function also handles them correctly.
+  static bool AbbreviatedMonthToNumber(const string16& text, int* number);
 
-  // Convert a "ls -l" date listing to time. The listing comes in three columns.
-  // The first one contains month, the second one contains day of month.
-  // The first one is either a time (and then we guess the year based
+  // Converts a "ls -l" date listing to time. The listing comes in three
+  // columns. The first one contains month, the second one contains day
+  // of month. The third one is either a time (and then we guess the year based
   // on |current_time|), or is a year (and then we don't know the time).
   static bool LsDateListingToTime(const string16& month,
                                   const string16& day,
@@ -41,7 +42,7 @@ class FtpUtil {
                                   const base::Time& current_time,
                                   base::Time* result);
 
-  // Skip |columns| columns from |text| (whitespace-delimited), and return the
+  // Skips |columns| columns from |text| (whitespace-delimited), and returns the
   // remaining part, without leading/trailing whitespace.
   static string16 GetStringPartAfterColumns(const string16& text, int columns);
 };
