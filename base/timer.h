@@ -232,7 +232,7 @@ class DelayTimer {
 
  private:
   void DelayFor(TimeDelta delay) {
-    trigger_time_ = Time::Now() + delay;
+    trigger_time_ = TimeTicks::Now() + delay;
 
     // If we already have a timer that will expire at or before the given delay,
     // then we have nothing more to do now.
@@ -249,7 +249,7 @@ class DelayTimer {
       return;
 
     // If we have not waited long enough, then wait some more.
-    const Time now = Time::Now();
+    const TimeTicks now = TimeTicks::Now();
     if (now < trigger_time_) {
       DelayFor(trigger_time_ - now);
       return;
@@ -263,7 +263,7 @@ class DelayTimer {
   const TimeDelta delay_;
 
   OneShotTimer<DelayTimer<Receiver> > timer_;
-  Time trigger_time_;
+  TimeTicks trigger_time_;
 };
 
 }  // namespace base
