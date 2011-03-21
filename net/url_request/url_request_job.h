@@ -39,20 +39,20 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // congestion window on stalling of transmissions.
   static const size_t kSdchPacketHistogramCount = 5;
 
-  explicit URLRequestJob(net::URLRequest* request);
+  explicit URLRequestJob(URLRequest* request);
 
   // Returns the request that owns this job. THIS POINTER MAY BE NULL if the
   // request was destroyed.
-  net::URLRequest* request() const {
+  URLRequest* request() const {
     return request_;
   }
 
   // Sets the upload data, most requests have no upload data, so this is a NOP.
   // Job types supporting upload data will override this.
-  virtual void SetUpload(net::UploadData* upload);
+  virtual void SetUpload(UploadData* upload);
 
   // Sets extra request headers for Job types that support request headers.
-  virtual void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers);
+  virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
 
   // If any error occurs while starting the Job, NotifyStartError should be
   // called.
@@ -62,7 +62,7 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
 
   // This function MUST somehow call NotifyDone/NotifyCanceled or some requests
   // will get leaked. Certain callers use that message to know when they can
-  // delete their net::URLRequest object, even when doing a cancel. The default
+  // delete their URLRequest object, even when doing a cancel. The default
   // Kill implementation calls NotifyCanceled, so it is recommended that
   // subclasses call URLRequestJob::Kill() after doing any additional work.
   //
@@ -87,16 +87,16 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
 
   // Called to read post-filtered data from this Job, returning the number of
   // bytes read, 0 when there is no more data, or -1 if there was an error.
-  // This is just the backend for net::URLRequest::Read, see that function for
+  // This is just the backend for URLRequest::Read, see that function for
   // more info.
-  bool Read(net::IOBuffer* buf, int buf_size, int* bytes_read);
+  bool Read(IOBuffer* buf, int buf_size, int* bytes_read);
 
   // Stops further caching of this request, if any. For more info, see
-  // net::URLRequest::StopCaching().
+  // URLRequest::StopCaching().
   virtual void StopCaching();
 
   // Called to fetch the current load state for the job.
-  virtual net::LoadState GetLoadState() const;
+  virtual LoadState GetLoadState() const;
 
   // Called to get the upload progress in bytes.
   virtual uint64 GetUploadProgress() const;
@@ -107,7 +107,7 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   virtual bool GetCharset(std::string* charset);
 
   // Called to get response info.
-  virtual void GetResponseInfo(net::HttpResponseInfo* info);
+  virtual void GetResponseInfo(HttpResponseInfo* info);
 
   // Returns the cookie values included in the response, if applicable.
   // Returns true if applicable.
@@ -138,8 +138,8 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
 
   // Called to determine if it is okay to redirect this job to the specified
   // location.  This may be used to implement protocol-specific restrictions.
-  // If this function returns false, then the net::URLRequest will fail
-  // reporting net::ERR_UNSAFE_REDIRECT.
+  // If this function returns false, then the URLRequest will fail
+  // reporting ERR_UNSAFE_REDIRECT.
   virtual bool IsSafeRedirect(const GURL& location);
 
   // Called to determine if this response is asking for authentication.  Only
@@ -149,7 +149,7 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
 
   // Fills the authentication info with the server's response.
   virtual void GetAuthChallengeInfo(
-      scoped_refptr<net::AuthChallengeInfo>* auth_info);
+      scoped_refptr<AuthChallengeInfo>* auth_info);
 
   // Resend the request with authentication credentials.
   virtual void SetAuth(const string16& username,
@@ -158,7 +158,7 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // Display the error page without asking for credentials again.
   virtual void CancelAuth();
 
-  virtual void ContinueWithCertificate(net::X509Certificate* client_cert);
+  virtual void ContinueWithCertificate(X509Certificate* client_cert);
 
   // Continue processing the request ignoring the last error.
   virtual void ContinueDespiteLastError();
@@ -197,20 +197,20 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   void NotifyReadComplete(int bytes_read);
 
   // Notifies the request that a start error has occurred.
-  void NotifyStartError(const net::URLRequestStatus& status);
+  void NotifyStartError(const URLRequestStatus& status);
 
   // NotifyDone marks when we are done with a request.  It is really
   // a glorified set_status, but also does internal state checking and
   // job tracking.  It should be called once per request, when the job is
   // finished doing all IO.
-  void NotifyDone(const net::URLRequestStatus& status);
+  void NotifyDone(const URLRequestStatus& status);
 
   // Some work performed by NotifyDone must be completed on a separate task
   // so as to avoid re-entering the delegate.  This method exists to perform
   // that work.
   void CompleteNotifyDone();
 
-  // Used as an asynchronous callback for Kill to notify the net::URLRequest
+  // Used as an asynchronous callback for Kill to notify the URLRequest
   // that we were canceled.
   void NotifyCanceled();
 
@@ -226,9 +226,9 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // If returning false, an error occurred or an async IO is now pending.
   // If async IO is pending, the status of the request will be
   // URLRequestStatus::IO_PENDING, and buf must remain available until the
-  // operation is completed.  See comments on net::URLRequest::Read for more
+  // operation is completed.  See comments on URLRequest::Read for more
   // info.
-  virtual bool ReadRawData(net::IOBuffer* buf, int buf_size, int *bytes_read);
+  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
 
   // Informs the filter that data has been read into its buffer
   void FilteredDataRead(int bytes_read);
@@ -250,10 +250,10 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   void DestroyFilters() { filter_.reset(); }
 
   // The status of the job.
-  const net::URLRequestStatus GetStatus();
+  const URLRequestStatus GetStatus();
 
   // Set the status of the job.
-  void SetStatus(const net::URLRequestStatus& status);
+  void SetStatus(const URLRequestStatus& status);
 
   // TODO(adamk): Remove this method once it's no longer called from
   // URLRequestJob.
@@ -267,7 +267,7 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
 
   // The request that initiated this job. This value MAY BE NULL if the
   // request was released by DetachRequest().
-  net::URLRequest* request_;
+  URLRequest* request_;
 
  private:
   // When data filtering is enabled, this function is used to read data
@@ -277,7 +277,7 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
 
   // Invokes ReadRawData and records bytes read if the read completes
   // synchronously.
-  bool ReadRawDataHelper(net::IOBuffer* buf, int buf_size, int* bytes_read);
+  bool ReadRawDataHelper(IOBuffer* buf, int buf_size, int* bytes_read);
 
   // Called in response to a redirect that was not canceled to follow the
   // redirect. The current job will be replaced with a new job loading the
@@ -312,10 +312,10 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   int prefilter_bytes_read_;
   // The number of bytes read after passing through the filter.
   int postfilter_bytes_read_;
-  // True when (we believe) the content in this net::URLRequest was
+  // True when (we believe) the content in this URLRequest was
   // compressible.
   bool is_compressible_content_;
-  // True when the content in this net::URLRequest was compressed.
+  // True when the content in this URLRequest was compressed.
   bool is_compressed_;
 
   // The data stream filter which is enabled on demand.
@@ -329,12 +329,12 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // processing the filtered data, we return the data in the caller's buffer.
   // While the async IO is in progress, we save the user buffer here, and
   // when the IO completes, we fill this in.
-  scoped_refptr<net::IOBuffer> filtered_read_buffer_;
+  scoped_refptr<IOBuffer> filtered_read_buffer_;
   int filtered_read_buffer_len_;
 
   // We keep a pointer to the read buffer while asynchronous reads are
   // in progress, so we are able to pass those bytes to job observers.
-  scoped_refptr<net::IOBuffer> raw_read_buffer_;
+  scoped_refptr<IOBuffer> raw_read_buffer_;
 
   // Used by HandleResponseIfNecessary to track whether we've sent the
   // OnResponseStarted callback and potentially redirect callbacks as well.
