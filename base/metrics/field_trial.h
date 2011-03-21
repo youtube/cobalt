@@ -30,32 +30,44 @@
 // Somewhere in main thread initialization code, we'd probably define an
 // instance of a FieldTrial, with code such as:
 
-// // Note, FieldTrials are reference counted, and persist automagically until
+// // FieldTrials are reference counted, and persist automagically until
 // // process teardown, courtesy of their automatic registration in
 // // FieldTrialList.
-// scoped_refptr<FieldTrial> trial = new FieldTrial("MemoryExperiment", 1000);
-// int group1 = trial->AppendGroup("high_mem", 20);  // 2% in high_mem group.
-// int group2 = trial->AppendGroup("low_mem", 20);   // 2% in low_mem group.
+// // Note: This field trial will run in Chrome instances compiled through
+// //       8 July, 2015, and after that all instances will be in "StandardMem".
+// scoped_refptr<FieldTrial> trial = new FieldTrial("MemoryExperiment", 1000,
+//                                                  "StandardMem", 2015, 7, 8);
+// const int kHighMemGroup =
+//     trial->AppendGroup("HighMem", 20);  // 2% in HighMem group.
+// const int kLowMemGroup =
+//     trial->AppendGroup("LowMem", 20);   // 2% in LowMem group.
 // // Take action depending of which group we randomly land in.
-// if (trial->group() == group1)
+// if (trial->group() == kHighMemGroup)
 //   SetPruningAlgorithm(kType1);  // Sample setting of browser state.
-// else if (trial->group() == group2)
+// else if (trial->group() == kLowMemGroup)
 //   SetPruningAlgorithm(kType2);  // Sample alternate setting.
 
-// We then modify any histograms we wish to correlate with our experiment to
-// have slighly different names, depending on what group the trial instance
-// happened (randomly) to be assigned to:
+// We then, in addition to our original histogram, output histograms which have
+// slightly different names depending on what group the trial instance happened
+// to randomly be assigned:
 
-// HISTOGRAM_COUNTS(FieldTrial::MakeName("Memory.RendererTotal",
-//                                       "MemoryExperiment").data(), count);
+// HISTOGRAM_COUNTS("Memory.RendererTotal", count);  // The original histogram.
+// static bool use_memoryexperiment_histogram(
+//     base::FieldTrialList::Find("MemoryExperiment") &&
+//     !base::FieldTrialList::Find("MemoryExperiment")->group_name().empty());
+// if (use_memoryexperiment_histogram) {
+//   HISTOGRAM_COUNTS(FieldTrial::MakeName("Memory.RendererTotal",
+//                                         "MemoryExperiment"), count);
+// }
 
-// The above code will create 3 distinct histograms, with each run of the
+// The above code will create four distinct histograms, with each run of the
 // application being assigned to of of the three groups, and for each group, the
 // correspondingly named histogram will be populated:
 
-// Memory.RendererTotal            // 96% of users still fill this histogram.
-// Memory.RendererTotal_high_mem   // 2% of users will fill this histogram.
-// Memory.RendererTotal_low_mem    // 2% of users will fill this histogram.
+// Memory.RendererTotal              // 100% of users still fill this histogram.
+// Memory.RendererTotal_HighMem      // 2% of users will fill this histogram.
+// Memory.RendererTotal_LowMem       // 2% of users will fill this histogram.
+// Memory.RendererTotal_StandardMem  // 96% of users will fill this histogram.
 
 //------------------------------------------------------------------------------
 
