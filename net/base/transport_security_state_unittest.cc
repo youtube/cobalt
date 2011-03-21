@@ -413,6 +413,8 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "keyerror.com"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.keyerror.com"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "encrypted.google.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
