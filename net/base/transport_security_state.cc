@@ -477,6 +477,7 @@ bool TransportSecurityState::IsPreloadedSTS(
     {20, true, "\006market\007android\003com"},
     {14, false, "\010lastpass\003com"},
     {18, false, "\003www\010lastpass\003com"},
+    {14, true, "\010keyerror\003com"},
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
