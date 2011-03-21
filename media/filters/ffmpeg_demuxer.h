@@ -138,8 +138,7 @@ class FFmpegDemuxer : public Demuxer,
   virtual void set_host(FilterHost* filter_host);
 
   // Demuxer implementation.
-  virtual size_t GetNumberOfStreams();
-  virtual scoped_refptr<DemuxerStream> GetStream(int stream_id);
+  virtual scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type);
 
   // FFmpegProtocol implementation.
   virtual int Read(int size, uint8* data);
@@ -201,8 +200,8 @@ class FFmpegDemuxer : public Demuxer,
   AVFormatContext* format_context_;
 
   // Two vector of streams:
-  //   - |streams_| is indexed for the Demuxer interface GetStream(), which only
-  //     contains supported streams and no NULL entries.
+  //   - |streams_| is indexed by type for the Demuxer interface GetStream(),
+  //     and contains NULLs for types which aren't present.
   //   - |packet_streams_| is indexed to mirror AVFormatContext when dealing
   //     with AVPackets returned from av_read_frame() and contain NULL entries
   //     representing unsupported streams where we throw away the data.

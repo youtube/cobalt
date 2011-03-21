@@ -110,8 +110,7 @@ class MockDemuxer : public Demuxer {
   // Demuxer implementation.
   MOCK_METHOD2(Initialize, void(DataSource* data_source,
                                 FilterCallback* callback));
-  MOCK_METHOD0(GetNumberOfStreams, size_t());
-  MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(int stream_id));
+  MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(DemuxerStream::Type));
 
   // Sets the TotalBytes, BufferedBytes, & Duration values to be sent to host()
   // when set_host() is called.

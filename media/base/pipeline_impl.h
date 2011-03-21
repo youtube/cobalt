@@ -289,12 +289,6 @@ class PipelineImpl : public Pipeline, public FilterHost {
   bool InitializeAudioRenderer(const scoped_refptr<AudioDecoder>& decoder);
   bool InitializeVideoRenderer(const scoped_refptr<VideoDecoder>& decoder);
 
-  // Returns a reference to the DemuxerStream of the requested type if it
-  // exists, NULL otherwise.
-  scoped_refptr<DemuxerStream> FindDemuxerStream(
-      const scoped_refptr<Demuxer>& demuxer,
-      DemuxerStream::Type type);
-
   // Kicks off destroying filters. Called by StopTask() and ErrorChangedTask().
   // When we start to tear down the pipeline, we will consider two cases:
   // 1. when pipeline has not been initialized, we will transit to stopping
