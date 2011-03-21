@@ -310,6 +310,17 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 void X509Certificate::Initialize() {
   base::EnsureOpenSSLInit();
   fingerprint_ = CalculateFingerprint(cert_handle_);
+
+  ASN1_INTEGER* num = X509_get_serialNumber(cert_handle_);
+  if (num) {
+    serial_number_ = std::string(
+        reinterpret_cast<char*>(num->data),
+        num->length);
+    // Remove leading zeros.
+    while (serial_number_.size() > 1 && serial_number_[0] == 0)
+      serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
+  }
+
   ParsePrincipal(cert_handle_, X509_get_subject_name(cert_handle_), &subject_);
   ParsePrincipal(cert_handle_, X509_get_issuer_name(cert_handle_), &issuer_);
   nxou::ParseDate(X509_get_notBefore(cert_handle_), &valid_start_);
@@ -419,6 +430,11 @@ int X509Certificate::Verify(const std::string& hostname,
                             int flags,
                             CertVerifyResult* verify_result) const {
   verify_result->Reset();
+
+  if (IsBlacklisted()) {
+    verify_result->cert_status |= CERT_STATUS_REVOKED;
+    return ERR_CERT_REVOKED;
+  }
 
   // TODO(joth): We should fetch the subjectAltNames directly rather than via
   // GetDNSNames, so we can apply special handling for IP addresses vs DNS
