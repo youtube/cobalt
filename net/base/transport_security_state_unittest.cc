@@ -410,6 +410,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "lastpass.com"));
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.lastpass.com"));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "blog.lastpass.com"));
+
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "keyerror.com"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.keyerror.com"));
 }
 
 TEST_F(TransportSecurityStateTest, LongNames) {
