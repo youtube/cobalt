@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/task.h"
 #include "net/url_request/url_request_job.h"
 
 namespace net {
@@ -24,7 +25,7 @@ class URLRequestSimpleJob : public URLRequestJob {
   virtual bool GetCharset(std::string* charset);
 
  protected:
-  ~URLRequestSimpleJob() {}
+  ~URLRequestSimpleJob();
 
   // subclasses must override the way response data is determined.
   virtual bool GetData(std::string* mime_type,
@@ -39,6 +40,7 @@ class URLRequestSimpleJob : public URLRequestJob {
   std::string charset_;
   std::string data_;
   int data_offset_;
+  ScopedRunnableMethodFactory<URLRequestSimpleJob> method_factory_;
 };
 
 }  // namespace net
