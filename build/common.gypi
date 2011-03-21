@@ -452,6 +452,13 @@
           },{
             'msvs_large_module_debug_link_mode%': '2',  # Yes
           }],
+          ['MSVS_VERSION=="2010e" or MSVS_VERSION=="2008e" or MSVS_VERSION=="2005e"', {
+            'msvs_express%': 1,
+            'secure_atl%': 0,
+          },{
+            'msvs_express%': 0,
+            'secure_atl%': 1,
+          }],
         ],
         'nacl_win64_defines': [
           # This flag is used to minimize dependencies when building
@@ -1446,7 +1453,6 @@
           '_CRT_RAND_S',
           'CERT_CHAIN_PARA_HAS_EXTRA_FIELDS',
           'WIN32_LEAN_AND_MEAN',
-          '_SECURE_ATL',
           '_ATL_NO_OPENGL',
           '_HAS_TR1=0',
         ],
@@ -1454,6 +1460,11 @@
           ['component=="static_library"', {
             'defines': [
               '_HAS_EXCEPTIONS=0',
+            ],
+          }],
+          ['secure_atl', {
+            'defines': [
+              '_SECURE_ATL',
             ],
           }],
         ],
@@ -1474,8 +1485,11 @@
             'WarnAsError': 'true',
             'DebugInformationFormat': '3',
             'conditions': [
-              [ 'msvs_multi_core_compile', {
+              ['msvs_multi_core_compile', {
                 'AdditionalOptions': ['/MP'],
+              }],
+              ['MSVS_VERSION=="2005e"', {
+                'AdditionalOptions': ['/w44068'], # Unknown pragma to 4 (ATL)
               }],
               ['component=="shared_library"', {
                 'ExceptionHandling': '1',  # /EHsc
@@ -1501,6 +1515,25 @@
               'usp10.lib',
               'psapi.lib',
               'dbghelp.lib',
+            ],
+            'conditions': [ 
+              ['msvs_express', {
+                # Explicitly required when using the ATL with express
+                'AdditionalDependencies': [
+                  'atlthunk.lib',
+                ],
+              }],
+              ['MSVS_VERSION=="2005e"', {
+                # Non-express versions link automatically to these
+                'AdditionalDependencies': [
+                  'advapi32.lib',
+                  'comdlg32.lib',
+                  'ole32.lib',
+                  'shell32.lib',
+                  'user32.lib',
+                  'winspool.lib',
+                ],
+              }],
             ],
             'AdditionalLibraryDirectories': [
               '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
