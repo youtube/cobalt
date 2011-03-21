@@ -383,7 +383,7 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
                                        &verify_result);
 #if defined(USE_OPENSSL) || defined(OS_MACOSX) || defined(OS_WIN)
   // TOOD(bulach): investigate why macosx and win aren't returning
-  // ERR_CERT_INVALID.
+  // ERR_CERT_INVALID or ERR_CERT_COMMON_NAME_INVALID.
   EXPECT_EQ(ERR_CERT_AUTHORITY_INVALID, error);
 #else
   EXPECT_EQ(ERR_CERT_COMMON_NAME_INVALID, error);
