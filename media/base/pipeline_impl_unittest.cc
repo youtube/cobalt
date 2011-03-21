@@ -67,6 +67,12 @@ class PipelineImplTest : public ::testing::Test {
                     &CallbackHelper::OnError),
         static_cast<PipelineStatusCallback*>(NULL));
     mocks_.reset(new MockFilterCollection());
+
+    // InitializeDemuxer adds overriding expectations for expected non-NULL
+    // streams.
+    DemuxerStream* null_pointer = NULL;
+    EXPECT_CALL(*mocks_->demuxer(), GetStream(_))
+        .WillRepeatedly(Return(null_pointer));
   }
 
   virtual ~PipelineImplTest() {
@@ -90,8 +96,6 @@ class PipelineImplTest : public ::testing::Test {
                          const base::TimeDelta& duration) {
     mocks_->demuxer()->SetTotalAndBufferedBytesAndDuration(
         kTotalBytes, kBufferedBytes, duration);
-    EXPECT_CALL(*mocks_->demuxer(), GetNumberOfStreams())
-        .WillRepeatedly(Return(streams->size()));
     EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->demuxer(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
@@ -101,7 +105,7 @@ class PipelineImplTest : public ::testing::Test {
     // Configure the demuxer to return the streams.
     for (size_t i = 0; i < streams->size(); ++i) {
       scoped_refptr<DemuxerStream> stream((*streams)[i]);
-      EXPECT_CALL(*mocks_->demuxer(), GetStream(i))
+      EXPECT_CALL(*mocks_->demuxer(), GetStream(stream->type()))
           .WillRepeatedly(Return(stream));
     }
   }
@@ -353,8 +357,6 @@ TEST_F(PipelineImplTest, URLNotFound) {
 TEST_F(PipelineImplTest, NoStreams) {
   // Manually set these expectations because SetPlaybackRate() is not called if
   // we cannot fully initialize the pipeline.
-  EXPECT_CALL(*mocks_->demuxer(), GetNumberOfStreams())
-      .WillRepeatedly(Return(0));
   EXPECT_CALL(*mocks_->demuxer(), Stop(NotNull()))
       .WillOnce(Invoke(&RunStopFilterCallback));
   // TODO(acolwell,fischman): see TODO in URLNotFound above.

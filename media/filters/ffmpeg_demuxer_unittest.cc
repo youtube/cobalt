@@ -234,11 +234,9 @@ TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
     InitializeDemuxer();
   }
 
-  // Verify that our demuxer streams were created from our AVStream structures.
-  EXPECT_EQ(DS_STREAM_MAX, static_cast<int>(demuxer_->GetNumberOfStreams()));
-
   // First stream should be video and support the FFmpegDemuxerStream interface.
-  scoped_refptr<DemuxerStream> stream = demuxer_->GetStream(DS_STREAM_VIDEO);
+  scoped_refptr<DemuxerStream> stream =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
   AVStreamProvider* av_stream_provider = NULL;
   ASSERT_TRUE(stream);
   EXPECT_EQ(DemuxerStream::VIDEO, stream->type());
@@ -247,7 +245,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
   EXPECT_EQ(&streams_[AV_STREAM_VIDEO], av_stream_provider->GetAVStream());
 
   // Other stream should be audio and support the FFmpegDemuxerStream interface.
-  stream = demuxer_->GetStream(DS_STREAM_AUDIO);
+  stream = demuxer_->GetStream(DemuxerStream::AUDIO);
   av_stream_provider = NULL;
   ASSERT_TRUE(stream);
   EXPECT_EQ(DemuxerStream::AUDIO, stream->type());
@@ -277,7 +275,8 @@ TEST_F(FFmpegDemuxerTest, Read_DiscardUninteresting) {
       .WillOnce(Return(AVERROR_IO));
 
   // Attempt a read from the audio stream and run the message loop until done.
-  scoped_refptr<DemuxerStream> audio = demuxer_->GetStream(DS_STREAM_AUDIO);
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
   scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
   reader->Read(audio);
   message_loop_.RunAllPending();
@@ -307,7 +306,8 @@ TEST_F(FFmpegDemuxerTest, Read_Audio) {
       .WillOnce(Return(0));
 
   // Attempt a read from the audio stream and run the message loop until done.
-  scoped_refptr<DemuxerStream> audio = demuxer_->GetStream(DS_STREAM_AUDIO);
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
   scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
   reader->Read(audio);
   message_loop_.RunAllPending();
@@ -338,7 +338,8 @@ TEST_F(FFmpegDemuxerTest, Read_Video) {
       .WillOnce(Return(0));
 
   // Attempt a read from the video stream and run the message loop until done.
-  scoped_refptr<DemuxerStream> video = demuxer_->GetStream(DS_STREAM_VIDEO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
   scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
   reader->Read(video);
   message_loop_.RunAllPending();
@@ -366,7 +367,8 @@ TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
       .WillOnce(Return(AVERROR_IO));
 
   // We should now expect an end of stream buffer.
-  scoped_refptr<DemuxerStream> audio = demuxer_->GetStream(DS_STREAM_AUDIO);
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
   scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
   reader->Read(audio);
   message_loop_.RunAllPending();
@@ -389,8 +391,10 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   }
 
   // Get our streams.
-  scoped_refptr<DemuxerStream> video = demuxer_->GetStream(DS_STREAM_VIDEO);
-  scoped_refptr<DemuxerStream> audio = demuxer_->GetStream(DS_STREAM_AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
   ASSERT_TRUE(video);
   ASSERT_TRUE(audio);
 
@@ -552,7 +556,8 @@ TEST_F(FFmpegDemuxerTest, Stop) {
       new StrictMock<MockReadCallback>());
 
   // Get our stream.
-  scoped_refptr<DemuxerStream> audio = demuxer_->GetStream(DS_STREAM_AUDIO);
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
   ASSERT_TRUE(audio);
 
   // Stop the demuxer, overriding the default expectation to assert that
@@ -607,7 +612,8 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
       .WillOnce(Return(AVERROR_IO));
 
   // Get our streams.
-  scoped_refptr<DemuxerStream> video = demuxer_->GetStream(DS_STREAM_VIDEO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
   ASSERT_TRUE(video);
 
   // Attempt a read from the video stream and run the message loop until done.
