@@ -1058,7 +1058,7 @@ bool PipelineImpl::InitializeAudioDecoder(
   DCHECK(IsPipelineOk());
 
   scoped_refptr<DemuxerStream> stream =
-      FindDemuxerStream(demuxer, DemuxerStream::AUDIO);
+      demuxer->GetStream(DemuxerStream::AUDIO);
 
   if (!stream)
     return false;
@@ -1088,7 +1088,7 @@ bool PipelineImpl::InitializeVideoDecoder(
   DCHECK(IsPipelineOk());
 
   scoped_refptr<DemuxerStream> stream =
-      FindDemuxerStream(demuxer, DemuxerStream::VIDEO);
+      demuxer->GetStream(DemuxerStream::VIDEO);
 
   if (!stream)
     return false;
@@ -1156,21 +1156,6 @@ bool PipelineImpl::InitializeVideoRenderer(
       NewCallback(this, &PipelineImpl::OnFilterInitialize),
       NewCallback(this, &PipelineImpl::OnUpdateStatistics));
   return true;
-}
-
-scoped_refptr<DemuxerStream> PipelineImpl::FindDemuxerStream(
-    const scoped_refptr<Demuxer>& demuxer,
-    DemuxerStream::Type type) {
-  DCHECK(demuxer);
-
-  const int num_outputs = demuxer->GetNumberOfStreams();
-  for (int i = 0; i < num_outputs; ++i) {
-    std::string value;
-    if (demuxer->GetStream(i)->type() == type) {
-      return demuxer->GetStream(i);
-    }
-  }
-  return NULL;
 }
 
 void PipelineImpl::TearDownPipeline() {

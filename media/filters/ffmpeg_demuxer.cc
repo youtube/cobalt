@@ -337,14 +337,11 @@ void FFmpegDemuxer::Initialize(DataSource* data_source,
                         callback));
 }
 
-size_t FFmpegDemuxer::GetNumberOfStreams() {
-  return streams_.size();
-}
-
-scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(int stream) {
-  DCHECK_GE(stream, 0);
-  DCHECK_LT(stream, static_cast<int>(streams_.size()));
-  return streams_[stream].get();
+scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(
+    DemuxerStream::Type type) {
+  DCHECK_GE(type, 0);
+  DCHECK_LT(type, DemuxerStream::NUM_TYPES);
+  return streams_[type];
 }
 
 int FFmpegDemuxer::Read(int size, uint8* data) {
@@ -456,8 +453,10 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   }
 
   // Create demuxer streams for all supported streams.
+  streams_.resize(DemuxerStream::NUM_TYPES);
   base::TimeDelta max_duration;
   const bool kDemuxerIsWebm = !strcmp("webm", format_context_->iformat->name);
+  bool no_supported_streams = true;
   for (size_t i = 0; i < format_context_->nb_streams; ++i) {
     AVCodecContext* codec_context = format_context_->streams[i]->codec;
     CodecType codec_type = codec_context->codec_type;
@@ -470,18 +469,19 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
         continue;
       }
 
-      FFmpegDemuxerStream* demuxer_stream
-          = new FFmpegDemuxerStream(this, stream);
-
-      DCHECK(demuxer_stream);
-      streams_.push_back(make_scoped_refptr(demuxer_stream));
-      packet_streams_.push_back(make_scoped_refptr(demuxer_stream));
-      max_duration = std::max(max_duration, demuxer_stream->duration());
+      scoped_refptr<FFmpegDemuxerStream> demuxer_stream(
+          new FFmpegDemuxerStream(this, stream));
+      if (!streams_[demuxer_stream->type()]) {
+        no_supported_streams = false;
+        streams_[demuxer_stream->type()] = demuxer_stream;
+        max_duration = std::max(max_duration, demuxer_stream->duration());
+      }
+      packet_streams_.push_back(demuxer_stream);
     } else {
       packet_streams_.push_back(NULL);
     }
   }
-  if (streams_.empty()) {
+  if (no_supported_streams) {
     callback->Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
@@ -513,7 +513,8 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
   // Tell streams to flush buffers due to seeking.
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
-    (*iter)->FlushBuffers();
+    if (*iter)
+      (*iter)->FlushBuffers();
   }
 
   // Always seek to a timestamp less than or equal to the desired timestamp.
@@ -589,7 +590,8 @@ void FFmpegDemuxer::StopTask(FilterCallback* callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
-    (*iter)->Stop();
+    if (*iter)
+      (*iter)->Stop();
   }
   if (data_source_) {
     data_source_->Stop(callback);
@@ -621,7 +623,7 @@ bool FFmpegDemuxer::StreamsHavePendingReads() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
-    if ((*iter)->HasPendingReads()) {
+    if (*iter && (*iter)->HasPendingReads()) {
       return true;
     }
   }
@@ -632,6 +634,8 @@ void FFmpegDemuxer::StreamHasEnded() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
+    if (!*iter)
+      continue;
     AVPacket* packet = new AVPacket();
     memset(packet, 0, sizeof(*packet));
     (*iter)->EnqueuePacket(packet);
