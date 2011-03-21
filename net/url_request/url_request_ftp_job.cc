@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -155,8 +155,10 @@ void URLRequestFtpJob::RestartTransactionWithAuth() {
   if (rv == ERR_IO_PENDING)
     return;
 
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestFtpJob::OnStartCompleted, rv));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &URLRequestFtpJob::OnStartCompleted, rv));
 }
 
 void URLRequestFtpJob::Start() {

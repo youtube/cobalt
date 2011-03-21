@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define NET_URL_REQUEST_URL_REQUEST_REDIRECT_JOB_H_
 #pragma once
 
+#include "base/task.h"
 #include "net/url_request/url_request_job.h"
 
 class GURL;
@@ -29,6 +30,8 @@ class URLRequestRedirectJob : public URLRequestJob {
   void StartAsync();
 
   GURL redirect_destination_;
+
+  ScopedRunnableMethodFactory<URLRequestRedirectJob> method_factory_;
 };
 
 }  // namespace net
