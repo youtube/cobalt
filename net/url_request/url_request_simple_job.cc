@@ -1,9 +1,10 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/url_request/url_request_simple_job.h"
 
+#include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -13,14 +14,15 @@ namespace net {
 
 URLRequestSimpleJob::URLRequestSimpleJob(URLRequest* request)
     : URLRequestJob(request),
-      data_offset_(0) {
-}
+      data_offset_(0),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
 
 void URLRequestSimpleJob::Start() {
   // Start reading asynchronously so that all error reporting and data
   // callbacks happen as they would for network requests.
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &URLRequestSimpleJob::StartAsync));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(&URLRequestSimpleJob::StartAsync));
 }
 
 bool URLRequestSimpleJob::GetMimeType(std::string* mime_type) const {
@@ -32,6 +34,8 @@ bool URLRequestSimpleJob::GetCharset(std::string* charset) {
   *charset = charset_;
   return true;
 }
+
+URLRequestSimpleJob::~URLRequestSimpleJob() {}
 
 bool URLRequestSimpleJob::ReadRawData(IOBuffer* buf, int buf_size,
                                       int* bytes_read) {
