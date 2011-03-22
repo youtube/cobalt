@@ -286,7 +286,7 @@ net::Error SpdySession::InitializeWithSocket(
     ClientSocketHandle* connection,
     bool is_secure,
     int certificate_error_code) {
-  static base::StatsCounter spdy_sessions("spdy.sessions");
+  base::StatsCounter spdy_sessions("spdy.sessions");
   spdy_sessions.Increment();
 
   state_ = CONNECTED;
@@ -461,7 +461,7 @@ int SpdySession::WriteSynStream(
           flags, false, headers.get()));
   QueueFrame(syn_frame.get(), priority, stream);
 
-  static base::StatsCounter spdy_requests("spdy.requests");
+  base::StatsCounter spdy_requests("spdy.requests");
   spdy_requests.Increment();
   streams_initiated_count_++;
 
@@ -782,8 +782,8 @@ void SpdySession::WriteSocket() {
 }
 
 void SpdySession::CloseAllStreams(net::Error status) {
-  static base::StatsCounter abandoned_streams("spdy.abandoned_streams");
-  static base::StatsCounter abandoned_push_streams(
+  base::StatsCounter abandoned_streams("spdy.abandoned_streams");
+  base::StatsCounter abandoned_push_streams(
       "spdy.abandoned_push_streams");
 
   if (!active_streams_.empty())
@@ -932,7 +932,7 @@ void SpdySession::RemoveFromPool() {
 
 scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
     const std::string& path) {
-  static base::StatsCounter used_push_streams("spdy.claimed_push_streams");
+  base::StatsCounter used_push_streams("spdy.claimed_push_streams");
 
   PushedStreamMap::iterator it = unclaimed_pushed_streams_.find(path);
   if (it != unclaimed_pushed_streams_.end()) {
@@ -1096,7 +1096,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   if (!Respond(*headers, stream))
     return;
 
-  static base::StatsCounter push_requests("spdy.pushed_streams");
+  base::StatsCounter push_requests("spdy.pushed_streams");
   push_requests.Increment();
 }
 
