@@ -8,6 +8,7 @@
 
 #include <stack>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/synchronization/lock.h"
 
@@ -27,7 +28,7 @@ namespace base {
 // When the exit_manager object goes out of scope, all the registered
 // callbacks and singleton destructors will be called.
 
-class AtExitManager {
+class BASE_API AtExitManager {
  public:
   typedef void (*AtExitCallbackType)(void*);
 
