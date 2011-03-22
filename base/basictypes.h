@@ -27,9 +27,12 @@ typedef short               int16;
 typedef int                 int32;
 #endif
 
-// The NSPR system headers define 64-bit as |long| when possible.  In order to
-// not have typedef mismatches, we do the same on LP64.
-#if __LP64__
+// The NSPR system headers define 64-bit as |long| when possible, except on
+// Mac OS X.  In order to not have typedef mismatches, we do the same on LP64.
+//
+// On Mac OS X, |long long| is used for 64-bit types for compatibility with
+// <inttypes.h> format macros even in the LP64 model.
+#if __LP64__ && !defined(OS_MACOSX)
 typedef long                int64;
 #else
 typedef long long           int64;
@@ -51,7 +54,7 @@ typedef unsigned int       uint32;
 #endif
 
 // See the comment above about NSPR and 64-bit.
-#if __LP64__
+#if __LP64__ && !defined(OS_MACOSX)
 typedef unsigned long uint64;
 #else
 typedef unsigned long long uint64;
