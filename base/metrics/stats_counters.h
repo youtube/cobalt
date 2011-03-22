@@ -46,14 +46,14 @@ namespace base {
 //------------------------------------------------------------------------------
 // First provide generic macros, which exist in production as well as debug.
 #define STATS_COUNTER(name, delta) do { \
-  static base::StatsCounter counter(name); \
+  base::StatsCounter counter(name); \
   counter.Add(delta); \
 } while (0)
 
 #define SIMPLE_STATS_COUNTER(name) STATS_COUNTER(name, 1)
 
 #define RATE_COUNTER(name, duration) do { \
-  static base::StatsRate hit_count(name); \
+  base::StatsRate hit_count(name); \
   hit_count.AddTime(duration); \
 } while (0)
 

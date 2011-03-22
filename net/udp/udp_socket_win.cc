@@ -263,7 +263,7 @@ void UDPSocketWin::DidCompleteRead() {
 }
 
 bool UDPSocketWin::ProcessSuccessfulRead(int num_bytes, IPEndPoint* address) {
-  static base::StatsCounter read_bytes("udp.read_bytes");
+  base::StatsCounter read_bytes("udp.read_bytes");
   read_bytes.Add(num_bytes);
 
   // Convert address.
@@ -290,7 +290,7 @@ void UDPSocketWin::DidCompleteWrite() {
 }
 
 void UDPSocketWin::ProcessSuccessfulWrite(int num_bytes) {
-  static base::StatsCounter write_bytes("udp.write_bytes");
+  base::StatsCounter write_bytes("udp.write_bytes");
   write_bytes.Add(num_bytes);
 }
 

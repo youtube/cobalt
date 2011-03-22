@@ -927,9 +927,9 @@ SpdyFrame* SpdyFramer::CompressFrameWithZStream(const SpdyFrame& frame,
   int header_length;
   const char* payload;
 
-  static base::StatsCounter compressed_frames("spdy.CompressedFrames");
-  static base::StatsCounter pre_compress_bytes("spdy.PreCompressSize");
-  static base::StatsCounter post_compress_bytes("spdy.PostCompressSize");
+  base::StatsCounter compressed_frames("spdy.CompressedFrames");
+  base::StatsCounter pre_compress_bytes("spdy.PreCompressSize");
+  base::StatsCounter post_compress_bytes("spdy.PostCompressSize");
 
   if (!enable_compression_)
     return DuplicateFrame(frame);
@@ -991,9 +991,9 @@ SpdyFrame* SpdyFramer::DecompressFrameWithZStream(const SpdyFrame& frame,
   int header_length;
   const char* payload;
 
-  static base::StatsCounter decompressed_frames("spdy.DecompressedFrames");
-  static base::StatsCounter pre_decompress_bytes("spdy.PreDeCompressSize");
-  static base::StatsCounter post_decompress_bytes("spdy.PostDeCompressSize");
+  base::StatsCounter decompressed_frames("spdy.DecompressedFrames");
+  base::StatsCounter pre_decompress_bytes("spdy.PreDeCompressSize");
+  base::StatsCounter post_decompress_bytes("spdy.PostDeCompressSize");
 
   if (!enable_compression_)
     return DuplicateFrame(frame);

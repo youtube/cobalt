@@ -144,7 +144,7 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
   if (socket_ != kInvalidSocket)
     return OK;
 
-  static base::StatsCounter connects("tcp.connect");
+  base::StatsCounter connects("tcp.connect");
   connects.Increment();
 
   DCHECK(!waiting_connect());
@@ -346,7 +346,7 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
 
   int nread = HANDLE_EINTR(read(socket_, buf->data(), buf_len));
   if (nread >= 0) {
-    static base::StatsCounter read_bytes("tcp.read_bytes");
+    base::StatsCounter read_bytes("tcp.read_bytes");
     read_bytes.Add(nread);
     if (nread > 0)
       use_history_.set_was_used_to_convey_data();
@@ -385,7 +385,7 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
 
   int nwrite = InternalWrite(buf, buf_len);
   if (nwrite >= 0) {
-    static base::StatsCounter write_bytes("tcp.write_bytes");
+    base::StatsCounter write_bytes("tcp.write_bytes");
     write_bytes.Add(nwrite);
     if (nwrite > 0)
       use_history_.set_was_used_to_convey_data();
@@ -564,7 +564,7 @@ void TCPClientSocketLibevent::DidCompleteRead() {
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
-    static base::StatsCounter read_bytes("tcp.read_bytes");
+    base::StatsCounter read_bytes("tcp.read_bytes");
     read_bytes.Add(bytes_transferred);
     if (bytes_transferred > 0)
       use_history_.set_was_used_to_convey_data();
@@ -591,7 +591,7 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
-    static base::StatsCounter write_bytes("tcp.write_bytes");
+    base::StatsCounter write_bytes("tcp.write_bytes");
     write_bytes.Add(bytes_transferred);
     if (bytes_transferred > 0)
       use_history_.set_was_used_to_convey_data();
