@@ -50,12 +50,16 @@
   'includes': [
     'ui_base.gypi',
     'ui_gfx.gypi',
-    'ui_unittests.gypi',
   ],
   'conditions': [
     ['toolkit_views2==1', {
       'includes': [
         'ui_views.gypi',
+      ],
+    }],
+    ['inside_chromium_build==1', {
+      'includes': [
+        'ui_unittests.gypi',
       ],
     }],
   ],
