@@ -210,13 +210,13 @@ double AUAudioOutputStream::HardwareSampleRate() {
   AudioDeviceID device_id = kAudioDeviceUnknown;
   UInt32 info_size = sizeof(device_id);
 
-  AudioObjectPropertyAddress default_input_device_address = {
-      kAudioHardwarePropertyDefaultInputDevice,
+  AudioObjectPropertyAddress default_output_device_address = {
+      kAudioHardwarePropertyDefaultOutputDevice,
       kAudioObjectPropertyScopeGlobal,
       kAudioObjectPropertyElementMaster
   };
   OSStatus result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
-                                               &default_input_device_address,
+                                               &default_output_device_address,
                                                0,
                                                0,
                                                &info_size,
