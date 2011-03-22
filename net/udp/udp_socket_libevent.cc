@@ -182,7 +182,7 @@ int UDPSocketLibevent::SendToOrWrite(IOBuffer* buf,
 
   int nwrite = InternalSendTo(buf, buf_len, address);
   if (nwrite >= 0) {
-    static base::StatsCounter write_bytes("udp.write_bytes");
+    base::StatsCounter write_bytes("udp.write_bytes");
     write_bytes.Add(nwrite);
     return nwrite;
   }
@@ -296,7 +296,7 @@ void UDPSocketLibevent::DidCompleteWrite() {
   int result = InternalSendTo(write_buf_, write_buf_len_,
                               send_to_address_.get());
   if (result >= 0) {
-    static base::StatsCounter write_bytes("udp.write_bytes");
+    base::StatsCounter write_bytes("udp.write_bytes");
     write_bytes.Add(result);
   } else {
     result = MapSystemError(errno);
@@ -330,7 +330,7 @@ int UDPSocketLibevent::InternalRecvFrom(IOBuffer* buf, int buf_len,
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
-    static base::StatsCounter read_bytes("udp.read_bytes");
+    base::StatsCounter read_bytes("udp.read_bytes");
     read_bytes.Add(bytes_transferred);
     if (address) {
       if (!address->FromSockAddr(addr, addr_len))
