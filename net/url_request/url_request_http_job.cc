@@ -10,6 +10,7 @@
 #include "base/file_util.h"
 #include "base/file_version_info.h"
 #include "base/message_loop.h"
+#include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/rand_util.h"
 #include "base/string_util.h"
@@ -1027,7 +1028,39 @@ void URLRequestHttpJob::RecordTimer() {
 
   base::TimeDelta to_start = base::Time::Now() - request_creation_time_;
   request_creation_time_ = base::Time();
+
+  static const bool use_prefetch_histogram =
+      base::FieldTrialList::Find("Prefetch") &&
+      !base::FieldTrialList::Find("Prefetch")->group_name().empty();
+
   UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte", to_start);
+  if (use_prefetch_histogram) {
+    UMA_HISTOGRAM_MEDIUM_TIMES(
+        base::FieldTrial::MakeName("Net.HttpTimeToFirstByte",
+                                   "Prefetch"),
+        to_start);
+  }
+
+  const bool is_prerender = !!(request_info_.load_flags & net::LOAD_PRERENDER);
+  if (is_prerender) {
+    UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte_Prerender",
+                               to_start);
+    if (use_prefetch_histogram) {
+      UMA_HISTOGRAM_MEDIUM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpTimeToFirstByte_Prerender",
+                                     "Prefetch"),
+          to_start);
+    }
+  } else {
+    UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte_NonPrerender",
+                               to_start);
+    if (use_prefetch_histogram) {
+      UMA_HISTOGRAM_MEDIUM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpTimeToFirstByte_NonPrerender",
+                                     "Prefetch"),
+          to_start);
+    }
+  }
 }
 
 void URLRequestHttpJob::ResetTimer() {
