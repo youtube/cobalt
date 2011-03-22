@@ -537,7 +537,7 @@ class URLRequest : public base::NonThreadSafe {
   void ContinueDespiteLastError();
 
   // Used to specify the context (cookie store, cache) for this request.
-  URLRequestContext* context();
+  URLRequestContext* context() const;
   void set_context(URLRequestContext* context);
 
   const net::BoundNetLog& net_log() const { return net_log_; }
