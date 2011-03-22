@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,6 +39,7 @@
 #include <new>  // For placement new.
 
 #include "base/atomicops.h"
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_restrictions.h"
@@ -80,7 +81,7 @@ void (*LeakyLazyInstanceTraits<Type>::Delete)(void* instance) = NULL;
 
 // We pull out some of the functionality into a non-templated base, so that we
 // can implement the more complicated pieces out of line in the .cc file.
-class LazyInstanceHelper {
+class BASE_API LazyInstanceHelper {
  protected:
   enum {
     STATE_EMPTY    = 0,
