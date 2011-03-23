@@ -289,11 +289,12 @@ class MockFilterCollection {
   MockAudioRenderer* audio_renderer() const { return audio_renderer_; }
 
   FilterCollection* filter_collection() const {
-    return filter_collection(true, true, PIPELINE_OK);
+    return filter_collection(true, true, true, PIPELINE_OK);
   }
 
   FilterCollection* filter_collection(bool include_demuxer,
                                       bool run_build_callback,
+                                      bool run_build,
                                       PipelineStatus build_status) const;
 
  private:
