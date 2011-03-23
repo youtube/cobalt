@@ -91,6 +91,9 @@ void SwizzleCoreAudioLayout5_1(Format* b, uint32 filled) {
   }
 }
 
+// Returns the default audio hardware sample-rate.
+double GetAudioHardwareSampleRate();
+
 }  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_UTIL_H_
