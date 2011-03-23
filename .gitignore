@@ -89,6 +89,7 @@ v8.log
 /third_party/hunspell
 /third_party/hunspell_dictionaries
 /third_party/icu
+/third_party/leveldb
 /third_party/libjingle/source
 /third_party/libjpeg_turbo
 /third_party/libsrtp/src
@@ -116,6 +117,7 @@ v8.log
 /third_party/safe_browsing/testing
 /third_party/scons
 /third_party/skia
+/third_party/snappy/src
 /third_party/speex
 /third_party/swig
 /third_party/valgrind
