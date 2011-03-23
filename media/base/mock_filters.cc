@@ -135,7 +135,6 @@ MockFilterCollection::~MockFilterCollection() {}
 FilterCollection* MockFilterCollection::filter_collection(
     bool include_demuxer,
     bool run_build_callback,
-    bool run_build,
     PipelineStatus build_status) const {
   FilterCollection* collection = new FilterCollection();
 
@@ -152,9 +151,7 @@ FilterCollection* MockFilterCollection::filter_collection(
     ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
         demuxer_factory, &MockDemuxerFactory::DestroyBuildCallback));
   }
-
-  if (run_build)
-    EXPECT_CALL(*demuxer_factory, Build(_, NotNull()));
+  EXPECT_CALL(*demuxer_factory, Build(_, NotNull()));
 
   collection->SetDemuxerFactory(demuxer_factory);
   collection->AddVideoDecoder(video_decoder_);
