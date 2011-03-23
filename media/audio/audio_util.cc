@@ -11,6 +11,9 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "media/audio/audio_util.h"
+#if defined(OS_MACOSX)
+#include "media/audio/mac/audio_low_latency_output_mac.h"
+#endif
 
 namespace media {
 
@@ -217,6 +220,18 @@ void InterleaveFloatToInt16(const std::vector<float*>& source,
       destination[j * channels + i] = static_cast<int16>(sample);
     }
   }
+}
+
+double GetAudioHardwareSampleRate()
+{
+#if defined(OS_MACOSX)
+    // Hardware sample-rate on the Mac can be configured, so we must query.
+    return AUAudioOutputStream::HardwareSampleRate();
+#else
+    // Hardware for Windows and Linux is nearly always 48KHz.
+    // TODO(crogers) : return correct value in rare non-48KHz cases.
+    return 48000.0;
+#endif
 }
 
 }  // namespace media
