@@ -489,6 +489,13 @@
       }],
 
       # Setup -D flags passed into grit.
+      ['branding=="Chrome"', {
+        # TODO(mmoss) The .grd files look for _google_chrome, but for
+        # consistency they should look for google_chrome_build like C++.
+        'grit_defines': ['-D', '_google_chrome'],
+      }, {
+        'grit_defines': ['-D', '_chromium'],
+      }],
       ['chromeos==1', {
         'grit_defines': ['-D', 'chromeos'],
       }],
