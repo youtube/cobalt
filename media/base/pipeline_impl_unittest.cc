@@ -33,6 +33,9 @@ static const int kTotalBytes = 1024;
 // Buffered bytes of the data source.
 static const int kBufferedBytes = 1024;
 
+// Test url for raw video pipeline.
+static const std::string kUrlMedia = "media://raw_video_stream";
+
 // Used for setting expectations on pipeline callbacks.  Using a StrictMock
 // also lets us test for missing callbacks.
 class CallbackHelper {
@@ -187,11 +190,27 @@ class PipelineImplTest : public ::testing::Test {
   // But some tests require different statuses in build & Start.
   void InitializePipeline(PipelineStatus build_status,
                           PipelineStatus start_status) {
+    InitializePipeline(build_status, start_status, "");
+  }
+
+  void InitializePipeline(PipelineStatus build_status,
+                          PipelineStatus start_status,
+                          const std::string& url) {
     // Expect an initialization callback.
     EXPECT_CALL(callbacks_, OnStart(start_status));
-    pipeline_->Start(mocks_->filter_collection(true, true, build_status), "",
+
+    bool run_build = true;
+    if (url.compare(kUrlMedia) == 0)
+        run_build = false;
+
+    pipeline_->Start(mocks_->filter_collection(true,
+                                               true,
+                                               run_build,
+                                               build_status),
+                     url,
                      NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                  &CallbackHelper::OnStart));
+
     message_loop_.RunAllPending();
   }
 
@@ -232,7 +251,6 @@ class PipelineImplTest : public ::testing::Test {
 
     // We expect a successful seek callback.
     EXPECT_CALL(callbacks_, OnSeek(PIPELINE_OK));
-
   }
 
   void DoSeek(const base::TimeDelta& seek_time) {
@@ -309,7 +327,11 @@ TEST_F(PipelineImplTest, NeverInitializes) {
   // This test hangs during initialization by never calling
   // InitializationComplete().  StrictMock<> will ensure that the callback is
   // never executed.
-  pipeline_->Start(mocks_->filter_collection(false, false, PIPELINE_OK), "",
+  pipeline_->Start(mocks_->filter_collection(false,
+                                             false,
+                                             true,
+                                             PIPELINE_OK),
+                   "",
                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                &CallbackHelper::OnStart));
   message_loop_.RunAllPending();
@@ -333,7 +355,9 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
 
   // Create a filter collection with missing filter.
   FilterCollection* collection =
-      mocks_->filter_collection(false, true,
+      mocks_->filter_collection(false,
+                                true,
+                                true,
                                 PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
   pipeline_->Start(collection, "",
                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
@@ -391,6 +415,16 @@ TEST_F(PipelineImplTest, VideoStream) {
   InitializeVideoRenderer();
 
   InitializePipeline(PIPELINE_OK);
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_FALSE(pipeline_->HasAudio());
+  EXPECT_TRUE(pipeline_->HasVideo());
+}
+
+TEST_F(PipelineImplTest, RawVideoStream) {
+  InitializeVideoDecoder(NULL);
+  InitializeVideoRenderer();
+
+  InitializePipeline(PIPELINE_OK, PIPELINE_OK, kUrlMedia);
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_FALSE(pipeline_->HasAudio());
   EXPECT_TRUE(pipeline_->HasVideo());
@@ -816,3 +850,4 @@ TEST(PipelineStatusNotificationTest, DelayedCallback) {
 }
 
 }  // namespace media
+
