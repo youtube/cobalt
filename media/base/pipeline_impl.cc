@@ -5,18 +5,14 @@
 // TODO(scherkus): clean up PipelineImpl... too many crazy function names,
 // potential deadlocks, etc...
 
-#include "media/base/pipeline_impl.h"
-
-#include <algorithm>
-
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/stl_util-inl.h"
 #include "base/synchronization/condition_variable.h"
-#include "media/filters/rtc_video_decoder.h"
 #include "media/base/clock.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_format.h"
+#include "media/base/pipeline_impl.h"
 
 namespace media {
 
@@ -582,17 +578,12 @@ void PipelineImpl::StartTask(FilterCollection* filter_collection,
   seek_callback_.reset(start_callback);
 
   // Kick off initialization.
+  set_state(kInitDemuxer);
   pipeline_init_state_.reset(new PipelineInitState());
   pipeline_init_state_->composite_ = new CompositeFilter(message_loop_);
   pipeline_init_state_->composite_->set_host(this);
 
-  if (RTCVideoDecoder::IsUrlSupported(url)) {
-    set_state(kInitVideoDecoder);
-    InitializeVideoDecoder(NULL);
-  } else {
-    set_state(kInitDemuxer);
-    InitializeDemuxer();
-  }
+  InitializeDemuxer();
 }
 
 // Main initialization method called on the pipeline thread.  This code attempts
@@ -923,7 +914,7 @@ void PipelineImpl::FilterStateTransitionTask() {
           NewCallback(this, &PipelineImpl::OnFilterStateTransition));
     } else if (state_ == kStarting) {
       pipeline_filter_->Play(
-          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+          NewCallback(this,&PipelineImpl::OnFilterStateTransition));
     } else if (state_ == kStopping) {
       pipeline_filter_->Stop(
           NewCallback(this, &PipelineImpl::OnFilterStateTransition));
@@ -955,7 +946,7 @@ void PipelineImpl::FilterStateTransitionTask() {
 
 void PipelineImpl::TeardownStateTransitionTask() {
   DCHECK(IsPipelineTearingDown());
-  switch (state_) {
+  switch(state_) {
     case kStopping:
       set_state(error_caused_teardown_ ? kError : kStopped);
       FinishDestroyingFiltersTask();
@@ -1096,14 +1087,11 @@ bool PipelineImpl::InitializeVideoDecoder(
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
-  scoped_refptr<DemuxerStream> stream;
+  scoped_refptr<DemuxerStream> stream =
+      demuxer->GetStream(DemuxerStream::VIDEO);
 
-  if (demuxer) {
-    stream = demuxer->GetStream(DemuxerStream::VIDEO);
-
-    if (!stream)
-      return false;
-  }
+  if (!stream)
+    return false;
 
   scoped_refptr<VideoDecoder> video_decoder;
   filter_collection_->SelectVideoDecoder(&video_decoder);
@@ -1181,7 +1169,7 @@ void PipelineImpl::TearDownPipeline() {
   // Mark that we already start tearing down operation.
   tearing_down_ = true;
 
-  switch (state_) {
+  switch(state_) {
     case kCreated:
     case kError:
       set_state(kStopped);
