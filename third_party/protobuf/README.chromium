@@ -12,6 +12,5 @@ descriptor2_pb.py
 
 A protobuf.gyp file has been added for building with Chromium.
 
-There are no local changes to the code itself .. yet. We have a local copy of
-this code because we intend to add support for retaining unknown fields to
-protobuf-lite.
+This code has been patched to support unknown field retention in protobuf-lite.
+See r62331 for the patch.
