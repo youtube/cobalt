@@ -6,6 +6,7 @@
 
 #include <math.h>
 
+#include "base/message_loop.h"
 #include "base/metrics/histogram.h"
 #include "base/win/wrapped_window_proc.h"
 
@@ -371,8 +372,19 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
   // possibly be posted), and finally dispatches that peeked replacement.  Note
   // that the re-post of kMsgHaveWork may be asynchronous to this thread!!
 
+  bool have_message = false;
   MSG msg;
-  bool have_message = (0 != PeekMessage(&msg, NULL, 0, 0, PM_REMOVE));
+  // We should not process all window messages if we are in the context of an
+  // OS modal loop, i.e. in the context of a windows API call like MessageBox.
+  // This is to ensure that these messages are peeked out by the OS modal loop.
+  if (MessageLoop::current()->os_modal_loop()) {
+    // We only peek out WM_PAINT and WM_TIMER here for reasons mentioned above.
+    have_message = PeekMessage(&msg, NULL, WM_PAINT, WM_PAINT, PM_REMOVE) ||
+                   PeekMessage(&msg, NULL, WM_TIMER, WM_TIMER, PM_REMOVE);
+  } else {
+    have_message = (0 != PeekMessage(&msg, NULL, 0, 0, PM_REMOVE));
+  }
+
   DCHECK(!have_message || kMsgHaveWork != msg.message ||
          msg.hwnd != message_hwnd_);
 
