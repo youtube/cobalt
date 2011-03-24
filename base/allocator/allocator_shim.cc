@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,7 +41,7 @@ typedef enum {
 // See SetupSubprocessAllocator() to specify a default secondary (subprocess)
 // allocator.
 // TODO(jar): Switch to using TCMALLOC for the renderer as well.
-static Allocator allocator = TCMALLOC;
+static Allocator allocator = WINHEAP;
 
 // The names of the environment variables that can optionally control the
 // selection of the allocator.  The primary may be used to control overall
