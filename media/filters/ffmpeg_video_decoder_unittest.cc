@@ -15,7 +15,6 @@
 #include "media/base/mock_task.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
-#include "media/filters/ffmpeg_interfaces.h"
 #include "media/filters/ffmpeg_video_decoder.h"
 #include "media/video/video_decode_engine.h"
 #include "media/video/video_decode_context.h"
@@ -47,12 +46,10 @@ static const FFmpegVideoDecoder::TimeTuple kTestPts3 =
       base::TimeDelta::FromMicroseconds(60) };
 static const PipelineStatistics kStatistics;
 
-class MockFFmpegDemuxerStream : public MockDemuxerStream,
-                                public AVStreamProvider {
+class MockFFmpegDemuxerStream : public MockDemuxerStream {
  public:
   MockFFmpegDemuxerStream() {}
 
-  // AVStreamProvider implementation.
   MOCK_METHOD0(GetAVStream, AVStream*());
 
  protected:
@@ -184,9 +181,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
 
   void InitializeDecoderSuccessfully() {
     // Test successful initialization.
-    AVStreamProvider* av_stream_provider = demuxer_;
-    EXPECT_CALL(*demuxer_, QueryInterface(AVStreamProvider::interface_id()))
-        .WillOnce(Return(av_stream_provider));
     EXPECT_CALL(*demuxer_, GetAVStream())
         .WillOnce(Return(&stream_));
 
@@ -226,9 +220,9 @@ class FFmpegVideoDecoderTest : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoderTest);
 };
 
-TEST_F(FFmpegVideoDecoderTest, Initialize_QueryInterfaceFails) {
-  // Test QueryInterface returning NULL.
-  EXPECT_CALL(*demuxer_, QueryInterface(AVStreamProvider::interface_id()))
+TEST_F(FFmpegVideoDecoderTest, Initialize_GetAVStreamFails) {
+  // Test GetAVStream returning NULL.
+  EXPECT_CALL(*demuxer_, GetAVStream())
       .WillOnce(ReturnNull());
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
 
@@ -240,9 +234,6 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_QueryInterfaceFails) {
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_EngineFails) {
   // Test successful initialization.
-  AVStreamProvider* av_stream_provider = demuxer_;
-  EXPECT_CALL(*demuxer_, QueryInterface(AVStreamProvider::interface_id()))
-      .WillOnce(Return(av_stream_provider));
   EXPECT_CALL(*demuxer_, GetAVStream())
       .WillOnce(Return(&stream_));
 

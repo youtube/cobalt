@@ -148,8 +148,6 @@
         'filters/ffmpeg_h264_bitstream_converter.h',
         'filters/ffmpeg_glue.cc',
         'filters/ffmpeg_glue.h',
-        'filters/ffmpeg_interfaces.cc',
-        'filters/ffmpeg_interfaces.h',
         'filters/ffmpeg_video_decoder.cc',
         'filters/ffmpeg_video_decoder.h',
         'filters/file_data_source.cc',
