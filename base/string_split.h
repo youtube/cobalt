@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/string16.h"
 
 namespace base {
@@ -22,52 +23,52 @@ namespace base {
 // Where wchar_t is char16 (i.e. Windows), |c| must be in BMP
 // (Basic Multilingual Plane). Elsewhere (Linux/Mac), wchar_t
 // should be a valid Unicode code point (32-bit).
-void SplitString(const std::wstring& str,
-                 wchar_t c,
-                 std::vector<std::wstring>* r);
+BASE_API void SplitString(const std::wstring& str,
+                          wchar_t c,
+                          std::vector<std::wstring>* r);
 // NOTE: |c| must be in BMP (Basic Multilingual Plane)
-void SplitString(const string16& str,
-                 char16 c,
-                 std::vector<string16>* r);
+BASE_API void SplitString(const string16& str,
+                          char16 c,
+                          std::vector<string16>* r);
 // |str| should not be in a multi-byte encoding like Shift-JIS or GBK in which
 // the trailing byte of a multi-byte character can be in the ASCII range.
 // UTF-8, and other single/multi-byte ASCII-compatible encodings are OK.
 // Note: |c| must be in the ASCII range.
-void SplitString(const std::string& str,
-                 char c,
-                 std::vector<std::string>* r);
+BASE_API void SplitString(const std::string& str,
+                          char c,
+                          std::vector<std::string>* r);
 
-bool SplitStringIntoKeyValues(
+BASE_API bool SplitStringIntoKeyValues(
     const std::string& line,
     char key_value_delimiter,
     std::string* key, std::vector<std::string>* values);
 
-bool SplitStringIntoKeyValuePairs(
+BASE_API bool SplitStringIntoKeyValuePairs(
     const std::string& line,
     char key_value_delimiter,
     char key_value_pair_delimiter,
     std::vector<std::pair<std::string, std::string> >* kv_pairs);
 
 // The same as SplitString, but use a substring delimiter instead of a char.
-void SplitStringUsingSubstr(const string16& str,
-                            const string16& s,
-                            std::vector<string16>* r);
-void SplitStringUsingSubstr(const std::string& str,
-                            const std::string& s,
-                            std::vector<std::string>* r);
+BASE_API void SplitStringUsingSubstr(const string16& str,
+                                     const string16& s,
+                                     std::vector<string16>* r);
+BASE_API void SplitStringUsingSubstr(const std::string& str,
+                                     const std::string& s,
+                                     std::vector<std::string>* r);
 
 // The same as SplitString, but don't trim white space.
 // NOTE: |c| must be in BMP (Basic Multilingual Plane)
-void SplitStringDontTrim(const string16& str,
-                         char16 c,
-                         std::vector<string16>* r);
+BASE_API void SplitStringDontTrim(const string16& str,
+                                  char16 c,
+                                  std::vector<string16>* r);
 // |str| should not be in a multi-byte encoding like Shift-JIS or GBK in which
 // the trailing byte of a multi-byte character can be in the ASCII range.
 // UTF-8, and other single/multi-byte ASCII-compatible encodings are OK.
 // Note: |c| must be in the ASCII range.
-void SplitStringDontTrim(const std::string& str,
-                         char c,
-                         std::vector<std::string>* r);
+BASE_API void SplitStringDontTrim(const std::string& str,
+                                  char c,
+                                  std::vector<std::string>* r);
 
 // WARNING: this uses whitespace as defined by the HTML5 spec. If you need
 // a function similar to this but want to trim all types of whitespace, then
@@ -77,12 +78,12 @@ void SplitStringDontTrim(const std::string& str,
 // Splits the string along whitespace (where whitespace is the five space
 // characters defined by HTML 5). Each contiguous block of non-whitespace
 // characters is added to result.
-void SplitStringAlongWhitespace(const std::wstring& str,
-                                std::vector<std::wstring>* result);
-void SplitStringAlongWhitespace(const string16& str,
-                                std::vector<string16>* result);
-void SplitStringAlongWhitespace(const std::string& str,
-                                std::vector<std::string>* result);
+BASE_API void SplitStringAlongWhitespace(const std::wstring& str,
+                                         std::vector<std::wstring>* result);
+BASE_API void SplitStringAlongWhitespace(const string16& str,
+                                         std::vector<string16>* result);
+BASE_API void SplitStringAlongWhitespace(const std::string& str,
+                                         std::vector<std::string>* result);
 
 }  // namespace base
 

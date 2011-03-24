@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define BASE_THREADING_THREAD_LOCAL_STORAGE_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 #if defined(OS_POSIX)
@@ -16,7 +17,7 @@ namespace base {
 
 // Wrapper for thread local storage.  This class doesn't do much except provide
 // an API for portability.
-class ThreadLocalStorage {
+class BASE_API ThreadLocalStorage {
  public:
 
   // Prototype for the TLS destructor function, which can be optionally used to
@@ -25,7 +26,7 @@ class ThreadLocalStorage {
   typedef void (*TLSDestructorFunc)(void* value);
 
   // A key representing one value stored in TLS.
-  class Slot {
+  class BASE_API Slot {
    public:
     explicit Slot(TLSDestructorFunc destructor = NULL);
 

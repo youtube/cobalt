@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/string16.h"
 #include "build/build_config.h"
@@ -44,7 +45,7 @@ typedef std::map<std::string, Value*> ValueMap;
 // The Value class is the base class for Values.  A Value can be
 // instantiated via the Create*Value() factory methods, or by directly
 // creating instances of the subclasses.
-class Value {
+class BASE_API Value {
  public:
   enum ValueType {
     TYPE_NULL = 0,
@@ -122,7 +123,7 @@ class Value {
 };
 
 // FundamentalValue represents the simple fundamental types of values.
-class FundamentalValue : public Value {
+class BASE_API FundamentalValue : public Value {
  public:
   explicit FundamentalValue(bool in_value);
   explicit FundamentalValue(int in_value);
@@ -146,7 +147,7 @@ class FundamentalValue : public Value {
   DISALLOW_COPY_AND_ASSIGN(FundamentalValue);
 };
 
-class StringValue : public Value {
+class BASE_API StringValue : public Value {
  public:
   // Initializes a StringValue with a UTF-8 narrow character string.
   explicit StringValue(const std::string& in_value);
@@ -168,7 +169,7 @@ class StringValue : public Value {
   DISALLOW_COPY_AND_ASSIGN(StringValue);
 };
 
-class BinaryValue: public Value {
+class BASE_API BinaryValue: public Value {
  public:
   virtual ~BinaryValue();
 
@@ -205,7 +206,7 @@ class BinaryValue: public Value {
 // DictionaryValue provides a key-value dictionary with (optional) "path"
 // parsing for recursive access; see the comment at the top of the file. Keys
 // are |std::string|s and should be UTF-8 encoded.
-class DictionaryValue : public Value {
+class BASE_API DictionaryValue : public Value {
  public:
   DictionaryValue();
   virtual ~DictionaryValue();
@@ -313,7 +314,7 @@ class DictionaryValue : public Value {
   // YOU SHOULD ALWAYS USE THE XXXWithoutPathExpansion() APIs WITH THESE, NOT
   // THE NORMAL XXX() APIs.  This makes sure things will work correctly if any
   // keys have '.'s in them.
-  class key_iterator
+  class BASE_API key_iterator
       : private std::iterator<std::input_iterator_tag, const std::string> {
    public:
     explicit key_iterator(ValueMap::const_iterator itr) { itr_ = itr; }
@@ -343,7 +344,7 @@ class DictionaryValue : public Value {
 };
 
 // This type of Value represents a list of other Value values.
-class ListValue : public Value {
+class BASE_API ListValue : public Value {
  public:
   typedef ValueVector::iterator iterator;
   typedef ValueVector::const_iterator const_iterator;
@@ -432,7 +433,7 @@ class ListValue : public Value {
 
 // This interface is implemented by classes that know how to serialize and
 // deserialize Value objects.
-class ValueSerializer {
+class BASE_API ValueSerializer {
  public:
   virtual ~ValueSerializer();
 

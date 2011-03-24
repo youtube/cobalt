@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,13 +8,14 @@
 
 #include <string>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 class Value;
 
 namespace base {
 
-class JSONWriter {
+class BASE_API JSONWriter {
  public:
   // Given a root node, generates a JSON string and puts it into |json|.
   // If |pretty_print| is true, return a slightly nicer formated json string

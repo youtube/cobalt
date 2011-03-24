@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #define BASE_THREADING_PLATFORM_THREAD_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
@@ -47,11 +48,11 @@ typedef pid_t PlatformThreadId;
 const PlatformThreadId kInvalidThreadId = 0;
 
 // A namespace for low-level thread functions.
-class PlatformThread {
+class BASE_API PlatformThread {
  public:
   // Implement this interface to run code on a background thread.  Your
   // ThreadMain method will be called on the newly created thread.
-  class Delegate {
+  class BASE_API Delegate {
    public:
     virtual ~Delegate() {}
     virtual void ThreadMain() = 0;

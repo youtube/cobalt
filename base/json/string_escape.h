@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "base/base_api.h"
 #include "base/string16.h"
 
 namespace base {
@@ -19,19 +20,19 @@ namespace base {
 // If |put_in_quotes| is true, the result will be surrounded in double quotes.
 // The outputted literal, when interpreted by the browser, should result in a
 // javascript string that is identical and the same length as the input |str|.
-void JsonDoubleQuote(const std::string& str,
-                     bool put_in_quotes,
-                     std::string* dst);
+BASE_API void JsonDoubleQuote(const std::string& str,
+                              bool put_in_quotes,
+                              std::string* dst);
 
 // Same as above, but always returns the result double quoted.
-std::string GetDoubleQuotedJson(const std::string& str);
+BASE_API std::string GetDoubleQuotedJson(const std::string& str);
 
-void JsonDoubleQuote(const string16& str,
-                     bool put_in_quotes,
-                     std::string* dst);
+BASE_API void JsonDoubleQuote(const string16& str,
+                              bool put_in_quotes,
+                              std::string* dst);
 
 // Same as above, but always returns the result double quoted.
-std::string GetDoubleQuotedJson(const string16& str);
+BASE_API std::string GetDoubleQuotedJson(const string16& str);
 
 }  // namespace base
 
