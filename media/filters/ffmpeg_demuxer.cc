@@ -85,15 +85,6 @@ FFmpegDemuxerStream::~FFmpegDemuxerStream() {
   DCHECK(buffer_queue_.empty());
 }
 
-void* FFmpegDemuxerStream::QueryInterface(const char* id) {
-  DCHECK(id);
-  AVStreamProvider* interface_ptr = NULL;
-  if (0 == strcmp(id, AVStreamProvider::interface_id())) {
-    interface_ptr = this;
-  }
-  return interface_ptr;
-}
-
 bool FFmpegDemuxerStream::HasPendingReads() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
   DCHECK(!stopped_ || read_queue_.empty())

@@ -42,12 +42,10 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
   AutoTaskRunner done_runner(done_cb);
   *success = false;
 
-  // Get the AVStream by querying for the provider interface.
-  AVStreamProvider* av_stream_provider;
-  if (!demuxer_stream->QueryInterface(&av_stream_provider)) {
+  AVStream* av_stream = demuxer_stream->GetAVStream();
+  if (!av_stream) {
     return;
   }
-  AVStream* av_stream = av_stream_provider->GetAVStream();
 
   // Grab the AVStream's codec context and make sure we have sensible values.
   codec_context_ = av_stream->codec;
