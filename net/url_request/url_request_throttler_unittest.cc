@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,13 +16,15 @@
 using base::TimeDelta;
 using base::TimeTicks;
 
+namespace net {
+
 namespace {
 class MockURLRequestThrottlerManager;
 
-class MockBackoffEntry : public net::BackoffEntry {
+class MockBackoffEntry : public BackoffEntry {
  public:
-  explicit MockBackoffEntry(const net::BackoffEntry::Policy* const policy)
-      : net::BackoffEntry(policy), fake_now_(TimeTicks()) {
+  explicit MockBackoffEntry(const BackoffEntry::Policy* const policy)
+      : BackoffEntry(policy), fake_now_(TimeTicks()) {
   }
 
   virtual ~MockBackoffEntry() {}
@@ -39,7 +41,7 @@ class MockBackoffEntry : public net::BackoffEntry {
   TimeTicks fake_now_;
 };
 
-class MockURLRequestThrottlerEntry : public net::URLRequestThrottlerEntry {
+class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
  public :
   MockURLRequestThrottlerEntry() : mock_backoff_entry_(&backoff_policy_) {
     // Some tests become flaky if we have jitter.
@@ -60,11 +62,11 @@ class MockURLRequestThrottlerEntry : public net::URLRequestThrottlerEntry {
   }
   virtual ~MockURLRequestThrottlerEntry() {}
 
-  const net::BackoffEntry* GetBackoffEntry() const {
+  const BackoffEntry* GetBackoffEntry() const {
     return &mock_backoff_entry_;
   }
 
-  net::BackoffEntry* GetBackoffEntry() {
+  BackoffEntry* GetBackoffEntry() {
     return &mock_backoff_entry_;
   }
 
@@ -86,12 +88,12 @@ class MockURLRequestThrottlerEntry : public net::URLRequestThrottlerEntry {
   }
 
   base::TimeTicks sliding_window_release_time() const {
-    return net::URLRequestThrottlerEntry::sliding_window_release_time();
+    return URLRequestThrottlerEntry::sliding_window_release_time();
   }
 
   void set_sliding_window_release_time(
       const base::TimeTicks& release_time) {
-    net::URLRequestThrottlerEntry::set_sliding_window_release_time(
+    URLRequestThrottlerEntry::set_sliding_window_release_time(
         release_time);
   }
 
@@ -100,7 +102,7 @@ class MockURLRequestThrottlerEntry : public net::URLRequestThrottlerEntry {
 };
 
 class MockURLRequestThrottlerHeaderAdapter
-    : public net::URLRequestThrottlerHeaderInterface {
+    : public URLRequestThrottlerHeaderInterface {
  public:
   MockURLRequestThrottlerHeaderAdapter()
       : fake_retry_value_("0.0"),
@@ -127,7 +129,7 @@ class MockURLRequestThrottlerHeaderAdapter
   int fake_response_code_;
 };
 
-class MockURLRequestThrottlerManager : public net::URLRequestThrottlerManager {
+class MockURLRequestThrottlerManager : public URLRequestThrottlerManager {
  public:
   MockURLRequestThrottlerManager() : create_entry_index_(0) {}
 
@@ -300,9 +302,9 @@ TEST_F(URLRequestThrottlerEntryTest, MalformedContent) {
 }
 
 TEST_F(URLRequestThrottlerEntryTest, SlidingWindow) {
-  int max_send = net::URLRequestThrottlerEntry::kDefaultMaxSendThreshold;
+  int max_send = URLRequestThrottlerEntry::kDefaultMaxSendThreshold;
   int sliding_window =
-      net::URLRequestThrottlerEntry::kDefaultSlidingWindowPeriodMs;
+      URLRequestThrottlerEntry::kDefaultSlidingWindowPeriodMs;
 
   TimeTicks time_1 = entry_->fake_time_now_ +
       TimeDelta::FromMilliseconds(sliding_window / 3);
@@ -389,3 +391,5 @@ TEST(URLRequestThrottlerManager, IsHostBeingRegistered) {
 
   EXPECT_EQ(3, manager.GetNumberOfEntries());
 }
+
+}  // namespace net

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Invalid URLs go through this net::URLRequestJob class rather than being
+// Invalid URLs go through this URLRequestJob class rather than being
 // passed to the default job handler.
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_ERROR_JOB_H_

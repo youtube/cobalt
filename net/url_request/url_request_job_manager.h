@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,11 +19,11 @@ template <typename T> struct DefaultSingletonTraits;
 namespace net {
 
 // This class is responsible for managing the set of protocol factories and
-// request interceptors that determine how an net::URLRequestJob gets created to
-// handle an net::URLRequest.
+// request interceptors that determine how an URLRequestJob gets created to
+// handle an URLRequest.
 //
 // MULTI-THREADING NOTICE:
-//   net::URLRequest is designed to have all consumers on a single thread, and
+//   URLRequest is designed to have all consumers on a single thread, and
 //   so no attempt is made to support ProtocolFactory or Interceptor instances
 //   being registered/unregistered or in any way poked on multiple threads.
 //   However, we do support checking for supported schemes FROM ANY THREAD
@@ -34,21 +34,21 @@ class URLRequestJobManager {
   // Returns the singleton instance.
   static URLRequestJobManager* GetInstance();
 
-  // Instantiate an net::URLRequestJob implementation based on the registered
+  // Instantiate an URLRequestJob implementation based on the registered
   // interceptors and protocol factories.  This will always succeed in
   // returning a job unless we are--in the extreme case--out of memory.
-  net::URLRequestJob* CreateJob(net::URLRequest* request) const;
+  URLRequestJob* CreateJob(URLRequest* request) const;
 
   // Allows interceptors to hijack the request after examining the new location
   // of a redirect. Returns NULL if no interceptor intervenes.
-  net::URLRequestJob* MaybeInterceptRedirect(net::URLRequest* request,
+  URLRequestJob* MaybeInterceptRedirect(URLRequest* request,
                                              const GURL& location) const;
 
   // Allows interceptors to hijack the request after examining the response
   // status and headers. This is also called when there is no server response
   // at all to allow interception of failed requests due to network errors.
   // Returns NULL if no interceptor intervenes.
-  net::URLRequestJob* MaybeInterceptResponse(net::URLRequest* request) const;
+  URLRequestJob* MaybeInterceptResponse(URLRequest* request) const;
 
   // Returns true if there is a protocol factory registered for the given
   // scheme.  Note: also returns true if there is a built-in handler for the
@@ -58,19 +58,19 @@ class URLRequestJobManager {
   // Register a protocol factory associated with the given scheme.  The factory
   // parameter may be null to clear any existing association.  Returns the
   // previously registered protocol factory if any.
-  net::URLRequest::ProtocolFactory* RegisterProtocolFactory(
-      const std::string& scheme, net::URLRequest::ProtocolFactory* factory);
+  URLRequest::ProtocolFactory* RegisterProtocolFactory(
+      const std::string& scheme, URLRequest::ProtocolFactory* factory);
 
   // Register/unregister a request interceptor.
-  void RegisterRequestInterceptor(net::URLRequest::Interceptor* interceptor);
-  void UnregisterRequestInterceptor(net::URLRequest::Interceptor* interceptor);
+  void RegisterRequestInterceptor(URLRequest::Interceptor* interceptor);
+  void UnregisterRequestInterceptor(URLRequest::Interceptor* interceptor);
 
   void set_enable_file_access(bool enable) { enable_file_access_ = enable; }
   bool enable_file_access() const { return enable_file_access_; }
 
  private:
-  typedef std::map<std::string, net::URLRequest::ProtocolFactory*> FactoryMap;
-  typedef std::vector<net::URLRequest::Interceptor*> InterceptorList;
+  typedef std::map<std::string, URLRequest::ProtocolFactory*> FactoryMap;
+  typedef std::vector<URLRequest::Interceptor*> InterceptorList;
   friend struct DefaultSingletonTraits<URLRequestJobManager>;
 
   URLRequestJobManager();
