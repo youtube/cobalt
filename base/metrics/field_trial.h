@@ -78,6 +78,7 @@
 #include <map>
 #include <string>
 
+#include "base/base_api.h"
 #include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/synchronization/lock.h"
@@ -87,7 +88,7 @@ namespace base {
 
 class FieldTrialList;
 
-class FieldTrial : public RefCounted<FieldTrial> {
+class BASE_API FieldTrial : public RefCounted<FieldTrial> {
  public:
   typedef int Probability;  // Probability type for being selected in a trial.
 
@@ -210,7 +211,7 @@ class FieldTrial : public RefCounted<FieldTrial> {
 // Class with a list of all active field trials.  A trial is active if it has
 // been registered, which includes evaluating its state based on its probaility.
 // Only one instance of this class exists.
-class FieldTrialList {
+class BASE_API FieldTrialList {
  public:
   // Define a separator charactor to use when creating a persistent form of an
   // instance.  This is intended for use as a command line argument, passed to a

@@ -34,6 +34,7 @@
 
 #include <string>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 // Chromium and Chromium OS check out gtest to different places, so we're
@@ -46,7 +47,7 @@ class Value;
 
 namespace base {
 
-class JSONReader {
+class BASE_API JSONReader {
  public:
   // A struct to hold a JS token.
   class Token {

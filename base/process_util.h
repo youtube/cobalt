@@ -33,6 +33,7 @@ typedef struct _malloc_zone_t malloc_zone_t;
 #include <utility>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/file_descriptor_shuffle.h"
 #include "base/file_path.h"
 #include "base/process.h"
@@ -639,7 +640,7 @@ bool EnableLowFragmentationHeap();
 
 // Enables 'terminate on heap corruption' flag. Helps protect against heap
 // overflow. Has no effect if the OS doesn't provide the necessary facility.
-void EnableTerminationOnHeapCorruption();
+BASE_API void EnableTerminationOnHeapCorruption();
 
 #if !defined(OS_WIN)
 // Turns on process termination if memory runs out. This is handled on Windows
