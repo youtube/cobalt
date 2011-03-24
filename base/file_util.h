@@ -625,6 +625,7 @@ enum FileSystemType {
   FILE_SYSTEM_SMB,
   FILE_SYSTEM_CODA,
   FILE_SYSTEM_MEMORY,         // in-memory file system
+  FILE_SYSTEM_CGROUP,         // cgroup control.
   FILE_SYSTEM_OTHER,          // any other value.
   FILE_SYSTEM_TYPE_COUNT
 };
