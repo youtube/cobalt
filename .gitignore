@@ -62,6 +62,7 @@ v8.log
 /native_client
 /net/Debug
 /net/Release
+/net/testserver.log
 /ninja
 /out
 /out_*
