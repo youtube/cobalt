@@ -32,13 +32,6 @@ class X509Certificate;
 
 class URLRequestJob : public base::RefCounted<URLRequestJob> {
  public:
-  // When histogramming results related to SDCH and/or an SDCH latency test, the
-  // number of packets for which we need to record arrival times so as to
-  // calculate interpacket latencies.  We currently are only looking at the
-  // first few packets, as we're monitoring the impact of the initial TCP
-  // congestion window on stalling of transmissions.
-  static const size_t kSdchPacketHistogramCount = 5;
-
   explicit URLRequestJob(URLRequest* request);
 
   // Returns the request that owns this job. THIS POINTER MAY BE NULL if the
@@ -239,9 +232,9 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // the hood.
   bool ReadFilteredData(int *bytes_read);
 
-  // Facilitate histogramming by turning on packet counting.
-  // If called more than once, the largest value will be used.
-  void EnablePacketCounting(size_t max_packets_timed);
+  // Whether the response is being filtered in this job.
+  // Only valid after NotifyHeadersComplete() has been called.
+  bool HasFilter() { return filter_ != NULL; }
 
   // At or near destruction time, a derived class may request that the filters
   // be destroyed so that statistics can be gathered while the derived class is
@@ -255,14 +248,15 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // Set the status of the job.
   void SetStatus(const URLRequestStatus& status);
 
-  // TODO(adamk): Remove this method once it's no longer called from
-  // URLRequestJob.
-  virtual bool IsCachedContent() const;
+  // The number of bytes read before passing to the filter.
+  int prefilter_bytes_read() const { return prefilter_bytes_read_; }
 
-  // TODO(adamk): Move this method to url_request_http_job.cc by exposing
-  // the required stats to URLRequestJob children.
-  void RecordPacketStats(FilterContext::StatisticSelector statistic) const;
+  // The number of bytes read after passing through the filter.
+  int postfilter_bytes_read() const { return postfilter_bytes_read_; }
 
+  // Total number of bytes read from network (or cache) and typically handed
+  // to filter to process.  Used to histogram compression ratios, and error
+  // recovery scenarios in filters.
   int64 filter_input_byte_count() const { return filter_input_byte_count_; }
 
   // The request that initiated this job. This value MAY BE NULL if the
@@ -298,25 +292,18 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // out.
   bool FilterHasData();
 
-  // Record packet arrival times for possible use in histograms.
-  void UpdatePacketReadTimes();
-
-  void RecordCompressionHistograms();
+  // Subclasses may implement this method to record packet arrival times.
+  // The default implementation does nothing.
+  virtual void UpdatePacketReadTimes();
 
   // Indicates that the job is done producing data, either it has completed
   // all the data or an error has been encountered. Set exclusively by
   // NotifyDone so that it is kept in sync with the request.
   bool done_;
 
-  // The number of bytes read before passing to the filter.
   int prefilter_bytes_read_;
-  // The number of bytes read after passing through the filter.
   int postfilter_bytes_read_;
-  // True when (we believe) the content in this URLRequest was
-  // compressible.
-  bool is_compressible_content_;
-  // True when the content in this URLRequest was compressed.
-  bool is_compressed_;
+  int64 filter_input_byte_count_;
 
   // The data stream filter which is enabled on demand.
   scoped_ptr<Filter> filter_;
@@ -346,48 +333,6 @@ class URLRequestJob : public base::RefCounted<URLRequestJob> {
   // Set when a redirect is deferred.
   GURL deferred_redirect_url_;
   int deferred_redirect_status_code_;
-
-  //----------------------------------------------------------------------------
-  // Data used for statistics gathering in some instances.  This data is only
-  // used for histograms etc., and is not required.  It is optionally gathered
-  // based on the settings of several control variables.
-
-  // Enable recording of packet arrival times for histogramming.
-  bool packet_timing_enabled_;
-
-  // TODO(jar): improve the quality of the gathered info by gathering most times
-  // at a lower point in the network stack, assuring we have actual packet
-  // boundaries, rather than approximations.  Also note that input byte count
-  // as gathered here is post-SSL, and post-cache-fetch, and does not reflect
-  // true packet arrival times in such cases.
-
-  // Total number of bytes read from network (or cache) and typically handed
-  // to filter to process.  Used to histogram compression ratios, and error
-  // recovery scenarios in filters.
-  int64 filter_input_byte_count_;
-
-  // The number of bytes that have been accounted for in packets (where some of
-  // those packets may possibly have had their time of arrival recorded).
-  int64 bytes_observed_in_packets_;
-
-  // Limit on the size of the array packet_times_.  This can be set to
-  // zero, and then no packet times will be gathered.
-  size_t max_packets_timed_;
-
-  // Arrival times for some of the first few packets.
-  std::vector<base::Time> packet_times_;
-
-  // The request time may not be available when we are being destroyed, so we
-  // snapshot it early on.
-  base::Time request_time_snapshot_;
-
-  // Since we don't save all packet times in packet_times_, we save the
-  // last time for use in histograms.
-  base::Time final_packet_time_;
-
-  // The count of the number of packets, some of which may not have been timed.
-  // We're ignoring overflow, as 1430 x 2^31 is a LOT of bytes.
-  int observed_packet_count_;
 
   ScopedRunnableMethodFactory<URLRequestJob> method_factory_;
 
