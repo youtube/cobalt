@@ -174,6 +174,10 @@ int UnwrapNoRefParentConstRef(const NoRefParent& p) {
   return p.value;
 }
 
+void RefArgSet(int &n) {
+  n = 2;
+}
+
 // Only useful in no-compile tests.
 int UnwrapNoRefParentRef(Parent& p) {
   return p.value;
@@ -349,6 +353,37 @@ TEST_F(BindTest, ArgumentBinding) {
   Callback<int(void)> bind_const_reference_promotes_cb =
       Bind(&UnwrapNoRefParentConstRef, c);
   EXPECT_EQ(8, bind_const_reference_promotes_cb.Run());
+}
+
+// Unbound argument type support tests.
+//   - Unbound value.
+//   - Unbound pointer.
+//   - Unbound reference.
+//   - Unbound const reference.
+//   - Unbound unsized array.
+//   - Unbound sized array.
+//   - Unbound array-of-arrays.
+TEST_F(BindTest, UnboundArgumentTypeSupport) {
+  Callback<void(int)> unbound_value_cb = Bind(&VoidPolymorphic1<int>);
+  Callback<void(int*)> unbound_pointer_cb = Bind(&VoidPolymorphic1<int*>);
+  Callback<void(int&)> unbound_ref_cb = Bind(&VoidPolymorphic1<int&>);
+  Callback<void(const int&)> unbound_const_ref_cb =
+      Bind(&VoidPolymorphic1<const int&>);
+  Callback<void(int[])> unbound_unsized_array_cb =
+      Bind(&VoidPolymorphic1<int[]>);
+  Callback<void(int[2])> unbound_sized_array_cb =
+      Bind(&VoidPolymorphic1<int[2]>);
+  Callback<void(int[][2])> unbound_array_of_arrays_cb =
+      Bind(&VoidPolymorphic1<int[][2]>);
+}
+
+// Function with unbound reference parameter.
+//   - Original paraemter is modified by callback.
+TEST_F(BindTest, UnboundReferenceSupport) {
+  int n = 0;
+  Callback<void(int&)> unbound_ref_cb = Bind(&RefArgSet);
+  unbound_ref_cb.Run(n);
+  EXPECT_EQ(2, n);
 }
 
 // Functions that take reference parameters.
@@ -570,14 +605,13 @@ TEST_F(BindTest, NoCompile) {
   //
   // HasRef p[10];
   // Callback<void(void)> method_bound_to_array_cb =
-  //    Bind(&HasRef::VoidConstMethod0, p);
+  //     Bind(&HasRef::VoidConstMethod0, p);
   // method_bound_to_array_cb.Run();
 
   // - Refcounted types should not be bound as a raw pointer.
   // HasRef for_raw_ptr;
   // Callback<void(void)> ref_count_as_raw_ptr =
   //     Bind(&VoidPolymorphic1<HasRef*>, &for_raw_ptr);
-  // ASSERT_EQ(&for_raw_ptr, ref_count_as_raw_ptr.Run());
 
 }
 

@@ -161,7 +161,11 @@ struct UnsafeBindtoRefCountedArgHelper<true, T>
 };
 
 template <typename T>
-struct UnsafeBindtoRefCountedArg
+struct UnsafeBindtoRefCountedArg : false_type {
+};
+
+template <typename T>
+struct UnsafeBindtoRefCountedArg<T*>
     : UnsafeBindtoRefCountedArgHelper<is_class<T>::value, T> {
 };
 
@@ -231,43 +235,6 @@ template <typename T>
 struct MaybeRefcount<base::true_type, const T*> {
   static void AddRef(const T* o) { o->AddRef(); }
   static void Release(const T* o) { o->Release(); }
-};
-
-
-// This is a typetraits object that's used to convert an argument type into a
-// type suitable for storage.  In particular, it strips off references, and
-// converts arrays to pointers.
-//
-// This array type becomes an issue because we are passing bound parameters by
-// const reference. In this case, we end up passing an actual array type in the
-// initializer list which C++ does not allow.  This will break passing of
-// C-string literals.
-template <typename T>
-struct BindType {
-  typedef T StorageType;
-};
-
-// This should almost be impossible to trigger unless someone manually
-// specifies type of the bind parameters.  However, in case they do,
-// this will guard against us accidentally storing a reference parameter.
-template <typename T>
-struct BindType<T&> {
-  typedef T StorageType;
-};
-
-// Note that for array types, we implicitly add a const in the conversion. This
-// means that it is not possible to bind array arguments to functions that take
-// a non-const pointer. Trying to specialize the template based on a "const
-// T[n]" does not seem to match correctly, so we are stuck with this
-// restriction.
-template <typename T, size_t n>
-struct BindType<T[n]> {
-  typedef const T* StorageType;
-};
-
-template <typename T>
-struct BindType<T[]> {
-  typedef const T* StorageType;
 };
 
 }  // namespace internal
