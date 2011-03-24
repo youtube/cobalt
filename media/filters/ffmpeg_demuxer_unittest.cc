@@ -237,21 +237,15 @@ TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
   // First stream should be video and support the FFmpegDemuxerStream interface.
   scoped_refptr<DemuxerStream> stream =
       demuxer_->GetStream(DemuxerStream::VIDEO);
-  AVStreamProvider* av_stream_provider = NULL;
   ASSERT_TRUE(stream);
   EXPECT_EQ(DemuxerStream::VIDEO, stream->type());
-  EXPECT_TRUE(stream->QueryInterface(&av_stream_provider));
-  EXPECT_TRUE(av_stream_provider);
-  EXPECT_EQ(&streams_[AV_STREAM_VIDEO], av_stream_provider->GetAVStream());
+  EXPECT_EQ(&streams_[AV_STREAM_VIDEO], stream->GetAVStream());
 
   // Other stream should be audio and support the FFmpegDemuxerStream interface.
   stream = demuxer_->GetStream(DemuxerStream::AUDIO);
-  av_stream_provider = NULL;
   ASSERT_TRUE(stream);
   EXPECT_EQ(DemuxerStream::AUDIO, stream->type());
-  EXPECT_TRUE(stream->QueryInterface(&av_stream_provider));
-  EXPECT_TRUE(av_stream_provider);
-  EXPECT_EQ(&streams_[AV_STREAM_AUDIO], av_stream_provider->GetAVStream());
+  EXPECT_EQ(&streams_[AV_STREAM_AUDIO], stream->GetAVStream());
 }
 
 TEST_F(FFmpegDemuxerTest, Read_DiscardUninteresting) {
