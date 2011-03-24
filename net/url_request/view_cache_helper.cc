@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,8 @@
 
 #define VIEW_CACHE_TAIL \
   "</table></body></html>"
+
+namespace net {
 
 namespace {
 
@@ -70,8 +72,6 @@ std::string FormatEntryInfo(disk_cache::Entry* entry,
 }
 
 }  // namespace.
-
-namespace net {
 
 ViewCacheHelper::ViewCacheHelper()
     : disk_cache_(NULL),
@@ -213,7 +213,7 @@ int ViewCacheHelper::DoGetBackend() {
   if (!context_->http_transaction_factory())
     return ERR_FAILED;
 
-  net::HttpCache* http_cache = context_->http_transaction_factory()->GetCache();
+  HttpCache* http_cache = context_->http_transaction_factory()->GetCache();
   if (!http_cache)
     return ERR_FAILED;
 
@@ -282,16 +282,16 @@ int ViewCacheHelper::DoReadResponse() {
   if (!buf_len_)
     return buf_len_;
 
-  buf_ = new net::IOBuffer(buf_len_);
+  buf_ = new IOBuffer(buf_len_);
   return entry_->ReadData(0, 0, buf_, buf_len_, entry_callback_);
 }
 
 int ViewCacheHelper::DoReadResponseComplete(int result) {
   entry_callback_->Release();
   if (result && result == buf_len_) {
-    net::HttpResponseInfo response;
+    HttpResponseInfo response;
     bool truncated;
-    if (net::HttpCache::ParseResponseInfo(buf_->data(), buf_len_, &response,
+    if (HttpCache::ParseResponseInfo(buf_->data(), buf_len_, &response,
                                           &truncated) &&
         response.headers) {
       if (truncated)
@@ -327,7 +327,7 @@ int ViewCacheHelper::DoReadData() {
   if (!buf_len_)
     return buf_len_;
 
-  buf_ = new net::IOBuffer(buf_len_);
+  buf_ = new IOBuffer(buf_len_);
   return entry_->ReadData(index_, 0, buf_, buf_len_, entry_callback_);
 }
 
@@ -338,7 +338,7 @@ int ViewCacheHelper::DoReadDataComplete(int result) {
   }
   data_->append("</pre>");
   index_++;
-  if (index_ < net::HttpCache::kNumCacheEntryDataIndices) {
+  if (index_ < HttpCache::kNumCacheEntryDataIndices) {
     next_state_ = STATE_READ_DATA;
   } else {
     data_->append(VIEW_CACHE_TAIL);

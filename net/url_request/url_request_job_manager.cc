@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,17 +18,17 @@
 #include "net/url_request/url_request_ftp_job.h"
 #include "net/url_request/url_request_http_job.h"
 
+namespace net {
+
 // The built-in set of protocol factories
 namespace {
 
 struct SchemeToFactory {
   const char* scheme;
-  net::URLRequest::ProtocolFactory* factory;
+  URLRequest::ProtocolFactory* factory;
 };
 
 }  // namespace
-
-namespace net {
 
 static const SchemeToFactory kBuiltinFactories[] = {
   { "http", URLRequestHttpJob::Factory },
@@ -44,30 +44,30 @@ URLRequestJobManager* URLRequestJobManager::GetInstance() {
   return Singleton<URLRequestJobManager>::get();
 }
 
-net::URLRequestJob* URLRequestJobManager::CreateJob(
-    net::URLRequest* request) const {
+URLRequestJob* URLRequestJobManager::CreateJob(
+    URLRequest* request) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
 
   // If we are given an invalid URL, then don't even try to inspect the scheme.
   if (!request->url().is_valid())
-    return new net::URLRequestErrorJob(request, net::ERR_INVALID_URL);
+    return new URLRequestErrorJob(request, ERR_INVALID_URL);
 
   // We do this here to avoid asking interceptors about unsupported schemes.
   const std::string& scheme = request->url().scheme();  // already lowercase
   if (!SupportsScheme(scheme))
-    return new net::URLRequestErrorJob(request, net::ERR_UNKNOWN_URL_SCHEME);
+    return new URLRequestErrorJob(request, ERR_UNKNOWN_URL_SCHEME);
 
   // THREAD-SAFETY NOTICE:
   //   We do not need to acquire the lock here since we are only reading our
   //   data structures.  They should only be modified on the current thread.
 
   // See if the request should be intercepted.
-  if (!(request->load_flags() & net::LOAD_DISABLE_INTERCEPT)) {
+  if (!(request->load_flags() & LOAD_DISABLE_INTERCEPT)) {
     InterceptorList::const_iterator i;
     for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-      net::URLRequestJob* job = (*i)->MaybeIntercept(request);
+      URLRequestJob* job = (*i)->MaybeIntercept(request);
       if (job)
         return job;
     }
@@ -78,7 +78,7 @@ net::URLRequestJob* URLRequestJobManager::CreateJob(
   // built-in protocol factory.
   FactoryMap::const_iterator i = factories_.find(scheme);
   if (i != factories_.end()) {
-    net::URLRequestJob* job = i->second(request, scheme);
+    URLRequestJob* job = i->second(request, scheme);
     if (job)
       return job;
   }
@@ -86,7 +86,7 @@ net::URLRequestJob* URLRequestJobManager::CreateJob(
   // See if the request should be handled by a built-in protocol factory.
   for (size_t i = 0; i < arraysize(kBuiltinFactories); ++i) {
     if (scheme == kBuiltinFactories[i].scheme) {
-      net::URLRequestJob* job = (kBuiltinFactories[i].factory)(request, scheme);
+      URLRequestJob* job = (kBuiltinFactories[i].factory)(request, scheme);
       DCHECK(job);  // The built-in factories are not expected to fail!
       return job;
     }
@@ -96,16 +96,16 @@ net::URLRequestJob* URLRequestJobManager::CreateJob(
   // wasn't interested in handling the URL.  That is fairly unexpected, and we
   // don't know have a specific error to report here :-(
   LOG(WARNING) << "Failed to map: " << request->url().spec();
-  return new net::URLRequestErrorJob(request, net::ERR_FAILED);
+  return new URLRequestErrorJob(request, ERR_FAILED);
 }
 
-net::URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
-    net::URLRequest* request,
+URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
+    URLRequest* request,
     const GURL& location) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
-  if ((request->load_flags() & net::LOAD_DISABLE_INTERCEPT) ||
+  if ((request->load_flags() & LOAD_DISABLE_INTERCEPT) ||
       (request->status().status() == URLRequestStatus::CANCELED) ||
       !request->url().is_valid() ||
       !SupportsScheme(request->url().scheme()))
@@ -113,19 +113,19 @@ net::URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
 
   InterceptorList::const_iterator i;
   for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-    net::URLRequestJob* job = (*i)->MaybeInterceptRedirect(request, location);
+    URLRequestJob* job = (*i)->MaybeInterceptRedirect(request, location);
     if (job)
       return job;
   }
   return NULL;
 }
 
-net::URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
-    net::URLRequest* request) const {
+URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
+    URLRequest* request) const {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
-  if ((request->load_flags() & net::LOAD_DISABLE_INTERCEPT) ||
+  if ((request->load_flags() & LOAD_DISABLE_INTERCEPT) ||
       (request->status().status() == URLRequestStatus::CANCELED) ||
       !request->url().is_valid() ||
       !SupportsScheme(request->url().scheme()))
@@ -133,7 +133,7 @@ net::URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
 
   InterceptorList::const_iterator i;
   for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-    net::URLRequestJob* job = (*i)->MaybeInterceptResponse(request);
+    URLRequestJob* job = (*i)->MaybeInterceptResponse(request);
     if (job)
       return job;
   }
@@ -155,16 +155,16 @@ bool URLRequestJobManager::SupportsScheme(const std::string& scheme) const {
   return false;
 }
 
-net::URLRequest::ProtocolFactory* URLRequestJobManager::RegisterProtocolFactory(
+URLRequest::ProtocolFactory* URLRequestJobManager::RegisterProtocolFactory(
     const std::string& scheme,
-    net::URLRequest::ProtocolFactory* factory) {
+    URLRequest::ProtocolFactory* factory) {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
 
   base::AutoLock locked(lock_);
 
-  net::URLRequest::ProtocolFactory* old_factory;
+  URLRequest::ProtocolFactory* old_factory;
   FactoryMap::iterator i = factories_.find(scheme);
   if (i != factories_.end()) {
     old_factory = i->second;
@@ -180,7 +180,7 @@ net::URLRequest::ProtocolFactory* URLRequestJobManager::RegisterProtocolFactory(
 }
 
 void URLRequestJobManager::RegisterRequestInterceptor(
-    net::URLRequest::Interceptor* interceptor) {
+    URLRequest::Interceptor* interceptor) {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
@@ -193,7 +193,7 @@ void URLRequestJobManager::RegisterRequestInterceptor(
 }
 
 void URLRequestJobManager::UnregisterRequestInterceptor(
-    net::URLRequest::Interceptor* interceptor) {
+    URLRequest::Interceptor* interceptor) {
 #ifndef NDEBUG
   DCHECK(IsAllowedThread());
 #endif
