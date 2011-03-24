@@ -1,10 +1,11 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_THREADING_THREAD_RESTRICTIONS_H_
 #define BASE_THREADING_THREAD_RESTRICTIONS_H_
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -35,11 +36,11 @@ namespace base {
 // only calls other functions in Chrome and not fopen(), you should go
 // add the AssertIOAllowed checks in the helper functions.
 
-class ThreadRestrictions {
+class BASE_API ThreadRestrictions {
  public:
   // Constructing a ScopedAllowIO temporarily allows IO for the current
   // thread.  Doing this is almost certainly always incorrect.
-  class ScopedAllowIO {
+  class BASE_API ScopedAllowIO {
    public:
     ScopedAllowIO() { previous_value_ = SetIOAllowed(true); }
     ~ScopedAllowIO() { SetIOAllowed(previous_value_); }
@@ -52,7 +53,7 @@ class ThreadRestrictions {
 
   // Constructing a ScopedAllowSingleton temporarily allows accessing for the
   // current thread.  Doing this is almost always incorrect.
-  class ScopedAllowSingleton {
+  class BASE_API ScopedAllowSingleton {
    public:
     ScopedAllowSingleton() { previous_value_ = SetSingletonAllowed(true); }
     ~ScopedAllowSingleton() { SetSingletonAllowed(previous_value_); }

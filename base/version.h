@@ -9,13 +9,14 @@
 #include <string>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 
 // Version represents a dotted version number, like "1.2.3.4", supporting
 // parsing and comparison.
 // Each component is limited to a uint16.
-class Version {
+class BASE_API Version {
  public:
   // Exposed only so that a Version can be stored in STL containers;
   // any call to the methods below on a default-constructed Version
