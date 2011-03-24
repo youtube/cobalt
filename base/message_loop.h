@@ -319,6 +319,16 @@ class MessageLoop : public base::MessagePump::Delegate {
   // Asserts that the MessageLoop is "idle".
   void AssertIdle() const;
 
+#if defined(OS_WIN)
+  void set_os_modal_loop(bool os_modal_loop) {
+    os_modal_loop_ = os_modal_loop;
+  }
+
+  bool os_modal_loop() const {
+    return os_modal_loop_;
+  }
+#endif  // OS_WIN
+
   //----------------------------------------------------------------------------
  protected:
   struct RunState {
@@ -476,6 +486,9 @@ class MessageLoop : public base::MessagePump::Delegate {
 
 #if defined(OS_WIN)
   base::TimeTicks high_resolution_timer_expiration_;
+  // Should be set to true before calling Windows APIs like TrackPopupMenu, etc
+  // which enter a modal message loop.
+  bool os_modal_loop_;
 #endif
 
   // The next sequence number to use for delayed tasks.
