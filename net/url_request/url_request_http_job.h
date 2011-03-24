@@ -38,6 +38,9 @@ class URLRequestHttpJob : public URLRequestJob {
   // Shadows URLRequestJob's version of this method so we can grab cookies.
   void NotifyHeadersComplete();
 
+  // Shadows URLRequestJob's method so we can record histograms.
+  void NotifyDone(const URLRequestStatus& status);
+
   void DestroyTransaction();
   void StartTransaction();
   void AddExtraHeaders();
@@ -73,7 +76,6 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual bool GetResponseCookies(std::vector<std::string>* cookies);
   virtual int GetResponseCode() const;
   virtual Filter* SetupFilter() const;
-  virtual bool IsCachedContent() const;
   virtual bool IsSafeRedirect(const GURL& location);
   virtual bool NeedsAuth();
   virtual void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*);
@@ -161,7 +163,45 @@ class URLRequestHttpJob : public URLRequestJob {
   void RecordTimer();
   void ResetTimer();
 
+  virtual void UpdatePacketReadTimes();
+  void RecordPacketStats(FilterContext::StatisticSelector statistic) const;
+
+  void RecordCompressionHistograms();
+  bool IsCompressibleContent() const;
+
   base::Time request_creation_time_;
+
+  // Data used for statistics gathering. This data is only used for histograms
+  // and is not required. It is only gathered if packet_timing_enabled_ == true.
+  //
+  // TODO(jar): improve the quality of the gathered info by gathering most times
+  // at a lower point in the network stack, assuring we have actual packet
+  // boundaries, rather than approximations.  Also note that input byte count
+  // as gathered here is post-SSL, and post-cache-fetch, and does not reflect
+  // true packet arrival times in such cases.
+
+  // Enable recording of packet arrival times for histogramming.
+  bool packet_timing_enabled_;
+
+  // The number of bytes that have been accounted for in packets (where some of
+  // those packets may possibly have had their time of arrival recorded).
+  int64 bytes_observed_in_packets_;
+
+  // Arrival times for some of the first few packets.
+  std::vector<base::Time> packet_times_;
+
+  // The request time may not be available when we are being destroyed, so we
+  // snapshot it early on.
+  base::Time request_time_snapshot_;
+
+  // Since we don't save all packet times in packet_times_, we save the
+  // last time for use in histograms.
+  base::Time final_packet_time_;
+
+  // The count of the number of packets, some of which may not have been timed.
+  // We're ignoring overflow, as 1430 x 2^31 is a LOT of bytes.
+  int observed_packet_count_;
+
   HttpFilterContext filter_context_;
   ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
 
