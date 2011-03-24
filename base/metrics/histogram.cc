@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -610,13 +610,8 @@ void Histogram::WriteAsciiHeader(const SampleSet& snapshot,
     DCHECK_EQ(snapshot.sum(), 0);
   } else {
     double average = static_cast<float>(snapshot.sum()) / sample_count;
-    double variance = static_cast<float>(snapshot.square_sum())/sample_count
-                      - average * average;
-    double standard_deviation = sqrt(variance);
 
-    StringAppendF(output,
-                  ", average = %.1f, standard deviation = %.1f",
-                  average, standard_deviation);
+    StringAppendF(output, ", average = %.1f", average);
   }
   if (flags_ & ~kHexRangePrintingFlag)
     StringAppendF(output, " (flags = 0x%x)", flags_ & ~kHexRangePrintingFlag);
@@ -661,7 +656,6 @@ void Histogram::WriteAsciiBucketGraph(double current_size, double max_size,
 Histogram::SampleSet::SampleSet()
     : counts_(),
       sum_(0),
-      square_sum_(0),
       redundant_count_(0) {
 }
 
@@ -682,7 +676,6 @@ void Histogram::SampleSet::Accumulate(Sample value,  Count count,
   DCHECK(count == 1 || count == -1);
   counts_[index] += count;
   sum_ += count * value;
-  square_sum_ += (count * value) * static_cast<int64>(value);
   redundant_count_ += count;
   DCHECK_GE(counts_[index], 0);
   DCHECK_GE(sum_, 0);
@@ -702,7 +695,6 @@ Count Histogram::SampleSet::TotalCount() const {
 void Histogram::SampleSet::Add(const SampleSet& other) {
   DCHECK_EQ(counts_.size(), other.counts_.size());
   sum_ += other.sum_;
-  square_sum_ += other.square_sum_;
   redundant_count_ += other.redundant_count_;
   for (size_t index = 0; index < counts_.size(); ++index)
     counts_[index] += other.counts_[index];
@@ -710,11 +702,10 @@ void Histogram::SampleSet::Add(const SampleSet& other) {
 
 void Histogram::SampleSet::Subtract(const SampleSet& other) {
   DCHECK_EQ(counts_.size(), other.counts_.size());
-  // Note: Race conditions in snapshotting a sum or square_sum may lead to
-  // (temporary) negative values when snapshots are later combined (and deltas
-  // calculated).  As a result, we don't currently CHCEK() for positive values.
+  // Note: Race conditions in snapshotting a sum may lead to (temporary)
+  // negative values when snapshots are later combined (and deltas calculated).
+  // As a result, we don't currently CHCEK() for positive values.
   sum_ -= other.sum_;
-  square_sum_ -= other.square_sum_;
   redundant_count_ -= other.redundant_count_;
   for (size_t index = 0; index < counts_.size(); ++index) {
     counts_[index] -= other.counts_[index];
@@ -724,7 +715,6 @@ void Histogram::SampleSet::Subtract(const SampleSet& other) {
 
 bool Histogram::SampleSet::Serialize(Pickle* pickle) const {
   pickle->WriteInt64(sum_);
-  pickle->WriteInt64(square_sum_);
   pickle->WriteInt64(redundant_count_);
   pickle->WriteSize(counts_.size());
 
@@ -738,13 +728,11 @@ bool Histogram::SampleSet::Serialize(Pickle* pickle) const {
 bool Histogram::SampleSet::Deserialize(void** iter, const Pickle& pickle) {
   DCHECK_EQ(counts_.size(), 0u);
   DCHECK_EQ(sum_, 0);
-  DCHECK_EQ(square_sum_, 0);
   DCHECK_EQ(redundant_count_, 0);
 
   size_t counts_size;
 
   if (!pickle.ReadInt64(iter, &sum_) ||
-      !pickle.ReadInt64(iter, &square_sum_) ||
       !pickle.ReadInt64(iter, &redundant_count_) ||
       !pickle.ReadSize(iter, &counts_size)) {
     return false;
