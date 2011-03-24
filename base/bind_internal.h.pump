@@ -82,6 +82,17 @@ $if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
 struct FunctionTraits<R(*)($for ARG , [[X$(ARG)]])> {
   typedef R (*NormalizedSig)($for ARG , [[X$(ARG)]]);
   typedef false_type IsMethod;
+
+$if ARITY > 0 [[
+
+  // Target type for each bound parameter.
+
+$for ARG [[
+  typedef X$(ARG) B$(ARG);
+
+]]  $$ for ARG
+]]  $$ if ARITY > 0
+
 };
 
 // Method: Arity $(ARITY).
@@ -90,6 +101,15 @@ $if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
 struct FunctionTraits<R(T::*)($for ARG , [[X$(ARG)]])> {
   typedef R (T::*NormalizedSig)($for ARG , [[X$(ARG)]]);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+
+$for ARG [[
+  typedef X$(ARG) B$(ARG + 1);
+
+]]  $$ for ARG
+
 };
 
 // Const Method: Arity $(ARITY).
@@ -98,6 +118,15 @@ $if ARITY > 0[[, ]] $for ARG , [[typename X$(ARG)]]>
 struct FunctionTraits<R(T::*)($for ARG , [[X$(ARG)]]) const> {
   typedef R (T::*NormalizedSig)($for ARG , [[X$(ARG)]]);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+
+$for ARG [[
+  typedef X$(ARG) B$(ARG + 1);
+
+]]  $$ for ARG
+
 };
 
 ]]  $$for ARITY
@@ -151,17 +180,9 @@ template <typename StorageType, typename R[[]]
 $if ARITY > 0 [[,]][[]]
 $for ARG , [[typename X$(ARG)]]>
 struct Invoker$(BOUND)<StorageType, R(*)($for ARG , [[X$(ARG)]])> {
-$if ARITY > 0 [[
-
-  COMPILE_ASSERT(
-      !($for ARG || [[ is_non_const_reference<X$(ARG)>::value ]]),
-      do_not_bind_functions_with_nonconst_ref);
-
-]]
-
   static R DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND != 0 [[, ]][[]]
-$for UNBOUND_ARG , [[const X$(UNBOUND_ARG)& x$(UNBOUND_ARG)]]) {
+$for UNBOUND_ARG , [[typename internal::ParamTraits<X$(UNBOUND_ARG)>::ForwardType x$(UNBOUND_ARG)]]) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_($for BOUND_ARG , [[Unwrap(invoker->p$(BOUND_ARG)_)]][[]]
 $$ Add comma if there are both boudn and unbound args.
@@ -176,17 +197,9 @@ $if BOUND > 0 [[
 template <typename StorageType, typename R, typename T[[]]
 $if M_ARITY > 0[[, ]] $for M_ARG , [[typename X$(M_ARG)]]>
 struct Invoker$(BOUND)<StorageType, R(T::*)($for M_ARG , [[X$(M_ARG)]])> {
-$if M_ARITY > 0 [[
-
-  COMPILE_ASSERT(
-      !($for M_ARG || [[ is_non_const_reference<X$(M_ARG)>::value ]]),
-      do_not_bind_functions_with_nonconst_ref);
-
-]]
-
   static R DoInvoke(InvokerStorageBase* base[[]]
 $if UNBOUND > 0 [[, ]][[]]
-$for M_UNBOUND_ARG , [[const X$(M_UNBOUND_ARG)& x$(M_UNBOUND_ARG)]]) {
+$for M_UNBOUND_ARG , [[typename internal::ParamTraits<X$(M_UNBOUND_ARG)>::ForwardType x$(M_UNBOUND_ARG)]]) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)([[]]
 $for M_BOUND_ARG , [[Unwrap(invoker->p$(M_BOUND_ARG)_)]][[]]
@@ -228,6 +241,7 @@ class InvokerStorage$(BOUND) : public InvokerStorageBase {
   typedef FunctionTraits<Sig> TargetTraits;
   typedef Invoker$(BOUND)<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+
 $for BOUND_ARG [[
 $if BOUND_ARG == 1 [[
 
@@ -247,6 +261,19 @@ $if BOUND_ARG == 1 [[
 ]]  $$ $for BOUND_ARG
 
 
+$if BOUND > 0 [[
+
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !($for BOUND_ARG || [[ is_non_const_reference<typename TargetTraits::B$(BOUND_ARG)>::value ]]),
+      do_not_bind_functions_with_nonconst_ref);
+
+]]
+
 
   InvokerStorage$(BOUND)(Sig f
 $if BOUND > 0 [[, ]]
@@ -256,7 +283,7 @@ $if BOUND == 0 [[
  {
 
 ]] $else [[
-, $for BOUND_ARG , [[p$(BOUND_ARG)_(static_cast<typename BindType<P$(BOUND_ARG)>::StorageType>(p$(BOUND_ARG)))]] {
+, $for BOUND_ARG , [[p$(BOUND_ARG)_(static_cast<typename ParamTraits<P$(BOUND_ARG)>::StorageType>(p$(BOUND_ARG)))]] {
     MaybeRefcount<IsMethod, P1>::AddRef(p1_);
 
 ]]
@@ -273,7 +300,7 @@ $if BOUND > 0 [[
   Sig f_;
 
 $for BOUND_ARG [[
-  typename BindType<P$(BOUND_ARG)>::StorageType p$(BOUND_ARG)_;
+  typename ParamTraits<P$(BOUND_ARG)>::StorageType p$(BOUND_ARG)_;
 
 ]]
 };

@@ -3,6 +3,7 @@
 // DO NOT EDIT BY HAND!!!
 
 
+
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -73,6 +74,7 @@ template <typename R>
 struct FunctionTraits<R(*)()> {
   typedef R (*NormalizedSig)();
   typedef false_type IsMethod;
+
 };
 
 // Method: Arity 0.
@@ -80,6 +82,10 @@ template <typename R, typename T>
 struct FunctionTraits<R(T::*)()> {
   typedef R (T::*NormalizedSig)();
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+
 };
 
 // Const Method: Arity 0.
@@ -87,6 +93,10 @@ template <typename R, typename T>
 struct FunctionTraits<R(T::*)() const> {
   typedef R (T::*NormalizedSig)();
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+
 };
 
 // Function: Arity 1.
@@ -94,6 +104,9 @@ template <typename R, typename X1>
 struct FunctionTraits<R(*)(X1)> {
   typedef R (*NormalizedSig)(X1);
   typedef false_type IsMethod;
+  // Target type for each bound parameter.
+  typedef X1 B1;
+
 };
 
 // Method: Arity 1.
@@ -101,6 +114,11 @@ template <typename R, typename T, typename X1>
 struct FunctionTraits<R(T::*)(X1)> {
   typedef R (T::*NormalizedSig)(X1);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+
 };
 
 // Const Method: Arity 1.
@@ -108,6 +126,11 @@ template <typename R, typename T, typename X1>
 struct FunctionTraits<R(T::*)(X1) const> {
   typedef R (T::*NormalizedSig)(X1);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+
 };
 
 // Function: Arity 2.
@@ -115,6 +138,10 @@ template <typename R, typename X1, typename X2>
 struct FunctionTraits<R(*)(X1, X2)> {
   typedef R (*NormalizedSig)(X1, X2);
   typedef false_type IsMethod;
+  // Target type for each bound parameter.
+  typedef X1 B1;
+  typedef X2 B2;
+
 };
 
 // Method: Arity 2.
@@ -122,6 +149,12 @@ template <typename R, typename T, typename X1, typename X2>
 struct FunctionTraits<R(T::*)(X1, X2)> {
   typedef R (T::*NormalizedSig)(X1, X2);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+
 };
 
 // Const Method: Arity 2.
@@ -129,6 +162,12 @@ template <typename R, typename T, typename X1, typename X2>
 struct FunctionTraits<R(T::*)(X1, X2) const> {
   typedef R (T::*NormalizedSig)(X1, X2);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+
 };
 
 // Function: Arity 3.
@@ -136,6 +175,11 @@ template <typename R, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(*)(X1, X2, X3)> {
   typedef R (*NormalizedSig)(X1, X2, X3);
   typedef false_type IsMethod;
+  // Target type for each bound parameter.
+  typedef X1 B1;
+  typedef X2 B2;
+  typedef X3 B3;
+
 };
 
 // Method: Arity 3.
@@ -143,6 +187,13 @@ template <typename R, typename T, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(T::*)(X1, X2, X3)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+  typedef X3 B4;
+
 };
 
 // Const Method: Arity 3.
@@ -150,6 +201,13 @@ template <typename R, typename T, typename X1, typename X2, typename X3>
 struct FunctionTraits<R(T::*)(X1, X2, X3) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+  typedef X3 B4;
+
 };
 
 // Function: Arity 4.
@@ -157,6 +215,12 @@ template <typename R, typename X1, typename X2, typename X3, typename X4>
 struct FunctionTraits<R(*)(X1, X2, X3, X4)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4);
   typedef false_type IsMethod;
+  // Target type for each bound parameter.
+  typedef X1 B1;
+  typedef X2 B2;
+  typedef X3 B3;
+  typedef X4 B4;
+
 };
 
 // Method: Arity 4.
@@ -165,6 +229,14 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+  typedef X3 B4;
+  typedef X4 B5;
+
 };
 
 // Const Method: Arity 4.
@@ -173,6 +245,14 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+  typedef X3 B4;
+  typedef X4 B5;
+
 };
 
 // Function: Arity 5.
@@ -181,6 +261,13 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
 struct FunctionTraits<R(*)(X1, X2, X3, X4, X5)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5);
   typedef false_type IsMethod;
+  // Target type for each bound parameter.
+  typedef X1 B1;
+  typedef X2 B2;
+  typedef X3 B3;
+  typedef X4 B4;
+  typedef X5 B5;
+
 };
 
 // Method: Arity 5.
@@ -189,6 +276,15 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+  typedef X3 B4;
+  typedef X4 B5;
+  typedef X5 B6;
+
 };
 
 // Const Method: Arity 5.
@@ -197,6 +293,15 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+  typedef X3 B4;
+  typedef X4 B5;
+  typedef X5 B6;
+
 };
 
 // Function: Arity 6.
@@ -205,6 +310,14 @@ template <typename R, typename X1, typename X2, typename X3, typename X4,
 struct FunctionTraits<R(*)(X1, X2, X3, X4, X5, X6)> {
   typedef R (*NormalizedSig)(X1, X2, X3, X4, X5, X6);
   typedef false_type IsMethod;
+  // Target type for each bound parameter.
+  typedef X1 B1;
+  typedef X2 B2;
+  typedef X3 B3;
+  typedef X4 B4;
+  typedef X5 B5;
+  typedef X6 B6;
+
 };
 
 // Method: Arity 6.
@@ -213,6 +326,16 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6)> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5, X6);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+  typedef X3 B4;
+  typedef X4 B5;
+  typedef X5 B6;
+  typedef X6 B7;
+
 };
 
 // Const Method: Arity 6.
@@ -221,6 +344,16 @@ template <typename R, typename T, typename X1, typename X2, typename X3,
 struct FunctionTraits<R(T::*)(X1, X2, X3, X4, X5, X6) const> {
   typedef R (T::*NormalizedSig)(X1, X2, X3, X4, X5, X6);
   typedef true_type IsMethod;
+
+  // Target type for each bound parameter.
+  typedef T B1;
+  typedef X1 B2;
+  typedef X2 B3;
+  typedef X3 B4;
+  typedef X4 B5;
+  typedef X5 B6;
+  typedef X6 B7;
+
 };
 
 // InvokerN<>
@@ -258,11 +391,8 @@ struct Invoker0<StorageType, R(*)()> {
 // Function: Arity 1 -> 1.
 template <typename StorageType, typename R,typename X1>
 struct Invoker0<StorageType, R(*)(X1)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(x1);
   }
@@ -271,12 +401,9 @@ struct Invoker0<StorageType, R(*)(X1)> {
 // Function: Arity 2 -> 2.
 template <typename StorageType, typename R,typename X1, typename X2>
 struct Invoker0<StorageType, R(*)(X1, X2)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(x1, x2);
   }
@@ -286,14 +413,10 @@ struct Invoker0<StorageType, R(*)(X1, X2)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
 struct Invoker0<StorageType, R(*)(X1, X2, X3)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(x1, x2, x3);
   }
@@ -303,15 +426,11 @@ struct Invoker0<StorageType, R(*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker0<StorageType, R(*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3, const X4& x4) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(x1, x2, x3, x4);
   }
@@ -321,16 +440,12 @@ struct Invoker0<StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3, const X4& x4, const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(x1, x2, x3, x4, x5);
   }
@@ -340,17 +455,13 @@ struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker0<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ||
-          is_non_const_reference<X6>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3, const X4& x4, const X5& x5, const X6& x6) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5,
+      typename internal::ParamTraits<X6>::ForwardType x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(x1, x2, x3, x4, x5, x6);
   }
@@ -362,10 +473,6 @@ struct Invoker1;
 // Function: Arity 1 -> 0.
 template <typename StorageType, typename R,typename X1>
 struct Invoker1<StorageType, R(*)(X1)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_));
@@ -384,12 +491,8 @@ struct Invoker1<StorageType, R(T::*)()> {
 // Function: Arity 2 -> 1.
 template <typename StorageType, typename R,typename X1, typename X2>
 struct Invoker1<StorageType, R(*)(X1, X2)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), x2);
   }
@@ -398,11 +501,8 @@ struct Invoker1<StorageType, R(*)(X1, X2)> {
 // Method: Arity 1 -> 1.
 template <typename StorageType, typename R, typename T, typename X1>
 struct Invoker1<StorageType, R(T::*)(X1)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1);
   }
@@ -412,13 +512,9 @@ struct Invoker1<StorageType, R(T::*)(X1)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
 struct Invoker1<StorageType, R(*)(X1, X2, X3)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), x2, x3);
   }
@@ -428,12 +524,9 @@ struct Invoker1<StorageType, R(*)(X1, X2, X3)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
 struct Invoker1<StorageType, R(T::*)(X1, X2)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2);
   }
@@ -443,15 +536,10 @@ struct Invoker1<StorageType, R(T::*)(X1, X2)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker1<StorageType, R(*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
-      const X4& x4) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), x2, x3, x4);
   }
@@ -461,14 +549,10 @@ struct Invoker1<StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
 struct Invoker1<StorageType, R(T::*)(X1, X2, X3)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2, x3);
   }
@@ -478,16 +562,11 @@ struct Invoker1<StorageType, R(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
-      const X4& x4, const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), x2, x3, x4, x5);
   }
@@ -497,15 +576,11 @@ struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3, const X4& x4) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2, x3, x4);
   }
@@ -515,17 +590,12 @@ struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ||
-          is_non_const_reference<X6>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
-      const X4& x4, const X5& x5, const X6& x6) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5,
+      typename internal::ParamTraits<X6>::ForwardType x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), x2, x3, x4, x5, x6);
   }
@@ -535,16 +605,12 @@ struct Invoker1<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker1<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X1& x1, const X2& x2,
-      const X3& x3, const X4& x4, const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X1>::ForwardType x1,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(x1, x2, x3, x4, x5);
   }
@@ -556,11 +622,6 @@ struct Invoker2;
 // Function: Arity 2 -> 0.
 template <typename StorageType, typename R,typename X1, typename X2>
 struct Invoker2<StorageType, R(*)(X1, X2)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_));
@@ -570,10 +631,6 @@ struct Invoker2<StorageType, R(*)(X1, X2)> {
 // Method: Arity 1 -> 0.
 template <typename StorageType, typename R, typename T, typename X1>
 struct Invoker2<StorageType, R(T::*)(X1)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_));
@@ -584,13 +641,8 @@ struct Invoker2<StorageType, R(T::*)(X1)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
 struct Invoker2<StorageType, R(*)(X1, X2, X3)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X3& x3) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_), x3);
   }
@@ -600,12 +652,8 @@ struct Invoker2<StorageType, R(*)(X1, X2, X3)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
 struct Invoker2<StorageType, R(T::*)(X1, X2)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2);
   }
@@ -615,14 +663,9 @@ struct Invoker2<StorageType, R(T::*)(X1, X2)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker2<StorageType, R(*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_), x3, x4);
   }
@@ -632,13 +675,9 @@ struct Invoker2<StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
 struct Invoker2<StorageType, R(T::*)(X1, X2, X3)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2, x3);
   }
@@ -648,16 +687,10 @@ struct Invoker2<StorageType, R(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4,
-      const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_), x3, x4, x5);
   }
@@ -667,15 +700,10 @@ struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
-      const X4& x4) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2, x3,
         x4);
@@ -686,17 +714,11 @@ struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ||
-          is_non_const_reference<X6>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4,
-      const X5& x5, const X6& x6) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5,
+      typename internal::ParamTraits<X6>::ForwardType x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_), x3, x4, x5,
         x6);
@@ -707,16 +729,11 @@ struct Invoker2<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker2<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X2& x2, const X3& x3,
-      const X4& x4, const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X2>::ForwardType x2,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_), x2, x3,
         x4, x5);
@@ -730,12 +747,6 @@ struct Invoker3;
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3>
 struct Invoker3<StorageType, R(*)(X1, X2, X3)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -747,11 +758,6 @@ struct Invoker3<StorageType, R(*)(X1, X2, X3)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2>
 struct Invoker3<StorageType, R(T::*)(X1, X2)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -763,14 +769,8 @@ struct Invoker3<StorageType, R(T::*)(X1, X2)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker3<StorageType, R(*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X4& x4) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), x4);
@@ -781,13 +781,8 @@ struct Invoker3<StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
 struct Invoker3<StorageType, R(T::*)(X1, X2, X3)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X3& x3) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), x3);
@@ -798,15 +793,9 @@ struct Invoker3<StorageType, R(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X4& x4, const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), x4, x5);
@@ -817,14 +806,9 @@ struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), x3, x4);
@@ -835,17 +819,10 @@ struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ||
-          is_non_const_reference<X6>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X4& x4, const X5& x5,
-      const X6& x6) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5,
+      typename internal::ParamTraits<X6>::ForwardType x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), x4, x5, x6);
@@ -856,16 +833,10 @@ struct Invoker3<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker3<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X3& x3, const X4& x4,
-      const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X3>::ForwardType x3,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), x3, x4, x5);
@@ -879,13 +850,6 @@ struct Invoker4;
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4>
 struct Invoker4<StorageType, R(*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -897,12 +861,6 @@ struct Invoker4<StorageType, R(*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3>
 struct Invoker4<StorageType, R(T::*)(X1, X2, X3)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -914,15 +872,8 @@ struct Invoker4<StorageType, R(T::*)(X1, X2, X3)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_), x5);
@@ -933,14 +884,8 @@ struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X4& x4) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X4>::ForwardType x4) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_), x4);
@@ -951,16 +896,9 @@ struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ||
-          is_non_const_reference<X6>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X5& x5, const X6& x6) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X5>::ForwardType x5,
+      typename internal::ParamTraits<X6>::ForwardType x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_), x5, x6);
@@ -971,15 +909,9 @@ struct Invoker4<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker4<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X4& x4, const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X4>::ForwardType x4,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_), x4, x5);
@@ -993,14 +925,6 @@ struct Invoker5;
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5>
 struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -1012,13 +936,6 @@ struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4>
 struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -1030,16 +947,8 @@ struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4)> {
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ||
-          is_non_const_reference<X6>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X6& x6) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X6>::ForwardType x6) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_), Unwrap(invoker->p5_), x6);
@@ -1050,15 +959,8 @@ struct Invoker5<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker5<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
-  static R DoInvoke(InvokerStorageBase* base, const X5& x5) {
+  static R DoInvoke(InvokerStorageBase* base,
+      typename internal::ParamTraits<X5>::ForwardType x5) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
         Unwrap(invoker->p3_), Unwrap(invoker->p4_), Unwrap(invoker->p5_), x5);
@@ -1072,15 +974,6 @@ struct Invoker6;
 template <typename StorageType, typename R,typename X1, typename X2,
     typename X3, typename X4, typename X5, typename X6>
 struct Invoker6<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ||
-          is_non_const_reference<X6>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return invoker->f_(Unwrap(invoker->p1_), Unwrap(invoker->p2_),
@@ -1093,14 +986,6 @@ struct Invoker6<StorageType, R(*)(X1, X2, X3, X4, X5, X6)> {
 template <typename StorageType, typename R, typename T, typename X1,
     typename X2, typename X3, typename X4, typename X5>
 struct Invoker6<StorageType, R(T::*)(X1, X2, X3, X4, X5)> {
-  COMPILE_ASSERT(
-      !( is_non_const_reference<X1>::value ||
-          is_non_const_reference<X2>::value ||
-          is_non_const_reference<X3>::value ||
-          is_non_const_reference<X4>::value ||
-          is_non_const_reference<X5>::value ),
-      do_not_bind_functions_with_nonconst_ref);
-
   static R DoInvoke(InvokerStorageBase* base) {
     StorageType* invoker = static_cast<StorageType*>(base);
     return (Unwrap(invoker->p1_)->*invoker->f_)(Unwrap(invoker->p2_),
@@ -1133,6 +1018,7 @@ class InvokerStorage0 : public InvokerStorageBase {
   typedef typename TargetTraits::IsMethod IsMethod;
 
 
+
   InvokerStorage0(Sig f)
       : f_(f) {
   }
@@ -1149,6 +1035,7 @@ class InvokerStorage1 : public InvokerStorageBase {
   typedef FunctionTraits<Sig> TargetTraits;
   typedef Invoker1<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1158,9 +1045,18 @@ class InvokerStorage1 : public InvokerStorageBase {
   COMPILE_ASSERT(!IsMethod::value || !is_array<P1>::value,
                  first_bound_argument_to_method_cannot_be_array);
 
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !( is_non_const_reference<typename TargetTraits::B1>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
 
   InvokerStorage1(Sig f, const P1& p1)
-      : f_(f), p1_(static_cast<typename BindType<P1>::StorageType>(p1)) {
+      : f_(f), p1_(static_cast<typename ParamTraits<P1>::StorageType>(p1)) {
     MaybeRefcount<IsMethod, P1>::AddRef(p1_);
   }
 
@@ -1169,7 +1065,7 @@ class InvokerStorage1 : public InvokerStorageBase {
   }
 
   Sig f_;
-  typename BindType<P1>::StorageType p1_;
+  typename ParamTraits<P1>::StorageType p1_;
 };
 
 template <typename Sig, typename P1, typename P2>
@@ -1179,6 +1075,7 @@ class InvokerStorage2 : public InvokerStorageBase {
   typedef FunctionTraits<Sig> TargetTraits;
   typedef Invoker2<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1190,10 +1087,20 @@ class InvokerStorage2 : public InvokerStorageBase {
   COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P2>::value,
                  p2_is_refcounted_type_and_needs_scoped_refptr);
 
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !( is_non_const_reference<typename TargetTraits::B1>::value ||
+          is_non_const_reference<typename TargetTraits::B2>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
 
   InvokerStorage2(Sig f, const P1& p1, const P2& p2)
-      : f_(f), p1_(static_cast<typename BindType<P1>::StorageType>(p1)),
-          p2_(static_cast<typename BindType<P2>::StorageType>(p2)) {
+      : f_(f), p1_(static_cast<typename ParamTraits<P1>::StorageType>(p1)),
+          p2_(static_cast<typename ParamTraits<P2>::StorageType>(p2)) {
     MaybeRefcount<IsMethod, P1>::AddRef(p1_);
   }
 
@@ -1202,8 +1109,8 @@ class InvokerStorage2 : public InvokerStorageBase {
   }
 
   Sig f_;
-  typename BindType<P1>::StorageType p1_;
-  typename BindType<P2>::StorageType p2_;
+  typename ParamTraits<P1>::StorageType p1_;
+  typename ParamTraits<P2>::StorageType p2_;
 };
 
 template <typename Sig, typename P1, typename P2, typename P3>
@@ -1213,6 +1120,7 @@ class InvokerStorage3 : public InvokerStorageBase {
   typedef FunctionTraits<Sig> TargetTraits;
   typedef Invoker3<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1226,11 +1134,22 @@ class InvokerStorage3 : public InvokerStorageBase {
   COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P3>::value,
                  p3_is_refcounted_type_and_needs_scoped_refptr);
 
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !( is_non_const_reference<typename TargetTraits::B1>::value ||
+          is_non_const_reference<typename TargetTraits::B2>::value ||
+          is_non_const_reference<typename TargetTraits::B3>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
 
   InvokerStorage3(Sig f, const P1& p1, const P2& p2, const P3& p3)
-      : f_(f), p1_(static_cast<typename BindType<P1>::StorageType>(p1)),
-          p2_(static_cast<typename BindType<P2>::StorageType>(p2)),
-          p3_(static_cast<typename BindType<P3>::StorageType>(p3)) {
+      : f_(f), p1_(static_cast<typename ParamTraits<P1>::StorageType>(p1)),
+          p2_(static_cast<typename ParamTraits<P2>::StorageType>(p2)),
+          p3_(static_cast<typename ParamTraits<P3>::StorageType>(p3)) {
     MaybeRefcount<IsMethod, P1>::AddRef(p1_);
   }
 
@@ -1239,9 +1158,9 @@ class InvokerStorage3 : public InvokerStorageBase {
   }
 
   Sig f_;
-  typename BindType<P1>::StorageType p1_;
-  typename BindType<P2>::StorageType p2_;
-  typename BindType<P3>::StorageType p3_;
+  typename ParamTraits<P1>::StorageType p1_;
+  typename ParamTraits<P2>::StorageType p2_;
+  typename ParamTraits<P3>::StorageType p3_;
 };
 
 template <typename Sig, typename P1, typename P2, typename P3, typename P4>
@@ -1251,6 +1170,7 @@ class InvokerStorage4 : public InvokerStorageBase {
   typedef FunctionTraits<Sig> TargetTraits;
   typedef Invoker4<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1266,12 +1186,24 @@ class InvokerStorage4 : public InvokerStorageBase {
   COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P4>::value,
                  p4_is_refcounted_type_and_needs_scoped_refptr);
 
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !( is_non_const_reference<typename TargetTraits::B1>::value ||
+          is_non_const_reference<typename TargetTraits::B2>::value ||
+          is_non_const_reference<typename TargetTraits::B3>::value ||
+          is_non_const_reference<typename TargetTraits::B4>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
 
   InvokerStorage4(Sig f, const P1& p1, const P2& p2, const P3& p3, const P4& p4)
-      : f_(f), p1_(static_cast<typename BindType<P1>::StorageType>(p1)),
-          p2_(static_cast<typename BindType<P2>::StorageType>(p2)),
-          p3_(static_cast<typename BindType<P3>::StorageType>(p3)),
-          p4_(static_cast<typename BindType<P4>::StorageType>(p4)) {
+      : f_(f), p1_(static_cast<typename ParamTraits<P1>::StorageType>(p1)),
+          p2_(static_cast<typename ParamTraits<P2>::StorageType>(p2)),
+          p3_(static_cast<typename ParamTraits<P3>::StorageType>(p3)),
+          p4_(static_cast<typename ParamTraits<P4>::StorageType>(p4)) {
     MaybeRefcount<IsMethod, P1>::AddRef(p1_);
   }
 
@@ -1280,10 +1212,10 @@ class InvokerStorage4 : public InvokerStorageBase {
   }
 
   Sig f_;
-  typename BindType<P1>::StorageType p1_;
-  typename BindType<P2>::StorageType p2_;
-  typename BindType<P3>::StorageType p3_;
-  typename BindType<P4>::StorageType p4_;
+  typename ParamTraits<P1>::StorageType p1_;
+  typename ParamTraits<P2>::StorageType p2_;
+  typename ParamTraits<P3>::StorageType p3_;
+  typename ParamTraits<P4>::StorageType p4_;
 };
 
 template <typename Sig, typename P1, typename P2, typename P3, typename P4,
@@ -1294,6 +1226,7 @@ class InvokerStorage5 : public InvokerStorageBase {
   typedef FunctionTraits<Sig> TargetTraits;
   typedef Invoker5<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1311,14 +1244,27 @@ class InvokerStorage5 : public InvokerStorageBase {
   COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P5>::value,
                  p5_is_refcounted_type_and_needs_scoped_refptr);
 
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !( is_non_const_reference<typename TargetTraits::B1>::value ||
+          is_non_const_reference<typename TargetTraits::B2>::value ||
+          is_non_const_reference<typename TargetTraits::B3>::value ||
+          is_non_const_reference<typename TargetTraits::B4>::value ||
+          is_non_const_reference<typename TargetTraits::B5>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
 
   InvokerStorage5(Sig f, const P1& p1, const P2& p2, const P3& p3,
       const P4& p4, const P5& p5)
-      : f_(f), p1_(static_cast<typename BindType<P1>::StorageType>(p1)),
-          p2_(static_cast<typename BindType<P2>::StorageType>(p2)),
-          p3_(static_cast<typename BindType<P3>::StorageType>(p3)),
-          p4_(static_cast<typename BindType<P4>::StorageType>(p4)),
-          p5_(static_cast<typename BindType<P5>::StorageType>(p5)) {
+      : f_(f), p1_(static_cast<typename ParamTraits<P1>::StorageType>(p1)),
+          p2_(static_cast<typename ParamTraits<P2>::StorageType>(p2)),
+          p3_(static_cast<typename ParamTraits<P3>::StorageType>(p3)),
+          p4_(static_cast<typename ParamTraits<P4>::StorageType>(p4)),
+          p5_(static_cast<typename ParamTraits<P5>::StorageType>(p5)) {
     MaybeRefcount<IsMethod, P1>::AddRef(p1_);
   }
 
@@ -1327,11 +1273,11 @@ class InvokerStorage5 : public InvokerStorageBase {
   }
 
   Sig f_;
-  typename BindType<P1>::StorageType p1_;
-  typename BindType<P2>::StorageType p2_;
-  typename BindType<P3>::StorageType p3_;
-  typename BindType<P4>::StorageType p4_;
-  typename BindType<P5>::StorageType p5_;
+  typename ParamTraits<P1>::StorageType p1_;
+  typename ParamTraits<P2>::StorageType p2_;
+  typename ParamTraits<P3>::StorageType p3_;
+  typename ParamTraits<P4>::StorageType p4_;
+  typename ParamTraits<P5>::StorageType p5_;
 };
 
 template <typename Sig, typename P1, typename P2, typename P3, typename P4,
@@ -1342,6 +1288,7 @@ class InvokerStorage6 : public InvokerStorageBase {
   typedef FunctionTraits<Sig> TargetTraits;
   typedef Invoker6<StorageType, typename TargetTraits::NormalizedSig> Invoker;
   typedef typename TargetTraits::IsMethod IsMethod;
+
   // For methods, we need to be careful for parameter 1.  We skip the
   // scoped_refptr check because the binder itself takes care of this. We also
   // disallow binding of an array as the method's target object.
@@ -1361,15 +1308,29 @@ class InvokerStorage6 : public InvokerStorageBase {
   COMPILE_ASSERT(!internal::UnsafeBindtoRefCountedArg<P6>::value,
                  p6_is_refcounted_type_and_needs_scoped_refptr);
 
+  // Do not allow binding a non-const reference parameter. Non-const reference
+  // parameters are disallowed by the Google style guide.  Also, binding a
+  // non-const reference parameter can make for subtle bugs because the
+  // invoked function will receive a reference to the stored copy of the
+  // argument and not the original.
+  COMPILE_ASSERT(
+      !( is_non_const_reference<typename TargetTraits::B1>::value ||
+          is_non_const_reference<typename TargetTraits::B2>::value ||
+          is_non_const_reference<typename TargetTraits::B3>::value ||
+          is_non_const_reference<typename TargetTraits::B4>::value ||
+          is_non_const_reference<typename TargetTraits::B5>::value ||
+          is_non_const_reference<typename TargetTraits::B6>::value ),
+      do_not_bind_functions_with_nonconst_ref);
+
 
   InvokerStorage6(Sig f, const P1& p1, const P2& p2, const P3& p3,
       const P4& p4, const P5& p5, const P6& p6)
-      : f_(f), p1_(static_cast<typename BindType<P1>::StorageType>(p1)),
-          p2_(static_cast<typename BindType<P2>::StorageType>(p2)),
-          p3_(static_cast<typename BindType<P3>::StorageType>(p3)),
-          p4_(static_cast<typename BindType<P4>::StorageType>(p4)),
-          p5_(static_cast<typename BindType<P5>::StorageType>(p5)),
-          p6_(static_cast<typename BindType<P6>::StorageType>(p6)) {
+      : f_(f), p1_(static_cast<typename ParamTraits<P1>::StorageType>(p1)),
+          p2_(static_cast<typename ParamTraits<P2>::StorageType>(p2)),
+          p3_(static_cast<typename ParamTraits<P3>::StorageType>(p3)),
+          p4_(static_cast<typename ParamTraits<P4>::StorageType>(p4)),
+          p5_(static_cast<typename ParamTraits<P5>::StorageType>(p5)),
+          p6_(static_cast<typename ParamTraits<P6>::StorageType>(p6)) {
     MaybeRefcount<IsMethod, P1>::AddRef(p1_);
   }
 
@@ -1378,12 +1339,12 @@ class InvokerStorage6 : public InvokerStorageBase {
   }
 
   Sig f_;
-  typename BindType<P1>::StorageType p1_;
-  typename BindType<P2>::StorageType p2_;
-  typename BindType<P3>::StorageType p3_;
-  typename BindType<P4>::StorageType p4_;
-  typename BindType<P5>::StorageType p5_;
-  typename BindType<P6>::StorageType p6_;
+  typename ParamTraits<P1>::StorageType p1_;
+  typename ParamTraits<P2>::StorageType p2_;
+  typename ParamTraits<P3>::StorageType p3_;
+  typename ParamTraits<P4>::StorageType p4_;
+  typename ParamTraits<P5>::StorageType p5_;
+  typename ParamTraits<P6>::StorageType p6_;
 };
 
 }  // namespace internal
