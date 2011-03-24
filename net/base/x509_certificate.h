@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -202,9 +202,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // The fingerprint of this certificate.
   const SHA1Fingerprint& fingerprint() const { return fingerprint_; }
 
-  // The serial number, DER encoded.
-  const std::string& serial_number() const { return serial_number_; }
-
   // Gets the DNS names in the certificate.  Pursuant to RFC 2818, Section 3.1
   // Server Identity, if the certificate has a subjectAltName extension of
   // type dNSName, this method gets the DNS names in that extension.
@@ -331,6 +328,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   friend class TestRootCerts;  // For unit tests
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, Cache);
   FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, IntermediateCertificates);
+  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, SerialNumbers);
   FRIEND_TEST_ALL_PREFIXES(X509CertificateNameVerifyTest, VerifyHostname);
 
   // Construct an X509Certificate from a handle to the certificate object
@@ -369,9 +367,16 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   static bool VerifyHostname(const std::string& hostname,
                              const std::vector<std::string>& cert_names);
 
+  // The serial number, DER encoded.
+  // NOTE: keep this method private, used by IsBlacklisted only.  To simplify
+  // IsBlacklisted, we strip the leading 0 byte of a serial number, used to
+  // encode a positive DER INTEGER (a signed type) with a most significant bit
+  // of 1.  Other code must not use this method for general purpose until this
+  // is fixed.
+  const std::string& serial_number() const { return serial_number_; }
+
   // IsBlacklisted returns true if this certificate is explicitly blacklisted.
   bool IsBlacklisted() const;
-
 
   // The subject of the certificate.
   CertPrincipal subject_;
