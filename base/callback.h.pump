@@ -240,10 +240,10 @@ class Callback<R($for ARG , [[A$(ARG)]])> : public internal::CallbackBase {
 ]]
 
  public:
-  typedef R(*PolymorphicInvoke)(internal::InvokerStorageBase*[[]]
+  typedef R(*PolymorphicInvoke)(
+      internal::InvokerStorageBase*[[]]
 $if ARITY != 0 [[, ]]
-$for ARG ,
-                                [[const A$(ARG)&]]);
+$for ARG , [[typename internal::ParamTraits<A$(ARG)>::ForwardType]]);
 
   Callback() : CallbackBase(NULL, NULL) { }
 
@@ -262,7 +262,7 @@ $for ARG ,
   }
 
   R Run($for ARG ,
-        [[const A$(ARG)& a$(ARG)]]) const {
+        [[typename internal::ParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) const {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
