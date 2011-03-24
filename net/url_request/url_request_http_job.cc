@@ -1057,7 +1057,7 @@ void URLRequestHttpJob::RecordTimer() {
         to_start);
   }
 
-  const bool is_prerender = !!(request_info_.load_flags & net::LOAD_PRERENDER);
+  const bool is_prerender = !!(request_info_.load_flags & LOAD_PRERENDER);
   if (is_prerender) {
     UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte_Prerender",
                                to_start);

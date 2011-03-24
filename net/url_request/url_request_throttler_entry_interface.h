@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,7 @@ class URLRequestThrottlerEntryInterface
 
   // Returns true when we have encountered server errors and are doing
   // exponential back-off.
-  // net::URLRequestHttpJob checks this method prior to every request; it
+  // URLRequestHttpJob checks this method prior to every request; it
   // cancels requests if this method returns true.
   virtual bool IsDuringExponentialBackoff() const = 0;
 
