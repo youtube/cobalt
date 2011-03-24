@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,6 +49,9 @@ bool GetFileSystemType(const FilePath& path, FileSystemType* type) {
     case 0x858458f6:  // ramfs
     case 0x01021994:  // tmpfs
       *type = FILE_SYSTEM_MEMORY;
+      break;
+    case 0x27e0eb: // CGROUP
+      *type = FILE_SYSTEM_CGROUP;
       break;
     default:
       *type = FILE_SYSTEM_OTHER;
