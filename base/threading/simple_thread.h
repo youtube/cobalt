@@ -45,6 +45,7 @@
 #include <queue>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/threading/platform_thread.h"
 #include "base/synchronization/lock.h"
@@ -54,9 +55,9 @@ namespace base {
 
 // This is the base SimpleThread.  You can derive from it and implement the
 // virtual Run method, or you can use the DelegateSimpleThread interface.
-class SimpleThread : public PlatformThread::Delegate {
+class BASE_API SimpleThread : public PlatformThread::Delegate {
  public:
-  class Options {
+  class BASE_API Options {
    public:
     Options() : stack_size_(0) { }
     ~Options() { }
@@ -113,9 +114,9 @@ class SimpleThread : public PlatformThread::Delegate {
   bool joined_;                  // True if Join has been called.
 };
 
-class DelegateSimpleThread : public SimpleThread {
+class BASE_API DelegateSimpleThread : public SimpleThread {
  public:
-  class Delegate {
+  class BASE_API Delegate {
    public:
     Delegate() { }
     virtual ~Delegate() { }
@@ -143,7 +144,8 @@ class DelegateSimpleThread : public SimpleThread {
 // JoinAll() will make sure that all outstanding work is processed, and wait
 // for everything to finish.  You can reuse a pool, so you can call Start()
 // again after you've called JoinAll().
-class DelegateSimpleThreadPool : public DelegateSimpleThread::Delegate {
+class BASE_API DelegateSimpleThreadPool
+    : public DelegateSimpleThread::Delegate {
  public:
   typedef DelegateSimpleThread::Delegate Delegate;
 
