@@ -82,7 +82,7 @@ class URLRequestContext
   DnsCertProvenanceChecker* dns_cert_checker() const {
     return dns_cert_checker_;
   }
-  void set_dns_cert_checker(net::DnsCertProvenanceChecker* dns_cert_checker) {
+  void set_dns_cert_checker(DnsCertProvenanceChecker* dns_cert_checker) {
     dns_cert_checker_ = dns_cert_checker;
   }
 
@@ -94,7 +94,7 @@ class URLRequestContext
 
   // Get the ssl config service for this context.
   SSLConfigService* ssl_config_service() const { return ssl_config_service_; }
-  void set_ssl_config_service(net::SSLConfigService* service) {
+  void set_ssl_config_service(SSLConfigService* service) {
     ssl_config_service_ = service;
   }
 
@@ -119,7 +119,7 @@ class URLRequestContext
   FtpTransactionFactory* ftp_transaction_factory() {
     return ftp_transaction_factory_;
   }
-  void set_ftp_transaction_factory(net::FtpTransactionFactory* factory) {
+  void set_ftp_transaction_factory(FtpTransactionFactory* factory) {
     ftp_transaction_factory_ = factory;
   }
 
@@ -144,7 +144,7 @@ class URLRequestContext
       return transport_security_state_;
   }
   void set_transport_security_state(
-      net::TransportSecurityState* state) {
+      TransportSecurityState* state) {
     transport_security_state_ = state;
   }
 
