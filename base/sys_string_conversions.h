@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,8 @@
 // but it is used in some shared code. Dependencies should be minimal.
 
 #include <string>
+
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/string16.h"
 
@@ -29,14 +31,14 @@ class StringPiece;
 
 // Converts between wide and UTF-8 representations of a string. On error, the
 // result is system-dependent.
-std::string SysWideToUTF8(const std::wstring& wide);
-std::wstring SysUTF8ToWide(const StringPiece& utf8);
+BASE_API std::string SysWideToUTF8(const std::wstring& wide);
+BASE_API std::wstring SysUTF8ToWide(const StringPiece& utf8);
 
 // Converts between wide and the system multi-byte representations of a string.
 // DANGER: This will lose information and can change (on Windows, this can
 // change between reboots).
-std::string SysWideToNativeMB(const std::wstring& wide);
-std::wstring SysNativeMBToWide(const StringPiece& native_mb);
+BASE_API std::string SysWideToNativeMB(const std::wstring& wide);
+BASE_API std::wstring SysNativeMBToWide(const StringPiece& native_mb);
 
 // Windows-specific ------------------------------------------------------------
 
@@ -45,8 +47,10 @@ std::wstring SysNativeMBToWide(const StringPiece& native_mb);
 // Converts between 8-bit and wide strings, using the given code page. The
 // code page identifier is one accepted by the Windows function
 // MultiByteToWideChar().
-std::wstring SysMultiByteToWide(const StringPiece& mb, uint32 code_page);
-std::string SysWideToMultiByte(const std::wstring& wide, uint32 code_page);
+BASE_API std::wstring SysMultiByteToWide(const StringPiece& mb,
+                                         uint32 code_page);
+BASE_API std::string SysWideToMultiByte(const std::wstring& wide,
+                                        uint32 code_page);
 
 #endif  // defined(OS_WIN)
 

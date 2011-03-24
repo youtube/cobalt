@@ -19,12 +19,13 @@
 #include <string>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
 class FilePath;
 
-class CommandLine {
+class BASE_API CommandLine {
  public:
 #if defined(OS_WIN)
   // The native command line string type.
