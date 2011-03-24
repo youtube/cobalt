@@ -25,7 +25,7 @@ class HttpResponseInfo;
 class HttpTransaction;
 class URLRequestContext;
 
-// A net::URLRequestJob subclass that is built on top of HttpTransaction.  It
+// A URLRequestJob subclass that is built on top of HttpTransaction.  It
 // provides an implementation for both HTTP and HTTPS.
 class URLRequestHttpJob : public URLRequestJob {
  public:
@@ -141,7 +141,7 @@ class URLRequestHttpJob : public URLRequestJob {
     explicit HttpFilterContext(URLRequestHttpJob* job);
     virtual ~HttpFilterContext();
 
-    // net::FilterContext implementation.
+    // FilterContext implementation.
     virtual bool GetMimeType(std::string* mime_type) const;
     virtual bool GetURL(GURL* gurl) const;
     virtual base::Time GetRequestTime() const;

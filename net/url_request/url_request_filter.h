@@ -1,12 +1,12 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// A class to help filter net::URLRequest jobs based on the URL of the request
+// A class to help filter URLRequest jobs based on the URL of the request
 // rather than just the scheme.  Example usage:
 //
 // // Use as an "http" handler.
-// net::URLRequest::RegisterProtocolFactory("http", &URLRequestFilter::Factory);
+// URLRequest::RegisterProtocolFactory("http", &URLRequestFilter::Factory);
 // // Add special handling for the URL http://foo.com/
 // URLRequestFilter::GetInstance()->AddUrlHandler(
 //     GURL("http://foo.com/"),
@@ -35,27 +35,27 @@ class URLRequestFilter {
  public:
   // scheme,hostname -> ProtocolFactory
   typedef std::map<std::pair<std::string, std::string>,
-      net::URLRequest::ProtocolFactory*> HostnameHandlerMap;
-  typedef base::hash_map<std::string, net::URLRequest::ProtocolFactory*>
+      URLRequest::ProtocolFactory*> HostnameHandlerMap;
+  typedef base::hash_map<std::string, URLRequest::ProtocolFactory*>
       UrlHandlerMap;
 
   ~URLRequestFilter();
 
-  static net::URLRequest::ProtocolFactory Factory;
+  static URLRequest::ProtocolFactory Factory;
 
   // Singleton instance for use.
   static URLRequestFilter* GetInstance();
 
   void AddHostnameHandler(const std::string& scheme,
                           const std::string& hostname,
-                          net::URLRequest::ProtocolFactory* factory);
+                          URLRequest::ProtocolFactory* factory);
   void RemoveHostnameHandler(const std::string& scheme,
                              const std::string& hostname);
 
   // Returns true if we successfully added the URL handler.  This will replace
   // old handlers for the URL if one existed.
   bool AddUrlHandler(const GURL& url,
-                     net::URLRequest::ProtocolFactory* factory);
+                     URLRequest::ProtocolFactory* factory);
 
   void RemoveUrlHandler(const GURL& url);
 
@@ -70,8 +70,8 @@ class URLRequestFilter {
   URLRequestFilter();
 
   // Helper method that looks up the request in the url_handler_map_.
-  net::URLRequestJob* FindRequestHandler(net::URLRequest* request,
-                                         const std::string& scheme);
+  URLRequestJob* FindRequestHandler(URLRequest* request,
+                                    const std::string& scheme);
 
   // Maps hostnames to factories.  Hostnames take priority over URLs.
   HostnameHandlerMap hostname_handler_map_;

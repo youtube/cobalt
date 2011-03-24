@@ -36,11 +36,11 @@ URLRequestJob::URLRequestJob(URLRequest* request)
   g_url_request_job_tracker.AddNewJob(this);
 }
 
-void URLRequestJob::SetUpload(net::UploadData* upload) {
+void URLRequestJob::SetUpload(UploadData* upload) {
 }
 
 void URLRequestJob::SetExtraRequestHeaders(
-    const net::HttpRequestHeaders& headers) {
+    const HttpRequestHeaders& headers) {
 }
 
 void URLRequestJob::Kill() {
@@ -57,7 +57,7 @@ void URLRequestJob::DetachRequest() {
 // This function calls ReadData to get stream data. If a filter exists, passes
 // the data to the attached filter. Then returns the output from filter back to
 // the caller.
-bool URLRequestJob::Read(net::IOBuffer* buf, int buf_size, int *bytes_read) {
+bool URLRequestJob::Read(IOBuffer* buf, int buf_size, int *bytes_read) {
   bool rv = false;
 
   DCHECK_LT(buf_size, 1000000);  // sanity check
@@ -92,8 +92,8 @@ void URLRequestJob::StopCaching() {
   // Nothing to do here.
 }
 
-net::LoadState URLRequestJob::GetLoadState() const {
-  return net::LOAD_STATE_IDLE;
+LoadState URLRequestJob::GetLoadState() const {
+  return LOAD_STATE_IDLE;
 }
 
 uint64 URLRequestJob::GetUploadProgress() const {
@@ -104,7 +104,7 @@ bool URLRequestJob::GetCharset(std::string* charset) {
   return false;
 }
 
-void URLRequestJob::GetResponseInfo(net::HttpResponseInfo* info) {
+void URLRequestJob::GetResponseInfo(HttpResponseInfo* info) {
 }
 
 bool URLRequestJob::GetResponseCookies(std::vector<std::string>* cookies) {
@@ -118,7 +118,7 @@ Filter* URLRequestJob::SetupFilter() const {
 bool URLRequestJob::IsRedirectResponse(GURL* location,
                                        int* http_status_code) {
   // For non-HTTP jobs, headers will be null.
-  net::HttpResponseHeaders* headers = request_->response_headers();
+  HttpResponseHeaders* headers = request_->response_headers();
   if (!headers)
     return false;
 
@@ -140,7 +140,7 @@ bool URLRequestJob::NeedsAuth() {
 }
 
 void URLRequestJob::GetAuthChallengeInfo(
-    scoped_refptr<net::AuthChallengeInfo>* auth_info) {
+    scoped_refptr<AuthChallengeInfo>* auth_info) {
   // This will only be called if NeedsAuth() returns true, in which
   // case the derived class should implement this!
   NOTREACHED();
@@ -160,7 +160,7 @@ void URLRequestJob::CancelAuth() {
 }
 
 void URLRequestJob::ContinueWithCertificate(
-    net::X509Certificate* client_cert) {
+    X509Certificate* client_cert) {
   // The derived class should implement this!
   NOTREACHED();
 }
@@ -218,7 +218,7 @@ void URLRequestJob::NotifyHeadersComplete() {
 
   // Initialize to the current time, and let the subclass optionally override
   // the time stamps if it has that information.  The default request_time is
-  // set by net::URLRequest before it calls our Start method.
+  // set by URLRequest before it calls our Start method.
   request_->response_info_.response_time = base::Time::Now();
   GetResponseInfo(&request_->response_info_);
 
@@ -263,7 +263,7 @@ void URLRequestJob::NotifyHeadersComplete() {
       return;
     }
   } else if (NeedsAuth()) {
-    scoped_refptr<net::AuthChallengeInfo> auth_info;
+    scoped_refptr<AuthChallengeInfo> auth_info;
     GetAuthChallengeInfo(&auth_info);
     // Need to check for a NULL auth_info because the server may have failed
     // to send a challenge with the 401 response.
@@ -402,7 +402,7 @@ void URLRequestJob::CompleteNotifyDone() {
 void URLRequestJob::NotifyCanceled() {
   if (!done_) {
     NotifyDone(URLRequestStatus(URLRequestStatus::CANCELED,
-                                net::ERR_ABORTED));
+                                ERR_ABORTED));
   }
 }
 
@@ -412,7 +412,7 @@ void URLRequestJob::NotifyRestartRequired() {
     request_->Restart();
 }
 
-bool URLRequestJob::ReadRawData(net::IOBuffer* buf, int buf_size,
+bool URLRequestJob::ReadRawData(IOBuffer* buf, int buf_size,
                                 int *bytes_read) {
   DCHECK(bytes_read);
   *bytes_read = 0;
@@ -506,7 +506,7 @@ bool URLRequestJob::ReadFilteredData(int* bytes_read) {
       case Filter::FILTER_ERROR: {
         filter_needs_more_output_space_ = false;
         NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
-                   net::ERR_CONTENT_DECODING_FAILED));
+                   ERR_CONTENT_DECODING_FAILED));
         rv = false;
         break;
       }
@@ -536,7 +536,7 @@ const URLRequestStatus URLRequestJob::GetStatus() {
     return request_->status();
   // If the request is gone, we must be cancelled.
   return URLRequestStatus(URLRequestStatus::CANCELED,
-                          net::ERR_ABORTED);
+                          ERR_ABORTED);
 }
 
 void URLRequestJob::SetStatus(const URLRequestStatus &status) {
@@ -556,14 +556,14 @@ bool URLRequestJob::ReadRawDataForFilter(int* bytes_read) {
   // TODO(mbelshe): is it possible that the filter needs *MORE* data
   //    when there is some data already in the buffer?
   if (!filter_->stream_data_len() && !is_done()) {
-    net::IOBuffer* stream_buffer = filter_->stream_buffer();
+    IOBuffer* stream_buffer = filter_->stream_buffer();
     int stream_buffer_size = filter_->stream_buffer_size();
     rv = ReadRawDataHelper(stream_buffer, stream_buffer_size, bytes_read);
   }
   return rv;
 }
 
-bool URLRequestJob::ReadRawDataHelper(net::IOBuffer* buf, int buf_size,
+bool URLRequestJob::ReadRawDataHelper(IOBuffer* buf, int buf_size,
                                       int* bytes_read) {
   DCHECK(!request_->status().is_io_pending());
   DCHECK(raw_read_buffer_ == NULL);
@@ -587,7 +587,7 @@ void URLRequestJob::FollowRedirect(const GURL& location, int http_status_code) {
   g_url_request_job_tracker.OnJobRedirect(this, location, http_status_code);
 
   int rv = request_->Redirect(location, http_status_code);
-  if (rv != net::OK)
+  if (rv != OK)
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, rv));
 }
 
