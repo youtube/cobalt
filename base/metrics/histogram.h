@@ -311,7 +311,6 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
     Count counts(size_t i) const { return counts_[i]; }
     Count TotalCount() const;
     int64 sum() const { return sum_; }
-    int64 square_sum() const { return square_sum_; }
     int64 redundant_count() const { return redundant_count_; }
 
     // Arithmetic manipulation of corresponding elements of the set.
@@ -329,7 +328,6 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
     // Save simple stats locally.  Note that this MIGHT get done in base class
     // without shared memory at some point.
     int64 sum_;         // sum of samples.
-    int64 square_sum_;  // sum of squares of samples.
 
    private:
     // Allow tests to corrupt our innards for testing purposes.
