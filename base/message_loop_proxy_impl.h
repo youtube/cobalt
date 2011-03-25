@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define BASE_MESSAGE_LOOP_PROXY_IMPL_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/lock.h"
@@ -15,8 +16,8 @@ namespace base {
 // A stock implementation of MessageLoopProxy that takes in a MessageLoop
 // and keeps track of its lifetime using the MessageLoop DestructionObserver.
 // For now a MessageLoopProxyImpl can only be created for the current thread.
-class MessageLoopProxyImpl : public MessageLoopProxy,
-                             public MessageLoop::DestructionObserver {
+class BASE_API MessageLoopProxyImpl : public MessageLoopProxy,
+                                      public MessageLoop::DestructionObserver {
  public:
   virtual ~MessageLoopProxyImpl();
 

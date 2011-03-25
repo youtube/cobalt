@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/base_api.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/platform_thread.h"
@@ -25,7 +26,7 @@ namespace base {
 //  (1) Thread::CleanUp()
 //  (2) MessageLoop::~MessageLoop
 //  (3.b)    MessageLoop::DestructionObserver::WillDestroyCurrentMessageLoop
-class Thread : PlatformThread::Delegate {
+class BASE_API Thread : PlatformThread::Delegate {
  public:
   struct Options {
     Options() : message_loop_type(MessageLoop::TYPE_DEFAULT), stack_size(0) {}
