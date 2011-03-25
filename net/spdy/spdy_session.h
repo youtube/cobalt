@@ -97,6 +97,13 @@ class SpdySession : public base::RefCounted<SpdySession>,
                                   bool is_secure,
                                   int certificate_error_code);
 
+  // Check to see if this SPDY session can support an additional domain.
+  // If the session is un-authenticated, then this call always returns true.
+  // For SSL-based sessions, verifies that the certificate in use by this
+  // session provides authentication for the domain.
+  // NOTE:  This function can have false negatives on some platforms.
+  bool VerifyDomainAuthentication(const std::string& domain);
+
   // Send the SYN frame for |stream_id|.
   int WriteSynStream(
       spdy::SpdyStreamId stream_id,
