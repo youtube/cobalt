@@ -302,6 +302,18 @@ net::Error SpdySession::InitializeWithSocket(
   return error;
 }
 
+bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
+  if (state_ != CONNECTED)
+    return false;
+
+  SSLInfo ssl_info;
+  bool was_npn_negotiated;
+  if (!GetSSLInfo(&ssl_info, &was_npn_negotiated))
+    return true;   // This is not a secure session, so all domains are okay.
+
+  return ssl_info.cert->VerifyNameMatch(domain);
+}
+
 int SpdySession::GetPushStream(
     const GURL& url,
     scoped_refptr<SpdyStream>* stream,

@@ -13,8 +13,9 @@
 #include "net/base/cert_verifier.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
-#include "net/base/test_completion_callback.h"
 #include "net/base/ssl_config_service_defaults.h"
+#include "net/base/test_certificate_data.h"
+#include "net/base/test_completion_callback.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
@@ -23,6 +24,7 @@
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
+#include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -138,7 +140,7 @@ class SSLClientSocketPoolTest : public testing::Test {
   }
 
   MockClientSocketFactory socket_factory_;
-  MockHostResolver host_resolver_;
+  MockCachingHostResolver host_resolver_;
   CertVerifier cert_verifier_;
   const scoped_refptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
@@ -644,6 +646,82 @@ TEST_F(SSLClientSocketPoolTest, NeedProxyAuth) {
       handle.release_pending_http_proxy_connection());
   EXPECT_TRUE(tunnel_handle->socket());
   EXPECT_FALSE(tunnel_handle->socket()->IsConnected());
+}
+
+TEST_F(SSLClientSocketPoolTest, IPPooling) {
+  const int kTestPort = 80;
+  struct TestHosts {
+    std::string name;
+    std::string iplist;
+    HostPortProxyPair pair;
+  } test_hosts[] = {
+    { "www.webkit.org",    "192.168.0.1,192.168.0.5" },
+    { "code.google.com",   "192.168.0.2,192.168.0.3,192.168.0.5" },
+    { "js.webkit.org",     "192.168.0.4,192.168.0.5" },
+  };
+
+  host_resolver_.set_synchronous_mode(true);
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_hosts); i++) {
+    host_resolver_.rules()->AddIPLiteralRule(test_hosts[i].name,
+        test_hosts[i].iplist, "");
+
+    // This test requires that the HostResolver cache be populated.  Normal
+    // code would have done this already, but we do it manually.
+    HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
+    AddressList result;
+    host_resolver_.Resolve(info, &result, NULL, NULL, BoundNetLog());
+
+    // Setup a HostPortProxyPair
+    test_hosts[i].pair = HostPortProxyPair(
+        HostPortPair(test_hosts[i].name, kTestPort), ProxyServer::Direct());
+  }
+
+  MockRead reads[] = {
+      MockRead(true, ERR_IO_PENDING),
+  };
+  StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
+  socket_factory_.AddSocketDataProvider(&data);
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.cert_ = X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/2";
+  socket_factory_.AddSSLSocketDataProvider(&ssl);
+
+  CreatePool(true /* tcp pool */, false, false);
+  scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
+                                                    true);
+
+  scoped_ptr<ClientSocketHandle> handle(new ClientSocketHandle());
+  TestCompletionCallback callback;
+  int rv = handle->Init(
+      "a", params, MEDIUM, &callback, pool_.get(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_FALSE(handle->is_initialized());
+  EXPECT_FALSE(handle->socket());
+
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_TRUE(handle->is_initialized());
+  EXPECT_TRUE(handle->socket());
+
+  SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(handle->socket());
+  EXPECT_TRUE(ssl_socket->was_npn_negotiated());
+  std::string proto;
+  ssl_socket->GetNextProto(&proto);
+  EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
+            SSLClientSocket::kProtoSPDY2);
+
+  scoped_refptr<SpdySession> spdy_session;
+  rv = session_->spdy_session_pool()->GetSpdySessionFromSocket(
+    test_hosts[0].pair, handle.release(), BoundNetLog(), 0,
+      &spdy_session, true);
+  EXPECT_EQ(0, rv);
+
+  EXPECT_TRUE(session_->spdy_session_pool()->HasSession(test_hosts[0].pair));
+  EXPECT_FALSE(session_->spdy_session_pool()->HasSession(test_hosts[1].pair));
+  EXPECT_TRUE(session_->spdy_session_pool()->HasSession(test_hosts[2].pair));
+
+  session_->spdy_session_pool()->CloseAllSessions();
 }
 
 // It would be nice to also test the timeouts in SSLClientSocketPool.

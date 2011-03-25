@@ -829,6 +829,13 @@ EVENT_TYPE(SPDY_SESSION_STALLED_MAX_STREAMS)
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_FOUND_EXISTING_SESSION)
 
+// This event indicates the pool is reusing an existing session from an
+// IP pooling match.
+//   {
+//     "id": <The session id>,
+//   }
+EVENT_TYPE(SPDY_SESSION_POOL_FOUND_EXISTING_SESSION_FROM_IP_POOL)
+
 // This event indicates the pool created a new session
 //   {
 //     "id": <The session id>,

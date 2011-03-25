@@ -386,6 +386,109 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   EXPECT_TRUE(data.at_write_eof());
 }
 
+TEST_F(SpdySessionTest, IPPooling) {
+  const int kTestPort = 80;
+  struct TestHosts {
+    std::string name;
+    std::string iplist;
+    HostPortProxyPair pair;
+  } test_hosts[] = {
+    { "www.foo.com",    "192.168.0.1,192.168.0.5" },
+    { "images.foo.com", "192.168.0.2,192.168.0.3,192.168.0.5" },
+    { "js.foo.com",     "192.168.0.4,192.168.0.3" },
+  };
+
+  SpdySessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_hosts); i++) {
+    session_deps.host_resolver->rules()->AddIPLiteralRule(test_hosts[i].name,
+        test_hosts[i].iplist, "");
+
+    // This test requires that the HostResolver cache be populated.  Normal
+    // code would have done this already, but we do it manually.
+    HostResolver::RequestInfo info(HostPortPair(test_hosts[i].name, kTestPort));
+    AddressList result;
+    session_deps.host_resolver->Resolve(
+        info, &result, NULL, NULL, BoundNetLog());
+
+    // Setup a HostPortProxyPair
+    test_hosts[i].pair = HostPortProxyPair(
+        HostPortPair(test_hosts[i].name, kTestPort), ProxyServer::Direct());
+  }
+
+  MockConnect connect_data(false, OK);
+  MockRead reads[] = {
+    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+  };
+
+  StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(false, OK);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  // Setup the first session to the first host.
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[0].pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(test_hosts[0].pair, BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[0].pair));
+
+  HostPortPair test_host_port_pair(test_hosts[0].name, kTestPort);
+  scoped_refptr<TCPSocketParams> tcp_params(
+      new TCPSocketParams(test_host_port_pair,
+                          MEDIUM,
+                          GURL(),
+                          false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK,
+            connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
+                              NULL, http_session->tcp_socket_pool(),
+                              BoundNetLog()));
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+
+  // Flush the SpdySession::OnReadComplete() task.
+  MessageLoop::current()->RunAllPending();
+
+  // The third host has no overlap with the first, so it can't pool IPs.
+  EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[2].pair));
+
+  // The second host overlaps with the first, and should IP pool.
+  EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[1].pair));
+
+  // Verify that the second host, through a proxy, won't share the IP.
+  HostPortProxyPair proxy_pair(test_hosts[1].pair.first,
+      ProxyServer::FromPacString("HTTP http://proxy.foo.com/"));
+  EXPECT_FALSE(spdy_session_pool->HasSession(proxy_pair));
+
+  // Overlap between 2 and 3 does is not transitive to 1.
+  EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[2].pair));
+
+  // Create a new session to host 2.
+  scoped_refptr<SpdySession> session2 =
+      spdy_session_pool->Get(test_hosts[2].pair, BoundNetLog());
+
+  // Verify that we have sessions for everything.
+  EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[0].pair));
+  EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[1].pair));
+  EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[2].pair));
+
+  // Cleanup the sessions.
+  spdy_session_pool->Remove(session);
+  session = NULL;
+  spdy_session_pool->Remove(session2);
+  session2 = NULL;
+
+  // Verify that the map is all cleaned up.
+  EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[0].pair));
+  EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[1].pair));
+  EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[2].pair));
+}
+
 }  // namespace
 
 }  // namespace net
