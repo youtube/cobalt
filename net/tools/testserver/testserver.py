@@ -286,6 +286,7 @@ class TestPageHandler(BasePageHandler):
       self.AuthDigestHandler,
       self.SlowServerHandler,
       self.ContentTypeHandler,
+      self.NoContentHandler,
       self.ServerRedirectHandler,
       self.ClientRedirectHandler,
       self.MultipartHandler,
@@ -1068,6 +1069,14 @@ class TestPageHandler(BasePageHandler):
     self.send_header('Content-Type', content_type)
     self.end_headers()
     self.wfile.write("<html>\n<body>\n<p>HTML text</p>\n</body>\n</html>\n");
+    return True
+
+  def NoContentHandler(self):
+    """Returns a 204 No Content response."""
+    if not self._ShouldHandleRequest("/nocontent"):
+      return False
+    self.send_response(204)
+    self.end_headers()
     return True
 
   def ServerRedirectHandler(self):
