@@ -36,6 +36,7 @@
 #include <string>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/gtest_prod_util.h"
 #include "base/ref_counted.h"
 #include "base/logging.h"
@@ -236,7 +237,7 @@ class CustomHistogram;
 class Histogram;
 class LinearHistogram;
 
-class Histogram : public base::RefCountedThreadSafe<Histogram> {
+class BASE_API Histogram : public base::RefCountedThreadSafe<Histogram> {
  public:
   typedef int Sample;  // Used for samples (and ranges of samples).
   typedef int Count;  // Used to count samples in a bucket.
@@ -295,7 +296,7 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
   //----------------------------------------------------------------------------
   // Statistic values, developed over the life of the histogram.
 
-  class SampleSet {
+  class BASE_API SampleSet {
    public:
     explicit SampleSet();
     ~SampleSet();
@@ -548,7 +549,7 @@ class Histogram : public base::RefCountedThreadSafe<Histogram> {
 
 // LinearHistogram is a more traditional histogram, with evenly spaced
 // buckets.
-class LinearHistogram : public Histogram {
+class BASE_API LinearHistogram : public Histogram {
  public:
   virtual ~LinearHistogram();
 
@@ -599,7 +600,7 @@ class LinearHistogram : public Histogram {
 //------------------------------------------------------------------------------
 
 // BooleanHistogram is a histogram for booleans.
-class BooleanHistogram : public LinearHistogram {
+class BASE_API BooleanHistogram : public LinearHistogram {
  public:
   static scoped_refptr<Histogram> FactoryGet(const std::string& name,
       Flags flags);
@@ -617,7 +618,7 @@ class BooleanHistogram : public LinearHistogram {
 //------------------------------------------------------------------------------
 
 // CustomHistogram is a histogram for a set of custom integers.
-class CustomHistogram : public Histogram {
+class BASE_API CustomHistogram : public Histogram {
  public:
 
   static scoped_refptr<Histogram> FactoryGet(const std::string& name,
@@ -642,7 +643,7 @@ class CustomHistogram : public Histogram {
 // general place for histograms to register, and supports a global API for
 // accessing (i.e., dumping, or graphing) the data in all the histograms.
 
-class StatisticsRecorder {
+class BASE_API StatisticsRecorder {
  public:
   typedef std::vector<scoped_refptr<Histogram> > Histograms;
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,17 +6,18 @@
 #define BASE_MESSAGE_PUMP_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/ref_counted.h"
 
 namespace base {
 
 class TimeTicks;
 
-class MessagePump : public RefCountedThreadSafe<MessagePump> {
+class BASE_API MessagePump : public RefCountedThreadSafe<MessagePump> {
  public:
   // Please see the comments above the Run method for an illustration of how
   // these delegate methods are used.
-  class Delegate {
+  class BASE_API Delegate {
    public:
     virtual ~Delegate() {}
 
