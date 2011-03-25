@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define BASE_SYS_INFO_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 #include <string>
@@ -14,7 +15,7 @@ class FilePath;
 
 namespace base {
 
-class SysInfo {
+class BASE_API SysInfo {
  public:
   // Return the number of logical processors/cores on the current machine.
   static int NumberOfProcessors();

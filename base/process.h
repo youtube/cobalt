@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define BASE_PROCESS_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
@@ -37,7 +38,7 @@ const ProcessHandle kNullProcessHandle = 0;
 const int kUnsetProcessPriority = 256;
 #endif
 
-class Process {
+class BASE_API Process {
  public:
   Process() : process_(kNullProcessHandle) {
 #if defined(OS_POSIX) && !defined(OS_MACOSX)

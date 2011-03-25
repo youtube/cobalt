@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define BASE_MESSAGE_LOOP_PROXY_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
 #include "base/task.h"
@@ -18,7 +19,7 @@ struct MessageLoopProxyTraits;
 // of a message loop. This class can outlive the target message loop. You can
 // obtain a MessageLoopProxy via Thread::message_loop_proxy() or
 // MessageLoopProxy::CreateForCurrentThread().
-class MessageLoopProxy
+class BASE_API MessageLoopProxy
     : public base::RefCountedThreadSafe<MessageLoopProxy,
                                         MessageLoopProxyTraits> {
  public:
@@ -58,6 +59,7 @@ class MessageLoopProxy
   static scoped_refptr<MessageLoopProxy> CreateForCurrentThread();
 
  protected:
+  friend class RefCountedThreadSafe<MessageLoopProxy, MessageLoopProxyTraits>;
   friend struct MessageLoopProxyTraits;
 
   MessageLoopProxy();
