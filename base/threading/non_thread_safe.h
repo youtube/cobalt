@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,7 +45,7 @@ class NonThreadSafeDoNothing {
 // In Release mode, CalledOnValidThread will always return true.
 //
 #ifndef NDEBUG
-class NonThreadSafe : public NonThreadSafeImpl {
+class BASE_API NonThreadSafe : public NonThreadSafeImpl {
 };
 #else
 class NonThreadSafe : public NonThreadSafeDoNothing {

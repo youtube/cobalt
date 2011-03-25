@@ -6,6 +6,8 @@
 #define BASE_WIN_WINDOWS_VERSION_H_
 #pragma once
 
+#include "base/base_api.h"
+
 typedef void* HANDLE;
 
 namespace base {
@@ -25,10 +27,10 @@ enum Version {
 };
 
 // Returns the running version of Windows.
-Version GetVersion();
+BASE_API Version GetVersion();
 
 // Returns the major and minor version of the service pack installed.
-void GetServicePackLevel(int* major, int* minor);
+BASE_API void GetServicePackLevel(int* major, int* minor);
 
 enum WindowsArchitecture {
   X86_ARCHITECTURE,
@@ -42,7 +44,7 @@ enum WindowsArchitecture {
 //   32-bit Chrome running on 32-bit Windows:           X86_ARCHITECTURE
 //   32-bit Chrome running on 64-bit Windows via WOW64: X64_ARCHITECTURE
 //   64-bit Chrome running on 64-bit Windows:           X64_ARCHITECTURE
-WindowsArchitecture GetWindowsArchitecture();
+BASE_API WindowsArchitecture GetWindowsArchitecture();
 
 enum WOW64Status {
   WOW64_DISABLED,
@@ -55,11 +57,11 @@ enum WOW64Status {
 // WOW64_DISABLED for both "32-bit Chrome on 32-bit Windows" and "64-bit Chrome
 // on 64-bit Windows".  WOW64_UNKNOWN means "an error occurred", e.g. the
 // process does not have sufficient access rights to determine this.
-WOW64Status GetWOW64Status();
+BASE_API WOW64Status GetWOW64Status();
 
 // Like GetWOW64Status(), but for the supplied handle instead of the current
 // process.
-WOW64Status GetWOW64StatusForProcess(HANDLE process_handle);
+BASE_API WOW64Status GetWOW64StatusForProcess(HANDLE process_handle);
 
 }  // namespace win
 }  // namespace base
