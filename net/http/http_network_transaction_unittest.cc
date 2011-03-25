@@ -5439,9 +5439,8 @@ struct GroupNameTest {
 };
 
 scoped_refptr<HttpNetworkSession> SetupSessionForGroupNameTests(
-    const std::string& proxy_server) {
-  SessionDependencies session_deps(ProxyService::CreateFixed(proxy_server));
-  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+    SessionDependencies* session_deps) {
+  scoped_refptr<HttpNetworkSession> session(CreateSession(session_deps));
 
   HttpAlternateProtocols* alternate_protocols =
       session->mutable_alternate_protocols();
@@ -5507,8 +5506,10 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
   HttpStreamFactory::set_use_alternate_protocols(true);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    SessionDependencies session_deps(
+        ProxyService::CreateFixed(tests[i].proxy_server));
     scoped_refptr<HttpNetworkSession> session(
-        SetupSessionForGroupNameTests(tests[i].proxy_server));
+        SetupSessionForGroupNameTests(&session_deps));
 
     HttpNetworkSessionPeer peer(session);
     CaptureGroupNameTCPSocketPool* tcp_conn_pool =
@@ -5559,8 +5560,10 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
   HttpStreamFactory::set_use_alternate_protocols(true);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    SessionDependencies session_deps(
+        ProxyService::CreateFixed(tests[i].proxy_server));
     scoped_refptr<HttpNetworkSession> session(
-        SetupSessionForGroupNameTests(tests[i].proxy_server));
+        SetupSessionForGroupNameTests(&session_deps));
 
     HttpNetworkSessionPeer peer(session);
 
@@ -5625,8 +5628,11 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
   HttpStreamFactory::set_use_alternate_protocols(true);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    SessionDependencies session_deps(
+        ProxyService::CreateFixed(tests[i].proxy_server));
     scoped_refptr<HttpNetworkSession> session(
-        SetupSessionForGroupNameTests(tests[i].proxy_server));
+        SetupSessionForGroupNameTests(&session_deps));
+
     HttpNetworkSessionPeer peer(session);
 
     HostPortPair proxy_host("socks_proxy", 1080);
