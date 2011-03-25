@@ -136,27 +136,7 @@ class URLRequestHttpJob : public URLRequestJob {
   bool is_cached_content_;
 
  private:
-  class HttpFilterContext : public FilterContext {
-   public:
-    explicit HttpFilterContext(URLRequestHttpJob* job);
-    virtual ~HttpFilterContext();
-
-    // FilterContext implementation.
-    virtual bool GetMimeType(std::string* mime_type) const;
-    virtual bool GetURL(GURL* gurl) const;
-    virtual base::Time GetRequestTime() const;
-    virtual bool IsCachedContent() const;
-    virtual bool IsDownload() const;
-    virtual bool IsSdchResponse() const;
-    virtual int64 GetByteReadCount() const;
-    virtual int GetResponseCode() const;
-    virtual void RecordPacketStats(StatisticSelector statistic) const;
-
-   private:
-    URLRequestHttpJob* job_;
-
-    DISALLOW_COPY_AND_ASSIGN(HttpFilterContext);
-  };
+  class HttpFilterContext;
 
   virtual ~URLRequestHttpJob();
 
@@ -202,7 +182,7 @@ class URLRequestHttpJob : public URLRequestJob {
   // We're ignoring overflow, as 1430 x 2^31 is a LOT of bytes.
   int observed_packet_count_;
 
-  HttpFilterContext filter_context_;
+  scoped_ptr<HttpFilterContext> filter_context_;
   ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);

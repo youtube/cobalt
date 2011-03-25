@@ -90,6 +90,28 @@ class HTTPSProberDelegateImpl : public HTTPSProberDelegate {
 
 }  // namespace
 
+class URLRequestHttpJob::HttpFilterContext : public FilterContext {
+ public:
+  explicit HttpFilterContext(URLRequestHttpJob* job);
+  virtual ~HttpFilterContext();
+
+  // FilterContext implementation.
+  virtual bool GetMimeType(std::string* mime_type) const;
+  virtual bool GetURL(GURL* gurl) const;
+  virtual base::Time GetRequestTime() const;
+  virtual bool IsCachedContent() const;
+  virtual bool IsDownload() const;
+  virtual bool IsSdchResponse() const;
+  virtual int64 GetByteReadCount() const;
+  virtual int GetResponseCode() const;
+  virtual void RecordPacketStats(StatisticSelector statistic) const;
+
+ private:
+  URLRequestHttpJob* job_;
+
+  DISALLOW_COPY_AND_ASSIGN(HttpFilterContext);
+};
+
 URLRequestHttpJob::HttpFilterContext::HttpFilterContext(URLRequestHttpJob* job)
     : job_(job) {
   DCHECK(job_);
@@ -208,7 +230,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       request_time_snapshot_(),
       final_packet_time_(),
       observed_packet_count_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(filter_context_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          filter_context_(new HttpFilterContext(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   ResetTimer();
 }
@@ -819,10 +842,10 @@ Filter* URLRequestHttpJob::SetupFilter() const {
   // some decoding, as some proxies strip encoding completely. In such cases,
   // we may need to add (for example) SDCH filtering (when the context suggests
   // it is appropriate).
-  Filter::FixupEncodingTypes(filter_context_, &encoding_types);
+  Filter::FixupEncodingTypes(*filter_context_, &encoding_types);
 
   return !encoding_types.empty()
-      ? Filter::Factory(encoding_types, filter_context_) : NULL;
+      ? Filter::Factory(encoding_types, *filter_context_) : NULL;
 }
 
 bool URLRequestHttpJob::IsSafeRedirect(const GURL& location) {
