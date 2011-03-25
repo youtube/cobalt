@@ -37,7 +37,7 @@ TEST(FilterTest, ContentTypeId) {
 
 // Check various fixups that modify content encoding lists.
 TEST(FilterTest, ApacheGzip) {
-  net::MockFilterContext filter_context;
+  MockFilterContext filter_context;
   filter_context.SetSdchResponse(false);
 
   // Check that redundant gzip mime type removes only solo gzip encoding.
@@ -85,7 +85,7 @@ TEST(FilterTest, ApacheGzip) {
 TEST(FilterTest, SdchEncoding) {
   // Handle content encodings including SDCH.
   const std::string kTextHtmlMime("text/html");
-  net::MockFilterContext filter_context;
+  MockFilterContext filter_context;
   filter_context.SetSdchResponse(true);
 
   std::vector<Filter::FilterType> encoding_types;
@@ -122,7 +122,7 @@ TEST(FilterTest, SdchEncoding) {
 TEST(FilterTest, MissingSdchEncoding) {
   // Handle interesting case where entire SDCH encoding assertion "got lost."
   const std::string kTextHtmlMime("text/html");
-  net::MockFilterContext filter_context;
+  MockFilterContext filter_context;
   filter_context.SetSdchResponse(true);
 
   std::vector<Filter::FilterType> encoding_types;
@@ -157,7 +157,7 @@ TEST(FilterTest, MissingSdchEncoding) {
 }
 
 TEST(FilterTest, Svgz) {
-  net::MockFilterContext filter_context;
+  MockFilterContext filter_context;
 
   // Check that svgz files are only decompressed when not downloading.
   const std::string kSvgzMime("image/svg+xml");
@@ -205,7 +205,7 @@ TEST(FilterTest, Svgz) {
 
 TEST(FilterTest, UnsupportedMimeGzip) {
   // From issue 8170 - handling files with Content-Encoding: x-gzip
-  net::MockFilterContext filter_context;
+  MockFilterContext filter_context;
   std::vector<Filter::FilterType> encoding_types;
   const std::string kTarMime("application/x-tar");
   const std::string kCpioMime("application/x-cpio");
@@ -292,7 +292,7 @@ TEST(FilterTest, UnsupportedMimeGzip) {
 TEST(FilterTest, SupportedMimeGzip) {
   // From issue 16430 - Files with supported mime types should be decompressed,
   // even though these files end in .gz/.tgz.
-  net::MockFilterContext filter_context;
+  MockFilterContext filter_context;
   std::vector<Filter::FilterType> encoding_types;
   const std::string kGzUrl("http://ignore.com/foo.gz");
   const std::string kUrl("http://ignore.com/foo");

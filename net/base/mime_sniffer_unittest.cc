@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,7 @@
 #include "net/base/mime_sniffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
-  class MimeSnifferTest : public testing::Test {
-  };
-}
+namespace net {
 
 struct SnifferTest {
   const char* content;
@@ -24,7 +21,7 @@ static void TestArray(SnifferTest* tests, size_t count) {
   std::string mime_type;
 
   for (size_t i = 0; i < count; ++i) {
-    net::SniffMimeType(tests[i].content,
+    SniffMimeType(tests[i].content,
                        tests[i].content_len,
                        GURL(tests[i].url),
                        tests[i].type_hint,
@@ -39,7 +36,7 @@ static std::string SniffMimeType(const std::string& content,
                                  const std::string& url,
                                  const std::string& mime_type_hint) {
   std::string mime_type;
-  net::SniffMimeType(content.data(), content.size(), GURL(url),
+  SniffMimeType(content.data(), content.size(), GURL(url),
                      mime_type_hint, &mime_type);
   return mime_type;
 }
@@ -54,11 +51,11 @@ TEST(MimeSnifferTest, BoundaryConditionsTest) {
 
   GURL url;
 
-  net::SniffMimeType(buf, 0, url, type_hint, &mime_type);
+  SniffMimeType(buf, 0, url, type_hint, &mime_type);
   EXPECT_EQ("text/plain", mime_type);
-  net::SniffMimeType(buf, 1, url, type_hint, &mime_type);
+  SniffMimeType(buf, 1, url, type_hint, &mime_type);
   EXPECT_EQ("text/plain", mime_type);
-  net::SniffMimeType(buf, 2, url, type_hint, &mime_type);
+  SniffMimeType(buf, 2, url, type_hint, &mime_type);
   EXPECT_EQ("application/octet-stream", mime_type);
 }
 
@@ -372,8 +369,8 @@ TEST(MimeSnifferTest, XMLTestLargeNoAngledBracket) {
 
   // content.size() >= 1024 so the sniff is unambiguous.
   std::string mime_type;
-  EXPECT_TRUE(net::SniffMimeType(content.data(), content.size(), GURL(),
-                                 "text/xml", &mime_type));
+  EXPECT_TRUE(SniffMimeType(content.data(), content.size(), GURL(),
+                            "text/xml", &mime_type));
   EXPECT_EQ("text/xml", mime_type);
 }
 
@@ -388,7 +385,9 @@ TEST(MimeSnifferTest, LooksBinary) {
 
   // content.size() >= 1024 so the sniff is unambiguous.
   std::string mime_type;
-  EXPECT_TRUE(net::SniffMimeType(content.data(), content.size(), GURL(),
-                                 "text/plain", &mime_type));
+  EXPECT_TRUE(SniffMimeType(content.data(), content.size(), GURL(),
+                            "text/plain", &mime_type));
   EXPECT_EQ("application/octet-stream", mime_type);
 }
+
+}  // namespace net

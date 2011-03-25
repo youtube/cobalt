@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -74,7 +74,7 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
 
   // Call this method to asynchronously stop directory enumeration.  The
   // delegate will receive the OnListDone notification with an error code of
-  // net::ERR_ABORTED.
+  // ERR_ABORTED.
   void Cancel();
 
   // The delegate pointer may be modified at any time.

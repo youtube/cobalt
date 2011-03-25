@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -737,8 +737,8 @@ TEST(X509CertificateTest, IsIssuedBy) {
 TEST(X509CertificateTest, CreateSelfSigned) {
   scoped_ptr<base::RSAPrivateKey> private_key(
       base::RSAPrivateKey::Create(1024));
-  scoped_refptr<net::X509Certificate> cert =
-      net::X509Certificate::CreateSelfSigned(
+  scoped_refptr<X509Certificate> cert =
+      X509Certificate::CreateSelfSigned(
           private_key.get(), "CN=subject", 1, base::TimeDelta::FromDays(1));
 
   EXPECT_EQ("subject", cert->subject().GetDisplayName());
@@ -834,7 +834,7 @@ TEST(X509CertificateTest, CreateSelfSigned) {
   private_key.reset(base::RSAPrivateKey::CreateFromPrivateKeyInfo(input));
   ASSERT_TRUE(private_key.get());
 
-  cert = net::X509Certificate::CreateSelfSigned(
+  cert = X509Certificate::CreateSelfSigned(
       private_key.get(), "CN=subject", 1, base::TimeDelta::FromDays(1));
 
   EXPECT_EQ("subject", cert->subject().GetDisplayName());
@@ -844,8 +844,8 @@ TEST(X509CertificateTest, CreateSelfSigned) {
 TEST(X509CertificateTest, GetDEREncoded) {
   scoped_ptr<base::RSAPrivateKey> private_key(
       base::RSAPrivateKey::Create(1024));
-  scoped_refptr<net::X509Certificate> cert =
-      net::X509Certificate::CreateSelfSigned(
+  scoped_refptr<X509Certificate> cert =
+      X509Certificate::CreateSelfSigned(
           private_key.get(), "CN=subject", 0, base::TimeDelta::FromDays(1));
 
   std::string der_cert;
