@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -633,7 +633,7 @@ void GetExtensionsHelper(
     base::hash_set<FilePath::StringType>* extensions) {
   FilePath::StringType extension;
   for (size_t i = 0; i < standard_types_len; ++i) {
-    if (net::GetPreferredExtensionForMimeType(standard_types[i], &extension))
+    if (GetPreferredExtensionForMimeType(standard_types[i], &extension))
       extensions->insert(extension);
   }
 
@@ -695,7 +695,7 @@ void GetExtensionsForMimeType(const std::string& mime_type,
                               std::vector<FilePath::StringType>* extensions) {
   base::hash_set<FilePath::StringType> unique_extensions;
   FilePath::StringType extension;
-  if (net::GetPreferredExtensionForMimeType(mime_type, &extension))
+  if (GetPreferredExtensionForMimeType(mime_type, &extension))
     unique_extensions.insert(extension);
 
   // Also look up the extensions from hard-coded mappings in case that some

@@ -158,7 +158,7 @@ class Filter {
   FilterStatus ReadData(char* dest_buffer, int* dest_len);
 
   // Returns a pointer to the stream_buffer_.
-  net::IOBuffer* stream_buffer() const { return stream_buffer_.get(); }
+  IOBuffer* stream_buffer() const { return stream_buffer_.get(); }
 
   // Returns the maximum size of stream_buffer_ in number of chars.
   int stream_buffer_size() const { return stream_buffer_size_; }
@@ -221,7 +221,7 @@ class Filter {
   FilterStatus last_status() const { return last_status_; }
 
   // Buffer to hold the data to be filtered (the input queue).
-  scoped_refptr<net::IOBuffer> stream_buffer_;
+  scoped_refptr<IOBuffer> stream_buffer_;
 
   // Maximum size of stream_buffer_ in number of chars.
   int stream_buffer_size_;

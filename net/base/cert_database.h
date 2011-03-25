@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -104,7 +104,7 @@ class CertDatabase {
   // Import certificates and private keys from PKCS #12 blob into the module.
   // Returns OK or a network error code such as ERR_PKCS12_IMPORT_BAD_PASSWORD
   // or ERR_PKCS12_IMPORT_ERROR.
-  int ImportFromPKCS12(net::CryptoModule* module,
+  int ImportFromPKCS12(CryptoModule* module,
                        const std::string& data,
                        const string16& password);
 

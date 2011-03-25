@@ -253,7 +253,7 @@ class GZipUnitTest : public PlatformTest {
   int gzip_encode_len_;
 
  private:
-  net::MockFilterContext filter_context_;
+  MockFilterContext filter_context_;
 };
 
 // Basic scenario: decoding deflate data with big enough buffer.

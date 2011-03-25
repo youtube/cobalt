@@ -825,7 +825,7 @@ bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
 // Otherwise, we pass just that EV policy (as opposed to all the EV policies)
 // to the second PKIXVerifyCert call.
 bool X509Certificate::VerifyEV() const {
-  net::EVRootCAMetadata* metadata = net::EVRootCAMetadata::GetInstance();
+  EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
 
   CERTValOutParam cvout[3];
   int cvout_index = 0;
