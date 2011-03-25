@@ -2166,6 +2166,34 @@ TEST(NetUtilTest, IPNumberMatchesPrefix) {
   }
 }
 
+TEST(NetUtilTest, IsLocalhost) {
+  EXPECT_TRUE(net::IsLocalhost("localhost"));
+  EXPECT_TRUE(net::IsLocalhost("localhost.localdomain"));
+  EXPECT_TRUE(net::IsLocalhost("localhost6"));
+  EXPECT_TRUE(net::IsLocalhost("localhost6.localdomain6"));
+  EXPECT_TRUE(net::IsLocalhost("127.0.0.1"));
+  EXPECT_TRUE(net::IsLocalhost("127.0.1.0"));
+  EXPECT_TRUE(net::IsLocalhost("127.1.0.0"));
+  EXPECT_TRUE(net::IsLocalhost("127.0.0.255"));
+  EXPECT_TRUE(net::IsLocalhost("127.0.255.0"));
+  EXPECT_TRUE(net::IsLocalhost("127.255.0.0"));
+  EXPECT_TRUE(net::IsLocalhost("::1"));
+  EXPECT_TRUE(net::IsLocalhost("0:0:0:0:0:0:0:1"));
+
+  EXPECT_FALSE(net::IsLocalhost("localhostx"));
+  EXPECT_FALSE(net::IsLocalhost("foo.localdomain"));
+  EXPECT_FALSE(net::IsLocalhost("localhost6x"));
+  EXPECT_FALSE(net::IsLocalhost("localhost.localdomain6"));
+  EXPECT_FALSE(net::IsLocalhost("localhost6.localdomain"));
+  EXPECT_FALSE(net::IsLocalhost("127.0.0.1.1"));
+  EXPECT_FALSE(net::IsLocalhost(".127.0.0.255"));
+  EXPECT_FALSE(net::IsLocalhost("::2"));
+  EXPECT_FALSE(net::IsLocalhost("::1:1"));
+  EXPECT_FALSE(net::IsLocalhost("0:0:0:0:1:0:0:1"));
+  EXPECT_FALSE(net::IsLocalhost("::1:1"));
+  EXPECT_FALSE(net::IsLocalhost("0:0:0:0:0:0:0:0:1"));
+}
+
 // Verify GetNetworkList().
 TEST(NetUtilTest, GetNetworkList) {
   NetworkInterfaceList list;

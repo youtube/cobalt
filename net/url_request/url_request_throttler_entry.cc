@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,27 +10,54 @@
 #include "base/rand_util.h"
 #include "base/string_number_conversions.h"
 #include "net/url_request/url_request_throttler_header_interface.h"
+#include "net/url_request/url_request_throttler_manager.h"
 
 namespace net {
 
 const int URLRequestThrottlerEntry::kDefaultSlidingWindowPeriodMs = 2000;
 const int URLRequestThrottlerEntry::kDefaultMaxSendThreshold = 20;
+
+// This set of back-off parameters will (at maximum values, i.e. without
+// the reduction caused by jitter) add 0-41% (distributed uniformly
+// in that range) to the "perceived downtime" of the remote server, once
+// exponential back-off kicks in and is throttling requests for more than
+// about a second at a time.  Once the maximum back-off is reached, the added
+// perceived downtime decreases rapidly, percentage-wise.
+//
+// Another way to put it is that the maximum additional perceived downtime
+// with these numbers is a couple of seconds shy of 15 minutes, and such
+// a delay would not occur until the remote server has been actually
+// unavailable at the end of each back-off period for a total of about
+// 48 minutes.
+//
+// Ignoring the first 4 errors helps avoid back-off from kicking in on
+// flaky connections.
+const int URLRequestThrottlerEntry::kDefaultNumErrorsToIgnore = 4;
 const int URLRequestThrottlerEntry::kDefaultInitialBackoffMs = 700;
 const double URLRequestThrottlerEntry::kDefaultMultiplyFactor = 1.4;
 const double URLRequestThrottlerEntry::kDefaultJitterFactor = 0.4;
-const int URLRequestThrottlerEntry::kDefaultMaximumBackoffMs = 60 * 60 * 1000;
-const int URLRequestThrottlerEntry::kDefaultEntryLifetimeMs = 120000;
+const int URLRequestThrottlerEntry::kDefaultMaximumBackoffMs = 15 * 60 * 1000;
+const int URLRequestThrottlerEntry::kDefaultEntryLifetimeMs = 2 * 60 * 1000;
 const char URLRequestThrottlerEntry::kRetryHeaderName[] = "X-Retry-After";
+const char URLRequestThrottlerEntry::kExponentialThrottlingHeader[] =
+    "X-Chrome-Exponential-Throttling";
+const char URLRequestThrottlerEntry::kExponentialThrottlingDisableValue[] =
+    "disable";
 
-URLRequestThrottlerEntry::URLRequestThrottlerEntry()
+URLRequestThrottlerEntry::URLRequestThrottlerEntry(
+    URLRequestThrottlerManager* manager)
     : sliding_window_period_(
           base::TimeDelta::FromMilliseconds(kDefaultSlidingWindowPeriodMs)),
       max_send_threshold_(kDefaultMaxSendThreshold),
-      backoff_entry_(&backoff_policy_) {
+      is_backoff_disabled_(false),
+      backoff_entry_(&backoff_policy_),
+      manager_(manager) {
+  DCHECK(manager_);
   Initialize();
 }
 
 URLRequestThrottlerEntry::URLRequestThrottlerEntry(
+    URLRequestThrottlerManager* manager,
     int sliding_window_period_ms,
     int max_send_threshold,
     int initial_backoff_ms,
@@ -40,7 +67,9 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
     : sliding_window_period_(
           base::TimeDelta::FromMilliseconds(sliding_window_period_ms)),
       max_send_threshold_(max_send_threshold),
-      backoff_entry_(&backoff_policy_) {
+      is_backoff_disabled_(false),
+      backoff_entry_(&backoff_policy_),
+      manager_(manager) {
   DCHECK_GT(sliding_window_period_ms, 0);
   DCHECK_GT(max_send_threshold_, 0);
   DCHECK_GE(initial_backoff_ms, 0);
@@ -48,6 +77,7 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
   DCHECK_GE(jitter_factor, 0.0);
   DCHECK_LT(jitter_factor, 1.0);
   DCHECK_GE(maximum_backoff_ms, 0);
+  DCHECK(manager_);
 
   Initialize();
   backoff_policy_.initial_backoff_ms = initial_backoff_ms;
@@ -55,6 +85,7 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
   backoff_policy_.jitter_factor = jitter_factor;
   backoff_policy_.maximum_backoff_ms = maximum_backoff_ms;
   backoff_policy_.entry_lifetime_ms = -1;
+  backoff_policy_.num_errors_to_ignore = 0;
 }
 
 bool URLRequestThrottlerEntry::IsEntryOutdated() const {
@@ -82,7 +113,18 @@ bool URLRequestThrottlerEntry::IsEntryOutdated() const {
   return GetBackoffEntry()->CanDiscard();
 }
 
+void URLRequestThrottlerEntry::DisableBackoffThrottling() {
+  is_backoff_disabled_ = true;
+}
+
+void URLRequestThrottlerEntry::DetachManager() {
+  manager_ = NULL;
+}
+
 bool URLRequestThrottlerEntry::IsDuringExponentialBackoff() const {
+  if (is_backoff_disabled_)
+    return false;
+
   return GetBackoffEntry()->ShouldRejectRequest();
 }
 
@@ -123,10 +165,19 @@ int64 URLRequestThrottlerEntry::ReserveSendingTimeForNextRequest(
 
 base::TimeTicks
     URLRequestThrottlerEntry::GetExponentialBackoffReleaseTime() const {
+  // If a site opts out, it's likely because they have problems that trigger
+  // the back-off mechanism when it shouldn't be triggered, in which case
+  // returning the calculated back-off release time would probably be the
+  // wrong thing to do (i.e. it would likely be too long).  Therefore, we
+  // return "now" so that retries are not delayed.
+  if (is_backoff_disabled_)
+    return GetTimeNow();
+
   return GetBackoffEntry()->GetReleaseTime();
 }
 
 void URLRequestThrottlerEntry::UpdateWithResponse(
+    const std::string& host,
     const URLRequestThrottlerHeaderInterface* response) {
   if (response->GetResponseCode() >= 500) {
     GetBackoffEntry()->InformOfRequest(false);
@@ -136,6 +187,11 @@ void URLRequestThrottlerEntry::UpdateWithResponse(
     std::string retry_header = response->GetNormalizedValue(kRetryHeaderName);
     if (!retry_header.empty())
       HandleCustomRetryAfter(retry_header);
+
+    std::string throttling_header = response->GetNormalizedValue(
+        kExponentialThrottlingHeader);
+    if (!throttling_header.empty())
+      HandleThrottlingHeader(throttling_header, host);
   }
 }
 
@@ -154,7 +210,7 @@ URLRequestThrottlerEntry::~URLRequestThrottlerEntry() {
 
 void URLRequestThrottlerEntry::Initialize() {
   sliding_window_release_time_ = base::TimeTicks::Now();
-  backoff_policy_.num_errors_to_ignore = 0;
+  backoff_policy_.num_errors_to_ignore = kDefaultNumErrorsToIgnore;
   backoff_policy_.initial_backoff_ms = kDefaultInitialBackoffMs;
   backoff_policy_.multiply_factor = kDefaultMultiplyFactor;
   backoff_policy_.jitter_factor = kDefaultJitterFactor;
@@ -186,6 +242,18 @@ void URLRequestThrottlerEntry::HandleCustomRetryAfter(
 
   GetBackoffEntry()->SetCustomReleaseTime(
       GetTimeNow() + base::TimeDelta::FromMilliseconds(value_ms));
+}
+
+void URLRequestThrottlerEntry::HandleThrottlingHeader(
+    const std::string& header_value,
+    const std::string& host) {
+  if (header_value == kExponentialThrottlingDisableValue) {
+    DisableBackoffThrottling();
+    if (manager_)
+      manager_->AddToOptOutList(host);
+  } else {
+    // TODO(joi): Log this.
+  }
 }
 
 const BackoffEntry* URLRequestThrottlerEntry::GetBackoffEntry() const {

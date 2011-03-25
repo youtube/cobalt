@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "net/base/net_util.h"
 
 namespace net {
 
@@ -28,10 +29,35 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
 
   // Find the entry in the map or create it.
   scoped_refptr<URLRequestThrottlerEntry>& entry = url_entries_[url_id];
-  if (entry.get() == NULL)
-    entry = new URLRequestThrottlerEntry();
+  if (entry.get() == NULL) {
+    entry = new URLRequestThrottlerEntry(this);
+
+    // We only disable back-off throttling on an entry that we have
+    // just constructed.  This is to allow unit tests to explicitly override
+    // the entry for localhost URLs.  Given that we do not attempt to
+    // disable throttling for entries already handed out (see comment
+    // in AddToOptOutList), this is not a problem.
+    std::string host = url.host();
+    if (opt_out_hosts_.find(host) != opt_out_hosts_.end() ||
+        IsLocalhost(host)) {
+      // TODO(joi): Once sliding window is separate from back-off throttling,
+      // we can simply return a dummy implementation of
+      // URLRequestThrottlerEntryInterface here that never blocks anything (and
+      // not keep entries in url_entries_ for opted-out sites).
+      entry->DisableBackoffThrottling();
+    }
+  }
 
   return entry;
+}
+
+void URLRequestThrottlerManager::AddToOptOutList(const std::string& host) {
+  // There is an edge case here that we are not handling, to keep things
+  // simple.  If a host starts adding the opt-out header to its responses
+  // after there are already one or more entries in url_entries_ for that
+  // host, the pre-existing entries may still perform back-off throttling.
+  // In practice, this would almost never occur.
+  opt_out_hosts_.insert(host);
 }
 
 void URLRequestThrottlerManager::OverrideEntryForTests(
@@ -87,6 +113,18 @@ URLRequestThrottlerManager::URLRequestThrottlerManager()
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
   // Destruction is on main thread (AtExit), but real use is on I/O thread.
   DetachFromThread();
+
+  // Since, for now, the manager object might conceivably go away before
+  // the entries, detach the entries' back-pointer to the manager.
+  //
+  // TODO(joi): Revisit whether to make entries non-refcounted.
+  UrlEntryMap::iterator i = url_entries_.begin();
+  while (i != url_entries_.end()) {
+    if (i->second != NULL) {
+      i->second->DetachManager();
+    }
+    ++i;
+  }
 
   // Delete all entries.
   url_entries_.clear();
