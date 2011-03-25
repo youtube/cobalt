@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,7 +30,7 @@ LOAD_FLAG(ONLY_FROM_CACHE, 1 << 3)
 LOAD_FLAG(DISABLE_CACHE, 1 << 4)
 
 // This is a navigation that will not be intercepted by any registered
-// net::URLRequest::Interceptors.
+// URLRequest::Interceptors.
 LOAD_FLAG(DISABLE_INTERCEPT, 1 << 5)
 
 // If present, upload progress messages should be provided to initiator.

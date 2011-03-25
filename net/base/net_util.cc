@@ -764,7 +764,7 @@ std::wstring FormatUrlInternal(const GURL& url,
 // Helper for FormatUrl()/FormatUrlInternal().
 std::wstring FormatViewSourceUrl(const GURL& url,
                                  const std::wstring& languages,
-                                 net::FormatUrlTypes format_types,
+                                 FormatUrlTypes format_types,
                                  UnescapeRule::Type unescape_rules,
                                  url_parse::Parsed* new_parsed,
                                  size_t* prefix_end,
@@ -1645,7 +1645,7 @@ void GetIdentityFromURL(const GURL& url,
 }
 
 std::string GetHostOrSpecFromURL(const GURL& url) {
-  return url.has_host() ? net::TrimEndingDot(url.host()) : url.spec();
+  return url.has_host() ? TrimEndingDot(url.host()) : url.spec();
 }
 
 void AppendFormattedHost(const GURL& url,
@@ -1675,7 +1675,7 @@ void AppendFormattedHost(const GURL& url,
     DCHECK(host.begin >= 0 &&
            ((spec.length() == 0 && host.begin == 0) ||
             host.begin < static_cast<int>(spec.length())));
-    output->append(net::IDNToUnicode(&spec[host.begin],
+    output->append(IDNToUnicode(&spec[host.begin],
                    static_cast<size_t>(host.len), languages, offset_into_host));
 
     int new_host_len = static_cast<int>(output->length()) - new_host_begin;

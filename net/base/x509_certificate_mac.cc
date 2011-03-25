@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,7 +46,7 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSecAuthFailed:
       return ERR_ACCESS_DENIED;
     default:
-      LOG(ERROR) << "Unknown error " << status << " mapped to net::ERR_FAILED";
+      LOG(ERROR) << "Unknown error " << status << " mapped to ERR_FAILED";
       return ERR_FAILED;
   }
 }

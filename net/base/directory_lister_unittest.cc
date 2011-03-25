@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,15 +12,13 @@
 #include "net/base/net_errors.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
-class DirectoryListerTest : public testing::Test {};
-}
+namespace net {
 
-class ListerDelegate : public net::DirectoryLister::DirectoryListerDelegate {
+class ListerDelegate : public DirectoryLister::DirectoryListerDelegate {
  public:
   explicit ListerDelegate(bool recursive) : error_(-1), recursive_(recursive) {
   }
-  void OnListFile(const net::DirectoryLister::DirectoryListerData& data) {
+  void OnListFile(const DirectoryLister::DirectoryListerData& data) {
     file_list_.push_back(data.info);
     paths_.push_back(data.path);
   }
@@ -77,14 +75,14 @@ TEST(DirectoryListerTest, BigDirTest) {
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
 
   ListerDelegate delegate(false);
-  scoped_refptr<net::DirectoryLister> lister(
-      new net::DirectoryLister(path, &delegate));
+  scoped_refptr<DirectoryLister> lister(
+      new DirectoryLister(path, &delegate));
 
   lister->Start();
 
   MessageLoop::current()->Run();
 
-  EXPECT_EQ(delegate.error(), net::OK);
+  EXPECT_EQ(delegate.error(), OK);
 }
 
 TEST(DirectoryListerTest, BigDirRecursiveTest) {
@@ -92,17 +90,14 @@ TEST(DirectoryListerTest, BigDirRecursiveTest) {
   ASSERT_TRUE(PathService::Get(base::DIR_EXE, &path));
 
   ListerDelegate delegate(true);
-  scoped_refptr<net::DirectoryLister> lister(
-      new net::DirectoryLister(path,
-                               true,
-                               net::DirectoryLister::FULL_PATH,
-                               &delegate));
+  scoped_refptr<DirectoryLister> lister(
+      new DirectoryLister(path, true, DirectoryLister::FULL_PATH, &delegate));
 
   lister->Start();
 
   MessageLoop::current()->Run();
 
-  EXPECT_EQ(delegate.error(), net::OK);
+  EXPECT_EQ(delegate.error(), OK);
 }
 
 TEST(DirectoryListerTest, CancelTest) {
@@ -110,13 +105,15 @@ TEST(DirectoryListerTest, CancelTest) {
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
 
   ListerDelegate delegate(false);
-  scoped_refptr<net::DirectoryLister> lister(
-      new net::DirectoryLister(path, &delegate));
+  scoped_refptr<DirectoryLister> lister(
+      new DirectoryLister(path, &delegate));
 
   lister->Start();
   lister->Cancel();
 
   MessageLoop::current()->Run();
 
-  EXPECT_EQ(delegate.error(), net::ERR_ABORTED);
+  EXPECT_EQ(delegate.error(), ERR_ABORTED);
 }
+
+}  // namespace net

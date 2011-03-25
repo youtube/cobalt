@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -271,7 +271,7 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
   int err = host_resolver->Resolve(info, &addrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, err);
 
-  net::CapturingNetLog::EntryList entries;
+  CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(2u, entries.size());
@@ -307,7 +307,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
                                    log.bound());
   EXPECT_EQ(ERR_IO_PENDING, err);
 
-  net::CapturingNetLog::EntryList entries;
+  CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(1u, entries.size());
@@ -364,7 +364,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
 
   resolver_proc->Signal();
 
-  net::CapturingNetLog::EntryList entries;
+  CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(2u, entries.size());
@@ -373,30 +373,30 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   EXPECT_TRUE(LogContainsEndEvent(
       entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
-  net::CapturingNetLog::EntryList net_log_entries;
+  CapturingNetLog::EntryList net_log_entries;
   net_log.GetEntries(&net_log_entries);
 
-  int pos = net::ExpectLogContainsSomewhereAfter(net_log_entries, 0,
-      net::NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
-      net::NetLog::PHASE_BEGIN);
-  pos = net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
-      net::NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
-      net::NetLog::PHASE_BEGIN);
+  int pos = ExpectLogContainsSomewhereAfter(net_log_entries, 0,
+      NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
+      NetLog::PHASE_BEGIN);
+  pos = ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
+      NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
+      NetLog::PHASE_BEGIN);
   // Both Job and Request need to be cancelled.
-  pos = net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
-      net::NetLog::TYPE_CANCELLED,
-      net::NetLog::PHASE_NONE);
+  pos = ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
+      NetLog::TYPE_CANCELLED,
+      NetLog::PHASE_NONE);
   // Don't care about order in which they end, or when the other one is
   // cancelled.
-  net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
-      net::NetLog::TYPE_CANCELLED,
-      net::NetLog::PHASE_NONE);
-  net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
-      net::NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
-      net::NetLog::PHASE_END);
-  net::ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
-      net::NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
-      net::NetLog::PHASE_END);
+  ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
+      NetLog::TYPE_CANCELLED,
+      NetLog::PHASE_NONE);
+  ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
+      NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
+      NetLog::PHASE_END);
+  ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
+      NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
+      NetLog::PHASE_END);
 
   EXPECT_FALSE(callback_called_);
 }
@@ -957,7 +957,7 @@ TEST_F(HostResolverImplTest, Observers) {
   int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, rv);
 
-  net::CapturingNetLog::EntryList entries;
+  CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(2u, entries.size());

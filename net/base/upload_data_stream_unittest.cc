@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -98,9 +98,9 @@ void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
   scoped_ptr<UploadDataStream> stream(
       UploadDataStream::Create(upload_data_, &error_code));
   if (error_expected)
-    ASSERT_TRUE(!stream.get() && error_code == net::ERR_UPLOAD_FILE_CHANGED);
+    ASSERT_TRUE(!stream.get() && error_code == ERR_UPLOAD_FILE_CHANGED);
   else
-    ASSERT_TRUE(stream.get() && error_code == net::OK);
+    ASSERT_TRUE(stream.get() && error_code == OK);
 }
 
 TEST_F(UploadDataStreamTest, FileChanged) {
