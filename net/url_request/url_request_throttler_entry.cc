@@ -58,6 +58,20 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
 }
 
 bool URLRequestThrottlerEntry::IsEntryOutdated() const {
+  // This function is called by the URLRequestThrottlerManager to determine
+  // whether entries should be discarded from its url_entries_ map.  We
+  // want to ensure that it does not remove entries from the map while there
+  // are clients (objects other than the manager) holding references to
+  // the entry, otherwise separate clients could end up holding separate
+  // entries for a request to the same URL, which is undesirable.  Therefore,
+  // if an entry has more than one reference (the map will always hold one),
+  // it should not be considered outdated.
+  //
+  // TODO(joi): Once the manager is not a Singleton, revisit whether
+  // refcounting is needed at all.
+  if (!HasOneRef())
+    return false;
+
   // If there are send events in the sliding window period, we still need this
   // entry.
   if (!send_log_.empty() &&
