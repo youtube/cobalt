@@ -33,7 +33,7 @@ class MockBackoffEntry : public BackoffEntry {
     return fake_now_;
   }
 
-  void SetFakeNow(TimeTicks now) {
+  void SetFakeNow(const TimeTicks& now) {
     fake_now_ = now;
   }
 
