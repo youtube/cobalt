@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,7 @@ URLRequestThrottlerManager* URLRequestThrottlerManager::GetInstance() {
 
 scoped_refptr<URLRequestThrottlerEntryInterface>
     URLRequestThrottlerManager::RegisterRequestUrl(const GURL &url) {
-  DCHECK(being_tested_ || CalledOnValidThread());
+  DCHECK(!enable_thread_checks_ || CalledOnValidThread());
 
   // Normalize the url.
   std::string url_id = GetIdFromUrl(url);
@@ -52,15 +52,27 @@ void URLRequestThrottlerManager::EraseEntryForTests(const GURL& url) {
   url_entries_.erase(url_id);
 }
 
-void URLRequestThrottlerManager::InitializeOptions(bool enforce_throttling) {
-  enforce_throttling_ = enforce_throttling;
-  being_tested_ = false;
+void URLRequestThrottlerManager::set_enable_thread_checks(bool enable) {
+  enable_thread_checks_ = enable;
 }
 
+bool URLRequestThrottlerManager::enable_thread_checks() const {
+  return enable_thread_checks_;
+}
+
+void URLRequestThrottlerManager::set_enforce_throttling(bool enforce) {
+  enforce_throttling_ = enforce;
+}
+
+bool URLRequestThrottlerManager::enforce_throttling() {
+  return enforce_throttling_;
+}
+
+// TODO(joi): Turn throttling on by default when appropriate.
 URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
-      enforce_throttling_(true),
-      being_tested_(true) {
+      enforce_throttling_(false),
+      enable_thread_checks_(false) {
   // Construction/destruction is on main thread (because BrowserMain
   // retrieves an instance to call InitializeOptions), but is from then on
   // used on I/O thread.

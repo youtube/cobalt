@@ -317,8 +317,14 @@ void URLRequestHttpJob::StartTransaction() {
     rv = request_->context()->http_transaction_factory()->CreateTransaction(
         &transaction_);
     if (rv == OK) {
-      rv = transaction_->Start(
-          &request_info_, &start_callback_, request_->net_log());
+      if (!URLRequestThrottlerManager::GetInstance()->enforce_throttling() ||
+          !throttling_entry_->IsDuringExponentialBackoff()) {
+        rv = transaction_->Start(
+            &request_info_, &start_callback_, request_->net_log());
+      } else {
+        // Special error code for the exponential back-off module.
+        rv = ERR_TEMPORARILY_THROTTLED;
+      }
       // Make sure the context is alive for the duration of the
       // transaction.
       context_ = request_->context();

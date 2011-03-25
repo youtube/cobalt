@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,9 +53,15 @@ class URLRequestThrottlerManager : public base::NonThreadSafe {
   // It is only used by unit tests.
   void EraseEntryForTests(const GURL& url);
 
-  void InitializeOptions(bool enforce_throttling);
+  // Turns threading model verification on or off.  Any code that correctly
+  // uses the network stack should preferably call this function to enable
+  // verification of correct adherence to the network stack threading model.
+  void set_enable_thread_checks(bool enable);
+  bool enable_thread_checks() const;
 
-  bool enforce_throttling() const { return enforce_throttling_; }
+  // Whether throttling is enabled or not.
+  void set_enforce_throttling(bool enforce);
+  bool enforce_throttling();
 
  protected:
   URLRequestThrottlerManager();
@@ -113,7 +119,7 @@ class URLRequestThrottlerManager : public base::NonThreadSafe {
   //
   // TODO(joi): See if we can fix the offending unit tests and remove this
   // workaround.
-  bool being_tested_;
+  bool enable_thread_checks_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerManager);
 };
