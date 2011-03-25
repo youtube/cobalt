@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/file_version_info.h"
 #include "base/scoped_ptr.h"
@@ -15,7 +16,7 @@
 struct tagVS_FIXEDFILEINFO;
 typedef tagVS_FIXEDFILEINFO VS_FIXEDFILEINFO;
 
-class FileVersionInfoWin : public FileVersionInfo {
+class BASE_API FileVersionInfoWin : public FileVersionInfo {
  public:
   FileVersionInfoWin(void* data, int language, int code_page);
   ~FileVersionInfoWin();

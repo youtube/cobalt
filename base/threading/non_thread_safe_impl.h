@@ -6,6 +6,7 @@
 #define BASE_THREADING_NON_THREAD_SAFE_IMPL_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/threading/thread_checker_impl.h"
 
 namespace base {
@@ -16,7 +17,7 @@ namespace base {
 //
 // Note: You should almost always use the NonThreadSafe class to get
 // the right version of the class for your build configuration.
-class NonThreadSafeImpl {
+class BASE_API NonThreadSafeImpl {
  public:
   ~NonThreadSafeImpl();
 
