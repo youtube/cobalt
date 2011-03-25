@@ -43,6 +43,7 @@ class URLRequestThrottlerEntryInterface
 
   // This method needs to be called each time a response is received.
   virtual void UpdateWithResponse(
+      const std::string& host,
       const URLRequestThrottlerHeaderInterface* response) = 0;
 
   // Lets higher-level modules, that know how to parse particular response

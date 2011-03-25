@@ -427,6 +427,14 @@ const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
 int GetPortFromSockaddr(const struct sockaddr* address,
                         socklen_t address_len);
 
+// Returns true if |host| is one of the names (e.g. "localhost") or IP
+// addresses (IPv4 127.0.0.0/8 or IPv6 ::1) that indicate a loopback.
+//
+// Note that this function does not check for IP addresses other than
+// the above, although other IP addresses may point to the local
+// machine.
+bool IsLocalhost(const std::string& host);
+
 // struct that is used by GetNetworkList() to represent a network
 // interface.
 struct NetworkInterface {
