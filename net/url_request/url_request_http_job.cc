@@ -248,7 +248,8 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   if (!is_cached_content_) {
     URLRequestThrottlerHeaderAdapter response_adapter(
         response_info_->headers);
-    throttling_entry_->UpdateWithResponse(&response_adapter);
+    throttling_entry_->UpdateWithResponse(request_info_.url.host(),
+                                          &response_adapter);
   }
 
   ProcessStrictTransportSecurityHeader();

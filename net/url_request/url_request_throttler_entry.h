@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,8 @@
 #include "net/url_request/url_request_throttler_entry_interface.h"
 
 namespace net {
+
+class URLRequestThrottlerManager;
 
 // URLRequestThrottlerEntry represents an entry of URLRequestThrottlerManager.
 // It analyzes requests of a specific URL over some period of time, in order to
@@ -34,6 +36,9 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   // Maximum number of requests allowed in sliding window period.
   static const int kDefaultMaxSendThreshold;
 
+  // Number of initial errors to ignore before starting exponential back-off.
+  static const int kDefaultNumErrorsToIgnore;
+
   // Initial delay for exponential back-off.
   static const int kDefaultInitialBackoffMs;
 
@@ -50,16 +55,26 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   // Time after which the entry is considered outdated.
   static const int kDefaultEntryLifetimeMs;
 
-  // Name of the header that servers can use to ask clients to delay their next
-  // request.
+  // Name of the header that servers can use to ask clients to delay their
+  // next request.
   static const char kRetryHeaderName[];
 
-  URLRequestThrottlerEntry();
+  // Name of the header that sites can use to opt out of exponential back-off
+  // throttling.
+  static const char kExponentialThrottlingHeader[];
+
+  // Value for exponential throttling header that can be used to opt out of
+  // exponential back-off throttling.
+  static const char kExponentialThrottlingDisableValue[];
+
+  // The manager object's lifetime must enclose the lifetime of this object.
+  explicit URLRequestThrottlerEntry(URLRequestThrottlerManager* manager);
 
   // The life span of instances created with this constructor is set to
-  // infinite.
+  // infinite, and the number of initial errors to ignore is set to 0.
   // It is only used by unit tests.
-  URLRequestThrottlerEntry(int sliding_window_period_ms,
+  URLRequestThrottlerEntry(URLRequestThrottlerManager* manager,
+                           int sliding_window_period_ms,
                            int max_send_threshold,
                            int initial_backoff_ms,
                            double multiply_factor,
@@ -70,12 +85,19 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   // collected.
   bool IsEntryOutdated() const;
 
+  // Causes this entry to never reject requests due to back-off.
+  void DisableBackoffThrottling();
+
+  // Causes this entry to NULL its manager pointer.
+  void DetachManager();
+
   // Implementation of URLRequestThrottlerEntryInterface.
   virtual bool IsDuringExponentialBackoff() const;
   virtual int64 ReserveSendingTimeForNextRequest(
       const base::TimeTicks& earliest_time);
   virtual base::TimeTicks GetExponentialBackoffReleaseTime() const;
   virtual void UpdateWithResponse(
+      const std::string& host,
       const URLRequestThrottlerHeaderInterface* response);
   virtual void ReceivedContentWasMalformed();
 
@@ -90,7 +112,11 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   // Used internally to increase release time following a retry-after header.
   void HandleCustomRetryAfter(const std::string& header_value);
 
-  // Retrieves the backoff entry object we're using. Used to enable a
+  // Used internally to handle the opt-out header.
+  void HandleThrottlingHeader(const std::string& header_value,
+                              const std::string& host);
+
+  // Retrieves the back-off entry object we're using. Used to enable a
   // unit testing seam for dependency injection in tests.
   virtual const BackoffEntry* GetBackoffEntry() const;
   virtual BackoffEntry* GetBackoffEntry();
@@ -121,8 +147,14 @@ class URLRequestThrottlerEntry : public URLRequestThrottlerEntryInterface {
   const base::TimeDelta sliding_window_period_;
   const int max_send_threshold_;
 
+  // True if DisableBackoffThrottling() has been called on this object.
+  bool is_backoff_disabled_;
+
   // Access it through GetBackoffEntry() to allow a unit test seam.
   BackoffEntry backoff_entry_;
+
+  // Weak back-reference to the manager object managing us.
+  URLRequestThrottlerManager* manager_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestThrottlerEntry);
 };

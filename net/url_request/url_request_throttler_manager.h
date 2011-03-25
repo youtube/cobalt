@@ -7,6 +7,7 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <string>
 
 #include "base/basictypes.h"
@@ -41,6 +42,11 @@ class URLRequestThrottlerManager : public base::NonThreadSafe {
   // informations.
   scoped_refptr<URLRequestThrottlerEntryInterface> RegisterRequestUrl(
       const GURL& url);
+
+  // Adds the given host to a list of sites for which exponential back-off
+  // throttling will be disabled.  Subdomains are not included, so they
+  // must be added separately.
+  void AddToOptOutList(const std::string& host);
 
   // Registers a new entry in this service and overrides the existing entry (if
   // any) for the URL. The service will hold a reference to the entry.
@@ -93,6 +99,10 @@ class URLRequestThrottlerManager : public base::NonThreadSafe {
   typedef std::map<std::string, scoped_refptr<URLRequestThrottlerEntry> >
       UrlEntryMap;
 
+  // We maintain a set of hosts that have opted out of exponential
+  // back-off throttling.
+  typedef std::set<std::string> OptOutHosts;
+
   // Maximum number of entries that we are willing to collect in our map.
   static const unsigned int kMaximumNumberOfEntries;
   // Number of requests that will be made between garbage collection.
@@ -101,6 +111,9 @@ class URLRequestThrottlerManager : public base::NonThreadSafe {
   // Map that contains a list of URL ID and their matching
   // URLRequestThrottlerEntry.
   UrlEntryMap url_entries_;
+
+  // Set of hosts that have opted out.
+  OptOutHosts opt_out_hosts_;
 
   // This keeps track of how many requests have been made. Used with
   // GarbageCollectEntries.
