@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -96,7 +96,7 @@ void DirectoryLister::ThreadMain() {
   DirectoryDataEvent* e = new DirectoryDataEvent(this);
 
   if (!file_util::DirectoryExists(dir_)) {
-    e->error = net::ERR_FILE_NOT_FOUND;
+    e->error = ERR_FILE_NOT_FOUND;
     message_loop_->PostTask(FROM_HERE, e);
     Release();
     return;
@@ -230,7 +230,7 @@ void DirectoryLister::OnDone(int error) {
   // If canceled is set, we need to report some kind of error,
   // but don't overwrite the error condition if it is already set.
   if (!error && canceled_.IsSet())
-    error = net::ERR_ABORTED;
+    error = ERR_ABORTED;
 
   if (delegate_)
     delegate_->OnListDone(error);

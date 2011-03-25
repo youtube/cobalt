@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -230,7 +230,7 @@ class SingleRequestHostResolver {
   CompletionCallback* cur_request_callback_;
 
   // Completion callback for when request to |resolver_| completes.
-  net::CompletionCallbackImpl<SingleRequestHostResolver> callback_;
+  CompletionCallbackImpl<SingleRequestHostResolver> callback_;
 
   DISALLOW_COPY_AND_ASSIGN(SingleRequestHostResolver);
 };

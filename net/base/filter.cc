@@ -200,7 +200,7 @@ void Filter::FixupEncodingTypes(
       // download it, and in that case, don't decompress .gz/.tgz files.
       if ((EndsWith(extension, FILE_PATH_LITERAL(".gz"), false) ||
            LowerCaseEqualsASCII(extension, ".tgz")) &&
-          !net::IsSupportedMimeType(mime_type))
+          !IsSupportedMimeType(mime_type))
         encoding_types->clear();
     }
   }
@@ -210,13 +210,13 @@ void Filter::FixupEncodingTypes(
     // It was not an SDCH request, so we'll just record stats.
     if (1 < encoding_types->size()) {
       // Multiple filters were intended to only be used for SDCH (thus far!)
-      net::SdchManager::SdchErrorRecovery(
-          net::SdchManager::MULTIENCODING_FOR_NON_SDCH_REQUEST);
+      SdchManager::SdchErrorRecovery(
+          SdchManager::MULTIENCODING_FOR_NON_SDCH_REQUEST);
     }
     if ((1 == encoding_types->size()) &&
         (FILTER_TYPE_SDCH == encoding_types->front())) {
-        net::SdchManager::SdchErrorRecovery(
-            net::SdchManager::SDCH_CONTENT_ENCODE_FOR_NON_SDCH_REQUEST);
+        SdchManager::SdchErrorRecovery(
+            SdchManager::SDCH_CONTENT_ENCODE_FOR_NON_SDCH_REQUEST);
     }
     return;
   }
@@ -236,8 +236,8 @@ void Filter::FixupEncodingTypes(
     // no-op pass through filter if it doesn't get gzip headers where expected.
     if (1 == encoding_types->size()) {
       encoding_types->push_back(FILTER_TYPE_GZIP_HELPING_SDCH);
-      net::SdchManager::SdchErrorRecovery(
-          net::SdchManager::OPTIONAL_GUNZIP_ENCODING_ADDED);
+      SdchManager::SdchErrorRecovery(
+          SdchManager::OPTIONAL_GUNZIP_ENCODING_ADDED);
     }
     return;
   }
@@ -271,14 +271,14 @@ void Filter::FixupEncodingTypes(
     // Suspicious case: Advertised dictionary, but server didn't use sdch, and
     // we're HTML tagged.
     if (encoding_types->empty()) {
-      net::SdchManager::SdchErrorRecovery(
-          net::SdchManager::ADDED_CONTENT_ENCODING);
+      SdchManager::SdchErrorRecovery(
+          SdchManager::ADDED_CONTENT_ENCODING);
     } else if (1 == encoding_types->size()) {
-      net::SdchManager::SdchErrorRecovery(
-          net::SdchManager::FIXED_CONTENT_ENCODING);
+      SdchManager::SdchErrorRecovery(
+          SdchManager::FIXED_CONTENT_ENCODING);
     } else {
-      net::SdchManager::SdchErrorRecovery(
-          net::SdchManager::FIXED_CONTENT_ENCODINGS);
+      SdchManager::SdchErrorRecovery(
+          SdchManager::FIXED_CONTENT_ENCODINGS);
     }
   } else {
     // Remarkable case!?!  We advertised an SDCH dictionary, content-encoding
@@ -290,14 +290,14 @@ void Filter::FixupEncodingTypes(
     // start with "text/html" for some other reason??  We'll report this as a
     // fixup to a binary file, but it probably really is text/html (some how).
     if (encoding_types->empty()) {
-      net::SdchManager::SdchErrorRecovery(
-          net::SdchManager::BINARY_ADDED_CONTENT_ENCODING);
+      SdchManager::SdchErrorRecovery(
+          SdchManager::BINARY_ADDED_CONTENT_ENCODING);
     } else if (1 == encoding_types->size()) {
-      net::SdchManager::SdchErrorRecovery(
-          net::SdchManager::BINARY_FIXED_CONTENT_ENCODING);
+      SdchManager::SdchErrorRecovery(
+          SdchManager::BINARY_FIXED_CONTENT_ENCODING);
     } else {
-      net::SdchManager::SdchErrorRecovery(
-          net::SdchManager::BINARY_FIXED_CONTENT_ENCODINGS);
+      SdchManager::SdchErrorRecovery(
+          SdchManager::BINARY_FIXED_CONTENT_ENCODINGS);
     }
   }
 
@@ -392,12 +392,12 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
 void Filter::InitBuffer(int buffer_size) {
   DCHECK(!stream_buffer());
   DCHECK_GT(buffer_size, 0);
-  stream_buffer_ = new net::IOBuffer(buffer_size);
+  stream_buffer_ = new IOBuffer(buffer_size);
   stream_buffer_size_ = buffer_size;
 }
 
 void Filter::PushDataIntoNextFilter() {
-  net::IOBuffer* next_buffer = next_filter_->stream_buffer();
+  IOBuffer* next_buffer = next_filter_->stream_buffer();
   int next_size = next_filter_->stream_buffer_size();
   last_status_ = ReadFilteredData(next_buffer->data(), &next_size);
   if (FILTER_ERROR != last_status_)

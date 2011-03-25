@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,7 @@
 #include "net/base/mime_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
-  class MimeUtilTest : public testing::Test {
-  };
-}
+namespace net {
 
 TEST(MimeUtilTest, ExtensionTest) {
   const struct {
@@ -28,7 +25,7 @@ TEST(MimeUtilTest, ExtensionTest) {
   bool rv;
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    rv = net::GetMimeTypeFromExtension(tests[i].extension, &mime_type);
+    rv = GetMimeTypeFromExtension(tests[i].extension, &mime_type);
     EXPECT_EQ(tests[i].valid, rv);
     if (rv)
       EXPECT_EQ(tests[i].mime_type, mime_type);
@@ -53,7 +50,7 @@ TEST(MimeUtilTest, FileTest) {
   bool rv;
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    rv = net::GetMimeTypeFromFile(FilePath(tests[i].file_path),
+    rv = GetMimeTypeFromFile(FilePath(tests[i].file_path),
                                   &mime_type);
     EXPECT_EQ(tests[i].valid, rv);
     if (rv)
@@ -62,35 +59,35 @@ TEST(MimeUtilTest, FileTest) {
 }
 
 TEST(MimeUtilTest, LookupTypes) {
-  EXPECT_TRUE(net::IsSupportedImageMimeType("image/jpeg"));
-  EXPECT_FALSE(net::IsSupportedImageMimeType("image/lolcat"));
-  EXPECT_TRUE(net::IsSupportedNonImageMimeType("text/html"));
-  EXPECT_FALSE(net::IsSupportedNonImageMimeType("text/virus"));
+  EXPECT_TRUE(IsSupportedImageMimeType("image/jpeg"));
+  EXPECT_FALSE(IsSupportedImageMimeType("image/lolcat"));
+  EXPECT_TRUE(IsSupportedNonImageMimeType("text/html"));
+  EXPECT_FALSE(IsSupportedNonImageMimeType("text/virus"));
 
-  EXPECT_TRUE(net::IsSupportedMimeType("image/jpeg"));
-  EXPECT_FALSE(net::IsSupportedMimeType("image/lolcat"));
-  EXPECT_TRUE(net::IsSupportedMimeType("text/html"));
-  EXPECT_FALSE(net::IsSupportedMimeType("text/virus"));
+  EXPECT_TRUE(IsSupportedMimeType("image/jpeg"));
+  EXPECT_FALSE(IsSupportedMimeType("image/lolcat"));
+  EXPECT_TRUE(IsSupportedMimeType("text/html"));
+  EXPECT_FALSE(IsSupportedMimeType("text/virus"));
 }
 
 TEST(MimeUtilTest, MatchesMimeType) {
-  EXPECT_TRUE(net::MatchesMimeType("*", "video/x-mpeg"));
-  EXPECT_TRUE(net::MatchesMimeType("video/*", "video/x-mpeg"));
-  EXPECT_TRUE(net::MatchesMimeType("video/x-mpeg", "video/x-mpeg"));
-  EXPECT_TRUE(net::MatchesMimeType("application/*+xml",
+  EXPECT_TRUE(MatchesMimeType("*", "video/x-mpeg"));
+  EXPECT_TRUE(MatchesMimeType("video/*", "video/x-mpeg"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg", "video/x-mpeg"));
+  EXPECT_TRUE(MatchesMimeType("application/*+xml",
                                    "application/html+xml"));
-  EXPECT_TRUE(net::MatchesMimeType("application/*+xml", "application/+xml"));
-  EXPECT_TRUE(net::MatchesMimeType("aaa*aaa", "aaaaaa"));
-  EXPECT_FALSE(net::MatchesMimeType("video/", "video/x-mpeg"));
-  EXPECT_FALSE(net::MatchesMimeType("", "video/x-mpeg"));
-  EXPECT_FALSE(net::MatchesMimeType("", ""));
-  EXPECT_FALSE(net::MatchesMimeType("video/x-mpeg", ""));
-  EXPECT_FALSE(net::MatchesMimeType("application/*+xml", "application/xml"));
-  EXPECT_FALSE(net::MatchesMimeType("application/*+xml",
+  EXPECT_TRUE(MatchesMimeType("application/*+xml", "application/+xml"));
+  EXPECT_TRUE(MatchesMimeType("aaa*aaa", "aaaaaa"));
+  EXPECT_FALSE(MatchesMimeType("video/", "video/x-mpeg"));
+  EXPECT_FALSE(MatchesMimeType("", "video/x-mpeg"));
+  EXPECT_FALSE(MatchesMimeType("", ""));
+  EXPECT_FALSE(MatchesMimeType("video/x-mpeg", ""));
+  EXPECT_FALSE(MatchesMimeType("application/*+xml", "application/xml"));
+  EXPECT_FALSE(MatchesMimeType("application/*+xml",
                                     "application/html+xmlz"));
-  EXPECT_FALSE(net::MatchesMimeType("application/*+xml",
+  EXPECT_FALSE(MatchesMimeType("application/*+xml",
                                     "applcation/html+xml"));
-  EXPECT_FALSE(net::MatchesMimeType("aaa*aaa", "aaaaa"));
+  EXPECT_FALSE(MatchesMimeType("aaa*aaa", "aaaaa"));
 }
 
 // Note: codecs should only be a list of 2 or fewer; hence the restriction of
@@ -114,7 +111,7 @@ TEST(MimeUtilTest, ParseCodecString) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::vector<std::string> codecs_out;
-    net::ParseCodecString(tests[i].original, &codecs_out, true);
+    ParseCodecString(tests[i].original, &codecs_out, true);
     EXPECT_EQ(tests[i].expected_size, codecs_out.size());
     for (size_t j = 0; j < tests[i].expected_size; ++j) {
       EXPECT_EQ(tests[i].results[j], codecs_out[j]);
@@ -123,8 +120,10 @@ TEST(MimeUtilTest, ParseCodecString) {
 
   // Test without stripping the codec type.
   std::vector<std::string> codecs_out;
-  net::ParseCodecString("avc1.42E01E, mp4a.40.2", &codecs_out, false);
+  ParseCodecString("avc1.42E01E, mp4a.40.2", &codecs_out, false);
   EXPECT_EQ(2u, codecs_out.size());
   EXPECT_STREQ("avc1.42E01E", codecs_out[0].c_str());
   EXPECT_STREQ("mp4a.40.2", codecs_out[1].c_str());
 }
+
+}  // namespace net
