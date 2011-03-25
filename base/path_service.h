@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,18 +6,18 @@
 #define BASE_PATH_SERVICE_H_
 #pragma once
 
-#include "build/build_config.h"
-
 #include <string>
 
+#include "base/base_api.h"
 #include "base/base_paths.h"
+#include "build/build_config.h"
 
 class FilePath;
 
 // The path service is a global table mapping keys to file system paths.  It is
 // OK to use this service from multiple threads.
 //
-class PathService {
+class BASE_API PathService {
  public:
   // Retrieves a path to a special directory or file and places it into the
   // string pointed to by 'path'. If you ask for a directory it is guaranteed

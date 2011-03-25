@@ -6,15 +6,17 @@
 #define BASE_PLATFORM_FILE_H_
 #pragma once
 
-#include "base/basictypes.h"
 #include "build/build_config.h"
-#include "base/file_path.h"
-#include "base/time.h"
 #if defined(OS_WIN)
 #include <windows.h>
 #endif
 
 #include <string>
+
+#include "base/base_api.h"
+#include "base/basictypes.h"
+#include "base/file_path.h"
+#include "base/time.h"
 
 namespace base {
 
@@ -69,7 +71,7 @@ enum PlatformFileError {
 // make sure to update all functions that use it in file_util_{win|posix}.cc
 // too, and the ParamTraits<base::PlatformFileInfo> implementation in
 // chrome/common/common_param_traits.cc.
-struct PlatformFileInfo {
+struct BASE_API PlatformFileInfo {
   PlatformFileInfo();
   ~PlatformFileInfo();
 
@@ -99,38 +101,39 @@ struct PlatformFileInfo {
 // Creates or opens the given file. If PLATFORM_FILE_OPEN_ALWAYS is used, and
 // |created| is provided, |created| will be set to true if the file was created
 // or to false in case the file was just opened. |error_code| can be NULL.
-PlatformFile CreatePlatformFile(const FilePath& name,
-                                int flags,
-                                bool* created,
-                                PlatformFileError* error_code);
+BASE_API PlatformFile CreatePlatformFile(const FilePath& name,
+                                         int flags,
+                                         bool* created,
+                                         PlatformFileError* error_code);
 
 // Closes a file handle. Returns |true| on success and |false| otherwise.
-bool ClosePlatformFile(PlatformFile file);
+BASE_API bool ClosePlatformFile(PlatformFile file);
 
 // Reads the given number of bytes (or until EOF is reached) starting with the
 // given offset. Returns the number of bytes read, or -1 on error.
-int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size);
+BASE_API int ReadPlatformFile(PlatformFile file, int64 offset,
+                              char* data, int size);
 
 // Writes the given buffer into the file at the given offset, overwritting any
 // data that was previously there. Returns the number of bytes written, or -1
 // on error.
-int WritePlatformFile(PlatformFile file, int64 offset,
-                      const char* data, int size);
+BASE_API int WritePlatformFile(PlatformFile file, int64 offset,
+                               const char* data, int size);
 
 // Truncates the given file to the given length. If |length| is greater than
 // the current size of the file, the file is extended with zeros. If the file
 // doesn't exist, |false| is returned.
-bool TruncatePlatformFile(PlatformFile file, int64 length);
+BASE_API bool TruncatePlatformFile(PlatformFile file, int64 length);
 
 // Flushes the buffers of the given file.
-bool FlushPlatformFile(PlatformFile file);
+BASE_API bool FlushPlatformFile(PlatformFile file);
 
 // Touches the given file.
-bool TouchPlatformFile(PlatformFile file, const Time& last_access_time,
-                       const Time& last_modified_time);
+BASE_API bool TouchPlatformFile(PlatformFile file, const Time& last_access_time,
+                                const Time& last_modified_time);
 
 // Returns some information for the given file.
-bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info);
+BASE_API bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info);
 
 // Use this class to pass ownership of a PlatformFile to a receiver that may or
 // may not want to accept it.  This class does not own the storage for the
@@ -152,7 +155,7 @@ bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info);
 //      ClosePlatformFile(file);
 //  }
 //
-class PassPlatformFile {
+class BASE_API PassPlatformFile {
  public:
   explicit PassPlatformFile(PlatformFile* value) : value_(value) {
   }

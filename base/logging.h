@@ -10,7 +10,9 @@
 #include <cstring>
 #include <sstream>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
+#include "build/build_config.h"
 
 //
 // Optional message capabilities
@@ -190,11 +192,11 @@ typedef char PathChar;
 // Implementation of the InitLogging() method declared below.  We use a
 // more-specific name so we can #define it above without affecting other code
 // that has named stuff "InitLogging".
-bool BaseInitLoggingImpl(const PathChar* log_file,
-                         LoggingDestination logging_dest,
-                         LogLockingState lock_log,
-                         OldFileDeletionState delete_old,
-                         DcheckState dcheck_state);
+BASE_API bool BaseInitLoggingImpl(const PathChar* log_file,
+                                  LoggingDestination logging_dest,
+                                  LogLockingState lock_log,
+                                  OldFileDeletionState delete_old,
+                                  DcheckState dcheck_state);
 
 // Sets the log file name and other global logging state. Calling this function
 // is recommended, and is normally done at the beginning of application init.
@@ -221,19 +223,19 @@ inline bool InitLogging(const PathChar* log_file,
 // up to level INFO) if this function is not called.
 // Note that log messages for VLOG(x) are logged at level -x, so setting
 // the min log level to negative values enables verbose logging.
-void SetMinLogLevel(int level);
+BASE_API void SetMinLogLevel(int level);
 
 // Gets the current log level.
-int GetMinLogLevel();
+BASE_API int GetMinLogLevel();
 
 // Gets the VLOG default verbosity level.
-int GetVlogVerbosity();
+BASE_API int GetVlogVerbosity();
 
 // Gets the current vlog level for the given file (usually taken from
 // __FILE__).
 
 // Note that |N| is the size *with* the null terminator.
-int GetVlogLevelHelper(const char* file_start, size_t N);
+BASE_API int GetVlogLevelHelper(const char* file_start, size_t N);
 
 template <size_t N>
 int GetVlogLevel(const char (&file)[N]) {
@@ -244,27 +246,27 @@ int GetVlogLevel(const char (&file)[N]) {
 // process and thread IDs default to off, the timestamp defaults to on.
 // If this function is not called, logging defaults to writing the timestamp
 // only.
-void SetLogItems(bool enable_process_id, bool enable_thread_id,
-                 bool enable_timestamp, bool enable_tickcount);
+BASE_API void SetLogItems(bool enable_process_id, bool enable_thread_id,
+                          bool enable_timestamp, bool enable_tickcount);
 
 // Sets whether or not you'd like to see fatal debug messages popped up in
 // a dialog box or not.
 // Dialogs are not shown by default.
-void SetShowErrorDialogs(bool enable_dialogs);
+BASE_API void SetShowErrorDialogs(bool enable_dialogs);
 
 // Sets the Log Assert Handler that will be used to notify of check failures.
 // The default handler shows a dialog box and then terminate the process,
 // however clients can use this function to override with their own handling
 // (e.g. a silent one for Unit Tests)
 typedef void (*LogAssertHandlerFunction)(const std::string& str);
-void SetLogAssertHandler(LogAssertHandlerFunction handler);
+BASE_API void SetLogAssertHandler(LogAssertHandlerFunction handler);
 
 // Sets the Log Report Handler that will be used to notify of check failures
 // in non-debug mode. The default handler shows a dialog box and continues
 // the execution, however clients can use this function to override with their
 // own handling.
 typedef void (*LogReportHandlerFunction)(const std::string& str);
-void SetLogReportHandler(LogReportHandlerFunction handler);
+BASE_API void SetLogReportHandler(LogReportHandlerFunction handler);
 
 // Sets the Log Message Handler that gets passed every log message before
 // it's sent to other log destinations (if any).
@@ -272,8 +274,8 @@ void SetLogReportHandler(LogReportHandlerFunction handler);
 // should not be sent to other log destinations.
 typedef bool (*LogMessageHandlerFunction)(int severity,
     const char* file, int line, size_t message_start, const std::string& str);
-void SetLogMessageHandler(LogMessageHandlerFunction handler);
-LogMessageHandlerFunction GetLogMessageHandler();
+BASE_API void SetLogMessageHandler(LogMessageHandlerFunction handler);
+BASE_API LogMessageHandlerFunction GetLogMessageHandler();
 
 typedef int LogSeverity;
 const LogSeverity LOG_VERBOSE = -1;  // This is level 1 verbosity
@@ -714,7 +716,7 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 // You shouldn't actually use LogMessage's constructor to log things,
 // though.  You should use the LOG() macro (and variants thereof)
 // above.
-class LogMessage {
+class BASE_API LogMessage {
  public:
   LogMessage(const char* file, int line, LogSeverity severity, int ctr);
 
@@ -792,7 +794,7 @@ inline void LogAtLevel(int const log_level, std::string const &msg) {
 // This class is used to explicitly ignore values in the conditional
 // logging macros.  This avoids compiler warnings like "value computed
 // is not used" and "statement has no effect".
-class LogMessageVoidify {
+class BASE_API LogMessageVoidify {
  public:
   LogMessageVoidify() { }
   // This has to be an operator with a precedence lower than << but
@@ -808,11 +810,11 @@ typedef int SystemErrorCode;
 
 // Alias for ::GetLastError() on Windows and errno on POSIX. Avoids having to
 // pull in windows.h just for GetLastError() and DWORD.
-SystemErrorCode GetLastSystemErrorCode();
+BASE_API SystemErrorCode GetLastSystemErrorCode();
 
 #if defined(OS_WIN)
 // Appends a formatted system message of the GetLastError() type.
-class Win32ErrorLogMessage {
+class BASE_API Win32ErrorLogMessage {
  public:
   Win32ErrorLogMessage(const char* file,
                        int line,
@@ -864,10 +866,10 @@ class ErrnoLogMessage {
 // NOTE: Since the log file is opened as necessary by the action of logging
 //       statements, there's no guarantee that it will stay closed
 //       after this call.
-void CloseLogFile();
+BASE_API void CloseLogFile();
 
 // Async signal safe logging mechanism.
-void RawLog(int level, const char* message);
+BASE_API void RawLog(int level, const char* message);
 
 #define RAW_LOG(level, message) logging::RawLog(logging::LOG_ ## level, message)
 
@@ -885,7 +887,7 @@ void RawLog(int level, const char* message);
 // which is normally ASCII. It is relatively slow, so try not to use it for
 // common cases. Non-ASCII characters will be converted to UTF-8 by these
 // operators.
-std::ostream& operator<<(std::ostream& out, const wchar_t* wstr);
+BASE_API std::ostream& operator<<(std::ostream& out, const wchar_t* wstr);
 inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
 }
