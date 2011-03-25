@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -71,11 +71,11 @@ const char* NetLog::EventPhaseToString(EventPhase phase) {
 }
 
 // static
-Value* NetLog::EntryToDictionaryValue(net::NetLog::EventType type,
+Value* NetLog::EntryToDictionaryValue(NetLog::EventType type,
                                       const base::TimeTicks& time,
-                                      const net::NetLog::Source& source,
-                                      net::NetLog::EventPhase phase,
-                                      net::NetLog::EventParameters* params,
+                                      const NetLog::Source& source,
+                                      NetLog::EventPhase phase,
+                                      NetLog::EventParameters* params,
                                       bool use_strings) {
   DictionaryValue* entry_dict = new DictionaryValue();
 
@@ -88,7 +88,7 @@ Value* NetLog::EntryToDictionaryValue(net::NetLog::EventType type,
     source_dict->SetInteger("type", static_cast<int>(source.type));
   } else {
     source_dict->SetString("type",
-                           net::NetLog::SourceTypeToString(source.type));
+                           NetLog::SourceTypeToString(source.type));
   }
   entry_dict->Set("source", source_dict);
 
@@ -97,8 +97,8 @@ Value* NetLog::EntryToDictionaryValue(net::NetLog::EventType type,
     entry_dict->SetInteger("type", static_cast<int>(type));
     entry_dict->SetInteger("phase", static_cast<int>(phase));
   } else {
-    entry_dict->SetString("type", net::NetLog::EventTypeToString(type));
-    entry_dict->SetString("phase", net::NetLog::EventPhaseToString(phase));
+    entry_dict->SetString("type", NetLog::EventTypeToString(type));
+    entry_dict->SetString("phase", NetLog::EventPhaseToString(phase));
   }
 
   // Set the event-specific parameters.
@@ -147,7 +147,7 @@ void BoundNetLog::EndEvent(
 
 void BoundNetLog::EndEventWithNetErrorCode(NetLog::EventType event_type,
                                            int net_error) const {
-  DCHECK_NE(net_error, net::ERR_IO_PENDING);
+  DCHECK_NE(net_error, ERR_IO_PENDING);
   if (net_error >= 0) {
     EndEvent(event_type, NULL);
   } else {

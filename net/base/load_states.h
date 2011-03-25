@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@ namespace net {
 enum LoadState {
   // This is the default state.  It corresponds to a resource load that has
   // either not yet begun or is idle waiting for the consumer to do something
-  // to move things along (e.g., the consumer of an net::URLRequest may not have
+  // to move things along (e.g., the consumer of an URLRequest may not have
   // called Read yet).
   LOAD_STATE_IDLE,
 
@@ -65,7 +65,7 @@ enum LoadState {
   // read to complete.  In the case of a HTTP transaction, this corresponds to
   // the period after the response headers have been received and before all of
   // the response body has been downloaded.  (NOTE: This state only applies for
-  // an net::URLRequest while there is an outstanding Read operation.)
+  // an URLRequest while there is an outstanding Read operation.)
   LOAD_STATE_READING_RESPONSE,
 };
 
