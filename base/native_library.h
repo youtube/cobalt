@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 // This file defines a cross-platform "NativeLibrary" type which represents
 // a loadable module.
 
+#include "base/base_api.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -52,7 +53,7 @@ typedef void* NativeLibrary;
 
 // Loads a native library from disk.  Release it with UnloadNativeLibrary when
 // you're done.
-NativeLibrary LoadNativeLibrary(const FilePath& library_path);
+BASE_API NativeLibrary LoadNativeLibrary(const FilePath& library_path);
 
 #if defined(OS_WIN)
 // Loads a native library from disk.  Release it with UnloadNativeLibrary when
@@ -60,21 +61,22 @@ NativeLibrary LoadNativeLibrary(const FilePath& library_path);
 // This function retrieves the LoadLibrary function exported from kernel32.dll
 // and calls it instead of directly calling the LoadLibrary function via the
 // import table.
-NativeLibrary LoadNativeLibraryDynamically(const FilePath& library_path);
+BASE_API NativeLibrary LoadNativeLibraryDynamically(
+    const FilePath& library_path);
 #endif  // OS_WIN
 
 // Unloads a native library.
-void UnloadNativeLibrary(NativeLibrary library);
+BASE_API void UnloadNativeLibrary(NativeLibrary library);
 
 // Gets a function pointer from a native library.
-void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
-                                          const char* name);
+BASE_API void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
+                                                   const char* name);
 
 // Returns the full platform specific name for a native library.
 // For example:
 // "mylib" returns "mylib.dll" on Windows, "libmylib.so" on Linux,
 // "mylib.dylib" on Mac.
-string16 GetNativeLibraryName(const string16& name);
+BASE_API string16 GetNativeLibraryName(const string16& name);
 
 }  // namespace base
 
