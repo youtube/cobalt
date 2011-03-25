@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -76,7 +76,16 @@ def WriteJson(filename, data, keys):
   jsondata = []
   for key in keys:
     rowdata = []
-    for subkey in ['reva', 'revb', 'improve', 'regress']:
+    # Numbers, these come first.
+    for subkey in ['reva', 'revb']:
+      if subkey in data[key]:
+        rowdata.append('"%s": %s' % (subkey, data[key][subkey]))
+    # Strings, like type, come next.
+    for subkey in ['type']:
+      if subkey in data[key]:
+        rowdata.append('"%s": "%s"' % (subkey, data[key][subkey]))
+    # Finally improve/regress numbers come last.
+    for subkey in ['improve', 'regress']:
       if subkey in data[key]:
         rowdata.append('"%s": %s' % (subkey, data[key][subkey]))
     jsondata.append('"%s": {%s}' % (key, ', '.join(rowdata)))
@@ -140,9 +149,15 @@ def Main(args):
       print '%s (skipping, missing json data)' % key
       continue
 
+    # Set value's type to 'relative' by default.
+    value_type = value.get('type', 'relative')
+
     summarylist = summaryjson.split('\n')
     trace_values = {}
-    for trace in [tracename, reftracename]:
+    traces = [tracename]
+    if value_type == 'relative':
+      traces += [reftracename]
+    for trace in traces:
       trace_values.setdefault(trace, {})
 
     # Find the high and low values for each of the traces.
@@ -158,7 +173,7 @@ def Main(args):
       # We found the upper revision in the range.  Scan for trace data until we
       # find the lower revision in the range.
       if scanning:
-        for trace in [tracename, reftracename]:
+        for trace in traces:
           if trace not in json['traces']:
             if not printed_error:
               print '%s (error)' % key
@@ -193,12 +208,19 @@ def Main(args):
       print '%s (skipping, no suitable traces matched)' % key
       continue
 
-    # Calculate assuming high deltas are regressions and low deltas are
-    # improvements.
-    regress = (float(trace_values[tracename]['high']) -
-               float(trace_values[reftracename]['low']))
-    improve = (float(trace_values[tracename]['low']) -
-               float(trace_values[reftracename]['high']))
+    if value_type == 'relative':
+      # Calculate assuming high deltas are regressions and low deltas are
+      # improvements.
+      regress = (float(trace_values[tracename]['high']) -
+                 float(trace_values[reftracename]['low']))
+      improve = (float(trace_values[tracename]['low']) -
+                 float(trace_values[reftracename]['high']))
+    elif value_type == 'absolute':
+      # Calculate assuming high absolutes are regressions and low absolutes are
+      # improvements.
+      regress = float(trace_values[tracename]['high'])
+      improve = float(trace_values[tracename]['low'])
+
     # If the existing values assume regressions are low deltas relative to
     # improvements, swap our regress and improve.  This value must be a
     # scores-like result.
