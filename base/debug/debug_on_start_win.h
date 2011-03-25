@@ -24,6 +24,11 @@
 namespace base {
 namespace debug {
 
+// There is no way for this code, as currently implemented, to work across DLLs.
+// TODO(rvargas): It looks like we really don't use this code, at least not for
+// Chrome. Figure out if it's really worth implementing something simpler.
+#if !defined(BASE_DLL)
+
 // Debug on start functions and data.
 class DebugOnStart {
  public:
@@ -68,6 +73,8 @@ DECLSPEC_SELECTANY DebugOnStart::PIFV debug_on_start = &DebugOnStart::Init;
 #pragma data_seg(pop)
 
 #endif  // _WIN64
+
+#endif  // defined(BASE_DLL)
 
 }  // namespace debug
 }  // namespace base

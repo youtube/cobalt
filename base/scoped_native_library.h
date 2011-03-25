@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define BASE_SCOPED_NATIVE_LIBRARY_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/native_library.h"
 
 class FilePath;
@@ -15,7 +16,7 @@ namespace base {
 // A class which encapsulates a base::NativeLibrary object available only in a
 // scope.
 // This class automatically unloads the loaded library in its destructor.
-class ScopedNativeLibrary {
+class BASE_API ScopedNativeLibrary {
  public:
   // Initializes with a NULL library.
   ScopedNativeLibrary();

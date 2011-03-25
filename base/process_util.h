@@ -131,14 +131,14 @@ enum TerminationStatus {
 };
 
 // Returns the id of the current process.
-ProcessId GetCurrentProcId();
+BASE_API ProcessId GetCurrentProcId();
 
 // Returns the ProcessHandle of the current process.
-ProcessHandle GetCurrentProcessHandle();
+BASE_API ProcessHandle GetCurrentProcessHandle();
 
 // Converts a PID to a process handle. This handle must be closed by
 // CloseProcessHandle when you are done with it. Returns true on success.
-bool OpenProcessHandle(ProcessId pid, ProcessHandle* handle);
+BASE_API bool OpenProcessHandle(ProcessId pid, ProcessHandle* handle);
 
 // Converts a PID to a process handle. On Windows the handle is opened
 // with more access rights and must only be used by trusted code.
@@ -146,21 +146,21 @@ bool OpenProcessHandle(ProcessId pid, ProcessHandle* handle);
 // on success.
 // TODO(sanjeevr): Replace all calls to OpenPrivilegedProcessHandle with the
 // more specific OpenProcessHandleWithAccess method and delete this.
-bool OpenPrivilegedProcessHandle(ProcessId pid, ProcessHandle* handle);
+BASE_API bool OpenPrivilegedProcessHandle(ProcessId pid, ProcessHandle* handle);
 
 // Converts a PID to a process handle using the desired access flags. Use a
 // combination of the kProcessAccess* flags defined above for |access_flags|.
-bool OpenProcessHandleWithAccess(ProcessId pid,
-                                 uint32 access_flags,
-                                 ProcessHandle* handle);
+BASE_API bool OpenProcessHandleWithAccess(ProcessId pid,
+                                          uint32 access_flags,
+                                          ProcessHandle* handle);
 
 // Closes the process handle opened by OpenProcessHandle.
-void CloseProcessHandle(ProcessHandle process);
+BASE_API void CloseProcessHandle(ProcessHandle process);
 
 // Returns the unique ID for the specified process. This is functionally the
 // same as Windows' GetProcessId(), but works on versions of Windows before
 // Win XP SP1 as well.
-ProcessId GetProcId(ProcessHandle process);
+BASE_API ProcessId GetProcId(ProcessHandle process);
 
 #if defined(OS_LINUX)
 // Returns the path to the executable of the given process.
@@ -200,7 +200,8 @@ enum IntegrityLevel {
 // Determine the integrity level of the specified process. Returns false
 // if the system does not support integrity levels (pre-Vista) or in the case
 // of an underlying system failure.
-bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level);
+BASE_API bool GetProcessIntegrityLevel(ProcessHandle process,
+                                       IntegrityLevel *level);
 
 // Runs the given application name with the given command line. Normally, the
 // first command line argument should be the path to the process, and don't
@@ -216,15 +217,15 @@ bool GetProcessIntegrityLevel(ProcessHandle process, IntegrityLevel *level);
 // stored there on a successful launch.
 // NOTE: In this case, the caller is responsible for closing the handle so
 //       that it doesn't leak!
-bool LaunchApp(const std::wstring& cmdline,
-               bool wait, bool start_hidden, ProcessHandle* process_handle);
+BASE_API bool LaunchApp(const std::wstring& cmdline,
+                        bool wait, bool start_hidden,
+                        ProcessHandle* process_handle);
 
 // Same as LaunchApp, except allows the new process to inherit handles of the
 // parent process.
-bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
-                                    bool wait,
-                                    bool start_hidden,
-                                    ProcessHandle* process_handle);
+BASE_API bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
+                                             bool wait, bool start_hidden,
+                                             ProcessHandle* process_handle);
 
 // Runs the given application name with the given command line as if the user
 // represented by |token| had launched it. The caveats about |cmdline| and
@@ -236,15 +237,18 @@ bool LaunchAppWithHandleInheritance(const std::wstring& cmdline,
 // To avoid hard to diagnose problems, this function internally loads the
 // environment variables associated with the user and if this operation fails
 // the entire call fails as well.
-bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
-                     bool start_hidden, ProcessHandle* process_handle);
+BASE_API bool LaunchAppAsUser(UserTokenHandle token,
+                              const std::wstring& cmdline,
+                              bool start_hidden,
+                              ProcessHandle* process_handle);
 
 // Has the same behavior as LaunchAppAsUser, but offers the boolean option to
 // use an empty string for the desktop name and a boolean for allowing the
 // child process to inherit handles from its parent.
-bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
-                     bool start_hidden, ProcessHandle* process_handle,
-                     bool empty_desktop_name, bool inherit_handles);
+BASE_API bool LaunchAppAsUser(UserTokenHandle token,
+                              const std::wstring& cmdline,
+                              bool start_hidden, ProcessHandle* process_handle,
+                              bool empty_desktop_name, bool inherit_handles);
 
 
 #elif defined(OS_POSIX)
@@ -292,14 +296,14 @@ char** AlterEnvironment(const environment_vector& changes,
 
 // Executes the application specified by cl. This function delegates to one
 // of the above two platform-specific functions.
-bool LaunchApp(const CommandLine& cl,
-               bool wait, bool start_hidden, ProcessHandle* process_handle);
+BASE_API bool LaunchApp(const CommandLine& cl, bool wait, bool start_hidden,
+                        ProcessHandle* process_handle);
 
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. Redirects stderr to /dev/null. Returns true
 // on success (application launched and exited cleanly, with exit code
 // indicating success).
-bool GetAppOutput(const CommandLine& cl, std::string* output);
+BASE_API bool GetAppOutput(const CommandLine& cl, std::string* output);
 
 #if defined(OS_POSIX)
 // A restricted version of |GetAppOutput()| which (a) clears the environment,
@@ -323,22 +327,22 @@ class ProcessFilter {
 // Returns the number of processes on the machine that are running from the
 // given executable name.  If filter is non-null, then only processes selected
 // by the filter will be counted.
-int GetProcessCount(const FilePath::StringType& executable_name,
-                    const ProcessFilter* filter);
+BASE_API int GetProcessCount(const FilePath::StringType& executable_name,
+                             const ProcessFilter* filter);
 
 // Attempts to kill all the processes on the current machine that were launched
 // from the given executable name, ending them with the given exit code.  If
 // filter is non-null, then only processes selected by the filter are killed.
 // Returns true if all processes were able to be killed off, false if at least
 // one couldn't be killed.
-bool KillProcesses(const FilePath::StringType& executable_name, int exit_code,
-                   const ProcessFilter* filter);
+BASE_API bool KillProcesses(const FilePath::StringType& executable_name,
+                            int exit_code, const ProcessFilter* filter);
 
 // Attempts to kill the process identified by the given process
 // entry structure, giving it the specified exit code. If |wait| is true, wait
 // for the process to be actually terminated before returning.
 // Returns true if this is successful, false otherwise.
-bool KillProcess(ProcessHandle process, int exit_code, bool wait);
+BASE_API bool KillProcess(ProcessHandle process, int exit_code, bool wait);
 
 #if defined(OS_POSIX)
 // Attempts to kill the process group identified by |process_group_id|. Returns
@@ -347,7 +351,7 @@ bool KillProcessGroup(ProcessHandle process_group_id);
 #endif
 
 #if defined(OS_WIN)
-bool KillProcessById(ProcessId process_id, int exit_code, bool wait);
+BASE_API bool KillProcessById(ProcessId process_id, int exit_code, bool wait);
 #endif
 
 // Get the termination status of the process by interpreting the
@@ -358,38 +362,41 @@ bool KillProcessById(ProcessId process_id, int exit_code, bool wait);
 // will only return a useful result the first time it is called after
 // the child exits (because it will reap the child and the information
 // will no longer be available).
-TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code);
+BASE_API TerminationStatus GetTerminationStatus(ProcessHandle handle,
+                                                int* exit_code);
 
 // Waits for process to exit. On POSIX systems, if the process hasn't been
 // signaled then puts the exit code in |exit_code|; otherwise it's considered
 // a failure. On Windows |exit_code| is always filled. Returns true on success,
 // and closes |handle| in any case.
-bool WaitForExitCode(ProcessHandle handle, int* exit_code);
+BASE_API bool WaitForExitCode(ProcessHandle handle, int* exit_code);
 
 // Waits for process to exit. If it did exit within |timeout_milliseconds|,
 // then puts the exit code in |exit_code|, closes |handle|, and returns true.
 // In POSIX systems, if the process has been signaled then |exit_code| is set
 // to -1. Returns false on failure (the caller is then responsible for closing
 // |handle|).
-bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
-                                int64 timeout_milliseconds);
+BASE_API bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
+                                         int64 timeout_milliseconds);
 
 // Wait for all the processes based on the named executable to exit.  If filter
 // is non-null, then only processes selected by the filter are waited on.
 // Returns after all processes have exited or wait_milliseconds have expired.
 // Returns true if all the processes exited, false otherwise.
-bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
-                            int64 wait_milliseconds,
-                            const ProcessFilter* filter);
+BASE_API bool WaitForProcessesToExit(
+    const FilePath::StringType& executable_name,
+    int64 wait_milliseconds,
+    const ProcessFilter* filter);
 
 // Wait for a single process to exit. Return true if it exited cleanly within
 // the given time limit. On Linux |handle| must be a child process, however
 // on Mac and Windows it can be any process.
-bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds);
+BASE_API bool WaitForSingleProcess(ProcessHandle handle,
+                                   int64 wait_milliseconds);
 
 // Returns true when |wait_milliseconds| have elapsed and the process
 // is still running.
-bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds);
+BASE_API bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds);
 
 // Waits a certain amount of time (can be 0) for all the processes with a given
 // executable name to exit, then kills off any of them that are still around.
@@ -397,16 +404,16 @@ bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds);
 // on.  Killed processes are ended with the given exit code.  Returns false if
 // any processes needed to be killed, true if they all exited cleanly within
 // the wait_milliseconds delay.
-bool CleanupProcesses(const FilePath::StringType& executable_name,
-                      int64 wait_milliseconds,
-                      int exit_code,
-                      const ProcessFilter* filter);
+BASE_API bool CleanupProcesses(const FilePath::StringType& executable_name,
+                               int64 wait_milliseconds,
+                               int exit_code,
+                               const ProcessFilter* filter);
 
 // This class provides a way to iterate through a list of processes on the
 // current machine with a specified filter.
 // To use, create an instance and then call NextProcessEntry() until it returns
 // false.
-class ProcessIterator {
+class BASE_API ProcessIterator {
  public:
   typedef std::list<ProcessEntry> ProcessEntries;
 
@@ -456,7 +463,7 @@ class ProcessIterator {
 // on the current machine that were started from the given executable
 // name.  To use, create an instance and then call NextProcessEntry()
 // until it returns false.
-class NamedProcessIterator : public ProcessIterator {
+class BASE_API NamedProcessIterator : public ProcessIterator {
  public:
   NamedProcessIterator(const FilePath::StringType& executable_name,
                        const ProcessFilter* filter);
@@ -521,13 +528,13 @@ struct FreeMBytes {
 };
 
 // Convert a POSIX timeval to microseconds.
-int64 TimeValToMicroseconds(const struct timeval& tv);
+BASE_API int64 TimeValToMicroseconds(const struct timeval& tv);
 
 // Provides performance metrics for a specified process (CPU usage, memory and
 // IO counters). To use it, invoke CreateProcessMetrics() to get an instance
 // for a specific process, then access the information with the different get
 // methods.
-class ProcessMetrics {
+class BASE_API ProcessMetrics {
  public:
   ~ProcessMetrics();
 
@@ -628,7 +635,7 @@ class ProcessMetrics {
 
 // Returns the memory commited by the system in KBytes.
 // Returns 0 if it can't compute the commit charge.
-size_t GetSystemCommitCharge();
+BASE_API size_t GetSystemCommitCharge();
 
 // Enables low fragmentation heap (LFH) for every heaps of this process. This
 // won't have any effect on heaps created after this function call. It will not
@@ -636,7 +643,7 @@ size_t GetSystemCommitCharge();
 // better to call this function early in initialization and again before
 // entering the main loop.
 // Note: Returns true on Windows 2000 without doing anything.
-bool EnableLowFragmentationHeap();
+BASE_API bool EnableLowFragmentationHeap();
 
 // Enables 'terminate on heap corruption' flag. Helps protect against heap
 // overflow. Has no effect if the OS doesn't provide the necessary facility.
@@ -652,16 +659,14 @@ malloc_zone_t* GetPurgeableZone();
 #endif
 #endif
 
-#if defined(UNIT_TEST)
 // Enables stack dump to console output on exception and signals.
 // When enabled, the process will quit immediately. This is meant to be used in
 // unit_tests only!
-bool EnableInProcessStackDumping();
-#endif  // defined(UNIT_TEST)
+BASE_API bool EnableInProcessStackDumping();
 
 // If supported on the platform, and the user has sufficent rights, increase
 // the current process's scheduling priority to a high priority.
-void RaiseProcessToHighPriority();
+BASE_API void RaiseProcessToHighPriority();
 
 #if defined(OS_MACOSX)
 // Restore the default exception handler, setting it to Apple Crash Reporter

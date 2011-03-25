@@ -10,6 +10,7 @@
 
 #include <list>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
@@ -21,7 +22,7 @@ namespace base {
 // MessagePumpWin serves as the base for specialized versions of the MessagePump
 // for Windows. It provides basic functionality like handling of observers and
 // controlling the lifetime of the message pump.
-class MessagePumpWin : public MessagePump {
+class BASE_API MessagePumpWin : public MessagePump {
  public:
   // An Observer is an object that receives global notifications from the
   // UI MessageLoop.
@@ -156,7 +157,7 @@ class MessagePumpWin : public MessagePump {
 // an excellent choice.  It is also helpful that the starter messages that are
 // placed in the queue when new task arrive also awakens DoRunLoop.
 //
-class MessagePumpForUI : public MessagePumpWin {
+class BASE_API MessagePumpForUI : public MessagePumpWin {
  public:
   // The application-defined code passed to the hook procedure.
   static const int kMessageFilterCode = 0x5001;
@@ -195,7 +196,7 @@ class MessagePumpForUI : public MessagePumpWin {
 // deal with Windows mesagges, and instead has a Run loop based on Completion
 // Ports so it is better suited for IO operations.
 //
-class MessagePumpForIO : public MessagePumpWin {
+class BASE_API MessagePumpForIO : public MessagePumpWin {
  public:
   struct IOContext;
 
