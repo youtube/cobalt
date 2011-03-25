@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/base_api.h"
 #include "base/string16.h"
 
 namespace base {
@@ -19,18 +20,18 @@ class StringPiece;
 // in the result strings.  If this isn't possible because the offsets point past
 // the end of the source strings or into the middle of multibyte sequences, they
 // will be set to std::wstring::npos.  |offset_for_adjustment| may be NULL.
-bool UTF8ToWideAndAdjustOffset(const char* src,
-                               size_t src_len,
-                               std::wstring* output,
-                               size_t* offset_for_adjustment);
-std::wstring UTF8ToWideAndAdjustOffset(const base::StringPiece& utf8,
-                                       size_t* offset_for_adjustment);
-
-bool UTF16ToWideAndAdjustOffset(const char16* src,
-                                size_t src_len,
-                                std::wstring* output,
-                                size_t* offset_for_adjustment);
-std::wstring UTF16ToWideAndAdjustOffset(const string16& utf16,
+BASE_API bool UTF8ToWideAndAdjustOffset(const char* src,
+                                        size_t src_len,
+                                        std::wstring* output,
                                         size_t* offset_for_adjustment);
+BASE_API std::wstring UTF8ToWideAndAdjustOffset(const base::StringPiece& utf8,
+                                                size_t* offset_for_adjustment);
+
+BASE_API bool UTF16ToWideAndAdjustOffset(const char16* src,
+                                         size_t src_len,
+                                         std::wstring* output,
+                                         size_t* offset_for_adjustment);
+BASE_API std::wstring UTF16ToWideAndAdjustOffset(const string16& utf16,
+                                                 size_t* offset_for_adjustment);
 
 #endif  // BASE_UTF_OFFSET_STRING_CONVERSIONS_H_

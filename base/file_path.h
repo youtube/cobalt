@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -103,6 +103,7 @@
 #include <string>
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/hash_tables.h"
@@ -121,7 +122,7 @@ class Pickle;
 
 // An abstraction to isolate users from the differences between native
 // pathnames on different platforms.
-class FilePath {
+class BASE_API FilePath {
  public:
 #if defined(OS_POSIX)
   // On most platforms, native pathnames are char arrays, and the encoding

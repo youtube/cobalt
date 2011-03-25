@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 #define BASE_FILE_VERSION_INFO_H__
 #pragma once
 
-#include "build/build_config.h"
-
 #include <string>
 
+#include "base/base_api.h"
 #include "base/string16.h"
+#include "build/build_config.h"
 
 class FilePath;
 
@@ -24,7 +24,7 @@ class FilePath;
 // version returns values from the Info.plist as appropriate. TODO(avi): make
 // this a less-obvious Windows-ism.
 
-class FileVersionInfo {
+class BASE_API FileVersionInfo {
  public:
   virtual ~FileVersionInfo() {}
 #if defined(OS_WIN) || defined(OS_MACOSX)
