@@ -22,6 +22,8 @@ struct FtpDirectoryListingEntry {
     SYMLINK,
   };
 
+  FtpDirectoryListingEntry();
+
   Type type;
   string16 name;  // Name (UTF-16-encoded).
   std::string raw_name;  // Name in original character encoding.
