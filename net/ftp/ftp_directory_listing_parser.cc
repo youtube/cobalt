@@ -58,6 +58,9 @@ int FillInRawName(const std::string& encoding,
 
 namespace net {
 
+FtpDirectoryListingEntry::FtpDirectoryListingEntry() {
+}
+
 int ParseFtpDirectoryListing(const std::string& text,
                              const base::Time& current_time,
                              std::vector<FtpDirectoryListingEntry>* entries) {
