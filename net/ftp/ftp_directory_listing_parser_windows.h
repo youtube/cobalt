@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,29 +6,18 @@
 #define NET_FTP_FTP_DIRECTORY_LISTING_PARSER_WINDOWS_H_
 #pragma once
 
-#include <queue>
+#include <vector>
 
-#include "net/ftp/ftp_directory_listing_parser.h"
+#include "base/string16.h"
 
 namespace net {
 
-class FtpDirectoryListingParserWindows : public FtpDirectoryListingParser {
- public:
-  FtpDirectoryListingParserWindows();
-  virtual ~FtpDirectoryListingParserWindows();
+struct FtpDirectoryListingEntry;
 
-  // FtpDirectoryListingParser methods:
-  virtual FtpServerType GetServerType() const;
-  virtual bool ConsumeLine(const string16& line);
-  virtual bool OnEndOfInput();
-  virtual bool EntryAvailable() const;
-  virtual FtpDirectoryListingEntry PopEntry();
-
- private:
-  std::queue<FtpDirectoryListingEntry> entries_;
-
-  DISALLOW_COPY_AND_ASSIGN(FtpDirectoryListingParserWindows);
-};
+// Parses Windows FTP directory listing. Returns true on success.
+bool ParseFtpDirectoryListingWindows(
+    const std::vector<string16>& lines,
+    std::vector<FtpDirectoryListingEntry>* entries);
 
 }  // namespace net
 

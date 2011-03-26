@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,27 +10,35 @@
 #include "base/utf_string_conversions.h"
 #include "net/ftp/ftp_directory_listing_parser_netware.h"
 
+namespace net {
+
 namespace {
 
-typedef net::FtpDirectoryListingParserTest FtpDirectoryListingParserNetwareTest;
+typedef FtpDirectoryListingParserTest FtpDirectoryListingParserNetwareTest;
 
 TEST_F(FtpDirectoryListingParserNetwareTest, Good) {
   const struct SingleLineTestData good_cases[] = {
     { "d [RWCEAFMS] ftpadmin 512 Jan 29  2004 pub",
-      net::FtpDirectoryListingEntry::DIRECTORY, "pub", -1,
+      FtpDirectoryListingEntry::DIRECTORY, "pub", -1,
       2004, 1, 29, 0, 0 },
     { "- [RW------] ftpadmin 123 Nov 11  18:25 afile",
-      net::FtpDirectoryListingEntry::FILE, "afile", 123,
+      FtpDirectoryListingEntry::FILE, "afile", 123,
       1994, 11, 11, 18, 25 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
                                     good_cases[i].input));
 
-    net::FtpDirectoryListingParserNetware parser(GetMockCurrentTime());
-    // The parser requires a "total n" like before accepting regular input.
-    ASSERT_TRUE(parser.ConsumeLine(UTF8ToUTF16("total 1")));
-    RunSingleLineTestCase(&parser, good_cases[i]);
+    std::vector<string16> lines(GetSingleLineTestCase(good_cases[i].input));
+
+    // The parser requires a "total n" line before accepting regular input.
+    lines.insert(lines.begin(), ASCIIToUTF16("total 1"));
+
+    std::vector<FtpDirectoryListingEntry> entries;
+    EXPECT_TRUE(ParseFtpDirectoryListingNetware(lines,
+                                                GetMockCurrentTime(),
+                                                &entries));
+    VerifySingleLineTestCase(good_cases[i], entries);
   }
 }
 
@@ -45,11 +53,21 @@ TEST_F(FtpDirectoryListingParserNetwareTest, Bad) {
     "l [RW------] ftpadmin 512 Jan 29  2004 pub",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
-    net::FtpDirectoryListingParserNetware parser(GetMockCurrentTime());
-    // The parser requires a "total n" like before accepting regular input.
-    ASSERT_TRUE(parser.ConsumeLine(UTF8ToUTF16("total 1")));
-    EXPECT_FALSE(parser.ConsumeLine(UTF8ToUTF16(bad_cases[i]))) << bad_cases[i];
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
+                                    bad_cases[i]));
+
+    std::vector<string16> lines(GetSingleLineTestCase(bad_cases[i]));
+
+    // The parser requires a "total n" line before accepting regular input.
+    lines.insert(lines.begin(), ASCIIToUTF16("total 1"));
+
+    std::vector<FtpDirectoryListingEntry> entries;
+    EXPECT_FALSE(ParseFtpDirectoryListingNetware(lines,
+                                                 GetMockCurrentTime(),
+                                                 &entries));
   }
 }
 
 }  // namespace
+
+}  // namespace net
