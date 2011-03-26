@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,58 +9,63 @@
 #include "base/stringprintf.h"
 #include "net/ftp/ftp_directory_listing_parser_windows.h"
 
+namespace net {
+
 namespace {
 
-typedef net::FtpDirectoryListingParserTest FtpDirectoryListingParserWindowsTest;
+typedef FtpDirectoryListingParserTest FtpDirectoryListingParserWindowsTest;
 
 TEST_F(FtpDirectoryListingParserWindowsTest, Good) {
   const struct SingleLineTestData good_cases[] = {
     { "11-02-09  05:32PM       <DIR>          NT",
-      net::FtpDirectoryListingEntry::DIRECTORY, "NT", -1,
+      FtpDirectoryListingEntry::DIRECTORY, "NT", -1,
       2009, 11, 2, 17, 32 },
     { "01-06-09  02:42PM                  458 Readme.txt",
-      net::FtpDirectoryListingEntry::FILE, "Readme.txt", 458,
+      FtpDirectoryListingEntry::FILE, "Readme.txt", 458,
       2009, 1, 6, 14, 42 },
     { "01-06-09  02:42AM                  1 Readme.txt",
-      net::FtpDirectoryListingEntry::FILE, "Readme.txt", 1,
+      FtpDirectoryListingEntry::FILE, "Readme.txt", 1,
       2009, 1, 6, 2, 42 },
     { "01-06-01  02:42AM                  458 Readme.txt",
-      net::FtpDirectoryListingEntry::FILE, "Readme.txt", 458,
+      FtpDirectoryListingEntry::FILE, "Readme.txt", 458,
       2001, 1, 6, 2, 42 },
     { "01-06-00  02:42AM                  458 Corner1.txt",
-      net::FtpDirectoryListingEntry::FILE, "Corner1.txt", 458,
+      FtpDirectoryListingEntry::FILE, "Corner1.txt", 458,
       2000, 1, 6, 2, 42 },
     { "01-06-99  02:42AM                  458 Corner2.txt",
-      net::FtpDirectoryListingEntry::FILE, "Corner2.txt", 458,
+      FtpDirectoryListingEntry::FILE, "Corner2.txt", 458,
       1999, 1, 6, 2, 42 },
     { "01-06-80  02:42AM                  458 Corner3.txt",
-      net::FtpDirectoryListingEntry::FILE, "Corner3.txt", 458,
+      FtpDirectoryListingEntry::FILE, "Corner3.txt", 458,
       1980, 1, 6, 2, 42 },
 #if !defined(OS_LINUX)
     // TODO(phajdan.jr): Re-enable when 2038-year problem is fixed on Linux.
     { "01-06-79  02:42AM                  458 Corner4",
-      net::FtpDirectoryListingEntry::FILE, "Corner4", 458,
+      FtpDirectoryListingEntry::FILE, "Corner4", 458,
       2079, 1, 6, 2, 42 },
 #endif  // !defined (OS_LINUX)
     { "01-06-1979  02:42AM                458 Readme.txt",
-      net::FtpDirectoryListingEntry::FILE, "Readme.txt", 458,
+      FtpDirectoryListingEntry::FILE, "Readme.txt", 458,
       1979, 1, 6, 2, 42 },
     { "11-02-09  05:32PM       <DIR>          My Directory",
-      net::FtpDirectoryListingEntry::DIRECTORY, "My Directory", -1,
+      FtpDirectoryListingEntry::DIRECTORY, "My Directory", -1,
       2009, 11, 2, 17, 32 },
     { "12-25-10  12:00AM       <DIR>          Christmas Midnight",
-      net::FtpDirectoryListingEntry::DIRECTORY, "Christmas Midnight", -1,
+      FtpDirectoryListingEntry::DIRECTORY, "Christmas Midnight", -1,
       2010, 12, 25, 0, 0 },
     { "12-25-10  12:00PM       <DIR>          Christmas Midday",
-      net::FtpDirectoryListingEntry::DIRECTORY, "Christmas Midday", -1,
+      FtpDirectoryListingEntry::DIRECTORY, "Christmas Midday", -1,
       2010, 12, 25, 12, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
                                     good_cases[i].input));
 
-    net::FtpDirectoryListingParserWindows parser;
-    RunSingleLineTestCase(&parser, good_cases[i]);
+    std::vector<FtpDirectoryListingEntry> entries;
+    EXPECT_TRUE(ParseFtpDirectoryListingWindows(
+        GetSingleLineTestCase(good_cases[i].input),
+        &entries));
+    VerifySingleLineTestCase(good_cases[i], entries);
   }
 }
 
@@ -73,17 +78,16 @@ TEST_F(FtpDirectoryListingParserWindowsTest, Ignored) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
                                     ignored_cases[i]));
 
-    net::FtpDirectoryListingParserWindows parser;
-    EXPECT_TRUE(parser.ConsumeLine(UTF8ToUTF16(ignored_cases[i])));
-    EXPECT_FALSE(parser.EntryAvailable());
-    EXPECT_TRUE(parser.OnEndOfInput());
-    EXPECT_FALSE(parser.EntryAvailable());
+    std::vector<FtpDirectoryListingEntry> entries;
+    EXPECT_TRUE(ParseFtpDirectoryListingWindows(
+                    GetSingleLineTestCase(ignored_cases[i]),
+                    &entries));
+    EXPECT_EQ(0U, entries.size());
   }
 }
 
 TEST_F(FtpDirectoryListingParserWindowsTest, Bad) {
   const char* bad_cases[] = {
-    "",
     "garbage",
     "11-02-09  05:32PM       <GARBAGE>",
     "11-02-09  05:32PM       <GARBAGE>      NT",
@@ -107,9 +111,16 @@ TEST_F(FtpDirectoryListingParserWindowsTest, Bad) {
     "12-25-10  12:00ZM                  0   what does ZM mean",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
-    net::FtpDirectoryListingParserWindows parser;
-    EXPECT_FALSE(parser.ConsumeLine(UTF8ToUTF16(bad_cases[i]))) << bad_cases[i];
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
+                                    bad_cases[i]));
+
+    std::vector<FtpDirectoryListingEntry> entries;
+    EXPECT_FALSE(ParseFtpDirectoryListingWindows(
+                     GetSingleLineTestCase(bad_cases[i]),
+                     &entries));
   }
 }
 
 }  // namespace
+
+}  // namespace net
