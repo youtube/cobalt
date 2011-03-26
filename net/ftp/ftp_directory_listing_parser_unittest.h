@@ -1,10 +1,12 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_FTP_FTP_DIRECTORY_LISTING_PARSER_UNITTEST_H_
 #define NET_FTP_FTP_DIRECTORY_LISTING_PARSER_UNITTEST_H_
 #pragma once
+
+#include <vector>
 
 #include "base/utf_string_conversions.h"
 #include "net/ftp/ftp_directory_listing_parser.h"
@@ -29,11 +31,18 @@ class FtpDirectoryListingParserTest : public testing::Test {
  protected:
   FtpDirectoryListingParserTest() {}
 
-  void RunSingleLineTestCase(FtpDirectoryListingParser* parser,
-                             const SingleLineTestData& test_case) {
-    ASSERT_TRUE(parser->ConsumeLine(UTF8ToUTF16(test_case.input)));
-    ASSERT_TRUE(parser->EntryAvailable());
-    FtpDirectoryListingEntry entry = parser->PopEntry();
+  std::vector<string16> GetSingleLineTestCase(const std::string& text) {
+    std::vector<string16> lines;
+    lines.push_back(UTF8ToUTF16(text));
+    return lines;
+  }
+
+  void VerifySingleLineTestCase(
+      const SingleLineTestData& test_case,
+      const std::vector<FtpDirectoryListingEntry>& entries) {
+    ASSERT_FALSE(entries.empty());
+
+    FtpDirectoryListingEntry entry = entries[0];
     EXPECT_EQ(test_case.type, entry.type);
     EXPECT_EQ(UTF8ToUTF16(test_case.filename), entry.name);
     EXPECT_EQ(test_case.size, entry.size);
@@ -47,6 +56,8 @@ class FtpDirectoryListingParserTest : public testing::Test {
     EXPECT_EQ(test_case.day_of_month, time_exploded.day_of_month);
     EXPECT_EQ(test_case.hour, time_exploded.hour);
     EXPECT_EQ(test_case.minute, time_exploded.minute);
+
+    EXPECT_EQ(1U, entries.size());
   }
 
   base::Time GetMockCurrentTime() {
@@ -58,9 +69,6 @@ class FtpDirectoryListingParserTest : public testing::Test {
     mock_current_time_exploded.minute = 45;
     return base::Time::FromLocalExploded(mock_current_time_exploded);
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(FtpDirectoryListingParserTest);
 };
 
 }  // namespace net
