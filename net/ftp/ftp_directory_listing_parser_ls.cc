@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,9 @@
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
+#include "base/time.h"
 #include "base/utf_string_conversions.h"
+#include "net/ftp/ftp_directory_listing_parser.h"
 #include "net/ftp/ftp_util.h"
 
 namespace {
@@ -100,136 +102,125 @@ bool DetectColumnOffset(const std::vector<string16>& columns,
 
 namespace net {
 
-FtpDirectoryListingParserLs::FtpDirectoryListingParserLs(
-    const base::Time& current_time)
-    : received_total_line_(false),
-      current_time_(current_time) {
-}
+bool ParseFtpDirectoryListingLs(
+    const std::vector<string16>& lines,
+    const base::Time& current_time,
+    std::vector<FtpDirectoryListingEntry>* entries) {
+  // True after we have received a "total n" listing header, where n is an
+  // integer. Only one such header is allowed per listing.
+  bool received_total_line = false;
 
-FtpDirectoryListingParserLs::~FtpDirectoryListingParserLs() {}
+  for (size_t i = 0; i < lines.size(); i++) {
+    if (lines[i].empty())
+      continue;
 
-FtpServerType FtpDirectoryListingParserLs::GetServerType() const {
-  return SERVER_LS;
-}
+    std::vector<string16> columns;
+    base::SplitString(CollapseWhitespace(lines[i], false), ' ', &columns);
 
-bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
-  if (line.empty())
-    return true;
+    // Some FTP servers put a "total n" line at the beginning of the listing
+    // (n is an integer). Allow such a line, but only once, and only if it's
+    // the first non-empty line. Do not match the word exactly, because it may
+    // be in different languages (at least English and German have been seen
+    // in the field).
+    if (columns.size() == 2 && !received_total_line) {
+      received_total_line = true;
 
-  std::vector<string16> columns;
-  base::SplitString(CollapseWhitespace(line, false), ' ', &columns);
+      int total_number;
+      if (!base::StringToInt(columns[1], &total_number))
+        return false;
+      if (total_number < 0)
+        return false;
 
-  // Some FTP servers put a "total n" line at the beginning of the listing
-  // (n is an integer). Allow such a line, but only once, and only if it's
-  // the first non-empty line. Do not match the word exactly, because it may be
-  // in different languages (at least English and German have been seen in the
-  // field).
-  if (columns.size() == 2 && !received_total_line_) {
-    received_total_line_ = true;
+      continue;
+    }
 
-    int total_number;
-    if (!base::StringToInt(columns[1], &total_number))
+    int column_offset;
+    if (!DetectColumnOffset(columns, current_time, &column_offset)) {
+      // If we can't recognize a normal listing line, maybe it's an error?
+      // In that case, just ignore the error, but still recognize the data
+      // as valid listing.
+      if (LooksLikePermissionDeniedError(lines[i]))
+        continue;
+
       return false;
-    if (total_number < 0)
+    }
+
+    // We may receive file names containing spaces, which can make the number of
+    // columns arbitrarily large. We will handle that later. For now just make
+    // sure we have all the columns that should normally be there:
+    //
+    //   1. permission listing
+    //   2. number of links (optional)
+    //   3. owner name
+    //   4. group name (optional)
+    //   5. size in bytes
+    //   6. month
+    //   7. day of month
+    //   8. year or time
+    //
+    // The number of optional columns is stored in |column_offset|
+    // and is between 0 and 2 (inclusive).
+    if (columns.size() < 6U + column_offset)
       return false;
 
-    return true;
+    if (!LooksLikeUnixPermissionsListing(columns[0]))
+      return false;
+
+    FtpDirectoryListingEntry entry;
+    if (columns[0][0] == 'l') {
+      entry.type = FtpDirectoryListingEntry::SYMLINK;
+    } else if (columns[0][0] == 'd') {
+      entry.type = FtpDirectoryListingEntry::DIRECTORY;
+    } else {
+      entry.type = FtpDirectoryListingEntry::FILE;
+    }
+
+    if (!base::StringToInt64(columns[2 + column_offset], &entry.size)) {
+      // Some FTP servers do not separate owning group name from file size,
+      // like "group1234". We still want to display the file name for that
+      // entry, but can't really get the size (What if the group is named
+      // "group1", and the size is in fact 234? We can't distinguish between
+      // that and "group" with size 1234). Use a dummy value for the size.
+      // TODO(phajdan.jr): Use a value that means "unknown" instead of 0 bytes.
+      entry.size = 0;
+    }
+    if (entry.size < 0)
+      return false;
+    if (entry.type != FtpDirectoryListingEntry::FILE)
+      entry.size = -1;
+
+    if (!FtpUtil::LsDateListingToTime(columns[3 + column_offset],
+                                      columns[4 + column_offset],
+                                      columns[5 + column_offset],
+                                      current_time,
+                                      &entry.last_modified)) {
+      return false;
+    }
+
+    entry.name = FtpUtil::GetStringPartAfterColumns(lines[i],
+                                                    6 + column_offset);
+
+    if (entry.name.empty()) {
+      // Some FTP servers send listing entries with empty names.
+      // It's not obvious how to display such an entry, so ignore them.
+      // We don't want to make the parsing fail at this point though.
+      // Other entries can still be useful.
+      continue;
+    }
+
+    if (entry.type == FtpDirectoryListingEntry::SYMLINK) {
+      string16::size_type pos = entry.name.rfind(ASCIIToUTF16(" -> "));
+
+      // We don't require the " -> " to be present. Some FTP servers don't send
+      // the symlink target, possibly for security reasons.
+      if (pos != string16::npos)
+        entry.name = entry.name.substr(0, pos);
+    }
+
+    entries->push_back(entry);
   }
 
-  int column_offset;
-  if (!DetectColumnOffset(columns, current_time_, &column_offset)) {
-    // If we can't recognize a normal listing line, maybe it's an error?
-    // In that case, just ignore the error, but still recognize the data
-    // as valid listing.
-    return LooksLikePermissionDeniedError(line);
-  }
-
-  // We may receive file names containing spaces, which can make the number of
-  // columns arbitrarily large. We will handle that later. For now just make
-  // sure we have all the columns that should normally be there:
-  //
-  //   1. permission listing
-  //   2. number of links (optional)
-  //   3. owner name
-  //   4. group name (optional)
-  //   5. size in bytes
-  //   6. month
-  //   7. day of month
-  //   8. year or time
-  //
-  // The number of optional columns is stored in |column_offset|
-  // and is between 0 and 2 (inclusive).
-  if (columns.size() < 6U + column_offset)
-    return false;
-
-  if (!LooksLikeUnixPermissionsListing(columns[0]))
-    return false;
-
-  FtpDirectoryListingEntry entry;
-  if (columns[0][0] == 'l') {
-    entry.type = FtpDirectoryListingEntry::SYMLINK;
-  } else if (columns[0][0] == 'd') {
-    entry.type = FtpDirectoryListingEntry::DIRECTORY;
-  } else {
-    entry.type = FtpDirectoryListingEntry::FILE;
-  }
-
-  if (!base::StringToInt64(columns[2 + column_offset], &entry.size)) {
-    // Some FTP servers do not separate owning group name from file size,
-    // like "group1234". We still want to display the file name for that entry,
-    // but can't really get the size (What if the group is named "group1",
-    // and the size is in fact 234? We can't distinguish between that
-    // and "group" with size 1234). Use a dummy value for the size.
-    // TODO(phajdan.jr): Use a value that means "unknown" instead of 0 bytes.
-    entry.size = 0;
-  }
-  if (entry.size < 0)
-    return false;
-  if (entry.type != FtpDirectoryListingEntry::FILE)
-    entry.size = -1;
-
-  if (!FtpUtil::LsDateListingToTime(columns[3 + column_offset],
-                                    columns[4 + column_offset],
-                                    columns[5 + column_offset],
-                                    current_time_,
-                                    &entry.last_modified)) {
-    return false;
-  }
-
-  entry.name = FtpUtil::GetStringPartAfterColumns(line, 6 + column_offset);
-
-  if (entry.name.empty()) {
-    // Some FTP servers send listing entries with empty names. It's not obvious
-    // how to display such an entry, so we ignore them. We don't want to make
-    // the parsing fail at this point though. Other entries can still be useful.
-    return true;
-  }
-
-  if (entry.type == FtpDirectoryListingEntry::SYMLINK) {
-    string16::size_type pos = entry.name.rfind(ASCIIToUTF16(" -> "));
-
-    // We don't require the " -> " to be present. Some FTP servers don't send
-    // the symlink target, possibly for security reasons.
-    if (pos != string16::npos)
-      entry.name = entry.name.substr(0, pos);
-  }
-
-  entries_.push(entry);
   return true;
-}
-
-bool FtpDirectoryListingParserLs::OnEndOfInput() {
-  return true;
-}
-
-bool FtpDirectoryListingParserLs::EntryAvailable() const {
-  return !entries_.empty();
-}
-
-FtpDirectoryListingEntry FtpDirectoryListingParserLs::PopEntry() {
-  FtpDirectoryListingEntry entry = entries_.front();
-  entries_.pop();
-  return entry;
 }
 
 }  // namespace net
