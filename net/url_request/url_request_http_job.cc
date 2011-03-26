@@ -179,7 +179,6 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
 
   TransportSecurityState::DomainState domain_state;
   if (scheme == "http" &&
-      (request->url().port().empty() || port == 80) &&
       request->context()->transport_security_state() &&
       request->context()->transport_security_state()->IsEnabledForHost(
           &domain_state, request->url().host())) {
