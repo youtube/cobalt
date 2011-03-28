@@ -12,8 +12,8 @@
 #include <shlobj.h>
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/win/registry.h"
-#include "base/scoped_ptr.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"

@@ -11,9 +11,9 @@
 
 #include "base/base_api.h"
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
-#include "base/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/task.h"
 

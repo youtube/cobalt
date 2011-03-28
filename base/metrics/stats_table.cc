@@ -5,8 +5,8 @@
 #include "base/metrics/stats_table.h"
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/process_util.h"
-#include "base/scoped_ptr.h"
 #include "base/shared_memory.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"

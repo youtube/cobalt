@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 #define NET_SPDY_SPDY_IO_BUFFER_H_
 #pragma once
 
-#include "base/ref_counted.h"
+#include "base/memory/ref_counted.h"
 #include "net/base/io_buffer.h"
 
 namespace net {

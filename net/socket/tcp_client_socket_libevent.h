@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 #define NET_SOCKET_TCP_CLIENT_SOCKET_LIBEVENT_H_
 #pragma once
 
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "base/ref_counted.h"
-#include "base/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"

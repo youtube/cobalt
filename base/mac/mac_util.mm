@@ -9,7 +9,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"
-#include "base/scoped_nsobject.h"
+#include "base/memory/scoped_nsobject.h"
 #include "base/sys_string_conversions.h"
 
 namespace base {
