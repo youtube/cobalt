@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,19 +12,28 @@
 // The BreakIterator class iterates through the words, word breaks, and
 // line breaks in a UTF-16 string.
 //
-// It provides several modes, BREAK_WORD, BREAK_SPACE, and BREAK_NEWLINE,
+// It provides several modes, BREAK_WORD, BREAK_LINE, and BREAK_NEWLINE,
 // which modify how characters are aggregated into the returned string.
 //
 // Under BREAK_WORD mode, once a word is encountered any non-word
 // characters are not included in the returned string (e.g. in the
 // UTF-16 equivalent of the string " foo bar! ", the word breaks are at
 // the periods in ". .foo. .bar.!. .").
+// Note that Chinese/Japanese/Thai do not use spaces between words so that
+// boundaries can fall in the middle of a continuous run of non-space /
+// non-punctuation characters.
 //
-// Under BREAK_SPACE mode, once a word is encountered, any non-word
-// characters are included in the returned string, breaking only when a
-// space-equivalent character is encountered (e.g. in the
-// UTF16-equivalent of the string " foo bar! ", the word breaks are at
-//   the periods in ". .foo .bar! .").
+// Under BREAK_LINE mode, once a line breaking opportunity is encountered,
+// any non-word  characters are included in the returned string, breaking
+// only when a space-equivalent character or a line breaking opportunity
+// is encountered (e.g. in the UTF16-equivalent of the string " foo bar! ",
+// the breaks are at the periods in ". .foo .bar! .").
+//
+// Note that lines can be broken at any character/syllable/grapheme cluster
+// boundary in Chinese/Japanese/Korean and at word boundaries in Thai
+// (Thai does not use spaces between words). Therefore, this is NOT the same
+// as breaking only at space-equivalent characters where its former
+// name (BREAK_SPACE) implied.
 //
 // Under BREAK_NEWLINE mode, all characters are included in the returned
 // string, breking only when a newline-equivalent character is encountered
@@ -48,7 +57,11 @@ class BreakIterator {
  public:
   enum BreakType {
     BREAK_WORD,
-    BREAK_SPACE,
+    BREAK_LINE,
+    // TODO(jshin): Remove this after reviewing call sites.
+    // If call sites really need break only on space-like characters
+    // implement it separately.
+    BREAK_SPACE = BREAK_LINE,
     BREAK_NEWLINE,
   };
 
@@ -75,7 +88,7 @@ class BreakIterator {
 
   // Under BREAK_WORD mode, returns true if the break we just hit is the
   // end of a word. (Otherwise, the break iterator just skipped over e.g.
-  // whitespace or punctuation.)  Under BREAK_SPACE and BREAK_NEWLINE modes,
+  // whitespace or punctuation.)  Under BREAK_LINE and BREAK_NEWLINE modes,
   // this distinction doesn't apply and it always retuns false.
   bool IsWord() const;
 
