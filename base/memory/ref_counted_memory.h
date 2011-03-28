@@ -8,6 +8,7 @@
 
 #include <vector>
 
+#include "base/base_api.h"
 #include "base/memory/ref_counted.h"
 
 // TODO(erg): The contents of this file should be in a namespace. This would
@@ -16,7 +17,8 @@
 // A generic interface to memory. This object is reference counted because one
 // of its two subclasses own the data they carry, and we need to have
 // heterogeneous containers of these two types of memory.
-class RefCountedMemory : public base::RefCountedThreadSafe<RefCountedMemory> {
+class BASE_API RefCountedMemory
+    : public base::RefCountedThreadSafe<RefCountedMemory> {
  public:
   // Retrieves a pointer to the beginning of the data we point to. If the data
   // is empty, this will return NULL.
@@ -33,7 +35,7 @@ class RefCountedMemory : public base::RefCountedThreadSafe<RefCountedMemory> {
 
 // An implementation of RefCountedMemory, where the ref counting does not
 // matter.
-class RefCountedStaticMemory : public RefCountedMemory {
+class BASE_API RefCountedStaticMemory : public RefCountedMemory {
  public:
   RefCountedStaticMemory()
       : data_(NULL), length_(0) {}
@@ -53,7 +55,7 @@ class RefCountedStaticMemory : public RefCountedMemory {
 
 // An implementation of RefCountedMemory, where we own our the data in a
 // vector.
-class RefCountedBytes : public RefCountedMemory {
+class BASE_API RefCountedBytes : public RefCountedMemory {
  public:
   RefCountedBytes();
 

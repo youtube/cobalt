@@ -6,6 +6,7 @@
 #define BASE_THREADING_THREAD_CHECKER_IMPL_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 
@@ -17,7 +18,7 @@ namespace base {
 //
 // Note: You should almost always use the ThreadChecker class to get the
 // right version for your build configuration.
-class ThreadCheckerImpl {
+class BASE_API ThreadCheckerImpl {
  public:
   ThreadCheckerImpl();
   ~ThreadCheckerImpl();

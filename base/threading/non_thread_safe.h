@@ -45,7 +45,7 @@ class NonThreadSafeDoNothing {
 // In Release mode, CalledOnValidThread will always return true.
 //
 #ifndef NDEBUG
-class BASE_API NonThreadSafe : public NonThreadSafeImpl {
+class NonThreadSafe : public NonThreadSafeImpl {
 };
 #else
 class NonThreadSafe : public NonThreadSafeDoNothing {
