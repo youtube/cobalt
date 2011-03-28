@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,8 @@
 #pragma once
 
 #include <string>
+
+#include "base/base_api.h"
 #include "base/win/event_trace_provider.h"
 
 #define TRACE_EVENT_BEGIN(name, id, extra) \
@@ -40,7 +42,7 @@ namespace debug {
 
 // This EtwTraceProvider subclass implements ETW logging
 // for the macros above on Windows.
-class TraceLog : public base::win::EtwTraceProvider {
+class BASE_API TraceLog : public base::win::EtwTraceProvider {
  public:
   enum EventType {
     EVENT_BEGIN,
@@ -117,13 +119,13 @@ class TraceLog : public base::win::EtwTraceProvider {
 };
 
 // The ETW trace provider GUID.
-extern const GUID kChromeTraceProviderName;
+BASE_API extern const GUID kChromeTraceProviderName;
 
 // The ETW event class GUID for 32 bit events.
-extern const GUID kTraceEventClass32;
+BASE_API extern const GUID kTraceEventClass32;
 
 // The ETW event class GUID for 64 bit events.
-extern const GUID kTraceEventClass64;
+BASE_API extern const GUID kTraceEventClass64;
 
 // The ETW event types, IDs 0x00-0x09 are reserved, so start at 0x10.
 const base::win::EtwEventType kTraceEventTypeBegin = 0x10;
