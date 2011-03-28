@@ -494,13 +494,15 @@
         'use_gconf%': 1,
       }],
 
-      # Setup -D flags passed into grit.
+      # Set up -D and -E flags passed into grit.
       ['branding=="Chrome"', {
         # TODO(mmoss) The .grd files look for _google_chrome, but for
         # consistency they should look for google_chrome_build like C++.
-        'grit_defines': ['-D', '_google_chrome'],
+        'grit_defines': ['-D', '_google_chrome',
+                         '-E', 'CHROMIUM_BUILD=google_chrome'],
       }, {
-        'grit_defines': ['-D', '_chromium'],
+        'grit_defines': ['-D', '_chromium',
+                         '-E', 'CHROMIUM_BUILD=chromium'],
       }],
       ['chromeos==1', {
         'grit_defines': ['-D', 'chromeos'],
@@ -1529,7 +1531,7 @@
               'psapi.lib',
               'dbghelp.lib',
             ],
-            'conditions': [ 
+            'conditions': [
               ['msvs_express', {
                 # Explicitly required when using the ATL with express
                 'AdditionalDependencies': [
