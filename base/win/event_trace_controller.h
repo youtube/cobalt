@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -25,6 +25,8 @@
 #include <wmistr.h>
 #include <evntrace.h>
 #include <string>
+
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -33,7 +35,7 @@ namespace win {
 // Utility class to make it easier to work with EVENT_TRACE_PROPERTIES.
 // The EVENT_TRACE_PROPERTIES structure contains information about an
 // event tracing session.
-class EtwTraceProperties {
+class BASE_API EtwTraceProperties {
  public:
   EtwTraceProperties();
 
@@ -83,7 +85,7 @@ class EtwTraceProperties {
 // This class implements an ETW controller, which knows how to start and
 // stop event tracing sessions, as well as controlling ETW provider
 // log levels and enable bit masks under the session.
-class EtwTraceController {
+class BASE_API EtwTraceController {
  public:
   EtwTraceController();
   ~EtwTraceController();

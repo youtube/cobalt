@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define BASE_THREADING_WORKER_POOL_H_
 #pragma once
 
+#include "base/base_api.h"
 #include "base/tracked.h"
 
 class Task;
@@ -20,7 +21,7 @@ namespace base {
 // inside the pool must be extremely careful about other objects they access
 // (MessageLoops, Singletons, etc). During shutdown these object may no longer
 // exist.
-class WorkerPool {
+class BASE_API WorkerPool {
  public:
   // This function posts |task| to run on a worker thread.  |task_is_slow|
   // should be used for tasks that will take a long time to execute.  Returns

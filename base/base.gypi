@@ -110,6 +110,7 @@
           'logging.cc',
           'logging.h',
           'logging_win.cc',
+          'logging_win.h',
           'mac/cocoa_protocols.h',
           'mac/foundation_util.h',
           'mac/foundation_util.mm',
