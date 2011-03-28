@@ -10,12 +10,22 @@
 # NOTE: This file is optional, not all targets that use grit include it, some
 # do their own custom directives instead.
 {
-  'direct_dependent_settings': {
-    'include_dirs': [
-      '<(grit_out_dir)',
-    ],
-  },
   'conditions': [
+    # If the target is a direct binary, it needs to be able to find the header,
+    # otherwise it probably a supporting target just for grit so the include
+    # dir needs to be set on anything that depends on this action.
+    ['_type=="executable" or _type=="shared_library" or \
+      _type=="loadable_module" or _type=="static_library"', {
+      'include_dirs': [
+        '<(grit_out_dir)',
+      ],
+    }, {
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(grit_out_dir)',
+        ],
+      },
+    }],
     ['OS=="win"', {
       'dependencies': ['<(DEPTH)/build/win/system.gyp:cygwin'],
     }],
