@@ -224,7 +224,8 @@ def Main(args):
     # If the existing values assume regressions are low deltas relative to
     # improvements, swap our regress and improve.  This value must be a
     # scores-like result.
-    if perf[key]['regress'] < perf[key]['improve']:
+    if ('regress' in perf[key] and 'improve' in perf[key] and
+        perf[key]['regress'] < perf[key]['improve']):
       temp = regress
       regress = improve
       improve = temp
@@ -235,7 +236,8 @@ def Main(args):
       improve = int(math.floor(improve - abs(improve*variance)))
       regress = int(math.ceil(regress + abs(regress*variance)))
 
-    if (perf[key]['regress'] == regress and perf[key]['improve'] == improve):
+    if ('regress' in perf[key] and 'improve' in perf[key] and
+        perf[key]['regress'] == regress and perf[key]['improve'] == improve):
       print '%s (no change)' % key
       continue
 
