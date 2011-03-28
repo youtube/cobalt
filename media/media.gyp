@@ -573,7 +573,7 @@
           'type': 'executable',
           'dependencies': [
             'media',
-            '../app/app.gyp:app_base',
+            '../ui/gfx/gl/gl.gyp:gl',
           ],
           'sources': [
             'tools/shader_bench/shader_bench.cc',
@@ -618,8 +618,8 @@
           'target_name': 'tile_render_bench',
           'type': 'executable',
           'dependencies': [
-            '../app/app.gyp:app_base',
             '../base/base.gyp:base',
+            '../ui/gfx/gl/gl.gyp:gl',
           ],
           'libraries': [
             '-lGL',
@@ -737,7 +737,7 @@
             }],
             ['player_x11_renderer == "gl"', {
               'dependencies': [
-                '../app/app.gyp:app_base',
+                '../ui/gfx/gl/gl.gyp:gl',
               ],
               'sources': [
                 'tools/player_x11/gl_video_renderer.cc',
