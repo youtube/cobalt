@@ -92,10 +92,6 @@ struct BASE_API PlatformFileInfo {
 
   // The creation time of a file.
   base::Time creation_time;
-
-  // The full path of a file.  Currently only used by FileSystemFileUtil during
-  // a GetMetadata operation.
-  FilePath path;
 };
 
 // Creates or opens the given file. If PLATFORM_FILE_OPEN_ALWAYS is used, and
