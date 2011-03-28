@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/filter.h"
 #include "net/base/sdch_manager.h"
 

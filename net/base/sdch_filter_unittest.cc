@@ -15,7 +15,7 @@
 #endif
 
 #include "base/logging.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/filter.h"
 #include "net/base/io_buffer.h"
 #include "net/base/mock_filter_context.h"

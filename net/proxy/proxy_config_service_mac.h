@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,8 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
-#include "base/ref_counted.h"
 #include "net/base/network_config_watcher_mac.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service.h"

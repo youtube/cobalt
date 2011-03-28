@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_resolver.h"

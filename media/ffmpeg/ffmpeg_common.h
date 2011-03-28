@@ -9,7 +9,7 @@
 #include <cerrno>
 
 #include "base/compiler_specific.h"
-#include "base/singleton.h"
+#include "base/memory/singleton.h"
 #include "base/time.h"
 #include "media/video/video_decode_engine.h"
 

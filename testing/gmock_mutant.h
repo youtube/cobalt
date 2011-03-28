@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -103,7 +103,7 @@
 //        CreateFunctor(&mock->demiurge_, &Demiurge::DecreaseMonsters))));
 //
 
-#include "base/linked_ptr.h"
+#include "base/memory/linked_ptr.h"
 #include "base/tuple.h"  // for Tuple
 
 namespace testing {

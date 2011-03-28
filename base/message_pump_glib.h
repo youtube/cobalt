@@ -6,9 +6,9 @@
 #define BASE_MESSAGE_PUMP_GLIB_H_
 #pragma once
 
+#include "base/memory/scoped_ptr.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
-#include "base/scoped_ptr.h"
 #include "base/time.h"
 
 typedef union _GdkEvent GdkEvent;

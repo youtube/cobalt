@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/logging.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/base/mock_ffmpeg.h"
 #include "media/base/mock_filters.h"
 #include "media/ffmpeg/ffmpeg_common.h"

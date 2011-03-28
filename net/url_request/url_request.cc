@@ -5,9 +5,9 @@
 #include "net/url_request/url_request.h"
 
 #include "base/compiler_specific.h"
+#include "base/memory/singleton.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
-#include "base/singleton.h"
 #include "base/synchronization/lock.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"

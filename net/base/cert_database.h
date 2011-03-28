@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/string16.h"
-#include "base/ref_counted.h"
 #include "net/base/cert_type.h"
 
 namespace net {
