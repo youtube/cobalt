@@ -614,10 +614,12 @@ void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
   if (request_ && request_->delegate()) {
     if (request_->context()->cookie_store()) {
       if (policy == ERR_ACCESS_DENIED) {
+        CookieOptions options;
+        options.set_include_httponly();
         request_->delegate()->OnSetCookie(
             request_,
             response_cookies_[response_cookies_save_index_],
-            CookieOptions(),
+            options,
             true);
       } else if (policy == OK || policy == OK_FOR_SESSION_ONLY) {
         // OK to save the current response cookie now.
