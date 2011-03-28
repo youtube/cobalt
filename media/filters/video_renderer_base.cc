@@ -29,6 +29,8 @@ static const int kIdleMilliseconds = 10;
 VideoRendererBase::VideoRendererBase()
     : width_(0),
       height_(0),
+      surface_format_(VideoFrame::INVALID),
+      surface_type_(VideoFrame::TYPE_SYSTEM_MEMORY),
       frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
