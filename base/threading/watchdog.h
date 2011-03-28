@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include "base/base_api.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
@@ -28,7 +29,7 @@
 
 namespace base {
 
-class Watchdog {
+class BASE_API Watchdog {
  public:
   // Constructor specifies how long the Watchdog will wait before alarming.
   Watchdog(const TimeDelta& duration,

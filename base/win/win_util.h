@@ -27,6 +27,7 @@
 
 #include <string>
 
+#include "base/base_api.h"
 #include "base/string16.h"
 
 struct IPropertyStore;
@@ -36,19 +37,19 @@ typedef _tagpropertykey PROPERTYKEY;
 namespace base {
 namespace win {
 
-void GetNonClientMetrics(NONCLIENTMETRICS* metrics);
+BASE_API void GetNonClientMetrics(NONCLIENTMETRICS* metrics);
 
 // Returns the string representing the current user sid.
-bool GetUserSidString(std::wstring* user_sid);
+BASE_API bool GetUserSidString(std::wstring* user_sid);
 
 // Returns true if the shift key is currently pressed.
-bool IsShiftPressed();
+BASE_API bool IsShiftPressed();
 
 // Returns true if the ctrl key is currently pressed.
-bool IsCtrlPressed();
+BASE_API bool IsCtrlPressed();
 
 // Returns true if the alt key is currently pressed.
-bool IsAltPressed();
+BASE_API bool IsAltPressed();
 
 // Returns false if user account control (UAC) has been disabled with the
 // EnableLUA registry flag. Returns true if user account control is enabled.
@@ -56,27 +57,27 @@ bool IsAltPressed();
 // machines, might still exist and be set to 0 (UAC disabled), in which case
 // this function will return false. You should therefore check this flag only
 // if the OS is Vista or later.
-bool UserAccountControlIsEnabled();
+BASE_API bool UserAccountControlIsEnabled();
 
 // Sets the application id in given IPropertyStore. The function is intended
 // for tagging application/chromium shortcut, browser window and jump list for
 // Win7.
-bool SetAppIdForPropertyStore(IPropertyStore* property_store,
-                              const wchar_t* app_id);
+BASE_API bool SetAppIdForPropertyStore(IPropertyStore* property_store,
+                                       const wchar_t* app_id);
 
 // Adds the specified |command| using the specified |name| to the AutoRun key.
 // |root_key| could be HKCU or HKLM or the root of any user hive.
-bool AddCommandToAutoRun(HKEY root_key, const string16& name,
-                         const string16& command);
+BASE_API bool AddCommandToAutoRun(HKEY root_key, const string16& name,
+                                  const string16& command);
 // Removes the command specified by |name| from the AutoRun key. |root_key|
 // could be HKCU or HKLM or the root of any user hive.
-bool RemoveCommandFromAutoRun(HKEY root_key, const string16& name);
+BASE_API bool RemoveCommandFromAutoRun(HKEY root_key, const string16& name);
 
 // Reads the command specified by |name| from the AutoRun key. |root_key|
 // could be HKCU or HKLM or the root of any user hive. Used for unit-tests.
-bool ReadCommandFromAutoRun(HKEY root_key,
-                            const string16& name,
-                            string16* command);
+BASE_API bool ReadCommandFromAutoRun(HKEY root_key,
+                                     const string16& name,
+                                     string16* command);
 }  // namespace win
 }  // namespace base
 

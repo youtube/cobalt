@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <windows.h>
 #include <oleauto.h>
 
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -20,7 +21,7 @@ namespace win {
 // Instead of inheriting from VARIANT, we take the containment approach
 // in order to have more control over the usage of the variant and guard
 // against memory leaks.
-class ScopedVariant {
+class BASE_API ScopedVariant {
  public:
   // Declaration of a global variant variable that's always VT_EMPTY
   static const VARIANT kEmptyVariant;
