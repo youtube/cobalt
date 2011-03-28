@@ -385,6 +385,12 @@
     # Under development: http://crbug.com/68551
     'use_harfbuzz_ng%': 0,
 
+    # If debug_devtools is set to 1, JavaScript files for DevTools are
+    # stored as is and loaded from disk. Otherwise, a concatenated file
+    # is stored in resources.pak. It is still possible to load JS files
+    # from disk by passing --debug-devtools cmdline switch.
+    'debug_devtools%': 0,
+
     # Point to ICU directory.
     'icu_src_dir': '../third_party/icu',
 
