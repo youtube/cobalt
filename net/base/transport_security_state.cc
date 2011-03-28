@@ -479,6 +479,8 @@ bool TransportSecurityState::IsPreloadedSTS(
     {18, false, "\003www\010lastpass\003com"},
     {14, true, "\010keyerror\003com"},
     {22, true, "\011encrypted\006google\003com"},
+    {13, false, "\010entropia\002de"},
+    {17, false, "\003www\010entropia\002de"},
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
