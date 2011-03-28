@@ -12,8 +12,8 @@
 #endif
 
 #include "base/file_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
-#include "base/scoped_ptr.h"
 #include "net/base/gzip_filter.h"
 #include "net/base/mock_filter_context.h"
 #include "net/base/io_buffer.h"

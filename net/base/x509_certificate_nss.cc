@@ -18,8 +18,8 @@
 
 #include "base/crypto/rsa_private_key.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/pickle.h"
-#include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "base/nss_util.h"
 #include "net/base/cert_status_flags.h"

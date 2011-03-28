@@ -17,7 +17,7 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/filter.h"
 
 typedef struct z_stream_s z_stream;

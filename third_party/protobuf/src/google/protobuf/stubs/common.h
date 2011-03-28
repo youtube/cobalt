@@ -411,7 +411,7 @@ struct CompileAssert {
 //   causes ((0.0) ? 1 : -1) to incorrectly evaluate to 1.
 
 // ===================================================================
-// from google3/base/scoped_ptr.h
+// from google3/base/memory/scoped_ptr.h
 
 namespace internal {
 

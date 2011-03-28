@@ -16,7 +16,7 @@
 #if defined(OS_POSIX)
 #include <list>
 #include <utility>
-#include "base/ref_counted.h"
+#include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #endif
 

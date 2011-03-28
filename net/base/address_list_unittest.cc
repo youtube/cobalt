@@ -4,7 +4,7 @@
 
 #include "net/base/address_list.h"
 
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "net/base/host_resolver_proc.h"
 #include "net/base/net_util.h"
