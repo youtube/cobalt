@@ -1233,45 +1233,18 @@
       'type': 'none',
       'msvs_guid': '8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942',
       'variables': {
-        'grit_cmd': ['python', '../tools/grit/grit.py'],
-        'grit_info_cmd': ['python', '../tools/grit/grit_info.py',
-                          '<@(grit_defines)'],
-        'input_paths': [
-          'base/net_resources.grd',
-        ],
+        'grit_out_dir': '<(SHARED_INTERMEDIATE_DIR)/net',
       },
-      'rules': [
+      'actions': [
         {
-          'rule_name': 'grit',
-          'extension': 'grd',
-          'inputs': [
-            '<!@(<(grit_info_cmd) --inputs <(input_paths))',
-          ],
-          'outputs': [
-            '<!@(<(grit_info_cmd) '
-            '--outputs \'<(SHARED_INTERMEDIATE_DIR)/net\' <(input_paths))',
-          ],
-          'action':
-            ['<@(grit_cmd)',
-             '-i', '<(RULE_INPUT_PATH)', 'build',
-             '-o', '<(SHARED_INTERMEDIATE_DIR)/net',
-             '<@(grit_defines)'],
-          'message': 'Generating resources from <(RULE_INPUT_PATH)',
+          'action_name': 'net_resources',
+          'variables': {
+            'grit_grd_file': 'base/net_resources.grd',
+          },
+          'includes': [ '../build/grit_action.gypi' ],
         },
       ],
-      'sources': [
-        '<@(input_paths)',
-      ],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '<(SHARED_INTERMEDIATE_DIR)/net',
-        ],
-      },
-      'conditions': [
-        ['OS=="win"', {
-          'dependencies': ['../build/win/system.gyp:cygwin'],
-        }],
-      ],
+      'includes': [ '../build/grit_target.gypi' ],
     },
     {
       'target_name': 'fetch_client',
