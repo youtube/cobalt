@@ -5,8 +5,8 @@
 #ifndef NET_HTTP_HTTP_STREAM_FACTORY_IMPL_JOB_H_
 #define NET_HTTP_HTTP_STREAM_FACTORY_IMPL_JOB_H_
 
-#include "base/ref_counted.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/task.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"

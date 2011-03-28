@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/ref_counted.h"
+#include "base/memory/ref_counted.h"
 #include "net/url_request/url_request_throttler_header_interface.h"
 
 namespace net {

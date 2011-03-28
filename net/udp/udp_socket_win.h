@@ -8,8 +8,8 @@
 
 #include <winsock2.h>
 
-#include "base/ref_counted.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/win/object_watcher.h"
 #include "net/base/completion_callback.h"

@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "base/debug/leak_tracker.h"
-#include "base/linked_ptr.h"
 #include "base/logging.h"
-#include "base/ref_counted.h"
+#include "base/memory/linked_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"

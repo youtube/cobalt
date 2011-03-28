@@ -10,7 +10,7 @@
 #pragma once
 
 #include "base/base_api.h"
-#include "base/ref_counted.h"
+#include "base/memory/ref_counted.h"
 
 namespace base {
 namespace internal {

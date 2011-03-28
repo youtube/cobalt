@@ -10,7 +10,7 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/ref_counted.h"
+#include "base/memory/ref_counted.h"
 #include "base/synchronization/cancellation_flag.h"
 #include "base/task.h"
 #include "base/threading/platform_thread.h"

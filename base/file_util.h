@@ -29,8 +29,8 @@
 #include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/file_path.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/platform_file.h"
-#include "base/scoped_ptr.h"
 #include "base/string16.h"
 
 #if defined(OS_POSIX)

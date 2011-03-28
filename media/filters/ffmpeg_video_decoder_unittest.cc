@@ -4,7 +4,7 @@
 
 #include <deque>
 
-#include "base/singleton.h"
+#include "base/memory/singleton.h"
 #include "base/string_util.h"
 #include "media/base/data_buffer.h"
 #include "media/base/filters.h"

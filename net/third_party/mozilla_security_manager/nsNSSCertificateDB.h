@@ -41,7 +41,7 @@
 
 #include <vector>
 
-#include "base/ref_counted.h"
+#include "base/memory/ref_counted.h"
 #include "net/base/cert_database.h"
 
 typedef struct CERTCertificateStr CERTCertificate;
