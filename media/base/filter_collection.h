@@ -7,7 +7,7 @@
 
 #include <list>
 
-#include "base/ref_counted.h"
+#include "base/memory/ref_counted.h"
 #include "media/base/filters.h"
 #include "media/base/filter_factories.h"
 

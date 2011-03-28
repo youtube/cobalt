@@ -1,9 +1,9 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // This is a low level implementation of atomic semantics for reference
-// counting.  Please use base/ref_counted.h directly instead.
+// counting.  Please use base/memory/ref_counted.h directly instead.
 //
 // The implementation includes annotations to avoid some false positives
 // when using data race detection tools.

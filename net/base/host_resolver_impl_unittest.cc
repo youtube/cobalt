@@ -7,8 +7,8 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
-#include "base/ref_counted.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/base/address_list.h"

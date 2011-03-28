@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "base/ref_counted.h"
+#include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
 #include "base/time.h"
 #include "net/base/x509_cert_types.h"

@@ -41,8 +41,8 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/ref_counted.h"
 #include "base/string16.h"
-#include "base/ref_counted.h"
 
 typedef struct CERTCertificateStr CERTCertificate;
 typedef struct PK11SlotInfoStr PK11SlotInfo;

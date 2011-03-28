@@ -6,9 +6,9 @@
 #define NET_UDP_UDP_SOCKET_LIBEVENT_H_
 #pragma once
 
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "base/ref_counted.h"
-#include "base/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/completion_callback.h"
 #include "net/base/ip_endpoint.h"

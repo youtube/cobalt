@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,9 +13,9 @@
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
 
+#include "base/memory/singleton.h"
 #include "base/openssl_util.h"
 #include "base/pickle.h"
-#include "base/singleton.h"
 #include "base/string_number_conversions.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"

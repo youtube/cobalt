@@ -11,7 +11,7 @@
 #include "base/base_api.h"
 #include "base/basictypes.h"
 #include "base/file_version_info.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 
 struct tagVS_FIXEDFILEINFO;
 typedef tagVS_FIXEDFILEINFO VS_FIXEDFILEINFO;

@@ -6,7 +6,7 @@
 #define NET_HTTP_HTTP_STREAM_FACTORY_IMPL_REQUEST_H_
 
 #include <set>
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_log.h"
 #include "net/http/http_stream_factory_impl.h"

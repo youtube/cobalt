@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,9 +12,9 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/logging.h"
+#include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
 #include "base/observer_list.h"
-#include "base/ref_counted.h"
 #include "base/task.h"
 
 ///////////////////////////////////////////////////////////////////////////////

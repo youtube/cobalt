@@ -8,9 +8,9 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/native_library.h"
 #include "base/path_service.h"
-#include "base/scoped_ptr.h"
 
 // Enable timing code by turning on TESTING macro.
 //#define TESTING 1

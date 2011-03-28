@@ -9,7 +9,7 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/net_errors.h"
 #include "net/base/upload_data.h"
