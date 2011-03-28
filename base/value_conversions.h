@@ -8,6 +8,8 @@
 
 // This file contains methods to convert a |FilePath| to a |Value| and back.
 
+#include "base/base_api.h"
+
 class FilePath;
 class StringValue;
 class Value;
@@ -15,8 +17,8 @@ class Value;
 namespace base {
 
 // The caller takes ownership of the returned value.
-StringValue* CreateFilePathValue(const FilePath& in_value);
-bool GetValueAsFilePath(const Value& value, FilePath* file_path);
+BASE_API StringValue* CreateFilePathValue(const FilePath& in_value);
+BASE_API bool GetValueAsFilePath(const Value& value, FilePath* file_path);
 
 }  // namespace
 

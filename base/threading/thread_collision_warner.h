@@ -131,12 +131,12 @@ namespace base {
 // AsserterBase is the interfaces and DCheckAsserter is the default asserter
 // used. During the unit tests is used another class that doesn't "DCHECK"
 // in case of collision (check thread_collision_warner_unittests.cc)
-struct AsserterBase {
+struct BASE_API AsserterBase {
   virtual ~AsserterBase() {}
   virtual void warn() = 0;
 };
 
-struct DCheckAsserter : public AsserterBase {
+struct BASE_API DCheckAsserter : public AsserterBase {
   virtual ~DCheckAsserter() {}
   virtual void warn();
 };

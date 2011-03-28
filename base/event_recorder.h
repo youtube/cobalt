@@ -10,6 +10,8 @@
 #include <windows.h>
 #include <stdio.h>
 #endif
+
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 class FilePath;
@@ -29,7 +31,7 @@ namespace base {
 //        Why?  Imagine if the product had a "record a macro" feature.
 //        You might be recording globally, while recording or playing back
 //        a macro.  I don't think two playbacks make sense.
-class EventRecorder {
+class BASE_API EventRecorder {
  public:
   // Get the singleton EventRecorder.
   // We can only handle one recorder/player at a time.

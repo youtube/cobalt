@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,8 @@
 #pragma once
 
 #include <string>
+
+#include "base/base_api.h"
 
 // MD5 stands for Message Digest algorithm 5.
 // MD5 is a robust hash function, designed for cyptography, but often used
@@ -42,25 +44,25 @@ typedef char MD5Context[88];
 
 // Computes the MD5 sum of the given data buffer with the given length.
 // The given 'digest' structure will be filled with the result data.
-void MD5Sum(const void* data, size_t length, MD5Digest* digest);
+BASE_API void MD5Sum(const void* data, size_t length, MD5Digest* digest);
 
 // Initializes the given MD5 context structure for subsequent calls to
 // MD5Update().
-void MD5Init(MD5Context* context);
+BASE_API void MD5Init(MD5Context* context);
 
 // For the given buffer of data, updates the given MD5 context with the sum of
 // the data. You can call this any number of times during the computation,
 // except that MD5Init() must have been called first.
-void MD5Update(MD5Context* context, const void* buf, size_t len);
+BASE_API void MD5Update(MD5Context* context, const void* buf, size_t len);
 
 // Finalizes the MD5 operation and fills the buffer with the digest.
-void MD5Final(MD5Digest* digest, MD5Context* pCtx);
+BASE_API void MD5Final(MD5Digest* digest, MD5Context* pCtx);
 
 // Converts a digest into human-readable hexadecimal.
-std::string MD5DigestToBase16(const MD5Digest& digest);
+BASE_API std::string MD5DigestToBase16(const MD5Digest& digest);
 
 // Returns the MD5 (in hexadecimal) of a string.
-std::string MD5String(const std::string& str);
+BASE_API std::string MD5String(const std::string& str);
 
 #endif  // BASE_MD5_H_
 

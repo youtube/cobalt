@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,6 +11,8 @@
 #include <windows.h>
 #include <wmistr.h>
 #include <evntrace.h>
+
+#include "base/base_api.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -80,7 +82,7 @@ template <size_t N> class EtwMofEvent: public EtwMofEventBase<N> {
 // a particular trace level, and whether particular enable flags are set,
 // before other resources are consumed to generate and issue the log
 // messages themselves.
-class EtwTraceProvider {
+class BASE_API EtwTraceProvider {
  public:
   // Creates an event trace provider identified by provider_name, which
   // will be the name registered with Event Tracing for Windows (ETW).
