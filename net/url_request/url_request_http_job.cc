@@ -699,6 +699,11 @@ bool URLRequestHttpJob::ShouldTreatAsCertificateError(int result) {
   if (!IsCertificateError(result))
     return false;
 
+  // Revocation failures are always certificate errors, even if the host is
+  // using Strict-Transport-Security.
+  if (result == ERR_CERT_UNABLE_TO_CHECK_REVOCATION)
+    return true;
+
   // Check whether our context is using Strict-Transport-Security.
   if (!context_->transport_security_state())
     return true;
