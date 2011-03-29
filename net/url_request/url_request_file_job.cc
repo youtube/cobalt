@@ -354,14 +354,19 @@ void URLRequestFileJob::DidResolve(
                      byte_range_.first_byte_position() + 1;
   DCHECK_GE(remaining_bytes_, 0);
 
-  // Do the seek at the beginning of the request.
-  if (remaining_bytes_ > 0 &&
-      byte_range_.first_byte_position() != 0 &&
-      byte_range_.first_byte_position() !=
-          stream_.Seek(FROM_BEGIN, byte_range_.first_byte_position())) {
-    NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
-               ERR_REQUEST_RANGE_NOT_SATISFIABLE));
-    return;
+  // URL requests should not block on the disk!
+  //   http://code.google.com/p/chromium/issues/detail?id=59849
+  {
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    // Do the seek at the beginning of the request.
+    if (remaining_bytes_ > 0 &&
+        byte_range_.first_byte_position() != 0 &&
+        byte_range_.first_byte_position() !=
+        stream_.Seek(FROM_BEGIN, byte_range_.first_byte_position())) {
+      NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
+                                  ERR_REQUEST_RANGE_NOT_SATISFIABLE));
+      return;
+    }
   }
 
   set_expected_content_size(remaining_bytes_);
