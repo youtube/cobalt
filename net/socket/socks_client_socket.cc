@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,15 +18,10 @@ namespace net {
 // and we send an empty string.
 static const char kEmptyUserId[] = "";
 
-// The SOCKS4a implementation suggests to use an invalid IP in case the DNS
-// resolution at client fails.
-static const uint8 kInvalidIp[] = { 0, 0, 0, 127 };
-
 // For SOCKS4, the client sends 8 bytes  plus the size of the user-id.
-// For SOCKS4A, this increases to accomodate the unresolved hostname.
 static const unsigned int kWriteHeaderSize = 8;
 
-// For SOCKS4 and SOCKS4a, the server sends 8 bytes for acknowledgement.
+// For SOCKS4 the server sends 8 bytes for acknowledgement.
 static const unsigned int kReadHeaderSize = 8;
 
 // Server Response codes for SOCKS.
@@ -38,7 +33,7 @@ static const uint8 kServerResponseMismatchedUserId = 0x5D;
 static const uint8 kSOCKSVersion4 = 0x04;
 static const uint8 kSOCKSStreamRequest = 0x01;
 
-// A struct holding the essential details of the SOCKS4/4a Server Request.
+// A struct holding the essential details of the SOCKS4 Server Request.
 // The port in the header is stored in network byte order.
 struct SOCKS4ServerRequest {
   uint8 version;
@@ -49,7 +44,7 @@ struct SOCKS4ServerRequest {
 COMPILE_ASSERT(sizeof(SOCKS4ServerRequest) == kWriteHeaderSize,
                socks4_server_request_struct_wrong_size);
 
-// A struct holding details of the SOCKS4/4a Server Response.
+// A struct holding details of the SOCKS4 Server Response.
 struct SOCKS4ServerResponse {
   uint8 reserved_null;
   uint8 code;
@@ -66,7 +61,6 @@ SOCKSClientSocket::SOCKSClientSocket(ClientSocketHandle* transport_socket,
           io_callback_(this, &SOCKSClientSocket::OnIOComplete)),
       transport_(transport_socket),
       next_state_(STATE_NONE),
-      socks_version_(kSOCKS4Unresolved),
       user_callback_(NULL),
       completed_handshake_(false),
       bytes_sent_(0),
@@ -83,7 +77,6 @@ SOCKSClientSocket::SOCKSClientSocket(ClientSocket* transport_socket,
           io_callback_(this, &SOCKSClientSocket::OnIOComplete)),
       transport_(new ClientSocketHandle()),
       next_state_(STATE_NONE),
-      socks_version_(kSOCKS4Unresolved),
       user_callback_(NULL),
       completed_handshake_(false),
       bytes_sent_(0),
@@ -266,79 +259,51 @@ int SOCKSClientSocket::DoLoop(int last_io_result) {
 }
 
 int SOCKSClientSocket::DoResolveHost() {
-  DCHECK_EQ(kSOCKS4Unresolved, socks_version_);
-
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
+  // SOCKS4 only supports IPv4 addresses, so only try getting the IPv4
+  // addresses for the target host.
+  host_request_info_.set_address_family(ADDRESS_FAMILY_IPV4);
   return host_resolver_.Resolve(
       host_request_info_, &addresses_, &io_callback_, net_log_);
 }
 
 int SOCKSClientSocket::DoResolveHostComplete(int result) {
-  DCHECK_EQ(kSOCKS4Unresolved, socks_version_);
-
-  bool ok = (result == OK);
-  next_state_ = STATE_HANDSHAKE_WRITE;
-  if (ok) {
-    DCHECK(addresses_.head());
-
-    // If the host is resolved to an IPv6 address, we revert to SOCKS4a
-    // since IPv6 is unsupported by SOCKS4/4a protocol.
-    struct sockaddr *host_info = addresses_.head()->ai_addr;
-    if (host_info->sa_family == AF_INET) {
-      DVLOG(1) << "Resolved host. Using SOCKS4 to communicate";
-      socks_version_ = kSOCKS4;
-    } else {
-      DVLOG(1) << "Resolved host but to IPv6. Using SOCKS4a to communicate";
-      socks_version_ = kSOCKS4a;
-    }
-  } else {
-    DVLOG(1) << "Could not resolve host. Using SOCKS4a to communicate";
-    socks_version_ = kSOCKS4a;
+  if (result != OK) {
+    // Resolving the hostname failed; fail the request rather than automatically
+    // falling back to SOCKS4a (since it can be confusing to see invalid IP
+    // addresses being sent to the SOCKS4 server when it doesn't support 4A.)
+    return result;
   }
 
-  // Even if DNS resolution fails, we send OK since the server
-  // resolves the domain.
+  next_state_ = STATE_HANDSHAKE_WRITE;
   return OK;
 }
 
 // Builds the buffer that is to be sent to the server.
-// We check whether the SOCKS proxy is 4 or 4A.
-// In case it is 4A, the record size increases by size of the hostname.
 const std::string SOCKSClientSocket::BuildHandshakeWriteBuffer() const {
-  DCHECK_NE(kSOCKS4Unresolved, socks_version_);
-
   SOCKS4ServerRequest request;
   request.version = kSOCKSVersion4;
   request.command = kSOCKSStreamRequest;
   request.nw_port = htons(host_request_info_.port());
 
-  if (socks_version_ == kSOCKS4) {
-    const struct addrinfo* ai = addresses_.head();
-    DCHECK(ai);
-    // If the sockaddr is IPv6, we have already marked the version to socks4a
-    // and so this step does not get hit.
-    struct sockaddr_in* ipv4_host =
-        reinterpret_cast<struct sockaddr_in*>(ai->ai_addr);
-    memcpy(&request.ip, &(ipv4_host->sin_addr), sizeof(ipv4_host->sin_addr));
+  const struct addrinfo* ai = addresses_.head();
+  DCHECK(ai);
 
-    DVLOG(1) << "Resolved Host is : " << NetAddressToString(ai);
-  } else if (socks_version_ == kSOCKS4a) {
-    // invalid IP of the form 0.0.0.127
-    memcpy(&request.ip, kInvalidIp, arraysize(kInvalidIp));
-  } else {
-    NOTREACHED();
-  }
+  // We disabled IPv6 results when resolving the hostname, so none of the
+  // results in the list will be IPv6.
+  // TODO(eroman): we only ever use the first address in the list. It would be
+  //               more robust to try all the IP addresses we have before
+  //               failing the connect attempt.
+  CHECK_EQ(AF_INET, ai->ai_addr->sa_family);
+  struct sockaddr_in* ipv4_host =
+      reinterpret_cast<struct sockaddr_in*>(ai->ai_addr);
+  memcpy(&request.ip, &ipv4_host->sin_addr, sizeof(ipv4_host->sin_addr));
+
+  DVLOG(1) << "Resolved Host is : " << NetAddressToString(ai);
 
   std::string handshake_data(reinterpret_cast<char*>(&request),
                              sizeof(request));
   handshake_data.append(kEmptyUserId, arraysize(kEmptyUserId));
-
-  // In case we are passing the domain also, pass the hostname
-  // terminated with a null character.
-  if (socks_version_ == kSOCKS4a) {
-    handshake_data.append(host_request_info_.hostname());
-    handshake_data.push_back('\0');
-  }
 
   return handshake_data;
 }
@@ -362,8 +327,6 @@ int SOCKSClientSocket::DoHandshakeWrite() {
 }
 
 int SOCKSClientSocket::DoHandshakeWriteComplete(int result) {
-  DCHECK_NE(kSOCKS4Unresolved, socks_version_);
-
   if (result < 0)
     return result;
 
@@ -384,8 +347,6 @@ int SOCKSClientSocket::DoHandshakeWriteComplete(int result) {
 }
 
 int SOCKSClientSocket::DoHandshakeRead() {
-  DCHECK_NE(kSOCKS4Unresolved, socks_version_);
-
   next_state_ = STATE_HANDSHAKE_READ_COMPLETE;
 
   if (buffer_.empty()) {
@@ -399,8 +360,6 @@ int SOCKSClientSocket::DoHandshakeRead() {
 }
 
 int SOCKSClientSocket::DoHandshakeReadComplete(int result) {
-  DCHECK_NE(kSOCKS4Unresolved, socks_version_);
-
   if (result < 0)
     return result;
 
