@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,11 +11,15 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/stringprintf.h"
 #include "base/values.h"
 #include "net/base/ssl_config_service.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket_pool.h"
+#include "net/http/http_request_info.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_factory.h"
+#include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket_pool.h"
@@ -50,6 +54,179 @@ static void AddSocketPoolsToList(ListValue* list,
                                             type,
                                             include_nested_pools));
   }
+}
+
+// The meat of the implementation for the InitSocketHandleForHttpRequest,
+// InitSocketHandleForRawConnect and PreconnectSocketsForHttpRequest methods.
+int InitSocketPoolHelper(const HttpRequestInfo& request_info,
+                         HttpNetworkSession* session,
+                         const ProxyInfo& proxy_info,
+                         bool force_spdy_over_ssl,
+                         bool want_spdy_over_npn,
+                         const SSLConfig& ssl_config_for_origin,
+                         const SSLConfig& ssl_config_for_proxy,
+                         const BoundNetLog& net_log,
+                         int num_preconnect_streams,
+                         ClientSocketHandle* socket_handle,
+                         CompletionCallback* callback) {
+  scoped_refptr<TCPSocketParams> tcp_params;
+  scoped_refptr<HttpProxySocketParams> http_proxy_params;
+  scoped_refptr<SOCKSSocketParams> socks_params;
+  scoped_ptr<HostPortPair> proxy_host_port;
+
+  bool using_ssl = request_info.url.SchemeIs("https") || force_spdy_over_ssl;
+
+  HostPortPair origin_host_port =
+      HostPortPair(request_info.url.HostNoBrackets(),
+                   request_info.url.EffectiveIntPort());
+
+  bool disable_resolver_cache =
+      request_info.load_flags & LOAD_BYPASS_CACHE ||
+      request_info.load_flags & LOAD_VALIDATE_CACHE ||
+      request_info.load_flags & LOAD_DISABLE_CACHE;
+
+  int load_flags = request_info.load_flags;
+  if (HttpStreamFactory::ignore_certificate_errors())
+    load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
+
+  // Build the string used to uniquely identify connections of this type.
+  // Determine the host and port to connect to.
+  std::string connection_group = origin_host_port.ToString();
+  DCHECK(!connection_group.empty());
+  if (using_ssl)
+    connection_group = base::StringPrintf("ssl/%s", connection_group.c_str());
+
+  if (proxy_info.is_direct()) {
+    tcp_params = new TCPSocketParams(origin_host_port,
+                                     request_info.priority,
+                                     request_info.referrer,
+                                     disable_resolver_cache);
+  } else {
+    ProxyServer proxy_server = proxy_info.proxy_server();
+    proxy_host_port.reset(new HostPortPair(proxy_server.host_port_pair()));
+    scoped_refptr<TCPSocketParams> proxy_tcp_params(
+        new TCPSocketParams(*proxy_host_port,
+                            request_info.priority,
+                            request_info.referrer,
+                            disable_resolver_cache));
+
+    if (proxy_info.is_http() || proxy_info.is_https()) {
+      std::string user_agent;
+      request_info.extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
+                                           &user_agent);
+      scoped_refptr<SSLSocketParams> ssl_params;
+      if (proxy_info.is_https()) {
+        // Set ssl_params, and unset proxy_tcp_params
+        ssl_params = new SSLSocketParams(proxy_tcp_params,
+                                         NULL,
+                                         NULL,
+                                         ProxyServer::SCHEME_DIRECT,
+                                         *proxy_host_port.get(),
+                                         ssl_config_for_proxy,
+                                         load_flags,
+                                         force_spdy_over_ssl,
+                                         want_spdy_over_npn);
+        proxy_tcp_params = NULL;
+      }
+
+      http_proxy_params =
+          new HttpProxySocketParams(proxy_tcp_params,
+                                    ssl_params,
+                                    request_info.url,
+                                    user_agent,
+                                    origin_host_port,
+                                    session->http_auth_cache(),
+                                    session->http_auth_handler_factory(),
+                                    session->spdy_session_pool(),
+                                    using_ssl);
+    } else {
+      DCHECK(proxy_info.is_socks());
+      char socks_version;
+      if (proxy_server.scheme() == ProxyServer::SCHEME_SOCKS5)
+        socks_version = '5';
+      else
+        socks_version = '4';
+      connection_group = base::StringPrintf(
+          "socks%c/%s", socks_version, connection_group.c_str());
+
+      socks_params = new SOCKSSocketParams(proxy_tcp_params,
+                                           socks_version == '5',
+                                           origin_host_port,
+                                           request_info.priority,
+                                           request_info.referrer);
+    }
+  }
+
+  // Deal with SSL - which layers on top of any given proxy.
+  if (using_ssl) {
+    scoped_refptr<SSLSocketParams> ssl_params =
+        new SSLSocketParams(tcp_params,
+                            socks_params,
+                            http_proxy_params,
+                            proxy_info.proxy_server().scheme(),
+                            origin_host_port,
+                            ssl_config_for_origin,
+                            load_flags,
+                            force_spdy_over_ssl,
+                            want_spdy_over_npn);
+    SSLClientSocketPool* ssl_pool = NULL;
+    if (proxy_info.is_direct())
+      ssl_pool = session->ssl_socket_pool();
+    else
+      ssl_pool = session->GetSocketPoolForSSLWithProxy(*proxy_host_port);
+
+    if (num_preconnect_streams) {
+      RequestSocketsForPool(ssl_pool, connection_group, ssl_params,
+                            num_preconnect_streams, net_log);
+      return OK;
+    }
+
+    return socket_handle->Init(connection_group, ssl_params,
+                               request_info.priority, callback, ssl_pool,
+                               net_log);
+  }
+
+  // Finally, get the connection started.
+  if (proxy_info.is_http() || proxy_info.is_https()) {
+    HttpProxyClientSocketPool* pool =
+        session->GetSocketPoolForHTTPProxy(*proxy_host_port);
+    if (num_preconnect_streams) {
+      RequestSocketsForPool(pool, connection_group, http_proxy_params,
+                            num_preconnect_streams, net_log);
+      return OK;
+    }
+
+    return socket_handle->Init(connection_group, http_proxy_params,
+                               request_info.priority, callback,
+                               pool, net_log);
+  }
+
+  if (proxy_info.is_socks()) {
+    SOCKSClientSocketPool* pool =
+        session->GetSocketPoolForSOCKSProxy(*proxy_host_port);
+    if (num_preconnect_streams) {
+      RequestSocketsForPool(pool, connection_group, socks_params,
+                            num_preconnect_streams, net_log);
+      return OK;
+    }
+
+    return socket_handle->Init(connection_group, socks_params,
+                               request_info.priority, callback, pool,
+                               net_log);
+  }
+
+  DCHECK(proxy_info.is_direct());
+
+  TCPClientSocketPool* pool = session->tcp_socket_pool();
+  if (num_preconnect_streams) {
+    RequestSocketsForPool(pool, connection_group, tcp_params,
+                          num_preconnect_streams, net_log);
+    return OK;
+  }
+
+  return socket_handle->Init(connection_group, tcp_params,
+                             request_info.priority, callback,
+                             pool, net_log);
 }
 
 }  // namespace
@@ -402,5 +579,83 @@ Value* ClientSocketPoolManager::SocketPoolInfoToValue() const {
 void ClientSocketPoolManager::OnUserCertAdded(X509Certificate* cert) {
   FlushSocketPools();
 }
+
+// static
+int ClientSocketPoolManager::InitSocketHandleForHttpRequest(
+    const HttpRequestInfo& request_info,
+    HttpNetworkSession* session,
+    const ProxyInfo& proxy_info,
+    bool force_spdy_over_ssl,
+    bool want_spdy_over_npn,
+    const SSLConfig& ssl_config_for_origin,
+    const SSLConfig& ssl_config_for_proxy,
+    const BoundNetLog& net_log,
+    ClientSocketHandle* socket_handle,
+    CompletionCallback* callback) {
+  DCHECK(socket_handle);
+  return InitSocketPoolHelper(request_info,
+                              session,
+                              proxy_info,
+                              force_spdy_over_ssl,
+                              want_spdy_over_npn,
+                              ssl_config_for_origin,
+                              ssl_config_for_proxy,
+                              net_log,
+                              0,
+                              socket_handle,
+                              callback);
+}
+
+// static
+int ClientSocketPoolManager::InitSocketHandleForRawConnect(
+    const HostPortPair& host_port_pair,
+    HttpNetworkSession* session,
+    const ProxyInfo& proxy_info,
+    const SSLConfig& ssl_config_for_origin,
+    const SSLConfig& ssl_config_for_proxy,
+    const BoundNetLog& net_log,
+    ClientSocketHandle* socket_handle,
+    CompletionCallback* callback) {
+  DCHECK(socket_handle);
+  // Synthesize an HttpRequestInfo.
+  HttpRequestInfo request_info;
+  request_info.url = GURL("http://" + host_port_pair.ToString());
+  return InitSocketPoolHelper(request_info,
+                              session,
+                              proxy_info,
+                              false,
+                              false,
+                              ssl_config_for_origin,
+                              ssl_config_for_proxy,
+                              net_log,
+                              0,
+                              socket_handle,
+                              callback);
+}
+
+// static
+int ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
+    const HttpRequestInfo& request_info,
+    HttpNetworkSession* session,
+    const ProxyInfo& proxy_info,
+    bool force_spdy_over_ssl,
+    bool want_spdy_over_npn,
+    const SSLConfig& ssl_config_for_origin,
+    const SSLConfig& ssl_config_for_proxy,
+    const BoundNetLog& net_log,
+    int num_preconnect_streams) {
+  return InitSocketPoolHelper(request_info,
+                              session,
+                              proxy_info,
+                              force_spdy_over_ssl,
+                              want_spdy_over_npn,
+                              ssl_config_for_origin,
+                              ssl_config_for_proxy,
+                              net_log,
+                              num_preconnect_streams,
+                              NULL,
+                              NULL);
+}
+
 
 }  // namespace net
