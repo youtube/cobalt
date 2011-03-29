@@ -561,144 +561,44 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
     dependent_job_ = NULL;
   }
 
-  // Build the string used to uniquely identify connections of this type.
-  // Determine the host and port to connect to.
-  std::string connection_group = origin_.ToString();
-  DCHECK(!connection_group.empty());
+  if (proxy_info_.is_http() || proxy_info_.is_https())
+    establishing_tunnel_ = using_ssl_;
 
-  if (using_ssl_)
-    connection_group = base::StringPrintf("ssl/%s", connection_group.c_str());
+  bool want_spdy_over_npn = original_url_.get() ? true : false;
 
-  // If the user is refreshing the page, bypass the host cache.
-  bool disable_resolver_cache =
-      request_info_.load_flags & LOAD_BYPASS_CACHE ||
-      request_info_.load_flags & LOAD_VALIDATE_CACHE ||
-      request_info_.load_flags & LOAD_DISABLE_CACHE;
-
-  // Build up the connection parameters.
-  scoped_refptr<TCPSocketParams> tcp_params;
-  scoped_refptr<HttpProxySocketParams> http_proxy_params;
-  scoped_refptr<SOCKSSocketParams> socks_params;
-  scoped_ptr<HostPortPair> proxy_host_port;
-
-  if (proxy_info_.is_direct()) {
-    tcp_params = new TCPSocketParams(origin_, request_info_.priority,
-                                     request_info_.referrer,
-                                     disable_resolver_cache);
-  } else {
-    ProxyServer proxy_server = proxy_info_.proxy_server();
-    proxy_host_port.reset(new HostPortPair(proxy_server.host_port_pair()));
-    scoped_refptr<TCPSocketParams> proxy_tcp_params(
-        new TCPSocketParams(*proxy_host_port, request_info_.priority,
-                            request_info_.referrer, disable_resolver_cache));
-
-    if (proxy_info_.is_http() || proxy_info_.is_https()) {
-      establishing_tunnel_ = using_ssl_;
-      std::string user_agent;
-      request_info_.extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
-                                             &user_agent);
-      scoped_refptr<SSLSocketParams> ssl_params;
-      if (proxy_info_.is_https()) {
-        // Set ssl_params, and unset proxy_tcp_params
-        ssl_params = GenerateSSLParams(proxy_tcp_params, NULL, NULL,
-                                       ProxyServer::SCHEME_DIRECT,
-                                       *proxy_host_port.get(),
-                                       original_url_.get() ? true : false);
-        proxy_tcp_params = NULL;
-      }
-
-      http_proxy_params =
-          new HttpProxySocketParams(proxy_tcp_params,
-                                    ssl_params,
-                                    request_info_.url,
-                                    user_agent,
-                                    origin_,
-                                    session_->http_auth_cache(),
-                                    session_->http_auth_handler_factory(),
-                                    session_->spdy_session_pool(),
-                                    using_ssl_);
-    } else {
-      DCHECK(proxy_info_.is_socks());
-      char socks_version;
-      if (proxy_server.scheme() == ProxyServer::SCHEME_SOCKS5)
-        socks_version = '5';
-      else
-        socks_version = '4';
-      connection_group = base::StringPrintf(
-          "socks%c/%s", socks_version, connection_group.c_str());
-
-      socks_params = new SOCKSSocketParams(proxy_tcp_params,
-                                           socks_version == '5',
-                                           origin_,
-                                           request_info_.priority,
-                                           request_info_.referrer);
-    }
+  SSLConfig ssl_config_for_proxy = ssl_config_;
+  if (proxy_info_.is_https()) {
+    InitSSLConfig(proxy_info_.proxy_server().host_port_pair(),
+                  &ssl_config_for_proxy);
   }
-
-  // Deal with SSL - which layers on top of any given proxy.
   if (using_ssl_) {
-    scoped_refptr<SSLSocketParams> ssl_params =
-        GenerateSSLParams(tcp_params, http_proxy_params, socks_params,
-                          proxy_info_.proxy_server().scheme(),
-                          origin_, original_url_.get() ? true : false);
-    SSLClientSocketPool* ssl_pool = NULL;
-    if (proxy_info_.is_direct())
-      ssl_pool = session_->ssl_socket_pool();
-    else
-      ssl_pool = session_->GetSocketPoolForSSLWithProxy(*proxy_host_port);
-
-    if (IsPreconnecting()) {
-      RequestSocketsForPool(ssl_pool, connection_group, ssl_params,
-                            num_streams_, net_log_);
-      return OK;
-    }
-
-    return connection_->Init(connection_group, ssl_params,
-                             request_info_.priority, &io_callback_, ssl_pool,
-                             net_log_);
+    InitSSLConfig(origin_, &ssl_config_);
   }
 
-  // Finally, get the connection started.
-  if (proxy_info_.is_http() || proxy_info_.is_https()) {
-    HttpProxyClientSocketPool* pool =
-        session_->GetSocketPoolForHTTPProxy(*proxy_host_port);
-    if (IsPreconnecting()) {
-      RequestSocketsForPool(pool, connection_group, http_proxy_params,
-                            num_streams_, net_log_);
-      return OK;
-    }
-
-    return connection_->Init(connection_group, http_proxy_params,
-                             request_info_.priority, &io_callback_,
-                             pool, net_log_);
-  }
-
-  if (proxy_info_.is_socks()) {
-    SOCKSClientSocketPool* pool =
-        session_->GetSocketPoolForSOCKSProxy(*proxy_host_port);
-    if (IsPreconnecting()) {
-      RequestSocketsForPool(pool, connection_group, socks_params,
-                            num_streams_, net_log_);
-      return OK;
-    }
-
-    return connection_->Init(connection_group, socks_params,
-                             request_info_.priority, &io_callback_, pool,
-                             net_log_);
-  }
-
-  DCHECK(proxy_info_.is_direct());
-
-  TCPClientSocketPool* pool = session_->tcp_socket_pool();
   if (IsPreconnecting()) {
-    RequestSocketsForPool(pool, connection_group, tcp_params,
-                          num_streams_, net_log_);
-    return OK;
+    return ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
+        request_info_,
+        session_,
+        proxy_info_,
+        ShouldForceSpdySSL(),
+        want_spdy_over_npn,
+        ssl_config_,
+        ssl_config_for_proxy,
+        net_log_,
+        num_streams_);
+  } else {
+    return ClientSocketPoolManager::InitSocketHandleForHttpRequest(
+        request_info_,
+        session_,
+        proxy_info_,
+        ShouldForceSpdySSL(),
+        want_spdy_over_npn,
+        ssl_config_,
+        ssl_config_for_proxy,
+        net_log_,
+        connection_.get(),
+        &io_callback_);
   }
-
-  return connection_->Init(connection_group, tcp_params,
-                           request_info_.priority, &io_callback_,
-                           pool, net_log_);
 }
 
 int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
@@ -957,24 +857,19 @@ bool HttpStreamFactoryImpl::Job::IsHttpsProxyAndHttpUrl() {
   return request_info_.url.SchemeIs("http");
 }
 
-// Returns a newly create SSLSocketParams, and sets several
-// fields of ssl_config_.
-scoped_refptr<SSLSocketParams> HttpStreamFactoryImpl::Job::GenerateSSLParams(
-    scoped_refptr<TCPSocketParams> tcp_params,
-    scoped_refptr<HttpProxySocketParams> http_proxy_params,
-    scoped_refptr<SOCKSSocketParams> socks_params,
-    ProxyServer::Scheme proxy_scheme,
+// Sets several fields of ssl_config for the given origin_server based on the
+// proxy info and other factors.
+void HttpStreamFactoryImpl::Job::InitSSLConfig(
     const HostPortPair& origin_server,
-    bool want_spdy_over_npn) {
-
+    SSLConfig* ssl_config) const {
   if (stream_factory_->IsTLSIntolerantServer(origin_server)) {
     LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
         << origin_server.ToString();
-    ssl_config_.ssl3_fallback = true;
-    ssl_config_.tls1_enabled = false;
+    ssl_config->ssl3_fallback = true;
+    ssl_config->tls1_enabled = false;
   }
 
-  if (proxy_info_.is_https() && ssl_config_.send_client_cert) {
+  if (proxy_info_.is_https() && ssl_config->send_client_cert) {
     // When connecting through an HTTPS proxy, disable TLS False Start so
     // that client authentication errors can be distinguished between those
     // originating from the proxy server (ERR_PROXY_CONNECTION_FAILED) and
@@ -983,31 +878,19 @@ scoped_refptr<SSLSocketParams> HttpStreamFactoryImpl::Job::GenerateSSLParams(
     // TODO(rch): This assumes that the HTTPS proxy will only request a
     // client certificate during the initial handshake.
     // http://crbug.com/59292
-    ssl_config_.false_start_enabled = false;
+    ssl_config->false_start_enabled = false;
   }
 
   UMA_HISTOGRAM_ENUMERATION("Net.ConnectionUsedSSLv3Fallback",
-                            static_cast<int>(ssl_config_.ssl3_fallback), 2);
+                            static_cast<int>(ssl_config->ssl3_fallback), 2);
 
-  int load_flags = request_info_.load_flags;
-  if (HttpStreamFactory::ignore_certificate_errors())
-    load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
   if (request_info_.load_flags & LOAD_VERIFY_EV_CERT)
-    ssl_config_.verify_ev_cert = true;
+    ssl_config->verify_ev_cert = true;
 
   if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_HTTP ||
       proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_HTTPS) {
-    ssl_config_.mitm_proxies_allowed = true;
+    ssl_config->mitm_proxies_allowed = true;
   }
-
-  scoped_refptr<SSLSocketParams> ssl_params(
-      new SSLSocketParams(tcp_params, socks_params, http_proxy_params,
-                          proxy_scheme, origin_server,
-                          ssl_config_, load_flags,
-                          ShouldForceSpdySSL(),
-                          want_spdy_over_npn));
-
-  return ssl_params;
 }
 
 
