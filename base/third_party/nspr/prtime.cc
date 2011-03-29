@@ -1,4 +1,4 @@
-/* Portions are Copyright (C) 2007 Google Inc */
+/* Portions are Copyright (C) 2011 Google Inc */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -63,6 +63,7 @@
  * 3. prlong.h
  */
 
+#include "base/logging.h"
 #include "base/third_party/nspr/prtime.h"
 #include "build/build_config.h"
 
