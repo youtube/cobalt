@@ -2134,7 +2134,7 @@ bool IsLocalhost(const std::string& host) {
       case kIPv6AddressSize: {
         struct in6_addr sin6_addr;
         memcpy(&sin6_addr, &ip_number[0], kIPv6AddressSize);
-        return IN6_IS_ADDR_LOOPBACK(&sin6_addr) != FALSE;
+        return !!IN6_IS_ADDR_LOOPBACK(&sin6_addr);
       }
 
       default:
