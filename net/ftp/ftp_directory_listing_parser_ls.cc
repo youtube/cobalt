@@ -65,36 +65,39 @@ bool LooksLikePermissionDeniedError(const string16& text) {
   return parts[2] == ASCIIToUTF16("Permission denied");
 }
 
-bool DetectColumnOffset(const std::vector<string16>& columns,
-                        const base::Time& current_time, int* offset) {
-  base::Time time;
-
-  if (columns.size() >= 8 &&
-      net::FtpUtil::LsDateListingToTime(columns[5], columns[6], columns[7],
-                                        current_time, &time)) {
-    // Standard listing, exactly like ls -l.
-    *offset = 2;
-    return true;
+// Returns the column index of the end of the date listing and detected
+// last modification time.
+bool DetectColumnOffsetAndModificationTime(const std::vector<string16>& columns,
+                                           const base::Time& current_time,
+                                           size_t* offset,
+                                           base::Time* modification_time) {
+  // The column offset can be arbitrarily large if some fields
+  // like owner or group name contain spaces. Try offsets from left to right
+  // and use the first one that matches a date listing.
+  //
+  // Here is how a listing line should look like. A star ("*") indicates
+  // a required field:
+  //
+  //  * 1. permission listing
+  //    2. number of links (optional)
+  //  * 3. owner name (may contain spaces)
+  //    4. group name (optional, may contain spaces)
+  //  * 5. size in bytes
+  //  * 6. month
+  //  * 7. day of month
+  //  * 8. year or time <-- column_offset will be the index of this column
+  //    9. file name (optional, may contain spaces)
+  for (size_t i = 5U; i < columns.size(); i++) {
+    if (net::FtpUtil::LsDateListingToTime(columns[i - 2],
+                                          columns[i - 1],
+                                          columns[i],
+                                          current_time,
+                                          modification_time)) {
+      *offset = i;
+      return true;
+    }
   }
 
-  if (columns.size() >= 7 &&
-      net::FtpUtil::LsDateListingToTime(columns[4], columns[5], columns[6],
-                                        current_time, &time)) {
-    // wu-ftpd listing, no "number of links" column.
-    *offset = 1;
-    return true;
-  }
-
-  if (columns.size() >= 6 &&
-      net::FtpUtil::LsDateListingToTime(columns[3], columns[4], columns[5],
-                                        current_time, &time)) {
-    // Xplain FTP Server listing for folders, like this:
-    // drwxr-xr-x               folder        0 Jul 17  2006 online
-    *offset = 0;
-    return true;
-  }
-
-  // Unrecognized listing style.
   return false;
 }
 
@@ -134,8 +137,13 @@ bool ParseFtpDirectoryListingLs(
       continue;
     }
 
-    int column_offset;
-    if (!DetectColumnOffset(columns, current_time, &column_offset)) {
+    FtpDirectoryListingEntry entry;
+
+    size_t column_offset;
+    if (!DetectColumnOffsetAndModificationTime(columns,
+                                               current_time,
+                                               &column_offset,
+                                               &entry.last_modified)) {
       // If we can't recognize a normal listing line, maybe it's an error?
       // In that case, just ignore the error, but still recognize the data
       // as valid listing.
@@ -145,28 +153,8 @@ bool ParseFtpDirectoryListingLs(
       return false;
     }
 
-    // We may receive file names containing spaces, which can make the number of
-    // columns arbitrarily large. We will handle that later. For now just make
-    // sure we have all the columns that should normally be there:
-    //
-    //   1. permission listing
-    //   2. number of links (optional)
-    //   3. owner name
-    //   4. group name (optional)
-    //   5. size in bytes
-    //   6. month
-    //   7. day of month
-    //   8. year or time
-    //
-    // The number of optional columns is stored in |column_offset|
-    // and is between 0 and 2 (inclusive).
-    if (columns.size() < 6U + column_offset)
-      return false;
-
     if (!LooksLikeUnixPermissionsListing(columns[0]))
       return false;
-
-    FtpDirectoryListingEntry entry;
     if (columns[0][0] == 'l') {
       entry.type = FtpDirectoryListingEntry::SYMLINK;
     } else if (columns[0][0] == 'd') {
@@ -175,7 +163,7 @@ bool ParseFtpDirectoryListingLs(
       entry.type = FtpDirectoryListingEntry::FILE;
     }
 
-    if (!base::StringToInt64(columns[2 + column_offset], &entry.size)) {
+    if (!base::StringToInt64(columns[column_offset - 3], &entry.size)) {
       // Some FTP servers do not separate owning group name from file size,
       // like "group1234". We still want to display the file name for that
       // entry, but can't really get the size (What if the group is named
@@ -189,24 +177,17 @@ bool ParseFtpDirectoryListingLs(
     if (entry.type != FtpDirectoryListingEntry::FILE)
       entry.size = -1;
 
-    if (!FtpUtil::LsDateListingToTime(columns[3 + column_offset],
-                                      columns[4 + column_offset],
-                                      columns[5 + column_offset],
-                                      current_time,
-                                      &entry.last_modified)) {
-      return false;
-    }
-
-    entry.name = FtpUtil::GetStringPartAfterColumns(lines[i],
-                                                    6 + column_offset);
-
-    if (entry.name.empty()) {
-      // Some FTP servers send listing entries with empty names.
-      // It's not obvious how to display such an entry, so ignore them.
+    if (column_offset == columns.size() - 1) {
+      // If the end of the date listing is the last column, there is no file
+      // name. Some FTP servers send listing entries with empty names.
+      // It's not obvious how to display such an entry, so we ignore them.
       // We don't want to make the parsing fail at this point though.
       // Other entries can still be useful.
       continue;
     }
+
+    entry.name = FtpUtil::GetStringPartAfterColumns(lines[i],
+                                                    column_offset + 1);
 
     if (entry.type == FtpDirectoryListingEntry::SYMLINK) {
       string16::size_type pos = entry.name.rfind(ASCIIToUTF16(" -> "));
