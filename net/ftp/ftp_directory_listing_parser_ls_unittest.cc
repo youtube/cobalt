@@ -89,6 +89,11 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "drwxr-xr-x1732 266      111        90112 Jun 21  2001 .rda_2",
       FtpDirectoryListingEntry::DIRECTORY, ".rda_2", -1,
       2001, 6, 21, 0, 0 },
+
+    // Tests for "ls -l" style listing with group name containing spaces.
+    { "drwxrwxr-x   3 %%%%     Domain Users     4096 Dec  9  2009 %%%%%",
+      net::FtpDirectoryListingEntry::DIRECTORY, "%%%%%", -1,
+      2009, 12, 9, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
