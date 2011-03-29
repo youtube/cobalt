@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,8 +21,6 @@
 namespace net {
 
 const char kSOCKSOkRequest[] = { 0x04, 0x01, 0x00, 0x50, 127, 0, 0, 1, 0 };
-const char kSOCKS4aInitialRequest[] =
-    { 0x04, 0x01, 0x00, 0x50, 0, 0, 0, 127, 0 };
 const char kSOCKSOkReply[] = { 0x00, 0x5A, 0x00, 0x00, 0, 0, 0, 0 };
 
 class SOCKSClientSocketTest : public PlatformTest {
@@ -152,7 +150,6 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
-  EXPECT_EQ(SOCKSClientSocket::kSOCKS4, user_sock_->socks_version_);
   log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsEndEvent(
       entries, -1, NetLog::TYPE_SOCKS_CONNECT));
@@ -332,24 +329,17 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
       entries, -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
-// Tries to connect to an unknown DNS and on failure should revert to SOCKS4A.
-TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
+// Tries to connect to an unknown hostname. Should fail rather than
+// falling back to SOCKS4a.
+TEST_F(SOCKSClientSocketTest, FailedDNS) {
   const char hostname[] = "unresolved.ipv4.address";
 
   host_resolver_->rules()->AddSimulatedFailure(hostname);
 
-  std::string request(kSOCKS4aInitialRequest,
-                      arraysize(kSOCKS4aInitialRequest));
-  request.append(hostname, arraysize(hostname));
-
-  MockWrite data_writes[] = {
-      MockWrite(false, request.data(), request.size()) };
-  MockRead data_reads[] = {
-      MockRead(false, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
   CapturingNetLog log(CapturingNetLog::kUnbounded);
 
-  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
-                                   data_writes, arraysize(data_writes),
+  user_sock_.reset(BuildMockSocket(NULL, 0,
+                                   NULL, 0,
                                    host_resolver_.get(),
                                    hostname, 80,
                                    &log));
@@ -362,49 +352,8 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
       entries, 0, NetLog::TYPE_SOCKS_CONNECT));
 
   rv = callback_.WaitForResult();
-  EXPECT_EQ(OK, rv);
-  EXPECT_TRUE(user_sock_->IsConnected());
-  EXPECT_EQ(SOCKSClientSocket::kSOCKS4a, user_sock_->socks_version_);
-  log.GetEntries(&entries);
-  EXPECT_TRUE(LogContainsEndEvent(
-      entries, -1, NetLog::TYPE_SOCKS_CONNECT));
-}
-
-// Tries to connect to a domain that resolves to IPv6.
-// Should revert to SOCKS4a.
-TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
-  const char hostname[] = "an.ipv6.address";
-
-  host_resolver_->rules()->AddIPLiteralRule(hostname,
-                                            "2001:db8:8714:3a90::12", "");
-
-  std::string request(kSOCKS4aInitialRequest,
-                      arraysize(kSOCKS4aInitialRequest));
-  request.append(hostname, arraysize(hostname));
-
-  MockWrite data_writes[] = {
-      MockWrite(false, request.data(), request.size()) };
-  MockRead data_reads[] = {
-      MockRead(false, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
-                                   data_writes, arraysize(data_writes),
-                                   host_resolver_.get(),
-                                   hostname, 80,
-                                   &log));
-
-  int rv = user_sock_->Connect(&callback_);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  net::CapturingNetLog::EntryList entries;
-  log.GetEntries(&entries);
-  EXPECT_TRUE(LogContainsBeginEvent(
-      entries, 0, NetLog::TYPE_SOCKS_CONNECT));
-
-  rv = callback_.WaitForResult();
-  EXPECT_EQ(OK, rv);
-  EXPECT_TRUE(user_sock_->IsConnected());
-  EXPECT_EQ(SOCKSClientSocket::kSOCKS4a, user_sock_->socks_version_);
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, rv);
+  EXPECT_FALSE(user_sock_->IsConnected());
   log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsEndEvent(
       entries, -1, NetLog::TYPE_SOCKS_CONNECT));
