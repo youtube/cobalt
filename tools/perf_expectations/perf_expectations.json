@@ -79,5 +79,9 @@
  "xp-release-single-core/morejs/times/t": {"reva": 79404, "revb": 79498, "improve": -296, "regress": -202},
  "xp-release-single-core/moz/times/t": {"reva": 75758, "revb": 76221, "improve": -1705, "regress": 3304},
  "xp-release-single-core/startup/times/t": {"improve": -9, "regress": 9},
+ "xp-release/sizes/chrome.dll/chrome.dll": {"reva": 79560, "revb": 79586, "type": "absolute", "improve": 31646643, "regress": 34978407},
+ "xp-release/sizes/chrome.exe/chrome.exe": {"reva": 79232, "revb": 79586, "type": "absolute", "improve": 1067648, "regress": 1180032},
+ "xp-release/sizes/mini_installer.exe/mini_installer.exe": {"reva": 79302, "revb": 79586, "type": "absolute", "improve": 19878195, "regress": 22000743},
+ "xp-release/sizes/setup.exe/setup.exe": {"reva": 78857, "revb": 79586, "type": "absolute", "improve": 1140121, "regress": 1260135},
  "load": true
 }
