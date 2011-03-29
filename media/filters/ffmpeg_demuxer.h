@@ -50,8 +50,8 @@ class ScopedPtrAVFree;
 
 class FFmpegDemuxerStream : public DemuxerStream {
  public:
-  // Maintains a reference to |demuxer| and initializes itself using information
-  // inside |stream|.
+  // Keeps a copy of |demuxer| and initializes itself using information
+  // inside |stream|.  Both parameters must outlive |this|.
   FFmpegDemuxerStream(FFmpegDemuxer* demuxer, AVStream* stream);
 
   // Returns true is this stream has pending reads, false otherwise.
