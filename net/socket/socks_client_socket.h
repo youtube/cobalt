@@ -82,16 +82,6 @@ class SOCKSClientSocket : public ClientSocket {
     STATE_NONE,
   };
 
-  // The SOCKS proxy connection either has the hostname resolved via the
-  // client or via the server. This enum stores the state of the SOCKS
-  // connection. If the client can resolve the hostname, the connection is
-  // SOCKS4, otherwise it is SOCKS4A.
-  enum SocksVersion {
-    kSOCKS4Unresolved,
-    kSOCKS4,
-    kSOCKS4a,
-  };
-
   void DoCallback(int result);
   void OnIOComplete(int result);
 
@@ -111,7 +101,6 @@ class SOCKSClientSocket : public ClientSocket {
   scoped_ptr<ClientSocketHandle> transport_;
 
   State next_state_;
-  SocksVersion socks_version_;
 
   // Stores the callback to the layer above, called on completing Connect().
   CompletionCallback* user_callback_;
