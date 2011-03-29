@@ -1,4 +1,4 @@
-/* Portions are Copyright (C) 2007 Google Inc */
+/* Portions are Copyright (C) 2011 Google Inc */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -52,7 +52,7 @@
 #ifndef BASE_PRTIME_H__
 #define BASE_PRTIME_H__
 
-#include "base/logging.h"
+#include "base/base_api.h"
 #include "base/third_party/nspr/prtypes.h"
 
 #define PR_ASSERT DCHECK
@@ -225,7 +225,12 @@ NSPR_API(PRTimeParameters) PR_GMTParameters(const PRExplodedTime *gmt);
  * the time string which you are parsing.
  */
 
-NSPR_API(PRStatus) PR_ParseTimeString (
+/*
+ * This is the only funtion that should be called from outside base, and only
+ * from the unit test.
+ */
+
+BASE_API PRStatus PR_ParseTimeString (
 	const char *string,
 	PRBool default_to_gmt,
 	PRTime *result);
