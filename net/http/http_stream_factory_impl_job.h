@@ -158,15 +158,10 @@ class HttpStreamFactoryImpl::Job {
 
   bool IsHttpsProxyAndHttpUrl();
 
-  // Returns a newly create SSLSocketParams, and sets several
-  // fields of ssl_config_.
-  scoped_refptr<SSLSocketParams> GenerateSSLParams(
-      scoped_refptr<TCPSocketParams> tcp_params,
-      scoped_refptr<HttpProxySocketParams> http_proxy_params,
-      scoped_refptr<SOCKSSocketParams> socks_params,
-      ProxyServer::Scheme proxy_scheme,
-      const HostPortPair& host_and_port,
-      bool want_spdy_over_npn);
+// Sets several fields of ssl_config for the given origin_server based on the
+// proxy info and other factors.
+  void InitSSLConfig(const HostPortPair& origin_server,
+                     SSLConfig* ssl_config) const;
 
   // AlternateProtocol API
   void MarkBrokenAlternateProtocolAndFallback();

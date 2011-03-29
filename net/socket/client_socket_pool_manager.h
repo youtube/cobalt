@@ -18,27 +18,35 @@
 #include "base/template_util.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cert_database.h"
+#include "net/base/completion_callback.h"
 #include "net/socket/client_socket_pool_histograms.h"
 
 class Value;
 
 namespace net {
 
+class BoundNetLog;
 class CertVerifier;
 class ClientSocketFactory;
+class ClientSocketHandle;
 class ClientSocketPoolHistograms;
 class DnsCertProvenanceChecker;
 class DnsRRResolver;
+class HttpNetworkSession;
 class HostPortPair;
 class HttpProxyClientSocketPool;
 class HostResolver;
 class NetLog;
+class ProxyInfo;
 class ProxyService;
 class SOCKSClientSocketPool;
 class SSLClientSocketPool;
 class SSLConfigService;
 class SSLHostInfoFactory;
 class TCPClientSocketPool;
+
+struct HttpRequestInfo;
+struct SSLConfig;
 
 namespace internal {
 
@@ -91,6 +99,49 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   static int max_sockets_per_group();
   static void set_max_sockets_per_group(int socket_count);
   static void set_max_sockets_per_proxy_server(int socket_count);
+
+  // A helper method that uses the passed in proxy information to initialize a
+  // ClientSocketHandle with the relevant socket pool. Use this method for
+  // HTTP/HTTPS requests. |ssl_config_for_origin| is only used if the request
+  // uses SSL and |ssl_config_for_proxy| is used if the proxy server is HTTPS.
+  static int InitSocketHandleForHttpRequest(
+      const HttpRequestInfo& request_info,
+      HttpNetworkSession* session,
+      const ProxyInfo& proxy_info,
+      bool force_spdy_over_ssl,
+      bool want_spdy_over_npn,
+      const SSLConfig& ssl_config_for_origin,
+      const SSLConfig& ssl_config_for_proxy,
+      const BoundNetLog& net_log,
+      ClientSocketHandle* socket_handle,
+      CompletionCallback* callback);
+
+  // A helper method that uses the passed in proxy information to initialize a
+  // ClientSocketHandle with the relevant socket pool. Use this method for
+  // a raw socket connection to a host-port pair (that needs to tunnel through
+  // the proxies).
+  static int InitSocketHandleForRawConnect(
+      const HostPortPair& host_port_pair,
+      HttpNetworkSession* session,
+      const ProxyInfo& proxy_info,
+      const SSLConfig& ssl_config_for_origin,
+      const SSLConfig& ssl_config_for_proxy,
+      const BoundNetLog& net_log,
+      ClientSocketHandle* socket_handle,
+      CompletionCallback* callback);
+
+  // Similar to InitSocketHandleForHttpRequest except that it initiates the
+  // desired number of preconnect streams from the relevant socket pool.
+  static int PreconnectSocketsForHttpRequest(
+      const HttpRequestInfo& request_info,
+      HttpNetworkSession* session,
+      const ProxyInfo& proxy_info,
+      bool force_spdy_over_ssl,
+      bool want_spdy_over_npn,
+      const SSLConfig& ssl_config_for_origin,
+      const SSLConfig& ssl_config_for_proxy,
+      const BoundNetLog& net_log,
+      int num_preconnect_streams);
 
   // Creates a Value summary of the state of the socket pools. The caller is
   // responsible for deleting the returned value.
