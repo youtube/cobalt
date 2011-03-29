@@ -17,7 +17,7 @@
 #include "net/url_request/url_request_context.h"
 
 // TODO(eroman):
-//   - Support auth-prompts.
+//   - Support auth-prompts (http://crbug.com/77366)
 
 namespace net {
 
@@ -178,7 +178,7 @@ URLRequestContext* ProxyScriptFetcherImpl::GetRequestContext() {
 void ProxyScriptFetcherImpl::OnAuthRequired(URLRequest* request,
                                             AuthChallengeInfo* auth_info) {
   DCHECK_EQ(request, cur_request_.get());
-  // TODO(eroman):
+  // TODO(eroman): http://crbug.com/77366
   LOG(WARNING) << "Auth required to fetch PAC script, aborting.";
   result_code_ = ERR_NOT_IMPLEMENTED;
   request->CancelAuth();
