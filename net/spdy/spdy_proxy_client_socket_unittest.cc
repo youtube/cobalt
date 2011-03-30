@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -142,7 +142,8 @@ SpdyProxyClientSocketTest::SpdyProxyClientSocketTest()
       endpoint_host_port_pair_(kOriginHost, kOriginPort),
       proxy_(ProxyServer::SCHEME_HTTPS, proxy_host_port_),
       endpoint_host_port_proxy_pair_(endpoint_host_port_pair_, proxy_),
-      tcp_params_(new TCPSocketParams(proxy_host_port_, LOWEST, url_, false)) {
+      tcp_params_(new TCPSocketParams(proxy_host_port_, LOWEST, url_, false,
+                                      false)) {
 }
 
 void SpdyProxyClientSocketTest::TearDown() {

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -44,7 +44,7 @@ class SSLClientSocketPoolTest : public testing::Test {
             &host_resolver_)),
         session_(CreateNetworkSession()),
         direct_tcp_socket_params_(new TCPSocketParams(
-            HostPortPair("host", 443), MEDIUM, GURL(), false)),
+            HostPortPair("host", 443), MEDIUM, GURL(), false, false)),
         tcp_histograms_("MockTCP"),
         tcp_socket_pool_(
             kMaxSockets,
@@ -52,7 +52,7 @@ class SSLClientSocketPoolTest : public testing::Test {
             &tcp_histograms_,
             &socket_factory_),
         proxy_tcp_socket_params_(new TCPSocketParams(
-            HostPortPair("proxy", 443), MEDIUM, GURL(), false)),
+            HostPortPair("proxy", 443), MEDIUM, GURL(), false, false)),
         socks_socket_params_(new SOCKSSocketParams(
             proxy_tcp_socket_params_, true, HostPortPair("sockshost", 443),
             MEDIUM, GURL())),
