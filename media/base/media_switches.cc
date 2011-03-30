@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,9 @@ const char kAlsaInputDevice[] = "alsa-input-device";
 
 // Enable hardware decoding through gpu process.
 const char kEnableAcceleratedDecoding[]  = "enable-accelerated-decoding";
+
+// Enable x-adaptive URL scheme.
+const char kEnableAdaptive[] = "enable-adaptive";
 
 // Enable hardware decoding using OpenMax API.
 // In practice this is for ChromeOS ARM.
