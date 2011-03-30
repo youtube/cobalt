@@ -764,6 +764,7 @@ void URLRequestHttpJob::Start() {
   request_info_.method = request_->method();
   request_info_.load_flags = request_->load_flags();
   request_info_.priority = request_->priority();
+  request_info_.request_id = request_->identifier();
 
   if (request_->context()) {
     request_info_.extra_headers.SetHeaderIfMissing(

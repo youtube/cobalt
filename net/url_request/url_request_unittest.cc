@@ -239,10 +239,10 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateTunnelConnectionFailed) {
 
   TestDelegate d;
   {
+    TestNetworkDelegate network_delegate;  // must outlive URLRequest
     URLRequest r(GURL("https://www.redirect.com/"), &d);
     scoped_refptr<TestURLRequestContext> context(
         new TestURLRequestContext(test_server_.host_port_pair().ToString()));
-    TestNetworkDelegate network_delegate;
     context->set_network_delegate(&network_delegate);
     r.set_context(context);
 
@@ -2403,13 +2403,13 @@ TEST_F(URLRequestTest, Identifiers) {
 // delegate.
 TEST_F(URLRequestTest, NetworkDelegateProxyError) {
   TestDelegate d;
+  TestNetworkDelegate network_delegate;
   TestURLRequest req(GURL("http://example.com"), &d);
   req.set_method("GET");
 
   scoped_ptr<MockHostResolverBase> host_resolver(
       new MockHostResolver);
   host_resolver->rules()->AddSimulatedFailure("*");
-  TestNetworkDelegate network_delegate;
   scoped_refptr<TestURLRequestContext> context(
       new TestURLRequestContext("myproxy:70", host_resolver.release()));
   context->set_network_delegate(&network_delegate);
