@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,7 +49,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   HttpProxyClientSocketPoolTest()
       : ssl_config_(),
         ignored_tcp_socket_params_(new TCPSocketParams(
-            HostPortPair("proxy", 80), LOWEST, GURL(), false)),
+            HostPortPair("proxy", 80), LOWEST, GURL(), false, false)),
         ignored_ssl_socket_params_(new SSLSocketParams(
             ignored_tcp_socket_params_, NULL, NULL, ProxyServer::SCHEME_DIRECT,
             HostPortPair("www.google.com", 443), ssl_config_, 0, false, false)),

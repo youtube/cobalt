@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -70,7 +70,7 @@ DeterministicSocketDataTest::DeterministicSocketDataTest()
       connect_data_(false, OK),
       url_("https://www.google.com"),
       endpoint_("www.google.com", 443),
-      tcp_params_(new TCPSocketParams(endpoint_, LOWEST, url_, false)),
+      tcp_params_(new TCPSocketParams(endpoint_, LOWEST, url_, false, false)),
       histograms_(""),
       socket_pool_(10, 10, &histograms_, &socket_factory_) {
 }

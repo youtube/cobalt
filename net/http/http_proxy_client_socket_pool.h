@@ -66,6 +66,7 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   }
   const HostResolver::RequestInfo& destination() const;
   bool tunnel() const { return tunnel_; }
+  bool ignore_limits() const { return ignore_limits_; }
 
  private:
   friend class base::RefCounted<HttpProxySocketParams>;
@@ -80,6 +81,7 @@ class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
   HttpAuthCache* const http_auth_cache_;
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
   const bool tunnel_;
+  bool ignore_limits_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxySocketParams);
 };

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,6 +48,10 @@ HttpProxySocketParams::HttpProxySocketParams(
       tunnel_(tunnel) {
   DCHECK((tcp_params == NULL && ssl_params != NULL) ||
          (tcp_params != NULL && ssl_params == NULL));
+  if (tcp_params_)
+    ignore_limits_ = tcp_params->ignore_limits();
+  else
+    ignore_limits_ = ssl_params->ignore_limits();
 }
 
 const HostResolver::RequestInfo& HttpProxySocketParams::destination() const {
