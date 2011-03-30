@@ -107,6 +107,11 @@ class HttpAuthController : public base::RefCounted<HttpAuthController>,
   // URLRequestHttpJob can prompt for a username/password.
   void PopulateAuthChallenge();
 
+  // If |result| indicates a permanent failure, disables the current
+  // auth scheme for this controller and returns true.  Returns false
+  // otherwise.
+  bool DisableOnAuthHandlerResult(int result);
+
   void OnIOComplete(int result);
 
   // Indicates if this handler is for Proxy auth or Server auth.

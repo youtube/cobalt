@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -192,13 +192,12 @@ int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
                                        request,
                                        &io_callback_,
                                        &auth_token_);
+  if (DisableOnAuthHandlerResult(rv))
+    rv = OK;
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
   else
     OnIOComplete(rv);
-  // This error occurs with GSSAPI, if the user has not already logged in.
-  if (rv == ERR_MISSING_AUTH_CREDENTIALS)
-    rv = OK;
   return rv;
 }
 
@@ -244,9 +243,13 @@ void HttpAuthController::AddAuthorizationHeader(
     HttpRequestHeaders* authorization_headers) {
   DCHECK(CalledOnValidThread());
   DCHECK(HaveAuth());
-  authorization_headers->SetHeader(
-      HttpAuth::GetAuthorizationHeaderName(target_), auth_token_);
-  auth_token_.clear();
+  // auth_token_ can be empty if we encountered a permanent error with
+  // the auth scheme and want to retry.
+  if (!auth_token_.empty()) {
+    authorization_headers->SetHeader(
+        HttpAuth::GetAuthorizationHeaderName(target_), auth_token_);
+    auth_token_.clear();
+  }
 }
 
 int HttpAuthController::HandleAuthChallenge(
@@ -498,15 +501,40 @@ void HttpAuthController::PopulateAuthChallenge() {
   auth_info_->realm = ASCIIToWide(handler_->realm());
 }
 
+bool HttpAuthController::DisableOnAuthHandlerResult(int result) {
+  DCHECK(CalledOnValidThread());
+
+  switch (result) {
+    // Occurs with GSSAPI, if the user has not already logged in.
+    case ERR_MISSING_AUTH_CREDENTIALS:
+
+    // Can occur with GSSAPI or SSPI if the underlying library reports
+    // a permanent error.
+    case ERR_UNSUPPORTED_AUTH_SCHEME:
+
+    // These two error codes represent failures we aren't handling.
+    case ERR_UNEXPECTED_SECURITY_LIBRARY_STATUS:
+    case ERR_UNDOCUMENTED_SECURITY_LIBRARY_STATUS:
+
+    // Can be returned by SSPI if the authenticating authority or
+    // target is not known.
+    case ERR_MISCONFIGURED_AUTH_ENVIRONMENT:
+
+      // In these cases, disable the current scheme as it cannot
+      // succeed.
+      DisableAuthScheme(handler_->auth_scheme());
+      auth_token_.clear();
+      return true;
+
+    default:
+      return false;
+  }
+}
+
 void HttpAuthController::OnIOComplete(int result) {
   DCHECK(CalledOnValidThread());
-  // This error occurs with GSSAPI, if the user has not already logged in.
-  // In that case, disable the current scheme as it cannot succeed.
-  if (result == ERR_MISSING_AUTH_CREDENTIALS) {
-    DisableAuthScheme(handler_->auth_scheme());
-    auth_token_.clear();
+  if (DisableOnAuthHandlerResult(result))
     result = OK;
-  }
   if (user_callback_) {
     CompletionCallback* c = user_callback_;
     user_callback_ = NULL;
