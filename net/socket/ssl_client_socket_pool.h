@@ -65,6 +65,7 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
   int load_flags() const { return load_flags_; }
   bool force_spdy_over_ssl() const { return force_spdy_over_ssl_; }
   bool want_spdy_over_npn() const { return want_spdy_over_npn_; }
+  bool ignore_limits() const { return ignore_limits_; }
 
  private:
   friend class base::RefCounted<SSLSocketParams>;
@@ -79,6 +80,7 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
   const int load_flags_;
   const bool force_spdy_over_ssl_;
   const bool want_spdy_over_npn_;
+  bool ignore_limits_;
 
   DISALLOW_COPY_AND_ASSIGN(SSLSocketParams);
 };

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -133,11 +133,13 @@ ClientSocketPoolBaseHelper::Request::Request(
     ClientSocketHandle* handle,
     CompletionCallback* callback,
     RequestPriority priority,
+    bool ignore_limits,
     Flags flags,
     const BoundNetLog& net_log)
     : handle_(handle),
       callback_(callback),
       priority_(priority),
+      ignore_limits_(ignore_limits),
       flags_(flags),
       net_log_(net_log) {}
 
@@ -291,13 +293,14 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     return ERR_IO_PENDING;
 
   // Can we make another active socket now?
-  if (!group->HasAvailableSocketSlot(max_sockets_per_group_)) {
+  if (!group->HasAvailableSocketSlot(max_sockets_per_group_) &&
+      !request->ignore_limits()) {
     request->net_log().AddEvent(
         NetLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS_PER_GROUP, NULL);
     return ERR_IO_PENDING;
   }
 
-  if (ReachedMaxSocketsLimit()) {
+  if (ReachedMaxSocketsLimit() && !request->ignore_limits()) {
     if (idle_socket_count() > 0) {
       bool closed = CloseOneIdleSocketExceptInGroup(group);
       if (preconnecting && !closed)
@@ -942,7 +945,8 @@ bool ClientSocketPoolBaseHelper::ReachedMaxSocketsLimit() const {
   // Each connecting socket will eventually connect and be handed out.
   int total = handed_out_socket_count_ + connecting_socket_count_ +
       idle_socket_count();
-  DCHECK_LE(total, max_sockets_);
+  // There can be more sockets than the limit since some requests can ignore
+  // the limit
   if (total < max_sockets_)
     return false;
   return true;

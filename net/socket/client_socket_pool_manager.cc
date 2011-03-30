@@ -96,11 +96,13 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
   if (using_ssl)
     connection_group = base::StringPrintf("ssl/%s", connection_group.c_str());
 
+  bool ignore_limits = (request_info.load_flags & LOAD_IGNORE_LIMITS) != 0;
   if (proxy_info.is_direct()) {
     tcp_params = new TCPSocketParams(origin_host_port,
                                      request_info.priority,
                                      request_info.referrer,
-                                     disable_resolver_cache);
+                                     disable_resolver_cache,
+                                     ignore_limits);
   } else {
     ProxyServer proxy_server = proxy_info.proxy_server();
     proxy_host_port.reset(new HostPortPair(proxy_server.host_port_pair()));
@@ -108,7 +110,8 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
         new TCPSocketParams(*proxy_host_port,
                             request_info.priority,
                             request_info.referrer,
-                            disable_resolver_cache));
+                            disable_resolver_cache,
+                            ignore_limits));
 
     if (proxy_info.is_http() || proxy_info.is_https()) {
       std::string user_agent;

@@ -35,6 +35,8 @@ const int kDefaultMaxSocketsPerGroup = 2;
 const net::RequestPriority kDefaultPriority = MEDIUM;
 
 class TestSocketParams : public base::RefCounted<TestSocketParams> {
+ public:
+  bool ignore_limits() { return false; }
  private:
   friend class base::RefCounted<TestSocketParams>;
   ~TestSocketParams() {}
@@ -591,7 +593,7 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_NoTimeoutOnSynchronousCompletion) {
   TestClientSocketPoolBase::Request request(
       &ignored, NULL, kDefaultPriority,
       internal::ClientSocketPoolBaseHelper::NORMAL,
-      params_, BoundNetLog());
+      false, params_, BoundNetLog());
   scoped_ptr<TestConnectJob> job(
       new TestConnectJob(TestConnectJob::kMockJob,
                          "a",
@@ -611,7 +613,7 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
   TestClientSocketPoolBase::Request request(
       &ignored, NULL, kDefaultPriority,
       internal::ClientSocketPoolBaseHelper::NORMAL,
-      params_, BoundNetLog());
+      false, params_, BoundNetLog());
   // Deleted by TestConnectJobDelegate.
   TestConnectJob* job =
       new TestConnectJob(TestConnectJob::kMockPendingJob,
