@@ -939,6 +939,7 @@
         'http/des_unittest.cc',
         'http/http_alternate_protocols_unittest.cc',
         'http/http_auth_cache_unittest.cc',
+        'http/http_auth_controller_unittest.cc',
         'http/http_auth_filter_unittest.cc',
         'http/http_auth_gssapi_posix_unittest.cc',
         'http/http_auth_handler_basic_unittest.cc',
