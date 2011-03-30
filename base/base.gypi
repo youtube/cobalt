@@ -196,7 +196,6 @@
           'rand_util.h',
           'rand_util_posix.cc',
           'rand_util_win.cc',
-          'ref_counted.h',
           'resource_util.cc',
           'resource_util.h',
           'safe_strerror_posix.cc',
