@@ -400,12 +400,16 @@ void URLRequestHttpJob::AddExtraHeaders() {
   if (context) {
     // Only add default Accept-Language and Accept-Charset if the request
     // didn't have them specified.
-    request_info_.extra_headers.SetHeaderIfMissing(
-        HttpRequestHeaders::kAcceptLanguage,
-        context->accept_language());
-    request_info_.extra_headers.SetHeaderIfMissing(
-        HttpRequestHeaders::kAcceptCharset,
-        context->accept_charset());
+    if (!context->accept_language().empty()) {
+      request_info_.extra_headers.SetHeaderIfMissing(
+          HttpRequestHeaders::kAcceptLanguage,
+          context->accept_language());
+    }
+    if (!context->accept_charset().empty()) {
+      request_info_.extra_headers.SetHeaderIfMissing(
+          HttpRequestHeaders::kAcceptCharset,
+          context->accept_charset());
+    }
   }
 }
 

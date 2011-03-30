@@ -2438,12 +2438,8 @@ TEST_P(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
 TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
   // These are headers which the net::URLRequest tacks on.
   const char* const kExtraHeaders[] = {
-    "accept-charset",
-    "",
     "accept-encoding",
     "gzip,deflate",
-    "accept-language",
-    "",
   };
   const SpdyHeaderInfo kSynStartHeader = make_spdy_header(spdy::SYN_STREAM);
   const char* const kStandardGetHeaders[] = {
@@ -2548,12 +2544,8 @@ TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
 TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
   // These are headers which the net::URLRequest tacks on.
   const char* const kExtraHeaders[] = {
-    "accept-charset",
-    "",
     "accept-encoding",
     "gzip,deflate",
-    "accept-language",
-    "",
   };
   const SpdyHeaderInfo kSynStartHeader = make_spdy_header(spdy::SYN_STREAM);
   const char* const kStandardGetHeaders[] = {
