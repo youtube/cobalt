@@ -2753,10 +2753,26 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptLanguage) {
 
   TestDelegate d;
   TestURLRequest req(test_server_.GetURL("echoheader?Accept-Language"), &d);
-  req.set_context(new TestURLRequestContext());
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext;
+  context->set_accept_language("en");
+  req.set_context(context);
   req.Start();
   MessageLoop::current()->Run();
-  EXPECT_EQ(req.context()->accept_language(), d.data_received());
+  EXPECT_EQ("en", d.data_received());
+}
+
+// Check that an empty A-L header is not sent. http://crbug.com/77365.
+TEST_F(URLRequestTestHTTP, EmptyAcceptLanguage) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  TestURLRequest req(test_server_.GetURL("echoheader?Accept-Language"), &d);
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext;
+  context->set_accept_language("");
+  req.set_context(context);
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ("None", d.data_received());
 }
 
 // Check that if request overrides the A-L header, the default is not appended.
@@ -2782,10 +2798,26 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptCharset) {
 
   TestDelegate d;
   TestURLRequest req(test_server_.GetURL("echoheader?Accept-Charset"), &d);
-  req.set_context(new TestURLRequestContext());
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext;
+  context->set_accept_charset("en");
+  req.set_context(context);
   req.Start();
   MessageLoop::current()->Run();
-  EXPECT_EQ(req.context()->accept_charset(), d.data_received());
+  EXPECT_EQ("en", d.data_received());
+}
+
+// Check that an empty A-C header is not sent. http://crbug.com/77365.
+TEST_F(URLRequestTestHTTP, EmptyAcceptCharset) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  TestURLRequest req(test_server_.GetURL("echoheader?Accept-Charset"), &d);
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext;
+  context->set_accept_charset("");
+  req.set_context(context);
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ("None", d.data_received());
 }
 
 // Check that if request overrides the A-C header, the default is not appended.
