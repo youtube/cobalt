@@ -94,6 +94,8 @@ class HttpNetworkTransaction : public HttpTransaction,
     STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE,
     STATE_GENERATE_SERVER_AUTH_TOKEN,
     STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE,
+    STATE_BUILD_REQUEST,
+    STATE_BUILD_REQUEST_COMPLETE,
     STATE_SEND_REQUEST,
     STATE_SEND_REQUEST_COMPLETE,
     STATE_READ_HEADERS,
@@ -125,6 +127,8 @@ class HttpNetworkTransaction : public HttpTransaction,
   int DoGenerateProxyAuthTokenComplete(int result);
   int DoGenerateServerAuthToken();
   int DoGenerateServerAuthTokenComplete(int result);
+  int DoBuildRequest();
+  int DoBuildRequestComplete(int result);
   int DoSendRequest();
   int DoSendRequestComplete(int result);
   int DoReadHeaders();
@@ -217,7 +221,10 @@ class HttpNetworkTransaction : public HttpTransaction,
   HttpAuth::Target pending_auth_target_;
 
   CompletionCallbackImpl<HttpNetworkTransaction> io_callback_;
+  scoped_refptr<CancelableCompletionCallback<HttpNetworkTransaction> >
+      delegate_callback_;
   CompletionCallback* user_callback_;
+  scoped_ptr<UploadDataStream> request_body_;
 
   scoped_refptr<HttpNetworkSession> session_;
 
