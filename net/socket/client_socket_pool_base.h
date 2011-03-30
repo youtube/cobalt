@@ -171,6 +171,7 @@ class ClientSocketPoolBaseHelper
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
             RequestPriority priority,
+            bool ignore_limits,
             Flags flags,
             const BoundNetLog& net_log);
 
@@ -179,6 +180,7 @@ class ClientSocketPoolBaseHelper
     ClientSocketHandle* handle() const { return handle_; }
     CompletionCallback* callback() const { return callback_; }
     RequestPriority priority() const { return priority_; }
+    bool ignore_limits() const { return ignore_limits_; }
     Flags flags() const { return flags_; }
     const BoundNetLog& net_log() const { return net_log_; }
 
@@ -186,6 +188,7 @@ class ClientSocketPoolBaseHelper
     ClientSocketHandle* const handle_;
     CompletionCallback* const callback_;
     const RequestPriority priority_;
+    bool ignore_limits_;
     const Flags flags_;
     BoundNetLog net_log_;
 
@@ -563,10 +566,11 @@ class ClientSocketPoolBase {
             CompletionCallback* callback,
             RequestPriority priority,
             internal::ClientSocketPoolBaseHelper::Flags flags,
+            bool ignore_limits,
             const scoped_refptr<SocketParams>& params,
             const BoundNetLog& net_log)
         : internal::ClientSocketPoolBaseHelper::Request(
-              handle, callback, priority, flags, net_log),
+              handle, callback, priority, ignore_limits, flags, net_log),
           params_(params) {}
 
     const scoped_refptr<SocketParams>& params() const { return params_; }
@@ -624,6 +628,7 @@ class ClientSocketPoolBase {
     Request* request =
         new Request(handle, callback, priority,
                     internal::ClientSocketPoolBaseHelper::NORMAL,
+                    params->ignore_limits(),
                     params, net_log);
     return helper_.RequestSocket(group_name, request);
   }
@@ -639,6 +644,7 @@ class ClientSocketPoolBase {
                           NULL /* no callback */,
                           LOWEST,
                           internal::ClientSocketPoolBaseHelper::NO_IDLE_SOCKETS,
+                          params->ignore_limits(),
                           params,
                           net_log);
     helper_.RequestSockets(group_name, request, num_sockets);
