@@ -471,7 +471,8 @@ class URLRequest : public base::NonThreadSafe {
   // cancel the request.  This method may be called many times, and it has
   // no effect once the response has completed.  It is guaranteed that no
   // methods of the delegate will be called after the request has been
-  // cancelled, including during the call to Cancel itself.
+  // cancelled, except that this may call the delegate's OnReadCompleted()
+  // during the call to Cancel itself.
   void Cancel();
 
   // Cancels the request and sets the error to |os_error| (see net_error_list.h
