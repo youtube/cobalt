@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,6 +36,7 @@ scoped_refptr<StatsHistogram> StatsHistogram::StatsHistogramFactoryGet(
                                                          bucket_count);
     stats_histogram->InitializeBucketRange();
     histogram = stats_histogram;
+    histogram->SetFlags(kUmaTargetedHistogramFlag);
     StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
@@ -58,8 +59,6 @@ bool StatsHistogram::Init(const Stats* stats) {
   DCHECK(stats);
   if (stats_)
     return false;
-
-  SetFlags(kUmaTargetedHistogramFlag);
 
   // We support statistics report for only one cache.
   init_ = true;
