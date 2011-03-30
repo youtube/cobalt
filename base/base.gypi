@@ -451,7 +451,13 @@
                   '../third_party/openssl/openssl.gyp:openssl',
                 ],
               }, {  # use_openssl==0
+                'sources': [
+                  'base/crypto/scoped_nss_types.h',
+                ],
                 'dependencies': [
+                  '../build/linux/system.gyp:nss',
+                ],
+                'export_dependent_settings': [
                   '../build/linux/system.gyp:nss',
                 ],
               }
