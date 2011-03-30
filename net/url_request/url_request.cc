@@ -44,7 +44,8 @@ void StripPostSpecificHeaders(HttpRequestHeaders* headers) {
 }
 
 // This counter keeps track of the identifiers used for URL requests so far.
-uint64 g_next_url_request_identifier = 0;
+// 0 is reserved to represent an invalid ID.
+uint64 g_next_url_request_identifier = 1;
 
 // This lock protects g_next_url_request_identifier.
 base::Lock g_next_url_request_identifier_lock;
@@ -130,6 +131,9 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
 }
 
 URLRequest::~URLRequest() {
+  if (context_ && context_->network_delegate())
+    context_->network_delegate()->NotifyURLRequestDestroyed(this);
+
   if (before_request_callback_)
     before_request_callback_->Cancel();
 
@@ -362,7 +366,7 @@ void URLRequest::Start() {
     before_request_callback_ = new CancelableCompletionCallback<URLRequest>(
         this, &URLRequest::BeforeRequestComplete);
     if (context_->network_delegate()->NotifyBeforeURLRequest(
-            this, before_request_callback_)) {
+            this, before_request_callback_) == net::ERR_IO_PENDING) {
       before_request_callback_->AddRef();  // balanced in BeforeRequestComplete
       net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_EXTENSION, NULL);
       return;  // paused

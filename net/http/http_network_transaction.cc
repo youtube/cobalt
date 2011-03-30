@@ -99,6 +99,9 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
     : pending_auth_target_(HttpAuth::AUTH_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpNetworkTransaction::OnIOComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(delegate_callback_(
+          new CancelableCompletionCallback<HttpNetworkTransaction>(
+              this, &HttpNetworkTransaction::OnIOComplete))),
       user_callback_(NULL),
       session_(session),
       request_(NULL),
@@ -146,6 +149,8 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
       }
     }
   }
+
+  delegate_callback_->Cancel();
 }
 
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
@@ -514,9 +519,16 @@ int HttpNetworkTransaction::DoLoop(int result) {
       case STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE:
         rv = DoGenerateServerAuthTokenComplete(rv);
         break;
-      case STATE_SEND_REQUEST:
+      case STATE_BUILD_REQUEST:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST, NULL);
+        rv = DoBuildRequest();
+        break;
+      case STATE_BUILD_REQUEST_COMPLETE:
+        rv = DoBuildRequestComplete(rv);
+        break;
+      case STATE_SEND_REQUEST:
+        DCHECK_EQ(OK, rv);
         rv = DoSendRequest();
         break;
       case STATE_SEND_REQUEST_COMPLETE:
@@ -661,38 +673,58 @@ int HttpNetworkTransaction::DoGenerateServerAuthToken() {
 int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
   if (rv == OK)
-    next_state_ = STATE_SEND_REQUEST;
+    next_state_ = STATE_BUILD_REQUEST;
   return rv;
+}
+
+int HttpNetworkTransaction::DoBuildRequest() {
+  next_state_ = STATE_BUILD_REQUEST_COMPLETE;
+
+  request_body_.reset(NULL);
+  if (request_->upload_data) {
+    int error_code;
+    request_body_.reset(
+        UploadDataStream::Create(request_->upload_data, &error_code));
+    if (!request_body_.get())
+      return error_code;
+  }
+
+  headers_valid_ = false;
+
+  // This is constructed lazily (instead of within our Start method), so that
+  // we have proxy info available.
+  if (request_headers_.IsEmpty()) {
+    bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
+                        !is_https_request();
+    HttpUtil::BuildRequestHeaders(request_, request_body_.get(),
+                                  auth_controllers_,
+                                  ShouldApplyServerAuth(),
+                                  ShouldApplyProxyAuth(), using_proxy,
+                                  &request_headers_);
+  }
+
+  delegate_callback_->AddRef();  // balanced in DoSendRequestComplete
+  if (session_->network_delegate()) {
+    return session_->network_delegate()->NotifyBeforeSendHeaders(
+        request_->request_id, &request_headers_, delegate_callback_);
+  }
+
+  return OK;
+}
+
+int HttpNetworkTransaction::DoBuildRequestComplete(int result) {
+  delegate_callback_->Release();  // balanced in DoBuildRequest
+
+  if (result == OK)
+    next_state_ = STATE_SEND_REQUEST;
+  return result;
 }
 
 int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
-  UploadDataStream* request_body = NULL;
-  if (request_->upload_data) {
-    int error_code;
-    request_body = UploadDataStream::Create(request_->upload_data, &error_code);
-    if (!request_body)
-      return error_code;
-  }
-
-  // This is constructed lazily (instead of within our Start method), so that
-  // we have proxy info available.
-  if (request_headers_.IsEmpty()) {
-    bool using_proxy = (proxy_info_.is_http()|| proxy_info_.is_https()) &&
-                        !is_https_request();
-    HttpUtil::BuildRequestHeaders(request_, request_body, auth_controllers_,
-                                  ShouldApplyServerAuth(),
-                                  ShouldApplyProxyAuth(), using_proxy,
-                                  &request_headers_);
-
-    if (session_->network_delegate())
-      session_->network_delegate()->NotifySendHttpRequest(&request_headers_);
-  }
-
-  headers_valid_ = false;
-  return stream_->SendRequest(request_headers_, request_body, &response_,
-                              &io_callback_);
+  return stream_->SendRequest(
+      request_headers_, request_body_.release(), &response_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
@@ -1238,6 +1270,8 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
   switch (state) {
     STATE_CASE(STATE_CREATE_STREAM);
     STATE_CASE(STATE_CREATE_STREAM_COMPLETE);
+    STATE_CASE(STATE_BUILD_REQUEST);
+    STATE_CASE(STATE_BUILD_REQUEST_COMPLETE);
     STATE_CASE(STATE_SEND_REQUEST);
     STATE_CASE(STATE_SEND_REQUEST_COMPLETE);
     STATE_CASE(STATE_READ_HEADERS);

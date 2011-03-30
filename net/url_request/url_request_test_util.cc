@@ -296,13 +296,16 @@ TestNetworkDelegate::TestNetworkDelegate()
 
 TestNetworkDelegate::~TestNetworkDelegate() {}
 
-bool TestNetworkDelegate::OnBeforeURLRequest(
+int TestNetworkDelegate::OnBeforeURLRequest(
     net::URLRequest* request, net::CompletionCallback* callback) {
-  return false;
+  return net::OK;
 }
 
-void TestNetworkDelegate::OnSendHttpRequest(
-    net::HttpRequestHeaders* headers) {
+int TestNetworkDelegate::OnBeforeSendHeaders(
+    uint64 request_id,
+    net::HttpRequestHeaders* headers,
+    net::CompletionCallback* callback) {
+  return net::OK;
 }
 
 void TestNetworkDelegate::OnResponseStarted(net::URLRequest* request) {
@@ -318,6 +321,9 @@ void TestNetworkDelegate::OnReadCompleted(net::URLRequest* request,
     error_count_++;
     last_os_error_ = request->status().os_error();
   }
+}
+
+void TestNetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {
 }
 
 net::URLRequestJob* TestNetworkDelegate::OnMaybeCreateURLRequestJob(
