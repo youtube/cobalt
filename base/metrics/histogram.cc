@@ -86,12 +86,12 @@ scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
     histogram = new Histogram(name, minimum, maximum, bucket_count);
     histogram->InitializeBucketRange();
+    histogram->SetFlags(flags);
     StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
   DCHECK_EQ(HISTOGRAM, histogram->histogram_type());
   DCHECK(histogram->HasConstructorArguments(minimum, maximum, bucket_count));
-  histogram->SetFlags(flags);
   return histogram;
 }
 
@@ -778,12 +778,12 @@ scoped_refptr<Histogram> LinearHistogram::FactoryGet(const std::string& name,
         new LinearHistogram(name, minimum, maximum, bucket_count);
     linear_histogram->InitializeBucketRange();
     histogram = linear_histogram;
+    histogram->SetFlags(flags);
     StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
   DCHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
   DCHECK(histogram->HasConstructorArguments(minimum, maximum, bucket_count));
-  histogram->SetFlags(flags);
   return histogram;
 }
 
@@ -870,11 +870,11 @@ scoped_refptr<Histogram> BooleanHistogram::FactoryGet(const std::string& name,
     BooleanHistogram* boolean_histogram = new BooleanHistogram(name);
     boolean_histogram->InitializeBucketRange();
     histogram = boolean_histogram;
+    histogram->SetFlags(flags);
     StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
   DCHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
-  histogram->SetFlags(flags);
   return histogram;
 }
 
@@ -917,13 +917,13 @@ scoped_refptr<Histogram> CustomHistogram::FactoryGet(
     CustomHistogram* custom_histogram = new CustomHistogram(name, ranges);
     custom_histogram->InitializedCustomBucketRange(ranges);
     histogram = custom_histogram;
+    histogram->SetFlags(flags);
     StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
   }
 
   DCHECK_EQ(histogram->histogram_type(), CUSTOM_HISTOGRAM);
   DCHECK(histogram->HasConstructorArguments(ranges[1], ranges.back(),
                                             ranges.size()));
-  histogram->SetFlags(flags);
   return histogram;
 }
 
