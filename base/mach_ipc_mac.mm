@@ -12,7 +12,7 @@
 namespace base {
 
 // static
-const size_t MachSendMessage::kEmptyMessageSize = sizeof(mach_msg_header_t) +
+const size_t MachMessage::kEmptyMessageSize = sizeof(mach_msg_header_t) +
     sizeof(mach_msg_body_t) + sizeof(MessageDataPacket);
 
 //==============================================================================
