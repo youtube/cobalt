@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,10 @@
 #include "base/logging.h"
 
 namespace base {
+
+// static
+const size_t MachSendMessage::kEmptyMessageSize = sizeof(mach_msg_header_t) +
+    sizeof(mach_msg_body_t) + sizeof(MessageDataPacket);
 
 //==============================================================================
 MachSendMessage::MachSendMessage(int32_t message_id) : MachMessage() {
@@ -50,7 +54,7 @@ MachMessage::MachMessage(void *storage, size_t storage_length)
       storage_length_bytes_(storage_length),
       own_storage_(false) {
   DCHECK(storage);
-  DCHECK(storage_length >= kEmptyMessageSize);
+  DCHECK_GE(storage_length, kEmptyMessageSize);
 }
 
 //==============================================================================
