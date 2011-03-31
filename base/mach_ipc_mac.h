@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -140,6 +140,7 @@ class MachMsgPortDescriptor : public mach_msg_port_descriptor_t {
 //
 class MachMessage {
  public:
+  static const size_t kEmptyMessageSize;
 
   virtual ~MachMessage();
 
@@ -209,7 +210,6 @@ class MachMessage {
   // of the Mach header.
   size_t MaxSize() const { return storage_length_bytes_; }
 
- protected:
   mach_msg_header_t *Head() { return &(storage_->head); }
 
  private:
@@ -220,15 +220,6 @@ class MachMessage {
     u_int8_t           padding[1024];
   };
 
- // kEmptyMessageSize needs to have the definition of MachMessageData before
- // it.
- public:
-   // The size of an empty message with no data.
-  static const size_t kEmptyMessageSize = sizeof(mach_msg_header_t) +
-                                          sizeof(mach_msg_body_t) +
-                                          sizeof(MessageDataPacket);
-
- private:
   MachMessageData *storage_;
   size_t storage_length_bytes_;
   bool own_storage_;  // Is storage owned by this object?
