@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -292,7 +292,7 @@ bool SharedMemory::FilePathForMemoryName(const std::string& mem_name,
 }
 
 void SharedMemory::LockOrUnlockCommon(int function) {
-  DCHECK(mapped_file_ >= 0);
+  DCHECK_GE(mapped_file_, 0);
   while (lockf(mapped_file_, function, 0) < 0) {
     if (errno == EINTR) {
       continue;
@@ -314,7 +314,7 @@ bool SharedMemory::ShareToProcessCommon(ProcessHandle process,
                                         SharedMemoryHandle *new_handle,
                                         bool close_self) {
   const int new_fd = dup(mapped_file_);
-  DCHECK(new_fd >= 0);
+  DCHECK_GE(new_fd, 0);
   new_handle->fd = new_fd;
   new_handle->auto_close = true;
 
