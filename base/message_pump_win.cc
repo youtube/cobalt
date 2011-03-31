@@ -123,7 +123,7 @@ void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
   delayed_work_time_ = delayed_work_time;
 
   int delay_msec = GetCurrentDelay();
-  DCHECK(delay_msec >= 0);
+  DCHECK_GE(delay_msec, 0);
   if (delay_msec < USER_TIMER_MINIMUM)
     delay_msec = USER_TIMER_MINIMUM;
 
