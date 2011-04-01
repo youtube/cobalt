@@ -45,8 +45,6 @@ namespace google {
 namespace protobuf {
 namespace internal {
 
-namespace { const string kEmptyString; }
-
 bool ParseNamedEnum(const EnumDescriptor* descriptor,
                     const string& name,
                     int* value) {
@@ -57,7 +55,6 @@ bool ParseNamedEnum(const EnumDescriptor* descriptor,
 }
 
 const string& NameOfEnum(const EnumDescriptor* descriptor, int value) {
-  static string kEmptyString;
   const EnumValueDescriptor* d = descriptor->FindValueByNumber(value);
   return (d == NULL ? kEmptyString : d->name());
 }
