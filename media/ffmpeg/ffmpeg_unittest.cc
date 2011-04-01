@@ -143,7 +143,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     // Determine duration by picking max stream duration.
     for (unsigned int i = 0; i < av_format_context_->nb_streams; ++i) {
       AVStream* av_stream = av_format_context_->streams[i];
-      int64 duration = ConvertTimestamp(av_stream->time_base,
+      int64 duration = ConvertFromTimeBase(av_stream->time_base,
                                         av_stream->duration).InMicroseconds();
       duration_ = std::max(duration_, duration);
     }
@@ -151,7 +151,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     // Final check to see if the container itself specifies a duration.
     AVRational av_time_base = {1, AV_TIME_BASE};
     int64 duration =
-        ConvertTimestamp(av_time_base,
+        ConvertFromTimeBase(av_time_base,
                          av_format_context_->duration).InMicroseconds();
     duration_ = std::max(duration_, duration);
   }
@@ -215,12 +215,12 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
       int64 packet_time = AV_NOPTS_VALUE;
       if (stream_index == audio_stream_index_) {
         packet_time =
-            ConvertTimestamp(av_audio_stream()->time_base, packet->pts)
+            ConvertFromTimeBase(av_audio_stream()->time_base, packet->pts)
                 .InMicroseconds();
         audio_packets_.push(packet.release());
       } else if (stream_index == video_stream_index_) {
         packet_time =
-            ConvertTimestamp(av_video_stream()->time_base, packet->pts)
+            ConvertFromTimeBase(av_video_stream()->time_base, packet->pts)
                 .InMicroseconds();
         video_packets_.push(packet.release());
       } else {
@@ -285,7 +285,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
           decoded_audio_time_ += decoded_audio_duration_;
         } else {
           decoded_audio_time_ =
-              ConvertTimestamp(av_audio_stream()->time_base, packet.pts)
+              ConvertFromTimeBase(av_audio_stream()->time_base, packet.pts)
                   .InMicroseconds();
         }
         return true;
@@ -333,11 +333,11 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         doubled_time_base.den *= 2;
 
         decoded_video_time_ =
-            ConvertTimestamp(av_video_stream()->time_base,
+            ConvertFromTimeBase(av_video_stream()->time_base,
                              video_buffer_->reordered_opaque)
                 .InMicroseconds();
         decoded_video_duration_ =
-            ConvertTimestamp(doubled_time_base,
+            ConvertFromTimeBase(doubled_time_base,
                              2 + video_buffer_->repeat_pict)
                 .InMicroseconds();
         return true;
