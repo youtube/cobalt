@@ -399,7 +399,7 @@ FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
     pts.duration = duration;
   } else {
     // Otherwise assume a normal frame duration.
-    pts.duration = ConvertTimestamp(time_base, 1);
+    pts.duration = ConvertFromTimeBase(time_base, 1);
   }
 
   return pts;

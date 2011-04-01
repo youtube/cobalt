@@ -229,7 +229,7 @@ base::TimeDelta FFmpegDemuxerStream::ConvertStreamTimestamp(
   if (timestamp == static_cast<int64>(AV_NOPTS_VALUE))
     return kNoTimestamp;
 
-  return ConvertTimestamp(time_base, timestamp);
+  return ConvertFromTimeBase(time_base, timestamp);
 }
 
 //
@@ -482,7 +482,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
     const AVRational av_time_base = {1, AV_TIME_BASE};
     max_duration =
         std::max(max_duration,
-                 ConvertTimestamp(av_time_base, format_context_->duration));
+                 ConvertFromTimeBase(av_time_base, format_context_->duration));
   } else {
     // If the duration is not a valid value. Assume that this is a live stream
     // and we set duration to the maximum int64 number to represent infinity.

@@ -36,7 +36,7 @@ int AudioFileReader::sample_rate() const {
 
 base::TimeDelta AudioFileReader::duration() const {
   const AVRational av_time_base = {1, AV_TIME_BASE};
-  return ConvertTimestamp(av_time_base, format_context_->duration);
+  return ConvertFromTimeBase(av_time_base, format_context_->duration);
 }
 
 int64 AudioFileReader::number_of_frames() const {
