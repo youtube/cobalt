@@ -378,6 +378,7 @@
         'base/state_matrix_unittest.cc',
         'base/video_frame_unittest.cc',
         'base/yuv_convert_unittest.cc',
+        'ffmpeg/ffmpeg_common_unittest.cc',
         'filters/adaptive_demuxer_unittest.cc',
         'filters/audio_renderer_algorithm_ola_unittest.cc',
         'filters/audio_renderer_base_unittest.cc',

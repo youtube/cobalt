@@ -50,11 +50,50 @@ class ScopedPtrAVFreePacket {
   }
 };
 
-base::TimeDelta ConvertTimestamp(const AVRational& time_base, int64 timestamp);
+// Converts an int64 timestamp in |time_base| units to a base::TimeDelta.
+// For example if |timestamp| equals 11025 and |time_base| equals {1, 44100}
+// then the return value will be a base::TimeDelta for 0.25 seconds since that
+// is how much time 11025/44100ths of a second represents.
+base::TimeDelta ConvertFromTimeBase(const AVRational& time_base,
+                                    int64 timestamp);
+
+// Converts a base::TimeDelta into an int64 timestamp in |time_base| units.
+// For example if |timestamp| is 0.5 seconds and |time_base| is {1, 44100}, then
+// the return value will be 22050 since that is how many 1/44100ths of a second
+// represent 0.5 seconds.
+int64 ConvertToTimeBase(const AVRational& time_base,
+                        const base::TimeDelta& timestamp);
 
 VideoCodec CodecIDToVideoCodec(CodecID codec_id);
 CodecID VideoCodecToCodecID(VideoCodec video_codec);
 
+// Get the timestamp of the next seek point after |timestamp|.
+// Returns true if a valid seek point was found after |timestamp| and
+// |seek_time| was set. Returns false if a seek point could not be
+// found or the parameters are invalid.
+bool GetSeekTimeAfter(AVStream* stream,
+                      const base::TimeDelta& timestamp,
+                      base::TimeDelta* seek_time);
+
+// Get the number of bytes required to play the stream over a specified
+// time range. This is an estimate based on the available index data.
+// Returns true if input time range was valid and |bytes|, |range_start|,
+// and |range_end|, were set. Returns false if the range was invalid or we don't
+// have enough index data to make an estimate.
+//
+// |bytes| - The number of bytes in the stream for the specified range.
+// |range_start| - The start time for the range covered by |bytes|. This
+//                 may be different than |start_time| if the index doesn't
+//                 have data for that exact time. |range_start| <= |start_time|
+// |range_end| - The end time for the range covered by |bytes|. This may be
+//               different than |end_time| if the index doesn't have data for
+//               that exact time. |range_end| >= |end_time|
+bool GetStreamByteCountOverRange(AVStream* stream,
+                                 const base::TimeDelta& start_time,
+                                 const base::TimeDelta& end_time,
+                                 int64* bytes,
+                                 base::TimeDelta* range_start,
+                                 base::TimeDelta* range_end);
 }  // namespace media
 
 #endif  // MEDIA_FFMPEG_FFMPEG_COMMON_H_
