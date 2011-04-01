@@ -679,6 +679,7 @@ int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
 
 int HttpNetworkTransaction::DoBuildRequest() {
   next_state_ = STATE_BUILD_REQUEST_COMPLETE;
+  delegate_callback_->AddRef();  // balanced in DoSendRequestComplete
 
   request_body_.reset(NULL);
   if (request_->upload_data) {
@@ -703,7 +704,6 @@ int HttpNetworkTransaction::DoBuildRequest() {
                                   &request_headers_);
   }
 
-  delegate_callback_->AddRef();  // balanced in DoSendRequestComplete
   if (session_->network_delegate()) {
     return session_->network_delegate()->NotifyBeforeSendHeaders(
         request_->request_id, &request_headers_, delegate_callback_);
