@@ -48,9 +48,6 @@
 #include <iostream>
 #include <ctype.h>
 
-#include <google/protobuf/stubs/hash.h>
-
-#include <google/protobuf/stubs/common.h>
 #include <google/protobuf/compiler/importer.h>
 #include <google/protobuf/compiler/code_generator.h>
 #include <google/protobuf/compiler/plugin.pb.h>
@@ -61,10 +58,12 @@
 #include <google/protobuf/dynamic_message.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/printer.h>
+#include <google/protobuf/stubs/common.h>
 #include <google/protobuf/stubs/strutil.h>
 #include <google/protobuf/stubs/substitute.h>
 #include <google/protobuf/stubs/map-util.h>
 #include <google/protobuf/stubs/stl_util-inl.h>
+#include <google/protobuf/stubs/hash.h>
 
 
 namespace google {
@@ -183,7 +182,7 @@ bool TryCreateParentDirectory(const string& prefix, const string& filename) {
 class CommandLineInterface::ErrorPrinter : public MultiFileErrorCollector,
                                            public io::ErrorCollector {
  public:
-  ErrorPrinter(ErrorFormat format, DiskSourceTree *tree = NULL)
+  ErrorPrinter(ErrorFormat format, DiskSourceTree *tree = NULL) 
     : format_(format), tree_(tree) {}
   ~ErrorPrinter() {}
 
@@ -192,8 +191,8 @@ class CommandLineInterface::ErrorPrinter : public MultiFileErrorCollector,
                 const string& message) {
 
     // Print full path when running under MSVS
-    string dfile;
-    if (format_ == CommandLineInterface::ERROR_FORMAT_MSVS &&
+    std::string dfile;
+    if (format_ == CommandLineInterface::ERROR_FORMAT_MSVS && 
         tree_ != NULL &&
         tree_->VirtualFileToDiskFile(filename, &dfile)) {
       cerr << dfile;
@@ -230,12 +229,12 @@ class CommandLineInterface::ErrorPrinter : public MultiFileErrorCollector,
 
 // -------------------------------------------------------------------
 
-// A GeneratorContext implementation that buffers files in memory, then dumps
+// An OutputDirectory implementation that buffers files in memory, then dumps
 // them all to disk on demand.
-class CommandLineInterface::GeneratorContextImpl : public GeneratorContext {
+class CommandLineInterface::MemoryOutputDirectory : public OutputDirectory {
  public:
-  GeneratorContextImpl(const vector<const FileDescriptor*>& parsed_files);
-  ~GeneratorContextImpl();
+  MemoryOutputDirectory();
+  ~MemoryOutputDirectory();
 
   // Write all files in the directory to disk at the given output location,
   // which must end in a '/'.
@@ -249,13 +248,10 @@ class CommandLineInterface::GeneratorContextImpl : public GeneratorContext {
   // format, unless one has already been written.
   void AddJarManifest();
 
-  // implements GeneratorContext --------------------------------------
+  // implements OutputDirectory --------------------------------------
   io::ZeroCopyOutputStream* Open(const string& filename);
   io::ZeroCopyOutputStream* OpenForInsert(
       const string& filename, const string& insertion_point);
-  void ListParsedFiles(vector<const FileDescriptor*>* output) {
-    *output = parsed_files_;
-  }
 
  private:
   friend class MemoryOutputStream;
@@ -263,15 +259,14 @@ class CommandLineInterface::GeneratorContextImpl : public GeneratorContext {
   // map instead of hash_map so that files are written in order (good when
   // writing zips).
   map<string, string*> files_;
-  const vector<const FileDescriptor*>& parsed_files_;
   bool had_error_;
 };
 
 class CommandLineInterface::MemoryOutputStream
     : public io::ZeroCopyOutputStream {
  public:
-  MemoryOutputStream(GeneratorContextImpl* directory, const string& filename);
-  MemoryOutputStream(GeneratorContextImpl* directory, const string& filename,
+  MemoryOutputStream(MemoryOutputDirectory* directory, const string& filename);
+  MemoryOutputStream(MemoryOutputDirectory* directory, const string& filename,
                      const string& insertion_point);
   virtual ~MemoryOutputStream();
 
@@ -282,7 +277,7 @@ class CommandLineInterface::MemoryOutputStream
 
  private:
   // Where to insert the string when it's done.
-  GeneratorContextImpl* directory_;
+  MemoryOutputDirectory* directory_;
   string filename_;
   string insertion_point_;
 
@@ -295,17 +290,14 @@ class CommandLineInterface::MemoryOutputStream
 
 // -------------------------------------------------------------------
 
-CommandLineInterface::GeneratorContextImpl::GeneratorContextImpl(
-    const vector<const FileDescriptor*>& parsed_files)
-    : parsed_files_(parsed_files),
-      had_error_(false) {
-}
+CommandLineInterface::MemoryOutputDirectory::MemoryOutputDirectory()
+    : had_error_(false) {}
 
-CommandLineInterface::GeneratorContextImpl::~GeneratorContextImpl() {
+CommandLineInterface::MemoryOutputDirectory::~MemoryOutputDirectory() {
   STLDeleteValues(&files_);
 }
 
-bool CommandLineInterface::GeneratorContextImpl::WriteAllToDisk(
+bool CommandLineInterface::MemoryOutputDirectory::WriteAllToDisk(
     const string& prefix) {
   if (had_error_) {
     return false;
@@ -380,7 +372,7 @@ bool CommandLineInterface::GeneratorContextImpl::WriteAllToDisk(
   return true;
 }
 
-bool CommandLineInterface::GeneratorContextImpl::WriteAllToZip(
+bool CommandLineInterface::MemoryOutputDirectory::WriteAllToZip(
     const string& filename) {
   if (had_error_) {
     return false;
@@ -421,7 +413,7 @@ bool CommandLineInterface::GeneratorContextImpl::WriteAllToZip(
   return true;
 }
 
-void CommandLineInterface::GeneratorContextImpl::AddJarManifest() {
+void CommandLineInterface::MemoryOutputDirectory::AddJarManifest() {
   string** map_slot = &files_["META-INF/MANIFEST.MF"];
   if (*map_slot == NULL) {
     *map_slot = new string(
@@ -431,13 +423,13 @@ void CommandLineInterface::GeneratorContextImpl::AddJarManifest() {
   }
 }
 
-io::ZeroCopyOutputStream* CommandLineInterface::GeneratorContextImpl::Open(
+io::ZeroCopyOutputStream* CommandLineInterface::MemoryOutputDirectory::Open(
     const string& filename) {
   return new MemoryOutputStream(this, filename);
 }
 
 io::ZeroCopyOutputStream*
-CommandLineInterface::GeneratorContextImpl::OpenForInsert(
+CommandLineInterface::MemoryOutputDirectory::OpenForInsert(
     const string& filename, const string& insertion_point) {
   return new MemoryOutputStream(this, filename, insertion_point);
 }
@@ -445,14 +437,14 @@ CommandLineInterface::GeneratorContextImpl::OpenForInsert(
 // -------------------------------------------------------------------
 
 CommandLineInterface::MemoryOutputStream::MemoryOutputStream(
-    GeneratorContextImpl* directory, const string& filename)
+    MemoryOutputDirectory* directory, const string& filename)
     : directory_(directory),
       filename_(filename),
       inner_(new io::StringOutputStream(&data_)) {
 }
 
 CommandLineInterface::MemoryOutputStream::MemoryOutputStream(
-    GeneratorContextImpl* directory, const string& filename,
+    MemoryOutputDirectory* directory, const string& filename,
     const string& insertion_point)
     : directory_(directory),
       filename_(filename),
@@ -621,11 +613,11 @@ int CommandLineInterface::Run(int argc, const char* const argv[]) {
     }
   }
 
-  // We construct a separate GeneratorContext for each output location.  Note
+  // We construct a separate OutputDirectory for each output location.  Note
   // that two code generators may output to the same location, in which case
-  // they should share a single GeneratorContext so that OpenForInsert() works.
-  typedef hash_map<string, GeneratorContextImpl*> GeneratorContextMap;
-  GeneratorContextMap output_directories;
+  // they should share a single OutputDirectory (so that OpenForInsert() works).
+  typedef hash_map<string, MemoryOutputDirectory*> OutputDirectoryMap;
+  OutputDirectoryMap output_directories;
 
   // Generate output.
   if (mode_ == MODE_COMPILE) {
@@ -635,11 +627,11 @@ int CommandLineInterface::Run(int argc, const char* const argv[]) {
           !HasSuffixString(output_location, ".jar")) {
         AddTrailingSlash(&output_location);
       }
-      GeneratorContextImpl** map_slot = &output_directories[output_location];
+      MemoryOutputDirectory** map_slot = &output_directories[output_location];
 
       if (*map_slot == NULL) {
         // First time we've seen this output location.
-        *map_slot = new GeneratorContextImpl(parsed_files);
+        *map_slot = new MemoryOutputDirectory;
       }
 
       if (!GenerateOutput(parsed_files, output_directives_[i], *map_slot)) {
@@ -650,10 +642,10 @@ int CommandLineInterface::Run(int argc, const char* const argv[]) {
   }
 
   // Write all output to disk.
-  for (GeneratorContextMap::iterator iter = output_directories.begin();
+  for (OutputDirectoryMap::iterator iter = output_directories.begin();
        iter != output_directories.end(); ++iter) {
     const string& location = iter->first;
-    GeneratorContextImpl* directory = iter->second;
+    MemoryOutputDirectory* directory = iter->second;
     if (HasSuffixString(location, "/")) {
       if (!directory->WriteAllToDisk(location)) {
         STLDeleteValues(&output_directories);
@@ -781,7 +773,7 @@ bool CommandLineInterface::ParseArguments(int argc, const char* const argv[]) {
 
   // If no --proto_path was given, use the current working directory.
   if (proto_path_.empty()) {
-    proto_path_.push_back(make_pair<string, string>("", "."));
+    proto_path_.push_back(make_pair("", "."));
   }
 
   // Check some errror cases.
@@ -910,7 +902,7 @@ bool CommandLineInterface::InterpretArgument(const string& name,
         cerr << disk_path << ": warning: directory does not exist." << endl;
       }
 
-      proto_path_.push_back(make_pair<string, string>(virtual_path, disk_path));
+      proto_path_.push_back(make_pair(virtual_path, disk_path));
     }
 
   } else if (name == "-o" || name == "--descriptor_set_out") {
@@ -1115,7 +1107,7 @@ void CommandLineInterface::PrintHelpText() {
 bool CommandLineInterface::GenerateOutput(
     const vector<const FileDescriptor*>& parsed_files,
     const OutputDirective& output_directive,
-    GeneratorContext* generator_context) {
+    OutputDirectory* output_directory) {
   // Call the generator.
   string error;
   if (output_directive.generator == NULL) {
@@ -1130,7 +1122,7 @@ bool CommandLineInterface::GenerateOutput(
 
     if (!GeneratePluginOutput(parsed_files, plugin_name,
                               output_directive.parameter,
-                              generator_context, &error)) {
+                              output_directory, &error)) {
       cerr << output_directive.name << ": " << error << endl;
       return false;
     }
@@ -1139,7 +1131,7 @@ bool CommandLineInterface::GenerateOutput(
     for (int i = 0; i < parsed_files.size(); i++) {
       if (!output_directive.generator->Generate(
           parsed_files[i], output_directive.parameter,
-          generator_context, &error)) {
+          output_directory, &error)) {
         // Generator returned an error.
         cerr << output_directive.name << ": " << parsed_files[i]->name() << ": "
              << error << endl;
@@ -1155,7 +1147,7 @@ bool CommandLineInterface::GeneratePluginOutput(
     const vector<const FileDescriptor*>& parsed_files,
     const string& plugin_name,
     const string& parameter,
-    GeneratorContext* generator_context,
+    OutputDirectory* output_directory,
     string* error) {
   CodeGeneratorRequest request;
   CodeGeneratorResponse response;
@@ -1198,14 +1190,14 @@ bool CommandLineInterface::GeneratePluginOutput(
       // We reset current_output to NULL first so that the old file is closed
       // before the new one is opened.
       current_output.reset();
-      current_output.reset(generator_context->OpenForInsert(
+      current_output.reset(output_directory->OpenForInsert(
           output_file.name(), output_file.insertion_point()));
     } else if (!output_file.name().empty()) {
       // Starting a new file.  Open it.
       // We reset current_output to NULL first so that the old file is closed
       // before the new one is opened.
       current_output.reset();
-      current_output.reset(generator_context->Open(output_file.name()));
+      current_output.reset(output_directory->Open(output_file.name()));
     } else if (current_output == NULL) {
       *error = strings::Substitute(
         "$0: First file chunk returned by plugin did not specify a file name.",

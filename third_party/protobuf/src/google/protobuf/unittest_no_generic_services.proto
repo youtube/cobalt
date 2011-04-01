@@ -32,7 +32,9 @@
 
 package google.protobuf.no_generic_services_test;
 
-// *_generic_services are false by default.
+option cc_generic_services = false;
+option java_generic_services = false;
+option py_generic_services = false;
 
 message TestMessage {
   optional int32 a = 1;

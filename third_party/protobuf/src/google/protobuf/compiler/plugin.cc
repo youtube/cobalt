@@ -59,15 +59,13 @@ namespace google {
 namespace protobuf {
 namespace compiler {
 
-class GeneratorResponseContext : public GeneratorContext {
+class GeneratorResponseOutputDirectory : public OutputDirectory {
  public:
-  GeneratorResponseContext(CodeGeneratorResponse* response,
-                           const vector<const FileDescriptor*>& parsed_files)
-      : response_(response),
-        parsed_files_(parsed_files) {}
-  virtual ~GeneratorResponseContext() {}
+  GeneratorResponseOutputDirectory(CodeGeneratorResponse* response)
+      : response_(response) {}
+  virtual ~GeneratorResponseOutputDirectory() {}
 
-  // implements GeneratorContext --------------------------------------
+  // implements OutputDirectory --------------------------------------
 
   virtual io::ZeroCopyOutputStream* Open(const string& filename) {
     CodeGeneratorResponse::File* file = response_->add_file();
@@ -83,13 +81,8 @@ class GeneratorResponseContext : public GeneratorContext {
     return new io::StringOutputStream(file->mutable_content());
   }
 
-  void ListParsedFiles(vector<const FileDescriptor*>* output) {
-    *output = parsed_files_;
-  }
-
  private:
   CodeGeneratorResponse* response_;
-  const vector<const FileDescriptor*>& parsed_files_;
 };
 
 int PluginMain(int argc, char* argv[], const CodeGenerator* generator) {
@@ -119,26 +112,22 @@ int PluginMain(int argc, char* argv[], const CodeGenerator* generator) {
     }
   }
 
-  vector<const FileDescriptor*> parsed_files;
+  CodeGeneratorResponse response;
+  GeneratorResponseOutputDirectory output_directory(&response);
+
   for (int i = 0; i < request.file_to_generate_size(); i++) {
-    parsed_files.push_back(pool.FindFileByName(request.file_to_generate(i)));
-    if (parsed_files.back() == NULL) {
+    const FileDescriptor* file =
+        pool.FindFileByName(request.file_to_generate(i));
+    if (file == NULL) {
       cerr << argv[0] << ": protoc asked plugin to generate a file but "
               "did not provide a descriptor for the file: "
            << request.file_to_generate(i) << endl;
       return 1;
     }
-  }
-
-  CodeGeneratorResponse response;
-  GeneratorResponseContext context(&response, parsed_files);
-
-  for (int i = 0; i < parsed_files.size(); i++) {
-    const FileDescriptor* file = parsed_files[i];
 
     string error;
     bool succeeded = generator->Generate(
-        file, request.parameter(), &context, &error);
+        file, request.parameter(), &output_directory, &error);
 
     if (!succeeded && error.empty()) {
       error = "Code generator returned false but provided no error "

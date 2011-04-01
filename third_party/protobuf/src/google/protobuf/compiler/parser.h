@@ -74,9 +74,6 @@ class LIBPROTOBUF_EXPORT Parser {
 
   // Optional fetaures:
 
-  // DEPRECATED:  New code should use the SourceCodeInfo embedded in the
-  //   FileDescriptorProto.
-  //
   // Requests that locations of certain definitions be recorded to the given
   // SourceLocationTable while parsing.  This can be used to look up exact line
   // and column numbers for errors reported by DescriptorPool during validation.
@@ -85,7 +82,7 @@ class LIBPROTOBUF_EXPORT Parser {
     source_location_table_ = location_table;
   }
 
-  // Requests that errors be recorded to the given ErrorCollector while
+  // Requsets that errors be recorded to the given ErrorCollector while
   // parsing.  Set to NULL (the default) to discard error messages.
   void RecordErrorsTo(io::ErrorCollector* error_collector) {
     error_collector_ = error_collector;
@@ -183,56 +180,16 @@ class LIBPROTOBUF_EXPORT Parser {
   // of the current token.
   void AddError(const string& error);
 
-  // Records a location in the SourceCodeInfo.location table (see
-  // descriptor.proto).  We use RAII to ensure that the start and end locations
-  // are recorded -- the constructor records the start location and the
-  // destructor records the end location.  Since the parser is
-  // recursive-descent, this works out beautifully.
-  class LIBPROTOBUF_EXPORT LocationRecorder {
-   public:
-    // Construct the file's "root" location.
-    LocationRecorder(Parser* parser);
+  // Record the given line and column and associate it with this descriptor
+  // in the SourceLocationTable.
+  void RecordLocation(const Message* descriptor,
+                      DescriptorPool::ErrorCollector::ErrorLocation location,
+                      int line, int column);
 
-    // Construct a location that represents a declaration nested within the
-    // given parent.  E.g. a field's location is nested within the location
-    // for a message type.  The parent's path will be copied, so you should
-    // call AddPath() only to add the path components leading from the parent
-    // to the child (as opposed to leading from the root to the child).
-    LocationRecorder(const LocationRecorder& parent);
-
-    // Convenience constructors that call AddPath() one or two times.
-    LocationRecorder(const LocationRecorder& parent, int path1);
-    LocationRecorder(const LocationRecorder& parent, int path1, int path2);
-
-    ~LocationRecorder();
-
-    // Add a path component.  See SourceCodeInfo.Location.path in
-    // descriptor.proto.
-    void AddPath(int path_component);
-
-    // By default the location is considered to start at the current token at
-    // the time the LocationRecorder is created.  StartAt() sets the start
-    // location to the given token instead.
-    void StartAt(const io::Tokenizer::Token& token);
-
-    // By default the location is considered to end at the previous token at
-    // the time the LocationRecorder is destroyed.  EndAt() sets the end
-    // location to the given token instead.
-    void EndAt(const io::Tokenizer::Token& token);
-
-    // Records the start point of this location to the SourceLocationTable that
-    // was passed to RecordSourceLocationsTo(), if any.  SourceLocationTable
-    // is an older way of keeping track of source locations which is still
-    // used in some places.
-    void RecordLegacyLocation(const Message* descriptor,
-        DescriptorPool::ErrorCollector::ErrorLocation location);
-
-   private:
-    Parser* parser_;
-    SourceCodeInfo::Location* location_;
-
-    void Init(const LocationRecorder& parent);
-  };
+  // Record the current line and column and associate it with this descriptor
+  // in the SourceLocationTable.
+  void RecordLocation(const Message* descriptor,
+                      DescriptorPool::ErrorCollector::ErrorLocation location);
 
   // =================================================================
   // Parsers for various language constructs
@@ -253,81 +210,50 @@ class LIBPROTOBUF_EXPORT Parser {
   // makes logic much simpler for the caller.
 
   // Parse a top-level message, enum, service, etc.
-  bool ParseTopLevelStatement(FileDescriptorProto* file,
-                              const LocationRecorder& root_location);
+  bool ParseTopLevelStatement(FileDescriptorProto* file);
 
   // Parse various language high-level language construrcts.
-  bool ParseMessageDefinition(DescriptorProto* message,
-                              const LocationRecorder& message_location);
-  bool ParseEnumDefinition(EnumDescriptorProto* enum_type,
-                           const LocationRecorder& enum_location);
-  bool ParseServiceDefinition(ServiceDescriptorProto* service,
-                              const LocationRecorder& service_location);
-  bool ParsePackage(FileDescriptorProto* file,
-                    const LocationRecorder& root_location);
-  bool ParseImport(string* import_filename,
-                   const LocationRecorder& root_location,
-                   int index);
-  bool ParseOption(Message* options,
-                   const LocationRecorder& options_location);
+  bool ParseMessageDefinition(DescriptorProto* message);
+  bool ParseEnumDefinition(EnumDescriptorProto* enum_type);
+  bool ParseServiceDefinition(ServiceDescriptorProto* service);
+  bool ParsePackage(FileDescriptorProto* file);
+  bool ParseImport(string* import_filename);
+  bool ParseOption(Message* options);
 
   // These methods parse the contents of a message, enum, or service type and
   // add them to the given object.  They consume the entire block including
   // the beginning and ending brace.
-  bool ParseMessageBlock(DescriptorProto* message,
-                         const LocationRecorder& message_location);
-  bool ParseEnumBlock(EnumDescriptorProto* enum_type,
-                      const LocationRecorder& enum_location);
-  bool ParseServiceBlock(ServiceDescriptorProto* service,
-                         const LocationRecorder& service_location);
+  bool ParseMessageBlock(DescriptorProto* message);
+  bool ParseEnumBlock(EnumDescriptorProto* enum_type);
+  bool ParseServiceBlock(ServiceDescriptorProto* service);
 
   // Parse one statement within a message, enum, or service block, inclunding
   // final semicolon.
-  bool ParseMessageStatement(DescriptorProto* message,
-                             const LocationRecorder& message_location);
-  bool ParseEnumStatement(EnumDescriptorProto* message,
-                          const LocationRecorder& enum_location);
-  bool ParseServiceStatement(ServiceDescriptorProto* message,
-                             const LocationRecorder& service_location);
+  bool ParseMessageStatement(DescriptorProto* message);
+  bool ParseEnumStatement(EnumDescriptorProto* message);
+  bool ParseServiceStatement(ServiceDescriptorProto* message);
 
   // Parse a field of a message.  If the field is a group, its type will be
   // added to "messages".
-  //
-  // parent_location and location_field_number_for_nested_type are needed when
-  // parsing groups -- we need to generate a nested message type within the
-  // parent and record its location accordingly.  Since the parent could be
-  // either a FileDescriptorProto or a DescriptorProto, we must pass in the
-  // correct field number to use.
   bool ParseMessageField(FieldDescriptorProto* field,
-                         RepeatedPtrField<DescriptorProto>* messages,
-                         const LocationRecorder& parent_location,
-                         int location_field_number_for_nested_type,
-                         const LocationRecorder& field_location);
+                         RepeatedPtrField<DescriptorProto>* messages);
 
   // Parse an "extensions" declaration.
-  bool ParseExtensions(DescriptorProto* message,
-                       const LocationRecorder& extensions_location);
+  bool ParseExtensions(DescriptorProto* message);
 
-  // Parse an "extend" declaration.  (See also comments for
-  // ParseMessageField().)
+  // Parse an "extend" declaration.
   bool ParseExtend(RepeatedPtrField<FieldDescriptorProto>* extensions,
-                   RepeatedPtrField<DescriptorProto>* messages,
-                   const LocationRecorder& parent_location,
-                   int location_field_number_for_nested_type,
-                   const LocationRecorder& extend_location);
+                   RepeatedPtrField<DescriptorProto>* messages);
 
   // Parse a single enum value within an enum block.
-  bool ParseEnumConstant(EnumValueDescriptorProto* enum_value,
-                         const LocationRecorder& enum_value_location);
+  bool ParseEnumConstant(EnumValueDescriptorProto* enum_value);
 
   // Parse enum constant options, i.e. the list in square brackets at the end
   // of the enum constant value definition.
-  bool ParseEnumConstantOptions(EnumValueDescriptorProto* value,
-                                const LocationRecorder& enum_value_location);
+  bool ParseEnumConstantOptions(EnumValueDescriptorProto* value);
 
   // Parse a single method within a service definition.
-  bool ParseServiceMethod(MethodDescriptorProto* method,
-                          const LocationRecorder& method_location);
+  bool ParseServiceMethod(MethodDescriptorProto* method);
 
   // Parse "required", "optional", or "repeated" and fill in "label"
   // with the value.
@@ -343,45 +269,28 @@ class LIBPROTOBUF_EXPORT Parser {
 
   // Parses field options, i.e. the stuff in square brackets at the end
   // of a field definition.  Also parses default value.
-  bool ParseFieldOptions(FieldDescriptorProto* field,
-                         const LocationRecorder& field_location);
+  bool ParseFieldOptions(FieldDescriptorProto* field);
 
   // Parse the "default" option.  This needs special handling because its
   // type is the field's type.
-  bool ParseDefaultAssignment(FieldDescriptorProto* field,
-                              const LocationRecorder& field_location);
+  bool ParseDefaultAssignment(FieldDescriptorProto* field);
 
   // Parse a single option name/value pair, e.g. "ctype = CORD".  The name
   // identifies a field of the given Message, and the value of that field
   // is set to the parsed value.
-  bool ParseOptionAssignment(Message* options,
-                             const LocationRecorder& options_location);
+  bool ParseOptionAssignment(Message* options);
 
   // Parses a single part of a multipart option name. A multipart name consists
   // of names separated by dots. Each name is either an identifier or a series
   // of identifiers separated by dots and enclosed in parentheses. E.g.,
   // "foo.(bar.baz).qux".
-  bool ParseOptionNamePart(UninterpretedOption* uninterpreted_option,
-                           const LocationRecorder& part_location);
-
-  // Parses a string surrounded by balanced braces.  Strips off the outer
-  // braces and stores the enclosed string in *value.
-  // E.g.,
-  //     { foo }                     *value gets 'foo'
-  //     { foo { bar: box } }        *value gets 'foo { bar: box }'
-  //     {}                          *value gets ''
-  //
-  // REQUIRES: LookingAt("{")
-  // When finished successfully, we are looking at the first token past
-  // the ending brace.
-  bool ParseUninterpretedBlock(string* value);
+  bool ParseOptionNamePart(UninterpretedOption* uninterpreted_option);
 
   // =================================================================
 
   io::Tokenizer* input_;
   io::ErrorCollector* error_collector_;
-  SourceCodeInfo* source_code_info_;
-  SourceLocationTable* source_location_table_;  // legacy
+  SourceLocationTable* source_location_table_;
   bool had_errors_;
   bool require_syntax_identifier_;
   bool stop_after_syntax_identifier_;
@@ -393,11 +302,6 @@ class LIBPROTOBUF_EXPORT Parser {
 // A table mapping (descriptor, ErrorLocation) pairs -- as reported by
 // DescriptorPool when validating descriptors -- to line and column numbers
 // within the original source code.
-//
-// This is semi-obsolete:  FileDescriptorProto.source_code_info now contains
-// far more complete information about source locations.  However, as of this
-// writing you still need to use SourceLocationTable when integrating with
-// DescriptorPool.
 class LIBPROTOBUF_EXPORT SourceLocationTable {
  public:
   SourceLocationTable();
