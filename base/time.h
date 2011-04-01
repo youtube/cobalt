@@ -205,7 +205,7 @@ class BASE_API Time {
   // Represents an exploded time that can be formatted nicely. This is kind of
   // like the Win32 SYSTEMTIME structure or the Unix "struct tm" with a few
   // additions and changes to prevent errors.
-  struct Exploded {
+  struct BASE_API Exploded {
     int year;          // Four digit year "2007"
     int month;         // 1-based month (values 1 = January, etc.)
     int day_of_week;   // 0-based day of week (0 = Sunday, etc.)

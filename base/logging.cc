@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,10 +39,11 @@ typedef FILE* FileHandle;
 typedef pthread_mutex_t* MutexHandle;
 #endif
 
+#include <algorithm>
+#include <cstring>
 #include <ctime>
 #include <iomanip>
-#include <cstring>
-#include <algorithm>
+#include <ostream>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -815,3 +816,15 @@ void RawLog(int level, const char* message) {
 std::ostream& operator<<(std::ostream& out, const wchar_t* wstr) {
   return out << WideToUTF8(std::wstring(wstr));
 }
+
+namespace base {
+
+// This was defined at the beginnig of this file.
+#undef write
+
+std::ostream& operator<<(std::ostream& o, const StringPiece& piece) {
+  o.write(piece.data(), static_cast<std::streamsize>(piece.size()));
+  return o;
+}
+
+}  // namespace base
