@@ -158,6 +158,7 @@ struct StaticDescriptorInitializer_google_2fprotobuf_2fcompiler_2fplugin_2eproto
 
 // ===================================================================
 
+const ::std::string CodeGeneratorRequest::_default_parameter_;
 #ifndef _MSC_VER
 const int CodeGeneratorRequest::kFileToGenerateFieldNumber;
 const int CodeGeneratorRequest::kParameterFieldNumber;
@@ -180,7 +181,7 @@ CodeGeneratorRequest::CodeGeneratorRequest(const CodeGeneratorRequest& from)
 
 void CodeGeneratorRequest::SharedCtor() {
   _cached_size_ = 0;
-  parameter_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  parameter_ = const_cast< ::std::string*>(&_default_parameter_);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -189,7 +190,7 @@ CodeGeneratorRequest::~CodeGeneratorRequest() {
 }
 
 void CodeGeneratorRequest::SharedDtor() {
-  if (parameter_ != &::google::protobuf::internal::kEmptyString) {
+  if (parameter_ != &_default_parameter_) {
     delete parameter_;
   }
   if (this != default_instance_) {
@@ -218,8 +219,8 @@ CodeGeneratorRequest* CodeGeneratorRequest::New() const {
 
 void CodeGeneratorRequest::Clear() {
   if (_has_bits_[1 / 32] & (0xffu << (1 % 32))) {
-    if (has_parameter()) {
-      if (parameter_ != &::google::protobuf::internal::kEmptyString) {
+    if (_has_bit(1)) {
+      if (parameter_ != &_default_parameter_) {
         parameter_->clear();
       }
     }
@@ -313,7 +314,7 @@ void CodeGeneratorRequest::SerializeWithCachedSizes(
   }
   
   // optional string parameter = 2;
-  if (has_parameter()) {
+  if (_has_bit(1)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->parameter().data(), this->parameter().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -345,7 +346,7 @@ void CodeGeneratorRequest::SerializeWithCachedSizes(
   }
   
   // optional string parameter = 2;
-  if (has_parameter()) {
+  if (_has_bit(1)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->parameter().data(), this->parameter().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -423,7 +424,7 @@ void CodeGeneratorRequest::MergeFrom(const CodeGeneratorRequest& from) {
   file_to_generate_.MergeFrom(from.file_to_generate_);
   proto_file_.MergeFrom(from.proto_file_);
   if (from._has_bits_[1 / 32] & (0xffu << (1 % 32))) {
-    if (from.has_parameter()) {
+    if (from._has_bit(1)) {
       set_parameter(from.parameter());
     }
   }
@@ -472,6 +473,9 @@ void CodeGeneratorRequest::Swap(CodeGeneratorRequest* other) {
 
 // ===================================================================
 
+const ::std::string CodeGeneratorResponse_File::_default_name_;
+const ::std::string CodeGeneratorResponse_File::_default_insertion_point_;
+const ::std::string CodeGeneratorResponse_File::_default_content_;
 #ifndef _MSC_VER
 const int CodeGeneratorResponse_File::kNameFieldNumber;
 const int CodeGeneratorResponse_File::kInsertionPointFieldNumber;
@@ -494,9 +498,9 @@ CodeGeneratorResponse_File::CodeGeneratorResponse_File(const CodeGeneratorRespon
 
 void CodeGeneratorResponse_File::SharedCtor() {
   _cached_size_ = 0;
-  name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  insertion_point_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  content_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  name_ = const_cast< ::std::string*>(&_default_name_);
+  insertion_point_ = const_cast< ::std::string*>(&_default_insertion_point_);
+  content_ = const_cast< ::std::string*>(&_default_content_);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -505,13 +509,13 @@ CodeGeneratorResponse_File::~CodeGeneratorResponse_File() {
 }
 
 void CodeGeneratorResponse_File::SharedDtor() {
-  if (name_ != &::google::protobuf::internal::kEmptyString) {
+  if (name_ != &_default_name_) {
     delete name_;
   }
-  if (insertion_point_ != &::google::protobuf::internal::kEmptyString) {
+  if (insertion_point_ != &_default_insertion_point_) {
     delete insertion_point_;
   }
-  if (content_ != &::google::protobuf::internal::kEmptyString) {
+  if (content_ != &_default_content_) {
     delete content_;
   }
   if (this != default_instance_) {
@@ -540,18 +544,18 @@ CodeGeneratorResponse_File* CodeGeneratorResponse_File::New() const {
 
 void CodeGeneratorResponse_File::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (has_name()) {
-      if (name_ != &::google::protobuf::internal::kEmptyString) {
+    if (_has_bit(0)) {
+      if (name_ != &_default_name_) {
         name_->clear();
       }
     }
-    if (has_insertion_point()) {
-      if (insertion_point_ != &::google::protobuf::internal::kEmptyString) {
+    if (_has_bit(1)) {
+      if (insertion_point_ != &_default_insertion_point_) {
         insertion_point_->clear();
       }
     }
-    if (has_content()) {
-      if (content_ != &::google::protobuf::internal::kEmptyString) {
+    if (_has_bit(2)) {
+      if (content_ != &_default_content_) {
         content_->clear();
       }
     }
@@ -634,7 +638,7 @@ bool CodeGeneratorResponse_File::MergePartialFromCodedStream(
 void CodeGeneratorResponse_File::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
   // optional string name = 1;
-  if (has_name()) {
+  if (_has_bit(0)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->name().data(), this->name().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -643,7 +647,7 @@ void CodeGeneratorResponse_File::SerializeWithCachedSizes(
   }
   
   // optional string insertion_point = 2;
-  if (has_insertion_point()) {
+  if (_has_bit(1)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->insertion_point().data(), this->insertion_point().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -652,7 +656,7 @@ void CodeGeneratorResponse_File::SerializeWithCachedSizes(
   }
   
   // optional string content = 15;
-  if (has_content()) {
+  if (_has_bit(2)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->content().data(), this->content().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -669,7 +673,7 @@ void CodeGeneratorResponse_File::SerializeWithCachedSizes(
 ::google::protobuf::uint8* CodeGeneratorResponse_File::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
   // optional string name = 1;
-  if (has_name()) {
+  if (_has_bit(0)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->name().data(), this->name().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -679,7 +683,7 @@ void CodeGeneratorResponse_File::SerializeWithCachedSizes(
   }
   
   // optional string insertion_point = 2;
-  if (has_insertion_point()) {
+  if (_has_bit(1)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->insertion_point().data(), this->insertion_point().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -689,7 +693,7 @@ void CodeGeneratorResponse_File::SerializeWithCachedSizes(
   }
   
   // optional string content = 15;
-  if (has_content()) {
+  if (_has_bit(2)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->content().data(), this->content().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -757,13 +761,13 @@ void CodeGeneratorResponse_File::MergeFrom(const ::google::protobuf::Message& fr
 void CodeGeneratorResponse_File::MergeFrom(const CodeGeneratorResponse_File& from) {
   GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_name()) {
+    if (from._has_bit(0)) {
       set_name(from.name());
     }
-    if (from.has_insertion_point()) {
+    if (from._has_bit(1)) {
       set_insertion_point(from.insertion_point());
     }
-    if (from.has_content()) {
+    if (from._has_bit(2)) {
       set_content(from.content());
     }
   }
@@ -809,6 +813,7 @@ void CodeGeneratorResponse_File::Swap(CodeGeneratorResponse_File* other) {
 
 // -------------------------------------------------------------------
 
+const ::std::string CodeGeneratorResponse::_default_error_;
 #ifndef _MSC_VER
 const int CodeGeneratorResponse::kErrorFieldNumber;
 const int CodeGeneratorResponse::kFileFieldNumber;
@@ -830,7 +835,7 @@ CodeGeneratorResponse::CodeGeneratorResponse(const CodeGeneratorResponse& from)
 
 void CodeGeneratorResponse::SharedCtor() {
   _cached_size_ = 0;
-  error_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  error_ = const_cast< ::std::string*>(&_default_error_);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -839,7 +844,7 @@ CodeGeneratorResponse::~CodeGeneratorResponse() {
 }
 
 void CodeGeneratorResponse::SharedDtor() {
-  if (error_ != &::google::protobuf::internal::kEmptyString) {
+  if (error_ != &_default_error_) {
     delete error_;
   }
   if (this != default_instance_) {
@@ -868,8 +873,8 @@ CodeGeneratorResponse* CodeGeneratorResponse::New() const {
 
 void CodeGeneratorResponse::Clear() {
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (has_error()) {
-      if (error_ != &::google::protobuf::internal::kEmptyString) {
+    if (_has_bit(0)) {
+      if (error_ != &_default_error_) {
         error_->clear();
       }
     }
@@ -934,7 +939,7 @@ bool CodeGeneratorResponse::MergePartialFromCodedStream(
 void CodeGeneratorResponse::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
   // optional string error = 1;
-  if (has_error()) {
+  if (_has_bit(0)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->error().data(), this->error().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -957,7 +962,7 @@ void CodeGeneratorResponse::SerializeWithCachedSizes(
 ::google::protobuf::uint8* CodeGeneratorResponse::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
   // optional string error = 1;
-  if (has_error()) {
+  if (_has_bit(0)) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->error().data(), this->error().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
@@ -1027,7 +1032,7 @@ void CodeGeneratorResponse::MergeFrom(const CodeGeneratorResponse& from) {
   GOOGLE_CHECK_NE(&from, this);
   file_.MergeFrom(from.file_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_error()) {
+    if (from._has_bit(0)) {
       set_error(from.error());
     }
   }

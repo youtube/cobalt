@@ -79,10 +79,10 @@ class MockErrorCollector : public MultiFileErrorCollector {
   }
 };
 
-class MockGeneratorContext : public GeneratorContext {
+class MockOutputDirectory : public OutputDirectory {
  public:
-  MockGeneratorContext() {}
-  ~MockGeneratorContext() {
+  MockOutputDirectory() {}
+  ~MockOutputDirectory() {
     STLDeleteValues(&files_);
   }
 
@@ -102,7 +102,7 @@ class MockGeneratorContext : public GeneratorContext {
          "to your CL.";
   }
 
-  // implements GeneratorContext --------------------------------------
+  // implements OutputDirectory --------------------------------------
 
   virtual io::ZeroCopyOutputStream* Open(const string& filename) {
     string** map_slot = &files_[filename];
@@ -130,24 +130,24 @@ TEST(BootstrapTest, GeneratedDescriptorMatches) {
   ASSERT_TRUE(plugin_proto_file != NULL);
 
   CppGenerator generator;
-  MockGeneratorContext context;
+  MockOutputDirectory output_directory;
   string error;
   string parameter;
   parameter = "dllexport_decl=LIBPROTOBUF_EXPORT";
   ASSERT_TRUE(generator.Generate(proto_file, parameter,
-                                 &context, &error));
+                                 &output_directory, &error));
   parameter = "dllexport_decl=LIBPROTOC_EXPORT";
   ASSERT_TRUE(generator.Generate(plugin_proto_file, parameter,
-                                 &context, &error));
+                                 &output_directory, &error));
 
-  context.ExpectFileMatches("google/protobuf/descriptor.pb.h",
-                            "google/protobuf/descriptor.pb.h");
-  context.ExpectFileMatches("google/protobuf/descriptor.pb.cc",
-                            "google/protobuf/descriptor.pb.cc");
-  context.ExpectFileMatches("google/protobuf/compiler/plugin.pb.h",
-                            "google/protobuf/compiler/plugin.pb.h");
-  context.ExpectFileMatches("google/protobuf/compiler/plugin.pb.cc",
-                            "google/protobuf/compiler/plugin.pb.cc");
+  output_directory.ExpectFileMatches("google/protobuf/descriptor.pb.h",
+                                     "google/protobuf/descriptor.pb.h");
+  output_directory.ExpectFileMatches("google/protobuf/descriptor.pb.cc",
+                                     "google/protobuf/descriptor.pb.cc");
+  output_directory.ExpectFileMatches("google/protobuf/compiler/plugin.pb.h",
+                                     "google/protobuf/compiler/plugin.pb.h");
+  output_directory.ExpectFileMatches("google/protobuf/compiler/plugin.pb.cc",
+                                     "google/protobuf/compiler/plugin.pb.cc");
 }
 
 }  // namespace

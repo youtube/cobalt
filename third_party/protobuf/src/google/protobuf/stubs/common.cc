@@ -191,11 +191,7 @@ void LogMessage::Finish() {
   }
 
   if (level_ == LOGLEVEL_FATAL) {
-#ifdef PROTOBUF_USE_EXCEPTIONS
-    throw FatalException(filename_, line_, message_);
-#else
     abort();
-#endif
   }
 }
 
@@ -364,14 +360,6 @@ void ShutdownProtobufLibrary() {
   delete internal::shutdown_functions_mutex;
   internal::shutdown_functions_mutex = NULL;
 }
-
-#ifdef PROTOBUF_USE_EXCEPTIONS
-FatalException::~FatalException() throw() {}
-
-const char* FatalException::what() const throw() {
-  return message_.c_str();
-}
-#endif
 
 }  // namespace protobuf
 }  // namespace google

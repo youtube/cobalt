@@ -45,16 +45,6 @@ namespace google {
 namespace protobuf {
 namespace compiler {
 
-// Returns the list of the names of files in all_files in the form of a
-// comma-separated string.
-string CommaSeparatedList(const vector<const FileDescriptor*> all_files) {
-  vector<string> names;
-  for (int i = 0; i < all_files.size(); i++) {
-    names.push_back(all_files[i]->name());
-  }
-  return JoinStrings(names, ",");
-}
-
 static const char* kFirstInsertionPointName = "first_mock_insertion_point";
 static const char* kSecondInsertionPointName = "second_mock_insertion_point";
 static const char* kFirstInsertionPoint =
@@ -73,7 +63,6 @@ void MockCodeGenerator::ExpectGenerated(
     const string& insertions,
     const string& file,
     const string& first_message_name,
-    const string& first_parsed_file_name,
     const string& output_directory) {
   string content;
   ASSERT_TRUE(File::ReadFileToString(
@@ -95,8 +84,7 @@ void MockCodeGenerator::ExpectGenerated(
   }
 
   ASSERT_EQ(lines.size(), 3 + insertion_list.size() * 2);
-  EXPECT_EQ(GetOutputFileContent(name, parameter, file,
-                                 first_parsed_file_name, first_message_name),
+  EXPECT_EQ(GetOutputFileContent(name, parameter, file, first_message_name),
             lines[0]);
 
   EXPECT_EQ(kFirstInsertionPoint, lines[1 + insertion_list.size()]);
@@ -104,12 +92,12 @@ void MockCodeGenerator::ExpectGenerated(
 
   for (int i = 0; i < insertion_list.size(); i++) {
     EXPECT_EQ(GetOutputFileContent(insertion_list[i], "first_insert",
-                                   file, file, first_message_name),
+                                   file, first_message_name),
               lines[1 + i]);
     // Second insertion point is indented, so the inserted text should
     // automatically be indented too.
     EXPECT_EQ("  " + GetOutputFileContent(insertion_list[i], "second_insert",
-                                          file, file, first_message_name),
+                                          file, first_message_name),
               lines[2 + insertion_list.size() + i]);
   }
 }
@@ -117,7 +105,7 @@ void MockCodeGenerator::ExpectGenerated(
 bool MockCodeGenerator::Generate(
     const FileDescriptor* file,
     const string& parameter,
-    GeneratorContext* context,
+    OutputDirectory* output_directory,
     string* error) const {
   for (int i = 0; i < file->message_type_count(); i++) {
     if (HasPrefixString(file->message_type(i)->name(), "MockCodeGenerator_")) {
@@ -146,12 +134,11 @@ bool MockCodeGenerator::Generate(
     for (int i = 0; i < insert_into.size(); i++) {
       {
         scoped_ptr<io::ZeroCopyOutputStream> output(
-            context->OpenForInsert(
+            output_directory->OpenForInsert(
               GetOutputFileName(insert_into[i], file),
               kFirstInsertionPointName));
         io::Printer printer(output.get(), '$');
-        printer.PrintRaw(GetOutputFileContent(name_, "first_insert",
-                                              file, context));
+        printer.PrintRaw(GetOutputFileContent(name_, "first_insert", file));
         if (printer.failed()) {
           *error = "MockCodeGenerator detected write error.";
           return false;
@@ -160,12 +147,11 @@ bool MockCodeGenerator::Generate(
 
       {
         scoped_ptr<io::ZeroCopyOutputStream> output(
-            context->OpenForInsert(
+            output_directory->OpenForInsert(
               GetOutputFileName(insert_into[i], file),
               kSecondInsertionPointName));
         io::Printer printer(output.get(), '$');
-        printer.PrintRaw(GetOutputFileContent(name_, "second_insert",
-                                              file, context));
+        printer.PrintRaw(GetOutputFileContent(name_, "second_insert", file));
         if (printer.failed()) {
           *error = "MockCodeGenerator detected write error.";
           return false;
@@ -174,11 +160,10 @@ bool MockCodeGenerator::Generate(
     }
   } else {
     scoped_ptr<io::ZeroCopyOutputStream> output(
-        context->Open(GetOutputFileName(name_, file)));
+        output_directory->Open(GetOutputFileName(name_, file)));
 
     io::Printer printer(output.get(), '$');
-    printer.PrintRaw(GetOutputFileContent(name_, parameter,
-                                          file, context));
+    printer.PrintRaw(GetOutputFileContent(name_, parameter, file));
     printer.PrintRaw(kFirstInsertionPoint);
     printer.PrintRaw(kSecondInsertionPoint);
 
@@ -201,16 +186,11 @@ string MockCodeGenerator::GetOutputFileName(const string& generator_name,
   return file + ".MockCodeGenerator." + generator_name;
 }
 
-string MockCodeGenerator::GetOutputFileContent(
-    const string& generator_name,
-    const string& parameter,
-    const FileDescriptor* file,
-    GeneratorContext *context) {
-  vector<const FileDescriptor*> all_files;
-  context->ListParsedFiles(&all_files);
+string MockCodeGenerator::GetOutputFileContent(const string& generator_name,
+                                               const string& parameter,
+                                               const FileDescriptor* file) {
   return GetOutputFileContent(
       generator_name, parameter, file->name(),
-      CommaSeparatedList(all_files),
       file->message_type_count() > 0 ?
           file->message_type(0)->name() : "(none)");
 }
@@ -219,11 +199,9 @@ string MockCodeGenerator::GetOutputFileContent(
     const string& generator_name,
     const string& parameter,
     const string& file,
-    const string& parsed_file_list,
     const string& first_message_name) {
-  return strings::Substitute("$0: $1, $2, $3, $4\n",
-      generator_name, parameter, file,
-      first_message_name, parsed_file_list);
+  return strings::Substitute("$0: $1, $2, $3\n",
+      generator_name, parameter, file, first_message_name);
 }
 
 }  // namespace compiler

@@ -53,7 +53,7 @@ namespace compiler {
 
 // Defined in this file.
 class CodeGenerator;
-class GeneratorContext;
+class OutputDirectory;
 
 // The abstract interface to a class which generates code implementing a
 // particular proto file in a particular language.  A number of these may
@@ -76,7 +76,7 @@ class LIBPROTOC_EXPORT CodeGenerator {
   // the problem (e.g. "invalid parameter") and returns false.
   virtual bool Generate(const FileDescriptor* file,
                         const string& parameter,
-                        GeneratorContext* generator_context,
+                        OutputDirectory* output_directory,
                         string* error) const = 0;
 
  private:
@@ -85,12 +85,11 @@ class LIBPROTOC_EXPORT CodeGenerator {
 
 // CodeGenerators generate one or more files in a given directory.  This
 // abstract interface represents the directory to which the CodeGenerator is
-// to write and other information about the context in which the Generator
-// runs.
-class LIBPROTOC_EXPORT GeneratorContext {
+// to write.
+class LIBPROTOC_EXPORT OutputDirectory {
  public:
-  inline GeneratorContext() {}
-  virtual ~GeneratorContext();
+  inline OutputDirectory() {}
+  virtual ~OutputDirectory();
 
   // Opens the given file, truncating it if it exists, and returns a
   // ZeroCopyOutputStream that writes to the file.  The caller takes ownership
@@ -113,18 +112,9 @@ class LIBPROTOC_EXPORT GeneratorContext {
   virtual io::ZeroCopyOutputStream* OpenForInsert(
       const string& filename, const string& insertion_point);
 
-  // Returns a vector of FileDescriptors for all the files being compiled
-  // in this run.  Useful for languages, such as Go, that treat files
-  // differently when compiled as a set rather than individually.
-  virtual void ListParsedFiles(vector<const FileDescriptor*>* output);
-
  private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(GeneratorContext);
+  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(OutputDirectory);
 };
-
-// The type GeneratorContext was once called OutputDirectory. This typedef
-// provides backward compatibility.
-typedef GeneratorContext OutputDirectory;
 
 // Several code generators treat the parameter argument as holding a
 // list of options separated by commas.  This helper function parses

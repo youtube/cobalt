@@ -57,7 +57,7 @@ class LIBPROTOC_EXPORT JavaGenerator : public CodeGenerator {
   // implements CodeGenerator ----------------------------------------
   bool Generate(const FileDescriptor* file,
                 const string& parameter,
-                GeneratorContext* context,
+                OutputDirectory* output_directory,
                 string* error) const;
 
  private:

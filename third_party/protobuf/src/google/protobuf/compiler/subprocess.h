@@ -40,10 +40,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #endif  // !_WIN32
-#include <google/protobuf/stubs/common.h>
 
 #include <string>
-
+#include <google/protobuf/stubs/common.h>
 
 namespace google {
 namespace protobuf {
