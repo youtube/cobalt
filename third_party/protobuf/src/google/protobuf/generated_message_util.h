@@ -38,8 +38,6 @@
 #ifndef GOOGLE_PROTOBUF_GENERATED_MESSAGE_UTIL_H__
 #define GOOGLE_PROTOBUF_GENERATED_MESSAGE_UTIL_H__
 
-#include <string>
-
 #include <google/protobuf/stubs/common.h>
 
 
@@ -68,11 +66,8 @@ namespace internal {
 
 
 // Constants for special floating point values.
-double Infinity();
-double NaN();
-
-// Constant used for empty default strings.
-extern const ::std::string kEmptyString;
+LIBPROTOBUF_EXPORT double Infinity();
+LIBPROTOBUF_EXPORT double NaN();
 
 
 }  // namespace internal

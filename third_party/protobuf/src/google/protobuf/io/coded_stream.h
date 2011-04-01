@@ -129,8 +129,8 @@
 #endif
 #include <google/protobuf/stubs/common.h>
 
-
 namespace google {
+
 namespace protobuf {
 
 class DescriptorPool;
@@ -567,7 +567,7 @@ class LIBPROTOBUF_EXPORT CodedInputStream {
 //   char text[] = "Hello world!";
 //
 //   int coded_size = sizeof(magic_number) +
-//                    CodedOutputStream::VarintSize32(strlen(text)) +
+//                    CodedOutputStream::Varint32Size(strlen(text)) +
 //                    strlen(text);
 //
 //   uint8* buffer =
@@ -990,12 +990,12 @@ inline int CodedOutputStream::VarintSize32SignExtended(int32 value) {
 }
 
 inline void CodedOutputStream::WriteString(const string& str) {
-  WriteRaw(str.data(), static_cast<int>(str.size()));
+  WriteRaw(str.data(), str.size());
 }
 
 inline uint8* CodedOutputStream::WriteStringToArray(
     const string& str, uint8* target) {
-  return WriteRawToArray(str.data(), static_cast<int>(str.size()), target);
+  return WriteRawToArray(str.data(), str.size(), target);
 }
 
 inline int CodedOutputStream::ByteCount() const {
@@ -1093,10 +1093,10 @@ inline CodedInputStream::~CodedInputStream() {
 }  // namespace io
 }  // namespace protobuf
 
+}  // namespace google
 
 #if defined(_MSC_VER) && _MSC_VER >= 1300
   #pragma runtime_checks("c", restore)
 #endif  // _MSC_VER
 
-}  // namespace google
 #endif  // GOOGLE_PROTOBUF_IO_CODED_STREAM_H__

@@ -67,11 +67,6 @@ class Message(object):
 
   DESCRIPTOR = None
 
-  def __deepcopy__(self, memo=None):
-    clone = type(self)()
-    clone.MergeFrom(self)
-    return clone
-
   def __eq__(self, other_msg):
     raise NotImplementedError
 
@@ -79,13 +74,7 @@ class Message(object):
     # Can't just say self != other_msg, since that would infinitely recurse. :)
     return not self == other_msg
 
-  def __hash__(self):
-    raise TypeError('unhashable object')
-
   def __str__(self):
-    raise NotImplementedError
-
-  def __unicode__(self):
     raise NotImplementedError
 
   def MergeFrom(self, other_msg):
@@ -226,9 +215,6 @@ class Message(object):
     raise NotImplementedError
 
   def HasField(self, field_name):
-    """Checks if a certain field is set for the message. Note if the
-    field_name is not defined in the message descriptor, ValueError will be
-    raised."""
     raise NotImplementedError
 
   def ClearField(self, field_name):

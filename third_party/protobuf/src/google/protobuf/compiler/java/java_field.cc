@@ -37,7 +37,6 @@
 #include <google/protobuf/compiler/java/java_primitive_field.h>
 #include <google/protobuf/compiler/java/java_enum_field.h>
 #include <google/protobuf/compiler/java/java_message_field.h>
-#include <google/protobuf/compiler/java/java_string_field.h>
 #include <google/protobuf/stubs/common.h>
 
 namespace google {
@@ -64,57 +63,33 @@ FieldGeneratorMap::FieldGeneratorMap(const Descriptor* descriptor)
     extension_generators_(
       new scoped_ptr<FieldGenerator>[descriptor->extension_count()]) {
 
-  // Construct all the FieldGenerators and assign them bit indices for their
-  // bit fields.
-  int messageBitIndex = 0;
-  int builderBitIndex = 0;
+  // Construct all the FieldGenerators.
   for (int i = 0; i < descriptor->field_count(); i++) {
-    FieldGenerator* generator = MakeGenerator(descriptor->field(i),
-        messageBitIndex, builderBitIndex);
-    field_generators_[i].reset(generator);
-    messageBitIndex += generator->GetNumBitsForMessage();
-    builderBitIndex += generator->GetNumBitsForBuilder();
+    field_generators_[i].reset(MakeGenerator(descriptor->field(i)));
   }
   for (int i = 0; i < descriptor->extension_count(); i++) {
-    FieldGenerator* generator = MakeGenerator(descriptor->extension(i),
-        messageBitIndex, builderBitIndex);
-    extension_generators_[i].reset(generator);
-    messageBitIndex += generator->GetNumBitsForMessage();
-    builderBitIndex += generator->GetNumBitsForBuilder();
+    extension_generators_[i].reset(MakeGenerator(descriptor->extension(i)));
   }
 }
 
-FieldGenerator* FieldGeneratorMap::MakeGenerator(
-    const FieldDescriptor* field, int messageBitIndex, int builderBitIndex) {
+FieldGenerator* FieldGeneratorMap::MakeGenerator(const FieldDescriptor* field) {
   if (field->is_repeated()) {
     switch (GetJavaType(field)) {
       case JAVATYPE_MESSAGE:
-        return new RepeatedMessageFieldGenerator(
-            field, messageBitIndex, builderBitIndex);
+        return new RepeatedMessageFieldGenerator(field);
       case JAVATYPE_ENUM:
-        return new RepeatedEnumFieldGenerator(
-            field, messageBitIndex, builderBitIndex);
-      case JAVATYPE_STRING:
-        return new RepeatedStringFieldGenerator(
-            field, messageBitIndex, builderBitIndex);
+        return new RepeatedEnumFieldGenerator(field);
       default:
-        return new RepeatedPrimitiveFieldGenerator(
-            field, messageBitIndex, builderBitIndex);
+        return new RepeatedPrimitiveFieldGenerator(field);
     }
   } else {
     switch (GetJavaType(field)) {
       case JAVATYPE_MESSAGE:
-        return new MessageFieldGenerator(
-            field, messageBitIndex, builderBitIndex);
+        return new MessageFieldGenerator(field);
       case JAVATYPE_ENUM:
-        return new EnumFieldGenerator(
-            field, messageBitIndex, builderBitIndex);
-      case JAVATYPE_STRING:
-        return new StringFieldGenerator(
-            field, messageBitIndex, builderBitIndex);
+        return new EnumFieldGenerator(field);
       default:
-        return new PrimitiveFieldGenerator(
-            field, messageBitIndex, builderBitIndex);
+        return new PrimitiveFieldGenerator(field);
     }
   }
 }

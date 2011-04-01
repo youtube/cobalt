@@ -56,19 +56,19 @@ class TestGenerator : public CodeGenerator {
 
   virtual bool Generate(const FileDescriptor* file,
                         const string& parameter,
-                        GeneratorContext* context,
+                        OutputDirectory* output_directory,
                         string* error) const {
-    TryInsert("test_pb2.py", "imports", context);
-    TryInsert("test_pb2.py", "module_scope", context);
-    TryInsert("test_pb2.py", "class_scope:foo.Bar", context);
-    TryInsert("test_pb2.py", "class_scope:foo.Bar.Baz", context);
+    TryInsert("test_pb2.py", "imports", output_directory);
+    TryInsert("test_pb2.py", "module_scope", output_directory);
+    TryInsert("test_pb2.py", "class_scope:foo.Bar", output_directory);
+    TryInsert("test_pb2.py", "class_scope:foo.Bar.Baz", output_directory);
     return true;
   }
 
   void TryInsert(const string& filename, const string& insertion_point,
-                 GeneratorContext* context) const {
+                 OutputDirectory* output_directory) const {
     scoped_ptr<io::ZeroCopyOutputStream> output(
-      context->OpenForInsert(filename, insertion_point));
+      output_directory->OpenForInsert(filename, insertion_point));
     io::Printer printer(output.get(), '$');
     printer.Print("// inserted $name$\n", "name", insertion_point);
   }

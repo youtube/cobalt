@@ -32,14 +32,11 @@
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
-#include <algorithm>
-
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/stubs/common.h>
 
 namespace google {
 namespace protobuf {
-
 namespace internal {
 
 void RepeatedPtrFieldBase::Reserve(int new_size) {
@@ -91,8 +88,8 @@ void StringTypeHandlerBase::Delete(string* value) {
   delete value;
 }
 
-}  // namespace internal
 
+} // namespace internal
 
 }  // namespace protobuf
 }  // namespace google
