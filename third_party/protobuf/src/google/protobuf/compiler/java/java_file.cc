@@ -88,8 +88,7 @@ bool UsesExtensions(const Message& message) {
 FileGenerator::FileGenerator(const FileDescriptor* file)
   : file_(file),
     java_package_(FileJavaPackage(file)),
-    classname_(FileClassName(file)) {
-}
+    classname_(FileClassName(file)) {}
 
 FileGenerator::~FileGenerator() {}
 
@@ -180,9 +179,7 @@ void FileGenerator::Generate(io::Printer* printer) {
       EnumGenerator(file_->enum_type(i)).Generate(printer);
     }
     for (int i = 0; i < file_->message_type_count(); i++) {
-      MessageGenerator messageGenerator(file_->message_type(i));
-      messageGenerator.GenerateInterface(printer);
-      messageGenerator.Generate(printer);
+      MessageGenerator(file_->message_type(i)).Generate(printer);
     }
     if (HasGenericServices(file_)) {
       for (int i = 0; i < file_->service_count(); i++) {
@@ -218,10 +215,23 @@ void FileGenerator::Generate(io::Printer* printer) {
         .GenerateStaticVariableInitializers(printer);
     }
 
+    for (int i = 0; i < file_->extension_count(); i++) {
+      // TODO(kenton):  Reuse ExtensionGenerator objects?
+      ExtensionGenerator(file_->extension(i))
+        .GenerateInitializationCode(printer);
+    }
+
     printer->Outdent();
     printer->Print(
       "}\n");
   }
+
+  // Dummy function we can use to force the static initialization block to
+  // run.  Needed by inner classes.  Cannot be private due to
+  // java_multiple_files option.
+  printer->Print(
+    "\n"
+    "public static void internalForceInit() {}\n");
 
   printer->Print(
     "\n"
@@ -300,10 +310,11 @@ void FileGenerator::GenerateEmbeddedDescriptor(io::Printer* printer) {
     MessageGenerator(file_->message_type(i))
       .GenerateStaticVariableInitializers(printer);
   }
+
   for (int i = 0; i < file_->extension_count(); i++) {
     // TODO(kenton):  Reuse ExtensionGenerator objects?
     ExtensionGenerator(file_->extension(i))
-        .GenerateNonNestedInitializationCode(printer);
+      .GenerateInitializationCode(printer);
   }
 
   if (UsesExtensions(file_proto)) {
@@ -314,11 +325,9 @@ void FileGenerator::GenerateEmbeddedDescriptor(io::Printer* printer) {
       "  com.google.protobuf.ExtensionRegistry.newInstance();\n"
       "registerAllExtensions(registry);\n");
     for (int i = 0; i < file_->dependency_count(); i++) {
-      if (ShouldIncludeDependency(file_->dependency(i))) {
-        printer->Print(
-            "$dependency$.registerAllExtensions(registry);\n",
-            "dependency", ClassName(file_->dependency(i)));
-      }
+      printer->Print(
+        "$dependency$.registerAllExtensions(registry);\n",
+        "dependency", ClassName(file_->dependency(i)));
     }
     printer->Print(
       "return registry;\n");
@@ -363,14 +372,13 @@ template<typename GeneratorClass, typename DescriptorClass>
 static void GenerateSibling(const string& package_dir,
                             const string& java_package,
                             const DescriptorClass* descriptor,
-                            GeneratorContext* context,
-                            vector<string>* file_list,
-                            const string& name_suffix,
-                            void (GeneratorClass::*pfn)(io::Printer* printer)) {
-  string filename = package_dir + descriptor->name() + name_suffix + ".java";
+                            OutputDirectory* output_directory,
+                            vector<string>* file_list) {
+  string filename = package_dir + descriptor->name() + ".java";
   file_list->push_back(filename);
 
-  scoped_ptr<io::ZeroCopyOutputStream> output(context->Open(filename));
+  scoped_ptr<io::ZeroCopyOutputStream> output(
+    output_directory->Open(filename));
   io::Printer printer(output.get(), '$');
 
   printer.Print(
@@ -383,36 +391,28 @@ static void GenerateSibling(const string& package_dir,
       "package", java_package);
   }
 
-  GeneratorClass generator(descriptor);
-  (generator.*pfn)(&printer);
+  GeneratorClass(descriptor).Generate(&printer);
 }
 
 void FileGenerator::GenerateSiblings(const string& package_dir,
-                                     GeneratorContext* context,
+                                     OutputDirectory* output_directory,
                                      vector<string>* file_list) {
   if (file_->options().java_multiple_files()) {
     for (int i = 0; i < file_->enum_type_count(); i++) {
       GenerateSibling<EnumGenerator>(package_dir, java_package_,
                                      file_->enum_type(i),
-                                     context, file_list, "",
-                                     &EnumGenerator::Generate);
+                                     output_directory, file_list);
     }
     for (int i = 0; i < file_->message_type_count(); i++) {
       GenerateSibling<MessageGenerator>(package_dir, java_package_,
                                         file_->message_type(i),
-                                        context, file_list, "OrBuilder",
-                                        &MessageGenerator::GenerateInterface);
-      GenerateSibling<MessageGenerator>(package_dir, java_package_,
-                                        file_->message_type(i),
-                                        context, file_list, "",
-                                        &MessageGenerator::Generate);
+                                        output_directory, file_list);
     }
     if (HasGenericServices(file_)) {
       for (int i = 0; i < file_->service_count(); i++) {
         GenerateSibling<ServiceGenerator>(package_dir, java_package_,
                                           file_->service(i),
-                                          context, file_list, "",
-                                          &ServiceGenerator::Generate);
+                                          output_directory, file_list);
       }
     }
   }
