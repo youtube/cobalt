@@ -56,6 +56,7 @@
 
         'src/google/protobuf/stubs/common.cc',
         'src/google/protobuf/stubs/once.cc',
+        'src/google/protobuf/stubs/hash.cc',
         'src/google/protobuf/stubs/hash.h',
         'src/google/protobuf/stubs/map-util.h',
         'src/google/protobuf/stubs/stl_util-inl.h',
@@ -210,8 +211,6 @@
         'src/google/protobuf/compiler/java/java_primitive_field.h',
         'src/google/protobuf/compiler/java/java_service.cc',
         'src/google/protobuf/compiler/java/java_service.h',
-        'src/google/protobuf/compiler/java/java_string_field.cc',
-        'src/google/protobuf/compiler/java/java_string_field.h',
         'src/google/protobuf/compiler/python/python_generator.cc',
         'src/google/protobuf/compiler/main.cc',
       ],

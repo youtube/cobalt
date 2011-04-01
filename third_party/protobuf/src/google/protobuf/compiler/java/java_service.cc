@@ -118,7 +118,7 @@ void ServiceGenerator::GenerateNewReflectiveServiceMethod(
 
   for (int i = 0; i < descriptor_->method_count(); i++) {
     const MethodDescriptor* method = descriptor_->method(i);
-    printer->Print("@java.lang.Override\n");
+    printer->Print("@Override\n");
     GenerateMethodSignature(printer, method, IS_CONCRETE);
     printer->Print(
       " {\n"

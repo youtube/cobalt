@@ -42,17 +42,12 @@ namespace protobuf {
 namespace compiler {
 
 CodeGenerator::~CodeGenerator() {}
-GeneratorContext::~GeneratorContext() {}
+OutputDirectory::~OutputDirectory() {}
 
-io::ZeroCopyOutputStream* GeneratorContext::OpenForInsert(
+io::ZeroCopyOutputStream* OutputDirectory::OpenForInsert(
     const string& filename, const string& insertion_point) {
-  GOOGLE_LOG(FATAL) << "This GeneratorContext does not support insertion.";
+  GOOGLE_LOG(FATAL) << "This OutputDirectory does not support insertion.";
   return NULL;  // make compiler happy
-}
-
-void GeneratorContext::ListParsedFiles(
-    vector<const FileDescriptor*>* output) {
-  GOOGLE_LOG(FATAL) << "This GeneratorContext does not support ListParsedFiles";
 }
 
 // Parses a set of comma-delimited name/value pairs.

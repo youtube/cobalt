@@ -56,24 +56,24 @@ class TestGenerator : public CodeGenerator {
 
   virtual bool Generate(const FileDescriptor* file,
                         const string& parameter,
-                        GeneratorContext* context,
+                        OutputDirectory* output_directory,
                         string* error) const {
-    TryInsert("test.pb.h", "includes", context);
-    TryInsert("test.pb.h", "namespace_scope", context);
-    TryInsert("test.pb.h", "global_scope", context);
-    TryInsert("test.pb.h", "class_scope:foo.Bar", context);
-    TryInsert("test.pb.h", "class_scope:foo.Bar.Baz", context);
+    TryInsert("test.pb.h", "includes", output_directory);
+    TryInsert("test.pb.h", "namespace_scope", output_directory);
+    TryInsert("test.pb.h", "global_scope", output_directory);
+    TryInsert("test.pb.h", "class_scope:foo.Bar", output_directory);
+    TryInsert("test.pb.h", "class_scope:foo.Bar.Baz", output_directory);
 
-    TryInsert("test.pb.cc", "includes", context);
-    TryInsert("test.pb.cc", "namespace_scope", context);
-    TryInsert("test.pb.cc", "global_scope", context);
+    TryInsert("test.pb.cc", "includes", output_directory);
+    TryInsert("test.pb.cc", "namespace_scope", output_directory);
+    TryInsert("test.pb.cc", "global_scope", output_directory);
     return true;
   }
 
   void TryInsert(const string& filename, const string& insertion_point,
-                 GeneratorContext* context) const {
+                 OutputDirectory* output_directory) const {
     scoped_ptr<io::ZeroCopyOutputStream> output(
-      context->OpenForInsert(filename, insertion_point));
+      output_directory->OpenForInsert(filename, insertion_point));
     io::Printer printer(output.get(), '$');
     printer.Print("// inserted $name$\n", "name", insertion_point);
   }
