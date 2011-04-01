@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 // Copied from strings/stringpiece.cc with modifications
@@ -11,11 +11,6 @@
 namespace base {
 
 typedef StringPiece::size_type size_type;
-
-std::ostream& operator<<(std::ostream& o, const StringPiece& piece) {
-  o.write(piece.data(), static_cast<std::streamsize>(piece.size()));
-  return o;
-}
 
 bool operator==(const StringPiece& x, const StringPiece& y) {
   if (x.size() != y.size())
