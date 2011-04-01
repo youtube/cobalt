@@ -127,7 +127,8 @@ enum TerminationStatus {
   TERMINATION_STATUS_ABNORMAL_TERMINATION, // non-zero exit status
   TERMINATION_STATUS_PROCESS_WAS_KILLED,   // e.g. SIGKILL or task manager kill
   TERMINATION_STATUS_PROCESS_CRASHED,      // e.g. Segmentation fault
-  TERMINATION_STATUS_STILL_RUNNING         // child hasn't exited yet
+  TERMINATION_STATUS_STILL_RUNNING,        // child hasn't exited yet
+  TERMINATION_STATUS_MAX_ENUM
 };
 
 // Returns the id of the current process.
