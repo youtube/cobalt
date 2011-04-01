@@ -938,8 +938,8 @@ namespace base {
 
 class StringPiece;
 
-// allow StringPiece to be logged (needed for unit testing).
-extern std::ostream& operator<<(std::ostream& o, const StringPiece& piece);
+// Allows StringPiece to be logged.
+BASE_API std::ostream& operator<<(std::ostream& o, const StringPiece& piece);
 
 }  // namespace base
 
