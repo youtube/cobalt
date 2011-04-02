@@ -48,6 +48,15 @@
 #include <stdint.h>
 #endif
 
+#if defined(_MSC_VER) && defined(_CPPUNWIND)
+  #define PROTOBUF_USE_EXCEPTIONS
+#elif defined(__EXCEPTIONS)
+  #define PROTOBUF_USE_EXCEPTIONS
+#endif
+#ifdef PROTOBUF_USE_EXCEPTIONS
+#include <exception>
+#endif
+
 #if defined(_WIN32) && defined(GetMessage)
 // Allow GetMessage to be used as a valid method name in protobuf classes.
 // windows.h defines GetMessage() as a macro.  Let's re-define it as an inline
@@ -70,8 +79,6 @@ namespace std {}
 
 namespace google {
 namespace protobuf {
-
-using namespace std;  // Don't do this at home, kids.
 
 #undef GOOGLE_DISALLOW_EVIL_CONSTRUCTORS
 #define GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(TypeName)    \
@@ -101,24 +108,24 @@ namespace internal {
 
 // The current version, represented as a single integer to make comparison
 // easier:  major * 10^6 + minor * 10^3 + micro
-#define GOOGLE_PROTOBUF_VERSION 2003001
+#define GOOGLE_PROTOBUF_VERSION 2004000
 
 // The minimum library version which works with the current version of the
 // headers.
-#define GOOGLE_PROTOBUF_MIN_LIBRARY_VERSION 2003000
+#define GOOGLE_PROTOBUF_MIN_LIBRARY_VERSION 2004000
 
 // The minimum header version which works with the current version of
 // the library.  This constant should only be used by protoc's C++ code
 // generator.
-static const int kMinHeaderVersionForLibrary = 2003000;
+static const int kMinHeaderVersionForLibrary = 2004000;
 
 // The minimum protoc version which works with the current version of the
 // headers.
-#define GOOGLE_PROTOBUF_MIN_PROTOC_VERSION 2003000
+#define GOOGLE_PROTOBUF_MIN_PROTOC_VERSION 2004000
 
 // The minimum header version which works with the current version of
 // protoc.  This constant should only be used in VerifyVersion().
-static const int kMinHeaderVersionForProtoc = 2003000;
+static const int kMinHeaderVersionForProtoc = 2004000;
 
 // Verifies that the headers and libraries are compatible.  Use the macro
 // below to call this.
@@ -126,7 +133,7 @@ void LIBPROTOBUF_EXPORT VerifyVersion(int headerVersion, int minLibraryVersion,
                                       const char* filename);
 
 // Converts a numeric version number to a string.
-string LIBPROTOBUF_EXPORT VersionString(int version);
+std::string LIBPROTOBUF_EXPORT VersionString(int version);
 
 }  // namespace internal
 
@@ -368,6 +375,7 @@ struct CompileAssert {
 #define GOOGLE_COMPILE_ASSERT(expr, msg) \
   typedef ::google::protobuf::internal::CompileAssert<(bool(expr))> \
           msg[bool(expr) ? 1 : -1]
+
 
 // Implementation details of COMPILE_ASSERT:
 //
@@ -636,7 +644,7 @@ class LIBPROTOBUF_EXPORT LogMessage {
   LogMessage(LogLevel level, const char* filename, int line);
   ~LogMessage();
 
-  LogMessage& operator<<(const string& value);
+  LogMessage& operator<<(const std::string& value);
   LogMessage& operator<<(const char* value);
   LogMessage& operator<<(char value);
   LogMessage& operator<<(int value);
@@ -652,7 +660,7 @@ class LIBPROTOBUF_EXPORT LogMessage {
   LogLevel level_;
   const char* filename_;
   int line_;
-  string message_;
+  std::string message_;
 };
 
 // Used to make the entire "LOG(BLAH) << etc." expression have a void return
@@ -731,7 +739,7 @@ class LIBPROTOBUF_EXPORT LogFinisher {
 #endif  // !NDEBUG
 
 typedef void LogHandler(LogLevel level, const char* filename, int line,
-                        const string& message);
+                        const std::string& message);
 
 // The protobuf library sometimes writes warning and error messages to
 // stderr.  These messages are primarily useful for developers, but may
@@ -1172,6 +1180,30 @@ namespace internal {
 LIBPROTOBUF_EXPORT void OnShutdown(void (*func)());
 
 }  // namespace internal
+
+#ifdef PROTOBUF_USE_EXCEPTIONS
+class FatalException : public std::exception {
+ public:
+  FatalException(const char* filename, int line, const std::string& message)
+      : filename_(filename), line_(line), message_(message) {}
+  virtual ~FatalException() throw();
+
+  virtual const char* what() const throw();
+
+  const char* filename() const { return filename_; }
+  int line() const { return line_; }
+  const std::string& message() const { return message_; }
+
+ private:
+  const char* filename_;
+  const int line_;
+  const std::string message_;
+};
+#endif
+
+// This is at the end of the file instead of the beginning to work around a bug
+// in some versions of MSVC.
+using namespace std;  // Don't do this at home, kids.
 
 }  // namespace protobuf
 }  // namespace google
