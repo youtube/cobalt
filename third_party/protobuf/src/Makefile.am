@@ -77,11 +77,10 @@ nobase_include_HEADERS =                                       \
 lib_LTLIBRARIES = libprotobuf-lite.la libprotobuf.la libprotoc.la
 
 libprotobuf_lite_la_LIBADD = $(PTHREAD_LIBS)
-libprotobuf_lite_la_LDFLAGS = -version-info 6:0:0 -export-dynamic -no-undefined
+libprotobuf_lite_la_LDFLAGS = -version-info 7:0:0 -export-dynamic -no-undefined
 libprotobuf_lite_la_SOURCES =                                  \
   google/protobuf/stubs/common.cc                              \
   google/protobuf/stubs/once.cc                                \
-  google/protobuf/stubs/hash.cc                                \
   google/protobuf/stubs/hash.h                                 \
   google/protobuf/stubs/map-util.h                             \
   google/protobuf/stubs/stl_util-inl.h                         \
@@ -96,7 +95,7 @@ libprotobuf_lite_la_SOURCES =                                  \
   google/protobuf/io/zero_copy_stream_impl_lite.cc
 
 libprotobuf_la_LIBADD = $(PTHREAD_LIBS)
-libprotobuf_la_LDFLAGS = -version-info 6:0:0 -export-dynamic -no-undefined
+libprotobuf_la_LDFLAGS = -version-info 7:0:0 -export-dynamic -no-undefined
 libprotobuf_la_SOURCES =                                       \
   $(libprotobuf_lite_la_SOURCES)                               \
   google/protobuf/stubs/strutil.cc                             \
@@ -124,7 +123,7 @@ libprotobuf_la_SOURCES =                                       \
   google/protobuf/compiler/parser.cc
 
 libprotoc_la_LIBADD = $(PTHREAD_LIBS) libprotobuf.la
-libprotoc_la_LDFLAGS = -version-info 6:0:0 -export-dynamic -no-undefined
+libprotoc_la_LDFLAGS = -version-info 7:0:0 -export-dynamic -no-undefined
 libprotoc_la_SOURCES =                                         \
   google/protobuf/compiler/code_generator.cc                   \
   google/protobuf/compiler/command_line_interface.cc           \
@@ -178,6 +177,8 @@ libprotoc_la_SOURCES =                                         \
   google/protobuf/compiler/java/java_primitive_field.h         \
   google/protobuf/compiler/java/java_service.cc                \
   google/protobuf/compiler/java/java_service.h                 \
+  google/protobuf/compiler/java/java_string_field.cc           \
+  google/protobuf/compiler/java/java_string_field.h            \
   google/protobuf/compiler/python/python_generator.cc
 
 bin_PROGRAMS = protoc
