@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -62,7 +62,10 @@ TEST_F(LoggingTest, BasicLogging) {
   SetMinLogLevel(LOG_INFO);
 
   EXPECT_TRUE(LOG_IS_ON(INFO));
-  EXPECT_EQ(DEBUG_MODE != 0, DLOG_IS_ON(INFO));
+  // As of g++-4.5, the first argument to EXPECT_EQ cannot be a
+  // constant expression.
+  const bool kIsDebugMode = (DEBUG_MODE != 0);
+  EXPECT_EQ(kIsDebugMode, DLOG_IS_ON(INFO));
   EXPECT_TRUE(VLOG_IS_ON(0));
 
   LOG(INFO) << mock_log_source.Log();
