@@ -167,6 +167,13 @@ TEST(GeneratedMessageTest, FloatingPointDefaults) {
   EXPECT_TRUE(extreme_default.nan_float() != extreme_default.nan_float());
 }
 
+TEST(GeneratedMessageTest, Trigraph) {
+  const unittest::TestExtremeDefaultValues& extreme_default =
+      unittest::TestExtremeDefaultValues::default_instance();
+
+  EXPECT_EQ("? ? ?? ?? ??? ?\?/ ?\?-", extreme_default.cpp_trigraph());
+}
+
 TEST(GeneratedMessageTest, Accessors) {
   // Set every field to a unique value then go back and check all those
   // values.
@@ -193,6 +200,48 @@ TEST(GeneratedMessageTest, MutableStringDefault) {
   message.Clear();
 
   EXPECT_EQ("hello", *message.mutable_default_string());
+}
+
+TEST(GeneratedMessageTest, ReleaseString) {
+  // Check that release_foo() starts out NULL, and gives us a value
+  // that we can delete after it's been set.
+  unittest::TestAllTypes message;
+
+  EXPECT_EQ(NULL, message.release_default_string());
+  EXPECT_FALSE(message.has_default_string());
+  EXPECT_EQ("hello", message.default_string());
+
+  message.set_default_string("blah");
+  EXPECT_TRUE(message.has_default_string());
+  string* str = message.release_default_string();
+  EXPECT_FALSE(message.has_default_string());
+  ASSERT_TRUE(str != NULL);
+  EXPECT_EQ("blah", *str);
+  delete str;
+
+  EXPECT_EQ(NULL, message.release_default_string());
+  EXPECT_FALSE(message.has_default_string());
+  EXPECT_EQ("hello", message.default_string());
+}
+
+TEST(GeneratedMessageTest, ReleaseMessage) {
+  // Check that release_foo() starts out NULL, and gives us a value
+  // that we can delete after it's been set.
+  unittest::TestAllTypes message;
+
+  EXPECT_EQ(NULL, message.release_optional_nested_message());
+  EXPECT_FALSE(message.has_optional_nested_message());
+
+  message.mutable_optional_nested_message()->set_bb(1);
+  unittest::TestAllTypes::NestedMessage* nest =
+      message.release_optional_nested_message();
+  EXPECT_FALSE(message.has_optional_nested_message());
+  ASSERT_TRUE(nest != NULL);
+  EXPECT_EQ(1, nest->bb());
+  delete nest;
+
+  EXPECT_EQ(NULL, message.release_optional_nested_message());
+  EXPECT_FALSE(message.has_optional_nested_message());
 }
 
 TEST(GeneratedMessageTest, Clear) {
@@ -281,6 +330,7 @@ TEST(GeneratedMessageTest, CopyFrom) {
   message2.CopyFrom(message2);
   TestUtil::ExpectAllFieldsSet(message2);
 }
+
 
 TEST(GeneratedMessageTest, SwapWithEmpty) {
   unittest::TestAllTypes message1, message2;
@@ -376,7 +426,7 @@ TEST(GeneratedMessageTest, CopyAssignmentOperator) {
   TestUtil::ExpectAllFieldsSet(message2);
 
   // Make sure that self-assignment does something sane.
-  message2 = message2;
+  message2.operator=(message2);
   TestUtil::ExpectAllFieldsSet(message2);
 }
 
@@ -718,6 +768,7 @@ TEST(GeneratedMessageTest, TestSpaceUsed) {
 
 #endif  // !PROTOBUF_TEST_NO_DESCRIPTORS
 
+
 TEST(GeneratedMessageTest, FieldConstantValues) {
   unittest::TestRequired message;
   EXPECT_EQ(unittest::TestAllTypes_NestedMessage::kBbFieldNumber, 1);
@@ -809,14 +860,14 @@ TEST(GeneratedEnumTest, MinAndMax) {
   EXPECT_EQ(12589235, unittest::TestSparseEnum_ARRAYSIZE);
 
   // Make sure we can take the address of _MIN, _MAX and _ARRAYSIZE.
-  void* nullptr = 0;  // NULL may be integer-type, not pointer-type.
-  EXPECT_NE(nullptr, &unittest::TestAllTypes::NestedEnum_MIN);
-  EXPECT_NE(nullptr, &unittest::TestAllTypes::NestedEnum_MAX);
-  EXPECT_NE(nullptr, &unittest::TestAllTypes::NestedEnum_ARRAYSIZE);
+  void* null_pointer = 0;  // NULL may be integer-type, not pointer-type.
+  EXPECT_NE(null_pointer, &unittest::TestAllTypes::NestedEnum_MIN);
+  EXPECT_NE(null_pointer, &unittest::TestAllTypes::NestedEnum_MAX);
+  EXPECT_NE(null_pointer, &unittest::TestAllTypes::NestedEnum_ARRAYSIZE);
 
-  EXPECT_NE(nullptr, &unittest::ForeignEnum_MIN);
-  EXPECT_NE(nullptr, &unittest::ForeignEnum_MAX);
-  EXPECT_NE(nullptr, &unittest::ForeignEnum_ARRAYSIZE);
+  EXPECT_NE(null_pointer, &unittest::ForeignEnum_MIN);
+  EXPECT_NE(null_pointer, &unittest::ForeignEnum_MAX);
+  EXPECT_NE(null_pointer, &unittest::ForeignEnum_ARRAYSIZE);
 
   // Make sure we can use _MIN, _MAX and _ARRAYSIZE as switch cases.
   switch (unittest::SPARSE_A) {
