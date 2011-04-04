@@ -15,6 +15,8 @@ Error MapSystemError(int os_error) {
   // There are numerous Winsock error codes, but these are the ones we thus far
   // find interesting.
   switch (os_error) {
+    case WSAEWOULDBLOCK:
+      return ERR_IO_PENDING;
     case WSAEACCES:
       return ERR_ACCESS_DENIED;
     case WSAENETDOWN:
