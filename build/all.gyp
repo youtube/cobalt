@@ -197,6 +197,13 @@
       ],
     }, # target_name: chromium_builder_tests
     {
+      'target_name': 'chromium_2010_builder_tests',
+      'type': 'none',
+      'dependencies': [
+        '../chrome/chrome.gyp:chrome',
+      ],
+    }, # target_name: chromium_2010_builder_tests
+    {
       'target_name': 'chromium_builder_perf',
       'type': 'none',
       'dependencies': [
