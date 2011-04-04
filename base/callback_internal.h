@@ -9,6 +9,8 @@
 #define BASE_CALLBACK_INTERNAL_H_
 #pragma once
 
+#include <stddef.h>
+
 #include "base/base_api.h"
 #include "base/memory/ref_counted.h"
 
