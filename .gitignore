@@ -2,13 +2,18 @@
 *.mk
 *.ncb
 *.ninja
+*.props
 *.pyc
 *.rules
 *.scons
+*.sdf
 *.sln
 *.suo
+*.targets
 *.user
 *.vcproj
+*.vcxproj
+*.vcxproj.filters
 *.vpj
 *.vpw
 *.vpwhistu
@@ -84,6 +89,7 @@ v8.log
 /third_party/directxsdk
 /third_party/drmemory
 /third_party/flac
+/third_party/adobe/flash/symbols
 /third_party/ffmpeg
 /third_party/gles2_conform
 /third_party/googlemac
