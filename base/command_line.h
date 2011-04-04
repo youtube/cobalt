@@ -15,12 +15,12 @@
 #define BASE_COMMAND_LINE_H_
 #pragma once
 
+#include <stddef.h>
 #include <map>
 #include <string>
 #include <vector>
 
 #include "base/base_api.h"
-#include "base/basictypes.h"
 #include "build/build_config.h"
 
 class FilePath;

@@ -6,13 +6,15 @@
 #define BASE_EVENT_RECORDER_H_
 #pragma once
 
-#if defined(OS_WIN)
-#include <windows.h>
-#include <stdio.h>
-#endif
-
 #include "base/base_api.h"
 #include "base/basictypes.h"
+#include "build/build_config.h"
+
+#if defined(OS_WIN)
+#include <stdio.h>
+#include <string.h>
+#include <windows.h>
+#endif
 
 class FilePath;
 
