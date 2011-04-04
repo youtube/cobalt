@@ -1176,6 +1176,29 @@ TEST(HttpCache, SimpleGETWithDiskFailures2) {
   EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
 
+// Tests that we don't crash after failures to read from the cache.
+TEST(HttpCache, SimpleGETWithDiskFailures3) {
+  MockHttpCache cache;
+
+  // Read from the network, and write to the cache.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  cache.disk_cache()->set_soft_failures(true);
+
+  // Now fail to read from the cache.
+  scoped_ptr<Context> c(new Context());
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+  rv = c->trans->Start(&request, &c->callback, net::BoundNetLog());
+  EXPECT_EQ(net::ERR_CACHE_READ_FAILURE, c->callback.GetResult(rv));
+}
+
 TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   MockHttpCache cache;
 
