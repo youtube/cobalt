@@ -1169,7 +1169,6 @@ int HttpCache::Transaction::DoCacheReadResponse() {
 
 int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
   cache_callback_->Release();  // Balance the AddRef from DoCacheReadResponse.
-  next_state_ = STATE_NOTIFY_BEFORE_SEND_HEADERS;
 
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_READ_INFO, result);
   if (result != io_buf_len_ ||
@@ -1179,6 +1178,7 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
     return ERR_CACHE_READ_FAILURE;
   }
 
+  next_state_ = STATE_NOTIFY_BEFORE_SEND_HEADERS;
   return OK;
 }
 
