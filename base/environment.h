@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/base_api.h"
-#include "base/basictypes.h"
+#include "build/build_config.h"
 
 namespace base {
 

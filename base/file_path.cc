@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <algorithm>
-
 #include "base/file_path.h"
 
-#if defined(OS_WIN)
-#include <windows.h>
-#elif defined(OS_MACOSX)
-#include <CoreFoundation/CoreFoundation.h>
-#endif
+#include <string.h>
+#include <algorithm>
 
+#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 
@@ -25,6 +21,12 @@
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_cftyperef.h"
 #include "base/third_party/icu/icu_utf.h"
+#endif
+
+#if defined(OS_WIN)
+#include <windows.h>
+#elif defined(OS_MACOSX)
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
