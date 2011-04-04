@@ -333,6 +333,17 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
                                  base::TimeDelta::FromMinutes(10),
                                  100);
 
+      const std::string& host = params_->host_and_port().host();
+      bool is_google = host == "google.com" ||
+                       host.rfind(".google.com") == host.size() - 11;
+      if (is_google) {
+        UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_Google",
+                                   connect_duration,
+                                   base::TimeDelta::FromMilliseconds(1),
+                                   base::TimeDelta::FromMinutes(10),
+                                   100);
+      }
+
       static bool false_start_trial(
           base::FieldTrialList::Find("SSLFalseStart") &&
           !base::FieldTrialList::Find("SSLFalseStart")->group_name().empty());
