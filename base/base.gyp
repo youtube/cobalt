@@ -54,6 +54,48 @@
       ],
     },
     {
+      # This is the subset of files from base that should not be used with a
+      # dynamic library.
+      'target_name': 'base_static',
+      'type': '<(library)',
+      'sources': [
+        'base_switches.cc',
+        'base_switches.h',
+        'win/pe_image.cc',
+        'win/pe_image.h',
+      ],
+      'include_dirs': [
+        '..',
+      ],
+    },
+    {
+      # TODO(rvargas): Remove this when gyp finally supports a clean model.
+      # See bug 36232.
+      'target_name': 'base_static_win64',
+      'type': '<(library)',
+      'sources': [
+        'base_switches.cc',
+        'base_switches.h',
+        'win/pe_image.cc',
+        'win/pe_image.h',
+      ],
+      'include_dirs': [
+        '..',
+      ],
+      'configurations': {
+        'Common_Base': {
+          'msvs_target_platform': 'x64',
+        },
+      },
+      'defines': [
+        'NACL_WIN64',
+      ],
+      # TODO(rvargas): Bug 78117. Remove this.
+      'msvs_disabled_warnings': [
+        4244,
+      ],
+    },
+    {
       'target_name': 'base_unittests',
       'type': 'executable',
       'msvs_guid': '27A30967-4BBA-48D1-8522-CDE95F7B1CEC',
@@ -185,6 +227,7 @@
       'dependencies': [
         'base',
         'base_i18n',
+        'base_static',
         'test_support_base',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
