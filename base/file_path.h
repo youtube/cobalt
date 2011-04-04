@@ -100,14 +100,16 @@
 #define BASE_FILE_PATH_H_
 #pragma once
 
+#include <stddef.h>
 #include <string>
 #include <vector>
 
 #include "base/base_api.h"
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/hash_tables.h"
+#include "base/string16.h"
 #include "base/string_piece.h"  // For implicit conversions.
+#include "build/build_config.h"
 
 // Windows-style drive letter support and pathname separator characters can be
 // enabled and disabled independently, to aid testing.  These #defines are
@@ -386,7 +388,7 @@ namespace __gnu_cxx {
 
 template<>
 struct hash<FilePath> {
-  std::size_t operator()(const FilePath& f) const {
+  size_t operator()(const FilePath& f) const {
     return hash<FilePath::StringType>()(f.value());
   }
 };
