@@ -5,24 +5,19 @@
 #include "base/command_line.h"
 
 #include <algorithm>
+#include <ostream>
 
+#include "base/basictypes.h"
 #include "base/file_path.h"
-#include "base/file_util.h"
 #include "base/logging.h"
-#include "base/memory/singleton.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
-#include "base/sys_string_conversions.h"
 #include "base/utf_string_conversions.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
 #include <shellapi.h>
-#elif defined(OS_POSIX)
-#include <limits.h>
-#include <stdlib.h>
-#include <unistd.h>
 #endif
 
 CommandLine* CommandLine::current_process_commandline_ = NULL;
