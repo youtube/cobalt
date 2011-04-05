@@ -886,11 +886,6 @@ void HttpStreamFactoryImpl::Job::InitSSLConfig(
 
   if (request_info_.load_flags & LOAD_VERIFY_EV_CERT)
     ssl_config->verify_ev_cert = true;
-
-  if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_HTTP ||
-      proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_HTTPS) {
-    ssl_config->mitm_proxies_allowed = true;
-  }
 }
 
 

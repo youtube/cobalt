@@ -983,26 +983,13 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_RENEGOTIATION
-  // Deliberately disable this check for now: http://crbug.com/55410
-  if (false &&
-      SSLConfigService::IsKnownStrictTLSServer(host_and_port_.host()) &&
-      !ssl_config_.mitm_proxies_allowed) {
-    rv = SSL_OptionSet(nss_fd_, SSL_REQUIRE_SAFE_NEGOTIATION, PR_TRUE);
-    if (rv != SECSuccess) {
-      LogFailedNSSFunction(
-          net_log_, "SSL_OptionSet", "SSL_REQUIRE_SAFE_NEGOTIATION");
-    }
-    rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
-                       SSL_RENEGOTIATE_REQUIRES_XTN);
-  } else {
-    // We allow servers to request renegotiation. Since we're a client,
-    // prohibiting this is rather a waste of time. Only servers are in a
-    // position to prevent renegotiation attacks.
-    // http://extendedsubset.com/?p=8
+  // We allow servers to request renegotiation. Since we're a client,
+  // prohibiting this is rather a waste of time. Only servers are in a
+  // position to prevent renegotiation attacks.
+  // http://extendedsubset.com/?p=8
 
-    rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
-                       SSL_RENEGOTIATE_TRANSITIONAL);
-  }
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
+                     SSL_RENEGOTIATE_TRANSITIONAL);
   if (rv != SECSuccess) {
     LogFailedNSSFunction(
         net_log_, "SSL_OptionSet", "SSL_ENABLE_RENEGOTIATION");
