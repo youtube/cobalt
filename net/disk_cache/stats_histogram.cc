@@ -21,23 +21,23 @@ StatsHistogram::~StatsHistogram() {
     stats_ = NULL;
 }
 
-scoped_refptr<StatsHistogram> StatsHistogram::StatsHistogramFactoryGet(
+StatsHistogram* StatsHistogram::StatsHistogramFactoryGet(
     const std::string& name) {
-  scoped_refptr<Histogram> histogram(NULL);
+  Histogram* histogram(NULL);
 
   Sample minimum = 1;
   Sample maximum = disk_cache::Stats::kDataSizesLength - 1;
   size_t bucket_count = disk_cache::Stats::kDataSizesLength;
 
   if (StatisticsRecorder::FindHistogram(name, &histogram)) {
-    DCHECK(histogram.get() != NULL);
+    DCHECK(histogram != NULL);
   } else {
-    StatsHistogram* stats_histogram = new StatsHistogram(name, minimum, maximum,
-                                                         bucket_count);
+    // To avoid racy destruction at shutdown, the following will be leaked.
+    StatsHistogram* stats_histogram =
+        new StatsHistogram(name, minimum, maximum, bucket_count);
     stats_histogram->InitializeBucketRange();
-    histogram = stats_histogram;
-    histogram->SetFlags(kUmaTargetedHistogramFlag);
-    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
+    stats_histogram->SetFlags(kUmaTargetedHistogramFlag);
+    histogram = StatisticsRecorder::RegisterOrDeleteDuplicate(stats_histogram);
   }
 
   DCHECK(HISTOGRAM == histogram->histogram_type());
@@ -45,13 +45,10 @@ scoped_refptr<StatsHistogram> StatsHistogram::StatsHistogramFactoryGet(
 
   // We're preparing for an otherwise unsafe upcast by ensuring we have the
   // proper class type.
-  Histogram* temp_histogram = histogram.get();
-  StatsHistogram* temp_stats_histogram =
-      static_cast<StatsHistogram*>(temp_histogram);
+  StatsHistogram* return_histogram = static_cast<StatsHistogram*>(histogram);
   // Validate upcast by seeing that we're probably providing the checksum.
-  CHECK_EQ(temp_stats_histogram->StatsHistogram::CalculateRangeChecksum(),
-           temp_stats_histogram->CalculateRangeChecksum());
-  scoped_refptr<StatsHistogram> return_histogram(temp_stats_histogram);
+  CHECK_EQ(return_histogram->StatsHistogram::CalculateRangeChecksum(),
+           return_histogram->CalculateRangeChecksum());
   return return_histogram;
 }
 
