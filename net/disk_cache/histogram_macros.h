@@ -17,10 +17,12 @@
 // These histograms follow the definition of UMA_HISTOGRAMN_XXX except that
 // whenever the name changes (the experiment group changes), the histrogram
 // object is re-created.
+// Note: These macros are only run on one thread, so the declarations of
+// |counter| was made static (i.e., there will be no race for reinitialization).
 
 #define CACHE_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
     do { \
-      scoped_refptr<base::Histogram> counter; \
+      static base::Histogram* counter(NULL); \
       if (!counter || name != counter->histogram_name()) \
         counter = base::Histogram::FactoryGet( \
             name, min, max, bucket_count, \
@@ -39,7 +41,7 @@
 
 #define CACHE_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
     do { \
-      scoped_refptr<base::Histogram> counter; \
+      static base::Histogram* counter(NULL); \
       if (!counter || name != counter->histogram_name()) \
         counter = base::Histogram::FactoryTimeGet( \
             name, min, max, bucket_count, \
@@ -52,7 +54,7 @@
     base::TimeDelta::FromSeconds(10), 50)
 
 #define CACHE_HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    scoped_refptr<base::Histogram> counter; \
+    static base::Histogram* counter(NULL); \
     if (!counter || name != counter->histogram_name()) \
       counter = base::LinearHistogram::FactoryGet( \
                     name, 1, boundary_value, boundary_value + 1, \

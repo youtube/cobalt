@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -122,6 +122,7 @@ MessageLoop::MessageLoop(Type type)
     : type_(type),
       nestable_tasks_allowed_(true),
       exception_restoration_(false),
+      message_histogram_(NULL),
       state_(NULL),
 #ifdef OS_WIN
       os_modal_loop_(false),
@@ -531,7 +532,7 @@ void MessageLoop::PostTask_Helper(
 // on each thread.
 
 void MessageLoop::StartHistogrammer() {
-  if (enable_histogrammer_ && !message_histogram_.get()
+  if (enable_histogrammer_ && !message_histogram_
       && base::StatisticsRecorder::IsActive()) {
     DCHECK(!thread_name_.empty());
     message_histogram_ = base::LinearHistogram::FactoryGet(
@@ -544,7 +545,7 @@ void MessageLoop::StartHistogrammer() {
 }
 
 void MessageLoop::HistogramEvent(int event) {
-  if (message_histogram_.get())
+  if (message_histogram_)
     message_histogram_->Add(event);
 }
 
