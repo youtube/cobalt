@@ -12,6 +12,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "media/base/filters.h"
 #include "media/base/pipeline_status.h"
 
 namespace base {
@@ -123,6 +124,9 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // range from 0.0f (muted) to 1.0f (full volume).  This value affects all
   // channels proportionately for multi-channel audio streams.
   virtual void SetVolume(float volume) = 0;
+
+  // Set the preload value for the pipeline.
+  virtual void SetPreload(Preload preload) = 0;
 
   // Gets the current pipeline time. For a pipeline "time" progresses from 0 to
   // the end of the media.

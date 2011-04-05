@@ -81,6 +81,7 @@ class MockDataSource : public DataSource {
   MOCK_METHOD4(Read, void(int64 position, size_t size, uint8* data,
                           DataSource::ReadCallback* callback));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
+  MOCK_METHOD1(SetPreload, void(Preload preload));
   MOCK_METHOD0(IsStreaming, bool());
 
   // Sets the TotalBytes & BufferedBytes values to be sent to host() when
@@ -104,6 +105,7 @@ class MockDemuxer : public Demuxer {
   virtual void set_host(FilterHost* host);
   MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
+  MOCK_METHOD1(SetPreload, void(Preload preload));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 

@@ -116,4 +116,6 @@ bool FileDataSource::IsStreaming() {
   return false;
 }
 
+void FileDataSource::SetPreload(Preload preload) {}
+
 }  // namespace media
