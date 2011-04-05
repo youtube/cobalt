@@ -851,7 +851,10 @@
       },
       'Debug_Base': {
         'abstract': 1,
-        'defines': ['DYNAMIC_ANNOTATIONS_ENABLED=1'],
+        'defines': [
+          'DYNAMIC_ANNOTATIONS_ENABLED=1',
+          'WTF_USE_DYNAMIC_ANNOTATIONS=1',
+        ],
         'xcode_settings': {
           'COPY_PHASE_STRIP': 'NO',
           'GCC_OPTIMIZATION_LEVEL': '<(mac_debug_optimization)',
@@ -927,9 +930,15 @@
         },
         'conditions': [
           ['release_valgrind_build==0', {
-            'defines': ['NVALGRIND', 'DYNAMIC_ANNOTATIONS_ENABLED=0'],
+            'defines': [
+              'NVALGRIND',
+              'DYNAMIC_ANNOTATIONS_ENABLED=0',
+            ],
           }, {
-            'defines': ['DYNAMIC_ANNOTATIONS_ENABLED=1'],
+            'defines': [
+              'DYNAMIC_ANNOTATIONS_ENABLED=1',
+              'WTF_USE_DYNAMIC_ANNOTATIONS=1',
+            ],
           }],
           ['win_use_allocator_shim==0', {
             'defines': ['NO_TCMALLOC'],
