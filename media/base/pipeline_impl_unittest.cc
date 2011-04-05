@@ -100,6 +100,7 @@ class PipelineImplTest : public ::testing::Test {
     mocks_->demuxer()->SetTotalAndBufferedBytesAndDuration(
         kTotalBytes, kBufferedBytes, duration);
     EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(0.0f));
+    EXPECT_CALL(*mocks_->demuxer(), SetPreload(AUTO));
     EXPECT_CALL(*mocks_->demuxer(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->demuxer(), Stop(NotNull()))
@@ -850,4 +851,3 @@ TEST(PipelineStatusNotificationTest, DelayedCallback) {
 }
 
 }  // namespace media
-
