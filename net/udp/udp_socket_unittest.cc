@@ -280,7 +280,7 @@ TEST_F(UDPSocketTest, ServerGetLocalAddress) {
   EXPECT_EQ(rv, 0);
 
   // Verify that port was allocated.
-  EXPECT_GE(local_address.port(), 0);
+  EXPECT_GT(local_address.port(), 0);
   EXPECT_EQ(local_address.address(), bind_address.address());
 }
 

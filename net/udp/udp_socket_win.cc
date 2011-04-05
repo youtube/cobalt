@@ -215,7 +215,7 @@ int UDPSocketWin::Bind(const IPEndPoint& address) {
   if (rv < 0)
     return MapSystemError(WSAGetLastError());
 
-  local_address_.reset(new IPEndPoint(address));
+  local_address_.reset();
   return rv;
 }
 
