@@ -244,7 +244,7 @@ int UDPSocketLibevent::Bind(const IPEndPoint& address) {
   if (rv < 0)
     return MapSystemError(errno);
 
-  local_address_.reset(new IPEndPoint(address));
+  local_address_.reset();
   return rv;
 }
 
