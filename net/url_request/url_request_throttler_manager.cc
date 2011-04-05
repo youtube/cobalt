@@ -150,13 +150,7 @@ void URLRequestThrottlerManager::GarbageCollectEntriesIfNecessary() {
 void URLRequestThrottlerManager::GarbageCollectEntries() {
   UrlEntryMap::iterator i = url_entries_.begin();
   while (i != url_entries_.end()) {
-    // TODO(joi): We know, as per crbug.com/71721, that values here
-    // can sometimes be NULL because of a memory overwrite coming
-    // from somewhere else.  Minidumps of the crash are at this point
-    // not giving us any new information so adding the [i->second ==
-    // NULL] check lessens the impact on our users (it seems to
-    // generally avoid the crash).
-    if (i->second == NULL || (i->second)->IsEntryOutdated()) {
+    if ((i->second)->IsEntryOutdated()) {
       url_entries_.erase(i++);
     } else {
       ++i;
