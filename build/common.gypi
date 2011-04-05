@@ -1248,6 +1248,7 @@
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': [
+                  '-Wheader-hygiene',
                   # Clang spots more unused functions.
                   '-Wno-unused-function',
                   # Don't die on dtoa code that uses a char as an array index.
@@ -1381,6 +1382,7 @@
             ],
             ['clang==1', {
               'WARNING_CFLAGS': [
+                '-Wheader-hygiene',
                 # Don't die on dtoa code that uses a char as an array index.
                 # This is required solely for base/third_party/dmg_fp/dtoa.cc.
                 '-Wno-char-subscripts',
