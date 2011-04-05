@@ -73,9 +73,12 @@ typedef Histogram::Count Count;
 // static
 const size_t Histogram::kBucketCount_MAX = 16384u;
 
-scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
-    Sample minimum, Sample maximum, size_t bucket_count, Flags flags) {
-  scoped_refptr<Histogram> histogram(NULL);
+Histogram* Histogram::FactoryGet(const std::string& name,
+                                 Sample minimum,
+                                 Sample maximum,
+                                 size_t bucket_count,
+                                 Flags flags) {
+  Histogram* histogram(NULL);
 
   // Defensive code.
   if (minimum < 1)
@@ -84,10 +87,16 @@ scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
     maximum = kSampleType_MAX - 1;
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
-    histogram = new Histogram(name, minimum, maximum, bucket_count);
-    histogram->InitializeBucketRange();
-    histogram->SetFlags(flags);
-    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
+    // Extra variable is not needed... but this keeps this section basically
+    // identical to other derived classes in this file (and compiler will
+    // optimize away the extra variable.
+    // To avoid racy destruction at shutdown, the following will be leaked.
+    Histogram* tentative_histogram =
+        new Histogram(name, minimum, maximum, bucket_count);
+    tentative_histogram->InitializeBucketRange();
+    tentative_histogram->SetFlags(flags);
+    histogram =
+        StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
 
   DCHECK_EQ(HISTOGRAM, histogram->histogram_type());
@@ -95,11 +104,11 @@ scoped_refptr<Histogram> Histogram::FactoryGet(const std::string& name,
   return histogram;
 }
 
-scoped_refptr<Histogram> Histogram::FactoryTimeGet(const std::string& name,
-                                                   TimeDelta minimum,
-                                                   TimeDelta maximum,
-                                                   size_t bucket_count,
-                                                   Flags flags) {
+Histogram* Histogram::FactoryTimeGet(const std::string& name,
+                                     TimeDelta minimum,
+                                     TimeDelta maximum,
+                                     size_t bucket_count,
+                                     Flags flags) {
   return FactoryGet(name, minimum.InMilliseconds(), maximum.InMilliseconds(),
                     bucket_count, flags);
 }
@@ -259,7 +268,7 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
 
   DCHECK_NE(NOT_VALID_IN_RENDERER, histogram_type);
 
-  scoped_refptr<Histogram> render_histogram(NULL);
+  Histogram* render_histogram(NULL);
 
   if (histogram_type == HISTOGRAM) {
     render_histogram = Histogram::FactoryGet(
@@ -761,12 +770,12 @@ bool Histogram::SampleSet::Deserialize(void** iter, const Pickle& pickle) {
 LinearHistogram::~LinearHistogram() {
 }
 
-scoped_refptr<Histogram> LinearHistogram::FactoryGet(const std::string& name,
-                                                     Sample minimum,
-                                                     Sample maximum,
-                                                     size_t bucket_count,
-                                                     Flags flags) {
-  scoped_refptr<Histogram> histogram(NULL);
+Histogram* LinearHistogram::FactoryGet(const std::string& name,
+                                       Sample minimum,
+                                       Sample maximum,
+                                       size_t bucket_count,
+                                       Flags flags) {
+  Histogram* histogram(NULL);
 
   if (minimum < 1)
     minimum = 1;
@@ -774,12 +783,13 @@ scoped_refptr<Histogram> LinearHistogram::FactoryGet(const std::string& name,
     maximum = kSampleType_MAX - 1;
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
-    LinearHistogram* linear_histogram =
+    // To avoid racy destruction at shutdown, the following will be leaked.
+    LinearHistogram* tentative_histogram =
         new LinearHistogram(name, minimum, maximum, bucket_count);
-    linear_histogram->InitializeBucketRange();
-    histogram = linear_histogram;
-    histogram->SetFlags(flags);
-    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
+    tentative_histogram->InitializeBucketRange();
+    tentative_histogram->SetFlags(flags);
+    histogram =
+        StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
 
   DCHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
@@ -787,12 +797,11 @@ scoped_refptr<Histogram> LinearHistogram::FactoryGet(const std::string& name,
   return histogram;
 }
 
-scoped_refptr<Histogram> LinearHistogram::FactoryTimeGet(
-    const std::string& name,
-    TimeDelta minimum,
-    TimeDelta maximum,
-    size_t bucket_count,
-    Flags flags) {
+Histogram* LinearHistogram::FactoryTimeGet(const std::string& name,
+                                           TimeDelta minimum,
+                                           TimeDelta maximum,
+                                           size_t bucket_count,
+                                           Flags flags) {
   return FactoryGet(name, minimum.InMilliseconds(), maximum.InMilliseconds(),
                     bucket_count, flags);
 }
@@ -862,16 +871,16 @@ bool LinearHistogram::PrintEmptyBucket(size_t index) const {
 // This section provides implementation for BooleanHistogram.
 //------------------------------------------------------------------------------
 
-scoped_refptr<Histogram> BooleanHistogram::FactoryGet(const std::string& name,
-                                                      Flags flags) {
-  scoped_refptr<Histogram> histogram(NULL);
+Histogram* BooleanHistogram::FactoryGet(const std::string& name, Flags flags) {
+  Histogram* histogram(NULL);
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
-    BooleanHistogram* boolean_histogram = new BooleanHistogram(name);
-    boolean_histogram->InitializeBucketRange();
-    histogram = boolean_histogram;
-    histogram->SetFlags(flags);
-    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
+    // To avoid racy destruction at shutdown, the following will be leaked.
+    BooleanHistogram* tentative_histogram = new BooleanHistogram(name);
+    tentative_histogram->InitializeBucketRange();
+    tentative_histogram->SetFlags(flags);
+    histogram =
+        StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
 
   DCHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
@@ -894,11 +903,10 @@ BooleanHistogram::BooleanHistogram(const std::string& name)
 // CustomHistogram:
 //------------------------------------------------------------------------------
 
-scoped_refptr<Histogram> CustomHistogram::FactoryGet(
-    const std::string& name,
-    const std::vector<Sample>& custom_ranges,
-    Flags flags) {
-  scoped_refptr<Histogram> histogram(NULL);
+Histogram* CustomHistogram::FactoryGet(const std::string& name,
+                                       const std::vector<Sample>& custom_ranges,
+                                       Flags flags) {
+  Histogram* histogram(NULL);
 
   // Remove the duplicates in the custom ranges array.
   std::vector<int> ranges = custom_ranges;
@@ -914,11 +922,12 @@ scoped_refptr<Histogram> CustomHistogram::FactoryGet(
   DCHECK_LT(ranges.back(), kSampleType_MAX);
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
-    CustomHistogram* custom_histogram = new CustomHistogram(name, ranges);
-    custom_histogram->InitializedCustomBucketRange(ranges);
-    histogram = custom_histogram;
-    histogram->SetFlags(flags);
-    StatisticsRecorder::RegisterOrDiscardDuplicate(&histogram);
+    // To avoid racy destruction at shutdown, the following will be leaked.
+    CustomHistogram* tentative_histogram = new CustomHistogram(name, ranges);
+    tentative_histogram->InitializedCustomBucketRange(ranges);
+    tentative_histogram->SetFlags(flags);
+    histogram =
+        StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
 
   DCHECK_EQ(histogram->histogram_type(), CUSTOM_HISTOGRAM);
@@ -1004,27 +1013,23 @@ bool StatisticsRecorder::IsActive() {
   return NULL != histograms_;
 }
 
-// Note: We can't accept a ref_ptr to |histogram| because we *might* not keep a
-// reference, and we are called while in the Histogram constructor. In that
-// scenario, a ref_ptr would have incremented the ref count when the histogram
-// was passed to us, decremented it when we returned, and the instance would be
-// destroyed before assignment (when value was returned by new).
-// static
-void StatisticsRecorder::RegisterOrDiscardDuplicate(
-    scoped_refptr<Histogram>* histogram) {
-  DCHECK((*histogram)->HasValidRangeChecksum());
+Histogram* StatisticsRecorder::RegisterOrDeleteDuplicate(Histogram* histogram) {
+  DCHECK(histogram->HasValidRangeChecksum());
   if (lock_ == NULL)
-    return;
+    return histogram;
   base::AutoLock auto_lock(*lock_);
   if (!histograms_)
-    return;
-  const std::string name = (*histogram)->histogram_name();
+    return histogram;
+  const std::string name = histogram->histogram_name();
   HistogramMap::iterator it = histograms_->find(name);
   // Avoid overwriting a previous registration.
-  if (histograms_->end() == it)
-    (*histograms_)[name] = *histogram;
-  else
-    *histogram = it->second;
+  if (histograms_->end() == it) {
+    (*histograms_)[name] = histogram;
+  } else {
+    delete histogram;  // We already have one by this name.
+    histogram = it->second;
+  }
+  return histogram;
 }
 
 // static
@@ -1087,7 +1092,7 @@ void StatisticsRecorder::GetHistograms(Histograms* output) {
 }
 
 bool StatisticsRecorder::FindHistogram(const std::string& name,
-                                       scoped_refptr<Histogram>* histogram) {
+                                       Histogram** histogram) {
   if (lock_ == NULL)
     return false;
   base::AutoLock auto_lock(*lock_);
