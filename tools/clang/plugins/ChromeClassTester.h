@@ -26,7 +26,6 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   // ASTConsumer:
   virtual void HandleTagDeclDefinition(clang::TagDecl* tag);
-  virtual void HandleTranslationUnit(clang::ASTContext& ctx);
 
  protected:
   clang::CompilerInstance& instance() { return instance_; }
@@ -46,13 +45,6 @@ class ChromeClassTester : public clang::ASTConsumer {
   // chrome header files.
   virtual void CheckChromeClass(const clang::SourceLocation& record_location,
                                 clang::CXXRecordDecl* record) = 0;
-  virtual void CheckChromeUsingDirective(
-      const clang::SourceLocation& record_location,
-      clang::UsingDirectiveDecl* record) = 0;
-
-  // The ChromeClassTester receives each top level declaration, looking for
-  // Decls we are interested in.
-  void RecursivelyCheckTopLevels(clang::Decl* d);
 
   // Utility methods used for filtering out non-chrome classes (and ones we
   // delibrately ignore) in HandleTagDeclDefinition().
