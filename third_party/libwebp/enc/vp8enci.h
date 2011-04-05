@@ -13,7 +13,7 @@
 #define WEBP_ENC_VP8ENCI_H_
 
 #include "string.h"     // for memcpy()
-#include "../webp/encode.h"
+#include "webp/encode.h"
 #include "bit_writer.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -22,6 +22,11 @@ extern "C" {
 
 //-----------------------------------------------------------------------------
 // Various defines and enums
+
+// version numbers
+#define ENC_MAJ_VERSION 0
+#define ENC_MIN_VERSION 1
+#define ENC_REV_VERSION 2
 
 // intra prediction modes
 enum { B_DC_PRED = 0,   // 4x4 modes
@@ -143,6 +148,15 @@ extern const int VP8I4ModeOffsets[NUM_BMODES];
 
 typedef int64_t score_t;     // type used for scores, rate, distortion
 #define MAX_COST ((score_t)0x7fffffffffffffLL)
+
+#define QFIX 17
+#define BIAS(b)  ((b) << (QFIX - 8))
+// Fun fact: this is the _only_ line where we're actually being lossy and
+// discarding bits.
+static inline int QUANTDIV(int n, int iQ, int B) {
+  return (n * iQ + B) >> QFIX;
+}
+extern const uint8_t VP8Zigzag[16];
 
 //-----------------------------------------------------------------------------
 // Headers
@@ -428,8 +442,20 @@ typedef void (*VP8BlockCopy)(const uint8_t* src, uint8_t* dst);
 extern VP8BlockCopy VP8Copy4x4;
 extern VP8BlockCopy VP8Copy8x8;
 extern VP8BlockCopy VP8Copy16x16;
+// Quantization
+typedef int (*VP8QuantizeBlock)(int16_t in[16], int16_t out[16],
+                                int n, const VP8Matrix* const mtx);
+extern VP8QuantizeBlock VP8EncQuantizeBlock;
 
-void VP8EncDspInit();   // must be called before using anything from the above.
+typedef enum {
+  kSSE2,
+  kSSE3
+} CPUFeature;
+// returns true if the CPU supports the feature.
+typedef int (*VP8CPUInfo)(CPUFeature feature);
+extern VP8CPUInfo CPUInfo;
+
+void VP8EncDspInit(void);   // must be called before using any of the above
 
   // in filter.c
 extern void VP8InitFilter(VP8EncIterator* const it);

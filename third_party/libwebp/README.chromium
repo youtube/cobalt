@@ -2,15 +2,15 @@ Name: libwebpdecode
 Short Name: libwebp
 URL: http://code.google.com/speed/webp
 Version: unknown
-Revision: I943a335b92b5ee6c2980c2ba9d4092f0b79f9a6b
+Revision: 0.1.2
+Included In Release: Yes
 
 Description:
-Here is a copy of libwebp-decode, from the repository:
-  git://review.webmproject.org/libwebp.git
-This code was pulled from MASTER on March 13th 2011, with the most recent
-Change-Id: I68194cb510760dd82a2ae83359154bf622502991 "fix bigger-by-1 array"
+Here is a copy of libwebp-decode, from the upstream project:
+  http://code.google.com/p/webp/downloads/detail?name=libwebp-0.1.2.tar.gz
 
 The project files do not include from the distribution:
   examples/
 
-Changed the include path from webp/ to ../webp/
+Local changes:
+ * Removed from types.h the risky: #ifdef ANSI / #define inline /#endif
