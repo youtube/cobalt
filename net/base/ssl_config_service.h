@@ -56,14 +56,6 @@ struct SSLConfig {
   // TODO(rsleevi): Not implemented when using Schannel.
   std::vector<uint16> disabled_cipher_suites;
 
-  // True if we allow this connection to be MITM attacked. This sounds a little
-  // worse than it is: large networks sometimes MITM attack all SSL connections
-  // on egress. We want to know this because we might not have the end-to-end
-  // connection that we believe that we have based on the hostname. Therefore,
-  // certain certificate checks can't be performed and we can't use outside
-  // knowledge about whether the server has the renegotiation extension.
-  bool mitm_proxies_allowed;
-
   bool false_start_enabled;  // True if we'll use TLS False Start.
 
   // TODO(wtc): move the following members to a new SSLParams structure.  They
@@ -135,14 +127,6 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   // May not be thread-safe, should only be called on the IO thread.
   virtual void GetSSLConfig(SSLConfig* config) = 0;
 
-  // Returns true if the given hostname is known to be 'strict'. This means
-  // that we will require the renegotiation extension and will always use TLS
-  // (no SSLv3 fallback).
-  //
-  // If you wish to add an element to this list, file a bug at
-  // http://crbug.com and email the link to agl AT chromium DOT org.
-  static bool IsKnownStrictTLSServer(const std::string& hostname);
-
   // Returns true if the given hostname is known to be incompatible with TLS
   // False Start.
   static bool IsKnownFalseStartIncompatibleServer(const std::string& hostname);
@@ -156,11 +140,6 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   // trip handshakes.
   static void EnableSnapStart();
   static bool snap_start_enabled();
-
-  // Sets a global flag which allows SSL connections to be MITM attacked. See
-  // the comment about this flag in |SSLConfig|.
-  static void AllowMITMProxies();
-  static bool mitm_proxies_allowed();
 
   // Disables False Start in SSL connections.
   static void DisableFalseStart();
