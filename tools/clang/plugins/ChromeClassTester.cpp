@@ -175,37 +175,6 @@ void ChromeClassTester::HandleTagDeclDefinition(TagDecl* tag) {
   }
 }
 
-void ChromeClassTester::HandleTranslationUnit(clang::ASTContext& ctx) {
-  RecursivelyCheckTopLevels(ctx.getTranslationUnitDecl());
-}
-
-void ChromeClassTester::RecursivelyCheckTopLevels(Decl* d) {
-  // Unlike HandleTagDeclDefinition, we can only rely on having parsing
-  // information here. We absoluetly shouldn't check that any semantic data
-  // here because we will assert.
-  //
-  // This method will NOT recurse into classes declarations or any record
-  // types.
-
-  Decl::Kind kind = d->getKind();
-  if (kind == Decl::UsingDirective) {
-    UsingDirectiveDecl* record = cast<UsingDirectiveDecl>(d);
-    SourceLocation record_location = record->getLocation();
-    if (!InBannedDirectory(record_location))
-      CheckChromeUsingDirective(record_location, record);
-  }
-
-  // If this is a DeclContext that isn't a function/method, recurse.
-  if (DeclContext* context = dyn_cast<DeclContext>(d)) {
-    if (context->isFileContext()) {
-      for (DeclContext::decl_iterator it = context->decls_begin();
-           it != context->decls_end(); ++it) {
-        RecursivelyCheckTopLevels(*it);
-      }
-    }
-  }
-}
-
 void ChromeClassTester::emitWarning(SourceLocation loc, const char* raw_error) {
   FullSourceLoc full(loc, instance().getSourceManager());
   std::string err;
