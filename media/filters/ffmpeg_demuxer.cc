@@ -301,6 +301,16 @@ void FFmpegDemuxer::Seek(base::TimeDelta time, FilterCallback* callback) {
       NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, callback));
 }
 
+void FFmpegDemuxer::SetPlaybackRate(float playback_rate) {
+  DCHECK(data_source_.get());
+  data_source_->SetPlaybackRate(playback_rate);
+}
+
+void FFmpegDemuxer::SetPreload(Preload preload) {
+  DCHECK(data_source_.get());
+  data_source_->SetPreload(preload);
+}
+
 void FFmpegDemuxer::OnAudioRendererDisabled() {
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &FFmpegDemuxer::DisableAudioStreamTask));

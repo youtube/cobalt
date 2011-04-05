@@ -55,7 +55,6 @@ media::PipelineStatus PipelineStatusNotification::status() {
 
 class PipelineImpl::PipelineInitState {
  public:
-  scoped_refptr<Demuxer> demuxer_;
   scoped_refptr<AudioDecoder> audio_decoder_;
   scoped_refptr<VideoDecoder> video_decoder_;
   scoped_refptr<CompositeFilter> composite_;
@@ -216,6 +215,21 @@ void PipelineImpl::SetVolume(float volume) {
     message_loop_->PostTask(FROM_HERE,
         NewRunnableMethod(this, &PipelineImpl::VolumeChangedTask,
                           volume));
+  }
+}
+
+Preload PipelineImpl::GetPreload() const {
+  base::AutoLock auto_lock(lock_);
+  return preload_;
+}
+
+void PipelineImpl::SetPreload(Preload preload) {
+  base::AutoLock auto_lock(lock_);
+  preload_ = preload;
+  if (running_) {
+    message_loop_->PostTask(FROM_HERE,
+        NewRunnableMethod(this, &PipelineImpl::PreloadChangedTask,
+                          preload));
   }
 }
 
@@ -630,7 +644,7 @@ void PipelineImpl::InitializeTask() {
   if (state_ == kInitDemuxer) {
     set_state(kInitAudioDecoder);
     // If this method returns false, then there's no audio stream.
-    if (InitializeAudioDecoder(pipeline_init_state_->demuxer_))
+    if (InitializeAudioDecoder(demuxer_))
       return;
   }
 
@@ -649,7 +663,7 @@ void PipelineImpl::InitializeTask() {
   if (state_ == kInitAudioRenderer) {
     // Then perform the stage of initialization, i.e. initialize video decoder.
     set_state(kInitVideoDecoder);
-    if (InitializeVideoDecoder(pipeline_init_state_->demuxer_))
+    if (InitializeVideoDecoder(demuxer_))
       return;
   }
 
@@ -685,6 +699,7 @@ void PipelineImpl::InitializeTask() {
 
     // Initialization was successful, we are now considered paused, so it's safe
     // to set the initial playback rate and volume.
+    PreloadChangedTask(GetPreload());
     PlaybackRateChangedTask(GetPlaybackRate());
     VolumeChangedTask(GetVolume());
 
@@ -783,6 +798,12 @@ void PipelineImpl::VolumeChangedTask(float volume) {
   if (audio_renderer_) {
     audio_renderer_->SetVolume(volume);
   }
+}
+
+void PipelineImpl::PreloadChangedTask(Preload preload) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  if (demuxer_)
+    demuxer_->SetPreload(preload);
 }
 
 void PipelineImpl::SeekTask(base::TimeDelta time,
@@ -994,9 +1015,10 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineStopped());
 
-  // Clear renderer references.
+  // Clear filter references.
   audio_renderer_ = NULL;
   video_renderer_ = NULL;
+  demuxer_ = NULL;
 
   pipeline_filter_ = NULL;
 
@@ -1057,7 +1079,7 @@ void PipelineImpl::OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer) {
   if (!PrepareFilter(demuxer))
     return;
 
-  pipeline_init_state_->demuxer_ = demuxer;
+  demuxer_ = demuxer;
   OnFilterInitialize();
 }
 

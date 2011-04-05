@@ -32,6 +32,7 @@ class FileDataSource : public DataSource {
                     ReadCallback* read_callback);
   virtual bool GetSize(int64* size_out);
   virtual bool IsStreaming();
+  virtual void SetPreload(Preload preload);
 
  private:
   // Only allow factories and tests to create this object.
