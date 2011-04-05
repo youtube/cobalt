@@ -464,7 +464,8 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
 
 bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
   bool success = WaitForExitCodeWithTimeout(handle, exit_code, INFINITE);
-  CloseProcessHandle(handle);
+  if (!success)
+    CloseProcessHandle(handle);
   return success;
 }
 
@@ -475,6 +476,10 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
   DWORD temp_code;  // Don't clobber out-parameters in case of failure.
   if (!::GetExitCodeProcess(handle, &temp_code))
     return false;
+
+  // Only close the handle on success, to give the caller a chance to forcefully
+  // terminate the process if he wants to.
+  CloseProcessHandle(handle);
 
   *exit_code = temp_code;
   return true;
@@ -536,6 +541,11 @@ bool WaitForProcessesToExit(const std::wstring& executable_name,
 
 bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
   bool retval = WaitForSingleObject(handle, wait_milliseconds) == WAIT_OBJECT_0;
+  return retval;
+}
+
+bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds) {
+  bool retval = WaitForSingleObject(handle, wait_milliseconds) == WAIT_TIMEOUT;
   return retval;
 }
 
