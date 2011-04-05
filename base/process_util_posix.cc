@@ -724,15 +724,14 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
     return false;
   if (!waitpid_success)
     return false;
+  if (!WIFEXITED(status))
+    return false;
   if (WIFSIGNALED(status)) {
     *exit_code = -1;
     return true;
   }
-  if (WIFEXITED(status)) {
-    *exit_code = WEXITSTATUS(status);
-    return true;
-  }
-  return false;
+  *exit_code = WEXITSTATUS(status);
+  return true;
 }
 
 #if defined(OS_MACOSX)
@@ -819,6 +818,19 @@ bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
     return WIFEXITED(status);
   } else {
     return false;
+  }
+}
+
+bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds) {
+  bool waitpid_success;
+  int status = WaitpidWithTimeout(handle, wait_milliseconds, &waitpid_success);
+  if (status != -1) {
+    DCHECK(waitpid_success);
+    return !(WIFEXITED(status) || WIFSIGNALED(status));
+  } else {
+    // If waitpid returned with an error, then the process doesn't exist
+    // (which most probably means it didn't exist before our call).
+    return waitpid_success;
   }
 }
 
