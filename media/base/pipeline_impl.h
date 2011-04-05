@@ -114,6 +114,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetPlaybackRate(float playback_rate);
   virtual float GetVolume() const;
   virtual void SetVolume(float volume);
+  virtual void SetPreload(Preload preload);
   virtual base::TimeDelta GetCurrentTime() const;
   virtual base::TimeDelta GetBufferedTime();
   virtual base::TimeDelta GetMediaDuration() const;
@@ -240,6 +241,12 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Carries out notifying filters that the volume has changed.
   void VolumeChangedTask(float volume);
 
+  // Returns media preload value.
+  virtual Preload GetPreload() const;
+
+  // Carries out notifying filters that the preload value has changed.
+  void PreloadChangedTask(Preload preload);
+
   // Carries out notifying filters that we are seeking to a new timestamp.
   void SeekTask(base::TimeDelta time, PipelineStatusCallback* seek_callback);
 
@@ -355,6 +362,11 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // filters.
   float volume_;
 
+  // Current value of preload attribute. This value is set immediately via
+  // SetPreload() and a task is dispatched on the message loop to notify the
+  // filters.
+  Preload preload_;
+
   // Current playback rate (>= 0.0f).  This value is set immediately via
   // SetPlaybackRate() and a task is dispatched on the message loop to notify
   // the filters.
@@ -422,6 +434,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // when playback has finished.
   scoped_refptr<AudioRenderer> audio_renderer_;
   scoped_refptr<VideoRenderer> video_renderer_;
+
+  // Demuxer reference used for setting the preload value.
+  scoped_refptr<Demuxer> demuxer_;
 
   // Helper class that stores filter references during pipeline
   // initialization.
