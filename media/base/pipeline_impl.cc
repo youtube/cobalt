@@ -367,6 +367,7 @@ void PipelineImpl::ResetState() {
   video_width_      = 0;
   video_height_     = 0;
   volume_           = 1.0f;
+  preload_          = AUTO;
   playback_rate_    = 0.0f;
   status_           = PIPELINE_OK;
   has_audio_        = false;
