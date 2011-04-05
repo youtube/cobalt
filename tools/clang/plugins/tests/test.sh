@@ -21,7 +21,7 @@ usage() {
 # Runs a single test case.
 do_testcase() {
   local output="$("${CLANG_DIR}"/bin/clang -cc1 \
-      -load "${CLANG_DIR}"/lib/libFindBadConstructs.so \
+      -load "${CLANG_DIR}"/lib/libFindBadConstructs.${LIB} \
       -plugin find-bad-constructs ${1} 2>&1)"
   local diffout="$(echo "${output}" | diff - "${2}")"
   if [ "${diffout}" = "" ]; then
@@ -44,6 +44,11 @@ elif [[ ! -d "${1}" ]]; then
 else
   echo "Using clang directory ${1}..."
   export CLANG_DIR="${1}"
+  if [ "$(uname -s)" = "Linux" ]; then
+    export LIB=so
+  elif [ "$(uname -s)" = "Darwin" ]; then
+    export LIB=dylib
+  fi
 fi
 
 for input in *.cpp; do
