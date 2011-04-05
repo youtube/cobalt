@@ -12,6 +12,7 @@
         {
           'target_name': 'libwebp_enc',
           'type': '<(library)',
+          'include_dirs': ['.'],
           'sources': [
             'enc/analysis.c',
             'enc/bit_writer.c',
@@ -31,10 +32,12 @@
         {
           'target_name': 'libwebp_dec',
           'type': '<(library)',
+          'include_dirs': ['.'],
           'sources': [
             'dec/bits.c',
             'dec/dsp.c',
             'dec/frame.c',
+            'dec/idec.c',
             'dec/quant.c',
             'dec/tree.c',
             'dec/vp8.c',
