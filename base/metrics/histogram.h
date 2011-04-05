@@ -28,6 +28,15 @@
 // at the low end of the histogram scale, but allows the histogram to cover a
 // gigantic range with the addition of very few buckets.
 
+// Histograms use a pattern involving a function static variable, that is a
+// pointer to a histogram.  This static is explicitly initialized on any thread
+// that detects a uninitialized (NULL) pointer.  The potentially racy
+// initialization is not a problem as it is always set to point to the same
+// value (i.e., the FactoryGet always returns the same value).  FactoryGet
+// is also completely thread safe, which results in a completely thread safe,
+// and relatively fast, set of counters.  To avoid races at shutdown, the static
+// pointer is NOT deleted, and we leak the histograms at process termination.
+
 #ifndef BASE_METRICS_HISTOGRAM_H_
 #define BASE_METRICS_HISTOGRAM_H_
 #pragma once
@@ -39,7 +48,6 @@
 #include "base/base_api.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
-#include "base/memory/ref_counted.h"
 #include "base/time.h"
 
 class Pickle;
@@ -66,11 +74,12 @@ class Lock;
     name, sample, 1, 10000, 50)
 
 #define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::Histogram::FactoryGet(name, min, max, bucket_count, \
-                                    base::Histogram::kNoFlags); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::Histogram::FactoryGet(name, min, max, bucket_count, \
+                                            base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if (counter.get()) counter->Add(sample); \
+    counter->Add(sample); \
   } while (0)
 
 #define HISTOGRAM_PERCENTAGE(name, under_one_hundred) \
@@ -79,40 +88,43 @@ class Lock;
 // For folks that need real specific times, use this to select a precise range
 // of times you want plotted, and the number of buckets you want used.
 #define HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-                                        base::Histogram::kNoFlags); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
+                                                base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if (counter.get()) counter->AddTime(sample); \
+    counter->AddTime(sample); \
   } while (0)
 
 // DO NOT USE THIS.  It is being phased out, in favor of HISTOGRAM_CUSTOM_TIMES.
 #define HISTOGRAM_CLIPPED_TIMES(name, sample, min, max, bucket_count) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-                                        base::Histogram::kNoFlags); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
+                                                base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if ((sample) < (max) && counter.get()) counter->AddTime(sample); \
+    if ((sample) < (max)) counter->AddTime(sample); \
   } while (0)
 
 // Support histograming of an enumerated value.  The samples should always be
 // less than boundary_value.
 
 #define HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
-                                          boundary_value + 1, \
-                                          base::Histogram::kNoFlags); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
+          boundary_value + 1, base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if (counter.get()) counter->Add(sample); \
+    counter->Add(sample); \
   } while (0)
 
 #define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::CustomHistogram::FactoryGet(name, custom_ranges, \
-                                          base::Histogram::kNoFlags); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::CustomHistogram::FactoryGet(name, custom_ranges, \
+                                                  base::Histogram::kNoFlags); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if (counter.get()) counter->Add(sample); \
+    counter->Add(sample); \
   } while (0)
 
 
@@ -172,20 +184,22 @@ class Lock;
     base::TimeDelta::FromHours(1), 50)
 
 #define UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
             base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if (counter.get()) counter->AddTime(sample); \
+    counter->AddTime(sample); \
   } while (0)
 
 // DO NOT USE THIS.  It is being phased out, in favor of HISTOGRAM_CUSTOM_TIMES.
 #define UMA_HISTOGRAM_CLIPPED_TIMES(name, sample, min, max, bucket_count) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-            base::Histogram::kUmaTargetedHistogramFlag); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
+           base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if ((sample) < (max) && counter.get()) counter->AddTime(sample); \
+    if ((sample) < (max)) counter->AddTime(sample); \
   } while (0)
 
 #define UMA_HISTOGRAM_COUNTS(name, sample) UMA_HISTOGRAM_CUSTOM_COUNTS( \
@@ -198,11 +212,12 @@ class Lock;
     name, sample, 1, 10000, 50)
 
 #define UMA_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) do { \
-    scoped_refptr<base::Histogram> counter = \
-       base::Histogram::FactoryGet(name, min, max, bucket_count, \
-           base::Histogram::kUmaTargetedHistogramFlag); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::Histogram::FactoryGet(name, min, max, bucket_count, \
+          base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if (counter.get()) counter->Add(sample); \
+    counter->Add(sample); \
   } while (0)
 
 #define UMA_HISTOGRAM_MEMORY_KB(name, sample) UMA_HISTOGRAM_CUSTOM_COUNTS( \
@@ -215,19 +230,21 @@ class Lock;
     UMA_HISTOGRAM_ENUMERATION(name, under_one_hundred, 101)
 
 #define UMA_HISTOGRAM_ENUMERATION(name, sample, boundary_value) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
-            boundary_value + 1, base::Histogram::kUmaTargetedHistogramFlag); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
+          boundary_value + 1, base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if (counter.get()) counter->Add(sample); \
+    counter->Add(sample); \
   } while (0)
 
 #define UMA_HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) do { \
-    scoped_refptr<base::Histogram> counter = \
-        base::CustomHistogram::FactoryGet(name, custom_ranges, \
-            base::Histogram::kUmaTargetedHistogramFlag); \
+    static base::Histogram* counter(NULL); \
+    if (!counter) \
+      counter = base::CustomHistogram::FactoryGet(name, custom_ranges, \
+          base::Histogram::kUmaTargetedHistogramFlag); \
     DCHECK_EQ(name, counter->histogram_name()); \
-    if (counter.get()) counter->Add(sample); \
+    counter->Add(sample); \
   } while (0)
 
 //------------------------------------------------------------------------------
@@ -237,7 +254,7 @@ class CustomHistogram;
 class Histogram;
 class LinearHistogram;
 
-class BASE_API Histogram : public base::RefCountedThreadSafe<Histogram> {
+class BASE_API Histogram {
  public:
   typedef int Sample;  // Used for samples (and ranges of samples).
   typedef int Count;  // Used to count samples in a bucket.
@@ -347,11 +364,16 @@ class BASE_API Histogram : public base::RefCountedThreadSafe<Histogram> {
   //----------------------------------------------------------------------------
   // minimum should start from 1. 0 is invalid as a minimum. 0 is an implicit
   // default underflow bucket.
-  static scoped_refptr<Histogram> FactoryGet(const std::string& name,
-      Sample minimum, Sample maximum, size_t bucket_count, Flags flags);
-  static scoped_refptr<Histogram> FactoryTimeGet(const std::string& name,
-      base::TimeDelta minimum, base::TimeDelta maximum, size_t bucket_count,
-      Flags flags);
+  static Histogram* FactoryGet(const std::string& name,
+                               Sample minimum,
+                               Sample maximum,
+                               size_t bucket_count,
+                               Flags flags);
+  static Histogram* FactoryTimeGet(const std::string& name,
+                                   base::TimeDelta minimum,
+                                   base::TimeDelta maximum,
+                                   size_t bucket_count,
+                                   Flags flags);
 
   void Add(int value);
 
@@ -426,7 +448,6 @@ class BASE_API Histogram : public base::RefCountedThreadSafe<Histogram> {
   bool HasValidRangeChecksum() const;
 
  protected:
-  friend class base::RefCountedThreadSafe<Histogram>;
   Histogram(const std::string& name, Sample minimum,
             Sample maximum, size_t bucket_count);
   Histogram(const std::string& name, TimeDelta minimum,
@@ -479,6 +500,8 @@ class BASE_API Histogram : public base::RefCountedThreadSafe<Histogram> {
   FRIEND_TEST(HistogramTest, CorruptSampleCounts);
   FRIEND_TEST(HistogramTest, Crc32SampleHash);
   FRIEND_TEST(HistogramTest, Crc32TableTest);
+
+  friend class StatisticsRecorder;  // To allow it to delete duplicates.
 
   // Post constructor initialization.
   void Initialize();
@@ -555,11 +578,16 @@ class BASE_API LinearHistogram : public Histogram {
 
   /* minimum should start from 1. 0 is as minimum is invalid. 0 is an implicit
      default underflow bucket. */
-  static scoped_refptr<Histogram> FactoryGet(const std::string& name,
-      Sample minimum, Sample maximum, size_t bucket_count, Flags flags);
-  static scoped_refptr<Histogram> FactoryTimeGet(const std::string& name,
-      TimeDelta minimum, TimeDelta maximum, size_t bucket_count,
-      Flags flags);
+  static Histogram* FactoryGet(const std::string& name,
+                               Sample minimum,
+                               Sample maximum,
+                               size_t bucket_count,
+                               Flags flags);
+  static Histogram* FactoryTimeGet(const std::string& name,
+                                   TimeDelta minimum,
+                                   TimeDelta maximum,
+                                   size_t bucket_count,
+                                   Flags flags);
 
   // Overridden from Histogram:
   virtual ClassType histogram_type() const;
@@ -602,8 +630,7 @@ class BASE_API LinearHistogram : public Histogram {
 // BooleanHistogram is a histogram for booleans.
 class BASE_API BooleanHistogram : public LinearHistogram {
  public:
-  static scoped_refptr<Histogram> FactoryGet(const std::string& name,
-      Flags flags);
+  static Histogram* FactoryGet(const std::string& name, Flags flags);
 
   virtual ClassType histogram_type() const;
 
@@ -621,8 +648,9 @@ class BASE_API BooleanHistogram : public LinearHistogram {
 class BASE_API CustomHistogram : public Histogram {
  public:
 
-  static scoped_refptr<Histogram> FactoryGet(const std::string& name,
-      const std::vector<Sample>& custom_ranges, Flags flags);
+  static Histogram* FactoryGet(const std::string& name,
+                               const std::vector<Sample>& custom_ranges,
+                               Flags flags);
 
   // Overridden from Histogram:
   virtual ClassType histogram_type() const;
@@ -645,7 +673,7 @@ class BASE_API CustomHistogram : public Histogram {
 
 class BASE_API StatisticsRecorder {
  public:
-  typedef std::vector<scoped_refptr<Histogram> > Histograms;
+  typedef std::vector<Histogram*> Histograms;
 
   StatisticsRecorder();
 
@@ -656,9 +684,9 @@ class BASE_API StatisticsRecorder {
 
   // Register, or add a new histogram to the collection of statistics. If an
   // identically named histogram is already registered, then the argument
-  // |histogram| will be replaced by the previously registered value, discarding
-  // the referenced argument.
-  static void RegisterOrDiscardDuplicate(scoped_refptr<Histogram>* histogram);
+  // |histogram| will deleted.  The returned value is always the registered
+  // histogram (either the argument, or the pre-existing registered histogram).
+  static Histogram* RegisterOrDeleteDuplicate(Histogram* histogram);
 
   // Methods for printing histograms.  Only histograms which have query as
   // a substring are written to output (an empty string will process all
@@ -672,8 +700,7 @@ class BASE_API StatisticsRecorder {
   // Find a histogram by name. It matches the exact name. This method is thread
   // safe.  If a matching histogram is not found, then the |histogram| is
   // not changed.
-  static bool FindHistogram(const std::string& query,
-                            scoped_refptr<Histogram>* histogram);
+  static bool FindHistogram(const std::string& query, Histogram** histogram);
 
   static bool dump_on_exit() { return dump_on_exit_; }
 
@@ -688,7 +715,7 @@ class BASE_API StatisticsRecorder {
 
  private:
   // We keep all registered histograms in a map, from name to histogram.
-  typedef std::map<std::string, scoped_refptr<Histogram> > HistogramMap;
+  typedef std::map<std::string, Histogram*> HistogramMap;
 
   static HistogramMap* histograms_;
 

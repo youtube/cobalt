@@ -28,10 +28,10 @@ class ClientSocketPoolHistograms {
   void AddReusedIdleTime(base::TimeDelta time) const;
 
  private:
-  scoped_refptr<base::Histogram> socket_type_;
-  scoped_refptr<base::Histogram> request_time_;
-  scoped_refptr<base::Histogram> unused_idle_time_;
-  scoped_refptr<base::Histogram> reused_idle_time_;
+  base::Histogram* socket_type_;
+  base::Histogram* request_time_;
+  base::Histogram* unused_idle_time_;
+  base::Histogram* reused_idle_time_;
 
   bool is_http_proxy_connection_;
   bool is_socks_connection_;

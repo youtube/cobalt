@@ -1,10 +1,11 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Test of Histogram class
 
 #include "base/metrics/histogram.h"
+#include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -17,15 +18,22 @@ class HistogramTest : public testing::Test {
 // Check for basic syntax and use.
 TEST(HistogramTest, StartupShutdownTest) {
   // Try basic construction
-  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
-      "TestHistogram", 1, 1000, 10, Histogram::kNoFlags);
-  scoped_refptr<Histogram> histogram1 = Histogram::FactoryGet(
-      "Test1Histogram", 1, 1000, 10, Histogram::kNoFlags);
+  Histogram* histogram(Histogram::FactoryGet(
+      "TestHistogram", 1, 1000, 10, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), histogram);
+  Histogram* histogram1(Histogram::FactoryGet(
+      "Test1Histogram", 1, 1000, 10, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), histogram1);
+  EXPECT_NE(histogram, histogram1);
 
-  scoped_refptr<Histogram> linear_histogram = LinearHistogram::FactoryGet(
-      "TestLinearHistogram", 1, 1000, 10, Histogram::kNoFlags);
-  scoped_refptr<Histogram> linear_histogram1 = LinearHistogram::FactoryGet(
-      "Test1LinearHistogram", 1, 1000, 10, Histogram::kNoFlags);
+
+  Histogram* linear_histogram(LinearHistogram::FactoryGet(
+      "TestLinearHistogram", 1, 1000, 10, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), linear_histogram);
+  Histogram* linear_histogram1(LinearHistogram::FactoryGet(
+      "Test1LinearHistogram", 1, 1000, 10, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), linear_histogram1);
+  EXPECT_NE(linear_histogram, linear_histogram1);
 
   std::vector<int> custom_ranges;
   custom_ranges.push_back(1);
@@ -33,10 +41,12 @@ TEST(HistogramTest, StartupShutdownTest) {
   custom_ranges.push_back(10);
   custom_ranges.push_back(20);
   custom_ranges.push_back(30);
-  scoped_refptr<Histogram> custom_histogram = CustomHistogram::FactoryGet(
-      "TestCustomHistogram", custom_ranges, Histogram::kNoFlags);
-  scoped_refptr<Histogram> custom_histogram1 = CustomHistogram::FactoryGet(
-      "Test1CustomHistogram", custom_ranges, Histogram::kNoFlags);
+  Histogram* custom_histogram(CustomHistogram::FactoryGet(
+      "TestCustomHistogram", custom_ranges, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), custom_histogram);
+  Histogram* custom_histogram1(CustomHistogram::FactoryGet(
+      "Test1CustomHistogram", custom_ranges, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), custom_histogram1);
 
   // Use standard macros (but with fixed samples)
   HISTOGRAM_TIMES("Test2Histogram", TimeDelta::FromDays(1));
@@ -70,25 +80,29 @@ TEST(HistogramTest, RecordedStartupTest) {
   EXPECT_EQ(0U, histograms.size());
 
   // Try basic construction
-  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
-      "TestHistogram", 1, 1000, 10, Histogram::kNoFlags);
+  Histogram* histogram(Histogram::FactoryGet(
+      "TestHistogram", 1, 1000, 10, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), histogram);
   histograms.clear();
   StatisticsRecorder::GetHistograms(&histograms);  // Load up lists
   EXPECT_EQ(1U, histograms.size());
-  scoped_refptr<Histogram> histogram1 = Histogram::FactoryGet(
-      "Test1Histogram", 1, 1000, 10, Histogram::kNoFlags);
+  Histogram* histogram1(Histogram::FactoryGet(
+      "Test1Histogram", 1, 1000, 10, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), histogram1);
   histograms.clear();
   StatisticsRecorder::GetHistograms(&histograms);  // Load up lists
   EXPECT_EQ(2U, histograms.size());
 
-  scoped_refptr<Histogram> linear_histogram = LinearHistogram::FactoryGet(
-      "TestLinearHistogram", 1, 1000, 10, Histogram::kNoFlags);
+  Histogram* linear_histogram(LinearHistogram::FactoryGet(
+      "TestLinearHistogram", 1, 1000, 10, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), linear_histogram);
   histograms.clear();
   StatisticsRecorder::GetHistograms(&histograms);  // Load up lists
   EXPECT_EQ(3U, histograms.size());
 
-  scoped_refptr<Histogram> linear_histogram1 = LinearHistogram::FactoryGet(
-      "Test1LinearHistogram", 1, 1000, 10, Histogram::kNoFlags);
+  Histogram* linear_histogram1(LinearHistogram::FactoryGet(
+      "Test1LinearHistogram", 1, 1000, 10, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), linear_histogram1);
   histograms.clear();
   StatisticsRecorder::GetHistograms(&histograms);  // Load up lists
   EXPECT_EQ(4U, histograms.size());
@@ -99,10 +113,12 @@ TEST(HistogramTest, RecordedStartupTest) {
   custom_ranges.push_back(10);
   custom_ranges.push_back(20);
   custom_ranges.push_back(30);
-  scoped_refptr<Histogram> custom_histogram = CustomHistogram::FactoryGet(
-      "TestCustomHistogram", custom_ranges, Histogram::kNoFlags);
-  scoped_refptr<Histogram> custom_histogram1 = CustomHistogram::FactoryGet(
-      "TestCustomHistogram", custom_ranges, Histogram::kNoFlags);
+  Histogram* custom_histogram(CustomHistogram::FactoryGet(
+      "TestCustomHistogram", custom_ranges, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), custom_histogram);
+  Histogram* custom_histogram1(CustomHistogram::FactoryGet(
+      "TestCustomHistogram", custom_ranges, Histogram::kNoFlags));
+  EXPECT_NE(reinterpret_cast<Histogram*>(NULL), custom_histogram1);
 
   histograms.clear();
   StatisticsRecorder::GetHistograms(&histograms);  // Load up lists
@@ -138,8 +154,8 @@ TEST(HistogramTest, RangeTest) {
   recorder.GetHistograms(&histograms);
   EXPECT_EQ(0U, histograms.size());
 
-  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
-      "Histogram", 1, 64, 8, Histogram::kNoFlags);  // As per header file.
+  Histogram* histogram(Histogram::FactoryGet(
+      "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
   // Check that we got a nice exponential when there was enough rooom.
   EXPECT_EQ(0, histogram->ranges(0));
   int power_of_2 = 1;
@@ -149,31 +165,30 @@ TEST(HistogramTest, RangeTest) {
   }
   EXPECT_EQ(INT_MAX, histogram->ranges(8));
 
-  scoped_refptr<Histogram> short_histogram = Histogram::FactoryGet(
-      "Histogram Shortened", 1, 7, 8, Histogram::kNoFlags);
+  Histogram* short_histogram(Histogram::FactoryGet(
+      "Histogram Shortened", 1, 7, 8, Histogram::kNoFlags));
   // Check that when the number of buckets is short, we get a linear histogram
   // for lack of space to do otherwise.
   for (int i = 0; i < 8; i++)
     EXPECT_EQ(i, short_histogram->ranges(i));
   EXPECT_EQ(INT_MAX, short_histogram->ranges(8));
 
-  scoped_refptr<Histogram> linear_histogram = LinearHistogram::FactoryGet(
-      "Linear", 1, 7, 8, Histogram::kNoFlags);
+  Histogram* linear_histogram(LinearHistogram::FactoryGet(
+      "Linear", 1, 7, 8, Histogram::kNoFlags));
   // We also get a nice linear set of bucket ranges when we ask for it
   for (int i = 0; i < 8; i++)
     EXPECT_EQ(i, linear_histogram->ranges(i));
   EXPECT_EQ(INT_MAX, linear_histogram->ranges(8));
 
-  scoped_refptr<Histogram> linear_broad_histogram = LinearHistogram::FactoryGet(
-      "Linear widened", 2, 14, 8, Histogram::kNoFlags);
+  Histogram* linear_broad_histogram(LinearHistogram::FactoryGet(
+      "Linear widened", 2, 14, 8, Histogram::kNoFlags));
   // ...but when the list has more space, then the ranges naturally spread out.
   for (int i = 0; i < 8; i++)
     EXPECT_EQ(2 * i, linear_broad_histogram->ranges(i));
   EXPECT_EQ(INT_MAX, linear_broad_histogram->ranges(8));
 
-  scoped_refptr<Histogram> transitioning_histogram =
-      Histogram::FactoryGet("LinearAndExponential", 1, 32, 15,
-                                      Histogram::kNoFlags);
+  Histogram* transitioning_histogram(Histogram::FactoryGet(
+      "LinearAndExponential", 1, 32, 15, Histogram::kNoFlags));
   // When space is a little tight, we transition from linear to exponential.
   EXPECT_EQ(0, transitioning_histogram->ranges(0));
   EXPECT_EQ(1, transitioning_histogram->ranges(1));
@@ -198,8 +213,8 @@ TEST(HistogramTest, RangeTest) {
   custom_ranges.push_back(10);
   custom_ranges.push_back(11);
   custom_ranges.push_back(300);
-  scoped_refptr<Histogram> test_custom_histogram = CustomHistogram::FactoryGet(
-      "TestCustomRangeHistogram", custom_ranges, Histogram::kNoFlags);
+  Histogram* test_custom_histogram(CustomHistogram::FactoryGet(
+      "TestCustomRangeHistogram", custom_ranges, Histogram::kNoFlags));
 
   EXPECT_EQ(custom_ranges[0], test_custom_histogram->ranges(0));
   EXPECT_EQ(custom_ranges[1], test_custom_histogram->ranges(1));
@@ -221,8 +236,8 @@ TEST(HistogramTest, CustomRangeTest) {
   custom_ranges.push_back(9);
   custom_ranges.push_back(10);
   custom_ranges.push_back(11);
-  scoped_refptr<Histogram> test_custom_histogram = CustomHistogram::FactoryGet(
-      "TestCustomRangeHistogram", custom_ranges, Histogram::kNoFlags);
+  Histogram* test_custom_histogram(CustomHistogram::FactoryGet(
+      "TestCustomRangeHistogram", custom_ranges, Histogram::kNoFlags));
 
   EXPECT_EQ(0, test_custom_histogram->ranges(0));  // Auto added
   EXPECT_EQ(custom_ranges[0], test_custom_histogram->ranges(1));
@@ -242,8 +257,8 @@ TEST(HistogramTest, CustomRangeTest) {
   custom_ranges.push_back(0);  // Push an explicit zero.
   custom_ranges.push_back(kBig);
 
-  scoped_refptr<Histogram> unsorted_histogram = CustomHistogram::FactoryGet(
-      "TestCustomUnsortedDupedHistogram", custom_ranges, Histogram::kNoFlags);
+  Histogram* unsorted_histogram(CustomHistogram::FactoryGet(
+      "TestCustomUnsortedDupedHistogram", custom_ranges, Histogram::kNoFlags));
   EXPECT_EQ(0, unsorted_histogram->ranges(0));
   EXPECT_EQ(kSmall, unsorted_histogram->ranges(1));
   EXPECT_EQ(kMid, unsorted_histogram->ranges(2));
@@ -254,8 +269,8 @@ TEST(HistogramTest, CustomRangeTest) {
 // Make sure histogram handles out-of-bounds data gracefully.
 TEST(HistogramTest, BoundsTest) {
   const size_t kBucketCount = 50;
-  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
-      "Bounded", 10, 100, kBucketCount, Histogram::kNoFlags);
+  Histogram* histogram(Histogram::FactoryGet(
+      "Bounded", 10, 100, kBucketCount, Histogram::kNoFlags));
 
   // Put two samples "out of bounds" above and below.
   histogram->Add(5);
@@ -277,8 +292,8 @@ TEST(HistogramTest, BoundsTest) {
 
 // Check to be sure samples land as expected is "correct" buckets.
 TEST(HistogramTest, BucketPlacementTest) {
-  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
-      "Histogram", 1, 64, 8, Histogram::kNoFlags);  // As per header file.
+  Histogram* histogram(Histogram::FactoryGet(
+      "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
 
   // Check that we got a nice exponential since there was enough rooom.
   EXPECT_EQ(0, histogram->ranges(0));
@@ -314,8 +329,8 @@ TEST(HistogramTest, BucketPlacementTest) {
 // out to the base namespace here.  We need to be friends to corrupt the
 // internals of the histogram and/or sampleset.
 TEST(HistogramTest, CorruptSampleCounts) {
-  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
-      "Histogram", 1, 64, 8, Histogram::kNoFlags);  // As per header file.
+  Histogram* histogram(Histogram::FactoryGet(
+      "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
 
   EXPECT_EQ(0, histogram->sample_.redundant_count());
   histogram->Add(20);  // Add some samples.
@@ -339,8 +354,8 @@ TEST(HistogramTest, CorruptSampleCounts) {
 }
 
 TEST(HistogramTest, CorruptBucketBounds) {
-  scoped_refptr<Histogram> histogram = Histogram::FactoryGet(
-      "Histogram", 1, 64, 8, Histogram::kNoFlags);  // As per header file.
+  Histogram* histogram(Histogram::FactoryGet(
+      "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
 
   Histogram::SampleSet snapshot;
   histogram->SnapshotSample(&snapshot);

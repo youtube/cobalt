@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -116,7 +116,7 @@ bool CreateStats(BackendImpl* backend, Addr* address, OnDiskStats* stats) {
   return StoreStats(backend, *address, stats);
 }
 
-Stats::Stats() : backend_(NULL) {
+Stats::Stats() : backend_(NULL), size_histogram_(NULL) {
 }
 
 Stats::~Stats() {
@@ -146,7 +146,7 @@ bool Stats::Init(BackendImpl* backend, uint32* storage_addr) {
   if (first_time) {
     first_time = false;
     // ShouldReportAgain() will re-enter this object.
-    if (!size_histogram_.get() && backend->cache_type() == net::DISK_CACHE &&
+    if (!size_histogram_ && backend->cache_type() == net::DISK_CACHE &&
         backend->ShouldReportAgain()) {
       // Stats may be reused when the cache is re-created, but we want only one
       // histogram at any given time.
