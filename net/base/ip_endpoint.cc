@@ -113,11 +113,18 @@ std::string IPEndPoint::ToString() const {
   if (!ToSockAddr(addr, &addr_len)) {
     return "";
   }
-  return NetAddressToString(addr, addr_len) + ":" + base::IntToString(port_);
+  return NetAddressToStringWithPort(addr, addr_len);
 }
 
 bool IPEndPoint::operator<(const IPEndPoint& that) const {
-  return address_ < that.address_ || port_ < that.port_;
+  // Sort IPv4 before IPv6.
+  if (address_.size() != that.address_.size()) {
+    return address_.size() < that.address_.size();
+  }
+  if (address_ != that.address_) {
+    return address_ < that.address_;
+  }
+  return port_ < that.port_;
 }
 
 bool IPEndPoint::operator==(const IPEndPoint& that) const {
