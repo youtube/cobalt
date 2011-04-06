@@ -44,7 +44,7 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "d-wx-wx-wt+  4 ftp      989          512 Dec  8 15:54 incoming",
       FtpDirectoryListingEntry::DIRECTORY, "incoming", -1,
       1993, 12, 8, 15, 54 },
-    { "drwxrwxrwx   1 owner    group               1024 Sep 13  0:30 audio",
+    { "drwxrwxrwx   1 owner    group               0 Sep 13  0:30 audio",
       FtpDirectoryListingEntry::DIRECTORY, "audio", -1,
       1994, 9, 13, 0, 30 },
     { "lrwxrwxrwx 1 0  0 26 Sep 18 2008 pub",
@@ -94,15 +94,6 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "drwxrwxr-x   3 %%%%     Domain Users     4096 Dec  9  2009 %%%%%",
       net::FtpDirectoryListingEntry::DIRECTORY, "%%%%%", -1,
       2009, 12, 9, 0, 0 },
-
-    // Tests for "ls -l" style listing in Russian locale (note the swapped
-    // parts order: the day of month is the first, before month).
-    { "-rwxrwxr-x 1 ftp ftp 123 23 \xd0\xbc\xd0\xb0\xd0\xb9 2011 test",
-      net::FtpDirectoryListingEntry::FILE, "test", 123,
-      2011, 5, 23, 0, 0 },
-    { "drwxrwxr-x 1 ftp ftp 4096 19 \xd0\xbe\xd0\xba\xd1\x82 2011 dir",
-      net::FtpDirectoryListingEntry::DIRECTORY, "dir", -1,
-      2011, 10, 19, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
@@ -159,7 +150,7 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
-    "drwxrwxrwx   1 owner    group               1024 Sep 13  0:3 audio",
+    "drwxrwxrwx   1 owner    group               0 Sep 13  0:3 audio",
 
     "-qqqqqqqqq+  2 sys          512 Mar 27  2009 pub",
   };
