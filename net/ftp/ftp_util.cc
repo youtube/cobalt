@@ -137,12 +137,7 @@ bool FtpUtil::AbbreviatedMonthToNumber(const string16& text, int* number) {
     // An alternative solution (to parse |text| in given locale) is more
     // lenient, and may accept more than we want even with setLenient(false).
     for (int32_t month = 0; month < months_count; month++) {
-      // Compare (case-insensitive), but just first three characters. Sometimes
-      // ICU returns longer strings (for example for Russian locale), and in FTP
-      // listings they are abbreviated to just three characters.
-      // Note: ICU may also return strings shorter than three characters,
-      // and those also should be accepted.
-      if (months[month].caseCompare(0, 3, unicode_text, 0) == 0) {
+      if (months[month].caseCompare(unicode_text, 0) == 0) {
         *number = month + 1;
         return true;
       }
@@ -163,8 +158,6 @@ bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
     return false;
 
   if (!base::StringToInt(day, &time_exploded.day_of_month))
-    return false;
-  if (time_exploded.day_of_month > 31)
     return false;
 
   if (!base::StringToInt(rest, &time_exploded.year)) {
