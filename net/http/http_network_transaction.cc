@@ -677,6 +677,75 @@ int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
   return rv;
 }
 
+void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
+  request_headers_.SetHeader(HttpRequestHeaders::kHost,
+                             GetHostAndOptionalPort(request_->url));
+
+  // For compat with HTTP/1.0 servers and proxies:
+  if (using_proxy) {
+    request_headers_.SetHeader(HttpRequestHeaders::kProxyConnection,
+                               "keep-alive");
+  } else {
+    request_headers_.SetHeader(HttpRequestHeaders::kConnection, "keep-alive");
+  }
+
+  // Our consumer should have made sure that this is a safe referrer.  See for
+  // instance WebCore::FrameLoader::HideReferrer.
+  if (request_->referrer.is_valid()) {
+    request_headers_.SetHeader(HttpRequestHeaders::kReferer,
+                               request_->referrer.spec());
+  }
+
+  // Add a content length header?
+  if (request_body_.get()) {
+    if (request_body_->is_chunked()) {
+      request_headers_.SetHeader(
+          HttpRequestHeaders::kTransferEncoding, "chunked");
+    } else {
+      request_headers_.SetHeader(
+          HttpRequestHeaders::kContentLength,
+          base::Uint64ToString(request_body_->size()));
+    }
+  } else if (request_->method == "POST" || request_->method == "PUT" ||
+             request_->method == "HEAD") {
+    // An empty POST/PUT request still needs a content length.  As for HEAD,
+    // IE and Safari also add a content length header.  Presumably it is to
+    // support sending a HEAD request to an URL that only expects to be sent a
+    // POST or some other method that normally would have a message body.
+    request_headers_.SetHeader(HttpRequestHeaders::kContentLength, "0");
+  }
+
+  // Honor load flags that impact proxy caches.
+  if (request_->load_flags & LOAD_BYPASS_CACHE) {
+    request_headers_.SetHeader(HttpRequestHeaders::kPragma, "no-cache");
+    request_headers_.SetHeader(HttpRequestHeaders::kCacheControl, "no-cache");
+  } else if (request_->load_flags & LOAD_VALIDATE_CACHE) {
+    request_headers_.SetHeader(HttpRequestHeaders::kCacheControl, "max-age=0");
+  }
+
+  if (ShouldApplyProxyAuth() && HaveAuth(HttpAuth::AUTH_PROXY))
+    auth_controllers_[HttpAuth::AUTH_PROXY]->AddAuthorizationHeader(
+        &request_headers_);
+  if (ShouldApplyServerAuth() && HaveAuth(HttpAuth::AUTH_SERVER))
+    auth_controllers_[HttpAuth::AUTH_SERVER]->AddAuthorizationHeader(
+        &request_headers_);
+
+  // Headers that will be stripped from request_->extra_headers to prevent,
+  // e.g., plugins from overriding headers that are controlled using other
+  // means. Otherwise a plugin could set a referrer although sending the
+  // referrer is inhibited.
+  // TODO(jochen): check whether also other headers should be stripped.
+  static const char* const kExtraHeadersToBeStripped[] = {
+    "Referer"
+  };
+
+  HttpRequestHeaders stripped_extra_headers;
+  stripped_extra_headers.CopyFrom(request_->extra_headers);
+  for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
+    stripped_extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
+  request_headers_.MergeFrom(stripped_extra_headers);
+}
+
 int HttpNetworkTransaction::DoBuildRequest() {
   next_state_ = STATE_BUILD_REQUEST_COMPLETE;
   delegate_callback_->AddRef();  // balanced in DoSendRequestComplete
@@ -697,11 +766,7 @@ int HttpNetworkTransaction::DoBuildRequest() {
   if (request_headers_.IsEmpty()) {
     bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
                         !is_https_request();
-    HttpUtil::BuildRequestHeaders(request_, request_body_.get(),
-                                  auth_controllers_,
-                                  ShouldApplyServerAuth(),
-                                  ShouldApplyProxyAuth(), using_proxy,
-                                  &request_headers_);
+    BuildRequestHeaders(using_proxy);
   }
 
   if (session_->network_delegate()) {
@@ -1239,7 +1304,6 @@ bool HttpNetworkTransaction::HaveAuth(HttpAuth::Target target) const {
   return auth_controllers_[target].get() &&
       auth_controllers_[target]->HaveAuth();
 }
-
 
 GURL HttpNetworkTransaction::AuthURL(HttpAuth::Target target) const {
   switch (target) {

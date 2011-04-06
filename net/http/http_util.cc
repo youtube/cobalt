@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,12 +14,6 @@
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
-#include "net/base/load_flags.h"
-#include "net/base/net_util.h"
-#include "net/base/upload_data_stream.h"
-#include "net/http/http_request_info.h"
-#include "net/http/http_request_headers.h"
-#include "net/http/http_auth_controller.h"
 
 using std::string;
 
@@ -635,95 +629,6 @@ HttpUtil::HeadersIterator::HeadersIterator(string::const_iterator headers_begin,
                                            const std::string& line_delimiter)
     : lines_(headers_begin, headers_end, line_delimiter) {
 }
-
-namespace {
-
-bool HaveAuth(const scoped_refptr<HttpAuthController> auth_controllers[],
-              HttpAuth::Target target) {
-  return auth_controllers[target].get() &&
-      auth_controllers[target]->HaveAuth();
-}
-
-}  // namespace
-
-void HttpUtil::BuildRequestHeaders(const HttpRequestInfo* request_info,
-                                   const UploadDataStream* upload_data_stream,
-                                   const scoped_refptr<HttpAuthController>
-                                       auth_controllers[],
-                                   bool should_apply_server_auth,
-                                   bool should_apply_proxy_auth,
-                                   bool using_proxy,
-                                   HttpRequestHeaders* request_headers) {
-  request_headers->SetHeader(HttpRequestHeaders::kHost,
-                             GetHostAndOptionalPort(request_info->url));
-
-  // For compat with HTTP/1.0 servers and proxies:
-  if (using_proxy) {
-    request_headers->SetHeader(HttpRequestHeaders::kProxyConnection,
-                               "keep-alive");
-  } else {
-    request_headers->SetHeader(HttpRequestHeaders::kConnection, "keep-alive");
-  }
-
-  // Our consumer should have made sure that this is a safe referrer.  See for
-  // instance WebCore::FrameLoader::HideReferrer.
-  if (request_info->referrer.is_valid()) {
-    request_headers->SetHeader(HttpRequestHeaders::kReferer,
-                               request_info->referrer.spec());
-  }
-
-  // Add a content length header?
-  if (upload_data_stream) {
-    if (upload_data_stream->is_chunked()) {
-      request_headers->SetHeader(
-          HttpRequestHeaders::kTransferEncoding, "chunked");
-    } else {
-      request_headers->SetHeader(
-          HttpRequestHeaders::kContentLength,
-          base::Uint64ToString(upload_data_stream->size()));
-    }
-  } else if (request_info->method == "POST" || request_info->method == "PUT" ||
-             request_info->method == "HEAD") {
-    // An empty POST/PUT request still needs a content length.  As for HEAD,
-    // IE and Safari also add a content length header.  Presumably it is to
-    // support sending a HEAD request to an URL that only expects to be sent a
-    // POST or some other method that normally would have a message body.
-    request_headers->SetHeader(HttpRequestHeaders::kContentLength, "0");
-  }
-
-  // Honor load flags that impact proxy caches.
-  if (request_info->load_flags & LOAD_BYPASS_CACHE) {
-    request_headers->SetHeader(HttpRequestHeaders::kPragma, "no-cache");
-    request_headers->SetHeader(HttpRequestHeaders::kCacheControl, "no-cache");
-  } else if (request_info->load_flags & LOAD_VALIDATE_CACHE) {
-    request_headers->SetHeader(HttpRequestHeaders::kCacheControl, "max-age=0");
-  }
-
-  if (should_apply_proxy_auth &&
-      HaveAuth(auth_controllers, HttpAuth::AUTH_PROXY))
-    auth_controllers[HttpAuth::AUTH_PROXY]->AddAuthorizationHeader(
-        request_headers);
-  if (should_apply_server_auth &&
-      HaveAuth(auth_controllers, HttpAuth::AUTH_SERVER))
-    auth_controllers[HttpAuth::AUTH_SERVER]->AddAuthorizationHeader(
-        request_headers);
-
-  // Headers that will be stripped from request_info->extra_headers to prevent,
-  // e.g., plugins from overriding headers that are controlled using other
-  // means. Otherwise a plugin could set a referrer although sending the
-  // referrer is inhibited.
-  // TODO(jochen): check whether also other headers should be stripped.
-  static const char* const kExtraHeadersToBeStripped[] = {
-    "Referer"
-  };
-
-  HttpRequestHeaders stripped_extra_headers;
-  stripped_extra_headers.CopyFrom(request_info->extra_headers);
-  for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
-    stripped_extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
-  request_headers->MergeFrom(stripped_extra_headers);
-}
-
 
 HttpUtil::HeadersIterator::~HeadersIterator() {
 }
