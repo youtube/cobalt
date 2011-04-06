@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -107,9 +107,6 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
 
   std::vector<std::string> response_cookies_;
   size_t response_cookies_save_index_;
-
-  CompletionCallbackImpl<WebSocketJob> can_get_cookies_callback_;
-  CompletionCallbackImpl<WebSocketJob> can_set_cookie_callback_;
 
   scoped_ptr<WebSocketFrameHandler> send_frame_handler_;
   scoped_refptr<DrainableIOBuffer> current_buffer_;
