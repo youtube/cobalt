@@ -105,8 +105,6 @@ class URLRequestHttpJob : public URLRequestJob {
   string16 username_;
   string16 password_;
 
-  CompletionCallbackImpl<URLRequestHttpJob> can_get_cookies_callback_;
-  CompletionCallbackImpl<URLRequestHttpJob> can_set_cookie_callback_;
   CompletionCallbackImpl<URLRequestHttpJob> start_callback_;
   CompletionCallbackImpl<URLRequestHttpJob> read_callback_;
 

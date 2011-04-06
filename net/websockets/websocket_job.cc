@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -68,10 +68,6 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       handshake_response_(new WebSocketHandshakeResponseHandler),
       handshake_request_sent_(0),
       response_cookies_save_index_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(can_get_cookies_callback_(
-          this, &WebSocketJob::OnCanGetCookiesCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(can_set_cookie_callback_(
-          this, &WebSocketJob::OnCanSetCookieCompleted)),
       send_frame_handler_(new WebSocketFrameHandler),
       receive_frame_handler_(new WebSocketFrameHandler) {
 }
@@ -281,18 +277,14 @@ bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
 }
 
 void WebSocketJob::AddCookieHeaderAndSend() {
-  AddRef();  // Balanced in OnCanGetCookiesCompleted
-
   int policy = OK;
   if (socket_->context()->cookie_policy()) {
     GURL url_for_cookies = GetURLForCookies();
     policy = socket_->context()->cookie_policy()->CanGetCookies(
         url_for_cookies,
-        url_for_cookies,
-        &can_get_cookies_callback_);
-    if (policy == ERR_IO_PENDING)
-      return;  // Wait for completion callback
+        url_for_cookies);
   }
+  DCHECK_NE(ERR_IO_PENDING, policy);
   OnCanGetCookiesCompleted(policy);
 }
 
@@ -322,7 +314,6 @@ void WebSocketJob::OnCanGetCookiesCompleted(int policy) {
     socket_->SendData(handshake_request.data(),
                       handshake_request.size());
   }
-  Release();  // Balance AddRef taken in AddCookieHeaderAndSend
 }
 
 void WebSocketJob::OnSentHandshakeRequest(
@@ -414,20 +405,16 @@ void WebSocketJob::SaveNextCookie() {
     return;
   }
 
-  AddRef();  // Balanced in OnCanSetCookieCompleted
-
   int policy = OK;
   if (socket_->context()->cookie_policy()) {
     GURL url_for_cookies = GetURLForCookies();
     policy = socket_->context()->cookie_policy()->CanSetCookie(
         url_for_cookies,
         url_for_cookies,
-        response_cookies_[response_cookies_save_index_],
-        &can_set_cookie_callback_);
-    if (policy == ERR_IO_PENDING)
-      return;  // Wait for completion callback
+        response_cookies_[response_cookies_save_index_]);
   }
 
+  DCHECK_NE(ERR_IO_PENDING, policy);
   OnCanSetCookieCompleted(policy);
 }
 
@@ -447,7 +434,6 @@ void WebSocketJob::OnCanSetCookieCompleted(int policy) {
     response_cookies_save_index_++;
     SaveNextCookie();
   }
-  Release();  // Balance AddRef taken in SaveNextCookie
 }
 
 GURL WebSocketJob::GetURLForCookies() const {

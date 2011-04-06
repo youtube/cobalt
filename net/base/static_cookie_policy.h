@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -54,15 +54,13 @@ class StaticCookiePolicy : public CookiePolicy {
   // Consults the user's third-party cookie blocking preferences to determine
   // whether the URL's cookies can be read.
   virtual int CanGetCookies(const GURL& url,
-                            const GURL& first_party_for_cookies,
-                            CompletionCallback* callback);
+                            const GURL& first_party_for_cookies) const;
 
   // Consults the user's third-party cookie blocking preferences to determine
   // whether the URL's cookies can be set.
   virtual int CanSetCookie(const GURL& url,
                            const GURL& first_party_for_cookies,
-                           const std::string& cookie_line,
-                           CompletionCallback* callback);
+                           const std::string& cookie_line) const;
 
  private:
   Type type_;
