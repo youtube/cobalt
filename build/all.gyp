@@ -105,6 +105,7 @@
             '../breakpad/breakpad.gyp:*',
             '../chrome/app/locales/locales.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
+            '../cloud_print/virtual_driver/virtual_driver.gyp:*',
             '../courgette/courgette.gyp:*',
             '../rlz/rlz.gyp:*',
             '../sandbox/sandbox.gyp:*',
