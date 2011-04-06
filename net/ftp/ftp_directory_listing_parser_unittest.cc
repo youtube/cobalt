@@ -46,13 +46,6 @@ TEST(FtpDirectoryListingBufferTest, Parse) {
     "dir-listing-ls-22",  // TODO(phajdan.jr): should use windows-1251 encoding.
     "dir-listing-ls-23",
     "dir-listing-ls-24",
-
-    // Tests for Russian listings. The only difference between those
-    // files is character encoding:
-    "dir-listing-ls-25",  // UTF-8
-    "dir-listing-ls-26",  // KOI8-R
-    "dir-listing-ls-27",  // windows-1251
-
     "dir-listing-netware-1",
     "dir-listing-netware-2",
     "dir-listing-vms-1",

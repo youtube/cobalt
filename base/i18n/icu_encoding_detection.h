@@ -18,8 +18,6 @@ bool DetectEncoding(const std::string& text, std::string* encoding);
 
 // Detect all possible encodings of |text| and put their names
 // (as returned by ICU) in |encodings|. Returns true on success.
-// Note: this function may return encodings that may fail to decode |text|,
-// the caller is responsible for handling that.
 bool DetectAllEncodings(const std::string& text,
                         std::vector<std::string>* encodings);
 
