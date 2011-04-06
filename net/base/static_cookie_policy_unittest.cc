@@ -21,10 +21,10 @@ class StaticCookiePolicyTest : public testing::Test {
     policy_.set_type(type);
   }
   int CanGetCookies(const GURL& url, const GURL& first_party) {
-    return policy_.CanGetCookies(url, first_party, NULL);
+    return policy_.CanGetCookies(url, first_party);
   }
   int CanSetCookie(const GURL& url, const GURL& first_party) {
-    return policy_.CanSetCookie(url, first_party, std::string(), NULL);
+    return policy_.CanSetCookie(url, first_party, std::string());
   }
  protected:
   StaticCookiePolicy policy_;

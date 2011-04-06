@@ -11,24 +11,13 @@
 #include "net/http/http_network_session.h"
 
 TestCookiePolicy::TestCookiePolicy(int options_bit_mask)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-      options_(options_bit_mask),
-      callback_(NULL) {
+    : options_(options_bit_mask) {
 }
 
 TestCookiePolicy::~TestCookiePolicy() {}
 
 int TestCookiePolicy::CanGetCookies(const GURL& url,
-                                    const GURL& first_party,
-                                    net::CompletionCallback* callback) {
-  if ((options_ & ASYNC) && callback) {
-    callback_ = callback;
-    MessageLoop::current()->PostTask(FROM_HERE,
-        method_factory_.NewRunnableMethod(
-            &TestCookiePolicy::DoGetCookiesPolicy, url, first_party));
-    return net::ERR_IO_PENDING;
-  }
-
+                                    const GURL& first_party) const {
   if (options_ & NO_GET_COOKIES)
     return net::ERR_ACCESS_DENIED;
 
@@ -37,17 +26,7 @@ int TestCookiePolicy::CanGetCookies(const GURL& url,
 
 int TestCookiePolicy::CanSetCookie(const GURL& url,
                                    const GURL& first_party,
-                                   const std::string& cookie_line,
-                                   net::CompletionCallback* callback) {
-  if ((options_ & ASYNC) && callback) {
-    callback_ = callback;
-    MessageLoop::current()->PostTask(FROM_HERE,
-        method_factory_.NewRunnableMethod(
-            &TestCookiePolicy::DoSetCookiePolicy, url, first_party,
-            cookie_line));
-    return net::ERR_IO_PENDING;
-  }
-
+                                   const std::string& cookie_line) const {
   if (options_ & NO_SET_COOKIE)
     return net::ERR_ACCESS_DENIED;
 
@@ -56,28 +35,6 @@ int TestCookiePolicy::CanSetCookie(const GURL& url,
 
   return net::OK;
 }
-
-void TestCookiePolicy::DoGetCookiesPolicy(const GURL& url,
-                                          const GURL& first_party) {
-  int policy = CanGetCookies(url, first_party, NULL);
-
-  DCHECK(callback_);
-  net::CompletionCallback* callback = callback_;
-  callback_ = NULL;
-  callback->Run(policy);
-}
-
-void TestCookiePolicy::DoSetCookiePolicy(const GURL& url,
-                                         const GURL& first_party,
-                                         const std::string& cookie_line) {
-  int policy = CanSetCookie(url, first_party, cookie_line, NULL);
-
-  DCHECK(callback_);
-  net::CompletionCallback* callback = callback_;
-  callback_ = NULL;
-  callback->Run(policy);
-}
-
 
 TestURLRequestContext::TestURLRequestContext()
     : ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
