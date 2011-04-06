@@ -373,10 +373,11 @@ BASE_API TerminationStatus GetTerminationStatus(ProcessHandle handle,
 BASE_API bool WaitForExitCode(ProcessHandle handle, int* exit_code);
 
 // Waits for process to exit. If it did exit within |timeout_milliseconds|,
-// then puts the exit code in |exit_code|, closes |handle|, and returns true.
+// then puts the exit code in |exit_code|, and returns true.
 // In POSIX systems, if the process has been signaled then |exit_code| is set
 // to -1. Returns false on failure (the caller is then responsible for closing
 // |handle|).
+// The caller is always responsible for closing the |handle|.
 BASE_API bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
                                          int64 timeout_milliseconds);
 
@@ -394,10 +395,6 @@ BASE_API bool WaitForProcessesToExit(
 // on Mac and Windows it can be any process.
 BASE_API bool WaitForSingleProcess(ProcessHandle handle,
                                    int64 wait_milliseconds);
-
-// Returns true when |wait_milliseconds| have elapsed and the process
-// is still running.
-BASE_API bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds);
 
 // Waits a certain amount of time (can be 0) for all the processes with a given
 // executable name to exit, then kills off any of them that are still around.
