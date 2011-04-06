@@ -6,7 +6,6 @@
 
 #include "net/base/escape.h"
 
-#include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
@@ -45,8 +44,8 @@ class Charmap {
 // return an escaped string.  If use_plus is true, spaces are converted
 // to +, otherwise, if spaces are in the charmap, they are converted to
 // %20.
-const std::string Escape(const std::string& text, const Charmap& charmap,
-                         bool use_plus) {
+std::string Escape(const std::string& text, const Charmap& charmap,
+                   bool use_plus) {
   std::string escaped;
   escaped.reserve(text.length() * 3);
   for (unsigned int i = 0; i < text.length(); ++i) {
@@ -233,19 +232,6 @@ static const Charmap kExternalHandlerCharmap(
 
 std::string EscapeExternalHandlerValue(const std::string& text) {
   return Escape(text, kExternalHandlerCharmap, false);
-}
-
-bool EscapeQueryParamValue(const string16& text, const char* codepage,
-                           bool use_plus, string16* escaped) {
-  // TODO(brettw) bug 1201094: this function should be removed, this "SKIP"
-  // behavior is wrong when the character can't be encoded properly.
-  std::string encoded;
-  if (!base::UTF16ToCodepage(text, codepage,
-                             base::OnStringConversionError::SKIP, &encoded))
-    return false;
-
-  escaped->assign(UTF8ToUTF16(Escape(encoded, kQueryCharmap, use_plus)));
-  return true;
 }
 
 string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
