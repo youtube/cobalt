@@ -3,15 +3,9 @@
 // found in the LICENSE file.
 
 #include "net/base/ssl_config_service.h"
-#include "net/base/ssl_false_start_blacklist.h"
 
-#if defined(OS_WIN)
-#include "net/base/ssl_config_service_win.h"
-#elif defined(OS_MACOSX)
-#include "net/base/ssl_config_service_mac.h"
-#else
 #include "net/base/ssl_config_service_defaults.h"
-#endif
+#include "net/base/ssl_false_start_blacklist.h"
 
 namespace net {
 
@@ -44,13 +38,9 @@ SSLConfigService::SSLConfigService()
 
 // static
 SSLConfigService* SSLConfigService::CreateSystemSSLConfigService() {
-#if defined(OS_WIN)
-  return new SSLConfigServiceWin;
-#elif defined(OS_MACOSX)
-  return new SSLConfigServiceMac;
-#else
+  // TODO(rtenneti): We don't use the system SSL configuration any more.
+  // Simplify this code after talking with mattm.
   return new SSLConfigServiceDefaults;
-#endif
 }
 
 // static
