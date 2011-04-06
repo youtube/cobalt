@@ -76,6 +76,7 @@
         'base/dnsrr_resolver.h',
         'base/escape.cc',
         'base/escape.h',
+        'base/escape_icu.cc',
         'base/ev_root_ca_metadata.cc',
         'base/ev_root_ca_metadata.h',
         'base/file_stream.h',
