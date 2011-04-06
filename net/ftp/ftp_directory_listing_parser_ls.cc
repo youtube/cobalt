@@ -98,6 +98,20 @@ bool DetectColumnOffsetAndModificationTime(const std::vector<string16>& columns,
     }
   }
 
+  // Some FTP listings have swapped the "month" and "day of month" columns
+  // (for example Russian listings). We try to recognize them only after making
+  // sure no column offset works above (this is a more strict way).
+  for (size_t i = 5U; i < columns.size(); i++) {
+    if (net::FtpUtil::LsDateListingToTime(columns[i - 1],
+                                          columns[i - 2],
+                                          columns[i],
+                                          current_time,
+                                          modification_time)) {
+      *offset = i;
+      return true;
+    }
+  }
+
   return false;
 }
 
