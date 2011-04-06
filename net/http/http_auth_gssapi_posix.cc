@@ -437,6 +437,7 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
 #else
       "libgssapi_krb5.so.2",  // MIT Kerberos - FC, Suse10, Debian
       "libgssapi.so.4",       // Heimdal - Suse10, MDK
+      "libgssapi.so.2",       // Heimdal - Gentoo
       "libgssapi.so.1"        // Heimdal - Suse9, CITI - FC, MDK, Suse10
 #endif
     };
