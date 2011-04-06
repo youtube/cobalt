@@ -138,6 +138,8 @@ class HttpNetworkTransaction : public HttpTransaction,
   int DoDrainBodyForAuthRestart();
   int DoDrainBodyForAuthRestartComplete(int result);
 
+  void BuildRequestHeaders(bool using_proxy);
+
   // Record histogram of time until first byte of header is received.
   void LogTransactionConnectedMetrics();
 
