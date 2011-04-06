@@ -47,28 +47,20 @@ class TestCookiePolicy : public net::CookiePolicy {
   enum Options {
     NO_GET_COOKIES = 1 << 0,
     NO_SET_COOKIE  = 1 << 1,
-    ASYNC          = 1 << 2,
-    FORCE_SESSION  = 1 << 3,
+    FORCE_SESSION  = 1 << 2,
   };
 
   explicit TestCookiePolicy(int options_bit_mask);
   virtual ~TestCookiePolicy();
 
   // net::CookiePolicy:
-  virtual int CanGetCookies(const GURL& url, const GURL& first_party,
-                            net::CompletionCallback* callback);
-  virtual int CanSetCookie(const GURL& url, const GURL& first_party,
-                           const std::string& cookie_line,
-                           net::CompletionCallback* callback);
+  virtual int CanGetCookies(const GURL& url, const GURL& first_party) const;
+  virtual int CanSetCookie(const GURL& url,
+                           const GURL& first_party,
+                           const std::string& cookie_line) const;
 
  private:
-  void DoGetCookiesPolicy(const GURL& url, const GURL& first_party);
-  void DoSetCookiePolicy(const GURL& url, const GURL& first_party,
-                         const std::string& cookie_line);
-
-  ScopedRunnableMethodFactory<TestCookiePolicy> method_factory_;
   int options_;
-  net::CompletionCallback* callback_;
 };
 
 //-----------------------------------------------------------------------------

@@ -206,10 +206,6 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       response_cookies_save_index_(0),
       proxy_auth_state_(AUTH_STATE_DONT_NEED_AUTH),
       server_auth_state_(AUTH_STATE_DONT_NEED_AUTH),
-      ALLOW_THIS_IN_INITIALIZER_LIST(can_get_cookies_callback_(
-          this, &URLRequestHttpJob::OnCanGetCookiesCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(can_set_cookie_callback_(
-          this, &URLRequestHttpJob::OnCanSetCookieCompleted)),
       ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
           this, &URLRequestHttpJob::OnStartCompleted)),
       ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_(
@@ -418,8 +414,6 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  AddRef();  // Balanced in OnCanGetCookiesCompleted
-
   int policy = OK;
 
   if (request_info_.load_flags & LOAD_DO_NOT_SEND_COOKIES) {
@@ -427,10 +421,7 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
   } else if (request_->context()->cookie_policy()) {
     policy = request_->context()->cookie_policy()->CanGetCookies(
         request_->url(),
-        request_->first_party_for_cookies(),
-        &can_get_cookies_callback_);
-    if (policy == ERR_IO_PENDING)
-      return;  // Wait for completion callback
+        request_->first_party_for_cookies());
   }
 
   OnCanGetCookiesCompleted(policy);
@@ -464,8 +455,6 @@ void URLRequestHttpJob::SaveNextCookie() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  AddRef();  // Balanced in OnCanSetCookieCompleted
-
   int policy = OK;
 
   if (request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) {
@@ -474,10 +463,7 @@ void URLRequestHttpJob::SaveNextCookie() {
     policy = request_->context()->cookie_policy()->CanSetCookie(
         request_->url(),
         request_->first_party_for_cookies(),
-        response_cookies_[response_cookies_save_index_],
-        &can_set_cookie_callback_);
-    if (policy == ERR_IO_PENDING)
-      return;  // Wait for completion callback
+        response_cookies_[response_cookies_save_index_]);
   }
 
   OnCanSetCookieCompleted(policy);
@@ -610,7 +596,6 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
       NotifyCanceled();
     }
   }
-  Release();  // Balance AddRef taken in AddCookieHeaderAndStart
 }
 
 void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
@@ -649,7 +634,6 @@ void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
       NotifyCanceled();
     }
   }
-  Release();  // Balance AddRef taken in SaveNextCookie
 }
 
 void URLRequestHttpJob::OnStartCompleted(int result) {
