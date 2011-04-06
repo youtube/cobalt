@@ -2766,7 +2766,8 @@ TEST_F(URLRequestTestHTTP, EmptyAcceptLanguage) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  TestURLRequest req(test_server_.GetURL("echoheader?Accept-Language"), &d);
+  TestURLRequest req(test_server_.GetURL("echoheaderoverride?Accept-Language"),
+                                         &d);
   scoped_refptr<URLRequestContext> context = new TestURLRequestContext;
   context->set_accept_language("");
   req.set_context(context);
@@ -2811,7 +2812,8 @@ TEST_F(URLRequestTestHTTP, EmptyAcceptCharset) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  TestURLRequest req(test_server_.GetURL("echoheader?Accept-Charset"), &d);
+  TestURLRequest req(test_server_.GetURL("echoheaderoverride?Accept-Charset"),
+                                         &d);
   scoped_refptr<URLRequestContext> context = new TestURLRequestContext;
   context->set_accept_charset("");
   req.set_context(context);
