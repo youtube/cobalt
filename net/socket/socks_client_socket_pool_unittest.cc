@@ -53,21 +53,21 @@ class SOCKSClientSocketPoolTest : public testing::Test {
   };
 
   SOCKSClientSocketPoolTest()
-      : ignored_tcp_socket_params_(new TCPSocketParams(
+      : ignored_transport_socket_params_(new TransportSocketParams(
             HostPortPair("proxy", 80), MEDIUM, GURL(), false, false)),
-        tcp_histograms_("MockTCP"),
-        tcp_socket_pool_(
+        transport_histograms_("MockTCP"),
+        transport_socket_pool_(
             kMaxSockets, kMaxSocketsPerGroup,
-            &tcp_histograms_,
-            &tcp_client_socket_factory_),
+            &transport_histograms_,
+            &transport_client_socket_factory_),
         ignored_socket_params_(new SOCKSSocketParams(
-            ignored_tcp_socket_params_, true, HostPortPair("host", 80), MEDIUM,
-            GURL())),
+            ignored_transport_socket_params_, true, HostPortPair("host", 80),
+            MEDIUM, GURL())),
         socks_histograms_("SOCKSUnitTest"),
         pool_(kMaxSockets, kMaxSocketsPerGroup,
               &socks_histograms_,
               NULL,
-              &tcp_socket_pool_,
+              &transport_socket_pool_,
               NULL) {
   }
 
@@ -84,10 +84,10 @@ class SOCKSClientSocketPoolTest : public testing::Test {
 
   ScopedVector<TestSocketRequest>* requests() { return test_base_.requests(); }
 
-  scoped_refptr<TCPSocketParams> ignored_tcp_socket_params_;
-  ClientSocketPoolHistograms tcp_histograms_;
-  MockClientSocketFactory tcp_client_socket_factory_;
-  MockTCPClientSocketPool tcp_socket_pool_;
+  scoped_refptr<TransportSocketParams> ignored_transport_socket_params_;
+  ClientSocketPoolHistograms transport_histograms_;
+  MockClientSocketFactory transport_client_socket_factory_;
+  MockTransportClientSocketPool transport_socket_pool_;
 
   scoped_refptr<SOCKSSocketParams> ignored_socket_params_;
   ClientSocketPoolHistograms socks_histograms_;
@@ -98,7 +98,7 @@ class SOCKSClientSocketPoolTest : public testing::Test {
 TEST_F(SOCKSClientSocketPoolTest, Simple) {
   SOCKS5MockData data(false);
   data.data_provider()->set_connect_data(MockConnect(false, 0));
-  tcp_client_socket_factory_.AddSocketDataProvider(data.data_provider());
+  transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
 
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, &pool_,
@@ -110,7 +110,7 @@ TEST_F(SOCKSClientSocketPoolTest, Simple) {
 
 TEST_F(SOCKSClientSocketPoolTest, Async) {
   SOCKS5MockData data(true);
-  tcp_client_socket_factory_.AddSocketDataProvider(data.data_provider());
+  transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
@@ -125,10 +125,10 @@ TEST_F(SOCKSClientSocketPoolTest, Async) {
   EXPECT_TRUE(handle.socket());
 }
 
-TEST_F(SOCKSClientSocketPoolTest, TCPConnectError) {
+TEST_F(SOCKSClientSocketPoolTest, TransportConnectError) {
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider());
   socket_data->set_connect_data(MockConnect(false, ERR_CONNECTION_REFUSED));
-  tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
+  transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, &pool_,
@@ -138,10 +138,10 @@ TEST_F(SOCKSClientSocketPoolTest, TCPConnectError) {
   EXPECT_FALSE(handle.socket());
 }
 
-TEST_F(SOCKSClientSocketPoolTest, AsyncTCPConnectError) {
+TEST_F(SOCKSClientSocketPoolTest, AsyncTransportConnectError) {
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider());
   socket_data->set_connect_data(MockConnect(true, ERR_CONNECTION_REFUSED));
-  tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
+  transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
@@ -163,16 +163,16 @@ TEST_F(SOCKSClientSocketPoolTest, SOCKSConnectError) {
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
         failed_read, arraysize(failed_read), NULL, 0));
   socket_data->set_connect_data(MockConnect(false, 0));
-  tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
+  transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   ClientSocketHandle handle;
-  EXPECT_EQ(0, tcp_socket_pool_.release_count());
+  EXPECT_EQ(0, transport_socket_pool_.release_count());
   int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, &pool_,
                        BoundNetLog());
   EXPECT_EQ(ERR_SOCKS_CONNECTION_FAILED, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
-  EXPECT_EQ(1, tcp_socket_pool_.release_count());
+  EXPECT_EQ(1, transport_socket_pool_.release_count());
 }
 
 TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
@@ -182,11 +182,11 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
         failed_read, arraysize(failed_read), NULL, 0));
   socket_data->set_connect_data(MockConnect(false, 0));
-  tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
+  transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  EXPECT_EQ(0, tcp_socket_pool_.release_count());
+  EXPECT_EQ(0, transport_socket_pool_.release_count());
   int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, &pool_,
                        BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -196,18 +196,18 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
   EXPECT_EQ(ERR_SOCKS_CONNECTION_FAILED, callback.WaitForResult());
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
-  EXPECT_EQ(1, tcp_socket_pool_.release_count());
+  EXPECT_EQ(1, transport_socket_pool_.release_count());
 }
 
-TEST_F(SOCKSClientSocketPoolTest, CancelDuringTCPConnect) {
+TEST_F(SOCKSClientSocketPoolTest, CancelDuringTransportConnect) {
   SOCKS5MockData data(false);
-  tcp_client_socket_factory_.AddSocketDataProvider(data.data_provider());
+  transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
   // We need two connections because the pool base lets one cancelled
   // connect job proceed for potential future use.
   SOCKS5MockData data2(false);
-  tcp_client_socket_factory_.AddSocketDataProvider(data2.data_provider());
+  transport_client_socket_factory_.AddSocketDataProvider(data2.data_provider());
 
-  EXPECT_EQ(0, tcp_socket_pool_.cancel_count());
+  EXPECT_EQ(0, transport_socket_pool_.cancel_count());
   int rv = StartRequest("a", LOW);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
@@ -217,14 +217,14 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringTCPConnect) {
   pool_.CancelRequest("a", (*requests())[0]->handle());
   pool_.CancelRequest("a", (*requests())[1]->handle());
   // Requests in the connect phase don't actually get cancelled.
-  EXPECT_EQ(0, tcp_socket_pool_.cancel_count());
+  EXPECT_EQ(0, transport_socket_pool_.cancel_count());
 
   // Now wait for the TCP sockets to connect.
   MessageLoop::current()->RunAllPending();
 
   EXPECT_EQ(ClientSocketPoolTest::kRequestNotFound, GetOrderOfRequest(1));
   EXPECT_EQ(ClientSocketPoolTest::kRequestNotFound, GetOrderOfRequest(2));
-  EXPECT_EQ(0, tcp_socket_pool_.cancel_count());
+  EXPECT_EQ(0, transport_socket_pool_.cancel_count());
   EXPECT_EQ(2, pool_.IdleSocketCount());
 
   (*requests())[0]->handle()->Reset();
@@ -234,15 +234,15 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringTCPConnect) {
 TEST_F(SOCKSClientSocketPoolTest, CancelDuringSOCKSConnect) {
   SOCKS5MockData data(true);
   data.data_provider()->set_connect_data(MockConnect(false, 0));
-  tcp_client_socket_factory_.AddSocketDataProvider(data.data_provider());
+  transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
   // We need two connections because the pool base lets one cancelled
   // connect job proceed for potential future use.
   SOCKS5MockData data2(true);
   data2.data_provider()->set_connect_data(MockConnect(false, 0));
-  tcp_client_socket_factory_.AddSocketDataProvider(data2.data_provider());
+  transport_client_socket_factory_.AddSocketDataProvider(data2.data_provider());
 
-  EXPECT_EQ(0, tcp_socket_pool_.cancel_count());
-  EXPECT_EQ(0, tcp_socket_pool_.release_count());
+  EXPECT_EQ(0, transport_socket_pool_.cancel_count());
+  EXPECT_EQ(0, transport_socket_pool_.release_count());
   int rv = StartRequest("a", LOW);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
@@ -251,17 +251,17 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringSOCKSConnect) {
 
   pool_.CancelRequest("a", (*requests())[0]->handle());
   pool_.CancelRequest("a", (*requests())[1]->handle());
-  EXPECT_EQ(0, tcp_socket_pool_.cancel_count());
+  EXPECT_EQ(0, transport_socket_pool_.cancel_count());
   // Requests in the connect phase don't actually get cancelled.
-  EXPECT_EQ(0, tcp_socket_pool_.release_count());
+  EXPECT_EQ(0, transport_socket_pool_.release_count());
 
   // Now wait for the async data to reach the SOCKS connect jobs.
   MessageLoop::current()->RunAllPending();
 
   EXPECT_EQ(ClientSocketPoolTest::kRequestNotFound, GetOrderOfRequest(1));
   EXPECT_EQ(ClientSocketPoolTest::kRequestNotFound, GetOrderOfRequest(2));
-  EXPECT_EQ(0, tcp_socket_pool_.cancel_count());
-  EXPECT_EQ(0, tcp_socket_pool_.release_count());
+  EXPECT_EQ(0, transport_socket_pool_.cancel_count());
+  EXPECT_EQ(0, transport_socket_pool_.release_count());
   EXPECT_EQ(2, pool_.IdleSocketCount());
 
   (*requests())[0]->handle()->Reset();

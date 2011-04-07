@@ -31,7 +31,7 @@
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket_pool.h"
-#include "net/socket/tcp_client_socket_pool.h"
+#include "net/socket/transport_client_socket_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -533,7 +533,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
   }
 
   // ClientSocketFactory
-  virtual ClientSocket* CreateTCPClientSocket(
+  virtual ClientSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
       const NetLog::Source& source);
@@ -813,7 +813,7 @@ class ClientSocketPoolTest {
   size_t completion_count_;
 };
 
-class MockTCPClientSocketPool : public TCPClientSocketPool {
+class MockTransportClientSocketPool : public TransportClientSocketPool {
  public:
   class MockConnectJob {
    public:
@@ -835,18 +835,18 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
     DISALLOW_COPY_AND_ASSIGN(MockConnectJob);
   };
 
-  MockTCPClientSocketPool(
+  MockTransportClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
       ClientSocketPoolHistograms* histograms,
       ClientSocketFactory* socket_factory);
 
-  virtual ~MockTCPClientSocketPool();
+  virtual ~MockTransportClientSocketPool();
 
   int release_count() const { return release_count_; }
   int cancel_count() const { return cancel_count_; }
 
-  // TCPClientSocketPool methods.
+  // TransportClientSocketPool methods.
   virtual int RequestSocket(const std::string& group_name,
                             const void* socket_params,
                             RequestPriority priority,
@@ -865,7 +865,7 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
   int release_count_;
   int cancel_count_;
 
-  DISALLOW_COPY_AND_ASSIGN(MockTCPClientSocketPool);
+  DISALLOW_COPY_AND_ASSIGN(MockTransportClientSocketPool);
 };
 
 class DeterministicMockClientSocketFactory : public ClientSocketFactory {
@@ -889,9 +889,10 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
   }
 
   // ClientSocketFactory
-  virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses,
-                                              NetLog* net_log,
-                                              const NetLog::Source& source);
+  virtual ClientSocket* CreateTransportClientSocket(
+      const AddressList& addresses,
+      NetLog* net_log,
+      const NetLog::Source& source);
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
@@ -916,7 +917,7 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
       int max_sockets,
       int max_sockets_per_group,
       ClientSocketPoolHistograms* histograms,
-      TCPClientSocketPool* tcp_pool);
+      TransportClientSocketPool* transport_pool);
 
   virtual ~MockSOCKSClientSocketPool();
 
@@ -934,7 +935,7 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
                              ClientSocket* socket, int id);
 
  private:
-  TCPClientSocketPool* const tcp_pool_;
+  TransportClientSocketPool* const transport_pool_;
 
   DISALLOW_COPY_AND_ASSIGN(MockSOCKSClientSocketPool);
 };

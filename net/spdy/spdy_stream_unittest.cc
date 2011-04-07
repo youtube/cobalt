@@ -197,13 +197,17 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   GURL url(kStreamUrl);
 
   HostPortPair host_port_pair("www.google.com", 80);
-  scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(host_port_pair, LOWEST, GURL(), false, false));
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(host_port_pair, LOWEST, GURL(), false, false));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
-            connection->Init(host_port_pair.ToString(), tcp_params, LOWEST,
-                             NULL, session_->tcp_socket_pool(), BoundNetLog()));
+            connection->Init(host_port_pair.ToString(),
+                             transport_params,
+                             LOWEST,
+                             NULL,
+                             session_->transport_socket_pool(),
+                             BoundNetLog()));
   session->InitializeWithSocket(connection.release(), false, OK);
 
   scoped_refptr<SpdyStream> stream;

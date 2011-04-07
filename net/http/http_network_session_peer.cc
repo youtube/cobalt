@@ -9,7 +9,7 @@
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket_pool.h"
-#include "net/socket/tcp_client_socket_pool.h"
+#include "net/socket/transport_client_socket_pool.h"
 
 namespace net {
 
@@ -19,8 +19,9 @@ HttpNetworkSessionPeer::HttpNetworkSessionPeer(
 
 HttpNetworkSessionPeer::~HttpNetworkSessionPeer() {}
 
-void HttpNetworkSessionPeer::SetTCPSocketPool(TCPClientSocketPool* pool) {
-  session_->socket_pool_manager_.tcp_socket_pool_.reset(pool);
+void HttpNetworkSessionPeer::SetTransportSocketPool(
+    TransportClientSocketPool* pool) {
+  session_->socket_pool_manager_.transport_socket_pool_.reset(pool);
 }
 
 void HttpNetworkSessionPeer::SetSocketPoolForSOCKSProxy(

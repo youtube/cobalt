@@ -31,7 +31,7 @@ class ClientSocketFactory {
 
   // |source| is the NetLog::Source for the entity trying to create the socket,
   // if it has one.
-  virtual ClientSocket* CreateTCPClientSocket(
+  virtual ClientSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
       const NetLog::Source& source) = 0;

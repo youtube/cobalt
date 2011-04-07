@@ -43,27 +43,27 @@ class SSLClientSocketPoolTest : public testing::Test {
         http_auth_handler_factory_(HttpAuthHandlerFactory::CreateDefault(
             &host_resolver_)),
         session_(CreateNetworkSession()),
-        direct_tcp_socket_params_(new TCPSocketParams(
+        direct_transport_socket_params_(new TransportSocketParams(
             HostPortPair("host", 443), MEDIUM, GURL(), false, false)),
-        tcp_histograms_("MockTCP"),
-        tcp_socket_pool_(
+        transport_histograms_("MockTCP"),
+        transport_socket_pool_(
             kMaxSockets,
             kMaxSocketsPerGroup,
-            &tcp_histograms_,
+            &transport_histograms_,
             &socket_factory_),
-        proxy_tcp_socket_params_(new TCPSocketParams(
+        proxy_transport_socket_params_(new TransportSocketParams(
             HostPortPair("proxy", 443), MEDIUM, GURL(), false, false)),
         socks_socket_params_(new SOCKSSocketParams(
-            proxy_tcp_socket_params_, true, HostPortPair("sockshost", 443),
-            MEDIUM, GURL())),
+            proxy_transport_socket_params_, true,
+            HostPortPair("sockshost", 443), MEDIUM, GURL())),
         socks_histograms_("MockSOCKS"),
         socks_socket_pool_(
             kMaxSockets,
             kMaxSocketsPerGroup,
             &socks_histograms_,
-            &tcp_socket_pool_),
+            &transport_socket_pool_),
         http_proxy_socket_params_(new HttpProxySocketParams(
-            proxy_tcp_socket_params_, NULL, GURL("http://host"), "",
+            proxy_transport_socket_params_, NULL, GURL("http://host"), "",
             HostPortPair("host", 80),
             session_->http_auth_cache(),
             session_->http_auth_handler_factory(),
@@ -75,7 +75,7 @@ class SSLClientSocketPoolTest : public testing::Test {
             kMaxSocketsPerGroup,
             &http_proxy_histograms_,
             &host_resolver_,
-            &tcp_socket_pool_,
+            &transport_socket_pool_,
             NULL,
             NULL) {
     scoped_refptr<SSLConfigService> ssl_config_service(
@@ -83,7 +83,7 @@ class SSLClientSocketPoolTest : public testing::Test {
     ssl_config_service->GetSSLConfig(&ssl_config_);
   }
 
-  void CreatePool(bool tcp_pool, bool http_proxy_pool, bool socks_pool) {
+  void CreatePool(bool transport_pool, bool http_proxy_pool, bool socks_pool) {
     ssl_histograms_.reset(new ClientSocketPoolHistograms("SSLUnitTest"));
     pool_.reset(new SSLClientSocketPool(
         kMaxSockets,
@@ -95,7 +95,7 @@ class SSLClientSocketPoolTest : public testing::Test {
         NULL /* dns_cert_checker */,
         NULL /* ssl_host_info_factory */,
         &socket_factory_,
-        tcp_pool ? &tcp_socket_pool_ : NULL,
+        transport_pool ? &transport_socket_pool_ : NULL,
         socks_pool ? &socks_socket_pool_ : NULL,
         http_proxy_pool ? &http_proxy_socket_pool_ : NULL,
         NULL,
@@ -105,7 +105,8 @@ class SSLClientSocketPoolTest : public testing::Test {
   scoped_refptr<SSLSocketParams> SSLParams(ProxyServer::Scheme proxy,
                                            bool want_spdy_over_npn) {
     return make_scoped_refptr(new SSLSocketParams(
-        proxy == ProxyServer::SCHEME_DIRECT ? direct_tcp_socket_params_ : NULL,
+        proxy == ProxyServer::SCHEME_DIRECT ?
+            direct_transport_socket_params_ : NULL,
         proxy == ProxyServer::SCHEME_SOCKS5 ? socks_socket_params_ : NULL,
         proxy == ProxyServer::SCHEME_HTTP ? http_proxy_socket_params_ : NULL,
         proxy,
@@ -147,11 +148,11 @@ class SSLClientSocketPoolTest : public testing::Test {
   const scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
   const scoped_refptr<HttpNetworkSession> session_;
 
-  scoped_refptr<TCPSocketParams> direct_tcp_socket_params_;
-  ClientSocketPoolHistograms tcp_histograms_;
-  MockTCPClientSocketPool tcp_socket_pool_;
+  scoped_refptr<TransportSocketParams> direct_transport_socket_params_;
+  ClientSocketPoolHistograms transport_histograms_;
+  MockTransportClientSocketPool transport_socket_pool_;
 
-  scoped_refptr<TCPSocketParams> proxy_tcp_socket_params_;
+  scoped_refptr<TransportSocketParams> proxy_transport_socket_params_;
 
   scoped_refptr<SOCKSSocketParams> socks_socket_params_;
   ClientSocketPoolHistograms socks_histograms_;

@@ -43,7 +43,7 @@ class SOCKSClientSocketPool;
 class SSLClientSocketPool;
 class SSLConfigService;
 class SSLHostInfoFactory;
-class TCPClientSocketPool;
+class TransportClientSocketPool;
 
 struct HttpRequestInfo;
 struct SSLConfig;
@@ -83,7 +83,9 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   void FlushSocketPools();
   void CloseIdleSockets();
 
-  TCPClientSocketPool* tcp_socket_pool() { return tcp_socket_pool_.get(); }
+  TransportClientSocketPool* transport_socket_pool() {
+    return transport_socket_pool_.get();
+  }
 
   SSLClientSocketPool* ssl_socket_pool() { return ssl_socket_pool_.get(); }
 
@@ -153,8 +155,8 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
  private:
   friend class HttpNetworkSessionPeer;
 
-  typedef internal::OwnedPoolMap<HostPortPair, TCPClientSocketPool*>
-      TCPSocketPoolMap;
+  typedef internal::OwnedPoolMap<HostPortPair, TransportClientSocketPool*>
+      TransportSocketPoolMap;
   typedef internal::OwnedPoolMap<HostPortPair, SOCKSClientSocketPool*>
       SOCKSSocketPoolMap;
   typedef internal::OwnedPoolMap<HostPortPair, HttpProxyClientSocketPool*>
@@ -174,23 +176,23 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
 
   // Note: this ordering is important.
 
-  ClientSocketPoolHistograms tcp_pool_histograms_;
-  scoped_ptr<TCPClientSocketPool> tcp_socket_pool_;
+  ClientSocketPoolHistograms transport_pool_histograms_;
+  scoped_ptr<TransportClientSocketPool> transport_socket_pool_;
 
   ClientSocketPoolHistograms ssl_pool_histograms_;
   scoped_ptr<SSLClientSocketPool> ssl_socket_pool_;
 
-  ClientSocketPoolHistograms tcp_for_socks_pool_histograms_;
-  TCPSocketPoolMap tcp_socket_pools_for_socks_proxies_;
+  ClientSocketPoolHistograms transport_for_socks_pool_histograms_;
+  TransportSocketPoolMap transport_socket_pools_for_socks_proxies_;
 
   ClientSocketPoolHistograms socks_pool_histograms_;
   SOCKSSocketPoolMap socks_socket_pools_;
 
-  ClientSocketPoolHistograms tcp_for_http_proxy_pool_histograms_;
-  TCPSocketPoolMap tcp_socket_pools_for_http_proxies_;
+  ClientSocketPoolHistograms transport_for_http_proxy_pool_histograms_;
+  TransportSocketPoolMap transport_socket_pools_for_http_proxies_;
 
-  ClientSocketPoolHistograms tcp_for_https_proxy_pool_histograms_;
-  TCPSocketPoolMap tcp_socket_pools_for_https_proxies_;
+  ClientSocketPoolHistograms transport_for_https_proxy_pool_histograms_;
+  TransportSocketPoolMap transport_socket_pools_for_https_proxies_;
 
   ClientSocketPoolHistograms ssl_for_https_proxy_pool_histograms_;
   SSLSocketPoolMap ssl_socket_pools_for_https_proxies_;

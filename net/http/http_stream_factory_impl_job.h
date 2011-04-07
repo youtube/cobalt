@@ -28,7 +28,7 @@ class HttpProxySocketParams;
 class HttpStream;
 class SOCKSSocketParams;
 class SSLSocketParams;
-class TCPSocketParams;
+class TransportSocketParams;
 
 // An HttpStreamRequestImpl exists for each stream which is in progress of being
 // created for the StreamFactory.
