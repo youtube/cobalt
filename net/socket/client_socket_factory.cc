@@ -45,7 +45,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
     ClearSSLSessionCache();
   }
 
-  virtual ClientSocket* CreateTCPClientSocket(
+  virtual ClientSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
       const NetLog::Source& source) {

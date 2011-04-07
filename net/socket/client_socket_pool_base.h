@@ -539,7 +539,7 @@ class ClientSocketPoolBaseHelper
 
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 
-  // TODO(vandebo) Remove when backup jobs move to TCPClientSocketPool
+  // TODO(vandebo) Remove when backup jobs move to TransportClientSocketPool
   bool connect_backup_jobs_enabled_;
 
   // A unique id for the pool.  It gets incremented every time we Flush() the

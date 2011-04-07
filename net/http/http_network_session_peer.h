@@ -17,7 +17,7 @@ class HttpStreamFactory;
 class ProxyService;
 class SOCKSClientSocketPool;
 class SSLClientSocketPool;
-class TCPClientSocketPool;
+class TransportClientSocketPool;
 
 class HttpNetworkSessionPeer {
  public:
@@ -25,7 +25,7 @@ class HttpNetworkSessionPeer {
       const scoped_refptr<HttpNetworkSession>& session);
   ~HttpNetworkSessionPeer();
 
-  void SetTCPSocketPool(TCPClientSocketPool* pool);
+  void SetTransportSocketPool(TransportClientSocketPool* pool);
 
   void SetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy,

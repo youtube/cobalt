@@ -48,13 +48,14 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
  protected:
   HttpProxyClientSocketPoolTest()
       : ssl_config_(),
-        ignored_tcp_socket_params_(new TCPSocketParams(
+        ignored_transport_socket_params_(new TransportSocketParams(
             HostPortPair("proxy", 80), LOWEST, GURL(), false, false)),
         ignored_ssl_socket_params_(new SSLSocketParams(
-            ignored_tcp_socket_params_, NULL, NULL, ProxyServer::SCHEME_DIRECT,
-            HostPortPair("www.google.com", 443), ssl_config_, 0, false, false)),
+            ignored_transport_socket_params_, NULL, NULL,
+            ProxyServer::SCHEME_DIRECT, HostPortPair("www.google.com", 443),
+            ssl_config_, 0, false, false)),
         tcp_histograms_("MockTCP"),
-        tcp_socket_pool_(
+        transport_socket_pool_(
             kMaxSockets, kMaxSocketsPerGroup,
             &tcp_histograms_,
             &socket_factory_),
@@ -69,7 +70,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                          NULL /* dns_cert_checker */,
                          NULL /* ssl_host_info_factory */,
                          &socket_factory_,
-                         &tcp_socket_pool_,
+                         &transport_socket_pool_,
                          NULL,
                          NULL,
                          ssl_config_service_.get(),
@@ -83,7 +84,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
         pool_(kMaxSockets, kMaxSocketsPerGroup,
               &http_proxy_histograms_,
               NULL,
-              &tcp_socket_pool_,
+              &transport_socket_pool_,
               &ssl_socket_pool_,
               NULL) {
   }
@@ -103,10 +104,10 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                                      "/");
   }
 
-  scoped_refptr<TCPSocketParams> GetTcpParams() {
+  scoped_refptr<TransportSocketParams> GetTcpParams() {
     if (GetParam() != HTTP)
-      return scoped_refptr<TCPSocketParams>();
-    return ignored_tcp_socket_params_;
+      return scoped_refptr<TransportSocketParams>();
+    return ignored_transport_socket_params_;
   }
 
   scoped_refptr<SSLSocketParams> GetSslParams() {
@@ -189,11 +190,11 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
  private:
   SSLConfig ssl_config_;
 
-  scoped_refptr<TCPSocketParams> ignored_tcp_socket_params_;
+  scoped_refptr<TransportSocketParams> ignored_transport_socket_params_;
   scoped_refptr<SSLSocketParams> ignored_ssl_socket_params_;
   ClientSocketPoolHistograms tcp_histograms_;
   DeterministicMockClientSocketFactory socket_factory_;
-  MockTCPClientSocketPool tcp_socket_pool_;
+  MockTransportClientSocketPool transport_socket_pool_;
   ClientSocketPoolHistograms ssl_histograms_;
   MockHostResolver host_resolver_;
   CertVerifier cert_verifier_;
