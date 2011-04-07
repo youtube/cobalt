@@ -41,7 +41,13 @@ void CertDatabase::ListCerts(CertificateList* certs) {
   NOTIMPLEMENTED();
 }
 
-CryptoModule* CertDatabase::GetDefaultModule() const {
+CryptoModule* CertDatabase::GetPublicModule() const {
+  // TODO(bulach): implement me.
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+CryptoModule* CertDatabase::GetPrivateModule() const {
   // TODO(bulach): implement me.
   NOTIMPLEMENTED();
   return NULL;
