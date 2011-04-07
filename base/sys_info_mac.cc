@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,9 +14,9 @@
 namespace base {
 
 // static
-void SysInfo::OperatingSystemVersionNumbers(int32 *major_version,
-                                            int32 *minor_version,
-                                            int32 *bugfix_version) {
+void SysInfo::OperatingSystemVersionNumbers(int32* major_version,
+                                            int32* minor_version,
+                                            int32* bugfix_version) {
   Gestalt(gestaltSystemVersionMajor,
       reinterpret_cast<SInt32*>(major_version));
   Gestalt(gestaltSystemVersionMinor,

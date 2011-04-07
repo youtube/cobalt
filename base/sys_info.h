@@ -41,9 +41,9 @@ class BASE_API SysInfo {
   // Retrieves detailed numeric values for the OS version.
   // TODO(port): Implement a Linux version of this method and enable the
   // corresponding unit test.
-  static void OperatingSystemVersionNumbers(int32 *major_version,
-                                            int32 *minor_version,
-                                            int32 *bugfix_version);
+  static void OperatingSystemVersionNumbers(int32* major_version,
+                                            int32* minor_version,
+                                            int32* bugfix_version);
 
   // Returns the CPU architecture of the system. Exact return value may differ
   // across platforms.
@@ -73,9 +73,9 @@ class BASE_API SysInfo {
   // Parses /etc/lsb-release to get version information for Google Chrome OS.
   // Declared here so it can be exposed for unit testing.
   static void ParseLsbRelease(const std::string& lsb_release,
-                              int32 *major_version,
-                              int32 *minor_version,
-                              int32 *bugfix_version);
+                              int32* major_version,
+                              int32* minor_version,
+                              int32* bugfix_version);
 #endif
 };
 
