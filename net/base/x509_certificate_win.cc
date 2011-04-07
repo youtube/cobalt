@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/pickle.h"
+#include "base/sha1.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -18,6 +19,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/scoped_cert_chain_context.h"
 #include "net/base/test_root_certs.h"
+#include "net/base/x509_certificate_known_roots_win.h"
 
 #pragma comment(lib, "crypt32.lib")
 
@@ -504,6 +506,22 @@ void X509Certificate::Initialize() {
     serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
 }
 
+// IsIssuedByKnownRoot returns true if the given chain is rooted at a root CA
+// which we recognise as a standard root.
+// static
+bool X509Certificate::IsIssuedByKnownRoot(PCCERT_CHAIN_CONTEXT chain_context) {
+  PCERT_SIMPLE_CHAIN first_chain = chain_context->rgpChain[0];
+  int num_elements = first_chain->cElement;
+  if (num_elements < 1)
+    return false;
+  PCERT_CHAIN_ELEMENT* element = first_chain->rgpElement;
+  PCCERT_CONTEXT cert = element[num_elements - 1]->pCertContext;
+
+  SHA1Fingerprint hash = CalculateFingerprint(cert);
+  return IsSHA1HashInSortedArray(
+      hash, &kKnownRootCertSHA1Hashes[0][0], sizeof(kKnownRootCertSHA1Hashes));
+}
+
 // static
 X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
                                                    void** pickle_iter) {
@@ -866,6 +884,8 @@ int X509Certificate::Verify(const std::string& hostname,
 
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
+
+  verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(chain_context);
 
   if (ev_policy_oid && CheckEV(chain_context, ev_policy_oid))
     verify_result->cert_status |= CERT_STATUS_IS_EV;
