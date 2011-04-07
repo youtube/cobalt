@@ -203,6 +203,18 @@ void GetCertChainInfo(CERTCertList* cert_list,
   }
 }
 
+// IsKnownRoot returns true if the given certificate is one that we believe
+// is a standard (as opposed to user-installed) root.
+bool IsKnownRoot(CERTCertificate* root) {
+  if (!root->slot)
+    return false;
+
+  // This magic name is taken from
+  // http://bonsai.mozilla.org/cvsblame.cgi?file=mozilla/security/nss/lib/ckfw/builtins/constants.c&rev=1.13&mark=86,89#79
+  return 0 == strcmp(PK11_GetSlotName(root->slot),
+                     "NSS Builtin Objects");
+}
+
 typedef char* (*CERTGetNameFunc)(CERTName* name);
 
 void ParsePrincipal(CERTName* name,
@@ -769,10 +781,13 @@ int X509Certificate::Verify(const std::string& hostname,
 
   CERTValOutParam cvout[3];
   int cvout_index = 0;
-  // We don't need the trust anchor for the first PKIXVerifyCert call.
   cvout[cvout_index].type = cert_po_certList;
   cvout[cvout_index].value.pointer.chain = NULL;
   int cvout_cert_list_index = cvout_index;
+  cvout_index++;
+  cvout[cvout_index].type = cert_po_trustAnchor;
+  cvout[cvout_index].value.pointer.cert = NULL;
+  int cvout_trust_anchor_index = cvout_index;
   cvout_index++;
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
@@ -807,6 +822,9 @@ int X509Certificate::Verify(const std::string& hostname,
                    verify_result);
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
+
+  verify_result->is_issued_by_known_root =
+      IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
 
   if ((flags & VERIFY_EV_CERT) && VerifyEV())
     verify_result->cert_status |= CERT_STATUS_IS_EV;

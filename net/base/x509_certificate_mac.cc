@@ -14,15 +14,17 @@
 #include "base/crypto/rsa_private_key.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/singleton.h"
 #include "base/nss_util.h"
 #include "base/pickle.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/sha1.h"
 #include "base/sys_string_conversions.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_root_certs.h"
+#include "net/base/x509_certificate_known_roots_mac.h"
 #include "third_party/nss/mozilla/security/nss/lib/certdb/cert.h"
 
 using base::mac::ScopedCFTypeRef;
@@ -514,6 +516,20 @@ void X509Certificate::Initialize() {
   serial_number_ = GetCertSerialNumber(cert_handle_);
 }
 
+// IsIssuedByKnownRoot returns true if the given chain is rooted at a root CA
+// that we recognise as a standard root.
+// static
+bool X509Certificate::IsIssuedByKnownRoot(CFArrayRef chain) {
+  int n = CFArrayGetCount(chain);
+  if (n < 1)
+    return false;
+  SecCertificateRef root_ref = reinterpret_cast<SecCertificateRef>(
+      const_cast<void*>(CFArrayGetValueAtIndex(chain, n - 1)));
+  SHA1Fingerprint hash = X509Certificate::CalculateFingerprint(root_ref);
+  return IsSHA1HashInSortedArray(
+      hash, &kKnownRootCertSHA1Hashes[0][0], sizeof(kKnownRootCertSHA1Hashes));
+}
+
 // static
 X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
                                                    void** pickle_iter) {
@@ -907,6 +923,8 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
       }
     }
   }
+
+  verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(completed_chain);
 
   return OK;
 }

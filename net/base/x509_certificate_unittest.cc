@@ -481,6 +481,35 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   root_certs->Clear();
 }
 
+TEST(X509CertificateTest, TestKnownRoot) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
+
+  // This intermediate is only needed for old Linux machines. Modern NSS
+  // includes it as a root already.
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "nist_intermediate.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(cert->os_cert_handle(),
+                                        X509Certificate::SOURCE_FROM_NETWORK,
+                                        intermediates);
+
+  int flags = 0;
+  CertVerifyResult verify_result;
+  // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
+  // against agl.
+  int error = cert_chain->Verify("www.nist.gov", flags, &verify_result);
+  EXPECT_EQ(OK, error);
+  EXPECT_EQ(0, verify_result.cert_status);
+  EXPECT_TRUE(verify_result.is_issued_by_known_root);
+}
+
 // A regression test for http://crbug.com/70293.
 // The Key Usage extension in this RSA SSL server certificate does not have
 // the keyEncipherment bit.
