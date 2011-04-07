@@ -4,6 +4,8 @@
 
 #include "net/base/x509_certificate.h"
 
+#include <stdlib.h>
+
 #include <map>
 #include <string>
 #include <vector>
@@ -12,6 +14,7 @@
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/histogram.h"
+#include "base/sha1.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -112,6 +115,12 @@ X509Certificate* X509CertificateCache::Find(
 
   return pos->second;
 };
+
+// CompareSHA1Hashes is a helper function for using bsearch() with an array of
+// SHA1 hashes.
+static int CompareSHA1Hashes(const void* a, const void* b) {
+  return memcmp(a, b, base::SHA1_LENGTH);
+}
 
 }  // namespace
 
@@ -526,6 +535,16 @@ bool X509Certificate::IsBlacklisted() const {
   }
 
   return false;
+}
+
+// static
+bool X509Certificate::IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
+                                              const uint8* array,
+                                              size_t array_byte_len) {
+  DCHECK_EQ(0u, array_byte_len % base::SHA1_LENGTH);
+  const unsigned arraylen = array_byte_len / base::SHA1_LENGTH;
+  return NULL != bsearch(hash.data, array, arraylen, base::SHA1_LENGTH,
+                         CompareSHA1Hashes);
 }
 
 }  // namespace net
