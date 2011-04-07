@@ -167,7 +167,7 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // An example:
   // CN=Michael Wong,O=FooBar Corporation,DC=foobar,DC=com
   //
-  // SECURUITY WARNING
+  // SECURITY WARNING
   //
   // Using self-signed certificates has the following security risks:
   // 1. Encryption without authentication and thus vulnerable to
@@ -344,6 +344,10 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 #if defined(OS_WIN)
   bool CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
                const char* policy_oid) const;
+  static bool IsIssuedByKnownRoot(PCCERT_CHAIN_CONTEXT chain_context);
+#endif
+#if defined(OS_MACOSX)
+  static bool IsIssuedByKnownRoot(CFArrayRef chain);
 #endif
   bool VerifyEV() const;
 
@@ -377,6 +381,12 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
   // IsBlacklisted returns true if this certificate is explicitly blacklisted.
   bool IsBlacklisted() const;
+
+  // IsSHA1HashInSortedArray returns true iff |hash| is in |array|, a sorted
+  // array of SHA1 hashes.
+  static bool IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
+                                      const uint8* array,
+                                      size_t array_byte_len);
 
   // The subject of the certificate.
   CertPrincipal subject_;
