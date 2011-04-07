@@ -481,7 +481,8 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   root_certs->Clear();
 }
 
-TEST(X509CertificateTest, TestKnownRoot) {
+// agl: disabled because it hung the TSAN bots.
+TEST(X509CertificateTest, DISABLED_TestKnownRoot) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> cert =
       ImportCertFromFile(certs_dir, "nist.der");
