@@ -93,9 +93,13 @@ class CertDatabase {
   // instance of all certificates.)
   void ListCerts(CertificateList* certs);
 
-  // Get the default module.
+  // Get the default module for public key data.
   // The returned pointer must be stored in a scoped_refptr<CryptoModule>.
-  CryptoModule* GetDefaultModule() const;
+  CryptoModule* GetPublicModule() const;
+
+  // Get the default module for private key or mixed private/public key data.
+  // The returned pointer must be stored in a scoped_refptr<CryptoModule>.
+  CryptoModule* GetPrivateModule() const;
 
   // Get all modules.
   // If |need_rw| is true, only writable modules will be returned.

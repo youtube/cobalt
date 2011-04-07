@@ -109,11 +109,21 @@ void CertDatabase::ListCerts(CertificateList* certs) {
   CERT_DestroyCertList(cert_list);
 }
 
-CryptoModule* CertDatabase::GetDefaultModule() const {
+CryptoModule* CertDatabase::GetPublicModule() const {
   CryptoModule* module =
-      CryptoModule::CreateFromHandle(base::GetDefaultNSSKeySlot());
-  // The module is already referenced when returned from GetDefaultNSSKeymodule,
-  // so we need to deref it once.
+      CryptoModule::CreateFromHandle(base::GetPublicNSSKeySlot());
+  // The module is already referenced when returned from
+  // GetPublicNSSKeySlot, so we need to deref it once.
+  PK11_FreeSlot(module->os_module_handle());
+
+  return module;
+}
+
+CryptoModule* CertDatabase::GetPrivateModule() const {
+  CryptoModule* module =
+      CryptoModule::CreateFromHandle(base::GetPrivateNSSKeySlot());
+  // The module is already referenced when returned from
+  // GetPrivateNSSKeySlot, so we need to deref it once.
   PK11_FreeSlot(module->os_module_handle());
 
   return module;

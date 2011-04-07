@@ -302,7 +302,7 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
   }
 
   SECKEYPrivateKeyStr* private_key = NULL;
-  PK11SlotInfo *slot = base::GetDefaultNSSKeySlot();
+  PK11SlotInfo *slot = base::GetPrivateNSSKeySlot();
   if (!slot) {
     CERT_DestroyCertificate(cert);
     return ERR_UNEXPECTED;
