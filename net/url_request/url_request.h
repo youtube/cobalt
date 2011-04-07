@@ -120,8 +120,8 @@ class URLRequest : public base::NonThreadSafe {
   //
   // The callbacks will be called in the following order:
   //   Start()
-  //    - OnCertificateRequested* (zero or one call, if the SSL server
-  //      requests a client certificate for authentication)
+  //    - OnCertificateRequested* (zero or more calls, if the SSL server and/or
+  //      SSL proxy requests a client certificate for authentication)
   //    - OnSSLCertificateError* (zero or one call, if the SSL server's
   //      certificate has an error)
   //    - OnReceivedRedirect* (zero or more calls, for the number of redirects)
