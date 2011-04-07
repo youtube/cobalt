@@ -43,9 +43,9 @@ static base::LazyInstance<ChromeOSVersionNumbers>
     g_chrome_os_version_numbers(base::LINKER_INITIALIZED);
 
 // static
-void SysInfo::OperatingSystemVersionNumbers(int32 *major_version,
-                                            int32 *minor_version,
-                                            int32 *bugfix_version) {
+void SysInfo::OperatingSystemVersionNumbers(int32* major_version,
+                                            int32* minor_version,
+                                            int32* bugfix_version) {
   if (!g_chrome_os_version_numbers.Get().parsed) {
     // The other implementations of SysInfo don't block on the disk.
     // See http://code.google.com/p/chromium/issues/detail?id=60394
@@ -75,9 +75,9 @@ std::string SysInfo::GetLinuxStandardBaseVersionKey() {
 
 // static
 void SysInfo::ParseLsbRelease(const std::string& lsb_release,
-                              int32 *major_version,
-                              int32 *minor_version,
-                              int32 *bugfix_version) {
+                              int32* major_version,
+                              int32* minor_version,
+                              int32* bugfix_version) {
   size_t version_key_index = std::string::npos;
   for (int i = 0; kLinuxStandardBaseVersionKeys[i] != NULL; ++i) {
     version_key_index = lsb_release.find(kLinuxStandardBaseVersionKeys[i]);

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,6 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/threading/thread_restrictions.h"
-
-// This has to be last.
-#include <strsafe.h>
 
 FileVersionInfoWin::FileVersionInfoWin(void* data, int language, int code_page)
     : language_(language), code_page_(code_page) {
