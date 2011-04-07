@@ -25,7 +25,6 @@
 #include "net/base/upload_data_stream.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_handle.h"
-#include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"

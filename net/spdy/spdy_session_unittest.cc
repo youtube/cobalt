@@ -91,13 +91,18 @@ TEST_F(SpdySessionTest, GoAway) {
       spdy_session_pool->Get(pair, BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
-  scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false, false));
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                GURL(),
+                                false,
+                                false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
-                              NULL, http_session->tcp_socket_pool(),
-                              BoundNetLog()));
+            connection->Init(test_host_port_pair.ToString(),
+                             transport_params, MEDIUM,
+                             NULL, http_session->transport_socket_pool(),
+                             BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Flush the SpdySession::OnReadComplete() task.
@@ -198,13 +203,18 @@ TEST_F(SpdySessionTest, OnSettings) {
       spdy_session_pool->Get(pair, BoundNetLog());
   ASSERT_TRUE(spdy_session_pool->HasSession(pair));
 
-  scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false, false));
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                GURL(),
+                                false,
+                                false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
-                              NULL, http_session->tcp_socket_pool(),
-                              BoundNetLog()));
+            connection->Init(test_host_port_pair.ToString(),
+                             transport_params, MEDIUM,
+                             NULL, http_session->transport_socket_pool(),
+                             BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Create 2 streams.  First will succeed.  Second will be pending.
@@ -279,13 +289,18 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
       spdy_session_pool->Get(pair, BoundNetLog());
   ASSERT_TRUE(spdy_session_pool->HasSession(pair));
 
-  scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false, false));
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                GURL(),
+                                false,
+                                false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
-                              NULL, http_session->tcp_socket_pool(),
-                              BoundNetLog()));
+            connection->Init(test_host_port_pair.ToString(),
+                             transport_params, MEDIUM,
+                             NULL, http_session->transport_socket_pool(),
+                             BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Use scoped_ptr to let us invalidate the memory when we want to, to trigger
@@ -374,13 +389,18 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
       spdy_session_pool->Get(pair, BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
-  scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false, false));
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                GURL(),
+                                false,
+                                false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
-                              NULL, http_session->tcp_socket_pool(),
-                              BoundNetLog()));
+            connection->Init(test_host_port_pair.ToString(),
+                             transport_params, MEDIUM,
+                             NULL, http_session->transport_socket_pool(),
+                             BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
   MessageLoop::current()->RunAllPending();
   EXPECT_TRUE(data.at_write_eof());
@@ -439,17 +459,18 @@ TEST_F(SpdySessionTest, IPPooling) {
   EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[0].pair));
 
   HostPortPair test_host_port_pair(test_hosts[0].name, kTestPort);
-  scoped_refptr<TCPSocketParams> tcp_params(
-      new TCPSocketParams(test_host_port_pair,
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
                           MEDIUM,
                           GURL(),
                           false,
                           false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(), tcp_params, MEDIUM,
-                              NULL, http_session->tcp_socket_pool(),
-                              BoundNetLog()));
+            connection->Init(test_host_port_pair.ToString(),
+                             transport_params, MEDIUM,
+                             NULL, http_session->transport_socket_pool(),
+                             BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Flush the SpdySession::OnReadComplete() task.
