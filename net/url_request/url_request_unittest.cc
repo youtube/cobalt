@@ -1256,7 +1256,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
   // populate the cache
   {
     TestDelegate d;
-    URLRequest req(test_server_.GetURL("echoheader?foo"), &d);
+    URLRequest req(test_server_.GetURL("echoheadercache?foo"), &d);
     req.set_context(context);
     HttpRequestHeaders headers;
     headers.SetHeader("foo", "1");
@@ -1268,7 +1268,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
   // expect a cache hit
   {
     TestDelegate d;
-    URLRequest req(test_server_.GetURL("echoheader?foo"), &d);
+    URLRequest req(test_server_.GetURL("echoheadercache?foo"), &d);
     req.set_context(context);
     HttpRequestHeaders headers;
     headers.SetHeader("foo", "1");
@@ -1282,7 +1282,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
   // expect a cache miss
   {
     TestDelegate d;
-    URLRequest req(test_server_.GetURL("echoheader?foo"), &d);
+    URLRequest req(test_server_.GetURL("echoheadercache?foo"), &d);
     req.set_context(context);
     HttpRequestHeaders headers;
     headers.SetHeader("foo", "2");
@@ -2670,7 +2670,7 @@ TEST_F(URLRequestTestHTTP, EmptyAcceptLanguage) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  TestURLRequest req(test_server_.GetURL("echoheaderoverride?Accept-Language"),
+  TestURLRequest req(test_server_.GetURL("echoheader?Accept-Language"),
                                          &d);
   scoped_refptr<URLRequestContext> context = new TestURLRequestContext;
   context->set_accept_language("");
@@ -2687,7 +2687,7 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptLanguage) {
 
   TestDelegate d;
   TestURLRequest
-      req(test_server_.GetURL("echoheaderoverride?Accept-Language"), &d);
+      req(test_server_.GetURL("echoheader?Accept-Language"), &d);
   req.set_context(new TestURLRequestContext());
   HttpRequestHeaders headers;
   headers.SetHeader(HttpRequestHeaders::kAcceptLanguage, "ru");
@@ -2716,7 +2716,7 @@ TEST_F(URLRequestTestHTTP, EmptyAcceptCharset) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  TestURLRequest req(test_server_.GetURL("echoheaderoverride?Accept-Charset"),
+  TestURLRequest req(test_server_.GetURL("echoheader?Accept-Charset"),
                                          &d);
   scoped_refptr<URLRequestContext> context = new TestURLRequestContext;
   context->set_accept_charset("");
@@ -2733,7 +2733,7 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptCharset) {
 
   TestDelegate d;
   TestURLRequest
-      req(test_server_.GetURL("echoheaderoverride?Accept-Charset"), &d);
+      req(test_server_.GetURL("echoheader?Accept-Charset"), &d);
   req.set_context(new TestURLRequestContext());
   HttpRequestHeaders headers;
   headers.SetHeader(HttpRequestHeaders::kAcceptCharset, "koi-8r");
@@ -2762,7 +2762,7 @@ TEST_F(URLRequestTestHTTP, OverrideUserAgent) {
 
   TestDelegate d;
   TestURLRequest
-      req(test_server_.GetURL("echoheaderoverride?User-Agent"), &d);
+      req(test_server_.GetURL("echoheader?User-Agent"), &d);
   req.set_context(new TestURLRequestContext());
   HttpRequestHeaders headers;
   headers.SetHeader(HttpRequestHeaders::kUserAgent, "Lynx (textmode)");
