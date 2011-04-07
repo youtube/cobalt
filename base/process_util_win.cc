@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
+#include "base/sys_info.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
 
@@ -554,12 +555,11 @@ bool CleanupProcesses(const std::wstring& executable_name,
 ///////////////////////////////////////////////////////////////////////////////
 // ProcesMetrics
 
-ProcessMetrics::ProcessMetrics(ProcessHandle process) : process_(process),
-                                                        last_time_(0),
-                                                        last_system_time_(0) {
-  SYSTEM_INFO system_info;
-  GetSystemInfo(&system_info);
-  processor_count_ = system_info.dwNumberOfProcessors;
+ProcessMetrics::ProcessMetrics(ProcessHandle process)
+    : process_(process),
+      processor_count_(base::SysInfo::NumberOfProcessors()),
+      last_time_(0),
+      last_system_time_(0) {
 }
 
 // static
