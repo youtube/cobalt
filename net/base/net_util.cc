@@ -442,11 +442,12 @@ STR GetHeaderParamValueT(const STR& header, const STR& param_name,
 
   typename STR::const_iterator param_end;
   if (*param_begin == '"' && quote_rule == QuoteRule::REMOVE_OUTER_QUOTES) {
-    param_end = find(param_begin+1, header.end(), '"');
-    if (param_end == header.end())
-      return STR();  // poorly formatted param?
-
     ++param_begin;  // skip past the quote.
+    param_end = find(param_begin, header.end(), '"');
+    // If the closing quote is missing, we will treat the rest of the
+    // string as the parameter.  We can't set |param_end| to the
+    // location of the separator (';'), since the separator is
+    // technically quoted. See: http://crbug.com/58840
   } else {
     param_end = find(param_begin+1, header.end(), ';');
   }
