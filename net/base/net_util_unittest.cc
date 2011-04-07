@@ -769,6 +769,8 @@ TEST(NetUtilTest, GetFileNameFromCD) {
     {"content-disposition: name=abcde.pdf", "", L"abcde.pdf"},
     {"content-disposition: inline; filename=\"abc%20de.pdf\"", "",
      L"abc de.pdf"},
+    // Unbalanced quotation mark
+    {"content-disposition: filename=\"abcdef.pdf", "", L"abcdef.pdf"},
     // Whitespaces are converted to a space.
     {"content-disposition: inline; filename=\"abc  \t\nde.pdf\"", "",
      L"abc    de.pdf"},
