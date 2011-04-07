@@ -10,13 +10,14 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
-#include "base/win/windows_version.h"
 
 namespace base {
 
 // static
 int SysInfo::NumberOfProcessors() {
-  return win::OSInfo::GetInstance()->processors();
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  return static_cast<int>(info.dwNumberOfProcessors);
 }
 
 // static
@@ -53,17 +54,12 @@ std::string SysInfo::OperatingSystemName() {
 
 // static
 std::string SysInfo::OperatingSystemVersion() {
-  win::OSInfo* os_info = win::OSInfo::GetInstance();
-  win::OSInfo::VersionNumber version_number = os_info->version_number();
-  std::string version(StringPrintf("%d.%d", version_number.major,
-                                   version_number.minor));
-  win::OSInfo::ServicePack service_pack = os_info->service_pack();
-  if (service_pack.major != 0) {
-    version += StringPrintf(" SP%d", service_pack.major);
-    if (service_pack.minor != 0)
-      version += StringPrintf(".%d", service_pack.minor);
-  }
-  return version;
+  OSVERSIONINFO info = {0};
+  info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+  GetVersionEx(&info);
+
+  return base::StringPrintf("%lu.%lu",
+                            info.dwMajorVersion, info.dwMinorVersion);
 }
 
 // TODO: Implement OperatingSystemVersionComplete, which would include
@@ -92,16 +88,21 @@ int SysInfo::DisplayCount() {
 
 // static
 size_t SysInfo::VMAllocationGranularity() {
-  return win::OSInfo::GetInstance()->allocation_granularity();
+  SYSTEM_INFO sysinfo;
+  GetSystemInfo(&sysinfo);
+
+  return sysinfo.dwAllocationGranularity;
 }
 
 // static
-void SysInfo::OperatingSystemVersionNumbers(int32* major_version,
-                                            int32* minor_version,
-                                            int32* bugfix_version) {
-  win::OSInfo* os_info = win::OSInfo::GetInstance();
-  *major_version = os_info->version_number().major;
-  *minor_version = os_info->version_number().minor;
+void SysInfo::OperatingSystemVersionNumbers(int32 *major_version,
+                                            int32 *minor_version,
+                                            int32 *bugfix_version) {
+  OSVERSIONINFO info = {0};
+  info.dwOSVersionInfoSize = sizeof(info);
+  GetVersionEx(&info);
+  *major_version = info.dwMajorVersion;
+  *minor_version = info.dwMinorVersion;
   *bugfix_version = 0;
 }
 
