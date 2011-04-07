@@ -37,7 +37,7 @@ int IPEndPoint::GetFamily() const {
     }
     default: {
       NOTREACHED() << "Bad IP address";
-      return AF_INET;
+      return AF_UNSPEC;
     }
   }
 }
