@@ -278,7 +278,7 @@ class TestPageHandler(BasePageHandler):
       self.DownloadHandler,
       self.DownloadFinishHandler,
       self.EchoHeader,
-      self.EchoHeaderOverride,
+      self.EchoHeaderCache,
       self.EchoAllHandler,
       self.FileHandler,
       self.SetCookieHandler,
@@ -555,19 +555,12 @@ class TestPageHandler(BasePageHandler):
 
   def EchoHeader(self):
     """This handler echoes back the value of a specific request header."""
-    """The only difference between this function and the EchoHeaderOverride"""
-    """function is in the parameter being passed to the helper function"""
     return self.EchoHeaderHelper("/echoheader")
 
-  def EchoHeaderOverride(self):
-    """This handler echoes back the value of a specific request header."""
-    """The UrlRequest unit tests also execute for ChromeFrame which uses"""
-    """IE to issue HTTP requests using the host network stack."""
-    """The Accept and Charset tests which expect the server to echo back"""
-    """the corresponding headers fail here as IE returns cached responses"""
-    """The EchoHeaderOverride parameter is an easy way to ensure that IE"""
-    """treats this request as a new request and does not cache it."""
-    return self.EchoHeaderHelper("/echoheaderoverride")
+    """This function echoes back the value of a specific request header"""
+    """while allowing caching for 16 hours."""
+  def EchoHeaderCache(self):
+    return self.EchoHeaderHelper("/echoheadercache")
 
   def EchoHeaderHelper(self, echo_header):
     """This function echoes back the value of the request header passed in."""
@@ -580,7 +573,10 @@ class TestPageHandler(BasePageHandler):
 
     self.send_response(200)
     self.send_header('Content-type', 'text/plain')
-    self.send_header('Cache-control', 'max-age=60000')
+    if echo_header == '/echoheadercache':
+      self.send_header('Cache-control', 'max-age=60000')
+    else:
+      self.send_header('Cache-control', 'no-cache')
     # insert a vary header to properly indicate that the cachability of this
     # request is subject to value of the request header being echoed.
     if len(header_name) > 0:
