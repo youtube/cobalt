@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/values.h"
+#include "net/base/address_list.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/http/http_network_session.h"
 #include "net/spdy/spdy_session.h"

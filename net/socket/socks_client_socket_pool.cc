@@ -13,21 +13,21 @@
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
-#include "net/socket/tcp_client_socket_pool.h"
+#include "net/socket/transport_client_socket_pool.h"
 
 namespace net {
 
 SOCKSSocketParams::SOCKSSocketParams(
-    const scoped_refptr<TCPSocketParams>& proxy_server,
+    const scoped_refptr<TransportSocketParams>& proxy_server,
     bool socks_v5,
     const HostPortPair& host_port_pair,
     RequestPriority priority,
     const GURL& referrer)
-    : tcp_params_(proxy_server),
+    : transport_params_(proxy_server),
       destination_(host_port_pair),
       socks_v5_(socks_v5) {
-  if (tcp_params_)
-    ignore_limits_ = tcp_params_->ignore_limits();
+  if (transport_params_)
+    ignore_limits_ = transport_params_->ignore_limits();
   else
     ignore_limits_ = false;
   // The referrer is used by the DNS prefetch system to correlate resolutions
@@ -47,14 +47,14 @@ SOCKSConnectJob::SOCKSConnectJob(
     const std::string& group_name,
     const scoped_refptr<SOCKSSocketParams>& socks_params,
     const base::TimeDelta& timeout_duration,
-    TCPClientSocketPool* tcp_pool,
+    TransportClientSocketPool* transport_pool,
     HostResolver* host_resolver,
     Delegate* delegate,
     NetLog* net_log)
     : ConnectJob(group_name, timeout_duration, delegate,
                  BoundNetLog::Make(net_log, NetLog::SOURCE_CONNECT_JOB)),
       socks_params_(socks_params),
-      tcp_pool_(tcp_pool),
+      transport_pool_(transport_pool),
       resolver_(host_resolver),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(this, &SOCKSConnectJob::OnIOComplete)) {
@@ -62,14 +62,15 @@ SOCKSConnectJob::SOCKSConnectJob(
 
 SOCKSConnectJob::~SOCKSConnectJob() {
   // We don't worry about cancelling the tcp socket since the destructor in
-  // scoped_ptr<ClientSocketHandle> tcp_socket_handle_ will take care of it.
+  // scoped_ptr<ClientSocketHandle> transport_socket_handle_ will take care of
+  // it.
 }
 
 LoadState SOCKSConnectJob::GetLoadState() const {
   switch (next_state_) {
-    case STATE_TCP_CONNECT:
-    case STATE_TCP_CONNECT_COMPLETE:
-      return tcp_socket_handle_->GetLoadState();
+    case STATE_TRANSPORT_CONNECT:
+    case STATE_TRANSPORT_CONNECT_COMPLETE:
+      return transport_socket_handle_->GetLoadState();
     case STATE_SOCKS_CONNECT:
     case STATE_SOCKS_CONNECT_COMPLETE:
       return LOAD_STATE_CONNECTING;
@@ -93,12 +94,12 @@ int SOCKSConnectJob::DoLoop(int result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
-      case STATE_TCP_CONNECT:
+      case STATE_TRANSPORT_CONNECT:
         DCHECK_EQ(OK, rv);
-        rv = DoTCPConnect();
+        rv = DoTransportConnect();
         break;
-      case STATE_TCP_CONNECT_COMPLETE:
-        rv = DoTCPConnectComplete(rv);
+      case STATE_TRANSPORT_CONNECT_COMPLETE:
+        rv = DoTransportConnectComplete(rv);
         break;
       case STATE_SOCKS_CONNECT:
         DCHECK_EQ(OK, rv);
@@ -117,15 +118,18 @@ int SOCKSConnectJob::DoLoop(int result) {
   return rv;
 }
 
-int SOCKSConnectJob::DoTCPConnect() {
-  next_state_ = STATE_TCP_CONNECT_COMPLETE;
-  tcp_socket_handle_.reset(new ClientSocketHandle());
-  return tcp_socket_handle_->Init(group_name(), socks_params_->tcp_params(),
-                                  socks_params_->destination().priority(),
-                                  &callback_, tcp_pool_, net_log());
+int SOCKSConnectJob::DoTransportConnect() {
+  next_state_ = STATE_TRANSPORT_CONNECT_COMPLETE;
+  transport_socket_handle_.reset(new ClientSocketHandle());
+  return transport_socket_handle_->Init(group_name(),
+                                        socks_params_->transport_params(),
+                                        socks_params_->destination().priority(),
+                                        &callback_,
+                                        transport_pool_,
+                                        net_log());
 }
 
-int SOCKSConnectJob::DoTCPConnectComplete(int result) {
+int SOCKSConnectJob::DoTransportConnectComplete(int result) {
   if (result != OK)
     return ERR_PROXY_CONNECTION_FAILED;
 
@@ -142,10 +146,10 @@ int SOCKSConnectJob::DoSOCKSConnect() {
 
   // Add a SOCKS connection on top of the tcp socket.
   if (socks_params_->is_socks_v5()) {
-    socket_.reset(new SOCKS5ClientSocket(tcp_socket_handle_.release(),
+    socket_.reset(new SOCKS5ClientSocket(transport_socket_handle_.release(),
                                          socks_params_->destination()));
   } else {
-    socket_.reset(new SOCKSClientSocket(tcp_socket_handle_.release(),
+    socket_.reset(new SOCKSClientSocket(transport_socket_handle_.release(),
                                         socks_params_->destination(),
                                         resolver_));
   }
@@ -163,7 +167,7 @@ int SOCKSConnectJob::DoSOCKSConnectComplete(int result) {
 }
 
 int SOCKSConnectJob::ConnectInternal() {
-  next_state_ = STATE_TCP_CONNECT;
+  next_state_ = STATE_TRANSPORT_CONNECT;
   return DoLoop(OK);
 }
 
@@ -171,13 +175,18 @@ ConnectJob* SOCKSClientSocketPool::SOCKSConnectJobFactory::NewConnectJob(
     const std::string& group_name,
     const PoolBase::Request& request,
     ConnectJob::Delegate* delegate) const {
-  return new SOCKSConnectJob(group_name, request.params(), ConnectionTimeout(),
-                             tcp_pool_, host_resolver_, delegate, net_log_);
+  return new SOCKSConnectJob(group_name,
+                             request.params(),
+                             ConnectionTimeout(),
+                             transport_pool_,
+                             host_resolver_,
+                             delegate,
+                             net_log_);
 }
 
 base::TimeDelta
 SOCKSClientSocketPool::SOCKSConnectJobFactory::ConnectionTimeout() const {
-  return tcp_pool_->ConnectionTimeout() +
+  return transport_pool_->ConnectionTimeout() +
       base::TimeDelta::FromSeconds(kSOCKSConnectJobTimeoutInSeconds);
 }
 
@@ -186,14 +195,16 @@ SOCKSClientSocketPool::SOCKSClientSocketPool(
     int max_sockets_per_group,
     ClientSocketPoolHistograms* histograms,
     HostResolver* host_resolver,
-    TCPClientSocketPool* tcp_pool,
+    TransportClientSocketPool* transport_pool,
     NetLog* net_log)
-    : tcp_pool_(tcp_pool),
+    : transport_pool_(transport_pool),
       base_(max_sockets, max_sockets_per_group, histograms,
             base::TimeDelta::FromSeconds(
                 ClientSocketPool::unused_idle_socket_timeout()),
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
-            new SOCKSConnectJobFactory(tcp_pool, host_resolver, net_log)) {
+            new SOCKSConnectJobFactory(transport_pool,
+                                       host_resolver,
+                                       net_log)) {
 }
 
 SOCKSClientSocketPool::~SOCKSClientSocketPool() {}
@@ -261,9 +272,9 @@ DictionaryValue* SOCKSClientSocketPool::GetInfoAsValue(
   DictionaryValue* dict = base_.GetInfoAsValue(name, type);
   if (include_nested_pools) {
     ListValue* list = new ListValue();
-    list->Append(tcp_pool_->GetInfoAsValue("tcp_socket_pool",
-                                           "tcp_socket_pool",
-                                           false));
+    list->Append(transport_pool_->GetInfoAsValue("transport_socket_pool",
+                                                 "transport_socket_pool",
+                                                 false));
     dict->Set("nested_pools", list);
   }
   return dict;

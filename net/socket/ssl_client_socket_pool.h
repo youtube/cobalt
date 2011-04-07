@@ -34,15 +34,15 @@ class SOCKSClientSocketPool;
 class SOCKSSocketParams;
 class SSLClientSocket;
 class SSLHostInfoFactory;
-class TCPClientSocketPool;
-class TCPSocketParams;
+class TransportSocketParams;
+class TransportClientSocketPool;
 struct RRResponse;
 
 // SSLSocketParams only needs the socket params for the transport socket
 // that will be used (denoted by |proxy|).
 class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
  public:
-  SSLSocketParams(const scoped_refptr<TCPSocketParams>& tcp_params,
+  SSLSocketParams(const scoped_refptr<TransportSocketParams>& transport_params,
                   const scoped_refptr<SOCKSSocketParams>& socks_params,
                   const scoped_refptr<HttpProxySocketParams>& http_proxy_params,
                   ProxyServer::Scheme proxy,
@@ -52,7 +52,9 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
                   bool force_spdy_over_ssl,
                   bool want_spdy_over_npn);
 
-  const scoped_refptr<TCPSocketParams>& tcp_params() { return tcp_params_; }
+  const scoped_refptr<TransportSocketParams>& transport_params() {
+      return transport_params_;
+  }
   const scoped_refptr<HttpProxySocketParams>& http_proxy_params() {
     return http_proxy_params_;
   }
@@ -71,7 +73,7 @@ class SSLSocketParams : public base::RefCounted<SSLSocketParams> {
   friend class base::RefCounted<SSLSocketParams>;
   ~SSLSocketParams();
 
-  const scoped_refptr<TCPSocketParams> tcp_params_;
+  const scoped_refptr<TransportSocketParams> transport_params_;
   const scoped_refptr<HttpProxySocketParams> http_proxy_params_;
   const scoped_refptr<SOCKSSocketParams> socks_params_;
   const ProxyServer::Scheme proxy_;
@@ -93,7 +95,7 @@ class SSLConnectJob : public ConnectJob {
       const std::string& group_name,
       const scoped_refptr<SSLSocketParams>& params,
       const base::TimeDelta& timeout_duration,
-      TCPClientSocketPool* tcp_pool,
+      TransportClientSocketPool* transport_pool,
       SOCKSClientSocketPool* socks_pool,
       HttpProxyClientSocketPool* http_proxy_pool,
       ClientSocketFactory* client_socket_factory,
@@ -113,8 +115,8 @@ class SSLConnectJob : public ConnectJob {
 
  private:
   enum State {
-    STATE_TCP_CONNECT,
-    STATE_TCP_CONNECT_COMPLETE,
+    STATE_TRANSPORT_CONNECT,
+    STATE_TRANSPORT_CONNECT_COMPLETE,
     STATE_SOCKS_CONNECT,
     STATE_SOCKS_CONNECT_COMPLETE,
     STATE_TUNNEL_CONNECT,
@@ -129,8 +131,8 @@ class SSLConnectJob : public ConnectJob {
   // Runs the state transition loop.
   int DoLoop(int result);
 
-  int DoTCPConnect();
-  int DoTCPConnectComplete(int result);
+  int DoTransportConnect();
+  int DoTransportConnectComplete(int result);
   int DoSOCKSConnect();
   int DoSOCKSConnectComplete(int result);
   int DoTunnelConnect();
@@ -144,7 +146,7 @@ class SSLConnectJob : public ConnectJob {
   virtual int ConnectInternal();
 
   scoped_refptr<SSLSocketParams> params_;
-  TCPClientSocketPool* const tcp_pool_;
+  TransportClientSocketPool* const transport_pool_;
   SOCKSClientSocketPool* const socks_pool_;
   HttpProxyClientSocketPool* const http_proxy_pool_;
   ClientSocketFactory* const client_socket_factory_;
@@ -183,7 +185,7 @@ class SSLClientSocketPool : public ClientSocketPool,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
       ClientSocketFactory* client_socket_factory,
-      TCPClientSocketPool* tcp_pool,
+      TransportClientSocketPool* transport_pool,
       SOCKSClientSocketPool* socks_pool,
       HttpProxyClientSocketPool* http_proxy_pool,
       SSLConfigService* ssl_config_service,
@@ -242,7 +244,7 @@ class SSLClientSocketPool : public ClientSocketPool,
   class SSLConnectJobFactory : public PoolBase::ConnectJobFactory {
    public:
     SSLConnectJobFactory(
-        TCPClientSocketPool* tcp_pool,
+        TransportClientSocketPool* transport_pool,
         SOCKSClientSocketPool* socks_pool,
         HttpProxyClientSocketPool* http_proxy_pool,
         ClientSocketFactory* client_socket_factory,
@@ -264,7 +266,7 @@ class SSLClientSocketPool : public ClientSocketPool,
     virtual base::TimeDelta ConnectionTimeout() const { return timeout_; }
 
    private:
-    TCPClientSocketPool* const tcp_pool_;
+    TransportClientSocketPool* const transport_pool_;
     SOCKSClientSocketPool* const socks_pool_;
     HttpProxyClientSocketPool* const http_proxy_pool_;
     ClientSocketFactory* const client_socket_factory_;
@@ -279,7 +281,7 @@ class SSLClientSocketPool : public ClientSocketPool,
     DISALLOW_COPY_AND_ASSIGN(SSLConnectJobFactory);
   };
 
-  TCPClientSocketPool* const tcp_pool_;
+  TransportClientSocketPool* const transport_pool_;
   SOCKSClientSocketPool* const socks_pool_;
   HttpProxyClientSocketPool* const http_proxy_pool_;
   PoolBase base_;

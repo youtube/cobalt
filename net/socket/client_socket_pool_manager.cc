@@ -23,7 +23,7 @@
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket_pool.h"
-#include "net/socket/tcp_client_socket_pool.h"
+#include "net/socket/transport_client_socket_pool.h"
 
 namespace net {
 
@@ -69,7 +69,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
                          int num_preconnect_streams,
                          ClientSocketHandle* socket_handle,
                          CompletionCallback* callback) {
-  scoped_refptr<TCPSocketParams> tcp_params;
+  scoped_refptr<TransportSocketParams> tcp_params;
   scoped_refptr<HttpProxySocketParams> http_proxy_params;
   scoped_refptr<SOCKSSocketParams> socks_params;
   scoped_ptr<HostPortPair> proxy_host_port;
@@ -98,7 +98,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
 
   bool ignore_limits = (request_info.load_flags & LOAD_IGNORE_LIMITS) != 0;
   if (proxy_info.is_direct()) {
-    tcp_params = new TCPSocketParams(origin_host_port,
+    tcp_params = new TransportSocketParams(origin_host_port,
                                      request_info.priority,
                                      request_info.referrer,
                                      disable_resolver_cache,
@@ -106,8 +106,8 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
   } else {
     ProxyServer proxy_server = proxy_info.proxy_server();
     proxy_host_port.reset(new HostPortPair(proxy_server.host_port_pair()));
-    scoped_refptr<TCPSocketParams> proxy_tcp_params(
-        new TCPSocketParams(*proxy_host_port,
+    scoped_refptr<TransportSocketParams> proxy_tcp_params(
+        new TransportSocketParams(*proxy_host_port,
                             request_info.priority,
                             request_info.referrer,
                             disable_resolver_cache,
@@ -220,7 +220,7 @@ int InitSocketPoolHelper(const HttpRequestInfo& request_info,
 
   DCHECK(proxy_info.is_direct());
 
-  TCPClientSocketPool* pool = session->tcp_socket_pool();
+  TransportClientSocketPool* pool = session->transport_socket_pool();
   if (num_preconnect_streams) {
     RequestSocketsForPool(pool, connection_group, tcp_params,
                           num_preconnect_streams, net_log);
@@ -253,10 +253,10 @@ ClientSocketPoolManager::ClientSocketPoolManager(
       ssl_host_info_factory_(ssl_host_info_factory),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
-      tcp_pool_histograms_("TCP"),
-      tcp_socket_pool_(new TCPClientSocketPool(
+      transport_pool_histograms_("TCP"),
+      transport_socket_pool_(new TransportClientSocketPool(
           g_max_sockets, g_max_sockets_per_group,
-          &tcp_pool_histograms_,
+          &transport_pool_histograms_,
           host_resolver,
           socket_factory_,
           net_log)),
@@ -270,15 +270,15 @@ ClientSocketPoolManager::ClientSocketPoolManager(
           dns_cert_checker,
           ssl_host_info_factory,
           socket_factory,
-          tcp_socket_pool_.get(),
+          transport_socket_pool_.get(),
           NULL /* no socks proxy */,
           NULL /* no http proxy */,
           ssl_config_service,
           net_log)),
-      tcp_for_socks_pool_histograms_("TCPforSOCKS"),
+      transport_for_socks_pool_histograms_("TCPforSOCKS"),
       socks_pool_histograms_("SOCK"),
-      tcp_for_http_proxy_pool_histograms_("TCPforHTTPProxy"),
-      tcp_for_https_proxy_pool_histograms_("TCPforHTTPSProxy"),
+      transport_for_http_proxy_pool_histograms_("TCPforHTTPProxy"),
+      transport_for_https_proxy_pool_histograms_("TCPforHTTPSProxy"),
       ssl_for_https_proxy_pool_histograms_("SSLforHTTPSProxy"),
       http_proxy_pool_histograms_("HTTPProxy"),
       ssl_socket_pool_for_proxies_histograms_("SSLForProxies") {
@@ -311,15 +311,15 @@ void ClientSocketPoolManager::FlushSocketPools() {
        ++it)
     it->second->Flush();
 
-  for (TCPSocketPoolMap::const_iterator it =
-       tcp_socket_pools_for_https_proxies_.begin();
-       it != tcp_socket_pools_for_https_proxies_.end();
+  for (TransportSocketPoolMap::const_iterator it =
+       transport_socket_pools_for_https_proxies_.begin();
+       it != transport_socket_pools_for_https_proxies_.end();
        ++it)
     it->second->Flush();
 
-  for (TCPSocketPoolMap::const_iterator it =
-       tcp_socket_pools_for_http_proxies_.begin();
-       it != tcp_socket_pools_for_http_proxies_.end();
+  for (TransportSocketPoolMap::const_iterator it =
+       transport_socket_pools_for_http_proxies_.begin();
+       it != transport_socket_pools_for_http_proxies_.end();
        ++it)
     it->second->Flush();
 
@@ -329,14 +329,14 @@ void ClientSocketPoolManager::FlushSocketPools() {
        ++it)
     it->second->Flush();
 
-  for (TCPSocketPoolMap::const_iterator it =
-       tcp_socket_pools_for_socks_proxies_.begin();
-       it != tcp_socket_pools_for_socks_proxies_.end();
+  for (TransportSocketPoolMap::const_iterator it =
+       transport_socket_pools_for_socks_proxies_.begin();
+       it != transport_socket_pools_for_socks_proxies_.end();
        ++it)
     it->second->Flush();
 
   ssl_socket_pool_->Flush();
-  tcp_socket_pool_->Flush();
+  transport_socket_pool_->Flush();
 }
 
 void ClientSocketPoolManager::CloseIdleSockets() {
@@ -360,15 +360,15 @@ void ClientSocketPoolManager::CloseIdleSockets() {
        ++it)
     it->second->CloseIdleSockets();
 
-  for (TCPSocketPoolMap::const_iterator it =
-       tcp_socket_pools_for_https_proxies_.begin();
-       it != tcp_socket_pools_for_https_proxies_.end();
+  for (TransportSocketPoolMap::const_iterator it =
+       transport_socket_pools_for_https_proxies_.begin();
+       it != transport_socket_pools_for_https_proxies_.end();
        ++it)
     it->second->CloseIdleSockets();
 
-  for (TCPSocketPoolMap::const_iterator it =
-       tcp_socket_pools_for_http_proxies_.begin();
-       it != tcp_socket_pools_for_http_proxies_.end();
+  for (TransportSocketPoolMap::const_iterator it =
+       transport_socket_pools_for_http_proxies_.begin();
+       it != transport_socket_pools_for_http_proxies_.end();
        ++it)
     it->second->CloseIdleSockets();
 
@@ -378,33 +378,33 @@ void ClientSocketPoolManager::CloseIdleSockets() {
        ++it)
     it->second->CloseIdleSockets();
 
-  for (TCPSocketPoolMap::const_iterator it =
-       tcp_socket_pools_for_socks_proxies_.begin();
-       it != tcp_socket_pools_for_socks_proxies_.end();
+  for (TransportSocketPoolMap::const_iterator it =
+       transport_socket_pools_for_socks_proxies_.begin();
+       it != transport_socket_pools_for_socks_proxies_.end();
        ++it)
     it->second->CloseIdleSockets();
 
   ssl_socket_pool_->CloseIdleSockets();
-  tcp_socket_pool_->CloseIdleSockets();
+  transport_socket_pool_->CloseIdleSockets();
 }
 
 SOCKSClientSocketPool* ClientSocketPoolManager::GetSocketPoolForSOCKSProxy(
     const HostPortPair& socks_proxy) {
   SOCKSSocketPoolMap::const_iterator it = socks_socket_pools_.find(socks_proxy);
   if (it != socks_socket_pools_.end()) {
-    DCHECK(ContainsKey(tcp_socket_pools_for_socks_proxies_, socks_proxy));
+    DCHECK(ContainsKey(transport_socket_pools_for_socks_proxies_, socks_proxy));
     return it->second;
   }
 
-  DCHECK(!ContainsKey(tcp_socket_pools_for_socks_proxies_, socks_proxy));
+  DCHECK(!ContainsKey(transport_socket_pools_for_socks_proxies_, socks_proxy));
 
-  std::pair<TCPSocketPoolMap::iterator, bool> tcp_ret =
-      tcp_socket_pools_for_socks_proxies_.insert(
+  std::pair<TransportSocketPoolMap::iterator, bool> tcp_ret =
+      transport_socket_pools_for_socks_proxies_.insert(
           std::make_pair(
               socks_proxy,
-              new TCPClientSocketPool(
+              new TransportClientSocketPool(
                   g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                  &tcp_for_socks_pool_histograms_,
+                  &transport_for_socks_pool_histograms_,
                   host_resolver_,
                   socket_factory_,
                   net_log_)));
@@ -427,35 +427,35 @@ HttpProxyClientSocketPool* ClientSocketPoolManager::GetSocketPoolForHTTPProxy(
   HTTPProxySocketPoolMap::const_iterator it =
       http_proxy_socket_pools_.find(http_proxy);
   if (it != http_proxy_socket_pools_.end()) {
-    DCHECK(ContainsKey(tcp_socket_pools_for_http_proxies_, http_proxy));
-    DCHECK(ContainsKey(tcp_socket_pools_for_https_proxies_, http_proxy));
+    DCHECK(ContainsKey(transport_socket_pools_for_http_proxies_, http_proxy));
+    DCHECK(ContainsKey(transport_socket_pools_for_https_proxies_, http_proxy));
     DCHECK(ContainsKey(ssl_socket_pools_for_https_proxies_, http_proxy));
     return it->second;
   }
 
-  DCHECK(!ContainsKey(tcp_socket_pools_for_http_proxies_, http_proxy));
-  DCHECK(!ContainsKey(tcp_socket_pools_for_https_proxies_, http_proxy));
+  DCHECK(!ContainsKey(transport_socket_pools_for_http_proxies_, http_proxy));
+  DCHECK(!ContainsKey(transport_socket_pools_for_https_proxies_, http_proxy));
   DCHECK(!ContainsKey(ssl_socket_pools_for_https_proxies_, http_proxy));
 
-  std::pair<TCPSocketPoolMap::iterator, bool> tcp_http_ret =
-      tcp_socket_pools_for_http_proxies_.insert(
+  std::pair<TransportSocketPoolMap::iterator, bool> tcp_http_ret =
+      transport_socket_pools_for_http_proxies_.insert(
           std::make_pair(
               http_proxy,
-              new TCPClientSocketPool(
+              new TransportClientSocketPool(
                   g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                  &tcp_for_http_proxy_pool_histograms_,
+                  &transport_for_http_proxy_pool_histograms_,
                   host_resolver_,
                   socket_factory_,
                   net_log_)));
   DCHECK(tcp_http_ret.second);
 
-  std::pair<TCPSocketPoolMap::iterator, bool> tcp_https_ret =
-      tcp_socket_pools_for_https_proxies_.insert(
+  std::pair<TransportSocketPoolMap::iterator, bool> tcp_https_ret =
+      transport_socket_pools_for_https_proxies_.insert(
           std::make_pair(
               http_proxy,
-              new TCPClientSocketPool(
+              new TransportClientSocketPool(
                   g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                  &tcp_for_https_proxy_pool_histograms_,
+                  &transport_for_https_proxy_pool_histograms_,
                   host_resolver_,
                   socket_factory_,
                   net_log_)));
@@ -553,11 +553,12 @@ void ClientSocketPoolManager::set_max_sockets_per_proxy_server(
 
 Value* ClientSocketPoolManager::SocketPoolInfoToValue() const {
   ListValue* list = new ListValue();
-  list->Append(tcp_socket_pool_->GetInfoAsValue("tcp_socket_pool",
-                                                "tcp_socket_pool",
+  list->Append(transport_socket_pool_->GetInfoAsValue("transport_socket_pool",
+                                                "transport_socket_pool",
                                                 false));
-  // Third parameter is false because |ssl_socket_pool_| uses |tcp_socket_pool_|
-  // internally, and do not want to add it a second time.
+  // Third parameter is false because |ssl_socket_pool_| uses
+  // |transport_socket_pool_| internally, and do not want to add it a second
+  // time.
   list->Append(ssl_socket_pool_->GetInfoAsValue("ssl_socket_pool",
                                                 "ssl_socket_pool",
                                                 false));

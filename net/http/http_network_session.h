@@ -87,8 +87,8 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
     return &alternate_protocols_;
   }
 
-  TCPClientSocketPool* tcp_socket_pool() {
-    return socket_pool_manager_.tcp_socket_pool();
+  TransportClientSocketPool* transport_socket_pool() {
+    return socket_pool_manager_.transport_socket_pool();
   }
 
   SSLClientSocketPool* ssl_socket_pool() {
