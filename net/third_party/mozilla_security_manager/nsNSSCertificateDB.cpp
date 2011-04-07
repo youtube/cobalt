@@ -56,7 +56,7 @@ bool ImportCACerts(const net::CertificateList& certificates,
                    net::X509Certificate* root,
                    unsigned int trustBits,
                    net::CertDatabase::ImportCertFailureList* not_imported) {
-  base::ScopedPK11Slot slot(base::GetDefaultNSSKeySlot());
+  base::ScopedPK11Slot slot(base::GetPublicNSSKeySlot());
   if (!slot.get()) {
     LOG(ERROR) << "Couldn't get internal key slot!";
     return false;
@@ -163,7 +163,7 @@ bool ImportCACerts(const net::CertificateList& certificates,
 // Based on nsNSSCertificateDB::ImportServerCertificate.
 bool ImportServerCert(const net::CertificateList& certificates,
                       net::CertDatabase::ImportCertFailureList* not_imported) {
-  base::ScopedPK11Slot slot(base::GetDefaultNSSKeySlot());
+  base::ScopedPK11Slot slot(base::GetPublicNSSKeySlot());
   if (!slot.get()) {
     LOG(ERROR) << "Couldn't get internal key slot!";
     return false;
