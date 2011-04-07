@@ -30,13 +30,16 @@ class SpdyHttpStreamTest : public testing::Test {
     session_deps_.socket_factory->AddSocketDataProvider(data_.get());
     http_session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps_);
     session_ = http_session_->spdy_session_pool()->Get(pair, BoundNetLog());
-    tcp_params_ = new TCPSocketParams(host_port_pair,
+    transport_params_ = new TransportSocketParams(host_port_pair,
                                       MEDIUM, GURL(), false, false);
     TestCompletionCallback callback;
     scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
     EXPECT_EQ(ERR_IO_PENDING,
-              connection->Init(host_port_pair.ToString(), tcp_params_, MEDIUM,
-                                &callback, http_session_->tcp_socket_pool(),
+              connection->Init(host_port_pair.ToString(),
+                                transport_params_,
+                                MEDIUM,
+                                &callback,
+                                http_session_->transport_socket_pool(),
                                 BoundNetLog()));
     EXPECT_EQ(OK, callback.WaitForResult());
     return session_->InitializeWithSocket(connection.release(), false, OK);
@@ -45,7 +48,7 @@ class SpdyHttpStreamTest : public testing::Test {
   scoped_refptr<OrderedSocketData> data_;
   scoped_refptr<HttpNetworkSession> http_session_;
   scoped_refptr<SpdySession> session_;
-  scoped_refptr<TCPSocketParams> tcp_params_;
+  scoped_refptr<TransportSocketParams> transport_params_;
 };
 
 TEST_F(SpdyHttpStreamTest, SendRequest) {

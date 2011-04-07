@@ -52,10 +52,10 @@ class DeterministicSocketDataTest : public PlatformTest {
 
   GURL url_;
   HostPortPair endpoint_;
-  scoped_refptr<TCPSocketParams> tcp_params_;
+  scoped_refptr<TransportSocketParams> tcp_params_;
   ClientSocketPoolHistograms histograms_;
   DeterministicMockClientSocketFactory socket_factory_;
-  MockTCPClientSocketPool socket_pool_;
+  MockTransportClientSocketPool socket_pool_;
   ClientSocketHandle connection_;
 
   DISALLOW_COPY_AND_ASSIGN(DeterministicSocketDataTest);
@@ -70,7 +70,11 @@ DeterministicSocketDataTest::DeterministicSocketDataTest()
       connect_data_(false, OK),
       url_("https://www.google.com"),
       endpoint_("www.google.com", 443),
-      tcp_params_(new TCPSocketParams(endpoint_, LOWEST, url_, false, false)),
+      tcp_params_(new TransportSocketParams(endpoint_,
+                                            LOWEST,
+                                            url_,
+                                            false,
+                                            false)),
       histograms_(""),
       socket_pool_(10, 10, &histograms_, &socket_factory_) {
 }
@@ -91,9 +95,12 @@ void DeterministicSocketDataTest::Initialize(MockRead* reads,
 
   // Perform the TCP connect
   EXPECT_EQ(OK,
-            connection_.Init(endpoint_.ToString(), tcp_params_,
-                             LOWEST, NULL, (TCPClientSocketPool*)&socket_pool_,
-                             BoundNetLog()));
+            connection_.Init(endpoint_.ToString(),
+                tcp_params_,
+                LOWEST,
+                NULL,
+                reinterpret_cast<TransportClientSocketPool*>(&socket_pool_),
+                BoundNetLog()));
   sock_ = connection_.socket();
 }
 

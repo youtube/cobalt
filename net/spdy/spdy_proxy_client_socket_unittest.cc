@@ -119,7 +119,7 @@ class SpdyProxyClientSocketTest : public PlatformTest {
   HostPortPair endpoint_host_port_pair_;
   ProxyServer proxy_;
   HostPortProxyPair endpoint_host_port_proxy_pair_;
-  scoped_refptr<TCPSocketParams> tcp_params_;
+  scoped_refptr<TransportSocketParams> transport_params_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyProxyClientSocketTest);
 };
@@ -142,8 +142,11 @@ SpdyProxyClientSocketTest::SpdyProxyClientSocketTest()
       endpoint_host_port_pair_(kOriginHost, kOriginPort),
       proxy_(ProxyServer::SCHEME_HTTPS, proxy_host_port_),
       endpoint_host_port_proxy_pair_(endpoint_host_port_pair_, proxy_),
-      tcp_params_(new TCPSocketParams(proxy_host_port_, LOWEST, url_, false,
-                                      false)) {
+      transport_params_(new TransportSocketParams(proxy_host_port_,
+                                            LOWEST,
+                                            url_,
+                                            false,
+                                            false)) {
 }
 
 void SpdyProxyClientSocketTest::TearDown() {
@@ -181,8 +184,9 @@ void SpdyProxyClientSocketTest::Initialize(MockRead* reads,
   // Perform the TCP connect
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
-            connection->Init(endpoint_host_port_pair_.ToString(), tcp_params_,
-                             LOWEST, NULL, session_->tcp_socket_pool(),
+            connection->Init(endpoint_host_port_pair_.ToString(),
+                             transport_params_,
+                             LOWEST, NULL, session_->transport_socket_pool(),
                              BoundNetLog()));
   spdy_session_->InitializeWithSocket(connection.release(), false, OK);
 
