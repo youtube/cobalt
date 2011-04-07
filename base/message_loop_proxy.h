@@ -27,8 +27,10 @@ class BASE_API MessageLoopProxy
   // either post the Task to the MessageLoop (if it's still alive), or to
   // delete the Task otherwise.
   // They return true iff the thread existed and the task was posted.  Note that
-  // even if the task is posted, there's no guarantee that it will run, since
-  // the target thread may already have a Quit message in its queue.
+  // even if the task is posted, there's no guarantee that it will run; for
+  // example the target loop may already be quitting, or in the case of a
+  // delayed task a Quit message may preempt it in the message loop queue.
+  // Conversely, a return value of false is a guarantee the task will not run.
   virtual bool PostTask(const tracked_objects::Location& from_here,
                         Task* task) = 0;
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
