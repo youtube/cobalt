@@ -526,9 +526,16 @@ class ClientSocketPoolBaseTest : public testing::Test {
  protected:
   ClientSocketPoolBaseTest()
       : params_(new TestSocketParams()),
-        histograms_("ClientSocketPoolTest") {}
+        histograms_("ClientSocketPoolTest") {
+    connect_backup_jobs_enabled_ =
+        internal::ClientSocketPoolBaseHelper::connect_backup_jobs_enabled();
+    internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(true);
+  }
 
-  virtual ~ClientSocketPoolBaseTest() {}
+  virtual ~ClientSocketPoolBaseTest() {
+    internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
+        connect_backup_jobs_enabled_);
+  }
 
   void CreatePool(int max_sockets, int max_sockets_per_group) {
     CreatePoolWithIdleTimeouts(
@@ -577,6 +584,7 @@ class ClientSocketPoolBaseTest : public testing::Test {
   ScopedVector<TestSocketRequest>* requests() { return test_base_.requests(); }
   size_t completion_count() const { return test_base_.completion_count(); }
 
+  bool connect_backup_jobs_enabled_;
   MockClientSocketFactory client_socket_factory_;
   TestConnectJobFactory* connect_job_factory_;
   scoped_refptr<TestSocketParams> params_;

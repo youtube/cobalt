@@ -287,7 +287,7 @@ class ClientSocketPoolBaseHelper
   }
 
   static bool connect_backup_jobs_enabled();
-  static void set_connect_backup_jobs_enabled(bool enabled);
+  static bool set_connect_backup_jobs_enabled(bool enabled);
 
   void EnableConnectBackupJobs();
 

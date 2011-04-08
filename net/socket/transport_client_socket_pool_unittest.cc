@@ -21,6 +21,8 @@
 
 namespace net {
 
+using internal::ClientSocketPoolBaseHelper;
+
 namespace {
 
 const int kMaxSockets = 32;
@@ -289,7 +291,9 @@ class MockClientSocketFactory : public ClientSocketFactory {
 class TransportClientSocketPoolTest : public testing::Test {
  protected:
   TransportClientSocketPoolTest()
-      : params_(
+      : connect_backup_jobs_enabled_(
+          ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(true)),
+        params_(
             new TransportSocketParams(HostPortPair("www.google.com", 80),
                                      kDefaultPriority, GURL(), false, false)),
         low_params_(
@@ -303,6 +307,11 @@ class TransportClientSocketPoolTest : public testing::Test {
               host_resolver_.get(),
               &client_socket_factory_,
               NULL) {
+  }
+
+  ~TransportClientSocketPoolTest() {
+    internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
+        connect_backup_jobs_enabled_);
   }
 
   int StartRequest(const std::string& group_name, RequestPriority priority) {
@@ -327,6 +336,7 @@ class TransportClientSocketPoolTest : public testing::Test {
   ScopedVector<TestSocketRequest>* requests() { return test_base_.requests(); }
   size_t completion_count() const { return test_base_.completion_count(); }
 
+  bool connect_backup_jobs_enabled_;
   scoped_refptr<TransportSocketParams> params_;
   scoped_refptr<TransportSocketParams> low_params_;
   scoped_ptr<ClientSocketPoolHistograms> histograms_;
