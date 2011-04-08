@@ -644,8 +644,10 @@ bool ClientSocketPoolBaseHelper::connect_backup_jobs_enabled() {
 }
 
 // static
-void ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(bool enabled) {
+bool ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(bool enabled) {
+  bool old_value = g_connect_backup_jobs_enabled;
   g_connect_backup_jobs_enabled = enabled;
+  return old_value;
 }
 
 void ClientSocketPoolBaseHelper::EnableConnectBackupJobs() {

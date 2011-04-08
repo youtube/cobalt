@@ -6518,9 +6518,6 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
 }
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
-  bool connect_backup_jobs_enabled =
-      internal::ClientSocketPoolBaseHelper::connect_backup_jobs_enabled();
-  internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::set_next_protos(kExpectedNPNString);
   SessionDependencies session_deps;
@@ -6609,14 +6606,9 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
 
   HttpStreamFactory::set_next_protos("");
   HttpStreamFactory::set_use_alternate_protocols(false);
-  internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
-      connect_backup_jobs_enabled);
 }
 
 TEST_F(HttpNetworkTransactionTest, AlternateProtocolWithSpdyLateBinding) {
-  bool connect_backup_jobs_enabled =
-      internal::ClientSocketPoolBaseHelper::connect_backup_jobs_enabled();
-  internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::set_next_protos(kExpectedNPNString);
   SessionDependencies session_deps;
@@ -6732,14 +6724,9 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolWithSpdyLateBinding) {
 
   HttpStreamFactory::set_next_protos("");
   HttpStreamFactory::set_use_alternate_protocols(false);
-  internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
-      connect_backup_jobs_enabled);
 }
 
 TEST_F(HttpNetworkTransactionTest, StallAlternateProtocolForNpnSpdy) {
-  bool connect_backup_jobs_enabled =
-      internal::ClientSocketPoolBaseHelper::connect_backup_jobs_enabled();
-  internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::set_next_protos(kExpectedNPNString);
   SessionDependencies session_deps;
@@ -6813,8 +6800,6 @@ TEST_F(HttpNetworkTransactionTest, StallAlternateProtocolForNpnSpdy) {
 
   HttpStreamFactory::set_next_protos("");
   HttpStreamFactory::set_use_alternate_protocols(false);
-  internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
-      connect_backup_jobs_enabled);
 }
 
 class CapturingProxyResolver : public ProxyResolver {
@@ -6856,9 +6841,6 @@ class CapturingProxyResolver : public ProxyResolver {
 };
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
-  bool connect_backup_jobs_enabled =
-      internal::ClientSocketPoolBaseHelper::connect_backup_jobs_enabled();
-  internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::set_next_protos(kExpectedNPNString);
 
@@ -6970,8 +6952,6 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
 
   HttpStreamFactory::set_next_protos("");
   HttpStreamFactory::set_use_alternate_protocols(false);
-  internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
-      connect_backup_jobs_enabled);
 }
 
 TEST_F(HttpNetworkTransactionTest,
