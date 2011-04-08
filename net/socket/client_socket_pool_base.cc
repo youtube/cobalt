@@ -28,8 +28,8 @@ namespace {
 // some conditions.  See http://crbug.com/4606.
 const int kCleanupInterval = 10;  // DO NOT INCREASE THIS TIMEOUT.
 
-// Indicate whether or not we should establish a new TCP connection after a
-// certain timeout has passed without receiving an ACK.
+// Indicate whether or not we should establish a new transport layer connection
+// after a certain timeout has passed without receiving an ACK.
 bool g_connect_backup_jobs_enabled = true;
 
 }  // namespace
