@@ -202,6 +202,57 @@
       'type': 'none',
       'dependencies': [
         '../chrome/chrome.gyp:chrome',
+        '../app/app.gyp:app_unittests',
+        '../base/base.gyp:base_unittests',
+        '../chrome/chrome.gyp:browser_tests',
+        '../chrome/chrome.gyp:interactive_ui_tests',
+        # TODO(bradnelson): fix and enable.
+        #'../chrome/chrome.gyp:nacl_ui_tests',
+        #'../chrome/chrome.gyp:nacl_sandbox_tests',
+        '../chrome/chrome.gyp:safe_browsing_tests',
+        '../chrome/chrome.gyp:sync_integration_tests',
+        '../chrome/chrome.gyp:sync_unit_tests',
+        '../chrome/chrome.gyp:ui_tests',
+        '../chrome/chrome.gyp:unit_tests',
+        '../ui/ui.gyp:gfx_unittests',
+        '../gpu/gpu.gyp:gpu_unittests',
+        '../ipc/ipc.gyp:ipc_tests',
+        '../jingle/jingle.gyp:jingle_unittests',
+        '../media/media.gyp:media_unittests',
+        '../net/net.gyp:net_unittests',
+        '../printing/printing.gyp:printing_unittests',
+        '../remoting/remoting.gyp:remoting_unittests',
+        '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
+        'temp_gyp/googleurl.gyp:googleurl_unittests',
+      ],
+      'conditions': [
+        ['OS=="win"', {
+          'dependencies': [
+            '../chrome/chrome.gyp:installer_util_unittests',
+            # TODO(bradnelson): fix and enable.
+            #'../chrome/chrome.gyp:mini_installer_test',
+            # mini_installer_tests depends on mini_installer. This should be
+            # defined in installer.gyp.
+            #'../chrome/installer/mini_installer.gyp:mini_installer',
+            #'../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
+            #'../chrome_frame/chrome_frame.gyp:chrome_frame_perftests',
+            #'../chrome_frame/chrome_frame.gyp:chrome_frame_reliability_tests',
+            #'../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
+            #'../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
+            #'../chrome_frame/chrome_frame.gyp:npchrome_frame',
+            '../courgette/courgette.gyp:courgette_unittests',
+            '../sandbox/sandbox.gyp:sbox_integration_tests',
+            '../sandbox/sandbox.gyp:sbox_unittests',
+            '../sandbox/sandbox.gyp:sbox_validation_tests',
+            '../views/views.gyp:views_unittests',
+            '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
+            # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
+            # This should:
+            # 1) not be the case. OR.
+            # 2) be expressed in the ui tests dependencies.
+            '../webkit/webkit.gyp:test_shell_common',
+           ],
+        }],
       ],
     }, # target_name: chromium_2010_builder_tests
     {
