@@ -475,6 +475,13 @@ int X509Certificate::Verify(const std::string& hostname,
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
+  // Currently we only ues OpenSSL's default root CA paths, so treat all
+  // correctly verified certs as being from a known root. TODO(joth): if the
+  // motivations described in http://src.chromium.org/viewvc/chrome?view=rev&revision=80778
+  // become an issue on OpenSSL builds, we will need to embed a hardcoded list
+  // of well known root CAs, as per the _mac and _win versions.
+  verify_result->is_issued_by_known_root = true;
+
   return OK;
 }
 
