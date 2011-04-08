@@ -43,18 +43,11 @@ class SpdyNetworkTransactionTest
     google_get_request_initialized_ = false;
     google_post_request_initialized_ = false;
     google_chunked_post_request_initialized_ = false;
-
-    backup_jobs_prev_value_ =
-        internal::ClientSocketPoolBaseHelper::connect_backup_jobs_enabled();
-    internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
-        false);
   }
 
   virtual void TearDown() {
     // Empty the current queue.
     MessageLoop::current()->RunAllPending();
-    internal::ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(
-        backup_jobs_prev_value_);
   }
 
   struct TransactionHelperResult {
@@ -511,8 +504,6 @@ class SpdyNetworkTransactionTest
   HttpRequestInfo google_post_request_;
   HttpRequestInfo google_chunked_post_request_;
   HttpRequestInfo google_get_push_request_;
-
-  bool backup_jobs_prev_value_;
 };
 
 //-----------------------------------------------------------------------------
