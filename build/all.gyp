@@ -206,8 +206,9 @@
         '../base/base.gyp:base_unittests',
         '../chrome/chrome.gyp:browser_tests',
         '../chrome/chrome.gyp:interactive_ui_tests',
-        '../chrome/chrome.gyp:nacl_ui_tests',
-        '../chrome/chrome.gyp:nacl_sandbox_tests',
+        # TODO(bradnelson): fix and enable.
+        #'../chrome/chrome.gyp:nacl_ui_tests',
+        #'../chrome/chrome.gyp:nacl_sandbox_tests',
         '../chrome/chrome.gyp:safe_browsing_tests',
         '../chrome/chrome.gyp:sync_integration_tests',
         '../chrome/chrome.gyp:sync_unit_tests',
@@ -228,10 +229,10 @@
         ['OS=="win"', {
           'dependencies': [
             '../chrome/chrome.gyp:installer_util_unittests',
-            '../chrome/chrome.gyp:mini_installer_test',
+            # TODO(bradnelson): fix and enable.
+            #'../chrome/chrome.gyp:mini_installer_test',
             # mini_installer_tests depends on mini_installer. This should be
             # defined in installer.gyp.
-            # TODO(bradnelson): fix and enable.
             #'../chrome/installer/mini_installer.gyp:mini_installer',
             #'../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
             #'../chrome_frame/chrome_frame.gyp:chrome_frame_perftests',
