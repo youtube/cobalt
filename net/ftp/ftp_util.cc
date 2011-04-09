@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/i18n/char_iterator.h"
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
@@ -14,6 +15,7 @@
 #include "base/utf_string_conversions.h"
 #include "unicode/datefmt.h"
 #include "unicode/dtfmtsym.h"
+#include "unicode/uchar.h"
 
 // For examples of Unix<->VMS path conversions, see the unit test file. On VMS
 // a path looks differently depending on whether it's a file or directory.
@@ -209,19 +211,20 @@ bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
 
 // static
 string16 FtpUtil::GetStringPartAfterColumns(const string16& text, int columns) {
-  size_t pos = 0;
+  base::i18n::UTF16CharIterator iter(&text);
 
+  // TODO(jshin): Is u_isspace the right function to use here?
   for (int i = 0; i < columns; i++) {
     // Skip the leading whitespace.
-    while (pos < text.length() && isspace(text[pos]))
-      pos++;
+    while (!iter.end() && u_isspace(iter.get()))
+      iter.Advance();
 
     // Skip the actual text of i-th column.
-    while (pos < text.length() && !isspace(text[pos]))
-      pos++;
+    while (!iter.end() && !u_isspace(iter.get()))
+      iter.Advance();
   }
 
-  string16 result(text.substr(pos));
+  string16 result(text.substr(iter.array_pos()));
   TrimWhitespace(result, TRIM_ALL, &result);
   return result;
 }
