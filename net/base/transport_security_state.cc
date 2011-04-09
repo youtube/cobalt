@@ -33,7 +33,7 @@ void TransportSecurityState::EnableHost(const std::string& host,
     return;
 
   bool temp;
-  if (IsPreloadedSTS(canonicalized_host, &temp))
+  if (IsPreloadedSTS(canonicalized_host, true, &temp))
     return;
 
   char hashed[base::SHA256_LENGTH];
@@ -42,7 +42,7 @@ void TransportSecurityState::EnableHost(const std::string& host,
   // Use the original creation date if we already have this host.
   DomainState state_copy(state);
   DomainState existing_state;
-  if (IsEnabledForHost(&existing_state, host))
+  if (IsEnabledForHost(&existing_state, host, true))
     state_copy.created = existing_state.created;
 
   // We don't store these values.
@@ -78,7 +78,8 @@ static std::string IncludeNUL(const char* in) {
 }
 
 bool TransportSecurityState::IsEnabledForHost(DomainState* result,
-                                              const std::string& host) {
+                                              const std::string& host,
+                                              bool sni_available) {
   *result = DomainState();
 
   const std::string canonicalized_host = CanonicalizeHost(host);
@@ -86,7 +87,7 @@ bool TransportSecurityState::IsEnabledForHost(DomainState* result,
     return false;
 
   bool include_subdomains;
-  if (IsPreloadedSTS(canonicalized_host, &include_subdomains)) {
+  if (IsPreloadedSTS(canonicalized_host, sni_available, &include_subdomains)) {
     result->created = result->expiry = base::Time::FromTimeT(0);
     result->mode = DomainState::MODE_STRICT;
     result->include_subdomains = include_subdomains;
@@ -443,7 +444,9 @@ std::string TransportSecurityState::CanonicalizeHost(const std::string& host) {
 // considered to have STS enabled.
 // static
 bool TransportSecurityState::IsPreloadedSTS(
-    const std::string& canonicalized_host, bool *include_subdomains) {
+    const std::string& canonicalized_host,
+    bool sni_available,
+    bool *include_subdomains) {
   // In the medium term this list is likely to just be hardcoded here. This,
   // slightly odd, form removes the need for additional relocations records.
   static const struct {
@@ -485,6 +488,16 @@ bool TransportSecurityState::IsPreloadedSTS(
   };
   static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
+  static const struct {
+    uint8 length;
+    bool include_subdomains;
+    char dns_name[30];
+  } kPreloadedSNISTS[] = {
+    {11, true, "\005gmail\003com"},
+    {16, true, "\012googlemail\003com"},
+  };
+  static const size_t kNumPreloadedSNISTS = ARRAYSIZE_UNSAFE(kPreloadedSNISTS);
+
   for (size_t i = 0; canonicalized_host[i]; i += canonicalized_host[i] + 1) {
     for (size_t j = 0; j < kNumPreloadedSTS; j++) {
       if (kPreloadedSTS[j].length == canonicalized_host.size() - i &&
@@ -493,6 +506,17 @@ bool TransportSecurityState::IsPreloadedSTS(
                  kPreloadedSTS[j].length) == 0) {
         *include_subdomains = kPreloadedSTS[j].include_subdomains;
         return true;
+      }
+    }
+    if (sni_available) {
+      for (size_t j = 0; j < kNumPreloadedSNISTS; j++) {
+        if (kPreloadedSNISTS[j].length == canonicalized_host.size() - i &&
+            (kPreloadedSNISTS[j].include_subdomains || i == 0) &&
+            memcmp(kPreloadedSNISTS[j].dns_name, &canonicalized_host[i],
+                   kPreloadedSNISTS[j].length) == 0) {
+          *include_subdomains = kPreloadedSNISTS[j].include_subdomains;
+          return true;
+        }
       }
     }
   }
