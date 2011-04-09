@@ -67,9 +67,11 @@ class TransportSecurityState :
   // action is taken. Returns true iff an entry was deleted.
   bool DeleteHost(const std::string& host);
 
-  // Returns true if |host| has TransportSecurity enabled. If that case,
-  // *result is filled out.
-  bool IsEnabledForHost(DomainState* result, const std::string& host);
+  // Returns true if |host| has TransportSecurity enabled, in the context of
+  // |sni_available|. In that case, *result is filled out.
+  bool IsEnabledForHost(DomainState* result,
+                        const std::string& host,
+                        bool sni_available);
 
   // Deletes all records created since a given time.
   void DeleteSince(const base::Time& time);
@@ -112,6 +114,7 @@ class TransportSecurityState :
 
   static std::string CanonicalizeHost(const std::string& host);
   static bool IsPreloadedSTS(const std::string& canonicalized_host,
+                             bool sni_available,
                              bool* out_include_subdomains);
 
   // The set of hosts that have enabled TransportSecurity. The keys here
