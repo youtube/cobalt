@@ -121,7 +121,9 @@ class PollingProxyConfigService::Core
       // If the configuration has changed, notify the observers.
       has_config_ = true;
       last_config_ = config;
-      FOR_EACH_OBSERVER(Observer, observers_, OnProxyConfigChanged(config));
+      FOR_EACH_OBSERVER(Observer, observers_,
+                        OnProxyConfigChanged(config,
+                                             ProxyConfigService::CONFIG_VALID));
     }
 
     if (poll_task_queued_)
@@ -162,8 +164,9 @@ void PollingProxyConfigService::RemoveObserver(Observer* observer) {
   core_->RemoveObserver(observer);
 }
 
-bool PollingProxyConfigService::GetLatestProxyConfig(ProxyConfig* config) {
-  return core_->GetLatestProxyConfig(config);
+ProxyConfigService::ConfigAvailability
+    PollingProxyConfigService::GetLatestProxyConfig(ProxyConfig* config) {
+  return core_->GetLatestProxyConfig(config) ? CONFIG_VALID : CONFIG_PENDING;
 }
 
 void PollingProxyConfigService::OnLazyPoll() {
