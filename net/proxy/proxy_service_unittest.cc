@@ -11,9 +11,9 @@
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
-#include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/proxy/mock_proxy_resolver.h"
 #include "net/proxy/proxy_config_service.h"
@@ -29,11 +29,12 @@ namespace {
 class MockProxyConfigService: public ProxyConfigService {
  public:
   explicit MockProxyConfigService(const ProxyConfig& config)
-      : has_config_(true), config_(config) {
+      : availability_(CONFIG_VALID),
+        config_(config) {
   }
 
   explicit MockProxyConfigService(const std::string& pac_url)
-      : has_config_(true),
+      : availability_(CONFIG_VALID),
         config_(ProxyConfig::CreateFromCustomPacURL(GURL(pac_url))) {
   }
 
@@ -45,22 +46,21 @@ class MockProxyConfigService: public ProxyConfigService {
     observers_.RemoveObserver(observer);
   }
 
-  virtual bool GetLatestProxyConfig(ProxyConfig* results) {
-    if (has_config_) {
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* results) {
+    if (availability_ == CONFIG_VALID)
       *results = config_;
-      return true;
-    }
-    return false;
+    return availability_;
   }
 
   void SetConfig(const ProxyConfig& config) {
-    has_config_ = true;
+    availability_ = CONFIG_VALID;
     config_ = config;
-    FOR_EACH_OBSERVER(Observer, observers_, OnProxyConfigChanged(config));
+    FOR_EACH_OBSERVER(Observer, observers_,
+                      OnProxyConfigChanged(config_, availability_));
   }
 
  private:
-  bool has_config_;
+  ConfigAvailability availability_;
   ProxyConfig config_;
   ObserverList<Observer, true> observers_;
 };

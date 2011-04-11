@@ -144,7 +144,8 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     // Called from IO thread.
     void AddObserver(Observer* observer);
     void RemoveObserver(Observer* observer);
-    bool GetLatestProxyConfig(ProxyConfig* config);
+    ProxyConfigService::ConfigAvailability GetLatestProxyConfig(
+        ProxyConfig* config);
 
     // Posts a call to OnDestroy() to the UI thread. Called from
     // ProxyConfigServiceLinux's destructor.
@@ -239,7 +240,8 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
   // Called from IO thread.
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);
-  virtual bool GetLatestProxyConfig(ProxyConfig* config);
+  virtual ProxyConfigService::ConfigAvailability GetLatestProxyConfig(
+      ProxyConfig* config);
 
  private:
   scoped_refptr<Delegate> delegate_;
