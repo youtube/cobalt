@@ -1216,7 +1216,8 @@ class TestPageHandler(BasePageHandler):
       policy_path = os.path.join(self.server.data_dir, 'device_management')
       self.server._device_management_handler = (
           device_management.TestServer(policy_path,
-                                       self.server.policy_cert_chain))
+                                       self.server.policy_keys,
+                                       self.server.policy_user))
 
     http_response, raw_reply = (
         self.server._device_management_handler.HandleRequest(self.path,
@@ -1354,7 +1355,8 @@ def main(options, args):
     server.file_root_url = options.file_root_url
     server_data['port'] = server.server_port
     server._device_management_handler = None
-    server.policy_cert_chain = options.policy_cert_chain
+    server.policy_keys = options.policy_keys
+    server.policy_user = options.policy_user
   elif options.server_type == SERVER_SYNC:
     server = SyncHTTPServer(('127.0.0.1', port), SyncPageHandler)
     print 'Sync HTTP server started on port %d...' % server.server_port
@@ -1458,13 +1460,18 @@ if __name__ == '__main__':
   option_parser.add_option('', '--startup-pipe', type='int',
                            dest='startup_pipe',
                            help='File handle of pipe to parent process')
-  option_parser.add_option('', '--policy-cert-chain', action='append',
-                           help='Specify a path to a certificate file to sign '
-                                'policy responses. This option may be used '
-                                'multiple times to define a certificate chain. '
-                                'The first element will be used for signing, '
-                                'the last element should be the root '
-                                'certificate.')
+  option_parser.add_option('', '--policy-key', action='append',
+                           dest='policy_keys',
+                           help='Specify a path to a PEM-encoded private key '
+                           'to use for policy signing. May be specified '
+                           'multiple times in order to load multipe keys into '
+                           'the server. The server will generate a random key '
+                           'if none is specified on the command line')
+  option_parser.add_option('', '--policy-user', default='user@example.com',
+                           dest='policy_user',
+                           help='Specify the user name the server should '
+                           'report back to the client as the user owning the '
+                           'token used for making the policy request.')
   options, args = option_parser.parse_args()
 
   sys.exit(main(options, args))
