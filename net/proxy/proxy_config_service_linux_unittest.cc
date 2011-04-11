@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,9 +14,9 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task.h"
 #include "base/threading/thread.h"
-#include "base/synchronization/waitable_event.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service_common_unittest.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -290,7 +290,8 @@ class SynchConfigGetter {
         static_cast<MessageLoopForIO*>(file_loop));
   }
   // Synchronously gets the proxy config.
-  bool SyncGetLatestProxyConfig(net::ProxyConfig* config) {
+  net::ProxyConfigService::ConfigAvailability SyncGetLatestProxyConfig(
+      net::ProxyConfig* config) {
     io_thread_.message_loop()->PostTask(FROM_HERE, NewRunnableMethod(
         this, &SynchConfigGetter::GetLatestConfigOnIOThread));
     Wait();
@@ -331,7 +332,9 @@ class SynchConfigGetter {
   // The config obtained by |io_thread_| and read back by the main
   // thread.
   net::ProxyConfig proxy_config_;
-  bool get_latest_config_result_;  // Return value from GetLatestProxyConfig().
+
+  // Return value from GetLatestProxyConfig().
+  net::ProxyConfigService::ConfigAvailability get_latest_config_result_;
 };
 
 DISABLE_RUNNABLE_METHOD_REFCOUNT(SynchConfigGetter);
@@ -394,7 +397,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     // Input.
     GConfValues values;
 
-    // Expected outputs (fields of the ProxyConfig).
+    // Expected outputs (availability and fields of ProxyConfig).
+    ProxyConfigService::ConfigAvailability availability;
     bool auto_detect;
     GURL pac_url;
     ProxyRulesExpectation proxy_rules;
@@ -411,6 +415,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                      // auto_detect
       GURL(),                     // pac_url
       ProxyRulesExpectation::Empty(),
@@ -428,6 +433,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       true,                       // auto_detect
       GURL(),                     // pac_url
       ProxyRulesExpectation::Empty(),
@@ -445,6 +451,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                         // auto_detect
       GURL("http://wpad/wpad.dat"),  // pac_url
       ProxyRulesExpectation::Empty(),
@@ -462,7 +469,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
-      false,                         // auto_detect
+      ProxyConfigService::CONFIG_VALID,
+      false,                          // auto_detect
       GURL(),                        // pac_url
       ProxyRulesExpectation::Empty(),
     },
@@ -479,6 +487,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
@@ -498,6 +507,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Empty(),
@@ -515,6 +525,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                          // auto_detect
       GURL(),                                         // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -536,6 +547,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                          // auto_detect
       GURL(),                                         // pac_url
       ProxyRulesExpectation::Single(
@@ -558,6 +570,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                          // auto_detect
       GURL(),                                         // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -579,6 +592,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                          // auto_detect
       GURL(),                                         // pac_url
       ProxyRulesExpectation::Single(
@@ -597,6 +611,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
         google_ignores,                               // ignore_hosts
       },
 
+      ProxyConfigService::CONFIG_VALID,
       false,                                          // auto_detect
       GURL(),                                         // pac_url
       ProxyRulesExpectation::Single(
@@ -615,11 +630,15 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     ProxyConfig config;
     gconf_getter->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetLatestProxyConfig(&config);
+    ProxyConfigService::ConfigAvailability availability =
+        sync_config_getter.SyncGetLatestProxyConfig(&config);
+    EXPECT_EQ(tests[i].availability, availability);
 
-    EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
-    EXPECT_EQ(tests[i].pac_url, config.pac_url());
-    EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
+    if (availability == ProxyConfigService::CONFIG_VALID) {
+      EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
+      EXPECT_EQ(tests[i].pac_url, config.pac_url());
+      EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
+    }
   }
 }
 
@@ -632,7 +651,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     // Input.
     EnvVarValues values;
 
-    // Expected outputs (fields of the ProxyConfig).
+    // Expected outputs (availability and fields of ProxyConfig).
+    ProxyConfigService::ConfigAvailability availability;
     bool auto_detect;
     GURL pac_url;
     ProxyRulesExpectation proxy_rules;
@@ -652,6 +672,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                      // auto_detect
       GURL(),                     // pac_url
       ProxyRulesExpectation::Empty(),
@@ -672,6 +693,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       true,                       // auto_detect
       GURL(),                     // pac_url
       ProxyRulesExpectation::Empty(),
@@ -692,6 +714,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                         // auto_detect
       GURL("http://wpad/wpad.dat"),  // pac_url
       ProxyRulesExpectation::Empty(),
@@ -712,6 +735,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                       // auto_detect
       GURL(),                     // pac_url
       ProxyRulesExpectation::Empty(),
@@ -732,6 +756,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
@@ -754,6 +779,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
@@ -776,6 +802,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
@@ -798,6 +825,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -822,6 +850,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
@@ -844,6 +873,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
@@ -866,6 +896,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       },
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Single(
@@ -887,6 +918,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
         ".google.com, foo.com:99, 1.2.3.4:22, 127.0.0.1/8",  // no_proxy
       },
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                      // auto_detect
       GURL(),                     // pac_url
       ProxyRulesExpectation::Single(
@@ -905,11 +938,15 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     ProxyConfig config;
     env->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetLatestProxyConfig(&config);
+    ProxyConfigService::ConfigAvailability availability =
+        sync_config_getter.SyncGetLatestProxyConfig(&config);
+    EXPECT_EQ(tests[i].availability, availability);
 
-    EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
-    EXPECT_EQ(tests[i].pac_url, config.pac_url());
-    EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
+    if (availability == ProxyConfigService::CONFIG_VALID) {
+      EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
+      EXPECT_EQ(tests[i].pac_url, config.pac_url());
+      EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
+    }
   }
 }
 
@@ -924,14 +961,16 @@ TEST_F(ProxyConfigServiceLinuxTest, GconfNotification) {
   // Start with no proxy.
   gconf_getter->values.mode = "none";
   sync_config_getter.SetupAndInitialFetch();
-  sync_config_getter.SyncGetLatestProxyConfig(&config);
+  EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
+            sync_config_getter.SyncGetLatestProxyConfig(&config));
   EXPECT_FALSE(config.auto_detect());
 
   // Now set to auto-detect.
   gconf_getter->values.mode = "auto";
   // Simulate gconf notification callback.
   service->OnCheckProxyConfigSettings();
-  sync_config_getter.SyncGetLatestProxyConfig(&config);
+  EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
+            sync_config_getter.SyncGetLatestProxyConfig(&config));
   EXPECT_TRUE(config.auto_detect());
 }
 
@@ -952,7 +991,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     std::string kioslaverc;
     EnvVarValues env_values;
 
-    // Expected outputs (fields of the ProxyConfig).
+    // Expected outputs (availability and fields of ProxyConfig).
+    ProxyConfigService::ConfigAvailability availability;
     bool auto_detect;
     GURL pac_url;
     ProxyRulesExpectation proxy_rules;
@@ -965,6 +1005,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       {},                                      // env_values
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                      // auto_detect
       GURL(),                     // pac_url
       ProxyRulesExpectation::Empty(),
@@ -978,6 +1019,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       {},                                      // env_values
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       true,                       // auto_detect
       GURL(),                     // pac_url
       ProxyRulesExpectation::Empty(),
@@ -992,6 +1034,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       {},                                      // env_values
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                         // auto_detect
       GURL("http://wpad/wpad.dat"),  // pac_url
       ProxyRulesExpectation::Empty(),
@@ -1006,6 +1049,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       {},                                      // env_values
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1024,6 +1068,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       {},                                      // env_values
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1042,6 +1087,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       {},                                      // env_values
 
       // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1059,6 +1105,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "NoProxyFor=.google.com\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1076,6 +1124,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "NoProxyFor=.google.com,.kde.org\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1093,6 +1143,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "NoProxyFor=.google.com\nReversedException=true\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerSchemeWithBypassReversed(
@@ -1110,6 +1162,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "NoProxyFor=google.com,kde.org,<local>\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1127,6 +1181,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "NoProxyFor=.google.com\nReversedException=true  \n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerSchemeWithBypassReversed(
@@ -1144,6 +1200,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "httpProxy=www.google.com\n[Other Section]\nftpProxy=ftp.foo.com\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1160,6 +1218,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       "[Proxy Settings]\r\nProxyType=1\r\nhttpProxy=www.google.com\r\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1176,6 +1236,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       "[Proxy Settings]\r\n\nProxyType=1\n\r\nhttpProxy=www.google.com\n\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1192,6 +1254,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       "[Proxy Settings]\nProxyType[$e]=1\nhttpProxy[$e]=www.google.com\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1209,6 +1273,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "httpsProxy$e]=www.foo.com\nftpProxy=ftp.foo.com\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1226,6 +1292,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "  Proxy Config Script =  http:// foo\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL("http:// foo"),                     // pac_url
       ProxyRulesExpectation::Empty(),
@@ -1239,6 +1307,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           long_line + "httpsProxy=www.foo.com\nhttpProxy=www.google.com\n",
       {},                                          // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                       // auto_detect
       GURL(),                                      // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1256,6 +1326,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "httpsProxy=https_proxy\nftpProxy=ftp_proxy\nNoProxyFor=no_proxy\n",
       {},                                      // env_values
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::Empty(),
@@ -1281,6 +1353,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
         ".google.com, .kde.org",  // no_proxy
       },
 
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
       false,                                   // auto_detect
       GURL(),                                  // pac_url
       ProxyRulesExpectation::PerScheme(
@@ -1307,11 +1381,15 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     file_util::WriteFile(kioslaverc_, tests[i].kioslaverc.c_str(),
                          tests[i].kioslaverc.length());
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetLatestProxyConfig(&config);
+    ProxyConfigService::ConfigAvailability availability =
+        sync_config_getter.SyncGetLatestProxyConfig(&config);
+    EXPECT_EQ(tests[i].availability, availability);
 
-    EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
-    EXPECT_EQ(tests[i].pac_url, config.pac_url());
-    EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
+    if (availability == ProxyConfigService::CONFIG_VALID) {
+      EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
+      EXPECT_EQ(tests[i].pac_url, config.pac_url());
+      EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
+    }
   }
 }
 
@@ -1338,7 +1416,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetLatestProxyConfig(&config);
+    EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
+              sync_config_getter.SyncGetLatestProxyConfig(&config));
     EXPECT_TRUE(config.auto_detect());
     EXPECT_EQ(GURL(), config.pac_url());
   }
@@ -1357,7 +1436,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetLatestProxyConfig(&config);
+    EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
+              sync_config_getter.SyncGetLatestProxyConfig(&config));
     EXPECT_FALSE(config.auto_detect());
     EXPECT_EQ(slaverc4_pac_url, config.pac_url());
   }
@@ -1370,7 +1450,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetLatestProxyConfig(&config);
+    EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
+              sync_config_getter.SyncGetLatestProxyConfig(&config));
     EXPECT_TRUE(config.auto_detect());
     EXPECT_EQ(GURL(), config.pac_url());
   }
@@ -1384,7 +1465,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetLatestProxyConfig(&config);
+    EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
+              sync_config_getter.SyncGetLatestProxyConfig(&config));
     EXPECT_TRUE(config.auto_detect());
     EXPECT_EQ(GURL(), config.pac_url());
   }
@@ -1401,7 +1483,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
         new ProxyConfigServiceLinux(env));
     ProxyConfig config;
     sync_config_getter.SetupAndInitialFetch();
-    sync_config_getter.SyncGetLatestProxyConfig(&config);
+    EXPECT_EQ(ProxyConfigService::CONFIG_VALID,
+              sync_config_getter.SyncGetLatestProxyConfig(&config));
     EXPECT_TRUE(config.auto_detect());
     EXPECT_EQ(GURL(), config.pac_url());
   }

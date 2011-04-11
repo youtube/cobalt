@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -210,7 +210,8 @@ void ProxyConfigServiceMac::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-bool ProxyConfigServiceMac::GetLatestProxyConfig(ProxyConfig* config) {
+net::ProxyConfigService::ConfigAvailability
+    ProxyConfigServiceMac::GetLatestProxyConfig(ProxyConfig* config) {
   DCHECK_EQ(io_loop_, MessageLoop::current());
 
   // Lazy-initialize by fetching the proxy setting from this thread.
@@ -220,7 +221,7 @@ bool ProxyConfigServiceMac::GetLatestProxyConfig(ProxyConfig* config) {
   }
 
   *config = last_config_fetched_;
-  return has_fetched_config_;
+  return has_fetched_config_ ? CONFIG_VALID : CONFIG_PENDING;
 }
 
 void ProxyConfigServiceMac::SetDynamicStoreNotificationKeys(
@@ -262,7 +263,8 @@ void ProxyConfigServiceMac::OnProxyConfigChanged(
   last_config_fetched_ = new_config;
 
   // Notify all the observers.
-  FOR_EACH_OBSERVER(Observer, observers_, OnProxyConfigChanged(new_config));
+  FOR_EACH_OBSERVER(Observer, observers_,
+                    OnProxyConfigChanged(new_config, CONFIG_VALID));
 }
 
 }  // namespace net

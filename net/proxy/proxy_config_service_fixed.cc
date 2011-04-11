@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,9 +12,10 @@ ProxyConfigServiceFixed::ProxyConfigServiceFixed(const ProxyConfig& pc)
 
 ProxyConfigServiceFixed::~ProxyConfigServiceFixed() {}
 
-bool ProxyConfigServiceFixed::GetLatestProxyConfig(ProxyConfig* config) {
+ProxyConfigService::ConfigAvailability
+    ProxyConfigServiceFixed::GetLatestProxyConfig(ProxyConfig* config) {
   *config = pc_;
-  return true;
+  return CONFIG_VALID;
 }
 
 }  // namespace net

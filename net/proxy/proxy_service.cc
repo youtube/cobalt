@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,17 +8,23 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/values.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "base/values.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/proxy/init_proxy_resolver.h"
 #include "net/proxy/multi_threaded_proxy_resolver.h"
 #include "net/proxy/proxy_config_service_fixed.h"
+#include "net/proxy/proxy_resolver.h"
+#include "net/proxy/proxy_resolver_js_bindings.h"
+#include "net/proxy/proxy_resolver_v8.h"
 #include "net/proxy/proxy_script_fetcher.h"
+#include "net/proxy/sync_host_resolver_bridge.h"
+#include "net/url_request/url_request_context.h"
+
 #if defined(OS_WIN)
 #include "net/proxy/proxy_config_service_win.h"
 #include "net/proxy/proxy_resolver_winhttp.h"
@@ -28,11 +34,6 @@
 #elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
 #include "net/proxy/proxy_config_service_linux.h"
 #endif
-#include "net/proxy/proxy_resolver.h"
-#include "net/proxy/proxy_resolver_js_bindings.h"
-#include "net/proxy/proxy_resolver_v8.h"
-#include "net/proxy/sync_host_resolver_bridge.h"
-#include "net/url_request/url_request_context.h"
 
 using base::TimeDelta;
 using base::TimeTicks;
@@ -89,9 +90,9 @@ class ProxyConfigServiceDirect : public ProxyConfigService {
   // ProxyConfigService implementation:
   virtual void AddObserver(Observer* observer) {}
   virtual void RemoveObserver(Observer* observer) {}
-  virtual bool GetLatestProxyConfig(ProxyConfig* config) {
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) {
     *config = ProxyConfig::CreateDirect();
-    return true;
+    return CONFIG_VALID;
   }
 };
 
@@ -627,9 +628,10 @@ void ProxyService::ApplyProxyConfigIfAvailable() {
   // If a configuration is not available yet, we will get called back later
   // by our ProxyConfigService::Observer once it changes.
   ProxyConfig config;
-  bool has_config = config_service_->GetLatestProxyConfig(&config);
-  if (has_config)
-    OnProxyConfigChanged(config);
+  ProxyConfigService::ConfigAvailability availability =
+      config_service_->GetLatestProxyConfig(&config);
+  if (availability != ProxyConfigService::CONFIG_PENDING)
+    OnProxyConfigChanged(config, availability);
 }
 
 void ProxyService::OnInitProxyResolverComplete(int result) {
@@ -793,11 +795,11 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
   return new ProxyConfigServiceMac(io_loop);
 #elif defined(OS_CHROMEOS)
   NOTREACHED() << "ProxyConfigService for ChromeOS should be created in "
-               << "chrome_url_request_context.cc::CreateProxyConfigService.";
+               << "profile_io_data.cc::CreateProxyConfigService.";
   return NULL;
 #elif defined(OS_LINUX)
-  ProxyConfigServiceLinux* linux_config_service
-      = new ProxyConfigServiceLinux();
+  ProxyConfigServiceLinux* linux_config_service =
+      new ProxyConfigServiceLinux();
 
   // Assume we got called from the UI loop, which runs the default
   // glib main loop, so the current thread is where we should be
@@ -822,11 +824,30 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 #endif
 }
 
-void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
+void ProxyService::OnProxyConfigChanged(
+    const ProxyConfig& config,
+    ProxyConfigService::ConfigAvailability availability) {
+  // Retrieve the current proxy configuration from the ProxyConfigService.
+  // If a configuration is not available yet, we will get called back later
+  // by our ProxyConfigService::Observer once it changes.
+  ProxyConfig effective_config;
+  switch (availability) {
+    case ProxyConfigService::CONFIG_PENDING:
+      // ProxyConfigService implementors should never pass CONFIG_PENDING.
+      NOTREACHED() << "Proxy config change with CONFIG_PENDING availability!";
+      return;
+    case ProxyConfigService::CONFIG_VALID:
+      effective_config = config;
+      break;
+    case ProxyConfigService::CONFIG_UNSET:
+      effective_config = ProxyConfig::CreateDirect();
+      break;
+  }
+
   // Emit the proxy settings change to the NetLog stream.
   if (net_log_) {
     scoped_refptr<NetLog::EventParameters> params(
-        new ProxyConfigChangedNetLogParam(fetched_config_, config));
+        new ProxyConfigChangedNetLogParam(fetched_config_, effective_config));
     net_log_->AddEntry(net::NetLog::TYPE_PROXY_CONFIG_CHANGED,
                        base::TimeTicks::Now(),
                        NetLog::Source(),
@@ -835,7 +856,7 @@ void ProxyService::OnProxyConfigChanged(const ProxyConfig& config) {
   }
 
   // Set the new configuration as the most recently fetched one.
-  fetched_config_ = config;
+  fetched_config_ = effective_config;
   fetched_config_.set_id(1);  // Needed for a later DCHECK of is_valid().
 
   InitializeUsingLastFetchedConfig();

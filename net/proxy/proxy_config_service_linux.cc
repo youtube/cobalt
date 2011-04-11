@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,13 +22,13 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/nix/xdg_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/task.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/timer.h"
-#include "base/nix/xdg_util.h"
 #include "googleurl/src/url_canon.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_util.h"
@@ -1166,8 +1166,9 @@ void ProxyConfigServiceLinux::Delegate::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-bool ProxyConfigServiceLinux::Delegate::GetLatestProxyConfig(
-    ProxyConfig* config) {
+ProxyConfigService::ConfigAvailability
+    ProxyConfigServiceLinux::Delegate::GetLatestProxyConfig(
+        ProxyConfig* config) {
   // This is called from the IO thread.
   DCHECK(!io_loop_ || MessageLoop::current() == io_loop_);
 
@@ -1176,12 +1177,12 @@ bool ProxyConfigServiceLinux::Delegate::GetLatestProxyConfig(
   *config = cached_config_.is_valid() ?
       cached_config_ : ProxyConfig::CreateDirect();
 
-  // We return true to indicate that *config was filled in. It is always
+  // We return CONFIG_VALID to indicate that *config was filled in. It is always
   // going to be available since we initialized eagerly on the UI thread.
   // TODO(eroman): do lazy initialization instead, so we no longer need
   //               to construct ProxyConfigServiceLinux on the UI thread.
   //               In which case, we may return false here.
-  return true;
+  return CONFIG_VALID;
 }
 
 // Depending on the GConfSettingGetter in use, this method will be called
@@ -1215,7 +1216,9 @@ void ProxyConfigServiceLinux::Delegate::SetNewProxyConfig(
   DCHECK(MessageLoop::current() == io_loop_);
   VLOG(1) << "Proxy configuration changed";
   cached_config_ = new_config;
-  FOR_EACH_OBSERVER(Observer, observers_, OnProxyConfigChanged(new_config));
+  FOR_EACH_OBSERVER(
+      Observer, observers_,
+      OnProxyConfigChanged(new_config, ProxyConfigService::CONFIG_VALID));
 }
 
 void ProxyConfigServiceLinux::Delegate::PostDestroyTask() {
@@ -1269,7 +1272,8 @@ void ProxyConfigServiceLinux::RemoveObserver(Observer* observer) {
   delegate_->RemoveObserver(observer);
 }
 
-bool ProxyConfigServiceLinux::GetLatestProxyConfig(ProxyConfig* config) {
+ProxyConfigService::ConfigAvailability
+    ProxyConfigServiceLinux::GetLatestProxyConfig(ProxyConfig* config) {
   return delegate_->GetLatestProxyConfig(config);
 }
 
