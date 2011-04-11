@@ -10,29 +10,19 @@ namespace internal {
 WeakReference::Flag::Flag(Flag** handle) : handle_(handle) {
 }
 
-WeakReference::Flag::~Flag() {
-  if (handle_)
-    *handle_ = NULL;
-}
-
-void WeakReference::Flag::AddRef() const {
-  DCHECK(CalledOnValidThread());
-  RefCounted<Flag>::AddRef();
-}
-
-void WeakReference::Flag::Release() const {
-  DCHECK(CalledOnValidThread());
-  RefCounted<Flag>::Release();
-}
-
 void WeakReference::Flag::Invalidate() {
-  DCHECK(CalledOnValidThread());
+  DCHECK(thread_checker_.CalledOnValidThread());
   handle_ = NULL;
 }
 
 bool WeakReference::Flag::IsValid() const {
-  DCHECK(CalledOnValidThread());
+  DCHECK(thread_checker_.CalledOnValidThread());
   return handle_ != NULL;
+}
+
+WeakReference::Flag::~Flag() {
+  if (handle_)
+    *handle_ = NULL;
 }
 
 WeakReference::WeakReference() {
