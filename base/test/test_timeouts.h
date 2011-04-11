@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,12 +35,6 @@ class TestTimeouts {
   // Do not use multiple times in a single test.
   static int huge_test_timeout_ms() { return huge_test_timeout_ms_; }
 
-  // Timeout to use for AutomationProxy. Do not use in other places.
-  // TODO(phajdan.jr): Remove command_execution_timeout_ms.
-  static int command_execution_timeout_ms() {
-    return command_execution_timeout_ms_;
-  }
-
   // Timeout to wait for a process to terminate.
   static int wait_for_terminate_timeout_ms() {
     return wait_for_terminate_timeout_ms_;
@@ -60,7 +54,6 @@ class TestTimeouts {
   static int action_max_timeout_ms_;
   static int large_test_timeout_ms_;
   static int huge_test_timeout_ms_;
-  static int command_execution_timeout_ms_;
   static int wait_for_terminate_timeout_ms_;
   static int live_operation_timeout_ms_;
 
