@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -151,15 +151,14 @@ fi
 chromeos_dev_list="libpulse-dev"
 
 # Packages need for development
-dev_list="apache2 bison fakeroot flex g++ gperf libapache2-mod-php5
-          libasound2-dev libbz2-dev libcairo2-dev libdbus-glib-1-dev
-          libgconf2-dev libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev
-          libgnome-keyring-dev libgtk2.0-dev libjpeg62-dev libnspr4-dev
-          libnss3-dev libpam0g-dev libsctp-dev libsqlite3-dev libxslt1-dev
-          libxss-dev libxtst-dev lighttpd mesa-common-dev msttcorefonts patch
-          perl php5-cgi pkg-config python python-dev rpm subversion
-          ttf-dejavu-core ttf-kochi-gothic ttf-kochi-mincho wdiff
-          libcurl4-gnutls-dev
+dev_list="bison fakeroot flex g++ gperf libapache2-mod-php5 libasound2-dev
+          libbz2-dev libcairo2-dev libdbus-glib-1-dev libgconf2-dev
+          libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev libgnome-keyring-dev
+          libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev libpam0g-dev
+          libsctp-dev libsqlite3-dev libxslt1-dev libxss-dev libxtst-dev
+          mesa-common-dev msttcorefonts patch perl php5-cgi pkg-config python
+          python-dev rpm subversion ttf-dejavu-core ttf-kochi-gothic
+          ttf-kochi-mincho wdiff libcurl4-gnutls-dev
           $chromeos_dev_list"
 
 # Run-time libraries required by chromeos only
@@ -189,6 +188,13 @@ if egrep -q 'Ubuntu (8\.04|8\.10)' /etc/issue; then
   dev_list="${dev_list} libcupsys2-dev"
 else
   dev_list="${dev_list} libcups2-dev"
+fi
+
+# apache2.2-bin package was introduced in karmic.
+if egrep -q 'Ubuntu (8\.04|8\.10|9\.04)' /etc/issue; then
+  dev_list="${dev_list} apache2"
+else
+  dev_list="${dev_list} apache2.2-bin"
 fi
 
 # Waits for the user to press 'Y' or 'N'. Either uppercase of lowercase is
