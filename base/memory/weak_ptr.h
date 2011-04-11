@@ -55,7 +55,7 @@
 #include "base/base_api.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/threading/thread_checker.h"
+#include "base/threading/non_thread_safe.h"
 
 namespace base {
 
@@ -65,23 +65,19 @@ namespace internal {
 
 class BASE_API WeakReference {
  public:
-  // While Flag is bound to a specific thread, it may be deleted from another
-  // via base::WeakPtr::~WeakPtr().
-  class Flag : public RefCountedThreadSafe<Flag> {
+  class Flag : public RefCounted<Flag>, public base::NonThreadSafe {
    public:
-    explicit Flag(Flag** handle);
+    Flag(Flag** handle);
+    ~Flag();
 
+    void AddRef() const;
+    void Release() const;
     void Invalidate();
     bool IsValid() const;
 
-    void DetachFromThread() { thread_checker_.DetachFromThread(); }
+    void DetachFromThread() { base::NonThreadSafe::DetachFromThread(); }
 
    private:
-    friend class base::RefCountedThreadSafe<Flag>;
-
-    ~Flag();
-
-    ThreadChecker thread_checker_;
     Flag** handle_;
   };
 
@@ -237,11 +233,6 @@ class WeakPtrFactory {
   // Call this method to determine if any weak pointers exist.
   bool HasWeakPtrs() const {
     return weak_reference_owner_.HasRefs();
-  }
-
-  // Indicates that this object will be used on another thread from now on.
-  void DetachFromThread() {
-    weak_reference_owner_.DetachFromThread();
   }
 
  private:
