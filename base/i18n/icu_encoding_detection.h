@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,8 @@ bool DetectEncoding(const std::string& text, std::string* encoding);
 
 // Detect all possible encodings of |text| and put their names
 // (as returned by ICU) in |encodings|. Returns true on success.
+// Note: this function may return encodings that may fail to decode |text|,
+// the caller is responsible for handling that.
 bool DetectAllEncodings(const std::string& text,
                         std::vector<std::string>* encodings);
 
