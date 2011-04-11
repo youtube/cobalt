@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -44,12 +44,9 @@ bool TestTimeouts::initialized_ = false;
 // static
 int TestTimeouts::tiny_timeout_ms_ = 100;
 int TestTimeouts::action_timeout_ms_ = 2000;
-int TestTimeouts::action_max_timeout_ms_ = 20000;
+int TestTimeouts::action_max_timeout_ms_ = 25000;
 int TestTimeouts::large_test_timeout_ms_ = 3 * 60 * 1000;
 int TestTimeouts::huge_test_timeout_ms_ = 10 * 60 * 1000;
-
-// static
-int TestTimeouts::command_execution_timeout_ms_ = 25000;
 
 // static
 int TestTimeouts::wait_for_terminate_timeout_ms_ = 15000;
@@ -83,8 +80,6 @@ void TestTimeouts::Initialize() {
   CHECK(action_max_timeout_ms_ <= large_test_timeout_ms_);
   CHECK(large_test_timeout_ms_ <= huge_test_timeout_ms_);
 
-  InitializeTimeout(switches::kUiTestCommandExecutionTimeout,
-                    &command_execution_timeout_ms_);
   InitializeTimeout(switches::kUiTestTerminateTimeout,
                     &wait_for_terminate_timeout_ms_);
 
