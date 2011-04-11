@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,7 @@ class ProxyConfigServiceFixed : public ProxyConfigService {
   // ProxyConfigService methods:
   virtual void AddObserver(Observer* observer) {}
   virtual void RemoveObserver(Observer* observer) {}
-  virtual bool GetLatestProxyConfig(ProxyConfig* config);
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config);
 
  private:
   ProxyConfig pc_;

@@ -13,11 +13,11 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "net/base/completion_callback.h"
-#include "net/base/network_change_notifier.h"
 #include "net/base/net_log.h"
+#include "net/base/network_change_notifier.h"
 #include "net/proxy/proxy_config_service.h"
-#include "net/proxy/proxy_server.h"
 #include "net/proxy/proxy_info.h"
+#include "net/proxy/proxy_server.h"
 
 class GURL;
 class MessageLoop;
@@ -285,7 +285,9 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   virtual void OnIPAddressChanged();
 
   // ProxyConfigService::Observer
-  virtual void OnProxyConfigChanged(const ProxyConfig& config);
+  virtual void OnProxyConfigChanged(
+      const ProxyConfig& config,
+      ProxyConfigService::ConfigAvailability availability);
 
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;

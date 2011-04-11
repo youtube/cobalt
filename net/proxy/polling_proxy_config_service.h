@@ -22,7 +22,7 @@ class PollingProxyConfigService : public ProxyConfigService {
   // ProxyConfigService implementation:
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);
-  virtual bool GetLatestProxyConfig(ProxyConfig* config);
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config);
   virtual void OnLazyPoll();
 
  protected:
