@@ -553,10 +553,6 @@
               'hmac_nss.cc',
               'nss_util.cc',
               'nss_util.h',
-              # Note that sha2.cc depends on the NSS files bundled into
-              # chromium; it does not have the _nss postfix as it is required
-              # on platforms besides linux and *bsd.
-              'sha2.cc',
               'third_party/nss/blapi.h',
               'third_party/nss/blapit.h',
               'third_party/nss/sha256.h',
@@ -573,7 +569,6 @@
               'hmac_openssl.cc',
               'openssl_util.cc',
               'openssl_util.h',
-              'sha2_openssl.cc',
             ],
         },],
       ],
@@ -659,7 +654,6 @@
         'openssl_util.h',
         'sha2.cc',
         'sha2.h',
-        'sha2_openssl.cc',
         'string16.cc',
         'string16.h',
         'sync_socket.h',
