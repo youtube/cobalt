@@ -20,6 +20,7 @@
 #include "base/pickle.h"
 #include "base/sha1.h"
 #include "base/sys_string_conversions.h"
+#include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
@@ -495,6 +496,28 @@ private:
   CSSM_TP_RESULT_SET* results_;
 };
 
+void AppendPublicKeyHashes(CFArrayRef chain,
+                           std::vector<SHA1Fingerprint>* hashes) {
+  const CFIndex n = CFArrayGetCount(chain);
+  for (CFIndex i = 0; i < n; i++) {
+    SecCertificateRef cert = reinterpret_cast<SecCertificateRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(chain, i)));
+
+    CSSM_DATA cert_data;
+    OSStatus err = SecCertificateGetData(cert, &cert_data);
+    DCHECK_EQ(err, noErr);
+    base::StringPiece der_bytes(reinterpret_cast<const char*>(cert_data.Data),
+                               cert_data.Length);
+    base::StringPiece spki_bytes;
+    if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
+      continue;
+
+    SHA1Fingerprint hash;
+    CC_SHA1(spki_bytes.data(), spki_bytes.size(), hash.data);
+    hashes->push_back(hash);
+  }
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
@@ -924,6 +947,7 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
     }
   }
 
+  AppendPublicKeyHashes(completed_chain, &verify_result->public_key_hashes);
   verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(completed_chain);
 
   return OK;
