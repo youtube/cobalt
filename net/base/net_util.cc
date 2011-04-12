@@ -1373,8 +1373,7 @@ std::string GetDirectoryListingEntry(const string16& name,
 
 string16 StripWWW(const string16& text) {
   const string16 www(ASCIIToUTF16("www."));
-  return (text.compare(0, www.length(), www) == 0) ?
-      text.substr(www.length()) : text;
+  return StartsWith(text, www, true) ? text.substr(www.length()) : text;
 }
 
 string16 GetSuggestedFilename(const GURL& url,
