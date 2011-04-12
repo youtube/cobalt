@@ -17,6 +17,7 @@ namespace net {
 class CertVerifyResult {
  public:
   CertVerifyResult();
+  ~CertVerifyResult();
 
   void Reset();
 
