@@ -406,7 +406,11 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   EXPECT_TRUE(data.at_write_eof());
 }
 
-TEST_F(SpdySessionTest, IPPooling) {
+// This test has two variants, one for each style of closing the connection.
+// If |clean_via_close_current_sessions| is false, the sessions are closed
+// manually, calling SpdySessionPool::Remove() directly.  If it is true,
+// sessions are closed with SpdySessionPool::CloseCurrentSessions().
+void IPPoolingTest(bool clean_via_close_current_sessions) {
   const int kTestPort = 80;
   struct TestHosts {
     std::string name;
@@ -500,15 +504,27 @@ TEST_F(SpdySessionTest, IPPooling) {
   EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[2].pair));
 
   // Cleanup the sessions.
-  spdy_session_pool->Remove(session);
-  session = NULL;
-  spdy_session_pool->Remove(session2);
-  session2 = NULL;
+  if (!clean_via_close_current_sessions) {
+    spdy_session_pool->Remove(session);
+    session = NULL;
+    spdy_session_pool->Remove(session2);
+    session2 = NULL;
+  } else {
+    spdy_session_pool->CloseCurrentSessions();
+  }
 
   // Verify that the map is all cleaned up.
   EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[0].pair));
   EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[1].pair));
   EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[2].pair));
+}
+
+TEST_F(SpdySessionTest, IPPooling) {
+  IPPoolingTest(false);
+}
+
+TEST_F(SpdySessionTest, IPPoolingCloseCurrentSessions) {
+  IPPoolingTest(true);
 }
 
 }  // namespace
