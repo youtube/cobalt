@@ -42,7 +42,8 @@ enum PlatformFileFlags {
   PLATFORM_FILE_HIDDEN = 1024,          // Used on Windows only
   PLATFORM_FILE_DELETE_ON_CLOSE = 2048,
   PLATFORM_FILE_TRUNCATE = 4096,
-  PLATFORM_FILE_WRITE_ATTRIBUTES = 8192 // Used on Windows only
+  PLATFORM_FILE_WRITE_ATTRIBUTES = 8192,  // Used on Windows only
+  PLATFORM_FILE_ENUMERATE = 16384,  // May enumerate directory
 };
 
 // PLATFORM_FILE_ERROR_ACCESS_DENIED is returned when a call fails because of
