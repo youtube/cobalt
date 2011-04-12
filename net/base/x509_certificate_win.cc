@@ -13,6 +13,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/ev_root_ca_metadata.h"
@@ -464,6 +465,32 @@ X509Certificate::OSCertHandles ParsePKCS7(const char* data, size_t length) {
   return results;
 }
 
+void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
+                           std::vector<SHA1Fingerprint>* hashes) {
+  if (chain->cChain == 0)
+    return;
+
+  PCERT_SIMPLE_CHAIN first_chain = chain->rgpChain[0];
+  PCERT_CHAIN_ELEMENT* const element = first_chain->rgpElement;
+
+  const DWORD num_elements = first_chain->cElement;
+  for (DWORD i = 0; i < num_elements; i++) {
+    PCCERT_CONTEXT cert = element[i]->pCertContext;
+
+    base::StringPiece der_bytes(
+        reinterpret_cast<const char*>(cert->pbCertEncoded),
+        cert->cbCertEncoded);
+    base::StringPiece spki_bytes;
+    if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
+      continue;
+
+    SHA1Fingerprint hash;
+    base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
+                        spki_bytes.size(), hash.data);
+    hashes->push_back(hash);
+  }
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
@@ -885,6 +912,7 @@ int X509Certificate::Verify(const std::string& hostname,
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
+  AppendPublicKeyHashes(chain_context, &verify_result->public_key_hashes);
   verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(chain_context);
 
   if (ev_policy_oid && CheckEV(chain_context, ev_policy_oid))
