@@ -407,7 +407,7 @@ int CreateAndOpenFdForTemporaryFile(FilePath directory, FilePath* path) {
   // this should be OK since mkstemp just replaces characters in place
   char* buffer = const_cast<char*>(tmpdir_string.c_str());
 
-  return mkstemp(buffer);
+  return HANDLE_EINTR(mkstemp(buffer));
 }
 
 bool CreateTemporaryFile(FilePath* path) {
@@ -418,7 +418,7 @@ bool CreateTemporaryFile(FilePath* path) {
   int fd = CreateAndOpenFdForTemporaryFile(directory, path);
   if (fd < 0)
     return false;
-  close(fd);
+  HANDLE_EINTR(close(fd));
   return true;
 }
 
@@ -441,7 +441,7 @@ FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
 bool CreateTemporaryFileInDir(const FilePath& dir, FilePath* temp_file) {
   base::ThreadRestrictions::AssertIOAllowed();  // For call to close().
   int fd = CreateAndOpenFdForTemporaryFile(dir, temp_file);
-  return ((fd >= 0) && !close(fd));
+  return ((fd >= 0) && !HANDLE_EINTR(close(fd)));
 }
 
 static bool CreateTemporaryDirInDirImpl(const FilePath& base_dir,
@@ -541,12 +541,16 @@ FILE* OpenFile(const std::string& filename, const char* mode) {
 
 FILE* OpenFile(const FilePath& filename, const char* mode) {
   base::ThreadRestrictions::AssertIOAllowed();
-  return fopen(filename.value().c_str(), mode);
+  FILE* result = NULL;
+  do {
+    result = fopen(filename.value().c_str(), mode);
+  } while (!result && errno == EINTR);
+  return result;
 }
 
 int ReadFile(const FilePath& filename, char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
-  int fd = open(filename.value().c_str(), O_RDONLY);
+  int fd = HANDLE_EINTR(open(filename.value().c_str(), O_RDONLY));
   if (fd < 0)
     return -1;
 
@@ -558,7 +562,7 @@ int ReadFile(const FilePath& filename, char* data, int size) {
 
 int WriteFile(const FilePath& filename, const char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
-  int fd = creat(filename.value().c_str(), 0666);
+  int fd = HANDLE_EINTR(creat(filename.value().c_str(), 0666));
   if (fd < 0)
     return -1;
 
@@ -776,7 +780,7 @@ void MemoryMappedFile::CloseHandles() {
   if (data_ != NULL)
     munmap(data_, length_);
   if (file_ != base::kInvalidPlatformFileValue)
-    close(file_);
+    HANDLE_EINTR(close(file_));
 
   data_ = NULL;
   length_ = 0;
@@ -841,13 +845,13 @@ FilePath GetHomeDir() {
 
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
   base::ThreadRestrictions::AssertIOAllowed();
-  int infile = open(from_path.value().c_str(), O_RDONLY);
+  int infile = HANDLE_EINTR(open(from_path.value().c_str(), O_RDONLY));
   if (infile < 0)
     return false;
 
-  int outfile = creat(to_path.value().c_str(), 0666);
+  int outfile = HANDLE_EINTR(creat(to_path.value().c_str(), 0666));
   if (outfile < 0) {
-    close(infile);
+    HANDLE_EINTR(close(infile));
     return false;
   }
 
