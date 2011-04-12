@@ -17,7 +17,7 @@
 #include "sqliteInt.h"
 
 #ifdef SQLITE_ENABLE_FTS3
-# include "../../ext/fts3/fts3.h"
+# include "../ext/fts3/fts3.h"
 #endif
 #ifdef SQLITE_ENABLE_RTREE
 # include "rtree.h"

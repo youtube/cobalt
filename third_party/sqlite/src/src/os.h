@@ -29,10 +29,6 @@
 ** will defined to either 1 or 0.  One of the four will be 1.  The other 
 ** three will be 0.
 */
-#ifdef OS_SYMBIAN
-# define SQLITE_OS_SYMBIAN 1
-# define SQLITE_OS_OTHER 1
-#endif
 #if defined(SQLITE_OS_OTHER)
 # if SQLITE_OS_OTHER==1
 #   undef SQLITE_OS_UNIX

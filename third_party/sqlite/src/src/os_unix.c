@@ -3215,7 +3215,6 @@ static int unixDeviceCharacteristics(sqlite3_file *NotUsed){
 ********************** End sqlite3_file Methods *******************************
 ******************************************************************************/
 
-
 /*
 ** This division contains definitions of sqlite3_io_methods objects that
 ** implement various file locking strategies.  It also contains definitions
@@ -3497,9 +3496,16 @@ typedef const sqlite3_io_methods *(*finder_type)(const char*,unixFile*);
 */
 
 /*
+** Initializes a unixFile structure with zeros.
+*/
+void initUnixFile(sqlite3_file* file) {
+  memset(file, 0, sizeof(unixFile));
+}
+
+/*
 ** Initialize the contents of the unixFile structure pointed to by pId.
 */
-static int fillInUnixFile(
+int fillInUnixFile(
   sqlite3_vfs *pVfs,      /* Pointer to vfs object */
   int h,                  /* Open file descriptor of file being opened */
   int dirfd,              /* Directory file descriptor */
@@ -4082,7 +4088,7 @@ static int unixOpen(
     }
   }
 #endif
-
+  
   rc = fillInUnixFile(pVfs, fd, dirfd, pFile, zPath, noLock, isDelete);
 open_finished:
   if( rc!=SQLITE_OK ){
