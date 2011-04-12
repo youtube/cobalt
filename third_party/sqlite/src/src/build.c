@@ -3665,7 +3665,7 @@ KeyInfo *sqlite3IndexKeyinfo(Parse *pParse, Index *pIdx){
 
 /* Begin preload-cache.patch for Chromium */
 /* See declaration in sqlite3.h for information */
-int sqlite3Preload(sqlite3 *db)
+int sqlite3_preload(sqlite3 *db)
 {
   Pager *pPager;
   Btree *pBt;
