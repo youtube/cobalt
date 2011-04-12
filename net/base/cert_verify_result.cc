@@ -10,6 +10,9 @@ CertVerifyResult::CertVerifyResult() {
   Reset();
 }
 
+CertVerifyResult::~CertVerifyResult() {
+}
+
 void CertVerifyResult::Reset() {
   cert_status = 0;
   has_md5 = false;
