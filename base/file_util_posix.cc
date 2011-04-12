@@ -418,7 +418,7 @@ bool CreateTemporaryFile(FilePath* path) {
   int fd = CreateAndOpenFdForTemporaryFile(directory, path);
   if (fd < 0)
     return false;
-  HANDLE_EINTR(close(fd));
+  ignore_result(HANDLE_EINTR(close(fd)));
   return true;
 }
 
@@ -780,7 +780,7 @@ void MemoryMappedFile::CloseHandles() {
   if (data_ != NULL)
     munmap(data_, length_);
   if (file_ != base::kInvalidPlatformFileValue)
-    HANDLE_EINTR(close(file_));
+    ignore_result(HANDLE_EINTR(close(file_)));
 
   data_ = NULL;
   length_ = 0;
@@ -851,7 +851,7 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 
   int outfile = HANDLE_EINTR(creat(to_path.value().c_str(), 0666));
   if (outfile < 0) {
-    HANDLE_EINTR(close(infile));
+    ignore_result(HANDLE_EINTR(close(infile)));
     return false;
   }
 
