@@ -48,6 +48,7 @@
         'base/cert_status_flags.h',
         'base/cert_verifier.cc',
         'base/cert_verifier.h',
+        'base/cert_verify_result.cc',
         'base/cert_verify_result.h',
         'base/completion_callback.h',
         'base/connection_type_histograms.cc',
