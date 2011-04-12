@@ -37,6 +37,7 @@ struct CERTCertificateStr;
 class Pickle;
 
 namespace base {
+class StringPiece;
 class RSAPrivateKey;
 }  // namespace base
 

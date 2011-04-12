@@ -7,7 +7,9 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/pickle.h"
+#include "base/sha1.h"
 #include "base/string_split.h"
+#include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_test_util.h"
 #include "net/base/cert_verify_result.h"
@@ -503,11 +505,75 @@ TEST(X509CertificateTest, TestKnownRoot) {
   int flags = 0;
   CertVerifyResult verify_result;
   // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
-  // against agl.
+  // against agl. Also see PublicKeyHashes in this file.
   int error = cert_chain->Verify("www.nist.gov", flags, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0, verify_result.cert_status);
   EXPECT_TRUE(verify_result.is_issued_by_known_root);
+}
+
+// This is the SHA1 hash of the SubjectPublicKeyInfo of nist.der.
+static const char nistSPKIHash[] =
+    "\x15\x60\xde\x65\x4e\x03\x9f\xd0\x08\x82"
+    "\xa9\x6a\xc4\x65\x8e\x6f\x92\x06\x84\x35";
+
+TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
+
+  std::string derBytes;
+  EXPECT_TRUE(cert->GetDEREncoded(&derBytes));
+
+  base::StringPiece spkiBytes;
+  EXPECT_TRUE(asn1::ExtractSPKIFromDERCert(derBytes, &spkiBytes));
+
+  uint8 hash[base::SHA1_LENGTH];
+  base::SHA1HashBytes(reinterpret_cast<const uint8*>(spkiBytes.data()),
+                      spkiBytes.size(), hash);
+
+  EXPECT_TRUE(0 == memcmp(hash, nistSPKIHash, sizeof(hash)));
+}
+
+TEST(X509CertificateTest, PublicKeyHashes) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
+  // against agl. Also see TestKnownRoot in this file.
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
+
+  // This intermediate is only needed for old Linux machines. Modern NSS
+  // includes it as a root already.
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "nist_intermediate.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  TestRootCerts::GetInstance()->Add(intermediate_cert.get());
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(cert->os_cert_handle(),
+                                        X509Certificate::SOURCE_FROM_NETWORK,
+                                        intermediates);
+
+  int flags = 0;
+  CertVerifyResult verify_result;
+
+  int error = cert_chain->Verify("www.nist.gov", flags, &verify_result);
+  EXPECT_EQ(OK, error);
+  EXPECT_EQ(0, verify_result.cert_status);
+  ASSERT_LE(2u, verify_result.public_key_hashes.size());
+  EXPECT_TRUE(0 == memcmp(verify_result.public_key_hashes[0].data,
+                          nistSPKIHash, base::SHA1_LENGTH));
+  EXPECT_TRUE(0 == memcmp(verify_result.public_key_hashes[1].data,
+                          "\x83\x24\x42\x23\xd6\xcb\xf0\xa2\x6f\xc7"
+                          "\xde\x27\xce\xbc\xa4\xbd\xa3\x26\x12\xad",
+                          base::SHA1_LENGTH));
+
+  TestRootCerts::GetInstance()->Clear();
 }
 
 // A regression test for http://crbug.com/70293.

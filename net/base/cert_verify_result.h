@@ -6,6 +6,10 @@
 #define NET_BASE_CERT_VERIFY_RESULT_H_
 #pragma once
 
+#include <vector>
+
+#include "net/base/x509_cert_types.h"
+
 namespace net {
 
 // The result of certificate verification.  Eventually this may contain the
@@ -22,6 +26,7 @@ class CertVerifyResult {
     has_md5_ca = false;
     has_md2_ca = false;
     is_issued_by_known_root = false;
+    public_key_hashes.clear();
   }
 
   // Bitmask of CERT_STATUS_* from net/base/cert_status_flags.h
@@ -33,6 +38,11 @@ class CertVerifyResult {
   bool has_md4;
   bool has_md5_ca;
   bool has_md2_ca;
+
+  // If the certificate was successfully verified then this contains the SHA1
+  // fingerprints of the SubjectPublicKeyInfos of the chain. The fingerprint
+  // from the leaf certificate will be the first element of the vector.
+  std::vector<SHA1Fingerprint> public_key_hashes;
 
   // is_issued_by_known_root is true if we recognise the root CA as a standard
   // root.  If it isn't then it's probably the case that this certificate was

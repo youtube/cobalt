@@ -28,6 +28,7 @@
         'base/address_list.h',
         'base/address_list_net_log_param.cc',
         'base/address_list_net_log_param.h',
+        'base/asn1_util.cc',
         'base/auth.cc',
         'base/auth.h',
         'base/backoff_entry.cc',

@@ -611,6 +611,25 @@ CollectCertsCallback(void* arg, SECItem** certs, int num_certs) {
   return SECSuccess;
 }
 
+SHA1Fingerprint CertPublicKeyHash(CERTCertificate* cert) {
+  SHA1Fingerprint hash;
+  SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, hash.data,
+                              cert->derPublicKey.data, cert->derPublicKey.len);
+  DCHECK_EQ(rv, SECSuccess);
+  return hash;
+}
+
+void AppendPublicKeyHashes(CERTCertList* cert_list,
+                           CERTCertificate* root_cert,
+                           std::vector<SHA1Fingerprint>* hashes) {
+  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+       !CERT_LIST_END(node, cert_list);
+       node = CERT_LIST_NEXT(node)) {
+    hashes->push_back(CertPublicKeyHash(node->cert));
+  }
+  hashes->push_back(CertPublicKeyHash(root_cert));
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
@@ -822,6 +841,10 @@ int X509Certificate::Verify(const std::string& hostname,
                    verify_result);
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
+
+  AppendPublicKeyHashes(cvout[cvout_cert_list_index].value.pointer.chain,
+                        cvout[cvout_trust_anchor_index].value.pointer.cert,
+                        &verify_result->public_key_hashes);
 
   verify_result->is_issued_by_known_root =
       IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
