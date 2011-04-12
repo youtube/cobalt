@@ -31,7 +31,6 @@ struct SSLConfig {
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
   bool dnssec_enabled;  // True if we'll accept DNSSEC chains in certificates.
-  bool snap_start_enabled;  // True if we'll try Snap Start handshakes.
   // True if we'll do async checks for certificate provenance using DNS.
   bool dns_cert_provenance_checking_enabled;
 
@@ -135,11 +134,6 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   // embedded DNSSEC chain proving their validity.
   static void EnableDNSSEC();
   static bool dnssec_enabled();
-
-  // Enables Snap Start, an experiemental SSL/TLS extension for zero round
-  // trip handshakes.
-  static void EnableSnapStart();
-  static bool snap_start_enabled();
 
   // Disables False Start in SSL connections.
   static void DisableFalseStart();
