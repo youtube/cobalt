@@ -53,19 +53,20 @@ bool PathProviderMac(int key, FilePath* result) {
       return base::mac::GetUserDirectory(NSApplicationSupportDirectory, result);
     case base::DIR_SOURCE_ROOT: {
       // Go through PathService to catch overrides.
-      if (PathService::Get(base::FILE_EXE, result)) {
-        // Start with the executable's directory.
-        *result = result->DirName();
-        if (base::mac::AmIBundled()) {
-          // The bundled app executables (Chromium, TestShell, etc) live five
-          // levels down, eg:
-          // src/xcodebuild/{Debug|Release}/Chromium.app/Contents/MacOS/Chromium
-          *result = result->DirName().DirName().DirName().DirName().DirName();
-        } else {
-          // Unit tests execute two levels deep from the source root, eg:
-          // src/xcodebuild/{Debug|Release}/base_unittests
-          *result = result->DirName().DirName();
-        }
+      if (!PathService::Get(base::FILE_EXE, result))
+        return false;
+
+      // Start with the executable's directory.
+      *result = result->DirName();
+      if (base::mac::AmIBundled()) {
+        // The bundled app executables (Chromium, TestShell, etc) live five
+        // levels down, eg:
+        // src/xcodebuild/{Debug|Release}/Chromium.app/Contents/MacOS/Chromium
+        *result = result->DirName().DirName().DirName().DirName().DirName();
+      } else {
+        // Unit tests execute two levels deep from the source root, eg:
+        // src/xcodebuild/{Debug|Release}/base_unittests
+        *result = result->DirName().DirName();
       }
       return true;
     }

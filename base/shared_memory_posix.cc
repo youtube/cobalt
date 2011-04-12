@@ -142,7 +142,7 @@ bool SharedMemory::CreateNamed(const std::string& name,
       return false;
     const uint32 current_size = stat.st_size;
     if (current_size != size) {
-      if (ftruncate(fileno(fp), size) != 0)
+      if (HANDLE_EINTR(ftruncate(fileno(fp), size)) != 0)
         return false;
       if (fseeko(fp, size, SEEK_SET) != 0)
         return false;
