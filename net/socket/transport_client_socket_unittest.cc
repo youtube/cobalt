@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
+#include "net/socket/client_socket_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -23,12 +24,22 @@ namespace {
 
 const char kServerReply[] = "HTTP/1.1 404 Not Found";
 
-class TCPClientSocketTest
-    : public PlatformTest, public ListenSocket::ListenSocketDelegate {
+enum ClientSocketTestTypes {
+  TCP,
+  SCTP
+};
+
+class TransportClientSocketTest
+    : public ListenSocket::ListenSocketDelegate,
+      public ::testing::TestWithParam<ClientSocketTestTypes> {
  public:
-  TCPClientSocketTest()
+  TransportClientSocketTest()
       : listen_port_(0),
-        net_log_(CapturingNetLog::kUnbounded) {
+        net_log_(CapturingNetLog::kUnbounded),
+        socket_factory_(ClientSocketFactory::GetDefaultFactory()) {
+  }
+
+  ~TransportClientSocketTest() {
   }
 
   // Implement ListenSocketDelegate methods
@@ -62,15 +73,16 @@ class TCPClientSocketTest
  protected:
   int listen_port_;
   CapturingNetLog net_log_;
-  scoped_ptr<TCPClientSocket> sock_;
+  ClientSocketFactory* const socket_factory_;
+  scoped_ptr<ClientSocket> sock_;
 
  private:
   scoped_refptr<ListenSocket> listen_sock_;
   scoped_refptr<ListenSocket> connected_sock_;
 };
 
-void TCPClientSocketTest::SetUp() {
-  PlatformTest::SetUp();
+void TransportClientSocketTest::SetUp() {
+  ::testing::TestWithParam<ClientSocketTestTypes>::SetUp();
 
   // Find a free port to listen on
   ListenSocket *sock = NULL;
@@ -97,10 +109,18 @@ void TCPClientSocketTest::SetUp() {
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
   int rv = resolver->Resolve(info, &addr, NULL, NULL, BoundNetLog());
   CHECK_EQ(rv, OK);
-  sock_.reset(new TCPClientSocket(addr, &net_log_, NetLog::Source()));
+  sock_.reset(
+      socket_factory_->CreateTransportClientSocket(addr,
+                                                   &net_log_,
+                                                   NetLog::Source()));
 }
 
-TEST_F(TCPClientSocketTest, Connect) {
+// TODO(leighton):  Add SCTP to this list when it is ready.
+INSTANTIATE_TEST_CASE_P(ClientSocket,
+                        TransportClientSocketTest,
+                        ::testing::Values(TCP));
+
+TEST_P(TransportClientSocketTest, Connect) {
   TestCompletionCallback callback;
   EXPECT_FALSE(sock_->IsConnected());
 
@@ -131,7 +151,7 @@ TEST_F(TCPClientSocketTest, Connect) {
 //   - Server closes a connection.
 //   - Server sends data unexpectedly.
 
-TEST_F(TCPClientSocketTest, Read) {
+TEST_P(TransportClientSocketTest, Read) {
   TestCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
@@ -176,7 +196,7 @@ TEST_F(TCPClientSocketTest, Read) {
   EXPECT_EQ(0, callback.WaitForResult());
 }
 
-TEST_F(TCPClientSocketTest, Read_SmallChunks) {
+TEST_P(TransportClientSocketTest, Read_SmallChunks) {
   TestCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
@@ -221,7 +241,7 @@ TEST_F(TCPClientSocketTest, Read_SmallChunks) {
   EXPECT_EQ(0, callback.WaitForResult());
 }
 
-TEST_F(TCPClientSocketTest, Read_Interrupted) {
+TEST_P(TransportClientSocketTest, Read_Interrupted) {
   TestCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
@@ -255,7 +275,7 @@ TEST_F(TCPClientSocketTest, Read_Interrupted) {
   EXPECT_NE(0, rv);
 }
 
-TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
+TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
   TestCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
@@ -297,7 +317,7 @@ TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
   EXPECT_GE(rv, 0);
 }
 
-TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
+TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   TestCompletionCallback callback;
   int rv = sock_->Connect(&callback);
   if (rv != OK) {
