@@ -167,6 +167,7 @@
         'filters/rtc_video_decoder.h',
         'filters/video_renderer_base.cc',
         'filters/video_renderer_base.h',
+        'video/capture/video_capture.h',
         'video/ffmpeg_video_allocator.cc',
         'video/ffmpeg_video_allocator.h',
         'video/ffmpeg_video_decode_engine.cc',
