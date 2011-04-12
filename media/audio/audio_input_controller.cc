@@ -14,11 +14,13 @@ static const int kMaxInputChannels = 2;
 // static
 AudioInputController::Factory* AudioInputController::factory_ = NULL;
 
-AudioInputController::AudioInputController(EventHandler* handler)
+AudioInputController::AudioInputController(EventHandler* handler,
+                                           SyncWriter* sync_writer)
     : handler_(handler),
       stream_(NULL),
       state_(kEmpty),
-      thread_("AudioInputControllerThread") {
+      thread_("AudioInputControllerThread"),
+      sync_writer_(sync_writer) {
 }
 
 AudioInputController::~AudioInputController() {
@@ -37,7 +39,33 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
   }
 
   scoped_refptr<AudioInputController> controller(new AudioInputController(
-      event_handler));
+      event_handler, NULL));
+
+  // Start the thread and post a task to create the audio input stream.
+  controller->thread_.Start();
+  controller->thread_.message_loop()->PostTask(
+      FROM_HERE,
+      NewRunnableMethod(controller.get(), &AudioInputController::DoCreate,
+                        params));
+  return controller;
+}
+
+// static
+scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
+    EventHandler* event_handler,
+    AudioParameters params,
+    SyncWriter* sync_writer) {
+  DCHECK(sync_writer);
+
+  if (!params.IsValid() || (params.channels > kMaxInputChannels))
+    return NULL;
+
+  if (!AudioManager::GetAudioManager())
+    return NULL;
+
+  // Starts the audio controller thread.
+  scoped_refptr<AudioInputController> controller(new AudioInputController(
+      event_handler, sync_writer));
 
   // Start the thread and post a task to create the audio input stream.
   controller->thread_.Start();
@@ -126,6 +154,10 @@ void AudioInputController::DoClose() {
     stream_ = NULL;
   }
 
+  if (LowLatencyMode()) {
+    sync_writer_->Close();
+  }
+
   // Since the stream is closed at this point there's no other threads reading
   // |state_| so we don't need to lock.
   state_ = kClosed;
@@ -143,6 +175,14 @@ void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
     if (state_ != kRecording)
       return;
   }
+
+  // Use SyncSocket if we are in a low-latency mode.
+  if (LowLatencyMode()) {
+    sync_writer_->Write(data, size);
+    sync_writer_->UpdateRecordedBytes(size);
+    return;
+  }
+
   handler_->OnData(this, data, size);
 }
 
