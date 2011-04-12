@@ -8,8 +8,10 @@
 namespace media {
 
 TestAudioInputController::TestAudioInputController(
-    TestAudioInputControllerFactory* factory, EventHandler* event_handler)
-    : AudioInputController(event_handler),
+    TestAudioInputControllerFactory* factory,
+    EventHandler* event_handler,
+    SyncWriter* sync_writer)
+    : AudioInputController(event_handler, sync_writer),
       factory_(factory),
       event_handler_(event_handler) {
 }
@@ -27,7 +29,7 @@ AudioInputController* TestAudioInputControllerFactory::Create(
     AudioInputController::EventHandler* event_handler,
     AudioParameters params) {
   DCHECK(!controller_);  // Only one test instance managed at a time.
-  controller_ = new TestAudioInputController(this, event_handler);
+  controller_ = new TestAudioInputController(this, event_handler, NULL);
   return controller_;
 }
 

@@ -45,7 +45,8 @@ class TestAudioInputControllerFactory;
 class TestAudioInputController : public AudioInputController {
  public:
   TestAudioInputController(TestAudioInputControllerFactory* factory,
-                           EventHandler* event_handler);
+                           EventHandler* event_handler,
+                           SyncWriter* sync_writer);
   virtual ~TestAudioInputController();
 
   // Returns the event handler installed on the AudioInputController.
