@@ -208,7 +208,7 @@ static int safe_isspace(char c){
   return (c&0x80)==0 ? isspace(c) : 0;
 }
 static int safe_tolower(char c){
-  return (c>='A' && c<='Z') ? (c-'A'+'a') : c;
+  return (c&0x80)==0 ? tolower(c) : c;
 }
 static int safe_isalnum(char c){
   return (c&0x80)==0 ? isalnum(c) : 0;
@@ -1224,6 +1224,10 @@ static int sql_step_statement(fulltext_vtab *v, fulltext_statement iStmt,
     rc = sqlite3_finalize(s);
     break;
   }
+  return rc;
+
+ err:
+  sqlite3_finalize(s);
   return rc;
 }
 

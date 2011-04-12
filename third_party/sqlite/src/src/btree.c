@@ -24,12 +24,6 @@
 static const char zMagicHeader[] = SQLITE_FILE_HEADER;
 
 /*
-** The header string that appears at the beginning of a SQLite
-** database which has been poisoned.
-*/
-static const char zPoisonHeader[] = "SQLite poison 3";
-
-/*
 ** Set this global variable to 1 to enable tracing using the TRACE
 ** macro.
 */
@@ -2343,7 +2337,6 @@ static int newDatabase(BtShared *pBt){
   if( rc ) return rc;
   memcpy(data, zMagicHeader, sizeof(zMagicHeader));
   assert( sizeof(zMagicHeader)==16 );
-  assert( sizeof(zMagicHeader)==sizeof(zPoisonHeader) );
   put2byte(&data[16], pBt->pageSize);
   data[18] = 1;
   data[19] = 1;
@@ -7811,72 +7804,4 @@ void sqlite3BtreeCacheOverflow(BtCursor *pCur){
   assert(!pCur->aOverflow);
   pCur->isIncrblobHandle = 1;
 }
-
-/* Poison the db so that other clients error out as quickly as
-** possible.
-*/
-int sqlite3Poison(sqlite3 *db){
-  int rc;
-  Btree *p;
-  BtShared *pBt;
-  unsigned char *pP1;
-
-  if( db == NULL) return SQLITE_OK;
-
-  /* Database 0 corrosponds to the main database. */
-  if( db->nDb<1 ) return SQLITE_OK;
-  p = db->aDb[0].pBt;
-  pBt = p->pBt;
-
-  /* If in a transaction, roll it back.  Committing any changes to a
-  ** corrupt database may mess up evidence, we definitely don't want
-  ** to allow poisoning to be rolled back, and the database is anyhow
-  ** going bye-bye RSN.
-  */
-  /* TODO(shess): Figure out if this might release the lock and let
-  ** someone else get in there, which might deny us the lock a couple
-  ** lines down.
-  */
-  if( sqlite3BtreeIsInTrans(p) ) sqlite3BtreeRollback(p);
-
-  /* Start an exclusive transaction.  This will check the headers, so
-  ** if someone else poisoned the database we should get an error.
-  */
-  rc = sqlite3BtreeBeginTrans(p, 2);
-  /* TODO(shess): Handle SQLITE_BUSY? */
-  if( rc!=SQLITE_OK ) return rc;
-
-  /* Copied from sqlite3BtreeUpdateMeta().  Writing the old version of
-  ** the page to the journal may be overkill, but it probably won't
-  ** hurt.
-  */
-  assert( pBt->inTrans==TRANS_WRITE );
-  assert( pBt->pPage1!=0 );
-  rc = sqlite3PagerWrite(pBt->pPage1->pDbPage);
-  if( rc ) goto err;
-
-  /* "SQLite format 3" changes to
-  ** "SQLite poison 3".  Be extra paranoid about making this change.
-  */
-  if( sizeof(zMagicHeader)!=16 ||
-      sizeof(zPoisonHeader)!=sizeof(zMagicHeader) ){
-    rc = SQLITE_ERROR;
-    goto err;
-  }
-  pP1 = pBt->pPage1->aData;
-  if( memcmp(pP1, zMagicHeader, 16)!=0 ){
-    rc = SQLITE_CORRUPT;
-    goto err;
-  }
-  memcpy(pP1, zPoisonHeader, 16);
-
-  /* Push it to the database file. */
-  return sqlite3BtreeCommit(p);
-
- err:
-  /* TODO(shess): What about errors, here? */
-  sqlite3BtreeRollback(p);
-  return rc;
-}
-
 #endif
