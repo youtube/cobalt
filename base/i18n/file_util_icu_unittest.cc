@@ -1,11 +1,10 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/i18n/file_util_icu.h"
 
 #include "base/file_util.h"
-#include "base/path_service.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -13,26 +12,6 @@
 // file_util winds up using autoreleased objects on the Mac, so this needs
 // to be a PlatformTest
 class FileUtilICUTest : public PlatformTest {
- protected:
-  virtual void SetUp() {
-    PlatformTest::SetUp();
-    // Name a subdirectory of the temp directory.
-    ASSERT_TRUE(PathService::Get(base::DIR_TEMP, &test_dir_));
-    test_dir_ = test_dir_.Append(FILE_PATH_LITERAL("FileUtilTest"));
-
-    // Create a fresh, empty copy of this directory.
-    file_util::Delete(test_dir_, true);
-    file_util::CreateDirectory(test_dir_);
-  }
-  virtual void TearDown() {
-    PlatformTest::TearDown();
-    // Clean up test directory
-    ASSERT_TRUE(file_util::Delete(test_dir_, true));
-    ASSERT_FALSE(file_util::PathExists(test_dir_));
-  }
-
-  // the path to temporary directory used to contain the test operations
-  FilePath test_dir_;
 };
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
