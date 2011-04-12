@@ -85,8 +85,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
  private:
   enum State {
     STATE_NONE,
-    STATE_SNAP_START_LOAD_INFO,
-    STATE_SNAP_START_WAIT_FOR_WRITE,
     STATE_HANDSHAKE,
     STATE_VERIFY_DNSSEC,
     STATE_VERIFY_DNSSEC_COMPLETE,
@@ -119,8 +117,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoReadLoop(int result);
   int DoWriteLoop(int result);
 
-  int DoSnapStartLoadInfo();
-  int DoSnapStartWaitForWrite();
   int DoHandshake();
 
   int DoVerifyDNSSEC(int result);
@@ -130,9 +126,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoPayloadRead();
   int DoPayloadWrite();
   void LogConnectionTypeMetrics() const;
-  void SaveSnapStartInfo();
-  bool LoadSnapStartInfo();
-  bool IsNPNProtocolMispredicted();
+  void SaveSSLHostInfo();
   void UncorkAfterTimeout();
 
   bool DoTransportIO();
@@ -227,10 +221,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True if the SSL handshake has been completed.
   bool completed_handshake_;
 
-  // True if we are lying about being connected in order to merge the first
-  // Write call into a Snap Start handshake.
-  bool pseudo_connected_;
-
   // True iff we believe that the user has an ESET product intercepting our
   // HTTPS connections.
   bool eset_mitm_detected_;
@@ -256,14 +246,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   memio_Private* nss_bufs_;
 
   BoundNetLog net_log_;
-
-  // When performing Snap Start we need to predict the NPN protocol which the
-  // server is going to speak before we actually perform the handshake. Thus
-  // the last NPN protocol used is serialised in |ssl_host_info_|
-  // and kept in these fields:
-  SSLClientSocket::NextProtoStatus predicted_npn_status_;
-  std::string predicted_npn_proto_;
-  bool predicted_npn_proto_used_;
 
   base::TimeTicks start_cert_verification_time_;
 
