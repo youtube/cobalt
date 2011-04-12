@@ -180,11 +180,7 @@ NET_ERROR(SSL_WEAK_SERVER_EPHEMERAL_DH_KEY, -129)
 // of an HTTP proxy.
 NET_ERROR(PROXY_CONNECTION_FAILED, -130)
 
-// We tried a Snap Start connection and sent a request, predicting the server's
-// NPN protocol support. However, after doing the actual handshake, our
-// prediction turned out to be incorrect so we sent a request in the wrong
-// protocol.
-NET_ERROR(SSL_SNAP_START_NPN_MISPREDICTION, -131)
+// Free: 131
 
 // We detected an ESET product intercepting our HTTPS connections. Since these
 // products are False Start intolerant, we return this error so that we can
