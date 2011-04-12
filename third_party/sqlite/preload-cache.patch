@@ -1,3 +1,6 @@
+Adds a new API function sqlite3_preload().  This fills the page cache
+with the first pages of the database.
+
 Index: src/build.c
 ===================================================================
 --- src/build.c	2009-09-11 07:02:46.000000000 -0700
@@ -19,7 +22,7 @@ Index: src/build.c
 +
 +/* Begin preload-cache.patch for Chromium */
 +/* See declaration in sqlite3.h for information */
-+int sqlite3Preload(sqlite3 *db)
++int sqlite3_preload(sqlite3 *db)
 +{
 +  Pager *pPager;
 +  Btree *pBt;
@@ -63,7 +66,7 @@ Index: src/sqlite3.h.in
 +** them all and try to load them. If none are loadable successfully, we return
 +** an error. Otherwise, we return OK.
 +*/
-+int sqlite3Preload(sqlite3 *db);
++int sqlite3_preload(sqlite3 *db);
 +/* End preload-cache.patch for Chromium */
 +
  /*
@@ -242,3 +245,36 @@ Index: src/pager.h
  void *sqlite3PagerTempSpace(Pager*);
  int sqlite3PagerIsMemdb(Pager*);
  
+Index: src/pcache.c
+===================================================================
+--- src/pcache.c	2009-09-04 13:37:42.000000000 -0700
++++ src/pcache.c	2009-09-15 16:41:55.000000000 -0700
+@@ -542,14 +542,12 @@
+   return nPage;
+ }
+ 
+-#ifdef SQLITE_TEST
+ /*
+ ** Get the suggested cache-size value.
+ */
+ int sqlite3PcacheGetCachesize(PCache *pCache){
+   return pCache->nMax;
+ }
+-#endif
+ 
+ /*
+ ** Set the suggested cache-size value.
+Index: src/pcache.h
+===================================================================
+--- src/pcache.h	2009-09-04 13:37:42.000000000 -0700
++++ src/pcache.h	2009-09-15 16:41:52.000000000 -0700
+@@ -139,9 +139,7 @@
+ ** of the suggested cache-sizes.
+ */
+ void sqlite3PcacheSetCachesize(PCache *, int);
+-#ifdef SQLITE_TEST
+ int sqlite3PcacheGetCachesize(PCache *);
+-#endif
+ 
+ #ifdef SQLITE_ENABLE_MEMORY_MANAGEMENT
+ /* Try to return memory used by the pcache module to the main memory heap */
