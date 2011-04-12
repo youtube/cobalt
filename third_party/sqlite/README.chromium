@@ -2,6 +2,7 @@ Name: sqlite
 License File: src/LICENSE
 URL: http://sqlite.org/
 Version: 3.6.18
+Included In Release: Yes
 
 Instructions for importing a new release of SQLite from sqlite.org.
 
@@ -57,11 +58,12 @@ principle, exactly what is checked in:
 misc.patch
 preload-cache.patch
 safe-tolower.patch
-sqlite-poison.patch
 fts2.patch
 fts3.patch
 icu-regexp.patch
+icu-shell.patch
 attach-integer.patch
+webdb.patch
 
 So, e.g. you could do this to apply all our patches to vanilla SQLite:
 
@@ -69,11 +71,12 @@ cd sqlite-$LATEST
 patch -p0 < ../sqlite/misc.patch
 patch -p0 < ../sqlite/preload-cache.patch
 patch -p0 < ../sqlite/safe-tolower.patch
-patch -p0 < ../sqlite/sqlite-poison.patch
 patch -p0 < ../sqlite/fts2.patch
 patch -p0 < ../sqlite/fts3.patch
 patch -p0 < ../sqlite/icu-regexp.patch
+patch -p0 < ../sqlite/icu-shell.patch
 patch -p0 < ../sqlite/attach-integer.patch
+patch -p0 < ../sqlite/webdb.patch
 
 This will only be the case if all changes we make also update the corresponding
 patch files. Therefore please remember to do that whenever you make a change!
@@ -116,11 +119,9 @@ As of May 07, 2010, these are our changes from sqlite_vendor:
    tables.
  - fts2.c disables fts2_tokenizer().
  - fts3.c disables fts3_tokenizer().
- - sqlite3Poison() in src/btree.c.
  - Tweak to SQLITE_EXTENSION_INIT* in sqlite3ext.h.
    - That implied a change in src/test_autoext.c for testing.
- - Added fts.test and fts1.test in tests, modified quick.test.
- - src/os_symbian.cc.
+ - Added fts.test in tests, modified quick.test.
  - Modifications to Makefile.linux-gcc and main.mk for compiling
    SQLite tests.
  - Compile warning (cast to void* for sqlite3_free) fixed in func.c.
@@ -148,7 +149,7 @@ Changes from Chrome:
    our ICU data.  shell.c has been modifed to call into these files.
  - fts2_icu.c and fts3_icu.c have a critical bug. U8_NEXT is used over
    a UTF-16 string. It's rep$ by U16_NEXT (jungshik)
- - Added a new function sqlite3Preload we use to prime the database cache. It
+ - Added a new function sqlite3_preload we use to prime the database cache. It
    allows much faster performance by reading the file in one contiguous
    operation rather than bringing it in organically, which involves a lot of
    seeking. This change also required sqlite3PcacheGetCachesize to be compiled

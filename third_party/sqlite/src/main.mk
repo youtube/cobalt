@@ -69,10 +69,6 @@ LIBOBJ+= alter.o analyze.o attach.o auth.o \
          walker.o where.o utf.o vtab.o
 
 
-LIBOBJ += fts1.o \
-	  fts1_hash.o \
-	  fts1_tokenizer1.o \
-	  fts1_porter.o
 LIBOBJ += fts2.o \
 	  fts2_hash.o \
 	  fts2_icu.o \
@@ -253,14 +249,6 @@ TESTSRC = \
   $(TOP)/src/test_thread.c \
   $(TOP)/src/test_wsd.c
 
-TESTSRC += \
-  $(TOP)/ext/fts1/fts1.c \
-  $(TOP)/ext/fts1/fts1.h \
-  $(TOP)/ext/fts1/fts1_hash.c \
-  $(TOP)/ext/fts1/fts1_hash.h \
-  $(TOP)/ext/fts1/fts1_porter.c \
-  $(TOP)/ext/fts1/fts1_tokenizer.h \
-  $(TOP)/ext/fts1/fts1_tokenizer1.c
 TESTSRC += \
   $(TOP)/ext/fts2/fts2.c \
   $(TOP)/ext/fts2/fts2.h \
@@ -476,20 +464,6 @@ rtree.o:	$(TOP)/ext/rtree/rtree.c $(HDR) $(EXTHDR)
 	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/rtree/rtree.c
 
 
-
-
-fts1.o:	$(TOP)/ext/fts1/fts1.c $(HDR) $(EXTHDR)
-	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1.c
-
-fts1_hash.o:	$(TOP)/ext/fts1/fts1_hash.c $(HDR) $(EXTHDR)
-	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_hash.c
-
-fts1_tokenizer1.o:	$(TOP)/ext/fts1/fts1_tokenizer1.c $(HDR) $(EXTHDR)
-	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_tokenizer1.c
-
-fts1_porter.o:	$(TOP)/ext/fts1/fts1_porter.c $(HDR) $(EXTHDR)
-	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_porter.c
-
 # Rules for building test programs and for running tests
 #
 tclsqlite3:	$(TOP)/src/tclsqlite.c libsqlite3.a
@@ -529,9 +503,6 @@ test:	testfixture$(EXE) sqlite3$(EXE)
 
 ftstest:	testfixture$(EXE) sqlite3$(EXE)
 	./testfixture$(EXE) $(TOP)/test/fts.test
-
-fts1test:	testfixture$(EXE) sqlite3$(EXE)
-	./testfixture$(EXE) $(TOP)/test/fts1.test
 
 fts2test:	testfixture$(EXE) sqlite3$(EXE)
 	./testfixture$(EXE) $(TOP)/test/fts2.test

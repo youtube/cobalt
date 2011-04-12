@@ -38,11 +38,6 @@
 
 #include <assert.h>
 
-// TODO(evanm): this is cut'n'pasted from fts2.c.  Why is it necessary?
-#if !defined(SQLITE_CORE)
-# define SQLITE_CORE 1
-#endif
-
 #ifndef SQLITE_CORE
   #include "sqlite3ext.h"
   SQLITE_EXTENSION_INIT1
