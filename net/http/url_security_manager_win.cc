@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,9 @@
 #include <urlmon.h>
 #pragma comment(lib, "urlmon.lib")
 
-#include "base/scoped_comptr_win.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "base/win/scoped_comptr.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_auth_filter.h"
 
@@ -37,7 +37,7 @@ class URLSecurityManagerWin : public URLSecurityManager {
  private:
   bool EnsureSystemSecurityManager();
 
-  ScopedComPtr<IInternetSecurityManager> security_manager_;
+  base::win::ScopedComPtr<IInternetSecurityManager> security_manager_;
   scoped_ptr<const HttpAuthFilter> whitelist_delegate_;
 
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerWin);
